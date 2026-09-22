@@ -768,11 +768,13 @@ func mixedAcceptanceData() Data {
 					res("CVE-OURS", sarif.OriginSaga, "we pinned the upstream host"),
 					res("CVE-SUPPLIER", sarif.OriginVEX, "the vendor says the path is unreachable"),
 					res("CVE-COMMENT", sarif.OriginTool, "nosem"),
+					res("CVE-IGNOREFILE", sarif.OriginScanner, ".trivyignore"),
 				}}},
 			},
 			Suppressed: 1,
 			Imported:   1,
-			Silenced:   1,
+			// Both of the scanner's own, which is what the one count covers.
+			Silenced: 2,
 		},
 		Verdict: norn.Result{Verdict: norn.Pass},
 	}
@@ -782,8 +784,10 @@ func mixedAcceptanceData() Data {
 // checks the number rather than the rows and leaves believing the smaller figure.
 //
 // Three authorities can set a finding aside and they answer an auditor differently: this project
-// decided, a supplier asserts, or whoever was editing the file wrote a comment. A report that
-// attributes all three to `config.exclude` claims the project accepted things it never saw.
+// decided, a supplier asserts, or the scanner did it on its own. A report that attributes all of
+// them to `config.exclude` claims the project accepted things it never saw. The scanner's own
+// splits again on the row, between a directive in the file and its own configuration, because
+// those are two different people to go and ask.
 func TestTheAcceptedSectionAccountsForEveryFindingItLists(t *testing.T) {
 	r, err := For("html")
 	if err != nil {
@@ -796,16 +800,16 @@ func TestTheAcceptedSectionAccountsForEveryFindingItLists(t *testing.T) {
 	out := b.String()
 
 	// Everything set aside is listed, whoever set it aside.
-	for _, id := range []string{"CVE-OURS", "CVE-SUPPLIER", "CVE-COMMENT"} {
+	for _, id := range []string{"CVE-OURS", "CVE-SUPPLIER", "CVE-COMMENT", "CVE-IGNOREFILE"} {
 		if !strings.Contains(out, id) {
 			t.Errorf("%s is not in the report at all, so it was dropped rather than accepted", id)
 		}
 	}
-	// And the note over that list accounts for all three rather than for one.
+	// And the note over that list accounts for all of them rather than for one.
 	for _, want := range []string{
 		"1 finding suppressed",
 		"1 finding excused",
-		"1 finding silenced",
+		"2 findings set aside",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the accepted note does not say %q, so the count under-reports what is listed "+
@@ -814,7 +818,7 @@ func TestTheAcceptedSectionAccountsForEveryFindingItLists(t *testing.T) {
 	}
 	// Each row says which authority set it aside. Without that a supplier's assertion reads as a
 	// decision this project made, which is the one thing the separate counts exist to prevent.
-	for _, want := range []string{"config.exclude", "VEX", "source directive"} {
+	for _, want := range []string{"config.exclude", "VEX", "source directive", "scanner config"} {
 		if !strings.Contains(acceptedSection(out), want) {
 			t.Errorf("no row attributes a finding to %q:\n%s", want, acceptedSection(out))
 		}

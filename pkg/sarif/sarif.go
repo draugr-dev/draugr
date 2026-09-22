@@ -345,6 +345,10 @@ type sarifSuppressionProperties struct {
 	Origin   string `json:"origin,omitempty"`
 	Author   string `json:"author,omitempty"`
 	Asserted string `json:"asserted,omitempty"`
+	// Source is the file the exclusion was written in. Carried for the reason the field exists:
+	// splitting exclusions across files is only safe if the report can still say which file
+	// authorized each one, and a consumer reading this SARIF is exactly who has to answer that.
+	Source string `json:"source,omitempty"`
 }
 
 type sarifMessage struct {
@@ -447,10 +451,11 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		// GitHub code scanning reads this and files the alert as closed-as-suppressed.
 		if s := res.Suppression; s != nil {
 			sup := sarifSuppression{Kind: s.Kind, Justification: s.Justification}
-			if s.AcceptedBy != "" || s.Expires != "" || s.Origin != "" || s.Author != "" || s.Asserted != "" {
+			if s.AcceptedBy != "" || s.Expires != "" || s.Origin != "" || s.Author != "" ||
+				s.Asserted != "" || s.Source != "" {
 				sup.Properties = &sarifSuppressionProperties{
 					AcceptedBy: s.AcceptedBy, Expires: s.Expires,
-					Origin: s.Origin, Author: s.Author, Asserted: s.Asserted,
+					Origin: s.Origin, Author: s.Author, Asserted: s.Asserted, Source: s.Source,
 				}
 			}
 			sr.Suppressions = []sarifSuppression{sup}
@@ -604,10 +609,10 @@ func readSuppression(sups []sarifSuppression) *Suppression {
 		return nil
 	}
 	first := sups[0]
-	sup := &Suppression{Kind: first.Kind, Justification: first.Justification, Origin: OriginTool}
+	sup := &Suppression{Kind: first.Kind, Justification: first.Justification, Origin: scannersOwn(first.Kind)}
 	if p := first.Properties; p != nil {
 		sup.AcceptedBy, sup.Expires = p.AcceptedBy, p.Expires
-		sup.Author, sup.Asserted = p.Author, p.Asserted
+		sup.Author, sup.Asserted, sup.Source = p.Author, p.Asserted, p.Source
 		if p.Origin != "" {
 			// Draugr's own, read back as what it was written as.
 			sup.Origin = p.Origin
@@ -618,6 +623,20 @@ func readSuppression(sups []sarifSuppression) *Suppression {
 		}
 	}
 	return sup
+}
+
+// scannersOwn says which of the scanner's two a suppression is, from what the scanner said.
+//
+// `kind` is required by SARIF and carries exactly this distinction, so nothing is inferred: a
+// directive in the file the scanner read is `inSource`, and anything the scanner applied from
+// outside that file is `external`. A report that omits the required field is read as the scanner's
+// configuration, which is the claim that asserts less: the other one would put the decision on a
+// line of somebody's file and name that line.
+func scannersOwn(kind string) string {
+	if kind == "inSource" {
+		return OriginTool
+	}
+	return OriginScanner
 }
 
 // FromSARIF parses standard SARIF 2.1.0 JSON into a Report, flattening all runs and

@@ -1488,7 +1488,7 @@ about what they would have found. For everything the tool printed, re-run with
 <p class="note">
 {{- if .Suppressed}}<code class="cmd">config.exclude</code>: {{plural .Suppressed "finding"}} suppressed. {{end -}}
 {{- if .Imported}}VEX: {{plural .Imported "finding"}} excused. {{end -}}
-{{- if .Silenced}}Source directives: {{plural .Silenced "finding"}} silenced, and nobody signed them. {{end -}}
+{{- if .Silenced}}Scanner exclusions: {{plural .Silenced "finding"}} set aside, and nobody signed them. {{end -}}
 {{- if not (or .Suppressed .Imported .Silenced)}}Set aside by <code class="cmd">config.exclude</code>.{{end -}}
 </p>
 {{if .Decisions}}

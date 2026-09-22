@@ -89,8 +89,21 @@ func NewTrivyFS() plugin.Scanner {
 // JSON rather than SARIF because the SARIF says which package only in prose. See
 // trivy_vuln_json.go for what that costs and what it buys.
 func trivyFSArgs(dir string, cfg plugin.Config) []string {
-	argv := []string{"trivy", "fs", "--quiet", "--scanners", "vuln", "--format", "json"}
+	argv := showSuppressedArgs([]string{"trivy", "fs", "--quiet", "--scanners", "vuln", "--format", "json"})
 	return offlineTrivyArgs(append(trivyOptions(argv, cfg), dir))
+}
+
+// showSuppressedArgs asks Trivy for what it excluded, where the Trivy that will run can answer.
+//
+// A `.trivyignore` line removes the finding from the report entirely, which leaves an exclusion
+// somebody made indistinguishable from a finding nobody ever had. The flag does not change what is
+// counted: the excluded findings arrive in their own section and Draugr marks them suppressed,
+// which is where every other exclusion already lands.
+func showSuppressedArgs(argv []string) []string {
+	if !sharedTrivyVersion.showsSuppressed() {
+		return argv
+	}
+	return append(argv, "--show-suppressed")
 }
 
 // trivyOptions appends the descriptor's options to a Trivy command line, before its positional

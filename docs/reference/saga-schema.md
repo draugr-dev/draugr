@@ -1212,11 +1212,22 @@ ACCEPTED
 ```
 
 **Attribution.** A suppression from one of these rules carries `origin: saga`, whether or not the
-rule named anybody, so a reader knows to go and read the descriptor. The other two values a report
-uses are `vex`, for a claim [imported from a supplier's document](#reading-a-suppliers-vex-componentsvex-configvexsources), and
-`tool`, for one the scanner already carried out of the file it scanned. Draugr records which party
-made the claim; it does not open the document or read the comment, so the origin says who to ask
-and never that the claim is true.
+rule named anybody, so a reader knows to go and read the descriptor. A report uses four values:
+
+| `origin` | what set the finding aside | who to ask |
+|---|---|---|
+| `saga` | a rule in this descriptor | whoever owns the descriptor |
+| `vex` | a claim [imported from a supplier's document](#reading-a-suppliers-vex-componentsvex-configvexsources) | the supplier |
+| `tool` | a directive in the scanned file, a `#nosec` or a `# nosemgrep` | whoever committed the line |
+| `scanner` | the scanner's own configuration, a `.trivyignore` line | whoever owns that file |
+
+Draugr writes the first two and reads the other two from what the scanner reported, using SARIF's
+own `kind`. It records which party made the claim and does not check the claim: nothing here opens
+the supplier's document or reads the comment, so the origin says who to ask and never that the
+answer is right.
+
+Neither of the scanner's own is a decision this project recorded. They are listed and counted
+under `scanner exclusions`, never under `config.exclude`.
 
 ### Declaring what a suppression means in VEX
 
@@ -1317,7 +1328,7 @@ end of them and one total could only support the weakest:
 ACCEPTED
   config.exclude     5 findings suppressed
   VEX                1 finding excused
-  source directives  2 findings silenced, and nobody signed them
+  scanner exclusions 2 findings set aside, and nobody signed them
 ```
 
 Who accepted each one is asked of the evidence rather than of a scan somebody is reading to find
@@ -1327,7 +1338,7 @@ out what to fix, so `--evidence` adds it:
 ACCEPTED
   config.exclude     5 findings suppressed · 3 accepted by you@example.com, 2 unattributed
   VEX                1 finding excused · 1 asserted by ACME Security <sec@acme.example>
-  source directives  2 findings silenced, and nobody signed them
+  scanner exclusions 2 findings set aside, and nobody signed them
 ```
 
 The last is a `# nosemgrep`, a linter pragma, or anything else a scanner honors from a comment in

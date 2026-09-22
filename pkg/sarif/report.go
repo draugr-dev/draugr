@@ -554,27 +554,52 @@ const (
 	OriginSaga = "saga"
 	// OriginVEX is a statement imported from a document somebody else wrote.
 	OriginVEX = "vex"
-	// OriginTool is a suppression the scanner already carried, honoring something in the file it
+	// OriginTool is a suppression the scanner already carried, honoring a directive in the file it
 	// scanned: a Semgrep `nosem`, a `# noqa`, a linter's inline pragma.
 	//
 	// Read off the absence of Draugr's own record rather than detected, because the alternative is
-	// a parser per scanner per comment syntax, all of them guessing at what the tool meant.
+	// a parser per scanner per comment syntax, all of them guessing at what the tool meant. Which
+	// of the two a scanner's suppression is comes from SARIF's own `kind`, a required field, so
+	// nothing here infers it either.
 	//
-	// The weakest of the three, and kept apart for that reason. A descriptor rule was reviewed by
+	// The weakest of the four, and kept apart for that reason. A descriptor rule was reviewed by
 	// whoever owns the descriptor and a supplier's claim is answerable by the supplier; this one
 	// was written by whoever was editing the file, possibly to get a build green, and nothing
 	// about it went past a second person. Counting it with the others would let the weakest form
 	// of acceptance hide inside the strongest.
 	OriginTool = "tool"
+	// OriginScanner is a suppression the scanner applied out of its own configuration: a
+	// `.trivyignore` line, a `.gitleaksignore` entry, a rule in `.grype.yaml`.
+	//
+	// Apart from OriginTool because the two answer "who do I ask" differently. A directive beside
+	// the line is the work of whoever was editing that line. A file of exclusions is a file in the
+	// repository, changed by a commit somebody can read, which puts it nearer the descriptor than
+	// the comment. It is still outside the descriptor, still carries no required reason, and is
+	// still not what the register was built to show.
+	//
+	// SARIF calls this kind `external`, which is also what Draugr writes for its own; ours are told
+	// apart by the record they carry, never by the kind.
+	OriginScanner = "scanner"
 )
 
 // Suppressed reports whether this finding was excluded, by a Saga rule or by an imported claim.
 func (r Result) Suppressed() bool { return r.Suppression != nil }
 
-// SilencedInSource reports whether a suppression came from a comment in the code rather than from
-// a decision anybody recorded.
+// SilencedInSource reports whether a suppression came from a directive in the code rather than
+// from a decision anybody recorded.
 func (r Result) SilencedInSource() bool {
 	return r.Suppression != nil && r.Suppression.Origin == OriginTool
+}
+
+// SetAsideByScanner reports whether the scanner set this aside rather than anybody here.
+//
+// Both of the scanner's own origins, because the question these counts and registers ask is whose
+// decision it was, and the answer for a `.trivyignore` line is the same as for a `#nosec`: not
+// this descriptor, and nobody's signature. Asking only about the narrower one filed a scanner's
+// exclusion in the register of decisions somebody here signed.
+func (r Result) SetAsideByScanner() bool {
+	return r.Suppression != nil &&
+		(r.Suppression.Origin == OriginTool || r.Suppression.Origin == OriginScanner)
 }
 
 // Imported reports whether the decision to suppress came from outside this project.

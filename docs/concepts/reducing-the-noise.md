@@ -70,14 +70,18 @@ finding that vanishes is indistinguishable from one that was never made.
 | **Correlation** | one flaw found by three scanners is one row, not three, and the row names the others | [Controls & scanners](controls-and-scanners.md) |
 | **`config.exclude`** | you accept a finding, with a reason, an author and an expiry date | [Saga schema](../reference/saga-schema.md#configexclude) |
 | **VEX** | your supplier states a vulnerability does not affect their product, and you import that | [Saga schema](../reference/saga-schema.md#reading-a-suppliers-vex-componentsvex-configvexsources) |
-| **Source directives** | a scanner honored a comment somebody wrote in the code | counted apart, see below |
+| **Scanner exclusions** | a scanner set a finding aside on its own, from a directive in the code or from its own configuration | counted apart, see below |
 | **Actions** | findings collapse into the decisions that clear them, so six CVEs in one package are one upgrade | [What to fix first](what-to-fix-first.md) |
 | **`builtBy` / `operatedBy`** | a finding nobody on your team can act on is named as somebody else's | [What to fix first](what-to-fix-first.md) |
 
 The three acceptance routes are counted apart in every report, and the distinction is the point.
 `config.exclude` is a decision somebody here signed. VEX is an assertion whose author you can ask
-about. A source directive was written by whoever was editing the file, carries no author and no
-date, and is the weakest of the three. A single total could only report the weakest.
+about. A scanner exclusion was written outside the descriptor, carries no author and no date, and
+is the weakest of the three. A single total could only report the weakest.
+
+The weakest one splits again on the finding itself, between a directive in the scanned file and a
+rule in the scanner's own configuration, because those send you to different people: whoever
+committed the line, or whoever owns the file of exclusions.
 
 ## Levers that narrow
 

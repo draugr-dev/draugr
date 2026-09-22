@@ -10,6 +10,18 @@ and move it under a version on release.
 
 ## [Unreleased]
 
+### Added
+
+A finding your scanner excluded by its own configuration is reported, marked, with the file the rule was written in. A `.trivyignore` line removed the finding from the report entirely, which left an exclusion somebody made looking exactly like a finding nobody ever had. Reported alongside the two Draugr already carried, under `scanner exclusions` and never under `config.exclude`, because nobody signed it and it was not written where the descriptor's reviewers look. Trivy older than 0.53.0 cannot list what it excluded and scans as before.
+
+A report says which of two kinds a scanner's own exclusion was: `origin: tool` for a directive in the scanned file such as a `#nosec`, and `origin: scanner` for the scanner's own configuration such as a `.trivyignore` line. They send you to different people, whoever committed the line or whoever owns that file, and both were reported as the first. Read from SARIF's own `kind` rather than guessed at.
+
+A suppression carries the file it was written in through SARIF as well as through `report.json`, so a consumer reading the SARIF can still say which file authorized each exclusion when a descriptor is split across several.
+
+### Changed
+
+The accepted section counts the scanner's own exclusions on one line, `scanner exclusions: N findings set aside, and nobody signed them`, where it said `source directives`. Both kinds have the property the line is printed for, and the finding itself says which it was.
+
 ### Fixed
 
 A finding excluded by a descriptor rule that named nobody was reported as one the scanner suppressed on its own. A report says where each suppression came from, so a reader knows who to ask about it, and the three answers are different people: the descriptor's owner, the component's supplier, or whoever committed the line. The rule's origin is written into the report now rather than inferred from whether it carried a name, so a rule that recorded a reason and no signature is still a decision somebody made in the descriptor.

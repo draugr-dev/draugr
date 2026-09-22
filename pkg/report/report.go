@@ -1058,17 +1058,18 @@ func importedLine(d Data, full bool) string {
 // A third line rather than a third number on an existing one, and for the same reason the imported
 // count is its own: the three answer the auditor's question with different people at the end of
 // them. A descriptor rule was written where whoever owns the descriptor can see it. A supplier's
-// claim is answerable by the supplier. This one was written by whoever was editing the file, and
-// nobody else necessarily knows it is there. Which is exactly why it is the one most worth
-// printing.
+// claim is answerable by the supplier. This one was written wherever it was convenient, in a
+// comment or in the scanner's own configuration, and nobody else necessarily knows it is there.
+// Which is exactly why it is the one most worth printing.
 func silencedLine(d Data) string {
 	n := d.Run.Silenced
 	if n == 0 {
 		return ""
 	}
-	// Named for where it lives, like the others, and keeping what makes it the weakest of the
-	// three: a directive in the code is an acceptance with no author and no date.
-	return fmt.Sprintf("source directives: %s silenced, and nobody signed them", english.Count(n, "finding"))
+	// One line for both of the scanner's own, because what makes it worth printing is true of
+	// each: an exclusion with no author and no date, set outside the descriptor. Which of the two
+	// a finding is stays on the finding, where somebody acting on it can see it.
+	return fmt.Sprintf("scanner exclusions: %s set aside, and nobody signed them", english.Count(n, "finding"))
 }
 
 // alsoFoundBy is what the other scanners said about this same flaw.
@@ -1445,6 +1446,8 @@ func acceptedVia(res sarif.Result) string {
 		return "VEX"
 	case res.SilencedInSource():
 		return "source directive"
+	case res.SetAsideByScanner():
+		return "scanner config"
 	default:
 		return "config.exclude"
 	}
@@ -1470,7 +1473,7 @@ func decisions(d Data) []decision {
 	var order []*decision
 	for _, cr := range d.Run.Controls {
 		for _, res := range cr.Report.Results {
-			if !res.Suppressed() || res.Imported() || res.SilencedInSource() {
+			if !res.Suppressed() || res.Imported() || res.SetAsideByScanner() {
 				continue
 			}
 			by := res.Suppression.AcceptedBy
