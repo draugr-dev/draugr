@@ -208,7 +208,7 @@ func newToolsInstallCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.saga, "saga", "",
 		"install only the tools this descriptor's scan will run")
 	cmd.Flags().BoolVar(&opts.all, "all", false,
-		"install every tool Draugr can provision (what no arguments already does)")
+		"install every tool Draugr can provision, rather than what a descriptor here needs")
 	return cmd
 }
 
@@ -224,9 +224,10 @@ func newToolsInstallCommand() *cobra.Command {
 // and inferring "everything" from the empty result would answer `--saga` by downloading the
 // catalog it was passed to avoid, one line under a message saying there was nothing to install.
 func installNames(w io.Writer, args []string, opts toolsInstallOptions) ([]string, bool, error) {
-	// --all is what no arguments already does, so it changes nothing about the outcome. It exists so
-	// that the expensive case can be asked for deliberately, and so a reader of a pipeline can tell
-	// a considered choice from a command that was never narrowed.
+	// --all is how the whole catalog is asked for, and the only way it happens. Twelve binaries on
+	// a machine is a dozen more things to trust, patch and explain, which is a decision rather than
+	// a default, and a reader of a pipeline can tell a considered choice from a command that was
+	// never narrowed.
 	if opts.all {
 		switch {
 		case opts.saga != "":
@@ -242,8 +243,19 @@ func installNames(w io.Writer, args []string, opts toolsInstallOptions) ([]strin
 	}
 	if opts.saga == "" {
 		if len(args) == 0 {
-			noteDescriptorInWorkingDir(w)
-			return nil, true, nil
+			// A descriptor beside you is the answer to which scanners this machine needs, and
+			// taking it is the whole reason the file exists. Named out loud, because a command
+			// that reads a file nobody pointed it at has to say which one.
+			if n := narrowerSetInWorkingDir(); n != nil {
+				_, _ = fmt.Fprintf(w, "Installing what %s runs. `--all` for every tool Draugr provisions.\n\n",
+					n.descriptor)
+				return n.tools, false, nil
+			}
+			return nil, false, errors.New(
+				"nothing here says which scanners you need.\n" +
+					"  draugr init                 describe this project, then run this again\n" +
+					"  draugr tools install --all  every tool Draugr can provision\n" +
+					"  draugr tools install trivy  one by one")
 		}
 		return args, false, nil
 	}
@@ -291,46 +303,48 @@ func pluralThem(n int) string {
 	return "them"
 }
 
-// noteDescriptorInWorkingDir points out --saga when a descriptor is sitting right there.
-//
-// Deliberately a note rather than a default. Inferring the descriptor from the working directory
-// would mean a CI job running `tools install -y` in a repo that happens to contain one suddenly
-// provisions a smaller set, and it may then be handed a different Saga to scan. Installing less
-// than before, silently, is how a mystery failure appears in somebody else's pipeline.
-func noteDescriptorInWorkingDir(w io.Writer) {
+// narrowing is the smaller install a descriptor in the working directory would ask for.
+type narrowing struct {
+	descriptor string   // the file it was read from, named in the question
+	tools      []string // what its scan actually runs, a subset of the catalog
+	catalog    int      // how many there are altogether, for the comparison
+}
+
+// narrowerSetInWorkingDir reports the smaller install a descriptor beside you would ask for, or
+// nothing where there is no single obvious descriptor and no saving to be had.
+func narrowerSetInWorkingDir() *narrowing {
 	// Every name a scan would find, not just the one `draugr init` writes. A project whose
 	// descriptor is called anything else got no note at all, which is the project least likely to
 	// know the flag exists.
 	//
-	// Exactly one, because the note quotes a path and a saving. With several descriptors beside
-	// each other there is no way to tell which one this host is being prepared for, and naming the
-	// first alphabetically would put a specific number against a guess.
+	// Exactly one, because the question names a path. With several beside each other there is no
+	// way to tell which one this host is being prepared for, and picking the first alphabetically
+	// would put a specific number against a guess.
 	found, err := descriptorsIn(".")
 	if err != nil || len(found) != 1 {
-		return
+		return nil
 	}
-	descriptor := found[0]
-	model, err := loadSaga(descriptor)
+	model, err := loadSaga(found[0])
 	if err != nil {
-		return // not our problem here; scan and doctor will say so properly
+		return nil // not our problem here; scan and doctor will say so properly
 	}
-	// Count only what --saga would actually install. Counting tools Draugr cannot provision
-	// would promise a number the flag does not deliver.
+	// Only what --saga would actually install. Counting tools Draugr cannot provision would
+	// promise a number the flag does not deliver.
 	installable := tools.Installable()
-	needed := 0
+	var needed []string
 	for _, t := range requiredTools(builtins.Registry(), model) {
-		if slices.Contains(installable, t.Binary) {
-			needed++
+		if slices.Contains(installable, t.Binary) && !slices.Contains(needed, t.Binary) {
+			needed = append(needed, t.Binary)
 		}
 	}
-	// Defensive: no saving means nothing worth saying. Not reachable through any descriptor today,
-	// because cosign and gosec are never *required* by a control, cosign verifies downloads and gosec
-	// is opt-in, so a Saga cannot demand the whole catalog.
-	if needed >= len(installable) {
-		return
+	// No saving is nothing worth saying. Not reachable through any descriptor today, because
+	// cosign and gosec are never *required* by a control: cosign verifies downloads and gosec is
+	// opt-in, so a Saga cannot demand the whole catalog.
+	if len(needed) == 0 || len(needed) >= len(installable) {
+		return nil
 	}
-	_, _ = fmt.Fprintf(w, "Note: `--saga %s` would install %d of these %d tools, the ones that descriptor's scan runs.\n\n",
-		descriptor, needed, len(installable))
+	slices.Sort(needed)
+	return &narrowing{descriptor: found[0], tools: needed, catalog: len(installable)}
 }
 
 func newToolsListCommand() *cobra.Command {

@@ -284,28 +284,6 @@ func TestInstallNamesFromSaga(t *testing.T) {
 	}
 }
 
-// Without the flag nothing changes, a pipeline that provisions the catalog keeps doing so.
-func TestInstallNamesWithoutSagaIsUnchanged(t *testing.T) {
-	t.Parallel()
-
-	var out bytes.Buffer
-	got, _, err := installNames(&out, nil, toolsInstallOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 0 {
-		t.Errorf("names = %v, want none, an empty list means the whole catalog downstream", got)
-	}
-
-	named, _, err := installNames(&out, []string{"trivy"}, toolsInstallOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !slices.Equal(named, []string{"trivy"}) {
-		t.Errorf("explicit names should pass through, got %v", named)
-	}
-}
-
 // Two ways of saying what to install, pointing at different sets. Guessing which one was meant
 // is how you install the wrong thing quietly.
 func TestInstallNamesRejectsSagaWithExplicitTools(t *testing.T) {
@@ -419,67 +397,63 @@ func TestInstallNamesReportsABadSaga(t *testing.T) {
 	}
 }
 
-// The note is the compromise that lets the default stay as it was: behavior unchanged, the
-// better option surfaced where it is relevant. Its number has to match what --saga would
-// actually install, or it promises a saving the flag does not deliver.
-func TestNoteDescriptorInWorkingDir(t *testing.T) {
+// The set taken from a descriptor has to be what --saga would install, or the default promises a
+// coverage it does not deliver.
+func TestTheSetTakenFromADescriptor(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
 
-	var out bytes.Buffer
-	noteDescriptorInWorkingDir(&out)
-	if out.String() != "" {
-		t.Errorf("no descriptor here, so nothing to note; got %q", out.String())
+	if narrowerSetInWorkingDir() != nil {
+		t.Error("no descriptor here, so nothing to read")
 	}
 
 	if err := os.WriteFile(filepath.Join(dir, "draugr.saga.yaml"), []byte(toolsSagaTwoControls), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	out.Reset()
-	noteDescriptorInWorkingDir(&out)
+	n := narrowerSetInWorkingDir()
+	if n == nil {
+		t.Fatal("a descriptor is right there and it read nothing")
+	}
 	// Two of the catalog, not three: git is needed but cannot be provisioned, and counting it
-	// would advertise a saving --saga does not make.
-	want := fmt.Sprintf("would install 2 of these %d tools", len(tools.Installable()))
-	if !strings.Contains(out.String(), want) {
-		t.Errorf("note = %q, want it to contain %q", out.String(), want)
+	// would advertise a saving the install does not make.
+	if len(n.tools) != 2 {
+		t.Errorf("tools = %v, want the two that can actually be provisioned", n.tools)
+	}
+	if n.catalog != len(tools.Installable()) {
+		t.Errorf("catalog = %d, want %d", n.catalog, len(tools.Installable()))
 	}
 
-	// An unreadable descriptor is scan's problem to report, not a reason to fail provisioning.
+	// An unreadable descriptor is scan's problem to report. Here it means the directory says
+	// nothing, and the caller turns that into a message naming the ways forward.
 	if err := os.WriteFile(filepath.Join(dir, "draugr.saga.yaml"), []byte("{{not yaml"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	out.Reset()
-	noteDescriptorInWorkingDir(&out)
-	if out.String() != "" {
-		t.Errorf("a broken descriptor should be left to scan and doctor, got %q", out.String())
+	if narrowerSetInWorkingDir() != nil {
+		t.Error("a broken descriptor should be left to scan and doctor")
 	}
 }
 
-// A scan finds any `*.saga.yaml`, so the note has to as well. A project whose descriptor carries
-// the product's name rather than Draugr's is the one least likely to know the flag exists.
-func TestNoteDescriptorFindsAnySagaName(t *testing.T) {
+// A scan finds any `*.saga.yaml`, so this has to as well. A project whose descriptor carries the
+// product's name rather than Draugr's is the one least likely to pass --saga by hand.
+func TestTheDescriptorCanBeCalledAnything(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
 	if err := os.WriteFile(filepath.Join(dir, "acme.saga.yaml"), []byte(toolsSagaTwoControls), 0o600); err != nil {
 		t.Fatal(err)
 	}
-
-	var out bytes.Buffer
-	noteDescriptorInWorkingDir(&out)
-	if !strings.Contains(out.String(), "acme.saga.yaml") {
-		t.Errorf("note = %q, want it to name acme.saga.yaml", out.String())
+	n := narrowerSetInWorkingDir()
+	if n == nil || n.descriptor != "acme.saga.yaml" {
+		t.Errorf("read %+v, want acme.saga.yaml", n)
 	}
 
 	// With two beside each other there is no way to tell which one this host is being prepared
-	// for, and the note quotes a path and a count. Naming either would put a number against a
-	// guess, so it says nothing.
+	// for, and picking one would install against a guess. The caller says so and names the ways
+	// forward rather than choosing.
 	if err := os.WriteFile(filepath.Join(dir, "other.saga.yaml"), []byte(toolsSagaTwoControls), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	out.Reset()
-	noteDescriptorInWorkingDir(&out)
-	if out.String() != "" {
-		t.Errorf("two descriptors leave nothing to name; got %q", out.String())
+	if narrowerSetInWorkingDir() != nil {
+		t.Error("two descriptors leave nothing to choose between")
 	}
 }
 
@@ -995,3 +969,114 @@ func unreachableClient() *http.Client {
 type roundTripperFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+// inADescriptorDir runs a test inside a temporary directory holding one descriptor, because the
+// question this adds is asked from the reading of the working directory.
+func inADescriptorDir(t *testing.T) {
+	t.Helper()
+	dir := t.TempDir()
+	body := `project: p
+release:
+  version: "1.0"
+config:
+  controls:
+    secrets:
+      enabled: true
+components:
+  - name: api
+    repositories:
+      - url: .
+`
+	if err := os.WriteFile(filepath.Join(dir, "draugr.saga.yaml"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	prior, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(prior) })
+}
+
+// TestTheDescriptorBesideYouIsTheAnswer.
+//
+// Twelve binaries on a machine is a dozen more things to trust, patch and explain, and a small
+// service runs three of them. The file that says which three is the one somebody already wrote.
+func TestTheDescriptorBesideYouIsTheAnswer(t *testing.T) {
+	inADescriptorDir(t)
+
+	var out bytes.Buffer
+	got, all, err := installNames(&out, nil, toolsInstallOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if all {
+		t.Error("a descriptor was beside it and it asked for the whole catalog")
+	}
+	if !slices.Contains(got, "gitleaks") {
+		t.Errorf("the descriptor's own scanner is missing: %v", got)
+	}
+	if slices.Contains(got, "nuclei") || slices.Contains(got, "kube-bench") {
+		t.Errorf("tools nothing here runs were included: %v", got)
+	}
+	// Named, because a command that reads a file nobody pointed it at has to say which one.
+	if !strings.Contains(out.String(), "draugr.saga.yaml") {
+		t.Errorf("it did not say which descriptor it read:\n%s", out.String())
+	}
+}
+
+// TestTheWholeCatalogIsAskedFor. It is a dozen downloads and a dozen things to keep patched, which
+// is a decision rather than somewhere you arrive by typing less.
+func TestTheWholeCatalogIsAskedFor(t *testing.T) {
+	inADescriptorDir(t)
+
+	var out bytes.Buffer
+	_, all, err := installNames(&out, nil, toolsInstallOptions{all: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !all {
+		t.Error("--all did not ask for the whole catalog")
+	}
+}
+
+// TestNoDescriptorSaysWhatToDoRatherThanGuessing. The two wrong answers are a dozen silent
+// downloads and an empty success, and both look like the command worked.
+func TestNoDescriptorSaysWhatToDoRatherThanGuessing(t *testing.T) {
+	prior, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(t.TempDir()); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(prior) })
+
+	var out bytes.Buffer
+	_, _, err = installNames(&out, nil, toolsInstallOptions{})
+	if err == nil {
+		t.Fatal("a directory saying nothing about scanners was answered with a guess")
+	}
+	for _, want := range []string{"draugr init", "--all", "draugr tools install trivy"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the error does not offer %q:\n%v", want, err)
+		}
+	}
+}
+
+// TestAnExplicitRequestIsUnchanged. Naming tools, or naming a descriptor, already said what was
+// wanted, and reading the directory over the top of that would be the tool not listening.
+func TestAnExplicitRequestIsUnchanged(t *testing.T) {
+	inADescriptorDir(t)
+
+	var out bytes.Buffer
+	got, all, err := installNames(&out, []string{"trivy"}, toolsInstallOptions{})
+	if err != nil || all || len(got) != 1 || got[0] != "trivy" {
+		t.Errorf("naming a tool gave %v (all=%v, err=%v)", got, all, err)
+	}
+	if strings.Contains(out.String(), "draugr.saga.yaml") {
+		t.Errorf("it read the directory over an explicit request:\n%s", out.String())
+	}
+}

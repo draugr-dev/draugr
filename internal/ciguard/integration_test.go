@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -261,5 +263,41 @@ func TestAnEntryIsRefusedOnAChangeNobodyCanObserve(t *testing.T) {
 				t.Errorf("the refusal does not say why:\n%s", errs.String())
 			}
 		})
+	}
+}
+
+// TestEveryShippedPipelineSaysWhichToolsItWants.
+//
+// `draugr tools install` with no arguments reads the descriptor in the working directory. A
+// pipeline is the one place that is the wrong answer to rely on: the checkout it runs in may hold
+// several descriptors, or none, or one it was not pointed at, and the failure arrives later as a
+// scanner that could not run.
+//
+// So every template Draugr ships says what it wants. Checked rather than remembered, because a new
+// template is written by copying an old one and the bare form is shorter.
+func TestEveryShippedPipelineSaysWhichToolsItWants(t *testing.T) {
+	t.Parallel()
+	templates := []string{"action.yml", "azure-pipelines/draugr.yml", "gitlab-ci/draugr.yml"}
+	// A line invoking the installer says which tools, by naming a descriptor, asking for the whole
+	// catalog, or listing them. Anything else is a pipeline taking whatever the directory held.
+	explicit := regexp.MustCompile(`--saga|--all|tools install (-y )?[a-z]`)
+
+	for _, path := range templates {
+		// #nosec G304 -- path comes from the hardcoded list above, inside this repository.
+		body, err := os.ReadFile(filepath.Join("../..", path))
+		if err != nil {
+			t.Errorf("%s: %v (a template that moved is one nothing checks)", path, err)
+			continue
+		}
+		for i, line := range strings.Split(string(body), "\n") {
+			if !strings.Contains(line, "tools install") || strings.HasPrefix(strings.TrimSpace(line), "#") {
+				continue
+			}
+			if !explicit.MatchString(line) {
+				t.Errorf("%s:%d installs whatever the working directory implies:\n  %s",
+					path, i+1, strings.TrimSpace(line))
+				t.Log("  Name a descriptor with --saga, ask for everything with --all, or list the tools.")
+			}
+		}
 	}
 }

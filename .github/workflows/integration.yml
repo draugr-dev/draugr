@@ -163,7 +163,9 @@ jobs:
         # whether they can run, and a tool only Draugr can see leaves them skipping.
         run: |
           set -euo pipefail
-          ./bin/draugr tools install -y
+          # --all rather than the default: this suite exercises every scanner, not the few
+          # a descriptor here would name.
+          ./bin/draugr tools install -y --all
           echo "$HOME/.draugr/bin" >> "$GITHUB_PATH"
 
       - name: Run integration tests
