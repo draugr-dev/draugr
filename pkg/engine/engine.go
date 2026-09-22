@@ -1444,8 +1444,13 @@ func applyExclusions(controls map[string]plugin.ControlResult, rules []saga.Excl
 			for ri, rule := range rules {
 				if rule.Matches(res.Location.URI, res.RuleID) {
 					matched[ri] = true
+					// Said rather than left to be inferred. A reader of the report asks who decided
+					// this was acceptable, and the answer is different for each of the three
+					// origins; with none recorded, a rule that named nobody was indistinguishable
+					// from a comment somebody wrote in the file, which is the weakest of the three
+					// and the one nobody reviewed.
 					res.Suppression = &sarif.Suppression{
-						Kind: "external", Justification: rule.Reason,
+						Kind: "external", Justification: rule.Reason, Origin: sarif.OriginSaga,
 						AcceptedBy: rule.AcceptedBy, Expires: rule.Expires,
 						Source: rule.Source,
 					}

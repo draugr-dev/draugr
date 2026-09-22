@@ -1211,6 +1211,13 @@ ACCEPTED
   config.exclude  5 findings suppressed · 3 accepted by you@example.com, 2 unattributed
 ```
 
+**Attribution.** A suppression from one of these rules carries `origin: saga`, whether or not the
+rule named anybody, so a reader knows to go and read the descriptor. The other two values a report
+uses are `vex`, for a claim [imported from a supplier's document](#reading-a-suppliers-vex-componentsvex-configvexsources), and
+`tool`, for one the scanner already carried out of the file it scanned. Draugr records which party
+made the claim; it does not open the document or read the comment, so the origin says who to ask
+and never that the claim is true.
+
 ### Declaring what a suppression means in VEX
 
 `reason` is prose for whoever reviews the descriptor. A [VEX](../guides/vex.md) status is a

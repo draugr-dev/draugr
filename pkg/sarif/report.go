@@ -541,14 +541,24 @@ type Suppression struct {
 }
 
 // Where a suppression's decision came from, for Suppression.Origin.
+//
+// Draugr stamps the two it makes itself, and reads the third off their absence: a suppression in a
+// scanner's report that Draugr did not put there is one the scanner honored out of the file it
+// scanned. Nothing here parses a comment or opens a supplier's document, so the value says which
+// party made the claim and never that the claim is true.
 const (
-	// OriginSaga is a rule in this project's own descriptor. The default reading of an empty
-	// Origin, so a report written before imported claims existed still means what it said.
+	// OriginSaga is a rule in this project's own descriptor.
+	//
+	// Written onto every suppression the exclusion rules make. An empty Origin beside a name is
+	// read as this too, so a report written before origins were recorded still means what it said.
 	OriginSaga = "saga"
 	// OriginVEX is a statement imported from a document somebody else wrote.
 	OriginVEX = "vex"
-	// OriginTool is a suppression the author wrote into the source and the scanner honored, a Semgrep
-	// `nosem`, a `# noqa`, a linter's inline pragma.
+	// OriginTool is a suppression the scanner already carried, honoring something in the file it
+	// scanned: a Semgrep `nosem`, a `# noqa`, a linter's inline pragma.
+	//
+	// Read off the absence of Draugr's own record rather than detected, because the alternative is
+	// a parser per scanner per comment syntax, all of them guessing at what the tool meant.
 	//
 	// The weakest of the three, and kept apart for that reason. A descriptor rule was reviewed by
 	// whoever owns the descriptor and a supplier's claim is answerable by the supplier; this one
