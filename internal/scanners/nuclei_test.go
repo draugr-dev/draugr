@@ -248,8 +248,8 @@ func TestNucleiPrewarmFailsWhenNothingWasDownloaded(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error: a successful exit with no templates is the bug")
 	}
-	if !strings.Contains(err.Error(), "no template set") {
-		t.Errorf("the error should name the cause, got %v", err)
+	if !strings.Contains(err.Error(), "no templates in /home/u/nuclei-templates") {
+		t.Errorf("the error should name the cause and the directory, got %v", err)
 	}
 }
 
@@ -604,5 +604,51 @@ func TestNucleiScanRejectsAnUnusableSpec(t *testing.T) {
 				t.Error("expected an error rather than a scan of something else")
 			}
 		})
+	}
+}
+
+// templateDir is a directory holding one template, which is all it takes to be a usable set.
+func templateDir(t *testing.T) string {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), "nuclei-templates")
+	if err := os.MkdirAll(filepath.Join(dir, "http"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "http", "a.yaml"), []byte("id: a\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+// TestNucleiPrewarmUsesATemplateSetWhoseVersionItCannotRead is the state a CI cache produces: the
+// template directory restored, Nuclei's own config not, and the download failing with exit 0.
+// Nuclei reports a blank version and loads every template anyway, so refusing to scan here stops
+// a gate that had everything it needed.
+func TestNucleiPrewarmUsesATemplateSetWhoseVersionItCannotRead(t *testing.T) {
+	blank := "[INF] Public nuclei-templates version:  (" + templateDir(t) + ")\n"
+	w := &nucleiTemplateWarmer{run: func(_ context.Context, argv []string) ([]byte, error) {
+		if argv[1] == "-templates-version" {
+			return []byte(blank), nil
+		}
+		return nil, nil // -update-templates: exit 0, fetched nothing
+	}}
+	if err := w.warm(context.Background()); err != nil {
+		t.Errorf("templates are on disk and it refused to scan: %v", err)
+	}
+}
+
+// TestNucleiPrewarmFallsBackWhenTheDownloadErrorsOverAnUnversionedSet. The branch that uses the set
+// on disk after a failed download only runs if the set on disk is recognized as one, and a blank
+// version was read as none, so it never ran for the case it was written for.
+func TestNucleiPrewarmFallsBackWhenTheDownloadErrorsOverAnUnversionedSet(t *testing.T) {
+	blank := "[INF] Public nuclei-templates version:  (" + templateDir(t) + ")\n"
+	w := &nucleiTemplateWarmer{run: func(_ context.Context, argv []string) ([]byte, error) {
+		if argv[1] == "-templates-version" {
+			return []byte(blank), nil
+		}
+		return nil, errors.New("dial tcp: i/o timeout")
+	}}
+	if err := w.warm(context.Background()); err != nil {
+		t.Errorf("a failed download over a set on disk should scan with the set: %v", err)
 	}
 }

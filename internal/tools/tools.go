@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -369,8 +370,12 @@ func defaultRun(ctx context.Context, argv []string, env ...string) ([]byte, erro
 //
 //	[INF] Public nuclei-templates version: v10.4.6 (/home/you/nuclei-templates)
 //
-// and, with no templates installed, prints the same line with the version blank, and exits 0
-// either way. The blank is the signal; the exit code says nothing.
+// and exits 0 whatever it found, so the exit code says nothing.
+//
+// A blank version does not mean an empty directory. Nuclei reads the version from its own config
+// under ~/.config/nuclei, so a template set restored without that config, which is what a CI cache
+// of ~/nuclei-templates produces, prints a blank version over thirteen thousand usable templates.
+// Nuclei loads and runs them in that state. The directory is the thing to ask.
 var nucleiTemplatesVersionRE = regexp.MustCompile(`nuclei-templates version:\s*(\S+)?\s*\(([^)]*)\)`)
 
 // GrypeDBOK reports whether Grype has a usable vulnerability database, and when it was built.
@@ -389,17 +394,56 @@ func GrypeDBOK(out []byte) (bool, string) {
 	return true, "built " + status.Built
 }
 
+// NucleiTemplateSet is what `nuclei -templates-version` says is installed, checked against the
+// directory it names.
+type NucleiTemplateSet struct {
+	Present bool   // the directory holds templates Nuclei can load
+	Version string // empty where Nuclei could not say, which happens with templates present
+	Dir     string
+}
+
+// NucleiTemplates reads `nuclei -templates-version` and confirms against the directory.
+func NucleiTemplates(out []byte) NucleiTemplateSet {
+	m := nucleiTemplatesVersionRE.FindSubmatch(out)
+	if m == nil {
+		return NucleiTemplateSet{}
+	}
+	set := NucleiTemplateSet{Version: string(m[1]), Dir: string(m[2])}
+	set.Present = set.Version != "" || hasTemplates(set.Dir)
+	return set
+}
+
 // NucleiTemplatesOK reports whether Nuclei has a template set, and which. Exported because the
 // scanner checks the same thing after asking Nuclei to download one, the tool exits 0 either
 // way, so the answer has to come from the same place `doctor` gets it.
 func NucleiTemplatesOK(out []byte) (bool, string) {
-	m := nucleiTemplatesVersionRE.FindSubmatch(out)
-	if m == nil {
-		return false, ""
+	set := NucleiTemplates(out)
+	switch {
+	case !set.Present:
+		return false, set.Dir
+	case set.Version == "":
+		return true, "version unknown (" + set.Dir + ")"
+	default:
+		return true, set.Version + " (" + set.Dir + ")"
 	}
-	version, dir := string(m[1]), string(m[2])
-	if version == "" {
-		return false, dir
+}
+
+// hasTemplates reports whether a directory holds at least one template. Stops at the first, so a
+// full set of thirteen thousand costs one file rather than a walk.
+func hasTemplates(dir string) bool {
+	if dir == "" {
+		return false
 	}
-	return true, version + " (" + dir + ")"
+	found := false
+	_ = filepath.WalkDir(dir, func(_ string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil // an unreadable entry is not a template; keep looking
+		}
+		if !d.IsDir() && (strings.HasSuffix(d.Name(), ".yaml") || strings.HasSuffix(d.Name(), ".yml")) {
+			found = true
+			return fs.SkipAll
+		}
+		return nil
+	})
+	return found
 }

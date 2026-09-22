@@ -287,3 +287,39 @@ func TestDetectFindsDataBesideTheBinary(t *testing.T) {
 		t.Errorf("cfg beside the binary should count: %+v", st)
 	}
 }
+
+// TestNucleiTemplatesAsksTheDirectory. A blank version means Nuclei could not read its own config,
+// not that the directory is empty: a set restored without ~/.config/nuclei prints a blank version
+// over thousands of templates it loads and runs.
+func TestNucleiTemplatesAsksTheDirectory(t *testing.T) {
+	full := filepath.Join(t.TempDir(), "nuclei-templates")
+	if err := os.MkdirAll(filepath.Join(full, "dns"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(full, "dns", "b.yml"), []byte("id: b\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	empty := t.TempDir()
+	line := func(version, dir string) []byte {
+		return []byte("[INF] Public nuclei-templates version: " + version + " (" + dir + ")\n")
+	}
+	for _, c := range []struct {
+		name     string
+		out      []byte
+		present  bool
+		describe string
+	}{
+		{"a version, whatever the directory", line("v10.4.9", empty), true, "v10.4.9 (" + empty + ")"},
+		{"no version, templates on disk", line("", full), true, "version unknown (" + full + ")"},
+		{"no version, an empty directory", line("", empty), false, empty},
+		{"no version, no directory", line("", filepath.Join(empty, "absent")), false, filepath.Join(empty, "absent")},
+		{"output it cannot read", []byte("something else\n"), false, ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			ok, describe := NucleiTemplatesOK(c.out)
+			if ok != c.present || describe != c.describe {
+				t.Errorf("NucleiTemplatesOK = (%v, %q), want (%v, %q)", ok, describe, c.present, c.describe)
+			}
+		})
+	}
+}

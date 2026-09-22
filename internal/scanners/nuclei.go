@@ -419,9 +419,16 @@ func (w *nucleiTemplateWarmer) warm(ctx context.Context) error {
 			w.err = fmt.Errorf("check nuclei templates: %w", err)
 			return
 		}
-		if ok, _ := tools.NucleiTemplatesOK(out); !ok {
-			w.err = errors.New("nuclei reported no template set after -update-templates, " +
-				"dast cannot run without one; try `nuclei -update-templates` by hand to see why")
+		// Asked of the directory as well as the version, because a failed download exits 0 and a
+		// set restored without Nuclei's own config reports a blank version over templates it
+		// loads and runs. Only an empty directory is fatal.
+		switch set := tools.NucleiTemplates(out); {
+		case !set.Present:
+			w.err = fmt.Errorf("nuclei has no templates in %s after -update-templates, and dast "+
+				"cannot run without them; try `nuclei -update-templates` by hand to see why", set.Dir)
+		case set.Version == "":
+			slog.WarnContext(ctx, "nuclei templates are on disk and their version could not be read, "+
+				"scanning with the set on disk", "templates", set.Dir)
 		}
 	})
 	return w.err

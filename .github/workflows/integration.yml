@@ -143,11 +143,17 @@ jobs:
       # A week-old copy is the right trade for this suite and not for a user: these tests point
       # Nuclei at a server they start themselves and assert which requests arrive, so they need
       # templates rather than today's templates. The stamp rolls so the set cannot drift forever.
+      #
+      # Nuclei's own config comes with it, because that is where it reads the version of the set
+      # from. Without it a restored directory reports a blank version, which Draugr treats as a set
+      # of unknown age rather than as no set, and says so on every scan.
       - name: Restore the Nuclei template set
         if: steps.needed.outputs.run == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ~/nuclei-templates
+          path: |
+            ~/nuclei-templates
+            ~/.config/nuclei
           key: nuclei-templates-${{ runner.os }}-${{ steps.week.outputs.stamp }}
           restore-keys: |
             nuclei-templates-${{ runner.os }}-
