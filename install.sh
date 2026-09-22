@@ -153,6 +153,6 @@ case ":$PATH:" in
 esac
 
 printf '\nNext:\n'
-printf '  draugr init          scaffold a draugr.saga.yaml for this project\n'
-printf '  draugr tools install provision the scanners your controls need\n'
-printf '  draugr scan .        scan without a descriptor, to see what it does\n\n'
+printf '  draugr init                                   describe this project in a draugr.saga.yaml\n'
+printf '  draugr tools install --saga draugr.saga.yaml  fetch the scanners it needs, and no others\n'
+printf '  draugr scan                                   scan what the descriptor describes\n\n'

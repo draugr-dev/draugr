@@ -58,10 +58,14 @@ fails. The script is [readable in the repo](install.sh); other routes, including
 install`, are in the [install guide](docs/getting-started/install.md).
 
 ```bash
-draugr tools install     # fetch the scanners, pinned and verified
-draugr scan .            # scan this repo with sensible defaults
-draugr init              # or scaffold a draugr.saga.yaml to customize
+draugr init            # describe this project in a draugr.saga.yaml
+draugr tools install   # fetch the scanners it needs, pinned and verified
+draugr scan            # scan what the descriptor describes
 ```
+
+`tools install` takes its answer from the descriptor beside it, so a small service gets three
+scanners rather than every one Draugr can provision. `--all` when you are preparing a machine for
+several projects.
 
 Then describe what you actually ship:
 
@@ -101,8 +105,8 @@ Full walkthrough: [quickstart](docs/getting-started/quickstart.md).
 
 ## What it checks
 
-Eleven controls, each backed by a tool Draugr executes rather than bundles, so every scanner stays
-under its own license, and you can swap it.
+Each control is backed by a tool Draugr executes rather than bundles, so every scanner stays under
+its own license, and you can swap it.
 
 | Control | Looks for | By default |
 |---|---|---|

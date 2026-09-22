@@ -105,6 +105,9 @@ echo "▶ console-matches-command"
 echo "▶ spelling"
 ./scripts/check-spelling.sh
 
+echo "▶ numbers"
+./scripts/check-numbers.py
+
 echo "▶ changelog"
 ./scripts/changelog.sh check
 # Against the commit this branch left main at, so the question is what this change did rather than

@@ -136,10 +136,14 @@ With Draugr installed, add the scanners for the controls you use. The fastest wa
 Draugr fetch pinned, verified copies into `~/.draugr/bin` (added to your `PATH` automatically):
 
 ```bash
-draugr tools install            # everything Draugr can provision, pinned + verified
 draugr tools install --saga draugr.saga.yaml   # only what this descriptor's scan will run
+draugr tools install            # everything Draugr can provision, pinned + verified
 draugr tools list               # what's pinned, which controls it backs, and what's installed
 ```
+
+The narrow one first because it is the one to reach for. A small service needs three of the twelve
+Draugr can fetch, and the other nine are binaries to trust, patch and explain. Take everything when
+you are preparing a machine for several projects rather than scanning one.
 
 Prefer your own install (Homebrew, package manager, an existing copy)? That works too. Then run
 `draugr doctor` to confirm everything's found:

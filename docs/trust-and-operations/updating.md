@@ -51,12 +51,16 @@ project never starts, and every binary on `PATH` is one more thing to trust and 
 | `--dry-run` |, | Print the install plan and exit |
 
 ```bash
-draugr tools install --saga draugr.saga.yaml   # only what this project's scan runs
+draugr tools install            # what the descriptor in this directory runs
+draugr tools install --saga path/to/other.saga.yaml   # a different one
 draugr tools install trivy      # just one
-draugr tools install --all      # plan → confirm → the whole catalog, into ~/.draugr/bin
+draugr tools install --all      # the whole catalog, into ~/.draugr/bin
 draugr tools install --dry-run  # preview the plan, change nothing
 draugr tools install -y         # non-interactive
 ```
+
+With no arguments it reads the descriptor beside you and says which one it read. A directory with
+no descriptor is an error naming the three ways forward rather than a silent dozen downloads.
 
 It first prints the plan (tool, version, category, verification, destination). Run interactively
 it asks for confirmation; non-interactively (CI, pipes) it proceeds. Pass `-y` to be explicit or
