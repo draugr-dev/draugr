@@ -10,7 +10,9 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+A finding excluded by a descriptor rule that named nobody was reported as one the scanner suppressed on its own. A report says where each suppression came from, so a reader knows who to ask about it, and the three answers are different people: the descriptor's owner, the component's supplier, or whoever committed the line. The rule's origin is written into the report now rather than inferred from whether it carried a name, so a rule that recorded a reason and no signature is still a decision somebody made in the descriptor.
 
 ## [0.130.0] - 2026-09-22
 
