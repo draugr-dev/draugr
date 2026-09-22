@@ -1,1 +1,0 @@
-One finding is a finding. The console, the markdown report, the differential report and the differential gate's own error each wrote `1 finding(s)` where a count could be one, a form nobody would write by hand which survives because the digit beside it is always right.
