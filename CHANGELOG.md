@@ -12,6 +12,18 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.130.0] - 2026-09-22
+
+### Changed
+
+`draugr tools install` with no arguments installs what the descriptor in that directory needs, and says which descriptor it read. It installed every tool Draugr can provision, which for a small service is a dozen binaries where three would run, and each one is something to trust and keep patched. `--all` still installs everything and is now the only way to; a directory with no descriptor is told to run `draugr init`, name tools, or pass `--all`, rather than being given the dozen.
+
+### Fixed
+
+The install script, the README quickstart and the install guide now show the same first five minutes, and one that does not fetch nine scanners this project will never run. The script told you to run draugr init and then draugr tools install, which ignores the descriptor init had just written, and described that as provisioning the scanners your controls need.
+
+The README counted its own controls above the table listing them. A count of what is already on the page tells a reader what they can see, and goes wrong the day the list grows.
+
 ## [0.129.0] - 2026-09-21
 
 ### Added
@@ -5847,7 +5859,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.129.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.130.0...HEAD
+[0.130.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.130.0
 [0.129.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.129.0
 [0.128.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.128.0
 [0.127.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.127.0

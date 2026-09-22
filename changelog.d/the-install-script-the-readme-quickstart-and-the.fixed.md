@@ -1,1 +1,0 @@
-The install script, the README quickstart and the install guide now show the same first five minutes, and one that does not fetch nine scanners this project will never run. The script told you to run draugr init and then draugr tools install, which ignores the descriptor init had just written, and described that as provisioning the scanners your controls need.
