@@ -30,6 +30,8 @@ The evidence block says where each scanner came from and nothing else. The row f
 
 A finding excluded by a descriptor rule that named nobody was reported as one the scanner suppressed on its own. A report says where each suppression came from, so a reader knows who to ask about it, and the three answers are different people: the descriptor's owner, the component's supplier, or whoever committed the line. The rule's origin is written into the report now rather than inferred from whether it carried a name, so a rule that recorded a reason and no signature is still a decision somebody made in the descriptor.
 
+A Go finding excluded with a `#nosec` comment is reported, marked, with the reason after the `--`. gosec removes such a result from its output unless asked to keep it, and Draugr was not asking, so the finding did not reach the report at all: it read as a finding nobody had ever made, and the question asked of an exclusion later, who decided this was acceptable, had nothing to answer from. Runs on Go code may report more findings than the last one, all of them already accepted by somebody and none of them counted against the gate.
+
 ## [0.130.0] - 2026-09-22
 
 ### Changed

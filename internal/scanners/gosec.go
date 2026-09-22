@@ -64,8 +64,13 @@ func NewGosec() plugin.Scanner {
 //     report, not the exit code; the sast controller judges severity).
 //   - no -quiet: gosec's -quiet suppresses all output on a clean scan, which would leave no
 //     SARIF to parse.
+//   - -track-suppressions keeps a `#nosec` result in the report, marked, with the text after the
+//     `--` as its justification. Without it gosec removes the result, and a finding somebody
+//     excluded is indistinguishable from one nobody ever made: the report reads clean, and the
+//     question asked of an exclusion later, who decided this was acceptable, has nothing to
+//     answer from.
 func gosecArgs(_ string, cfg plugin.Config) []string {
-	argv := []string{"gosec", "-fmt", "sarif", "-no-fail"}
+	argv := []string{"gosec", "-fmt", "sarif", "-no-fail", "-track-suppressions"}
 	if v := commaList(cfg, "include"); v != "" {
 		argv = append(argv, "-include="+v)
 	}

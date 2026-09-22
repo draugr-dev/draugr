@@ -79,7 +79,7 @@ func TestGosecTakesRuleSelectionAndBuildTags(t *testing.T) {
 }
 
 func TestGosecWithNoOptionsIsUnchanged(t *testing.T) {
-	want := []string{"gosec", "-fmt", "sarif", "-no-fail", "./..."}
+	want := []string{"gosec", "-fmt", "sarif", "-no-fail", "-track-suppressions", "./..."}
 	if got := gosecArgs("", nil); !slices.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
 	}

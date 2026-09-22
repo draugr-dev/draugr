@@ -17,13 +17,29 @@ order: 50
 
 A **Go-specialized** static analyzer that complements the polyglot [Semgrep](semgrep.md) with
 deeper Go-specific rules (AST/SSA). Checks out the component's repository and runs
-`gosec -fmt sarif -no-fail ./...` **with the checkout as the working directory** (gosec loads
-Go packages relative to the cwd, so the target is the relative `./...` pattern).
+`gosec -fmt sarif -no-fail -track-suppressions ./...` **with the checkout as the working
+directory** (gosec loads Go packages relative to the cwd, so the target is the relative `./...`
+pattern).
 
 - `-no-fail` keeps the process successful when findings exist (findings live in the SARIF
   report, not the exit code; the [`sast`](../controllers/sast.md) controller judges severity).
+- `-track-suppressions` keeps a `#nosec` result in the report, marked, carrying the text after
+  the `--` as its justification. Without it gosec removes the result, and a finding somebody
+  excluded reads as a finding nobody ever made.
 - `-quiet` is deliberately **not** used: it suppresses all output on a clean scan, which would
   leave no SARIF to parse.
+
+## What a `#nosec` becomes
+
+gosec reports it as a SARIF suppression of kind `inSource`, which Draugr keeps and marks with
+[`origin: tool`](../../docs/reference/saga-schema.md#configexclude). It is the weakest of the three
+origins and counted apart from them: a comment beside the line was written by whoever was editing
+the file, and nothing about it went past a second person.
+
+```go
+/* #nosec G204 -- the name is a constant in this program, reviewed 2026-09-22 */
+_ = exec.Command("sh", "-c", name)
+```
 
 ## Opt-in
 
