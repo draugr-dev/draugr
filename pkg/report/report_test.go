@@ -1874,3 +1874,36 @@ func TestEveryFormatSaysWhatItIsFor(t *testing.T) {
 		}
 	}
 }
+
+// TestTheFixSaysWhereTheProblemLives. "Change the code" is an instruction somebody can carry out
+// only where the problem is in code they own. A signature mismatch, a server header, a cluster
+// setting and a host on a blocklist have none, and an instruction nobody can follow teaches a
+// reader that the column is not worth reading.
+func TestTheFixSaysWhereTheProblemLives(t *testing.T) {
+	for _, c := range []struct {
+		control, rule, want string
+	}{
+		{"sast", "python.lang.security.audit.eval", "change the code"},
+		{"iac", "DS-0002", "change the code"},
+		{"dast", "exposed-panel", "change the code"},
+		// Removed from the tip, a credential is still in history and still valid.
+		{"secrets", "aws-access-token", "rotate the credential"},
+		{"headers", "missing-csp", "change the server's configuration"},
+		{"tls", "weak-cipher", "change the server's configuration"},
+		{"infrastructure", "cis/5.1.1", "change the cluster's configuration"},
+		{"threats", "urlhaus-listed", "stop contacting the host"},
+		// Three rules on one control, three different next steps.
+		{"provenance", "provenance-unexpected-identity", "find out what signed it before running it"},
+		{"provenance", "provenance-unsigned", "sign it in the build that publishes it"},
+		{"provenance", "provenance-not-covered", "declare a signer, or accept it unsigned"},
+		{"provenance", "a-rule-added-later", "check the signature"},
+	} {
+		got := fixPhrase(finding{control: c.control, ruleID: c.rule})
+		if got != c.want {
+			t.Errorf("%s %s: fix %q, want %q", c.control, c.rule, got, c.want)
+		}
+		if c.control != "sast" && c.control != "iac" && c.control != "dast" && got == "change the code" {
+			t.Errorf("%s has no code to change, and was told to change it", c.control)
+		}
+	}
+}

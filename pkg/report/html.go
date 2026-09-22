@@ -188,10 +188,12 @@ type htmlUnmatched struct {
 
 // fixPhrase says what to do about a finding, in one clause.
 //
-// Four answers, because there are four situations and a reader needs to tell them apart: there is
-// a release that ends it, there is no release yet, somebody else has to publish one, or the thing
-// to change is the code. The last covers every finding that is not about a package at all, which
-// a version column left blank.
+// For a package: there is a release that ends it, there is no release yet, or somebody else has to
+// publish one. For everything else the answer depends on where the problem lives, which is a
+// property of the control that found it. "Change the code" is right for a flaw in code somebody
+// owns and wrong everywhere else: a signature mismatch, a server header and a host on a blocklist
+// have no code to change, and an instruction nobody can carry out is worse than none, because it
+// teaches a reader that this column is not worth reading.
 func fixPhrase(f finding) string {
 	if f.pkg != nil && f.pkg.Name != "" {
 		if f.pkg.FixedVersion != "" {
@@ -208,8 +210,36 @@ func fixPhrase(f finding) string {
 	switch f.control {
 	case "sca", "images", "licenses":
 		return "no package reported"
+	case "provenance":
+		return provenanceFix(f.ruleID)
+	case "secrets":
+		// Removing it from the code leaves it in history and leaves it valid. The credential is the
+		// thing that leaked, so it is the thing to replace.
+		return "rotate the credential"
+	case "headers", "tls":
+		return "change the server's configuration"
+	case "infrastructure":
+		return "change the cluster's configuration"
+	case "threats":
+		return "stop contacting the host"
 	}
 	return "change the code"
+}
+
+// provenanceFix says what to do about a signature finding. Three rules, three different next
+// steps, because the three situations share nothing but the control that noticed them.
+func provenanceFix(rule string) string {
+	switch rule {
+	case "provenance-unexpected-identity":
+		// Either a build moved to another workflow or the image is not what it claims. Both start
+		// with finding out which, and nothing should run this image until somebody has.
+		return "find out what signed it before running it"
+	case "provenance-unsigned":
+		return "sign it in the build that publishes it"
+	case "provenance-not-covered":
+		return "declare a signer, or accept it unsigned"
+	}
+	return "check the signature"
 }
 
 // firstFixedVersion is the release to move to, where a scanner named several.
