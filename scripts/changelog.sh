@@ -74,52 +74,51 @@ all_fragments() {
 	done
 }
 
-# fragments_body prints every waiting fragment as Keep a Changelog sections, in the canonical
-# order. Empty when nothing is waiting.
-fragments_body() {
-	local section f first
-	for section in "${SECTIONS[@]}"; do
-		first=1
-		while IFS= read -r f; do
-			[ -n "$f" ] || continue
-			if [ "$first" = 1 ]; then
-				printf '### %s\n\n' "$section"
-				first=0
-			fi
-			# Trailing blank lines trimmed here rather than in each fragment, so a file that ends
-			# with a newline and one that does not produce the same notes.
-			sed -e :a -e '/^\n*$/{$d;N;};/\n$/ba' "$f"
-			printf '\n'
-		done < <(fragment_files "$section")
-	done
+# fragment_entries prints the waiting fragments for one section, without a heading.
+fragment_entries() {
+	local f
+	while IFS= read -r f; do
+		[ -n "$f" ] || continue
+		# Trailing blank lines trimmed here rather than in each fragment, so a file that ends
+		# with a newline and one that does not produce the same notes.
+		sed -e :a -e '/^\n*$/{$d;N;};/\n$/ba' "$f"
+		printf '\n'
+	done < <(fragment_files "$1")
+}
+
+# inline_entries prints what [Unreleased] holds under one heading, or, given no heading, what it
+# holds above the first one.
+inline_entries() {
+	section_of Unreleased | grep -vxF '_Nothing yet._' | awk -v want="$1" '
+		/^### / { cur = substr($0, 5); next }
+		cur == want { print }
+	' | sed -e '/./,$!d' -e :a -e '/^\n*$/{$d;N;};/\n$/ba'
 }
 
 # unreleased_body is everything that would ship in the next release: what the file already holds
-# under [Unreleased], plus every fragment.
+# under [Unreleased], plus every fragment, one heading per section.
 #
-# Both, because the two coexist during a transition and because a release that dropped one of them
-# would publish notes missing an entry somebody wrote, which is the failure this whole file is
-# built to prevent.
+# Both, because a release that dropped one of them would publish notes missing an entry somebody
+# wrote. Merged by section rather than appended, because appending gives a release two of each
+# heading and the published notes read as two releases run together.
+#
+# Without the placeholder `promote` writes back over the section it empties. An entry added
+# afterwards lands above it rather than replacing it, so inline_entries drops it: every reader of
+# this section wants the same thing.
 unreleased_body() {
-	local inline fragments
-	inline=$(section_of Unreleased)
-	# Without the placeholder `promote` writes back over the section it empties. An entry added
-	# afterwards lands above it rather than replacing it, so it travels into the release and the
-	# notes end with a line saying nothing is here, under a list of things. Dropped here rather
-	# than in each caller, because every reader of this section wants the same thing.
-	inline=$(printf '%s\n' "$inline" | grep -vxF '_Nothing yet._' || true)
-	case "$(printf '%s' "$inline" | tr -d '[:space:]')" in
-	"") inline="" ;;
-	esac
-	fragments=$(fragments_body)
-
-	if [ -n "$inline" ] && [ -n "$fragments" ]; then
-		printf '%s\n\n%s\n' "$inline" "$fragments"
-	elif [ -n "$inline" ]; then
-		printf '%s\n' "$inline"
-	elif [ -n "$fragments" ]; then
-		printf '%s\n' "$fragments"
-	fi
+	local section inline fragments preamble out=""
+	preamble=$(inline_entries "")
+	[ -n "$(printf '%s' "$preamble" | tr -d '[:space:]')" ] && out="$preamble"$'\n\n'
+	for section in "${SECTIONS[@]}"; do
+		inline=$(inline_entries "$section")
+		fragments=$(fragment_entries "$section")
+		[ -n "$(printf '%s%s' "$inline" "$fragments" | tr -d '[:space:]')" ] || continue
+		out+="### $section"$'\n\n'
+		[ -n "$inline" ] && out+="$inline"$'\n\n'
+		[ -n "$fragments" ] && out+="$fragments"$'\n\n'
+	done
+	[ -n "$out" ] && printf '%s\n' "$(printf '%s' "$out" | sed -e :a -e '/^\n*$/{$d;N;};/\n$/ba')"
+	return 0
 }
 
 cmd_show() {
@@ -267,6 +266,14 @@ cmd_check() {
 		esac
 	done <"$FILE"
 
+	# An entry goes in a fragment. One written into [Unreleased] directly still ships, but it is the
+	# edit two open pull requests collide on, and nothing checks its shape.
+	if [ -n "$(section_of Unreleased | grep -vxF '_Nothing yet._' | grep -v '^### ' | tr -d '[:space:]')" ]; then
+		echo "  [Unreleased] holds entries written into $FILE directly. Move each into a fragment with" >&2
+		echo "  './scripts/changelog.sh add <section>' and leave the section as '_Nothing yet._'." >&2
+		problems=1
+	fi
+
 	# Fragment names, because one that does not match is invisible: it sits in the directory
 	# looking like a queued entry and ships in no release at all.
 	local frag base section known
@@ -285,6 +292,12 @@ cmd_check() {
 			done
 			if [ "$base" = "$section" ] || [ "$known" -eq 0 ]; then
 				echo "  $frag: name must end .<section>.md, one of: ${SECTIONS[*],,}" >&2
+				problems=1
+			fi
+			# A bullet, because the notes are a list and a paragraph among bullets reads as the start
+			# of a new section.
+			if ! head -n 1 "$frag" | grep -q '^- '; then
+				echo "  $frag: an entry is one '- ' bullet, as it should read in the notes" >&2
 				problems=1
 			fi
 		done < <(find "$FRAGMENTS" -maxdepth 1 -type f -name '*.md' | sort)

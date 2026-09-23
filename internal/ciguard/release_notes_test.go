@@ -146,3 +146,97 @@ _Nothing yet._
 		t.Errorf("[Unreleased] lost its placeholder:\n%s", unreleased)
 	}
 }
+
+// changelogWith runs the script against a CHANGELOG and a fragment directory this test wrote.
+func changelogWith(t *testing.T, changelog string, fragments map[string]string, args ...string) (string, error) {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "CHANGELOG.md")
+	if err := os.WriteFile(path, []byte(changelog), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	frags := filepath.Join(dir, "changelog.d")
+	if err := os.MkdirAll(frags, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range fragments {
+		if err := os.WriteFile(filepath.Join(frags, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cmd := exec.Command("./scripts/changelog.sh", args...) // #nosec G204 -- arguments are this test's
+	cmd.Dir = filepath.Join("..", "..")                    // the check runs the guard beside it by relative path
+	cmd.Env = append(os.Environ(), "CHANGELOG_FILE="+path, "CHANGELOG_FRAGMENTS="+frags)
+	out, err := cmd.CombinedOutput()
+	return strings.TrimSpace(string(out)), err
+}
+
+const withInlineEntries = `# Changelog
+
+## [Unreleased]
+
+### Added
+
+- **Written into the file.** Directly.
+
+### Fixed
+
+- **Also written into the file.** Directly.
+
+## [0.1.0] - 2026-01-01
+
+### Added
+
+- The first one.
+
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.1.0
+`
+
+// Entries written into [Unreleased] and entries waiting as fragments publish under one heading per
+// section. Appended, a release carries two of each heading and reads as two releases run together.
+func TestTheNotesHaveOneHeadingPerSection(t *testing.T) {
+	notes, err := changelogWith(t, withInlineEntries, map[string]string{
+		"b.added.md": "- **A fragment.** Waiting.\n",
+		"c.fixed.md": "- **A fixed fragment.** Waiting.\n",
+	}, "show")
+	if err != nil {
+		t.Fatalf("show: %v\n%s", err, notes)
+	}
+	for _, h := range []string{"### Added", "### Fixed"} {
+		if n := strings.Count(notes, h); n != 1 {
+			t.Errorf("%q appears %d times:\n%s", h, n, notes)
+		}
+	}
+	for _, want := range []string{"Written into the file", "A fragment", "Also written", "A fixed fragment"} {
+		if !strings.Contains(notes, want) {
+			t.Errorf("the notes lost %q:\n%s", want, notes)
+		}
+	}
+	if strings.Index(notes, "### Added") > strings.Index(notes, "### Fixed") {
+		t.Errorf("sections out of order:\n%s", notes)
+	}
+}
+
+// An entry written into the file directly, and a fragment that is not a bullet, are both refused
+// by the check, which is what CI runs.
+func TestTheCheckRefusesAnEntryOutsideAFragment(t *testing.T) {
+	out, err := changelogWith(t, withInlineEntries, nil, "check")
+	if err == nil || !strings.Contains(out, "written into") {
+		t.Errorf("check passed an entry written into [Unreleased]: %v\n%s", err, out)
+	}
+
+	empty := strings.Replace(withInlineEntries,
+		withInlineEntries[strings.Index(withInlineEntries, "### Added"):strings.Index(withInlineEntries, "## [0.1.0]")],
+		"_Nothing yet._\n\n", 1)
+	out, err = changelogWith(t, empty, map[string]string{"p.fixed.md": "A paragraph, not a bullet.\n"}, "check")
+	if err == nil || !strings.Contains(out, "one '- ' bullet") {
+		t.Errorf("check passed a fragment that is not a bullet: %v\n%s", err, out)
+	}
+	// The guard that follows compares this file's released section with the real tag of that
+	// name, so the run as a whole may fail; what is asserted is that the structure passed.
+	out, _ = changelogWith(t, empty, map[string]string{"p.fixed.md": "- **A bullet.** Fine.\n"}, "check")
+	if strings.Contains(out, "structural problems") {
+		t.Errorf("check refused a well-formed fragment:\n%s", out)
+	}
+}

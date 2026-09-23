@@ -1,0 +1,1 @@
+- **Two scans of one descriptor list their repositories in the same order.** The order was the order the scanner jobs finished in, and those run concurrently, so the same run looked like a different one to anything comparing two reports as text. Measured over eight runs of a two-repository descriptor: three orderings before, one after.

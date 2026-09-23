@@ -10,33 +10,7 @@ and move it under a version on release.
 
 ## [Unreleased]
 
-### Added
-
-A finding your scanner excluded by its own configuration is reported, marked, with the file the rule was written in. A `.trivyignore` line removed the finding from the report entirely, which left an exclusion somebody made looking exactly like a finding nobody ever had. Reported alongside the two Draugr already carried, under `scanner exclusions` and never under `config.exclude`, because nobody signed it and it was not written where the descriptor's reviewers look. Trivy older than 0.53.0 cannot list what it excluded and scans as before.
-
-A report says which of two kinds a scanner's own exclusion was: `origin: tool` for a directive in the scanned file such as a `#nosec`, and `origin: scanner` for the scanner's own configuration such as a `.trivyignore` line. They send you to different people, whoever committed the line or whoever owns that file, and both were reported as the first. Read from SARIF's own `kind` rather than guessed at.
-
-A suppression carries the file it was written in through SARIF as well as through `report.json`, so a consumer reading the SARIF can still say which file authorized each exclusion when a descriptor is split across several.
-
-### Changed
-
-The accepted section counts the scanner's own exclusions on one line named `scanner exclusions`, where it said `source directives` and counted only one of the two kinds. Every row there now reads the same way, a name and a count, and the reference explains what the name covers.
-
-The evidence block says where each scanner came from and nothing else. The row for a scanner Draugr did not install carried two clauses and a command, in a column where every other value is a fact about the run, and wrapped onto a second line to do it. It reads `semgrep 1.169.0 · found on PATH; Draugr can install a pinned build`, and `TRY` offers the command, which is where a scan puts the things to run next.
-
-`config.exclude` counts the files an exclusion came from once there are more than four of them, rather than naming every one. How many files a descriptor is split across is your decision, so the named list had no end, and the line grew with it.
-
-A repository is named the same way wherever a report names one: the forge kept, the scheme and any `.git` suffix dropped. The row saying what was scanned dropped the forge, on the argument that every row carries the same one, which is false for the descriptor this block exists for, one reading from a forge and from a vendor's mirror had two rows differing only where the name had been cut. A checkout with no git remote says so beside the revision, rather than leaving a relative path to be read as a repository's name.
-
-Every hash a report prints says what kind it is. The evidence block printed a commit, the digest of a descriptor file and the digest of the merged document, three different questions answered in the same eight characters of hex with only one of them named. A repository row reads `commit 1ca53fda`, a descriptor file reads `digest 3b0afb46b138`, and a fragment pinned to another repository reads `commit d6a7fb0a3f4b`.
-
-### Fixed
-
-A finding excluded by a descriptor rule that named nobody was reported as one the scanner suppressed on its own. A report says where each suppression came from, so a reader knows who to ask about it, and the three answers are different people: the descriptor's owner, the component's supplier, or whoever committed the line. The rule's origin is written into the report now rather than inferred from whether it carried a name, so a rule that recorded a reason and no signature is still a decision somebody made in the descriptor.
-
-A Go finding excluded with a `#nosec` comment is reported, marked, with the reason after the `--`. gosec removes such a result from its output unless asked to keep it, and Draugr was not asking, so the finding did not reach the report at all: it read as a finding nobody had ever made, and the question asked of an exclusion later, who decided this was acceptable, had nothing to answer from. Runs on Go code may report more findings than the last one, all of them already accepted by somebody and none of them counted against the gate.
-
-Two scans of one descriptor list their repositories in the same order. The order was the order the scanner jobs finished in, and those run concurrently, so the same run looked like a different one to anything comparing two reports as text. Measured over eight runs of a two-repository descriptor: three orderings before, one after.
+_Nothing yet._
 
 ## [0.130.0] - 2026-09-22
 
