@@ -588,8 +588,9 @@ Narrowing the findings to a single component adds a strip above the list carryin
 verdict, its bands and the controls it did not pass. It appears for one component and not for two,
 because there is no verdict that describes two.
 
-**A finding whose message is too long for its row opens to the whole of it.** Click the row, or
-press Enter on it, and the scanner's full message replaces the shortened one. It is a native
+**A finding whose message is too long for its row opens to the whole of it.** Such a row is marked
+`more`; click anywhere on it, or press Enter on it, and the scanner's full message replaces the
+shortened one. Links on the row, such as an advisory, keep working. It is a native
 disclosure that works without JavaScript. The report's search matches the whole message, and
 printing includes every message in full.
 

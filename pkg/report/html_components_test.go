@@ -316,6 +316,9 @@ func TestAShortenedMessageOpensToTheWholeOfIt(t *testing.T) {
 	if !strings.Contains(out, `<p class="full">`+strings.ReplaceAll(strings.ReplaceAll(long, "<", "&lt;"), ">", "&gt;")+`</p>`) {
 		t.Error("the disclosure does not carry the whole message, escaped")
 	}
+	if !strings.Contains(out, `<span class="hint" aria-hidden="true">more</span></summary>`) {
+		t.Error("a row that opens does not say so")
+	}
 	if !strings.Contains(out, `<div class="rule"><span class="id">headers/hsts-missing</span><span class="said"><span class="faint"> · </span>Missing HSTS.</span></div>`) {
 		t.Error("a message that fits is not a plain row")
 	}

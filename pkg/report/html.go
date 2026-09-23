@@ -1067,6 +1067,7 @@ const htmlDoc = `<!doctype html>
     .fold > summary::before { display: none; }
     .fold > summary { cursor: default; }
     #findings summary.rule::before { visibility: hidden; }
+    #findings .hint { display: none; }
   }
   /* The release that ends a finding wears the color a passing verdict wears, which is what the
    * console and the dashboard both do with this fact. */
@@ -1106,7 +1107,21 @@ const htmlDoc = `<!doctype html>
     transition: transform .15s;
   }
   #findings details[open] > summary.rule::before { transform: rotate(90deg); }
-  #findings details[open] > summary .said { display: none; }
+  #findings .f.opens { cursor: pointer; }
+  #findings .f.opens:hover { background: var(--surface); }
+  #findings .f.opens:hover summary.rule::before,
+  #findings .f.opens:hover .hint { color: var(--text); }
+  #findings .f.opens:hover .hint { border-color: var(--muted); }
+  #findings details[open] > summary .said,
+  #findings details[open] > summary .hint { display: none; }
+  /* Says the row opens, on every row that does, without hovering: a touch screen has no hover, and
+   * a report is often read by somebody who was sent it. Hidden from assistive technology, which
+   * already announces the summary as a collapsed disclosure. */
+  #findings .hint {
+    margin-left: .45rem; padding: .02rem .4rem; font-size: .7rem; white-space: nowrap;
+    vertical-align: .1em; color: var(--muted);
+    border: 1px solid var(--line-strong); border-radius: 999px;
+  }
   #findings .full { margin: .25rem 0 .1rem; line-height: 1.5; color: var(--text); overflow-wrap: anywhere; }
   /* The context line. Labeled in the vocabulary the rest of the product uses, and small, because
    * it answers "where" after the row has already answered "what". */
@@ -1511,7 +1526,7 @@ about what they would have found. For everything the tool printed, re-run with
 {{range .Findings}}<div class="f" data-p="{{.Priority}}" data-s="{{.Severity}}" data-c="{{.Control}}" data-m="{{.Component}}" data-a="{{.ActionKey}}" data-q="{{.Search}}">
   <span class="chips"><span class="pri {{.Priority}}">{{.Priority}}</span><span class="{{.SevClass}}">{{.Severity}}</span></span>
   <div class="what">
-    {{if .Full}}<details class="more"><summary class="rule">{{template "rule" .}}</summary><p class="full">{{.Full}}</p></details>
+    {{if .Full}}<details class="more"><summary class="rule">{{template "rule" .}}<span class="hint" aria-hidden="true">more</span></summary><p class="full">{{.Full}}</p></details>
     {{- else}}<div class="rule">{{template "rule" .}}</div>{{end}}
     <div class="sub mono">{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}{{if .Location}}{{.Location}}<span class="faint"> · </span>{{end}}<span class="lbl">scanner</span> {{.Tool}}{{if .Moved}}<span class="faint"> · </span><span class="moved">{{.Moved}}</span>{{end}}<span class="faint"> · </span><span class="lbl">fix</span> {{.Fix}}</div>
   </div>
@@ -1712,6 +1727,20 @@ about what they would have found. For everything the tool printed, re-run with
   var rows = Array.prototype.slice.call(document.querySelectorAll("#findings .f"));
   if (!tools || !rows.length) return;
   tools.hidden = false;
+
+  // The whole row opens its message, not only the line the disclosure owns. A link inside the row
+  // keeps its own meaning, the summary toggles itself natively, and a click that ends a text
+  // selection is somebody copying a path rather than asking for more.
+  rows.forEach(function (row) {
+    var more = row.querySelector("details.more");
+    if (!more) return;
+    row.classList.add("opens");
+    row.addEventListener("click", function (e) {
+      if (e.target.closest("a, summary")) return;
+      if (String(window.getSelection && window.getSelection()) !== "") return;
+      more.open = !more.open;
+    });
+  });
 
   // Two views of one set. "What to do" leads, the list sits behind the toggle, and the headings
   // that separate them without scripts are dropped because the toggle now names them.
