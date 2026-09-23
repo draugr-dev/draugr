@@ -80,6 +80,27 @@ type trivyVulnResult struct {
 	// a Debian image is not a Debian finding.
 	Class           string      `json:"Class"`
 	Vulnerabilities []trivyVuln `json:"Vulnerabilities"`
+	// ModifiedFindings is what Trivy set aside, present when it was asked to say so. Trivy calls
+	// the field experimental, so it is read for what it holds and its absence is not an error: a
+	// Trivy that stops sending it, or one too old to send it, leaves the report as it was.
+	ModifiedFindings []trivyModified `json:"ExperimentalModifiedFindings"`
+}
+
+// trivyModified is one finding Trivy excluded, and who told it to.
+type trivyModified struct {
+	// Type is what kind of finding was set aside. Only vulnerabilities are read here, because that
+	// is what this parser builds.
+	Type string `json:"Type"`
+	// Status is what Trivy did. `ignored` is an exclusion; anything else is a severity or a status
+	// Trivy rewrote, which is not a decision anybody made and is not a suppression.
+	Status string `json:"Status"`
+	// Statement is the reason, where the exclusion carried one. `.trivyignore` has nowhere to put
+	// one, so it is usually empty.
+	Statement string `json:"Statement"`
+	// Source is the file the rule was written in, which is what a reader needs in order to go and
+	// read it.
+	Source  string    `json:"Source"`
+	Finding trivyVuln `json:"Finding"`
 }
 
 type trivyVuln struct {
@@ -164,8 +185,47 @@ func parseTrivyVulns(out []byte, dir string, _ plugin.Config) (sarif.Report, err
 				rep.Rules[v.VulnerabilityID] = trivyVulnRule(v)
 			}
 		}
+		// And what Trivy excluded, as findings marked with the decision rather than as absences.
+		for _, m := range res.ModifiedFindings {
+			found, ok := trivySuppressedResultOf(doc, res, m, layers)
+			if !ok {
+				continue
+			}
+			found.Location.StartLine = lines.find(res.Target, m.Finding.PkgName)
+			rep.Results = append(rep.Results, found)
+			if _, seen := rep.Rules[m.Finding.VulnerabilityID]; !seen {
+				rep.Rules[m.Finding.VulnerabilityID] = trivyVulnRule(m.Finding)
+			}
+		}
 	}
 	return rep, nil
+}
+
+// trivySuppressedResultOf builds a finding Trivy set aside, carrying who set it aside.
+//
+// Only an exclusion, and only of a vulnerability: Trivy reports a rewritten severity in the same
+// place, and a severity somebody changed is not a decision to live with the finding. Anything this
+// does not recognize is left out rather than guessed at, which keeps a shape Trivy adds later from
+// arriving in the report as an acceptance nobody made.
+func trivySuppressedResultOf(
+	doc trivyVulnDoc, res trivyVulnResult, m trivyModified, layers map[string]sarif.Layer,
+) (sarif.Result, bool) {
+	if m.Status != "ignored" || (m.Type != "" && m.Type != "vulnerability") {
+		return sarif.Result{}, false
+	}
+	if m.Finding.VulnerabilityID == "" {
+		return sarif.Result{}, false
+	}
+	found := trivyVulnResultOf(doc, res, m.Finding, layers)
+	found.Suppression = &sarif.Suppression{
+		// External, because it is: the rule is outside the file the scanner read. The origin is
+		// what says whose external, and Draugr's own are told apart by the record they carry.
+		Kind:          "external",
+		Origin:        sarif.OriginScanner,
+		Justification: m.Statement,
+		Source:        m.Source,
+	}
+	return found, true
 }
 
 // trivyVulnResultOf builds one finding.

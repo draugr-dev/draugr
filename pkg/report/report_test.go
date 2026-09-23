@@ -768,11 +768,13 @@ func mixedAcceptanceData() Data {
 					res("CVE-OURS", sarif.OriginSaga, "we pinned the upstream host"),
 					res("CVE-SUPPLIER", sarif.OriginVEX, "the vendor says the path is unreachable"),
 					res("CVE-COMMENT", sarif.OriginTool, "nosem"),
+					res("CVE-IGNOREFILE", sarif.OriginScanner, ".trivyignore"),
 				}}},
 			},
 			Suppressed: 1,
 			Imported:   1,
-			Silenced:   1,
+			// Both of the scanner's own, which is what the one count covers.
+			Silenced: 2,
 		},
 		Verdict: norn.Result{Verdict: norn.Pass},
 	}
@@ -782,8 +784,10 @@ func mixedAcceptanceData() Data {
 // checks the number rather than the rows and leaves believing the smaller figure.
 //
 // Three authorities can set a finding aside and they answer an auditor differently: this project
-// decided, a supplier asserts, or whoever was editing the file wrote a comment. A report that
-// attributes all three to `config.exclude` claims the project accepted things it never saw.
+// decided, a supplier asserts, or the scanner did it on its own. A report that attributes all of
+// them to `config.exclude` claims the project accepted things it never saw. The scanner's own
+// splits again on the row, between a directive in the file and its own configuration, because
+// those are two different people to go and ask.
 func TestTheAcceptedSectionAccountsForEveryFindingItLists(t *testing.T) {
 	r, err := For("html")
 	if err != nil {
@@ -796,16 +800,16 @@ func TestTheAcceptedSectionAccountsForEveryFindingItLists(t *testing.T) {
 	out := b.String()
 
 	// Everything set aside is listed, whoever set it aside.
-	for _, id := range []string{"CVE-OURS", "CVE-SUPPLIER", "CVE-COMMENT"} {
+	for _, id := range []string{"CVE-OURS", "CVE-SUPPLIER", "CVE-COMMENT", "CVE-IGNOREFILE"} {
 		if !strings.Contains(out, id) {
 			t.Errorf("%s is not in the report at all, so it was dropped rather than accepted", id)
 		}
 	}
-	// And the note over that list accounts for all three rather than for one.
+	// And the note over that list accounts for all of them rather than for one.
 	for _, want := range []string{
 		"1 finding suppressed",
 		"1 finding excused",
-		"1 finding silenced",
+		"2 findings suppressed",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the accepted note does not say %q, so the count under-reports what is listed "+
@@ -814,7 +818,7 @@ func TestTheAcceptedSectionAccountsForEveryFindingItLists(t *testing.T) {
 	}
 	// Each row says which authority set it aside. Without that a supplier's assertion reads as a
 	// decision this project made, which is the one thing the separate counts exist to prevent.
-	for _, want := range []string{"config.exclude", "VEX", "source directive"} {
+	for _, want := range []string{"config.exclude", "VEX", "source directive", "scanner config"} {
 		if !strings.Contains(acceptedSection(out), want) {
 			t.Errorf("no row attributes a finding to %q:\n%s", want, acceptedSection(out))
 		}
@@ -1777,9 +1781,14 @@ func TestSilencedFindingsGetTheirOwnLine(t *testing.T) {
 	if !strings.Contains(line, "3") {
 		t.Errorf("line = %q, want the count", line)
 	}
-	// The reader has to be able to tell this apart from a decision somebody signed.
-	if !strings.Contains(line, "nobody signed") {
-		t.Errorf("line = %q, want it to say nobody signed these", line)
+	// The reader has to be able to tell this apart from a decision somebody signed, and what tells
+	// them is the row's own name. Every row here reads `<where>: <count>`, so the count says how
+	// many and the name says whose, rather than the row arguing its own case in a clause.
+	if !strings.HasPrefix(line, "scanner exclusions: ") {
+		t.Errorf("line = %q, want it named for where the exclusion lives", line)
+	}
+	if strings.Contains(line, "nobody") || strings.Contains(line, "weakest") {
+		t.Errorf("line = %q, want the count and the name; the argument belongs in the docs", line)
 	}
 }
 
@@ -1907,5 +1916,86 @@ func TestTheFixSaysWhereTheProblemLives(t *testing.T) {
 		if c.control != "sast" && c.control != "iac" && c.control != "dast" && got == "change the code" {
 			t.Errorf("%s has no code to change, and was told to change it", c.control)
 		}
+	}
+}
+
+// The breakdown under `config.exclude` names only files that are part of this descriptor.
+//
+// A suppression carries the file it was written in whoever wrote it, so a `.trivyignore` line and
+// a VEX document both have one. Counted beside the descriptor's fragments they read as rules this
+// project signed, and the breakdown sums to more than the count above it.
+func TestTheExclusionBreakdownCountsOnlyThisDescriptorsFiles(t *testing.T) {
+	res := func(rule, origin, source string) sarif.Result {
+		return sarif.Result{
+			RuleID: rule, Level: sarif.LevelError, Message: rule,
+			Suppression: &sarif.Suppression{Kind: "external", Origin: origin, Source: source},
+		}
+	}
+	d := Data{
+		Release: saga.Release{Version: "1.0"},
+		Run: engine.Result{
+			Controls: map[string]plugin.ControlResult{
+				"sca": {Control: "sca", Report: sarif.Report{Tool: "trivy", Results: []sarif.Result{
+					res("CVE-OURS", sarif.OriginSaga, "draugr.saga.yaml"),
+					res("CVE-FRAGMENT", sarif.OriginSaga, "security/exclusions.yaml"),
+					res("CVE-SUPPLIER", sarif.OriginVEX, "vex.json"),
+					res("CVE-IGNOREFILE", sarif.OriginScanner, ".trivyignore"),
+				}}},
+			},
+			Suppressed: 2, Imported: 1, Silenced: 1,
+		},
+		Verdict: norn.Result{Verdict: norn.Pass},
+	}
+	line := suppressionLine(d, true)
+	for _, unwanted := range []string{".trivyignore", "vex.json"} {
+		if strings.Contains(line, unwanted) {
+			t.Errorf("%q is counted under config.exclude:\n  %s", unwanted, line)
+		}
+	}
+	for _, want := range []string{"draugr.saga.yaml", "security/exclusions.yaml"} {
+		if !strings.Contains(line, want) {
+			t.Errorf("%q is missing from the breakdown:\n  %s", want, line)
+		}
+	}
+}
+
+// A descriptor split across many files counts them rather than naming them all.
+//
+// How many fragments a descriptor has is the customer's decision, so the named list has no end a
+// reader can predict, and a line whose length somebody else chooses is a line that runs off the
+// terminal on the run that matters.
+func TestTheExclusionBreakdownStopsNamingFilesAndCountsThem(t *testing.T) {
+	build := func(n int) Data {
+		var results []sarif.Result
+		for i := range n {
+			results = append(results, sarif.Result{
+				RuleID: fmt.Sprintf("CVE-%d", i), Level: sarif.LevelError, Message: "x",
+				Suppression: &sarif.Suppression{
+					Kind: "external", Origin: sarif.OriginSaga,
+					Source: fmt.Sprintf("security/exclusions-%02d.yaml", i),
+				},
+			})
+		}
+		return Data{
+			Release: saga.Release{Version: "1.0"},
+			Run: engine.Result{
+				Controls:   map[string]plugin.ControlResult{"sca": {Control: "sca", Report: sarif.Report{Tool: "trivy", Results: results}}},
+				Suppressed: n,
+			},
+			Verdict: norn.Result{Verdict: norn.Pass},
+		}
+	}
+	// At the cap the files are still named, because that is a set somebody reads.
+	if line := suppressionLine(build(mostSourcesNamed), true); !strings.Contains(line, "exclusions-00.yaml") {
+		t.Errorf("%d files should still be named:\n  %s", mostSourcesNamed, line)
+	}
+	// Past it they are counted, and no file is named at all: naming some and not others would read
+	// as those being the only ones.
+	line := suppressionLine(build(mostSourcesNamed+1), true)
+	if strings.Contains(line, ".yaml") {
+		t.Errorf("past the cap no file should be named:\n  %s", line)
+	}
+	if !strings.Contains(line, fmt.Sprintf("across %d files", mostSourcesNamed+1)) {
+		t.Errorf("past the cap the line should count the files:\n  %s", line)
 	}
 }

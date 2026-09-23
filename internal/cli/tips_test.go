@@ -6,9 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -227,8 +229,12 @@ func TestScanTipsAreCappedPerRun(t *testing.T) {
 		// Judged on severity, which is what the priority-gate tip is about. Under the default the
 		// gate already reads the band and that tip has nothing to say.
 		opts: &scanOptions{format: "console", failOn: "critical"},
+		// A scanner Draugr could have installed and did not, which is what the unverified-tool tip
+		// is about.
+		tools: []report.ToolBuild{{Name: "semgrep", Version: "1.169.0",
+			Level: string(tools.LevelExternal)}},
 	}
-	// All four conditions hold.
+	// Every condition holds.
 	for _, tip := range scanTips {
 		if !tip.when(c) {
 			t.Fatalf("test setup no longer triggers %q, so the cap is not what is being measured", tip.name)
@@ -287,4 +293,52 @@ func capRunControls() map[string]plugin.ControlResult {
 		},
 	}}}}
 	return controls
+}
+
+// The command for an unverified scanner is offered where a scan offers commands.
+//
+// It used to sit in the evidence block, inside a value naming which build ran, where every
+// neighboring value is a fact about the run. A scan says what happened and TRY says what to type.
+func TestTheUnverifiedToolTipNamesWhatToInstall(t *testing.T) {
+	t.Setenv("CI", "true")
+	c := tipContext{
+		model:   unclassifiedModel(),
+		run:     engine.Result{},
+		verdict: norn.Result{Verdict: norn.Pass},
+		opts:    &scanOptions{format: "console"},
+		tools: []report.ToolBuild{
+			{Name: "trivy", Version: "0.69.3", Level: "pinned"},
+			{Name: "semgrep", Version: "1.169.0", Level: string(tools.LevelExternal)},
+		},
+	}
+	got := scanSuggestions(c)
+	var found bool
+	for _, s := range got {
+		if s.What == "draugr tools install semgrep" {
+			found = true
+			// What the reader gets, which is how every other row here is written.
+			if !strings.Contains(s.Why, "checked") {
+				t.Errorf("why = %q, want it to say what running it gets them", s.Why)
+			}
+		}
+	}
+	if !found {
+		t.Errorf("no tip names the command: %+v", got)
+	}
+
+	// A scanner Draugr cannot provision is not offered a command that will not find it.
+	c.tools = []report.ToolBuild{{Name: "mend", Level: string(tools.LevelExternal)}}
+	for _, s := range scanSuggestions(c) {
+		if strings.HasPrefix(s.What, "draugr tools install") {
+			t.Errorf("offered %q for a tool Draugr does not distribute", s.What)
+		}
+	}
+
+	// And a run where Draugr installed everything says nothing about it.
+	c.tools = []report.ToolBuild{{Name: "trivy", Level: "pinned"}}
+	for _, s := range scanSuggestions(c) {
+		if strings.HasPrefix(s.What, "draugr tools install") {
+			t.Errorf("offered %q with nothing unverified", s.What)
+		}
+	}
 }

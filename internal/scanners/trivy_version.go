@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -43,6 +45,46 @@ func (p *trivyVersionProbe) cacheVersion(ctx context.Context) string {
 		p.val = fmt.Sprintf("trivy@%s;db@%s", v.Version, v.VulnerabilityDB.UpdatedAt)
 	})
 	return p.val
+}
+
+// showsSuppressed reports whether the Trivy that will run is new enough to list what it excluded.
+//
+// Read from the memoized probe rather than asking again: the cache key is built before the command
+// line is, so by the time this is called the version has been resolved for this process. An
+// unresolved version answers no, which runs the command Draugr has always run. A flag an older
+// Trivy does not have would fail the scan outright, and losing a suppression record is the lesser
+// of the two.
+func (p *trivyVersionProbe) showsSuppressed() bool {
+	return trivyAtLeast(p.val, showSuppressedSince)
+}
+
+// showSuppressedSince is the first Trivy carrying `--show-suppressed` and the findings it reports.
+const showSuppressedSince = "0.53.0"
+
+// trivyAtLeast compares the probe's `trivy@X.Y.Z;db@...` against a floor, field by field.
+//
+// Its own comparison rather than a semver dependency: three integers, and the answer where any of
+// them cannot be read is no, which keeps the command as it was.
+func trivyAtLeast(probed, floor string) bool {
+	probed = strings.TrimPrefix(probed, "trivy@")
+	if i := strings.IndexByte(probed, ';'); i >= 0 {
+		probed = probed[:i]
+	}
+	got, want := strings.Split(probed, "."), strings.Split(floor, ".")
+	if len(got) < len(want) {
+		return false
+	}
+	for i := range want {
+		a, err := strconv.Atoi(strings.TrimSpace(got[i]))
+		if err != nil {
+			return false
+		}
+		b, _ := strconv.Atoi(want[i])
+		if a != b {
+			return a > b
+		}
+	}
+	return true
 }
 
 // sharedTrivyVersion is the process-wide probe used by all Trivy-backed scanners, so the

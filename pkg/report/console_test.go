@@ -9,6 +9,8 @@ import (
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/skald"
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 func TestUnpinnedCacheLine(t *testing.T) {
@@ -312,5 +314,86 @@ func TestTimingLineSaysHowOldTheOldestReusedEntryWas(t *testing.T) {
 				t.Errorf("runLine = %q, want it to contain %q", got, tc.want)
 			}
 		})
+	}
+}
+
+// The descriptor section names every file and where it came from.
+//
+// A fragment pulled from another repository is a file this checkout does not contain, which is the
+// one thing a reader cannot work out from a path, and the version it was pinned at is how somebody
+// refers to a shared policy. The resolved commit is what makes the run reproducible after the tag
+// has moved, so both are said.
+func TestTheDescriptorSectionSaysWhereEachFileCameFrom(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		src  skald.DescriptorSource
+		want []string
+		not  []string
+	}{
+		{
+			name: "the root file",
+			src:  skald.DescriptorSource{Path: "draugr.saga.yaml", Root: true, Digest: "sha256:abc123def4567"},
+			want: []string{"root", "abc123def456"},
+		},
+		{
+			name: "a fragment beside it",
+			src:  skald.DescriptorSource{Path: "security/x.saga-fragment.yaml", Digest: "sha256:0123456789abc"},
+			want: []string{"0123456789ab"},
+			not:  []string{"root"},
+		},
+		{
+			name: "a fragment from another repository",
+			src: skald.DescriptorSource{
+				Path: "platform/shared.saga-fragment.yaml", Digest: "sha256:ffffffffffffff",
+				URL: "https://github.com/acme/platform", Revision: "v2.4.0", Resolved: "d6a7fb0a3f4b9c",
+			},
+			// The host is kept, unlike a repository row: which repository a policy came from is
+			// the fact, and a run may read fragments from several.
+			want: []string{"github.com/acme/platform@v2.4.0", "d6a7fb0a3f4b"},
+			// The file's own digest would be a second hex string beside the commit that already
+			// pins the tree it came out of.
+			not: []string{"ffffffffffff", "https://"},
+		},
+		{
+			name: "a fragment pinned by commit, where the revision is the resolution",
+			src: skald.DescriptorSource{
+				Path: "p/x.saga-fragment.yaml",
+				URL:  "https://github.com/acme/platform", Revision: "d6a7fb0a3f4b9c", Resolved: "d6a7fb0a3f4b9c",
+			},
+			want: []string{"github.com/acme/platform@d6a7fb0a3f4b9c"},
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			got := descriptorSourceNote(c.src)
+			for _, w := range c.want {
+				if !strings.Contains(got, w) {
+					t.Errorf("note = %q, want it to carry %q", got, w)
+				}
+			}
+			for _, n := range c.not {
+				if strings.Contains(got, n) {
+					t.Errorf("note = %q, should not carry %q", got, n)
+				}
+			}
+		})
+	}
+}
+
+// A descriptor that is one file gets no section: the row above already named it.
+func TestOneFileDescriptorGetsNoSection(t *testing.T) {
+	var b bytes.Buffer
+	d := Data{Descriptor: &skald.DescriptorRef{
+		Sources: []skald.DescriptorSource{{Path: "draugr.saga.yaml", Root: true}},
+	}}
+	writeDescriptorSources(&b, tui.For(&b), d, true)
+	if b.Len() != 0 {
+		t.Errorf("a single-file descriptor printed a section:\n%s", b.String())
+	}
+	// And nothing is printed without --evidence, whatever it holds.
+	d.Descriptor.Sources = append(d.Descriptor.Sources, skald.DescriptorSource{Path: "a.yaml"})
+	b.Reset()
+	writeDescriptorSources(&b, tui.For(&b), d, false)
+	if b.Len() != 0 {
+		t.Errorf("the section printed without --evidence:\n%s", b.String())
 	}
 }

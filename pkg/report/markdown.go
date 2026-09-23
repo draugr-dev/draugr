@@ -192,7 +192,7 @@ func writeEvidenceNotes(w io.Writer, d Data) {
 		accepted = append(accepted, row{"VEX", strings.TrimPrefix(line, "VEX: ")})
 	}
 	if line := silencedLine(d); line != "" {
-		accepted = append(accepted, row{"source directives", strings.TrimPrefix(line, "source directives: ")})
+		accepted = append(accepted, row{"scanner exclusions", strings.TrimPrefix(line, "scanner exclusions: ")})
 	}
 	if len(accepted) > 0 {
 		_, _ = fmt.Fprintln(w, "### Accepted")

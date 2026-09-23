@@ -1016,6 +1016,15 @@ func suppressionLine(d Data, full bool) string {
 	// the exclusions live somewhere other than the file you opened.
 	if sources := suppressionSources(d); len(sources) > 1 {
 		var where []string
+		// How many files a descriptor is split across is the customer's decision, so this is a list
+		// with no end a reader can predict. Named while it is a set somebody reads, counted once it
+		// is a set they scan past, and the fragments are sorted by weight so the ones named are the
+		// ones carrying most of the exclusions.
+		if len(sources) > mostSourcesNamed {
+			line = fmt.Sprintf("config.exclude: %s suppressed · across %s",
+				english.Count(n, "finding"), english.Count(len(sources), "file"))
+			return line
+		}
 		for _, src := range sources {
 			where = append(where, fmt.Sprintf("%d from %s", src.n, src.name))
 		}
@@ -1027,6 +1036,12 @@ func suppressionLine(d Data, full bool) string {
 	// count and a roll call of the same findings on one line is the same fact twice.
 	return line
 }
+
+// mostSourcesNamed is how many descriptor files the breakdown names before it counts them instead.
+//
+// Four fits the line at every width the report is read at, and past four the names stop being a
+// thing somebody reads and become a thing they scan past on the way to the number.
+const mostSourcesNamed = 4
 
 // importedLine renders the one-line account of what a supplier's own analysis excused, and under
 // `full` which supplier said so.
@@ -1058,17 +1073,19 @@ func importedLine(d Data, full bool) string {
 // A third line rather than a third number on an existing one, and for the same reason the imported
 // count is its own: the three answer the auditor's question with different people at the end of
 // them. A descriptor rule was written where whoever owns the descriptor can see it. A supplier's
-// claim is answerable by the supplier. This one was written by whoever was editing the file, and
-// nobody else necessarily knows it is there. Which is exactly why it is the one most worth
-// printing.
+// claim is answerable by the supplier. This one was written wherever it was convenient, in a
+// comment or in the scanner's own configuration, and nobody else necessarily knows it is there.
+// Which is exactly why it is the one most worth printing.
 func silencedLine(d Data) string {
 	n := d.Run.Silenced
 	if n == 0 {
 		return ""
 	}
-	// Named for where it lives, like the others, and keeping what makes it the weakest of the
-	// three: a directive in the code is an acceptance with no author and no date.
-	return fmt.Sprintf("source directives: %s silenced, and nobody signed them", english.Count(n, "finding"))
+	// The count and nothing else, in the word the other rows use. What makes this row the weakest
+	// of the three, an exclusion with no author and no date, set outside the descriptor, is the
+	// argument for printing it rather than something to print on it: the label says which row this
+	// is and the documentation says what the label means.
+	return fmt.Sprintf("scanner exclusions: %s suppressed", english.Count(n, "finding"))
 }
 
 // alsoFoundBy is what the other scanners said about this same flaw.
@@ -1276,7 +1293,11 @@ func suppressionSources(d Data) []sourceCount {
 			// A supplier's claim is counted and attributed by importedLine, which names the
 			// author rather than the file. Counting it here as well made the breakdown sum to
 			// more than the total it was breaking down.
-			if res.Imported() {
+			//
+			// The scanner's own carry a file too, and it is the scanner's file rather than a
+			// fragment of this descriptor. Counted here it read as a `config.exclude` rule, which
+			// says this project signed something it never saw.
+			if res.Imported() || res.SetAsideByScanner() {
 				continue
 			}
 			counts[res.Suppression.Source]++
@@ -1445,6 +1466,8 @@ func acceptedVia(res sarif.Result) string {
 		return "VEX"
 	case res.SilencedInSource():
 		return "source directive"
+	case res.SetAsideByScanner():
+		return "scanner config"
 	default:
 		return "config.exclude"
 	}
@@ -1470,7 +1493,7 @@ func decisions(d Data) []decision {
 	var order []*decision
 	for _, cr := range d.Run.Controls {
 		for _, res := range cr.Report.Results {
-			if !res.Suppressed() || res.Imported() || res.SilencedInSource() {
+			if !res.Suppressed() || res.Imported() || res.SetAsideByScanner() {
 				continue
 			}
 			by := res.Suppression.AcceptedBy

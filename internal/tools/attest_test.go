@@ -115,56 +115,34 @@ func TestAttestFallsBackToTheRecordedVersion(t *testing.T) {
 	}
 }
 
-// "Draugr did not install it" is true of everything external and misleading for some of it. A tool
-// Draugr does not distribute was never a candidate, so reporting an omission invites somebody to
-// go and fix it with a command that will not work.
-func TestDescribeForSeparatesNotInstalledFromNotDistributed(t *testing.T) {
+// Everything external reads the same, and the distinction the report needs is carried elsewhere.
+//
+// Whether Draugr could have installed a tool is real and it changes what somebody does, which is
+// why it decides whether a scan offers the command. It does not change where the binary came from,
+// and this fills a column of exactly that, so two wordings there were two ways of saying one fact.
+// `TestTheUnverifiedToolTipNamesWhatToInstall` holds the half that acts on the distinction.
+func TestEverythingExternalSaysWhereItCameFrom(t *testing.T) {
 	t.Parallel()
-	tests := []struct {
-		name    string
-		level   Level
-		tool    string
-		want    string
-		wantNot string
-	}{
-		{
-			// Draugr distributes trivy, so the omission is real and has a fix.
-			name:  "a tool Draugr installs, brought by the operator",
-			level: LevelExternal, tool: "trivy",
-			want: "draugr tools install trivy",
-		},
-		{
-			// Semgrep is provisioned too, by the Python route rather than a release archive. So the line
-			// has to offer the command, exactly as it does for a downloaded binary.
-			name:  "a tool Draugr installs as a Python package",
-			level: LevelExternal, tool: "semgrep",
-			want: "draugr tools install semgrep",
-		},
-		{
-			// A tool Draugr genuinely cannot provision. Naming an omission it cannot fix invites
-			// somebody to run a command that will not find it.
-			name:  "a tool Draugr does not distribute",
-			level: LevelExternal, tool: "mend",
-			want:    "does not distribute it",
-			wantNot: "draugr tools install",
-		},
-		{
-			name:  "an installed tool is described by its level",
-			level: LevelPinned, tool: "trivy",
-			want: "installed by Draugr",
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tool := range []string{
+		"trivy",   // Draugr distributes it, as a release archive.
+		"semgrep", // And this one, as a Python package.
+		"mend",    // And not this one.
+	} {
+		t.Run(tool, func(t *testing.T) {
 			t.Parallel()
-			got := DescribeFor(tc.level, tc.tool)
-			if !strings.Contains(got, tc.want) {
-				t.Errorf("DescribeFor(%s, %s) = %q, want it to contain %q", tc.level, tc.tool, got, tc.want)
+			got := DescribeFor(LevelExternal, tool)
+			if got != "not installed by Draugr" {
+				t.Errorf("DescribeFor(external, %s) = %q", tool, got)
 			}
-			if tc.wantNot != "" && strings.Contains(got, tc.wantNot) {
-				t.Errorf("DescribeFor(%s, %s) = %q, should not suggest %q", tc.level, tc.tool, got, tc.wantNot)
+			// A command in a value is a command in the wrong column, whichever tool it names.
+			if strings.Contains(got, "draugr ") {
+				t.Errorf("DescribeFor(external, %s) = %q, which is an instruction", tool, got)
 			}
 		})
+	}
+	// An installed tool is still described by how it was checked, which is the fact for that one.
+	if got := DescribeFor(LevelPinned, "trivy"); !strings.Contains(got, "installed by Draugr") {
+		t.Errorf("DescribeFor(pinned, trivy) = %q", got)
 	}
 }
 

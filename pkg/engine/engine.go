@@ -519,14 +519,18 @@ type Result struct {
 	// exclusion doing nothing is indistinguishable from one that is working: it is usually a
 	// typo, a rule id that moved, or a finding someone already fixed and forgot to stop excusing.
 	UnmatchedExclusions []saga.ExcludeRule
-	// Silenced counts findings a scanner reported as suppressed because somebody wrote a comment in
-	// the source, a Semgrep `nosem`, a linter pragma.
+	// Silenced counts findings the scanner set aside on its own: a directive in the source such as
+	// a Semgrep `nosem`, or a rule in the scanner's own configuration such as a `.trivyignore`
+	// line.
 	//
 	// Counted apart from Suppressed and Imported because it is the weakest of the three and the
 	// only one nobody reviewed. A descriptor rule was written where whoever owns the descriptor
-	// can see it; a supplier's claim is answerable by the supplier. This one was written by
-	// whoever was editing the file, possibly to get a build green, and folding it into either
-	// total would let that hide inside a stronger answer.
+	// can see it; a supplier's claim is answerable by the supplier. This one was written wherever
+	// it was convenient, possibly to get a build green, and folding it into either total would let
+	// that hide inside a stronger answer.
+	//
+	// One count for both of the scanner's own, because what the number is for is true of each. The
+	// finding itself carries which of the two it was.
 	Silenced int
 	// Imported counts findings excused by a claim somebody else made, a supplier's VEX document
 	// rather than a rule in this descriptor. Counted apart from Suppressed because they answer the
@@ -1987,7 +1991,7 @@ func countSilenced(controls map[string]plugin.ControlResult) int {
 	n := 0
 	for _, cr := range controls {
 		for _, res := range cr.Report.Results {
-			if res.SilencedInSource() {
+			if res.SetAsideByScanner() {
 				n++
 			}
 		}

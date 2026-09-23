@@ -332,8 +332,7 @@ func goldenEvidenceData() Data {
 	d.Tools = []ToolBuild{
 		{Name: "trivy", Version: "0.69.3", Level: "pinned"},
 		{Name: "semgrep", Version: "1.169.0", Level: "external",
-			Reason: "found on PATH; Draugr did not install it, `draugr tools install semgrep` " +
-				"provisions a pinned build"},
+			Reason: "found on PATH; Draugr can install a pinned build"},
 	}
 	return d
 }

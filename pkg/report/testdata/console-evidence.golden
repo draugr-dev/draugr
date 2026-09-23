@@ -49,8 +49,7 @@ UNMATCHED
 
 EVIDENCE
   scanners    trivy 0.69.3
-  unverified  semgrep 1.169.0 · found on PATH; Draugr did not install it, `draugr tools install semgrep`
-              provisions a pinned build
+  unverified  semgrep 1.169.0 · found on PATH; Draugr can install a pinned build
   run         11 jobs in 34.5s, 8 at a time · 4 from cache
   sbom        2 documents (spdx-json)
   gate        fails on P1
