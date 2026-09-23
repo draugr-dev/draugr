@@ -1517,20 +1517,23 @@ func TestRepositoryRowsReadAsAClauseNotAnAlarm(t *testing.T) {
 	// One row per repository, because this is the block that grows without bound: a component may
 	// hold several and a descriptor many components.
 	got := repositoryRows([]RepositoryProvenance{{URL: ".", Revision: "abc123def456"}})
-	if len(got) != 1 || got[0] != [2]string{".", "abc123de"} {
+	if len(got) != 1 || got[0] != [2]string{".", "abc123de · no git remote"} {
 		t.Errorf("got %q", got)
 	}
-	// The host goes: every row carries the same one, and the path is what tells them apart.
-	got = repositoryRows([]RepositoryProvenance{{URL: "https://github.com/acme/api", Revision: "abc123def456"}})
-	if len(got) != 1 || got[0][0] != "acme/api" {
+	// The forge stays: a descriptor reading from a forge and from a vendor's mirror has two rows
+	// that differ only there, and the suffix goes because one repository is one repository.
+	got = repositoryRows([]RepositoryProvenance{{URL: "https://github.com/acme/api.git", Revision: "abc123def456"}})
+	if len(got) != 1 || got[0][0] != "github.com/acme/api" {
 		t.Errorf("got %q", got)
 	}
-	got = repositoryRows([]RepositoryProvenance{{URL: ".", Revision: "abc123def456", Uncommitted: 7}})
+	got = repositoryRows([]RepositoryProvenance{
+		{URL: "https://github.com/acme/api", Revision: "abc123def456", Uncommitted: 7}})
 	if len(got) != 1 || got[0][1] != "abc123de · 7 uncommitted files not included" {
 		t.Errorf("got %q", got)
 	}
 	// One file is one file. A report that says "1 uncommitted files" was written by a program.
-	got = repositoryRows([]RepositoryProvenance{{URL: ".", Revision: "abc123def456", Uncommitted: 1}})
+	got = repositoryRows([]RepositoryProvenance{
+		{URL: "https://github.com/acme/api", Revision: "abc123def456", Uncommitted: 1}})
 	if !strings.Contains(got[0][1], "1 uncommitted file ") {
 		t.Errorf("got %q", got)
 	}
@@ -1559,16 +1562,23 @@ func TestRepositoryRowSaysWhenTheTreeIsNotReproducible(t *testing.T) {
 	// The committed row and the working-tree row describe opposite situations with the same
 	// number: one counts what is missing, the other counts what is uniquely there.
 	working := repositoryRows([]RepositoryProvenance{{
-		URL: ".", Revision: "abc123def456", Uncommitted: 2, WorkingTree: true,
+		URL: "https://github.com/acme/api", Revision: "abc123def456", Uncommitted: 2, WorkingTree: true,
 	}})
 	if len(working) != 1 || working[0][1] != "working tree abc123de+ · 2 uncommitted files, not reproducible" {
 		t.Errorf("got %q", working)
 	}
 	committed := repositoryRows([]RepositoryProvenance{{
-		URL: ".", Revision: "abc123def456", Uncommitted: 2,
+		URL: "https://github.com/acme/api", Revision: "abc123def456", Uncommitted: 2,
 	}})
 	if committed[0][1] != "abc123de · 2 uncommitted files not included" {
 		t.Errorf("got %q", committed)
+	}
+	// A checkout with no remote carries both clauses: why it has no name, and what is not in it.
+	local := repositoryRows([]RepositoryProvenance{{
+		URL: ".", Revision: "abc123def456", Uncommitted: 2,
+	}})
+	if local[0][1] != "abc123de · no git remote · 2 uncommitted files not included" {
+		t.Errorf("got %q", local)
 	}
 }
 

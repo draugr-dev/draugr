@@ -397,3 +397,51 @@ func TestOneFileDescriptorGetsNoSection(t *testing.T) {
 		t.Errorf("the section printed without --evidence:\n%s", b.String())
 	}
 }
+
+// A repository reads the same wherever it is named.
+//
+// The forge is half the identity: a descriptor that reads from a forge and a vendor's mirror has
+// two rows differing only there. And one repository cloned with and without `.git` is one
+// repository, which a reader comparing this row against a descriptor fragment's should not have to
+// notice.
+func TestARepositoryIsNamedTheSameWayEverywhere(t *testing.T) {
+	for _, c := range []struct{ url, want string }{
+		{"https://github.com/acme/api.git", "github.com/acme/api"},
+		{"https://github.com/acme/api", "github.com/acme/api"},
+		{"http://ghe.internal/acme/api.git", "ghe.internal/acme/api"},
+		// Any other scheme is part of the address rather than the transport. Dropped, this reads
+		// as a path on the reader's own machine.
+		{"file:///srv/mirror/acme.git", "file:///srv/mirror/acme"},
+		// scp-style, already reduced by plugin.SourceURL to host:org/repo.
+		{"github.com:acme/api.git", "github.com:acme/api"},
+		// A local path is left exactly as it is: there is nothing to trim and nothing to imply.
+		{".", "."},
+		{"./svc-a", "./svc-a"},
+		{"/srv/checkout", "/srv/checkout"},
+	} {
+		if got := repositoryName(c.url); got != c.want {
+			t.Errorf("repositoryName(%q) = %q, want %q", c.url, got, c.want)
+		}
+	}
+}
+
+// A checkout with no remote says so, rather than leaving a path to be read as a name.
+func TestACheckoutWithNoRemoteSaysSo(t *testing.T) {
+	rows := repositoryRows([]RepositoryProvenance{
+		{URL: ".", Revision: "1ca53fdaaaaa", Uncommitted: 1},
+		{URL: "https://github.com/acme/api.git", Revision: "8709f892bbbb"},
+	})
+	if len(rows) != 2 {
+		t.Fatalf("%d rows, want one per repository", len(rows))
+	}
+	if !strings.Contains(rows[0][1], "no git remote") {
+		t.Errorf("a local checkout does not say why it has no name: %q", rows[0][1])
+	}
+	// And the one that has a name does not carry the note, which would read as a second state.
+	if strings.Contains(rows[1][1], "no git remote") {
+		t.Errorf("a named repository claims it has no remote: %q", rows[1][1])
+	}
+	if rows[1][0] != "github.com/acme/api" {
+		t.Errorf("row = %q, want the forge kept and the suffix dropped", rows[1][0])
+	}
+}

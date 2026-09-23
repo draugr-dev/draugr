@@ -1347,20 +1347,25 @@ func toolBuildLines(tools []ToolBuild) []string {
 //
 // A table rather than a sentence each. A component may hold several repositories and a descriptor
 // may hold many components, so this is the block that grows without bound, and fifty sentences
-// each naming a URL in the middle of them cannot be compared. The host is dropped with it: every
-// row would carry the same one, and what tells them apart is the path.
+// each naming a URL in the middle of them cannot be compared.
+//
+// The host stays. It was dropped on the argument that every row carries the same one, which is
+// true of a project whose repositories all live in one place and false of the ones this block
+// exists for: a descriptor that reads from a forge and a vendor's mirror has two rows that differ
+// only there, and neither says which is which.
 func repositoryRows(repos []RepositoryProvenance) [][2]string {
 	out := make([][2]string, 0, len(repos))
 	for _, r := range repos {
-		where := r.URL
-		if short := strings.TrimPrefix(strings.TrimPrefix(where, "https://"), "http://"); short != where {
-			if _, path, ok := strings.Cut(short, "/"); ok && path != "" {
-				where = path
-			}
-		}
+		where := repositoryName(r.URL)
 		said := r.Short()
 		if r.WorkingTree {
 			said = strings.TrimSpace("working tree " + said)
+		}
+		// Said rather than left to be inferred from a path that means nothing on anybody else's
+		// machine. A checkout with no remote has no portable identity, which is legitimate and is
+		// the reason this row cannot name one.
+		if localPath(r.URL) {
+			said = strings.TrimSpace(said + " · no git remote")
 		}
 		switch {
 		case r.WorkingTree && r.Uncommitted > 0:
@@ -1375,6 +1380,39 @@ func repositoryRows(repos []RepositoryProvenance) [][2]string {
 		out = append(out, [2]string{where, strings.TrimSpace(said)})
 	}
 	return out
+}
+
+// repositoryName renders a repository the way every other row that names one does.
+//
+// The scheme goes, because it is the transport rather than the repository, and `.git` goes with
+// it: the same repository cloned with and without the suffix is one repository, and a reader
+// comparing this against a descriptor fragment's row should not have to notice the difference.
+//
+// Rendering only. The string this trims is what a finding is identified by downstream, where two
+// spellings of one repository are already two, and normalizing it there would make every finding
+// recorded under the old spelling a different finding.
+func repositoryName(url string) string {
+	if localPath(url) {
+		return url
+	}
+	// Only the two that are noise. Every row carries one or the other and neither tells a reader
+	// anything, where any other scheme is part of what the address is: dropping it from
+	// `file:///srv/mirror` leaves a string that reads as a path on the reader's own machine.
+	for _, transport := range []string{"https://", "http://"} {
+		if rest, ok := strings.CutPrefix(url, transport); ok {
+			url = rest
+			break
+		}
+	}
+	return strings.TrimSuffix(url, ".git")
+}
+
+// localPath reports whether this is a directory on the machine that scanned rather than a
+// repository anybody else can name. It is what `Source()` falls back to when a checkout has no
+// remote to resolve.
+func localPath(url string) bool {
+	return url == "" || strings.HasPrefix(url, ".") || strings.HasPrefix(url, "/") ||
+		strings.HasPrefix(url, "~")
 }
 
 // sbomLine reports what inventory the run produced.
@@ -1730,7 +1768,7 @@ func descriptorSourceNote(src skald.DescriptorSource) string {
 		// version of a shared policy, and the commit is what makes the run reproducible after the
 		// tag has moved. The file's own digest is left off here, because the commit already pins
 		// the tree it came out of and two hex strings on one row is one too many to compare.
-		where := strings.TrimPrefix(strings.TrimPrefix(src.URL, "https://"), "http://")
+		where := repositoryName(src.URL)
 		if src.Revision != "" {
 			where += "@" + src.Revision
 		}

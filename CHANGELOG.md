@@ -26,6 +26,8 @@ The evidence block says where each scanner came from and nothing else. The row f
 
 `config.exclude` counts the files an exclusion came from once there are more than four of them, rather than naming every one. How many files a descriptor is split across is your decision, so the named list had no end, and the line grew with it.
 
+A repository is named the same way wherever a report names one: the forge kept, the scheme and any `.git` suffix dropped. The row saying what was scanned dropped the forge, on the argument that every row carries the same one, which is false for the descriptor this block exists for, one reading from a forge and from a vendor's mirror had two rows differing only where the name had been cut. A checkout with no git remote says so beside the revision, rather than leaving a relative path to be read as a repository's name.
+
 ### Fixed
 
 A finding excluded by a descriptor rule that named nobody was reported as one the scanner suppressed on its own. A report says where each suppression came from, so a reader knows who to ask about it, and the three answers are different people: the descriptor's owner, the component's supplier, or whoever committed the line. The rule's origin is written into the report now rather than inferred from whether it carried a name, so a rule that recorded a reason and no signature is still a decision somebody made in the descriptor.
