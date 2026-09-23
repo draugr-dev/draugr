@@ -48,22 +48,19 @@ func (l Level) Describe() string {
 
 // DescribeFor renders a level for one named tool.
 //
-// "Draugr did not install it" is true of everything external and misleading for some of it: a tool
-// Draugr cannot provision was never a candidate, and reporting an omission invites somebody to go
-// and fix it with a command that will not work. So the line differs by whether Draugr could have
-// installed this one, which now includes the tools it obtains as Python packages.
+// One answer for everything external, because the row it fills is a row of facts about where each
+// binary came from and that is the fact. Whether Draugr could have installed this one is a real
+// distinction and it is carried where it changes what somebody does: a scan offers the command
+// under TRY only for the tools the command can obtain, and `doctor` answers it in full.
 //
-// Both are facts about where the binary came from, which is what the row this fills is a row of.
-// What to do about it is a command, and a command belongs where a reader looks for one: `doctor`
-// answers it in full, and a scan that ran on something unverified says so under TRY.
-func DescribeFor(l Level, tool string) string {
+// The tool argument stays. Every other level's wording is the same for every tool, and this one
+// reads the tool to decide nothing today, but the signature is what the caller has and the levels
+// are what may gain a tool-specific answer.
+func DescribeFor(l Level, _ string) string {
 	if l != LevelExternal && l != "" {
 		return l.Describe()
 	}
-	if !Provisionable(tool) {
-		return "found on PATH; Draugr does not distribute it"
-	}
-	return "found on PATH; Draugr can install a pinned build"
+	return "not installed by Draugr"
 }
 
 // Provisionable reports whether `draugr tools install` can obtain this tool, by either method.

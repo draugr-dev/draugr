@@ -316,8 +316,9 @@ func TestTheUnverifiedToolTipNamesWhatToInstall(t *testing.T) {
 	for _, s := range got {
 		if s.What == "draugr tools install semgrep" {
 			found = true
-			if !strings.Contains(s.Why, "1 scanner") {
-				t.Errorf("why = %q, want it to count what ran unverified", s.Why)
+			// What the reader gets, which is how every other row here is written.
+			if !strings.Contains(s.Why, "checked") {
+				t.Errorf("why = %q, want it to say what running it gets them", s.Why)
 			}
 		}
 	}

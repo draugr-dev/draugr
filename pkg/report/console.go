@@ -220,6 +220,10 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	// The count says otherwise, and each reason travels in the SARIF next to the result it
 	// justifies.
 	writeAccepted(w, col, d, d.Evidence)
+	// After what was set aside and before the findings: the descriptor is what decided both, and a
+	// reader checking an exclusion against the file that made it wants the list of files in front
+	// of them rather than at the foot of the report.
+	writeDescriptorSources(w, col, d, d.Evidence)
 
 	if !d.Evidence {
 		writeGate(w, col, d, false, "")
@@ -1689,6 +1693,59 @@ func writeAccepted(w io.Writer, col tui.Painter, d Data, full bool) {
 	draw("Unmatched", unmatched)
 }
 
+// writeDescriptorSources names every file the descriptor was assembled from, under --evidence.
+//
+// A section rather than a clause on the evidence row. How many files a descriptor is split across
+// is the reader's own decision, so the list has no length this can predict, and a set with no end
+// is a set that gets its own block rather than a line that grows.
+//
+// Only where there is more than one. A descriptor that is a single file has already been named on
+// the row above, and a section repeating it is a heading for one fact.
+func writeDescriptorSources(w io.Writer, col tui.Painter, d Data, full bool) {
+	if !full || d.Descriptor == nil || len(d.Descriptor.Sources) < 2 {
+		return
+	}
+	_, _ = fmt.Fprintln(w, heading(col, "Descriptor"))
+	t := tui.NewTable(col).Indent("  ")
+	for _, src := range d.Descriptor.Sources {
+		t.Row(tui.Styled(tui.StyleStrong, src.Path), tui.Styled(cDim, descriptorSourceNote(src)))
+	}
+	t.Render(w)
+	_, _ = fmt.Fprintln(w)
+}
+
+// descriptorSourceNote says where one file came from and which text it was.
+//
+// The repository first where there is one: a path alone says which file inside a tree, and a
+// fragment pulled from somebody else's repository is a file this checkout does not contain, which
+// is the thing a reader cannot work out from the name. The commit is the resolved one rather than
+// the branch that was asked for, since a branch moves and only the commit makes a run reproducible.
+func descriptorSourceNote(src skald.DescriptorSource) string {
+	var parts []string
+	if src.Root {
+		parts = append(parts, "root")
+	}
+	if src.URL != "" {
+		// What was asked for and what it turned out to be, both: a tag is how somebody refers to a
+		// version of a shared policy, and the commit is what makes the run reproducible after the
+		// tag has moved. The file's own digest is left off here, because the commit already pins
+		// the tree it came out of and two hex strings on one row is one too many to compare.
+		where := strings.TrimPrefix(strings.TrimPrefix(src.URL, "https://"), "http://")
+		if src.Revision != "" {
+			where += "@" + src.Revision
+		}
+		parts = append(parts, where)
+		if src.Resolved != "" && src.Resolved != src.Revision {
+			parts = append(parts, shortDigest(src.Resolved))
+		}
+		return strings.Join(parts, " · ")
+	}
+	if src.Digest != "" {
+		parts = append(parts, shortDigest(src.Digest))
+	}
+	return strings.Join(parts, " · ")
+}
+
 // writeDecisions accounts for each acceptance separately, under --evidence.
 //
 // The reason leads, on a line of its own, because it is the only part a reader has to judge. Who
@@ -2201,6 +2258,9 @@ func descriptorLine(d *skald.DescriptorRef) string {
 
 // shortDigest keeps a digest recognizable without spending a line on it. Twelve hex characters is
 // what git settled on for the same job.
+//
+// A tag or a branch name reaches this too, from a fragment's resolved revision, and comes back
+// unchanged: anything already shorter than a shortened digest is already the thing a reader reads.
 func shortDigest(d string) string {
 	hex := strings.TrimPrefix(d, "sha256:")
 	if len(hex) > 12 {

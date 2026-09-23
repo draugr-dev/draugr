@@ -139,11 +139,9 @@ var scanTips = []scanTip{
 		what: func(c tipContext) string {
 			return "draugr tools install " + strings.Join(provisionableExternals(c.tools), " ")
 		},
-		why: func(c tipContext) string {
-			n := len(provisionableExternals(c.tools))
-			return fmt.Sprintf("%s ran from PATH rather than a build Draugr checked",
-				english.Count(n, "scanner"))
-		},
+		// What the reader gets, the way every other row here is written, rather than what is
+		// currently wrong. The row above each of these says what to type and this says why.
+		why: func(tipContext) string { return "scan on builds Draugr fetched and checked" },
 	},
 }
 

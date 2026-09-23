@@ -519,7 +519,7 @@ But a report that cannot say which build produced its findings cannot be reprodu
 
 ```
 scanners    gitleaks 8.30.1, trivy 0.69.3
-unverified  semgrep 1.173.0 · found on PATH; Draugr can install a pinned build
+unverified  semgrep 1.173.0 · not installed by Draugr
 ```
 
 Where Draugr could have installed it, `TRY` says so with the command, because that is where a scan
@@ -527,7 +527,7 @@ puts the things to run next:
 
 ```
 TRY
-  draugr tools install semgrep   1 scanner ran from PATH rather than a build Draugr checked
+  draugr tools install semgrep   scan on builds Draugr fetched and checked
 ```
 
 The first line lists the builds Draugr fetched **and checked**: each sits in `~/.draugr/bin`, the
@@ -538,6 +538,23 @@ The version is on both lines, and on the second it is the whole point. A tool Dr
 be identified from its install record; one you brought cannot, so Draugr asks it, which is what lets
 the report name the build behind a finding rather than only disclaiming responsibility for it. A
 tool that will not say gets no version, and that too is recorded rather than guessed.
+
+### `DESCRIPTOR`, under `--evidence`
+
+A descriptor assembled from more than one file gets a section naming each, so the evidence row
+above it can stay a summary:
+
+```
+DESCRIPTOR
+  draugr.saga.yaml                    root · 3b0afb46b138
+  security/exclusions.saga-fragment.yaml  051d25d1f323
+  platform/shared.saga-fragment.yaml  github.com/acme/platform@v2.4.0 · d6a7fb0a3f4b
+```
+
+A file beside the descriptor carries its own digest, which answers *is this the text somebody
+reviewed*. A fragment from another repository carries that repository, the revision it was pinned
+at, and the commit that turned out to be, because a tag moves and only the commit makes the run
+reproducible. A descriptor that is a single file gets no section: the row above already named it.
 
 Everything else gets its own line with the reason, because that is the one you have to decide
 about. What Draugr can say about a binary has five levels:
