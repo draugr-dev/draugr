@@ -195,6 +195,24 @@ origin, and the answer is worth having on its own terms.
 
 ---
 
+## Signals
+
+Statements about the world that move a finding's severity before it is ranked. Each is produced
+outside the code being scanned, which is why no scanner can compute one. See
+[how each signal is produced](../concepts/prioritization.md#how-each-signal-is-produced).
+
+- **KEV**, Known Exploited Vulnerabilities: CISA's catalog of CVEs with reliable evidence of
+  exploitation in the wild. A finding on it is ranked critical.
+- **EPSS**, Exploit Prediction Scoring System: FIRST's daily probability, from 0 to 1, that a CVE is
+  exploited in the next 30 days, computed by a model whose inputs include public exploit code. A
+  finding at or above the threshold rises one band.
+- **Malicious package**: a package the OSSF Malicious Packages Project has reported as hostile. A
+  finding in one is ranked critical.
+- **Deprecated package**: a version its publisher has marked as no longer supported. A finding in
+  one rises one band.
+- **Reachability**: whether any path in the code's call graph leads to the function an advisory
+  names. An analyzer that finds none lowers the band by one.
+
 ## Cross-cutting terms
 
 - **SARIF**, Static Analysis Results Interchange Format; the OASIS-standard JSON that every

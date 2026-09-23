@@ -147,6 +147,28 @@ finding along it before step 2 above reads it:
 beside the band it was ranked at and names the signal that moved it, so the distance between the two
 is always visible.
 
+### How each signal is produced
+
+A signal is somebody else's statement, and it is worth as much as the process behind it.
+
+| Signal | Produced by | How | Refreshed | What it cannot tell you |
+|---|---|---|---|---|
+| **Control floor** | Draugr | a minimum per control, set in the code: a leaked credential is usable whatever its scanner called it | per release | anything about the finding itself |
+| **KEV** | CISA | a CVE is added when there is reliable evidence of exploitation in the wild, attempted or successful, and a clear remediation exists. Scanning, security research and a proof of concept do not count | continuously | whether an attack will reach you |
+| **EPSS** | FIRST | a model trained on observed exploitation scores every published CVE daily. Its inputs include public exploit code (Metasploit modules, exploit repositories on GitHub weighted by how widely they are used, Nuclei templates), discussion of the flaw and the CVE's CVSS metrics | daily | whether a CVE with a low score is safe |
+| **Malicious** | the OSSF Malicious Packages Project, via deps.dev | reports contributed by researchers and automated detectors, published in OSV format. A confirmed false positive is withdrawn rather than deleted | as reports arrive | whether a package it has not seen is safe |
+| **Deprecated** | the package's publisher, via deps.dev | the publisher marks a version deprecated in its registry, with a reason that Draugr carries into the report | when the publisher acts | whether the flaw can fire in your code |
+| **Unreachable** | an analyzer, e.g. `govulncheck` | builds a call graph of your code and its dependencies and looks for a path to the function an advisory names | every scan | anything the analysis could not see: reflection, dynamic dispatch, generated code |
+
+The last column is why absence never lowers a band. A CVE missing from KEV, a low EPSS score and a
+package nobody has flagged are all statements that nothing was found, and Draugr ranks them as it
+would with no signal at all. Only an analyzer that shows its method can lower a band, as the
+section on [reachability](#reachability-what-lowers-a-band) describes.
+
+The concepts behind each signal, for a reader meeting them for the first time:
+[EPSS & KEV](/learn/epss-and-kev/), [dependency health](/learn/dependency-health/),
+[reachability](/learn/reachability/).
+
 ### When two signals hit one finding
 
 The interesting cases are the collisions, and there are two rules.
