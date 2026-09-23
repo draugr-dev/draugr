@@ -1517,7 +1517,7 @@ func TestRepositoryRowsReadAsAClauseNotAnAlarm(t *testing.T) {
 	// One row per repository, because this is the block that grows without bound: a component may
 	// hold several and a descriptor many components.
 	got := repositoryRows([]RepositoryProvenance{{URL: ".", Revision: "abc123def456"}})
-	if len(got) != 1 || got[0] != [2]string{".", "abc123de · no git remote"} {
+	if len(got) != 1 || got[0] != [2]string{".", "commit abc123de · no git remote"} {
 		t.Errorf("got %q", got)
 	}
 	// The forge stays: a descriptor reading from a forge and from a vendor's mirror has two rows
@@ -1528,7 +1528,7 @@ func TestRepositoryRowsReadAsAClauseNotAnAlarm(t *testing.T) {
 	}
 	got = repositoryRows([]RepositoryProvenance{
 		{URL: "https://github.com/acme/api", Revision: "abc123def456", Uncommitted: 7}})
-	if len(got) != 1 || got[0][1] != "abc123de · 7 uncommitted files not included" {
+	if len(got) != 1 || got[0][1] != "commit abc123de · 7 uncommitted files not included" {
 		t.Errorf("got %q", got)
 	}
 	// One file is one file. A report that says "1 uncommitted files" was written by a program.
@@ -1564,20 +1564,20 @@ func TestRepositoryRowSaysWhenTheTreeIsNotReproducible(t *testing.T) {
 	working := repositoryRows([]RepositoryProvenance{{
 		URL: "https://github.com/acme/api", Revision: "abc123def456", Uncommitted: 2, WorkingTree: true,
 	}})
-	if len(working) != 1 || working[0][1] != "working tree abc123de+ · 2 uncommitted files, not reproducible" {
+	if len(working) != 1 || working[0][1] != "commit abc123de+ · working tree · 2 uncommitted files, not reproducible" {
 		t.Errorf("got %q", working)
 	}
 	committed := repositoryRows([]RepositoryProvenance{{
 		URL: "https://github.com/acme/api", Revision: "abc123def456", Uncommitted: 2,
 	}})
-	if committed[0][1] != "abc123de · 2 uncommitted files not included" {
+	if committed[0][1] != "commit abc123de · 2 uncommitted files not included" {
 		t.Errorf("got %q", committed)
 	}
 	// A checkout with no remote carries both clauses: why it has no name, and what is not in it.
 	local := repositoryRows([]RepositoryProvenance{{
 		URL: ".", Revision: "abc123def456", Uncommitted: 2,
 	}})
-	if local[0][1] != "abc123de · no git remote · 2 uncommitted files not included" {
+	if local[0][1] != "commit abc123de · no git remote · 2 uncommitted files not included" {
 		t.Errorf("got %q", local)
 	}
 }

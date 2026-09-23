@@ -28,11 +28,15 @@ The evidence block says where each scanner came from and nothing else. The row f
 
 A repository is named the same way wherever a report names one: the forge kept, the scheme and any `.git` suffix dropped. The row saying what was scanned dropped the forge, on the argument that every row carries the same one, which is false for the descriptor this block exists for, one reading from a forge and from a vendor's mirror had two rows differing only where the name had been cut. A checkout with no git remote says so beside the revision, rather than leaving a relative path to be read as a repository's name.
 
+Every hash a report prints says what kind it is. The evidence block printed a commit, the digest of a descriptor file and the digest of the merged document, three different questions answered in the same eight characters of hex with only one of them named. A repository row reads `commit 1ca53fda`, a descriptor file reads `digest 3b0afb46b138`, and a fragment pinned to another repository reads `commit d6a7fb0a3f4b`.
+
 ### Fixed
 
 A finding excluded by a descriptor rule that named nobody was reported as one the scanner suppressed on its own. A report says where each suppression came from, so a reader knows who to ask about it, and the three answers are different people: the descriptor's owner, the component's supplier, or whoever committed the line. The rule's origin is written into the report now rather than inferred from whether it carried a name, so a rule that recorded a reason and no signature is still a decision somebody made in the descriptor.
 
 A Go finding excluded with a `#nosec` comment is reported, marked, with the reason after the `--`. gosec removes such a result from its output unless asked to keep it, and Draugr was not asking, so the finding did not reach the report at all: it read as a finding nobody had ever made, and the question asked of an exclusion later, who decided this was acceptable, had nothing to answer from. Runs on Go code may report more findings than the last one, all of them already accepted by somebody and none of them counted against the gate.
+
+Two scans of one descriptor list their repositories in the same order. The order was the order the scanner jobs finished in, and those run concurrently, so the same run looked like a different one to anything comparing two reports as text. Measured over eight runs of a two-repository descriptor: three orderings before, one after.
 
 ## [0.130.0] - 2026-09-22
 

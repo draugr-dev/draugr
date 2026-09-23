@@ -1357,25 +1357,39 @@ func repositoryRows(repos []RepositoryProvenance) [][2]string {
 	out := make([][2]string, 0, len(repos))
 	for _, r := range repos {
 		where := repositoryName(r.URL)
-		said := r.Short()
+		// Named, because eight characters of hex is not self-evidently anything and this block
+		// prints three different kinds of it. A reader who does not already know cannot tell a
+		// commit from the digest of a file two rows down.
+		var said string
+		if rev := r.Short(); rev != "" {
+			said = "commit " + rev
+		}
+		// Clauses after it, each one a fact about the scan, so the revision is always the first
+		// thing in this column and always says what it is.
+		var notes []string
 		if r.WorkingTree {
-			said = strings.TrimSpace("working tree " + said)
+			notes = append(notes, "working tree")
 		}
 		// Said rather than left to be inferred from a path that means nothing on anybody else's
 		// machine. A checkout with no remote has no portable identity, which is legitimate and is
 		// the reason this row cannot name one.
 		if localPath(r.URL) {
-			said = strings.TrimSpace(said + " · no git remote")
+			notes = append(notes, "no git remote")
 		}
 		switch {
 		case r.WorkingTree && r.Uncommitted > 0:
 			// The uncommitted work is the reason this scan was asked for, so it is included rather
 			// than missing, and the result cannot be reproduced from the revision.
-			said += fmt.Sprintf(" · %s, not reproducible", english.Count(r.Uncommitted, "uncommitted file"))
+			notes = append(notes,
+				fmt.Sprintf("%s, not reproducible", english.Count(r.Uncommitted, "uncommitted file")))
 		case r.Uncommitted > 0:
 			// A clause, not an alarm. Uncommitted work is the normal state of a checkout somebody
 			// is editing; what matters is knowing it is not in what you are reading.
-			said += fmt.Sprintf(" · %s not included", english.Count(r.Uncommitted, "uncommitted file"))
+			notes = append(notes,
+				fmt.Sprintf("%s not included", english.Count(r.Uncommitted, "uncommitted file")))
+		}
+		if len(notes) > 0 {
+			said = strings.TrimPrefix(said+" · "+strings.Join(notes, " · "), " · ")
 		}
 		out = append(out, [2]string{where, strings.TrimSpace(said)})
 	}
@@ -1763,6 +1777,8 @@ func descriptorSourceNote(src skald.DescriptorSource) string {
 	if src.Root {
 		parts = append(parts, "root")
 	}
+	// Both hashes below are named for the same reason the revision is on the row above: this block
+	// prints a commit and a content digest, they look alike, and they answer different questions.
 	if src.URL != "" {
 		// What was asked for and what it turned out to be, both: a tag is how somebody refers to a
 		// version of a shared policy, and the commit is what makes the run reproducible after the
@@ -1774,12 +1790,12 @@ func descriptorSourceNote(src skald.DescriptorSource) string {
 		}
 		parts = append(parts, where)
 		if src.Resolved != "" && src.Resolved != src.Revision {
-			parts = append(parts, shortDigest(src.Resolved))
+			parts = append(parts, "commit "+shortDigest(src.Resolved))
 		}
 		return strings.Join(parts, " · ")
 	}
 	if src.Digest != "" {
-		parts = append(parts, shortDigest(src.Digest))
+		parts = append(parts, "digest "+shortDigest(src.Digest))
 	}
 	return strings.Join(parts, " · ")
 }

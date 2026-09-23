@@ -1221,6 +1221,16 @@ func RepositoriesIn(reports []Report) []RepositoryRef {
 			out = append(out, r)
 		}
 	}
+	// Sorted, because the order they were encountered in is the order the jobs finished in. Two
+	// scans of one descriptor printed their repositories in different orders, which makes the same
+	// run look like a different one to anything comparing two reports as text, and makes a reader
+	// checking a report against yesterday's read a difference that is not there.
+	slices.SortFunc(out, func(a, b RepositoryRef) int {
+		if a.URL != b.URL {
+			return strings.Compare(a.URL, b.URL)
+		}
+		return strings.Compare(a.Revision, b.Revision)
+	})
 	return out
 }
 
