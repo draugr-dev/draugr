@@ -21,6 +21,9 @@ Nothing here can collide with anything.
   section sits here looking queued and ships in no release at all.
 - **The content is the entry**, exactly as it should read in the notes: a `-` bullet, user-first,
   what you can now do, not which functions moved.
+- **Sixty words at most**, not counting a link's URL. Say what changed and stop; the reasoning
+  behind it belongs in the pull request. `changelog.sh check` refuses a longer entry, and
+  `check-slop.py` refuses a sentence split in two to make a point.
 - **Fragments assemble in filename order** within a section, so two people writing on the same
   afternoon get the same notes whichever order their pull requests merged.
 

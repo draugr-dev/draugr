@@ -35,6 +35,10 @@ FRAGMENTS="${CHANGELOG_FRAGMENTS:-changelog.d}"
 #, "### Fix" reads fine and lands nowhere the release notes look.
 SECTIONS=(Added Changed Deprecated Removed Fixed Security)
 
+# The most words one entry may hold. The notes are a list read top to bottom by somebody deciding
+# whether to upgrade, and past this an entry stops being an item in it.
+MAX_ENTRY_WORDS=60
+
 die() { echo "changelog: $*" >&2; exit 1; }
 
 usage() {
@@ -298,6 +302,14 @@ cmd_check() {
 			# of a new section.
 			if ! head -n 1 "$frag" | grep -q '^- '; then
 				echo "  $frag: an entry is one '- ' bullet, as it should read in the notes" >&2
+				problems=1
+			fi
+			# Short enough to read as a list item. The entries that read well say what changed and
+			# stop; the long ones argue for the change or recount how it was found, which belongs in
+			# the pull request. A link counts as the one word of its text, not its URL, and the bullet is not a word.
+			words=$(sed -E 's/^- //; s/\]\([^)]*\)/]/g' "$frag" | wc -w)
+			if [ "$words" -gt "$MAX_ENTRY_WORDS" ]; then
+				echo "  $frag: $words words, over $MAX_ENTRY_WORDS. Say what changed and stop, or split it into two entries" >&2
 				problems=1
 			fi
 		done < <(find "$FRAGMENTS" -maxdepth 1 -type f -name '*.md' | sort)

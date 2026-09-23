@@ -126,6 +126,31 @@ def offenders(path: Path) -> list[tuple[int, str, str]]:
     return out
 
 
+def release_note_offenders(path: Path) -> list[tuple[int, str, str]]:
+    """The split-sentence rules and the phrase list, over one changelog fragment.
+
+    A fragment is a single bullet, which `prose` skips as a list item, and release notes are read the
+    way the site's posts are rather than the way reference pages are: a sentence at a time by
+    somebody deciding whether to upgrade. So both rules the reference docs are spared run here.
+    Measured before switching them on: no hits across the last 99 published entries, so this gate
+    costs nothing today and holds the line after.
+    """
+    text = path.read_text(encoding="utf-8", errors="replace")
+    line = " ".join(text.split())
+    line = re.sub(r"^- ", "", line)
+    line = re.sub(r"`[^`]*`", "CODE", line)
+    line = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", line)
+    line = line.replace("**", "")
+    out = []
+    for m in BINARY.finditer(line):
+        out.append((1, "binary contrast", line[max(0, m.start() - 30):m.end() + 20]))
+    for m in FRAGMENT.finditer(line):
+        out.append((1, "fragment", m.group(1)))
+    low = line.lower()
+    out += [(1, "throat-clearing", p) for p in PHRASES if p.lower() in low]
+    return out
+
+
 def em_dashes(path: Path) -> list:
     """Every em dash outside a code fence.
 
@@ -158,6 +183,11 @@ def main() -> int:
         for path in paths:
             if path.suffix.lower() in {".md", ".mdx", ".astro"} and path.is_file():
                 found += [(path, *o) for o in offenders(path)]
+    notes = Path("changelog.d")
+    if notes.is_dir():
+        for path in sorted(notes.glob("*.md")):
+            if path.name != "README.md":
+                found += [(path, *o) for o in release_note_offenders(path)]
     seen = set()
     for root in EM_DASH_ROOTS:
         base = Path(root)
