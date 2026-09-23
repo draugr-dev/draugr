@@ -274,6 +274,10 @@ func firstFixedVersion(fixed string) string {
 
 type htmlFinding struct {
 	Priority, Severity, SevClass, Score, RuleID, Control, Tool, Component, Location, Message string
+	// Full is the scanner's whole message, set only where Message had to be shortened to fit a
+	// row. The row opens to it, so the list stays one line per finding and nothing a scanner said
+	// is lost to the report.
+	Full string
 	// Upgrade is the dependency and the release that clears it, which is the only instruction on
 	// the row. Empty for a finding that is not about a package.
 	Upgrade string
@@ -549,11 +553,16 @@ func toHTMLFinding(f finding) htmlFinding {
 	if m := movedBy(f); m != nil {
 		moved = m.glyph + " " + m.label
 	}
+	title := findingTitle(f)
+	full := strings.Join(strings.Fields(f.message), " ")
+	if full == title {
+		full = ""
+	}
 	return htmlFinding{
 		Priority: dash(f.priority), Severity: string(sev), SevClass: "sev-" + string(sev),
 		Score: scoreStr(f), RuleID: f.ruleID, Control: f.control, Tool: dash(f.tool),
 		Component: dash(f.component),
-		Location:  dash(f.location), Message: findingTitle(f), HelpURI: f.helpURI,
+		Location:  dash(f.location), Message: title, Full: full, HelpURI: f.helpURI,
 		Upgrade:       upgradeLabel(f),
 		Fix:           fixPhrase(f),
 		Moved:         moved,
@@ -1057,6 +1066,7 @@ const htmlDoc = `<!doctype html>
   @media print {
     .fold > summary::before { display: none; }
     .fold > summary { cursor: default; }
+    #findings summary.rule::before { visibility: hidden; }
   }
   /* The release that ends a finding wears the color a passing verdict wears, which is what the
    * console and the dashboard both do with this fact. */
@@ -1082,6 +1092,22 @@ const htmlDoc = `<!doctype html>
   #findings .rule { line-height: 1.45; }
   #findings .rule .id { font-family: "JetBrains Mono", ui-monospace, monospace; font-weight: 600; }
   #findings .rule .said { color: var(--muted); }
+  /* A row whose message was shortened opens to the whole of it. A disclosure rather than a dialog:
+   * it needs no script, the search box already matches the whole message, printing opens it with
+   * every other fold, and the rows around it stay where they were. Open, the full message takes the summary's
+   * place rather than repeating it. */
+  /* The caret sits in a gutter, so a wrapped message, the full text and the context line all share
+   * the rule id's left edge. */
+  #findings .what { padding-left: 1em; }
+  #findings summary.rule { list-style: none; cursor: pointer; position: relative; }
+  #findings summary.rule::-webkit-details-marker { display: none; }
+  #findings summary.rule::before {
+    content: "\25B8"; position: absolute; left: -1em; color: var(--faint);
+    transition: transform .15s;
+  }
+  #findings details[open] > summary.rule::before { transform: rotate(90deg); }
+  #findings details[open] > summary .said { display: none; }
+  #findings .full { margin: .25rem 0 .1rem; line-height: 1.5; color: var(--text); overflow-wrap: anywhere; }
   /* The context line. Labeled in the vocabulary the rest of the product uses, and small, because
    * it answers "where" after the row has already answered "what". */
   #findings .sub {
@@ -1461,6 +1487,7 @@ about what they would have found. For everything the tool printed, re-run with
   </p>
 </div>
 
+{{define "rule"}}<span class="id">{{if .HelpURI}}<a href="{{.HelpURI}}">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}</span>{{if .Message}}<span class="said"><span class="faint"> · </span>{{.Message}}</span>{{end}}{{end}}
 {{define "menu"}}
 <span class="menu-anchor">
   <button class="chip-menu" type="button" data-k="{{.K}}" aria-expanded="false" aria-haspopup="true">
@@ -1484,7 +1511,8 @@ about what they would have found. For everything the tool printed, re-run with
 {{range .Findings}}<div class="f" data-p="{{.Priority}}" data-s="{{.Severity}}" data-c="{{.Control}}" data-m="{{.Component}}" data-a="{{.ActionKey}}" data-q="{{.Search}}">
   <span class="chips"><span class="pri {{.Priority}}">{{.Priority}}</span><span class="{{.SevClass}}">{{.Severity}}</span></span>
   <div class="what">
-    <div class="rule"><span class="id">{{if .HelpURI}}<a href="{{.HelpURI}}">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}</span>{{if .Message}}<span class="faint"> · </span><span class="said">{{.Message}}</span>{{end}}</div>
+    {{if .Full}}<details class="more"><summary class="rule">{{template "rule" .}}</summary><p class="full">{{.Full}}</p></details>
+    {{- else}}<div class="rule">{{template "rule" .}}</div>{{end}}
     <div class="sub mono">{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}{{if .Location}}{{.Location}}<span class="faint"> · </span>{{end}}<span class="lbl">scanner</span> {{.Tool}}{{if .Moved}}<span class="faint"> · </span><span class="moved">{{.Moved}}</span>{{end}}<span class="faint"> · </span><span class="lbl">fix</span> {{.Fix}}</div>
   </div>
 </div>{{end}}

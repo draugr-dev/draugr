@@ -424,8 +424,9 @@ func evaluatePage(policy string, reportOnly bool, pc pageContent, add func(ruleI
 		}
 		if blocked > 0 {
 			add("headers/csp-blocks-inline-script", fmt.Sprintf(
-				"Content-Security-Policy %s %s on this page, which carry no nonce or hash the policy lists. %s",
-				verb, english.Count(blocked, "inline script"), after(blocked)), sarif.LevelNote)
+				"Content-Security-Policy %s %s on this page, which %s no nonce or hash the policy lists. %s",
+				verb, english.Count(blocked, "inline script"), english.Choose(blocked, "carries", "carry"),
+				after(blocked)), sarif.LevelNote)
 		}
 	}
 	if sources, ok := p.resolve([]string{"script-src-attr", "script-src"}); ok {

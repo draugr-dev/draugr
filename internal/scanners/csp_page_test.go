@@ -140,7 +140,7 @@ func TestAPageThePolicyBreaksIsReported(t *testing.T) {
 
 func TestAReportOnlyPolicySaysWhatEnforcingItWouldBreak(t *testing.T) {
 	m := pageFindings(t, "script-src 'self'", true, `<script>a()</script>`)["headers/csp-blocks-inline-script"]
-	if !strings.Contains(m, "would block") || !strings.Contains(m, "Report-Only") {
+	if !strings.Contains(m, "would block 1 inline script on this page, which carries no nonce") || !strings.Contains(m, "Report-Only") {
 		t.Errorf("message = %q", m)
 	}
 }

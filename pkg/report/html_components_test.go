@@ -7,7 +7,9 @@ import (
 
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
+	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 // componentData is a run over two components, because one proves the loop runs and two prove the
@@ -291,4 +293,30 @@ func section(t *testing.T, doc, from, to string) string {
 		return rest[:j]
 	}
 	return rest
+}
+
+// A message too long for its row opens to the whole of it; one that fits stays a plain row. Two
+// findings, because one proves the disclosure renders and two prove it is not applied to every row.
+func TestAShortenedMessageOpensToTheWholeOfIt(t *testing.T) {
+	long := "Content-Security-Policy blocks image from https://images.example-cdn.com, which this page " +
+		"loads (https://images.example-cdn.com/hero.jpg). The browser refuses it. Add the origin to " +
+		"default-src, or stop loading from it. <b>escaped</b>"
+	d := Data{
+		Run: engine.Result{Controls: map[string]plugin.ControlResult{"headers": {Report: sarif.Report{Results: []sarif.Result{
+			{RuleID: "headers/csp-blocks-image-origin", Level: sarif.LevelNote, Tool: "draugr-headers", Message: long},
+			{RuleID: "headers/hsts-missing", Level: sarif.LevelWarning, Tool: "draugr-headers", Message: "Missing HSTS."},
+		}}}}},
+		Verdict: norn.Result{Verdict: norn.Fail},
+	}
+	out := renderHTML(t, d)
+
+	if n := strings.Count(out, `<details class="more">`); n != 1 {
+		t.Errorf("%d disclosures; want one, for the shortened message only", n)
+	}
+	if !strings.Contains(out, `<p class="full">`+strings.ReplaceAll(strings.ReplaceAll(long, "<", "&lt;"), ">", "&gt;")+`</p>`) {
+		t.Error("the disclosure does not carry the whole message, escaped")
+	}
+	if !strings.Contains(out, `<div class="rule"><span class="id">headers/hsts-missing</span><span class="said"><span class="faint"> · </span>Missing HSTS.</span></div>`) {
+		t.Error("a message that fits is not a plain row")
+	}
 }

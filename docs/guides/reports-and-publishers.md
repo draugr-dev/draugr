@@ -588,6 +588,11 @@ Narrowing the findings to a single component adds a strip above the list carryin
 verdict, its bands and the controls it did not pass. It appears for one component and not for two,
 because there is no verdict that describes two.
 
+**A finding whose message is too long for its row opens to the whole of it.** Click the row, or
+press Enter on it, and the scanner's full message replaces the shortened one. It is a native
+disclosure that works without JavaScript. The report's search matches the whole message, and
+printing includes every message in full.
+
 **Search and filtering** are progressive enhancement. The page renders complete without
 JavaScript: the full table, both downloads, and every section. The script only reveals a search
 box and per-priority, per-severity and per-control toggles, so a reader whose viewer strips

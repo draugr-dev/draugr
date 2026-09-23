@@ -201,6 +201,10 @@ type trivyLicense struct {
 // findings. Every dependency has one, so listing them would bury the handful that carry an
 // obligation under dozens that don't. The inventory question is what an SBOM answers, and
 // `config.sbom` already produces one with a license per package.
+//
+// Restricted is a warning rather than an error because copyleft attaches to distribution, and a
+// component run as a hosted service is usually not distributed. The message states that fact; the
+// level is the decision taken from it.
 var categoryLevel = map[string]struct {
 	level sarif.Level
 	why   string
@@ -210,14 +214,12 @@ var categoryLevel = map[string]struct {
 			"proprietary software."},
 	"restricted": {sarif.LevelWarning,
 		"Copyleft. Distributing software that includes this obliges you to offer your own source " +
-			"under the same terms. Running it as a hosted service usually does not trigger that, " +
-			"which is why this is a warning rather than a failure by default."},
+			"under the same terms. Running it as a hosted service usually does not."},
 	"reciprocal": {sarif.LevelNote,
 		"File-level copyleft. Changes you make to the licensed files must be shared; your own " +
 			"files are unaffected."},
 	"unknown": {sarif.LevelNote,
-		"Trivy could not identify this license. Terms nobody has read are the ones most worth a " +
-			"human look."},
+		"Trivy could not identify this license. Read its terms before shipping it."},
 }
 
 // parseTrivyLicenses converts Trivy's license JSON into a report.
