@@ -393,6 +393,9 @@ func hostSourceMatches(source string, u, page *url.URL) bool {
 
 // evaluatePage reports what the policy stops this page doing.
 //
+// Each message opens "CSP blocks" rather than naming the header in full, because a terminal shows
+// the first sixty or so characters of a message and the origin is the part somebody acts on.
+//
 // Blocked content is a correctness finding, and a note: a strict policy breaking its own page is
 // worth knowing and is not a vulnerability, so it must not fail a security gate. The security half
 // is the reverse, content that forces 'unsafe-inline', and it is carried as evidence on the
@@ -424,7 +427,7 @@ func evaluatePage(policy string, reportOnly bool, pc pageContent, add func(ruleI
 		}
 		if blocked > 0 {
 			add("headers/csp-blocks-inline-script", fmt.Sprintf(
-				"Content-Security-Policy %s %s on this page, which %s no nonce or hash the policy lists. %s",
+				"CSP %s %s on this page, which %s no nonce or hash the policy lists. %s",
 				verb, english.Count(blocked, "inline script"), english.Choose(blocked, "carries", "carry"),
 				after(blocked)), sarif.LevelNote)
 		}
@@ -432,7 +435,7 @@ func evaluatePage(policy string, reportOnly bool, pc pageContent, add func(ruleI
 	if sources, ok := p.resolve([]string{"script-src-attr", "script-src"}); ok {
 		if where := blockedAttrs(sources, pc.handlers); len(where) > 0 {
 			add("headers/csp-blocks-inline-handler", fmt.Sprintf(
-				"Content-Security-Policy %s %s on this page (%s). %s",
+				"CSP %s %s on this page (%s). %s",
 				verb, english.Count(len(where), "inline event handler"), listed(where), after(len(where))), sarif.LevelNote)
 		}
 	}
@@ -449,7 +452,7 @@ func evaluatePage(policy string, reportOnly bool, pc pageContent, add func(ruleI
 	}
 	if styleBlocked > 0 {
 		add("headers/csp-blocks-inline-style", fmt.Sprintf(
-			"Content-Security-Policy %s %s on this page. %s",
+			"CSP %s %s on this page. %s",
 			verb, english.Count(styleBlocked, "inline style"), after(styleBlocked)), sarif.LevelNote)
 	}
 
@@ -484,7 +487,7 @@ func evaluatePage(policy string, reportOnly bool, pc pageContent, add func(ruleI
 		sort.Strings(origins)
 		directive := p.governing(chains[kind])
 		add("headers/csp-blocks-"+kind+"-origin", fmt.Sprintf(
-			"Content-Security-Policy %s %s from %s, which this page loads (%s). %s",
+			"CSP %s %s from %s, which this page loads (%s). %s",
 			verb, english.Noun(total(byOrigin), kind), strings.Join(origins, ", "), listed(firstOf(byOrigin, origins)), after(total(byOrigin)))+
 			" "+fmt.Sprintf("Add the origin to %s, or stop loading from it.", directive), sarif.LevelNote)
 	}

@@ -1,0 +1,1 @@
+- **A finding from the CSP page check names the origin within the width a terminal shows.** Each message opens `CSP blocks` rather than `Content-Security-Policy blocks`, so the default console view reads `CSP blocks script from https://cdn.example.com` instead of stopping before the origin.

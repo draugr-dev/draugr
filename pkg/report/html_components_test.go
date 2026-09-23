@@ -298,7 +298,7 @@ func section(t *testing.T, doc, from, to string) string {
 // A message too long for its row opens to the whole of it; one that fits stays a plain row. Two
 // findings, because one proves the disclosure renders and two prove it is not applied to every row.
 func TestAShortenedMessageOpensToTheWholeOfIt(t *testing.T) {
-	long := "Content-Security-Policy blocks image from https://images.example-cdn.com, which this page " +
+	long := "CSP blocks image from https://images.example-cdn.com, which this page " +
 		"loads (https://images.example-cdn.com/hero.jpg). The browser refuses it. Add the origin to " +
 		"default-src, or stop loading from it. <b>escaped</b>"
 	d := Data{
