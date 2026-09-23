@@ -1889,6 +1889,8 @@ func TestTheFixSaysWhereTheProblemLives(t *testing.T) {
 		// Removed from the tip, a credential is still in history and still valid.
 		{"secrets", "aws-access-token", "rotate the credential"},
 		{"headers", "missing-csp", "change the server's configuration"},
+		{"headers", "headers/csp-blocks-inline-handler", "move it into a file, or allow it by hash"},
+		{"headers", "headers/csp-blocks-script-origin", "allow the origin, or stop loading from it"},
 		{"tls", "weak-cipher", "change the server's configuration"},
 		{"infrastructure", "cis/5.1.1", "change the cluster's configuration"},
 		{"threats", "urlhaus-listed", "stop contacting the host"},

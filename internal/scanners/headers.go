@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -19,8 +21,20 @@ import (
 // get the full browser suite; API hosts skip browser-only headers and get API-specific checks.
 type draugrHeadersScanner struct {
 	info  plugin.ScannerInfo
-	fetch func(ctx context.Context, url string) (http.Header, error)
+	fetch func(ctx context.Context, url string, browser bool) (response, error)
 }
+
+// response is what a fetch of the host returned: the headers, and for a browser host the page
+// itself, so the policy can be compared with what it governs.
+type response struct {
+	header http.Header
+	body   []byte   // HTML only, and only for a browser host; empty otherwise
+	url    *url.URL // where the redirects ended, which is what relative references resolve against
+}
+
+// maxPage bounds how much of a page is read. A page larger than this is compared on what arrived,
+// which holds the <head> and everything a policy is most often wrong about.
+const maxPage = 2 << 20
 
 // NewHTTPHeaders returns the native HTTP security-header scanner.
 func NewHTTPHeaders() plugin.Scanner {
@@ -56,11 +70,45 @@ func (s draugrHeadersScanner) Scan(ctx context.Context, target plugin.Target, _ 
 	if host.URL == "" {
 		return sarif.Report{}, errors.New("draugr-headers: host target has no url")
 	}
-	header, err := s.fetch(ctx, host.URL)
+	browser := !strings.EqualFold(host.Type, "api")
+	resp, err := s.fetch(ctx, host.URL, browser)
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("draugr-headers: fetch %s: %w", host.URL, err)
 	}
-	return sarif.Report{Tool: s.info.Name, Results: evaluateHeaders(host.URL, host.Type, header)}, nil
+	results := evaluateHeaders(host.URL, host.Type, resp.header)
+	if browser && len(resp.body) > 0 && resp.url != nil {
+		results = evaluateAgainstPage(host.URL, resp, results)
+	}
+	return sarif.Report{Tool: s.info.Name, Results: results}, nil
+}
+
+// evaluateAgainstPage compares the policy with the page it was served with: what the policy
+// blocks, and what on the page depends on 'unsafe-inline' where the policy allows it.
+//
+// An enforced policy is judged first. A Report-Only one is judged only when nothing is enforced,
+// because that is the case where somebody is testing a policy before switching it on and the
+// question is what switching it on would break.
+func evaluateAgainstPage(target string, resp response, results []sarif.Result) []sarif.Result {
+	pc := readPage(resp.url, resp.body)
+	policy, reportOnly := resp.header.Get("Content-Security-Policy"), false
+	if policy == "" {
+		policy, reportOnly = resp.header.Get("Content-Security-Policy-Report-Only"), true
+	}
+	if policy == "" {
+		return results
+	}
+	for i := range results {
+		if results[i].RuleID == "headers/csp-unsafe-inline" {
+			results[i].Message += inlineEvidence(pc)
+		}
+	}
+	evaluatePage(policy, reportOnly, pc, func(ruleID, message string, level sarif.Level) {
+		results = append(results, sarif.Result{
+			Tool: "draugr-headers", RuleID: ruleID, Level: level, Message: message,
+			Location: sarif.Location{URI: target},
+		})
+	})
+	return results
 }
 
 // evaluateHeaders applies the security-header checklist. Rules are grouped into universal
@@ -158,18 +206,30 @@ func evaluateHeaders(url, hostType string, h http.Header) []sarif.Result {
 	return out
 }
 
-// httpFetchHeaders performs a GET and returns the response headers. It follows redirects so
-// the headers evaluated are those actually served to a client.
-func httpFetchHeaders(ctx context.Context, url string) (http.Header, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil) //nolint:gosec // host URL is operator-provided in the Saga
+// httpFetchHeaders performs a GET and returns the response headers, and for a browser host the
+// page. It follows redirects so the headers evaluated are those actually served to a client.
+//
+// A browser host is asked for HTML the way a browser asks. Some servers and proxies vary the page
+// on Accept, and a CDN can inject a script only into responses a browser would render, so a page
+// fetched with a bare Accept is not the page a visitor's browser holds the policy against.
+func httpFetchHeaders(ctx context.Context, target string, browser bool) (response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil) //nolint:gosec // host URL is operator-provided in the Saga
 	if err != nil {
-		return nil, err
+		return response{}, err
+	}
+	if browser {
+		req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 	}
 	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return response{}, err
 	}
 	defer func() { _ = resp.Body.Close() }()
-	return resp.Header, nil
+	out := response{header: resp.Header, url: resp.Request.URL}
+	if browser && strings.HasPrefix(strings.ToLower(resp.Header.Get("Content-Type")), "text/html") {
+		// A body that fails partway is compared on what arrived; the headers are already in hand.
+		out.body, _ = io.ReadAll(io.LimitReader(resp.Body, maxPage))
+	}
+	return out, nil
 }

@@ -78,7 +78,10 @@ func TestChooseTakesBothForms(t *testing.T) {
 // pluralizes has to live here.
 func TestThereIsOneRuleForPlurals(t *testing.T) {
 	root := filepath.Join("..", "..")
-	helper := regexp.MustCompile(`(?m)^func (plural\w*|pluralize\w*|noun|isAre)\(`)
+	helper := regexp.MustCompile(`(?m)^func (plural\w*|pluralize\w*|noun|isAre|countOf)\(`)
+	// The inline form of the same thing: a verb that appends "s" to whatever noun it is handed,
+	// which is right until the noun is "policy".
+	inline := regexp.MustCompile(`"[^"\n]*%ss\b`)
 
 	var sources []string
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
@@ -110,6 +113,9 @@ func TestThereIsOneRuleForPlurals(t *testing.T) {
 		for _, m := range helper.FindAllSubmatch(body, -1) {
 			t.Errorf("%s declares %s, a second rule for plurals: use english.Count, english.Noun "+
 				"or english.Choose", path, m[1])
+		}
+		if !strings.HasSuffix(path, "_test.go") && inline.Match(body) {
+			t.Errorf("%s pluralizes with %%ss: use english.Count, english.Noun or english.Choose", path)
 		}
 	}
 }

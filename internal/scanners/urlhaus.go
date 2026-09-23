@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -213,7 +214,7 @@ func urlhausResults(rawURL string, resp urlhausResponse) []sarif.Result {
 			Message: fmt.Sprintf(
 				"abuse.ch is currently serving %s from this host as malware: %s. "+
 					"Either the host is compromised, or the name was abused before you held it.",
-				countOf(len(online), "URL"), summarizeEntries(online)),
+				english.Count(len(online), "URL"), summarizeEntries(online)),
 			Location: sarif.Location{URI: rawURL},
 		})
 	}
@@ -225,7 +226,7 @@ func urlhausResults(rawURL string, resp urlhausResponse) []sarif.Result {
 			Message: fmt.Sprintf(
 				"abuse.ch has %s recorded on this host as having served malware, now offline: %s. "+
 					"Worth knowing when the host was compromised, and noise if the name changed hands.",
-				countOf(len(historic), "URL"), summarizeEntries(historic)),
+				english.Count(len(historic), "URL"), summarizeEntries(historic)),
 			Location: sarif.Location{URI: rawURL},
 		})
 	}
@@ -244,15 +245,6 @@ func urlhausResults(rawURL string, resp urlhausResponse) []sarif.Result {
 		})
 	}
 	return out
-}
-
-// countOf renders "1 URL" / "3 URLs". Local rather than shared: the plural helpers elsewhere
-// live in packages this one should not depend on for a word.
-func countOf(n int, noun string) string {
-	if n == 1 {
-		return fmt.Sprintf("1 %s", noun)
-	}
-	return fmt.Sprintf("%d %ss", n, noun)
 }
 
 // summarizeEntries names a few URLs without pasting a hundred of them into a report.

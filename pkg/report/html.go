@@ -217,7 +217,9 @@ func fixPhrase(f finding) string {
 		// Removing it from the code leaves it in history and leaves it valid. The credential is the
 		// thing that leaked, so it is the thing to replace.
 		return "rotate the credential"
-	case "headers", "tls":
+	case "headers":
+		return headersFix(f.ruleID)
+	case "tls":
 		return "change the server's configuration"
 	case "infrastructure":
 		return "change the cluster's configuration"
@@ -225,6 +227,19 @@ func fixPhrase(f finding) string {
 		return "stop contacting the host"
 	}
 	return "change the code"
+}
+
+// headersFix says what to do about a header finding. Most are the server's configuration; the
+// ones comparing the policy with its page have two fixes, the policy or the page, and which is
+// right depends on whether the content was meant to be there.
+func headersFix(rule string) string {
+	switch {
+	case strings.HasPrefix(rule, "headers/csp-blocks-inline-"):
+		return "move it into a file, or allow it by hash"
+	case strings.HasPrefix(rule, "headers/csp-blocks-"):
+		return "allow the origin, or stop loading from it"
+	}
+	return "change the server's configuration"
 }
 
 // provenanceFix says what to do about a signature finding. Three rules, three different next

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -18,22 +19,64 @@ func TestHTTPFetchHeaders(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	h, err := httpFetchHeaders(context.Background(), srv.URL)
+	resp, err := httpFetchHeaders(context.Background(), srv.URL, false)
 	if err != nil {
 		t.Fatalf("httpFetchHeaders: %v", err)
 	}
-	if h.Get("X-Content-Type-Options") != "nosniff" {
-		t.Errorf("did not read response headers: %v", h)
+	if resp.header.Get("X-Content-Type-Options") != "nosniff" {
+		t.Errorf("did not read response headers: %v", resp.header)
 	}
 
 	// Unreachable server → error.
 	srv.Close()
-	if _, err := httpFetchHeaders(context.Background(), srv.URL); err == nil {
+	if _, err := httpFetchHeaders(context.Background(), srv.URL, false); err == nil {
 		t.Error("expected an error against a closed server")
 	}
 	// Malformed request URL → error.
-	if _, err := httpFetchHeaders(context.Background(), "://bad-url"); err == nil {
+	if _, err := httpFetchHeaders(context.Background(), "://bad-url", false); err == nil {
 		t.Error("expected an error for a malformed URL")
+	}
+}
+
+// A browser host is fetched the way a browser fetches it: asking for HTML, following redirects to
+// the page that is served, and reading that page. An API host gets none of it.
+func TestHTTPFetchHeadersReadsThePageForABrowserHost(t *testing.T) {
+	var accept string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/app/", http.StatusFound)
+	})
+	mux.HandleFunc("/app/", func(w http.ResponseWriter, r *http.Request) {
+		accept = r.Header.Get("Accept")
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte("<html><script>go()</script></html>"))
+	})
+	mux.HandleFunc("/data", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"a":1}`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	resp, err := httpFetchHeaders(context.Background(), srv.URL, true)
+	if err != nil {
+		t.Fatalf("httpFetchHeaders: %v", err)
+	}
+	if !strings.HasPrefix(accept, "text/html") {
+		t.Errorf("Accept = %q; a browser host must be asked for HTML", accept)
+	}
+	if resp.url == nil || resp.url.Path != "/app/" {
+		t.Errorf("url = %v; relative references resolve against where the redirects ended", resp.url)
+	}
+	if !strings.Contains(string(resp.body), "go()") {
+		t.Errorf("body = %q; the page was not read", resp.body)
+	}
+
+	if resp, _ := httpFetchHeaders(context.Background(), srv.URL, false); len(resp.body) > 0 {
+		t.Error("an API host's body is not read")
+	}
+	if resp, _ := httpFetchHeaders(context.Background(), srv.URL+"/data", true); len(resp.body) > 0 {
+		t.Error("a body that is not HTML is not a page")
 	}
 }
 
@@ -66,7 +109,7 @@ func scanWith(t *testing.T, host plugin.HostTarget, header http.Header) sarif.Re
 	t.Helper()
 	s := draugrHeadersScanner{
 		info:  NewHTTPHeaders().Info(),
-		fetch: func(context.Context, string) (http.Header, error) { return header, nil },
+		fetch: func(context.Context, string, bool) (response, error) { return response{header: header}, nil },
 	}
 	rep, err := s.Scan(context.Background(), host, nil)
 	if err != nil {
@@ -195,7 +238,7 @@ func TestHeadersScanErrors(t *testing.T) {
 	// Fetch failure.
 	failing := draugrHeadersScanner{
 		info:  s.Info(),
-		fetch: func(context.Context, string) (http.Header, error) { return nil, errors.New("boom") },
+		fetch: func(context.Context, string, bool) (response, error) { return response{}, errors.New("boom") },
 	}
 	if _, err := failing.Scan(context.Background(), plugin.HostTarget{URL: "https://x"}, nil); err == nil {
 		t.Error("expected error when fetch fails")
