@@ -1328,7 +1328,7 @@ end of them and one total could only support the weakest:
 ACCEPTED
   config.exclude     5 findings suppressed
   VEX                1 finding excused
-  scanner exclusions 2 findings set aside, and nobody signed them
+  scanner exclusions 2 findings suppressed
 ```
 
 Who accepted each one is asked of the evidence rather than of a scan somebody is reading to find
@@ -1338,13 +1338,22 @@ out what to fix, so `--evidence` adds it:
 ACCEPTED
   config.exclude     5 findings suppressed · 3 accepted by you@example.com, 2 unattributed
   VEX                1 finding excused · 1 asserted by ACME Security <sec@acme.example>
-  scanner exclusions 2 findings set aside, and nobody signed them
+  scanner exclusions 2 findings suppressed
 ```
 
-The last is a `# nosemgrep`, a linter pragma, or anything else a scanner honors from a comment in
-the file. It is the weakest of the three. Written by whoever was editing, reviewed by nobody in
-particular, which is exactly why it is printed rather than folded into a total with decisions
-somebody signed.
+**`scanner exclusions` is every finding a scanner set aside on its own**, with nothing in this
+descriptor asking it to: a `# nosemgrep` or a `#nosec` beside the line, or a rule in a file the
+scanner reads such as `.trivyignore`. Draugr reports them rather than letting them disappear,
+because a finding somebody excluded and a finding nobody ever had look identical once the scanner
+has dropped it.
+
+It is the weakest of the three, and that is why it is a row of its own rather than part of a total.
+Both kinds were written outside the descriptor, neither carries an author or a date, and neither
+went past a reviewer. A single count would let that hide inside the two that did.
+
+Which of the two a finding is stays on the finding, as `origin: tool` or `origin: scanner`, because
+they send you to different people: whoever committed the line, or whoever owns the file of
+exclusions. `--evidence` names the files.
 
 **When both `paths` and `rules` are set, a finding must match both.** That's the narrow reading,
 "this rule, in this place", and the safe one: the alternative would quietly widen *ignore the

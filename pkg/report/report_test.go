@@ -809,7 +809,7 @@ func TestTheAcceptedSectionAccountsForEveryFindingItLists(t *testing.T) {
 	for _, want := range []string{
 		"1 finding suppressed",
 		"1 finding excused",
-		"2 findings set aside",
+		"2 findings suppressed",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the accepted note does not say %q, so the count under-reports what is listed "+
@@ -1781,9 +1781,14 @@ func TestSilencedFindingsGetTheirOwnLine(t *testing.T) {
 	if !strings.Contains(line, "3") {
 		t.Errorf("line = %q, want the count", line)
 	}
-	// The reader has to be able to tell this apart from a decision somebody signed.
-	if !strings.Contains(line, "nobody signed") {
-		t.Errorf("line = %q, want it to say nobody signed these", line)
+	// The reader has to be able to tell this apart from a decision somebody signed, and what tells
+	// them is the row's own name. Every row here reads `<where>: <count>`, so the count says how
+	// many and the name says whose, rather than the row arguing its own case in a clause.
+	if !strings.HasPrefix(line, "scanner exclusions: ") {
+		t.Errorf("line = %q, want it named for where the exclusion lives", line)
+	}
+	if strings.Contains(line, "nobody") || strings.Contains(line, "weakest") {
+		t.Errorf("line = %q, want the count and the name; the argument belongs in the docs", line)
 	}
 }
 

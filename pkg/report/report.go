@@ -1066,11 +1066,11 @@ func silencedLine(d Data) string {
 	if n == 0 {
 		return ""
 	}
-	// One line for both of the scanner's own, because what makes it worth printing is true of
-	// each: an exclusion with no author and no date, set outside the descriptor. Which of the two
-	// a finding is stays on the finding, where somebody acting on it can see it.
-	return fmt.Sprintf("scanner exclusions: %s set aside, and nobody signed %s",
-		english.Count(n, "finding"), english.Choose(n, "it", "them"))
+	// The count and nothing else, in the word the other rows use. What makes this row the weakest
+	// of the three, an exclusion with no author and no date, set outside the descriptor, is the
+	// argument for printing it rather than something to print on it: the label says which row this
+	// is and the documentation says what the label means.
+	return fmt.Sprintf("scanner exclusions: %s suppressed", english.Count(n, "finding"))
 }
 
 // alsoFoundBy is what the other scanners said about this same flaw.

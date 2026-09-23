@@ -20,7 +20,7 @@ A suppression carries the file it was written in through SARIF as well as throug
 
 ### Changed
 
-The accepted section counts the scanner's own exclusions on one line, `scanner exclusions: N findings set aside, and nobody signed them`, where it said `source directives`. Both kinds have the property the line is printed for, and the finding itself says which it was.
+The accepted section counts the scanner's own exclusions on one line named `scanner exclusions`, where it said `source directives` and counted only one of the two kinds. Every row there now reads the same way, a name and a count, and the reference explains what the name covers.
 
 ### Fixed
 
