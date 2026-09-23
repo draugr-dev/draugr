@@ -10,6 +10,11 @@ package english
 
 import "fmt"
 
+// Two shapes, named apart so neither can be called for the other's job. Count and Noun derive the
+// plural from the word, which is right for a regular noun. Choose takes both forms, which is what a
+// verb, a pronoun or a phrase needs: "is" and "are", "it" and "them", "an effect" and "effects" have
+// no rule to derive them by.
+
 // Count renders a number and its noun together: "1 finding", "3 findings".
 func Count(n int, word string) string {
 	return fmt.Sprintf("%d %s", n, Noun(n, word))
@@ -29,6 +34,15 @@ func Noun(n int, word string) string {
 		return word[:len(word)-1] + "ies"
 	}
 	return word + "s"
+}
+
+// Choose picks between two given forms by count: one for exactly one, many for anything else,
+// zero and negative included.
+func Choose(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }
 
 func isVowel(b byte) bool {

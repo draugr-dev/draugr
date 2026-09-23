@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/ci"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
@@ -1006,7 +1007,7 @@ func suppressionLine(d Data, full bool) string {
 	if n == 0 {
 		return ""
 	}
-	line := fmt.Sprintf("config.exclude: %s suppressed", plural(n, "finding"))
+	line := fmt.Sprintf("config.exclude: %s suppressed", english.Count(n, "finding"))
 	if !full {
 		return line
 	}
@@ -1019,7 +1020,7 @@ func suppressionLine(d Data, full bool) string {
 			where = append(where, fmt.Sprintf("%d from %s", src.n, src.name))
 		}
 		line = fmt.Sprintf("config.exclude: %s suppressed · %s",
-			plural(n, "finding"), strings.Join(where, ", "))
+			english.Count(n, "finding"), strings.Join(where, ", "))
 	}
 	// Who accepted what used to be appended here, and it is a table now: one row per decision,
 	// carrying the reason as well as the name, which a clause in a sentence has no room for. A
@@ -1037,7 +1038,7 @@ func importedLine(d Data, full bool) string {
 	if n == 0 {
 		return ""
 	}
-	line := fmt.Sprintf("VEX: %s excused", plural(n, "finding"))
+	line := fmt.Sprintf("VEX: %s excused", english.Count(n, "finding"))
 	if !full {
 		return line
 	}
@@ -1067,7 +1068,7 @@ func silencedLine(d Data) string {
 	}
 	// Named for where it lives, like the others, and keeping what makes it the weakest of the
 	// three: a directive in the code is an acceptance with no author and no date.
-	return fmt.Sprintf("source directives: %s silenced, and nobody signed them", plural(n, "finding"))
+	return fmt.Sprintf("source directives: %s silenced, and nobody signed them", english.Count(n, "finding"))
 }
 
 // alsoFoundBy is what the other scanners said about this same flaw.
@@ -1118,7 +1119,7 @@ func reachabilityBlock(d Data) (rows []string, notes []string) {
 			row += fmt.Sprintf(", %d unknown", a.Unknown)
 		}
 		if a.Contributed > 0 {
-			row += fmt.Sprintf(" (%s only it reported)", plural(a.Contributed, "finding"))
+			row += fmt.Sprintf(" (%s only it reported)", english.Count(a.Contributed, "finding"))
 		}
 		rows = append(rows, row)
 	}

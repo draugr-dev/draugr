@@ -13,6 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/surveyor"
@@ -390,11 +391,11 @@ func TestSurveySummaryCallsOutADescriptorThatScansNothing(t *testing.T) {
 
 func TestPluralHandlesTheNounsWeUse(t *testing.T) {
 	cases := map[string]string{
-		"1 component":    plural(1, "component"),
-		"2 components":   plural(2, "component"),
-		"1 repository":   plural(1, "repository"),
-		"3 repositories": plural(3, "repository"),
-		"0 hosts":        plural(0, "host"),
+		"1 component":    english.Count(1, "component"),
+		"2 components":   english.Count(2, "component"),
+		"1 repository":   english.Count(1, "repository"),
+		"3 repositories": english.Count(3, "repository"),
+		"0 hosts":        english.Count(0, "host"),
 	}
 	for want, got := range cases {
 		if got != want {
@@ -417,8 +418,8 @@ func TestPlural(t *testing.T) {
 		{0, "tool", "0 tools"},
 	}
 	for _, c := range cases {
-		if got := plural(c.n, c.noun); got != c.want {
-			t.Errorf("plural(%d, %q) = %q, want %q", c.n, c.noun, got, c.want)
+		if got := english.Count(c.n, c.noun); got != c.want {
+			t.Errorf("english.Count(%d, %q) = %q, want %q", c.n, c.noun, got, c.want)
 		}
 	}
 }

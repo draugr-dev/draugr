@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/norn"
 )
 
@@ -94,7 +95,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 	if s.minPriority != "" {
 		heading := fmt.Sprintf("### Fix first (%s and above", strings.ToUpper(s.minPriority))
 		if s.hidden > 0 {
-			heading += "; " + plural(s.hidden, "lower-priority finding") + " hidden"
+			heading += "; " + english.Count(s.hidden, "lower-priority finding") + " hidden"
 		}
 		_, _ = fmt.Fprintf(w, "%s)\n\n", heading)
 	} else {
@@ -132,7 +133,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 			dash(upgradeLabel(f)), findingTitle(f))
 	}
 	if len(s.findings) > markdownTopN {
-		_, _ = fmt.Fprintf(w, "\n_…and %s more._\n", plural(len(s.findings)-markdownTopN, "finding"))
+		_, _ = fmt.Fprintf(w, "\n_…and %s more._\n", english.Count(len(s.findings)-markdownTopN, "finding"))
 	}
 	_, _ = fmt.Fprintln(w)
 	writeRunEvidence(w, d, s)
@@ -271,7 +272,7 @@ func writeRunEvidence(w io.Writer, d Data, s summary) {
 		_, _ = fmt.Fprintf(&body, "- **Gate:** %s\n", strings.TrimPrefix(line, "Gate: "))
 	}
 	if s.sboms > 0 {
-		_, _ = fmt.Fprintf(&body, "- **SBOM:** %s (%s)\n", plural(s.sboms, "document"), s.sbomFormat)
+		_, _ = fmt.Fprintf(&body, "- **SBOM:** %s (%s)\n", english.Count(s.sboms, "document"), s.sbomFormat)
 	}
 	writeRepositories(&body, d)
 	writeProvenance(&body, d)
@@ -302,7 +303,7 @@ func writeRepositories(w io.Writer, d Data) {
 			line += " at `" + rev + "`"
 		}
 		if r.Uncommitted > 0 {
-			line += fmt.Sprintf(" · %s not included", plural(r.Uncommitted, "uncommitted file"))
+			line += fmt.Sprintf(" · %s not included", english.Count(r.Uncommitted, "uncommitted file"))
 		}
 		_, _ = fmt.Fprintln(w, line)
 	}
@@ -362,7 +363,7 @@ func writeComponentTable(w io.Writer, d Data) {
 	_, _ = fmt.Fprintln(w)
 	if d.UnattributedFindings > 0 {
 		_, _ = fmt.Fprintf(w, "_%s not tied to a component (project-wide controls)._\n\n",
-			plural(d.UnattributedFindings, "finding"))
+			english.Count(d.UnattributedFindings, "finding"))
 	}
 }
 
@@ -437,12 +438,12 @@ func writeSignalRows(w io.Writer, d Data, s summary) {
 		}
 		did := "nothing raised"
 		if n > 0 {
-			did = fmt.Sprintf("%s raised", plural(n, "finding"))
+			did = fmt.Sprintf("%s raised", english.Count(n, "finding"))
 		}
 		sigs = append(sigs, sig{strings.ToUpper(name), did})
 	}
 	if n := s.floored; n > 0 {
-		sigs = append(sigs, sig{"floor", fmt.Sprintf("%s raised by a control's own rule", plural(n, "finding"))})
+		sigs = append(sigs, sig{"floor", fmt.Sprintf("%s raised by a control's own rule", english.Count(n, "finding"))})
 	}
 	rows, notes := reachabilityBlock(d)
 	for _, row := range rows {

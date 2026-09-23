@@ -20,6 +20,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/config"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
@@ -133,7 +134,7 @@ func runToolsOutdated(ctx context.Context, w io.Writer, asJSON bool, client *htt
 	line := fmt.Sprintf("%d of %d behind the version their upstream publishes.",
 		behind, len(drift)-unknown)
 	if unknown > 0 {
-		line += fmt.Sprintf(" %s could not be asked.", plural(unknown, "tool"))
+		line += fmt.Sprintf(" %s could not be asked.", english.Count(unknown, "tool"))
 	}
 	_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, line))
 	if unknown > 0 {
@@ -288,19 +289,12 @@ func installNames(w io.Writer, args []string, opts toolsInstallOptions) ([]strin
 		sort.Strings(unprovisionable)
 		_, _ = fmt.Fprintf(w, "%s needs %s, which Draugr cannot provision. Install %s separately (`draugr doctor %s` says where from).\n\n",
 			opts.saga, strings.Join(quoteAll(unprovisionable), ", "),
-			pluralThem(len(unprovisionable)), opts.saga)
+			english.Choose(len(unprovisionable), "it", "them"), opts.saga)
 	}
 	if len(names) == 0 {
 		_, _ = fmt.Fprintf(w, "Nothing to install: %s needs no tool Draugr provisions.\n", opts.saga)
 	}
 	return names, false, nil
-}
-
-func pluralThem(n int) string {
-	if n == 1 {
-		return "it"
-	}
-	return "them"
 }
 
 // narrowing is the smaller install a descriptor in the working directory would ask for.
@@ -524,7 +518,7 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, all bool, opts t
 	}
 
 	if unchanged > 0 {
-		_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted, fmt.Sprintf("%s unchanged.", plural(unchanged, "tool"))))
+		_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted, fmt.Sprintf("%s unchanged.", english.Count(unchanged, "tool"))))
 	}
 
 	// Named, so the command that installs them is one somebody can copy. A count alone leaves a
@@ -533,7 +527,7 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, all bool, opts t
 		_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted, fmt.Sprintf(
 			"%s skipped, this host has no runtime to build %s with. Install one and run "+
 				"`draugr tools install %s`.",
-			plural(len(skipped), "tool"), pronounFor(len(skipped)), strings.Join(skipped, " "))))
+			english.Count(len(skipped), "tool"), pronounFor(len(skipped)), strings.Join(skipped, " "))))
 	}
 
 	if failed > 0 {
@@ -703,7 +697,7 @@ func writeInstallPlan(w io.Writer, names []string, _ bool, have map[string]strin
 	// descriptor is present, and noteDescriptorInWorkingDir has already said it with a number and
 	// the flag that narrows it. Where no descriptor is present, `--saga` is not advice anybody can
 	// take.
-	line := fmt.Sprintf("%s to install", plural(todo, "tool"))
+	line := fmt.Sprintf("%s to install", english.Count(todo, "tool"))
 	if n := len(have); n > 0 {
 		line += fmt.Sprintf(", %d already current", n)
 	}

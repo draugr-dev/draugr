@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -466,13 +467,13 @@ func htmlSignals(d Data, s summary) []htmlSignal {
 		// feed changed nothing is to read every finding looking for a mark that is not there.
 		effect := "nothing raised"
 		if n > 0 {
-			effect = fmt.Sprintf("%s raised", plural(n, "finding"))
+			effect = fmt.Sprintf("%s raised", english.Count(n, "finding"))
 		}
 		out = append(out, htmlSignal{Name: strings.ToUpper(name), Effect: effect})
 	}
 	if n := s.floored; n > 0 {
 		out = append(out, htmlSignal{
-			Name: "floor", Effect: fmt.Sprintf("%s raised by a control's own rule", plural(n, "finding")),
+			Name: "floor", Effect: fmt.Sprintf("%s raised by a control's own rule", english.Count(n, "finding")),
 		})
 	}
 	rows, _ := reachabilityBlock(d)
@@ -682,7 +683,7 @@ var htmlTemplate = template.Must(template.New("report").Funcs(template.FuncMap{
 	// The same pluralization the console uses, so one finding is a finding here too. "1 finding(s)"
 	// is a sentence nobody would write by hand and the only reason it survives is that it is never
 	// read aloud.
-	"plural": plural,
+	"plural": english.Count,
 	"join":   func(items []string) string { return strings.Join(items, ", ") },
 }).Parse(htmlDoc))
 

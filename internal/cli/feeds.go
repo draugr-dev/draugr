@@ -12,6 +12,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/feeds"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
@@ -220,11 +221,11 @@ func humanAge(d time.Duration) string {
 	// Rounded rather than truncated: a feed fetched 119 minutes ago is two hours old to
 	// everyone except integer division.
 	case d < time.Hour:
-		return plural(int(d.Round(time.Minute).Minutes()), "minute")
+		return english.Count(int(d.Round(time.Minute).Minutes()), "minute")
 	case d < 48*time.Hour:
-		return plural(int(d.Round(time.Hour).Hours()), "hour")
+		return english.Count(int(d.Round(time.Hour).Hours()), "hour")
 	default:
-		return plural(int(d.Round(time.Hour).Hours())/24, "day")
+		return english.Count(int(d.Round(time.Hour).Hours())/24, "day")
 	}
 }
 

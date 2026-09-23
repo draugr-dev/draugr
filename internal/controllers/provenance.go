@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -391,13 +392,13 @@ func describeScope(signers int) string {
 	if signers == 0 {
 		return "no signers declared"
 	}
-	return plural(signers, "signer")
+	return english.Count(signers, "signer")
 }
 
 // describeCoverage says what happened to the images, in the vocabulary the control uses: an image
 // is checked against a signer, observed because none covers it, or carries nothing at all.
 func describeCoverage(total, verified, observed, unsigned int) string {
-	head := fmt.Sprintf("%d of %s checked", verified, plural(total, "image"))
+	head := fmt.Sprintf("%d of %s checked", verified, english.Count(total, "image"))
 	rest := make([]string, 0, 2)
 	if observed > 0 {
 		rest = append(rest, fmt.Sprintf("%d observed", observed))
@@ -424,14 +425,6 @@ func describePinning(byDigest, total int) string {
 		return fmt.Sprintf("all %d by digest", total)
 	}
 	return fmt.Sprintf("%d of %d by digest", byDigest, total)
-}
-
-// plural renders a count with its noun, so a single image is not "1 images".
-func plural(n int, word string) string {
-	if n == 1 {
-		return "1 " + word
-	}
-	return fmt.Sprintf("%d %ss", n, word)
 }
 
 // Validate reports the mistakes a schema cannot see: an image naming a signer nobody declared,

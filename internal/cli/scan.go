@@ -33,6 +33,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/skald"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/scanpolicy"
 )
 
@@ -1089,7 +1090,7 @@ func checkWorkingTree(enabled bool, model *saga.Model) error {
 	if len(remote) > 0 {
 		return fmt.Errorf("--working-tree needs a local checkout, and %s %s a remote: "+
 			"scan without the flag, or point the descriptor at a path",
-			strings.Join(remote, ", "), plural2(len(remote), "is", "are"))
+			strings.Join(remote, ", "), english.Choose(len(remote), "is", "are"))
 	}
 	return nil
 }

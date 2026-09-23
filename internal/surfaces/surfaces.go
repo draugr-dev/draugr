@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
@@ -123,7 +124,7 @@ func Uncovered(model *saga.Model) []string {
 	for _, g := range gaps {
 		out = append(out, fmt.Sprintf("%s declares the %s surface, and the %s %s not enabled",
 			g.Component, g.Surface, andList(g.Controls),
-			plural2(len(g.Controls), "control is", "controls are")))
+			english.Choose(len(g.Controls), "control is", "controls are")))
 	}
 	return out
 }
@@ -137,14 +138,6 @@ func andList(names []string) string {
 		return names[0]
 	}
 	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
-}
-
-// plural2 picks between two forms by count.
-func plural2(n int, one, many string) string {
-	if n == 1 {
-		return one
-	}
-	return many
 }
 
 // sortedKeys returns a map's keys in order, so the list is stable between runs.

@@ -261,7 +261,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		// should be too.
 		if len(shown) < len(s.findings) {
 			_, _ = fmt.Fprintf(w, "\n… and %s not listed.\n",
-				plural(len(s.findings)-len(shown), "finding"))
+				english.Count(len(s.findings)-len(shown), "finding"))
 			truncated = true
 		}
 		_, _ = fmt.Fprint(w, "\n")
@@ -337,7 +337,7 @@ func fixFirstHeading(col tui.Painter, s summary, shown, total int) string {
 		// Say what was filtered, or a short list reads as a contradiction of the counts above.
 		filter = fmt.Sprintf(", %s and above", strings.ToUpper(s.minPriority))
 		if s.hidden > 0 {
-			filter += "; " + plural(s.hidden, "lower-priority finding") + " hidden"
+			filter += "; " + english.Count(s.hidden, "lower-priority finding") + " hidden"
 		}
 	}
 	switch {
@@ -934,7 +934,7 @@ func writeComponents(w io.Writer, col tui.Painter, d Data) {
 		// look like the whole.
 		_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim,
 			fmt.Sprintf("%s not tied to a component (project-wide controls)",
-				plural(d.UnattributedFindings, "finding"))))
+				english.Count(d.UnattributedFindings, "finding"))))
 	}
 	_, _ = fmt.Fprintln(w)
 }
@@ -1066,10 +1066,6 @@ func sortedKeys(m map[string][]string) []string {
 	return out
 }
 
-// plural renders a count with its noun, pluralized the simple way. Only used for the SBOM
-// summary line, where "1 documents" would look like a bug in the tool.
-func plural(n int, word string) string { return english.Count(n, word) }
-
 // writeMeasuredAgainst records what each scanner measured and against what, under the controls it
 // describes.
 //
@@ -1187,7 +1183,7 @@ func unpinnedCacheLine(refs []string) string {
 	// of thirty, and that is the part the rows cannot say. Which ones, for a run with no findings
 	// to mark, is in the JSON and in --evidence.
 	return fmt.Sprintf("from cache, %s reused on a tag, so it may describe an earlier build. Pin a digest.",
-		plural(len(refs), "image"))
+		english.Count(len(refs), "image"))
 }
 
 // historicalNote says that a finding's location is a path in a commit rather than in the tree.
@@ -1222,7 +1218,7 @@ func runLine(st engine.Stats) string {
 	if st.Jobs == 0 || st.Duration <= 0 {
 		return ""
 	}
-	line := fmt.Sprintf("%s in %s", plural(st.Jobs, "job"), st.Duration.Round(time.Millisecond))
+	line := fmt.Sprintf("%s in %s", english.Count(st.Jobs, "job"), st.Duration.Round(time.Millisecond))
 	// Only where it bound the run. Concurrency is a ceiling, and a run with fewer jobs than the
 	// ceiling never reached it: "30 jobs, 32 at a time" is arithmetic that does not add up, and a
 	// reader who tries to make it add up is reading a number that was never going to help them.
@@ -1366,11 +1362,11 @@ func repositoryRows(repos []RepositoryProvenance) [][2]string {
 		case r.WorkingTree && r.Uncommitted > 0:
 			// The uncommitted work is the reason this scan was asked for, so it is included rather
 			// than missing, and the result cannot be reproduced from the revision.
-			said += fmt.Sprintf(" · %s, not reproducible", plural(r.Uncommitted, "uncommitted file"))
+			said += fmt.Sprintf(" · %s, not reproducible", english.Count(r.Uncommitted, "uncommitted file"))
 		case r.Uncommitted > 0:
 			// A clause, not an alarm. Uncommitted work is the normal state of a checkout somebody
 			// is editing; what matters is knowing it is not in what you are reading.
-			said += fmt.Sprintf(" · %s not included", plural(r.Uncommitted, "uncommitted file"))
+			said += fmt.Sprintf(" · %s not included", english.Count(r.Uncommitted, "uncommitted file"))
 		}
 		out = append(out, [2]string{where, strings.TrimSpace(said)})
 	}
@@ -1397,11 +1393,11 @@ func sbomLine(docs []sbom.Document) string {
 	}
 	switch {
 	case project && parts > 0:
-		return fmt.Sprintf("1 project document + %s (%s)", plural(parts, "component document"), docs[0].Format)
+		return fmt.Sprintf("1 project document + %s (%s)", english.Count(parts, "component document"), docs[0].Format)
 	case project:
 		return fmt.Sprintf("1 project document (%s)", docs[0].Format)
 	default:
-		return fmt.Sprintf("%s (%s)", plural(parts, "document"), docs[0].Format)
+		return fmt.Sprintf("%s (%s)", english.Count(parts, "document"), docs[0].Format)
 	}
 }
 
@@ -1448,12 +1444,12 @@ func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) (t
 		shown = shown[:limit]
 	}
 	_, _ = fmt.Fprintf(w, "%s  %s\n", heading(col, "What to do"), col.Paint(cDim, fmt.Sprintf(
-		"%s %s %s", plural(len(shown), "action"), clears(shown), plural(cleared(shown), "finding"))))
+		"%s %s %s", english.Count(len(shown), "action"), clears(shown), english.Count(cleared(shown), "finding"))))
 	renderActions(w, col, shown, d.View == ViewCompact)
 
 	if len(shown) < len(actions) {
 		_, _ = fmt.Fprintf(w, "\n… and %s not listed.\n",
-			plural(len(actions)-len(shown), "action"))
+			english.Count(len(actions)-len(shown), "action"))
 		truncated = true
 	}
 	if len(external) > 0 {
@@ -1540,14 +1536,14 @@ func writeSignals(w io.Writer, col tui.Painter, d Data, s summary) {
 		// feed changed nothing is to read every finding looking for a mark that is not there.
 		did := "nothing raised"
 		if n > 0 {
-			did = fmt.Sprintf("%s raised", plural(n, "finding"))
+			did = fmt.Sprintf("%s raised", english.Count(n, "finding"))
 		}
 		signals = append(signals, signal{name: strings.ToUpper(name), did: did})
 	}
 	if n := s.floored; n > 0 {
 		signals = append(signals, signal{
 			name: "floor",
-			did:  fmt.Sprintf("%s raised by a control's own rule", plural(n, "finding")),
+			did:  fmt.Sprintf("%s raised by a control's own rule", english.Count(n, "finding")),
 		})
 	}
 	// Named for what it is rather than for the tool that did it. "govulncheck" in the left column
@@ -1718,7 +1714,7 @@ func writeDecisions(w io.Writer, col tui.Painter, d Data, full bool) {
 		}
 		parts := []string{
 			col.Paint(cDim, "accepted by") + " " + who,
-			col.Paint(cDim, "covers") + " " + plural(dec.n, "finding"),
+			col.Paint(cDim, "covers") + " " + english.Count(dec.n, "finding"),
 		}
 		if said := decisionRules(dec.rules); said != "" {
 			parts = append(parts, said)
@@ -1742,7 +1738,7 @@ func decisionRules(rules []string) string {
 	case len(rules) <= maxNamedRules:
 		return strings.Join(rules, ", ")
 	}
-	return plural(len(rules), "rule")
+	return english.Count(len(rules), "rule")
 }
 
 // maxNamedRules is how many rules a decision names before counting them instead.
@@ -1838,7 +1834,7 @@ func externalLine(external []finding) string {
 	}
 	sort.Strings(names)
 	return fmt.Sprintf("%s on infrastructure operated by your provider (%s), reported, "+
-		"and not yours to fix.", plural(len(external), "finding"), strings.Join(names, ", "))
+		"and not yours to fix.", english.Count(len(external), "finding"), strings.Join(names, ", "))
 }
 
 // renderActions draws the action rows.
@@ -1877,7 +1873,7 @@ func renderActions(w io.Writer, col tui.Painter, actions []action, compact bool)
 		// flat grey gives a reader nothing to find.
 		meta := []string{
 			col.Paint(cDim, "control") + " " + a.control,
-			col.Paint(tui.StyleFixed, plural(a.count(), "finding")),
+			col.Paint(tui.StyleFixed, english.Count(a.count(), "finding")),
 		}
 		if a.upstream {
 			meta = append(meta, col.Paint(cDim, "upstream"))
@@ -1908,7 +1904,7 @@ func renderActions(w io.Writer, col tui.Painter, actions []action, compact bool)
 // metaWidth is what an action's labeled facts occupy before the detail is added, so the detail
 // can be budgeted against what is left rather than against the whole line.
 func metaWidth(a action, parts int) int {
-	n := len("control ") + len(a.control) + len(plural(a.count(), "finding"))
+	n := len("control ") + len(a.control) + len(english.Count(a.count(), "finding"))
 	if a.upstream {
 		n += len("upstream")
 	}
@@ -1939,12 +1935,6 @@ func actionDetail(col tui.Painter, a action, locations int) string {
 	}
 	return strings.Join(parts, " · ")
 }
-
-// noun agrees a bare noun with a count, for sentences that put the number elsewhere.
-//
-// Shared with the differential report and with the gate's own error message, which say the same
-// things about the same nouns and used to say them each in their own way.
-func noun(n int, word string) string { return english.Noun(n, word) }
 
 // elide shortens the last line of a wrapped message, at a word boundary where there is one.
 //
@@ -2061,10 +2051,10 @@ func unscannedDetail(us []engine.Unscanned, declared map[string]int) string {
 		// "3 of 3" and "3 of 30" are different situations. One is a component nothing looked at, the
 		// other a gap in one that was mostly covered. And the bare count reads as the first either way.
 		if total := declared[kind]; total > 0 {
-			parts = append(parts, fmt.Sprintf("%d/%d %s", byKind[kind], total, noun(total, kind)))
+			parts = append(parts, fmt.Sprintf("%d/%d %s", byKind[kind], total, english.Noun(total, kind)))
 			continue
 		}
-		parts = append(parts, plural(byKind[kind], kind))
+		parts = append(parts, english.Count(byKind[kind], kind))
 	}
 	return strings.Join(parts, ", ") + " not scanned"
 }
@@ -2198,7 +2188,7 @@ func descriptorLine(d *skald.DescriptorRef) string {
 	}
 	line := root
 	if n := len(d.Sources) - 1; n > 0 {
-		line += fmt.Sprintf(" + %s", plural(n, "fragment"))
+		line += fmt.Sprintf(" + %s", english.Count(n, "fragment"))
 	}
 	if d.Digest != "" {
 		// Named, because eight characters of hex is not self-evidently anything. It is the digest

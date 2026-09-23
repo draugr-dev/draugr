@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/scanpolicy"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -93,7 +94,7 @@ func reportUnreachableGate(out io.Writer, model *saga.Model, band string) error 
 		fmt.Fprintf(&b, "this gate cannot fire: no component here can produce %s.\n", band)
 	} else {
 		fmt.Fprintf(&b, "%d of %s cannot produce %s, so this gate does not judge them:\n",
-			len(unreachable), plural(len(model.Components), "component"), band)
+			len(unreachable), english.Count(len(model.Components), "component"), band)
 	}
 	for _, line := range unreachable {
 		fmt.Fprintf(&b, "  %s\n", line)

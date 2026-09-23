@@ -1,6 +1,13 @@
 package english
 
-import "testing"
+import (
+	"io/fs"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"testing"
+)
 
 func TestCountAgreesWithItsNoun(t *testing.T) {
 	for _, c := range []struct {
@@ -40,6 +47,69 @@ func TestNounIsTheWordWithoutTheNumber(t *testing.T) {
 	for _, c := range []struct{ n int }{{1}, {2}, {7}} {
 		if want := Count(c.n, "image"); want[len(want)-len(Noun(c.n, "image")):] != Noun(c.n, "image") {
 			t.Errorf("Count and Noun disagree at %d: %q against %q", c.n, want, Noun(c.n, "image"))
+		}
+	}
+}
+
+// TestChooseTakesBothForms. Verbs, pronouns and phrases have no rule to derive a plural by, so the
+// caller supplies both and this only decides which one a count takes.
+func TestChooseTakesBothForms(t *testing.T) {
+	for _, c := range []struct {
+		n    int
+		want string
+	}{
+		{1, "is"},
+		{0, "are"},
+		{2, "are"},
+		// Not expected, and must not read as singular, which a bare `n != 1` inverted would give.
+		{-1, "are"},
+	} {
+		if got := Choose(c.n, "is", "are"); got != c.want {
+			t.Errorf("Choose(%d, is, are) = %q, want %q", c.n, got, c.want)
+		}
+	}
+}
+
+// TestThereIsOneRuleForPlurals holds the repository to this package.
+//
+// Every renderer that needed a plural used to write its own, and the ones nobody reread drifted:
+// "1 finding(s)" in four places, and two copies that never learned "repository" takes "ies". A
+// helper added somewhere else is the same drift starting again, so a function whose name says it
+// pluralizes has to live here.
+func TestThereIsOneRuleForPlurals(t *testing.T) {
+	root := filepath.Join("..", "..")
+	helper := regexp.MustCompile(`(?m)^func (plural\w*|pluralize\w*|noun|isAre)\(`)
+
+	var sources []string
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			switch d.Name() {
+			case ".git", "node_modules", "vendor", ".claude":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.HasSuffix(path, ".go") && !strings.Contains(path, filepath.Join("internal", "english")) {
+			sources = append(sources, path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, path := range sources {
+		// #nosec G304 -- a path this test found by walking the repository's own source.
+		body, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, m := range helper.FindAllSubmatch(body, -1) {
+			t.Errorf("%s declares %s, a second rule for plurals: use english.Count, english.Noun "+
+				"or english.Choose", path, m[1])
 		}
 	}
 }

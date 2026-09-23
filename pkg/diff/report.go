@@ -398,7 +398,7 @@ func writeDiffActions(w io.Writer, col tui.Painter, entries []Entry, opts Option
 	if len(actions) == 0 {
 		_, _ = fmt.Fprintf(w, "%s\n  %s\n", col.Paint(tui.StyleMuted, "WHAT TO DO"),
 			col.Paint(tui.StylePass, fmt.Sprintf("Nothing. %s changed and none of it needs anybody.",
-				plural(len(entries), "finding"))))
+				english.Count(len(entries), "finding"))))
 		return
 	}
 
@@ -412,10 +412,10 @@ func writeDiffActions(w io.Writer, col tui.Painter, entries []Entry, opts Option
 	if len(actions) == 1 {
 		verb = "clears"
 	}
-	heading := fmt.Sprintf("%s %s %s", plural(len(actions), "action"), verb, plural(covered, "finding"))
+	heading := fmt.Sprintf("%s %s %s", english.Count(len(actions), "action"), verb, english.Count(covered, "finding"))
 	if held > 0 {
-		heading = fmt.Sprintf("top %d of %s · %s", opts.Top, plural(len(actions), "action"),
-			plural(covered, "finding"))
+		heading = fmt.Sprintf("top %d of %s · %s", opts.Top, english.Count(len(actions), "action"),
+			english.Count(covered, "finding"))
 	}
 	_, _ = fmt.Fprintf(w, "%s  %s\n", col.Paint(tui.StyleMuted, "WHAT TO DO"),
 		col.Paint(tui.StyleMuted, heading))
@@ -423,7 +423,7 @@ func writeDiffActions(w io.Writer, col tui.Painter, entries []Entry, opts Option
 		_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
 			col.Paint(tui.PriorityStyle(a.lead.Priority), dash(a.lead.Priority)),
 			col.Paint(tui.StyleStrong, a.what),
-			col.Paint(tui.StyleMuted, fmt.Sprintf("%s · %s", dash(a.lead.Control), plural(len(a.group), "finding"))))
+			col.Paint(tui.StyleMuted, fmt.Sprintf("%s · %s", dash(a.lead.Control), english.Count(len(a.group), "finding"))))
 		// One rule named and the rest counted, because a row listing six identifiers is six things
 		// to read to learn one thing to do.
 		rules := a.lead.RuleID
@@ -435,11 +435,11 @@ func writeDiffActions(w io.Writer, col tui.Painter, entries []Entry, opts Option
 	}
 	if held > 0 {
 		_, _ = fmt.Fprintf(w, "\n  %s\n", col.Paint(tui.StyleMuted,
-			fmt.Sprintf("… and %s not listed.", plural(held, "action"))))
+			fmt.Sprintf("… and %s not listed.", english.Count(held, "action"))))
 	}
 	if rest := len(entries) - covered; rest > 0 {
 		_, _ = fmt.Fprintf(w, "\n  %s\n", col.Paint(tui.StyleMuted,
-			fmt.Sprintf("%s nobody has to act on.", plural(rest, "finding"))))
+			fmt.Sprintf("%s nobody has to act on.", english.Count(rest, "finding"))))
 	}
 }
 
@@ -503,7 +503,7 @@ func renderMarkdownActions(w io.Writer, r Result, opts Options) error {
 	actions, covered := groupChanges(entries)
 	if len(actions) == 0 {
 		_, _ = fmt.Fprintf(w, "Nothing here is work. %s changed and none of it needs anybody.\n",
-			plural(len(entries), "finding"))
+			english.Count(len(entries), "finding"))
 		writeMarkdownGate(w, r)
 		return nil
 	}
@@ -515,10 +515,10 @@ func renderMarkdownActions(w io.Writer, r Result, opts Options) error {
 	if len(actions) == 1 {
 		verb = "clears"
 	}
-	heading := fmt.Sprintf("%s %s %s", plural(len(actions), "action"), verb, plural(covered, "finding"))
+	heading := fmt.Sprintf("%s %s %s", english.Count(len(actions), "action"), verb, english.Count(covered, "finding"))
 	if held > 0 {
-		heading = fmt.Sprintf("top %d of %s · %s", opts.Top, plural(len(actions), "action"),
-			plural(covered, "finding"))
+		heading = fmt.Sprintf("top %d of %s · %s", opts.Top, english.Count(len(actions), "action"),
+			english.Count(covered, "finding"))
 	}
 	_, _ = fmt.Fprintf(w, "### What to do · %s\n\n", heading)
 	_, _ = fmt.Fprintln(w, "| Priority | What to do | Control | Findings | Where |")
@@ -533,10 +533,10 @@ func renderMarkdownActions(w io.Writer, r Result, opts Options) error {
 			loc(a.lead.Location.URI, a.lead.Location.StartLine), rules)
 	}
 	if held > 0 {
-		_, _ = fmt.Fprintf(w, "\n_…and %s not listed._\n", plural(held, "action"))
+		_, _ = fmt.Fprintf(w, "\n_…and %s not listed._\n", english.Count(held, "action"))
 	}
 	if rest := len(entries) - covered; rest > 0 {
-		_, _ = fmt.Fprintf(w, "\n_%s nobody has to act on._\n", plural(rest, "finding"))
+		_, _ = fmt.Fprintf(w, "\n_%s nobody has to act on._\n", english.Count(rest, "finding"))
 	}
 	writeMarkdownGate(w, r)
 	return nil
@@ -726,12 +726,4 @@ func elide(s string, width int) string {
 		return s
 	}
 	return strings.TrimRight(s[:width-1], " ") + "…"
-}
-
-// plural renders a count with its noun, pluralized the simple way.
-func plural(n int, word string) string {
-	if n == 1 {
-		return fmt.Sprintf("%d %s", n, word)
-	}
-	return fmt.Sprintf("%d %ss", n, word)
 }

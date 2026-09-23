@@ -24,6 +24,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
@@ -208,7 +209,7 @@ func runDoctor(
 	if run.strict {
 		if n := untestedCount(statuses); n > 0 {
 			return fmt.Errorf("%s not the version Draugr tests; run `draugr tools install --force`, "+
-				"or drop --strict to accept them", isAre(n, plural(n, "tool")))
+				"or drop --strict to accept them", english.Count(n, "tool")+" "+english.Choose(n, "is", "are"))
 		}
 	}
 	if missing > 0 {
@@ -413,16 +414,8 @@ func writeDoctorTable(w io.Writer, statuses []tools.Status) {
 	if n := untestedCount(statuses); n > 0 {
 		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(tui.StyleAccent, fmt.Sprintf(
 			"%s not the version Draugr tests. Older scanners find fewer things; "+
-				"`draugr tools install --force` installs the tested build.", isAre(n, plural(n, "tool")))))
+				"`draugr tools install --force` installs the tested build.", english.Count(n, "tool")+" "+english.Choose(n, "is", "are"))))
 	}
-}
-
-// isAre agrees the verb with the count, which plural does not do for the caller.
-func isAre(n int, subject string) string {
-	if n == 1 {
-		return subject + " is"
-	}
-	return subject + " are"
 }
 
 // untestedCount is how many found tools are running something other than the pinned version.
@@ -705,14 +698,14 @@ func missingToolsAdvice(statuses []tools.Status) string {
 	// from. A column has a name; "above" is a position, and a reflow is the first thing that moves
 	// it.
 	if fetchable == missing {
-		return fmt.Sprintf("%s missing. Run `draugr tools install`.", plural(missing, "required tool"))
+		return fmt.Sprintf("%s missing. Run `draugr tools install`.", english.Count(missing, "required tool"))
 	}
 	if fetchable > 0 {
 		return fmt.Sprintf("%s missing. Run `draugr tools install` for %d of them; the Notes "+
-			"column says where the rest come from.", plural(missing, "required tool"), fetchable)
+			"column says where the rest come from.", english.Count(missing, "required tool"), fetchable)
 	}
 	return fmt.Sprintf("%s missing. The Notes column says where each one comes from.",
-		plural(missing, "required tool"))
+		english.Count(missing, "required tool"))
 }
 
 // installAdvice says how to get one missing tool, preferring the command Draugr can run.

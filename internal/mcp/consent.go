@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -53,7 +54,7 @@ func describeScan(reg *engine.Registry, model *saga.Model, path string) string {
 	}
 	fmt.Fprintf(&b, "\nControls: %s", strings.Join(sortedSet(controls), ", "))
 	if n := len(components); n > 0 {
-		fmt.Fprintf(&b, ", over %s", plural(n, "component", "components"))
+		fmt.Fprintf(&b, ", over %s", english.Count(n, "component"))
 	}
 	b.WriteString(".\n")
 
@@ -122,11 +123,4 @@ func sortedSet(m map[string]bool) []string {
 	}
 	sort.Strings(out)
 	return out
-}
-
-func plural(n int, one, many string) string {
-	if n == 1 {
-		return fmt.Sprintf("%d %s", n, one)
-	}
-	return fmt.Sprintf("%d %s", n, many)
 }

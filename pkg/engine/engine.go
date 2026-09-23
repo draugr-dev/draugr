@@ -22,6 +22,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/cache"
 	"github.com/draugr-dev/draugr/pkg/dephealth"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -454,19 +455,11 @@ func consentFor(info plugin.ScannerInfo, allowed map[plugin.EffectKind]bool) err
 	return fmt.Errorf(
 		"this scanner has %s that %s not been accepted: %s. Add %s to config.allowEffects in "+
 			"your Saga, or pass --allow-effects %s",
-		plural2(len(kinds), "an effect", "effects"),
-		plural2(len(kinds), "has", "have"),
+		english.Choose(len(kinds), "an effect", "effects"),
+		english.Choose(len(kinds), "has", "have"),
 		strings.Join(described, "; "),
-		plural2(len(kinds), "it", "them"),
+		english.Choose(len(kinds), "it", "them"),
 		strings.Join(kinds, ","))
-}
-
-// plural2 picks a word for a count.
-func plural2(n int, one, many string) string {
-	if n == 1 {
-		return one
-	}
-	return many
 }
 
 // dedupeEffects collapses the same effect reported by several jobs, in a stable order.

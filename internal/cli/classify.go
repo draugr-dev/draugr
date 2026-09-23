@@ -12,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
@@ -122,7 +123,7 @@ func runClassify(target string, opts classifyOptions, in io.Reader, out io.Write
 	if err := os.WriteFile(path, updated, 0o600); err != nil { // #nosec G703 -- operator-provided saga path
 		return err
 	}
-	_, _ = fmt.Fprintf(out, "\nClassified %s in %s.\n", plural(len(class), "component"), path)
+	_, _ = fmt.Fprintf(out, "\nClassified %s in %s.\n", english.Count(len(class), "component"), path)
 	if guessed > 0 {
 		// Said at the end as well as on the row, because the end is what a pipeline's log shows
 		// and what somebody scrolls to. Not an error: a truncated session is a real way to use
@@ -130,7 +131,7 @@ func runClassify(target string, opts classifyOptions, in io.Reader, out io.Write
 		_, _ = fmt.Fprintf(out, "%s\n", tui.For(out).Paint(tui.StyleAccent, fmt.Sprintf(
 			"%s left with a guess, because the answers ran out. Edit the file, or run "+
 				"`draugr classify --all` with somebody at the keyboard.",
-			plural(guessed, "component"))))
+			english.Count(guessed, "component"))))
 	}
 	return nil
 }

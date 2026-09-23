@@ -457,16 +457,6 @@ func TestTheDescriptorCanBeCalledAnything(t *testing.T) {
 	}
 }
 
-func TestPluralThem(t *testing.T) {
-	t.Parallel()
-	if got := pluralThem(1); got != "it" {
-		t.Errorf("pluralThem(1) = %q", got)
-	}
-	if got := pluralThem(2); got != "them" {
-		t.Errorf("pluralThem(2) = %q", got)
-	}
-}
-
 // stubDetect makes presence deterministic without arranging binaries on PATH.
 func stubDetect(t *testing.T, found map[string]string) {
 	t.Helper()

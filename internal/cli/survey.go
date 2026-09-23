@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/surfaces"
 	"github.com/draugr-dev/draugr/internal/surveyors"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -591,20 +592,20 @@ func surveySummary(opts surveyOptions, frag saga.Fragment, components []saga.Com
 		hosts += len(c.Hosts)
 		infra += len(c.Infrastructure)
 	}
-	parts := []string{plural(len(components), "component")}
+	parts := []string{english.Count(len(components), "component")}
 	for _, p := range []struct {
 		n    int
 		noun string
 	}{{repos, "repository"}, {images, "image"}, {hosts, "host"}, {infra, "infrastructure target"}} {
 		if p.n > 0 {
-			parts = append(parts, plural(p.n, p.noun))
+			parts = append(parts, english.Count(p.n, p.noun))
 		}
 	}
 
 	line := fmt.Sprintf("%s %s · %s", verb, opts.output, strings.Join(parts, ", "))
 	// On a merge the total says little on its own; the reader wants to know what this run added.
 	if merged {
-		line += fmt.Sprintf(" (this survey found %s)", plural(len(frag.Components), "component"))
+		line += fmt.Sprintf(" (this survey found %s)", english.Count(len(frag.Components), "component"))
 	}
 	if len(components) == 0 {
 		// A descriptor describing nothing is almost always a scope or credentials problem, and
@@ -612,20 +613,6 @@ func surveySummary(opts surveyOptions, frag saga.Fragment, components []saga.Com
 		line += ", nothing was discovered, so this descriptor scans nothing"
 	}
 	return line
-}
-
-// plural renders a count with its noun, pluralised the way English mostly manages.
-//
-// The -y → -ies rule only applies after a consonant: "repository" becomes "repositories" and
-// "day" becomes "days".
-func plural(n int, noun string) string {
-	if n == 1 {
-		return fmt.Sprintf("%d %s", n, noun)
-	}
-	if stem, ok := strings.CutSuffix(noun, "y"); ok && stem != "" && !strings.ContainsRune("aeiou", rune(stem[len(stem)-1])) {
-		return fmt.Sprintf("%d %sies", n, stem)
-	}
-	return fmt.Sprintf("%d %ss", n, noun)
 }
 
 // mergesInto reports whether this run adds to an existing descriptor rather than writing a new

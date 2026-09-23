@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/surfaces"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
@@ -84,7 +85,7 @@ var scanTips = []scanTip{
 		what: func(tipContext) string { return "--fail-on P2" },
 		why: func(c tipContext) string {
 			return fmt.Sprintf("this passed on severity with %d P1/P2 %s",
-				countAtOrAbove(c.run, "P2"), plural2(countAtOrAbove(c.run, "P2"), "finding", "findings"))
+				countAtOrAbove(c.run, "P2"), english.Noun(countAtOrAbove(c.run, "P2"), "finding"))
 		},
 	},
 	{
@@ -211,14 +212,6 @@ func countAtOrAbove(run engine.Result, band string) int {
 		}
 	}
 	return n
-}
-
-// plural2 picks between two forms by count.
-func plural2(n int, one, many string) string {
-	if n == 1 {
-		return one
-	}
-	return many
 }
 
 // sortedKeys returns a map's keys in order, so the note is stable between runs.
