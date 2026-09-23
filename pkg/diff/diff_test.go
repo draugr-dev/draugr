@@ -581,3 +581,30 @@ func TestARemovedSecretIsStillFixed(t *testing.T) {
 		t.Errorf("fixed=%d new=%d, want the removal reported", len(got.Fixed), len(got.New))
 	}
 }
+
+// A baseline written before repositories had one spelling, compared with a head written after.
+// The same finding in the same repository is unchanged, however each report spelled the
+// repository, and a second repository holding the same file is still a second repository.
+func TestOneRepositorySpelledTwoWaysIsOneRepository(t *testing.T) {
+	in := func(repo, lineHash string) sarif.Result {
+		r := res("gosec", "G101", sarif.LevelError, "config.go", 12, "P2")
+		r.Repository = repo
+		r.PartialFingerprints = map[string]string{sarif.LineHashKey: lineHash}
+		return r
+	}
+	base := sarif.Report{Results: []sarif.Result{
+		in("git@github.com:acme/api.git", "h1"),
+		in("https://github.com/acme/web.git", "h1"),
+	}}
+	head := sarif.Report{Results: []sarif.Result{
+		in("https://github.com/acme/api", "h1"),
+		in("https://github.com/acme/web", "h1"),
+	}}
+	d := Compare(base, head)
+	if len(d.New) != 0 || len(d.Fixed) != 0 {
+		t.Fatalf("new %d, fixed %d; want nothing moved when only the spelling did", len(d.New), len(d.Fixed))
+	}
+	if len(d.Unchanged) != 2 {
+		t.Errorf("unchanged = %d, want one finding in each of the two repositories", len(d.Unchanged))
+	}
+}

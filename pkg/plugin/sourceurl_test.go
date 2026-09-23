@@ -51,8 +51,13 @@ func TestIdentityIsTheSameHoweverItWasCloned(t *testing.T) {
 	if a.Identity() != b.Identity() {
 		t.Errorf("identities differ by credential:\n  %s\n  %s", a.Identity(), b.Identity())
 	}
-	if got := a.Identity(); got != "https://host/org/repo.git@main" {
+	if got := a.Identity(); got != "https://host/org/repo@main" {
 		t.Errorf("identity = %q", got)
+	}
+	// And by transport: a deploy key clones the same repository over SSH.
+	ssh := RepositoryTarget{URL: "git@host:org/repo.git", Revision: "main"}
+	if ssh.Identity() != a.Identity() {
+		t.Errorf("identities differ by transport:\n  %s\n  %s", ssh.Identity(), a.Identity())
 	}
 }
 
@@ -73,4 +78,13 @@ func contains(h, n string) bool {
 		}
 	}
 	return false
+}
+
+// A local checkout whose remote is a deploy key's SSH address names the same repository as a
+// pipeline cloning it over HTTPS, which is the case one spelling per repository exists for.
+func TestALocalCheckoutsSSHRemoteIsTheHTTPSRepository(t *testing.T) {
+	local := RepositoryTarget{URL: ".", Remote: "git@github.com:acme/api.git"}
+	if got, want := local.Source(), (RepositoryTarget{URL: "https://github.com/acme/api"}).Source(); got != want {
+		t.Errorf("Source() = %q, want %q", got, want)
+	}
 }

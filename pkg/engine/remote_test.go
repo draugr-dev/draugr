@@ -22,7 +22,7 @@ func TestResolveRemotesNamesALocalCheckoutByItsRepository(t *testing.T) {
 	jobs := e.resolveRemotes([]plugin.ScanJob{repoJob(".")})
 
 	got := jobs[0].Target.(plugin.RepositoryTarget)
-	if got.Source() != "https://github.com/acme/api.git" {
+	if got.Source() != "https://github.com/acme/api" {
 		t.Errorf("Source() = %q", got.Source())
 	}
 	// The URL is untouched, because cloning still needs the path it was given.

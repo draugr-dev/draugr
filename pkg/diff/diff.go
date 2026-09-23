@@ -175,7 +175,8 @@ func keysOf(r sarif.Result) []string {
 	// The tool and the subject stay in the key. A content hash identifies a place in a file, and
 	// two scanners finding different things there are two findings.
 	content := strings.Join([]string{
-		"content", r.Tool, r.RuleID, r.Location.URI, hash, r.Component, r.Repository,
+		"content", r.Tool, r.RuleID, r.Location.URI, hash, r.Component,
+		sarif.RepositoryIdentity(r.Repository),
 	}, "\x00")
 	return []string{content, id}
 }
@@ -186,8 +187,12 @@ func identity(r sarif.Result) string {
 	// findings carrying two classifications, so one can be P1 and the other P4; the same file in two
 	// repositories is two projects to fix. Keyed without them, a diff keeps whichever it saw first
 	// and reports the other as neither new nor fixed. It simply is not there.
+	//
+	// The repository by its identity rather than as written, so a baseline from a scan that spelled
+	// it `…/api.git` and a head that spelled it `…/api` agree about which findings they share.
 	return strings.Join([]string{
-		r.Tool, r.RuleID, r.Location.URI, r.Message, r.Component, r.Repository,
+		r.Tool, r.RuleID, r.Location.URI, r.Message, r.Component,
+		sarif.RepositoryIdentity(r.Repository),
 	}, "\x00")
 }
 

@@ -1,6 +1,10 @@
 package plugin
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/draugr-dev/draugr/pkg/sarif"
+)
 
 // SourceURL returns a repository URL as the *source* it names, with any credentials or username
 // removed.
@@ -37,15 +41,16 @@ func SourceURL(raw string) string {
 	return scheme + "://" + rest
 }
 
-// Source is the repository this target names, without credentials. What a report should show and
-// what identifies the scan.
+// Source is the repository this target names, without credentials and spelled the one way
+// sarif.RepositoryIdentity spells it. What a report should show and what identifies the scan.
 //
 // A resolved remote wins over the URL, because a local path describes where a checkout sits on
 // one machine rather than which repository it is. That is what lets a scan on a laptop and a scan
-// in a pipeline recognize each other as the same source.
+// in a pipeline recognize each other as the same source, and the one spelling is what lets a
+// pipeline cloning over HTTPS and one using a deploy key do the same.
 func (t RepositoryTarget) Source() string {
 	if t.Remote != "" {
-		return SourceURL(t.Remote)
+		return sarif.RepositoryIdentity(SourceURL(t.Remote))
 	}
-	return SourceURL(t.URL)
+	return sarif.RepositoryIdentity(SourceURL(t.URL))
 }

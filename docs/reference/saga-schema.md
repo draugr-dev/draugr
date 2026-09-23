@@ -1000,11 +1000,11 @@ else can check out and reproduce, and "whatever was on one machine at one moment
 **So the report names it**, along with what it left out:
 
 ```
-Scanned: https://github.com/acme/web.git at 3f9a1c2b (3 uncommitted files not included)
+Scanned: https://github.com/acme/web at 3f9a1c2b (3 uncommitted files not included)
 ```
 
-**A repository is named by the repository, not by how you reached it.** Two details follow, and
-both exist so that one repository reads as one thing however it was scanned.
+**A repository is named by the repository, not by how you reached it.** Three details follow, and
+all three exist so that one repository reads as one thing however it was scanned.
 
 *A local checkout is reported as the repository it was cloned from.* Point a descriptor at `.` or
 `/srv/web` and the report names its git remote, because the path is where the code sits on one
@@ -1014,9 +1014,27 @@ entry, and `draugr diff` can compare them. A checkout with **no** remote keeps i
 then the only name it has and the one you can act on.
 
 *Credentials and usernames are dropped.* `https://oauth2:TOKEN@github.com/acme/web.git` is reported,
-cached and named as `https://github.com/acme/web.git`, and Azure DevOps URLs stop carrying the
+cached and named as `https://github.com/acme/web`, and Azure DevOps URLs stop carrying the
 organization as a username as well as in the path. The URL used to **clone** keeps everything it
 had. Fetching is the one thing credentials are for.
+
+*Every spelling is one name.* A repository is reported as `https://host/path`, whichever way the
+descriptor or the remote wrote it:
+
+| written | reported as |
+|---|---|
+| `https://github.com/acme/web.git` | `https://github.com/acme/web` |
+| `git@github.com:acme/web.git` | `https://github.com/acme/web` |
+| `ssh://git@github.com:22/acme/web` | `https://github.com/acme/web` |
+| `git@ssh.dev.azure.com:v3/acme/platform/web` | `https://dev.azure.com/acme/platform/_git/web` |
+| `https://acme.visualstudio.com/platform/_git/web` | `https://dev.azure.com/acme/platform/_git/web` |
+
+The host is lowercased and the path is not, because some forges treat a path's case as meaningful.
+A port stays where it is part of the address, `https://ghe.internal:8443/…`, and goes where it
+belongs to SSH. A local path with no remote, and a `file://` URL, are reported as written.
+
+`draugr diff` compares by the same name, so a baseline from before this rule still matches a scan
+made after it.
 
 That line is in the console report, the Markdown and HTML ones, and the JSON under `repositories`.
 It is per repository and per revision rather than per control: several controls scanning one
