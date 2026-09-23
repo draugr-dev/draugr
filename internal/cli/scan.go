@@ -458,7 +458,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		// gone when the process exits: a platform reading the report can see which controls ran
 		// and not what enabled them, and can see a repository and not which pipeline scanned it.
 		Descriptor: skald.DescriptorFrom(resolved),
-		CI:         detectedCI(),
+		CI:         detectedCI(model.Config.CI),
 		// Stamped so a rendered report can say when it ran and what produced it. A report
 		// offered as evidence has to answer both, and only the CLI knows either.
 		Generated: time.Now(),
@@ -709,9 +709,10 @@ func writeArtifacts(dir string, formats []string, data report.Data, release saga
 			if err := writeTo(filepath.Join(dir, name), func(w io.Writer) error {
 				// Named, because a document with no project in it is one a platform files under nothing. And
 				// there is no release name left for it to be recovered from.
+				prov := data.JSONProvenance()
+				prov.Gate, prov.Build = data.GateForReport(), buildRef()
 				return skald.RenderJSONFor(w, data.ProjectName(), release, run, verdict,
-					firstNonEmpty(declared, minPriority), nil, sarif.MarshalOptions{},
-					skald.Provenance{Gate: data.GateForReport(), Build: buildRef()})
+					firstNonEmpty(declared, minPriority), data.JSONFeeds(), sarif.MarshalOptions{}, prov)
 			}); err != nil {
 				return err
 			}
@@ -1141,8 +1142,14 @@ func declaredTargets(c saga.Component) map[string]int {
 //
 // A pointer so that "not in CI" is absent from a report rather than an empty object, which a
 // consumer would have to distinguish from a platform that was recognized and told us nothing.
-func detectedCI() *ci.Context {
-	if c := ci.Detect(); c.Detected() {
+//
+// Email addresses are read only when the descriptor asked for them.
+func detectedCI(cfg *saga.CIConfig) *ci.Context {
+	c := ci.Detect()
+	if cfg != nil && cfg.RecordEmail {
+		c = ci.DetectWithEmail()
+	}
+	if c.Detected() {
 		return &c
 	}
 	return nil

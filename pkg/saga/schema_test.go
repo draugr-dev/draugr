@@ -99,6 +99,7 @@ func schemaCases() []schemaCase {
 		{"exploitabilityConfig", ExploitabilityConfig{}},
 		{"reachabilityConfig", ReachabilityConfig{}},
 		{"dependencyHealthConfig", DependencyHealthConfig{}},
+		{"ciConfig", CIConfig{}},
 	}
 }
 

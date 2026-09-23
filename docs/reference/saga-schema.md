@@ -514,6 +514,22 @@ project this speaks to the dependencies you chose rather than to the base you bu
 run with no network reports that it could not consult the data and ranks without it.
 
 
+### CI (`config.ci`)
+
+A run records who its CI system reports as having started the pipeline and who wrote the commit, as
+a handle and the platform's stable id (see [the report's `ci` block](../guides/reports-and-publishers.md)).
+Email addresses are personal data, so they are recorded only when asked for:
+
+```yaml
+config:
+  ci:
+    recordEmail: true
+```
+
+When off, no address is read. When on, a run records the addresses GitLab, Azure Pipelines and
+Buildkite report for those two people, and on GitHub the commit author's address from the push event.
+GitHub reports no address for whoever started the run.
+
 ### Running two scanners on one control
 
 A flaw both of them find is **counted once**. Both findings stay in the report. Each keeps its own

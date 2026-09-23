@@ -1,6 +1,17 @@
 {
   "$comment": "A fragment adds scope or attributed suppressions and cannot change policy, which is the rule this file expresses so an editor can enforce it. Generated in full; before editing it by hand, read docs/contributing/schema.md in the draugr repository.",
   "$defs": {
+    "ciConfig": {
+      "additionalProperties": false,
+      "description": "What a run records about the CI job it ran in. A run always records who the CI system reports as having started the pipeline and who wrote the commit, as a handle and the platform's stable id; an email address is recorded only when asked for.",
+      "properties": {
+        "recordEmail": {
+          "description": "Also record the email addresses the CI system reports for those two people. Off when absent; when off, no address is read.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
     "component": {
       "additionalProperties": false,
       "description": "One logical part of the app. All surface lists are optional — declare what applies.",
@@ -114,6 +125,9 @@
           },
           "type": "array",
           "uniqueItems": true
+        },
+        "ci": {
+          "$ref": "#/$defs/ciConfig"
         },
         "controllers": {
           "$ref": "#/$defs/controllers",

@@ -168,6 +168,23 @@ A fragment fetched from another repository also carries `url`, `revision` and `r
 Azure Pipelines, CircleCI and Buildkite are recognized; outside them the block is absent rather than
 guessed at.
 
+It also names two people, as the CI system reports them: `runBy`, who started the pipeline, and
+`commitAuthor`, who wrote the commit being built. `triggeredBy` appears on GitHub when somebody else
+re-ran the job. Each carries what the platform offers, a `handle`, a display `name` and a stable `id`,
+and an `email` only when the descriptor sets [`config.ci.recordEmail`](../reference/saga-schema.md#ci-configci).
+
+| | `runBy` | `commitAuthor` |
+|---|---|---|
+| GitHub Actions | handle, id | handle and name, on a push |
+| GitLab CI | handle, name, id | name |
+| Azure Pipelines | name, id | name |
+| CircleCI | handle | |
+| Buildkite | name | name |
+
+A field the platform does not report is absent, and neither person is ever filled in from the other.
+Both are what the pipeline's own environment says, which the pipeline controls. They are a lead to
+follow, not proof of who acted.
+
 ```bash
 # Two runs, one question: did anything about the descriptor change between them?
 jq -r '.descriptor.digest' a/report.json b/report.json | uniq | wc -l

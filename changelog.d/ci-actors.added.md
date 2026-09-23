@@ -1,0 +1,1 @@
+- **A run records who its CI system reports as having started the pipeline and who wrote the commit.** Each is a handle and the platform's stable id, kept as two fields and never inferred from each other. Email addresses are recorded only with `config.ci.recordEmail`. ([#1167](https://github.com/draugr-dev/draugr/issues/1167))

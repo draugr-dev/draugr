@@ -1,0 +1,1 @@
+- **`report.json` written with `-o` records what produced the run.** It carries the descriptor, the CI job and the exploitability data the run was ranked against, as the same run's `--format json` already did.

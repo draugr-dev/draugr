@@ -116,6 +116,7 @@ var sections = map[string]string{
 	"exploitabilityconfig":   "config.exploitability",
 	"reachabilityconfig":     "config.reachability",
 	"dependencyhealthconfig": "config.dependencyHealth",
+	"ciconfig":               "config.ci",
 	"sbomconfig":             "config.sbom",
 	"reportconfig":           "config.reports",
 	"publisherconfig":        "config.publishers",

@@ -423,9 +423,21 @@ type jsonReporter struct{}
 func (jsonReporter) Format() string { return "json" }
 func (jsonReporter) Render(w io.Writer, d Data) error {
 	return skald.RenderJSONFor(w, d.ProjectName(), d.Release, d.Run, d.Verdict, d.MinPriority,
-		skaldFeeds(d.Exploitability), d.marshalOptions(),
-		skald.Provenance{Descriptor: d.Descriptor, CI: d.CI, Gate: d.Gate.skald()})
+		d.JSONFeeds(), d.marshalOptions(), d.JSONProvenance())
 }
+
+// JSONProvenance is what produced the run, as the JSON document records it: the descriptor, the CI
+// job and the gate.
+//
+// One function for every path that writes the document, the -o artifact and the reporter a
+// publisher uses, so a report.json on disk and the same run's --format json cannot record
+// different provenance.
+func (d Data) JSONProvenance() skald.Provenance {
+	return skald.Provenance{Descriptor: d.Descriptor, CI: d.CI, Gate: d.Gate.skald()}
+}
+
+// JSONFeeds is the exploitability data the run was ranked against, as the JSON document records it.
+func (d Data) JSONFeeds() []skald.FeedProvenance { return skaldFeeds(d.Exploitability) }
 
 // skaldFeeds converts the report's feed provenance into the JSON document's shape.
 func skaldFeeds(feeds []FeedProvenance) []skald.FeedProvenance {

@@ -49,6 +49,13 @@ config:
       # happens, and a request body is the wrong place for that.
       # url: https://draugr.acme.example   # or $DRAUGR_API_URL, which is the usual way
 
+  # Every run records who the CI system reports as having started the pipeline and who wrote the
+  # commit, as a handle and the platform's stable id, so a finding somebody accepted on the server
+  # can be followed back to a person. Email addresses are personal data and are read only when this
+  # asks for them; leave it out and none is recorded.
+  ci:
+    recordEmail: true
+
 components:
   - name: api
     exposure: public

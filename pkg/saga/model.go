@@ -109,6 +109,8 @@ type Config struct {
 	// sends the list of packages a scan found to a third party, which is a disclosure a team should
 	// agree to in a pull request rather than discover in a proxy log.
 	DependencyHealth *DependencyHealthConfig `yaml:"dependencyHealth,omitempty"`
+	// CI sets what a run records about the continuous-integration job it ran in.
+	CI *CIConfig `yaml:"ci,omitempty"`
 	// AllowEffects acknowledges scanner effects that would otherwise stop a run, the kinds a scanner
 	// declares when it does more to a target than read it ("mutate", "privilege").
 	//
@@ -368,6 +370,17 @@ type DependencyHealthConfig struct {
 	// the block to read what it would do" should not be the same act as "I agreed to send our
 	// dependency list to deps.dev".
 	Enabled bool `yaml:"enabled,omitempty"`
+}
+
+// CIConfig sets what a run records about the CI job it ran in.
+//
+// A run always records who the CI system reports as having started the pipeline and who wrote the
+// commit, as a handle and the platform's stable id. An email address is personal data, so it is
+// recorded only when asked for.
+type CIConfig struct {
+	// RecordEmail also records the email addresses the CI system reports for those two people.
+	// False, or an omitted block, reads no address at all.
+	RecordEmail bool `yaml:"recordEmail,omitempty"`
 }
 
 // ReachabilityConfig turns on reachability analysis and names the analyzers that do it.
