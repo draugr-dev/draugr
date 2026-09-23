@@ -1646,8 +1646,8 @@ func writeAccepted(w io.Writer, col tui.Painter, d Data, full bool) {
 	// easiest to add without anybody noticing.
 	if line := silencedLine(d); line != "" {
 		rows = append(rows, acceptedRow{
-			where: "source directives",
-			said:  []string{strings.TrimPrefix(line, "source directives: ")},
+			where: "scanner exclusions",
+			said:  []string{strings.TrimPrefix(line, "scanner exclusions: ")},
 		})
 	}
 

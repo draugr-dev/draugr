@@ -1069,7 +1069,8 @@ func silencedLine(d Data) string {
 	// One line for both of the scanner's own, because what makes it worth printing is true of
 	// each: an exclusion with no author and no date, set outside the descriptor. Which of the two
 	// a finding is stays on the finding, where somebody acting on it can see it.
-	return fmt.Sprintf("scanner exclusions: %s set aside, and nobody signed them", english.Count(n, "finding"))
+	return fmt.Sprintf("scanner exclusions: %s set aside, and nobody signed %s",
+		english.Count(n, "finding"), english.Choose(n, "it", "them"))
 }
 
 // alsoFoundBy is what the other scanners said about this same flaw.
@@ -1277,7 +1278,11 @@ func suppressionSources(d Data) []sourceCount {
 			// A supplier's claim is counted and attributed by importedLine, which names the
 			// author rather than the file. Counting it here as well made the breakdown sum to
 			// more than the total it was breaking down.
-			if res.Imported() {
+			//
+			// The scanner's own carry a file too, and it is the scanner's file rather than a
+			// fragment of this descriptor. Counted here it read as a `config.exclude` rule, which
+			// says this project signed something it never saw.
+			if res.Imported() || res.SetAsideByScanner() {
 				continue
 			}
 			counts[res.Suppression.Source]++

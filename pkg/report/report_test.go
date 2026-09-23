@@ -1911,3 +1911,43 @@ func TestTheFixSaysWhereTheProblemLives(t *testing.T) {
 		}
 	}
 }
+
+// The breakdown under `config.exclude` names only files that are part of this descriptor.
+//
+// A suppression carries the file it was written in whoever wrote it, so a `.trivyignore` line and
+// a VEX document both have one. Counted beside the descriptor's fragments they read as rules this
+// project signed, and the breakdown sums to more than the count above it.
+func TestTheExclusionBreakdownCountsOnlyThisDescriptorsFiles(t *testing.T) {
+	res := func(rule, origin, source string) sarif.Result {
+		return sarif.Result{
+			RuleID: rule, Level: sarif.LevelError, Message: rule,
+			Suppression: &sarif.Suppression{Kind: "external", Origin: origin, Source: source},
+		}
+	}
+	d := Data{
+		Release: saga.Release{Version: "1.0"},
+		Run: engine.Result{
+			Controls: map[string]plugin.ControlResult{
+				"sca": {Control: "sca", Report: sarif.Report{Tool: "trivy", Results: []sarif.Result{
+					res("CVE-OURS", sarif.OriginSaga, "draugr.saga.yaml"),
+					res("CVE-FRAGMENT", sarif.OriginSaga, "security/exclusions.yaml"),
+					res("CVE-SUPPLIER", sarif.OriginVEX, "vex.json"),
+					res("CVE-IGNOREFILE", sarif.OriginScanner, ".trivyignore"),
+				}}},
+			},
+			Suppressed: 2, Imported: 1, Silenced: 1,
+		},
+		Verdict: norn.Result{Verdict: norn.Pass},
+	}
+	line := suppressionLine(d, true)
+	for _, unwanted := range []string{".trivyignore", "vex.json"} {
+		if strings.Contains(line, unwanted) {
+			t.Errorf("%q is counted under config.exclude:\n  %s", unwanted, line)
+		}
+	}
+	for _, want := range []string{"draugr.saga.yaml", "security/exclusions.yaml"} {
+		if !strings.Contains(line, want) {
+			t.Errorf("%q is missing from the breakdown:\n  %s", want, line)
+		}
+	}
+}
