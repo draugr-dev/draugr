@@ -1,1 +1,0 @@
-- **A suppression carries the file it was written in through SARIF as well as through `report.json`, so a consumer reading the SARIF can still say which file authorized each exclusion when a descriptor is split across several.**

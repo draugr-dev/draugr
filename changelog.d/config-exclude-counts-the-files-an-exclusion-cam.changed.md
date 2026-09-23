@@ -1,1 +1,0 @@
-- **`config.exclude` counts the files an exclusion came from once there are more than four of them, rather than naming every one.** How many files a descriptor is split across is your decision, so the named list had no end, and the line grew with it.

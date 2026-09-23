@@ -1,1 +1,0 @@
-- **The accepted section counts the scanner's own exclusions on one line named `scanner exclusions`, where it said `source directives` and counted only one of the two kinds.** Every row there now reads the same way, a name and a count, and the reference explains what the name covers.

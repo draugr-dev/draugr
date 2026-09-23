@@ -1,1 +1,0 @@
-- **License findings state the obligation and stop.** A restricted license says what distributing it obliges you to do and that running it as a hosted service usually does not; an unidentified one says to read its terms before shipping it.

@@ -1,1 +1,0 @@
-- **A finding in the HTML report opens to its full message.** A row with a shortened message is marked `more`; clicking anywhere on it, or pressing Enter on it, shows everything the scanner said in its place. It works without JavaScript, the report's search matches the whole message, and printing includes every message in full.
