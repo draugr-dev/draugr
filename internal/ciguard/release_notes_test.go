@@ -240,3 +240,24 @@ func TestTheCheckRefusesAnEntryOutsideAFragment(t *testing.T) {
 		t.Errorf("check refused a well-formed fragment:\n%s", out)
 	}
 }
+
+// An entry is short enough to read as an item in a list. The link's URL is not words anybody
+// reads, so it does not count toward the limit.
+func TestTheCheckRefusesAnEntryTooLongToRead(t *testing.T) {
+	empty := strings.Replace(withInlineEntries,
+		withInlineEntries[strings.Index(withInlineEntries, "### Added"):strings.Index(withInlineEntries, "## [0.1.0]")],
+		"_Nothing yet._\n\n", 1)
+	entry := func(words int) string {
+		return "- **Lead.** " + strings.Repeat("word ", words-2) +
+			"([#1](https://github.com/draugr-dev/draugr/issues/1/with/a/long/path/that/is/not/prose))\n"
+	}
+
+	out, _ := changelogWith(t, empty, map[string]string{"long.fixed.md": entry(61)}, "check")
+	if !strings.Contains(out, "61 words, over 60") {
+		t.Errorf("check passed a 61-word entry:\n%s", out)
+	}
+	out, _ = changelogWith(t, empty, map[string]string{"fits.fixed.md": entry(60)}, "check")
+	if strings.Contains(out, "structural problems") {
+		t.Errorf("check refused a 60-word entry, or counted the link's URL:\n%s", out)
+	}
+}
