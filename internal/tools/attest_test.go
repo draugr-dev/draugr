@@ -118,6 +118,10 @@ func TestAttestFallsBackToTheRecordedVersion(t *testing.T) {
 // "Draugr did not install it" is true of everything external and misleading for some of it. A tool
 // Draugr does not distribute was never a candidate, so reporting an omission invites somebody to
 // go and fix it with a command that will not work.
+//
+// The two read differently and neither carries the command. This fills a column of facts about
+// where each binary came from; what to do about one is a command, and a scan puts those under TRY.
+// `TestTheUnverifiedToolTipNamesWhatToInstall` holds that end.
 func TestDescribeForSeparatesNotInstalledFromNotDistributed(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -128,17 +132,20 @@ func TestDescribeForSeparatesNotInstalledFromNotDistributed(t *testing.T) {
 		wantNot string
 	}{
 		{
-			// Draugr distributes trivy, so the omission is real and has a fix.
+			// Draugr distributes trivy, so the omission is real and has a fix, and the line says
+			// that much without being the place the fix is typed.
 			name:  "a tool Draugr installs, brought by the operator",
 			level: LevelExternal, tool: "trivy",
-			want: "draugr tools install trivy",
+			want:    "can install a pinned build",
+			wantNot: "draugr tools install",
 		},
 		{
-			// Semgrep is provisioned too, by the Python route rather than a release archive. So the line
-			// has to offer the command, exactly as it does for a downloaded binary.
+			// Semgrep is provisioned too, by the Python route rather than a release archive, so it
+			// reads exactly as a downloaded binary does.
 			name:  "a tool Draugr installs as a Python package",
 			level: LevelExternal, tool: "semgrep",
-			want: "draugr tools install semgrep",
+			want:    "can install a pinned build",
+			wantNot: "draugr tools install",
 		},
 		{
 			// A tool Draugr genuinely cannot provision. Naming an omission it cannot fix invites

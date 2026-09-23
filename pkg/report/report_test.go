@@ -1956,3 +1956,44 @@ func TestTheExclusionBreakdownCountsOnlyThisDescriptorsFiles(t *testing.T) {
 		}
 	}
 }
+
+// A descriptor split across many files counts them rather than naming them all.
+//
+// How many fragments a descriptor has is the customer's decision, so the named list has no end a
+// reader can predict, and a line whose length somebody else chooses is a line that runs off the
+// terminal on the run that matters.
+func TestTheExclusionBreakdownStopsNamingFilesAndCountsThem(t *testing.T) {
+	build := func(n int) Data {
+		var results []sarif.Result
+		for i := range n {
+			results = append(results, sarif.Result{
+				RuleID: fmt.Sprintf("CVE-%d", i), Level: sarif.LevelError, Message: "x",
+				Suppression: &sarif.Suppression{
+					Kind: "external", Origin: sarif.OriginSaga,
+					Source: fmt.Sprintf("security/exclusions-%02d.yaml", i),
+				},
+			})
+		}
+		return Data{
+			Release: saga.Release{Version: "1.0"},
+			Run: engine.Result{
+				Controls:   map[string]plugin.ControlResult{"sca": {Control: "sca", Report: sarif.Report{Tool: "trivy", Results: results}}},
+				Suppressed: n,
+			},
+			Verdict: norn.Result{Verdict: norn.Pass},
+		}
+	}
+	// At the cap the files are still named, because that is a set somebody reads.
+	if line := suppressionLine(build(mostSourcesNamed), true); !strings.Contains(line, "exclusions-00.yaml") {
+		t.Errorf("%d files should still be named:\n  %s", mostSourcesNamed, line)
+	}
+	// Past it they are counted, and no file is named at all: naming some and not others would read
+	// as those being the only ones.
+	line := suppressionLine(build(mostSourcesNamed+1), true)
+	if strings.Contains(line, ".yaml") {
+		t.Errorf("past the cap no file should be named:\n  %s", line)
+	}
+	if !strings.Contains(line, fmt.Sprintf("across %d files", mostSourcesNamed+1)) {
+		t.Errorf("past the cap the line should count the files:\n  %s", line)
+	}
+}

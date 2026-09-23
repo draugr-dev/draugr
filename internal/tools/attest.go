@@ -52,6 +52,10 @@ func (l Level) Describe() string {
 // Draugr cannot provision was never a candidate, and reporting an omission invites somebody to go
 // and fix it with a command that will not work. So the line differs by whether Draugr could have
 // installed this one, which now includes the tools it obtains as Python packages.
+//
+// Both are facts about where the binary came from, which is what the row this fills is a row of.
+// What to do about it is a command, and a command belongs where a reader looks for one: `doctor`
+// answers it in full, and a scan that ran on something unverified says so under TRY.
 func DescribeFor(l Level, tool string) string {
 	if l != LevelExternal && l != "" {
 		return l.Describe()
@@ -59,7 +63,7 @@ func DescribeFor(l Level, tool string) string {
 	if !Provisionable(tool) {
 		return "found on PATH; Draugr does not distribute it"
 	}
-	return "found on PATH; Draugr did not install it, `draugr tools install " + tool + "` provisions a pinned build"
+	return "found on PATH; Draugr can install a pinned build"
 }
 
 // Provisionable reports whether `draugr tools install` can obtain this tool, by either method.

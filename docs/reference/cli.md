@@ -519,8 +519,15 @@ But a report that cannot say which build produced its findings cannot be reprodu
 
 ```
 scanners    gitleaks 8.30.1, trivy 0.69.3
-unverified  semgrep 1.173.0 · found on PATH; Draugr did not install it, `draugr tools install
-            semgrep` provisions a pinned build
+unverified  semgrep 1.173.0 · found on PATH; Draugr can install a pinned build
+```
+
+Where Draugr could have installed it, `TRY` says so with the command, because that is where a scan
+puts the things to run next:
+
+```
+TRY
+  draugr tools install semgrep   1 scanner ran from PATH rather than a build Draugr checked
 ```
 
 The first line lists the builds Draugr fetched **and checked**: each sits in `~/.draugr/bin`, the

@@ -418,6 +418,9 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			return err
 		}
 	}
+	// Which build of each scanner ran, resolved once: the evidence block reports it and a tip is
+	// gated on it, and deriving it twice is two answers to one question.
+	builds := toolBuilds(ctx, run)
 	data := report.Data{
 		Project:     model.ProjectName(),
 		Release:     model.Release,
@@ -438,7 +441,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		View:      report.View(opts.view),
 		Uncovered: uncoveredFor(model),
 		Suggestions: scanSuggestions(tipContext{
-			model: model, run: run, verdict: verdict, opts: &opts,
+			model: model, run: run, verdict: verdict, opts: &opts, tools: builds,
 		}),
 		// With nothing declared, every component is read as public and critical, so the bands rank
 		// severity alone. The report says so beside the counts rather than leaving a reader to
@@ -448,7 +451,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		Scope:                reportScope(scope),
 		UnattributedFindings: unattributed,
 		Exploitability:       feedProv,
-		Tools:                toolBuilds(ctx, run),
+		Tools:                builds,
 		Repositories:         report.RepositoriesFrom(run),
 		VEX:                  model.Config.VEX,
 		// What produced this run, as opposed to what it found. Both are known only here and are

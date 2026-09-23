@@ -1016,6 +1016,15 @@ func suppressionLine(d Data, full bool) string {
 	// the exclusions live somewhere other than the file you opened.
 	if sources := suppressionSources(d); len(sources) > 1 {
 		var where []string
+		// How many files a descriptor is split across is the customer's decision, so this is a list
+		// with no end a reader can predict. Named while it is a set somebody reads, counted once it
+		// is a set they scan past, and the fragments are sorted by weight so the ones named are the
+		// ones carrying most of the exclusions.
+		if len(sources) > mostSourcesNamed {
+			line = fmt.Sprintf("config.exclude: %s suppressed · across %s",
+				english.Count(n, "finding"), english.Count(len(sources), "file"))
+			return line
+		}
 		for _, src := range sources {
 			where = append(where, fmt.Sprintf("%d from %s", src.n, src.name))
 		}
@@ -1027,6 +1036,12 @@ func suppressionLine(d Data, full bool) string {
 	// count and a roll call of the same findings on one line is the same fact twice.
 	return line
 }
+
+// mostSourcesNamed is how many descriptor files the breakdown names before it counts them instead.
+//
+// Four fits the line at every width the report is read at, and past four the names stop being a
+// thing somebody reads and become a thing they scan past on the way to the number.
+const mostSourcesNamed = 4
 
 // importedLine renders the one-line account of what a supplier's own analysis excused, and under
 // `full` which supplier said so.

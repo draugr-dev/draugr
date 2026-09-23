@@ -10,6 +10,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/surfaces"
+	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/report"
@@ -28,6 +29,10 @@ type tipContext struct {
 	run     engine.Result
 	verdict norn.Result
 	opts    *scanOptions
+	// tools is what the evidence block reports, passed in rather than derived again: which binary
+	// a scanner runs is the registry's answer, and two derivations of it are two answers waiting
+	// to disagree.
+	tools []report.ToolBuild
 }
 
 // gatesOnSeverity reports whether this run was judged on a finding's own severity rather than on
@@ -123,6 +128,36 @@ var scanTips = []scanTip{
 		what: func(tipContext) string { return "draugr controls" },
 		why:  func(tipContext) string { return "what each control looks at, and what turns it on" },
 	},
+	{
+		// A scanner Draugr did not install ran, and a reader deciding whether to trust this run
+		// wants to know what to do about that. The evidence block says which build ran, because
+		// that is a fact about the run; what to do is a command, and this is where the commands
+		// are. Gated on Draugr being able to provision it, so nobody is sent to a command that
+		// cannot help them.
+		name: "unverified-tool",
+		when: func(c tipContext) bool { return len(provisionableExternals(c.tools)) > 0 },
+		what: func(c tipContext) string {
+			return "draugr tools install " + strings.Join(provisionableExternals(c.tools), " ")
+		},
+		why: func(c tipContext) string {
+			n := len(provisionableExternals(c.tools))
+			return fmt.Sprintf("%s ran from PATH rather than a build Draugr checked",
+				english.Count(n, "scanner"))
+		},
+	},
+}
+
+// provisionableExternals names the scanners this run used that Draugr did not install and could
+// have. Sorted, so the command is the same on two runs of the same descriptor.
+func provisionableExternals(builds []report.ToolBuild) []string {
+	var out []string
+	for _, b := range builds {
+		if b.Level == string(tools.LevelExternal) && tools.Provisionable(b.Name) {
+			out = append(out, b.Name)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // cacheTipThreshold is how long a run must take before suggesting a cache is worth the words.
