@@ -57,7 +57,9 @@ func SARIFNormalizer(replace map[string]string) Normalizer {
 func ReportNormalizer(replace map[string]string) Normalizer {
 	return Normalizer{
 		Clear: [][]string{
-			{"draugr", "version"},
+			// The build that ran: a version, and a commit when the binary was stamped by
+			// `make build` or a release.
+			{"draugr"},
 			{"scanners", "*", "version"},
 			{"repositories", "*", "revision"},
 			// Both cover the effective descriptor, which names the run's own directory.
@@ -231,27 +233,53 @@ func RunReplacements(work string, start time.Time) map[string]string {
 	}
 }
 
-// Diff renders the lines that differ between two documents, a few lines of context around each
-// run of changes.
+// Diff renders the lines that differ between two documents, as removals and additions around the
+// longest run of lines they share, capped at a screenful.
 func Diff(want, got string) string {
 	w, g := strings.Split(want, "\n"), strings.Split(got, "\n")
+	// lcs[i][j] is the length of the longest common subsequence of w[i:] and g[j:].
+	lcs := make([][]int, len(w)+1)
+	for i := range lcs {
+		lcs[i] = make([]int, len(g)+1)
+	}
+	for i := len(w) - 1; i >= 0; i-- {
+		for j := len(g) - 1; j >= 0; j-- {
+			if w[i] == g[j] {
+				lcs[i][j] = lcs[i+1][j+1] + 1
+			} else {
+				lcs[i][j] = max(lcs[i+1][j], lcs[i][j+1])
+			}
+		}
+	}
 	var b strings.Builder
 	shown := 0
-	for i := 0; i < len(w) || i < len(g); i++ {
-		var wl, gl string
-		if i < len(w) {
-			wl = w[i]
+	emit := func(format string, args ...any) bool {
+		if shown == 40 {
+			return false
 		}
-		if i < len(g) {
-			gl = g[i]
-		}
-		if wl == gl {
-			continue
-		}
-		fmt.Fprintf(&b, "line %d\n  - %s\n  + %s\n", i+1, wl, gl)
-		if shown++; shown == 20 {
+		if shown++; shown == 40 {
 			b.WriteString("  … further differences not shown\n")
-			break
+			return false
+		}
+		fmt.Fprintf(&b, format, args...)
+		return true
+	}
+	i, j := 0, 0
+	for i < len(w) || j < len(g) {
+		switch {
+		case i < len(w) && j < len(g) && w[i] == g[j]:
+			i++
+			j++
+		case i < len(w) && (j == len(g) || lcs[i+1][j] >= lcs[i][j+1]):
+			if !emit("  - %d: %s\n", i+1, w[i]) {
+				return b.String()
+			}
+			i++
+		default:
+			if !emit("  + %d: %s\n", j+1, g[j]) {
+				return b.String()
+			}
+			j++
 		}
 	}
 	return b.String()

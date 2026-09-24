@@ -66,7 +66,7 @@ func TestTheNormalizersMatchADraugrReport(t *testing.T) {
 	if strings.Contains(string(got), `"abc"`) || strings.Index(string(got), `"ruleId": "a"`) > strings.Index(string(got), `"ruleId": "b"`) {
 		t.Errorf("not normalized:\n%s", got)
 	}
-	report := `{"draugr":{"version":"dev"},"scanners":[{"name":"b","version":"1"},{"name":"a","version":"2"}],
+	report := `{"draugr":{"version":"dev","commit":"abc1234"},"scanners":[{"name":"b","version":"1"},{"name":"a","version":"2"}],
 	  "repositories":[{"revision":"abc"}],"descriptor":{"digest":"d","effective":"e"},
 	  "stats":{"durationMs":1,"byControlMs":{"sca":1},"concurrency":8}}`
 	if _, err := ReportNormalizer(nil).Apply([]byte(report)); err != nil {
@@ -130,11 +130,15 @@ func TestRunReplacements(t *testing.T) {
 }
 
 func TestDiff(t *testing.T) {
-	d := Diff("a\nb\nc", "a\nB\nc\nd")
-	if !strings.Contains(d, "line 2\n  - b\n  + B") || !strings.Contains(d, "line 4\n  - \n  + d") {
+	// An inserted line is one addition, not every line after it moved.
+	d := Diff("a\nb\nc\nd", "a\nx\nb\nc\nD")
+	if d != "  + 2: x\n  - 4: d\n  + 5: D\n" {
 		t.Errorf("diff = %q", d)
 	}
-	many := strings.Repeat("x\n", 30)
+	if d := Diff("same", "same"); d != "" {
+		t.Errorf("diff of equal documents = %q", d)
+	}
+	many := strings.Repeat("x\n", 60)
 	if d := Diff(many, strings.ReplaceAll(many, "x", "y")); !strings.Contains(d, "not shown") {
 		t.Errorf("a long diff was not capped:\n%s", d)
 	}

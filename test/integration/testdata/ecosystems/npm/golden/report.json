@@ -55,9 +55,7 @@
       }
     ]
   },
-  "draugr": {
-    "version": "<cleared>"
-  },
+  "draugr": "<cleared>",
   "gate": {
     "failOnPriority": "P1"
   },
