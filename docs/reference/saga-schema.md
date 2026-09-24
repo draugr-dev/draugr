@@ -242,9 +242,9 @@ question asked where there is a fleet.
 
 A map of control name → free-form settings. A control runs only when **enabled**:
 
-> Written `controllers:` until recently. That spelling still loads and is folded into `controls`
-> when a descriptor is read, so nothing breaks; `controls` is what to write now, and what every
-> other surface has always said. `draugr controls` lists them, the catalog names them, and
+> `controllers:` is the older spelling. It still loads and is folded into `controls` when a
+> descriptor is read, so nothing breaks; `controls` is what to write, and what every other surface
+> says. `draugr controls` lists them, the catalog names them, and
 > `config.gate.controls` used the word already. A *controller* is the Go type that plans the jobs.
 
 ```yaml

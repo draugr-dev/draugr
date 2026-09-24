@@ -47,7 +47,7 @@ func TestRunInitStdout(t *testing.T) {
 	if err := runInit(t.TempDir(), initOptions{output: "-"}, &buf); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(buf.String(), "release:") || !strings.Contains(buf.String(), "controllers:") {
+	if !strings.Contains(buf.String(), "release:") || !strings.Contains(buf.String(), "controls:") {
 		t.Errorf("stdout Saga looks wrong:\n%s", buf.String())
 	}
 }

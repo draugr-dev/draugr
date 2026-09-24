@@ -73,6 +73,49 @@ func EditorAccepts(t testing.TB, data []byte, fragment bool) {
 	if err := schema.Validate(value); err != nil {
 		t.Errorf("an editor rejects this descriptor: %v\n%s", err, data)
 	}
+	for _, key := range DeprecatedKeysIn(value) {
+		t.Errorf("writes %s, a key Draugr still reads and no longer writes\n%s", key, data)
+	}
+}
+
+// deprecatedKeys are the descriptor keys still read, so no descriptor breaks, and no longer
+// written. "*" is every element of a list. A file Draugr writes teaches its reader the spelling in
+// it, so a writer that emits one of these teaches the older one, and both readers accept it, so no
+// other check objects.
+var deprecatedKeys = [][]string{
+	{"config", "controllers"},
+	{"config", "gate", "failOnPriority"},
+	{"components", "*", "controllers"},
+}
+
+// DeprecatedKeysIn returns the deprecated keys a decoded descriptor sets, as dotted paths.
+func DeprecatedKeysIn(doc any) []string {
+	var found []string
+	for _, path := range deprecatedKeys {
+		found = append(found, findKey(doc, path, "")...)
+	}
+	return found
+}
+
+func findKey(v any, path []string, at string) []string {
+	if len(path) == 0 {
+		return []string{strings.TrimPrefix(at, ".")}
+	}
+	switch t := v.(type) {
+	case map[string]any:
+		if child, ok := t[path[0]]; ok {
+			return findKey(child, path[1:], at+"."+path[0])
+		}
+	case []any:
+		if path[0] == "*" {
+			var out []string
+			for i, e := range t {
+				out = append(out, findKey(e, path[1:], at+"["+strconv.Itoa(i)+"]")...)
+			}
+			return out
+		}
+	}
+	return nil
 }
 
 // BothAccept fails the test unless the schema and the loader both accept data.
