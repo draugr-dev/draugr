@@ -31,13 +31,64 @@ files in, one answer out, the same answer forever.
 
 ### What counts as "the same finding"
 
-Findings are matched on **tool + rule + file + message**, deliberately *not* on the line number or
-the severity. Code moves, and a finding that slid down twelve lines is not a fix plus a new problem.
-A CVE that gets re-scored is still the same CVE.
+A finding in `base` and a finding in `head` are the same finding when either of two keys matches:
 
-The message is part of it, which is why both sides have to come from the same Draugr: a release
-that rewords what a scanner reported changes the key. See [do not pay for the base scan
-twice](#do-not-pay-for-the-base-scan-twice).
+| Key | Made of | Survives |
+|---|---|---|
+| content | tool, rule, file, a hash of the lines around the finding, component, repository | the finding moving within the file, a scanner rewording its message |
+| identity | tool, rule, file, message, component, repository | the finding moving within the file |
+
+The content key is tried first, and only findings that carry a content hash have one. Either key
+matching pairs the two findings, so a finding whose surrounding lines were edited still matches on
+its identity.
+
+Neither key includes the line number or the severity. Code moves, and a finding that slid down
+twelve lines is not a fix plus a new problem. A CVE that gets re-scored is still the same CVE.
+
+The component and the repository are part of both keys. The same flaw in two components, or the
+same file in two repositories, is two findings. A repository is compared by its identity rather
+than as written, so `https://…/api`, `https://…/api.git` and `git@…:api.git` are one repository.
+
+The message is part of the identity key, which is why both sides have to come from the same
+Draugr: a release that rewords what a scanner reported changes the key for any finding without a
+content hash. See [do not pay for the base scan twice](#do-not-pay-for-the-base-scan-twice).
+
+What each kind of change does, from scans of one repository holding a leaked AWS key, each change a
+commit scanned as `head` against the original as `base`:
+
+| Change between `base` and `head` | `draugr diff` reports | Why |
+|---|---|---|
+| twelve lines added above the finding | unchanged | both keys still match |
+| the line directly above the finding edited | unchanged | the content hash changed; the identity key matched |
+| the file renamed | new and fixed | the file is part of both keys |
+| the credential removed | fixed | |
+| a second component scanning the same repository | new for the second component, unchanged for the first | the component is part of both keys |
+
+A rename is the case to recognize, because nothing about the finding changed except where it
+lives:
+
+```console
+$ draugr diff out-base/results.sarif out-renamed/results.sarif
+DRAUGR DIFF  1 new  1 fixed  0 unchanged
+
+ new  P1 1 P2 0 P3 0 P4 0
+
+CHANGED  2, by priority
+  Change   Priority  Severity  Rule              Scanner   Location
+  + new    P1        high      aws-access-token  gitleaks  settings.go:8
+           aws-access-token has detected secret for file settings.go.
+  - fixed  P1        high      aws-access-token  gitleaks  config.go:8
+           aws-access-token has detected secret for file config.go.
+
+TRY
+  --view compact     one line each, to see how much there is
+  --view actions     the same findings as a list of things to do
+  --fail-on-new P1   no gate was set; this makes the diff decide the exit code
+  --format markdown  the comment a pull request gets
+```
+
+Both rows are one credential, moved from `config.go` to `settings.go`, and a gate on new findings
+(`--fail-on-new`) fails on it, because at `head` the credential is still in the code.
 
 Whatever is in `head` and not in `base` is **new**; in `base` and not in `head` is **fixed**; in
 both is **unchanged**.
@@ -236,10 +287,8 @@ unchanged counts alone. Narrow the diff rather than the scans it came from: a di
 filtered inputs reads every finding the filter removed as fixed.
 
 `--fail-on-new` fails the command (non-zero exit) only for **new**
-findings at or above the given severity / priority. Findings are matched on `(tool, rule, file,
-message)`, deliberately ignoring the line number (which drifts as code moves) and the severity level
-(a re-scored finding is still the same issue), so genuinely-carried-over findings aren't reported as
-fixed + new.
+findings at or above the given severity / priority, matched as described in [what counts as "the
+same finding"](#what-counts-as-the-same-finding).
 
 ## Post the delta as a PR comment
 

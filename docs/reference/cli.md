@@ -788,9 +788,11 @@ CI that is the intent. Locally it means scanning, editing and re-scanning produc
 files and an empty diff, commit between the two scans, or point `revision` at each revision in turn.
 See [URLs and paths](saga-schema.md#where-a-repository-comes-from-urls-and-paths).
 
-**Finding identity.** Findings are matched on `(tool, rule, file, message)`, deliberately ignoring
-the line number (which drifts as code moves) and the severity level (a re-scored finding is still
-the same issue), so genuinely-carried-over findings aren't reported as fixed + new.
+**Finding identity.** A finding in both reports is matched by a hash of the lines around it where
+it has one, and otherwise by tool, rule, file, message, component and repository. The line number
+and the severity are never part of it, so a finding that moved or was re-scored is unchanged rather
+than fixed and new. The [diff guide](../guides/pr-diff.md#what-counts-as-the-same-finding) has the
+detail.
 
 ---
 
