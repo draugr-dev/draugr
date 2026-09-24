@@ -1,0 +1,66 @@
+{
+  "controls": [
+    {
+      "errors": 4,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "iac",
+      "notes": 1,
+      "threshold": "",
+      "total": 7,
+      "verdict": "fail",
+      "warnings": 2
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:ed0c432ee8e39811aab7acde0ea9ee5639d90669dc7d31beda728fef2b7e64d6",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 4,
+    "p2": 2,
+    "p3": 1,
+    "p4": 0
+  },
+  "project": "iac",
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./iac"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "trivy-config",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 1,
+    "scans": 1
+  },
+  "verdict": "fail"
+}

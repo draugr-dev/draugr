@@ -130,18 +130,26 @@ func TestOfflineTrivyArgs(t *testing.T) {
 	if got := trivyFSArgs("/src", nil); slices.Contains(got, "--skip-db-update") {
 		t.Errorf("online argv carries the offline flag: %v", got)
 	}
+	if got := trivyConfigArgs("/src", nil); slices.Contains(got, "--skip-check-update") {
+		t.Errorf("online config argv carries the offline flag: %v", got)
+	}
 
 	netpolicy.SetOffline(true)
 	t.Cleanup(func() { netpolicy.SetOffline(false) })
 
 	// Skipping the prewarm is not enough: Trivy refreshes at scan time too, so an offline run
-	// would still reach out once per job without this.
-	for name, argv := range map[string][]string{
-		"fs":     trivyFSArgs("/src", nil),
-		"config": trivyConfigArgs("/src", nil),
+	// would still reach out once per job without this. Each subcommand has its own flag, and
+	// `trivy config` refuses the vulnerability scanners' one outright.
+	for name, tc := range map[string]struct {
+		argv      []string
+		want, not string
+	}{
+		"fs":     {trivyFSArgs("/src", nil), "--skip-db-update", "--skip-check-update"},
+		"config": {trivyConfigArgs("/src", nil), "--skip-check-update", "--skip-db-update"},
 	} {
-		if !slices.Contains(argv, "--skip-db-update") {
-			t.Errorf("%s: %v", name, argv)
+		argv := tc.argv
+		if !slices.Contains(argv, tc.want) || slices.Contains(argv, tc.not) {
+			t.Errorf("%s: %v, want %s and not %s", name, argv, tc.want, tc.not)
 		}
 		// The target stays last: Trivy takes its flags before the positional argument.
 		if argv[len(argv)-1] != "/src" {

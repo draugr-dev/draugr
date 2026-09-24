@@ -55,8 +55,7 @@ visible.
 
 ## Data
 
-The **vulnerability database**, from `mirror.gcr.io` and `ghcr.io`, which are Trivy's own
-defaults in that order. Warmed once per run, and `--skip-db-update` is passed when `--offline`
-is set.
-
-`config.controls.iac.trivy.dbRepository` replaces both with an internal mirror.
+The **checks bundle**, from `mirror.gcr.io/aquasec/trivy-checks`, Trivy's own default. Warmed once
+per run. With `--offline`, Draugr passes `--skip-check-update` and Trivy evaluates the checks built
+into the binary, which are the ones of the pinned release. Misconfiguration scanning reads no
+vulnerability database.

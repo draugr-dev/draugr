@@ -1,0 +1,371 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "iac/"
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "fields": {
+              "repository": "./iac",
+              "revision": "<cleared>"
+            },
+            "tool": "trivy-config",
+            "version": "<cleared>"
+          }
+        ]
+      },
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Image user should not be 'root'"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "iac",
+            "control": "iac",
+            "priority": "P1",
+            "repository": "./iac",
+            "security-severity": "8",
+            "tool": "Trivy"
+          },
+          "ruleId": "DS-0002"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "deploy/chart/templates/deployment.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 7
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Access to host network"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "iac",
+            "control": "iac",
+            "priority": "P1",
+            "repository": "./iac",
+            "security-severity": "8",
+            "tool": "Trivy"
+          },
+          "ruleId": "KSV-0009"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "deploy/k8s/deployment.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 24
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Privileged"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "iac",
+            "control": "iac",
+            "priority": "P1",
+            "repository": "./iac",
+            "security-severity": "8",
+            "tool": "Trivy"
+          },
+          "ruleId": "KSV-0017"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "deploy/terraform/main.tf",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 10
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Security groups should not allow unrestricted ingress to SSH or RDP from any IP address."
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "iac",
+            "control": "iac",
+            "priority": "P1",
+            "repository": "./iac",
+            "security-severity": "8",
+            "tool": "Trivy"
+          },
+          "ruleId": "AWS-0107"
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Dockerfile",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "No HEALTHCHECK defined"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "iac",
+            "control": "iac",
+            "priority": "P3",
+            "repository": "./iac",
+            "security-severity": "2",
+            "tool": "Trivy"
+          },
+          "ruleId": "DS-0026"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "deploy/chart/templates/deployment.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 26
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Restrict container images to trusted registries"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "iac",
+            "control": "iac",
+            "priority": "P2",
+            "repository": "./iac",
+            "security-severity": "5.5",
+            "tool": "Trivy"
+          },
+          "ruleId": "KSV-0125"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "deploy/k8s/deployment.yaml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 24
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Restrict container images to trusted registries"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "iac",
+            "control": "iac",
+            "priority": "P2",
+            "repository": "./iac",
+            "security-severity": "5.5",
+            "tool": "Trivy"
+          },
+          "ruleId": "KSV-0125"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Ensure that all containers use images only from trusted registry domains."
+              },
+              "help": {
+                "text": "Misconfiguration KSV-0125\nType: Kubernetes Security Check\nSeverity: MEDIUM\nCheck: Restrict container images to trusted registries\nMessage: Container app in deployment app (namespace: app) uses an image from an untrusted registry.\nLink: [KSV-0125](https://avd.aquasec.com/misconfig/ksv-0125)\nEnsure that all containers use images only from trusted registry domains."
+              },
+              "helpUri": "https://avd.aquasec.com/misconfig/ksv-0125",
+              "id": "KSV-0125",
+              "name": "Misconfiguration",
+              "properties": {
+                "tags": [
+                  "scanner:Trivy"
+                ]
+              },
+              "shortDescription": {
+                "text": "Restrict container images to trusted registries"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Privileged containers share namespaces with the host system and do not offer any security. They should be used exclusively for system containers that require high privileges."
+              },
+              "help": {
+                "text": "Misconfiguration KSV-0017\nType: Kubernetes Security Check\nSeverity: HIGH\nCheck: Privileged\nMessage: Container 'app' of Deployment 'app' should set 'securityContext.privileged' to false\nLink: [KSV-0017](https://avd.aquasec.com/misconfig/ksv-0017)\nPrivileged containers share namespaces with the host system and do not offer any security. They should be used exclusively for system containers that require high privileges."
+              },
+              "helpUri": "https://avd.aquasec.com/misconfig/ksv-0017",
+              "id": "KSV-0017",
+              "name": "Misconfiguration",
+              "properties": {
+                "tags": [
+                  "scanner:Trivy"
+                ]
+              },
+              "shortDescription": {
+                "text": "Privileged"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Running containers with 'root' user can lead to a container escape situation. It is a best practice to run containers as non-root users, which can be done by adding a 'USER' statement to the Dockerfile."
+              },
+              "help": {
+                "text": "Misconfiguration DS-0002\nType: Dockerfile Security Check\nSeverity: HIGH\nCheck: Image user should not be 'root'\nMessage: Specify at least 1 USER command in Dockerfile with non-root user as argument\nLink: [DS-0002](https://avd.aquasec.com/misconfig/ds-0002)\nRunning containers with 'root' user can lead to a container escape situation. It is a best practice to run containers as non-root users, which can be done by adding a 'USER' statement to the Dockerfile."
+              },
+              "helpUri": "https://avd.aquasec.com/misconfig/ds-0002",
+              "id": "DS-0002",
+              "name": "Misconfiguration",
+              "properties": {
+                "tags": [
+                  "scanner:Trivy"
+                ]
+              },
+              "shortDescription": {
+                "text": "Image user should not be 'root'"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Security groups provide stateful filtering of ingress and egress network traffic to AWS\nresources. It is recommended that no security group allows unrestricted ingress access to\nremote server administration ports, such as SSH to port 22 and RDP to port 3389.\n"
+              },
+              "help": {
+                "text": "Misconfiguration AWS-0107\nType: Terraform Security Check\nSeverity: HIGH\nCheck: Security groups should not allow unrestricted ingress to SSH or RDP from any IP address.\nMessage: Security group rule allows unrestricted ingress from any IP address.\nLink: [AWS-0107](https://avd.aquasec.com/misconfig/aws-0107)\nSecurity groups provide stateful filtering of ingress and egress network traffic to AWS\nresources. It is recommended that no security group allows unrestricted ingress access to\nremote server administration ports, such as SSH to port 22 and RDP to port 3389.\n"
+              },
+              "helpUri": "https://avd.aquasec.com/misconfig/aws-0107",
+              "id": "AWS-0107",
+              "name": "Misconfiguration",
+              "properties": {
+                "tags": [
+                  "scanner:Trivy"
+                ]
+              },
+              "shortDescription": {
+                "text": "Security groups should not allow unrestricted ingress to SSH or RDP from any IP address."
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Sharing the host’s network namespace permits processes in the pod to communicate with processes bound to the host’s loopback adapter."
+              },
+              "help": {
+                "text": "Misconfiguration KSV-0009\nType: Helm Security Check\nSeverity: HIGH\nCheck: Access to host network\nMessage: Deployment 'app' should not set 'spec.template.spec.hostNetwork' to true\nLink: [KSV-0009](https://avd.aquasec.com/misconfig/ksv-0009)\nSharing the host’s network namespace permits processes in the pod to communicate with processes bound to the host’s loopback adapter."
+              },
+              "helpUri": "https://avd.aquasec.com/misconfig/ksv-0009",
+              "id": "KSV-0009",
+              "name": "Misconfiguration",
+              "properties": {
+                "tags": [
+                  "scanner:Trivy"
+                ]
+              },
+              "shortDescription": {
+                "text": "Access to host network"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "You should add HEALTHCHECK instruction in your docker container images to perform the health check on running containers."
+              },
+              "help": {
+                "text": "Misconfiguration DS-0026\nType: Dockerfile Security Check\nSeverity: LOW\nCheck: No HEALTHCHECK defined\nMessage: Add HEALTHCHECK instruction in your Dockerfile\nLink: [DS-0026](https://avd.aquasec.com/misconfig/ds-0026)\nYou should add HEALTHCHECK instruction in your docker container images to perform the health check on running containers."
+              },
+              "helpUri": "https://avd.aquasec.com/misconfig/ds-0026",
+              "id": "DS-0026",
+              "name": "Misconfiguration",
+              "properties": {
+                "tags": [
+                  "scanner:Trivy"
+                ]
+              },
+              "shortDescription": {
+                "text": "No HEALTHCHECK defined"
+              }
+            }
+          ],
+          "version": "<cleared>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

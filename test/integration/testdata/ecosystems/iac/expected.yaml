@@ -1,0 +1,21 @@
+# What a sealed scan of the infrastructure scenario reports. Each file carries one deliberate flaw;
+# Trivy evaluates the checks built into the pinned release, because an offline run does not fetch
+# the checks bundle.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: iac
+      repositories: ["."]
+
+findings:
+  # Dockerfile: no USER, so the image runs as root, and no HEALTHCHECK.
+  - {control: iac, tool: Trivy, rule: DS-0002, location: "Dockerfile:1"}
+  - {control: iac, tool: Trivy, rule: DS-0026, location: "Dockerfile:1"}
+  # Terraform: SSH open to any address.
+  - {control: iac, tool: Trivy, rule: AWS-0107, location: "deploy/terraform/main.tf:10"}
+  # Kubernetes: a privileged container, from an image registry no policy trusts.
+  - {control: iac, tool: Trivy, rule: KSV-0017, location: "deploy/k8s/deployment.yaml:24"}
+  - {control: iac, tool: Trivy, rule: KSV-0125, location: "deploy/k8s/deployment.yaml:24"}
+  # Helm: a pod on the host's network, from the same registry.
+  - {control: iac, tool: Trivy, rule: KSV-0009, location: "deploy/chart/templates/deployment.yaml:7"}
+  - {control: iac, tool: Trivy, rule: KSV-0125, location: "deploy/chart/templates/deployment.yaml:26"}
