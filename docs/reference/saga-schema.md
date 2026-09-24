@@ -644,8 +644,6 @@ Built-in publishers: **`file`** and **`github`** (uploads the `sarif` report to 
 
 ```yaml
 config:
-  reports:
-    - format: sarif
   publishers:
     - kind: github         # repo/commit/ref default to the GitHub Actions env
       # repo: owner/name   # optional overrides ($GITHUB_REPOSITORY / $GITHUB_SHA / $GITHUB_REF)
@@ -699,17 +697,13 @@ publishers](../guides/reports-and-publishers.md#the-three-calls) so anything els
 
 ```yaml
 config:
-  reports:
-    - format: json      # the run
-    - format: sarif     # its evidence
   publishers:
     - kind: draugr-api
       # url: https://draugr.acme.example   # or $DRAUGR_API_URL
 ```
 
-Both formats are required and the publisher says which is missing, because they are separate
-mistakes with separate fixes. The token comes from `$DRAUGR_API_TOKEN` (or `tokenEnv`) and never
-from the descriptor, which is a file people commit.
+It renders the run report and its evidence for itself. The token comes from `$DRAUGR_API_TOKEN` (or
+`tokenEnv`) and never from the descriptor, which is a file people commit.
 
 **Where a setting comes from, least specific first:**
 
