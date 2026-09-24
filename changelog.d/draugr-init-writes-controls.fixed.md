@@ -1,0 +1,1 @@
+- **`draugr init` writes `controls:`.** The descriptor it generated used the older `controllers:` key, which still loads; it now uses the key the reference and `draugr controls` name.
