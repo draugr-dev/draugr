@@ -384,6 +384,7 @@ beyond their scanners'.
 | `draugr-tls` | `expiryErrorDays`, `expiryWarnDays` |
 | `gosec` | `include`, `exclude`, rule IDs; `tags`, Go build tags |
 | `trivy`, `trivy-fs` | `pkgTypes` (`os`, `library`), `dbRepository`, an internal mirror |
+| `trivy-fs` | `filePatterns` (`analyzer:regex`), `includeDevDeps`, `detectionPriority` (`precise`, `comprehensive`) |
 | `grype`, `grype-fs` | `byCve`. Report under the CVE rather than the advisory ID, on by default |
 | `retirejs` | `enabled` only |
 | `trivy-config` | `checks`, paths to your own Rego; `namespaces`, the namespaces they declare |

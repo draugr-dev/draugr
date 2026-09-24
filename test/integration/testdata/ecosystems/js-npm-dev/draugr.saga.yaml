@@ -1,0 +1,13 @@
+project: js-npm-dev
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+      trivyFs:
+        includeDevDeps: true
+components:
+  - name: js-npm-dev
+    repositories:
+      - url: ./js-npm-dev

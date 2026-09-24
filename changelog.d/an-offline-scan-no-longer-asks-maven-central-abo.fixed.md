@@ -1,0 +1,1 @@
+- **An offline scan no longer asks Maven Central about a `pom.xml`.** With `--offline`, Draugr now passes Trivy `--offline-scan`, so it reads the dependencies the pom declares without resolving them over the network.

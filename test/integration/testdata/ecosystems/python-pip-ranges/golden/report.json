@@ -1,0 +1,66 @@
+{
+  "controls": [
+    {
+      "errors": 1,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "sca",
+      "notes": 0,
+      "threshold": "",
+      "total": 1,
+      "verdict": "fail",
+      "warnings": 0
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:d6c364d858c0f4e75e642af5129569291af477efacdad15985fed4f420d09035",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 1,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0
+  },
+  "project": "python-pip-ranges",
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./python-pip-ranges"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "trivy-fs",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 1,
+    "scans": 1
+  },
+  "verdict": "fail"
+}

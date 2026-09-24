@@ -1,0 +1,66 @@
+{
+  "controls": [
+    {
+      "errors": 1,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "sca",
+      "notes": 0,
+      "threshold": "",
+      "total": 1,
+      "verdict": "fail",
+      "warnings": 0
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:4ba3aa73ef4ff930a897ee8dbbfbf5eb25d63fb537d5c49e895dd73e152a8e9f",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 1,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0
+  },
+  "project": "js-npm-dev",
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./js-npm-dev"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "trivy-fs",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 1,
+    "scans": 1
+  },
+  "verdict": "fail"
+}

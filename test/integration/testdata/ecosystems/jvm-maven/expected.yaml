@@ -1,0 +1,14 @@
+# A pom.xml scanned offline. Draugr passes --offline-scan, so Trivy reads the dependencies the pom
+# declares without resolving them against Maven Central.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: jvm-maven
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2021-44228
+    location: pom.xml:8
+    package: pom org.apache.logging.log4j:log4j-core 2.14.1

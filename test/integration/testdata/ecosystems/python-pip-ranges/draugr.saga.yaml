@@ -1,0 +1,13 @@
+project: python-pip-ranges
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+      trivyFs:
+        detectionPriority: comprehensive
+components:
+  - name: python-pip-ranges
+    repositories:
+      - url: ./python-pip-ranges

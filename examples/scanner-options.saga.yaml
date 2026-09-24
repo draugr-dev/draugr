@@ -35,6 +35,14 @@ config:
 
     sca:
       enabled: true
+      trivyFs:
+        filePatterns:                                # more files for an analyzer to read, each
+          - "pip:requirements-.*\\.txt"              # analyzer:regex. pip reads only
+                                                     # requirements.txt by default
+        includeDevDeps: true                         # development dependencies too (npm, Yarn,
+                                                     # Gradle)
+        detectionPriority: comprehensive             # precise (default) | comprehensive, which
+                                                     # reads >=1.2 as its minimum version
       # mendSca:
       #   enabled: true
       #   productToken: 1a2b3c4d                     # which Mend product this reports into.
