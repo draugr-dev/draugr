@@ -1,0 +1,15 @@
+# Rules for the sealed tier's sast expectations, read by Semgrep through the sast control's
+# `config` option. Each fixture marks the lines a rule must and must not match with `ruleid:` and
+# `ok:` comments, so the rule and its expectation are read side by side.
+rules:
+  - id: draugr-fixture-os-popen
+    languages: [python]
+    severity: ERROR
+    message: os.popen runs its argument through a shell
+    pattern: os.popen(...)
+
+  - id: draugr-fixture-eval
+    languages: [javascript]
+    severity: ERROR
+    message: eval runs its argument as code
+    pattern: eval(...)

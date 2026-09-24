@@ -1,0 +1,24 @@
+# What a sealed scan of the npm scenario reports. SAST expectations are the ruleid: and ok:
+# comments in repo/src/index.js. The licenses control runs and reports nothing: the one dependency
+# is MIT, which no policy restricts.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: npm
+      repositories: ["."]
+
+secrets:
+  - file: deploy/aws.env
+    rules: [aws-access-token]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2021-44906
+    location: package-lock.json:12
+    package: npm minimist 1.2.5
+  - control: sca
+    tool: retirejs
+    rule: CVE-2012-6708
+    location: static/jquery-1.8.3.min.js
+    package: npm jquery 1.8.3

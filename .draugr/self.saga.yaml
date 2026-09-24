@@ -194,3 +194,7 @@ components:
     criticality: critical
     repositories:
       - url: .
+        # The sealed tier's fixtures: deliberately vulnerable dependencies and code, scanned by
+        # their own test against advisory data generated for it. None of it is part of Draugr.
+        ignore:
+          - test/integration/testdata/ecosystems

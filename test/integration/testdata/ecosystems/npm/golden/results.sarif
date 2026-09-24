@@ -1,0 +1,260 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "npm/"
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "fields": {
+              "repository": "./npm",
+              "revision": "<cleared>"
+            },
+            "tool": "gitleaks",
+            "version": "<cleared>"
+          },
+          {
+            "fields": {
+              "repository": "./npm",
+              "revision": "<cleared>"
+            },
+            "tool": "retirejs",
+            "version": "<cleared>"
+          },
+          {
+            "fields": {
+              "repository": "./npm",
+              "revision": "<cleared>"
+            },
+            "tool": "semgrep",
+            "version": "<cleared>"
+          },
+          {
+            "fields": {
+              "repository": "./npm",
+              "revision": "<cleared>"
+            },
+            "tool": "trivy-fs",
+            "version": "<cleared>"
+          },
+          {
+            "fields": {
+              "repository": "./npm",
+              "revision": "<cleared>"
+            },
+            "tool": "trivy-license",
+            "version": "<cleared>"
+          }
+        ]
+      },
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "deploy/aws.env",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "aws-access-token has detected secret for file deploy/aws.env."
+          },
+          "partialFingerprints": {
+            "author": "",
+            "commitMessage": "",
+            "commitSha": "",
+            "date": "",
+            "email": "",
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "npm",
+            "control": "secrets",
+            "priority": "P1",
+            "repository": "./npm",
+            "tool": "gitleaks"
+          },
+          "ruleId": "aws-access-token"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package-lock.json",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "minimist 1.2.5 → 1.2.6: Fixture: prototype pollution in minimist"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "npm",
+            "control": "sca",
+            "package": {
+              "ecosystem": "npm",
+              "fixedVersion": "1.2.6",
+              "name": "minimist",
+              "purl": "pkg:npm/minimist@1.2.5",
+              "version": "1.2.5"
+            },
+            "priority": "P1",
+            "repository": "./npm",
+            "tool": "trivy"
+          },
+          "ruleId": "CVE-2021-44906"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/index.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 4
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "eval runs its argument as code"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "npm",
+            "control": "sast",
+            "priority": "P1",
+            "repository": "./npm",
+            "tool": "Semgrep OSS"
+          },
+          "ruleId": "draugr-fixture-eval"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "static/jquery-1.8.3.min.js",
+                  "uriBaseId": "%SRCROOT%"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "jquery 1.8.3 → 1.9.0: Fixture: cross-site scripting through selector strings [detected by filename] (CWE-79)"
+          },
+          "properties": {
+            "component": "npm",
+            "control": "sca",
+            "package": {
+              "ecosystem": "npm",
+              "fixedVersion": "1.9.0",
+              "name": "jquery",
+              "purl": "pkg:npm/jquery@1.8.3",
+              "version": "1.8.3"
+            },
+            "priority": "P2",
+            "repository": "./npm",
+            "security-severity": "5",
+            "tool": "retirejs"
+          },
+          "ruleId": "CVE-2012-6708"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Fixture advisory for Draugr's sealed tests."
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2021-44906",
+              "id": "CVE-2021-44906",
+              "name": "CVE-2021-44906",
+              "properties": {
+                "tags": [
+                  "scanner:trivy"
+                ]
+              },
+              "shortDescription": {
+                "text": "Fixture: prototype pollution in minimist"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "eval runs its argument as code"
+              },
+              "help": {
+                "text": "eval runs its argument as code"
+              },
+              "id": "draugr-fixture-eval",
+              "name": "draugr-fixture-eval",
+              "properties": {
+                "tags": [
+                  "scanner:Semgrep OSS"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: draugr-fixture-eval"
+              }
+            },
+            {
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2012-6708",
+              "id": "CVE-2012-6708",
+              "properties": {
+                "tags": [
+                  "scanner:retirejs"
+                ]
+              }
+            },
+            {
+              "id": "aws-access-token",
+              "properties": {
+                "tags": [
+                  "scanner:gitleaks"
+                ]
+              },
+              "shortDescription": {
+                "text": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms."
+              }
+            }
+          ],
+          "version": "<cleared>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

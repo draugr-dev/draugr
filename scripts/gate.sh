@@ -6,7 +6,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 echo "▶ gofmt"
-unformatted="$(gofmt -l .)"
+unformatted="$(./scripts/gofiles.sh | xargs gofmt -l)"
 if [ -n "$unformatted" ]; then
 	echo "  not gofmt-formatted:"
 	echo "$unformatted"

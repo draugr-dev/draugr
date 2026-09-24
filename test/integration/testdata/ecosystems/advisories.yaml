@@ -1,0 +1,48 @@
+# The advisories every sealed database is generated from: Trivy's, the Go vulnerability database
+# govulncheck reads, and retire.js's repository. The identifiers and version ranges are the public
+# facts the fixtures are built around; the titles are written for the fixtures.
+#
+# A scenario's expected.yaml names findings by these identifiers. Adding a package to a fixture
+# without an entry here leaves it with no advisory, which is a scenario that proves nothing about it.
+advisories:
+  - id: CVE-2018-1000656
+    ecosystem: pip
+    package: flask
+    fixed: "0.12.3"
+    severity: HIGH
+    title: "Fixture: flask denial of service through crafted JSON"
+
+  - id: CVE-2021-38561
+    goID: GO-2021-0113
+    ecosystem: go
+    package: golang.org/x/text
+    fixed: "v0.3.7"
+    severity: HIGH
+    title: "Fixture: out-of-bounds read in golang.org/x/text/language"
+    symbols:
+      golang.org/x/text/language: [Parse, MatchStrings, MustParse]
+
+  - id: CVE-2022-32149
+    goID: GO-2022-1059
+    ecosystem: go
+    package: golang.org/x/text
+    fixed: "v0.3.8"
+    severity: HIGH
+    title: "Fixture: denial of service through a crafted Accept-Language header"
+    symbols:
+      golang.org/x/text/language: [ParseAcceptLanguage]
+
+  - id: CVE-2021-44906
+    ecosystem: npm
+    package: minimist
+    fixed: "1.2.6"
+    severity: CRITICAL
+    title: "Fixture: prototype pollution in minimist"
+
+  - id: CVE-2012-6708
+    ecosystem: js
+    package: jquery
+    fixed: "1.9.0"
+    severity: MEDIUM
+    title: "Fixture: cross-site scripting through selector strings"
+    cwe: CWE-79

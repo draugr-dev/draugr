@@ -43,7 +43,7 @@ vet: ## Run go vet
 	go vet ./...
 
 fmt: ## Format all Go sources
-	gofmt -w .
+	./scripts/gofiles.sh | xargs gofmt -w
 
 tidy: ## Tidy module dependencies
 	go mod tidy

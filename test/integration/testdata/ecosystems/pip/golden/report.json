@@ -1,0 +1,98 @@
+{
+  "controls": [
+    {
+      "errors": 1,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "sast",
+      "notes": 0,
+      "threshold": "",
+      "total": 1,
+      "verdict": "fail",
+      "warnings": 0
+    },
+    {
+      "errors": 1,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "sca",
+      "notes": 0,
+      "threshold": "",
+      "total": 1,
+      "verdict": "fail",
+      "warnings": 0
+    },
+    {
+      "errors": 1,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "secrets",
+      "notes": 0,
+      "threshold": "",
+      "total": 1,
+      "verdict": "fail",
+      "warnings": 0
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:c26d89cffb1f598914e87c904adbf95ef3f2b9a10b941c9a3ae08fc31aadd1b7",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": {
+    "version": "<cleared>"
+  },
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 3,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0
+  },
+  "project": "pip",
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./pip"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "gitleaks",
+      "version": "<cleared>"
+    },
+    {
+      "name": "semgrep",
+      "version": "<cleared>"
+    },
+    {
+      "name": "trivy-fs",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 3,
+    "scans": 3
+  },
+  "verdict": "fail"
+}

@@ -117,7 +117,7 @@ jobs:
       - name: Verify formatting
         if: needs.changes.outputs.code == 'true'
         run: |
-          fmtout="$(gofmt -l .)"
+          fmtout="$(./scripts/gofiles.sh | xargs gofmt -l)"
           if [ -n "$fmtout" ]; then
             echo "These files are not gofmt-formatted:"; echo "$fmtout"; exit 1
           fi
