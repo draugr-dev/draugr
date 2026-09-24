@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 )
 
@@ -38,7 +39,7 @@ func NewTrivyConfig() plugin.Scanner {
 		plugin.ScannerInfo{
 			Name:         "trivy-config",
 			Origin:       "aquasecurity",
-			Data:         trivyData,
+			Data:         trivyChecksData,
 			Binary:       "trivy",
 			Controls:     []string{"iac"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},
@@ -47,14 +48,9 @@ func NewTrivyConfig() plugin.Scanner {
 		trivyConfigArgs,
 	)
 	s.cacheVersion = sharedTrivyVersion.cacheVersion
-	// Both, because they are two downloads into one cache and this is the only scanner that needs
-	// the second. The database first, so a failure there is reported the way it always was.
-	s.prewarm = func(ctx context.Context) error {
-		if err := sharedTrivyDB.warm(ctx); err != nil {
-			return err
-		}
-		return sharedTrivyChecks.warm(ctx)
-	}
+	// The checks bundle and nothing else: misconfiguration scanning never reads the vulnerability
+	// database, so warming it here would download one for a run that may not use it.
+	s.prewarm = func(ctx context.Context) error { return sharedTrivyChecks.warm(ctx) }
 	s.run = retryingRunInDir("trivy", s.run)
 	return s
 }
@@ -72,5 +68,10 @@ func trivyConfigArgs(dir string, cfg plugin.Config) []string {
 	if v := commaList(cfg, "namespaces"); v != "" {
 		argv = append(argv, "--check-namespaces", v)
 	}
-	return offlineTrivyArgs(append(argv, dir))
+	// Offline, the checks built into the binary instead of an update from the registry.
+	// --skip-db-update belongs to the vulnerability scanners and `trivy config` refuses it.
+	if netpolicy.Offline() {
+		argv = append(argv, "--skip-check-update")
+	}
+	return append(argv, dir)
 }

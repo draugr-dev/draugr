@@ -66,6 +66,10 @@ retire --path /tmp/empty --cachedir ~/.draugr/data/retirejs   # retire.js adviso
 `TRIVY_CACHE_DIR`, `GRYPE_DB_CACHE_DIR` and `NUCLEI_TEMPLATES_DIR`. retire.js is the exception:
 Draugr already points it under `~/.draugr/data`, and passes `--jsrepo` at that copy when offline.
 
+**The `iac` control needs nothing copied.** Offline, Draugr passes `--skip-check-update` and Trivy
+evaluates the misconfiguration checks built into the pinned release instead of fetching the checks
+bundle.
+
 ## What cannot run offline
 
 Semgrep fetches its default rule pack on every invocation, with no cache to prepare.

@@ -20,6 +20,7 @@ HOSTS  (a scan contacts these; for an egress allowlist)
   ghcr.io                   vulnerability database · before the scan
   github.com                template set · before the scan
   grype.anchore.io          vulnerability database · before the scan
+  mirror.gcr.io             checks bundle · before the scan
   mirror.gcr.io             vulnerability database · before the scan
   raw.githubusercontent.com advisory database · before the scan
   semgrep.dev               rule pack · every scan
