@@ -1,1 +1,0 @@
-- **A repository has one name however it was cloned.** `https://…/api`, `https://…/api.git` and `git@…:api.git` are now one repository in reports and in `draugr diff`, as are the HTTPS, SSH and `visualstudio.com` forms of an Azure DevOps repository. Moving CI to a deploy key no longer reports every finding as new and every old one as fixed.

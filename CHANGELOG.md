@@ -12,6 +12,26 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.132.0] - 2026-09-24
+
+### Added
+
+- **A run records who its CI system reports as having started the pipeline and who wrote the commit.** Each is a handle and the platform's stable id, kept as two fields and never inferred from each other. Email addresses are recorded only with `config.ci.recordEmail`. ([#1167](https://github.com/draugr-dev/draugr/issues/1167))
+
+### Changed
+
+- **A repository has one name however it was cloned.** `https://…/api`, `https://…/api.git` and `git@…:api.git` are now one repository in reports and in `draugr diff`, as are the HTTPS, SSH and `visualstudio.com` forms of an Azure DevOps repository. Moving CI to a deploy key no longer reports every finding as new and every old one as fixed.
+
+- **Every value a descriptor picks from a list is lowercase.** `hosts[].type`, `spec.methods` and `infrastructure.kind` refuse `API`, `GET` and `Kubernetes`, and the error names the spelling to write. A label value is a string: write `tier: 1` as `tier: "1"`.
+
+### Fixed
+
+- **`hosts[].type` is validated.** `type: apii` is refused rather than scanned with the browser checks. An editor flags a duration or an image digest in the wrong form, such as `maxAge: 1d`, as `draugr validate` does.
+
+- **`report.json` written with `-o` records what produced the run.** It carries the descriptor, the CI job and the exploitability data the run was ranked against, as the same run's `--format json` already did.
+
+- **`draugr validate` refuses a provenance `unmatched` value other than `observe`, `warn` or `fail`.** The schema refuses an unknown key inside a signer and a `vexSources[].url` that is not http(s), as `draugr validate` does.
+
 ## [0.131.1] - 2026-09-23
 
 ### Fixed
@@ -5905,7 +5925,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.131.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.132.0...HEAD
+[0.132.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.132.0
 [0.131.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.131.1
 [0.131.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.131.0
 [0.130.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.130.0

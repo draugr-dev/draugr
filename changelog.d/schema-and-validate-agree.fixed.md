@@ -1,1 +1,0 @@
-- **`draugr validate` refuses a provenance `unmatched` value other than `observe`, `warn` or `fail`.** The schema refuses an unknown key inside a signer and a `vexSources[].url` that is not http(s), as `draugr validate` does.
