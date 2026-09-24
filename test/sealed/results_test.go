@@ -11,7 +11,7 @@ import (
 const sampleSARIF = `{"runs":[{"results":[
  {"ruleId":"CVE-1","locations":[{"physicalLocation":{"artifactLocation":{"uri":"go.mod"},"region":{"startLine":5}}}],
   "properties":{"tool":"trivy","control":"sca","package":{"name":"golang.org/x/text","version":"v0.3.6","ecosystem":"gomod"},"reachability":{"state":"reachable"}}},
- {"ruleId":"tmp.work.001.draugr-fixture-eval","locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/index.js"},"region":{"startLine":4}}}],
+ {"ruleId":"draugr-fixture-eval","locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/index.js"},"region":{"startLine":4}}}],
   "properties":{"tool":"Semgrep OSS","control":"sast"}},
  {"ruleId":"CVE-2","locations":[{"physicalLocation":{"artifactLocation":{"uri":"static/lib.js"}}}],
   "properties":{"tool":"retirejs","control":"sca","package":{"name":"jquery","version":"1.8.3","ecosystem":"npm"}}},

@@ -221,13 +221,11 @@ func ValidateSARIF(raw []byte) error {
 	return sarifResolved.Validate(doc)
 }
 
-// RunReplacements are the strings particular to one sealed run: its directory, in the form a path
-// takes and the form a Semgrep rule id takes, and the dates the run could have stamped.
+// RunReplacements are the strings particular to one sealed run: its directory and the dates the
+// run could have stamped.
 func RunReplacements(work string, start time.Time) map[string]string {
-	dotted := strings.ReplaceAll(strings.TrimPrefix(work, "/"), "/", ".") + "."
 	return map[string]string{
 		work:                                   "<work>",
-		dotted:                                 "",
 		start.UTC().Format(time.DateOnly):      "<today>",
 		time.Now().UTC().Format(time.DateOnly): "<today>",
 	}

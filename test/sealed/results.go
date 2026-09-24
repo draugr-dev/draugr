@@ -41,10 +41,6 @@ func (f Finding) String() string {
 }
 
 // Observe reads the findings in a SARIF document.
-//
-// A Semgrep rule loaded from a file on disk takes an id prefixed with that file's directory, dots
-// for slashes, which in this tier is a temporary directory. The id is compared without it: every
-// rule the sealed tier loads is one of ours, and none of their ids contains a dot.
 func Observe(sarif []byte) ([]Finding, error) {
 	var doc struct {
 		Runs []struct {
@@ -82,9 +78,6 @@ func Observe(sarif []byte) ([]Finding, error) {
 	for _, run := range doc.Runs {
 		for _, r := range run.Results {
 			f := Finding{Control: r.Properties.Control, Tool: r.Properties.Tool, Rule: r.RuleID}
-			if strings.HasPrefix(strings.ToLower(f.Tool), "semgrep") {
-				f.Rule = r.RuleID[strings.LastIndex(r.RuleID, ".")+1:]
-			}
 			if len(r.Locations) > 0 {
 				f.File = r.Locations[0].PhysicalLocation.ArtifactLocation.URI
 				f.Line = r.Locations[0].PhysicalLocation.Region.StartLine

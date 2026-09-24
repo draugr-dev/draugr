@@ -124,7 +124,7 @@ func TestTheGoldensAreNormalized(t *testing.T) {
 func TestRunReplacements(t *testing.T) {
 	start := time.Date(2026, 3, 4, 5, 6, 7, 0, time.UTC)
 	r := RunReplacements("/tmp/Test1/001", start)
-	if r["/tmp/Test1/001"] != "<work>" || r["tmp.Test1.001."] != "" || r["2026-03-04"] != "<today>" {
+	if r["/tmp/Test1/001"] != "<work>" || r["2026-03-04"] != "<today>" || len(r) > 3 {
 		t.Errorf("replacements = %v", r)
 	}
 }
