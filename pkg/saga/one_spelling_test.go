@@ -29,7 +29,7 @@ func TestAHostTypeIsOneDraugrKnows(t *testing.T) {
 	for extra, want := range map[string]string{
 		"    hosts:\n      - url: https://a.test\n        type: api\n":  "",
 		"    hosts:\n      - url: https://a.test\n        type: apii\n": `hosts[0].type "apii" is not one of browser, api`,
-		"    hosts:\n      - url: https://a.test\n        type: API\n":  `hosts[0].type "API" is written in lowercase: api`,
+		"    hosts:\n      - url: https://a.test\n        type: API\n":  `hosts[0].type "API" must be lowercase: api`,
 	} {
 		if got := loadErr(t, extra); (want == "" && got != "") || !strings.Contains(got, want) {
 			t.Errorf("%q: error %q, want %q", extra, got, want)
@@ -39,7 +39,7 @@ func TestAHostTypeIsOneDraugrKnows(t *testing.T) {
 
 func TestAnInfrastructureKindHasOneSpelling(t *testing.T) {
 	got := loadErr(t, "    infrastructure:\n      - kind: Kubernetes\n        ref: prod\n")
-	if !strings.Contains(got, `"Kubernetes" is written in lowercase: kubernetes`) {
+	if !strings.Contains(got, `"Kubernetes" must be lowercase: kubernetes`) {
 		t.Errorf("error %q", got)
 	}
 }
@@ -48,7 +48,7 @@ func TestAnInfrastructureKindHasOneSpelling(t *testing.T) {
 // descriptor and in a fragment alike.
 func TestALabelIsAString(t *testing.T) {
 	got := loadErr(t, "    labels:\n      tier: 1\n      team: payments\n")
-	if !strings.Contains(got, `labels.tier is 1, and a label is a string: write it quoted, tier: "1"`) {
+	if !strings.Contains(got, `labels.tier is 1, not a string: write tier: "1"`) {
 		t.Errorf("error %q", got)
 	}
 	if got := loadErr(t, "    labels:\n      tier: \"1\"\n"); got != "" {

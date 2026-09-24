@@ -421,7 +421,7 @@ func validSpecMethod(m string) bool {
 // use. Every value a descriptor chooses from a list is lowercase, in the schema and here, so an
 // editor and `draugr validate` never disagree about one.
 func lowercaseOnly(where, got string) error {
-	return fmt.Errorf("%s %q is written in lowercase: %s", where, got, strings.ToLower(got))
+	return fmt.Errorf("%s %q must be lowercase: %s", where, got, strings.ToLower(got))
 }
 
 // HostTypes are the values a host's `type` accepts.

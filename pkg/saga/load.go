@@ -295,7 +295,7 @@ func labelsAreStrings(root *yaml.Node) error {
 					for j := 0; j+1 < len(val.Content); j += 2 {
 						if v := val.Content[j+1]; v.Kind == yaml.ScalarNode && v.Tag != "!!str" {
 							problems = append(problems, fmt.Sprintf(
-								"%s.%s is %s, and a label is a string: write it quoted, %s: \"%s\"",
+								"%s.%s is %s, not a string: write %s: \"%s\"",
 								here, val.Content[j].Value, v.Value, val.Content[j].Value, v.Value))
 						}
 					}

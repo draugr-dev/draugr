@@ -588,7 +588,7 @@ func TestValidateHostSpec(t *testing.T) {
 		{"writes named", &HostSpec{Path: "openapi.yaml", Methods: []string{"get", "post"}}, ""},
 		// One spelling, the schema's. An editor rejects `GET`, so Draugr does too, and says how to
 		// write it.
-		{"uppercase", &HostSpec{Path: "openapi.yaml", Methods: []string{"GET"}}, `"GET" is written in lowercase: get`},
+		{"uppercase", &HostSpec{Path: "openapi.yaml", Methods: []string{"GET"}}, `"GET" must be lowercase: get`},
 		{"no path", &HostSpec{Methods: []string{"get"}}, "path is required"},
 		// Not "no restriction": it describes a scan that sends nothing, which is a descriptor
 		// quietly not working.

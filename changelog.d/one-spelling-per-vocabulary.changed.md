@@ -1,1 +1,1 @@
-- **Every value a descriptor picks from a list is lowercase.** `hosts[].type`, `spec.methods` and `infrastructure.kind` refuse `API`, `GET` and `Kubernetes`, which an editor already rejected, and the error names the spelling to write. A label value is a string, so `tier: 1` is written `tier: "1"`.
+- **Every value a descriptor picks from a list is lowercase.** `hosts[].type`, `spec.methods` and `infrastructure.kind` refuse `API`, `GET` and `Kubernetes`, and the error names the spelling to write. A label value is a string: write `tier: 1` as `tier: "1"`.

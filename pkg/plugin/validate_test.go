@@ -213,8 +213,9 @@ func TestElementsAreCheckedInEitherShape(t *testing.T) {
 // A pattern the options validator knows is refused in words; one it does not is refused with the
 // expression; a schema whose pattern does not compile says so rather than passing everything.
 func TestAPatternIsEnforced(t *testing.T) {
+	durationJSON, _ := json.Marshal(DurationPattern)
 	schema := []byte(`{"type":"object","properties":{
-		"timeout":{"type":"string","pattern":"^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$"},
+		"timeout":{"type":"string","pattern":` + string(durationJSON) + `},
 		"code":{"type":"string","pattern":"^[A-Z]{3}$"}}}`)
 	if err := ValidateConfig(schema, Config{"timeout": "1h30m", "code": "ABC"}); err != nil {
 		t.Errorf("valid values refused: %v", err)
