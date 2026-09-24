@@ -16,21 +16,21 @@ _Nothing yet._
 
 ### Added
 
-- **A run records who its CI system reports as having started the pipeline and who wrote the commit.** Each is a handle and the platform's stable id, kept as two fields and never inferred from each other. Email addresses are recorded only with `config.ci.recordEmail`. ([#1167](https://github.com/draugr-dev/draugr/issues/1167))
+- **A run records who its CI system reports as having started the pipeline and who wrote the commit**, each as a handle and the platform's stable id. Email addresses are recorded only with `config.ci.recordEmail`. ([#1167](https://github.com/draugr-dev/draugr/issues/1167))
 
 ### Changed
 
 - **A repository has one name however it was cloned.** `https://…/api`, `https://…/api.git` and `git@…:api.git` are now one repository in reports and in `draugr diff`, as are the HTTPS, SSH and `visualstudio.com` forms of an Azure DevOps repository. Moving CI to a deploy key no longer reports every finding as new and every old one as fixed.
 
-- **Every value a descriptor picks from a list is lowercase.** `hosts[].type`, `spec.methods` and `infrastructure.kind` refuse `API`, `GET` and `Kubernetes`, and the error names the spelling to write. A label value is a string: write `tier: 1` as `tier: "1"`.
+- **Breaking: every value a descriptor picks from a list is lowercase.** `hosts[].type`, `spec.methods` and `infrastructure.kind` refuse `API`, `GET` and `Kubernetes`, and the error names the spelling to write. A label value must be a string, so YAML's `tier: 1` is written `tier: "1"`.
 
 ### Fixed
 
 - **`hosts[].type` is validated.** `type: apii` is refused rather than scanned with the browser checks. An editor flags a duration or an image digest in the wrong form, such as `maxAge: 1d`, as `draugr validate` does.
 
-- **`report.json` written with `-o` records what produced the run.** It carries the descriptor, the CI job and the exploitability data the run was ranked against, as the same run's `--format json` already did.
+- **`report.json` written with `-o` records what produced the run.** It carries the descriptor, the CI job and the exploitability data the run was ranked against.
 
-- **`draugr validate` refuses a provenance `unmatched` value other than `observe`, `warn` or `fail`.** The schema refuses an unknown key inside a signer and a `vexSources[].url` that is not http(s), as `draugr validate` does.
+- **`draugr validate` refuses a provenance `unmatched` value other than `observe`, `warn` or `fail`.** The schema also refuses an unknown key inside a signer and a `vexSources[].url` that is not http(s), so an editor flags them before a run.
 
 ## [0.131.1] - 2026-09-23
 
