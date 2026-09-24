@@ -53,6 +53,43 @@ The message is part of the identity key, which is why both sides have to come fr
 Draugr: a release that rewords what a scanner reported changes the key for any finding without a
 content hash. See [do not pay for the base scan twice](#do-not-pay-for-the-base-scan-twice).
 
+What each kind of change does, from scans of one repository holding a leaked AWS key, each change a
+commit scanned as `head` against the original as `base`:
+
+| Change between `base` and `head` | `draugr diff` reports | Why |
+|---|---|---|
+| twelve lines added above the finding | unchanged | both keys still match |
+| the line directly above the finding edited | unchanged | the content hash changed; the identity key matched |
+| the file renamed | new and fixed | the file is part of both keys |
+| the credential removed | fixed | |
+| a second component scanning the same repository | new for the second component, unchanged for the first | the component is part of both keys |
+
+A rename is the case to recognize, because nothing about the finding changed except where it
+lives:
+
+```console
+$ draugr diff out-base/results.sarif out-renamed/results.sarif
+DRAUGR DIFF  1 new  1 fixed  0 unchanged
+
+ new  P1 1 P2 0 P3 0 P4 0
+
+CHANGED  2, by priority
+  Change   Priority  Severity  Rule              Scanner   Location
+  + new    P1        high      aws-access-token  gitleaks  settings.go:8
+           aws-access-token has detected secret for file settings.go.
+  - fixed  P1        high      aws-access-token  gitleaks  config.go:8
+           aws-access-token has detected secret for file config.go.
+
+TRY
+  --view compact     one line each, to see how much there is
+  --view actions     the same findings as a list of things to do
+  --fail-on-new P1   no gate was set; this makes the diff decide the exit code
+  --format markdown  the comment a pull request gets
+```
+
+Both rows are one credential, moved from `config.go` to `settings.go`, and a gate on new findings
+(`--fail-on-new`) fails on it, because at `head` the credential is still in the code.
+
 Whatever is in `head` and not in `base` is **new**; in `base` and not in `head` is **fixed**; in
 both is **unchanged**.
 
