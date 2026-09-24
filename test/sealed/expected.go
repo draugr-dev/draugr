@@ -11,6 +11,32 @@ type Expected struct {
 	// Findings are every other result the scan must report, and together with the secrets and the
 	// fixture's inline sast annotations, every result it may report.
 	Findings []FindingExpectation `yaml:"findings"`
+	// Sealed changes what the container provides, for a scenario about a failure.
+	Sealed RunOptions `yaml:"sealed"`
+	// Errors are the controls that must fail to run, each with text its error must contain. Every
+	// other control must run.
+	Errors []ErrorExpectation `yaml:"errors"`
+}
+
+// RunOptions take something away from a sealed run, so a scenario can assert that its absence
+// is reported rather than passed.
+type RunOptions struct {
+	// WithoutTool is a program removed from PATH inside the container.
+	WithoutTool string `yaml:"withoutTool"`
+	// FailingTool is a program replaced by one that writes FailingToolMessage and exits 2.
+	FailingTool string `yaml:"failingTool"`
+	// WithoutTrivyDB leaves Trivy's vulnerability database unwritten.
+	WithoutTrivyDB bool `yaml:"withoutTrivyDB"`
+	// GoVulnDBAge is how long before the run the local Go vulnerability database is recorded as
+	// fetched, as a Go duration. Empty means at the start of the run.
+	GoVulnDBAge string `yaml:"goVulnDBAge"`
+}
+
+// ErrorExpectation is one control that must fail to run.
+type ErrorExpectation struct {
+	Control string `yaml:"control"`
+	// Contains is text the control's error must include.
+	Contains string `yaml:"contains"`
 }
 
 // InitExpectation is the descriptor `draugr init` writes.

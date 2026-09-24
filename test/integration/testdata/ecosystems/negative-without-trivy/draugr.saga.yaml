@@ -1,0 +1,11 @@
+project: negative-without-trivy
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: negative-without-trivy
+    repositories:
+      - url: ./negative-without-trivy

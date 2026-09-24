@@ -91,20 +91,29 @@ func TestValidateSARIF(t *testing.T) {
 // normalizing it again changes nothing. A golden edited by hand into a shape the normalizer would
 // not write fails here, in the gate, rather than in the integration job.
 func TestTheGoldensAreNormalized(t *testing.T) {
-	for pattern, n := range map[string]Normalizer{
-		"../integration/testdata/ecosystems/*/golden/results.sarif": SARIFNormalizer(nil),
-		"../integration/testdata/ecosystems/*/golden/report.json":   ReportNormalizer(nil),
-	} {
-		paths, err := globNonEmpty(pattern)
+	scenarios, err := globNonEmpty("../integration/testdata/ecosystems/*/expected.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, exp := range scenarios {
+		s, err := LoadScenario(filepath.Dir(exp))
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, path := range paths {
+		for name, n := range map[string]Normalizer{
+			"results.sarif": SARIFNormalizer(nil),
+			"report.json":   ReportNormalizer(nil),
+		} {
+			// As the integration test normalizes it: a scenario about a failure has fields nothing
+			// wrote.
+			n.AllowMissing = len(s.Expected.Errors) > 0
+			path := filepath.Join(s.Dir, "golden", name)
 			raw, err := os.ReadFile(path) // #nosec G304 -- a checked-in golden
 			if err != nil {
-				t.Fatal(err)
+				t.Errorf("%s: %v", s.Name, err)
+				continue
 			}
-			if strings.HasSuffix(path, ".sarif") {
+			if name == "results.sarif" {
 				if err := ValidateSARIF(raw); err != nil {
 					t.Errorf("%s: %v", path, err)
 				}

@@ -1,0 +1,62 @@
+{
+  "controls": [
+    {
+      "errors": 0,
+      "highest": "",
+      "name": "sca",
+      "notes": 0,
+      "scanErrors": [
+        "govulncheck: cannot run offline: local Go vulnerability database fetched <fetched>, older than 24h; run `draugr feeds update govulndb`"
+      ],
+      "threshold": "",
+      "total": 0,
+      "verdict": "pass",
+      "warnings": 0
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:906bf341a4b2d79df8de370f8fc84f872160b795d2036c2d24bd9daaa5fd200a",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "project": "negative-stale-govulndb",
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./negative-stale-govulndb"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "trivy-fs",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 2,
+    "scans": 1
+  },
+  "verdict": "fail"
+}

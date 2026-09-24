@@ -4,7 +4,6 @@ package integration
 
 import (
 	"bytes"
-	"encoding/json"
 	"flag"
 	"os"
 	"path/filepath"
@@ -60,11 +59,27 @@ func runSealed(t *testing.T, s sealed.Scenario, advs sealed.Advisories, bin stri
 	}
 	now := time.Now()
 	home := c.Home()
+	opts := s.Expected.Sealed
+	goVulnFetched := now
+	if opts.GoVulnDBAge != "" {
+		age, err := time.ParseDuration(opts.GoVulnDBAge)
+		if err != nil {
+			t.Fatalf("%s: sealed.goVulnDBAge: %v", s.Name, err)
+		}
+		goVulnFetched = now.Add(-age)
+	}
+	trivyDB := func() error {
+		if opts.WithoutTrivyDB {
+			return nil
+		}
+		return sealed.WriteTrivyDB(filepath.Join(home, ".cache", "trivy"), advs)
+	}
 	for _, err := range []error{
 		os.MkdirAll(filepath.Join(work, "bin"), 0o750),
 		copyFile(bin, filepath.Join(work, "bin", "draugr"), 0o700),
-		sealed.WriteTrivyDB(filepath.Join(home, ".cache", "trivy"), advs),
-		sealed.WriteGoVulnDB(home, advs, now),
+		os.MkdirAll(home, 0o750),
+		trivyDB(),
+		sealed.WriteGoVulnDB(home, advs, goVulnFetched),
 		sealed.WriteRetireRepo(home, advs, now),
 		copyFile(filepath.Join(s.Dir, "draugr.saga.yaml"), filepath.Join(work, "draugr.saga.yaml"), 0o600),
 		copyFile(filepath.Join(ecosystems, "semgrep.yaml"), filepath.Join(work, "semgrep.yaml"), 0o600),
@@ -79,6 +94,16 @@ func runSealed(t *testing.T, s sealed.Scenario, advs sealed.Advisories, bin stri
 	}
 	c.Env = map[string]string{"DRAUGR_SEALED_SEMGREP_RULES": filepath.Join(work, "semgrep.yaml")}
 	draugr := filepath.Join(work, "bin", "draugr")
+	if opts.WithoutTool != "" {
+		if err := c.Hide(opts.WithoutTool); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if opts.FailingTool != "" {
+		if err := c.Fail(opts.FailingTool); err != nil {
+			t.Fatal(err)
+		}
+	}
 
 	// init, in the repository, as somebody meeting it for the first time would run it.
 	initOut := filepath.Join(work, "init.saga.yaml")
@@ -93,26 +118,19 @@ func runSealed(t *testing.T, s sealed.Scenario, advs sealed.Advisories, bin stri
 		t.Errorf("%s: %s", s.Name, p)
 	}
 
-	// The scan. A non-zero exit is expected, because every scenario's findings trip the gate; a
-	// control that could not run is not, and is checked from the report below.
+	// The scan. A non-zero exit is expected, because every scenario either has findings that trip
+	// the gate or a control that could not run; which controls failed is checked from the report.
 	out := filepath.Join(work, "out")
 	console, err := c.Command(work, draugr, "scan", "draugr.saga.yaml", "--offline", "--output", out, "--log-level", "warn").CombinedOutput()
 	t.Logf("%s: draugr scan exit=%v\n%s", s.Name, err, console)
 
 	report := readFile(t, filepath.Join(out, "report.json"))
-	var summary struct {
-		Controls []struct {
-			Name    string `json:"name"`
-			Verdict string `json:"verdict"`
-		} `json:"controls"`
+	errProblems, err := sealed.CheckErrors(s.Expected.Errors, report)
+	if err != nil {
+		t.Fatalf("%s: %v", s.Name, err)
 	}
-	if err := json.Unmarshal(report, &summary); err != nil {
-		t.Fatalf("%s: report.json: %v", s.Name, err)
-	}
-	for _, ctl := range summary.Controls {
-		if ctl.Verdict == "error" {
-			t.Errorf("%s: control %s could not run sealed; the console above says why", s.Name, ctl.Name)
-		}
+	for _, p := range errProblems {
+		t.Errorf("%s: %s", s.Name, p)
 	}
 
 	results := readFile(t, filepath.Join(out, "results.sarif"))
@@ -136,8 +154,14 @@ func runSealed(t *testing.T, s sealed.Scenario, advs sealed.Advisories, bin stri
 	}
 
 	replace := sealed.RunReplacements(work, now)
-	compareSealedGolden(t, s, "results.sarif", results, sealed.SARIFNormalizer(replace))
-	compareSealedGolden(t, s, "report.json", report, sealed.ReportNormalizer(replace))
+	// The fetch time a stale database is refused for, which moves with the run.
+	replace[goVulnFetched.UTC().Format("2006-01-02 15:04 UTC")] = "<fetched>"
+	// A scenario about a failure has a control that never started, and so fields nothing wrote.
+	failing := len(s.Expected.Errors) > 0
+	sarifN, reportN := sealed.SARIFNormalizer(replace), sealed.ReportNormalizer(replace)
+	sarifN.AllowMissing, reportN.AllowMissing = failing, failing
+	compareSealedGolden(t, s, "results.sarif", results, sarifN)
+	compareSealedGolden(t, s, "report.json", report, reportN)
 }
 
 // compareSealedGolden holds a normalized document to the scenario's golden copy, or rewrites the

@@ -1,0 +1,14 @@
+# Trivy has no vulnerability database and the run is offline, so it cannot fetch one. The control
+# reports Trivy's own error rather than passing with no findings.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: negative-without-trivy-db
+      repositories: ["."]
+
+sealed:
+  withoutTrivyDB: true
+
+errors:
+  - control: sca
+    contains: "--skip-db-update cannot be specified on the first run"

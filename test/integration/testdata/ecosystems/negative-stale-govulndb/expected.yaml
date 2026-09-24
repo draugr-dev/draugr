@@ -1,0 +1,15 @@
+# The local Go vulnerability database was fetched three days before the run, beyond the default
+# maxAge, and the run is offline. govulncheck refuses it and the control names the age and the fix;
+# Trivy still runs and reports nothing, because the module has no dependencies.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: negative-stale-govulndb
+      repositories: ["."]
+
+sealed:
+  goVulnDBAge: 72h
+
+errors:
+  - control: sca
+    contains: "older than 24h; run `draugr feeds update govulndb`"

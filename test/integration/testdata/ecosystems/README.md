@@ -22,6 +22,10 @@ are separated by commas. The rules Semgrep runs are in [`semgrep.yaml`](semgrep.
 
 - **A scenario is named `<ecosystem>-<build system>`** (`python-poetry`, `js-pnpm`, `jvm-gradle`).
   The name is also the component and the repository directory the scan reads.
+- **A scenario about a failure is named `negative-<case>`.** Its `sealed:` block takes something
+  away from the run (`withoutTool`, `failingTool`, `withoutTrivyDB`, `goVulnDBAge`), and `errors:`
+  names each control that must report it, with text its error must contain. Every other control
+  must run, in every scenario.
 - **Manifests end in `.fixture`.** A `requirements.txt`, `go.mod` or `package-lock.json` anywhere in
   this repository enters the forge's dependency graph as a dependency of Draugr, with its
   vulnerabilities. The harness restores each name in the copy it scans.

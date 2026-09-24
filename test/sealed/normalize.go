@@ -31,6 +31,9 @@ type Normalizer struct {
 	Sort [][]string
 	// Replace maps a string to what it becomes, in every string value.
 	Replace map[string]string
+	// AllowMissing accepts a Clear path that matches nothing. For a run where a control failed to
+	// start, which leaves no scanner version and no finding for that control to clear.
+	AllowMissing bool
 }
 
 // SARIFNormalizer is the normalizer for Draugr's results.sarif.
@@ -82,7 +85,7 @@ func (n Normalizer) Apply(raw []byte) ([]byte, error) {
 	}
 	doc = n.replace(doc)
 	for _, path := range n.Clear {
-		if hits := visit(doc, path, func(parent map[string]any, key string) { parent[key] = Cleared }); hits == 0 {
+		if hits := visit(doc, path, func(parent map[string]any, key string) { parent[key] = Cleared }); hits == 0 && !n.AllowMissing {
 			return nil, fmt.Errorf("normalize: nothing at %s; the field moved, so update the normalizer", strings.Join(path, "."))
 		}
 	}

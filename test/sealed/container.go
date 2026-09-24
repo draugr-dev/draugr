@@ -91,6 +91,55 @@ func covered(m string, mounts []string) bool {
 	return false
 }
 
+// FailingToolMessage is what a program replaced by Fail writes before exiting 2.
+const FailingToolMessage = "sealed fixture: this program failed on purpose"
+
+// Hide removes tool from PATH inside the container. Each directory on PATH that holds it is
+// replaced by a copy made of links to everything else in it, so every other program stays where
+// it was.
+func (c *Container) Hide(tool string) error {
+	dirs := filepath.SplitList(c.Path)
+	for i, dir := range dirs {
+		if _, err := os.Stat(filepath.Join(dir, tool)); err != nil {
+			continue
+		}
+		shadow := filepath.Join(c.Work, "path", fmt.Sprintf("%02d", i))
+		if err := os.MkdirAll(shadow, 0o750); err != nil {
+			return err
+		}
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return err
+		}
+		for _, e := range entries {
+			if e.Name() == tool {
+				continue
+			}
+			if err := os.Symlink(filepath.Join(dir, e.Name()), filepath.Join(shadow, e.Name())); err != nil {
+				return err
+			}
+		}
+		dirs[i] = shadow
+	}
+	c.Path = strings.Join(dirs, string(os.PathListSeparator))
+	return nil
+}
+
+// Fail replaces tool inside the container with a program that writes FailingToolMessage to
+// stderr and exits 2.
+func (c *Container) Fail(tool string) error {
+	dir := filepath.Join(c.Work, "failing")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return err
+	}
+	script := "#!/bin/sh\necho '" + FailingToolMessage + "' >&2\nexit 2\n"
+	if err := os.WriteFile(filepath.Join(dir, tool), []byte(script), 0o700); err != nil { // #nosec G306 -- an executable the container runs
+		return err
+	}
+	c.Path = dir + string(os.PathListSeparator) + c.Path
+	return nil
+}
+
 // Command is Args as a command ready to run.
 func (c Container) Command(dir string, argv ...string) *exec.Cmd {
 	return exec.Command("docker", c.Args(dir, argv...)...) // #nosec G204 -- the test's own argv

@@ -1,0 +1,11 @@
+project: negative-failing-trivy
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: negative-failing-trivy
+    repositories:
+      - url: ./negative-failing-trivy

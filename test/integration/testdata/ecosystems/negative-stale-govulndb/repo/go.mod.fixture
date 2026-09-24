@@ -1,0 +1,3 @@
+module example.com/sealed/stale
+
+go 1.21
