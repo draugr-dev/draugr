@@ -55,7 +55,6 @@ visible.
 
 ## Data
 
-The **checks bundle**, from `mirror.gcr.io/aquasec/trivy-checks`, Trivy's own default. Warmed once
+The **checks bundle**, from `mirror.gcr.io/aquasec/trivy-checks`, Trivy's own default, warmed once
 per run. With `--offline`, Draugr passes `--skip-check-update` and Trivy evaluates the checks built
-into the binary, which are the ones of the pinned release. Misconfiguration scanning reads no
-vulnerability database.
+into the pinned release. Misconfiguration scanning reads no vulnerability database.
