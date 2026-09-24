@@ -441,7 +441,8 @@
               "type": "string"
             },
             "timeout": {
-              "description": "How long to wait for the Job to finish, e.g. \"5m\". Plain seconds are accepted.",
+              "description": "How long to wait for the Job to finish, e.g. \"5m\".",
+              "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
               "type": "string"
             }
           },
@@ -484,6 +485,7 @@
             },
             "resultTimeout": {
               "description": "How long to wait for Mend to finish analyzing an upload, e.g. \"15m\". Raise it for large monorepos, where the agent's upload finishes long before the analysis does.",
+              "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
               "type": "string"
             },
             "settings": {
@@ -676,6 +678,7 @@
             },
             "resultTimeout": {
               "description": "How long to wait for Mend to finish analyzing an upload, e.g. \"15m\". Raise it for large monorepos, where the agent's upload finishes long before the analysis does.",
+              "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
               "type": "string"
             },
             "settings": {
@@ -971,6 +974,7 @@
             "24h",
             "168h"
           ],
+          "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
           "type": "string"
         }
       },
@@ -1301,6 +1305,7 @@
         },
         "digest": {
           "description": "Pin the immutable content digest, e.g. sha256:…",
+          "pattern": "^[a-z0-9]+:[a-f0-9]+$",
           "type": "string"
         },
         "image": {

@@ -52,7 +52,6 @@ var openStrings = map[string]string{
 	"$defs.hostSpec.properties.path":                   "a path to an OpenAPI document",
 	"$defs.host.properties.url":                        "the endpoint's address",
 	"$defs.image.properties.image":                     "an image reference",
-	"$defs.image.properties.digest":                    "a content digest",
 	"$defs.vexSource.properties.path":                  "a path to a VEX document",
 	"$defs.vexSource.properties.url":                   "a URL to a VEX document",
 	"$defs.vexRepository.properties.url":               "a repository holding VEX documents",
@@ -91,19 +90,15 @@ var openStrings = map[string]string{
 	"$defs.control_infrastructure.properties.kubeBenchJob.properties.image":        "an image reference",
 	"$defs.control_infrastructure.properties.kubeBenchJob.properties.namespace":    "a namespace name",
 	"$defs.control_infrastructure.properties.kubeBenchJob.properties.nodeSelector": "a node label selector",
-	"$defs.control_infrastructure.properties.kubeBenchJob.properties.timeout":      "a duration",
 	"$defs.control_licenses.properties.mendLicenses.properties.project":            "a project name in Mend",
 	"$defs.control_licenses.properties.mendLicenses.properties.productToken":       "a token identifying a Mend product",
-	"$defs.control_licenses.properties.mendLicenses.properties.resultTimeout":      "a duration",
 	"$defs.control_sca.properties.mendSca.properties.project":                      "a project name in Mend",
 	"$defs.control_sca.properties.mendSca.properties.productToken":                 "a token identifying a Mend product",
-	"$defs.control_sca.properties.mendSca.properties.resultTimeout":                "a duration",
 
 	// A keyword or a path. The keywords are in `examples`, which offers them without rejecting
 	// the path, and an enum here would reject every real file.
-	"$defs.exploitabilityConfig.properties.kev":    `"cache", "auto", or a path`,
-	"$defs.exploitabilityConfig.properties.epss":   `"cache", "auto", or a path`,
-	"$defs.exploitabilityConfig.properties.maxAge": "a duration",
+	"$defs.exploitabilityConfig.properties.kev":  `"cache", "auto", or a path`,
+	"$defs.exploitabilityConfig.properties.epss": `"cache", "auto", or a path`,
 
 	// Credentials are never in the descriptor; these name the variable holding one, and the name
 	// is the author's choice.

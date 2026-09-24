@@ -104,7 +104,7 @@ What each scanner accepts in its Saga block:
     namespace     string  Namespace to create the Job in. It must already exist; Draugr does not create namespaces.
     nodeSelector  string  Node selector for the Job, as comma-separated key=value pairs. Use it to benchmark a specific node pool.
     targets       string  Comma-separated kube-bench targets to run, e.g. "master,node".
-    timeout       string  How long to wait for the Job to finish, e.g. "5m". Plain seconds are accepted.
+    timeout       string  How long to wait for the Job to finish, e.g. "5m".
 
   mend-licenses
     Option                   Type    What it does

@@ -225,6 +225,9 @@ components:
       data-class: pii
 ```
 
+A value is a string. YAML reads `tier: 1` as a number and `pci: true` as a boolean, so quote them,
+`tier: "1"`, and `draugr validate` names the one to quote when it refuses.
+
 They never reach a verdict. What they do is answer *whose*, in the two places that question is
 asked. `draugr scan --labels team=web` runs only what that team owns, which is how a pipeline in a
 repository holding many teams' code stays about one of them. And every finding carries its

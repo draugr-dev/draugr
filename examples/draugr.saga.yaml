@@ -214,7 +214,7 @@ components:
           # header: X-API-Key
         spec:                # drive the scan from an OpenAPI document instead of crawling
           path: api/openapi.yaml       # relative to where Draugr runs
-          methods: [GET, HEAD, POST]   # empty means GET and HEAD only
+          methods: [get, head, post]   # absent means get and head only
           # A specification lists POST, PUT and DELETE too, and a scanner handed one will
           # exercise them. A scan of a staging API that deletes its own fixtures is a scan
           # nobody runs twice, so a write method is listed here or it is not exercised.

@@ -307,6 +307,9 @@ func optionDef(opt plugin.Option) map[string]any {
 	if opt.Type != "" {
 		d["type"] = opt.Type
 	}
+	if opt.Pattern != "" {
+		d["pattern"] = opt.Pattern
+	}
 	if len(opt.Enum) > 0 {
 		vals := make([]any, len(opt.Enum))
 		for i, e := range opt.Enum {

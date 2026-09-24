@@ -304,6 +304,14 @@ func validateComponents(comps []Component) []error {
 			if h.URL == "" {
 				errs = append(errs, fmt.Errorf("%s: hosts[%d].url is required", where, j))
 			}
+			switch {
+			case h.Type == "" || slices.Contains(HostTypes, h.Type):
+			case slices.Contains(HostTypes, strings.ToLower(h.Type)):
+				errs = append(errs, lowercaseOnly(fmt.Sprintf("%s: hosts[%d].type", where, j), h.Type))
+			default:
+				errs = append(errs, fmt.Errorf("%s: hosts[%d].type %q is not one of %s",
+					where, j, h.Type, strings.Join(HostTypes, ", ")))
+			}
 			errs = append(errs, validateHostAuth(h.Auth, fmt.Sprintf("%s: hosts[%d].auth", where, j))...)
 			errs = append(errs, validateHostSpec(h.Spec, fmt.Sprintf("%s: hosts[%d].spec", where, j))...)
 		}
@@ -322,6 +330,8 @@ func validateComponents(comps []Component) []error {
 			if strings.TrimSpace(infra.Kind) == "" {
 				errs = append(errs, fmt.Errorf("%s: infrastructure[%d].kind is required (%s)",
 					where, j, InfrastructureKinds))
+			} else if ValidInfrastructureKind(strings.ToLower(infra.Kind)) && !ValidInfrastructureKind(infra.Kind) {
+				errs = append(errs, lowercaseOnly(fmt.Sprintf("%s: infrastructure[%d].kind", where, j), infra.Kind))
 			} else if !ValidInfrastructureKind(infra.Kind) {
 				errs = append(errs, fmt.Errorf(
 					"%s: infrastructure[%d].kind %q is not a surface Draugr audits (it has %v)",
@@ -385,7 +395,11 @@ func validateHostSpec(spec *HostSpec, where string) []error {
 				"methods you accept", where))
 	}
 	for i, m := range spec.Methods {
-		if !validSpecMethod(m) {
+		switch {
+		case validSpecMethod(m):
+		case validSpecMethod(strings.ToLower(m)):
+			errs = append(errs, lowercaseOnly(fmt.Sprintf("%s.methods[%d]", where, i), m))
+		default:
 			errs = append(errs, fmt.Errorf(
 				"%s.methods[%d] %q is not an HTTP method Draugr will exercise: %s",
 				where, i, m, strings.Join(specMethodNames, ", ")))
@@ -397,9 +411,24 @@ func validateHostSpec(spec *HostSpec, where string) []error {
 // specMethodNames are the methods a spec-driven scan may be told to exercise.
 var specMethodNames = []string{"get", "head", "options", "post", "put", "patch", "delete"}
 
+// validSpecMethod accepts the lowercase spelling only, the one the JSON Schema offers. Accepting
+// `GET` here while an editor rejected it would leave two readers of one file disagreeing.
 func validSpecMethod(m string) bool {
-	return slices.Contains(specMethodNames, strings.ToLower(strings.TrimSpace(m)))
+	return slices.Contains(specMethodNames, m)
 }
+
+// lowercaseOnly refuses a vocabulary value written in the wrong case, and says which spelling to
+// use. Every value a descriptor chooses from a list is lowercase, in the schema and here, so an
+// editor and `draugr validate` never disagree about one.
+func lowercaseOnly(where, got string) error {
+	return fmt.Errorf("%s %q is written in lowercase: %s", where, got, strings.ToLower(got))
+}
+
+// HostTypes are the values a host's `type` accepts.
+//
+// Checked because the headers scanner treats anything that is not "api" as a browser, so a
+// misspelled `apii` is scanned with the browser rules the descriptor meant to turn off.
+var HostTypes = []string{"browser", "api"}
 
 // validateExclusions checks an exclusion block. prefix names it, so the same errors read
 // correctly whether they came from a descriptor or from a fragment.

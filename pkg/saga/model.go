@@ -840,10 +840,9 @@ type HostAuth struct {
 var InfrastructureKinds = []string{"kubernetes"}
 
 // ValidInfrastructureKind reports whether a kind is one Draugr audits.
+// The spelling the JSON Schema offers and no other, so an editor and `draugr validate` agree.
 func ValidInfrastructureKind(kind string) bool {
-	return slices.ContainsFunc(InfrastructureKinds, func(k string) bool {
-		return strings.EqualFold(k, kind)
-	})
+	return slices.Contains(InfrastructureKinds, kind)
 }
 
 // Infrastructure is an infrastructure surface. Kind is one of InfrastructureKinds; Ref names the

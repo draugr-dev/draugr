@@ -209,3 +209,27 @@ func TestElementsAreCheckedInEitherShape(t *testing.T) {
 		})
 	}
 }
+
+// A pattern the options validator knows is refused in words; one it does not is refused with the
+// expression; a schema whose pattern does not compile says so rather than passing everything.
+func TestAPatternIsEnforced(t *testing.T) {
+	schema := []byte(`{"type":"object","properties":{
+		"timeout":{"type":"string","pattern":"^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$"},
+		"code":{"type":"string","pattern":"^[A-Z]{3}$"}}}`)
+	if err := ValidateConfig(schema, Config{"timeout": "1h30m", "code": "ABC"}); err != nil {
+		t.Errorf("valid values refused: %v", err)
+	}
+	if err := ValidateConfig(schema, Config{"timeout": "1d"}); err == nil || !strings.Contains(err.Error(), "is not a duration such as 90s, 15m or 1h30m") {
+		t.Errorf("duration: %v", err)
+	}
+	if err := ValidateConfig(schema, Config{"code": "abc"}); err == nil || !strings.Contains(err.Error(), "does not match ^[A-Z]{3}$") {
+		t.Errorf("unnamed pattern: %v", err)
+	}
+	bad := []byte(`{"type":"object","properties":{"x":{"type":"string","pattern":"("}}}`)
+	if err := ValidateConfig(bad, Config{"x": "y"}); err == nil || !strings.Contains(err.Error(), "invalid config schema") {
+		t.Errorf("bad pattern: %v", err)
+	}
+	if opts := Options(schema); len(opts) != 2 || opts[1].Pattern == "" {
+		t.Errorf("options did not carry the pattern: %+v", opts)
+	}
+}

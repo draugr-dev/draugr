@@ -30,6 +30,8 @@ type Option struct {
 	// `fail` are three words that each name a policy, and an editor offering the three with no
 	// gloss has told somebody the spelling and nothing else.
 	Meanings map[string]string `json:"meanings,omitempty"`
+	// Pattern is the regular expression a string value must match, when the schema gives one.
+	Pattern string `json:"pattern,omitempty"`
 }
 
 // Options reports the settings a scanner accepts, sorted by name, from its declared ConfigSchema.
@@ -48,6 +50,7 @@ func Options(schema json.RawMessage) []Option {
 			Type        string `json:"type"`
 			Description string `json:"description"`
 			Enum        []any  `json:"enum"`
+			Pattern     string `json:"pattern"`
 			// ReadOnly marks a key a controller writes into the job config and a descriptor may
 			// not. The scanner declares it because the engine holds a job's config to this
 			// schema; it is not something anybody chooses, so it is not offered as an option.
@@ -83,6 +86,7 @@ func Options(schema json.RawMessage) []Option {
 			Type:        prop.Type,
 			Description: prop.Description,
 			Required:    required[name],
+			Pattern:     prop.Pattern,
 		}
 		// An array constrains its elements; a scalar constrains itself. Either way these are the
 		// values the option accepts, which is the question a caller is asking.
