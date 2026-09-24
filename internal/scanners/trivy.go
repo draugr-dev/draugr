@@ -84,12 +84,13 @@ func NewTrivyFS() plugin.Scanner {
 	return s
 }
 
-// trivyFSArgs builds `trivy fs --quiet --scanners vuln --format json <dir>`.
+// trivyFSArgs builds `trivy fs --quiet --scanners vuln --format json --list-all-pkgs <dir>`.
 //
 // JSON rather than SARIF because the SARIF says which package only in prose. See
-// trivy_vuln_json.go for what that costs and what it buys.
+// trivy_vuln_json.go for what that costs and what it buys. --list-all-pkgs because the package
+// list is where Trivy records the line of each package's entry in its manifest.
 func trivyFSArgs(dir string, cfg plugin.Config) []string {
-	argv := showSuppressedArgs([]string{"trivy", "fs", "--quiet", "--scanners", "vuln", "--format", "json"})
+	argv := showSuppressedArgs([]string{"trivy", "fs", "--quiet", "--scanners", "vuln", "--format", "json", "--list-all-pkgs"})
 	return offlineTrivyArgs(append(trivyOptions(argv, cfg), dir))
 }
 

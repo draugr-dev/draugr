@@ -15,7 +15,7 @@ findings:
   - control: sca
     tool: trivy
     rule: CVE-2021-44906
-    location: package-lock.json:12
+    location: package-lock.json:15
     package: npm minimist 1.2.5
   - control: sca
     tool: retirejs

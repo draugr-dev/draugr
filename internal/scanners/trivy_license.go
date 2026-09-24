@@ -247,7 +247,7 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 				Message: fmt.Sprintf("%s is %s. %s", lic.PkgName, lic.Name, why),
 				Location: sarif.Location{
 					URI:       lic.FilePath,
-					StartLine: lines.find(lic.FilePath, lic.PkgName),
+					StartLine: lines.find(lic.FilePath, lic.PkgName, ""),
 				},
 			})
 			report.Rules[ruleID] = sarif.Rule{
@@ -345,9 +345,15 @@ func newLineIndex(dir string) *lineIndex {
 // a line number is a nicety, never worth reading an unbounded file into memory for.
 const maxManifestBytes = 4 << 20 // 4 MiB
 
-// find returns the 1-based line where pkg is mentioned in the manifest, or 0 if it can't be
+// find returns the 1-based line that declares pkg in the manifest, or 0 if it can't be
 // determined. Zero is honest: the finding still points at the file.
-func (l *lineIndex) find(relPath, pkg string) int {
+//
+// A line counts only where the name stands as a whole name, and never in a comment: a lockfile
+// names a package in the comments explaining why something else is there ("# via flask"), and in
+// the dependency lists of the packages that need it, before the package's own entry. Where the
+// version is known, a line carrying both is preferred, because that is the entry rather than a
+// reference to it.
+func (l *lineIndex) find(relPath, pkg, version string) int {
 	if relPath == "" || pkg == "" {
 		return 0
 	}
@@ -356,12 +362,48 @@ func (l *lineIndex) find(relPath, pkg string) int {
 		lines = readLines(filepath.Join(l.dir, relPath))
 		l.files[relPath] = lines
 	}
+	first := 0
 	for i, line := range lines {
-		if strings.Contains(line, pkg) {
+		if isCommentLine(line) || !containsName(line, pkg) {
+			continue
+		}
+		if version == "" || strings.Contains(line, version) {
 			return i + 1
 		}
+		if first == 0 {
+			first = i + 1
+		}
 	}
-	return 0
+	return first
+}
+
+// isCommentLine reports whether a manifest line is a comment in any of the syntaxes lockfiles use.
+func isCommentLine(line string) bool {
+	t := strings.TrimSpace(line)
+	return strings.HasPrefix(t, "#") || strings.HasPrefix(t, "//")
+}
+
+// containsName reports whether name appears in line as a whole package name, case-insensitively:
+// `rack` in `rack (2.2.3)` and not in `rack-test`, `Flask==0.12.2` for `flask`.
+func containsName(line, name string) bool {
+	lower, want := strings.ToLower(line), strings.ToLower(name)
+	for from := 0; ; {
+		i := strings.Index(lower[from:], want)
+		if i < 0 {
+			return false
+		}
+		start, end := from+i, from+i+len(want)
+		if (start == 0 || !isNameByte(lower[start-1])) && (end == len(lower) || !isNameByte(lower[end])) {
+			return true
+		}
+		from = start + 1
+	}
+}
+
+// isNameByte reports whether b can continue a package name, so that a match ending beside one is a
+// longer name rather than this one.
+func isNameByte(b byte) bool {
+	return b >= 'a' && b <= 'z' || b >= '0' && b <= '9' || b == '-' || b == '_' || b == '.'
 }
 
 // readLines reads a manifest, returning nil on any problem, a missing line number degrades the
