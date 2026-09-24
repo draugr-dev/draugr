@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "ruby-bundler/"
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "fields": {
+              "repository": "./ruby-bundler",
+              "revision": "<cleared>"
+            },
+            "tool": "trivy-fs",
+            "version": "<cleared>"
+          }
+        ]
+      },
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Gemfile.lock",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 4
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "rack 2.2.3 → 2.2.3.1: Fixture: denial of service in rack's multipart parser"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "ruby-bundler",
+            "control": "sca",
+            "package": {
+              "ecosystem": "bundler",
+              "fixedVersion": "2.2.3.1",
+              "name": "rack",
+              "purl": "pkg:gem/rack@2.2.3",
+              "version": "2.2.3"
+            },
+            "priority": "P1",
+            "repository": "./ruby-bundler",
+            "tool": "trivy"
+          },
+          "ruleId": "CVE-2022-30122"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Fixture advisory for Draugr's sealed tests."
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2022-30122",
+              "id": "CVE-2022-30122",
+              "name": "CVE-2022-30122",
+              "properties": {
+                "tags": [
+                  "scanner:trivy"
+                ]
+              },
+              "shortDescription": {
+                "text": "Fixture: denial of service in rack's multipart parser"
+              }
+            }
+          ],
+          "version": "<cleared>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

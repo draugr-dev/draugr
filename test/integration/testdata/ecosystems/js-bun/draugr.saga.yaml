@@ -1,0 +1,11 @@
+project: js-bun
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: js-bun
+    repositories:
+      - url: ./js-bun

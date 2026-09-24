@@ -1,0 +1,14 @@
+# A sealed scan of the php-composer scenario reports the one vulnerable dependency in the lockfile
+# Composer generated, at the line of its own entry.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: php-composer
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2022-29248
+    location: composer.lock:9
+    package: composer guzzlehttp/guzzle 7.4.0

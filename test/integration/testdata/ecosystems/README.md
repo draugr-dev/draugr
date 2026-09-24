@@ -20,6 +20,8 @@ are separated by commas. The rules Semgrep runs are in [`semgrep.yaml`](semgrep.
 
 ## Conventions
 
+- **A scenario is named `<ecosystem>-<build system>`** (`python-poetry`, `js-pnpm`, `jvm-gradle`).
+  The name is also the component and the repository directory the scan reads.
 - **Manifests end in `.fixture`.** A `requirements.txt`, `go.mod` or `package-lock.json` anywhere in
   this repository enters the forge's dependency graph as a dependency of Draugr, with its
   vulnerabilities. The harness restores each name in the copy it scans.

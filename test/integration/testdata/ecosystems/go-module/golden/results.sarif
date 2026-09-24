@@ -1,0 +1,368 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "go-module/"
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "fields": {
+              "database": "local copy, fetched <today>"
+            },
+            "tool": "govulncheck",
+            "version": "<cleared>"
+          },
+          {
+            "fields": {
+              "repository": "./go-module",
+              "revision": "<cleared>"
+            },
+            "tool": "gitleaks",
+            "version": "<cleared>"
+          },
+          {
+            "fields": {
+              "repository": "./go-module",
+              "revision": "<cleared>"
+            },
+            "tool": "gosec",
+            "version": "<cleared>"
+          },
+          {
+            "fields": {
+              "repository": "./go-module",
+              "revision": "<cleared>"
+            },
+            "tool": "govulncheck",
+            "version": "<cleared>"
+          },
+          {
+            "fields": {
+              "repository": "./go-module",
+              "revision": "<cleared>"
+            },
+            "tool": "semgrep",
+            "version": "<cleared>"
+          },
+          {
+            "fields": {
+              "repository": "./go-module",
+              "revision": "<cleared>"
+            },
+            "tool": "trivy-fs",
+            "version": "<cleared>"
+          }
+        ]
+      },
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "deploy/aws.env",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "aws-access-token has detected secret for file deploy/aws.env."
+          },
+          "partialFingerprints": {
+            "author": "",
+            "commitMessage": "",
+            "commitSha": "",
+            "date": "",
+            "email": "",
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "go-module",
+            "control": "secrets",
+            "priority": "P1",
+            "repository": "./go-module",
+            "tool": "gitleaks"
+          },
+          "ruleId": "aws-access-token"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "go.mod",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 5
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "golang.org/x/text v0.3.6 → v0.3.7: Fixture: out-of-bounds read in golang.org/x/text/language"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "go-module",
+            "control": "sca",
+            "package": {
+              "ecosystem": "gomod",
+              "fixedVersion": "v0.3.7",
+              "name": "golang.org/x/text",
+              "purl": "pkg:golang/golang.org/x/text@v0.3.6",
+              "version": "v0.3.6"
+            },
+            "priority": "P1",
+            "reachability": {
+              "analyzer": "govulncheck",
+              "asOf": "<today>",
+              "method": "call-graph",
+              "paths": [
+                {
+                  "frames": [
+                    {
+                      "file": "main.go",
+                      "function": "main",
+                      "line": 18,
+                      "module": "example.com/sealed/golang",
+                      "package": "example.com/sealed/golang"
+                    },
+                    {
+                      "file": "language/parse.go",
+                      "function": "Parse",
+                      "line": 33,
+                      "module": "golang.org/x/text",
+                      "package": "golang.org/x/text/language"
+                    }
+                  ]
+                }
+              ],
+              "state": "reachable",
+              "symbols": [
+                "golang.org/x/text/language.MatchStrings",
+                "golang.org/x/text/language.MustParse",
+                "golang.org/x/text/language.Parse"
+              ]
+            },
+            "repository": "./go-module",
+            "tool": "trivy"
+          },
+          "ruleId": "CVE-2021-38561"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "go.mod",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 5
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "golang.org/x/text v0.3.6 → v0.3.8: Fixture: denial of service through a crafted Accept-Language header"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "go-module",
+            "control": "sca",
+            "package": {
+              "ecosystem": "gomod",
+              "fixedVersion": "v0.3.8",
+              "name": "golang.org/x/text",
+              "purl": "pkg:golang/golang.org/x/text@v0.3.6",
+              "version": "v0.3.6"
+            },
+            "priority": "P2",
+            "reachability": {
+              "analyzer": "govulncheck",
+              "asOf": "<today>",
+              "method": "call-graph",
+              "rankedAs": "medium",
+              "state": "unreachable",
+              "symbols": [
+                "golang.org/x/text/language.ParseAcceptLanguage"
+              ]
+            },
+            "repository": "./go-module",
+            "tool": "trivy"
+          },
+          "ruleId": "CVE-2022-32149"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "main.go",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 26
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Command injection via taint analysis"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "go-module",
+            "control": "sast",
+            "priority": "P1",
+            "repository": "./go-module",
+            "tool": "gosec"
+          },
+          "ruleId": "G702"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "main.go",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 26
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Subprocess launched with a potential tainted input or cmd arguments"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "go-module",
+            "control": "sast",
+            "priority": "P1",
+            "repository": "./go-module",
+            "tool": "gosec"
+          },
+          "ruleId": "G204"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Command injection via taint analysis"
+              },
+              "help": {
+                "text": "Command injection via taint analysis\nSeverity: HIGH\nConfidence: HIGH\n"
+              },
+              "id": "G702",
+              "name": "Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')",
+              "properties": {
+                "tags": [
+                  "scanner:gosec"
+                ]
+              },
+              "shortDescription": {
+                "text": "Command injection via taint analysis"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Fixture advisory for Draugr's sealed tests."
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2021-38561",
+              "id": "CVE-2021-38561",
+              "name": "CVE-2021-38561",
+              "properties": {
+                "tags": [
+                  "scanner:trivy"
+                ]
+              },
+              "shortDescription": {
+                "text": "Fixture: out-of-bounds read in golang.org/x/text/language"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Fixture advisory for Draugr's sealed tests."
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2022-32149",
+              "id": "CVE-2022-32149",
+              "name": "CVE-2022-32149",
+              "properties": {
+                "tags": [
+                  "scanner:trivy"
+                ]
+              },
+              "shortDescription": {
+                "text": "Fixture: denial of service through a crafted Accept-Language header"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Subprocess launched with a potential tainted input or cmd arguments"
+              },
+              "help": {
+                "text": "Subprocess launched with a potential tainted input or cmd arguments\nSeverity: MEDIUM\nConfidence: HIGH\n"
+              },
+              "id": "G204",
+              "name": "Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')",
+              "properties": {
+                "tags": [
+                  "scanner:gosec"
+                ]
+              },
+              "shortDescription": {
+                "text": "Subprocess launched with a potential tainted input or cmd arguments"
+              }
+            },
+            {
+              "id": "aws-access-token",
+              "properties": {
+                "tags": [
+                  "scanner:gitleaks"
+                ]
+              },
+              "shortDescription": {
+                "text": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms."
+              }
+            }
+          ],
+          "version": "<cleared>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

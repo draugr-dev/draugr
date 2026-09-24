@@ -1,0 +1,14 @@
+# A sealed scan of the rust-cargo scenario reports the one vulnerable dependency in the lockfile
+# Cargo generated, at the line of its own entry.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: rust-cargo
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2021-25900
+    location: Cargo.lock:12
+    package: cargo smallvec 1.6.0

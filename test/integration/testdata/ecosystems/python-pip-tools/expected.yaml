@@ -1,0 +1,14 @@
+# A sealed scan of the python-pip-tools scenario reports the one vulnerable dependency in the lockfile
+# pip-compile generated, at the line of its own entry.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: python-pip-tools
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2018-1000656
+    location: requirements.txt:9
+    package: pip flask 0.12.2

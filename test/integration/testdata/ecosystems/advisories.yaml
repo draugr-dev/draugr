@@ -39,6 +39,41 @@ advisories:
     severity: CRITICAL
     title: "Fixture: prototype pollution in minimist"
 
+  - id: CVE-2022-30122
+    ecosystem: rubygems
+    package: rack
+    fixed: "2.2.3.1"
+    severity: HIGH
+    title: "Fixture: denial of service in rack's multipart parser"
+
+  - id: CVE-2021-25900
+    ecosystem: cargo
+    package: smallvec
+    fixed: "1.6.1"
+    severity: CRITICAL
+    title: "Fixture: buffer overflow in SmallVec::insert_many"
+
+  - id: CVE-2022-29248
+    ecosystem: composer
+    package: guzzlehttp/guzzle
+    fixed: "7.4.3"
+    severity: HIGH
+    title: "Fixture: cross-domain cookie leakage in Guzzle"
+
+  - id: CVE-2024-21907
+    ecosystem: nuget
+    package: Newtonsoft.Json
+    fixed: "13.0.1"
+    severity: HIGH
+    title: "Fixture: denial of service through deeply nested JSON"
+
+  - id: CVE-2021-44228
+    ecosystem: maven
+    package: org.apache.logging.log4j:log4j-core
+    fixed: "2.15.0"
+    severity: CRITICAL
+    title: "Fixture: remote code execution through JNDI lookups in log messages"
+
   - id: CVE-2012-6708
     ecosystem: js
     package: jquery

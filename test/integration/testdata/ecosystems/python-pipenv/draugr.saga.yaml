@@ -1,0 +1,11 @@
+project: python-pipenv
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: python-pipenv
+    repositories:
+      - url: ./python-pipenv

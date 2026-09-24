@@ -1,0 +1,13 @@
+{
+    "name": "draugr/sealed-composer",
+    "version": "1.0.0",
+    "license": "Apache-2.0",
+    "require": {
+        "guzzlehttp/guzzle": "7.4.0"
+    },
+    "config": {
+        "audit": {
+            "block-insecure": false
+        }
+    }
+}

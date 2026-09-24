@@ -1,0 +1,14 @@
+# A sealed scan of the dotnet-nuget scenario reports the one vulnerable dependency in the lockfile
+# the .NET SDK generated, at the line of its own entry.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: dotnet-nuget
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2024-21907
+    location: packages.lock.json:5
+    package: nuget Newtonsoft.Json 12.0.1

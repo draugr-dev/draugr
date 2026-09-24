@@ -65,7 +65,7 @@ func TestLoadAdvisories(t *testing.T) {
 	base := "advisories:\n  - id: X\n    ecosystem: pip\n    package: p\n    fixed: '1'\n    severity: HIGH\n    title: t\n"
 	for name, tc := range map[string]struct{ body, want string }{
 		"missing fixed":  {strings.Replace(base, "    fixed: '1'\n", "", 1), "required"},
-		"bad ecosystem":  {strings.Replace(base, "pip", "cargo", 1), "ecosystem"},
+		"bad ecosystem":  {strings.Replace(base, "pip", "hackage", 1), "ecosystem"},
 		"bad severity":   {strings.Replace(base, "HIGH", "SEVERE", 1), "severity"},
 		"go without ids": {strings.Replace(base, "pip", "go", 1), "goID and symbols"},
 		"js without cwe": {strings.Replace(base, "pip", "js", 1), "cwe"},
@@ -126,6 +126,19 @@ func TestWriteTrivyDB(t *testing.T) {
 	// Written twice, the second replaces the first rather than failing on an open database.
 	if err := WriteTrivyDB(cache, loadTestAdvisories(t)); err != nil {
 		t.Errorf("rewrite: %v", err)
+	}
+}
+
+func TestTrivyPackageKey(t *testing.T) {
+	for _, tc := range [][3]string{
+		{"nuget", "Newtonsoft.Json", "newtonsoft.json"},
+		{"pip", "Zope.Interface", "zope-interface"},
+		{"pip", "typing_extensions", "typing-extensions"},
+		{"maven", "org.apache.logging.log4j:log4j-core", "org.apache.logging.log4j:log4j-core"},
+	} {
+		if got := trivyPackageKey(tc[0], tc[1]); got != tc[2] {
+			t.Errorf("trivyPackageKey(%s, %s) = %s, want %s", tc[0], tc[1], got, tc[2])
+		}
 	}
 }
 

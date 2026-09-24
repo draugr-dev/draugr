@@ -14,8 +14,8 @@ type Advisory struct {
 	ID string `yaml:"id"`
 	// GoID is the Go vulnerability database's own identifier, for an advisory govulncheck reads.
 	GoID string `yaml:"goID,omitempty"`
-	// Ecosystem is the package ecosystem: pip, npm, go, or js for a library retire.js identifies
-	// by its file.
+	// Ecosystem is the package ecosystem: pip, npm, go, rubygems, cargo, composer, nuget, maven,
+	// or js for a library retire.js identifies by its file.
 	Ecosystem string `yaml:"ecosystem"`
 	// Package is the name the ecosystem gives the package.
 	Package string `yaml:"package"`
@@ -38,7 +38,7 @@ type Advisories struct {
 }
 
 // ecosystems are the values Advisory.Ecosystem may take.
-var ecosystems = []string{"pip", "npm", "go", "js"}
+var ecosystems = []string{"pip", "npm", "go", "rubygems", "cargo", "composer", "nuget", "maven", "js"}
 
 // severities are the values Advisory.Severity may take.
 var severities = []string{"CRITICAL", "HIGH", "MEDIUM", "LOW"}

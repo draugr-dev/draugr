@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"time"
 
 	bolt "go.etcd.io/bbolt"
@@ -17,9 +19,14 @@ const TrivySchemaVersion = 2
 // trivySources maps an advisory ecosystem to the bucket Trivy looks packages up in. Trivy selects
 // buckets by the prefix before "::"; the name after it is the data source it reports.
 var trivySources = map[string]string{
-	"pip": "pip::GitHub Security Advisory pip",
-	"npm": "npm::GitHub Security Advisory npm",
-	"go":  "go::GitHub Security Advisory Go",
+	"pip":      "pip::GitHub Security Advisory pip",
+	"npm":      "npm::GitHub Security Advisory npm",
+	"go":       "go::GitHub Security Advisory Go",
+	"rubygems": "rubygems::GitHub Security Advisory RubyGems",
+	"cargo":    "cargo::GitHub Security Advisory Rust",
+	"composer": "composer::GitHub Security Advisory Composer",
+	"nuget":    "nuget::GitHub Security Advisory NuGet",
+	"maven":    "maven::GitHub Security Advisory Maven",
 }
 
 // WriteTrivyDB writes a Trivy vulnerability database holding advs into cacheDir/db, the layout
@@ -59,7 +66,7 @@ func WriteTrivyDB(cacheDir string, advs Advisories) error {
 			if err != nil {
 				return err
 			}
-			pkg, err := eco.CreateBucketIfNotExists([]byte(adv.Package))
+			pkg, err := eco.CreateBucketIfNotExists([]byte(trivyPackageKey(adv.Ecosystem, adv.Package)))
 			if err != nil {
 				return err
 			}
@@ -100,6 +107,21 @@ func WriteTrivyDB(cacheDir string, advs Advisories) error {
 	}
 	return os.WriteFile(filepath.Join(dir, "metadata.json"), meta, 0o600)
 }
+
+// trivyPackageKey is the name Trivy looks a package up under: NuGet ids lowercased, and Python
+// names normalized as PEP 503 does, so `Flask` and `flask` are one package. Other ecosystems are
+// looked up as written.
+func trivyPackageKey(ecosystem, name string) string {
+	switch ecosystem {
+	case "nuget":
+		return strings.ToLower(name)
+	case "pip":
+		return pep503.ReplaceAllString(strings.ToLower(name), "-")
+	}
+	return name
+}
+
+var pep503 = regexp.MustCompile(`[-_.]+`)
 
 func putJSON(b *bolt.Bucket, key string, v any) error {
 	raw, err := json.Marshal(v)

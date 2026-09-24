@@ -520,8 +520,11 @@ func TestTheLineSearchFindsTheEntryRatherThanAMention(t *testing.T) {
 		"requirements.txt": "click==8.5.0\n    # via flask\nflask==0.12.2\n",
 		// A longer name that starts with this one, before the package itself.
 		"Gemfile.lock": "GEM\n  specs:\n    rack-test (2.1.0)\n    rack (2.2.3)\n",
-		// The importer names the dependency; the packages section holds the entry with its version.
-		"pnpm-lock.yaml": "importers:\n  .:\n    dependencies:\n      minimist:\n        specifier: ^1\npackages:\n  minimist@1.2.5:\n",
+		// The importer names the dependency, with its version below; the packages section holds the
+		// entry.
+		"pnpm-lock.yaml": "importers:\n  .:\n    dependencies:\n      minimist:\n        specifier: 1.2.5\n        version: 1.2.5\npackages:\n  minimist@1.2.5:\n",
+		// The root's metadata names the package and its version on one line, with words between.
+		"uv.lock": "[[package]]\nname = \"flask\"\nversion = \"0.12.2\"\n\n[package.metadata]\nrequires-dist = [{ name = \"flask\", specifier = \"==0.12.2\" }]\n",
 	} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
 			t.Fatal(err)
@@ -536,7 +539,8 @@ func TestTheLineSearchFindsTheEntryRatherThanAMention(t *testing.T) {
 		{"requirements.txt", "Flask", "", 3},
 		{"Gemfile.lock", "rack", "2.2.3", 4},
 		{"Gemfile.lock", "rack", "", 4},
-		{"pnpm-lock.yaml", "minimist", "1.2.5", 7},
+		{"pnpm-lock.yaml", "minimist", "1.2.5", 8},
+		{"uv.lock", "flask", "0.12.2", 2},
 		// A version nowhere in the file still finds the name.
 		{"pnpm-lock.yaml", "minimist", "9.9.9", 4},
 		{"pnpm-lock.yaml", "absent", "", 0},

@@ -1,0 +1,11 @@
+project: python-uv
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: python-uv
+    repositories:
+      - url: ./python-uv

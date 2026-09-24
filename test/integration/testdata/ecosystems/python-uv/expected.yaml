@@ -1,0 +1,14 @@
+# A sealed scan of the python-uv scenario reports the one vulnerable dependency in the lockfile
+# uv generated, at the line of its own entry.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: python-uv
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2018-1000656
+    location: uv.lock:15
+    package: uv flask 0.12.2

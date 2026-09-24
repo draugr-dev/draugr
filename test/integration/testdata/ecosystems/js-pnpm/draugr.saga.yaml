@@ -1,0 +1,11 @@
+project: js-pnpm
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: js-pnpm
+    repositories:
+      - url: ./js-pnpm

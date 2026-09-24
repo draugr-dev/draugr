@@ -1,0 +1,11 @@
+project: rust-cargo
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: rust-cargo
+    repositories:
+      - url: ./rust-cargo
