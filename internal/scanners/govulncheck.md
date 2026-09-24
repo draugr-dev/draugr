@@ -86,8 +86,8 @@ Nothing about the code under scan. The tool fetches the vulnerability database o
 required": no manifest, no source and no inventory is uploaded.
 
 Fetching a vendor's vulnerability database is not an effect on the target, so this scanner declares
-none, the same reasoning that applies to the other database-backed scanners. It does need network
-access to that host, or a mirror pointed at with the tool's own `-db` flag.
+none, the same reasoning that applies to the other database-backed scanners. It needs network
+access to that host, or a local copy fetched with `draugr feeds update govulndb`.
 
 ## Integration notes
 
@@ -128,9 +128,27 @@ call graph and a framework heuristic are both called reachability and are not th
 
 ## Data
 
-The **vulnerability database**, from `vuln.go.dev`, on **every** invocation, and there is one
-invocation per Go module in the checkout. Nothing is cached locally, so there is nothing to warm.
+The **vulnerability database**, from `vuln.go.dev`. Without a local copy, govulncheck fetches it on
+**every** invocation, and there is one invocation per Go module in the checkout.
 
-The tool's `-db` flag takes a `file://` URL, and Draugr does not pass it. An empty or stale
-directory behind it makes govulncheck report no vulnerabilities and exit 0, so an offline mirror
-wired without validating it would turn "no network" into "no findings".
+`draugr feeds update govulndb` downloads `https://vuln.go.dev/vulndb.zip` into
+`~/.draugr/feeds/govulndb`. A scan passes that copy to govulncheck as `-db file://…` when it passes
+three checks, and refuses it otherwise:
+
+| Check | Refused when |
+|---|---|
+| age | fetched longer ago than [`config.exploitability.maxAge`](../../docs/reference/saga-schema.md#configexploitability), default 24h |
+| `index/db.json` | missing, unreadable, or without a `modified` date |
+| `index/modules.json` | missing, unreadable, or listing no modules |
+
+The checks exist because govulncheck reports "No vulnerabilities found" and exits 0 against an
+empty or unreadable database. A refused copy is never read:
+
+| Network | Refused or missing copy |
+|---|---|
+| online | govulncheck queries `vuln.go.dev`, and the scan warns with the reason |
+| `--offline` | the control reports an error naming the failed check |
+
+The database the run read is recorded under `database` in the evidence: `local copy, fetched
+<date>`, `vuln.go.dev`, or `vuln.go.dev` with the reason a local copy was refused. The cache key
+carries the database's own `modified` date, so refreshing the copy invalidates cached results.

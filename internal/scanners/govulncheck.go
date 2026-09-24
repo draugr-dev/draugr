@@ -1,6 +1,7 @@
 package scanners
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -40,8 +42,38 @@ func NewGovulncheck() plugin.Scanner {
 		govulncheckArgs,
 		parseGovulncheck,
 	)
-	s.cacheVersion = sharedGovulncheckVersion.version
+	s.cacheVersion = govulncheckCacheVersion
+	s.preflight = govulncheckPreflight
 	return s
+}
+
+// govulncheckCacheVersion is the scanner and database version a cached result was made with.
+// Against a local copy the probe reads that copy, so refreshing it invalidates the cache.
+func govulncheckCacheVersion(ctx context.Context) string {
+	choice := resolveGovulnDB()
+	if choice.url == "" {
+		return sharedGovulncheckVersion.version(ctx)
+	}
+	return localGovulncheckVersion(choice.url).version(ctx)
+}
+
+var (
+	localVersionMu     sync.Mutex
+	localVersionProbes = map[string]*toolVersionProbe{}
+)
+
+// localGovulncheckVersion is the version probe for one local database, created on first use.
+func localGovulncheckVersion(url string) *toolVersionProbe {
+	localVersionMu.Lock()
+	defer localVersionMu.Unlock()
+	if p, ok := localVersionProbes[url]; ok {
+		return p
+	}
+	p := &toolVersionProbe{
+		argv: []string{"govulncheck", "-db", url, "-version"}, extract: govulncheckVersion, run: execArgvCombined,
+	}
+	localVersionProbes[url] = p
+	return p
 }
 
 // govulncheckArgs builds one `govulncheck -C <module> -format json ./...` per Go module in the
@@ -62,17 +94,20 @@ func NewGovulncheck() plugin.Scanner {
 // Deliberately not -test. Analyzing tests would report vulnerabilities reachable only from code
 // that never ships, and the finding a developer cannot act on is the one that teaches them to
 // ignore the report.
-// No -db, deliberately. The flag takes a URL, `file://` included, and pointing it at a local copy
-// is the obvious way to make this scanner work without a network. It is also unsafe: govulncheck
-// reports "No vulnerabilities found" and exits 0 against an empty or unreadable database, so a
-// mirror that was never populated, or one that went stale, reads as a clean result.
-//
-// Left out, a machine with no route to vuln.go.dev gets exit 1 and an error, and the control says
-// it could not run. That is the right answer and it is the one this scanner is meant to give.
+// -db only for a local copy that passed its checks (resolveGovulnDB). govulncheck reports "No
+// vulnerabilities found" and exits 0 against an empty or unreadable database, so a mirror that was
+// never populated, or one that went stale, would read as a clean result; the checks are what make
+// a local copy safe to pass. Without one, govulncheck queries vuln.go.dev, and a machine with no
+// route to it is refused before anything runs.
 func govulncheckArgs(dir string, _ plugin.Config) [][]string {
+	db := resolveGovulnDB().url
 	var out [][]string
 	for _, mod := range goModuleDirs(dir) {
-		out = append(out, []string{"govulncheck", "-C", mod, "-format", "json", "./..."})
+		argv := []string{"govulncheck", "-C", mod}
+		if db != "" {
+			argv = append(argv, "-db", db)
+		}
+		out = append(out, append(argv, "-format", "json", "./..."))
 	}
 	return out
 }
@@ -243,7 +278,10 @@ func parseGovulncheck(out []byte, _ string, _ plugin.Config) (sarif.Report, erro
 	for _, key := range sortedGovulncheckKeys(byVuln) {
 		results = append(results, govulncheckResults(key, byVuln[key], advisories[key.OSV], analyzed, scanLevel, asOf)...)
 	}
-	return sarif.Report{Tool: govulncheckScanner, Results: results}, nil
+	return sarif.Report{Tool: govulncheckScanner, Results: results, Provenance: []sarif.Provenance{{
+		Tool:   govulncheckScanner,
+		Fields: []sarif.Field{{Key: "database", Value: resolveGovulnDB().describe()}},
+	}}}, nil
 }
 
 // govulncheckKey identifies a vulnerability in a module. Both halves are needed: one advisory can

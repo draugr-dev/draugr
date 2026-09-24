@@ -112,6 +112,7 @@ func TestEveryScannerWiresACacheVersion(t *testing.T) {
 		"trivy-license":       NewTrivyLicense(),
 		"semgrep":             NewSemgrep(),
 		"gosec":               NewGosec(),
+		"govulncheck":         NewGovulncheck(),
 		"gitleaks":            NewGitleaks(),
 		"nuclei":              NewNuclei(),
 		"draugr-headers":      NewHTTPHeaders(),

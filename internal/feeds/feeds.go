@@ -33,15 +33,19 @@ type Name string
 const (
 	KEV  Name = "kev"
 	EPSS Name = "epss"
+	// GoVulnDB is the Go vulnerability database govulncheck reads, kept as a local copy for a
+	// runner that cannot reach vuln.go.dev.
+	GoVulnDB Name = "govulndb"
 )
 
 // Names lists every known feed, in the order commands should present them.
-func Names() []Name { return []Name{KEV, EPSS} }
+func Names() []Name { return []Name{KEV, EPSS, GoVulnDB} }
 
-// maxFeedBytes caps a download. EPSS is the larger of the two at roughly 250k rows; 256 MiB is
-// far above anything either feed has been, and bounded is the point. An unbounded read of a URL
+// maxFeedBytes caps a download, and separately what an archive may expand to. EPSS is the
+// largest download at roughly 250k rows, and the Go vulnerability database unpacks to about
+// 20 MiB; 256 MiB is far above anything a feed has been, and bounded is the point. An unbounded read of a URL
 // is a memory-exhaustion bug waiting for a bad day upstream.
-const maxFeedBytes = 256 << 20
+var maxFeedBytes int64 = 256 << 20 // a var so tests can lower it
 
 // DefaultMaxAge is how old a cached feed may be before `auto` refetches it and a scan warns.
 //
@@ -53,9 +57,14 @@ const DefaultMaxAge = 24 * time.Hour
 
 // source describes where a feed comes from and how to decode it.
 type source struct {
-	url        string
-	file       string // the cache filename, after any decompression
-	gzipped    bool
+	url     string
+	file    string // the cache filename, after any decompression; a directory for a zipped feed
+	gzipped bool
+	// zipped feeds are archives of a directory tree, extracted under file.
+	zipped bool
+	// check, when set, is run over a freshly extracted feed before it replaces the cached copy, so
+	// a download that is not what it should be never displaces one that is.
+	check      func(path string) error
 	describe   string
 	publisher  string
 	licenseURL string
@@ -79,6 +88,15 @@ var sources = map[Name]source{
 		describe:   "FIRST EPSS scores",
 		publisher:  "FIRST",
 		licenseURL: "https://www.first.org/epss/",
+	},
+	GoVulnDB: {
+		url:        "https://vuln.go.dev/vulndb.zip",
+		file:       "govulndb",
+		zipped:     true,
+		check:      CheckGoVulnDB,
+		describe:   "Go vulnerability database",
+		publisher:  "the Go team",
+		licenseURL: "https://go.dev/security/vuln/database#license",
 	},
 }
 
@@ -169,7 +187,11 @@ func Fetch(ctx context.Context, dir string, n Name, client *http.Client) (Record
 	}
 
 	dest := Path(dir, n)
-	if err := writeAtomic(dest, data); err != nil {
+	if src.zipped {
+		if err := extractAtomic(dir, dest, data, src.check); err != nil {
+			return Record{}, fmt.Errorf("unpack %s: %w", src.describe, err)
+		}
+	} else if err := writeAtomic(dest, data); err != nil {
 		return Record{}, fmt.Errorf("write %s: %w", dest, err)
 	}
 

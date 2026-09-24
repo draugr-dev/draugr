@@ -285,9 +285,10 @@ know two URLs.
 `draugr feeds status` says what is cached, how old it is, and the digest of each copy:
 
 ```
-FEED   FETCHED                AGE            SIZE       DIGEST
-kev    2026-08-01 09:12Z      6 hours        1.5 MiB    sha256:15b44d7c9c57
-epss   2026-07-29 08:55Z      3 days (stale) 10.3 MiB   sha256:41c20e9dc3cf
+FEED       FETCHED                AGE            SIZE       DIGEST
+kev        2026-09-23 22:05Z      6 hours        1.7 MiB    sha256:e4988831e6d3
+epss       2026-09-21 04:05Z      3 days (stale) 11.0 MiB   sha256:38015ed64ff2
+govulndb   2026-09-24 02:05Z      2 hours        3.2 MiB    sha256:f0645ee8b56c
 ```
 
 **In CI, make the fetch its own step.** A feed outage then fails where it happened, loudly,

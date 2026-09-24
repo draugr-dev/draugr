@@ -1085,7 +1085,7 @@
           "type": "string"
         },
         "maxAge": {
-          "description": "How old a cached feed may be before \"auto\" refetches it and a scan warns that it is stale. A Go duration; defaults to 24h, tracking EPSS being republished daily. Raise it on a runner deliberately pinned to a known copy of the data.",
+          "description": "How old a cached feed may be before \"auto\" refetches it and a scan warns that it is stale. It is also the age at which govulncheck stops reading the local Go vulnerability database. A Go duration; defaults to 24h, tracking EPSS being republished daily. Raise it on a runner deliberately pinned to a known copy of the data.",
           "examples": [
             "24h",
             "168h"

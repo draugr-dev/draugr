@@ -1423,7 +1423,7 @@ config:
 | `kev` | CISA's Known Exploited Vulnerabilities catalog. A CVE on it becomes **critical**, whatever it was. |
 | `epss` | FIRST's EPSS scores. A CVE at or above `epssThreshold` is raised **one band**. |
 | `epssThreshold` | The EPSS probability (0–1) that triggers the bump. Zero disables it while leaving KEV in force. |
-| `maxAge` | How old a cached feed may be before `auto` refetches it and a scan warns. A Go duration. |
+| `maxAge` | How old a cached feed may be before `auto` refetches it and a scan warns, and before govulncheck stops reading the local Go vulnerability database. A Go duration. |
 
 KEV wins where both apply: observed exploitation outranks a prediction about it. Either signal works
 without the other. Set one key and omit the other.

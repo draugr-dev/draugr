@@ -160,7 +160,7 @@ func TestResolveFeedOffline(t *testing.T) {
 }
 
 func TestFeedNames(t *testing.T) {
-	if got, err := feedNames(nil); err != nil || len(got) != 2 {
+	if got, err := feedNames(nil); err != nil || len(got) != len(feeds.Names()) {
 		t.Errorf("no arguments should mean every feed: %v %v", got, err)
 	}
 	if got, err := feedNames([]string{"KEV"}); err != nil || len(got) != 1 || got[0] != feeds.KEV {
@@ -188,7 +188,7 @@ func TestFeedsStatus(t *testing.T) {
 	if !strings.Contains(got, "2 hours") || !strings.Contains(got, "sha256:") {
 		t.Errorf("missing age or digest:\n%s", got)
 	}
-	if !strings.Contains(got, "epss is not cached") {
+	if !strings.Contains(got, "epss and govulndb are not cached. Run `draugr feeds update epss govulndb`") {
 		t.Errorf("should name the feed that is still missing:\n%s", got)
 	}
 	if strings.Contains(got, "stale") {
@@ -200,6 +200,19 @@ func TestFeedsStatus(t *testing.T) {
 	feedsStatus(&buf, dir, now)
 	if got := buf.String(); !strings.Contains(got, "(stale)") {
 		t.Errorf("a two-day-old feed is stale:\n%s", got)
+	}
+
+	// A stale Go database is refused by a scan rather than read, and the status says so instead
+	// of promising the report will merely be marked stale.
+	seed(t, dir, feeds.GoVulnDB, "", 50*time.Hour)
+	buf.Reset()
+	feedsStatus(&buf, dir, now)
+	got = buf.String()
+	if !strings.Contains(got, "govulndb older than") || !strings.Contains(got, "A scan does not read it") {
+		t.Errorf("a stale Go database should be named as unread:\n%s", got)
+	}
+	if strings.Contains(got, "govulndb older than 1 day. A scan uses it") || strings.Contains(got, "and govulndb older") {
+		t.Errorf("the Go database was given the exploitability feeds' consequence:\n%s", got)
 	}
 }
 
@@ -295,8 +308,8 @@ func TestUpdateFeeds(t *testing.T) {
 	if err := updateFeeds(cmd, dir, feeds.Names(), false); err != nil {
 		t.Fatal(err)
 	}
-	if *calls != 2 {
-		t.Errorf("fetched %d feeds, want 2", *calls)
+	if *calls != len(feeds.Names()) {
+		t.Errorf("fetched %d feeds, want %d", *calls, len(feeds.Names()))
 	}
 	if got := buf.String(); !strings.Contains(got, "kev") || !strings.Contains(got, "epss") {
 		t.Errorf("both feeds should be reported:\n%s", got)
@@ -320,8 +333,8 @@ func TestUpdateFeeds(t *testing.T) {
 	if err := updateFeeds(cmd, dir, feeds.Names(), true); err != nil {
 		t.Fatal(err)
 	}
-	if *calls != before+2 {
-		t.Errorf("--force did not refetch: %d calls, want %d", *calls, before+2)
+	if *calls != before+len(feeds.Names()) {
+		t.Errorf("--force did not refetch: %d calls, want %d", *calls, before+len(feeds.Names()))
 	}
 }
 

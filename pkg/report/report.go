@@ -909,8 +909,8 @@ func provenanceLines(d Data) []provenanceLine {
 	}
 	sort.Strings(names)
 
-	// A reachability analyzer accounts for itself in its own block, beside the counts its
-	// statement qualifies.
+	// A reachability analyzer accounts for its coverage in its own block, beside the counts that
+	// statement qualifies. What else it says, such as the database it read, belongs here.
 	analyzers := map[string]bool{}
 	for _, a := range d.Run.Reachability.Analyzers {
 		analyzers[a.Analyzer] = true
@@ -920,7 +920,7 @@ func provenanceLines(d Data) []provenanceLine {
 	for _, name := range names {
 		for _, p := range d.Run.Controls[name].Report.Provenance {
 			if analyzers[p.Tool] {
-				continue
+				p.Fields = withoutField(p.Fields, "coverage")
 			}
 			// The repository and revision are reported once for the run, not once per control:
 			// five controls reading one checkout is one fact, and repeating it five times in a
@@ -938,6 +938,17 @@ func provenanceLines(d Data) []provenanceLine {
 			out = append(out, provenanceLine{
 				Control: name, Tool: p.Tool, Version: p.Version, Detail: detail,
 			})
+		}
+	}
+	return out
+}
+
+// withoutField drops every field with the given key, leaving the rest in order.
+func withoutField(fields []sarif.Field, key string) []sarif.Field {
+	out := make([]sarif.Field, 0, len(fields))
+	for _, f := range fields {
+		if f.Key != key {
+			out = append(out, f)
 		}
 	}
 	return out

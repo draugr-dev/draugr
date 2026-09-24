@@ -39,6 +39,10 @@ type repoScanner struct {
 	// prewarm, when set, warms shared tool state before a run (see plugin.Prewarmer). Nil for
 	// scanners with nothing to warm.
 	prewarm func(ctx context.Context) error
+	// preflight, when set, runs before the checkout and refuses the scan with its error. For a
+	// scanner that can tell before running that it has nothing trustworthy to read, which is better
+	// reported as "could not run" than discovered in its output.
+	preflight func(ctx context.Context) error
 	// wantsHistory reports whether this scan needs the repository's commit history rather than
 	// only the tree. Nil for the scanners that read a tree, which is all but one.
 	wantsHistory func(cfg plugin.Config) bool
@@ -142,6 +146,11 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	}
 	if repo.URL == "" {
 		return sarif.Report{}, fmt.Errorf("%s: repository target has no url", s.info.Name)
+	}
+	if s.preflight != nil {
+		if err := s.preflight(ctx); err != nil {
+			return sarif.Report{}, fmt.Errorf("%s: %w", s.info.Name, err)
+		}
 	}
 
 	scope := git.Scope{Paths: repo.Paths, Ignore: repo.Ignore}

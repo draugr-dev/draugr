@@ -31,7 +31,7 @@ downloaded.
 | When | What |
 |------|------|
 | `draugr tools install` | each tool's pinned release archive, verified against a recorded SHA-256 |
-| `draugr feeds update` | the CISA KEV catalog and the FIRST EPSS scores |
+| `draugr feeds update` | the CISA KEV catalog, the FIRST EPSS scores and the Go vulnerability database |
 | `draugr self-update` | the latest Draugr release |
 | `draugr doctor` | the latest Draugr release, to compare against yours |
 | a scan, before it starts | the reference data each scanner reads, warmed once for the whole run |
@@ -47,7 +47,7 @@ Do this once, on a machine that has a network, and copy `~/.draugr` across.
 
 ```bash
 draugr tools install --all      # binaries and their data into ~/.draugr/bin
-draugr feeds update             # KEV and EPSS into ~/.draugr/feeds
+draugr feeds update             # KEV, EPSS and the Go vulnerability database into ~/.draugr/feeds
 trivy image --download-db-only  # Trivy's vulnerability database, into its own cache
 grype db update                 # Grype's vulnerability database, if you run it
 nuclei -update-templates        # Nuclei's template set, if you run dast
@@ -68,19 +68,14 @@ Draugr already points it under `~/.draugr/data`, and passes `--jsrepo` at that c
 
 ## What cannot run offline
 
-Two scanners fetch on every invocation, with no cache to prepare and no local copy to hand them.
+Semgrep fetches its default rule pack on every invocation, with no cache to prepare.
 
 | Scanner | What it fetches | From |
 |---|---|---|
 | `semgrep` | the `p/default` rule pack | `semgrep.dev` |
-| `govulncheck` | the Go vulnerability database | `vuln.go.dev` |
 
 Semgrep can be pointed at rules on disk with its own `config` option, which is the way to run
-`sast` without the registry. govulncheck's `-db` flag takes a local URL and **Draugr does not pass
-it**: govulncheck reports "No vulnerabilities found" and exits 0 against an empty or stale database,
-so a mirror that was never populated would read as a clean result. Without it, a machine that
-cannot reach `vuln.go.dev` gets an error and the control says it did not run, which is the answer
-you want.
+`sast` without the registry.
 
 `draugr doctor` lists every host a scan contacts, and marks which are fetched per scan rather than
 warmed once, so the distinction is visible before a pipeline is written rather than after it fails.
@@ -102,6 +97,27 @@ INFO   offline: not refreshing scanner data, using what is on disk
 
 That is the intended behavior: a scanner that could not run has found nothing, and nothing found
 is not the same as nothing there.
+
+## govulncheck
+
+govulncheck reads the copy of the Go vulnerability database that `draugr feeds update` leaves in
+`~/.draugr/feeds/govulndb`, and only after checking it. A copy is refused when it was fetched longer
+ago than [`config.exploitability.maxAge`](../reference/saga-schema.md#configexploitability) (24h by
+default), or when its `index/db.json` or `index/modules.json` is missing, unreadable or empty.
+govulncheck reports "No vulnerabilities found" and exits 0 against an empty or stale database, so
+an unchecked copy could read as a clean result.
+
+With `--offline` and no usable copy, the control reports an error naming the check that failed:
+
+```
+  sca  ERROR  P1 3
+       govulncheck: cannot run offline: local Go vulnerability database fetched 2026-09-20 00:00 UTC,
+         older than 24h; run `draugr feeds update govulndb`
+```
+
+The age is measured from the fetch, and copying `~/.draugr` to a runner keeps that date. Refresh the
+copy within `maxAge`, or raise `maxAge` on a runner deliberately pinned to a known copy. The
+evidence names the database a run read, under `database`.
 
 ## Exploitability feeds
 

@@ -39,7 +39,7 @@ var (
 	govulncheckData = []plugin.DataSource{{
 		Name:    "vulnerability database",
 		Hosts:   []string{"vuln.go.dev"},
-		Local:   "-db file://<dir>, which reports clean rather than failing on an unusable copy",
+		Local:   "draugr feeds update govulndb, checked before each scan and passed as -db file://<dir>",
 		PerScan: true,
 	}}
 	semgrepData = []plugin.DataSource{{

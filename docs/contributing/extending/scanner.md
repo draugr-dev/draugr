@@ -173,7 +173,8 @@ and there is nothing to warm.
 **Check what the tool does with a local copy that is missing or wrong before wiring an offline
 path.** govulncheck's `-db` takes a `file://` URL and reports "No vulnerabilities found", exit 0,
 against an empty directory. A scanner that could not consult its data has found nothing and must
-say so.
+say so, so the local copy has to pass a check before the tool sees it: govulncheck reads one only
+after `feeds.FindGoVulnDB` has confirmed its age and its index.
 
 See [the cache architecture](../cache.md).
 
