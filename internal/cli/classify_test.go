@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/sagatest"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
@@ -88,6 +89,7 @@ func TestRunClassifyWritesUnclassified(t *testing.T) {
 	if err := runClassify(path, classifyOptions{}, in, &out); err != nil {
 		t.Fatal(err)
 	}
+	sagatest.EditorAcceptsFile(t, path, false)
 	m, err := saga.LoadFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -142,6 +144,7 @@ func TestClassifyCommandViaCobra(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
+	sagatest.EditorAcceptsFile(t, path, false)
 	m, _ := saga.LoadFile(path)
 	if m.Components[0].Exposure != saga.ExposureInternal {
 		t.Errorf("gateway = %+v", m.Components[0])
@@ -261,6 +264,7 @@ func TestClassifyFindsTheDescriptorInADirectory(t *testing.T) {
 	if err := runClassify(dir, classifyOptions{}, strings.NewReader("1\n1\n"), &out); err != nil {
 		t.Fatal(err)
 	}
+	sagatest.EditorAcceptsFile(t, path, false)
 	m, err := saga.LoadFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -300,6 +304,7 @@ func TestClassifyComponentsPicksOneAndRedoesIt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.EditorAcceptsFile(t, path, false)
 	m, err := saga.LoadFile(path)
 	if err != nil {
 		t.Fatal(err)

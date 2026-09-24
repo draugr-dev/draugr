@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 
+	"github.com/draugr-dev/draugr/internal/sagatest"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
@@ -91,6 +92,7 @@ func TestK8sImagesSurveyCapturesDigest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	imgs := frag.Components[0].Images
 	if len(imgs) != 1 {
 		t.Fatalf("want 1 image, got %d", len(imgs))
@@ -116,6 +118,7 @@ func TestK8sImagesSurveyDedups(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	if len(frag.Components) != 1 {
 		t.Fatalf("want 1 component, got %d", len(frag.Components))
 	}
@@ -145,6 +148,7 @@ func TestK8sImagesWithoutANamespaceReturnsOneComponentPerNamespace(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	var got []string
 	for _, c := range frag.Components {
 		got = append(got, c.Name)
@@ -165,6 +169,7 @@ func TestK8sImagesNoPods(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	if len(frag.Components) != 0 {
 		t.Errorf("no pods should yield no components, got %d", len(frag.Components))
 	}
@@ -228,6 +233,7 @@ func TestInferExposurePublicFromIngress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	if frag.Components[0].Exposure != saga.ExposurePublic {
 		t.Errorf("ingress → exposure = %q, want public", frag.Components[0].Exposure)
 	}
@@ -289,6 +295,7 @@ func TestExposureIsProposedPerNamespaceAcrossAWholeCluster(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	want := map[string]saga.Exposure{"back": saga.ExposureInternal, "front": saga.ExposurePublic}
 	for _, c := range frag.Components {
 		if c.Exposure != want[c.Name] {
@@ -344,6 +351,7 @@ func TestK8sImagesSkipsExposureEntirelyWhenAskedTo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	if frag.Components[0].Exposure != "" {
 		t.Errorf("exposure = %q, want none proposed", frag.Components[0].Exposure)
 	}
@@ -369,6 +377,7 @@ func TestK8sImagesProposesExposureByDefault(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	if frag.Components[0].Exposure != saga.ExposurePublic {
 		t.Errorf("exposure = %q, want public", frag.Components[0].Exposure)
 	}

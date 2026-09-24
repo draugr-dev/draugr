@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/sagatest"
 	"github.com/draugr-dev/draugr/internal/scanners"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -63,6 +64,7 @@ func TestImagesSharingAnIdentityBecomeOneSigner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	got := signersIn(t, frag)
 	if len(got) != 2 {
 		t.Fatalf("got %d signers, want one per identity: %+v", len(got), got)
@@ -98,6 +100,7 @@ func TestNothingIsWidenedIntoAPattern(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	for _, s := range signersIn(t, frag) {
 		keyless, _ := s["keyless"].(map[string]any)
 		if _, widened := keyless["identityRegexp"]; widened {
@@ -123,6 +126,7 @@ func TestAnUnsignedImageProducesNoSigner(t *testing.T) {
 	if err != nil {
 		t.Fatalf("an unsigned image is not an error: %v", err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	got := signersIn(t, frag)
 	if len(got) != 1 {
 		t.Fatalf("got %d signers, want only the signed image's: %+v", len(got), got)
@@ -146,6 +150,7 @@ func TestASignatureWhoseIdentityIsUnreadableProposesNothing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	if got := signersIn(t, frag); len(got) != 0 {
 		t.Errorf("a signer was proposed with no identity to check: %+v", got)
 	}
@@ -166,6 +171,7 @@ func TestOneUnreadableImageDoesNotDiscardTheRest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("one unreachable image failed the whole survey: %v", err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	if got := signersIn(t, frag); len(got) != 1 {
 		t.Errorf("the readable image's signer was lost: %+v", got)
 	}
@@ -201,6 +207,7 @@ func TestTheReasonSaysWhichImageItCameFrom(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	got := frag.SignerReasons["acme-ci"]
 	if !strings.Contains(got, "ghcr.io/acme/api:1.0") {
 		t.Errorf("reason = %q, want the image it was read from", got)
@@ -247,6 +254,7 @@ func TestTwoRunsWriteTheSameFile(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		sagatest.FragmentAccepted(t, frag)
 		var names []string
 		for _, s := range signersIn(t, frag) {
 			names = append(names, s["name"].(string))

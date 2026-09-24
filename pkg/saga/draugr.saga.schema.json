@@ -291,6 +291,9 @@
           "properties": {
             "checks": {
               "description": "Paths to Rego check files, or directories of them, relative to where Draugr runs. Adds your own misconfiguration rules to Trivy's built-in ones.",
+              "items": {
+                "type": "string"
+              },
               "type": "array"
             },
             "enabled": {
@@ -299,6 +302,9 @@
             },
             "namespaces": {
               "description": "Rego namespaces to evaluate, e.g. [\"user\"]. Needed when your checks declare a namespace Trivy does not scan by default.",
+              "items": {
+                "type": "string"
+              },
               "type": "array"
             }
           },
@@ -336,6 +342,9 @@
           "properties": {
             "dbRepository": {
               "description": "OCI repositories to pull the vulnerability database from, in priority order. Point it at an internal mirror where the runner cannot reach a public registry.",
+              "items": {
+                "type": "string"
+              },
               "type": "array"
             },
             "enabled": {
@@ -348,7 +357,8 @@
                 "enum": [
                   "os",
                   "library"
-                ]
+                ],
+                "type": "string"
               },
               "type": "array"
             }
@@ -442,7 +452,7 @@
             },
             "timeout": {
               "description": "How long to wait for the Job to finish, e.g. \"5m\".",
-              "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
+              "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+)$",
               "type": "string"
             }
           },
@@ -457,6 +467,9 @@
       "properties": {
         "deny": {
           "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"]. A component may add to the project's list; it cannot remove from it.",
+          "items": {
+            "type": "string"
+          },
           "type": "array"
         },
         "enabled": {
@@ -469,6 +482,9 @@
           "properties": {
             "deny": {
               "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"].",
+              "items": {
+                "type": "string"
+              },
               "type": "array"
             },
             "enabled": {
@@ -485,7 +501,7 @@
             },
             "resultTimeout": {
               "description": "How long to wait for Mend to finish analyzing an upload, e.g. \"15m\". Raise it for large monorepos, where the agent's upload finishes long before the analysis does.",
-              "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
+              "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+)$",
               "type": "string"
             },
             "settings": {
@@ -494,6 +510,9 @@
             },
             "warn": {
               "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"].",
+              "items": {
+                "type": "string"
+              },
               "type": "array"
             }
           },
@@ -505,6 +524,9 @@
           "properties": {
             "deny": {
               "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"].",
+              "items": {
+                "type": "string"
+              },
               "type": "array"
             },
             "enabled": {
@@ -517,6 +539,9 @@
             },
             "warn": {
               "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"].",
+              "items": {
+                "type": "string"
+              },
               "type": "array"
             }
           },
@@ -524,6 +549,9 @@
         },
         "warn": {
           "description": "SPDX identifiers reported as a warning rather than an error, e.g. [\"MPL-2.0\"].",
+          "items": {
+            "type": "string"
+          },
           "type": "array"
         }
       },
@@ -561,6 +589,79 @@
         },
         "signers": {
           "description": "Who is expected to have signed what. A signer names itself, the images it covers, and the identity to check against.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "github": {
+                "additionalProperties": false,
+                "description": "A GitHub Actions signer written as its parts. Expands to the keyless issuer and identity, which draugr validate prints.",
+                "properties": {
+                  "ref": {
+                    "description": "The git ref the workflow ran at, e.g. \"refs/heads/main\" or \"refs/tags/v3\".",
+                    "type": "string"
+                  },
+                  "repository": {
+                    "description": "The repository whose workflow signs, as owner/name. A job calling a reusable workflow is signed as that workflow's repository, not as the caller's.",
+                    "type": "string"
+                  },
+                  "workflow": {
+                    "description": "The workflow file, e.g. \".github/workflows/release.yml\".",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "images": {
+                "description": "Image references this signer covers, where * matches any run of characters, e.g. [\"ghcr.io/acme/*\"]. An image no signer covers is observed rather than checked.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "keyless": {
+                "additionalProperties": false,
+                "description": "A Sigstore keyless signature, identified by who issued the token and which workload it named.",
+                "properties": {
+                  "identity": {
+                    "description": "The exact signing identity, e.g. \"https://github.com/acme/ci/.github/workflows/release.yml@refs/tags/v3\". A job calling a reusable workflow is signed as that workflow, not as the caller. Run the control with no signers declared and read it back from --format sarif.",
+                    "type": "string"
+                  },
+                  "identityRegexp": {
+                    "description": "A Go regular expression the identity must match, for a signer covering several workflows. A pattern loose enough to match anything accepts a signature from anybody.",
+                    "type": "string"
+                  },
+                  "issuer": {
+                    "description": "The OIDC issuer, e.g. \"https://token.actions.githubusercontent.com\" for GitHub Actions or your GitLab instance URL for GitLab CI.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "name": {
+                "description": "What to call this signer, e.g. \"our-ci\". Referenced by an image's signedBy.",
+                "type": "string"
+              },
+              "x509": {
+                "additionalProperties": false,
+                "description": "A Notary Project signature, identified by the certificate it carries and the roots that certificate must chain to. What Azure Pipelines produces with a key in Azure Key Vault, and what an in-house PKI produces.",
+                "properties": {
+                  "subject": {
+                    "description": "The certificate subject to require, as a comma-separated distinguished name, e.g. \"C=US, ST=WA, O=Acme, CN=Acme Release Signing\". Run notation inspect on the image to read the exact string.",
+                    "type": "string"
+                  },
+                  "trustStore": {
+                    "description": "Path to a PEM file of root certificates the signing certificate must chain to, relative to where Draugr runs.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          },
           "type": "array"
         },
         "trustRoot": {
@@ -606,14 +707,25 @@
             },
             "exclude": {
               "description": "Skip these gosec rules, by ID, e.g. [\"G104\"]. For rules that do not apply to the codebase, a finding you have judged and accepted belongs in exclusions, where it stays in the report marked suppressed.",
+              "items": {
+                "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|G[0-9]{3})$",
+                "type": "string"
+              },
               "type": "array"
             },
             "include": {
               "description": "Run only these gosec rules, by ID, e.g. [\"G101\", \"G204\"]. Everything else is skipped.",
+              "items": {
+                "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|G[0-9]{3})$",
+                "type": "string"
+              },
               "type": "array"
             },
             "tags": {
               "description": "Go build tags to compile with, e.g. [\"integration\"]. Code behind a tag gosec does not build is code it does not analyze.",
+              "items": {
+                "type": "string"
+              },
               "type": "array"
             }
           },
@@ -678,7 +790,7 @@
             },
             "resultTimeout": {
               "description": "How long to wait for Mend to finish analyzing an upload, e.g. \"15m\". Raise it for large monorepos, where the agent's upload finishes long before the analysis does.",
-              "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
+              "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+)$",
               "type": "string"
             },
             "settings": {
@@ -705,6 +817,9 @@
           "properties": {
             "dbRepository": {
               "description": "OCI repositories to pull the vulnerability database from, in priority order. Point it at an internal mirror where the runner cannot reach a public registry.",
+              "items": {
+                "type": "string"
+              },
               "type": "array"
             },
             "enabled": {
@@ -717,7 +832,8 @@
                 "enum": [
                   "os",
                   "library"
-                ]
+                ],
+                "type": "string"
               },
               "type": "array"
             }
@@ -907,7 +1023,7 @@
         },
         "expires": {
           "description": "Date this exclusion stops applying (YYYY-MM-DD). Past it the finding returns and the report says the exclusion lapsed.",
-          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|\\d{4}-\\d{2}-\\d{2})$",
           "type": "string"
         },
         "paths": {
@@ -974,7 +1090,7 @@
             "24h",
             "168h"
           ],
-          "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
+          "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+)$",
           "type": "string"
         }
       },
@@ -1029,6 +1145,79 @@
           "properties": {
             "signers": {
               "description": "Who is expected to have signed what. A signer names itself, the images it covers, and the identity to check against.",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "github": {
+                    "additionalProperties": false,
+                    "description": "A GitHub Actions signer written as its parts. Expands to the keyless issuer and identity, which draugr validate prints.",
+                    "properties": {
+                      "ref": {
+                        "description": "The git ref the workflow ran at, e.g. \"refs/heads/main\" or \"refs/tags/v3\".",
+                        "type": "string"
+                      },
+                      "repository": {
+                        "description": "The repository whose workflow signs, as owner/name. A job calling a reusable workflow is signed as that workflow's repository, not as the caller's.",
+                        "type": "string"
+                      },
+                      "workflow": {
+                        "description": "The workflow file, e.g. \".github/workflows/release.yml\".",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "images": {
+                    "description": "Image references this signer covers, where * matches any run of characters, e.g. [\"ghcr.io/acme/*\"]. An image no signer covers is observed rather than checked.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "keyless": {
+                    "additionalProperties": false,
+                    "description": "A Sigstore keyless signature, identified by who issued the token and which workload it named.",
+                    "properties": {
+                      "identity": {
+                        "description": "The exact signing identity, e.g. \"https://github.com/acme/ci/.github/workflows/release.yml@refs/tags/v3\". A job calling a reusable workflow is signed as that workflow, not as the caller. Run the control with no signers declared and read it back from --format sarif.",
+                        "type": "string"
+                      },
+                      "identityRegexp": {
+                        "description": "A Go regular expression the identity must match, for a signer covering several workflows. A pattern loose enough to match anything accepts a signature from anybody.",
+                        "type": "string"
+                      },
+                      "issuer": {
+                        "description": "The OIDC issuer, e.g. \"https://token.actions.githubusercontent.com\" for GitHub Actions or your GitLab instance URL for GitLab CI.",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "name": {
+                    "description": "What to call this signer, e.g. \"our-ci\". Referenced by an image's signedBy.",
+                    "type": "string"
+                  },
+                  "x509": {
+                    "additionalProperties": false,
+                    "description": "A Notary Project signature, identified by the certificate it carries and the roots that certificate must chain to. What Azure Pipelines produces with a key in Azure Key Vault, and what an in-house PKI produces.",
+                    "properties": {
+                      "subject": {
+                        "description": "The certificate subject to require, as a comma-separated distinguished name, e.g. \"C=US, ST=WA, O=Acme, CN=Acme Release Signing\". Run notation inspect on the image to read the exact string.",
+                        "type": "string"
+                      },
+                      "trustStore": {
+                        "description": "Path to a PEM file of root certificates the signing certificate must chain to, relative to where Draugr runs.",
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object"
+              },
               "type": "array"
             }
           },
@@ -1305,7 +1494,7 @@
         },
         "digest": {
           "description": "Pin the immutable content digest, e.g. sha256:…",
-          "pattern": "^[a-z0-9]+:[a-f0-9]+$",
+          "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9]+:[a-f0-9]+)$",
           "type": "string"
         },
         "image": {
@@ -1812,6 +2001,7 @@
           "description": "A document to fetch over HTTPS. Fetched once per run and cached; the report records the URL, when it was fetched and the digest of what came back.",
           "format": "uri",
           "minLength": 1,
+          "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|https?://.+)$",
           "type": "string"
         }
       },
@@ -1842,7 +2032,7 @@
     },
     "project": {
       "description": "Which project this descriptor describes: lowercase letters, digits and dashes. A platform files runs under it.",
-      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9]([a-z0-9-]*[a-z0-9])?)$",
       "type": "string"
     },
     "references": {

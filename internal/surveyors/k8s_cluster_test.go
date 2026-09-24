@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 
+	"github.com/draugr-dev/draugr/internal/sagatest"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 )
 
@@ -42,6 +43,7 @@ func TestK8sClusterEmitsAnInfrastructureComponent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	if len(frag.Components) != 1 {
 		t.Fatalf("want one component, got %d", len(frag.Components))
 	}
@@ -114,6 +116,7 @@ func TestK8sClusterPrefersTheRequestedContext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	if ref := frag.Components[0].Infrastructure[0].Ref; ref != "staging" {
 		t.Errorf("ref = %q, want the requested context", ref)
 	}

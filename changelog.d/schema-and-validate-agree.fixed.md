@@ -1,0 +1,1 @@
+- **`draugr validate` refuses a provenance `unmatched` value other than `observe`, `warn` or `fail`.** An editor now also flags an unknown key inside a signer and a `vexSources[].url` that is not http(s), which `draugr validate` already refused.

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/sagatest"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 )
 
@@ -75,6 +76,7 @@ func TestGitHubOrgReposSurvey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	if len(frag.Components) != 2 {
 		t.Fatalf("want 2 repos across pages, got %d", len(frag.Components))
 	}

@@ -300,39 +300,21 @@ func scannerDef(info plugin.ScannerInfo, isDefault bool) map[string]any {
 	return def
 }
 
-// optionDef renders one declared option for the schema, keeping its description so an editor
-// shows the same sentence `draugr controls --options` prints.
+// optionDef publishes one declared option as the plugin declared it.
+//
+// Verbatim rather than rebuilt from a summary, because a summary loses whatever it does not name,
+// such as the closed objects inside a list, and an editor would then accept keys `draugr validate`
+// refuses. The plugin's schema is the one ValidateConfig enforces, so publishing it is what makes
+// the two agree by construction.
 func optionDef(opt plugin.Option) map[string]any {
-	d := map[string]any{"description": opt.Description}
+	d := map[string]any{}
+	if len(opt.Schema) > 0 && json.Unmarshal(opt.Schema, &d) == nil {
+		delete(d, "readOnly")
+		return d
+	}
+	d["description"] = opt.Description
 	if opt.Type != "" {
 		d["type"] = opt.Type
-	}
-	if opt.Pattern != "" {
-		d["pattern"] = opt.Pattern
-	}
-	if len(opt.Enum) > 0 {
-		vals := make([]any, len(opt.Enum))
-		for i, e := range opt.Enum {
-			vals[i] = e
-		}
-		switch {
-		case opt.Type == "array":
-			d["items"] = map[string]any{"enum": vals}
-		case len(opt.Meanings) > 0:
-			// One const per value, each carrying what it does. An editor lists a bare enum and
-			// explains none of it, which on a policy setting leaves the reader picking a word.
-			variants := make([]any, 0, len(opt.Enum))
-			for _, e := range opt.Enum {
-				v := map[string]any{"const": e}
-				if why := opt.Meanings[e]; why != "" {
-					v["description"] = why
-				}
-				variants = append(variants, v)
-			}
-			d["anyOf"] = variants
-		default:
-			d["enum"] = vals
-		}
 	}
 	return d
 }

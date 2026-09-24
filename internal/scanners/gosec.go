@@ -20,12 +20,12 @@ const gosecConfigSchema = `{
   "properties": {
     "include": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": { "type": "string", "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|G[0-9]{3})$" },
       "description": "Run only these gosec rules, by ID, e.g. [\"G101\", \"G204\"]. Everything else is skipped."
     },
     "exclude": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": { "type": "string", "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|G[0-9]{3})$" },
       "description": "Skip these gosec rules, by ID, e.g. [\"G104\"]. For rules that do not apply to the codebase, a finding you have judged and accepted belongs in exclusions, where it stays in the report marked suppressed."
     },
     "tags": {

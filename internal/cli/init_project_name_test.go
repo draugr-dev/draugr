@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/sagatest"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
@@ -56,6 +57,7 @@ func TestInitOnAwkwardlyNamedDirectoryProducesALoadableFile(t *testing.T) {
 	if err := runInit(dir, initOptions{output: out}, io.Discard); err != nil {
 		t.Fatalf("init: %v", err)
 	}
+	sagatest.EditorAcceptsFile(t, out, false)
 	if _, err := saga.LoadFile(out); err != nil {
 		t.Errorf("init wrote a file Draugr cannot load: %v", err)
 	}

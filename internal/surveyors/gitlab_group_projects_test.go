@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/sagatest"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 )
 
@@ -54,6 +55,7 @@ func TestGitLabGroupProjectsSurvey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	if len(frag.Components) != 2 {
 		t.Fatalf("want both pages' projects, got %d", len(frag.Components))
 	}
@@ -123,6 +125,7 @@ func TestGitLabGroupProjectsSkipsWhatCannotBeScanned(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	if len(frag.Components) != 1 || frag.Components[0].Name != "live" {
 		t.Fatalf("components = %+v, want only the scannable one", frag.Components)
 	}

@@ -15,6 +15,7 @@ import (
 	"errors"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/sagatest"
 	"github.com/draugr-dev/draugr/internal/scanpolicy"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -1283,6 +1284,8 @@ func TestSurveyedDescriptorValidates(t *testing.T) {
 	if !v.Valid {
 		t.Errorf("the descriptor a survey returned does not validate: %s\n%s", v.Error, out.Saga)
 	}
+	// And an editor opening the file the assistant writes accepts it too.
+	sagatest.EditorAccepts(t, []byte(out.Saga), false)
 }
 
 // TestSurveySaysWhatItCouldNotReach. A descriptor missing half a cluster looks exactly like one

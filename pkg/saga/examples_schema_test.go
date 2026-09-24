@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -81,6 +82,52 @@ func TestEveryExampleIsValidToAnEditor(t *testing.T) {
 		}
 		if err := schema.Validate(asJSON(t, f)); err != nil {
 			t.Errorf("%s: an editor rejects this file: %v", f, err)
+		}
+	}
+}
+
+// TestEveryPatternLeavesSubstitutionToTheLoader requires every pattern in both schemas to accept a
+// value holding a ${{ VAR }} reference. An editor reads the file before substitution, so a pattern
+// refusing the placeholder underlines a valid descriptor; the loader checks the substituted value.
+func TestEveryPatternLeavesSubstitutionToTheLoader(t *testing.T) {
+	for _, file := range []string{"draugr.saga.schema.json", "draugr.saga-fragment.schema.json"} {
+		raw, err := os.ReadFile(file) // #nosec G304 -- a file in this package
+		if err != nil {
+			t.Fatal(err)
+		}
+		var doc any
+		if err := json.Unmarshal(raw, &doc); err != nil {
+			t.Fatal(err)
+		}
+		found := 0
+		var walk func(n any)
+		walk = func(n any) {
+			switch x := n.(type) {
+			case map[string]any:
+				if p, ok := x["pattern"].(string); ok {
+					found++
+					re := regexp.MustCompile(p)
+					for _, v := range []string{"${{ VALUE }}", "prefix-${{VALUE}}"} {
+						if !re.MatchString(v) {
+							t.Errorf("%s: pattern %s refuses %q", file, p, v)
+						}
+					}
+					if re.MatchString("zz not a value") {
+						t.Errorf("%s: pattern %s accepts anything", file, p)
+					}
+				}
+				for _, v := range x {
+					walk(v)
+				}
+			case []any:
+				for _, v := range x {
+					walk(v)
+				}
+			}
+		}
+		walk(doc)
+		if found < 5 {
+			t.Errorf("%s: found %d patterns; the walk has stopped seeing them", file, found)
 		}
 	}
 }

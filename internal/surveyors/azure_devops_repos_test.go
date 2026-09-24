@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/sagatest"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 )
 
@@ -59,6 +60,7 @@ func TestAzureDevOpsReposSurvey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	if len(frag.Components) != 2 {
 		t.Fatalf("want one component per repository, got %d", len(frag.Components))
 	}
@@ -157,6 +159,7 @@ func TestAzureDevOpsReposShortensTheDefaultBranch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	// A branch with a slash in its own name keeps it: only the refs/heads/ prefix goes.
 	if got := frag.Components[0].Repositories[0].Revision; got != "release/2.0" {
 		t.Errorf("revision = %q, want %q", got, "release/2.0")
@@ -186,6 +189,7 @@ func TestAzureDevOpsReposSkipsWhatCannotBeScanned(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.FragmentAccepted(t, frag)
 	if len(frag.Components) != 1 || frag.Components[0].Name != "live" {
 		t.Fatalf("components = %+v, want only the scannable one", frag.Components)
 	}

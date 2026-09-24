@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/english"
+	"github.com/draugr-dev/draugr/internal/sagatest"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/surveyor"
@@ -67,6 +68,7 @@ func TestRunSurveyToStdout(t *testing.T) {
 		t.Errorf("expected discovered component in output:\n%s", out)
 	}
 	// Output must be a loadable Saga.
+	sagatest.EditorAccepts(t, buf.Bytes(), false)
 	if _, err := saga.Load(buf.Bytes()); err != nil {
 		t.Errorf("survey output is not a valid Saga: %v", err)
 	}
@@ -346,6 +348,7 @@ func TestSurveyOutputIsScannable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.EditorAccepts(t, buf.Bytes(), false)
 	m, err := saga.Load(buf.Bytes())
 	if err != nil {
 		t.Fatalf("survey output is not a valid Saga: %v", err)
@@ -743,6 +746,7 @@ func TestSurveyFragmentWritesComponentsAndNothingElse(t *testing.T) {
 		t.Errorf("the surveyed component is missing:\n%s", got)
 	}
 	// And it has to be readable as what it claims to be.
+	sagatest.EditorAccepts(t, data, true)
 	parsed, err := saga.LoadFragment(data, out)
 	if err != nil {
 		t.Fatalf("the fragment it wrote does not load: %v\n%s", err, got)
@@ -771,6 +775,7 @@ func TestSurveyFragmentAddsToWhatIsAlreadyThere(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sagatest.EditorAccepts(t, data, true)
 	parsed, err := saga.LoadFragment(data, out)
 	if err != nil {
 		t.Fatal(err)

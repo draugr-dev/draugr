@@ -42,6 +42,11 @@ type schemaNode struct {
 	// has a shape an editor can check, and a descriptor the schema flags should be one Draugr
 	// refuses too, from the same expression.
 	Pattern string `json:"pattern"`
+	// AnyOf holds a vocabulary written one const per value, each with its own description, which is
+	// how an editor shows what each value means. Enforced like an enum.
+	AnyOf []struct {
+		Const any `json:"const"`
+	} `json:"anyOf"`
 }
 
 func validateValue(node schemaNode, val any, path string) error {
@@ -52,6 +57,9 @@ func validateValue(node schemaNode, val any, path string) error {
 	}
 	if len(node.Enum) > 0 && !enumContains(node.Enum, val) {
 		return fmt.Errorf("%s: must be one of %s", optionLabel(path), formatEnum(node.Enum))
+	}
+	if consts := anyOfConsts(node); len(consts) > 0 && !enumContains(consts, val) {
+		return fmt.Errorf("%s: must be one of %s", optionLabel(path), formatEnum(consts))
 	}
 	if str, isString := val.(string); isString && node.Pattern != "" {
 		re, err := regexp.Compile(node.Pattern)
@@ -267,15 +275,30 @@ func optionLabel(path string) string {
 // DurationPattern is the shape of a Go duration without a sign: "90s", "15m", "1h30m". Every
 // schema that takes a duration uses this literal, so the editor, the options validator and
 // time.ParseDuration accept the same strings.
-const DurationPattern = `^([0-9]+(\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$`
+//
+// A value holding a ${{ VAR }} reference passes it, as it passes every pattern here: an editor
+// reads the file before substitution, and the loader checks the substituted value against the
+// same shape. Rejecting the placeholder would underline a descriptor that is valid.
+const DurationPattern = `^(.*\$\{\{.*\}\}.*|([0-9]+(\.[0-9]+)?(ns|us|µs|ms|s|m|h))+)$`
 
 // DigestPattern is the shape of a content digest, "algorithm:hex" in lowercase, as an image
 // reference pins one.
-const DigestPattern = `^[a-z0-9]+:[a-f0-9]+$`
+const DigestPattern = `^(.*\$\{\{.*\}\}.*|[a-z0-9]+:[a-f0-9]+)$`
 
 // patternNames says in words what a known pattern accepts, so a refusal reads as advice rather
 // than as a regular expression.
 var patternNames = map[string]string{
 	DurationPattern: "a duration such as 90s, 15m or 1h30m",
 	DigestPattern:   "a digest such as sha256:<hex>",
+}
+
+// anyOfConsts is the vocabulary an anyOf of consts names, or nil when the node has none.
+func anyOfConsts(node schemaNode) []any {
+	var out []any
+	for _, v := range node.AnyOf {
+		if v.Const != nil {
+			out = append(out, v.Const)
+		}
+	}
+	return out
 }

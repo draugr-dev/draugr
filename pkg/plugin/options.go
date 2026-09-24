@@ -32,6 +32,10 @@ type Option struct {
 	Meanings map[string]string `json:"meanings,omitempty"`
 	// Pattern is the regular expression a string value must match, when the schema gives one.
 	Pattern string `json:"pattern,omitempty"`
+	// Schema is the option's declared JSON Schema, exactly as the plugin wrote it, nested items and
+	// closed objects included. The Saga schema publishes this rather than a summary of it, so an
+	// editor holds a descriptor to the same rules ValidateConfig does.
+	Schema json.RawMessage `json:"-"`
 }
 
 // Options reports the settings a scanner accepts, sorted by name, from its declared ConfigSchema.
@@ -72,6 +76,10 @@ func Options(schema json.RawMessage) []Option {
 	if err := json.Unmarshal(schema, &node); err != nil {
 		return nil
 	}
+	var raw struct {
+		Properties map[string]json.RawMessage `json:"properties"`
+	}
+	_ = json.Unmarshal(schema, &raw) // the same document, which just decoded
 	required := make(map[string]bool, len(node.Required))
 	for _, r := range node.Required {
 		required[r] = true
@@ -87,6 +95,7 @@ func Options(schema json.RawMessage) []Option {
 			Description: prop.Description,
 			Required:    required[name],
 			Pattern:     prop.Pattern,
+			Schema:      raw.Properties[name],
 		}
 		// An array constrains its elements; a scalar constrains itself. Either way these are the
 		// values the option accepts, which is the question a caller is asking.

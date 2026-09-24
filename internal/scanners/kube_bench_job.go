@@ -70,7 +70,7 @@ const kubeBenchJobConfigSchema = `{
     },
     "timeout": {
       "type": "string",
-      "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$",
+      "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+)$",
       "description": "How long to wait for the Job to finish, e.g. \"5m\"."
     },
     "context": {
