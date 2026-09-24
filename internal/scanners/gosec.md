@@ -17,9 +17,10 @@ order: 50
 
 A **Go-specialized** static analyzer that complements the polyglot [Semgrep](semgrep.md) with
 deeper Go-specific rules (AST/SSA). Checks out the component's repository and runs
-`gosec -fmt sarif -no-fail -track-suppressions ./...` **with the checkout as the working
-directory** (gosec loads Go packages relative to the cwd, so the target is the relative `./...`
-pattern).
+`gosec -fmt sarif -no-fail -track-suppressions <module>/...` **once per Go module**, for every
+directory holding a `go.mod` outside `vendor/` and `testdata/`. A module below the root and a
+module nested inside another are each analyzed, and each finding is located under its own
+module's directory. A tree with no `go.mod` is reported as analyzed by nothing, never as clean.
 
 - `-no-fail` keeps the process successful when findings exist (findings live in the SARIF
   report, not the exit code; the [`sast`](../controllers/sast.md) controller judges severity).

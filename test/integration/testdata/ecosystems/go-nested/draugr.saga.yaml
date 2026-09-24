@@ -1,0 +1,19 @@
+project: go-nested
+release:
+  version: "1.0"
+config:
+  reachability:
+    analyzers: [govulncheck]
+  controls:
+    sca:
+      enabled: true
+    sast:
+      enabled: true
+      semgrep:
+        config: ${{ DRAUGR_SEALED_SEMGREP_RULES }}
+      gosec:
+        enabled: true
+components:
+  - name: go-nested
+    repositories:
+      - url: ./go-nested

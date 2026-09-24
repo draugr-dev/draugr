@@ -256,3 +256,39 @@ func TestApplyReachabilityTakesTheStrongerVerdictWhenAnalyzersDisagree(t *testin
 		}
 	}
 }
+
+// in places a finding in a manifest, the way the scanners report one Go module among several.
+func in(res sarif.Result, manifest string) sarif.Result {
+	res.Location.URI = manifest
+	return res
+}
+
+func TestApplyReachabilityDoesNotCollapseModules(t *testing.T) {
+	// One repository, two Go modules requiring the same dependency. The module that calls the
+	// vulnerable function is reachable; the one that only requires it is not, and must not be
+	// lent the other's verdict and call path.
+	ctrls := controlsWith(
+		in(scanned("repo", "CVE-2020-36067", "github.com/tidwall/gjson"), "go.mod"),
+		in(scanned("repo", "CVE-2020-36067", "github.com/tidwall/gjson"), "tools/go.mod"),
+		in(analyzed("repo", "CVE-2020-36067", "github.com/tidwall/gjson", sarif.ReachabilityReachable), "go.mod"),
+		in(analyzed("repo", "CVE-2020-36067", "github.com/tidwall/gjson", sarif.ReachabilityUnreachable), "tools/go.mod"),
+	)
+	e := &Engine{}
+	got := e.applyReachability(ctrls, saga.Model{})
+
+	byManifest := map[string]sarif.ReachabilityState{}
+	for _, r := range ctrls["sca"].Report.Results {
+		if r.Tool != "trivy" {
+			t.Errorf("an analyzer finding was kept beside the scanner's: %+v", r)
+		}
+		if r.Reachability != nil {
+			byManifest[r.Location.URI] = r.Reachability.State
+		}
+	}
+	if byManifest["go.mod"] != sarif.ReachabilityReachable || byManifest["tools/go.mod"] != sarif.ReachabilityUnreachable {
+		t.Errorf("verdicts = %v, want reachable at go.mod and unreachable at tools/go.mod", byManifest)
+	}
+	if got.Reachable != 1 || got.Unreachable != 1 {
+		t.Errorf("summary = %+v, want one of each", got)
+	}
+}

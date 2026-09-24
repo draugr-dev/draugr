@@ -1,9 +1,15 @@
 package scanners
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"path/filepath"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 // gosecConfigSchema is the JSON Schema for gosec's Saga config (controllers.sast.gosec).
@@ -41,7 +47,7 @@ const gosecConfigSchema = `{
 // Semgrep); it only makes sense on Go components, so it is opt-in via
 // controls.sast.gosec.enabled.
 func NewGosec() plugin.Scanner {
-	s := newRepoScanner(
+	s := newRepoScannerPerModule(
 		plugin.ScannerInfo{
 			Name:         "gosec",
 			Origin:       "securego",
@@ -51,6 +57,7 @@ func NewGosec() plugin.Scanner {
 			ConfigSchema: json.RawMessage(gosecConfigSchema),
 		},
 		gosecArgs,
+		parseGosec,
 	)
 	s.cacheVersion = sharedGosecVersion.version
 	return s
@@ -69,18 +76,83 @@ func NewGosec() plugin.Scanner {
 //     excluded is indistinguishable from one nobody ever made: the report reads clean, and the
 //     question asked of an exclusion later, who decided this was acceptable, has nothing to
 //     answer from.
-func gosecArgs(_ string, cfg plugin.Config) []string {
-	argv := []string{"gosec", "-fmt", "sarif", "-no-fail", "-track-suppressions"}
+func gosecArgs(dir string, cfg plugin.Config) [][]string {
+	base := []string{"gosec", "-fmt", "sarif", "-no-fail", "-track-suppressions"}
 	if v := commaList(cfg, "include"); v != "" {
-		argv = append(argv, "-include="+v)
+		base = append(base, "-include="+v)
 	}
 	if v := commaList(cfg, "exclude"); v != "" {
-		argv = append(argv, "-exclude="+v)
+		base = append(base, "-exclude="+v)
 	}
 	if v := commaList(cfg, "tags"); v != "" {
-		argv = append(argv, "-tags="+v)
+		base = append(base, "-tags="+v)
 	}
-	// The package pattern stays last: gosec reads flags before it, and appending an option after
-	// it would make the option part of the pattern.
-	return append(argv, "./...")
+	// One run per module, by absolute path. gosec loads packages from the working directory's
+	// module, so `./...` from a root with no go.mod analyzes nothing and writes nothing, and a
+	// module nested inside another is outside the outer one's `./...`.
+	var out [][]string
+	for _, mod := range goModuleDirs(dir) {
+		argv := append([]string{}, base...)
+		out = append(out, append(argv, filepath.Join(mod, "...")))
+	}
+	return out
+}
+
+// parseGosec reads the SARIF documents the per-module runs wrote, one after another, in the order
+// gosecArgs ran them.
+//
+// gosec names a file relative to the module it analyzed, so each document's locations are put back
+// under that module's directory: `main.go` in the module at service/ is service/main.go.
+//
+// No output means no module was found, and the report says so rather than passing: a tree gosec
+// could not analyze must not read like one it analyzed and found clean.
+func parseGosec(out []byte, dir string, _ plugin.Config) (sarif.Report, error) {
+	if len(bytes.TrimSpace(out)) == 0 {
+		return sarif.Report{
+			Tool: "gosec",
+			Provenance: []sarif.Provenance{{
+				Tool:   "gosec",
+				Fields: []sarif.Field{{Key: "coverage", Value: "no go.mod found, so gosec analyzed nothing here"}},
+			}},
+		}, nil
+	}
+	modules := goModuleDirs(dir)
+	dec := json.NewDecoder(bytes.NewReader(out))
+	var reports []sarif.Report
+	for {
+		var doc json.RawMessage
+		err := dec.Decode(&doc)
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return sarif.Report{}, fmt.Errorf("read gosec SARIF: %w", err)
+		}
+		rep, err := sarif.FromSARIF(doc)
+		if err != nil {
+			return sarif.Report{}, err
+		}
+		if i := len(reports); dir != "" && i < len(modules) {
+			underModule(&rep, dir, modules[i])
+		}
+		reports = append(reports, rep)
+	}
+	if dir != "" && len(reports) != len(modules) {
+		return sarif.Report{}, fmt.Errorf("gosec wrote %d reports for %d modules", len(reports), len(modules))
+	}
+	return sarif.Merge(reports...), nil
+}
+
+// underModule prefixes each relative location in rep with module's directory relative to root.
+func underModule(rep *sarif.Report, root, module string) {
+	rel, err := filepath.Rel(root, module)
+	if err != nil || rel == "." {
+		return
+	}
+	for i := range rep.Results {
+		uri := rep.Results[i].Location.URI
+		if uri != "" && !filepath.IsAbs(uri) {
+			rep.Results[i].Location.URI = filepath.ToSlash(filepath.Join(rel, uri))
+		}
+	}
 }

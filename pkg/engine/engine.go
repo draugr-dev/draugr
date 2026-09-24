@@ -1804,9 +1804,10 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 	// Index the analyzers' verdicts by what identifies a dependency finding everywhere else:
 	// the repository it was found in, the package it is about, and the vulnerability id.
 	//
-	// The repository is part of the key deliberately. A component may hold several, and the same
-	// module can be called in one and merely required in another; a key without it would pick
-	// whichever was indexed last and report that verdict for both.
+	// The repository and the manifest are part of the key deliberately. A component may hold
+	// several repositories and a repository several Go modules, and the same dependency can be
+	// called in one and merely required in another; a key without them would report one module's
+	// verdict, and its call path, for all of them.
 	verdicts := map[reachKey]*sarif.Reachability{}
 	analyzers := map[string]*AnalyzerReachability{}
 	for _, cr := range controls {
@@ -1818,7 +1819,7 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 			if _, ok := analyzers[res.Reachability.Analyzer]; !ok {
 				analyzers[res.Reachability.Analyzer] = &AnalyzerReachability{Analyzer: res.Reachability.Analyzer}
 			}
-			key := reachKey{res.Repository, res.Package.Name, res.RuleID}
+			key := reachKey{res.Repository, res.Location.URI, res.Package.Name, res.RuleID}
 			verdicts[key] = strongerReachability(verdicts[key], res.Reachability)
 		}
 	}
@@ -1844,7 +1845,7 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 		kept := cr.Report.Results[:0]
 		for i := range cr.Report.Results {
 			res := cr.Report.Results[i]
-			key := reachKey{res.Repository, packageName(res), res.RuleID}
+			key := reachKey{res.Repository, res.Location.URI, packageName(res), res.RuleID}
 			switch {
 			case res.Reachability != nil:
 				// An analyzer's own finding. Keep it only where nothing else reported the same
@@ -1934,8 +1935,10 @@ func reachabilityRank(s sarif.ReachabilityState) int {
 // reachKey identifies one vulnerability in one package in one repository.
 type reachKey struct {
 	repository string
-	pkg        string
-	rule       string
+	// manifest is the file the dependency was declared in: a Go module's go.mod.
+	manifest string
+	pkg      string
+	rule     string
 }
 
 // packageName is the package a finding is about, or "" for a finding that is not about one.

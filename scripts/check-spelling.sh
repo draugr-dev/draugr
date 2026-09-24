@@ -50,6 +50,7 @@ mapfile -t files < <(
     '*.md' '*.yml' '*.yaml' '*.sh' '*.txt' '*.go' '*.json' '*.py' '*.tape' |
     grep -v '^CHANGELOG\.md$' |
     grep -v '^pkg/report/testdata/gitlab/' |
+    grep -v '/vendor/' |
     # This script states every spelling it rejects, so it cannot be held to its own rule without
     # forbidding itself. The exclusion is the file that defines the rule, and nothing else.
     grep -v '^scripts/check-spelling\.sh$'

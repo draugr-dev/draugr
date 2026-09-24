@@ -32,6 +32,16 @@ advisories:
     symbols:
       golang.org/x/text/language: [ParseAcceptLanguage]
 
+  - id: CVE-2020-36067
+    goID: GO-2021-0054
+    ecosystem: go
+    package: github.com/tidwall/gjson
+    fixed: "v1.6.6"
+    severity: HIGH
+    title: "Fixture: denial of service through a crafted gjson path"
+    symbols:
+      github.com/tidwall/gjson: [Get, GetBytes, GetMany, GetManyBytes, Result.ForEach, Result.Get, unwrap]
+
   - id: CVE-2021-44906
     ecosystem: npm
     package: minimist

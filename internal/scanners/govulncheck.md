@@ -24,13 +24,20 @@ that are actually in the build and reports which of those vulnerabilities the co
 for the ones it can, the call path that reaches them.
 
 That makes it an enrichment rather than a second opinion, and it is wired as one. Its verdicts are
-folded onto the findings the manifest scanner already produced, matched on repository, module and
-vulnerability id; its own copy is then dropped. Without that fold, every Go vulnerability would be
+folded onto the findings the manifest scanner already produced, matched on repository, the
+`go.mod` that declared the dependency, the dependency and the vulnerability id; its own copy is
+then dropped. Without that fold, every Go vulnerability would be
 reported twice under two different identifiers, `CVE-2022-32149` from Trivy and `GO-2022-1059`
 here, which is the opposite of what a noise-reduction feature is for.
 
 A vulnerability only this scanner reports is **kept**, because a finding one tool found and
 another missed is exactly the one that must not disappear in a deduplication.
+
+**Each Go module is analyzed on its own**, once per `go.mod` outside `vendor/` and `testdata/`,
+and each verdict is located at that module's `go.mod`. Two modules requiring the same dependency
+each get a verdict. The module that calls the vulnerable function is `reachable`, and the one that
+only requires it is not lent that call path. A module inside a `go.work` workspace is analyzed as
+the workspace builds it, which is the build `go build` in that directory produces.
 
 ## The three verdicts, and why there are three
 
