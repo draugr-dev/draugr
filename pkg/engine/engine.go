@@ -1817,12 +1817,15 @@ func claimReason(c vex.Claim) string {
 // disappear.
 func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, model saga.Model) ReachabilitySummary {
 	// Index the analyzers' verdicts by what identifies a dependency finding everywhere else:
-	// the repository it was found in, the package it is about, and the vulnerability id.
+	// the component and repository it was found in, the manifest that declared it, the package it
+	// is about, and the vulnerability id.
 	//
-	// The repository and the manifest are part of the key deliberately. A component may hold
-	// several repositories and a repository several Go modules, and the same dependency can be
-	// called in one and merely required in another; a key without them would report one module's
-	// verdict, and its call path, for all of them.
+	// The component, the repository and the manifest are part of the key deliberately. A
+	// component may hold several repositories, a repository several Go modules, and two
+	// components may share one repository while each scans only its own paths. The same
+	// dependency can be called in one of these and merely required in another, and a key without
+	// all three would give every finding one verdict and a call path through code its own
+	// component may not contain.
 	verdicts := map[reachKey]*sarif.Reachability{}
 	analyzers := map[string]*AnalyzerReachability{}
 	for _, cr := range controls {
@@ -1834,7 +1837,7 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 			if _, ok := analyzers[res.Reachability.Analyzer]; !ok {
 				analyzers[res.Reachability.Analyzer] = &AnalyzerReachability{Analyzer: res.Reachability.Analyzer}
 			}
-			key := reachKey{res.Repository, res.Location.URI, res.Package.Name, res.RuleID}
+			key := reachKey{res.Component, res.Repository, res.Location.URI, res.Package.Name, res.RuleID}
 			verdicts[key] = strongerReachability(verdicts[key], res.Reachability)
 		}
 	}
@@ -1860,7 +1863,7 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 		kept := cr.Report.Results[:0]
 		for i := range cr.Report.Results {
 			res := cr.Report.Results[i]
-			key := reachKey{res.Repository, res.Location.URI, packageName(res), res.RuleID}
+			key := reachKey{res.Component, res.Repository, res.Location.URI, packageName(res), res.RuleID}
 			switch {
 			case res.Reachability != nil:
 				// An analyzer's own finding. Keep it only where nothing else reported the same
@@ -1947,8 +1950,11 @@ func reachabilityRank(s sarif.ReachabilityState) int {
 	}
 }
 
-// reachKey identifies one vulnerability in one package in one repository.
+// reachKey identifies one vulnerability in one package, as one component's scan of one
+// repository reported it.
 type reachKey struct {
+	// component is the component whose job produced the finding, empty for a project-scoped one.
+	component  string
 	repository string
 	// manifest is the file the dependency was declared in: a Go module's go.mod.
 	manifest string
