@@ -279,3 +279,16 @@ func TestSBOMLine(t *testing.T) {
 		})
 	}
 }
+
+func TestArtifactFilenamesNumberTwoScopesOfOneRepository(t *testing.T) {
+	doc := sbom.Document{Component: "web", Target: "https://github.com/acme/mono", Format: saga.SBOMSPDXJSON}
+	arts := SBOMArtifacts([]sbom.Document{doc, doc, doc})
+	var got []string
+	for _, a := range arts {
+		got = append(got, a.Filename)
+	}
+	want := "sbom-web-https-github-com-acme-mono.spdx.json,sbom-web-https-github-com-acme-mono-2.spdx.json,sbom-web-https-github-com-acme-mono-3.spdx.json"
+	if strings.Join(got, ",") != want {
+		t.Errorf("got %v", got)
+	}
+}

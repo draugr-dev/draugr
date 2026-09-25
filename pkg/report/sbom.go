@@ -22,6 +22,7 @@ var sbomMeta = map[saga.SBOMFormat]struct{ ext, contentType string }{
 // same path as every other output rather than needing their own delivery mechanism.
 func SBOMArtifacts(docs []sbom.Document) []Artifact {
 	arts := make([]Artifact, 0, len(docs))
+	taken := map[string]int{}
 	for _, d := range docs {
 		meta, ok := sbomMeta[d.Format]
 		if !ok {
@@ -35,6 +36,15 @@ func SBOMArtifacts(docs []sbom.Document) []Artifact {
 			// The assembled document has no component or target to name it after, and "the
 			// project" is the distinction a reader needs when both kinds are in one directory.
 			name = "sbom-project." + meta.ext
+		}
+		// One component can hold one repository twice, scoped to two paths: two inventories with
+		// the same component and source. A numbered second name keeps the second from overwriting
+		// the first when both are written to one directory.
+		if n := taken[name]; n > 0 {
+			taken[name]++
+			name = strings.TrimSuffix(name, "."+meta.ext) + fmt.Sprintf("-%d.", n+1) + meta.ext
+		} else {
+			taken[name] = 1
 		}
 		arts = append(arts, Artifact{
 			Format:      "sbom",
