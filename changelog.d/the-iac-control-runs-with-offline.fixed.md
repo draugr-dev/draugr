@@ -1,1 +1,0 @@
-- **The `iac` control runs with `--offline`.** Draugr passed `trivy config` the vulnerability database's `--skip-db-update`, which it refuses, so every offline run reported `iac` as an error. It now passes `--skip-check-update`, and Trivy evaluates the checks built into the pinned release.

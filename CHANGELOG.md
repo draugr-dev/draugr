@@ -12,6 +12,32 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.133.0] - 2026-09-25
+
+### Added
+
+- **A scan names the dependency files it did not read.** A `pyproject.toml` or `package.json` with no lockfile, a requirements file with no pinned versions, or a file the scanners passed over is listed under **Unread** with the reason, one line per component, and in `report.json` under `dependencyFiles`. Covers `sca` and `licenses`. ([#1202](https://github.com/draugr-dev/draugr/issues/1202))
+
+- **govulncheck runs on an air-gapped runner.** `draugr feeds update govulndb` downloads the Go vulnerability database into `~/.draugr/feeds`, and a scan passes it to govulncheck once its age is within `config.exploitability.maxAge` and its index lists modules. A refused copy is never read. Online, the scan queries `vuln.go.dev` and warns; with `--offline`, the control reports an error.
+
+- **`trivyFs` options for dependencies Trivy skips by default.** `filePatterns` adds files such as `requirements-dev.txt`, `includeDevDeps` reports development dependencies for npm, Yarn and Gradle, and `detectionPriority: comprehensive` reads a range such as `flask>=0.12` as its minimum version.
+
+### Fixed
+
+- **A dependency finding names its package's own line in the lockfile.** It named the first line mentioning the package, which could be a comment such as `# via flask`, a parent's dependency list, or a longer name like `rack-test`. It now takes the line Trivy's parser records, and otherwise searches for the whole name outside comments.
+
+- **An offline scan no longer asks Maven Central about a `pom.xml`.** With `--offline`, Draugr now passes Trivy `--offline-scan`, so it reads the dependencies the pom declares without resolving them over the network.
+
+- **`draugr init` writes `controls:`.** The descriptor it generated used the older `controllers:` key, which still loads; it now uses the key the reference and `draugr controls` name.
+
+- **Every example in the guides and the descriptor reference is one the CLI accepts.** Code scanning, Azure Pipelines, GitLab, the `draugr-api` reference and the reports guide showed `config.reports`, which the CLI refuses; each now names its reports on the publisher, or leaves them out where the destination renders its own.
+
+- **gosec and govulncheck analyze every Go module in a repository.** gosec ran once from the root, so a module below it was never analyzed and `sast` passed. It now runs per module. Each govulncheck verdict is located at its own module's `go.mod`, so a module that only requires a dependency is no longer marked reachable by another that calls it.
+
+- **Semgrep rules from a local `config` keep the id their file declares.** Semgrep prefixed each id with the rules file's directory, so the same rule had a different id on every machine and an exclusion or `draugr diff` baseline written on one missed on another.
+
+- **The `iac` control runs with `--offline`.** Draugr passed `trivy config` the vulnerability database's `--skip-db-update`, which it refuses, so every offline run reported `iac` as an error. It now passes `--skip-check-update`, and Trivy evaluates the checks built into the pinned release.
+
 ## [0.132.0] - 2026-09-24
 
 ### Added
@@ -5925,7 +5951,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.132.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.133.0...HEAD
+[0.133.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.133.0
 [0.132.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.132.0
 [0.131.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.131.1
 [0.131.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.131.0

@@ -1,1 +1,0 @@
-- **Every example in the guides and the descriptor reference is one the CLI accepts.** Code scanning, Azure Pipelines, GitLab, the `draugr-api` reference and the reports guide showed `config.reports`, which the CLI refuses; each now names its reports on the publisher, or leaves them out where the destination renders its own.
