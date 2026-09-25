@@ -1,0 +1,29 @@
+{
+  "name": "draugr",
+  "displayName": "Draugr",
+  "version": "0.134.0",
+  "description": "Security scanning for AI agents: SAST, SCA, secrets, IaC, DAST, ranked by real risk.",
+  "author": {
+    "name": "Draugr",
+    "url": "https://draugr.dev"
+  },
+  "homepage": "https://draugr.dev/docs/latest/guides/ai-agents-mcp/",
+  "repository": "https://github.com/draugr-dev/draugr",
+  "license": "Apache-2.0",
+  "keywords": [
+    "security",
+    "sast",
+    "sca",
+    "sarif",
+    "devsecops",
+    "vulnerability"
+  ],
+  "mcpServers": {
+    "draugr": {
+      "command": "draugr",
+      "args": [
+        "mcp"
+      ]
+    }
+  }
+}

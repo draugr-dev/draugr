@@ -98,6 +98,11 @@ jobs:
           set -euo pipefail
           ./scripts/changelog.sh promote "$VERSION"
           ./scripts/changelog.sh check
+          # The Claude Code plugin is read from the repository tree, and an installed copy
+          # updates only when its plugin.json version changes. Set here so the commit the tag is
+          # cut from carries it; the MCP Registry entry and the .mcpb manifest are rendered at
+          # publish time instead, because nothing reads them from the tree.
+          ./scripts/set-plugin-version.sh "$VERSION"
 
           git config user.name "Wilson Santos"
           git config user.email "wilson@draugr.dev"

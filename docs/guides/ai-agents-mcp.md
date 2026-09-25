@@ -45,6 +45,30 @@ For **Claude Code**: `claude mcp add draugr -- draugr mcp`.
 The server speaks MCP on stdin/stdout, not text. Running `draugr mcp` in a terminal by hand looks
 like it has hung, it's waiting for a client.
 
+## Claude Code plugin
+
+The Draugr plugin registers the server in Claude Code from a marketplace this repository
+publishes. Run both commands inside a Claude Code session:
+
+```text
+/plugin marketplace add draugr-dev/draugr
+/plugin install draugr@draugr
+```
+
+The plugin runs `draugr mcp` from your `PATH` with the server's own defaults. It does not carry the
+binary; [install Draugr](../getting-started/install.md) before the plugin. When `draugr` is not on
+`PATH`, the session opens with a message that the server cannot start, the install command
+`curl -fsSL https://draugr.dev/install.sh | sh`, and a link to the other install methods; restart
+Claude Code after installing. With `draugr` on `PATH`, the check is silent.
+
+A server you registered yourself with `claude mcp add` that runs the same command takes precedence
+over the plugin's. Claude Code starts only that server, with any flags you gave it.
+
+The plugin and the binary update separately:
+
+- `/plugin marketplace update draugr` updates the plugin, which carries Draugr's release version.
+- `draugr self-update` updates the binary.
+
 ## What the assistant can do
 
 | Tool | What it answers |
