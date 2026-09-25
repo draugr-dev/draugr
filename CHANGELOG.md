@@ -22,7 +22,7 @@ _Nothing yet._
 
 - **An AI assistant can propose a descriptor for a project that has none.** The MCP tool `propose_saga` returns the `draugr.saga.yaml` that `draugr init` would write, one component per directory with `perDirectory`, and writes nothing. When the directory already holds a descriptor, the output names it.
 
-- **An assistant can say why a finding ranks where it does, and who accepted the ones it does not rank.** MCP findings carry their exploitability escalation, reachability verdict and other scanners; accepted findings come back apart with who decided, why and until when; each result names a next step; and stale KEV or EPSS copies are marked, in `results.sarif` too.
+- **An assistant can say why a finding ranks where it does, and who accepted the ones it does not rank.** MCP findings carry their exploitability escalation, reachability verdict and the other scanners that found them. Accepted findings come back in their own list, with who decided, why and until when. Each result names a next step, and stale KEV or EPSS copies are marked, in `results.sarif` too.
 
 - **A finding a scanner excluded on its own now stays in the report, suppressed.** A `gitleaks:allow` comment, a Grype `ignore:` rule and a `.trivyignore` line covering a license or an IaC check are counted under `scanner exclusions`, with `origin: tool` or `origin: scanner`, the file, and the reason where one was given.
 
@@ -30,9 +30,9 @@ _Nothing yet._
 
 - **A file at the repository root is scanned only by a component whose `paths` names it.** Components sharing a repository no longer each report the findings in a root lockfile, `Dockerfile` or committed secret. A component built from the root module names its files, as in `paths: [services/web, go.mod, go.sum]`. Scanner configuration such as `.trivyignore` stays in every scoped checkout.
 
-- **Band counts read count first, as `13 P1`, in `draugr scan`, `draugr diff` and the HTML report**, the order the pull-request comment uses. The `draugr diff` terminal output states its gate above the list of changes, so a long list cannot push it out of view.
+- **Band counts read count first, as `13 P1`, in `draugr scan`, `draugr diff` and the HTML report**, the order the pull-request comment uses. `draugr diff` states its gate above the list of changes, in the terminal and in the pull-request comment, so a long list cannot push it out of view.
 
-- **`draugr diff` counts the unchanged findings by band**, so a passing diff still shows the P1s the change inherited. The terminal and the pull-request comment both draw an `unchanged` strip under the `new` one, leaving out findings suppressed in both scans. The comment states its gate above the list of changes, where a long list cannot hide it.
+- **`draugr diff` counts the unchanged findings by band**, so a passing diff still shows the P1s the change inherited. The terminal and the pull-request comment both draw an `unchanged` strip under the `new` one, leaving out findings suppressed in both scans.
 
 - **A key with no value is refused.** `config:` on its own line, `release: null`, `release: ~` and a bare `-` in a list fail validation with the line named, as they already did in your editor. Delete the key or give it a value.
 
