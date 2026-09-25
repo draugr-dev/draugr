@@ -1,6 +1,6 @@
-# The advisories every sealed database is generated from: Trivy's, the Go vulnerability database
-# govulncheck reads, and retire.js's repository. The identifiers and version ranges are the public
-# facts the fixtures are built around; the titles are written for the fixtures.
+# The advisories every sealed database is generated from: Trivy's, Grype's, the Go vulnerability
+# database govulncheck reads, and retire.js's repository. The identifiers and version ranges are the
+# public facts the fixtures are built around; the titles are written for the fixtures.
 #
 # A scenario's expected.yaml names findings by these identifiers. Adding a package to a fixture
 # without an entry here leaves it with no advisory, which is a scenario that proves nothing about it.
@@ -11,6 +11,16 @@ advisories:
     fixed: "0.12.3"
     severity: HIGH
     title: "Fixture: flask denial of service through crafted JSON"
+
+  # Keyed by its GHSA in the Grype database, with the CVE beside it, so Grype's byCve option
+  # changes the identifier Grype reports for it.
+  - id: CVE-2020-14343
+    ghsa: GHSA-8q59-q68h-6hv4
+    ecosystem: pip
+    package: PyYAML
+    fixed: "5.4"
+    severity: CRITICAL
+    title: "Fixture: arbitrary code execution through full_load in PyYAML"
 
   - id: CVE-2021-38561
     goID: GO-2021-0113

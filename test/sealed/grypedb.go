@@ -126,8 +126,10 @@ func writeGrypeTables(path string, advs Advisories, builtAt time.Time) (err erro
 		stamp, GrypeSchemaModel, grypeSchemaRevision, grypeSchemaAddition); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(`INSERT INTO providers VALUES ('github', '1', 'draugr-sealed', ?, 'xxh64:0')`, stamp); err != nil {
-		return err
+	for _, provider := range []string{"github", "nvd"} {
+		if _, err := tx.Exec(`INSERT INTO providers VALUES (?, '1', 'draugr-sealed', ?, 'xxh64:0')`, provider, stamp); err != nil {
+			return err
+		}
 	}
 	packages := map[string]int64{}
 	for _, adv := range advs.Advisories {
@@ -144,17 +146,7 @@ func writeGrypeTables(path string, advs Advisories, builtAt time.Time) (err erro
 			}
 			packages[key] = pkgID
 		}
-		vulnBlob, err := insertBlob(tx, map[string]any{
-			"id":          adv.ID,
-			"description": adv.Title,
-			"refs":        []map[string]string{{"url": "https://nvd.nist.gov/vuln/detail/" + adv.ID}},
-			"severities":  []map[string]any{{"scheme": "CHML", "value": strings.ToLower(adv.Severity), "rank": 0}},
-		})
-		if err != nil {
-			return err
-		}
-		vulnID, err := insert(tx, `INSERT INTO vulnerability_handles (name, status, published_date, modified_date, provider_id, blob_id)
-			VALUES (?, 'active', ?, ?, 'github', ?)`, adv.ID, stamp, stamp, vulnBlob)
+		vulnID, err := insertGrypeVulnerability(tx, adv, stamp)
 		if err != nil {
 			return err
 		}
@@ -175,6 +167,44 @@ func writeGrypeTables(path string, advs Advisories, builtAt time.Time) (err erro
 		}
 	}
 	return tx.Commit()
+}
+
+// insertGrypeVulnerability stores adv's vulnerability record and returns the handle its affected
+// packages point at.
+//
+// An advisory with a GHSA is stored as Grype's GitHub provider stores one: keyed by the GHSA, with
+// the CVE as an alias, and the CVE as a record of its own from the NVD provider. --by-cve reports
+// the match under the alias and reads its severity from that CVE record; without the record, a
+// finding under --by-cve would carry an unknown severity no real database produces.
+func insertGrypeVulnerability(tx *sql.Tx, adv Advisory, stamp string) (int64, error) {
+	record := func(name, provider, url string, aliases []string) (int64, error) {
+		blob := map[string]any{
+			"id":          name,
+			"description": adv.Title,
+			"refs":        []map[string]string{{"url": url}},
+			"severities":  []map[string]any{{"scheme": "CHML", "value": strings.ToLower(adv.Severity), "rank": 0}},
+		}
+		if len(aliases) > 0 {
+			blob["aliases"] = aliases
+		}
+		blobID, err := insertBlob(tx, blob)
+		if err != nil {
+			return 0, err
+		}
+		return insert(tx, `INSERT INTO vulnerability_handles (name, status, published_date, modified_date, provider_id, blob_id)
+			VALUES (?, 'active', ?, ?, ?, ?)`, name, stamp, stamp, provider, blobID)
+	}
+	nvd := "https://nvd.nist.gov/vuln/detail/" + adv.ID
+	if adv.GHSA == "" {
+		return record(adv.ID, "github", nvd, nil)
+	}
+	if _, err := record(adv.ID, "nvd", nvd, nil); err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(`INSERT INTO vulnerability_aliases (name, alias) VALUES (?, ?)`, adv.GHSA, adv.ID); err != nil {
+		return 0, err
+	}
+	return record(adv.GHSA, "github", "https://github.com/advisories/"+adv.GHSA, []string{adv.ID})
 }
 
 // grypePackageName is the name Grype looks a package up under. Python names are normalized as

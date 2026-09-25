@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -12,6 +13,11 @@ import (
 type Advisory struct {
 	// ID is the identifier a scanner reports: a CVE where there is one.
 	ID string `yaml:"id"`
+	// GHSA is the GitHub advisory identifier, for an advisory whose CVE is a separate record. The
+	// Grype database then keys the advisory by it and lists ID as its related CVE, with the CVE's
+	// own record beside it, the way Grype's GitHub and NVD providers store one. Grype reports the
+	// GHSA with byCve off and the CVE with it on; the other databases report ID either way.
+	GHSA string `yaml:"ghsa,omitempty"`
 	// GoID is the Go vulnerability database's own identifier, for an advisory govulncheck reads.
 	GoID string `yaml:"goID,omitempty"`
 	// Ecosystem is the package ecosystem: pip, npm, go, rubygems, cargo, composer, nuget, maven,
@@ -67,6 +73,8 @@ func LoadAdvisories(path string) (Advisories, error) {
 			return Advisories{}, fmt.Errorf("%s: a go advisory needs goID and symbols, or govulncheck has nothing to follow", where)
 		case adv.Ecosystem == "js" && adv.CWE == "":
 			return Advisories{}, fmt.Errorf("%s: a js advisory needs cwe, which retire.js requires", where)
+		case adv.GHSA != "" && (!strings.HasPrefix(adv.GHSA, "GHSA-") || !strings.HasPrefix(adv.ID, "CVE-")):
+			return Advisories{}, fmt.Errorf("%s: an advisory with a ghsa needs a GHSA- ghsa and a CVE- id, the pair Grype's byCve chooses between", where)
 		case seen[adv.Ecosystem+"/"+adv.ID]:
 			return Advisories{}, fmt.Errorf("%s: listed twice", where)
 		}

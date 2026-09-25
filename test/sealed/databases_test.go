@@ -70,6 +70,8 @@ func TestLoadAdvisories(t *testing.T) {
 		"bad severity":   {strings.Replace(base, "HIGH", "SEVERE", 1), "severity"},
 		"go without ids": {strings.Replace(base, "pip", "go", 1), "goID and symbols"},
 		"js without cwe": {strings.Replace(base, "pip", "js", 1), "cwe"},
+		"ghsa, no cve":   {strings.Replace(base, "    ecosystem:", "    ghsa: GHSA-xxxx-xxxx-xxxx\n    ecosystem:", 1), "ghsa"},
+		"ghsa malformed": {strings.Replace(strings.Replace(base, "id: X", "id: CVE-1", 1), "    ecosystem:", "    ghsa: G-1\n    ecosystem:", 1), "ghsa"},
 		"listed twice":   {base + strings.TrimPrefix(base, "advisories:\n"), "twice"},
 		"not yaml":       {"advisories: [", "advisories.yaml"},
 	} {
@@ -242,6 +244,8 @@ func TestWriteGrypeDB(t *testing.T) {
 	advs := loadTestAdvisories(t)
 	advs.Advisories = append(advs.Advisories, Advisory{
 		ID: "CVE-2020-0001", Ecosystem: "pip", Package: "Flask", Fixed: "1.0", Severity: "LOW", Title: "second",
+	}, Advisory{
+		ID: "CVE-2020-14343", GHSA: "GHSA-8q59-q68h-6hv4", Ecosystem: "pip", Package: "PyYAML", Fixed: "5.4", Severity: "CRITICAL", Title: "pyyaml",
 	})
 	if err := WriteGrypeDB(home, advs, built); err != nil {
 		t.Fatal(err)
@@ -286,14 +290,46 @@ func TestWriteGrypeDB(t *testing.T) {
 		`python flask CVE-2018-1000656 {"cves":["CVE-2018-1000656"],"ranges":[{"fix":{"state":"fixed","version":"0.12.3"},"version":{"constraint":"<0.12.3","type":"python"}}]}`,
 		`go-module golang.org/x/text CVE-2021-38561 {"cves":["CVE-2021-38561"],"ranges":[{"fix":{"state":"fixed","version":"0.3.7"},"version":{"constraint":"<0.3.7","type":"go"}}]}`,
 		`python flask CVE-2020-0001 {"cves":["CVE-2020-0001"],"ranges":[{"fix":{"state":"fixed","version":"1.0"},"version":{"constraint":"<1.0","type":"python"}}]}`,
+		`python pyyaml GHSA-8q59-q68h-6hv4 {"cves":["CVE-2020-14343"],"ranges":[{"fix":{"state":"fixed","version":"5.4"},"version":{"constraint":"<5.4","type":"python"}}]}`,
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("affected packages:\n%s\nwant, with the js advisory left out and both flask advisories on one package:\n%s",
 			strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 	var packages int
-	if err := db.QueryRow(`SELECT count(*) FROM packages`).Scan(&packages); err != nil || packages != 2 {
-		t.Errorf("packages = %d (%v), want flask once and x/text", packages, err)
+	if err := db.QueryRow(`SELECT count(*) FROM packages`).Scan(&packages); err != nil || packages != 3 {
+		t.Errorf("packages = %d (%v), want flask once, x/text and pyyaml", packages, err)
+	}
+
+	// The advisory with a GHSA is a GitHub record naming the CVE, beside the CVE's NVD record,
+	// which is what --by-cve looks up before it replaces the GHSA.
+	records, err := db.Query(`SELECT v.name, v.provider_id, b.value FROM vulnerability_handles v
+		JOIN blobs b ON b.id = v.blob_id WHERE v.name IN ('GHSA-8q59-q68h-6hv4', 'CVE-2020-14343') ORDER BY v.id`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = records.Close() }()
+	got = nil
+	for records.Next() {
+		var name, provider, blob string
+		if err := records.Scan(&name, &provider, &blob); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, name+" "+provider+" "+blob)
+	}
+	if err := records.Err(); err != nil {
+		t.Fatal(err)
+	}
+	want = []string{
+		`CVE-2020-14343 nvd {"description":"pyyaml","id":"CVE-2020-14343","refs":[{"url":"https://nvd.nist.gov/vuln/detail/CVE-2020-14343"}],"severities":[{"rank":0,"scheme":"CHML","value":"critical"}]}`,
+		`GHSA-8q59-q68h-6hv4 github {"aliases":["CVE-2020-14343"],"description":"pyyaml","id":"GHSA-8q59-q68h-6hv4","refs":[{"url":"https://github.com/advisories/GHSA-8q59-q68h-6hv4"}],"severities":[{"rank":0,"scheme":"CHML","value":"critical"}]}`,
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("vulnerability records:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	var alias string
+	if err := db.QueryRow(`SELECT alias FROM vulnerability_aliases WHERE name = 'GHSA-8q59-q68h-6hv4'`).Scan(&alias); err != nil || alias != "CVE-2020-14343" {
+		t.Errorf("alias = %q (%v), want CVE-2020-14343", alias, err)
 	}
 
 	raw, err := os.ReadFile(filepath.Join(dir, "import.json")) // #nosec G304 -- under t.TempDir()
