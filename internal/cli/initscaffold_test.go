@@ -65,7 +65,7 @@ func TestInitNamesTheFilesBehindEachScanner(t *testing.T) {
 	got, _ := runInitIn(t, shop, initOptions{})
 	for _, want := range []string{
 		"analyzers: [govulncheck]   # ranks a Go finding down when no code calls it · go.mod\n",
-		"retirejs:\n        enabled: true     # copied JavaScript no lockfile lists · web/static/jquery-1.8.3.min.js\n",
+		"retirejs:\n        enabled: true     # copied JavaScript, outside any lockfile · web/static/jquery-1.8.3.min.js\n",
 		"grypeFs:\n        enabled: true     # Trivy does not read setup.py · ml/setup.py\n",
 		"gosec:\n        enabled: true     # Go-specific checks · go.mod\n",
 		"# IaC misconfiguration (Trivy config) · deploy/terraform · deploy/chart · Dockerfile\n",

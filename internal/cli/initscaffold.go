@@ -91,7 +91,7 @@ func scaffoldSaga(t inventory.Tree, name string, perDirectory bool) string {
 	b.WriteString("  controls:\n")
 	b.WriteString("    sca:\n      enabled: true       # dependency vulnerabilities (Trivy)\n")
 	if len(t.VendoredJS) > 0 {
-		fmt.Fprintf(&b, "      retirejs:\n        enabled: true     # copied JavaScript no lockfile lists%s\n",
+		fmt.Fprintf(&b, "      retirejs:\n        enabled: true     # copied JavaScript, outside any lockfile%s\n",
 			note(pathList(t.VendoredJS)))
 	}
 	if len(t.TrivyUnread) > 0 {
