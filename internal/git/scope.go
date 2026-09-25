@@ -1,9 +1,12 @@
 package git
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -18,11 +21,17 @@ import (
 // absent for the next scanner someone adds. A tree that already contains what was asked for
 // needs no translation and cannot be forgotten.
 type Scope struct {
-	// Paths restricts the checkout to these directories. Empty means the whole repository.
+	// Paths restricts the checkout to these directories and files. Empty, or an entry naming the
+	// root, means the whole repository.
 	//
-	// Directory prefixes, not general globs: `services/web` and `services/web/**` both mean the
-	// same subtree. That is what sparse checkout can express, and expressing it any other way
-	// would mean downloading the repository to throw most of it away.
+	// Prefixes, not general globs: `services/web` and `services/web/**` both mean the same subtree,
+	// and `go.mod` means that one file. That is what sparse checkout can express, and expressing it
+	// any other way would mean downloading the repository to throw most of it away.
+	//
+	// A file at the repository root is in the checkout only when an entry names it, apart from the
+	// scanners' own configuration (see rootConfig). Components sharing a repository would otherwise
+	// each receive the root lockfile, Dockerfile and any secret committed beside them, and report
+	// every finding in them once per component.
 	Paths []string
 
 	// Ignore removes matching paths after checkout, applied last so it can carve out of Paths.
@@ -60,22 +69,93 @@ func (s Scope) Key() string {
 	return key
 }
 
-// coneDirs normalizes Paths into the directory list `git sparse-checkout set --cone` accepts.
+// rootConfig is the scanners' own configuration: the root files every scoped checkout keeps,
+// whatever Paths names.
+//
+// Each tool reads its file from the root of the tree it is handed. They configure how a component
+// is scanned rather than being part of one, so dropping them from a scoped checkout would bring
+// back findings the repository already suppressed.
+var rootConfig = []string{
+	".gitleaks.toml", ".gitleaksignore", ".grype.yaml", ".semgrepignore",
+	".trivyignore", ".trivyignore.yaml", "trivy.yaml",
+}
+
+// selected normalizes Paths into the repository-relative entries a scoped checkout keeps. Nil
+// means the whole repository: no entries, or an entry naming the root.
 //
 // A trailing `/**` or `/*` is what a descriptor written against the old documentation says, and
 // it means the same subtree, so it is accepted rather than rejected.
-func coneDirs(paths []string) []string {
+func selected(paths []string) []string {
 	out := make([]string, 0, len(paths))
 	for _, p := range paths {
 		p = strings.TrimSpace(p)
 		p = strings.TrimSuffix(strings.TrimSuffix(p, "/**"), "/*")
 		p = strings.Trim(p, "/")
 		if p == "" || p == "." {
-			continue
+			return nil
 		}
 		out = append(out, p)
 	}
+	if len(out) == 0 {
+		return nil
+	}
 	return out
+}
+
+// sparsePatterns renders the selected entries and the root configuration as the patterns
+// `git sparse-checkout set --no-cone` takes.
+//
+// Not cone mode, which takes directories only and always materializes every root file. Anchored
+// with a leading `/`, a pattern names one path, and one that names a directory takes everything
+// beneath it.
+func sparsePatterns(keep []string) []string {
+	out := make([]string, 0, len(keep)+len(rootConfig))
+	for _, k := range keep {
+		out = append(out, "/"+k)
+	}
+	for _, c := range rootConfig {
+		out = append(out, "/"+c)
+	}
+	return out
+}
+
+// missingPaths returns the selected entries absent from a tree, in the order given.
+//
+// A mistyped entry would otherwise narrow the scan to the root configuration alone. The run that
+// follows reports nothing from a tree it never looked at, which is the same shape as a clean
+// result.
+func missingPaths(keep []string, present func(string) bool) []string {
+	var out []string
+	for _, k := range keep {
+		if !present(k) {
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
+// errMissingPaths names the entries missing from the tree at revision.
+func errMissingPaths(missing []string, revision string) error {
+	at := "in the working tree"
+	if revision != "" {
+		at = "at " + shortRevision(revision)
+	}
+	return fmt.Errorf("paths %s: not in the repository %s", strings.Join(quoteAll(missing), ", "), at)
+}
+
+func quoteAll(ss []string) []string {
+	out := make([]string, len(ss))
+	for i, s := range ss {
+		out[i] = strconv.Quote(s)
+	}
+	return out
+}
+
+func shortRevision(rev string) string {
+	if len(rev) == 40 {
+		return rev[:12]
+	}
+	return rev
 }
 
 // prune removes everything under dir that the scope excludes.
@@ -84,7 +164,7 @@ func coneDirs(paths []string) []string {
 // same tree; and it always enforces Ignore, which sparse checkout cannot express. Safe to be
 // destructive: dir is a temporary clone this package created and will delete.
 func prune(dir string, scope Scope, enforcePaths bool) error {
-	keep := coneDirs(scope.Paths)
+	keep := selected(scope.Paths)
 
 	var doomed []string
 	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
@@ -128,14 +208,12 @@ func prune(dir string, scope Scope, enforcePaths bool) error {
 
 // withinPaths reports whether rel should survive a Paths restriction.
 //
-// Three things survive: anything inside a selected directory, the directories leading down to
-// one, and every file at the repository root. The last is the part that is easy to get wrong and
-// expensive to get wrong, go.mod, package.json, Dockerfile, .semgrepignore, .trivyignore and
-// their kin live there, and a scanner that cannot see them does not fail. It reports fewer
-// findings against a tree it could not fully understand, which reads exactly like a clean scan.
+// Four things survive: a selected file, anything inside a selected directory, the directories
+// leading down to one, and the scanners' configuration at the root. It is the same tree sparse
+// checkout materializes from sparsePatterns, so the slow route cannot disagree with the fast one.
 func withinPaths(rel string, keep []string, isDir bool) bool {
-	if !isDir && !strings.Contains(rel, "/") {
-		return true // a file at the repository root
+	if !isDir && slices.Contains(rootConfig, rel) {
+		return true
 	}
 	for _, k := range keep {
 		if rel == k || strings.HasPrefix(rel, k+"/") {

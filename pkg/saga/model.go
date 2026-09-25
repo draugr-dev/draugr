@@ -705,12 +705,14 @@ func (c Criticality) Valid() bool { return slices.Contains(Criticalities, c) }
 type Repository struct {
 	URL      string `yaml:"url"`
 	Revision string `yaml:"revision,omitempty"`
-	// Paths restricts the scan to these directories. Empty scans the whole repository.
+	// Paths restricts the scan to these directories and files. Empty scans the whole repository.
 	//
-	// Files at the repository root are always included regardless: manifests and the scanners' own
-	// configuration live there, and a tool that cannot see go.mod or .trivyignore does not fail. It
-	// reports less against a tree it did not fully understand, which is indistinguishable from a
-	// clean scan.
+	// A file at the repository root belongs to a component only when an entry names it. Components
+	// sharing a repository would otherwise each scan the root lockfile, Dockerfile and anything
+	// committed beside them, and report every finding there once per component. The scanners' own
+	// configuration at the root is the exception, kept for every component, because it decides how
+	// a tree is scanned rather than being part of one. An entry the repository does not hold is
+	// refused at checkout: it would narrow the scan to nothing and report the silence as clean.
 	Paths []string `yaml:"paths,omitempty"`
 	// Ignore removes matching paths from the scan, applied after Paths so it can carve out of
 	// one. Gitignore-style: a trailing `/` is a directory, `*` matches within a path segment,

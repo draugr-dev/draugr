@@ -1499,8 +1499,10 @@ const sbomPseudoControl = "(sbom)"
 // generateSBOMs takes one inventory per distinct repository and image in the model.
 //
 // Deduplicated by target identity: several controls scan the same repository, and an SBOM of it
-// is the same document however many controls touched it. Ordered by component then target so a
-// run is reproducible and two runs diff cleanly.
+// is the same document however many controls touched it. A repository's identity carries its
+// scope, so two components on different paths of one repository each get an inventory of their
+// own part, the part their controls scanned. Ordered by component then target so a run is
+// reproducible and two runs diff cleanly.
 func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Document, []string) {
 	cfg := model.Config.SBOM
 	if cfg == nil || !cfg.Enabled {
@@ -1523,6 +1525,7 @@ func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Do
 		for _, r := range comp.Repositories {
 			targets = append(targets, plugin.RepositoryTarget{
 				URL: r.URL, Revision: r.Revision, WorkingTree: e.workingTree,
+				Paths: r.Paths, Ignore: r.Ignore,
 			})
 		}
 		for _, img := range comp.Images {
