@@ -19,7 +19,7 @@ import (
 type ProposeInput struct {
 	Path string `json:"path,omitempty" jsonschema:"the directory to propose a descriptor for, absolute or relative to the directory the server was started in; defaults to that directory"`
 	// PerDirectory is `draugr init --per-directory`.
-	PerDirectory bool `json:"perDirectory,omitempty" jsonschema:"propose a component for each directory that holds its own dependency file, scoped with paths and carved out of the root component with ignore"`
+	PerDirectory bool `json:"perDirectory,omitempty" jsonschema:"one component per directory that holds its own dependency file, and a root component for the rest of the tree"`
 }
 
 // ProposeOutput is a descriptor to look at, the same shape survey returns.
@@ -49,7 +49,7 @@ func addProposeSaga(s *mcp.Server, root string) {
 		Description: "Return the Saga descriptor `draugr init` would write for a directory, as " +
 			"YAML, with the controls its dependency files, infrastructure code and Dockerfiles " +
 			"call for. Call this when a project has no descriptor, before writing one from " +
-			"get_saga_schema. It reads the directory and writes nothing, so the user decides " +
+			"get_saga_schema. It writes nothing; show the proposal to the user, who decides " +
 			"whether and where to save it.",
 	}, ProposeSagaTool(root))
 }

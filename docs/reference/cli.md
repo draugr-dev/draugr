@@ -1593,7 +1593,7 @@ an MCP **resource**, so a client can read the descriptor without a tool call.
 | `list_controls` | Which controls exist, what each checks, which scanner backs it, and the options each scanner accepts |
 | `get_saga_schema` | The Saga schema this build enforces |
 | `validate_saga` | Validate a descriptor, by `path` or by `content` |
-| `propose_saga` | Return the descriptor `draugr init` would write for a directory beneath the working directory (`path`, and `perDirectory` for `--per-directory`) without writing it, naming any descriptor already there |
+| `propose_saga` | Return the descriptor `draugr init` would write for `path`, a directory under the working directory, with `perDirectory` for `--per-directory`; writes nothing and names any descriptor already there |
 | `check_tools` | Report which scanners are installed and what to run if any are missing |
 | `feeds_status` | Report whether each feed is cached, with its fetch date, age, size, digest and staleness, and the `draugr feeds update` command to run if any is missing or stale |
 | `summarize_report` | Rank an existing `results.sarif` by priority, with accepted findings and their decisions listed apart |

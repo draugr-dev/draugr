@@ -288,8 +288,8 @@ func instructions(mode ScanMode) string {
 		"fetch it, and don't quietly work around a missing scanner by running one yourself: the " +
 		"point is that the descriptor decides what gets checked.\n\n" +
 		"The Saga is the scope. If a descriptor exists, trust it over your own guess at what " +
-		"should be scanned; if one doesn't, propose_saga returns the descriptor `draugr init` " +
-		"would write, and get_saga_schema and list_controls are what you need to edit it."
+		"should be scanned; if one doesn't, call propose_saga for the descriptor `draugr init` " +
+		"would write, then edit it with get_saga_schema and list_controls."
 	switch mode {
 	case ScanOff:
 		s += "\n\nScanning is not enabled on this server, so these tools only read. To run a " +
