@@ -11,7 +11,7 @@ import (
 
 // Scope narrows a run to named components and controls, without changing the descriptor.
 //
-// The distinction it exists for: `config.controllers` records a decision. This project does not
+// The distinction it exists for: `config.controls` records a decision. This project does not
 // need `dast`. And a filter is a view over one run. Editing the first to get the second is how a
 // temporary change gets committed, and how a control ends up disabled in main because somebody
 // was debugging.

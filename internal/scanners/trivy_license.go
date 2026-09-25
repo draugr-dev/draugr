@@ -276,9 +276,9 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 func licenseLevel(lic trivyLicense, deny, warn []string) (sarif.Level, string, bool) {
 	switch {
 	case slices.Contains(deny, lic.Name):
-		return sarif.LevelError, "Denied by this project's license policy (config.controllers.licenses.deny).", true
+		return sarif.LevelError, "Denied by this project's license policy (config.controls.licenses.deny).", true
 	case slices.Contains(warn, lic.Name):
-		return sarif.LevelWarning, "Flagged by this project's license policy (config.controllers.licenses.warn).", true
+		return sarif.LevelWarning, "Flagged by this project's license policy (config.controls.licenses.warn).", true
 	}
 	meta, ok := categoryLevel[strings.ToLower(lic.Category)]
 	if !ok {

@@ -41,7 +41,7 @@
             }
           ],
           "message": {
-            "text": "inherits is ISC. Denied by this project's license policy (config.controllers.licenses.deny)."
+            "text": "inherits is ISC. Denied by this project's license policy (config.controls.licenses.deny)."
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -71,7 +71,7 @@
             }
           ],
           "message": {
-            "text": "ms is MIT. Denied by this project's license policy (config.controllers.licenses.deny)."
+            "text": "ms is MIT. Denied by this project's license policy (config.controls.licenses.deny)."
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -125,7 +125,7 @@
             }
           ],
           "message": {
-            "text": "tslib is 0BSD. Flagged by this project's license policy (config.controllers.licenses.warn)."
+            "text": "tslib is 0BSD. Flagged by this project's license policy (config.controls.licenses.warn)."
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -155,7 +155,7 @@
             }
           ],
           "message": {
-            "text": "sprintf-js is BSD-3-Clause. Flagged by this project's license policy (config.controllers.licenses.warn)."
+            "text": "sprintf-js is BSD-3-Clause. Flagged by this project's license policy (config.controls.licenses.warn)."
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -192,7 +192,7 @@
             },
             {
               "fullDescription": {
-                "text": "Denied by this project's license policy (config.controllers.licenses.deny)."
+                "text": "Denied by this project's license policy (config.controls.licenses.deny)."
               },
               "helpUri": "https://spdx.org/licenses/ISC.html",
               "id": "license/ISC/inherits",
@@ -208,7 +208,7 @@
             },
             {
               "fullDescription": {
-                "text": "Denied by this project's license policy (config.controllers.licenses.deny)."
+                "text": "Denied by this project's license policy (config.controls.licenses.deny)."
               },
               "helpUri": "https://spdx.org/licenses/MIT.html",
               "id": "license/MIT/ms",
@@ -224,7 +224,7 @@
             },
             {
               "fullDescription": {
-                "text": "Flagged by this project's license policy (config.controllers.licenses.warn)."
+                "text": "Flagged by this project's license policy (config.controls.licenses.warn)."
               },
               "helpUri": "https://spdx.org/licenses/0BSD.html",
               "id": "license/0BSD/tslib",
@@ -240,7 +240,7 @@
             },
             {
               "fullDescription": {
-                "text": "Flagged by this project's license policy (config.controllers.licenses.warn)."
+                "text": "Flagged by this project's license policy (config.controls.licenses.warn)."
               },
               "helpUri": "https://spdx.org/licenses/BSD-3-Clause.html",
               "id": "license/BSD-3-Clause/sprintf-js",

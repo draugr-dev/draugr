@@ -35,7 +35,7 @@ type EmptyInput struct{}
 
 // Control is one control an agent could enable.
 type Control struct {
-	Name            string   `json:"name" jsonschema:"the control's name, as used under config.controllers in a Saga"`
+	Name            string   `json:"name" jsonschema:"the control's name, as used under config.controls in a Saga"`
 	Scope           string   `json:"scope" jsonschema:"whether the control runs per component or once for the project"`
 	Purpose         string   `json:"purpose" jsonschema:"what the control checks for"`
 	DefaultScanners []string `json:"defaultScanners" jsonschema:"scanners that run when the control is enabled"`
@@ -76,7 +76,7 @@ func ListControls(reg *engine.Registry) ControlsOutput {
 		options[info.Name] = opts
 	}
 	out := ControlsOutput{
-		Hint: "Enable a control under config.controllers.<name> in the Saga, or per component. " +
+		Hint: "Enable a control under config.controls.<name> in the Saga, or per component. " +
 			"An opt-in scanner additionally needs controllers.<control>.<scanner>.enabled: true. " +
 			"A scanner accepts only the options listed in scannerOptions, anything else is " +
 			"rejected when the descriptor is validated, so do not invent keys.",

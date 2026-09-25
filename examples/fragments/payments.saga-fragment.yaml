@@ -4,7 +4,7 @@
 # against it, which is the whole shape of what a team owns: what we ship, and what we have
 # decided to live with.
 #
-# There is no `project`, no `release` and no `config.controllers` here, and that is not an
+# There is no `project`, no `release` and no `config.controls` here, and that is not an
 # omission. A fragment cannot set them, which is what makes collecting fragments from repositories
 # this team controls a safe thing for the organization to do.
 

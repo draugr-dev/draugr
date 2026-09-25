@@ -132,7 +132,7 @@ func (Licenses) Aggregate(reports []sarif.Report) (plugin.ControlResult, error) 
 // winning, which replaces a list outright. Applied here, a component that added one denied license
 // would silently discard the organization's:
 //
-//	config.controllers.licenses.deny:  [GPL-3.0-only, AGPL-3.0-only]   # the org's policy
+//	config.controls.licenses.deny:  [GPL-3.0-only, AGPL-3.0-only]   # the org's policy
 //	components[0].controllers.licenses.deny: [Sleepycat]               # would drop both
 //
 // A component quietly opting out of an organization's license policy is precisely the failure a

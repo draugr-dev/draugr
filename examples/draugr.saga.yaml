@@ -247,7 +247,7 @@ components:
     criticality: supporting
     repositories:
       - url: https://github.com/acme/etl.git
-    controls:             # per-component overrides win over config.controllers
+    controls:             # per-component overrides win over config.controls
       tls:
         enabled: false       # no endpoint to probe
     infrastructure:

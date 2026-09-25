@@ -164,9 +164,9 @@ func mendLicenseReport(ctx context.Context, libs []mendapi.InventoryLibrary, cfg
 func mendLicenseLevel(id string, deny, warn []string) (sarif.Level, string, bool) {
 	switch {
 	case slices.Contains(deny, id):
-		return sarif.LevelError, "Denied by this project's license policy (config.controllers.licenses.deny).", true
+		return sarif.LevelError, "Denied by this project's license policy (config.controls.licenses.deny).", true
 	case slices.Contains(warn, id):
-		return sarif.LevelWarning, "Flagged by this project's license policy (config.controllers.licenses.warn).", true
+		return sarif.LevelWarning, "Flagged by this project's license policy (config.controls.licenses.warn).", true
 	}
 	return "", "", false
 }

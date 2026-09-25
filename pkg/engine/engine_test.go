@@ -381,7 +381,7 @@ func TestRunReportsThatNothingWasChecked(t *testing.T) {
 	// The message has to say what to do; "nothing ran" alone leaves the reader guessing whether
 	// it is their descriptor or a broken install.
 	joined := strings.Join(msgs, " ")
-	for _, want := range []string{"no controls ran", "config.controllers"} {
+	for _, want := range []string{"no controls ran", "config.controls"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("message should mention %q, got %q", want, joined)
 		}
