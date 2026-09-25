@@ -1,0 +1,17 @@
+project: images-trivy-grype
+release:
+  version: "1.0"
+config:
+  controls:
+    images:
+      enabled: true
+      trivy:
+        enabled: true
+      grype:
+        enabled: true
+components:
+  - name: images-trivy-grype
+    repositories:
+      - url: ./images-trivy-grype
+    images:
+      - image: 127.0.0.1:18080/images-trivy-grype:1.0

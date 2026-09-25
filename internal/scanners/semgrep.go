@@ -3,10 +3,13 @@ package scanners
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/internal/toolexec"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -50,7 +53,82 @@ func NewSemgrep() plugin.Scanner {
 	// that has said it has no network should not make one.
 	s.run = runSemgrepInDir
 	s.parse = parseSemgrep
+	s.preflight = semgrepPreflight
 	return s
+}
+
+// semgrepConfigSetting is where a descriptor sets the ruleset, for an error to name.
+const semgrepConfigSetting = "config.controls.sast.semgrep.config"
+
+// semgrepPreflight refuses an offline scan whose ruleset Semgrep would fetch.
+//
+// Semgrep downloads a registry ruleset on every invocation and keeps no copy, so there is nothing
+// to warm and nothing to fall back on. Left to run, it reaches the registry on a machine that has
+// said it has no network, or fails on the fetch with an error about a download rather than about
+// the setting that caused it.
+func semgrepPreflight(_ context.Context, cfg plugin.Config) error {
+	if !netpolicy.Offline() {
+		return nil
+	}
+	config, _ := cfg["config"].(string)
+	if config == "" {
+		return fmt.Errorf("cannot run offline: %s is unset, and Semgrep fetches its default, %s, from %s; "+
+			"set it to a rules file or directory on disk",
+			semgrepConfigSetting, semgrepDefaultRuleset, semgrepRegistryHost())
+	}
+	host, remote := semgrepRemoteHost(config)
+	if !remote {
+		return nil
+	}
+	return fmt.Errorf("cannot run offline: %s is %s, which Semgrep fetches from %s; "+
+		"set it to a rules file or directory on disk", semgrepConfigSetting, config, host)
+}
+
+// semgrepRemoteHost reports whether Semgrep fetches config rather than reading it from disk, and
+// the host it fetches from.
+//
+// The classification is Semgrep's own, from its config resolver: "r2c", a URL, the product names
+// (code, policy, secrets, supply-chain, comma-joined), a registry id starting r/, p/ or s/, and
+// "auto" are remote, and anything else is a path. Matching it exactly matters in both directions:
+// a remote config treated as a path fetches under --offline, and a path treated as remote refuses
+// a scan that would have run.
+func semgrepRemoteHost(config string) (string, bool) {
+	if u, err := url.Parse(config); err == nil && u.Scheme != "" && u.Host != "" {
+		return u.Host, true
+	}
+	if config == "r2c" {
+		return "semgrep.dev", true
+	}
+	if config == "auto" || semgrepProductNames(config) {
+		return semgrepRegistryHost(), true
+	}
+	switch {
+	case strings.HasPrefix(config, "r/"), strings.HasPrefix(config, "p/"), strings.HasPrefix(config, "s/"):
+		return semgrepRegistryHost(), true
+	}
+	return "", false
+}
+
+// semgrepProductNames reports whether config is a comma-joined list of Semgrep product names, each
+// of which Semgrep resolves against its AppSec Platform.
+func semgrepProductNames(config string) bool {
+	for name := range strings.SplitSeq(config, ",") {
+		switch name {
+		case "code", "policy", "secrets", "supply-chain":
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// semgrepRegistryHost is the host Semgrep resolves registry ids against: SEMGREP_URL's when it is
+// set, semgrep.dev otherwise.
+func semgrepRegistryHost() string {
+	if u, err := url.Parse(os.Getenv("SEMGREP_URL")); err == nil && u.Host != "" {
+		return u.Host
+	}
+	return "semgrep.dev"
 }
 
 // parseSemgrep reads Semgrep's SARIF and reports each rule from a local config under the id its

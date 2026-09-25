@@ -100,7 +100,8 @@ func runSealed(t *testing.T, s sealed.Scenario, advs sealed.Advisories, bin, ser
 		copyFile(filepath.Join(ecosystems, "semgrep.yaml"), filepath.Join(work, "semgrep.yaml"), 0o600),
 		s.CopyWorkdir(work),
 		// The rules again, where Semgrep fetches its default pack from, so a descriptor naming no
-		// rules, which is what init writes, runs the same ones.
+		// rules, which is what init writes, runs the same ones in a scenario scanned without
+		// --offline. Offline, Semgrep refuses the default pack and never asks.
 		os.MkdirAll(filepath.Join(served, "c", "p"), 0o750),
 		copyFile(filepath.Join(ecosystems, "semgrep.yaml"), filepath.Join(served, "c", "p", "default"), 0o600),
 		s.CopyIfPresent("served", served),
@@ -219,12 +220,26 @@ func scanWithInit(t *testing.T, c sealed.Container, draugr string, s sealed.Scen
 	if err != nil {
 		t.Fatalf("%s: %v", s.Name, err)
 	}
-	// init names no rules for Semgrep, so it fetches its default pack, and a sast result in this
-	// scan is one from the sealed rules only if that fetch reached the loopback server.
+	// init names no rules for Semgrep, so it would fetch its default pack. Offline, the sast control
+	// refuses that fetch, and neither the request nor a result from the sealed rules may appear.
+	// Without --offline, a sast result in this scan is one from the sealed rules only if the fetch
+	// reached the loopback server.
 	if slices.Contains(s.Expected.Init.Controls, "sast") && s.Expected.Sealed.WithoutTool != "semgrep" {
-		if log, _ := os.ReadFile(c.RequestLog); !strings.Contains(string(log), "GET /c/p/default\n") { // #nosec G304 -- under the test's work directory
+		log, _ := os.ReadFile(c.RequestLog) // #nosec G304 -- under the test's work directory
+		asked := strings.Contains(string(log), "GET /c/p/default\n")
+		switch {
+		case s.Expected.InitRefusesSemgrep() && asked:
+			t.Errorf("%s: Semgrep asked the sealed server for its default rules under --offline:\n%s", s.Name, log)
+		case !s.Expected.InitRefusesSemgrep() && !asked:
 			t.Errorf("%s: Semgrep never asked the sealed server for its default rules:\n%s", s.Name, log)
 		}
+	}
+	if s.Expected.InitRefusesSemgrep() {
+		rules, err := sealed.SemgrepRuleIDs(filepath.Join(ecosystems, "semgrep.yaml"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		anns = sealed.WithoutRules(anns, rules)
 	}
 	errProblems, err := sealed.CheckErrors(exp.Errors, readFile(t, filepath.Join(out, "report.json")))
 	if err != nil {

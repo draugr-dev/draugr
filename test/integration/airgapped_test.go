@@ -74,7 +74,8 @@ func TestAirGapped(t *testing.T) {
 	}
 
 	// The one scanner the guide says cannot run offline, with the configuration it would fetch.
-	// The control has to say it could not run; a sast control that passes here passed on nothing.
+	// The control has to say it could not run, and name the setting that would let it; a sast
+	// control that passes here passed on nothing.
 	t.Run("semgrep-registry", func(t *testing.T) {
 		var base sealed.Scenario
 		for _, s := range scenarios {
@@ -94,7 +95,7 @@ func TestAirGapped(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(work, "registry.saga.yaml"), []byte(descriptor), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		exp := sealed.Expected{Errors: []sealed.ErrorExpectation{{Control: "sast"}}}
+		exp := sealed.Expected{Errors: []sealed.ErrorExpectation{{Control: "sast", Contains: sealed.SemgrepDefaultRefusal}}}
 		runAirGapped(t, base, bin, prepared, work, "registry.saga.yaml", exp)
 	})
 }

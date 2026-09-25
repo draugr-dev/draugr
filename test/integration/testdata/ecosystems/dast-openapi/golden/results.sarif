@@ -9,7 +9,7 @@
         "draugr/provenance": [
           {
             "fields": {
-              "endpoint": "http://127.0.0.1:18080 spec=./dast-openapi/openapi.yaml methods=get,head",
+              "endpoint": "http://127.0.0.1:18080",
               "excluded": "1 operation not scanned: delete (1)",
               "methods": "get, head",
               "operations": "1",

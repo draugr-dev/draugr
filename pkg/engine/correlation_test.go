@@ -204,3 +204,39 @@ func TestCorrelationDoesNotCrossAComponent(t *testing.T) {
 		t.Errorf("counted = %d, want one per component", counted)
 	}
 }
+
+// Trivy and Grype reading one image report one flaw, and the same flaw in a second image of the same
+// component is a second one. An image finding carries no repository, so the image is what keeps two
+// images of one component apart.
+func TestCorrelationCountsOneFlawPerImage(t *testing.T) {
+	inImage := func(tool, rule, ref string) sarif.Result {
+		r := found(tool, rule, "pkg:pypi/flask@0.12.2", sarif.LevelError, 7.5)
+		r.Repository = ""
+		r.Image = ref
+		r.Location = sarif.Location{URI: ref}
+		return r
+	}
+	ctrls := controlsWith(
+		inImage("trivy", "CVE-2018-1000656", "registry.example/api:1.0"),
+		inImage("grype", "CVE-2018-1000656-flask", "registry.example/api:1.0"),
+		inImage("trivy", "CVE-2018-1000656", "registry.example/worker:1.0"),
+		inImage("grype", "CVE-2018-1000656-flask", "registry.example/worker:1.0"),
+	)
+	groups, _ := applyCorrelation(ctrls)
+	if groups != 2 {
+		t.Fatalf("groups = %d, want one per image", groups)
+	}
+	counted := map[string]int{}
+	for _, r := range ctrls["sca"].Report.Results {
+		if r.Correlated() {
+			continue
+		}
+		counted[r.Image]++
+		if len(r.Correlation.AlsoFoundBy) != 1 || r.Correlation.AlsoFoundBy[0].Tool != "grype" {
+			t.Errorf("%s: alsoFoundBy = %+v, want grype", r.Image, r.Correlation.AlsoFoundBy)
+		}
+	}
+	if counted["registry.example/api:1.0"] != 1 || counted["registry.example/worker:1.0"] != 1 {
+		t.Errorf("counted = %v, want one finding per image", counted)
+	}
+}

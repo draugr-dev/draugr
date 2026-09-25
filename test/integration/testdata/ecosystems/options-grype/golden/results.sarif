@@ -35,6 +35,13 @@
             "component": "by-advisory",
             "control": "images",
             "image": "127.0.0.1:18080/options-grype:1.0",
+            "package": {
+              "ecosystem": "python",
+              "fixedVersion": "5.4",
+              "name": "pyyaml",
+              "purl": "pkg:pypi/pyyaml@5.3.1",
+              "version": "5.3.1"
+            },
             "priority": "P1",
             "security-severity": "9",
             "tool": "grype"
@@ -62,6 +69,13 @@
             "component": "default",
             "control": "images",
             "image": "127.0.0.1:18080/options-grype:1.0",
+            "package": {
+              "ecosystem": "python",
+              "fixedVersion": "5.4",
+              "name": "pyyaml",
+              "purl": "pkg:pypi/pyyaml@5.3.1",
+              "version": "5.3.1"
+            },
             "priority": "P1",
             "security-severity": "9",
             "tool": "grype"

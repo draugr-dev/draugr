@@ -16,6 +16,7 @@ findings:
     tool: grype
     rule: CVE-2018-1000656-flask
     location: 127.0.0.1:18080/images-grype:1.0
+    package: python flask 0.12.2
 
 # init reads the repository, which names no image, so its descriptor scans none.
 initScan:

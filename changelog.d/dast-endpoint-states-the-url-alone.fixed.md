@@ -1,0 +1,1 @@
+- **The dast MEASURED AGAINST line states each fact once.** `endpoint` shows the URL alone, and the spec, the methods and the authentication appear only in their own fields, in the console, the reports and `results.sarif`.

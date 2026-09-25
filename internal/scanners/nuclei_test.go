@@ -587,6 +587,37 @@ func TestNucleiScanFromSpecUsesThePreparedDocument(t *testing.T) {
 	}
 }
 
+// TestNucleiProvenanceStatesEachFactOnce holds the endpoint to the URL a reader would open. The
+// target's identity carries the spec and auth markers so two jobs against one URL key apart; the
+// provenance states the same facts as fields of their own, so an endpoint holding the identity
+// prints the spec, the methods and the auth twice.
+func TestNucleiProvenanceStatesEachFactOnce(t *testing.T) {
+	t.Setenv("DRAUGR_TEST_TOK", "abc123")
+	host := plugin.HostTarget{
+		URL:  "https://user:pass@staging.example.com",
+		Spec: &plugin.HostSpec{Path: "./openapi.yaml", Methods: []string{"get", "head"}},
+		Auth: &plugin.HostAuth{Kind: "bearer", TokenEnv: "DRAUGR_TEST_TOK"}, // #nosec G101 -- the name of an environment variable
+	}
+	prov := nucleiProvenance(host, preparedSpec{Kept: 2})
+	got := map[string]string{}
+	for _, f := range prov.Fields {
+		got[f.Key] = f.Value
+	}
+	if got["endpoint"] != "https://staging.example.com" {
+		t.Errorf("endpoint = %q, want the URL alone, without credentials or markers", got["endpoint"])
+	}
+	described := prov.Describe()
+	for _, once := range []string{"openapi.yaml", "get, head", "bearer", "DRAUGR_TEST_TOK"} {
+		if n := strings.Count(described, once); n != 1 {
+			t.Errorf("%q appears %d times in %q, want once", once, n, described)
+		}
+	}
+	// The identity is what keys the job, and it keeps the markers.
+	if id := host.Identity(); !strings.Contains(id, "spec=") || !strings.Contains(id, "auth=") {
+		t.Errorf("the job identity lost its markers: %q", id)
+	}
+}
+
 func TestNucleiScanRejectsAnUnusableSpec(t *testing.T) {
 	s := nucleiScanner{
 		info: plugin.ScannerInfo{Name: "nuclei"},
