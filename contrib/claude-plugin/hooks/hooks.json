@@ -1,0 +1,17 @@
+{
+  "description": "Reports a missing draugr binary, which the plugin's MCP server runs.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/check-draugr.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "draugr",
+  "description": "The Draugr plugin for Claude Code.",
+  "owner": {
+    "name": "Draugr",
+    "url": "https://draugr.dev"
+  },
+  "plugins": [
+    {
+      "name": "draugr",
+      "source": "./contrib/claude-plugin",
+      "category": "security",
+      "tags": ["security", "sast", "sca", "secrets", "iac", "sarif", "mcp"]
+    }
+  ]
+}
