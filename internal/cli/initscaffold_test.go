@@ -269,9 +269,9 @@ func TestInitWritesFilePatternsForRequirementsTrivyDoesNotOpen(t *testing.T) {
 		want  string
 	}{
 		{"named", map[string]string{"requirements-dev.txt": "flask==0.12.2\n", "requirements.txt": "click==8.0.0\n"},
-			`filePatterns: ['pip:requirements[^/]*\.txt$']   # Trivy opens requirements.txt and no other name · requirements-dev.txt` + "\n"},
+			`filePatterns: ['pip:requirements[^/]*\.txt$']   # requirements files under other names · requirements-dev.txt` + "\n"},
 		{"in a directory", map[string]string{"requirements/test.txt": "pytest==8.0.0\n"},
-			`filePatterns: ['pip:(^|/)requirements/[^/]+\.txt$']   # Trivy opens requirements.txt and no other name · requirements/test.txt` + "\n"},
+			`filePatterns: ['pip:(^|/)requirements/[^/]+\.txt$']   # requirements files under other names · requirements/test.txt` + "\n"},
 		{"both", map[string]string{"api/dev-requirements.txt": "black==24.1.0\n", "web/requirements/test.txt": "pytest==8.0.0\n"},
 			`filePatterns: ['pip:requirements[^/]*\.txt$', 'pip:(^|/)requirements/[^/]+\.txt$']`},
 	} {

@@ -1,1 +1,1 @@
-- **`draugr init` proposes gosec and govulncheck for a Go module that requires nothing.** A `go.mod` with no `require` block is enough, since standard-library code has SAST findings and its toolchain has advisories. `--per-directory` writes a component for such a module, and a scan still does not list its `go.mod` as unread.
+- **`draugr init` proposes gosec and govulncheck for a Go module that requires nothing.** A `go.mod` with no `require` block is enough, and `--per-directory` writes a component for such a module.

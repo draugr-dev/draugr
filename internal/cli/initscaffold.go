@@ -132,7 +132,7 @@ func scaffoldSaga(t inventory.Tree, name string, perDirectory bool) string {
 	b.WriteString("  controls:\n")
 	b.WriteString("    sca:\n      enabled: true       # dependency vulnerabilities (Trivy)\n")
 	if patterns := pipFilePatterns(t); len(patterns) > 0 {
-		fmt.Fprintf(&b, "      trivyFs:\n        filePatterns: %s   # Trivy opens requirements.txt and no other name%s\n",
+		fmt.Fprintf(&b, "      trivyFs:\n        filePatterns: %s   # requirements files under other names%s\n",
 			yamlStrings(patterns), note(pathList(filePaths(t.TrivyByPattern))))
 	}
 	if len(t.VendoredJS) > 0 {
