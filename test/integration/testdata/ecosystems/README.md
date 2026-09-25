@@ -12,6 +12,7 @@ exact and change only when Draugr or a pinned tool does.
 | `draugr.saga.yaml` | the descriptor the scan runs with |
 | `expected.yaml` | what `draugr init` proposes, the secrets to generate, and every finding |
 | `golden/` | `results.sarif` and `report.json`, normalized, written by `-update-sealed` |
+| `live.yaml` | the packages and files each scanner reports against the real databases, written by `-update-live` |
 | `Makefile` | `make lock` regenerates the lockfiles with the real package manager |
 
 SAST expectations are comments in the fixture's own code, the convention Semgrep's rule tests use:

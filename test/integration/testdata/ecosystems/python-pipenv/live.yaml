@@ -1,0 +1,12 @@
+# What a scan finds against the latest advisory databases and real registries: each package and
+# the scanners that reported it, and each file a result without a package was reported in. The
+# advisories are left out because they move every day; this is the part that should not.
+#
+# Written by the live tier (go test -tags integration -run TestLive -update-live with
+# DRAUGR_LIVE=1). A nightly run that finds a difference proposes it as a pull request.
+packages:
+  pipenv:
+    - name: flask
+      version: 0.12.2
+      in: Pipfile.lock
+      foundBy: [sca/trivy]

@@ -69,7 +69,9 @@ jobs:
   # The other half of "was this exact tree acceptable". The self-scan asks whether Draugr's own
   # code passes Draugr's policy; this asks whether Draugr still works, against a real Trivy and
   # a real cluster, which is the part unit tests stub out and therefore the part that can be
-  # green while the tool is broken.
+  # green while the tool is broken. Against a tag it also runs the air-gapped job, which scans the
+  # fixture corpus with no network from a home prepared as docs/guides/air-gapped.md says, so a
+  # release that no longer works offline is not built.
   #
   # Advisory on a pull request and binding here, deliberately. Requiring it on every change would
   # make most of them wait on a kind cluster to learn what a unit test already said. A release is

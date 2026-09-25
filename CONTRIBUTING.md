@@ -286,6 +286,26 @@ PATH="$HOME/.draugr/bin:$PATH" DRAUGR_BIN="$PWD/bin/draugr" \
 `expected.yaml`: that file states what the scan has to find, and changing it is a decision to make
 in review.
 
+### Live and air-gapped runs
+
+The Integration workflow runs the same scenarios outside the pull request tier, in these jobs:
+
+| Job | Runs | What it asserts |
+|---|---|---|
+| `live` | nightly, on demand | each scenario and draugr-demo, scanned with the network against the latest databases, match `live.yaml`: the packages and files found, and the scanners that found them |
+| `airgapped` | nightly, on demand, every release tag | each scenario, scanned with `--offline` and no network from a home prepared as [`docs/guides/air-gapped.md`](docs/guides/air-gapped.md) says, finds what `expected.yaml` lists or its control reports an error, and every Trivy scan carries `--offline-scan` |
+
+A difference in `live.yaml` is proposed as a pull request from the `live/expectations` branch. A
+scenario that stops reporting an ecosystem or a control fails the job and is not recorded.
+
+```bash
+make build
+export PATH="$HOME/.draugr/bin:$PATH" DRAUGR_BIN="$PWD/bin/draugr"
+DRAUGR_LIVE=1 DRAUGR_LIVE_DEMO=../draugr-demo \
+  go test -tags integration -run TestLive ./test/integration/ -update-live
+DRAUGR_AIRGAPPED=1 go test -tags integration -run TestAirGapped ./test/integration/
+```
+
 ## Pull requests
 
 1. **Branch** from `main` and keep PRs focused.
