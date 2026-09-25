@@ -38,7 +38,7 @@ func TestScanIsNotExposedUnlessAllowed(t *testing.T) {
 			t.Errorf("scan=%q: exposed=%v, want %v (tools: %v)", tc.mode, got, tc.wantScan, names)
 		}
 		// The read-only tools are always there.
-		for _, want := range []string{"list_controls", "get_saga_schema", "validate_saga", "summarize_report", "feeds_status"} {
+		for _, want := range []string{"list_controls", "get_saga_schema", "validate_saga", "propose_saga", "summarize_report", "feeds_status"} {
 			if !names[want] {
 				t.Errorf("scan=%q: missing %q", tc.mode, want)
 			}
@@ -1391,7 +1391,7 @@ func TestEveryToolIsActuallyServed(t *testing.T) {
 	})
 	want := []string{
 		"check_tools", "diff_reports", "explain_rule", "feeds_status", "fix_list", "get_saga_schema",
-		"list_controls", "list_surveyors", "scan", "summarize_report", "survey", "validate_saga",
+		"list_controls", "list_surveyors", "propose_saga", "scan", "summarize_report", "survey", "validate_saga",
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("the served tools are not the intended surface:\ngot  %v\nwant %v", got, want)

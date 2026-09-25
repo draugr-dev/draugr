@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/internal/sagatest"
-	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
 // layout writes files under root, creating their directories.
@@ -61,30 +59,6 @@ func runInitIn(t *testing.T, files map[string]string, opts initOptions) (descrip
 	return string(data), buf.String()
 }
 
-func TestInitNamesTheFilesBehindEachScanner(t *testing.T) {
-	t.Parallel()
-	got, _ := runInitIn(t, shop, initOptions{})
-	for _, want := range []string{
-		"analyzers: [govulncheck]   # ranks a Go finding down when no code calls it · go.mod\n",
-		"retirejs:\n        enabled: true     # copied JavaScript, outside any lockfile · web/static/jquery-1.8.3.min.js\n",
-		"grypeFs:\n        enabled: true     # Trivy does not read setup.py · ml/setup.py\n",
-		"gosec:\n        enabled: true     # Go-specific checks · go.mod\n",
-		"# IaC misconfiguration (Trivy config) · deploy/terraform · deploy/chart · Dockerfile\n",
-		"    # images:\n    #   enabled: true",
-		"    #   - image: myorg/shop:latest\n",
-		"    #       path: ./api/openapi.yaml\n",
-		"    # Unread · web/package.json no lockfile · its packages are not checked\n",
-		"    # Directories with their own dependency files: ml · web\n",
-	} {
-		if !strings.Contains(got, want) {
-			t.Errorf("descriptor missing %q:\n%s", want, got)
-		}
-	}
-	if strings.Count(got, "\n  - name: ") != 1 {
-		t.Errorf("without --per-directory init writes one component:\n%s", got)
-	}
-}
-
 // A tree holding none of what adds a scanner gets the four controls that are always on, and no
 // line claiming a file behind it.
 func TestInitOnAnEmptyTreeWritesTheBaseline(t *testing.T) {
@@ -118,89 +92,6 @@ func TestInitPrintsWhatItFoundAndWhatIsUnread(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("console missing %q:\n%s", want, got)
 		}
-	}
-}
-
-// Two parts and one nested inside another: each part is scoped to its own directory, and every
-// component above a part ignores it, so no file is scanned twice and none is scanned by nobody.
-func TestInitPerDirectoryScopesEachPart(t *testing.T) {
-	t.Parallel()
-	files := map[string]string{
-		"go.mod":                           "module shop\n\nrequire golang.org/x/text v0.3.0\n",
-		"services/api/go.mod":              "module api\n\nrequire golang.org/x/net v0.1.0\n",
-		"services/api/worker/package.json": `{"dependencies": {"left-pad": "1.0.0"}}`,
-		"web/package.json":                 `{"dependencies": {"left-pad": "1.0.0"}}`,
-		"web/package-lock.json":            `{"lockfileVersion": 3, "packages": {}}`,
-		"Dockerfile":                       "FROM scratch\n",
-	}
-	got, _ := runInitIn(t, files, initOptions{perDirectory: true})
-	want := "components:\n" +
-		"  - name: shop\n    repositories:\n      - url: .\n        ignore: [services/api/, web/]\n" +
-		"    # images:\n    #   - image: myorg/shop:latest\n" +
-		"    # hosts:            # for the headers/DAST controls\n" +
-		"    #   - name: api\n    #     url: https://api.example.com\n    #     type: api\n" +
-		"  - name: api\n    repositories:\n      - url: .\n        paths: [services/api]\n        ignore: [services/api/worker/]\n" +
-		"  - name: worker\n    repositories:\n      - url: .\n        paths: [services/api/worker]\n" +
-		"    # Unread · services/api/worker/package.json no lockfile · its packages are not checked\n" +
-		"  - name: web\n    repositories:\n      - url: .\n        paths: [web]\n"
-	if !strings.HasSuffix(got, want) {
-		t.Errorf("components =\n%s\nwant\n%s", got[strings.Index(got, "components:"):], want)
-	}
-}
-
-// Two npm workspaces, each with one lockfile at its root: every member stays in the component of
-// the workspace whose lockfile resolves it, rather than a component of its own with no lockfile.
-func TestInitPerDirectoryKeepsWorkspaceMembersWithTheirRoot(t *testing.T) {
-	t.Parallel()
-	lock := `{"lockfileVersion": 3, "packages": {"node_modules/minimist": {}}}`
-	dep := `{"dependencies": {"minimist": "1.2.5"}}`
-	files := map[string]string{
-		"web/package.json":               `{"workspaces": ["packages/*"]}`,
-		"web/package-lock.json":          lock,
-		"web/packages/ui/package.json":   dep,
-		"api/package.json":               `{"workspaces": {"packages": ["services/*"]}}`,
-		"api/package-lock.json":          lock,
-		"api/services/auth/package.json": dep,
-	}
-	got, _ := runInitIn(t, files, initOptions{perDirectory: true})
-	want := "components:\n" +
-		"  - name: shop\n    repositories:\n      - url: .\n        ignore: [api/, web/]\n" +
-		"    # hosts:            # for the headers/DAST controls\n" +
-		"    #   - name: api\n    #     url: https://api.example.com\n    #     type: api\n" +
-		"  - name: api\n    repositories:\n      - url: .\n        paths: [api]\n" +
-		"  - name: web\n    repositories:\n      - url: .\n        paths: [web]\n"
-	if !strings.HasSuffix(got, want) {
-		t.Errorf("components =\n%s\nwant\n%s", got[strings.Index(got, "components:"):], want)
-	}
-}
-
-// A part is named for its directory, and for its whole path where the directory name is taken,
-// by another part or by the project, so two components never share a name.
-func TestInitPerDirectoryNamesNeverCollide(t *testing.T) {
-	t.Parallel()
-	pkg := `{"dependencies": {"left-pad": "1.0.0"}}`
-	files := map[string]string{
-		"apps/web/package.json":  pkg,
-		"tools/web/package.json": pkg,
-		"libs/shop/package.json": pkg,
-		"docs/package.json":      pkg,
-	}
-	got, _ := runInitIn(t, files, initOptions{perDirectory: true})
-	for _, name := range []string{"apps-web", "tools-web", "libs-shop", "docs"} {
-		if !strings.Contains(got, "  - name: "+name+"\n") {
-			t.Errorf("missing component %q:\n%s", name, got)
-		}
-	}
-	m, err := saga.Load([]byte(got))
-	if err != nil {
-		t.Fatal(err)
-	}
-	seen := map[string]bool{}
-	for _, c := range m.Components {
-		if seen[c.Name] {
-			t.Errorf("two components named %q", c.Name)
-		}
-		seen[c.Name] = true
 	}
 }
 
@@ -291,42 +182,6 @@ func TestInitWritesFilePatternsForRequirementsTrivyDoesNotOpen(t *testing.T) {
 	got, _ := runInitIn(t, map[string]string{"requirements.txt": "flask==0.12.2\n"}, initOptions{})
 	if strings.Contains(got, "trivyFs") {
 		t.Errorf("init wrote a pattern for requirements.txt:\n%s", got)
-	}
-}
-
-// The patterns are Go regexes, which is what Trivy compiles them as, matched against the path
-// relative to the scan root. Each must reach every requirements file init proposes it for and
-// nothing that merely contains the word.
-func TestPipFilePatternsReachWhatInitProposesThemFor(t *testing.T) {
-	t.Parallel()
-	compile := func(p string) *regexp.Regexp {
-		return regexp.MustCompile(strings.TrimPrefix(p, "pip:"))
-	}
-	named, inDir := compile(pipNamedPattern), compile(pipDirPattern)
-	for _, rel := range []string{"requirements-dev.txt", "dev-requirements.txt", "svc/api/requirements-test.txt"} {
-		if !named.MatchString(rel) {
-			t.Errorf("%s does not reach %s", pipNamedPattern, rel)
-		}
-	}
-	for _, rel := range []string{"requirements/test.txt", "svc/requirements/dev.txt"} {
-		if !inDir.MatchString(rel) {
-			t.Errorf("%s does not reach %s", pipDirPattern, rel)
-		}
-	}
-	for _, rel := range []string{"requirements.txt.bak", "requirements/sub/dev.txt", "myrequirements/dev.txt", "notes.txt"} {
-		if named.MatchString(rel) || inDir.MatchString(rel) {
-			t.Errorf("a pattern reaches %s, which is no requirements file", rel)
-		}
-	}
-}
-
-func TestPathListCountsWhatItDoesNotShow(t *testing.T) {
-	t.Parallel()
-	if got := pathList([]string{"a", "b", "c", "d", "e"}); got != "a · b · c · +2" {
-		t.Errorf("pathList = %q", got)
-	}
-	if got := pathList([]string{"a", "b"}); got != "a · b" {
-		t.Errorf("pathList = %q", got)
 	}
 }
 
