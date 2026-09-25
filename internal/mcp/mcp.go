@@ -216,7 +216,9 @@ func NewServer(opts Options) (*mcp.Server, error) {
 		Description: "Read an existing Draugr report (results.sarif or report.json) and return " +
 			"its findings ranked by priority, deduplicated, with the rule documentation link " +
 			"for each. This is the cheap way to answer 'what should I fix first?', it reads a " +
-			"scan that already happened rather than starting a new one. It covers the controls " +
+			"scan that already happened rather than starting a new one. A finding the project " +
+			"accepted comes back in accepted, with who decided, why and until when; report it as " +
+			"a decision and do not propose fixing it. It covers the controls " +
 			"that scan ran and nothing else, so treat it as a floor to build on rather than a " +
 			"complete account of a codebase's security.",
 	}, SummarizeReportTool)

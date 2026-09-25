@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/draugr-dev/draugr/internal/feeds"
+	"github.com/draugr-dev/draugr/pkg/exploit"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -539,6 +540,12 @@ func TestLoadExploitSourceReportsProvenance(t *testing.T) {
 	}
 	if !prov[1].Stale {
 		t.Error("the four-day-old feed was not marked stale in the provenance")
+	}
+	// The evidence carries it too, so a reader of results.sarif learns what the console said.
+	for _, c := range src.Consulted() {
+		if want := c.Signal == exploit.SignalEPSS; c.Stale != want {
+			t.Errorf("consulted %s stale = %v, want %v", c.Signal, c.Stale, want)
+		}
 	}
 
 	// And the date reaches the escalation, which is what makes the claim checkable.

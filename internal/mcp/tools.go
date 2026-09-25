@@ -253,6 +253,63 @@ type Finding struct {
 	// Image and OSEndOfLife answer "why can I not just upgrade this".
 	Image       string `json:"image,omitempty" jsonschema:"the image this finding is in, when it came from one"`
 	OSEndOfLife bool   `json:"osEndOfLife,omitempty" jsonschema:"the operating system release is past end of service life, so no fix will be published for it"`
+
+	// The evidence behind the rank, as fields rather than a sentence, so an assistant asked "why is
+	// this P1" or "can we even reach it" answers from what Draugr decided rather than guessing.
+	Reachability *Reachability `json:"reachability,omitempty" jsonschema:"whether this project's code reaches the vulnerable code, when a reachability analyzer ran"`
+	Escalation   *Escalation   `json:"escalation,omitempty" jsonschema:"the exploitability signal that raised this finding's severity, when one did"`
+	AlsoFoundBy  []string      `json:"alsoFoundBy,omitempty" jsonschema:"other scanners that reported the same flaw; counted once, under this finding"`
+}
+
+// Reachability is a reachability analyzer's verdict on one dependency finding.
+type Reachability struct {
+	State    string   `json:"state" jsonschema:"reachable, unreachable, or unknown (the analyzer ran and could not tell)"`
+	Analyzer string   `json:"analyzer" jsonschema:"the tool that decided"`
+	Method   string   `json:"method,omitempty" jsonschema:"how it decided, for example symbol-level call graph"`
+	RankedAs string   `json:"rankedAs,omitempty" jsonschema:"the severity the finding was ranked at after reachability was applied, when it moved"`
+	Symbols  []string `json:"symbols,omitempty" jsonschema:"the vulnerable functions the analyzer looked for"`
+	Path     []string `json:"path,omitempty" jsonschema:"one call path from this project's code to a vulnerable function, outermost first"`
+}
+
+// Escalation is an exploitability signal that raised a finding's severity.
+type Escalation struct {
+	From   string `json:"from" jsonschema:"the severity the scanner reported"`
+	To     string `json:"to" jsonschema:"the severity the finding was ranked at"`
+	Signal string `json:"signal" jsonschema:"kev (observed exploitation) or epss (predicted probability of exploitation)"`
+	Detail string `json:"detail"`
+	AsOf   string `json:"asOf,omitempty" jsonschema:"the day the dataset was obtained, YYYY-MM-DD"`
+}
+
+// Accepted is a finding a recorded decision took out of the ranking, with the decision.
+//
+// Returned beside the findings rather than among them: an accepted risk handed back as work is
+// one an assistant proposes to fix against the owner's decision. Returned at all because a count
+// on its own cannot answer who decided, why, or until when, and those are the questions.
+type Accepted struct {
+	RuleID           string `json:"ruleId"`
+	Severity         string `json:"severity"`
+	Location         string `json:"location,omitempty"`
+	Component        string `json:"component,omitempty"`
+	Package          string `json:"package,omitempty"`
+	Version          string `json:"version,omitempty"`
+	Justification    string `json:"justification" jsonschema:"the reason recorded with the decision"`
+	AcceptedBy       string `json:"acceptedBy,omitempty" jsonschema:"who accepted it; empty means the decision is unattributed"`
+	Expires          string `json:"expires,omitempty" jsonschema:"YYYY-MM-DD the acceptance lapses; empty means it does not"`
+	Origin           string `json:"origin,omitempty" jsonschema:"saga (a rule in the descriptor), vex (a supplier's statement this project accepted), tool or scanner (an annotation in the source)"`
+	Author           string `json:"author,omitempty" jsonschema:"who made an imported VEX statement"`
+	Asserted         string `json:"asserted,omitempty" jsonschema:"when an imported VEX statement was made"`
+	Source           string `json:"source,omitempty" jsonschema:"the descriptor, fragment or VEX document the decision was written in"`
+	VEXStatus        string `json:"vexStatus,omitempty" jsonschema:"not_affected, affected or fixed; empty reads as affected"`
+	VEXJustification string `json:"vexJustification,omitempty" jsonschema:"why the product is not affected, from VEX's fixed vocabulary"`
+}
+
+// Feed is an exploitability dataset the scan had loaded.
+type Feed struct {
+	Signal    string  `json:"signal" jsonschema:"kev or epss"`
+	AsOf      string  `json:"asOf,omitempty" jsonschema:"the day the copy was obtained, YYYY-MM-DD; empty for a file supplied by hand"`
+	Stale     bool    `json:"stale,omitempty" jsonschema:"the copy was older than the scan's maxAge when it was read"`
+	Entries   int     `json:"entries,omitempty"`
+	Threshold float64 `json:"threshold,omitempty" jsonschema:"the EPSS probability at or above which a finding was raised"`
 }
 
 // SummarizeOutput is the ranked answer to "what should I fix?".
@@ -260,11 +317,16 @@ type SummarizeOutput struct {
 	Total int `json:"total" jsonschema:"findings the report judged, before any priority filter; excludes suppressed"`
 	// Suppressed is reported rather than hidden: an assistant that cannot see a decision was
 	// made cannot tell an accepted risk from one nobody has looked at.
-	Suppressed int       `json:"suppressed,omitempty" jsonschema:"findings the descriptor excluded with a stated reason; reported, not ranked, and not part of total"`
-	Returned   int       `json:"returned"`
-	Counts     Counts    `json:"counts"`
-	Findings   []Finding `json:"findings"`
-	Note       string    `json:"note,omitempty"`
+	Suppressed int        `json:"suppressed,omitempty" jsonschema:"findings a recorded decision took out of the ranking; not part of total"`
+	Returned   int        `json:"returned"`
+	Counts     Counts     `json:"counts"`
+	Findings   []Finding  `json:"findings"`
+	Accepted   []Accepted `json:"accepted,omitempty" jsonschema:"the suppressed findings with who decided and why, most severe first, capped at limit; report each as a decision, never as work to fix"`
+	// Feeds is empty when no exploitability data was loaded, which is the answer to "was this
+	// checked against KEV" and not an omission.
+	Feeds []Feed `json:"feeds,omitempty" jsonschema:"exploitability datasets the scan consulted; absent means no finding was checked against KEV or EPSS"`
+	Next  string `json:"next" jsonschema:"what to do with this result"`
+	Note  string `json:"note,omitempty"`
 }
 
 // Counts tallies the whole report, not just what was returned. A narrowed list shouldn't make the
@@ -306,13 +368,20 @@ func summarize(rep sarif.Report, minPriority string, limit int) SummarizeOutput 
 	out := SummarizeOutput{}
 
 	findings := make([]Finding, 0, len(rep.Results))
+	var accepted []Accepted
 	for _, res := range rep.Results {
+		// The same flaw from a second scanner is counted once, under the finding that names it in
+		// alsoFoundBy, as the gate counts it.
+		if res.Correlated() {
+			continue
+		}
 		// A suppressed finding is a decision somebody recorded, not work to hand back. Counting it puts
 		// an accepted risk into the answer to "what should I fix", where an assistant will propose
-		// fixing something the owner signed off, and the reason they gave, which is the whole content of
-		// the decision, does not travel with the number.
+		// fixing something the owner signed off. It goes back in its own list, with the reason, which
+		// is the whole content of the decision.
 		if res.Suppressed() {
 			out.Suppressed++
+			accepted = append(accepted, acceptedFrom(res))
 			continue
 		}
 		sev := res.Severity("")
@@ -343,7 +412,95 @@ func summarize(rep sarif.Report, minPriority string, limit int) SummarizeOutput 
 		out.Returned = limit
 	}
 	out.Findings = findings
+	sortAccepted(accepted)
+	if len(accepted) > limit {
+		accepted = accepted[:limit]
+	}
+	out.Accepted = accepted
+	for _, c := range rep.Consulted {
+		out.Feeds = append(out.Feeds, Feed{
+			Signal: c.Signal, AsOf: c.AsOf, Stale: c.Stale, Entries: c.Entries, Threshold: c.Threshold,
+		})
+	}
+	out.Next = nextStep(out, minPriority)
 	return out
+}
+
+// nextStep names what to do with a summary, from the summary alone.
+//
+// Deterministic: the same report gives the same instruction, so an assistant's advice can be traced
+// to a result rather than to its own reading of one.
+func nextStep(out SummarizeOutput, minPriority string) string {
+	if len(out.Findings) == 0 {
+		if out.Total > 0 {
+			return fmt.Sprintf("Nothing at or above %s. Lower minPriority to see the %d below it.",
+				strings.ToUpper(minPriority), out.Total)
+		}
+		return "Nothing to fix in the controls that ran."
+	}
+	f := out.Findings[0]
+	where := f.RuleID
+	if f.Location != "" {
+		where += " in " + f.Location
+	}
+	var do string
+	switch sarif.Remediation(f.Action) {
+	case sarif.RemediationUpgrade:
+		if f.Package != "" && f.FixedVersion != "" {
+			do = fmt.Sprintf("upgrade %s to %s", f.Package, f.FixedVersion)
+		} else {
+			do = "apply the remediation"
+		}
+	case sarif.RemediationUpstream:
+		do = "move to a supported operating system release, which fixes every finding in that layer"
+	case sarif.RemediationExternal:
+		do = "report it to whoever operates the surface; nothing in this project changes it"
+	case sarif.RemediationNone:
+		do = "no fix is published; remove the dependency or record an acceptance with an expiry"
+	default:
+		do = "apply the remediation"
+	}
+	return fmt.Sprintf("Start with %s: %s. Then scan again to confirm it is gone.", where, do)
+}
+
+// acceptedFrom converts a suppressed result and the decision behind it.
+func acceptedFrom(res sarif.Result) Accepted {
+	s := res.Suppression
+	a := Accepted{
+		RuleID: res.RuleID, Severity: string(res.Severity("")), Location: locationOf(res),
+		Component: res.Component, Justification: s.Justification, AcceptedBy: s.AcceptedBy,
+		Expires: s.Expires, Origin: s.Origin, Author: s.Author, Asserted: s.Asserted, Source: s.Source,
+		VEXStatus: s.VEXStatus, VEXJustification: s.VEXJustification,
+	}
+	if p := res.Package; p != nil {
+		a.Package, a.Version = p.Name, p.Version
+	}
+	return a
+}
+
+// sortAccepted puts the most severe first, then orders by rule and location so two runs over one
+// report list the decisions in the same order.
+func sortAccepted(as []Accepted) {
+	sev := map[string]int{"critical": 4, "high": 3, "medium": 2, "low": 1}
+	sort.SliceStable(as, func(i, j int) bool {
+		a, b := as[i], as[j]
+		if sa, sb := sev[a.Severity], sev[b.Severity]; sa != sb {
+			return sa > sb
+		}
+		if a.RuleID != b.RuleID {
+			return a.RuleID < b.RuleID
+		}
+		return a.Location < b.Location
+	})
+}
+
+// locationOf renders a result's location as file:line, or the URI alone.
+func locationOf(res sarif.Result) string {
+	loc := res.Location.URI
+	if loc != "" && res.Location.StartLine > 0 {
+		loc = fmt.Sprintf("%s:%d", loc, res.Location.StartLine)
+	}
+	return loc
 }
 
 // gatePriority reads the descriptor's priority gate, which has no flag to override it here.
@@ -362,10 +519,7 @@ func gatePriority(g *saga.GateConfig) string {
 // same fields as one it reads from a summary. Two of these would drift, and the drift would look
 // like a finding losing its remediation for a reason nobody could see.
 func findingFrom(rep sarif.Report, res sarif.Result) Finding {
-	loc := res.Location.URI
-	if loc != "" && res.Location.StartLine > 0 {
-		loc = fmt.Sprintf("%s:%d", loc, res.Location.StartLine)
-	}
+	loc := locationOf(res)
 	f := Finding{
 		Priority:    res.Priority,
 		Severity:    string(res.Severity("")),
@@ -385,7 +539,40 @@ func findingFrom(rep sarif.Report, res sarif.Result) Finding {
 		f.Package, f.Version = p.Name, p.Version
 		f.FixedVersion, f.Ecosystem, f.PURL = p.FixedVersion, p.Ecosystem, p.PURL
 	}
+	if r := res.Reachability; r != nil {
+		f.Reachability = &Reachability{
+			State: string(r.State), Analyzer: r.Analyzer, Method: r.Method,
+			RankedAs: string(r.RankedAs), Symbols: r.Symbols,
+		}
+		if len(r.Paths) > 0 {
+			for _, fr := range r.Paths[0].Frames {
+				f.Reachability.Path = append(f.Reachability.Path, frameText(fr))
+			}
+		}
+	}
+	if e := res.Escalation; e != nil {
+		f.Escalation = &Escalation{
+			From: string(e.From), To: string(e.To), Signal: e.Signal, Detail: e.Detail, AsOf: e.AsOf,
+		}
+	}
+	if c := res.Correlation; c != nil {
+		for _, o := range c.AlsoFoundBy {
+			f.AlsoFoundBy = append(f.AlsoFoundBy, o.Tool)
+		}
+	}
 	return f
+}
+
+// frameText renders one call frame as package.function, with file:line when the analyzer gave it.
+func frameText(fr sarif.CallFrame) string {
+	name := fr.Function
+	if fr.Package != "" {
+		name = fr.Package + "." + fr.Function
+	}
+	if fr.File != "" && fr.Line > 0 {
+		return fmt.Sprintf("%s (%s:%d)", name, fr.File, fr.Line)
+	}
+	return name
 }
 
 // remediationText returns what the scanner published about how to fix a rule.

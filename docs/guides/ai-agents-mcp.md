@@ -115,6 +115,37 @@ pipeline on. Saying which question it answered is what lets an assistant keep go
 the reproducible part already settled: it never re-derives your dependency CVEs, your priorities or
 your verdict, and spends its attention on the design questions no scanner computes.
 
+## Evidence
+
+Each finding from `scan`, `summarize_report` and `diff_reports` carries the evidence behind its
+rank as fields: the exploitability signal that raised it, a reachability analyzer's verdict with
+one call path, and the other scanners that reported the same flaw. A finding that a recorded
+decision took out of the ranking comes back in `accepted`, never in `findings`, with who decided,
+why, until when, and whether the analysis was this project's or a supplier's VEX statement.
+`suppressed` is the full count and `accepted` is capped at `limit`. `feeds` names the
+exploitability datasets the scan consulted, dated, and marks any older than the scan's `maxAge`.
+An empty `feeds` means no finding was checked against KEV or EPSS. `next` names the first thing to
+do.
+
+```json
+{
+  "findings": [{
+    "priority": "P1", "severity": "high", "ruleId": "CVE-2021-44228",
+    "location": "api/pom.xml:12", "action": "upgrade", "fixedVersion": "2.17.1",
+    "escalation": {"from": "high", "to": "critical", "signal": "kev",
+                   "detail": "on CISA's Known Exploited Vulnerabilities list", "asOf": "2026-09-24"},
+    "alsoFoundBy": ["grype"]
+  }],
+  "accepted": [{
+    "ruleId": "CVE-2023-0001", "severity": "medium", "location": "api/pom.xml",
+    "justification": "test scope only", "acceptedBy": "sec@example.com", "expires": "2026-12-31",
+    "origin": "saga", "source": "fragments/api.saga.yaml"
+  }],
+  "feeds": [{"signal": "epss", "asOf": "2026-09-01", "stale": true, "entries": 2, "threshold": 0.5}],
+  "next": "Start with CVE-2021-44228 in api/pom.xml:12: upgrade log4j-core to 2.17.1. Then scan again to confirm it is gone."
+}
+```
+
 ## It diagnoses; it doesn't install
 
 `check_tools` reports which external scanners are on the machine and, when something's missing,
@@ -136,6 +167,15 @@ assistant's client already has a permission model for running commands, one you 
 and have already configured. Routing the same action through this server would replace that with a
 weaker path of our own making. So Draugr reports the command; you approve it where you approve
 everything else.
+
+The other commands with no tool follow the same line:
+
+| Command | Why it has no tool |
+| --- | --- |
+| `draugr tools install`, `draugr self-update` | Replace binaries on your machine |
+| `draugr feeds update` | Downloads datasets and writes them to your cache for every project on the machine |
+| `draugr config` | Holds settings and credentials shared by every project on the machine, not the one the assistant is working in |
+| `draugr classify` | Records a component's exposure and criticality, which come from how your organization runs it and cannot be read from the code |
 
 ## Draugr also offers your Saga as a resource
 
