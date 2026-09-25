@@ -21,6 +21,8 @@ import (
 // Only a run can prove it. The key is assembled from the revision the engine resolves on disk, the
 // paths the descriptor declares and the root files git reports, and a unit test supplies all three
 // itself. One repository, one cache directory and one descriptor, with a commit before every scan.
+// The components sit below the root, so each key carries a path with a separator in it, which the
+// cache has to store as well as a key that is only hashes.
 func TestAScopedCacheEntryMovesWithEveryFileItsCheckoutHolds(t *testing.T) {
 	requireTool(t, "git", "the scan checks the repository out before scanning it")
 	requireTool(t, "gitleaks", "the scan needs a scanner whose result is worth caching")
@@ -51,8 +53,8 @@ func TestAScopedCacheEntryMovesWithEveryFileItsCheckoutHolds(t *testing.T) {
 	git("init", "--quiet")
 	git("config", "user.email", "test@draugr.dev")
 	git("config", "user.name", "test")
-	commit("api/main.go", "package main\n")
-	commit("web/index.js", "module.exports = {};\n")
+	commit("services/api/main.go", "package main\n")
+	commit("services/web/index.js", "module.exports = {};\n")
 	commit("shared.env", "REGION=eu-west-1\n")
 	commit("README.md", "two services\n")
 
@@ -67,11 +69,11 @@ components:
   - name: api
     repositories:
       - url: `+repo+`
-        paths: [api, shared.env]
+        paths: [services/api, shared.env]
   - name: web
     repositories:
       - url: `+repo+`
-        paths: [web, shared.env]
+        paths: [services/web, shared.env]
 `), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -94,9 +96,9 @@ components:
 				continue
 			}
 			switch {
-			case names(line, "api"):
+			case names(line, "services/api"):
 				got = append(got, "api")
-			case names(line, "web"):
+			case names(line, "services/web"):
 				got = append(got, "web")
 			default:
 				t.Errorf("a cache hit whose key names neither component's subtree, so it was keyed "+
@@ -117,7 +119,7 @@ components:
 		{name: "the same commit", want: []string{"api", "web"}},
 		{name: "a root file neither component names", edit: "README.md", body: "two services, one repository\n",
 			want: []string{"api", "web"}},
-		{name: "a file inside api's paths", edit: "api/main.go", body: "package main\n\nfunc main() {}\n",
+		{name: "a file inside api's paths", edit: "services/api/main.go", body: "package main\n\nfunc main() {}\n",
 			want: []string{"web"}},
 		{name: "a root file both components name", edit: "shared.env", body: "REGION=us-east-1\n",
 			want: nil},
