@@ -104,12 +104,12 @@ func (p draugrAPIPublisher) Publish(ctx context.Context, artifacts []report.Arti
 			evidence = a.Bytes
 		}
 	}
-	// Named separately, because they are separate mistakes with separate fixes.
+	// Named separately, because each comes from a different reporter and the error says which failed.
 	if runReport == nil {
-		return fmt.Errorf("draugr-api publisher requires a 'json' report in config.reports")
+		return fmt.Errorf("draugr-api publisher requires a 'json' report")
 	}
 	if evidence == nil {
-		return fmt.Errorf("draugr-api publisher requires a 'sarif' report in config.reports")
+		return fmt.Errorf("draugr-api publisher requires a 'sarif' report")
 	}
 
 	accepted, err := p.postRun(ctx, runReport, evidence)

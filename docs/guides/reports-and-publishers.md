@@ -247,16 +247,16 @@ all. Absent is not the same as a default gate, which is why nothing is filled in
 
 ```yaml
 config:
-  reports:
-    - format: sarif        # for code scanning / dashboards
-    - format: markdown     # a portable report (MR comment, wiki)
-    - format: html         # a shareable, browser-viewable artifact
-    - format: template     # custom payload from a Go text/template
-      template: "{{.Verdict}}: P1={{.Priorities.P1}} P2={{.Priorities.P2}}\n"
-      filename: summary.txt   # optional; overrides the default output filename
   publishers:
     - kind: file           # write each report to a directory
       dir: ./out           # → ./out/results.sarif, ./out/report.md, ./out/report.html, ./out/summary.txt
+      reports:
+        - format: sarif        # for code scanning / dashboards
+        - format: markdown     # a portable report (MR comment, wiki)
+        - format: html         # a shareable, browser-viewable artifact
+        - format: template     # custom payload from a Go text/template
+          template: "{{.Verdict}}: P1={{.Priorities.P1}} P2={{.Priorities.P2}}\n"
+          filename: summary.txt   # optional; overrides the default output filename
 ```
 
 The **`template`** format renders a [Go `text/template`](https://pkg.go.dev/text/template) against a
@@ -309,9 +309,6 @@ That is the part a screenshot cannot show.
 
 ```yaml
 config:
-  reports:
-    - format: json      # the run
-    - format: sarif     # its evidence
   publishers:
     - kind: draugr-api
 ```
@@ -383,8 +380,6 @@ In a pipeline everything defaults from the environment, so the whole configurati
 
 ```yaml
 config:
-  reports:
-    - format: markdown
   publishers:
     - kind: azure-pr-comment
 ```
@@ -423,8 +418,6 @@ Everything defaults from the runner environment, so the whole configuration is:
 
 ```yaml
 config:
-  reports:
-    - format: markdown
   publishers:
     - kind: gitlab-mr-comment
 ```
@@ -487,13 +480,13 @@ pushing to code scanning is a **report format**, not a publisher, and it compose
 
 ```yaml
 config:
-  reports:
-    - format: gitlab-sast
-    - format: gitlab-secret-detection
-    - format: gitlab-codequality
   publishers:
     - kind: file
       dir: ./draugr-out
+      reports:
+        - format: gitlab-sast
+        - format: gitlab-secret-detection
+        - format: gitlab-codequality
 ```
 
 ```yaml

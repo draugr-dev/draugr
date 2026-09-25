@@ -1,0 +1,1 @@
+- **Publishing examples no longer use the removed `config.reports`.** The guides and the Saga reference showed a top-level `reports:` list that `draugr validate` refuses. Each example now names its formats under the publisher it is for, and `github` and `draugr-api` render theirs without being asked.

@@ -24,8 +24,6 @@ from `$GITHUB_TOKEN`. It no-ops outside Actions, so the same Saga still runs loc
 
 ```yaml
 config:
-  reports:
-    - format: sarif
   publishers:
     - kind: github         # repo/commit/ref default to the GitHub Actions env
       # repo: owner/name   # optional overrides ($GITHUB_REPOSITORY / $GITHUB_SHA / $GITHUB_REF)
@@ -53,9 +51,11 @@ rest of your policy:
 
 ```yaml
 config:
-  reports:
-    - format: sarif
-      minPriority: P1    # this report only; the JSON beside it stays complete
+  publishers:
+    - kind: github
+      reports:
+        - format: sarif
+          minPriority: P1    # this destination only; every other report stays complete
 ```
 
 ### A descriptor that describes more than one repository

@@ -74,7 +74,7 @@ func (g githubPublisher) Publish(ctx context.Context, artifacts []report.Artifac
 		}
 	}
 	if sarif == nil {
-		return fmt.Errorf("github publisher requires a 'sarif' report in config.reports")
+		return fmt.Errorf("github publisher requires a 'sarif' report")
 	}
 
 	encoded, err := gzipBase64(sarif)

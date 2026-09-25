@@ -493,7 +493,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			return err
 		}
 	}
-	// Deliver configured reports to configured publishers (Saga config.reports/publishers).
+	// Deliver each publisher's reports (Saga config.publishers).
 	// --no-publish suppresses this so a caller (e.g. the diff workflow, which scans both sides
 	// of a PR) can produce artifacts without triggering side effects like a code-scanning upload.
 	//
@@ -687,7 +687,7 @@ func firstNonEmpty(vals ...string) string {
 // writeArtifacts renders the requested formats into dir.
 //
 // The formats are rendered through the same reporters that serve --format and the Saga's
-// config.reports, so an HTML file written here and one delivered by a publisher cannot differ.
+// publishers, so an HTML file written here and one delivered by a publisher cannot differ.
 func writeArtifacts(dir string, formats []string, data report.Data, release saga.Release,
 	run engine.Result, verdict norn.Result, minPriority, declared string,
 ) error {
