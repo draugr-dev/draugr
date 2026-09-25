@@ -369,6 +369,16 @@ log saying `400 Bad Request` tells the reader nothing they can act on.
 {"error": "invalid_field", "detail": "verdict: required; post report.json, not results.sarif"}
 ```
 
+A server that reads only reports from a newer Draugr answers `422 draugr_too_old` and puts the
+oldest version it accepts in `minimum`. Draugr leads its error with that version and the command
+that installs it. A refusal with no `minimum` reaches the reader as `draugr_too_old` followed by
+your own `detail`.
+
+```json
+{"error": "draugr_too_old", "minimum": "0.122.0",
+ "detail": "this server reads runs from Draugr v0.122.0 or later, and this run came from Draugr v0.121.1. Upgrade Draugr and run the scan again"}
+```
+
 Two lines worth recognizing in a build log:
 
 - `evidence already held`. A re-run produced the same findings, so there was nothing to upload.

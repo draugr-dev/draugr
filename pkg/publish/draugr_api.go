@@ -181,7 +181,13 @@ func (p draugrAPIPublisher) postRun(ctx context.Context, runReport, evidence []b
 	defer func() { _, _ = io.Copy(io.Discard, resp.Body); _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 300 {
-		return acceptedRun{}, fmt.Errorf("draugr-api publisher: post run: %s", serverError(resp))
+		refused := readRefusal(resp)
+		if refused.Code == "draugr_too_old" && refused.Minimum != "" {
+			return acceptedRun{}, fmt.Errorf("draugr-api publisher: %s reads runs from Draugr v%s or "+
+				"later, and this run used %s. Update with 'draugr self-update', or raise the version the "+
+				"pipeline installs", p.endpoint, strings.TrimPrefix(refused.Minimum, "v"), versionIn(runReport))
+		}
+		return acceptedRun{}, fmt.Errorf("draugr-api publisher: post run: %s", refused.said(resp.Status))
 	}
 	var accepted acceptedRun
 	if err := json.NewDecoder(resp.Body).Decode(&accepted); err != nil {
@@ -237,17 +243,51 @@ func (p draugrAPIPublisher) complete(ctx context.Context, runID string) error {
 // The API answers failures as a stable code and a short detail. Reporting those beats reporting
 // "400 Bad Request", which tells somebody reading a build log nothing they can act on.
 func serverError(resp *http.Response) string {
-	var body struct {
-		Code   string `json:"error"`
-		Detail string `json:"detail"`
+	return readRefusal(resp).said(resp.Status)
+}
+
+// refusal is the body every failure from the server takes.
+//
+// Minimum is set on `draugr_too_old` only: the oldest Draugr the server reads, which is what a
+// reader has to install and so what the error has to lead with.
+type refusal struct {
+	Code    string `json:"error"`
+	Detail  string `json:"detail"`
+	Minimum string `json:"minimum"`
+}
+
+// readRefusal reads a failure's body, leaving it empty when the body is not one.
+func readRefusal(resp *http.Response) refusal {
+	var r refusal
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 8<<10)).Decode(&r); err != nil {
+		return refusal{}
 	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 8<<10)).Decode(&body); err != nil || body.Code == "" {
-		return resp.Status
+	return r
+}
+
+// said is the refusal as one line, falling back to the status where the body said nothing.
+func (r refusal) said(status string) string {
+	switch {
+	case r.Code == "":
+		return status
+	case r.Detail == "":
+		return fmt.Sprintf("%s (%s)", r.Code, status)
+	default:
+		return fmt.Sprintf("%s: %s", r.Code, r.Detail)
 	}
-	if body.Detail == "" {
-		return fmt.Sprintf("%s (%s)", body.Code, resp.Status)
+}
+
+// versionIn is the Draugr version a report says wrote it, as the server read it.
+func versionIn(runReport []byte) string {
+	var doc struct {
+		Draugr struct {
+			Version string `json:"version"`
+		} `json:"draugr"`
 	}
-	return fmt.Sprintf("%s: %s", body.Code, body.Detail)
+	if json.Unmarshal(runReport, &doc) != nil || doc.Draugr.Version == "" {
+		return "a Draugr that does not say its version"
+	}
+	return "v" + strings.TrimPrefix(doc.Draugr.Version, "v")
 }
 
 // digestOf is the content address of some bytes.

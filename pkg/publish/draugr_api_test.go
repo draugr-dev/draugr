@@ -244,6 +244,51 @@ func TestAnUnreadableFailureFallsBackToTheStatus(t *testing.T) {
 	}
 }
 
+// A server that reads only newer reports says which version it needs, and the error leads with that
+// and with how to get it rather than with the server's code.
+func TestAServerNeedingANewerDraugrSaysWhichAndHow(t *testing.T) {
+	p := &server{status: http.StatusUnprocessableEntity, body: `{"error":"draugr_too_old",` +
+		`"minimum":"0.122.0","detail":"this server reads runs from Draugr v0.122.0 or later"}`}
+	srv := p.server(t)
+	pub := publisherFor(t, srv.URL)
+
+	err := pub.Publish(context.Background(),
+		artifacts(`{"draugr":{"version":"0.110.0"},"verdict":"pass"}`, `{"runs":[]}`))
+	if err == nil {
+		t.Fatal("published to a server that refused the report")
+	}
+	for _, want := range []string{srv.URL, "Draugr v0.122.0 or later", "this run used v0.110.0", "draugr self-update"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("err = %v, want it to say %q", err, want)
+		}
+	}
+	if strings.Contains(err.Error(), "draugr_too_old") {
+		t.Errorf("err = %v, leads with the server's code", err)
+	}
+}
+
+// Without the version to install the refusal is passed on as the server worded it.
+func TestARefusalWithoutAMinimumIsPassedOnAsWorded(t *testing.T) {
+	p := &server{status: http.StatusUnprocessableEntity,
+		body: `{"error":"draugr_too_old","detail":"upgrade Draugr"}`}
+	srv := p.server(t)
+	pub := publisherFor(t, srv.URL)
+
+	err := pub.Publish(context.Background(), artifacts(`{"verdict":"pass"}`, `{"runs":[]}`))
+	if err == nil || !strings.Contains(err.Error(), "draugr_too_old: upgrade Draugr") {
+		t.Errorf("err = %v, want the server's own words", err)
+	}
+}
+
+func TestAReportThatNamesNoVersionIsSaidPlainly(t *testing.T) {
+	if got := versionIn([]byte(`{"verdict":"pass"}`)); got != "a Draugr that does not say its version" {
+		t.Errorf("versionIn = %q", got)
+	}
+	if got := versionIn([]byte(`{"draugr":{"version":"v0.1.0"}}`)); got != "v0.1.0" {
+		t.Errorf("versionIn = %q", got)
+	}
+}
+
 func TestBothReportsAreRequiredAndNamedSeparately(t *testing.T) {
 	// The publisher renders both for itself, so either one missing is a renderer that failed, and
 	// the error names which.

@@ -1,0 +1,1 @@
+- **A server that needs a newer Draugr says which version, and the scan says how to get it.** When a `draugr-api` server refuses a run as too old, the error names the version it needs, the version you ran, and `draugr self-update`, instead of the server's error code.
