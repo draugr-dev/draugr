@@ -3,9 +3,24 @@
 # verdict.
 init:
   controls: [sca, secrets, sast, iac]
+  scanners: [sast.gosec]
+  reachability: [govulncheck]
   components:
     - name: go-nested
       repositories: ["."]
+  # --per-directory: a component for each directory with its own dependency file, carved
+  # out of the root component.
+  perDirectory:
+    controls: [sca, secrets, sast, iac]
+    scanners: [sast.gosec]
+    reachability: [govulncheck]
+    components:
+      - name: go-nested
+        repositories: ["."]
+        ignore: [tools/]
+      - name: tools
+        repositories: ["."]
+        paths: [tools]
 
 findings:
   - control: sca

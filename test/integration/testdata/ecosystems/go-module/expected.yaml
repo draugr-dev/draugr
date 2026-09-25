@@ -3,6 +3,8 @@
 # and folds a verdict onto each of Trivy's findings rather than reporting its own.
 init:
   controls: [sca, secrets, sast, iac]
+  scanners: [sast.gosec]
+  reachability: [govulncheck]
   components:
     - name: go-module
       repositories: ["."]

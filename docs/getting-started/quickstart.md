@@ -28,7 +28,7 @@ That's the whole path to a verdict. Nothing to write first. When you want to pic
 container images or endpoints, or classify components for prioritization, scaffold a descriptor:
 
 ```bash
-draugr init            # writes a stack-detected draugr.saga.yaml to customize
+draugr init            # writes a draugr.saga.yaml from what the tree holds
 ```
 
 The rest of this guide covers that descriptor-driven flow.

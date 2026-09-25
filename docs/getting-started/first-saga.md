@@ -12,9 +12,8 @@ security surface and the controls that must pass. This page walks you from a one
 classified, multi-control descriptor. For the exhaustive field list, see the [Saga
 schema](../reference/saga-schema.md).
 
-> **Shortcut:** `draugr init` scaffolds this file for you, detecting your stack (Go, a
-> Dockerfile, dependency manifests) to pre-fill sensible controls, a good starting point to
-> edit. And if you just want a scan now, `draugr scan .` needs no Saga at all.
+> **Shortcut:** `draugr init` scaffolds this file from what your tree holds: dependency files,
+> copied JavaScript, infrastructure code, Dockerfiles and OpenAPI documents. And if you just want a scan now, `draugr scan .` needs no Saga at all.
 
 ## The smallest thing that runs
 

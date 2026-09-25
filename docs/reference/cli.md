@@ -159,18 +159,38 @@ and which change it is looking at. You do not set those; the platform does.
 
 ## `draugr init [dir]`
 
-Scaffold a `draugr.saga.yaml` for a project (default: the current directory), detecting the stack to
-pre-fill sensible controls, Go adds `gosec` to `sast`, a `Dockerfile` adds an `images` stub,
-dependency manifests confirm `sca`. Edit it, then `draugr scan`.
+Scaffold a `draugr.saga.yaml` for a project (default: the current directory) from what its tree
+holds. `sca`, `secrets`, `sast` and `iac` are always on; the tree adds scanners and stubs to them,
+each with a comment naming the files behind it. Edit it, then `draugr scan`.
+
+| Found in the tree | Written |
+|---|---|
+| `go.mod` | `sast.gosec` · `config.reachability.analyzers: [govulncheck]` |
+| Copied JavaScript: `*.min.js`, a file named for its release, anything under `vendor/` | `sca.retirejs` |
+| `setup.py`, `pdm.lock` | `sca.grypeFs`, since Trivy reads neither |
+| Terraform, Helm, Kubernetes, a Dockerfile | named in the `iac` comment |
+| A Dockerfile | a commented `images` control and image entry |
+| An OpenAPI or Swagger document | a commented host with `spec: path:` pointing at it |
+| A dependency file with no lockfile, or with no exact version | a comment on the component, and a row under `UNREAD` |
+
+The console lists what was found under `FOUND` and the dependency files no scanner can take
+packages from under `UNREAD`.
+
+A directory below the root that holds its own dependency file is a part of the repository. By
+default the descriptor has one component and names the parts in a comment; `--per-directory`
+writes a component for each, scoped with `paths:`, and the root component `ignore:`s them.
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-o, --output` | `draugr.saga.yaml` | Path to write (`-` for stdout) |
 | `-f, --force` | `false` | Overwrite an existing file |
+| `--per-directory` | `false` | Write a component for each directory that holds its own dependency file |
+| `--fragment` | `false` | Write a Saga fragment: one component, no release and no policy |
 
 ```bash
 draugr init                 # write draugr.saga.yaml for the current project
 draugr init -o - | less     # preview without writing
+draugr init --per-directory # one component per directory with its own dependency file
 draugr init services/payments --fragment    # a Saga fragment, component named for the directory
 ```
 

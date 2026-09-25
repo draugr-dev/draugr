@@ -2,9 +2,24 @@
 # expectations are the ruleid: comments in repo/service/main.go.
 init:
   controls: [sca, secrets, sast, iac]
+  scanners: [sast.gosec]
+  reachability: [govulncheck]
   components:
     - name: go-submodule
       repositories: ["."]
+  # --per-directory: a component for each directory with its own dependency file, carved
+  # out of the root component.
+  perDirectory:
+    controls: [sca, secrets, sast, iac]
+    scanners: [sast.gosec]
+    reachability: [govulncheck]
+    components:
+      - name: go-submodule
+        repositories: ["."]
+        ignore: [service/]
+      - name: service
+        repositories: ["."]
+        paths: [service]
 
 findings:
   - control: sca

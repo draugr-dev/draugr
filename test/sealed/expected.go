@@ -43,8 +43,16 @@ type ErrorExpectation struct {
 type InitExpectation struct {
 	// Controls are the controls it enables, in any order.
 	Controls []string `yaml:"controls"`
+	// Scanners are the scanners it enables inside a control beyond the control's default, as
+	// control.scanner (sast.gosec, sca.retirejs), in any order. Empty means none.
+	Scanners []string `yaml:"scanners"`
+	// Reachability are the reachability analyzers it turns on. Empty means none.
+	Reachability []string `yaml:"reachability"`
 	// Components are the components it declares.
 	Components []ComponentExpectation `yaml:"components"`
+	// PerDirectory is what `draugr init --per-directory` writes, for a scenario whose tree has
+	// directories with their own dependency files. Unset skips that run.
+	PerDirectory *InitExpectation `yaml:"perDirectory"`
 }
 
 // ComponentExpectation is one component `draugr init` declares.
@@ -52,6 +60,9 @@ type ComponentExpectation struct {
 	Name string `yaml:"name"`
 	// Repositories are the repository urls, relative to the descriptor.
 	Repositories []string `yaml:"repositories"`
+	// Paths and Ignore are the scope its repositories declare. Empty means the whole repository.
+	Paths  []string `yaml:"paths"`
+	Ignore []string `yaml:"ignore"`
 }
 
 // SecretExpectation is one generated credential.

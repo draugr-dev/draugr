@@ -1,0 +1,1 @@
+- `draugr init` reads the tree. It turns on retire.js for copied JavaScript, Grype for `setup.py`, gosec and govulncheck reachability for Go, and points a commented host at an OpenAPI document, naming the files behind each line. It lists the dependency files no scanner can take packages from. `--per-directory` writes a component for each directory with its own dependency file.

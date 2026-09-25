@@ -23,11 +23,13 @@ per component, or for the project:
 
 ```yaml
 config:
-  controllers:
+  controls:
     sca:
       grypeFs:
         enabled: true
 ```
+
+`draugr init` turns it on when the tree holds a file Trivy does not read: `setup.py` or `pdm.lock`.
 
 The descriptor key is `grypeFs`, not `grype-fs`: scanner names appear in reports and can be
 hyphenated, descriptor fields are camelCase without exception.

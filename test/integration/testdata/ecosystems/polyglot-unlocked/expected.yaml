@@ -7,6 +7,35 @@ init:
   components:
     - name: polyglot-unlocked
       repositories: ["."]
+  # --per-directory: a component for each directory with its own dependency file, carved
+  # out of the root component.
+  perDirectory:
+    controls: [sca, secrets, sast, iac]
+    components:
+      - name: polyglot-unlocked
+        repositories: ["."]
+        ignore: [api/, crate/, php/, rb/, svc/, tools/, web/]
+      - name: api
+        repositories: ["."]
+        paths: [api]
+      - name: crate
+        repositories: ["."]
+        paths: [crate]
+      - name: php
+        repositories: ["."]
+        paths: [php]
+      - name: rb
+        repositories: ["."]
+        paths: [rb]
+      - name: svc
+        repositories: ["."]
+        paths: [svc]
+      - name: tools
+        repositories: ["."]
+        paths: [tools]
+      - name: web
+        repositories: ["."]
+        paths: [web]
 
 findings:
   - control: sca

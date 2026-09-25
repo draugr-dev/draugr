@@ -105,17 +105,11 @@ func runSealed(t *testing.T, s sealed.Scenario, advs sealed.Advisories, bin stri
 		}
 	}
 
-	// init, in the repository, as somebody meeting it for the first time would run it.
-	initOut := filepath.Join(work, "init.saga.yaml")
-	if out, err := c.Command(repo, draugr, "init", ".", "--output", initOut, "--offline").CombinedOutput(); err != nil {
-		t.Fatalf("%s: draugr init: %v\n%s", s.Name, err, out)
-	}
-	got, err := sealed.ObserveInit(initOut)
-	if err != nil {
-		t.Fatalf("%s: %v", s.Name, err)
-	}
-	for _, p := range sealed.CheckInit(s.Expected.Init, got) {
-		t.Errorf("%s: %s", s.Name, p)
+	// init, in the repository, as somebody meeting it for the first time would run it, and again
+	// with --per-directory where the scenario says what that writes.
+	checkInit(t, c, draugr, s.Name, repo, filepath.Join(work, "init.saga.yaml"), s.Expected.Init)
+	if pd := s.Expected.Init.PerDirectory; pd != nil {
+		checkInit(t, c, draugr, s.Name+" --per-directory", repo, filepath.Join(work, "init-per-directory.saga.yaml"), *pd, "--per-directory")
 	}
 
 	// The scan. A non-zero exit is expected, because every scenario either has findings that trip
@@ -166,6 +160,26 @@ func runSealed(t *testing.T, s sealed.Scenario, advs sealed.Advisories, bin stri
 
 // compareSealedGolden holds a normalized document to the scenario's golden copy, or rewrites the
 // copy under -update-sealed.
+// checkInit runs `draugr init` in repo, checks what it wrote against exp, and has `draugr validate`
+// read it, so a descriptor init writes is one the next command accepts.
+func checkInit(t *testing.T, c sealed.Container, draugr, name, repo, out string, exp sealed.InitExpectation, flags ...string) {
+	t.Helper()
+	argv := append([]string{draugr, "init", ".", "--output", out, "--offline"}, flags...)
+	if o, err := c.Command(repo, argv...).CombinedOutput(); err != nil {
+		t.Fatalf("%s: draugr init: %v\n%s", name, err, o)
+	}
+	got, err := sealed.ObserveInit(out)
+	if err != nil {
+		t.Fatalf("%s: %v", name, err)
+	}
+	for _, p := range sealed.CheckInit(exp, got) {
+		t.Errorf("%s: %s", name, p)
+	}
+	if o, err := c.Command(repo, draugr, "validate", out, "--offline").CombinedOutput(); err != nil {
+		t.Errorf("%s: draugr validate refuses what init wrote: %v\n%s", name, err, o)
+	}
+}
+
 func compareSealedGolden(t *testing.T, s sealed.Scenario, name string, raw []byte, n sealed.Normalizer) {
 	t.Helper()
 	got, err := n.Apply(raw)

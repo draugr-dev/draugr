@@ -159,6 +159,31 @@ func TestInit(t *testing.T) {
 		t.Errorf("problems = %v, want the controls and the components named", p)
 	}
 
+	// Scanners inside a control, the reachability analyzers and each repository's scope are part
+	// of what init wrote, and a difference in any of them is reported.
+	writeFixture(t, path, "project: demo\nrelease:\n  version: \"1.0\"\nconfig:\n  reachability:\n    analyzers: [govulncheck]\n"+
+		"  controls:\n    sast:\n      enabled: true\n      gosec:\n        enabled: true\n      semgrep:\n        enabled: false\n"+
+		"components:\n  - name: demo\n    repositories:\n      - url: .\n        ignore: [web/]\n"+
+		"  - name: web\n    repositories:\n      - url: .\n        paths: [web]\n")
+	got, err = ObserveInit(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exp = InitExpectation{
+		Controls: []string{"sast"}, Scanners: []string{"sast.gosec"}, Reachability: []string{"govulncheck"},
+		Components: []ComponentExpectation{
+			{Name: "demo", Repositories: []string{"."}, Ignore: []string{"web/"}},
+			{Name: "web", Repositories: []string{"."}, Paths: []string{"web"}},
+		},
+	}
+	if p := CheckInit(exp, got); len(p) != 0 {
+		t.Errorf("a matching descriptor reported %v", p)
+	}
+	exp.Scanners, exp.Reachability, exp.Components[1].Paths = nil, nil, nil
+	if p := CheckInit(exp, got); len(p) != 3 {
+		t.Errorf("problems = %v, want the scanners, the analyzers and the components named", p)
+	}
+
 	writeFixture(t, path, "project: [\n")
 	if _, err := ObserveInit(path); err == nil || !strings.Contains(err.Error(), "does not load") {
 		t.Errorf("err = %v", err)

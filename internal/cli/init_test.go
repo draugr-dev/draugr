@@ -9,13 +9,14 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/draugr-dev/draugr/internal/inventory"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
 func TestRunInitWritesFileWithDetection(t *testing.T) {
 	dir := t.TempDir()
 	// Go + Dockerfile → gosec hint + images stub.
-	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module x\ngo 1.26\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module x\ngo 1.26\nrequire golang.org/x/text v0.3.0\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "Dockerfile"), []byte("FROM alpine\n"), 0o600); err != nil {
@@ -31,7 +32,7 @@ func TestRunInitWritesFileWithDetection(t *testing.T) {
 		t.Fatalf("expected %s written: %v", out, err)
 	}
 	s := string(data)
-	for _, want := range []string{"Detected: Go", "gosec:\n        enabled: true", "images:", "sca:", "url: ."} {
+	for _, want := range []string{"analyzers: [govulncheck]", "gosec:\n        enabled: true     # Go-specific checks · go.mod", "images:", "sca:", "url: ."} {
 		if !strings.Contains(s, want) {
 			t.Errorf("generated Saga missing %q:\n%s", want, s)
 		}
@@ -68,32 +69,13 @@ func TestRunInitNoOverwrite(t *testing.T) {
 	}
 }
 
-// The comment `draugr init` writes names the file the reader can see in their own directory, so
-// the mapping is worth pinning. And the fallback wording has to stay something a reader can act
-// on when no manifest was recognized.
-func TestInitNamesTheManifestItFound(t *testing.T) {
-	t.Parallel()
-	for _, name := range []string{"go.mod", "package.json", "pyproject.toml", "Cargo.toml"} {
-		dir := t.TempDir()
-		if err := os.WriteFile(filepath.Join(dir, name), nil, 0o600); err != nil {
-			t.Fatal(err)
-		}
-		if got := depManifest(dir); got != name {
-			t.Errorf("depManifest with %s = %q", name, got)
-		}
-	}
-	if got := depManifest(t.TempDir()); got != "a lockfile" {
-		t.Errorf("depManifest with nothing recognizable = %q", got)
-	}
-}
-
 // A descriptor Draugr writes must not be one Draugr's own next command warns about.
 //
 // `draugr init` then `draugr validate` are the first two steps of the quickstart, and the
 // scaffold wrote the field the deprecation notice tells the reader to stop using, so a new
 // user's very first run contradicted the tutorial that sent them there.
 func TestTheScaffoldWritesTheFieldTheDocsTellPeopleToUse(t *testing.T) {
-	out := scaffoldSaga(t.TempDir(), "acme-api")
+	out := scaffoldSaga(inventory.Read(t.TempDir()), "acme-api", false)
 
 	if !strings.Contains(out, "project: acme-api") {
 		t.Errorf("scaffold does not name the project:\n%s", out)

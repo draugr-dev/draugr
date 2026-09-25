@@ -3,6 +3,7 @@
 # is MIT, which no policy restricts.
 init:
   controls: [sca, secrets, sast, iac]
+  scanners: [sca.retirejs]
   components:
     - name: js-npm
       repositories: ["."]

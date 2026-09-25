@@ -9,8 +9,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/draugr-dev/draugr/internal/version"
+	"github.com/draugr-dev/draugr/internal/inventory"
 	"github.com/draugr-dev/draugr/pkg/saga"
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 type initOptions struct {
@@ -18,6 +19,8 @@ type initOptions struct {
 	fragment bool
 	output   string
 	force    bool
+	// perDirectory writes a component for each directory holding its own dependency file.
+	perDirectory bool
 }
 
 func newInitCommand() *cobra.Command {
@@ -25,9 +28,13 @@ func newInitCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init [dir]",
 		Short: "Scaffold a draugr.saga.yaml for the current project",
-		Long: "Write a starter Saga for the given directory (default: the current one),\n" +
-			"detecting the stack to pre-fill sensible controls. Edit it, then `draugr scan`.\n" +
-			"For an instant scan with no file, use `draugr scan .` instead.\n\n" +
+		Long: "Write a starter Saga for the given directory (default: the current one). init reads the tree\n" +
+			"for dependency files, copied JavaScript, Terraform, Helm, Kubernetes, Dockerfiles and OpenAPI\n" +
+			"documents and enables the scanners they call for, each with a comment naming the files\n" +
+			"behind it. It lists the dependency files no scanner can take packages from.\n" +
+			"Edit the file, then `draugr scan`. For an instant scan with no file, use `draugr scan .`.\n\n" +
+			"--per-directory writes a component for each directory that holds its own dependency file,\n" +
+			"scoped with paths: and carved out of the root component with ignore:.\n\n" +
 			"--fragment writes a Saga fragment instead: one component, no release and no policy,\n" +
 			"for a descriptor assembled from several files. The component is named after the\n" +
 			"directory; fragments naming the same component merge into one.\n\n" +
@@ -47,6 +54,8 @@ func newInitCommand() *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&opts.output, "output", "o", "draugr.saga.yaml", "path to write the Saga (- for stdout)")
 	cmd.Flags().BoolVarP(&opts.force, "force", "f", false, "overwrite an existing file")
+	cmd.Flags().BoolVar(&opts.perDirectory, "per-directory", false,
+		"write a component for each directory that holds its own dependency file, scoped by paths:")
 	cmd.Flags().BoolVar(&opts.fragment, "fragment", false,
 		"write a Saga fragment (a component, no release or policy) instead of a Saga")
 	return cmd
@@ -65,7 +74,8 @@ func runInit(dir string, opts initOptions, w io.Writer) error {
 	// command it suggests. A capital letter or a dot in a directory name is ordinary, and being
 	// told to go and fix the file the tool just wrote is the worst possible first minute.
 	name := projectNameFrom(filepath.Base(abs))
-	body := scaffoldSaga(dir, name)
+	tree := inventory.Read(dir)
+	body := scaffoldSaga(tree, name, opts.perDirectory)
 	if opts.fragment {
 		body = scaffoldFragment(name)
 	}
@@ -92,91 +102,14 @@ func runInit(dir string, opts initOptions, w io.Writer) error {
 			opts.output, filepath.Base(opts.output))
 		return nil
 	}
-	_, _ = fmt.Fprintf(w, "✓ wrote %s\n\nNext:\n  draugr doctor %s   # check the scanners it needs\n  draugr scan %s\n",
-		opts.output, opts.output, opts.output)
+	writeInitSummary(w, tui.For(w), tree, opts)
 	return nil
-}
-
-// detect reports whether any of the given filenames exists in dir.
-// depManifest names the file that made the dependency check apply, because "dependency manifest"
-// is a category and the reader is looking at a directory. Naming the file they can see turns a
-// comment they have to translate into one they can check.
-func depManifest(dir string) string {
-	for _, name := range []string{
-		"go.mod", "package.json", "requirements.txt", "pyproject.toml",
-		"pom.xml", "Gemfile", "Cargo.toml", "composer.json",
-	} {
-		if detect(dir, name) {
-			return name
-		}
-	}
-	return "a lockfile"
-}
-
-func detect(dir string, names ...string) bool {
-	for _, n := range names {
-		if _, err := os.Stat(filepath.Join(dir, n)); err == nil {
-			return true
-		}
-	}
-	return false
-}
-
-// scaffoldSaga renders a starter Saga, tuned by what it finds in dir.
-func scaffoldSaga(dir, name string) string {
-	isGo := detect(dir, "go.mod")
-	hasDeps := isGo || detect(dir, "package.json", "requirements.txt", "pyproject.toml", "pom.xml", "Gemfile", "Cargo.toml", "composer.json")
-	hasDocker := detect(dir, "Dockerfile")
-
-	var b strings.Builder
-	// The modeline gives editors schema-driven completion, hover docs and validation with no
-	// setup: the YAML language server (VS Code, JetBrains, Neovim) fetches it on open.
-	// Pin the schema to this build's version, so the scaffolded file is validated against the
-	// same rules the binary that wrote it enforces. Swap it for saga.SchemaURL to track latest,
-	// or for a local path from `draugr schema -o …` to drop the network dependency entirely.
-	b.WriteString("# yaml-language-server: $schema=" + saga.SchemaURLFor(version.Version) + "\n")
-	b.WriteString("# Generated by `draugr init`. Edit to taste, then: draugr scan draugr.saga.yaml\n")
-	var detected []string
-	if isGo {
-		detected = append(detected, "Go")
-	}
-	if hasDeps {
-		detected = append(detected, "dependencies to scan ("+depManifest(dir)+")")
-	}
-	if hasDocker {
-		detected = append(detected, "Dockerfile")
-	}
-	if len(detected) > 0 {
-		b.WriteString("# Detected: " + strings.Join(detected, ", ") + "\n")
-	}
-	// The project at the top level, which is the only place it is named. A descriptor Draugr wrote
-	// itself must be one Draugr's own next command accepts. And `init` then `validate` are the first
-	// two steps of the quickstart.
-	fmt.Fprintf(&b, "project: %s\n", name)
-	b.WriteString("config:\n  controls:\n")
-	b.WriteString("    sca:\n      enabled: true       # dependency vulnerabilities (Trivy)\n")
-	b.WriteString("    secrets:\n      enabled: true       # leaked credentials (Gitleaks)\n")
-	b.WriteString("    sast:\n      enabled: true       # code security (Semgrep)\n")
-	if isGo {
-		b.WriteString("      gosec:\n        enabled: true   # Go detected, gosec adds Go-specific checks\n")
-	}
-	b.WriteString("    iac:\n      enabled: true       # IaC misconfiguration (Trivy config)\n")
-	if hasDocker {
-		b.WriteString("    # images:\n    #   enabled: true     # container CVEs (Trivy). Add your built image below\n")
-	}
-	fmt.Fprintf(&b, "components:\n  - name: %s\n    repositories:\n      - url: .\n", name)
-	if hasDocker {
-		b.WriteString("    # images:\n    #   - image: myorg/" + name + ":latest\n")
-	}
-	b.WriteString("    # hosts:            # for the headers/DAST controls\n")
-	b.WriteString("    #   - name: api\n    #     url: https://api.example.com\n    #     type: api\n")
-	return b.String()
 }
 
 // scaffoldFragment writes a starter Saga fragment for one component.
 //
-// Much smaller than a Saga's scaffold, and necessarily so: `init` detects a stack to pre-fill
-// `config.controllers`, and a fragment may not carry controllers. Policy stays in the descriptor
+// Much smaller than a Saga's scaffold, and necessarily so: `init` reads the tree to pre-fill
+// `config.controls`, and a fragment may not carry controls. Policy stays in the descriptor
 // that names it. What is left is the part worth automating anyway: the modeline, which is long
 // and silently wrong if mistyped, and the component name.
 //

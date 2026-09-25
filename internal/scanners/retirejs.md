@@ -32,7 +32,7 @@ suggests there is anywhere left to look.
 
 ```yaml
 config:
-  controllers:
+  controls:
     sca:
       retirejs:
         enabled: true
@@ -40,6 +40,8 @@ config:
 
 Opt-in rather than default: it only pays off for a repository with front-end assets, and a scanner
 that finds nothing on most repositories is not something everyone should wait for.
+`draugr init` turns it on when the tree holds copied JavaScript: a `*.min.js` file, a file named for
+its release such as `jquery-1.8.3.js`, or anything under a `vendor/` directory.
 
 ## Choices worth knowing
 
