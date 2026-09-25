@@ -50,7 +50,9 @@ type Tree struct {
 	// OpenAPI are OpenAPI and Swagger documents.
 	OpenAPI []string
 	// Parts are the directories below the root that hold their own dependency file or go.mod, the
-	// units a monorepo is made of.
+	// units a monorepo is made of. A JavaScript workspace member, a directory the root package.json
+	// or pnpm-workspace.yaml names, is not one by its package.json alone: the lockfile at the
+	// workspace root resolves it, so it stays with that root.
 	Parts []string
 }
 
@@ -142,9 +144,17 @@ func Read(root string) Tree {
 	t.Helm = sortedKeys(helm)
 	t.Go = sortedKeys(goMods)
 
+	// A workspace member's package.json is resolved by the lockfile at the workspace root, so it
+	// makes its directory no part. A lockfile of its own, or a dependency file of another
+	// ecosystem, still does.
+	wss := workspaces(root, yamls)
 	parts := map[string]bool{}
 	for _, f := range t.Dependencies {
-		parts[path.Dir(f.Path)] = true
+		dir := path.Dir(f.Path)
+		if f.Ecosystem == "npm" && f.Kind == manifests.Declared && member(dir, wss) {
+			continue
+		}
+		parts[dir] = true
 	}
 	for _, dir := range t.Go {
 		parts[dir] = true

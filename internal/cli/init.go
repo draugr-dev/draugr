@@ -34,7 +34,8 @@ func newInitCommand() *cobra.Command {
 			"behind it. It lists the dependency files no scanner can take packages from.\n" +
 			"Edit the file, then `draugr scan`. For an instant scan with no file, use `draugr scan .`.\n\n" +
 			"--per-directory writes a component for each directory that holds its own dependency file,\n" +
-			"scoped with paths: and carved out of the root component with ignore:.\n\n" +
+			"scoped with paths: and carved out of the root component with ignore:. A JavaScript workspace\n" +
+			"member stays with the workspace root, whose lockfile resolves it.\n\n" +
 			"--fragment writes a Saga fragment instead: one component, no release and no policy,\n" +
 			"for a descriptor assembled from several files. The component is named after the\n" +
 			"directory; fragments naming the same component merge into one.\n\n" +

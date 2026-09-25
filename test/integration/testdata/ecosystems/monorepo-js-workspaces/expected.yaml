@@ -11,6 +11,24 @@ init:
   components:
     - name: monorepo-js-workspaces
       repositories: ["."]
+  # --per-directory: a component for each workspace root, the components the hand-written
+  # descriptor declares. The members under packages/ hold a package.json and no lockfile, and stay
+  # with the root whose lockfile resolves them.
+  perDirectory:
+    controls: [iac, sast, sca, secrets]
+    components:
+      - name: monorepo-js-workspaces
+        repositories: ["."]
+        ignore: [npm/, pnpm/, yarn/]
+      - name: npm
+        repositories: ["."]
+        paths: [npm]
+      - name: pnpm
+        repositories: ["."]
+        paths: [pnpm]
+      - name: yarn
+        repositories: ["."]
+        paths: [yarn]
 
 findings:
   - control: sca

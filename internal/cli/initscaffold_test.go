@@ -148,6 +148,32 @@ func TestInitPerDirectoryScopesEachPart(t *testing.T) {
 	}
 }
 
+// Two npm workspaces, each with one lockfile at its root: every member stays in the component of
+// the workspace whose lockfile resolves it, rather than a component of its own with no lockfile.
+func TestInitPerDirectoryKeepsWorkspaceMembersWithTheirRoot(t *testing.T) {
+	t.Parallel()
+	lock := `{"lockfileVersion": 3, "packages": {"node_modules/minimist": {}}}`
+	dep := `{"dependencies": {"minimist": "1.2.5"}}`
+	files := map[string]string{
+		"web/package.json":               `{"workspaces": ["packages/*"]}`,
+		"web/package-lock.json":          lock,
+		"web/packages/ui/package.json":   dep,
+		"api/package.json":               `{"workspaces": {"packages": ["services/*"]}}`,
+		"api/package-lock.json":          lock,
+		"api/services/auth/package.json": dep,
+	}
+	got, _ := runInitIn(t, files, initOptions{perDirectory: true})
+	want := "components:\n" +
+		"  - name: shop\n    repositories:\n      - url: .\n        ignore: [api/, web/]\n" +
+		"    # hosts:            # for the headers/DAST controls\n" +
+		"    #   - name: api\n    #     url: https://api.example.com\n    #     type: api\n" +
+		"  - name: api\n    repositories:\n      - url: .\n        paths: [api]\n" +
+		"  - name: web\n    repositories:\n      - url: .\n        paths: [web]\n"
+	if !strings.HasSuffix(got, want) {
+		t.Errorf("components =\n%s\nwant\n%s", got[strings.Index(got, "components:"):], want)
+	}
+}
+
 // A part is named for its directory, and for its whole path where the directory name is taken,
 // by another part or by the project, so two components never share a name.
 func TestInitPerDirectoryNamesNeverCollide(t *testing.T) {

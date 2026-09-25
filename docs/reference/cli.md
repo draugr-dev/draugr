@@ -182,6 +182,11 @@ repository. By default the descriptor has one component and names the parts in a
 `--per-directory` writes a component for each, scoped with `paths:`, and the root component
 `ignore:`s them.
 
+A JavaScript workspace member stays with its workspace root, whose lockfile resolves it. A member
+is a directory the root `package.json` names under `workspaces` (npm, Yarn, Bun), as an array or as
+`packages:` in an object, or one `pnpm-workspace.yaml` names under `packages:`. A member with a
+lockfile of its own, or a dependency file of another ecosystem, is still a part.
+
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-o, --output` | `draugr.saga.yaml` | Path to write (`-` for stdout) |
