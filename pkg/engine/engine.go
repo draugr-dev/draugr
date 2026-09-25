@@ -1858,7 +1858,19 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 		return ReachabilitySummary{}
 	}
 
+	// Which verdicts another scanner's finding will carry, decided before anything is dropped. An
+	// analyzer's copy and the finding it duplicates can arrive in either order, within one control's
+	// results or across two controls, and deciding as the loop goes would keep the analyzer's copy
+	// whenever it came first.
 	folded := map[reachKey]bool{}
+	for _, cr := range controls {
+		for _, res := range cr.Report.Results {
+			key := reachKey{res.Component, res.Repository, res.Location.URI, packageName(res), res.RuleID}
+			if _, ok := verdicts[key]; ok && res.Reachability == nil {
+				folded[key] = true
+			}
+		}
+	}
 	for name, cr := range controls {
 		kept := cr.Report.Results[:0]
 		for i := range cr.Report.Results {
@@ -1877,7 +1889,6 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 				if !ok {
 					break
 				}
-				folded[key] = true
 				// Copied per finding: one analyzer verdict covers every identifier the advisory
 				// is known by, but RankedAs is a fact about this finding's own severity, and a
 				// shared struct would record whichever was banded last for all of them.

@@ -372,3 +372,29 @@ func TestApplyReachabilityKeepsAnAnalyzerFindingNoScannerInItsComponentReported(
 		t.Errorf("summary = %+v, want the worker finding counted as contributed", got)
 	}
 }
+
+func TestApplyReachabilityFoldsWhicheverFindingArrivesFirst(t *testing.T) {
+	// Jobs finish in any order, so the analyzer's copy can precede the finding it duplicates. Two
+	// repositories, one in each order, so a fold that depends on the order passes on only one.
+	ctrls := controlsWith(
+		analyzed("repo-a", "CVE-2022-32149", "golang.org/x/text", sarif.ReachabilityReachable),
+		scanned("repo-a", "CVE-2022-32149", "golang.org/x/text"),
+		scanned("repo-b", "CVE-2022-32149", "golang.org/x/text"),
+		analyzed("repo-b", "CVE-2022-32149", "golang.org/x/text", sarif.ReachabilityUnreachable),
+	)
+	got := (&Engine{}).applyReachability(ctrls, saga.Model{})
+
+	res := ctrls["sca"].Report.Results
+	if len(res) != 2 {
+		t.Fatalf("results = %d, want 2, one per repository with the analyzer's copies folded away", len(res))
+	}
+	for _, r := range res {
+		if r.Tool != "trivy" || r.Reachability == nil {
+			t.Errorf("%s: tool = %q, reachability = %+v; want the scanner's finding carrying the verdict",
+				r.Repository, r.Tool, r.Reachability)
+		}
+	}
+	if got.Analyzers[0].Contributed != 0 {
+		t.Errorf("contributed = %d, want 0, every analyzer finding had a match", got.Analyzers[0].Contributed)
+	}
+}
