@@ -568,3 +568,67 @@ func TestAFixedRowDoesNotRepeatItsVersionInTheSentence(t *testing.T) {
 		t.Errorf("findingTitle = %q, want the message untouched", got)
 	}
 }
+
+func TestAPassStillCountsTheWorkItInherited(t *testing.T) {
+	// A change that introduced no P1 passes, and the P1s it inherited are still somebody's to fix. A
+	// comment reading only "3 unchanged" lets that pass read as a clean bill.
+	accepted := sarif.Result{RuleID: "accepted", Priority: "P1",
+		Suppression: &sarif.Suppression{Justification: "not reachable", Kind: "external"}}
+	r := Result{
+		Gate: Gate{FailOnPriority: "P1"},
+		Unchanged: []sarif.Result{
+			{RuleID: "a", Priority: "P1", Component: "api"},
+			{RuleID: "a", Priority: "P1", Component: "worker"},
+			{RuleID: "b", Priority: "P3", Component: "api"},
+			accepted,
+		},
+	}
+	var md bytes.Buffer
+	if err := Render(&md, "markdown", r, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	// The accepted P1 is a decision already taken, so it is in the unchanged count and not in the
+	// work; a band with nothing in it is not named.
+	if want := "✅ **pass** · 4 unchanged · 2 P1 · 1 P3\n"; !strings.Contains(md.String(), want) {
+		t.Errorf("the comment's headline should carry the standing bands, want %q in:\n%s", want, md.String())
+	}
+
+	var console bytes.Buffer
+	if err := Render(&console, "console", r, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if want := " unchanged  P1 2 P2 0 P3 1 P4 0\n"; !strings.Contains(console.String(), want) {
+		t.Errorf("the terminal should draw the standing bands, want %q in:\n%s", want, console.String())
+	}
+	if strings.Contains(console.String(), "2 P1") {
+		t.Errorf("the terminal carries the bands as chips, not in the headline:\n%s", console.String())
+	}
+}
+
+func TestTheBandStripsLineUp(t *testing.T) {
+	r := Result{
+		New:       []sarif.Result{{RuleID: "n", Priority: "P2"}},
+		Unchanged: []sarif.Result{{RuleID: "u", Priority: "P1"}},
+	}
+	var out bytes.Buffer
+	if err := Render(&out, "console", r, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		" new        P1 0 P2 1 P3 0 P4 0\n",
+		" unchanged  P1 1 P2 0 P3 0 P4 0\n",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("want %q in:\n%s", want, out.String())
+		}
+	}
+
+	// With the new strip alone, its label is not padded out to a word that is not on screen.
+	out.Reset()
+	if err := Render(&out, "console", Result{New: r.New}, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if want := " new  P1 0 P2 1 P3 0 P4 0\n"; !strings.Contains(out.String(), want) {
+		t.Errorf("want %q in:\n%s", want, out.String())
+	}
+}

@@ -125,6 +125,32 @@ func headline(r Result, emoji bool) []string {
 	return append(parts, fmt.Sprintf("%d unchanged", len(r.Unchanged)))
 }
 
+// standing is the unchanged findings still counting, one part per band that has any.
+//
+// A change that introduced no P1 passes, and the ones it inherited are still somebody's to fix; a
+// comment that said only "106 unchanged" would let a pass read as a clean bill. Suppressed findings
+// are left out, because one accepted in both scans is a decision already taken.
+func standing(r Result) []string {
+	var parts []string
+	for i, n := range standingBands(r.Unchanged) {
+		if n > 0 {
+			parts = append(parts, fmt.Sprintf("%d P%d", n, i+1))
+		}
+	}
+	return parts
+}
+
+// standingBands counts the unchanged findings that are not suppressed, by band.
+func standingBands(fs []sarif.Result) [4]int {
+	var open []sarif.Result
+	for _, f := range fs {
+		if !f.Suppressed() {
+			open = append(open, f)
+		}
+	}
+	return bands(open)
+}
+
 // verdict is what the gate decided, or empty where nothing was asked of this run.
 func verdict(r Result) (string, bool) {
 	if !r.Gate.Stated() {
@@ -226,9 +252,7 @@ func renderConsole(w io.Writer, r Result, opts Options) error {
 	}
 	_, _ = fmt.Fprintf(w, "%s\n\n", strings.Join(line, "  "))
 
-	if bands := newBands(r.New); bands != ([4]int{}) {
-		_, _ = fmt.Fprintf(w, " %s  %s\n\n", col.Paint(tui.StyleMuted, "new"), col.BandChips(bands))
-	}
+	writeBandRows(w, col, r)
 
 	entries := r.Changed()
 	if len(entries) == 0 {
@@ -549,10 +573,10 @@ func writeMarkdownVerdict(w io.Writer, r Result) {
 		if failed {
 			mark = "❌"
 		}
-		_, _ = fmt.Fprintf(w, "%s **%s** · %s\n\n", mark, v, strings.Join(headline(r, true), " · "))
+		_, _ = fmt.Fprintf(w, "%s **%s** · %s\n\n", mark, v, strings.Join(append(headline(r, true), standing(r)...), " · "))
 		return
 	}
-	_, _ = fmt.Fprintf(w, "**%s**\n\n", strings.Join(headline(r, true), " · "))
+	_, _ = fmt.Fprintf(w, "**%s**\n\n", strings.Join(append(headline(r, true), standing(r)...), " · "))
 }
 
 func renderMarkdownTable(w io.Writer, r Result, opts Options) error {
@@ -677,11 +701,40 @@ func renderJSON(w io.Writer, r Result) error {
 	return enc.Encode(doc)
 }
 
-// newBands counts the findings this change introduced, by band.
+// writeBandRows draws a strip of band chips for the new findings and one for the unchanged ones
+// still counting, each only where it has something in it.
 //
-// Over the new ones alone, because that is what the chips are asked about: a strip covering fixed
-// findings too would put the good news in the same red as the bad.
-func newBands(fs []sarif.Result) [4]int {
+// Fixed findings get no strip, because it would put the good news in the same red as the bad. The
+// two strips stay apart rather than summed, because the gate asks about the first and the second
+// is work this change inherited.
+func writeBandRows(w io.Writer, col tui.Painter, r Result) {
+	rows := []struct {
+		label  string
+		counts [4]int
+	}{
+		{"new", bands(r.New)},
+		{"unchanged", standingBands(r.Unchanged)},
+	}
+	width := 0
+	for _, row := range rows {
+		if row.counts != ([4]int{}) {
+			width = max(width, len(row.label))
+		}
+	}
+	for _, row := range rows {
+		if row.counts == ([4]int{}) {
+			continue
+		}
+		label := fmt.Sprintf("%-*s", width, row.label)
+		_, _ = fmt.Fprintf(w, " %s  %s\n", col.Paint(tui.StyleMuted, label), col.BandChips(row.counts))
+	}
+	if width > 0 {
+		_, _ = fmt.Fprintln(w)
+	}
+}
+
+// bands counts findings by band.
+func bands(fs []sarif.Result) [4]int {
 	var out [4]int
 	for _, f := range fs {
 		switch prioritization.Priority(f.Priority) {

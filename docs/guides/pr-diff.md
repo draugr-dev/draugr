@@ -108,7 +108,9 @@ column. A state that did not happen is not named, so a diff with nothing accepte
 anybody read past a zero:
 
 ```console
-DRAUGR DIFF  pass  1 unaccepted  23 unchanged
+DRAUGR DIFF  pass  1 unaccepted  28 unchanged
+
+ unchanged  P1 13 P2 13 P3 1 P4 0
 
 CHANGED  1, by priority
   Change        Priority  Severity  Rule            Scanner  Location                Upgrade
@@ -117,6 +119,11 @@ CHANGED  1, by priority
 
 Gate: fails on any P1 this change introduces.
 ```
+
+The `unchanged` strip counts the unchanged findings by band, leaving out any suppressed in both
+scans. It is the work this change inherited, which the gate does not ask about. The pull-request
+comment carries the same counts after the unchanged total:
+`✅ **pass** · ⚠️ 1 unaccepted · 28 unchanged · 13 P1 · 13 P2 · 1 P3`.
 
 `--view compact` is the same table one line each, and `--view actions` groups it into the things
 somebody would do. `--top` caps the listing, and is `0` by default because a diff is already only
@@ -183,8 +190,6 @@ a release that rewords a message rewords it on one side only when the stored bas
 
 ```console
 DRAUGR DIFF  FAIL  31 new  31 fixed  1 unchanged
-
- new  P1 18 P2 13 P3 0 P4 0
 ```
 
 That is the same tree on both sides, diffed across two Draugr versions. Every finding arrives as

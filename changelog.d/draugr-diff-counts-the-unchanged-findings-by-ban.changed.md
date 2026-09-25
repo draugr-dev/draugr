@@ -1,0 +1,1 @@
+- **`draugr diff` counts the unchanged findings by band**, so a passing diff still shows the P1s the change inherited. The terminal draws an `unchanged` strip under the `new` one, and the pull-request comment reads `28 unchanged · 13 P1 · 13 P2 · 1 P3`. A finding suppressed in both scans is left out of the bands.
