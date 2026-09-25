@@ -459,12 +459,42 @@ type ScanOutput struct {
 	Controls []string `json:"controls" jsonschema:"the controls this scan ran; nothing outside them was examined"`
 	// Uncovered names surfaces the descriptor declares that no enabled control looked at.
 	Uncovered []string `json:"uncovered,omitempty" jsonschema:"surfaces this descriptor declares that no enabled control examined"`
+	// Unread names the dependency files in scope that no scanner took packages from.
+	Unread []UnreadFile `json:"unread,omitempty" jsonschema:"dependency files no scanner took packages from; the packages they declare were not checked"`
 	// Unexamined is the same sentence for everything no control covers at all.
 	Unexamined string `json:"unexamined" jsonschema:"what a Draugr scan does not examine, whatever the verdict"`
 	// Delivered names where the descriptor's publishers put the report, so a caller can point
 	// the user at a file, or read it back later instead of scanning again.
 	Delivered []string `json:"delivered,omitempty" jsonschema:"where this run's reports were delivered, from the descriptor's config.publishers"`
 	SummarizeOutput
+}
+
+// UnreadFile is a dependency file no scanner serving a control took packages from.
+type UnreadFile struct {
+	Component  string   `json:"component"`
+	Repository string   `json:"repository,omitempty"`
+	Path       string   `json:"path"`
+	Reason     string   `json:"reason" jsonschema:"no lockfile, no pinned versions, or no packages read"`
+	Controls   []string `json:"controls" jsonschema:"the controls whose scanners did not read it"`
+}
+
+// unreadFiles lists each unread file once per component, with every control that missed it.
+func unreadFiles(inputs []engine.InputCoverage) []UnreadFile {
+	var out []UnreadFile
+	index := map[[3]string]int{}
+	for _, c := range inputs {
+		for _, u := range c.Unread {
+			k := [3]string{c.Component, u.Repository, u.Path}
+			i, ok := index[k]
+			if !ok {
+				i = len(out)
+				index[k] = i
+				out = append(out, UnreadFile{Component: c.Component, Repository: u.Repository, Path: u.Path, Reason: u.Reason})
+			}
+			out[i].Controls = append(out[i].Controls, c.Control)
+		}
+	}
+	return out
 }
 
 // unexaminedNote is what a passing verdict does not mean. It is constant because the classes it
@@ -552,6 +582,7 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 			Verdict:         string(verdict.Verdict),
 			Controls:        controls,
 			Uncovered:       surfaces.Uncovered(model),
+			Unread:          unreadFiles(run.Inputs),
 			Unexamined:      unexaminedNote,
 			Delivered:       delivered,
 			SummarizeOutput: summarize(sarif.Merge(collect(reports)...), in.MinPriority, in.Limit),

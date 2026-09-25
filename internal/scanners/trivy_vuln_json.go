@@ -193,6 +193,24 @@ func (d trivyVulnDoc) layers() map[string]sarif.Layer {
 // trivyClassOSPkgs is Trivy's name for a result set drawn from the image's own package database.
 const trivyClassOSPkgs = "os-pkgs"
 
+// trivyClassLangPkgs is Trivy's name for a result set read from one language ecosystem's file.
+const trivyClassLangPkgs = "lang-pkgs"
+
+// trivyInput is the dependency file a result set was read from, or false for a set that is not one.
+//
+// Trivy leaves out a file it read no packages from, so the files named here are the ones that
+// contributed, and a file in the tree missing from them contributed nothing. The count is what
+// --list-all-pkgs lists, which the license scan reports without being asked.
+//
+// Only over a checkout: an image has no tree to account against, and the files in it are the
+// image's rather than a repository's.
+func trivyInput(dir, class, target string, packages int) (sarif.Input, bool) {
+	if dir == "" || class != trivyClassLangPkgs || target == "" {
+		return sarif.Input{}, false
+	}
+	return sarif.Input{Path: repoRelPath(dir, target), Packages: packages}, true
+}
+
 // parseTrivyVulns turns Trivy's JSON into the report Draugr publishes.
 func parseTrivyVulns(out []byte, dir string, _ plugin.Config) (sarif.Report, error) {
 	var doc trivyVulnDoc
@@ -212,6 +230,9 @@ func parseTrivyVulns(out []byte, dir string, _ plugin.Config) (sarif.Report, err
 		return lines.find(res.Target, v.PkgName, v.InstalledVersion)
 	}
 	for _, res := range doc.Results {
+		if in, ok := trivyInput(dir, res.Class, res.Target, len(res.Packages)); ok {
+			rep.Inputs = append(rep.Inputs, in)
+		}
 		known := res.packageLines()
 		for _, v := range res.Vulnerabilities {
 			found := trivyVulnResultOf(doc, res, v, layers)

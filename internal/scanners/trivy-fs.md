@@ -58,6 +58,9 @@ tool, where a suppression cannot be recorded or reviewed. Use `config.exclude` i
 - Trivy's SARIF output does **not** include license findings. They exist only in its JSON. That
   is why [`trivy-license`](trivy-license.md) is a separate scanner with its own JSON→SARIF
   conversion rather than another flag on this one.
+- Each `lang-pkgs` result in Trivy's JSON names a file it took packages from. Those are the files
+  the report counts as read; every other dependency file in the checkout is listed under
+  **Unread**, see [`sca`](../controllers/sca.md#unread).
 
 ## Data
 

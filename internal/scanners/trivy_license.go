@@ -77,6 +77,7 @@ func NewTrivyLicense() plugin.Scanner {
 	repo := newRepoScannerWithParser(info, trivyLicenseArgs, parseTrivyLicenses)
 	repo.cacheVersion = sharedTrivyVersion.cacheVersion
 	repo.run = retryingRunInDir("trivy", repo.run)
+	repo.accounts = true
 
 	image := tooladapter.New(tooladapter.Config{
 		Name:         info.Name,
@@ -181,6 +182,11 @@ const (
 // trivyLicenseDoc is the slice of Trivy's JSON this scanner reads.
 type trivyLicenseDoc struct {
 	Results []struct {
+		// Target, Class and Packages name the file a set of packages was read from, which Trivy
+		// reports beside the licenses it found in them.
+		Target   string         `json:"Target"`
+		Class    string         `json:"Class"`
+		Packages []trivyPackage `json:"Packages"`
 		Licenses []trivyLicense `json:"Licenses"`
 	} `json:"Results"`
 }
@@ -234,6 +240,9 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 	lines := newLineIndex(dir)
 
 	for _, res := range doc.Results {
+		if in, ok := trivyInput(dir, res.Class, res.Target, len(res.Packages)); ok {
+			report.Inputs = append(report.Inputs, in)
+		}
 		for _, lic := range res.Licenses {
 			level, why, ok := licenseLevel(lic, deny, warn)
 			if !ok {

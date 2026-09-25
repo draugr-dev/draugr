@@ -553,6 +553,10 @@ type Result struct {
 	// the question the target asked. Reported because a scanner that quietly does not run is
 	// indistinguishable, in the output, from one that ran and found nothing.
 	Skipped []SkippedJob
+	// Inputs is what the dependency scans read, per component and control, with the dependency
+	// files in the tree that none of them read. Reported because a scan that could not read a
+	// manifest finds nothing in it, and that reads as a clean result.
+	Inputs []InputCoverage
 	// Scanners names every scanner this run used, deduplicated and sorted.
 	//
 	// Recorded because a report has to be able to say which tools produced its findings. The SARIF
@@ -1176,6 +1180,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		SBOMs:     docs,
 	}
 	res.Skipped = skipped
+	res.Inputs = inputCoverage(byCtl)
 	if len(ctlErrs) > 0 {
 		res.ScanErrors = ctlErrs
 	}
@@ -1323,6 +1328,16 @@ func appendJobs(dst []PlannedJob, control string, comp *saga.Component, jobs []p
 // can share a repository while disagreeing about who publishes it. The cached findings must never
 // be mutated, so the slice is copied.
 func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report {
+	// Copied before stamping: a cached or deduplicated report is shared by every component that
+	// scans the same repository, and each has to carry its own name.
+	if len(report.Inputs) > 0 {
+		inputs := make([]sarif.Input, len(report.Inputs))
+		copy(inputs, report.Inputs)
+		for i := range inputs {
+			inputs[i].Component = pj.Component
+		}
+		report.Inputs = inputs
+	}
 	if len(report.Results) == 0 {
 		return report
 	}

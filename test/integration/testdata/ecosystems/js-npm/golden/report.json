@@ -44,6 +44,24 @@
       "warnings": 0
     }
   ],
+  "dependencyFiles": [
+    {
+      "component": "js-npm",
+      "control": "licenses",
+      "read": 1,
+      "scanners": [
+        "trivy-license"
+      ]
+    },
+    {
+      "component": "js-npm",
+      "control": "sca",
+      "read": 1,
+      "scanners": [
+        "trivy-fs"
+      ]
+    }
+  ],
   "descriptor": {
     "digest": "<cleared>",
     "effective": "<cleared>",

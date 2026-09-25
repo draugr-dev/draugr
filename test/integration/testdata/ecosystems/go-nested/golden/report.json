@@ -22,6 +22,16 @@
       "warnings": 0
     }
   ],
+  "dependencyFiles": [
+    {
+      "component": "go-nested",
+      "control": "sca",
+      "read": 2,
+      "scanners": [
+        "trivy-fs"
+      ]
+    }
+  ],
   "descriptor": {
     "digest": "<cleared>",
     "effective": "<cleared>",

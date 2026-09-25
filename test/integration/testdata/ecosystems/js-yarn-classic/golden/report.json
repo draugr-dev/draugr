@@ -12,6 +12,16 @@
       "warnings": 0
     }
   ],
+  "dependencyFiles": [
+    {
+      "component": "js-yarn-classic",
+      "control": "sca",
+      "read": 1,
+      "scanners": [
+        "trivy-fs"
+      ]
+    }
+  ],
   "descriptor": {
     "digest": "<cleared>",
     "effective": "<cleared>",

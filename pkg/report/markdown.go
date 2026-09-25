@@ -77,6 +77,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		writeScanErrors(w, s)
 		writeNotMeasuredRows(w, d)
 	}
+	writeUnreadRows(w, d)
 
 	writeComponentTable(w, d)
 	writeEvidenceNotes(w, d)

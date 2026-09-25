@@ -94,14 +94,16 @@ judgement about what to do sits with the reader, human or otherwise.
 ## The verdict states its own scope
 
 A `scan` result names the controls that ran, any surface your descriptor declares that no enabled
-control looked at, and the classes a control-based scan does not cover at all, trust boundaries,
-build-context hygiene, how credentials reach a subprocess, protocol assumptions:
+control looked at, the dependency files no scanner took packages from, and the classes a
+control-based scan does not cover at all, trust boundaries, build-context hygiene, how credentials
+reach a subprocess, protocol assumptions:
 
 ```json
 {
   "verdict": "pass",
   "controls": ["sca", "secrets"],
   "uncovered": ["api declares the images surface, and the images control is not enabled"],
+  "unread": [{"component": "api", "repository": "./api", "path": "pyproject.toml", "reason": "no lockfile", "controls": ["sca"]}],
   "unexamined": "This verdict covers the controls above and nothing else. …"
 }
 ```

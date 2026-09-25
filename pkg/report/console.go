@@ -198,6 +198,9 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		writeNotMeasured(w, col, d, width)
 		_, _ = fmt.Fprintln(w)
 	}
+	// In every view, for the reason "Not measured" is: a file no scanner read is part of the
+	// repository the verdict appears to cover.
+	writeUnread(w, col, d)
 
 	if !dense(d) {
 		writeComponents(w, col, d)

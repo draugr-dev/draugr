@@ -118,6 +118,7 @@ func NewTrivyFS() plugin.Scanner {
 	s.cacheVersion = sharedTrivyVersion.cacheVersion
 	s.prewarm = sharedTrivyDB.warm
 	s.run = retryingRunInDir("trivy", s.run)
+	s.accounts = true
 	return s
 }
 

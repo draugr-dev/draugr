@@ -2,6 +2,7 @@ package scanners
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/git"
+	"github.com/draugr-dev/draugr/internal/manifests"
 	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -55,6 +57,20 @@ type repoScanner struct {
 	// from a commit. One pass over history alone reports every finding at the path it had when it
 	// was introduced, so anything since renamed looks like something already dealt with.
 	historyArgs func(dir string, cfg plugin.Config) []string
+	// accounts says the parser records every dependency file the tool read packages from in the
+	// report's Inputs, so the files in the tree it did not read can be named beside them.
+	accounts bool
+	// inventory, when set, asks the tool for a second report, beside its findings, that names the
+	// files it read packages from. For a tool whose findings format has nowhere to say so.
+	inventory *inventoryOutput
+}
+
+// inventoryOutput is a second report a tool writes to a file, listing what it read.
+type inventoryOutput struct {
+	// args are the arguments that make the tool write it to path.
+	args func(path string) []string
+	// parse reads it into the files the tool took packages from, repository-relative.
+	parse func(out []byte, dir string) ([]sarif.Input, error)
 }
 
 // ReportPathToken marks the argv slot where a tool wants a path to write its report to. The
@@ -90,6 +106,57 @@ func (s repoScanner) runReporting(ctx context.Context, dir string, argv []string
 		return nil, err
 	}
 	return os.ReadFile(path) // #nosec G304 -- a path this function just created
+}
+
+// runInventoried runs argv as runReporting does and, when the scanner has an inventory, has the
+// tool write it too and reads it into inputs.
+//
+// A tool that ran and wrote no inventory is an error rather than an empty list: an empty list says
+// the tool read nothing, which would report every file in the tree as unread.
+func (s repoScanner) runInventoried(ctx context.Context, dir string, argv []string, inputs *[]sarif.Input) ([]byte, error) {
+	if s.inventory == nil {
+		return s.runReporting(ctx, dir, argv)
+	}
+	f, err := os.CreateTemp("", "draugr-inventory-*.json")
+	if err != nil {
+		return nil, err
+	}
+	path := f.Name()
+	if err := f.Close(); err != nil {
+		return nil, err
+	}
+	defer func() { _ = os.Remove(path) }()
+
+	out, err := s.runReporting(ctx, dir, append(slices.Clone(argv), s.inventory.args(path)...))
+	if err != nil {
+		return nil, err
+	}
+	data, err := os.ReadFile(path) // #nosec G304 -- a path this function just created
+	if err != nil {
+		return nil, err
+	}
+	if len(data) == 0 {
+		return nil, errors.New("wrote no inventory, so what it read cannot be accounted for")
+	}
+	*inputs, err = s.inventory.parse(data, dir)
+	if err != nil {
+		return nil, fmt.Errorf("read its inventory: %w", err)
+	}
+	return out, nil
+}
+
+// accountInputs adds the dependency files in the tree that no input names, each with the reason
+// it contributed nothing.
+func accountInputs(dir string, read []sarif.Input) []sarif.Input {
+	names := make(map[string]bool, len(read))
+	for _, in := range read {
+		names[in.Path] = true
+	}
+	out := slices.Clone(read)
+	for _, u := range manifests.Account(dir, names) {
+		out = append(out, sarif.Input{Path: u.Path, Unread: string(u.Reason)})
+	}
+	return out
 }
 
 // CacheVersion reports the scanner's tool/data version for the cache key, when one is wired
@@ -194,6 +261,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	dir := tree.Dir
 
 	var out []byte
+	var inputs []sarif.Input
 	if s.argsList != nil {
 		for _, argv := range s.argsList(dir, cfg) {
 			part, err := s.runReporting(ctx, dir, argv)
@@ -204,7 +272,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		}
 	} else {
 		var err error
-		out, err = s.runReporting(ctx, dir, s.args(dir, cfg))
+		out, err = s.runInventoried(ctx, dir, s.args(dir, cfg), &inputs)
 		if err != nil {
 			return sarif.Report{}, fmt.Errorf("run %s: %w", s.info.Name, err)
 		}
@@ -212,6 +280,9 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	report, err := s.decode(out, dir, cfg)
 	if err != nil {
 		return sarif.Report{}, err
+	}
+	if s.inventory != nil {
+		report.Inputs = inputs
 	}
 	if s.historyArgs != nil {
 		if argv := s.historyArgs(dir, cfg); len(argv) > 0 {
@@ -231,6 +302,13 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	}
 	if report.Tool == "" {
 		report.Tool = s.info.Name
+	}
+	if s.accounts || s.inventory != nil {
+		report.Inputs = accountInputs(dir, report.Inputs)
+	}
+	for i := range report.Inputs {
+		report.Inputs[i].Scanner = s.info.Name
+		report.Inputs[i].Repository = repo.Source()
 	}
 	for i := range report.Results {
 		if report.Results[i].Tool == "" {

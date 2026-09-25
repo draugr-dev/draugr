@@ -23,6 +23,16 @@
       "warnings": 0
     }
   ],
+  "dependencyFiles": [
+    {
+      "component": "go-submodule",
+      "control": "sca",
+      "read": 1,
+      "scanners": [
+        "trivy-fs"
+      ]
+    }
+  ],
   "descriptor": {
     "digest": "<cleared>",
     "effective": "<cleared>",

@@ -65,6 +65,12 @@ exclusion someone wrote against the CVE. Set `byCve: false` to see the identifie
 findings inside the tool, where Draugr cannot mark them suppressed or record who accepted them.
 `exclusions` in the Saga does that and keeps the evidence; the gate thresholds decide what fails.
 
+**It writes an inventory beside its SARIF.** Grype's SARIF names no file it read without a
+finding, so the scan also asks for `-o cyclonedx-json` into a temporary file and counts the
+`syft:location` paths in it. Those are the files the report counts as read, and every other
+dependency file in the checkout is listed under **Unread**, see [`sca`](../controllers/sca.md#unread).
+A run that writes no inventory is an error rather than a scan that read nothing.
+
 **One scan per repository.** A component may hold several, and each is scanned and attributed
 separately, findings from two repositories that share a path stay two findings.
 

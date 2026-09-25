@@ -21,12 +21,16 @@ pipeline should do about it. One is broken infrastructure, the other is work.
 |---|---|
 | `controls[].scanErrors` | what stopped that control, in the scanner's own words. Its counts then describe what the scanners that *did* run found, which is not the same as what is there. A control that produced nothing at all is still listed, with `"verdict": "fail"` and no counts. |
 | `notMeasured[]` | a scanner that was planned and then not run because it could not answer the question its target asked, the control, scanner, component and reason. Not an error: nothing went wrong, and no `scanErrors` are recorded for it. |
+| `dependencyFiles[]` | per component and control, the dependency files the scanners that list their inputs read packages from (`read`, a count) and the ones none of them did (`unread[]`: `repository`, `path` and `reason`). A reason is `no lockfile`, `no pinned versions` or `no packages read`. The packages such a file declares were not checked. |
 
-Both are omitted when there is nothing to report, so a clean run's document is unchanged.
+`scanErrors` and `notMeasured[]` are omitted when there is nothing to report, so a clean run's
+document is unchanged. `dependencyFiles[]` is present whenever a scanner that lists its inputs ran,
+and an entry with no `unread` means every dependency file was read.
 
 ```bash
 draugr scan draugr.saga.yaml -o out/
 jq -e '[.controls[].scanErrors // empty] | length == 0' out/report.json   # fail the build on a partial run
+jq -e '[.dependencyFiles[]?.unread // empty] | length == 0' out/report.json   # fail on a file no scanner read
 ```
 
 ## What each finding carries

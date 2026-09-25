@@ -493,3 +493,16 @@ func TestRepositoriesAreListedInAStableOrder(t *testing.T) {
 		t.Errorf("got %+v", two)
 	}
 }
+
+// Merging a report with itself must not double what it read, and the same file read for two
+// components is two statements.
+func TestMergeDeduplicatesInputs(t *testing.T) {
+	a := Report{Inputs: []Input{
+		{Scanner: "trivy-fs", Repository: "r", Component: "api", Path: "go.mod", Packages: 3},
+		{Scanner: "trivy-fs", Repository: "r", Component: "worker", Path: "go.mod", Packages: 3},
+	}}
+	got := Merge(a, a).Inputs
+	if len(got) != 2 {
+		t.Errorf("inputs = %+v, want the two components' statements once each", got)
+	}
+}
