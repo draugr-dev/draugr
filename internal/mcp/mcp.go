@@ -9,9 +9,10 @@
 //
 // Two design rules follow from that:
 //
-//   - **Read-only by default.** Scanning clones repositories, executes external tools and
-//     reaches the network. An agent triggering that unprompted is a bad surprise, so `scan` is
-//     registered only when the operator opts in. Everything else is safe to call freely.
+//   - **Consent follows the effects.** A scan that reads a local copy is what a user asks an
+//     assistant for most often, and it runs on the client's own tool approval. A scan whose
+//     scanners declare an effect beyond reading, or whose report leaves the machine, asks the user
+//     first, naming each effect and destination. Everything else is safe to call freely.
 //   - **Return decisions, not data.** A tool that hands back raw scanner output has moved the
 //     problem into the agent's context window rather than solving it. These tools return
 //     prioritized, deduplicated, normalized results, the same thing a person sees.
@@ -36,12 +37,17 @@ type ScanMode string
 // The scan modes. A scan clones repositories, executes external tools and reaches the network,
 // so the question isn't only "may it" but "who agrees to it, and when".
 const (
-	// ScanOff doesn't register the tool at all. The default: an assistant can't set off work
-	// like that because it was curious, and the read-only tools are where the value starts.
+	// ScanEffects registers it and asks the user only when the planned scan does more than read a
+	// local copy: a scanner declaring an effect, or a publisher delivering off this machine. The
+	// default for `draugr mcp`. Secrets, SAST, SCA, IaC and licenses over a checkout declare no
+	// effect, so the scans asked for most run on the client's own tool approval, and the prompt is
+	// kept for the ones that touch something outside the machine.
+	ScanEffects ScanMode = "effects"
+	// ScanOff doesn't register the tool at all. The zero value of Options, so a caller that
+	// builds one without naming a mode gets no scanning.
 	ScanOff ScanMode = "off"
-	// ScanAsk registers it and asks the user to approve each call, through the client. This is the
-	// mode to want, permission granted for the scan in front of you rather than for every scan this
-	// session. But it needs a client that implements elicitation, and many don't.
+	// ScanAsk registers it and asks the user to approve each call, through the client, whatever the
+	// scan does. Like ScanEffects, it needs a client that implements elicitation to ask at all.
 	ScanAsk ScanMode = "ask"
 	// ScanAlways registers it and runs without asking. Right for a sandbox or CI, where there's
 	// nobody to ask.
@@ -57,13 +63,16 @@ func ParseScanMode(s string) (ScanMode, error) {
 		return ScanAsk, nil
 	case ScanAlways:
 		return ScanAlways, nil
+	case ScanEffects:
+		return ScanEffects, nil
 	}
-	return "", fmt.Errorf("unknown scan mode %q (want off, ask, or always)", s)
+	return "", fmt.Errorf("unknown scan mode %q (want effects, ask, always, or off)", s)
 }
 
 // Options configures the server's exposed surface.
 type Options struct {
-	// Scan says whether a client may start scans. The zero value is ScanOff.
+	// Scan says whether a client may start scans. The zero value is ScanOff; `draugr mcp` passes
+	// ScanEffects.
 	Scan ScanMode
 	// Registry supplies the controllers and scanners. Required.
 	Registry *engine.Registry
@@ -238,8 +247,13 @@ func NewServer(opts Options) (*mcp.Server, error) {
 			"was whether a repository is safe to ship rather than whether it passes this gate, " +
 			"keep looking after this returns, the findings here are the part that can be " +
 			"checked the same way every time, not the whole answer."
-		if opts.Scan == ScanAsk {
+		switch opts.Scan {
+		case ScanAsk:
 			desc += " Each call asks the user to approve it first."
+		case ScanEffects:
+			desc += " A scan whose scanners do more than read, such as probing a live host or " +
+				"sending data to a third party, or whose results are delivered off this machine, " +
+				"asks the user to approve it first."
 		}
 		mcp.AddTool(s, &mcp.Tool{Name: "scan", Description: desc}, scanTool(reg, opts.Scan))
 	}
@@ -256,7 +270,7 @@ func instructions(mode ScanMode) string {
 		"component's declared exposure and criticality, organizational context that isn't " +
 		"inferable from source code. Scanner output read directly has none of that, and costs " +
 		"far more context to read.\n\n" +
-		"This server only reads. If check_tools reports something missing, give the user the " +
+		"This server installs nothing. If check_tools reports something missing, give the user the " +
 		"command it returns, do not try to make the server install it, and don't quietly work " +
 		"around a missing scanner by running one yourself: the point is that the descriptor " +
 		"decides what gets checked.\n\n" +
@@ -266,8 +280,13 @@ func instructions(mode ScanMode) string {
 	switch mode {
 	case ScanOff:
 		s += "\n\nScanning is not enabled on this server, so these tools only read. To run a " +
-			"scan, the user must restart Draugr with `draugr mcp --scan=ask`, or run " +
+			"scan, the user must restart Draugr without `--scan=off`, or run " +
 			"`draugr scan` themselves."
+	case ScanEffects:
+		s += "\n\nThe scan tool runs a scan that only reads a local copy without asking. A scan " +
+			"that probes a live host, sends data to a third party, changes something, needs " +
+			"elevated access, or delivers results off this machine asks the user to approve it " +
+			"first. Expect a pause for those, and don't call it speculatively."
 	case ScanAsk:
 		s += "\n\nThe scan tool asks the user to approve each call, because a scan clones " +
 			"repositories and runs external tools. Expect a pause, and don't call it " +

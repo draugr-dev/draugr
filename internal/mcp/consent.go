@@ -2,14 +2,103 @@ package mcp
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/publish"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
+
+// scanPlan is what a scan will do, read from the descriptor before anything runs: the controls and
+// components it covers, and everything it does beyond reading a local copy.
+type scanPlan struct {
+	controls   []string
+	components int
+	// effects is one line per effect a planned scanner declares, naming the scanner and the kind.
+	effects []string
+	// live names the planned scanners that send traffic to a declared host.
+	live []string
+	// delivery is one line per publisher, and offMachine the ones that send the report elsewhere.
+	delivery   []string
+	offMachine []string
+}
+
+// planScan reads what a scan of model would do.
+//
+// Everything needed is already in the loaded descriptor: the plan names the controls and
+// components, the scanner registry declares each scanner's effects, and the publisher registry says
+// which destinations are this machine.
+func planScan(reg *engine.Registry, model *saga.Model) (scanPlan, error) {
+	planned, err := engine.New(reg).Plan(*model)
+	if err != nil {
+		return scanPlan{}, err
+	}
+	controls := map[string]bool{}
+	components := map[string]bool{}
+	scanners := map[string]bool{}
+	live := map[string]bool{}
+	for _, pj := range planned {
+		controls[pj.Control] = true
+		if pj.Component != "" {
+			components[pj.Component] = true
+		}
+		scanners[pj.Job.Scanner] = true
+		// A host target is a running service somebody operates, not an artifact sitting on disk.
+		if pj.Job.Target != nil && pj.Job.Target.Kind() == plugin.TargetHost {
+			live[pj.Job.Scanner] = true
+		}
+	}
+	p := scanPlan{
+		controls:   sortedSet(controls),
+		components: len(components),
+		live:       sortedSet(live),
+		delivery:   deliveryLines(model),
+	}
+	for _, name := range sortedSet(scanners) {
+		sc, ok := reg.Scanner(name)
+		if !ok {
+			continue
+		}
+		for _, e := range sc.Info().Effects {
+			p.effects = append(p.effects, fmt.Sprintf("%s (%s): %s", name, e.Kind, e.Detail))
+		}
+	}
+	for i, pub := range model.Config.Publishers {
+		if !publish.Local(pub.Kind) {
+			p.offMachine = append(p.offMachine, p.delivery[i])
+		}
+	}
+	return p, nil
+}
+
+// needsApproval reports whether mode requires somebody to agree to this scan before it runs.
+//
+// It reads the plan and the mode and nothing else, so the decision is the same whichever way the
+// answer is then obtained: an elicitation, or a host that authorizes the caller by its own means.
+func needsApproval(mode ScanMode, p scanPlan) bool {
+	switch mode {
+	case ScanAlways:
+		return false
+	case ScanEffects:
+		return len(p.effects) > 0 || len(p.offMachine) > 0
+	default:
+		return true
+	}
+}
+
+// reasons lists what makes this scan more than a local read, for a refusal that has no prompt to
+// carry them.
+func (p scanPlan) reasons() []string {
+	out := slices.Clone(p.effects)
+	for _, d := range p.offMachine {
+		out = append(out, "delivers results to "+d)
+	}
+	return out
+}
 
 // describeScan says what this scan will do, for the person being asked to approve it.
 //
@@ -23,68 +112,38 @@ import (
 // traffic at a live service, which is why Draugr never enables it on anyone's behalf. A single
 // sentence covering both. "runs external scanners, and uses the network". Is true of each and
 // tells a reader nothing about which one they are agreeing to.
-//
-// Everything needed is already in the loaded descriptor: the plan names the controls and
-// components, and the scanner registry declares each scanner's effects.
-func describeScan(reg *engine.Registry, model *saga.Model, path string) string {
+func describeScan(p scanPlan, path string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Draugr wants to scan %s.\n", path)
 
-	planned, _ := engine.New(reg).Plan(*model)
-	controls := map[string]bool{}
-	components := map[string]bool{}
-	scanners := map[string]bool{}
-	livePlan := map[string]bool{}
-	for _, pj := range planned {
-		controls[pj.Control] = true
-		if pj.Component != "" {
-			components[pj.Component] = true
-		}
-		scanners[pj.Job.Scanner] = true
-		// A host target is a running service somebody operates, not an artifact sitting on disk.
-		// That distinction is the one a reader most needs and the one the old message erased.
-		if pj.Job.Target != nil && pj.Job.Target.Kind() == plugin.TargetHost {
-			livePlan[pj.Job.Scanner] = true
-		}
-	}
-
-	if len(controls) == 0 {
+	if len(p.controls) == 0 {
 		b.WriteString("\nNo control is enabled, so this scan would examine nothing.")
 		return b.String()
 	}
-	fmt.Fprintf(&b, "\nControls: %s", strings.Join(sortedSet(controls), ", "))
-	if n := len(components); n > 0 {
-		fmt.Fprintf(&b, ", over %s", english.Count(n, "component"))
+	fmt.Fprintf(&b, "\nControls: %s", strings.Join(p.controls, ", "))
+	if p.components > 0 {
+		fmt.Fprintf(&b, ", over %s", english.Count(p.components, "component"))
 	}
 	b.WriteString(".\n")
 
 	// Effects before the reassurance, so a reader who stops after two lines has stopped on the
 	// part that matters.
-	var effects []string
-	for _, name := range sortedSet(scanners) {
-		sc, ok := reg.Scanner(name)
-		if !ok {
-			continue
-		}
-		for _, e := range sc.Info().Effects {
-			effects = append(effects, fmt.Sprintf("  %s (%s): %s", name, e.Kind, e.Detail))
-		}
-	}
-	if len(effects) > 0 {
+	if len(p.effects) > 0 {
 		b.WriteString("\nThese do more than read:\n")
-		b.WriteString(strings.Join(effects, "\n"))
-		b.WriteString("\n")
+		for _, e := range p.effects {
+			b.WriteString("  " + e + "\n")
+		}
 	}
 
-	if len(livePlan) > 0 {
+	if len(p.live) > 0 {
 		fmt.Fprintf(&b, "\nThis sends traffic to a live service you have declared: %s. "+
 			"Only approve it for a host you are authorized to probe.\n",
-			strings.Join(sortedSet(livePlan), ", "))
+			strings.Join(p.live, ", "))
 	}
 
-	if d := deliveryLines(model); len(d) > 0 {
+	if len(p.delivery) > 0 {
 		b.WriteString("\nResults will be delivered to:\n")
-		for _, line := range d {
+		for _, line := range p.delivery {
 			b.WriteString("  " + line + "\n")
 		}
 	}

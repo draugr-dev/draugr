@@ -519,8 +519,12 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 		if err != nil {
 			return nil, ScanOutput{}, fmt.Errorf("load %s: %w", in.Path, err)
 		}
-		if mode == ScanAsk {
-			ask, err := consent(req, in.Path, describeScan(reg, model, in.Path))
+		plan, err := planScan(reg, model)
+		if err != nil {
+			return nil, ScanOutput{}, fmt.Errorf("plan %s: %w", in.Path, err)
+		}
+		if needsApproval(mode, plan) {
+			ask, err := consent(req, describeScan(plan, in.Path), refusal(mode, plan, in.Path))
 			if err != nil {
 				return nil, ScanOutput{}, err
 			}
@@ -627,7 +631,9 @@ const consentRequestID = "draugr.scan.approve"
 // version 2026-07-28, which forbids a server sending `elicitation/create` while it is serving a
 // request. The SDK performs the round trip for clients too old to do it themselves and re-invokes
 // this handler with the answer, so both generations take this one path.
-func consent(req *mcp.CallToolRequest, path, message string) (*mcp.CallToolResult, error) {
+//
+// cannot is what a client that has no way to ask is told, after the reason it cannot answer.
+func consent(req *mcp.CallToolRequest, message, cannot string) (*mcp.CallToolResult, error) {
 	if req == nil || req.Params == nil {
 		return nil, fmt.Errorf("scan needs approval but there is nothing to ask through; " +
 			"start the server with --scan=always to run scans without asking")
@@ -641,8 +647,7 @@ func consent(req *mcp.CallToolRequest, path, message string) (*mcp.CallToolResul
 		if init := req.Session.InitializeParams(); init == nil || init.Capabilities == nil ||
 			init.Capabilities.Elicitation == nil {
 			return nil, fmt.Errorf("scan needs your approval, but this client can't prompt for it "+
-				"(no elicitation support). Run `draugr scan %s` yourself, or restart the server "+
-				"with --scan=always to allow scans without asking", path)
+				"(no elicitation support). %s", cannot)
 		}
 	}
 
@@ -672,14 +677,27 @@ func consent(req *mcp.CallToolRequest, path, message string) (*mcp.CallToolResul
 	if !ok {
 		// An answer of the wrong shape is not a yes. Reading it as one would turn a protocol
 		// mismatch into an unapproved scan, the single outcome this must never produce.
-		return nil, fmt.Errorf("scan approval came back in a form Draugr does not understand "+
-			"(%T); run `draugr scan %s` yourself, or start the server with --scan=always",
-			answer, path)
+		return nil, fmt.Errorf("scan approval came back in a form Draugr does not understand (%T). %s",
+			answer, cannot)
 	}
 	if elicited.Action != "accept" {
 		return nil, fmt.Errorf("scan declined")
 	}
 	return nil, nil
+}
+
+// refusal is what a client that cannot prompt is told instead of being asked.
+//
+// Under the effects mode the scan was stopped for what it does, so the refusal names each effect and
+// destination and the command that runs the same scan outside the assistant. Restarting with
+// --scan=always is left out there: it removes the question for every scan in the session, which is a
+// larger decision than the one this scan raised.
+func refusal(mode ScanMode, p scanPlan, path string) string {
+	if mode == ScanEffects {
+		return fmt.Sprintf("This scan does more than read a local copy:\n  %s\nRun it outside the assistant with `draugr scan %s`.",
+			strings.Join(p.reasons(), "\n  "), path)
+	}
+	return fmt.Sprintf("Run `draugr scan %s` yourself, or restart the server with --scan=always to allow scans without asking.", path)
 }
 
 // --- check_tools ---

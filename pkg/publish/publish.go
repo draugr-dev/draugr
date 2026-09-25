@@ -128,6 +128,26 @@ func DistinguishingValue(cfg saga.PublisherConfig) string {
 	return ""
 }
 
+// local names the publishers whose destination is this machine. Every other kind sends the report
+// to a service somebody else operates, which is a delivery a person may want to approve before it
+// happens rather than read about afterwards.
+//
+// A map of every kind rather than a list of the local ones, so TestEveryPublisherSaysWhereItDelivers
+// can refuse a publisher added without an answer. The unsafe default for a missing entry is "local",
+// and a new publisher is far more likely to post somewhere than to write a directory.
+var local = map[string]bool{
+	"file":              true,
+	"github":            false,
+	"github-pr-comment": false,
+	"azure-pr-comment":  false,
+	"gitlab-mr-comment": false,
+	"draugr-api":        false,
+}
+
+// Local reports whether kind delivers to this machine. A kind this build does not have is not
+// local.
+func Local(kind string) bool { return local[kind] }
+
 // Kinds lists the available publisher kinds, sorted.
 func Kinds() []string {
 	out := make([]string, 0, len(builders))

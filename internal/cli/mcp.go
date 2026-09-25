@@ -18,11 +18,15 @@ func newMCPCommand() *cobra.Command {
 		Short: "Serve Draugr to AI coding agents over the Model Context Protocol",
 		Long: "Serve Draugr over MCP on stdin/stdout, so an AI coding assistant can ask it what\n" +
 			"controls exist, how to write a Saga, whether one is valid, and what a scan found.\n\n" +
-			"Tools are read-only unless --scan says otherwise. A scan clones repositories, runs\n" +
-			"external tools and reaches the network:\n\n" +
-			"  --scan=off      not offered (default)\n" +
-			"  --scan=ask      offered; you approve each call (needs a client that can prompt)\n" +
-			"  --scan=always   offered; runs without asking\n\n" +
+			"--scan decides whether the assistant may start a scan, and when you are asked first:\n\n" +
+			"  --scan=effects  offered; asks before a scan that probes a live host, sends data to\n" +
+			"                  a third party, changes something, needs elevated access or\n" +
+			"                  delivers results off this machine (default)\n" +
+			"  --scan=ask      offered; you approve each call\n" +
+			"  --scan=always   offered; runs without asking\n" +
+			"  --scan=off      not offered\n\n" +
+			"Asking needs a client that can prompt; one that cannot is refused and given the\n" +
+			"`draugr scan` command to run instead.\n\n" +
 			"Every *.saga.yaml nearby is exposed as a resource.\n\n" +
 			"Register it with your assistant:\n\n" +
 			"  {\n" +
@@ -52,7 +56,7 @@ func newMCPCommand() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&scanMode, "scan", "off",
-		"whether the assistant may start scans: off (not offered), ask (approve each one), always (no prompt)")
+	cmd.Flags().StringVar(&scanMode, "scan", string(draugrmcp.ScanEffects),
+		"whether the assistant may start scans: effects (ask before one that does more than read), ask (approve each one), always (no prompt), off (not offered)")
 	return cmd
 }

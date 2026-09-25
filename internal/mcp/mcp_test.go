@@ -32,7 +32,7 @@ func TestScanIsNotExposedUnlessAllowed(t *testing.T) {
 	for _, tc := range []struct {
 		mode     ScanMode
 		wantScan bool
-	}{{ScanOff, false}, {ScanAsk, true}, {ScanAlways, true}, {"", false}} {
+	}{{ScanOff, false}, {ScanEffects, true}, {ScanAsk, true}, {ScanAlways, true}, {"", false}} {
 		names := toolNames(t, Options{Registry: builtins.Registry(), Scan: tc.mode, Root: t.TempDir()})
 		if got := names["scan"]; got != tc.wantScan {
 			t.Errorf("scan=%q: exposed=%v, want %v (tools: %v)", tc.mode, got, tc.wantScan, names)
@@ -62,7 +62,7 @@ func TestInstructionsDescribeTheScanMode(t *testing.T) {
 }
 
 func TestParseScanMode(t *testing.T) {
-	for in, want := range map[string]ScanMode{"": ScanOff, "off": ScanOff, "ask": ScanAsk, "always": ScanAlways} {
+	for in, want := range map[string]ScanMode{"": ScanOff, "off": ScanOff, "effects": ScanEffects, "ask": ScanAsk, "always": ScanAlways} {
 		got, err := ParseScanMode(in)
 		if err != nil || got != want {
 			t.Errorf("ParseScanMode(%q) = %q, %v; want %q", in, got, err, want)
@@ -656,7 +656,7 @@ func connectWith(t *testing.T, opts Options, copts *mcp.ClientOptions) *mcp.Clie
 func TestCheckToolsIsAlwaysAvailable(t *testing.T) {
 	// Diagnosing the machine is read-only, so it's offered regardless of the scan mode. An assistant
 	// on a read-only server still needs to explain why a scan would fail.
-	for _, mode := range []ScanMode{ScanOff, ScanAsk, ScanAlways} {
+	for _, mode := range []ScanMode{ScanOff, ScanEffects, ScanAsk, ScanAlways} {
 		if !toolNames(t, Options{Registry: builtins.Registry(), Scan: mode, Root: t.TempDir()})["check_tools"] {
 			t.Errorf("scan=%q: check_tools missing", mode)
 		}
@@ -798,7 +798,7 @@ func TestConsentAsksByReturningTheQuestion(t *testing.T) {
 	t.Parallel()
 
 	// Unanswered: the call ends with the question rather than a result.
-	ask, err := consent(&mcp.CallToolRequest{Params: &mcp.CallToolParamsRaw{}}, "app.saga.yaml", "may I scan?")
+	ask, err := consent(&mcp.CallToolRequest{Params: &mcp.CallToolParamsRaw{}}, "may I scan?", "")
 	if err != nil {
 		t.Fatalf("an unanswered call should return the question, not an error: %v", err)
 	}
@@ -849,7 +849,7 @@ func TestConsentAsksByReturningTheQuestion(t *testing.T) {
 			t.Parallel()
 			res, err := consent(&mcp.CallToolRequest{Params: &mcp.CallToolParamsRaw{
 				InputResponses: mcp.InputResponseMap{consentRequestID: tc.answer},
-			}}, "app.saga.yaml", "may I scan?")
+			}}, "may I scan?", "")
 			switch {
 			case tc.wantErr == "":
 				if err != nil || res != nil {
@@ -1437,5 +1437,18 @@ func TestUnreadFilesNamesEachFileOncePerComponent(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("unreadFiles =\n%+v\nwant\n%+v", got, want)
+	}
+}
+
+// Effects mode promises a prompt only for some scans, so its instructions must say which.
+func TestInstructionsDescribeEffectsMode(t *testing.T) {
+	got := instructions(ScanEffects)
+	for _, want := range []string{"without asking", "live host", "off this machine"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("effects instructions should contain %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "not enabled") {
+		t.Errorf("effects mode has a scan tool:\n%s", got)
 	}
 }

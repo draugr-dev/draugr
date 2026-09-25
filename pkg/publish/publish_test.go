@@ -294,6 +294,22 @@ func TestRendersIsQuietAboutAKindWeDoNotHave(t *testing.T) {
 
 // A destination that says nothing about what tells it apart from another of its kind cannot be
 // checked for being written twice, and a duplicate is written identically to a deliberate pair.
+func TestEveryPublisherSaysWhereItDelivers(t *testing.T) {
+	for _, kind := range Kinds() {
+		if _, ok := local[kind]; !ok {
+			t.Errorf("%s has no entry in local. Say whether it delivers to this machine or off it", kind)
+		}
+	}
+	for kind := range local {
+		if _, ok := builders[kind]; !ok {
+			t.Errorf("local names %q, which is not a publisher this build has", kind)
+		}
+	}
+	if !Local("file") || Local("github") || Local("no-such-kind") {
+		t.Error("file is the one local destination, and an unknown kind is not local")
+	}
+}
+
 func TestEveryPublisherSaysWhatDistinguishesIt(t *testing.T) {
 	for _, kind := range Kinds() {
 		field, ok := distinguishes[kind]

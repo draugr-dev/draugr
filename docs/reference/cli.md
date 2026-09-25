@@ -1579,10 +1579,10 @@ Serve Draugr to AI coding assistants over the
 [Model Context Protocol](https://modelcontextprotocol.io), on stdin/stdout.
 
 ```bash
-draugr mcp                 # read-only tools
-draugr mcp --scan=ask      # additionally expose scan, approving each call, the prompt names
-                           # the controls, the components, any live host, and where results go
-draugr mcp --scan=always   # additionally expose scan, without prompting
+draugr mcp                 # scan asks first only when it does more than read
+draugr mcp --scan=ask      # scan asks before every call
+draugr mcp --scan=always   # scan never asks
+draugr mcp --scan=off      # read-only tools; scan is not offered
 ```
 
 Every `*.saga.yaml` found within three directories of the working directory is also exposed as
@@ -1595,11 +1595,11 @@ an MCP **resource**, so a client can read the descriptor without a tool call.
 | `validate_saga` | Validate a descriptor, by `path` or by `content` |
 | `check_tools` | Report which scanners are installed and what to run if any are missing |
 | `summarize_report` | Rank an existing `results.sarif` by priority |
-| `scan` | Run a scan and return the verdict, the scope it covered, and where the descriptor's publishers delivered it (requires `--scan=ask` or `--scan=always`) |
+| `scan` | Run a scan and return the verdict, the scope it covered, and where the descriptor's publishers delivered it (not offered with `--scan=off`) |
 
 | Flag | Default | Description |
 |---|---|---|
-| `--scan` | `off` | Whether the assistant may start scans. `off` doesn't offer the tool; `ask` offers it and prompts for your approval on every call (needs a client supporting MCP elicitation. The scan is refused, not silently run, if it can't prompt); `always` offers it with no prompt, for sandboxes and CI. |
+| `--scan` | `effects` | Whether the assistant may start scans, and when you approve one first. `effects` asks before a scan in which a planned scanner declares an [effect](saga-schema.md#configalloweffects) or a publisher other than `file` delivers the report; `ask` asks before every scan; `always` never asks, for sandboxes and CI; `off` doesn't offer the tool. Asking needs a client supporting MCP elicitation: a client that can't prompt is refused and given the `draugr scan` command instead. |
 
 The server speaks MCP, not text. Run by hand in a terminal it will look like it has hung, because
 it's waiting for a client. See [use Draugr from an AI coding assistant](../guides/ai-agents-mcp.md)
