@@ -22,3 +22,7 @@ components:
       sca:
         grypeFs:
           byCve: false
+  - name: grype-yaml
+    repositories:
+      - url: ./options-grype-fs
+        paths: [grype-yaml]

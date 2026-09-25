@@ -26,3 +26,14 @@ findings:
     location: by-advisory/requirements.txt:1
     package: python pyyaml 5.3.1
     component: by-advisory
+
+# The repository's .grype.yaml ignores the flask advisory, with a reason, and only grype-yaml/
+# declares flask. Grype leaves the match out of its SARIF and lists it in its JSON report, and the
+# finding must arrive from there, set aside by the scanner.
+  - control: sca
+    tool: grype
+    rule: CVE-2018-1000656-flask
+    location: grype-yaml/requirements.txt:1
+    package: python flask 0.12.2
+    component: grype-yaml
+    suppressed: scanner

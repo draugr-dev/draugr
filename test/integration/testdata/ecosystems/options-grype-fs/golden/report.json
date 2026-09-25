@@ -28,6 +28,14 @@
       "scanners": [
         "grype-fs"
       ]
+    },
+    {
+      "component": "grype-yaml",
+      "control": "sca",
+      "read": 1,
+      "scanners": [
+        "grype-fs"
+      ]
     }
   ],
   "descriptor": {
@@ -35,7 +43,7 @@
     "effective": "<cleared>",
     "sources": [
       {
-        "digest": "sha256:169a29bacbc303f2a3821033f9e83c00eb2302cf8614c89f1a846819bf944641",
+        "digest": "sha256:e8454bc51fe2432c53d77777cbb6a0ed0066d5d61162c4de4b49697fb1ad5dc0",
         "path": "draugr.saga.yaml",
         "root": true
       }
@@ -77,8 +85,15 @@
     "concurrency": "<cleared>",
     "deduped": 0,
     "durationMs": "<cleared>",
-    "jobs": 2,
-    "scans": 2
+    "jobs": 3,
+    "scans": 3
+  },
+  "suppressed": {
+    "p1": 1,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0,
+    "total": 1
   },
   "verdict": "fail"
 }

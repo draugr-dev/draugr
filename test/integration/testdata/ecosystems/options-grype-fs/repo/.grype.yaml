@@ -1,0 +1,5 @@
+# The flask advisory is ignored here, so options-grype-fs can assert Grype's exclusion arrives
+# suppressed by the scanner. Only the grype-yaml component declares flask.
+ignore:
+  - vulnerability: CVE-2018-1000656
+    reason: the JSON endpoint is not exposed

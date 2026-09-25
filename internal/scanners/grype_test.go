@@ -229,7 +229,10 @@ const grypeImageSARIF = `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"g
 func TestGrypeImageFindingsCarryThePackage(t *testing.T) {
 	prior := grypeRun
 	t.Cleanup(func() { grypeRun = prior })
-	grypeRun = func(context.Context, []string) ([]byte, error) { return []byte(grypeImageSARIF), nil }
+	grypeRun = func(_ context.Context, argv []string) ([]byte, error) {
+		fakeGrypeOutputs(t, argv, `{"ignoredMatches": []}`)
+		return []byte(grypeImageSARIF), nil
+	}
 
 	s := NewGrype()
 	for _, ref := range []string{"registry.example/api:1.0", "registry.example/worker:1.0"} {

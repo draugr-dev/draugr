@@ -76,6 +76,14 @@ A run that writes no inventory is an error rather than a scan that read nothing.
 **One scan per repository.** A component may hold several, and each is scanned and attributed
 separately, findings from two repositories that share a path stay two findings.
 
+## Exclusions
+
+A match that an `ignore:` rule in the repository's `.grype.yaml` set aside is reported suppressed
+with `origin: scanner`, `.grype.yaml` as its source, and the rule's `reason`. Grype runs at the root
+of the checkout, and a checkout scoped by `paths:` keeps that file, so a rule in it applies to every
+component the repository holds. `.grype/config.yaml` is read only from a checkout with no `paths:`.
+[`grype`](grype.md#exclusions) has how the excluded matches are read, and what is not reported.
+
 ## The database
 
 Shared with [`grype`](grype.md), including the five-day staleness refusal, the once-per-run

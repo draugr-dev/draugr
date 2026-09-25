@@ -51,7 +51,9 @@ func NewGrype() plugin.Scanner {
 		TargetKinds:  []plugin.TargetKind{plugin.TargetImage},
 		ConfigSchema: json.RawMessage(grypeConfigSchema),
 		Argv:         grypeArgv,
-		Run:          grypeRun,
+		Run: func(ctx context.Context, argv []string) ([]byte, error) {
+			return runGrypeRecordingExclusions(func(a []string) ([]byte, error) { return grypeRun(ctx, a) }, "", argv)
+		},
 		Parse:        parseGrypeImageSARIF,
 		CacheVersion: sharedGrypeVersion.cacheVersion,
 		Prewarm:      sharedGrypeDB.warm,
@@ -77,7 +79,9 @@ func NewGrypeFS() plugin.Scanner {
 	)
 	s.cacheVersion = sharedGrypeVersion.cacheVersion
 	s.prewarm = sharedGrypeDB.warm
-	s.run = grypeRunInDir
+	s.run = func(ctx context.Context, dir string, argv []string) ([]byte, error) {
+		return runGrypeRecordingExclusions(func(a []string) ([]byte, error) { return grypeRunInDir(ctx, dir, a) }, dir, argv)
+	}
 	s.inventory = &inventoryOutput{args: grypeInventoryArgs, parse: parseGrypeInventory}
 	return s
 }

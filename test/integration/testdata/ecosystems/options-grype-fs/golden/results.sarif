@@ -102,6 +102,54 @@
             "tool": "grype"
           },
           "ruleId": "CVE-2020-14343-pyyaml"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "grype-yaml/requirements.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A high vulnerability in python package: flask, version 0.12.2 was found at: /grype-yaml/requirements.txt"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "grype-yaml",
+            "control": "sca",
+            "package": {
+              "ecosystem": "python",
+              "fixedVersion": "0.12.3",
+              "name": "flask",
+              "purl": "pkg:pypi/flask@0.12.2",
+              "version": "0.12.2"
+            },
+            "priority": "P1",
+            "repository": "./options-grype-fs",
+            "security-severity": "7",
+            "tool": "grype"
+          },
+          "ruleId": "CVE-2018-1000656-flask",
+          "suppressions": [
+            {
+              "justification": "the JSON endpoint is not exposed",
+              "kind": "external",
+              "properties": {
+                "origin": "scanner",
+                "source": ".grype.yaml"
+              }
+            }
+          ]
         }
       ],
       "tool": {
@@ -144,6 +192,25 @@
               },
               "shortDescription": {
                 "text": "GHSA-8q59-q68h-6hv4 critical vulnerability for pyyaml package"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Fixture: flask denial of service through crafted JSON"
+              },
+              "help": {
+                "text": "Vulnerability CVE-2018-1000656\nSeverity: high\nPackage: flask\nVersion: 0.12.2\nFix Version: 0.12.3\nType: python\nLocation: /grype-yaml/requirements.txt\nData Namespace: github:language:python\nLink: [CVE-2018-1000656](https://nvd.nist.gov/vuln/detail/CVE-2018-1000656)"
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2018-1000656",
+              "id": "CVE-2018-1000656-flask",
+              "name": "PythonMatcherExactDirectMatch",
+              "properties": {
+                "tags": [
+                  "scanner:grype"
+                ]
+              },
+              "shortDescription": {
+                "text": "CVE-2018-1000656 high vulnerability for flask package"
               }
             }
           ],

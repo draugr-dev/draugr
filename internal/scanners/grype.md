@@ -91,6 +91,18 @@ Both findings then stay in the report marked suppressed, carrying that reason.
 This is also the concrete reason `--by-cve` is on. Without it Grype reports the same flaw as
 `GHSA-8q59-q68h-6hv4-pyyaml`, and no CVE-shaped pattern reaches it at all.
 
+## Exclusions
+
+A match that an `ignore:` rule in Grype's own configuration set aside is reported suppressed with
+`origin: scanner` and the rule's `reason`. Grype's SARIF leaves such a match out, so the scan also
+asks for `-o json` into a temporary file, where Grype lists each match it ignored with the rules
+that ignored it. A run that writes no JSON report is an error.
+
+The source names `.grype.yaml` or `.grype/config.yaml` in the directory Draugr runs in, whichever
+holds the rule. Grype also reads the file in the home directory, and a rule from there is reported
+with no source. The rules Grype applies to kernel headers with no configuration at all are its
+matching policy, and are not reported.
+
 ## The database
 
 Grype is a matcher with no vulnerability data of its own. It downloads a database, keeps it in a
