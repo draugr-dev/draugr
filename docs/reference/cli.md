@@ -1594,7 +1594,7 @@ an MCP **resource**, so a client can read the descriptor without a tool call.
 | `get_saga_schema` | The Saga schema this build enforces |
 | `validate_saga` | Validate a descriptor, by `path` or by `content` |
 | `check_tools` | Report which scanners are installed and what to run if any are missing |
-| `summarize_report` | Rank an existing `results.sarif` by priority |
+| `summarize_report` | Rank an existing `results.sarif` by priority, with accepted findings and their decisions listed apart |
 | `scan` | Run a scan and return the verdict, the scope it covered, and where the descriptor's publishers delivered it (not offered with `--scan=off`) |
 
 | Flag | Default | Description |

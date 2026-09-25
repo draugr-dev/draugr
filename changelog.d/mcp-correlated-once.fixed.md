@@ -1,0 +1,1 @@
+- **`summarize_report` and `scan` count a flaw two scanners reported once**, as the gate does, and name the second scanner on it.

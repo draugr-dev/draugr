@@ -708,6 +708,10 @@ type Consulted struct {
 	// AsOf is the day the copy was obtained, as YYYY-MM-DD. Empty when the caller supplied a
 	// file with no fetch to record, which is itself worth seeing.
 	AsOf string `json:"asOf,omitempty"`
+	// Stale reports that the copy was older than the run's configured maxAge when it was read.
+	// Recorded at scan time because only the run knew the limit it was held to; a reader of the
+	// evidence later has the date but not the policy.
+	Stale bool `json:"stale,omitempty"`
 	// Entries is how many records the dataset held. A feed that loaded and turned out to be
 	// empty answers every lookup with "not listed", which is indistinguishable from a working
 	// one unless somebody can see the count.

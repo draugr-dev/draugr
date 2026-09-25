@@ -116,7 +116,7 @@ own property bag:
 |---|---|
 | `draugr/provenance` | What each scanner said about its own run, the standard applied, the scope, how much of it could be decided |
 | `decided` | The classifications this run settled, whether or not a finding resulted |
-| `consulted` | The exploitability datasets the run had loaded: the signal, the day the copy was obtained, how many records it held, the EPSS threshold, and what set it |
+| `consulted` | The exploitability datasets the run had loaded: the signal, the day the copy was obtained, whether it was older than the run's `maxAge`, how many records it held, the EPSS threshold, and what set it |
 
 **`decided` and `consulted` both exist to separate "looked and found nothing" from "never
 looked."** A scanner that reports nothing about a control has either examined it and been
@@ -128,7 +128,9 @@ Without `consulted`, anything explaining a priority, a dashboard, a pull-request
 reading the file, cannot tell *not on KEV* from *KEV was not consulted*, and silence reads as the
 second. `asOf` is empty when you supplied a feed file by hand, which has no fetch to record;
 `entries` is there because a dataset that loaded and turned out to be empty answers every lookup
-with "not listed" and looks exactly like one that is working.
+with "not listed" and looks exactly like one that is working. `stale` is `true` when the copy was
+older than the run's `maxAge` when it was read, and absent otherwise; the run is the only reader
+that knew the limit.
 
 `thresholdFrom` names what set the EPSS threshold, `the default`,
 `config.exploitability.epssThreshold`, or `--epss-threshold`. The number alone is the one input to
