@@ -1,1 +1,0 @@
-- **gosec and govulncheck analyze every Go module in a repository.** gosec ran once from the root, so a module below it was never analyzed and `sast` passed. It now runs per module. Each govulncheck verdict is located at its own module's `go.mod`, so a module that only requires a dependency is no longer marked reachable by another that calls it.

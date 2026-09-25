@@ -1,1 +1,0 @@
-- **A dependency finding names its package's own line in the lockfile.** It named the first line mentioning the package, which could be a comment such as `# via flask`, a parent's dependency list, or a longer name like `rack-test`. It now takes the line Trivy's parser records, and otherwise searches for the whole name outside comments.
