@@ -46,6 +46,7 @@ func NewGitleaks() plugin.Scanner {
 	s.wantsHistory = gitleaksWantsHistory
 	s.historyArgs = gitleaksHistoryArgs
 	s.secrets = gitleaksSecrets
+	s.run = gitleaksRun(s.run, sharedGitleaksVersion.version)
 	return s
 }
 

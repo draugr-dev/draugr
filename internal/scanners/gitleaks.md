@@ -16,9 +16,11 @@ order: 40
 ## What it does
 
 Checks out the component's repository, then runs `gitleaks dir <dir> --report-format sarif
---report-path /dev/stdout --exit-code 0 --no-banner` to find leaked credentials, API keys, tokens,
+--report-path <file> --exit-code 0 --no-banner` to find leaked credentials, API keys, tokens,
 private keys, in the working tree. See the [secret-detection glossary
-entry](../../docs/reference/glossary.md#secret-detection).
+entry](../../docs/reference/glossary.md#secret-detection). A second run with
+`--ignore-gitleaks-allow` records what `gitleaks:allow` comments set aside; see
+[Exclusions](#exclusions).
 
 `--exit-code 0` keeps the process successful even when secrets are found; findings live in
 the SARIF report, not the exit code. The [`secrets`](../controllers/secrets.md) controller
@@ -86,6 +88,22 @@ repositories that have been configured most carefully.
 The composed file is written under `~/.draugr/data/gitleaks/`. If it cannot be written, a machine
 with no writable home, the scan runs with the ruleset `config` names, or with Gitleaks' own. One
 rule is worth losing; the secrets control is not.
+
+## Exclusions
+
+A secret on a line carrying a `gitleaks:allow` comment is reported suppressed with `origin: tool`.
+Gitleaks leaves such a line out of every report format, so each pass runs a second time with
+`--ignore-gitleaks-allow`, and a secret only the second run finds is the one the comment set aside.
+On a Gitleaks older than 8.18.1, which has no such flag, each pass runs once and the comment leaves
+no record.
+
+A comment added to a line after its secret was committed covers the tree. The commit that
+introduced the secret without it is still reported by the history pass.
+
+`.gitleaksignore` leaves no record. On the history pass, Gitleaks applies it and reports nothing of
+what it excluded. On the tree pass, the checkout is named by its absolute path and the file holds
+repository-relative fingerprints, so no entry matches and a secret it names is still reported.
+[`config.exclude`](../../docs/reference/saga-schema.md#configexclude) keeps the finding and the reason.
 
 ## Links
 

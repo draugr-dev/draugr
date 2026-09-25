@@ -94,6 +94,49 @@
             "tool": "gitleaks"
           },
           "ruleId": "draugr-fixture-token"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "settings.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 4
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "draugr-fixture-token has detected secret for file settings.py."
+          },
+          "partialFingerprints": {
+            "author": "",
+            "commitMessage": "",
+            "commitSha": "",
+            "date": "",
+            "email": "",
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "options-gitleaks",
+            "control": "secrets",
+            "priority": "P1",
+            "repository": "./options-gitleaks",
+            "tool": "gitleaks"
+          },
+          "ruleId": "draugr-fixture-token",
+          "suppressions": [
+            {
+              "kind": "inSource",
+              "properties": {
+                "origin": "tool"
+              }
+            }
+          ]
         }
       ],
       "tool": {

@@ -62,5 +62,12 @@
     "jobs": 1,
     "scans": 1
   },
+  "suppressed": {
+    "p1": 1,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0,
+    "total": 1
+  },
   "verdict": "fail"
 }

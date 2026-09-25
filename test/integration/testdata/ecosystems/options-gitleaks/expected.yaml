@@ -24,3 +24,11 @@ findings:
     tool: gitleaks
     rule: draugr-fixture-token
     location: settings.py:3
+  # A gitleaks:allow comment on the line. Gitleaks reports the token only when told to ignore the
+  # comment, and it arrives suppressed as a directive in the file. The history scan reads the same
+  # line with the same comment, so it too is reported once.
+  - control: secrets
+    tool: gitleaks
+    rule: draugr-fixture-token
+    location: settings.py:4
+    suppressed: tool

@@ -426,13 +426,18 @@ func scopeHistory(results []sarif.Result, dir string, scope git.Scope) []sarif.R
 // unknown on either side is never matched, and results the secrets do not line up with are all
 // kept: a duplicate reported twice is visible, and a credential dropped as a duplicate is not.
 //
+// Whether the scanner set the finding aside is kept in too. An allow comment added to the tree
+// after the secret was committed covers the line as it is now, and the commit that introduced the
+// secret without it is still a finding. Folding that into the suppressed tree copy would record an
+// acceptance of a commit nobody marked.
+//
 // The secrets are compared in memory and written nowhere.
 func dropStillInTree(dir string, tree []sarif.Result, treeSecrets []string, hist []sarif.Result, histSecrets []string) []sarif.Result {
 	if len(tree) != len(treeSecrets) || len(hist) != len(histSecrets) {
 		return hist
 	}
 	key := func(r sarif.Result, secret string) string {
-		return r.RuleID + "\x00" + repoRelPath(dir, r.Location.URI) + "\x00" + secret
+		return fmt.Sprint(r.RuleID, "\x00", repoRelPath(dir, r.Location.URI), "\x00", secret, "\x00", r.Suppression != nil)
 	}
 	inTree := make(map[string]bool, len(tree))
 	for i, r := range tree {
