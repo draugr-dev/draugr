@@ -1,8 +1,12 @@
 # The local Go vulnerability database was fetched three days before the run, beyond the default
 # maxAge, and the run is offline. govulncheck refuses it and the control names the age and the fix;
-# Trivy still runs and reports nothing, because the module has no dependencies.
+# Trivy still runs and reports nothing, because the module has no dependencies. The go.mod requires
+# nothing, and init still proposes gosec and govulncheck for it, so the descriptor init writes
+# consults the stale database too and reports the same error.
 init:
   controls: [sca, secrets, sast, iac]
+  scanners: [sast.gosec]
+  reachability: [govulncheck]
   components:
     - name: negative-stale-govulndb
       repositories: ["."]
@@ -13,8 +17,3 @@ sealed:
 errors:
   - control: sca
     contains: "older than 24h; run `draugr feeds update govulndb`"
-
-# init turns on no reachability analysis for a module with no dependencies, so its descriptor never
-# consults the stale database and every control runs.
-initScan:
-  errors: []

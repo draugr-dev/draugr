@@ -191,6 +191,46 @@ func TestInitPerDirectoryWithNoPartsSaysSo(t *testing.T) {
 	}
 }
 
+// Two modules that require nothing still get the Go controls, and the console names both under
+// FOUND without crediting sca, which has nothing in either to read.
+func TestInitProposesTheGoControlsForModulesThatRequireNothing(t *testing.T) {
+	t.Parallel()
+	files := map[string]string{
+		"go.mod":        "module shop\n\ngo 1.26\n",
+		"main.go":       "package main\n",
+		"tools/go.mod":  "module tools\n\ngo 1.26\n",
+		"tools/main.go": "package main\n",
+	}
+	got, console := runInitIn(t, files, initOptions{})
+	for _, want := range []string{
+		"analyzers: [govulncheck]   # ranks a Go finding down when no code calls it · go.mod · tools/go.mod\n",
+		"gosec:\n        enabled: true     # Go-specific checks · go.mod · tools/go.mod\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("descriptor missing %q:\n%s", want, got)
+		}
+	}
+	if !strings.Contains(console, "  go  go.mod · tools/go.mod  gosec · govulncheck\n") {
+		t.Errorf("console does not list the modules under FOUND:\n%s", console)
+	}
+	if strings.Contains(console, "UNREAD") {
+		t.Errorf("a go.mod with nothing to resolve is reported unread:\n%s", console)
+	}
+}
+
+// Where one module requires something and another does not, the one row names both, and sca
+// reads the one with requirements.
+func TestInitFoundRowNamesEveryGoModule(t *testing.T) {
+	t.Parallel()
+	_, console := runInitIn(t, map[string]string{
+		"go.mod":       "module shop\n\nrequire golang.org/x/text v0.3.0\n",
+		"tools/go.mod": "module tools\n\ngo 1.26\n",
+	}, initOptions{})
+	if !strings.Contains(console, "  go  go.mod · tools/go.mod  sca · gosec · govulncheck\n") {
+		t.Errorf("console does not name both modules in one row:\n%s", console)
+	}
+}
+
 func TestPathListCountsWhatItDoesNotShow(t *testing.T) {
 	t.Parallel()
 	if got := pathList([]string{"a", "b", "c", "d", "e"}); got != "a · b · c · +2" {

@@ -112,6 +112,32 @@ func TestReadAMissingRoot(t *testing.T) {
 	}
 }
 
+// A go.mod that requires nothing is still a Go module: its code has SAST findings and its toolchain
+// has advisories. It is not a dependency file, so a scan never reports it unread, and a vendored
+// module's go.mod belongs to somebody else.
+func TestReadFindsAGoModuleThatRequiresNothing(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	write(t, root, map[string]string{
+		"go.mod":                            "module shop\n\ngo 1.26\n",
+		"tools/go.mod":                      "module tools\n\ngo 1.26\n",
+		"vendor/example.com/lib/go.mod":     "module example.com/lib\n",
+		"tools/vendor/example.com/x/go.mod": "module example.com/x\n",
+	})
+
+	got := Read(root)
+
+	if want := []string{".", "tools"}; !slices.Equal(got.Go, want) {
+		t.Errorf("Go = %q, want %q", got.Go, want)
+	}
+	if want := []string{"tools"}; !slices.Equal(got.Parts, want) {
+		t.Errorf("Parts = %q, want %q", got.Parts, want)
+	}
+	if len(got.Dependencies)+len(got.Unresolved) != 0 {
+		t.Errorf("a go.mod with nothing to resolve is a dependency file: %+v %+v", got.Dependencies, got.Unresolved)
+	}
+}
+
 func paths(files []manifests.File) []string {
 	out := make([]string, len(files))
 	for i, f := range files {

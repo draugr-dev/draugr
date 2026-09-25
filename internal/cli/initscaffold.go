@@ -244,11 +244,16 @@ func foundRows(t inventory.Tree) []foundRow {
 		byEco[f.Ecosystem] = append(byEco[f.Ecosystem], f.Path)
 	}
 	for _, e := range ecos {
-		enables := "sca"
 		if e == "go" {
-			enables = "sca · gosec · govulncheck"
+			// Every go.mod, including one that requires nothing and so is not a dependency.
+			rows = append(rows, foundRow{e, pathList(goModules(t)), "sca · gosec · govulncheck"})
+			continue
 		}
-		rows = append(rows, foundRow{e, pathList(byEco[e]), enables})
+		rows = append(rows, foundRow{e, pathList(byEco[e]), "sca"})
+	}
+	if _, ok := byEco["go"]; !ok && len(t.Go) > 0 {
+		// A go.mod with no requirements gives sca nothing to read, and the Go controls their code.
+		rows = append(rows, foundRow{"go", pathList(goModules(t)), "gosec · govulncheck"})
 	}
 	if len(t.VendoredJS) > 0 {
 		rows = append(rows, foundRow{"copied JavaScript", pathList(t.VendoredJS), "retirejs"})

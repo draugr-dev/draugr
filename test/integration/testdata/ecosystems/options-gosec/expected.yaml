@@ -8,6 +8,8 @@ initScan:
 
 init:
   controls: [iac, sast, sca, secrets]
+  scanners: [sast.gosec]
+  reachability: [govulncheck]
   components:
     - name: options-gosec
       repositories: ["."]

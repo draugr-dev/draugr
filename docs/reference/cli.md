@@ -165,7 +165,7 @@ each with a comment naming the files behind it. Edit it, then `draugr scan`.
 
 | Found in the tree | Written |
 |---|---|
-| `go.mod` | `sast.gosec` · `config.reachability.analyzers: [govulncheck]` |
+| `go.mod`, including one that requires nothing | `sast.gosec` · `config.reachability.analyzers: [govulncheck]` |
 | Copied JavaScript: `*.min.js`, a file named for its release, anything under `vendor/` | `sca.retirejs` |
 | `setup.py`, `pdm.lock` | `sca.grypeFs`, since Trivy reads neither |
 | Terraform, Helm, Kubernetes, a Dockerfile | named in the `iac` comment |
@@ -176,9 +176,10 @@ each with a comment naming the files behind it. Edit it, then `draugr scan`.
 The console lists what was found under `FOUND` and the dependency files no scanner can take
 packages from under `UNREAD`.
 
-A directory below the root that holds its own dependency file is a part of the repository. By
-default the descriptor has one component and names the parts in a comment; `--per-directory`
-writes a component for each, scoped with `paths:`, and the root component `ignore:`s them.
+A directory below the root that holds its own dependency file or `go.mod` is a part of the
+repository. By default the descriptor has one component and names the parts in a comment;
+`--per-directory` writes a component for each, scoped with `paths:`, and the root component
+`ignore:`s them.
 
 | Flag | Default | Description |
 |------|---------|-------------|
