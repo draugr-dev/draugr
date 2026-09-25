@@ -125,21 +125,6 @@ func headline(r Result, emoji bool) []string {
 	return append(parts, fmt.Sprintf("%d unchanged", len(r.Unchanged)))
 }
 
-// standing is the unchanged findings still counting, one part per band that has any.
-//
-// A change that introduced no P1 passes, and the ones it inherited are still somebody's to fix; a
-// comment that said only "106 unchanged" would let a pass read as a clean bill. Suppressed findings
-// are left out, because one accepted in both scans is a decision already taken.
-func standing(r Result) []string {
-	var parts []string
-	for i, n := range standingBands(r.Unchanged) {
-		if n > 0 {
-			parts = append(parts, fmt.Sprintf("%d P%d", n, i+1))
-		}
-	}
-	return parts
-}
-
 // standingBands counts the unchanged findings that are not suppressed, by band.
 func standingBands(fs []sarif.Result) [4]int {
 	var open []sarif.Result
@@ -520,7 +505,6 @@ func renderMarkdownActions(w io.Writer, r Result, opts Options) error {
 	entries := r.Changed()
 	if len(entries) == 0 {
 		_, _ = fmt.Fprintln(w, "Nothing changed. Every finding was already there.")
-		writeMarkdownGate(w, r)
 		return nil
 	}
 
@@ -528,7 +512,6 @@ func renderMarkdownActions(w io.Writer, r Result, opts Options) error {
 	if len(actions) == 0 {
 		_, _ = fmt.Fprintf(w, "Nothing here is work. %s changed and none of it needs anybody.\n",
 			english.Count(len(entries), "finding"))
-		writeMarkdownGate(w, r)
 		return nil
 	}
 	shown, held := actions, 0
@@ -562,21 +545,53 @@ func renderMarkdownActions(w io.Writer, r Result, opts Options) error {
 	if rest := len(entries) - covered; rest > 0 {
 		_, _ = fmt.Fprintf(w, "\n_%s nobody has to act on._\n", english.Count(rest, "finding"))
 	}
-	writeMarkdownGate(w, r)
 	return nil
 }
 
-// writeMarkdownVerdict states what the gate decided, or nothing where none was asked for.
+// writeMarkdownVerdict opens the comment with what the gate decided, the counts by band, and the
+// rule the verdict was measured against.
+//
+// The rule sits above the list rather than under it, because a change with forty rows would
+// otherwise leave the sentence explaining a FAIL somewhere a reviewer has to scroll to.
 func writeMarkdownVerdict(w io.Writer, r Result) {
+	counts := strings.Join(headline(r, true), " · ")
 	if v, failed := verdict(r); v != "" {
 		mark := "✅"
 		if failed {
 			mark = "❌"
 		}
-		_, _ = fmt.Fprintf(w, "%s **%s** · %s\n\n", mark, v, strings.Join(append(headline(r, true), standing(r)...), " · "))
-		return
+		_, _ = fmt.Fprintf(w, "%s **%s** · %s\n\n", mark, v, counts)
+	} else {
+		_, _ = fmt.Fprintf(w, "**%s**\n\n", counts)
 	}
-	_, _ = fmt.Fprintf(w, "**%s**\n\n", strings.Join(append(headline(r, true), standing(r)...), " · "))
+	writeMarkdownBands(w, r)
+	if r.Gate.Stated() {
+		_, _ = fmt.Fprintf(w, "_Gate: %s._\n\n", r.Gate.Sentence())
+	}
+}
+
+// writeMarkdownBands is the terminal's two band strips as lines of a comment, each only where it
+// has something in it. A bold count stands in for the terminal's filled chip.
+func writeMarkdownBands(w io.Writer, r Result) {
+	var lines []string
+	for _, row := range bandRows(r) {
+		if row.counts == ([4]int{}) {
+			continue
+		}
+		parts := []string{"_" + row.label + "_"}
+		for i, n := range row.counts {
+			part := fmt.Sprintf("%d P%d", n, i+1)
+			if n > 0 {
+				part = "**" + part + "**"
+			}
+			parts = append(parts, part)
+		}
+		lines = append(lines, strings.Join(parts, " · "))
+	}
+	if len(lines) > 0 {
+		// An HTML break rather than a trailing backslash, which not every forge reads as one.
+		_, _ = fmt.Fprintf(w, "%s\n\n", strings.Join(lines, "<br>\n"))
+	}
 }
 
 func renderMarkdownTable(w io.Writer, r Result, opts Options) error {
@@ -587,7 +602,6 @@ func renderMarkdownTable(w io.Writer, r Result, opts Options) error {
 	entries := r.Changed()
 	if len(entries) == 0 {
 		_, _ = fmt.Fprintln(w, "Nothing changed. Every finding was already there.")
-		writeMarkdownGate(w, r)
 		return nil
 	}
 
@@ -648,17 +662,7 @@ func renderMarkdownTable(w io.Writer, r Result, opts Options) error {
 		_, _ = fmt.Fprintf(w, "\n_…and %s not listed._\n",
 			english.Count(len(entries)-len(shown), "changed finding"))
 	}
-	writeMarkdownGate(w, r)
 	return nil
-}
-
-// writeMarkdownGate states what the verdict was measured against, for a comment read by somebody
-// who was not there when it ran.
-func writeMarkdownGate(w io.Writer, r Result) {
-	if !r.Gate.Stated() {
-		return
-	}
-	_, _ = fmt.Fprintf(w, "\n_Gate: %s._\n", r.Gate.Sentence())
 }
 
 // --- json ---
@@ -708,13 +712,7 @@ func renderJSON(w io.Writer, r Result) error {
 // two strips stay apart rather than summed, because the gate asks about the first and the second
 // is work this change inherited.
 func writeBandRows(w io.Writer, col tui.Painter, r Result) {
-	rows := []struct {
-		label  string
-		counts [4]int
-	}{
-		{"new", bands(r.New)},
-		{"unchanged", standingBands(r.Unchanged)},
-	}
+	rows := bandRows(r)
 	width := 0
 	for _, row := range rows {
 		if row.counts != ([4]int{}) {
@@ -731,6 +729,18 @@ func writeBandRows(w io.Writer, col tui.Painter, r Result) {
 	if width > 0 {
 		_, _ = fmt.Fprintln(w)
 	}
+}
+
+// bandRow is one labeled strip of band counts.
+type bandRow struct {
+	label  string
+	counts [4]int
+}
+
+// bandRows is the new findings and the unchanged ones still counting, in the order both reports
+// draw them.
+func bandRows(r Result) []bandRow {
+	return []bandRow{{"new", bands(r.New)}, {"unchanged", standingBands(r.Unchanged)}}
 }
 
 // bands counts findings by band.

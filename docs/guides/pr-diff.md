@@ -120,10 +120,18 @@ CHANGED  1, by priority
 Gate: fails on any P1 this change introduces.
 ```
 
-The `unchanged` strip counts the unchanged findings by band, leaving out any suppressed in both
+The `unchanged` strip counts the unchanged findings by band, leaving out findings suppressed in both
 scans. It is the work this change inherited, which the gate does not ask about. The pull-request
-comment carries the same counts after the unchanged total:
-`✅ **pass** · ⚠️ 1 unaccepted · 28 unchanged · 13 P1 · 13 P2 · 1 P3`.
+comment draws the same strips as lines under its headline, and states the gate before the list of
+changes:
+
+```markdown
+✅ **pass** · ⚠️ 1 unaccepted · 28 unchanged
+
+_unchanged_ · **13 P1** · **13 P2** · **1 P3** · 0 P4
+
+_Gate: fails on any P1 this change introduces._
+```
 
 `--view compact` is the same table one line each, and `--view actions` groups it into the things
 somebody would do. `--top` caps the listing, and is `0` by default because a diff is already only

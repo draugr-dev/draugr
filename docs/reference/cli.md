@@ -776,8 +776,8 @@ decision worth a reviewer's attention and the second is work somebody did.
 
 Everything the change touched is one table, ranked by priority, with what happened to each finding
 in its own column. Within a band, what needs somebody comes before what does not. Above it, the
-new findings and the unchanged ones are each counted by band; the unchanged count leaves out any
-finding suppressed in both scans.
+new findings and the unchanged ones are each counted by band; the unchanged count leaves out
+findings suppressed in both scans.
 
 | Flag | Default | Description |
 |------|---------|-------------|

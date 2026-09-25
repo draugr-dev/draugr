@@ -588,9 +588,14 @@ func TestAPassStillCountsTheWorkItInherited(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The accepted P1 is a decision already taken, so it is in the unchanged count and not in the
-	// work; a band with nothing in it is not named.
-	if want := "✅ **pass** · 4 unchanged · 2 P1 · 1 P3\n"; !strings.Contains(md.String(), want) {
-		t.Errorf("the comment's headline should carry the standing bands, want %q in:\n%s", want, md.String())
+	// bands.
+	for _, want := range []string{
+		"✅ **pass** · 4 unchanged\n",
+		"\n_unchanged_ · **2 P1** · 0 P2 · **1 P3** · 0 P4\n",
+	} {
+		if !strings.Contains(md.String(), want) {
+			t.Errorf("want %q in the comment:\n%s", want, md.String())
+		}
 	}
 
 	var console bytes.Buffer
@@ -630,5 +635,40 @@ func TestTheBandStripsLineUp(t *testing.T) {
 	}
 	if want := " new  P1 0 P2 1 P3 0 P4 0\n"; !strings.Contains(out.String(), want) {
 		t.Errorf("want %q in:\n%s", want, out.String())
+	}
+}
+
+func TestTheCommentStatesTheGateAboveTheList(t *testing.T) {
+	// Forty changed rows would otherwise leave the sentence explaining a FAIL where a reviewer has to
+	// scroll for it.
+	r := Result{
+		Gate:      Gate{FailOnPriority: "P1"},
+		New:       []sarif.Result{{RuleID: "n", Priority: "P1", Component: "api"}, {RuleID: "n", Priority: "P2", Component: "worker"}},
+		Unchanged: []sarif.Result{{RuleID: "u", Priority: "P3"}},
+	}
+	for _, view := range []View{ViewFindings, ViewActions} {
+		var b bytes.Buffer
+		if err := Render(&b, "markdown", r, Options{View: view}); err != nil {
+			t.Fatal(err)
+		}
+		out := b.String()
+		bandsAt := strings.Index(out, "_new_ · **1 P1** · **1 P2** · 0 P3 · 0 P4<br>\n_unchanged_ · 0 P1 · 0 P2 · **1 P3** · 0 P4\n")
+		gate := strings.Index(out, "_Gate: fails on any P1 this change introduces._")
+		list := strings.Index(out, "### ")
+		if bandsAt < 0 || gate < 0 || list < 0 || bandsAt >= gate || gate >= list {
+			t.Errorf("%s: want the bands, then the gate, then the list:\n%s", view, out)
+		}
+		if strings.Count(out, "_Gate:") != 1 {
+			t.Errorf("%s: the gate is stated once:\n%s", view, out)
+		}
+	}
+
+	// No gate asked for, no sentence claiming one.
+	var b bytes.Buffer
+	if err := Render(&b, "markdown", Result{New: r.New}, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(b.String(), "Gate:") {
+		t.Errorf("a diff with no gate states one:\n%s", b.String())
 	}
 }
