@@ -1485,7 +1485,7 @@ one:
 | Unset | Falls back to | Why that is not enough |
 |-------|---------------|------------------------|
 | `author` | `project` | A project name is not a party. A consumer with a question about your claim needs somebody to ask. |
-| `product` | `pkg:generic/<project>@<release.version>` | Synthesized from your descriptor. `pkg:generic/` says so plainly. Unless a consumer happens to call your product exactly that, nothing will match. |
+| `product` | `pkg:generic/<project>@<release.version>`, without `@` where no version is given | Synthesized from your descriptor. `pkg:generic/` says so plainly. Unless a consumer happens to call your product exactly that, nothing will match. |
 
 **A document nothing matches fails silently.** A consumer cannot tell that a statement was meant for
 it, so a wrong identifier does not error. It is read, understood, and applied to nothing. This is
