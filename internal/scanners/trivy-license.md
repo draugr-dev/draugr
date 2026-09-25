@@ -60,8 +60,7 @@ this one dependency*. Package names contain slashes, which is why `config.exclud
 
 A rule's description holds Trivy's reading of the license category, and is empty for a category
 the scanner would not report without a policy. Whether a policy denied or flagged the license is
-in each result's message. `deny` and `warn` are set per component, and a SARIF file holds one rule
-per id across every component in the run.
+in each result's message.
 
 ## Line numbers
 

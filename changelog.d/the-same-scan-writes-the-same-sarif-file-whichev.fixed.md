@@ -1,1 +1,1 @@
-- **The same scan writes the same SARIF file, whichever job finishes first.** When two components reported one rule, its description came from whichever finished first, so a license one component denies and another flags could be described as denied for both. A license rule now describes the license, and each result's message states its component's verdict.
+- **The same scan writes the same SARIF file, whichever job finishes first.** A license rule now describes only the license, and each result's message states whether its component's policy denied or flagged it.
