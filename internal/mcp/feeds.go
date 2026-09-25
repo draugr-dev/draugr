@@ -26,7 +26,7 @@ type FeedStatus struct {
 	Stale       bool   `json:"stale" jsonschema:"true when the cached copy is older than maxAge"`
 	Source      string `json:"source" jsonschema:"the URL the feed is fetched from"`
 	Bytes       int64  `json:"bytes,omitempty" jsonschema:"size of the cached copy on disk, decompressed"`
-	Size        string `json:"size,omitempty" jsonschema:"bytes, rounded for reading"`
+	Size        string `json:"size,omitempty" jsonschema:"size of the cached copy, rounded for reading"`
 	SHA256      string `json:"sha256,omitempty" jsonschema:"digest of the cached copy, recorded when it was fetched"`
 	// IfStale is stated for every feed, cached or not, because the consequence differs by feed:
 	// an exploitability feed past its age is still read, and the Go database is not.
