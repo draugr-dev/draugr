@@ -8,7 +8,7 @@ infrastructure  draugr-k8s-policies, kube-bench*, kube-bench-job*        Check a
 licenses        trivy-license, mend-licenses*                            Report license terms attached to code you did not write, where they carry an obligation.
 provenance      cosign, notation                                         Check that a container image is signed by the identity this descriptor expects.
 sast            semgrep, gosec*                                          Find patterns in a repo's own code that let somebody in (static analysis).
-sca             trivy-fs, govulncheck*, grype-fs*, mend-sca*, retirejs*  Find known flaws in the libraries a repo depends on (software composition analysis).
+sca             trivy-fs, govulncheck†, grype-fs*, mend-sca*, retirejs*  Find known flaws in the libraries a repo depends on (software composition analysis).
 secrets         gitleaks                                                 Find passwords and keys committed by accident, history included.
 threats         urlhaus, virustotal*                                     Check whether a component's hosts appear on public lists of known-hostile addresses.
 tls             draugr-tls                                               Check the certificates and encryption a component's running endpoints offer visitors.
@@ -32,7 +32,8 @@ PUBLISHERS  (who each scanner comes from)
 Draugr executes third-party tools rather than bundling them, so each stays under its own
 license. `draugr tools list` shows which are installed and where.
 
-* opt-in scanner. Enable with controls.<control>.<scanner>.enabled: true in the Saga.
+* opt-in scanner. Enable with config.controls.<control>.<scanner>.enabled: true in the Saga.
+† reachability analyzer. Enable with config.reachability.analyzers: [<scanner>] in the Saga.
 
 EFFECTS  (scanners that do more than read)
   Scanner         Effect      What happens
@@ -69,7 +70,7 @@ What each scanner accepts in its Saga block:
   gitleaks
     Option   Type     What it does
     config   string   Path to a Gitleaks TOML rules file, relative to where Draugr runs. Use it for a ruleset shared across repositories; a .gitleaks.toml committed in the scanned repository is already picked up without this.
-    history  boolean  Also scan the repository's commit history, in addition to the working tree. Off by default: it needs a full clone rather than a shallow one, so it is slower on a large repository. A secret committed and later removed is still fetchable by anyone who can clone, so it is still compromised, this is what finds it. History findings are marked as such, because they name the path the secret had when it was introduced.
+    history  boolean  Also scan the repository's commit history, in addition to the working tree. Off by default: it needs a full clone rather than a shallow one, so it is slower on a large repository. A secret committed and later removed is still fetchable by anyone who can clone, so it is still compromised, this is what finds it. History findings are marked as such, because they name the path the secret had when it was introduced, and are kept only when that path would be checked out by this component's paths and ignore.
 
   gosec
     Option   Type   What it does

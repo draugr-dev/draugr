@@ -399,9 +399,8 @@ func TestCheckoutWithHistoryStillHonorsPaths(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(co.Dir, "drop", "f.txt")); err == nil {
 		t.Error("a history checkout ignored the path scope")
 	}
-	// History is present regardless, which is what the scope cannot narrow: git history is not
-	// sparse-checkoutable, so a finding from outside the scope is still a real finding in this
-	// repository and belongs in config.exclude rather than being silently dropped.
+	// History is present regardless, because git history cannot be sparse. What a history scan
+	// reports is narrowed afterwards, by Scope.Contains, rather than by the checkout.
 	if n := commitCount(t, co.Dir); n < 2 {
 		t.Errorf("history should still be there, got %d commits", n)
 	}

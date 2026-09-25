@@ -23,7 +23,7 @@ per component, or for the project:
 
 ```yaml
 config:
-  controllers:
+  controls:
     images:
       grype:
         enabled: true

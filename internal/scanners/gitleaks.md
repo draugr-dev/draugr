@@ -27,10 +27,12 @@ decides severity.
 ## Saga options
 
 ```yaml
-controllers:
-  secrets:
-    gitleaks:
-      config: security/gitleaks.toml   # relative to where Draugr runs
+config:
+  controls:
+    secrets:
+      gitleaks:
+        config: security/gitleaks.toml   # relative to where Draugr runs
+        history: true                    # the commit history as well as the tree
 ```
 
 | Option | What it does |
@@ -49,6 +51,13 @@ The tree pass is kept rather than replaced. `gitleaks git` reports the path a se
 commit that introduced it, so a file since renamed is reported under a directory that no longer
 exists. Findings from the history pass are marked `historical` in the report, and the tree pass is
 what names the path a live secret is at now.
+
+The history pass reads every commit in the repository, because git history cannot be checked out
+by subtree. A history finding is kept only when the path it names would have been checked out
+under the component's
+[`paths` and `ignore`](../../docs/reference/saga-schema.md#scoping-a-repository). Two components
+sharing a repository each see the secrets committed under their own paths, and a secret committed
+under another component's paths is reported there.
 
 A `.gitleaks.toml` committed in the repository being scanned is already honored without this.
 Gitleaks reads it from the target path. This option covers the case that file cannot: an

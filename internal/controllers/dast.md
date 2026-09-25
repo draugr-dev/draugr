@@ -19,7 +19,7 @@ so the two controls don't double-report (see the [scanner doc](../scanners/nucle
 
 ## Enabling it
 
-`dast` is **opt-in**, like every component-scoped control: it runs only when a `controllers.dast`
+`dast` is **opt-in**, like every component-scoped control: it runs only when a `config.controls.dast`
 entry exists in the Saga and the component declares hosts.
 
 ```yaml
@@ -30,7 +30,7 @@ components:
         url: https://staging.app.example.com
         type: browser
 config:
-  controllers:
+  controls:
     dast: { enabled: true }
 ```
 

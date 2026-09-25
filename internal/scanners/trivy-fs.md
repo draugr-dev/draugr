@@ -17,9 +17,11 @@ order: 180
 ## What it does
 
 Checks out the component's repository, then runs
-`trivy fs --quiet --scanners vuln --format sarif <dir>` to find known vulnerabilities in
-the project's dependencies (Software Composition Analysis). See the [SCA glossary
-entry](../../docs/reference/glossary.md#sca-software-composition-analysis).
+`trivy fs --quiet --scanners vuln --format json --list-all-pkgs <dir>` to find known
+vulnerabilities in the project's dependencies (Software Composition Analysis), and converts the
+result to SARIF. Trivy's JSON names the package as a field, where its SARIF names it only in prose,
+and `--list-all-pkgs` records the line of each package's entry in its manifest. See the [SCA
+glossary entry](../../docs/reference/glossary.md#sca-software-composition-analysis).
 
 ## Links
 
@@ -29,14 +31,15 @@ entry](../../docs/reference/glossary.md#sca-software-composition-analysis).
 ## Saga options
 
 ```yaml
-controls:
-  sca:
-    trivyFs:
-      pkgTypes: [library]                          # skip the OS layer
-      dbRepository: [registry.internal/trivy-db:2] # an internal mirror
-      filePatterns: ["pip:requirements-.*\\.txt"]  # more files for the pip analyzer
-      includeDevDeps: true                         # development dependencies too
-      detectionPriority: comprehensive             # read >=1.2 as 1.2
+config:
+  controls:
+    sca:
+      trivyFs:
+        pkgTypes: [library]                          # skip the OS layer
+        dbRepository: [registry.internal/trivy-db:2] # an internal mirror
+        filePatterns: ["pip:requirements-.*\\.txt"]  # more files for the pip analyzer
+        includeDevDeps: true                         # development dependencies too
+        detectionPriority: comprehensive             # read >=1.2 as 1.2
 ```
 
 | Option | What it does |
@@ -55,9 +58,9 @@ tool, where a suppression cannot be recorded or reviewed. Use `config.exclude` i
 ## Notes
 
 - Integration mode: **exec** over a local checkout; Trivy + `git` must be on `PATH`.
-- Trivy's SARIF output does **not** include license findings. They exist only in its JSON. That
-  is why [`trivy-license`](trivy-license.md) is a separate scanner with its own JSON→SARIF
-  conversion rather than another flag on this one.
+- License findings come from [`trivy-license`](trivy-license.md), a separate scanner serving the
+  [`licenses`](../controllers/licenses.md) control, which has its own policy and its own gate
+  threshold.
 - Each `lang-pkgs` result in Trivy's JSON names a file it took packages from. Those are the files
   the report counts as read; every other dependency file in the checkout is listed under
   **Unread**, see [`sca`](../controllers/sca.md#unread).
@@ -69,4 +72,4 @@ defaults in that order. Warmed once per run. With `--offline`, Draugr passes `--
 `--offline-scan`. The second stops Trivy resolving a `pom.xml` against Maven Central, so a
 dependency the pom declares is read from the pom itself.
 
-`config.controls.sca.trivy.dbRepository` replaces both with an internal mirror.
+`config.controls.sca.trivyFs.dbRepository` replaces both with an internal mirror.

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -67,6 +68,33 @@ func (s Scope) Key() string {
 		key += ";history"
 	}
 	return key
+}
+
+// Contains reports whether the file at rel, a repository-relative path, is one this scope checks
+// out.
+//
+// It answers with the helpers prune uses, so a file is inside the scope exactly when a checkout
+// would have kept it. A finding reported against the repository rather than the tree, such as a
+// secret found in commit history, is then held to the same boundary as the tree every other
+// scanner reads. A second matcher would be a second answer to where a component ends, and the
+// two would drift apart.
+func (s Scope) Contains(rel string) bool {
+	rel = strings.Trim(path.Clean(filepath.ToSlash(rel)), "/")
+	if rel == "" || rel == "." || rel == ".." || strings.HasPrefix(rel, "../") {
+		return false
+	}
+	if keep := selected(s.Paths); len(keep) > 0 && !withinPaths(rel, keep, false) {
+		return false
+	}
+	// prune removes a matching directory with everything under it, so every directory above the
+	// file is tested as a directory, the way the walk would have met it.
+	segs := strings.Split(rel, "/")
+	for i := 1; i < len(segs); i++ {
+		if matchesAny(s.Ignore, strings.Join(segs[:i], "/"), true) {
+			return false
+		}
+	}
+	return !matchesAny(s.Ignore, rel, false)
 }
 
 // rootConfig is the scanners' own configuration: the root files every scoped checkout keeps,

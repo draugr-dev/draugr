@@ -101,7 +101,7 @@ func (Licenses) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, 
 				cfg[k] = v
 			}
 			for k, v := range policy {
-				cfg[k] = v
+				cfg[k] = union(v, settingStrings(saga.ControllerSettings(sel.Config), k))
 			}
 			jobs = append(jobs, plugin.ScanJob{Scanner: sel.Name, Target: target, Config: cfg})
 		}
@@ -171,6 +171,20 @@ func unionSetting(project map[string]saga.ControllerSettings, comp *saga.Compone
 	add(project[licensesControl])
 	if comp != nil {
 		add(comp.Controls[licensesControl])
+	}
+	sort.Strings(out)
+	return out
+}
+
+// union joins two SPDX lists, deduplicated and sorted like unionSetting's, so a scanner's own
+// block tightens the control's policy rather than replacing it.
+func union(policy any, own []string) []string {
+	out, _ := policy.([]string)
+	out = slices.Clone(out)
+	for _, v := range own {
+		if v != "" && !slices.Contains(out, v) {
+			out = append(out, v)
+		}
 	}
 	sort.Strings(out)
 	return out

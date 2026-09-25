@@ -3,7 +3,7 @@
 - **Industry term:** Container image scanning
 - **Scope:** component
 - **Status:** ✅ implemented
-- **Scanners:** [`trivy`](../scanners/trivy.md)
+- **Scanners:** [`trivy`](../scanners/trivy.md) (default); [`grype`](../scanners/grype.md) (opt-in)
 - **Resource:** a component's `images:`
 
 ## What it does
