@@ -363,7 +363,7 @@ func writeComponentTable(w io.Writer, d Data) {
 	}
 	_, _ = fmt.Fprintln(w)
 	if d.UnattributedFindings > 0 {
-		_, _ = fmt.Fprintf(w, "_%s not tied to a component (project-wide controls)._\n\n",
+		_, _ = fmt.Fprintf(w, "_%s not tied to a component (project-wide controls, unclaimed root files)._\n\n",
 			english.Count(d.UnattributedFindings, "finding"))
 	}
 }

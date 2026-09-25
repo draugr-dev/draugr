@@ -3,6 +3,8 @@ package git
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"os/exec"
@@ -72,6 +74,10 @@ func Checkout(ctx context.Context, url, revision string, scope Scope) (tree Tree
 			cleanup()
 			return Tree{}, nil, err
 		}
+		if _, err := sparseDirs(scope.Paths, url, "at the revision scanned", treeLookup(ctx, dir)); err != nil {
+			cleanup()
+			return Tree{}, nil, err
+		}
 		if err := prune(dir, scope, true); err != nil {
 			cleanup()
 			return Tree{}, nil, fmt.Errorf("restrict checkout to paths: %w", err)
@@ -85,11 +91,16 @@ func Checkout(ctx context.Context, url, revision string, scope Scope) (tree Tree
 			return Tree{}, nil, fmt.Errorf("git checkout %q: %w", revision, err)
 		}
 	}
+	dirs, err := sparseDirs(scope.Paths, url, "at the revision scanned", treeLookup(ctx, dir))
+	if err != nil {
+		cleanup()
+		return Tree{}, nil, err
+	}
 	if sparse {
 		// Cone mode is what keeps the root files: it materializes every selected directory, the
 		// directories above them, and the repository root. Which is where the manifests and the
 		// scanners' own configuration live.
-		args := append([]string{"-C", dir, "sparse-checkout", "set", "--cone"}, coneDirs(scope.Paths)...)
+		args := append([]string{"-C", dir, "sparse-checkout", "set", "--cone"}, dirs...)
 		if err := gitRun(ctx, args...); err != nil {
 			cleanup()
 			return Tree{}, nil, fmt.Errorf("git sparse-checkout: %w", err)
@@ -235,14 +246,20 @@ func CheckoutWorkingTree(ctx context.Context, path string, scope Scope) (Tree, f
 		cleanup()
 		return Tree{}, nil, fmt.Errorf("list working tree of %s: %w", path, err)
 	}
+	var files []string
 	for _, rel := range strings.Split(string(out), "\x00") {
 		if rel == "" {
 			continue
 		}
+		files = append(files, rel)
 		if err := copyInto(dir, path, rel); err != nil {
 			cleanup()
 			return Tree{}, nil, err
 		}
+	}
+	if _, err := sparseDirs(scope.Paths, path, "in the working tree", listLookup(files)); err != nil {
+		cleanup()
+		return Tree{}, nil, err
 	}
 
 	if len(scope.Paths) > 0 || len(scope.Ignore) > 0 {
@@ -436,21 +453,27 @@ func ResolveRevision(ctx context.Context, url, revision string) (string, error) 
 // Local checkouts only. A remote is resolved with ls-remote, which answers about refs and knows
 // nothing about trees, and fetching one to build a cache key would cost more than the cache saves.
 // The caller falls back to the commit, which is what it used before.
+//
+// The identity also covers the files at the repository root. A scoped checkout keeps them, because
+// a lockfile, a go.mod or a scanner's own ignore file lives there, so an edit to one changes what
+// the job reads and has to change its key.
 func ResolveTree(ctx context.Context, url, commit string, paths []string) (string, error) {
 	if !IsLocalPath(url) || commit == "" || len(paths) == 0 {
 		return "", nil
 	}
-	// Sorted, so two spellings of one scope produce one key. The caller's slice is left alone.
-	sorted := append([]string(nil), paths...)
-	sort.Strings(sorted)
-
-	ids := make([]string, 0, len(sorted))
-	for _, p := range sorted {
-		p = strings.Trim(strings.TrimSpace(p), "/")
-		if p == "" || p == "." {
+	for _, p := range paths {
+		if t := strings.Trim(strings.TrimSpace(p), "/"); t == "" || t == "." {
 			// The whole tree, which the commit already identifies exactly.
 			return "", nil
 		}
+	}
+	// Normalized the way the checkout reads them, then sorted, so two spellings of one scope
+	// produce one key. `services/web/**` is `services/web`.
+	sorted := coneDirs(paths)
+	sort.Strings(sorted)
+
+	ids := make([]string, 0, len(sorted)+1)
+	for _, p := range sorted {
 		// #nosec G204 -- the descriptor's own repository path and its declared paths
 		out, err := exec.CommandContext(ctx, "git", "-C", url, "rev-parse", commit+":"+p).Output()
 		if err != nil {
@@ -464,5 +487,31 @@ func ResolveTree(ctx context.Context, url, commit string, paths []string) (strin
 		}
 		ids = append(ids, p+"="+id)
 	}
-	return strings.Join(ids, ";"), nil
+	root, ok := rootFilesID(ctx, url, commit)
+	if !ok {
+		return "", nil
+	}
+	return strings.Join(append(ids, "root="+root), ";"), nil
+}
+
+// rootFilesID identifies the files directly at the repository root at commit, the part of a scoped
+// checkout its paths do not name. Directories are left out: each selected one is keyed on its own.
+func rootFilesID(ctx context.Context, url, commit string) (string, bool) {
+	// #nosec G204 -- the descriptor's own repository path and a commit it resolved
+	out, err := exec.CommandContext(ctx, "git", "-C", url, "ls-tree", commit).Output()
+	if err != nil {
+		return "", false
+	}
+	h := sha256.New()
+	for line := range strings.SplitSeq(string(out), "\n") {
+		// <mode> SP <type> SP <object> TAB <name>. A blob is a file or a symlink.
+		meta, name, ok := strings.Cut(line, "\t")
+		if !ok {
+			continue
+		}
+		if fields := strings.Fields(meta); len(fields) == 3 && fields[1] == "blob" {
+			_, _ = fmt.Fprintf(h, "%s %s %s\n", fields[0], fields[2], name)
+		}
+	}
+	return hex.EncodeToString(h.Sum(nil))[:16], true
 }

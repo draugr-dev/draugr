@@ -260,7 +260,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 			shown = shown[:limit]
 		}
 		_, _ = fmt.Fprintln(w, fixFirstHeading(col, s, len(shown), len(s.findings)))
-		renderFixFirst(w, col, shown, d.View == ViewCompact, blobLinks(d))
+		renderFixFirst(w, col, shown, d.View == ViewCompact, len(d.Components) > 1, blobLinks(d))
 
 		// Two different readers, two different answers. Somebody looking at a truncated list wants
 		// the rest of *this* list, and answering that with a machine format sends them to a
@@ -399,21 +399,26 @@ func fixFirstColumns(fs []finding, compact bool) []string {
 // header already says what was scanned. The column earns its width only when it distinguishes
 // findings from each other, which is the case that prompted it: several components with paths that
 // look alike.
-func manyComponents(fs []finding) bool {
-	seen := ""
+//
+// A finding with no component counts as a value of its own where the report breaks the run down by
+// several components (shared is true). There, a file at the root of a repository the components
+// share can belong to none of them, and a list mixing one component's findings with those would
+// otherwise read as all being that component's.
+func manyComponents(fs []finding, shared bool) bool {
+	seen, named := "", false
 	for _, f := range fs {
 		if f.component == "" {
 			continue
 		}
-		if seen == "" {
-			seen = f.component
-			continue
-		}
-		if f.component != seen {
+		if named && f.component != seen {
 			return true
 		}
+		seen, named = f.component, true
 	}
-	return false
+	if !shared || !named {
+		return false
+	}
+	return slices.ContainsFunc(fs, func(f finding) bool { return f.component == "" })
 }
 
 // manyRepositories reports whether the findings span more than one repository.
@@ -455,9 +460,9 @@ func shortRepository(url string) string {
 
 // renderFixFirst prints the ranked findings: a block each by default, one row each under
 // --view compact.
-func renderFixFirst(w io.Writer, col tui.Painter, fs []finding, compact bool, blobs blobLinker) {
+func renderFixFirst(w io.Writer, col tui.Painter, fs []finding, compact, shared bool, blobs blobLinker) {
 	if !compact {
-		renderFixFirstBlocks(w, col, fs, blobs)
+		renderFixFirstBlocks(w, col, fs, shared, blobs)
 		return
 	}
 	cols := fixFirstColumns(fs, compact)
@@ -937,10 +942,11 @@ func writeComponents(w io.Writer, col tui.Painter, d Data) {
 		}
 	}
 	if d.UnattributedFindings > 0 {
-		// Project-scoped controls produce these. Omitting them silently would make the parts
-		// look like the whole.
+		// Project-scoped controls produce these, and so does a file at the root of a repository
+		// several components share that none of them claims. Omitting them silently would make the
+		// parts look like the whole.
 		_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim,
-			fmt.Sprintf("%s not tied to a component (project-wide controls)",
+			fmt.Sprintf("%s not tied to a component (project-wide controls, unclaimed root files)",
 				english.Count(d.UnattributedFindings, "finding"))))
 	}
 	_, _ = fmt.Fprintln(w)

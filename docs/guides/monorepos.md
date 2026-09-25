@@ -64,14 +64,29 @@ components:
         paths: [services/ledger]
 ```
 
-`paths:` is a sparse checkout, so a scanner pointed at `storefront` sees that subtree and nothing
-else. Three things follow.
+`paths:` is a sparse checkout, so a scanner pointed at `storefront` sees that subtree and the files
+at the repository root, where the lockfiles and the scanners' own configuration live. Three things
+follow.
 
 **A finding says which component it belongs to**, so a report over one repository is still a report
 about parts of it. **The band is the component's**, because `exposure` and `criticality` are
 declared per component, so the same CVE is P1 in the public storefront and P3 in something
 restricted. And **a flaw in one component is not attributed to another**, including where two
 components ship the same vulnerable package, which is two findings with two owners rather than one.
+
+**Decide who owns the root.** A root lockfile, `Dockerfile` or leaked secret is in every component's
+checkout, and it belongs to at most one of them. Claim it for the component that ships it, by naming
+the file or `.` in its `paths:`:
+
+```yaml
+      - url: .
+        paths: [services/storefront, go.mod]
+```
+
+Only a file at the root can be claimed this way; a file below it is refused. Unclaimed, a root
+file's findings are reported once under no component, ranked as the most exposed component sharing
+the repository. A `paths:` entry that matches nothing fails that component's scan and names the
+entry. The rules are in [scoping a repository](../reference/saga-schema.md#scoping-a-repository).
 
 **What it costs is analysis across the boundary.** A taint flow that starts in `services/storefront`
 and ends in `libs/shared` is invisible to a scanner that was handed only the first, and nothing in

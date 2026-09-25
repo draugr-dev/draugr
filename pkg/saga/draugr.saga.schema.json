@@ -1839,7 +1839,7 @@
           "type": "array"
         },
         "paths": {
-          "description": "Restrict the scan to these directories. Files at the repository root are always included — manifests and scanner configuration live there.",
+          "description": "Directories to scan, or files at the repository root to claim. Every entry has to exist at the revision scanned. Files at the root are always included, and a finding in one belongs to the component that claims it: no paths, `.`, or the file named here.",
           "items": {
             "minLength": 1,
             "type": "string"

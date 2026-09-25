@@ -1,0 +1,1 @@
+- **A `paths:` entry that matches nothing fails that component's scan and names the entry.** `paths: [services/wbe]` scanned the root files alone and reported them as the component. ([#1205](https://github.com/draugr-dev/draugr/issues/1205))

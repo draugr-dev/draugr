@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -342,5 +343,80 @@ func TestScopeKeyDistinguishesHistory(t *testing.T) {
 	}
 	if (Scope{History: true}).Empty() {
 		t.Error("a history scope restricts what the checkout must contain, so it is not empty")
+	}
+}
+
+// A path that matches nothing is refused by name. Accepted, it would narrow the checkout to the
+// root files alone, and the scan would report on those as though the component had been read.
+func TestCheckoutRefusesAPathThatMatchesNothing(t *testing.T) {
+	src := scopedRepo(t)
+	for _, entry := range []string{"services/wbe", "services/Web", "nope"} {
+		_, cleanup, err := Checkout(context.Background(), src, "", Scope{Paths: []string{"services/api", entry}})
+		if cleanup != nil {
+			cleanup()
+		}
+		if err == nil || !strings.Contains(err.Error(), `"`+entry+`"`) || !strings.Contains(err.Error(), "matches nothing") {
+			t.Errorf("%s: err = %v, want a refusal naming the entry", entry, err)
+		}
+		_, cleanup, err = CheckoutWorkingTree(context.Background(), src, Scope{Paths: []string{entry}})
+		if cleanup != nil {
+			cleanup()
+		}
+		if err == nil || !strings.Contains(err.Error(), `"`+entry+`"`) {
+			t.Errorf("%s: working tree err = %v, want a refusal naming the entry", entry, err)
+		}
+	}
+}
+
+// A file at the root names the file the component claims. The checkout is the same one its
+// directories alone produce, and the file is not handed to sparse checkout as a directory.
+func TestCheckoutAcceptsARootFileInPaths(t *testing.T) {
+	src := scopedRepo(t)
+	co, cleanup, err := Checkout(context.Background(), src, "", Scope{Paths: []string{"services/web", "go.mod"}})
+	if err != nil {
+		t.Fatalf("checkout: %v", err)
+	}
+	defer cleanup()
+	got := tree(t, co.Dir)
+	if !slices.Contains(got, "go.mod") || !slices.Contains(got, "services/web/main.go") || slices.Contains(got, "services/api/main.go") {
+		t.Errorf("tree = %v", got)
+	}
+	wt, cleanupWT, err := CheckoutWorkingTree(context.Background(), src, Scope{Paths: []string{"services/web", "go.mod"}})
+	if err != nil {
+		t.Fatalf("working tree: %v", err)
+	}
+	defer cleanupWT()
+	if got := tree(t, wt.Dir); !slices.Contains(got, "go.mod") || slices.Contains(got, "services/api/main.go") {
+		t.Errorf("working tree = %v", got)
+	}
+}
+
+func TestCheckoutRefusesAFileBelowTheRoot(t *testing.T) {
+	_, cleanup, err := Checkout(context.Background(), scopedRepo(t), "", Scope{Paths: []string{"services/web/main.go"}})
+	if cleanup != nil {
+		cleanup()
+	}
+	if err == nil || !strings.Contains(err.Error(), "is a file below the root") || !strings.Contains(err.Error(), "(services/web)") {
+		t.Errorf("err = %v, want a nested file refused", err)
+	}
+}
+
+// The slower route, taken where the server cannot do a partial clone, refuses the same entries.
+func TestCheckoutFallbackRefusesAPathThatMatchesNothing(t *testing.T) {
+	src := scopedRepo(t)
+	orig := gitRun
+	t.Cleanup(func() { gitRun = orig })
+	gitRun = func(ctx context.Context, args ...string) error {
+		if slices.Contains(args, "--sparse") {
+			return errors.New("partial clone refused")
+		}
+		return orig(ctx, args...)
+	}
+	_, cleanup, err := Checkout(context.Background(), src, "", Scope{Paths: []string{"services/wbe"}})
+	if cleanup != nil {
+		cleanup()
+	}
+	if err == nil || !strings.Contains(err.Error(), `"services/wbe"`) {
+		t.Errorf("err = %v, want the fallback to refuse the entry too", err)
 	}
 }

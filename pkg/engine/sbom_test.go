@@ -149,3 +149,29 @@ func TestSBOMStopsOnContextCancellation(t *testing.T) {
 		t.Error("cancellation should be recorded, not silently skipped")
 	}
 }
+
+// Two components carved out of one repository ship different code, so each gets an inventory of
+// its own paths rather than one whole-repository document filed under whichever came first.
+func TestSBOMIsScopedToTheComponentsPaths(t *testing.T) {
+	f := &fakeSBOM{}
+	m := sbomModel()
+	m.Components = []saga.Component{
+		{Name: "web", Repositories: []saga.Repository{{URL: "https://git/mono", Paths: []string{"services/web"}}}},
+		{Name: "api", Repositories: []saga.Repository{{URL: "https://git/mono", Paths: []string{"services/api"}, Ignore: []string{"testdata/"}}}},
+	}
+	res, err := New(NewRegistry(), WithSBOM(f)).Run(context.Background(), m)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if len(res.SBOMs) != 2 || res.SBOMs[0].Component != "web" || res.SBOMs[1].Component != "api" {
+		t.Fatalf("SBOMs = %+v, want one per component", res.SBOMs)
+	}
+	for i, want := range []string{"services/web", "services/api"} {
+		if !strings.Contains(f.calls[i], want) {
+			t.Errorf("call %d = %q, want the target scoped to %s", i, f.calls[i], want)
+		}
+	}
+	if !strings.Contains(f.calls[1], "testdata/") {
+		t.Errorf("call = %q, want the ignore carried too", f.calls[1])
+	}
+}

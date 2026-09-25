@@ -1418,7 +1418,7 @@ as the run.</p>
 </tbody>
 </table>
 {{if .Unattributed}}<p class="note">{{plural .Unattributed "finding"}} not tied to a component
-(project-wide controls).</p>{{end}}
+(project-wide controls, unclaimed root files).</p>{{end}}
 </details>
 {{end}}
 

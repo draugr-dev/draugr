@@ -1,8 +1,12 @@
 package git
 
 import (
+	"context"
+	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -76,6 +80,88 @@ func coneDirs(paths []string) []string {
 		out = append(out, p)
 	}
 	return out
+}
+
+// entryKind is what a `paths:` entry names in the tree being scanned.
+type entryKind int
+
+const (
+	entryMissing entryKind = iota
+	entryDir
+	entryFile
+)
+
+// sparseDirs checks every `paths:` entry against the tree and returns the directories among them,
+// for sparse checkout.
+//
+// An entry that names nothing is refused, naming it. `paths: [services/wbe]` otherwise narrows the
+// checkout to the root files alone and the scan reports on those, which reads exactly like a clean
+// result for a component whose code was never read. The lookup is git's, so it is exact about case:
+// a filesystem that ignores case would accept `services/Web` here and the same descriptor would
+// match nothing on the runner.
+//
+// A file at the repository root is accepted and left out of the result. Naming one claims it for
+// the component, so its findings are reported there rather than under every component sharing
+// the repository, and the checkout already holds every root file.
+//
+// where names what was looked in, for the refusal: "at the revision scanned" for a clone, "in the
+// working tree" for a copy of one, which has no revision.
+func sparseDirs(paths []string, source, where string, lookup func(entry string) entryKind) ([]string, error) {
+	var dirs []string
+	for _, entry := range coneDirs(paths) {
+		switch lookup(entry) {
+		case entryDir:
+			dirs = append(dirs, entry)
+		case entryFile:
+			if strings.Contains(entry, "/") {
+				return nil, fmt.Errorf("paths entry %q in %s is a file below the root: name its directory (%s), or a file at the repository root",
+					entry, source, path.Dir(entry))
+			}
+		default:
+			return nil, fmt.Errorf("paths entry %q matches nothing in %s: no such directory or root file %s", entry, source, where)
+		}
+	}
+	return dirs, nil
+}
+
+// treeLookup answers what an entry is at HEAD of a clone, from the tree alone, so a partial clone
+// fetches no blob to answer it.
+func treeLookup(ctx context.Context, dir string) func(string) entryKind {
+	return func(entry string) entryKind {
+		// #nosec G204 -- Draugr's own temporary checkout, and an entry from the descriptor passed after --
+		out, err := exec.CommandContext(ctx, "git", "-C", dir, "ls-tree", "HEAD", "--", entry).Output()
+		if err != nil {
+			return entryMissing
+		}
+		for line := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
+			meta, name, ok := strings.Cut(line, "\t")
+			if !ok || name != entry {
+				continue
+			}
+			switch fields := strings.Fields(meta); {
+			case len(fields) == 3 && fields[1] == "tree":
+				return entryDir
+			case len(fields) == 3 && fields[1] == "blob":
+				return entryFile
+			}
+		}
+		return entryMissing
+	}
+}
+
+// listLookup answers what an entry is from a list of the files in a tree.
+func listLookup(files []string) func(string) entryKind {
+	return func(entry string) entryKind {
+		for _, f := range files {
+			if f == entry {
+				return entryFile
+			}
+			if strings.HasPrefix(f, entry+"/") {
+				return entryDir
+			}
+		}
+		return entryMissing
+	}
 }
 
 // prune removes everything under dir that the scope excludes.

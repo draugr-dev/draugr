@@ -206,8 +206,9 @@ draugr scan ./web.saga.yaml
 
 **With more than one component, the report breaks the verdict down by component**, each judged by
 the same policy as the run, so the parts cannot disagree with the whole. Components with nothing
-against them are listed as passing, and findings from project-wide controls (which belong to no
-component) are counted separately.
+against them are listed as passing, and findings that belong to no
+component are counted separately: those from project-wide controls, and those from an
+unclaimed root file several components share, as [scoping a repository](saga-schema.md#scoping-a-repository) describes.
 
 **A surface with no control enabled is called out.** If a component declares repositories, images,
 hosts or infrastructure and nothing is enabled to check them, the scan says so. That combination

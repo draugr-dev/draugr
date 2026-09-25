@@ -37,14 +37,14 @@ const (
 
 // renderFixFirstBlocks prints each ranked finding as a block: what it is, what is known about it,
 // and where it is.
-func renderFixFirstBlocks(w io.Writer, col tui.Painter, fs []finding, blobs blobLinker) {
+func renderFixFirstBlocks(w io.Writer, col tui.Painter, fs []finding, shared bool, blobs blobLinker) {
 	width := tui.Columns(w)
 	if width <= 0 {
 		width = narrowestBlock
 	}
 	// The same question the columns asked, for the same reason: a value identical on every finding
 	// distinguishes none of them, and the release header already said what was scanned.
-	withComponent := manyComponents(fs)
+	withComponent := manyComponents(fs, shared)
 	withRepository := manyRepositories(fs)
 
 	for i, f := range fs {
@@ -90,8 +90,12 @@ func writeBlockFacts(w io.Writer, col tui.Painter, f finding, width int, withCom
 	label := func(name, value string) string {
 		return col.Paint(cDim, name) + " " + value
 	}
-	if withComponent && f.component != "" {
-		parts = append(parts, label("component", f.component))
+	if withComponent {
+		c := f.component
+		if c == "" {
+			c = "none"
+		}
+		parts = append(parts, label("component", c))
 	}
 	if withRepository && f.repository != "" {
 		parts = append(parts, label("repository", shortRepository(f.repository)))

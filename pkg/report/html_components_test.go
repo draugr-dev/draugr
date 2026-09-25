@@ -163,7 +163,7 @@ func TestASkippedComponentIsListedRatherThanOmitted(t *testing.T) {
 // longer version used it, so the same fact reached a reader as three different claims and only the
 // terse two were saying it in the product's own words.
 func TestFindingsTiedToNoComponentAreCounted(t *testing.T) {
-	const said = "not tied to a component (project-wide controls)"
+	const said = "not tied to a component (project-wide controls, unclaimed root files)"
 	for _, r := range []Reporter{consoleReporter{}, markdownReporter{}, htmlReporter{}} {
 		t.Run(r.Format(), func(t *testing.T) {
 			var buf bytes.Buffer

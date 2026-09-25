@@ -1,0 +1,1 @@
+- **Each component carved out of a repository gets its own SBOM**, of its `paths:` and `ignore:`, and an edit to a root file such as a lockfile or `.trivyignore` invalidates each scoped component's cached result. ([#1205](https://github.com/draugr-dev/draugr/issues/1205))

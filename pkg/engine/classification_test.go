@@ -25,7 +25,7 @@ func TestStampedFindingsCarryTheirComponentsClassification(t *testing.T) {
 	}
 
 	for _, pj := range jobs {
-		got := e.stampJobFields(sarif.Report{Results: []sarif.Result{{RuleID: "CVE-2020-1"}}}, pj)
+		got := e.stampJobFields(sarif.Report{Results: []sarif.Result{{RuleID: "CVE-2020-1"}}}, pj, nil)
 		if len(got.Results) != 1 {
 			t.Fatalf("%s: %d results", pj.Component, len(got.Results))
 		}
@@ -43,7 +43,7 @@ func TestStampedFindingsCarryTheirComponentsClassification(t *testing.T) {
 func TestAnUndeclaredComponentCarriesNoClassification(t *testing.T) {
 	e := &Engine{}
 	got := e.stampJobFields(sarif.Report{Results: []sarif.Result{{RuleID: "CVE-2020-1"}}},
-		PlannedJob{Component: "unclassified"})
+		PlannedJob{Component: "unclassified"}, nil)
 	if r := got.Results[0]; r.Exposure != "" || r.Criticality != "" {
 		t.Errorf("carried %q/%q, want both empty", r.Exposure, r.Criticality)
 	}
@@ -58,7 +58,7 @@ func TestStampingLeavesTheCachedReportAlone(t *testing.T) {
 	cached := sarif.Report{Results: []sarif.Result{{RuleID: "CVE-2020-1"}}}
 	e.stampJobFields(cached, PlannedJob{
 		Component: "checkout", Exposure: saga.ExposurePublic, Criticality: saga.CriticalityCritical,
-	})
+	}, nil)
 	if r := cached.Results[0]; r.Exposure != "" || r.Criticality != "" || r.Component != "" {
 		t.Errorf("the cached report was mutated: %+v", r)
 	}
@@ -78,7 +78,7 @@ func TestWhoPublishesTheTargetIsStampedPerJob(t *testing.T) {
 	consumer := e.stampJobFields(cached, PlannedJob{
 		Component: "analytics",
 		Job:       plugin.ScanJob{Target: plugin.RepositoryTarget{URL: "https://example.com/x.git", Upstream: true}},
-	})
+	}, nil)
 	if !consumer.Results[0].BuiltUpstream {
 		t.Error("a repository declared upstream produced a finding the reader is told to go and fix")
 	}
@@ -86,7 +86,7 @@ func TestWhoPublishesTheTargetIsStampedPerJob(t *testing.T) {
 	maintainer := e.stampJobFields(cached, PlannedJob{
 		Component: "platform",
 		Job:       plugin.ScanJob{Target: plugin.RepositoryTarget{URL: "https://example.com/x.git"}},
-	})
+	}, nil)
 	if maintainer.Results[0].BuiltUpstream {
 		t.Error("a repository nobody declared upstream came back as somebody else's")
 	}
@@ -104,7 +104,7 @@ func TestStampingNeverClearsWhatAScannerAlreadyKnew(t *testing.T) {
 	e := &Engine{}
 	got := e.stampJobFields(
 		sarif.Report{Results: []sarif.Result{{RuleID: "1.2.20", BuiltUpstream: true}}},
-		PlannedJob{Component: "platform", Job: plugin.ScanJob{Target: plugin.HostTarget{URL: "https://example.com"}}})
+		PlannedJob{Component: "platform", Job: plugin.ScanJob{Target: plugin.HostTarget{URL: "https://example.com"}}}, nil)
 	if !got.Results[0].BuiltUpstream {
 		t.Error("a scanner's own answer was overwritten by a target that does not declare one")
 	}

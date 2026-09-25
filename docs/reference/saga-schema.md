@@ -1126,6 +1126,21 @@ are how a scanner knows what it is looking at. A tool that cannot find the manif
 It reports fewer findings against a tree it did not understand, and that is indistinguishable from a
 clean scan.
 
+**A finding in a root file belongs to one component, or to none.** Where several components scan
+one repository, a root file's findings are reported under:
+
+| Owner | When |
+|---|---|
+| a component that claims the root | its `paths` is empty, includes `.`, or names the file (`paths: [services/web, go.mod]`) |
+| the only component on the repository | nobody claims the root and one component scans it |
+| no component | nobody claims the root and several components share it. The finding is reported once and ranked as the most exposed of them |
+
+A root file named in `paths` claims it and selects nothing else; a file below the root is refused.
+
+**Every entry in `paths` has to exist.** An entry that names no directory and no root file at the
+revision scanned fails that component's scan and names the entry, rather than narrowing the checkout
+to the root files alone. The match is case-sensitive, as git is.
+
 **`ignore` removes paths, and runs last**, so it can carve out of a subtree `paths` selected. The
 patterns are gitignore-shaped: a trailing `/` matches a directory and everything beneath it, `*`
 matches within one path segment, `**` matches across segments. A bare name like `vendor` means the

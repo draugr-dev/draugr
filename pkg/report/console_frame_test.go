@@ -49,18 +49,23 @@ func TestComponentColumnOnlyWhenItDistinguishes(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
-		name string
-		fs   []finding
-		want bool
+		name   string
+		fs     []finding
+		want   bool
+		shared bool
 	}{
-		{"no components", []finding{{}, {}}, false},
-		{"one component", []finding{{component: "web"}, {component: "web"}}, false},
-		{"two components", []finding{{component: "web"}, {component: "api"}}, true},
-		{"one named, one not", []finding{{component: "web"}, {}}, false},
+		{"no components", []finding{{}, {}}, false, false},
+		{"one component", []finding{{component: "web"}, {component: "web"}}, false, false},
+		{"two components", []finding{{component: "web"}, {component: "api"}}, true, false},
+		{"one named, one not", []finding{{component: "web"}, {}}, false, false},
+		// Several components declared: the unnamed one may be a root file none of them claims, and
+		// has to be told apart from the named one's.
+		{"one named, one not, several declared", []finding{{}, {component: "web"}}, true, true},
+		{"none named, several declared", []finding{{}, {}}, false, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if got := manyComponents(tc.fs); got != tc.want {
+			if got := manyComponents(tc.fs, tc.shared); got != tc.want {
 				t.Errorf("manyComponents = %v, want %v", got, tc.want)
 			}
 		})

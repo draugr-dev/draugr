@@ -591,3 +591,70 @@ func TestResolveTreeDoesNotDependOnTheOrderPathsWereWritten(t *testing.T) {
 		t.Errorf("order changed the identity: %q then %q", one, two)
 	}
 }
+
+// A scoped checkout keeps the root's files, so an edit to a root lockfile or a scanner's ignore file
+// changes what every scoped job reads, and every scoped key has to move with it.
+func TestResolveTreeCoversTheRootFiles(t *testing.T) {
+	dir := t.TempDir()
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...) // #nosec G204 -- a temp dir and literal git args, in a test
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t",
+			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
+	write := func(path, body string) {
+		t.Helper()
+		full := filepath.Join(dir, path)
+		if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	key := func(paths ...string) string {
+		t.Helper()
+		out, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD").Output() // #nosec G204 -- a temp dir, in a test
+		if err != nil {
+			t.Fatal(err)
+		}
+		k, err := ResolveTree(context.Background(), dir, strings.TrimSpace(string(out)), paths)
+		if err != nil || k == "" {
+			t.Fatalf("ResolveTree = %q, %v", k, err)
+		}
+		return k
+	}
+
+	run("init", "-q")
+	write("go.mod", "module x\n")
+	write(".trivyignore", "")
+	write("web/a.js", "one")
+	write("api/b.go", "one")
+	run("add", "-A")
+	run("commit", "-q", "-m", "first")
+	web, api := key("web"), key("api")
+	if key("web/**") != web {
+		t.Error("web/** reads the same subtree as web and should key the same")
+	}
+
+	for _, root := range []string{"go.mod", ".trivyignore"} {
+		write(root, "changed "+root)
+		run("add", "-A")
+		run("commit", "-q", "-m", "edit "+root)
+		if w, a := key("web"), key("api"); w == web || a == api {
+			t.Errorf("an edit to %s left a scoped key standing: web %v, api %v", root, w != web, a != api)
+		}
+		web, api = key("web"), key("api")
+	}
+
+	// A new directory beside them is neither job's content.
+	write("docs/x.md", "x")
+	run("add", "-A")
+	run("commit", "-q", "-m", "docs")
+	if key("web") != web {
+		t.Error("a directory no job reads moved a scoped key")
+	}
+}

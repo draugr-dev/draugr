@@ -808,6 +808,7 @@ func recordProvenance(report *sarif.Report, tool, version string) {
 // whatever results succeeded. Honors ctx cancellation.
 func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	planned, planErr := e.Plan(model)
+	roots := newRootOwnership(planned)
 	// A scanner that cannot answer the question a target asks does not run against it. Done
 	// here rather than in the controller because only the registry knows what a scanner can
 	// do, and the rule is about the scanner rather than about any one control.
@@ -1119,7 +1120,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			span.SetAttributes(attribute.Bool("cache.hit", res.cached), attribute.Bool("dedup", shared))
 			jobTook := time.Since(jobStart)
 			recordFindings(jobCtx, pj.Control, res.report)
-			report := e.stampJobFields(res.report, pj)
+			report := e.stampJobFields(res.report, pj, roots)
 			mu.Lock()
 			stats.ByControl[pj.Control] += jobTook
 			if !res.cached {
@@ -1327,16 +1328,18 @@ func appendJobs(dst []PlannedJob, control string, comp *saga.Component, jobs []p
 // key while belonging to different components with different classifications, and two components
 // can share a repository while disagreeing about who publishes it. The cached findings must never
 // be mutated, so the slice is copied.
-func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report {
+//
+// roots decides who a file at a shared repository's root belongs to; see rootOwnership. Nil where
+// no repository is shared.
+func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob, roots rootOwnership) sarif.Report {
 	// Copied before stamping: a cached or deduplicated report is shared by every component that
-	// scans the same repository, and each has to carry its own name.
-	if len(report.Inputs) > 0 {
-		inputs := make([]sarif.Input, len(report.Inputs))
-		copy(inputs, report.Inputs)
-		for i := range inputs {
-			inputs[i].Component = pj.Component
+	// scans the same repository, and each has to carry its own name. attribute copies both slices.
+	report, unownedResults, unownedInputs := roots.attribute(report, pj)
+	for i := range report.Inputs {
+		report.Inputs[i].Component = pj.Component
+		if unownedInputs[i] {
+			report.Inputs[i].Component = ""
 		}
-		report.Inputs = inputs
 	}
 	if len(report.Results) == 0 {
 		return report
@@ -1350,9 +1353,12 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 		upstream = u.BuiltUpstream()
 	}
 	out := report
-	out.Results = make([]sarif.Result, len(report.Results))
-	copy(out.Results, report.Results)
 	for i := range out.Results {
+		if unownedResults[i] {
+			// Nobody's, and ranked as the most exposed component sharing the file.
+			out.Results[i] = e.stampUnowned(out.Results[i], pj, roots.sharers(pj), upstream)
+			continue
+		}
 		out.Results[i].Component = pj.Component
 		// Never cleared: a scanner that already knows more than the descriptor does, kube-bench deciding
 		// which controls the provider runs. Must not have that answer overwritten by a target that
@@ -1374,6 +1380,45 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 		}
 	}
 	return out
+}
+
+// stampUnowned stamps a finding at a shared repository root that no component owns: no component
+// and no labels, and the classification of whichever sharer ranks it highest.
+//
+// The most exposed sharer rather than the unclassified default, which reads every unclaimed finding
+// as public and critical. Each sharer ships the file, so its most exposed one is the honest worst
+// case, and a monorepo of internal components does not see every root finding become P1 because
+// it stopped being attributed to them.
+func (e *Engine) stampUnowned(r sarif.Result, pj PlannedJob, sharers []PlannedJob, upstream bool) sarif.Result {
+	r.Component, r.Labels = "", nil
+	if upstream {
+		r.BuiltUpstream = true
+	}
+	best := pj
+	var bestBand Priority
+	if e.prioritize != nil {
+		for i, s := range sharers {
+			// The job's control, with the sharer's classification: a control's own floors, such as
+			// the one that ranks a leaked credential high wherever it is found, belong to the
+			// control that found the finding, not to whichever job was planned first.
+			p := e.prioritize(pj.Control, s.Exposure, s.Criticality, r)
+			if i == 0 || moreUrgent(p.Band, bestBand.Band) {
+				best, bestBand = s, p
+			}
+		}
+		r.Priority, r.Escalation, r.PriorityFloor = bestBand.Band, bestBand.Escalation, bestBand.Floor
+	}
+	r.Exposure, r.Criticality = string(best.Exposure), string(best.Criticality)
+	return r
+}
+
+// moreUrgent reports whether band a outranks band b. P1 is the most urgent; an empty band ranks
+// below every named one.
+func moreUrgent(a, b string) bool {
+	if a == "" || b == "" {
+		return b == "" && a != ""
+	}
+	return a < b
 }
 
 func sortedControllerNames(m map[string]plugin.Controller) []string {
@@ -1498,8 +1543,9 @@ const sbomPseudoControl = "(sbom)"
 
 // generateSBOMs takes one inventory per distinct repository and image in the model.
 //
-// Deduplicated by target identity: several controls scan the same repository, and an SBOM of it
-// is the same document however many controls touched it. Ordered by component then target so a
+// Deduplicated by target identity, which includes the scope: several controls scan the same
+// repository, and an SBOM of it is the same document however many controls touched it, while two
+// components scoped to different paths of it are two documents. Ordered by component then target so a
 // run is reproducible and two runs diff cleanly.
 func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Document, []string) {
 	cfg := model.Config.SBOM
@@ -1521,8 +1567,11 @@ func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Do
 		comp := &model.Components[i]
 		var targets []plugin.Target
 		for _, r := range comp.Repositories {
+			// Scoped as every scan of it is. Two components carved out of one repository ship
+			// different code, and an inventory of the whole tree describes neither of them.
 			targets = append(targets, plugin.RepositoryTarget{
-				URL: r.URL, Revision: r.Revision, WorkingTree: e.workingTree,
+				URL: r.URL, Revision: r.Revision, Paths: r.Paths, Ignore: r.Ignore,
+				WorkingTree: e.workingTree,
 			})
 		}
 		for _, img := range comp.Images {

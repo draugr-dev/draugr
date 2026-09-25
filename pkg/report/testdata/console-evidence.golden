@@ -30,7 +30,7 @@ MEASURED AGAINST
 COMPONENTS
   payments       FAIL   P1 3 P2 2 P3 1
   internal-tool  pass   no findings
-  2 findings not tied to a component (project-wide controls)
+  2 findings not tied to a component (project-wide controls, unclaimed root files)
 
 ACCEPTED
   config.exclude  2 findings suppressed · 1 expired and no longer suppressing

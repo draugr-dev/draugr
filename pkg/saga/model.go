@@ -711,6 +711,10 @@ type Repository struct {
 	// configuration live there, and a tool that cannot see go.mod or .trivyignore does not fail. It
 	// reports less against a tree it did not fully understand, which is indistinguishable from a
 	// clean scan.
+	//
+	// An entry may also name a file at the root, which claims that file's findings for this
+	// component where several share the repository, and `.` claims them all. Every entry has to
+	// exist at the revision scanned.
 	Paths []string `yaml:"paths,omitempty"`
 	// Ignore removes matching paths from the scan, applied after Paths so it can carve out of
 	// one. Gitignore-style: a trailing `/` is a directory, `*` matches within a path segment,

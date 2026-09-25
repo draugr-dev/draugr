@@ -132,7 +132,7 @@ func TestRunSaysWhenEveryFileWasRead(t *testing.T) {
 func TestStampingInputsLeavesTheCachedReportAlone(t *testing.T) {
 	e := &Engine{}
 	cached := sarif.Report{Inputs: []sarif.Input{{Scanner: "trivy-fs", Path: "go.mod"}}}
-	got := e.stampJobFields(cached, PlannedJob{Component: "api"})
+	got := e.stampJobFields(cached, PlannedJob{Component: "api"}, nil)
 	if got.Inputs[0].Component != "api" {
 		t.Errorf("stamped input = %+v", got.Inputs[0])
 	}

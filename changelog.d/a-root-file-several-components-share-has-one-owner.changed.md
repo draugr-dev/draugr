@@ -1,0 +1,1 @@
+- **A file at the root of a repository several components share belongs to one of them, or to none.** A component claims it by naming the file or `.` in `paths:`. Unclaimed, its findings are reported once under no component, ranked as the most exposed component sharing the repository, instead of once per component. ([#1205](https://github.com/draugr-dev/draugr/issues/1205))
