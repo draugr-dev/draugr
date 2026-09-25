@@ -135,52 +135,63 @@ func TestTheLiveTierRunsOnlyWhereItsAnswerIsNotAVerdict(t *testing.T) {
 
 // TestTheLiveTierHoldsNoWriteCredentialWhileItScans. The live job executes third-party scanners
 // over fixture repositories and fetches from public registries. Whatever credential is on the
-// machine while that happens is reachable by anything they run, so the job's own token reads only,
-// no checkout leaves a credential in .git/config, and the token that pushes the drift is minted
-// after the scans have finished.
+// machine while that happens is reachable by anything they run, including anything they leave
+// running after they exit. So the live job's own token reads only, no checkout leaves a credential
+// in .git/config, and the token that pushes the drift is minted by live-propose, on a machine that
+// never ran a scanner.
 //
 // That token is the app's rather than GITHUB_TOKEN because GitHub starts no workflow for anything
 // GITHUB_TOKEN does: a drift pull request opened with it would carry no checks, and nothing on the
 // page would say so.
 func TestTheLiveTierHoldsNoWriteCredentialWhileItScans(t *testing.T) {
 	t.Parallel()
-	live := readWorkflow(t, "integration.yml").job(t, "live")
+	w := readWorkflow(t, "integration.yml")
+	live, propose := w.job(t, "live"), w.job(t, "live-propose")
 
-	for scope, level := range live.Permissions {
-		if level != "read" && level != "none" {
-			t.Errorf("the live job grants %s: %s; it pushes with an app token minted after the scans, and needs no write of its own", scope, level)
+	for name, j := range map[string]nightlyJob{"live": live, "live-propose": propose} {
+		for scope, level := range j.Permissions {
+			if level != "read" && level != "none" {
+				t.Errorf("the %s job grants %s: %s; it pushes with an app token and needs no write of its own", name, scope, level)
+			}
+		}
+		if len(j.Permissions) == 0 {
+			t.Errorf("the %s job declares no permissions, so it takes the workflow's", name)
+		}
+		for i, s := range j.Steps {
+			if strings.HasPrefix(s.Uses, "actions/checkout@") && s.With["persist-credentials"] != false {
+				t.Errorf("%s step %d (%s) leaves its token in .git/config; set persist-credentials: false", name, i+1, s.Uses)
+			}
+			for _, v := range s.Env {
+				if strings.Contains(v, "github.token") || strings.Contains(v, "secrets.GITHUB_TOKEN") {
+					t.Errorf("%s step %q uses GITHUB_TOKEN; a pull request opened with it starts no checks", name, s.Name)
+				}
+			}
 		}
 	}
-	if len(live.Permissions) == 0 {
-		t.Error("the live job declares no permissions, so it takes the workflow's and any scope added there reaches the scans")
+
+	for _, s := range live.Steps {
+		if strings.HasPrefix(s.Uses, "actions/create-github-app-token@") || strings.Contains(s.Run, "gh pr ") {
+			t.Errorf("the live job step %q mints or uses a write credential on the machine that ran the scanners", s.Name)
+		}
 	}
 
-	tested, minted := -1, -1
-	for i, s := range live.Steps {
-		if strings.HasPrefix(s.Uses, "actions/checkout@") && s.With["persist-credentials"] != false {
-			t.Errorf("step %d (%s) leaves its token in .git/config while the scans run; set persist-credentials: false", i+1, s.Uses)
-		}
-		if strings.Contains(s.Run, "-run 'TestLive'") || strings.Contains(s.Run, "-run TestLive") {
-			tested = i
+	if !slices.Contains(propose.needs(), "live") {
+		t.Error("live-propose does not wait on live, so it proposes drift nobody has measured")
+	}
+	minted := false
+	for _, s := range propose.Steps {
+		if strings.Contains(s.Run, "go test") || strings.Contains(s.Run, "draugr ") || strings.Contains(s.Run, "make ") {
+			t.Errorf("live-propose step %q runs %q; it holds the push credential, so it runs git and gh only", s.Name, s.Run)
 		}
 		if strings.HasPrefix(s.Uses, "actions/create-github-app-token@") {
-			minted = i
-		}
-		for _, v := range s.Env {
-			if strings.Contains(v, "github.token") || strings.Contains(v, "secrets.GITHUB_TOKEN") {
-				t.Errorf("step %q uses GITHUB_TOKEN; a pull request opened with it starts no checks", s.Name)
-			}
+			minted = true
 		}
 		if strings.Contains(s.Run, "gh pr ") && s.Env["GH_TOKEN"] != "${{ steps.app.outputs.token }}" {
 			t.Errorf("step %q runs gh with GH_TOKEN=%q, not the app token", s.Name, s.Env["GH_TOKEN"])
 		}
 	}
-	if minted < 0 {
-		t.Fatal("the live job mints no app token, so its drift pull request would start no checks")
-	}
-	if tested < 0 || minted < tested {
-		t.Errorf("the app token is minted at step %d and the live tier runs at step %d; a credential "+
-			"that can push must not exist while the scanners run", minted, tested)
+	if !minted {
+		t.Error("live-propose mints no app token, so its drift pull request would start no checks")
 	}
 }
 
@@ -260,7 +271,7 @@ func TestEveryJobThatCanGoRedOnMainReachesAPerson(t *testing.T) {
 		if !slices.Contains(needs, name) {
 			t.Errorf("notify does not wait on %s, so its failure on main raises nothing", name)
 		}
-		if !regexp.MustCompile(`(?m)^\s*` + regexp.QuoteMeta(name) + `: \{`).MatchString(script) {
+		if !regexp.MustCompile(`(?m)^\s*"?` + regexp.QuoteMeta(name) + `"?: \{`).MatchString(script) {
 			t.Errorf("the notifier's script has no entry for %s, so its failure has no issue of its own", name)
 		}
 	}
