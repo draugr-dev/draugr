@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "options-grype/"
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "tool": "grype",
+            "version": "<cleared>"
+          }
+        ]
+      },
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "127.0.0.1:18080/options-grype:1.0"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A critical vulnerability in python package: pyyaml, version 5.3.1 was found in image 127.0.0.1:18080/options-grype:1.0 at: /usr/lib/python3.12/site-packages/PyYAML-5.3.1.dist-info/METADATA"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "574524fd2e1f6d23e4c865fe5506af9c5bb88eec807d8f76cbb0d6daa5b402e6:1"
+          },
+          "properties": {
+            "component": "by-advisory",
+            "control": "images",
+            "image": "127.0.0.1:18080/options-grype:1.0",
+            "priority": "P1",
+            "security-severity": "9",
+            "tool": "grype"
+          },
+          "ruleId": "GHSA-8q59-q68h-6hv4-pyyaml"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "127.0.0.1:18080/options-grype:1.0"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A critical vulnerability in python package: pyyaml, version 5.3.1 was found in image 127.0.0.1:18080/options-grype:1.0 at: /usr/lib/python3.12/site-packages/PyYAML-5.3.1.dist-info/METADATA"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "574524fd2e1f6d23e4c865fe5506af9c5bb88eec807d8f76cbb0d6daa5b402e6:1"
+          },
+          "properties": {
+            "component": "default",
+            "control": "images",
+            "image": "127.0.0.1:18080/options-grype:1.0",
+            "priority": "P1",
+            "security-severity": "9",
+            "tool": "grype"
+          },
+          "ruleId": "CVE-2020-14343-pyyaml"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Fixture: arbitrary code execution through full_load in PyYAML"
+              },
+              "help": {
+                "text": "Vulnerability CVE-2020-14343\nSeverity: critical\nPackage: pyyaml\nVersion: 5.3.1\nFix Version: 5.4\nType: python\nLocation: /usr/lib/python3.12/site-packages/PyYAML-5.3.1.dist-info/METADATA\nData Namespace: github:language:python\nLink: [CVE-2020-14343](https://github.com/advisories/GHSA-8q59-q68h-6hv4)"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-8q59-q68h-6hv4",
+              "id": "CVE-2020-14343-pyyaml",
+              "name": "PythonMatcherExactDirectMatch",
+              "properties": {
+                "tags": [
+                  "scanner:grype"
+                ]
+              },
+              "shortDescription": {
+                "text": "CVE-2020-14343 critical vulnerability for pyyaml package"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Fixture: arbitrary code execution through full_load in PyYAML"
+              },
+              "help": {
+                "text": "Vulnerability GHSA-8q59-q68h-6hv4\nSeverity: critical\nPackage: pyyaml\nVersion: 5.3.1\nFix Version: 5.4\nType: python\nLocation: /usr/lib/python3.12/site-packages/PyYAML-5.3.1.dist-info/METADATA\nData Namespace: github:language:python\nLink: [GHSA-8q59-q68h-6hv4](https://github.com/advisories/GHSA-8q59-q68h-6hv4)"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-8q59-q68h-6hv4",
+              "id": "GHSA-8q59-q68h-6hv4-pyyaml",
+              "name": "PythonMatcherExactDirectMatch",
+              "properties": {
+                "tags": [
+                  "scanner:grype"
+                ]
+              },
+              "shortDescription": {
+                "text": "GHSA-8q59-q68h-6hv4 critical vulnerability for pyyaml package"
+              }
+            }
+          ],
+          "version": "<cleared>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

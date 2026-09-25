@@ -1,0 +1,24 @@
+project: options-grype-fs
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+      trivyFs:
+        enabled: false
+      grypeFs:
+        enabled: true
+components:
+  - name: default
+    repositories:
+      - url: ./options-grype-fs
+        paths: [default]
+  - name: by-advisory
+    repositories:
+      - url: ./options-grype-fs
+        paths: [by-advisory]
+    controls:
+      sca:
+        grypeFs:
+          byCve: false

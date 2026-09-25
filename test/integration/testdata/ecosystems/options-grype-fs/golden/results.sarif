@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "options-grype-fs/"
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "fields": {
+              "repository": "./options-grype-fs",
+              "revision": "<cleared>"
+            },
+            "tool": "grype-fs",
+            "version": "<cleared>"
+          }
+        ]
+      },
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "by-advisory/requirements.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A critical vulnerability in python package: pyyaml, version 5.3.1 was found at: /by-advisory/requirements.txt"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "205f78c9f1e5cbd30b28b93f6f172bf2c02fa9769e937c8fb95d3242013f463f:1",
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "by-advisory",
+            "control": "sca",
+            "package": {
+              "ecosystem": "python",
+              "fixedVersion": "5.4",
+              "name": "pyyaml",
+              "purl": "pkg:pypi/pyyaml@5.3.1",
+              "version": "5.3.1"
+            },
+            "priority": "P1",
+            "repository": "./options-grype-fs",
+            "security-severity": "9",
+            "tool": "grype"
+          },
+          "ruleId": "GHSA-8q59-q68h-6hv4-pyyaml"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "default/requirements.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A critical vulnerability in python package: pyyaml, version 5.3.1 was found at: /default/requirements.txt"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "6704210332a24341ad6d7c92ee226491e661e2c8d8800ca148362cf86437c0f0:1",
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "default",
+            "control": "sca",
+            "package": {
+              "ecosystem": "python",
+              "fixedVersion": "5.4",
+              "name": "pyyaml",
+              "purl": "pkg:pypi/pyyaml@5.3.1",
+              "version": "5.3.1"
+            },
+            "priority": "P1",
+            "repository": "./options-grype-fs",
+            "security-severity": "9",
+            "tool": "grype"
+          },
+          "ruleId": "CVE-2020-14343-pyyaml"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Fixture: arbitrary code execution through full_load in PyYAML"
+              },
+              "help": {
+                "text": "Vulnerability CVE-2020-14343\nSeverity: critical\nPackage: pyyaml\nVersion: 5.3.1\nFix Version: 5.4\nType: python\nLocation: /default/requirements.txt\nData Namespace: github:language:python\nLink: [CVE-2020-14343](https://github.com/advisories/GHSA-8q59-q68h-6hv4)"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-8q59-q68h-6hv4",
+              "id": "CVE-2020-14343-pyyaml",
+              "name": "PythonMatcherExactDirectMatch",
+              "properties": {
+                "tags": [
+                  "scanner:grype"
+                ]
+              },
+              "shortDescription": {
+                "text": "CVE-2020-14343 critical vulnerability for pyyaml package"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Fixture: arbitrary code execution through full_load in PyYAML"
+              },
+              "help": {
+                "text": "Vulnerability GHSA-8q59-q68h-6hv4\nSeverity: critical\nPackage: pyyaml\nVersion: 5.3.1\nFix Version: 5.4\nType: python\nLocation: /by-advisory/requirements.txt\nData Namespace: github:language:python\nLink: [GHSA-8q59-q68h-6hv4](https://github.com/advisories/GHSA-8q59-q68h-6hv4)"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-8q59-q68h-6hv4",
+              "id": "GHSA-8q59-q68h-6hv4-pyyaml",
+              "name": "PythonMatcherExactDirectMatch",
+              "properties": {
+                "tags": [
+                  "scanner:grype"
+                ]
+              },
+              "shortDescription": {
+                "text": "GHSA-8q59-q68h-6hv4 critical vulnerability for pyyaml package"
+              }
+            }
+          ],
+          "version": "<cleared>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

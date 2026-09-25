@@ -1,0 +1,16 @@
+# What a scan finds against the latest advisory databases and real registries: each package and
+# the scanners that reported it, and each file a result without a package was reported in. The
+# advisories are left out because they move every day; this is the part that should not.
+#
+# Written by the live tier (go test -tags integration -run TestLive -update-live with
+# DRAUGR_LIVE=1). A nightly run that finds a difference proposes it as a pull request.
+packages:
+  python:
+    - name: pyyaml
+      version: 5.3.1
+      in: by-advisory/requirements.txt
+      foundBy: [sca/grype]
+    - name: pyyaml
+      version: 5.3.1
+      in: default/requirements.txt
+      foundBy: [sca/grype]

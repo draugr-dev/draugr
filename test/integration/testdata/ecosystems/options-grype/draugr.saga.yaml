@@ -1,0 +1,26 @@
+project: options-grype
+release:
+  version: "1.0"
+config:
+  controls:
+    images:
+      enabled: true
+      trivy:
+        enabled: false
+      grype:
+        enabled: true
+components:
+  - name: default
+    repositories:
+      - url: ./options-grype
+    images:
+      - image: 127.0.0.1:18080/options-grype:1.0
+  - name: by-advisory
+    repositories:
+      - url: ./options-grype
+    images:
+      - image: 127.0.0.1:18080/options-grype:1.0
+    controls:
+      images:
+        grype:
+          byCve: false

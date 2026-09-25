@@ -1,0 +1,28 @@
+# grypeFs.byCve, on one component beside a default one with the same requirements.txt. The sealed
+# Grype database keys the PyYAML advisory by its GHSA and lists the CVE beside it. default/ reports
+# it under the CVE, as byCve does unless it is turned off; by-advisory/ turns it off and reports the
+# GHSA Grype matched on. Trivy is off, so both findings are Grype's.
+proves: [grype-fs.byCve]
+
+initScan:
+  skip: the options proves names are the subject, and init writes none of them
+
+init:
+  controls: [iac, sast, sca, secrets]
+  components:
+    - name: options-grype-fs
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: grype
+    rule: CVE-2020-14343-pyyaml
+    location: default/requirements.txt:1
+    package: python pyyaml 5.3.1
+    component: default
+  - control: sca
+    tool: grype
+    rule: GHSA-8q59-q68h-6hv4-pyyaml
+    location: by-advisory/requirements.txt:1
+    package: python pyyaml 5.3.1
+    component: by-advisory

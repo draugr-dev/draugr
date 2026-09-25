@@ -103,9 +103,6 @@ func scenarioFormats(t *testing.T, repo string) []string {
 //
 // #nosec G101 -- option names such as productToken, and the reasons they are not proved.
 var optionExceptions = map[string]string{
-	"grype.byCve":    "awaits the sealed Grype database (https://github.com/draugr-dev/draugr/issues/1213)",
-	"grype-fs.byCve": "awaits the sealed Grype database (https://github.com/draugr-dev/draugr/issues/1213)",
-
 	"mend-sca.productToken":        "Mend is a hosted service; the sealed tier has no network",
 	"mend-sca.project":             "Mend is a hosted service; the sealed tier has no network",
 	"mend-sca.resultTimeout":       "Mend is a hosted service; the sealed tier has no network",

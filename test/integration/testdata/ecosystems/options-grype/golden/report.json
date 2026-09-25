@@ -1,0 +1,60 @@
+{
+  "controls": [
+    {
+      "errors": 2,
+      "highest": "critical",
+      "highestPriority": "P1",
+      "name": "images",
+      "notes": 0,
+      "threshold": "",
+      "total": 2,
+      "verdict": "fail",
+      "warnings": 0
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:7b4ca594dbdcdae300d47b601fbd437b3ee3af6b57f8816e1fb6be7bbc10ba17",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 2,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0
+  },
+  "project": "options-grype",
+  "release": {
+    "version": "1.0"
+  },
+  "scanners": [
+    {
+      "name": "grype",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 2,
+    "scans": 2
+  },
+  "verdict": "fail"
+}

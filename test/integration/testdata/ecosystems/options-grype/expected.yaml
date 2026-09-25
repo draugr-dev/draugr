@@ -1,0 +1,29 @@
+# grype.byCve, on one component beside a default one declaring the same image, which Grype pulls
+# from the sealed server. The PyYAML distribution in it has an advisory the sealed Grype database
+# keys by its GHSA, with the CVE beside it. default reports it under the CVE; by-advisory turns
+# byCve off and reports the GHSA Grype matched on. Trivy is off, so both findings are Grype's.
+proves: [grype.byCve]
+
+initScan:
+  skip: the options proves names are the subject, and init writes none of them
+
+init:
+  controls: [iac, sast, sca, secrets]
+  components:
+    - name: options-grype
+      repositories: ["."]
+
+requests:
+  - GET /v2/options-grype/manifests/1.0
+
+findings:
+  - control: images
+    tool: grype
+    rule: CVE-2020-14343-pyyaml
+    location: 127.0.0.1:18080/options-grype:1.0
+    component: default
+  - control: images
+    tool: grype
+    rule: GHSA-8q59-q68h-6hv4-pyyaml
+    location: 127.0.0.1:18080/options-grype:1.0
+    component: by-advisory
