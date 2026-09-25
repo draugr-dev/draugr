@@ -1,5 +1,7 @@
 # trivyFs.filePatterns adds requirements-dev.txt to what Trivy's pip analyzer reads. Without it the
 # file is not read and the scan reports nothing.
+proves: [trivy-fs.filePatterns]
+
 init:
   controls: [sca, secrets, sast, iac]
   components:

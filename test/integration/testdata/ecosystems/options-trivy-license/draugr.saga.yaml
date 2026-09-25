@@ -1,0 +1,50 @@
+project: options-trivy-license
+release:
+  version: "1.0"
+config:
+  controls:
+    licenses:
+      enabled: true
+components:
+  - name: default
+    repositories:
+      - url: ./options-trivy-license
+        paths: [default]
+  - name: licenses-deny
+    repositories:
+      - url: ./options-trivy-license
+        paths: [licenses-deny]
+    controls:
+      licenses:
+        deny: [ISC]
+  - name: licenses-warn
+    repositories:
+      - url: ./options-trivy-license
+        paths: [licenses-warn]
+    controls:
+      licenses:
+        warn: [0BSD]
+  - name: trivy-license-deny
+    repositories:
+      - url: ./options-trivy-license
+        paths: [trivy-license-deny]
+    controls:
+      licenses:
+        trivyLicense:
+          deny: [MIT]
+  - name: trivy-license-warn
+    repositories:
+      - url: ./options-trivy-license
+        paths: [trivy-license-warn]
+    controls:
+      licenses:
+        trivyLicense:
+          warn: [BSD-3-Clause]
+  - name: full
+    repositories:
+      - url: ./options-trivy-license
+        paths: [full]
+    controls:
+      licenses:
+        trivyLicense:
+          full: true

@@ -47,8 +47,8 @@ func LoadScenario(dir string) (Scenario, error) {
 }
 
 // Prepare copies the scenario's repository to work/<name>, restores the names of its manifests,
-// writes the secrets the scenario asks for, and commits the result. It returns the repository
-// directory.
+// writes the secrets the scenario asks for, and commits the result. A secret marked removed is
+// deleted again in a second commit. It returns the repository directory.
 //
 // The secrets are generated here and never committed to this repository: a credential-shaped
 // string in a public tree is refused by push protection and reported by every scanner that reads
@@ -61,35 +61,14 @@ func (s Scenario) Prepare(work string) (string, error) {
 	if _, err := os.Stat(dst); err == nil {
 		return "", fmt.Errorf("%s already exists", dst)
 	}
-	// Collected first and copied after, so nothing is read from inside the walk.
-	var files []string
-	err := filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
-		if err == nil && !d.IsDir() {
-			files = append(files, path)
-		}
-		return err
-	})
-	if err != nil {
+	if err := copyTree(src, dst); err != nil {
 		return "", err
 	}
-	for _, path := range files {
-		rel, err := filepath.Rel(src, path)
-		if err != nil {
-			return "", err
-		}
-		target := filepath.Join(dst, strings.TrimSuffix(rel, FixtureSuffix))
-		if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
-			return "", err
-		}
-		data, err := os.ReadFile(path) // #nosec G304 -- a file under the scenario's own directory
-		if err != nil {
-			return "", err
-		}
-		if err := os.WriteFile(target, data, 0o600); err != nil { // #nosec G703 -- under the test's work directory
-			return "", err
-		}
-	}
+	var removed []string
 	for _, sec := range s.Expected.Secrets {
+		if sec.Removed {
+			removed = append(removed, filepath.FromSlash(sec.File))
+		}
 		path := filepath.Join(dst, filepath.FromSlash(sec.File))
 		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 			return "", err
@@ -102,12 +81,20 @@ func (s Scenario) Prepare(work string) (string, error) {
 			return "", err
 		}
 	}
-	for _, args := range [][]string{
+	commits := [][]string{
 		{"init", "--quiet", "--initial-branch", "main"},
 		{"add", "--all"},
 		{"commit", "--quiet", "--message", "fixture"},
-	} {
-		cmd := exec.Command("git", args...) // #nosec G204 -- literal arguments above
+	}
+	// A second commit deletes what the scenario removes, so the first commit is the only place
+	// those files exist.
+	if len(removed) > 0 {
+		commits = append(commits,
+			append([]string{"rm", "--quiet", "--"}, removed...),
+			[]string{"commit", "--quiet", "--message", "remove"})
+	}
+	for _, args := range commits {
+		cmd := exec.Command("git", args...) // #nosec G204 -- literal arguments and the scenario's own paths
 		cmd.Dir = dst
 		cmd.Env = append(os.Environ(),
 			"GIT_AUTHOR_NAME=Draugr fixture", "GIT_AUTHOR_EMAIL=fixture@draugr.dev",
@@ -119,6 +106,65 @@ func (s Scenario) Prepare(work string) (string, error) {
 		}
 	}
 	return dst, nil
+}
+
+// Commits lists the commits of a repository Prepare made. Each holds a generated secret, so its id
+// is particular to one run, and a history scan writes it into every finding it makes.
+func Commits(repo string) ([]string, error) {
+	out, err := exec.Command("git", "-C", repo, "rev-list", "--all").Output() // #nosec G204 -- a repository Prepare made
+	if err != nil {
+		return nil, fmt.Errorf("git rev-list: %w", err)
+	}
+	return strings.Fields(string(out)), nil
+}
+
+// WorkdirFiles is the directory in a scenario whose files are copied beside the descriptor, for
+// an option that names a file by a path relative to where Draugr runs: a Gitleaks ruleset, a
+// directory of Rego checks.
+const WorkdirFiles = "workdir"
+
+// CopyWorkdir copies the scenario's workdir/ into work, restoring the names of its manifests. A
+// scenario without one copies nothing.
+func (s Scenario) CopyWorkdir(work string) error {
+	src := filepath.Join(s.Dir, WorkdirFiles)
+	if _, err := os.Stat(src); os.IsNotExist(err) {
+		return nil
+	}
+	return copyTree(src, work)
+}
+
+// copyTree copies every file under src to the same path under dst, with FixtureSuffix removed
+// from each name.
+func copyTree(src, dst string) error {
+	// Collected first and copied after, so nothing is read from inside the walk.
+	var files []string
+	err := filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() {
+			files = append(files, path)
+		}
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	for _, path := range files {
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, strings.TrimSuffix(rel, FixtureSuffix))
+		if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
+			return err
+		}
+		data, err := os.ReadFile(path) // #nosec G304 -- a file under the scenario's own directory
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(target, data, 0o600); err != nil { // #nosec G703 -- under the test's work directory
+			return err
+		}
+	}
+	return nil
 }
 
 // awsKeyAlphabet is the character set of the random part of an AWS access key id.

@@ -117,6 +117,65 @@ func TestScenarioPrepare(t *testing.T) {
 	}
 }
 
+// A removed secret is committed and then deleted, so it is in the history and not in the tree.
+func TestPrepareCommitsARemovedSecretToHistoryOnly(t *testing.T) {
+	requireGit(t)
+	dir := filepath.Join(t.TempDir(), "history")
+	writeFixture(t, filepath.Join(dir, "repo", "app.py"), "import os\n")
+	writeFixture(t, filepath.Join(dir, "expected.yaml"),
+		"secrets:\n  - file: kept.env\n    rules: [aws-access-token]\n  - file: old/aws.env\n    rules: [aws-access-token]\n    removed: true\n")
+	s, err := LoadScenario(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo, err := s.Prepare(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	git := func(args ...string) []string {
+		out, err := exec.Command("git", append([]string{"-C", repo}, args...)...).Output() // #nosec G204 -- a directory this test made
+		if err != nil {
+			t.Fatal(err)
+		}
+		return strings.Fields(string(out))
+	}
+	if files := git("ls-files"); !slices.Equal(files, []string{"app.py", "kept.env"}) {
+		t.Errorf("tree holds %v", files)
+	}
+	if subjects := git("log", "--format=%s"); !slices.Equal(subjects, []string{"remove", "fixture"}) {
+		t.Errorf("commits %v", subjects)
+	}
+	if files := git("show", "--name-only", "--format=", "HEAD~1"); !slices.Contains(files, "old/aws.env") {
+		t.Errorf("the first commit holds %v, want old/aws.env among them", files)
+	}
+	commits, err := Commits(repo)
+	if err != nil || !slices.Equal(commits, git("rev-list", "--all")) || len(commits) != 2 {
+		t.Errorf("Commits = %v (%v)", commits, err)
+	}
+	if _, err := Commits(t.TempDir()); err == nil {
+		t.Error("listed the commits of a directory that is not a repository")
+	}
+}
+
+func TestCopyWorkdir(t *testing.T) {
+	dir := t.TempDir()
+	s := Scenario{Name: "w", Dir: dir}
+	work := t.TempDir()
+	if err := s.CopyWorkdir(work); err != nil {
+		t.Errorf("a scenario without a workdir: %v", err)
+	}
+	writeFixture(t, filepath.Join(dir, WorkdirFiles, "gitleaks.toml"), "title = \"x\"\n")
+	writeFixture(t, filepath.Join(dir, WorkdirFiles, "checks", "go.mod"+FixtureSuffix), "module x\n")
+	if err := s.CopyWorkdir(work); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{"gitleaks.toml", filepath.Join("checks", "go.mod")} {
+		if _, err := os.Stat(filepath.Join(work, rel)); err != nil {
+			t.Errorf("%s was not copied: %v", rel, err)
+		}
+	}
+}
+
 func TestLoadScenarioRefusesUnknownKeys(t *testing.T) {
 	dir := t.TempDir()
 	writeFixture(t, filepath.Join(dir, "expected.yaml"), "findingz: []\n")

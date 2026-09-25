@@ -1,0 +1,15 @@
+# trivyConfig.checks and trivyConfig.namespaces, on three components with the same Dockerfile, one
+# that Trivy's built-in checks pass. workdir/checks holds DRAUGR-0001 in package user.draugr and
+# DRAUGR-0002 in package acme.draugr. Each rule is reported only where checks loads it and namespaces
+# names its package, so default/ has no findings and user/ and acme/ have one each.
+proves: [trivy-config.checks, trivy-config.namespaces]
+
+init:
+  controls: [iac, sast, sca, secrets]
+  components:
+    - name: options-trivy-config
+      repositories: ["."]
+
+findings:
+  - {control: iac, tool: Trivy, rule: DRAUGR-0001, location: "user/Dockerfile:1"}
+  - {control: iac, tool: Trivy, rule: DRAUGR-0002, location: "acme/Dockerfile:1"}

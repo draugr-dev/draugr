@@ -1,0 +1,12 @@
+{
+  "name": "sealed-license-default",
+  "version": "1.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "dependencies": {
+    "inherits": "2.0.4",
+    "ms": "2.1.3",
+    "sprintf-js": "1.1.3",
+    "tslib": "2.6.2"
+  }
+}

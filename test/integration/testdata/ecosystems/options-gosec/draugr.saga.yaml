@@ -1,0 +1,40 @@
+project: options-gosec
+release:
+  version: "1.0"
+config:
+  controls:
+    sast:
+      enabled: true
+      semgrep:
+        enabled: false
+      gosec:
+        enabled: true
+components:
+  - name: default
+    repositories:
+      - url: ./options-gosec
+        paths: [default]
+  - name: include
+    repositories:
+      - url: ./options-gosec
+        paths: [include]
+    controls:
+      sast:
+        gosec:
+          include: [G204]
+  - name: exclude
+    repositories:
+      - url: ./options-gosec
+        paths: [exclude]
+    controls:
+      sast:
+        gosec:
+          exclude: [G204]
+  - name: tags
+    repositories:
+      - url: ./options-gosec
+        paths: [tags]
+    controls:
+      sast:
+        gosec:
+          tags: [fixture]

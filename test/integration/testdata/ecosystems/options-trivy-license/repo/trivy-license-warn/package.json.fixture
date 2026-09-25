@@ -1,0 +1,9 @@
+{
+  "name": "sealed-license-trivy-license-warn",
+  "version": "1.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "dependencies": {
+    "sprintf-js": "1.1.3"
+  }
+}

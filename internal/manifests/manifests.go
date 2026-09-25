@@ -61,7 +61,12 @@ type Unread struct {
 type rule struct {
 	ecosystem string
 	kind      Kind
-	// match reports whether a file, by its slash-separated path, is this kind.
+	// formats are the file names the rule recognizes, as Formats lists them: an exact base name, or
+	// `*` followed by a suffix, as in `*.csproj`.
+	formats []string
+	// match, where set, recognizes a family of names formats spells with one member:
+	// requirements-dev.txt is a requirements.txt, and pylock.dev.toml a pylock.toml. Nil matches
+	// formats exactly.
 	match func(rel string) bool
 	// locks are the lockfile names that resolve a declared manifest, looked for in its own
 	// directory and then each directory above it, because a workspace keeps one lockfile at its
@@ -76,20 +81,62 @@ type rule struct {
 	declares func(content []byte) bool
 }
 
-func named(names ...string) func(string) bool {
-	return func(rel string) bool { return slices.Contains(names, path.Base(rel)) }
+// matches reports whether a file, by its slash-separated path, is this kind.
+func (r rule) matches(rel string) bool {
+	if r.match != nil {
+		return r.match(rel)
+	}
+	return r.format(rel) != ""
 }
 
-func suffixed(suffixes ...string) func(string) bool {
-	return func(rel string) bool {
-		base := path.Base(rel)
-		for _, s := range suffixes {
-			if strings.HasSuffix(base, s) && base != s {
-				return true
+// format is the entry in formats a path matches exactly, or "" for none.
+func (r rule) format(rel string) string {
+	base := path.Base(rel)
+	for _, f := range r.formats {
+		if suffix, ok := strings.CutPrefix(f, "*"); ok {
+			if strings.HasSuffix(base, suffix) && base != suffix {
+				return f
 			}
+		} else if base == f {
+			return f
 		}
-		return false
 	}
+	return ""
+}
+
+// Format is one name of dependency file Draugr recognizes.
+type Format struct {
+	// Name is the file's base name, or `*` and a suffix for a family such as `*.csproj`.
+	Name      string
+	Ecosystem string
+	Kind      Kind
+}
+
+// Formats lists every name of dependency file the rules recognize, in rule order.
+func Formats() []Format {
+	var out []Format
+	for _, r := range rules {
+		for _, f := range r.formats {
+			out = append(out, Format{Name: f, Ecosystem: r.ecosystem, Kind: r.kind})
+		}
+	}
+	return out
+}
+
+// FormatOf names the format a path is, as Formats lists it, or "" for a path no rule recognizes.
+// A member of a family named by one entry, requirements-dev.txt or pylock.dev.toml, is that entry.
+// Content is not read, so a file that declares nothing still has a format.
+func FormatOf(rel string) string {
+	for _, r := range rules {
+		if !r.matches(rel) {
+			continue
+		}
+		if f := r.format(rel); f != "" {
+			return f
+		}
+		return r.formats[0]
+	}
+	return ""
 }
 
 func containsAny(words ...string) func([]byte) bool {
@@ -130,59 +177,59 @@ func isPylock(rel string) bool {
 var pythonLocks = []string{"poetry.lock", "uv.lock", "pdm.lock", "pylock.toml", "Pipfile.lock"}
 
 var rules = []rule{
-	{ecosystem: "python", kind: Pinned, match: isRequirements, declares: hasRequirement},
-	{ecosystem: "python", kind: Pinned, match: named("Pipfile.lock"), declares: containsAny("\"version\"")},
-	{ecosystem: "python", kind: Pinned, match: named("poetry.lock", "pdm.lock"), declares: packageBlocks(1)},
+	{ecosystem: "python", kind: Pinned, formats: []string{"requirements.txt"}, match: isRequirements, declares: hasRequirement},
+	{ecosystem: "python", kind: Pinned, formats: []string{"Pipfile.lock"}, declares: containsAny("\"version\"")},
+	{ecosystem: "python", kind: Pinned, formats: []string{"poetry.lock", "pdm.lock"}, declares: packageBlocks(1)},
 	// uv records the project itself as a package, so one entry is a lockfile with nothing in it.
-	{ecosystem: "python", kind: Pinned, match: named("uv.lock"), declares: packageBlocks(2)},
-	{ecosystem: "python", kind: Pinned, match: isPylock},
-	{ecosystem: "python", kind: Pinned, match: named("setup.py", "setup.cfg"),
+	{ecosystem: "python", kind: Pinned, formats: []string{"uv.lock"}, declares: packageBlocks(2)},
+	{ecosystem: "python", kind: Pinned, formats: []string{"pylock.toml"}, match: isPylock},
+	{ecosystem: "python", kind: Pinned, formats: []string{"setup.py", "setup.cfg"},
 		declares: containsAny("install_requires")},
-	{ecosystem: "python", kind: Declared, match: named("pyproject.toml"), locks: pythonLocks,
+	{ecosystem: "python", kind: Declared, formats: []string{"pyproject.toml"}, locks: pythonLocks,
 		sameDirLocks: []string{"requirements.txt"},
 		declares:     containsAny("dependencies", "[tool.poetry")},
-	{ecosystem: "python", kind: Declared, match: named("Pipfile"), locks: []string{"Pipfile.lock"},
+	{ecosystem: "python", kind: Declared, formats: []string{"Pipfile"}, locks: []string{"Pipfile.lock"},
 		declares: containsAny("[packages]", "[dev-packages]")},
-	{ecosystem: "conda", kind: Pinned, match: named("environment.yml", "environment.yaml"),
+	{ecosystem: "conda", kind: Pinned, formats: []string{"environment.yml", "environment.yaml"},
 		declares: containsAny("dependencies")},
 
 	// A lockfile of version 2 or later keys every package by its node_modules path; version 1 has
 	// a dependencies map instead.
-	{ecosystem: "npm", kind: Pinned, match: named("package-lock.json", "npm-shrinkwrap.json"),
+	{ecosystem: "npm", kind: Pinned, formats: []string{"package-lock.json", "npm-shrinkwrap.json"},
 		declares: containsAny("\"node_modules/", "\"dependencies\"")},
-	{ecosystem: "npm", kind: Pinned, match: named("yarn.lock", "pnpm-lock.yaml", "bun.lock"),
+	{ecosystem: "npm", kind: Pinned, formats: []string{"yarn.lock", "pnpm-lock.yaml", "bun.lock"},
 		declares: containsAny("version")},
 	// Bun's binary lockfile, which Bun 1.2 replaced with the text bun.lock. It pins a package.json
 	// as well as any lockfile does, so the manifest is resolved; recognized in its own right so that
 	// a scanner reading nothing from it is reported rather than passed over.
-	{ecosystem: "npm", kind: Pinned, match: named("bun.lockb")},
-	{ecosystem: "npm", kind: Declared, match: named("package.json"),
+	{ecosystem: "npm", kind: Pinned, formats: []string{"bun.lockb"}},
+	{ecosystem: "npm", kind: Declared, formats: []string{"package.json"},
 		locks:    []string{"package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml", "bun.lock", "bun.lockb"},
 		declares: containsAny("ependencies\"")},
 
-	{ecosystem: "go", kind: Pinned, match: named("go.mod"), declares: containsAny("require")},
+	{ecosystem: "go", kind: Pinned, formats: []string{"go.mod"}, declares: containsAny("require")},
 
-	{ecosystem: "maven", kind: Pinned, match: named("pom.xml"), declares: containsAny("<dependenc", "<parent>")},
-	{ecosystem: "gradle", kind: Pinned, match: named("gradle.lockfile")},
-	{ecosystem: "gradle", kind: Declared, match: named("build.gradle", "build.gradle.kts"),
+	{ecosystem: "maven", kind: Pinned, formats: []string{"pom.xml"}, declares: containsAny("<dependenc", "<parent>")},
+	{ecosystem: "gradle", kind: Pinned, formats: []string{"gradle.lockfile"}},
+	{ecosystem: "gradle", kind: Declared, formats: []string{"build.gradle", "build.gradle.kts"},
 		locks: []string{"gradle.lockfile"}, declares: containsAny("dependencies")},
 
-	{ecosystem: "nuget", kind: Pinned, match: named("packages.lock.json", "packages.config")},
-	{ecosystem: "nuget", kind: Declared, match: suffixed(".csproj", ".fsproj", ".vbproj"),
+	{ecosystem: "nuget", kind: Pinned, formats: []string{"packages.lock.json", "packages.config"}},
+	{ecosystem: "nuget", kind: Declared, formats: []string{"*.csproj", "*.fsproj", "*.vbproj"},
 		sameDirLocks: []string{"packages.lock.json", "packages.config"},
 		declares:     containsAny("PackageReference")},
 
-	{ecosystem: "ruby", kind: Pinned, match: named("Gemfile.lock", "gems.locked")},
-	{ecosystem: "ruby", kind: Declared, match: named("Gemfile", "gems.rb"),
+	{ecosystem: "ruby", kind: Pinned, formats: []string{"Gemfile.lock", "gems.locked"}},
+	{ecosystem: "ruby", kind: Declared, formats: []string{"Gemfile", "gems.rb"},
 		locks: []string{"Gemfile.lock", "gems.locked"}, declares: containsAny("gem ")},
 
 	// Cargo records the crate itself, so one entry is a lockfile with nothing in it.
-	{ecosystem: "rust", kind: Pinned, match: named("Cargo.lock"), declares: packageBlocks(2)},
-	{ecosystem: "rust", kind: Declared, match: named("Cargo.toml"), locks: []string{"Cargo.lock"},
+	{ecosystem: "rust", kind: Pinned, formats: []string{"Cargo.lock"}, declares: packageBlocks(2)},
+	{ecosystem: "rust", kind: Declared, formats: []string{"Cargo.toml"}, locks: []string{"Cargo.lock"},
 		declares: containsAny("dependencies]", "dependencies.")},
 
-	{ecosystem: "php", kind: Pinned, match: named("composer.lock"), declares: containsAny("\"version\"")},
-	{ecosystem: "php", kind: Declared, match: named("composer.json"), locks: []string{"composer.lock"},
+	{ecosystem: "php", kind: Pinned, formats: []string{"composer.lock"}, declares: containsAny("\"version\"")},
+	{ecosystem: "php", kind: Declared, formats: []string{"composer.json"}, locks: []string{"composer.lock"},
 		declares: containsAny("\"require")},
 }
 
@@ -228,7 +275,7 @@ func find(root string) []found {
 		}
 		rel = filepath.ToSlash(rel)
 		for _, r := range rules {
-			if !r.match(rel) {
+			if !r.matches(rel) {
 				continue
 			}
 			if r.declares != nil {

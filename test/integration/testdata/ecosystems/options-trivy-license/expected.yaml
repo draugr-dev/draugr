@@ -1,0 +1,28 @@
+# The licenses control's deny and warn, trivyLicense's own deny and warn, and trivyLicense.full, one
+# component each. default/ locks inherits (ISC), ms (MIT), sprintf-js (BSD-3-Clause) and tslib
+# (0BSD), none of which the control reports without a policy, so default/ has no findings. Each
+# policy component locks one of them and names its license, and so makes one finding: deny at level
+# error and warn at level warning, which the goldens hold. default/ and full/ carry the same
+# LGPL-3.0 LICENSE, which only full scanning reads.
+#
+# Each policy is set in one component at one level, so no component sets deny or warn under both
+# the control and the scanner, and no rule is reported by two components.
+proves:
+  - licenses.deny
+  - licenses.warn
+  - trivy-license.deny
+  - trivy-license.warn
+  - trivy-license.full
+
+init:
+  controls: [iac, sast, sca, secrets]
+  components:
+    - name: options-trivy-license
+      repositories: ["."]
+
+findings:
+  - {control: licenses, tool: trivy-license, rule: license/ISC/inherits, location: "licenses-deny/package-lock.json:12"}
+  - {control: licenses, tool: trivy-license, rule: license/0BSD/tslib, location: "licenses-warn/package-lock.json:12"}
+  - {control: licenses, tool: trivy-license, rule: license/MIT/ms, location: "trivy-license-deny/package-lock.json:12"}
+  - {control: licenses, tool: trivy-license, rule: license/BSD-3-Clause/sprintf-js, location: "trivy-license-warn/package-lock.json:12"}
+  - {control: licenses, tool: trivy-license, rule: license/LGPL-3.0, location: "full/LICENSE"}

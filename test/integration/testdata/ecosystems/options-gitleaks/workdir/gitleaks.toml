@@ -1,0 +1,10 @@
+# The ruleset the options-gitleaks scenario names with `config`: Gitleaks' own rules, and one rule
+# for a token format only this scenario uses.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "draugr-fixture-token"
+description = "Sealed-tier fixture token"
+regex = '''DRAUGR-FIXTURE-[0-9]{8}'''
+keywords = ["draugr-fixture"]

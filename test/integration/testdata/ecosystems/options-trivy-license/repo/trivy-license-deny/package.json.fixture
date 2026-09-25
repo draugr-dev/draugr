@@ -1,0 +1,9 @@
+{
+  "name": "sealed-license-trivy-license-deny",
+  "version": "1.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "dependencies": {
+    "ms": "2.1.3"
+  }
+}

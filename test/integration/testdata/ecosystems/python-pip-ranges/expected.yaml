@@ -1,5 +1,7 @@
 # trivyFs.detectionPriority: comprehensive reads flask>=0.12 as flask 0.12. With the default,
 # Trivy reads pinned versions only and the scan reports nothing.
+proves: [trivy-fs.detectionPriority]
+
 init:
   controls: [sca, secrets, sast, iac]
   components:

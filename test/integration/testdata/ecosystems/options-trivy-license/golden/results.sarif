@@ -1,0 +1,264 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "options-trivy-license/"
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "fields": {
+              "repository": "./options-trivy-license",
+              "revision": "<cleared>"
+            },
+            "tool": "trivy-license",
+            "version": "<cleared>"
+          }
+        ]
+      },
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "licenses-deny/package-lock.json",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "inherits is ISC. Denied by this project's license policy (config.controllers.licenses.deny)."
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "licenses-deny",
+            "control": "licenses",
+            "priority": "P1",
+            "repository": "./options-trivy-license",
+            "tool": "trivy-license"
+          },
+          "ruleId": "license/ISC/inherits"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "trivy-license-deny/package-lock.json",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "ms is MIT. Denied by this project's license policy (config.controllers.licenses.deny)."
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "trivy-license-deny",
+            "control": "licenses",
+            "priority": "P1",
+            "repository": "./options-trivy-license",
+            "tool": "trivy-license"
+          },
+          "ruleId": "license/MIT/ms"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "full/LICENSE",
+                  "uriBaseId": "%SRCROOT%"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": " is LGPL-3.0. Copyleft. Distributing software that includes this obliges you to offer your own source under the same terms. Running it as a hosted service usually does not."
+          },
+          "properties": {
+            "component": "full",
+            "control": "licenses",
+            "priority": "P2",
+            "repository": "./options-trivy-license",
+            "tool": "trivy-license"
+          },
+          "ruleId": "license/LGPL-3.0"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "licenses-warn/package-lock.json",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "tslib is 0BSD. Flagged by this project's license policy (config.controllers.licenses.warn)."
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "licenses-warn",
+            "control": "licenses",
+            "priority": "P2",
+            "repository": "./options-trivy-license",
+            "tool": "trivy-license"
+          },
+          "ruleId": "license/0BSD/tslib"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "trivy-license-warn/package-lock.json",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "sprintf-js is BSD-3-Clause. Flagged by this project's license policy (config.controllers.licenses.warn)."
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "trivy-license-warn",
+            "control": "licenses",
+            "priority": "P2",
+            "repository": "./options-trivy-license",
+            "tool": "trivy-license"
+          },
+          "ruleId": "license/BSD-3-Clause/sprintf-js"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Copyleft. Distributing software that includes this obliges you to offer your own source under the same terms. Running it as a hosted service usually does not."
+              },
+              "helpUri": "https://spdx.org/licenses/LGPL-3.0.html",
+              "id": "license/LGPL-3.0",
+              "name": "LGPL-3.0",
+              "properties": {
+                "tags": [
+                  "scanner:trivy-license"
+                ]
+              },
+              "shortDescription": {
+                "text": " is licensed LGPL-3.0"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Denied by this project's license policy (config.controllers.licenses.deny)."
+              },
+              "helpUri": "https://spdx.org/licenses/ISC.html",
+              "id": "license/ISC/inherits",
+              "name": "ISC",
+              "properties": {
+                "tags": [
+                  "scanner:trivy-license"
+                ]
+              },
+              "shortDescription": {
+                "text": "inherits is licensed ISC"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Denied by this project's license policy (config.controllers.licenses.deny)."
+              },
+              "helpUri": "https://spdx.org/licenses/MIT.html",
+              "id": "license/MIT/ms",
+              "name": "MIT",
+              "properties": {
+                "tags": [
+                  "scanner:trivy-license"
+                ]
+              },
+              "shortDescription": {
+                "text": "ms is licensed MIT"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Flagged by this project's license policy (config.controllers.licenses.warn)."
+              },
+              "helpUri": "https://spdx.org/licenses/0BSD.html",
+              "id": "license/0BSD/tslib",
+              "name": "0BSD",
+              "properties": {
+                "tags": [
+                  "scanner:trivy-license"
+                ]
+              },
+              "shortDescription": {
+                "text": "tslib is licensed 0BSD"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Flagged by this project's license policy (config.controllers.licenses.warn)."
+              },
+              "helpUri": "https://spdx.org/licenses/BSD-3-Clause.html",
+              "id": "license/BSD-3-Clause/sprintf-js",
+              "name": "BSD-3-Clause",
+              "properties": {
+                "tags": [
+                  "scanner:trivy-license"
+                ]
+              },
+              "shortDescription": {
+                "text": "sprintf-js is licensed BSD-3-Clause"
+              }
+            }
+          ],
+          "version": "<cleared>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

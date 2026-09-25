@@ -1,0 +1,520 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "options-gosec/"
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "fields": {
+              "repository": "./options-gosec",
+              "revision": "<cleared>"
+            },
+            "tool": "gosec",
+            "version": "<cleared>"
+          }
+        ]
+      },
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "default/main.go",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 18
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Use of weak cryptographic primitive"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "default",
+            "control": "sast",
+            "priority": "P1",
+            "repository": "./options-gosec",
+            "tool": "gosec"
+          },
+          "ruleId": "G401"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "default/main.go",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 21
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Command injection via taint analysis"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "default",
+            "control": "sast",
+            "priority": "P1",
+            "repository": "./options-gosec",
+            "tool": "gosec"
+          },
+          "ruleId": "G702"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "default/main.go",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 21
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Subprocess launched with a potential tainted input or cmd arguments"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "default",
+            "control": "sast",
+            "priority": "P1",
+            "repository": "./options-gosec",
+            "tool": "gosec"
+          },
+          "ruleId": "G204"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "default/main.go",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 6
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Blocklisted import crypto/md5: weak cryptographic primitive"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "default",
+            "control": "sast",
+            "priority": "P1",
+            "repository": "./options-gosec",
+            "tool": "gosec"
+          },
+          "ruleId": "G501"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "exclude/main.go",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 18
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Use of weak cryptographic primitive"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "exclude",
+            "control": "sast",
+            "priority": "P1",
+            "repository": "./options-gosec",
+            "tool": "gosec"
+          },
+          "ruleId": "G401"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "exclude/main.go",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 22
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Command injection via taint analysis"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "exclude",
+            "control": "sast",
+            "priority": "P1",
+            "repository": "./options-gosec",
+            "tool": "gosec"
+          },
+          "ruleId": "G702"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "exclude/main.go",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 6
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Blocklisted import crypto/md5: weak cryptographic primitive"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "exclude",
+            "control": "sast",
+            "priority": "P1",
+            "repository": "./options-gosec",
+            "tool": "gosec"
+          },
+          "ruleId": "G501"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "include/main.go",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 22
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Subprocess launched with a potential tainted input or cmd arguments"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "include",
+            "control": "sast",
+            "priority": "P1",
+            "repository": "./options-gosec",
+            "tool": "gosec"
+          },
+          "ruleId": "G204"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tags/main.go",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 18
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Use of weak cryptographic primitive"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "tags",
+            "control": "sast",
+            "priority": "P1",
+            "repository": "./options-gosec",
+            "tool": "gosec"
+          },
+          "ruleId": "G401"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tags/main.go",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 21
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Command injection via taint analysis"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "tags",
+            "control": "sast",
+            "priority": "P1",
+            "repository": "./options-gosec",
+            "tool": "gosec"
+          },
+          "ruleId": "G702"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tags/main.go",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 21
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Subprocess launched with a potential tainted input or cmd arguments"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "tags",
+            "control": "sast",
+            "priority": "P1",
+            "repository": "./options-gosec",
+            "tool": "gosec"
+          },
+          "ruleId": "G204"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tags/main.go",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 6
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Blocklisted import crypto/md5: weak cryptographic primitive"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "tags",
+            "control": "sast",
+            "priority": "P1",
+            "repository": "./options-gosec",
+            "tool": "gosec"
+          },
+          "ruleId": "G501"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tags/tagged.go",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 10
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Expect WriteFile permissions to be 0600 or less"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "tags",
+            "control": "sast",
+            "priority": "P1",
+            "repository": "./options-gosec",
+            "tool": "gosec"
+          },
+          "ruleId": "G306"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Blocklisted import crypto/md5: weak cryptographic primitive"
+              },
+              "help": {
+                "text": "Blocklisted import crypto/md5: weak cryptographic primitive\nSeverity: MEDIUM\nConfidence: HIGH\n"
+              },
+              "id": "G501",
+              "name": "Use of a Broken or Risky Cryptographic Algorithm",
+              "properties": {
+                "tags": [
+                  "scanner:gosec"
+                ]
+              },
+              "shortDescription": {
+                "text": "Blocklisted import crypto/md5: weak cryptographic primitive"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Command injection via taint analysis"
+              },
+              "help": {
+                "text": "Command injection via taint analysis\nSeverity: HIGH\nConfidence: HIGH\n"
+              },
+              "id": "G702",
+              "name": "Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')",
+              "properties": {
+                "tags": [
+                  "scanner:gosec"
+                ]
+              },
+              "shortDescription": {
+                "text": "Command injection via taint analysis"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Expect WriteFile permissions to be 0600 or less"
+              },
+              "help": {
+                "text": "Expect WriteFile permissions to be 0600 or less\nSeverity: MEDIUM\nConfidence: HIGH\n"
+              },
+              "id": "G306",
+              "name": "Incorrect Default Permissions",
+              "properties": {
+                "tags": [
+                  "scanner:gosec"
+                ]
+              },
+              "shortDescription": {
+                "text": "Expect WriteFile permissions to be 0600 or less"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Subprocess launched with a potential tainted input or cmd arguments"
+              },
+              "help": {
+                "text": "Subprocess launched with a potential tainted input or cmd arguments\nSeverity: MEDIUM\nConfidence: HIGH\n"
+              },
+              "id": "G204",
+              "name": "Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')",
+              "properties": {
+                "tags": [
+                  "scanner:gosec"
+                ]
+              },
+              "shortDescription": {
+                "text": "Subprocess launched with a potential tainted input or cmd arguments"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Use of weak cryptographic primitive"
+              },
+              "help": {
+                "text": "Use of weak cryptographic primitive\nSeverity: MEDIUM\nConfidence: HIGH\n"
+              },
+              "id": "G401",
+              "name": "Use of Weak Hash",
+              "properties": {
+                "tags": [
+                  "scanner:gosec"
+                ]
+              },
+              "shortDescription": {
+                "text": "Use of weak cryptographic primitive"
+              }
+            }
+          ],
+          "version": "<cleared>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

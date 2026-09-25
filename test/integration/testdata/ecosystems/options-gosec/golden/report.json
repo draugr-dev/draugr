@@ -1,0 +1,66 @@
+{
+  "controls": [
+    {
+      "errors": 13,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "sast",
+      "notes": 0,
+      "threshold": "",
+      "total": 13,
+      "verdict": "fail",
+      "warnings": 0
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:64d4dac9783a3bd597f65a7a40c49846c5a19e6cd707bfec258e7ab86ed638d0",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 13,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0
+  },
+  "project": "options-gosec",
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./options-gosec"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "gosec",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 4,
+    "scans": 4
+  },
+  "verdict": "fail"
+}

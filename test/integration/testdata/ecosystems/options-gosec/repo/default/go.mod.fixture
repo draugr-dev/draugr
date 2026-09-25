@@ -1,0 +1,3 @@
+module example.com/sealed/default
+
+go 1.21

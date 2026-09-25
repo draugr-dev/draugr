@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "options-gitleaks/"
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "fields": {
+              "repository": "./options-gitleaks",
+              "revision": "<cleared>"
+            },
+            "tool": "gitleaks",
+            "version": "<cleared>"
+          }
+        ]
+      },
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "old/aws.env",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "aws-access-token has detected secret for file old/aws.env at commit <commit>."
+          },
+          "partialFingerprints": {
+            "author": "Draugr fixture",
+            "commitMessage": "fixture",
+            "commitSha": "<commit>",
+            "date": "2026-01-01T00:00:00Z",
+            "email": "fixture@draugr.dev"
+          },
+          "properties": {
+            "component": "options-gitleaks",
+            "control": "secrets",
+            "priority": "P1",
+            "repository": "./options-gitleaks",
+            "tool": "gitleaks"
+          },
+          "ruleId": "aws-access-token"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "settings.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 3
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "draugr-fixture-token has detected secret for file settings.py at commit <commit>."
+          },
+          "partialFingerprints": {
+            "author": "Draugr fixture",
+            "commitMessage": "fixture",
+            "commitSha": "<commit>",
+            "date": "2026-01-01T00:00:00Z",
+            "email": "fixture@draugr.dev",
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "options-gitleaks",
+            "control": "secrets",
+            "priority": "P1",
+            "repository": "./options-gitleaks",
+            "tool": "gitleaks"
+          },
+          "ruleId": "draugr-fixture-token"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "settings.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 3
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "draugr-fixture-token has detected secret for file settings.py."
+          },
+          "partialFingerprints": {
+            "author": "",
+            "commitMessage": "",
+            "commitSha": "",
+            "date": "",
+            "email": "",
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "options-gitleaks",
+            "control": "secrets",
+            "priority": "P1",
+            "repository": "./options-gitleaks",
+            "tool": "gitleaks"
+          },
+          "ruleId": "draugr-fixture-token"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "rules": [
+            {
+              "id": "aws-access-token",
+              "properties": {
+                "tags": [
+                  "scanner:gitleaks"
+                ]
+              },
+              "shortDescription": {
+                "text": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms."
+              }
+            },
+            {
+              "id": "draugr-fixture-token",
+              "properties": {
+                "tags": [
+                  "scanner:gitleaks"
+                ]
+              },
+              "shortDescription": {
+                "text": "Sealed-tier fixture token"
+              }
+            }
+          ],
+          "version": "<cleared>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

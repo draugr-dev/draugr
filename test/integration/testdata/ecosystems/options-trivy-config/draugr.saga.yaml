@@ -1,0 +1,30 @@
+project: options-trivy-config
+release:
+  version: "1.0"
+config:
+  controls:
+    iac:
+      enabled: true
+components:
+  - name: default
+    repositories:
+      - url: ./options-trivy-config
+        paths: [default]
+  - name: user
+    repositories:
+      - url: ./options-trivy-config
+        paths: [user]
+    controls:
+      iac:
+        trivyConfig:
+          checks: [./checks]
+          namespaces: [user]
+  - name: acme
+    repositories:
+      - url: ./options-trivy-config
+        paths: [acme]
+    controls:
+      iac:
+        trivyConfig:
+          checks: [./checks]
+          namespaces: [acme]

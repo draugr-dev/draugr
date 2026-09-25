@@ -1,5 +1,7 @@
 # What a sealed scan of the pip scenario reports. SAST expectations are the ruleid: and ok:
 # comments in repo/app.py.
+proves: [semgrep.config]
+
 init:
   controls: [sca, secrets, sast, iac]
   components:

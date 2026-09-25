@@ -1,0 +1,14 @@
+project: options-gitleaks
+release:
+  version: "1.0"
+config:
+  controls:
+    secrets:
+      enabled: true
+      gitleaks:
+        config: ./gitleaks.toml
+        history: true
+components:
+  - name: options-gitleaks
+    repositories:
+      - url: ./options-gitleaks

@@ -16,6 +16,10 @@ type Expected struct {
 	// Errors are the controls that must fail to run, each with text its error must contain. Every
 	// other control must run.
 	Errors []ErrorExpectation `yaml:"errors"`
+	// Proves names the options whose effect the findings assert, as <scanner>.<option> for a
+	// scanner's option (gosec.include) or <control>.<option> for a control's own (licenses.deny).
+	// Each must be set in the scenario's descriptor, and the findings must differ because of it.
+	Proves []string `yaml:"proves"`
 }
 
 // RunOptions take something away from a sealed run, so a scenario can assert that its absence
@@ -71,6 +75,9 @@ type SecretExpectation struct {
 	File string `yaml:"file"`
 	// Rules are the rules that must report it.
 	Rules []string `yaml:"rules"`
+	// Removed deletes the file in a second commit, so the secret is in the repository's history
+	// and not in its tree.
+	Removed bool `yaml:"removed"`
 }
 
 // FindingExpectation is one result a scan must report.

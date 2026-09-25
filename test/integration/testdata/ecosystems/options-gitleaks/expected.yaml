@@ -1,0 +1,26 @@
+# Gitleaks' options. The token in settings.py matches only the rule workdir/gitleaks.toml adds, and
+# the generated key exists only in the commit before the last, so only the history scan finds it.
+# The ruleset extends Gitleaks' own, whose aws-access-token rule is the one that reports the key.
+proves: [gitleaks.config, gitleaks.history]
+
+init:
+  controls: [iac, sast, sca, secrets]
+  components:
+    - name: options-gitleaks
+      repositories: ["."]
+
+secrets:
+  - file: old/aws.env
+    rules: [aws-access-token]
+    removed: true
+
+findings:
+  # Twice: once by the tree scan, and once by the history scan reading the commit that added it.
+  - control: secrets
+    tool: gitleaks
+    rule: draugr-fixture-token
+    location: settings.py:3
+  - control: secrets
+    tool: gitleaks
+    rule: draugr-fixture-token
+    location: settings.py:3

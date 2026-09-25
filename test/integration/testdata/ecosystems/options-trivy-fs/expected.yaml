@@ -1,0 +1,18 @@
+# trivyFs.pkgTypes, on one component beside a default one with the same requirements.txt. os-only/
+# narrows Trivy to operating-system packages, which a repository has none of, so its Flask finding
+# is not reported and the run lists os-only/requirements.txt as read by no scanner. The other
+# trivyFs options are proved by python-pip-dev, js-npm-dev and python-pip-ranges.
+proves: [trivy-fs.pkgTypes]
+
+init:
+  controls: [iac, sast, sca, secrets]
+  components:
+    - name: options-trivy-fs
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2018-1000656
+    location: default/requirements.txt:1
+    package: pip Flask 0.12.2

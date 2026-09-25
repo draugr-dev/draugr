@@ -1,0 +1,9 @@
+{
+  "name": "sealed-license-licenses-deny",
+  "version": "1.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "dependencies": {
+    "inherits": "2.0.4"
+  }
+}

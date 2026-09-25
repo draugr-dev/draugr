@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "options-trivy-config/"
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "fields": {
+              "repository": "./options-trivy-config",
+              "revision": "<cleared>"
+            },
+            "tool": "trivy-config",
+            "version": "<cleared>"
+          }
+        ]
+      },
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "acme/Dockerfile",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Base image from an untrusted registry"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "acme",
+            "control": "iac",
+            "priority": "P1",
+            "repository": "./options-trivy-config",
+            "security-severity": "8",
+            "tool": "Trivy"
+          },
+          "ruleId": "DRAUGR-0002"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "user/Dockerfile",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Image names no maintainer"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "user",
+            "control": "iac",
+            "priority": "P2",
+            "repository": "./options-trivy-config",
+            "security-severity": "5.5",
+            "tool": "Trivy"
+          },
+          "ruleId": "DRAUGR-0001"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "A Dockerfile with no maintainer label names nobody to ask about the image."
+              },
+              "help": {
+                "text": "Misconfiguration DRAUGR-0001\nType: Dockerfile Security Check\nSeverity: MEDIUM\nCheck: Image names no maintainer\nMessage: The image has no maintainer label.\nLink: [DRAUGR-0001]()\nA Dockerfile with no maintainer label names nobody to ask about the image."
+              },
+              "id": "DRAUGR-0001",
+              "name": "Misconfiguration",
+              "properties": {
+                "tags": [
+                  "scanner:Trivy"
+                ]
+              },
+              "shortDescription": {
+                "text": "Image names no maintainer"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "A base image named without a registry is pulled from Docker Hub."
+              },
+              "help": {
+                "text": "Misconfiguration DRAUGR-0002\nType: Dockerfile Security Check\nSeverity: HIGH\nCheck: Base image from an untrusted registry\nMessage: The base image alpine:3.19 is not from registry.acme.example.\nLink: [DRAUGR-0002]()\nA base image named without a registry is pulled from Docker Hub."
+              },
+              "id": "DRAUGR-0002",
+              "name": "Misconfiguration",
+              "properties": {
+                "tags": [
+                  "scanner:Trivy"
+                ]
+              },
+              "shortDescription": {
+                "text": "Base image from an untrusted registry"
+              }
+            }
+          ],
+          "version": "<cleared>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

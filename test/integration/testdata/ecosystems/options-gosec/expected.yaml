@@ -1,0 +1,10 @@
+# gosec's options, one component each over the same code. default/ is the baseline; include/,
+# exclude/ and tags/ each report what the baseline does not, or leave out what it reports. The
+# expectations are the ruleid: and ok: comments in each directory's main.go and tagged.go.
+proves: [gosec.include, gosec.exclude, gosec.tags]
+
+init:
+  controls: [iac, sast, sca, secrets]
+  components:
+    - name: options-gosec
+      repositories: ["."]

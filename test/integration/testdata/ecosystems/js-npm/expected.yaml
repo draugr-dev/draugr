@@ -1,6 +1,8 @@
 # What a sealed scan of the npm scenario reports. SAST expectations are the ruleid: and ok:
 # comments in repo/src/index.js. The licenses control runs and reports nothing: the one dependency
 # is MIT, which no policy restricts.
+proves: [semgrep.config]
+
 init:
   controls: [sca, secrets, sast, iac]
   scanners: [sca.retirejs]

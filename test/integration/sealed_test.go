@@ -83,6 +83,7 @@ func runSealed(t *testing.T, s sealed.Scenario, advs sealed.Advisories, bin stri
 		sealed.WriteRetireRepo(home, advs, now),
 		copyFile(filepath.Join(s.Dir, "draugr.saga.yaml"), filepath.Join(work, "draugr.saga.yaml"), 0o600),
 		copyFile(filepath.Join(ecosystems, "semgrep.yaml"), filepath.Join(work, "semgrep.yaml"), 0o600),
+		s.CopyWorkdir(work),
 	} {
 		if err != nil {
 			t.Fatal(err)
@@ -150,6 +151,14 @@ func runSealed(t *testing.T, s sealed.Scenario, advs sealed.Advisories, bin stri
 	replace := sealed.RunReplacements(work, now)
 	// The fetch time a stale database is refused for, which moves with the run.
 	replace[goVulnFetched.UTC().Format("2006-01-02 15:04 UTC")] = "<fetched>"
+	// The fixture's commits, which hold generated secrets and so differ on every run.
+	commits, err := sealed.Commits(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range commits {
+		replace[c] = "<commit>"
+	}
 	sarifN, reportN := sealed.SARIFNormalizer(replace), sealed.ReportNormalizer(replace)
 	missing := s.Expected.LeavesFieldsUnwritten()
 	sarifN.AllowMissing, reportN.AllowMissing = missing, missing

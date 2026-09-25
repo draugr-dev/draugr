@@ -1,0 +1,20 @@
+project: options-trivy-fs
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: default
+    repositories:
+      - url: ./options-trivy-fs
+        paths: [default]
+  - name: os-only
+    repositories:
+      - url: ./options-trivy-fs
+        paths: [os-only]
+    controls:
+      sca:
+        trivyFs:
+          pkgTypes: [os]

@@ -1,5 +1,7 @@
 # trivyFs.includeDevDeps reports minimist, a devDependency. Without it Trivy leaves development
 # dependencies out and the scan reports nothing.
+proves: [trivy-fs.includeDevDeps]
+
 init:
   controls: [sca, secrets, sast, iac]
   components:

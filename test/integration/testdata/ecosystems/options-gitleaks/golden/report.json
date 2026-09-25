@@ -1,0 +1,66 @@
+{
+  "controls": [
+    {
+      "errors": 3,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "secrets",
+      "notes": 0,
+      "threshold": "",
+      "total": 3,
+      "verdict": "fail",
+      "warnings": 0
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:096db64a5d873ccac83aa45ec7ed02fec19b43e2cb7c923a88c84b5b8891575e",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 3,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0
+  },
+  "project": "options-gitleaks",
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./options-gitleaks"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "gitleaks",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 1,
+    "scans": 1
+  },
+  "verdict": "fail"
+}

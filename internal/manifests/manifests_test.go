@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -217,5 +218,43 @@ func TestRequirementLinesSkipOptionsAndComments(t *testing.T) {
 func TestHasPinOnAMissingFile(t *testing.T) {
 	if hasPin(t.TempDir(), "requirements.txt") {
 		t.Error("a missing file has no pin")
+	}
+}
+
+func TestFormatOfNamesTheEntryFormatsLists(t *testing.T) {
+	for rel, want := range map[string]string{
+		"requirements.txt":         "requirements.txt",
+		"api/requirements-dev.txt": "requirements.txt",
+		"pylock.dev.toml":          "pylock.toml",
+		"svc/App.csproj":           "*.csproj",
+		"lib/Lib.fsproj":           "*.fsproj",
+		"web/npm-shrinkwrap.json":  "npm-shrinkwrap.json",
+		"gems.locked":              "gems.locked",
+		".csproj":                  "",
+		"notes.txt":                "",
+		"README.md":                "",
+	} {
+		if got := FormatOf(rel); got != want {
+			t.Errorf("FormatOf(%q) = %q, want %q", rel, got, want)
+		}
+	}
+}
+
+// Every format Formats lists is one FormatOf gives back, so a guard counting scenarios by format
+// can reach each entry.
+func TestEveryFormatIsOneFormatOfReturns(t *testing.T) {
+	seen := map[string]bool{}
+	for _, f := range Formats() {
+		if seen[f.Name] {
+			t.Errorf("%s is listed twice", f.Name)
+		}
+		seen[f.Name] = true
+		rel := "dir/" + strings.Replace(f.Name, "*", "Name", 1)
+		if got := FormatOf(rel); got != f.Name {
+			t.Errorf("FormatOf(%q) = %q, want %q", rel, got, f.Name)
+		}
+		if f.Ecosystem == "" {
+			t.Errorf("%s has no ecosystem", f.Name)
+		}
 	}
 }

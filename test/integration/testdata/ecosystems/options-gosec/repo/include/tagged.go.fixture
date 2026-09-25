@@ -1,0 +1,11 @@
+//go:build fixture
+
+package main
+
+import "os"
+
+// save is built only with the fixture tag.
+func save(b []byte) error {
+	// ok: G306
+	return os.WriteFile("out.txt", b, 0o666)
+}
