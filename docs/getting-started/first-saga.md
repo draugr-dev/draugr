@@ -18,13 +18,10 @@ schema](../reference/saga-schema.md).
 
 ## The smallest thing that runs
 
-A Saga names its project, gives a version, and declares at least one component with an
-enabled control:
+A Saga names its project and declares at least one component with an enabled control:
 
 ```yaml
 project: my-app
-release:
-  version: "1.0"
 config:
   controls:
     images:
@@ -36,7 +33,8 @@ components:
 ```
 
 Run it with `draugr scan draugr.saga.yaml`. A control only runs when it is **enabled**, globally
-under `config.controls`, or on an individual component.
+under `config.controls`, or on an individual component. `release: { version: "1.0" }` labels the
+reports with the build being scanned.
 
 ## Add more of your surface
 

@@ -21,7 +21,7 @@ the JSON Schema Draugr publishes. See [write a Saga in your editor](../guides/ed
 
 ```yaml
 project: payments-api         # which project this describes
-release: { ... }              # required, the version being assessed
+release: { ... }              # optional, the version the reports are labeled with
 config: { ... }               # optional, controls, reports, and publishers
 components: [ ... ]           # the app's parts
 fragments: [ ... ]            # optional, merge other Saga files into this one
@@ -50,11 +50,11 @@ release:
 > value up, `project: payments-api`, and a release keeps only its version. A descriptor still
 > carrying it is refused, with that sentence.
 
-## `release` (required)
+## `release`
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `version` | ✅ | The version being assessed. What changes between builds |
+| `version` | | The version being assessed, shown on every report and appended to the VEX product identifier. Without one, a report names the project alone |
 
 ## `components`
 

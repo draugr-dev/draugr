@@ -98,7 +98,7 @@ func newSurveyCommand() *cobra.Command {
 
 	cmd.PersistentFlags().StringVarP(&opts.output, "output", "o", "", "write the Saga here (default stdout)")
 	cmd.PersistentFlags().StringVar(&opts.name, "name", "", "project name for a newly created Saga")
-	cmd.PersistentFlags().StringVar(&opts.version, "version", "0.0.0", "release version for a newly created Saga")
+	cmd.PersistentFlags().StringVar(&opts.version, "version", "", "release version for a newly created Saga (omitted when empty)")
 	cmd.PersistentFlags().BoolVar(&opts.replace, "replace", false,
 		"overwrite the Saga at --output instead of adding to it")
 	cmd.PersistentFlags().BoolVar(&opts.fragment, "fragment", false,

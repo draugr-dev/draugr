@@ -152,7 +152,7 @@ func scaffoldSaga(dir, name string) string {
 	// The project at the top level, which is the only place it is named. A descriptor Draugr wrote
 	// itself must be one Draugr's own next command accepts. And `init` then `validate` are the first
 	// two steps of the quickstart.
-	fmt.Fprintf(&b, "project: %s\nrelease:\n  version: \"0.0.0\"\n", name)
+	fmt.Fprintf(&b, "project: %s\n", name)
 	b.WriteString("config:\n  controls:\n")
 	b.WriteString("    sca:\n      enabled: true       # dependency vulnerabilities (Trivy)\n")
 	b.WriteString("    secrets:\n      enabled: true       # leaked credentials (Gitleaks)\n")

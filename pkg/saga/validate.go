@@ -44,10 +44,6 @@ var projectName = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`)
 func (m *Model) Validate() error {
 	var errs []error
 
-	if m.Release.Version == "" {
-		errs = append(errs, errors.New("release.version is required"))
-	}
-
 	if m.Project != "" && !projectName.MatchString(m.Project) {
 		errs = append(errs, fmt.Errorf(
 			"project %q: lowercase letters, digits and dashes, starting and ending with a letter "+

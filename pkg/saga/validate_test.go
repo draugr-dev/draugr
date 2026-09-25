@@ -12,11 +12,6 @@ func TestValidateErrors(t *testing.T) {
 		want string
 	}{
 		{
-			name: "missing version",
-			yaml: "project: x\nrelease:\n",
-			want: "release.version is required",
-		},
-		{
 			name: "component without name",
 			yaml: "release:\n  version: '1'\ncomponents:\n  - repositories:\n     - url: u\n",
 			want: "name is required",
@@ -147,13 +142,13 @@ func TestValidateReportsPublishersRequireFields(t *testing.T) {
 }
 
 func TestValidateAggregatesMultiple(t *testing.T) {
-	// Missing version AND a duplicate component name => both reported.
-	_, err := Load([]byte("components:\n  - name: a\n  - name: a\n"))
+	// A malformed project name AND a duplicate component name => both reported.
+	_, err := Load([]byte("project: Not_A_Slug\ncomponents:\n  - name: a\n  - name: a\n"))
 	if err == nil {
 		t.Fatal("expected errors")
 	}
 	msg := err.Error()
-	if !strings.Contains(msg, "release.version") || !strings.Contains(msg, "duplicate") {
+	if !strings.Contains(msg, "Not_A_Slug") || !strings.Contains(msg, "duplicate") {
 		t.Fatalf("expected aggregated errors, got: %v", msg)
 	}
 }
@@ -698,5 +693,18 @@ func TestAGateAsksOneQuestion(t *testing.T) {
 	// An unparseable failOn is caught like any other threshold.
 	if err := with(&GateConfig{FailOn: "urgent"}); err == nil {
 		t.Error("config.gate.failOn accepted a word that is not a threshold")
+	}
+}
+
+// A descriptor with no release is a whole one. The version labels the reports and nothing a scan
+// finds or decides depends on it.
+func TestAReleaseIsOptional(t *testing.T) {
+	for name, doc := range map[string]string{
+		"no release":       "project: x\n",
+		"an empty release": "project: x\nrelease:\n",
+	} {
+		if _, err := Load([]byte(doc)); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
 	}
 }

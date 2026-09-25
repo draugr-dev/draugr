@@ -18,7 +18,7 @@ type Model struct {
 	// Project is which project this descriptor describes, and the name a platform files its runs
 	// under. Lowercase letters, digits and dashes.
 	Project    string        `yaml:"project,omitempty"`
-	Release    Release       `yaml:"release"`
+	Release    Release       `yaml:"release,omitempty"`
 	Config     Config        `yaml:"config,omitempty"`
 	Components []Component   `yaml:"components,omitempty"`
 	Fragments  []FragmentRef `yaml:"fragments,omitempty"`
@@ -27,8 +27,11 @@ type Model struct {
 
 // Release identifies what is being assessed. Its version, and nothing else: what a release is
 // called is the project's name, and naming it twice let a descriptor state two.
+//
+// Optional. A version labels the reports and the VEX product identifier, and nothing a scan finds
+// or decides depends on it, so a descriptor without one scans the same code to the same verdict.
 type Release struct {
-	Version string `yaml:"version"`
+	Version string `yaml:"version,omitempty"`
 }
 
 // ProjectName is which project this descriptor describes.

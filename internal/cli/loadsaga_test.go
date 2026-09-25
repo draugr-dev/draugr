@@ -26,10 +26,9 @@ func TestLoadSagaInvalidHasContextAndHint(t *testing.T) {
 	}
 	msg := err.Error()
 	for _, want := range []string{
-		"is not a valid Saga",         // states it's a descriptor problem
-		"invalid exposure",            // includes the underlying validation detail
-		"release.version is required", // aggregates all problems, not just the first
-		"draugr validate " + path,     // points at the fix
+		"is not a valid Saga",     // states it's a descriptor problem
+		"invalid exposure",        // includes the underlying validation detail
+		"draugr validate " + path, // points at the fix
 	} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("error missing %q\ngot: %s", want, msg)

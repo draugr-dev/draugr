@@ -211,7 +211,6 @@ func syntheticSaga(dir string) *saga.Model {
 		// synthesized must be one Draugr's own next command accepts. Which is exactly what `init` then
 		// `validate` walks through.
 		Project: name,
-		Release: saga.Release{Version: "0.0.0"},
 		Config:  saga.Config{Controls: zeroConfigSettings()},
 		Components: []saga.Component{{
 			Name:         name,

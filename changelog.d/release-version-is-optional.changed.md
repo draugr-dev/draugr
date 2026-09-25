@@ -1,0 +1,1 @@
+- **`release.version` is optional.** A Saga that names its project and its components is complete, and `draugr init` no longer writes a placeholder `0.0.0`. A version, where one is given, still labels every report and the VEX product identifier.

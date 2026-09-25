@@ -1076,7 +1076,7 @@ type SurveyInput struct {
 	// descriptors that each look complete.
 	Surveys []SurveyRequest `json:"surveys" jsonschema:"the surveyors to run; results merge into one descriptor"`
 	Name    string          `json:"name,omitempty" jsonschema:"project name for the descriptor"`
-	Version string          `json:"version,omitempty" jsonschema:"release version for the descriptor; defaults to 0.0.0"`
+	Version string          `json:"version,omitempty" jsonschema:"release version for the descriptor; omitted when empty"`
 }
 
 // SurveyOutput is a descriptor to look at, not a file that appeared on disk.
@@ -1137,11 +1137,7 @@ func SurveyTool(reg *surveyor.Registry) mcp.ToolHandlerFor[SurveyInput, SurveyOu
 		if name == "" {
 			name = "unnamed"
 		}
-		version := in.Version
-		if version == "" {
-			version = "0.0.0"
-		}
-		model := saga.Model{Project: name, Release: saga.Release{Version: version}}
+		model := saga.Model{Project: name, Release: saga.Release{Version: in.Version}}
 		surveyor.Apply(&model, frag)
 		// Without this the descriptor declares images and enables nothing to look at them, a scan that
 		// examines nothing and passes, which is the verdict this project is otherwise careful never to

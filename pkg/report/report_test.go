@@ -152,6 +152,19 @@ func TestMarkdownRender(t *testing.T) {
 	}
 }
 
+// A release with no version is labeled by the project alone, with nothing dangling after it.
+func TestMarkdownNamesAReleaseWithNoVersion(t *testing.T) {
+	d := sampleData()
+	d.Release = saga.Release{}
+	var b bytes.Buffer
+	if err := (markdownReporter{}).Render(&b, d); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(b.String(), "**Release:** app\n") {
+		t.Errorf("want the release named by the project alone:\n%s", b.String())
+	}
+}
+
 func TestHTMLRender(t *testing.T) {
 	var b bytes.Buffer
 	if err := (htmlReporter{}).Render(&b, sampleData()); err != nil {

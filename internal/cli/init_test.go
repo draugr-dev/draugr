@@ -47,7 +47,7 @@ func TestRunInitStdout(t *testing.T) {
 	if err := runInit(t.TempDir(), initOptions{output: "-"}, &buf); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(buf.String(), "release:") || !strings.Contains(buf.String(), "controls:") {
+	if !strings.Contains(buf.String(), "project:") || !strings.Contains(buf.String(), "controls:") {
 		t.Errorf("stdout Saga looks wrong:\n%s", buf.String())
 	}
 }
@@ -98,10 +98,10 @@ func TestTheScaffoldWritesTheFieldTheDocsTellPeopleToUse(t *testing.T) {
 	if !strings.Contains(out, "project: acme-api") {
 		t.Errorf("scaffold does not name the project:\n%s", out)
 	}
-	// `release:` carries a version and nothing else, so a scaffold naming the project under it
-	// would be a file `draugr validate` refuses on the quickstart's second step.
-	if strings.Contains(out, "name: acme-api\n  version") {
-		t.Errorf("the scaffold names the project under release:\n%s", out)
+	// A version is optional and only the person releasing knows it, so a scaffold that invented one
+	// would label every report with a number nobody chose.
+	if strings.Contains(out, "release:") {
+		t.Errorf("the scaffold writes a release nobody chose:\n%s", out)
 	}
 
 	var m saga.Model

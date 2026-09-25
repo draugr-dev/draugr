@@ -1707,16 +1707,13 @@
     },
     "release": {
       "additionalProperties": false,
-      "description": "Identifies what is being assessed.",
+      "description": "Identifies what is being assessed. Optional; its version labels the reports.",
       "properties": {
         "version": {
-          "description": "Release version. Supports ${{ ENV_VAR }} substitution.",
+          "description": "Release version, shown on every report and appended to the VEX product identifier. Supports ${{ ENV_VAR }} substitution.",
           "type": "string"
         }
       },
-      "required": [
-        "version"
-      ],
       "type": "object"
     },
     "reportConfig": {
@@ -2072,9 +2069,6 @@
       "$ref": "#/$defs/release"
     }
   },
-  "required": [
-    "release"
-  ],
   "title": "Draugr Saga",
   "type": "object"
 }
