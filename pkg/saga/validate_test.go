@@ -700,8 +700,8 @@ func TestAGateAsksOneQuestion(t *testing.T) {
 // finds or decides depends on it.
 func TestAReleaseIsOptional(t *testing.T) {
 	for name, doc := range map[string]string{
-		"no release":       "project: x\n",
-		"an empty release": "project: x\nrelease:\n",
+		"no release":            "project: x\n",
+		"a release, no version": "project: x\nrelease: {}\n",
 	} {
 		if _, err := Load([]byte(doc)); err != nil {
 			t.Errorf("%s: %v", name, err)
