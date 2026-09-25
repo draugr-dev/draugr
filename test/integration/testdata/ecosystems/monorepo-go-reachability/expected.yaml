@@ -3,6 +3,9 @@
 # services/worker calls only Valid, so the same advisory is reachable in one and unreachable in the
 # other. A verdict keyed on the repository, package and rule alone would carry one module's call
 # path onto the other module's finding, and each finding here carries the verdict for its own code.
+initScan:
+  skip: the components and their paths are the subject, and init proposes one component for the repository
+
 init:
   controls: [iac, sast, sca, secrets]
   scanners: [sast.gosec]

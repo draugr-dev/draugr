@@ -6,6 +6,9 @@
 #
 # The scenario commits no generated secret, so its one commit id is the same on every run and the
 # revision in each error is stable enough to hold in the golden report.json.
+initScan:
+  skip: a mistyped path is the subject, and init proposes one component for the repository with no paths
+
 init:
   controls: [iac, sast, sca, secrets]
   components:

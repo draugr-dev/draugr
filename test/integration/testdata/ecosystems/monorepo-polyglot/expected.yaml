@@ -5,6 +5,9 @@
 #
 # init proposes one component for the whole tree by default, and with --per-directory one per
 # service, each scoped by paths: and carved out of a root component that keeps the rest.
+initScan:
+  skip: the components and their paths are the subject, and init proposes one component for the repository
+
 init:
   controls: [iac, sast, sca, secrets]
   scanners: [sast.gosec]

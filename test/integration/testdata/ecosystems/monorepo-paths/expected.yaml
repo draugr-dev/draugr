@@ -4,6 +4,9 @@
 # component whose directory holds it. A run that keyed a finding on its rule and package rather than
 # its location would merge the two into one and leave a team without the finding it has to fix.
 # SAST expectations are the ruleid: and ok: comments in each service's src/index.js.
+initScan:
+  skip: the components and their paths are the subject, and init proposes one component for the repository
+
 init:
   controls: [iac, sast, sca, secrets]
   components:

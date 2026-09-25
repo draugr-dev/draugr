@@ -4,6 +4,9 @@
 # cannot be narrowed to a directory, so every component's pass sees every commit. Each removed
 # credential is still reported under the one component whose paths hold it, and old/root.env,
 # under neither component's paths, is reported under none.
+initScan:
+  skip: the components and their paths are the subject, and init proposes one component for the repository
+
 init:
   controls: [iac, sast, sca, secrets]
   components:

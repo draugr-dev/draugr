@@ -3,6 +3,9 @@
 # twice, once in each lockfile that pins it and each under the component that holds that lockfile.
 # Trivy does not open setup.py, so services/legacy's one finding is the SAST result its app.py
 # annotates, and the golden report.json names setup.py as unread under legacy alone.
+initScan:
+  skip: the components and their paths are the subject, and init proposes one component for the repository
+
 init:
   controls: [iac, sast, sca, secrets]
   scanners: [sca.grypeFs]

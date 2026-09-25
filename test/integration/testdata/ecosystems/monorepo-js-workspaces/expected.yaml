@@ -3,6 +3,9 @@
 # lockfile at its own root, for the member under packages/web. The advisory is reported three
 # times, each under the component whose workspace holds that lockfile, and no lockfile's packages
 # are credited to a workspace it does not belong to.
+initScan:
+  skip: the components and their paths are the subject, and init proposes one component for the repository
+
 init:
   controls: [iac, sast, sca, secrets]
   components:
