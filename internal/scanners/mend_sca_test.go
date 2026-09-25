@@ -2,10 +2,14 @@ package scanners
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/draugr-dev/draugr/internal/mendapi"
@@ -47,25 +51,85 @@ func contains(h []string, n string) bool {
 // Every repository gets its own Mend project. Sharing one would mean concurrent uploads replacing
 // each other's inventory, and findings describing whichever landed last.
 func TestMendProjectNameIsPerRepository(t *testing.T) {
-	a := mendProjectName("acme", "https://github.com/acme/api.git")
-	b := mendProjectName("acme", "https://github.com/acme/worker.git")
+	api := plugin.RepositoryTarget{URL: "https://github.com/acme/api.git", Revision: "v1"}
+	a := mendProjectName("acme", api)
+	b := mendProjectName("acme", plugin.RepositoryTarget{URL: "https://github.com/acme/worker.git"})
 	if a == b {
 		t.Fatalf("two repositories share a project name: %q", a)
 	}
-	if !strings.HasPrefix(a, "acme-") {
-		t.Errorf("the configured name should prefix rather than replace: %q", a)
+	// An unscoped repository keeps the name it had before scopes were part of it, so an existing
+	// project does not move.
+	if a != "acme-github.com-acme-api" {
+		t.Errorf("unscoped name = %q, want acme-github.com-acme-api", a)
+	}
+	if got := mendProjectName("", api); got != "github.com-acme-api" {
+		t.Errorf("unprefixed name = %q, want github.com-acme-api", got)
 	}
 	// Stable across commits: a revision in the name would make a Mend project per commit.
-	if a != mendProjectName("acme", "https://github.com/acme/api.git") {
+	api.Revision = "v2"
+	if a != mendProjectName("acme", api) {
 		t.Error("project name is not stable")
+	}
+}
+
+// Two components scoped to different subtrees of one repository upload different inventories,
+// so each needs a project of its own or the second upload replaces the first's.
+func TestMendProjectNameIsPerScope(t *testing.T) {
+	repo := func(paths, ignore []string) plugin.RepositoryTarget {
+		return plugin.RepositoryTarget{URL: "https://github.com/acme/mono.git", Paths: paths, Ignore: ignore}
+	}
+	unscoped := mendProjectName("acme", repo(nil, nil))
+	web := mendProjectName("acme", repo([]string{"services/web"}, nil))
+	worker := mendProjectName("acme", repo([]string{"services/worker"}, nil))
+	webNoTests := mendProjectName("acme", repo([]string{"services/web"}, []string{"**/testdata/"}))
+	ignoreOnly := mendProjectName("acme", repo(nil, []string{"vendor/"}))
+
+	seen := map[string]string{}
+	for label, name := range map[string]string{
+		"unscoped": unscoped, "web": web, "worker": worker,
+		"web without tests": webNoTests, "ignore only": ignoreOnly,
+	} {
+		if other, dup := seen[name]; dup {
+			t.Errorf("%s and %s share the project %q", label, other, name)
+		}
+		seen[name] = label
+		if !strings.HasPrefix(name, unscoped) {
+			t.Errorf("%s: %q should extend the repository's name %q", label, name, unscoped)
+		}
+	}
+	if !strings.HasPrefix(web, unscoped+"-services-web-") {
+		t.Errorf("the paths should be readable in the name: %q", web)
+	}
+	if web != mendProjectName("acme", repo([]string{"services/web"}, nil)) {
+		t.Error("a scoped project name is not stable")
+	}
+}
+
+// A component listing many paths still gets a readable name, and two that share a long common
+// prefix still get two projects.
+func TestMendScopeFragmentBoundsItsLength(t *testing.T) {
+	long := []string{strings.Repeat("a", 30) + "/" + strings.Repeat("b", 30) + "/one"}
+	other := []string{strings.Repeat("a", 30) + "/" + strings.Repeat("b", 30) + "/two"}
+	a, b := mendScopeFragment(long, nil), mendScopeFragment(other, nil)
+	if a == b {
+		t.Fatalf("two scopes truncated to one fragment: %q", a)
+	}
+	if len(a) > maxScopeSlug+1+8 {
+		t.Errorf("fragment %q is longer than the bound allows", a)
+	}
+	if mendScopeFragment(nil, nil) != "" {
+		t.Error("an unscoped repository should add nothing to the name")
+	}
+	if got := mendScopeFragment([]string{"/"}, nil); len(got) != 8 {
+		t.Errorf("paths with nothing nameable should leave the hash alone, got %q", got)
 	}
 }
 
 // A source with nothing nameable in it must still be distinguishable, or two such repositories
 // silently become one project.
 func TestMendProjectNameDistinguishesUnnameableSources(t *testing.T) {
-	a := mendProjectName("", ".")
-	b := mendProjectName("", "/")
+	a := mendProjectName("", plugin.RepositoryTarget{URL: "."})
+	b := mendProjectName("", plugin.RepositoryTarget{URL: "/"})
 	if a == b {
 		t.Errorf("two unnameable sources collapsed to %q", a)
 	}
@@ -373,4 +437,186 @@ func TestMapOfAcceptsBothDecoderShapes(t *testing.T) {
 	if mapOf("nope") != nil {
 		t.Error("a non-map should yield nil")
 	}
+}
+
+// fakeMend is a Mend tenant reduced to the one behavior these tests depend on: an upload replaces
+// the named project's inventory, and the alerts read back describe whatever that project holds.
+type fakeMend struct {
+	mu       sync.Mutex
+	projects map[string][]string
+	uploads  int
+}
+
+// run stands in for the Unified Agent: the inventory it uploads is the manifests in the tree.
+func (f *fakeMend) run(_ context.Context, dir string, argv, _ []string) ([]byte, error) {
+	project := argAfter(argv, "-project")
+	inventory := manifestsIn(dir)
+	sort.Strings(inventory)
+	f.mu.Lock()
+	f.projects[project] = inventory
+	f.uploads++
+	f.mu.Unlock()
+	return fmt.Appendf(nil, "Resolve Dependencies  COMPLETED  00:00:01  %d total dependencies\n", len(inventory)), nil
+}
+
+// Await reports one alert per manifest in the project, named after the manifest.
+func (f *fakeMend) Await(_ context.Context, o mendapi.AwaitOpts) ([]mendapi.Alert, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var alerts []mendapi.Alert
+	for _, m := range f.projects[o.ProjectName] {
+		alerts = append(alerts, mendapi.Alert{Type: mendapi.AlertTypeVulnerability,
+			Library: mendapi.Library{Name: m}, Vulnerability: mendapi.Vulnerability{Name: m}})
+	}
+	return alerts, nil
+}
+
+// ProjectByName answers with the name as the token, so Inventory can find the project again.
+func (f *fakeMend) ProjectByName(_ context.Context, _, name string) (mendapi.Project, error) {
+	return mendapi.Project{Name: name, Token: name}, nil
+}
+
+// Inventory reports each manifest in the project as an MIT-licensed library of the same name.
+func (f *fakeMend) Inventory(_ context.Context, token string) ([]mendapi.InventoryLibrary, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var libs []mendapi.InventoryLibrary
+	for _, m := range f.projects[token] {
+		libs = append(libs, mendapi.InventoryLibrary{Name: m,
+			Licenses: []mendapi.InventoryLicense{{Name: "MIT", SPDXName: "MIT"}}})
+	}
+	return libs, nil
+}
+
+func argAfter(argv []string, flag string) string {
+	for i := 0; i+1 < len(argv); i++ {
+		if argv[i] == flag {
+			return argv[i+1]
+		}
+	}
+	return ""
+}
+
+// Two components scoped to different paths of one repository, scanned concurrently as Draugr
+// plans them. Each must land in its own project and read back its own inventory; sharing a
+// project would leave both reporting whichever upload finished last.
+func TestMendSCATwoScopesOfOneRepositoryKeepTwoInventories(t *testing.T) {
+	sharedMendUploads.reset()
+	t.Cleanup(sharedMendUploads.reset)
+
+	dir := monorepo(t)
+	tenant := &fakeMend{projects: map[string][]string{}}
+	s := mendSCAScanner{
+		info: NewMendSCA().Info(),
+		run:  tenant.run,
+		api:  func(string, string) mendResults { return tenant },
+		env:  fakeMendEnv,
+	}
+
+	components := map[string]plugin.RepositoryTarget{
+		"web":    {URL: dir, Paths: []string{"services/web"}},
+		"worker": {URL: dir, Paths: []string{"services/worker"}},
+	}
+	results := map[string][]string{}
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	for name, target := range components {
+		wg.Go(func() {
+			rep, err := s.Scan(context.Background(), target, plugin.Config{"productToken": "tok"})
+			if err != nil {
+				t.Errorf("%s: %v", name, err)
+				return
+			}
+			var rules []string
+			for _, r := range rep.Results {
+				rules = append(rules, r.RuleID)
+			}
+			mu.Lock()
+			results[name] = rules
+			mu.Unlock()
+		})
+	}
+	wg.Wait()
+
+	if len(tenant.projects) != 2 {
+		t.Fatalf("projects = %v, want one per component", tenant.projects)
+	}
+	want := map[string][]string{
+		"web":    {"services/web/requirements.txt"},
+		"worker": {"services/worker/requirements-dev.txt", "services/worker/requirements.txt"},
+	}
+	for name, rules := range want {
+		if !slices.Equal(results[name], rules) {
+			t.Errorf("%s reported %v, want its own inventory %v", name, results[name], rules)
+		}
+		project := mendProjectName("", components[name])
+		if !slices.Equal(tenant.projects[project], rules) {
+			t.Errorf("project %q holds %v, want %v", project, tenant.projects[project], rules)
+		}
+	}
+}
+
+// Both Mend controls on one scoped component must name the same project, or the licenses control
+// would upload a second time into a project of its own and read an inventory the vulnerability
+// findings were not drawn from.
+func TestMendLicensesSharesTheScopedProjectWithSCA(t *testing.T) {
+	sharedMendUploads.reset()
+	t.Cleanup(sharedMendUploads.reset)
+
+	tenant := &fakeMend{projects: map[string][]string{}}
+	web := plugin.RepositoryTarget{URL: monorepo(t), Paths: []string{"services/web"}}
+	cfg := plugin.Config{"productToken": "tok", "deny": []any{"MIT"}}
+
+	sca := mendSCAScanner{info: NewMendSCA().Info(), run: tenant.run, env: fakeMendEnv,
+		api: func(string, string) mendResults { return tenant }}
+	lic := mendLicensesScanner{info: NewMendLicenses().Info(), run: tenant.run, env: fakeMendEnv,
+		api: func(string, string) mendInventory { return tenant }}
+
+	if _, err := sca.Scan(context.Background(), web, cfg); err != nil {
+		t.Fatalf("sca: %v", err)
+	}
+	rep, err := lic.Scan(context.Background(), web, cfg)
+	if err != nil {
+		t.Fatalf("licenses: %v", err)
+	}
+	if tenant.uploads != 1 {
+		t.Errorf("uploads = %d, want the one both controls share", tenant.uploads)
+	}
+	var located []string
+	for _, r := range rep.Results {
+		located = append(located, r.Location.URI)
+	}
+	if want := []string{"services/web/requirements.txt"}; !slices.Equal(located, want) {
+		t.Errorf("licenses read %v, want the web component's inventory %v", located, want)
+	}
+}
+
+// fakeMendEnv supplies every credential a Mend scan asks the environment for.
+func fakeMendEnv(k string) string {
+	if k == envMendURL {
+		return "https://saas.mend.io"
+	}
+	return "x"
+}
+
+// monorepo is one repository holding two services, each with its own manifests, and nothing at
+// the root that declares dependencies.
+func monorepo(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	for path, body := range map[string]string{
+		"README.md":                            "mono\n",
+		"services/web/requirements.txt":        "requests==2.19.1\n",
+		"services/worker/requirements.txt":     "urllib3==1.24.1\n",
+		"services/worker/requirements-dev.txt": "pytest==7.0.0\n",
+	} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, path)), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, path), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	repoAt(t, dir)
+	return dir
 }
