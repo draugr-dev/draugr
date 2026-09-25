@@ -150,10 +150,9 @@ func runSealed(t *testing.T, s sealed.Scenario, advs sealed.Advisories, bin stri
 	replace := sealed.RunReplacements(work, now)
 	// The fetch time a stale database is refused for, which moves with the run.
 	replace[goVulnFetched.UTC().Format("2006-01-02 15:04 UTC")] = "<fetched>"
-	// A scenario about a failure has a control that never started, and so fields nothing wrote.
-	failing := len(s.Expected.Errors) > 0
 	sarifN, reportN := sealed.SARIFNormalizer(replace), sealed.ReportNormalizer(replace)
-	sarifN.AllowMissing, reportN.AllowMissing = failing, failing
+	missing := s.Expected.LeavesFieldsUnwritten()
+	sarifN.AllowMissing, reportN.AllowMissing = missing, missing
 	compareSealedGolden(t, s, "results.sarif", results, sarifN)
 	compareSealedGolden(t, s, "report.json", report, reportN)
 }

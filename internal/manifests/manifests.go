@@ -152,6 +152,10 @@ var rules = []rule{
 		declares: containsAny("\"node_modules/", "\"dependencies\"")},
 	{ecosystem: "npm", kind: Pinned, match: named("yarn.lock", "pnpm-lock.yaml", "bun.lock"),
 		declares: containsAny("version")},
+	// Bun's binary lockfile, which Bun 1.2 replaced with the text bun.lock. It pins a package.json
+	// as well as any lockfile does, so the manifest is resolved; recognized in its own right so that
+	// a scanner reading nothing from it is reported rather than passed over.
+	{ecosystem: "npm", kind: Pinned, match: named("bun.lockb")},
 	{ecosystem: "npm", kind: Declared, match: named("package.json"),
 		locks:    []string{"package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml", "bun.lock", "bun.lockb"},
 		declares: containsAny("ependencies\"")},

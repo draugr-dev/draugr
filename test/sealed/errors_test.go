@@ -85,3 +85,20 @@ func TestAllowMissing(t *testing.T) {
 		t.Errorf("a missing field was refused under AllowMissing: %v", err)
 	}
 }
+
+func TestLeavesFieldsUnwritten(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		e    Expected
+		want bool
+	}{
+		{"a control fails", Expected{Errors: []ErrorExpectation{{Control: "sca"}}, Findings: []FindingExpectation{{}}}, true},
+		{"nothing is found", Expected{}, true},
+		{"a finding", Expected{Findings: []FindingExpectation{{}}}, false},
+		{"a secret", Expected{Secrets: []SecretExpectation{{}}}, false},
+	} {
+		if got := c.e.LeavesFieldsUnwritten(); got != c.want {
+			t.Errorf("%s: LeavesFieldsUnwritten = %v, want %v", c.name, got, c.want)
+		}
+	}
+}

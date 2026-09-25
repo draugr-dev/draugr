@@ -1,0 +1,6 @@
+name: sealed-conda
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - flask=0.12.2

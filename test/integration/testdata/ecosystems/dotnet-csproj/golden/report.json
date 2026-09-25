@@ -1,0 +1,76 @@
+{
+  "controls": [
+    {
+      "errors": 0,
+      "highest": "",
+      "name": "sca",
+      "notes": 0,
+      "threshold": "",
+      "total": 0,
+      "verdict": "pass",
+      "warnings": 0
+    }
+  ],
+  "dependencyFiles": [
+    {
+      "component": "dotnet-csproj",
+      "control": "sca",
+      "read": 0,
+      "scanners": [
+        "trivy-fs"
+      ],
+      "unread": [
+        {
+          "path": "Sealed.csproj",
+          "reason": "no lockfile",
+          "repository": "./dotnet-csproj"
+        }
+      ]
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:eb005461efab8ea51ecc3edb67a2b65c02c3b2073b0daf5538579149ccb35163",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "project": "dotnet-csproj",
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./dotnet-csproj"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "trivy-fs",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 1,
+    "scans": 1
+  },
+  "verdict": "pass"
+}

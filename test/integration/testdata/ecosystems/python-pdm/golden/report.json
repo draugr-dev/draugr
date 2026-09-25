@@ -1,0 +1,76 @@
+{
+  "controls": [
+    {
+      "errors": 0,
+      "highest": "",
+      "name": "sca",
+      "notes": 0,
+      "threshold": "",
+      "total": 0,
+      "verdict": "pass",
+      "warnings": 0
+    }
+  ],
+  "dependencyFiles": [
+    {
+      "component": "python-pdm",
+      "control": "sca",
+      "read": 0,
+      "scanners": [
+        "trivy-fs"
+      ],
+      "unread": [
+        {
+          "path": "pdm.lock",
+          "reason": "no packages read",
+          "repository": "./python-pdm"
+        }
+      ]
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:962c8efdbc73b22a3c2b385876ed9ed0af2344bdffde98661db6a23793702949",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "project": "python-pdm",
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./python-pdm"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "trivy-fs",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 1,
+    "scans": 1
+  },
+  "verdict": "pass"
+}

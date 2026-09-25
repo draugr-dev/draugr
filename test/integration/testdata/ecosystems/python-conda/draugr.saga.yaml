@@ -1,0 +1,11 @@
+project: python-conda
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: python-conda
+    repositories:
+      - url: ./python-conda

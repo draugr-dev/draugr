@@ -1,0 +1,7 @@
+from setuptools import setup
+
+setup(
+    name="sealed-setuptools",
+    version="1.0.0",
+    install_requires=["flask==0.12.2"],
+)

@@ -1,0 +1,11 @@
+project: python-pdm
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: python-pdm
+    repositories:
+      - url: ./python-pdm

@@ -1,0 +1,76 @@
+{
+  "controls": [
+    {
+      "errors": 1,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "sca",
+      "notes": 0,
+      "threshold": "",
+      "total": 1,
+      "verdict": "fail",
+      "warnings": 0
+    }
+  ],
+  "dependencyFiles": [
+    {
+      "component": "python-pylock",
+      "control": "sca",
+      "read": 1,
+      "scanners": [
+        "trivy-fs"
+      ]
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:bcbab74d5b42674dc44cb2a68fcf20c7b1dc0665a0f614828f0ac42c4f0a6a76",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 1,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0
+  },
+  "project": "python-pylock",
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./python-pylock"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "trivy-fs",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 1,
+    "scans": 1
+  },
+  "verdict": "fail"
+}

@@ -1,0 +1,76 @@
+{
+  "controls": [
+    {
+      "errors": 0,
+      "highest": "",
+      "name": "sca",
+      "notes": 0,
+      "threshold": "",
+      "total": 0,
+      "verdict": "pass",
+      "warnings": 0
+    }
+  ],
+  "dependencyFiles": [
+    {
+      "component": "negative-unsupported-lockfile",
+      "control": "sca",
+      "read": 0,
+      "scanners": [
+        "trivy-fs"
+      ],
+      "unread": [
+        {
+          "path": "bun.lockb",
+          "reason": "no packages read",
+          "repository": "./negative-unsupported-lockfile"
+        }
+      ]
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:c66b466e8d3451d3dc9d0458f3e1561e64e7808b82407a3a96d918c6c3f7f8a4",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "project": "negative-unsupported-lockfile",
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./negative-unsupported-lockfile"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "trivy-fs",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 1,
+    "scans": 1
+  },
+  "verdict": "pass"
+}

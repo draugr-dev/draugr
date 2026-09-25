@@ -1,0 +1,7 @@
+# A build.gradle with no gradle.lockfile. The golden report.json names it under dependencyFiles as
+# having no lockfile, so log4j-core 2.14.1 is reported unchecked rather than passed.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: jvm-gradle-unlocked
+      repositories: ["."]

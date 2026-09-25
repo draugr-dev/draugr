@@ -1,0 +1,11 @@
+project: dotnet-csproj
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: dotnet-csproj
+    repositories:
+      - url: ./dotnet-csproj

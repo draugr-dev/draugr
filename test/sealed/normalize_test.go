@@ -104,9 +104,8 @@ func TestTheGoldensAreNormalized(t *testing.T) {
 			"results.sarif": SARIFNormalizer(nil),
 			"report.json":   ReportNormalizer(nil),
 		} {
-			// As the integration test normalizes it: a scenario about a failure has fields nothing
-			// wrote.
-			n.AllowMissing = len(s.Expected.Errors) > 0
+			// As the integration test normalizes it.
+			n.AllowMissing = s.Expected.LeavesFieldsUnwritten()
 			path := filepath.Join(s.Dir, "golden", name)
 			raw, err := os.ReadFile(path) // #nosec G304 -- a checked-in golden
 			if err != nil {

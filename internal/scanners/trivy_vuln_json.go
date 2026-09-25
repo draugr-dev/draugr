@@ -3,6 +3,7 @@ package scanners
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -196,6 +197,11 @@ const trivyClassOSPkgs = "os-pkgs"
 // trivyClassLangPkgs is Trivy's name for a result set read from one language ecosystem's file.
 const trivyClassLangPkgs = "lang-pkgs"
 
+// trivyListOnly are the ecosystems Trivy lists packages for without looking them up in its
+// advisory data, which it says in a warning and nowhere in its JSON. A file of one is not read for
+// vulnerabilities, so it is left out of what the scan names as read and the tree walk reports it.
+var trivyListOnly = []string{"conda-environment", "conda-pkg"}
+
 // trivyInput is the dependency file a result set was read from, or false for a set that is not one.
 //
 // Trivy leaves out a file it read no packages from, so the files named here are the ones that
@@ -230,7 +236,7 @@ func parseTrivyVulns(out []byte, dir string, _ plugin.Config) (sarif.Report, err
 		return lines.find(res.Target, v.PkgName, v.InstalledVersion)
 	}
 	for _, res := range doc.Results {
-		if in, ok := trivyInput(dir, res.Class, res.Target, len(res.Packages)); ok {
+		if in, ok := trivyInput(dir, res.Class, res.Target, len(res.Packages)); ok && !slices.Contains(trivyListOnly, res.Type) {
 			rep.Inputs = append(rep.Inputs, in)
 		}
 		known := res.packageLines()

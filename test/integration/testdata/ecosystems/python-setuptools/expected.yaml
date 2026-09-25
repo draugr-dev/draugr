@@ -1,0 +1,9 @@
+# A setup.py, which Trivy does not open and grype-fs does. init turns grype-fs on for it; the sealed
+# scan runs Trivy alone, and the golden report.json names setup.py under dependencyFiles as not
+# read.
+init:
+  controls: [sca, secrets, sast, iac]
+  scanners: [sca.grypeFs]
+  components:
+    - name: python-setuptools
+      repositories: ["."]

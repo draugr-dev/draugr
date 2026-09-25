@@ -22,7 +22,9 @@ component, with a reason:
 |---|---|---|
 | `no lockfile` | a manifest of version ranges, such as `pyproject.toml`, `package.json`, `Cargo.toml` or a `.csproj`, with no lockfile beside it or above it | commit the lockfile the package manager writes |
 | `no pinned versions` | a requirements file with no exact `==` version | pin it, or generate it from a lockfile |
-| `no packages read` | a file the scanners passed over, such as `requirements-dev.txt` or `setup.py` under `trivy-fs` | enable [`grype-fs`](../scanners/grype-fs.md), which reads both |
+| `no packages read` | a file the scanners passed over, such as `requirements-dev.txt`, `setup.py` or `pdm.lock` under `trivy-fs` | enable [`grype-fs`](../scanners/grype-fs.md), which reads all three |
+| `no packages read` | Bun's binary `bun.lockb` | commit the text `bun.lock`, which Bun 1.2 and later write |
+| `no packages read` | a conda `environment.yml` | none; no scanner Draugr runs checks conda packages |
 
 `trivy-fs` and `trivy-license` name every file they took packages from in their JSON output, and
 `grype-fs` names them in the CycloneDX inventory it writes beside its SARIF. Draugr walks the same
