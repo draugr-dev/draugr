@@ -1,1 +1,0 @@
-- **An assistant can say why a finding ranks where it does, and who accepted the ones it does not rank.** MCP findings carry their exploitability escalation, reachability verdict and other scanners; accepted findings come back apart with who decided, why and until when; each result names a next step; and stale KEV or EPSS copies are marked, in `results.sarif` too.

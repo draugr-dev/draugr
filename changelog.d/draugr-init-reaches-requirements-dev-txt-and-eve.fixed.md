@@ -1,1 +1,0 @@
-- **`draugr init` reaches `requirements-dev.txt` and every other requirements file Trivy does not open by name.** It writes `sca.trivyFs.filePatterns` for them, naming the files behind the patterns.

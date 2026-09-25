@@ -1,1 +1,0 @@
-- **A vulnerability both govulncheck and the manifest scanner find is reported once, whichever job finishes first.** When govulncheck finished first, both findings were kept, so one vulnerability appeared twice under two identifiers.

@@ -1,1 +1,0 @@
-- **`draugr diff`, `draugr explain` and the MCP report tools refuse a file that is not SARIF.** Given `report.json`, they used to read it as a scan with no findings, so a diff printed "Nothing changed" and a summary listed nothing to fix. They now stop and name `results.sarif`, which holds the findings.

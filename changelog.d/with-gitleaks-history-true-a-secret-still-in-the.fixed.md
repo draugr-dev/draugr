@@ -1,1 +1,0 @@
-- **With gitleaks `history: true`, a secret still in the tree is reported and counted once.** The history copy of a secret with the same rule, path and value as a tree finding is dropped, and the tree finding is kept. A secret at another path, or an older value replaced in place, is still reported from history.

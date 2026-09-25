@@ -1,1 +1,0 @@
-- **`gosec` `include` and `exclude` leave the other rules out of the report.** A rule outside the selection was listed as a finding the scanner had suppressed, with the justification "Globally suppressed.". It is no longer reported, because the descriptor said the rule does not apply to that code.

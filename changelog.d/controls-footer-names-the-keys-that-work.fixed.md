@@ -1,1 +1,0 @@
-- **`draugr controls` gives the right way to enable each opt-in scanner.** The footer now writes the `config.controls.` prefix, and marks `govulncheck` as a reachability analyzer enabled through `config.reachability.analyzers`, which is the only key the descriptor accepts for it.

@@ -1,1 +1,0 @@
-- **`draugr init --per-directory` keeps a JavaScript workspace member with its workspace root.** A directory named by the root `package.json` `workspaces` field or by `pnpm-workspace.yaml` is resolved by the root lockfile and gets no component of its own.

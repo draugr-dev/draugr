@@ -1,1 +1,0 @@
-- **Band counts read count first, as `13 P1`, in `draugr scan`, `draugr diff` and the HTML report**, the order the pull-request comment uses. The `draugr diff` terminal output states its gate above the list of changes, so a long list cannot push it out of view.
