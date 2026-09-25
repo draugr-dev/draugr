@@ -8,7 +8,7 @@ infrastructure  draugr-k8s-policies, kube-bench*, kube-bench-job*        Check a
 licenses        trivy-license, mend-licenses*                            Report license terms attached to code you did not write, where they carry an obligation.
 provenance      cosign, notation                                         Check that a container image is signed by the identity this descriptor expects.
 sast            semgrep, gosec*                                          Find patterns in a repo's own code that let somebody in (static analysis).
-sca             trivy-fs, govulncheck*, grype-fs*, mend-sca*, retirejs*  Find known flaws in the libraries a repo depends on (software composition analysis).
+sca             trivy-fs, govulncheck†, grype-fs*, mend-sca*, retirejs*  Find known flaws in the libraries a repo depends on (software composition analysis).
 secrets         gitleaks                                                 Find passwords and keys committed by accident, history included.
 threats         urlhaus, virustotal*                                     Check whether a component's hosts appear on public lists of known-hostile addresses.
 tls             draugr-tls                                               Check the certificates and encryption a component's running endpoints offer visitors.
@@ -32,7 +32,8 @@ PUBLISHERS  (who each scanner comes from)
 Draugr executes third-party tools rather than bundling them, so each stays under its own
 license. `draugr tools list` shows which are installed and where.
 
-* opt-in scanner. Enable with controls.<control>.<scanner>.enabled: true in the Saga.
+* opt-in scanner. Enable with config.controls.<control>.<scanner>.enabled: true in the Saga.
+† reachability analyzer. Enable with config.reachability.analyzers: [<scanner>] in the Saga.
 
 EFFECTS  (scanners that do more than read)
   Scanner         Effect      What happens
@@ -110,17 +111,17 @@ What each scanner accepts in its Saga block:
     Option                   Type    What it does
     productToken (required)  string  The Mend product this component reports into. Required. It identifies a product and grants no access, so it belongs in the descriptor rather than the environment.
     deny                     array   SPDX identifiers that fail the gate, e.g. ["AGPL-3.0-only", "SSPL-1.0"].
-    project                  string  Mend project name to report into. Defaults to the component's name, which keeps one project per component rather than per repository.
+    project                  string  Prefix for each Mend project name, <project>-<repository>. Each repository reports into its own project, suffixed with the paths and an 8-character hash when the component sets paths or ignore. Unset, names start at the repository.
     resultTimeout            string  How long to wait for Mend to finish analyzing an upload, e.g. "15m". Raise it for large monorepos, where the agent's upload finishes long before the analysis does.
-    settings                 object  Unified Agent configuration keys, passed through verbatim. Draugr writes the component's scope exclusions first, so anything here overrides them.
+    settings                 object  Unified Agent configuration keys, passed through verbatim. The agent runs over a checkout already restricted to the component's paths and ignore.
     warn                     array   SPDX identifiers reported as warnings rather than failures, e.g. ["GPL-3.0-only"].
 
   mend-sca
     Option                   Type    What it does
     productToken (required)  string  The Mend product this component reports into. Required. It identifies a product and grants no access, so it belongs in the descriptor rather than the environment.
-    project                  string  Mend project name to report into. Defaults to the component's name, which keeps one project per component rather than per repository.
+    project                  string  Prefix for each Mend project name, <project>-<repository>. Each repository reports into its own project, suffixed with the paths and an 8-character hash when the component sets paths or ignore. Unset, names start at the repository.
     resultTimeout            string  How long to wait for Mend to finish analyzing an upload, e.g. "15m". Raise it for large monorepos, where the agent's upload finishes long before the analysis does.
-    settings                 object  Unified Agent configuration keys, passed through verbatim. Draugr writes the component's scope exclusions first, so anything here overrides them.
+    settings                 object  Unified Agent configuration keys, passed through verbatim. The agent runs over a checkout already restricted to the component's paths and ignore.
 
   notation
     no options, configured by choosing it; any other key is an error

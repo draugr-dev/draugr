@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/controllers"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 
@@ -86,7 +87,7 @@ func runControls(w io.Writer, reg *engine.Registry, showOptions bool, only strin
 	// to it rather than as its equals.
 	_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted, "CONTROLS"))
 	t := tui.NewTable(col, headers...)
-	optIn := false
+	optIn, analyzer := false, false
 	for _, ctrl := range reg.Controllers() {
 		info := ctrl.Info()
 		if only != "" && info.Name != only {
@@ -98,9 +99,16 @@ func runControls(w io.Writer, reg *engine.Registry, showOptions bool, only strin
 			isDefault[d] = true
 			names = append(names, d)
 		}
-		// Append any registered scanners for this control that aren't defaults, marked opt-in.
+		// Append any registered scanners for this control that aren't defaults, marked opt-in. A
+		// reachability analyzer is opt-in too, but through config.reachability rather than a
+		// scanner block, which the descriptor refuses for it, so it carries its own mark.
 		for _, s := range serving[info.Name] {
-			if !isDefault[s] {
+			switch {
+			case isDefault[s]:
+			case controllers.IsReachabilityAnalyzer(s):
+				names = append(names, s+"†")
+				analyzer = true
+			default:
 				names = append(names, s+"*")
 				optIn = true
 			}
@@ -125,7 +133,11 @@ func runControls(w io.Writer, reg *engine.Registry, showOptions bool, only strin
 
 	if optIn {
 		_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleMuted,
-			"* opt-in scanner. Enable with controls.<control>.<scanner>.enabled: true in the Saga."))
+			"* opt-in scanner. Enable with config.controls.<control>.<scanner>.enabled: true in the Saga."))
+	}
+	if analyzer {
+		_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted,
+			"† reachability analyzer. Enable with config.reachability.analyzers: [<scanner>] in the Saga."))
 	}
 	writeEffects(w, col, reg, only)
 	if showOptions {

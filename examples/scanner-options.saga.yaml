@@ -32,6 +32,11 @@ config:
         dbRepository:                                # in priority order, for a runner with no
           - registry.internal/trivy-db:2             # route to a public registry
           - ghcr.io/aquasecurity/trivy-db:2
+      grype:
+        enabled: true                                # opt-in, a second matcher beside Trivy
+        byCve: false                                 # on by default, so a finding carries the
+                                                     # CVE Trivy reports. Off shows the advisory
+                                                     # identifier Grype matched on
 
     sca:
       enabled: true
@@ -43,26 +48,44 @@ config:
                                                      # Gradle)
         detectionPriority: comprehensive             # precise (default) | comprehensive, which
                                                      # reads >=1.2 as its minimum version
+        pkgTypes: [library]                          # os | library, as for the image: skip the
+                                                     # OS layer
+        dbRepository:                                # the vulnerability database, from a mirror
+          - registry.internal/trivy-db:2
+      grypeFs:
+        enabled: true                                # opt-in. Both scanners run over the same
+        byCve: true                                  # tree, and a flaw both find counts once
+      retirejs:
+        enabled: true                                # opt-in, and the only option it takes:
+                                                     # fingerprints JavaScript no lockfile names
       # mendSca:
       #   enabled: true
       #   productToken: 1a2b3c4d                     # which Mend product this reports into.
       #                                              # Required. It names a product and grants no
       #                                              # access, so it belongs here rather than in
       #                                              # the environment
-      #   project: payments-api                      # defaults to the component's name, which
-      #                                              # keeps one project per component rather than
-      #                                              # one per repository
+      #   project: payments-api                      # prefix for each project name. Every
+      #                                              # repository gets its own project, suffixed
+      #                                              # with its paths and a hash when paths or
+      #                                              # ignore is set
       #   resultTimeout: 15m                         # how long to wait for Mend to finish
       #                                              # analyzing. Raise it for a large monorepo,
       #                                              # where the upload finishes long before the
       #                                              # analysis does
       #   settings:                                  # Unified Agent keys, passed through verbatim.
-      #     fileSystemScan: "true"                   # Draugr writes the component's scope
-      #     resolveAllDependencies: "false"          # exclusions first, so anything here overrides
-      #                                              # them
+      #     fileSystemScan: "true"                   # The agent runs over a checkout already
+      #     resolveAllDependencies: "false"          # restricted to paths and ignore
 
     licenses:
       enabled: true
+      deny: ["AGPL-3.0-only", "SSPL-1.0"]            # SPDX ids that fail the gate. The control's
+      warn: ["MPL-2.0"]                              # lists, read by every scanner serving it; a
+                                                     # component may add to them and not remove
+      trivyLicense:
+        full: true                                   # read LICENSE files and source headers as
+                                                     # well as package metadata. Markedly slower
+        # deny: ["GPL-3.0-only"]                     # lists for this scanner alone, where the
+        # warn: ["LGPL-2.1-only"]                    # control sets none
       # mendLicenses:
       #   enabled: true
       #   productToken: 1a2b3c4d
@@ -104,6 +127,9 @@ config:
 
     sast:
       enabled: true
+      semgrep:
+        config: p/owasp-top-ten                      # a registry ruleset, or a path or URL to a
+                                                     # rules file. p/default when omitted
       gosec:
         enabled: true
         tags: [integration]                          # Go build tags to compile with. Code behind a
@@ -113,6 +139,26 @@ config:
                                                      # have judged goes in config.exclude instead,
                                                      # where it stays in the report as suppressed
         # include: [G101, G204]                      # run only these, and skip everything else
+
+    iac:
+      enabled: true
+      # trivyConfig:
+      #   checks: [policies/rego]                    # Rego files or directories of them, relative
+      #                                              # to where Draugr runs, added to Trivy's own
+      #                                              # checks. Commented out: the path must exist
+      #   namespaces: [user]                         # the namespaces those checks declare, where
+      #                                              # Trivy does not evaluate them by default
+
+    secrets:
+      enabled: true
+      gitleaks:
+        history: true                                # the commit history as well as the tree. A
+                                                     # secret committed and later removed is still
+                                                     # in every clone. Needs a full clone, so it is
+                                                     # slower on a large repository
+        # config: .draugr/gitleaks.toml              # a rules file shared across repositories. A
+        #                                            # .gitleaks.toml in the scanned repository is
+        #                                            # read without this
 
     headers:
       enabled: true

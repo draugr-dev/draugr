@@ -44,14 +44,16 @@ _ = exec.Command("sh", "-c", name)
 
 ## Opt-in
 
-gosec is Go-only, so it doesn't run by default. Select it per the `sast` control's scanner set:
+gosec is Go-only, so it doesn't run by default. Enable it under the `sast` control, where it runs
+beside Semgrep:
 
 ```yaml
 config:
-  controllers:
+  controls:
     sast:
       enabled: true
-      scanners: [semgrep, gosec]   # default: [semgrep]
+      gosec:
+        enabled: true
 ```
 
 The same key works as a per-component override. Only enable gosec for Go components. It errors
@@ -60,12 +62,13 @@ on repositories with no Go packages.
 ## Saga options
 
 ```yaml
-controllers:
-  sast:
-    gosec:
-      enabled: true
-      exclude: [G104]        # rules that do not apply to this codebase
-      tags: [integration]    # code behind a build tag gosec does not build, it does not analyze
+config:
+  controls:
+    sast:
+      gosec:
+        enabled: true
+        exclude: [G104]        # rules that do not apply to this codebase
+        tags: [integration]    # code behind a build tag gosec does not build, it does not analyze
 ```
 
 | Option | What it does |

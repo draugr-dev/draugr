@@ -23,10 +23,10 @@ cache:
   ttl: 12h
 
 output:
-  group: action
+  view: actions
   top: 20
 
-controls:
+controllers:
   sca:
     trivyFs:
       pkgTypes: [library]
@@ -129,7 +129,7 @@ is not asking for entries that live forever. Write `0s` to mean that.
 
 ```yaml
 output:
-  group: action      # or none, to list every finding on its own row
+  view: actions      # findings (the default) | actions, a row per thing to do | compact
   evidence: false    # true to always print what stands behind the verdict
   top: 20            # rows in the fix list
 ```
@@ -193,7 +193,7 @@ cache:
   requireDigest: true
 
 output:
-  group: action
+  view: actions
 ```
 
 Nothing changes in any repository. A project that needs something different sets that one key in

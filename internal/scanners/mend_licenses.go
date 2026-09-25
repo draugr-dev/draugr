@@ -80,7 +80,7 @@ func (s mendLicensesScanner) Scan(ctx context.Context, target plugin.Target, cfg
 	if err != nil {
 		return sarif.Report{}, err
 	}
-	settings.project = mendProjectName(settings.project, repo.Source())
+	settings.project = mendProjectName(settings.project, repo)
 
 	tree, cleanup, err := git.Checkout(ctx, repo.URL, repo.Revision,
 		git.Scope{Paths: repo.Paths, Ignore: repo.Ignore})

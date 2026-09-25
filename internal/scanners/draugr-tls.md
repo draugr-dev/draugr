@@ -32,7 +32,7 @@ provisioning, and it finishes in seconds:
 
 ## Configuration
 
-Certificate-expiry windows are tunable under `controllers.tls.draugr-tls`:
+Certificate-expiry windows are tunable under `config.controls.tls.draugrTls`:
 
 | Option | Default | Meaning |
 |--------|---------|---------|
@@ -41,10 +41,10 @@ Certificate-expiry windows are tunable under `controllers.tls.draugr-tls`:
 
 ```yaml
 config:
-  controllers:
+  controls:
     tls:
       enabled: true
-      draugr-tls:
+      draugrTls:
         expiryWarnDays: 10     # endpoint renews automatically, only shout if renewal failed
         expiryErrorDays: 5
 ```
