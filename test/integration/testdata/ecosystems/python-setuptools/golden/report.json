@@ -1,0 +1,76 @@
+{
+  "controls": [
+    {
+      "errors": 0,
+      "highest": "",
+      "name": "sca",
+      "notes": 0,
+      "threshold": "",
+      "total": 0,
+      "verdict": "pass",
+      "warnings": 0
+    }
+  ],
+  "dependencyFiles": [
+    {
+      "component": "python-setuptools",
+      "control": "sca",
+      "read": 0,
+      "scanners": [
+        "trivy-fs"
+      ],
+      "unread": [
+        {
+          "path": "setup.py",
+          "reason": "no packages read",
+          "repository": "./python-setuptools"
+        }
+      ]
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:8364d773a17dd9370fc6f1e1e435c2ad9d2a1ba7f7f98e7c73b95aa3d92c743f",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "project": "python-setuptools",
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./python-setuptools"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "trivy-fs",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 1,
+    "scans": 1
+  },
+  "verdict": "pass"
+}

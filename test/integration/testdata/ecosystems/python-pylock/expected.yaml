@@ -1,0 +1,14 @@
+# A sealed scan of the python-pylock scenario reports the one vulnerable dependency in the
+# pylock.toml pip generated, at the line of its own entry.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: python-pylock
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2018-1000656
+    location: pylock.toml:16
+    package: pylock flask 0.12.2

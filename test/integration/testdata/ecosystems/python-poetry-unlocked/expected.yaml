@@ -1,0 +1,8 @@
+# A Poetry project with no poetry.lock. The golden report.json names pyproject.toml under
+# dependencyFiles as having no lockfile, so its flask 0.12.2 is reported unchecked rather than
+# passed.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: python-poetry-unlocked
+      repositories: ["."]

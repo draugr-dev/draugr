@@ -1,0 +1,7 @@
+# A .csproj with no packages.lock.json. The golden report.json names it under dependencyFiles as
+# having no lockfile, so Newtonsoft.Json 12.0.1 is reported unchecked rather than passed.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: dotnet-csproj
+      repositories: ["."]

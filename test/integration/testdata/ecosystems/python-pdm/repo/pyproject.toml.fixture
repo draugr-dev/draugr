@@ -1,0 +1,8 @@
+[project]
+name = "sealed-pdm"
+version = "1.0.0"
+requires-python = ">=3.12"
+dependencies = ["flask==0.12.2"]
+
+[tool.pdm]
+distribution = false

@@ -1,0 +1,8 @@
+# A package.json locked by bun.lockb, the binary lockfile no scanner reads. The golden report.json
+# names bun.lockb under dependencyFiles as not read, rather than the scan passing with no
+# findings.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: negative-unsupported-lockfile
+      repositories: ["."]

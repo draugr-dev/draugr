@@ -1,0 +1,11 @@
+project: python-setuptools
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: python-setuptools
+    repositories:
+      - url: ./python-setuptools

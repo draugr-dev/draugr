@@ -255,3 +255,28 @@ func TestTrivyScannersAccountForTheirReads(t *testing.T) {
 		t.Error("trivy-license does not account for what it read")
 	}
 }
+
+// Trivy lists a conda environment's packages, and warns that it does not check them for
+// vulnerabilities. Its license scan reads them; its vulnerability scan does not, and says nothing in
+// its JSON to tell the two apart.
+func TestTrivyVulnsLeaveOutWhatTrivyOnlyLists(t *testing.T) {
+	doc := []byte(`{"Results":[
+		{"Target":"environment.yml","Class":"lang-pkgs","Type":"conda-environment",
+		 "Packages":[{"Identifier":{"UID":"a"}}]},
+		{"Target":"requirements.txt","Class":"lang-pkgs","Type":"pip","Packages":[{"Identifier":{"UID":"b"}}]}
+	]}`)
+	vulns, err := parseTrivyVulns(doc, t.TempDir(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []sarif.Input{{Path: "requirements.txt", Packages: 1}}; !reflect.DeepEqual(vulns.Inputs, want) {
+		t.Errorf("trivy-fs inputs = %+v, want %+v", vulns.Inputs, want)
+	}
+	licenses, err := parseTrivyLicenses(doc, t.TempDir(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(licenses.Inputs) != 2 {
+		t.Errorf("trivy-license inputs = %+v, want both files", licenses.Inputs)
+	}
+}

@@ -1,0 +1,11 @@
+project: negative-unsupported-lockfile
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: negative-unsupported-lockfile
+    repositories:
+      - url: ./negative-unsupported-lockfile

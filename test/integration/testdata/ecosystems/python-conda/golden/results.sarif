@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "python-conda/"
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "fields": {
+              "repository": "./python-conda",
+              "revision": "<cleared>"
+            },
+            "tool": "trivy-fs",
+            "version": "<cleared>"
+          }
+        ]
+      },
+      "results": [],
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "version": "<cleared>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

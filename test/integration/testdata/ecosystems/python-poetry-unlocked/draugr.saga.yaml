@@ -1,0 +1,11 @@
+project: python-poetry-unlocked
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: python-poetry-unlocked
+    repositories:
+      - url: ./python-poetry-unlocked

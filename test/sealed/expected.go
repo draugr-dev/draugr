@@ -87,3 +87,10 @@ type FindingExpectation struct {
 	// Reachability is the verdict reachability analysis reached, where it ran.
 	Reachability string `yaml:"reachability,omitempty"`
 }
+
+// LeavesFieldsUnwritten reports whether a scan of the scenario leaves out fields the normalizers
+// clear: a control that failed to start writes no scanner version, and a scan that finds nothing
+// writes no result to take a fingerprint from.
+func (e Expected) LeavesFieldsUnwritten() bool {
+	return len(e.Errors) > 0 || len(e.Findings)+len(e.Secrets) == 0
+}

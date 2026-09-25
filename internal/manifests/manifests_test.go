@@ -98,6 +98,7 @@ func TestFindReadsEachEcosystem(t *testing.T) {
 		"php/composer.lock":     `{"packages": [{"name": "monolog/monolog", "version": "3.0.0"}]}`,
 		"net/packages.config":   `<packages><package id="x" version="1"/></packages>`,
 		"js/yarn.lock":          "lodash@^4:\n  version \"4.17.21\"\n",
+		"bun/bun.lockb":         "#!/usr/bin/env bun\nbun-lockfile-format-v0\n",
 		"py2/poetry.lock":       "[[package]]\nname = \"flask\"\n",
 		"py2/pyproject.toml":    "[tool.poetry]\nname = \"x\"\n",
 	})
@@ -115,7 +116,8 @@ func TestFindReadsEachEcosystem(t *testing.T) {
 		"rb/Gemfile": {"ruby", Declared}, "rb/Gemfile.lock": {"ruby", Pinned},
 		"rs/Cargo.toml": {"rust", Declared}, "php/composer.json": {"php", Declared},
 		"php/composer.lock": {"php", Pinned}, "net/packages.config": {"nuget", Pinned},
-		"js/yarn.lock": {"npm", Pinned}, "py2/poetry.lock": {"python", Pinned},
+		"js/yarn.lock": {"npm", Pinned}, "bun/bun.lockb": {"npm", Pinned},
+		"py2/poetry.lock":    {"python", Pinned},
 		"py2/pyproject.toml": {"python", Declared},
 	} {
 		f, ok := got[rel]

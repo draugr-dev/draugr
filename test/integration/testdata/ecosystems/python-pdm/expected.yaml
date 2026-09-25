@@ -1,0 +1,9 @@
+# A PDM project with the pdm.lock PDM generated, which Trivy does not read and grype-fs does.
+# init turns grype-fs on for it; the sealed scan runs Trivy alone, and the golden report.json names
+# pdm.lock under dependencyFiles as not read.
+init:
+  controls: [sca, secrets, sast, iac]
+  scanners: [sca.grypeFs]
+  components:
+    - name: python-pdm
+      repositories: ["."]

@@ -1,0 +1,7 @@
+# A conda environment.yml. Trivy lists its packages and does not check them for vulnerabilities, so
+# the golden report.json names the file under dependencyFiles as not read.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: python-conda
+      repositories: ["."]
