@@ -116,6 +116,43 @@ func TestParseGosec(t *testing.T) {
 	}
 }
 
+// A rule include or exclude left out comes back from gosec as an external suppression, and is
+// dropped: the descriptor said the rule does not apply, which is not an acceptance of a finding.
+// A #nosec, kind inSource, stays in the report either way.
+func TestParseGosecDropsRulesOutsideTheSelection(t *testing.T) {
+	result := func(rule, kind string) string {
+		sup := ""
+		if kind != "" {
+			sup = `,"suppressions":[{"kind":"` + kind + `","justification":"j"}]`
+		}
+		return `{"ruleId":"` + rule + `","message":{"text":"m"},"locations":[{"physicalLocation":` +
+			`{"artifactLocation":{"uri":"main.go"},"region":{"startLine":3}}}]` + sup + `}`
+	}
+	doc := `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"gosec","rules":[{"id":"G204"},{"id":"G401"},{"id":"G101"}]}},"results":[` +
+		result("G204", "") + "," + result("G401", "external") + "," + result("G101", "inSource") + `]}]}`
+	for _, c := range []struct {
+		cfg  plugin.Config
+		want []string
+	}{
+		{plugin.Config{"include": []any{"G204", "G101"}}, []string{"G101", "G204"}},
+		{plugin.Config{"exclude": []any{"G401"}}, []string{"G101", "G204"}},
+		{nil, []string{"G101", "G204", "G401"}},
+	} {
+		rep, err := parseGosec([]byte(doc), "", c.cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, r := range rep.Results {
+			got = append(got, r.RuleID)
+		}
+		slices.Sort(got)
+		if !slices.Equal(got, c.want) {
+			t.Errorf("parseGosec(%v) = %v, want %v", c.cfg, got, c.want)
+		}
+	}
+}
+
 func TestExecArgvInDirSetsCwd(t *testing.T) {
 	dir := t.TempDir()
 	out, err := execArgvInDir(context.Background(), dir, []string{"pwd"})

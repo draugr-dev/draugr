@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"slices"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -106,7 +107,7 @@ func gosecArgs(dir string, cfg plugin.Config) [][]string {
 //
 // No output means no module was found, and the report says so rather than passing: a tree gosec
 // could not analyze must not read like one it analyzed and found clean.
-func parseGosec(out []byte, dir string, _ plugin.Config) (sarif.Report, error) {
+func parseGosec(out []byte, dir string, cfg plugin.Config) (sarif.Report, error) {
 	if len(bytes.TrimSpace(out)) == 0 {
 		return sarif.Report{
 			Tool: "gosec",
@@ -117,6 +118,7 @@ func parseGosec(out []byte, dir string, _ plugin.Config) (sarif.Report, error) {
 		}, nil
 	}
 	modules := goModuleDirs(dir)
+	selected := commaList(cfg, "include") != "" || commaList(cfg, "exclude") != ""
 	dec := json.NewDecoder(bytes.NewReader(out))
 	var reports []sarif.Report
 	for {
@@ -135,12 +137,25 @@ func parseGosec(out []byte, dir string, _ plugin.Config) (sarif.Report, error) {
 		if i := len(reports); dir != "" && i < len(modules) {
 			underModule(&rep, dir, modules[i])
 		}
+		if selected {
+			rep.Results = slices.DeleteFunc(rep.Results, outOfSelection)
+		}
 		reports = append(reports, rep)
 	}
 	if dir != "" && len(reports) != len(modules) {
 		return sarif.Report{}, fmt.Errorf("gosec wrote %d reports for %d modules", len(reports), len(modules))
 	}
 	return sarif.Merge(reports...), nil
+}
+
+// outOfSelection reports whether a result is one of the rules -include or -exclude left out.
+//
+// Under -track-suppressions gosec still runs those rules and reports each result as a suppression
+// of kind external, justified "Globally suppressed.", where a #nosec is kind inSource. Kept, the
+// result reads as a finding somebody accepted, when the descriptor said the rule does not apply to
+// this codebase at all.
+func outOfSelection(r sarif.Result) bool {
+	return r.Suppression != nil && r.Suppression.Kind == "external"
 }
 
 // underModule prefixes each relative location in rep with module's directory relative to root.
