@@ -45,7 +45,8 @@ func requireLive(t *testing.T) {
 // reported results before and reports none now, and a control that could not run.
 //
 // A scenario that takes something away from its container (a tool, a database) is about a sealed
-// failure and is left to the sealed tier.
+// failure, and one that asks the sealed server for something is about what that server answers.
+// Both are left to the sealed tier.
 func TestLiveScenarios(t *testing.T) {
 	requireLive(t)
 	requireTool(t, "git", "each scenario is committed to a repository before it is scanned")
@@ -63,11 +64,18 @@ func TestLiveScenarios(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if s.Expected.Sealed != (sealed.RunOptions{}) {
+		if s.Expected.Sealed != (sealed.RunOptions{}) || servedBySealed(s) {
 			continue
 		}
 		t.Run(s.Name, func(t *testing.T) { runLive(t, s, bin) })
 	}
+}
+
+// servedBySealed reports whether s scans something only the sealed server answers for: an image,
+// a package repository or a host at its loopback address. Nothing listens there outside the
+// sealed container.
+func servedBySealed(s sealed.Scenario) bool {
+	return len(s.Expected.Requests) > 0
 }
 
 func runLive(t *testing.T, s sealed.Scenario, bin string) {
@@ -76,6 +84,7 @@ func runLive(t *testing.T, s sealed.Scenario, bin string) {
 	for _, err := range []error{
 		copyFile(filepath.Join(s.Dir, "draugr.saga.yaml"), filepath.Join(work, "draugr.saga.yaml"), 0o600),
 		copyFile(filepath.Join(ecosystems, "semgrep.yaml"), rules, 0o600),
+		s.CopyWorkdir(work),
 	} {
 		if err != nil {
 			t.Fatal(err)

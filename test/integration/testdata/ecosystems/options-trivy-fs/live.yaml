@@ -5,8 +5,8 @@
 # Written by the live tier (go test -tags integration -run TestLive -update-live with
 # DRAUGR_LIVE=1). A nightly run that finds a difference proposes it as a pull request.
 packages:
-  python:
-    - name: flask
+  pip:
+    - name: Flask
       version: 0.12.2
-      in: setup.py
-      foundBy: [sca/grype]
+      in: default/requirements.txt
+      foundBy: [sca/trivy]

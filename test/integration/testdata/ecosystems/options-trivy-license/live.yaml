@@ -4,9 +4,14 @@
 #
 # Written by the live tier (go test -tags integration -run TestLive -update-live with
 # DRAUGR_LIVE=1). A nightly run that finds a difference proposes it as a pull request.
-packages:
-  python:
-    - name: flask
-      version: 0.12.2
-      in: setup.py
-      foundBy: [sca/grype]
+files:
+  - file: full/LICENSE
+    foundBy: [licenses/trivy-license]
+  - file: licenses-deny/package-lock.json
+    foundBy: [licenses/trivy-license]
+  - file: licenses-warn/package-lock.json
+    foundBy: [licenses/trivy-license]
+  - file: trivy-license-deny/package-lock.json
+    foundBy: [licenses/trivy-license]
+  - file: trivy-license-warn/package-lock.json
+    foundBy: [licenses/trivy-license]
