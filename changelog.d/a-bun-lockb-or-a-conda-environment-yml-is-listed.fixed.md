@@ -1,1 +1,0 @@
-- **A `bun.lockb` or a conda `environment.yml` appears under Unread with the reason `no packages read`.** Both were counted as checked, though no scanner checks the packages in either.
