@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -270,5 +271,57 @@ func TestReadOnlyFallsBackWhenTheWrappedCacheCannotStamp(t *testing.T) {
 	}
 	if !storedAt.IsZero() {
 		t.Errorf("a time was invented for a cache that does not record one: %v", storedAt)
+	}
+}
+
+func TestLocalStoresAnyKeyAsOneFileInItsDirectory(t *testing.T) {
+	dir := t.TempDir()
+	c := NewLocal(dir, 0)
+	scoped := strings.Repeat("a", 64) + "@services/api=" + strings.Repeat("b", 40) + ";.gitleaks.toml=" + strings.Repeat("c", 40)
+	for _, key := range []string{
+		strings.Repeat("a", 64) + "@" + strings.Repeat("d", 40),
+		scoped,
+		scoped + ";services/web=" + strings.Repeat("e", 40),
+		strings.Repeat("a", 64) + "@" + strings.Repeat("services/part=0123456789abcdef;", 12),
+		"../outside",
+	} {
+		if err := c.Put(key, sampleReport()); err != nil {
+			t.Fatalf("Put(%q): %v", key, err)
+		}
+		if _, ok := c.Get(key); !ok {
+			t.Errorf("Get(%q) missed after Put", key)
+		}
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 5 {
+		t.Errorf("the directory holds %d entries, want one file per key", len(entries))
+	}
+	for _, e := range entries {
+		if e.IsDir() || len(e.Name()) > 255 {
+			t.Errorf("entry %q is a directory or longer than a file name may be", e.Name())
+		}
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(dir), "outside"+entrySuffix)); err == nil {
+		t.Error("a key holding .. was written outside the cache directory")
+	}
+	plain := strings.Repeat("a", 64) + "@" + strings.Repeat("d", 40)
+	if _, err := os.Stat(filepath.Join(dir, plain+entrySuffix)); err != nil {
+		t.Errorf("a plain key is not stored under its own name, so existing entries go unread: %v", err)
+	}
+}
+
+func TestLocalPutReportsAnUnwritableDirectory(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(file, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := NewLocal(file, 0).Put("k", sampleReport()); err == nil {
+		t.Error("Put into a path that is a file returned no error")
+	}
+	if err := NewLocal(filepath.Join(file, "sub"), 0).Put("k", sampleReport()); err == nil {
+		t.Error("Put under a path that is a file returned no error")
 	}
 }

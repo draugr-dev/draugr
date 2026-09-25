@@ -1,10 +1,13 @@
 // Package cache stores scan results keyed by content hash so unchanged targets are not
-// re-scanned. Keys come from plugin.ComputeCacheKey (a hex SHA, safe as a filename).
+// re-scanned. Keys come from plugin.ComputeCacheKey, a hex SHA, with the revision the engine
+// resolved appended after an "@".
 package cache
 
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"os"
@@ -155,11 +158,41 @@ const entrySuffix = ".json.gz"
 const legacySuffix = ".json"
 
 func (l *Local) pathFor(key string) string {
-	return filepath.Join(l.dir, key+entrySuffix)
+	return filepath.Join(l.dir, fileName(key)+entrySuffix)
 }
 
 func (l *Local) legacyPathFor(key string) string {
-	return filepath.Join(l.dir, key+legacySuffix)
+	return filepath.Join(l.dir, fileName(key)+legacySuffix)
+}
+
+// maxNameLen bounds a key stored under its own name, below the 255 bytes most file systems allow
+// once the suffix is added.
+const maxNameLen = 200
+
+// fileName is the name an entry for key is stored under. A key for a component scoped with paths
+// carries each path and its tree id after the "@", so it holds a separator and grows with the
+// paths a descriptor declares. Such a key is stored under its SHA-256, prefixed "h" so it cannot
+// be read as a plain key. Any other key is stored as itself, which keeps existing entries readable.
+func fileName(key string) string {
+	if key != "" && len(key) <= maxNameLen && plainName(key) {
+		return key
+	}
+	sum := sha256.Sum256([]byte(key))
+	return "h" + hex.EncodeToString(sum[:])
+}
+
+// plainName reports whether key is safe as a file name in any directory: letters, digits, "@",
+// "-", "_" and ".", beginning with a letter or digit.
+func plainName(key string) bool {
+	for i, r := range key {
+		switch {
+		case r >= '0' && r <= '9', r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z':
+		case i > 0 && (r == '@' || r == '-' || r == '_' || r == '.'):
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // Describe reports where this cache is and how long it keeps entries.
@@ -187,7 +220,7 @@ func (l *Local) entryFor(key string) (entry, bool) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 
-	data, err := os.ReadFile(l.pathFor(key)) //nolint:gosec // key is a content-hash filename
+	data, err := os.ReadFile(l.pathFor(key)) // #nosec G304 -- fileName admits no separator
 	if err != nil {
 		return entry{}, false
 	}

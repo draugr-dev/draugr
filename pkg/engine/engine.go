@@ -1086,7 +1086,12 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				// Before caching, so a cache hit carries the same account a fresh scan does.
 				recordProvenance(&rep, pj.Job.Scanner, version)
 				if caches {
-					_ = e.cache.Put(key, rep) // cache the raw findings; priority is stamped per run
+					// The raw findings; priority is stamped per run. A write that fails costs the
+					// next run a scan rather than this one a result, so it is reported, not raised.
+					if err := e.cache.Put(key, rep); err != nil {
+						slog.WarnContext(jobCtx, "cache write failed; the next run scans this job again",
+							"control", pj.Control, "scanner", pj.Job.Scanner, "error", err.Error())
+					}
 				}
 				slog.DebugContext(jobCtx, "scan complete",
 					"control", pj.Control, "scanner", pj.Job.Scanner,

@@ -296,6 +296,36 @@ func TestRunWithCache(t *testing.T) {
 	}
 }
 
+// unwritable is a cache every write to fails.
+type unwritable struct{ cache.Noop }
+
+func (unwritable) Put(string, sarif.Report) error { return errors.New("read-only file system") }
+
+func TestACacheWriteThatFailsIsReported(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(fakeController{name: "images", scope: plugin.ScopeComponent, scanner: "s"})
+	reg.RegisterScanner(&fakeScanner{name: "s"})
+
+	var logs bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	defer slog.SetDefault(prev)
+
+	res, err := New(reg, WithCache(unwritable{})).Run(context.Background(), model())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Stats.Scans != 2 {
+		t.Errorf("stats = %+v, want both jobs scanned despite the cache", res.Stats)
+	}
+	if got := strings.Count(logs.String(), "cache write failed"); got != 2 {
+		t.Errorf("%d warnings for 2 failed writes:\n%s", got, logs.String())
+	}
+	if !strings.Contains(logs.String(), "read-only file system") {
+		t.Errorf("the warning does not carry the cause:\n%s", logs.String())
+	}
+}
+
 func TestWithConcurrencySerialStillCompletes(t *testing.T) {
 	reg := NewRegistry()
 	reg.RegisterController(fakeController{name: "images", scope: plugin.ScopeComponent, scanner: "s"})
