@@ -271,9 +271,10 @@ func TestSummarizeReportToolReadsAFile(t *testing.T) {
 	if _, _, err := SummarizeReportTool(context.Background(), nil, SummarizeInput{Path: filepath.Join(dir, "nope")}); err == nil {
 		t.Error("want an error for a missing file")
 	}
-	// Pointing at the wrong artifact is an easy mistake; the error should say which one to use.
+	// report.json is valid JSON, so it would parse as a SARIF log holding nothing and summarize as
+	// a clean scan. The error has to say which file holds the findings.
 	bad := filepath.Join(dir, "report.json")
-	if err := os.WriteFile(bad, []byte("not sarif"), 0o600); err != nil {
+	if err := os.WriteFile(bad, []byte(`{"draugr": {"version": "dev"}, "project": "shop", "verdict": "fail"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	_, _, err = SummarizeReportTool(context.Background(), nil, SummarizeInput{Path: bad})

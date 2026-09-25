@@ -69,7 +69,7 @@ func runExplain(w io.Writer, query, reportPath string) error {
 	}
 	report, err := sarif.FromSARIF(data)
 	if err != nil {
-		return fmt.Errorf("%s is not a SARIF report: %w", path, err)
+		return fmt.Errorf("%s: %w", path, err)
 	}
 
 	id, rule, err := matchRule(report, query)

@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -72,6 +73,26 @@ func TestRunDiffMissingFile(t *testing.T) {
 	err := runDiff(context.Background(), filepath.Join(t.TempDir(), "nope.sarif"), head, diffOptions{}, &bytes.Buffer{})
 	if err == nil {
 		t.Error("expected an error for a missing base report")
+	}
+}
+
+// report.json is JSON but not SARIF. Read as SARIF it holds no findings, and two of them diff to
+// "nothing changed" whatever the scans found, so the diff has to refuse them and name results.sarif.
+func TestRunDiffRefusesAReportSummary(t *testing.T) {
+	summary := `{"draugr": {"version": "dev"}, "project": "shop", "verdict": "fail"}`
+	base := writeFile(t, "report.json", summary)
+	head := writeFile(t, "report.json", summary)
+	var out bytes.Buffer
+	err := runDiff(context.Background(), base, head, diffOptions{format: "console"}, &out)
+	if err == nil {
+		t.Fatalf("diffing two report.json files succeeded:\n%s", out.String())
+	}
+	if !errors.Is(err, sarif.ErrNotSARIF) || !strings.Contains(err.Error(), "results.sarif") ||
+		!strings.Contains(err.Error(), base) {
+		t.Errorf("the error should name the file and point at results.sarif, got %v", err)
+	}
+	if out.Len() != 0 {
+		t.Errorf("a refused diff still printed:\n%s", out.String())
 	}
 }
 

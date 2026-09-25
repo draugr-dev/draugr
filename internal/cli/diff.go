@@ -193,7 +193,11 @@ func loadSARIF(path string) (sarif.Report, error) {
 	if err != nil {
 		return sarif.Report{}, err
 	}
-	return sarif.FromSARIF(data)
+	rep, err := sarif.FromSARIF(data)
+	if err != nil {
+		return sarif.Report{}, fmt.Errorf("%s: %w", path, err)
+	}
+	return rep, nil
 }
 
 // comparableScopes refuses to compare two reports that did not cover the same ground.

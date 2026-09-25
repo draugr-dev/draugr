@@ -2,6 +2,7 @@ package sarif
 
 import (
 	"encoding/json"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -1321,5 +1322,35 @@ func TestMarshalSARIFToolVersion(t *testing.T) {
 	// A report built outside a run knows no version and claims none.
 	if got := read(MarshalOptions{}); got != "" {
 		t.Errorf("driver version = %q, want nothing", got)
+	}
+}
+
+// Any JSON object unmarshals into a SARIF log, so a document that is not one has to be refused by
+// what it lacks: without the check it reads as a scan that found nothing.
+func TestFromSARIFRefusesADocumentThatIsNotSARIF(t *testing.T) {
+	for name, doc := range map[string]string{
+		"empty object": `{}`,
+		"null":         `null`,
+		"other json":   `{"results": [{"ruleId": "CVE-1"}]}`,
+	} {
+		if _, err := FromSARIF([]byte(doc)); !errors.Is(err, ErrNotSARIF) {
+			t.Errorf("%s: err = %v, want ErrNotSARIF", name, err)
+		}
+	}
+}
+
+func TestFromSARIFNamesResultsSARIFForADraugrSummary(t *testing.T) {
+	_, err := FromSARIF([]byte(`{"draugr": {"version": "dev"}, "project": "shop", "verdict": "fail"}`))
+	if !errors.Is(err, ErrNotSARIF) || !strings.Contains(err.Error(), "results.sarif") {
+		t.Errorf("err = %v, want ErrNotSARIF naming results.sarif", err)
+	}
+}
+
+// A log with no runs, or runs with no results, is SARIF that found nothing, and still reads.
+func TestFromSARIFAcceptsAnEmptyLog(t *testing.T) {
+	for _, doc := range []string{`{"version": "2.1.0", "runs": []}`, `{"runs": []}`, `{"version": "2.1.0"}`} {
+		if _, err := FromSARIF([]byte(doc)); err != nil {
+			t.Errorf("%s: %v", doc, err)
+		}
 	}
 }
