@@ -46,8 +46,8 @@ func TestOneFlawTwoScannersIsOneChange(t *testing.T) {
 	if got := len(c.Changed()); got != 1 {
 		t.Errorf("Changed() = %d rows, want 1", got)
 	}
-	if got, want := newBands(c.New), [4]int{1, 0, 0, 0}; got != want {
-		t.Errorf("newBands = %v, want %v", got, want)
+	if got, want := bands(c.New), [4]int{1, 0, 0, 0}; got != want {
+		t.Errorf("bands = %v, want %v", got, want)
 	}
 }
 
