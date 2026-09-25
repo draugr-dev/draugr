@@ -44,8 +44,8 @@ func gitleaksVersion(v string) func(context.Context) string {
 func TestAnAllowedSecretArrivesSuppressedInSource(t *testing.T) {
 	for _, repo := range []string{"./api", "./web"} {
 		dir := t.TempDir()
-		active := leak{"aws-access-token", filepath.Join(dir, repo, "app.py"), 4, "AKIAQYLPMN5HHHFPZAM3"}
-		allowed := leak{"aws-access-token", filepath.Join(dir, repo, "app.py"), 3, "AKIAQYLPMN5HHHFPZAM2"}
+		active := leak{"aws-access-token", filepath.Join(dir, repo, "app.py"), 4, "AKIAIOSFODNN7EXAMPLE"}
+		allowed := leak{"aws-access-token", filepath.Join(dir, repo, "app.py"), 3, "AKIAIOSFODNN6EXAMPLE"}
 		passes := &gitleaksPasses{reports: map[string]string{
 			"dir":     gitleaksReport(active),
 			"dir+all": gitleaksReport(allowed, active),
