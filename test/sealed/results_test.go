@@ -90,6 +90,41 @@ func TestCheck(t *testing.T) {
 	}
 }
 
+func TestCheckTellsComponentsApart(t *testing.T) {
+	// Two components scanning one repository report the same file twice, and only the component
+	// says which verdict belongs to which. An expectation naming the component holds each to its
+	// own; swapping the verdicts between them must fail.
+	const twoComponents = `{"runs":[{"results":[
+ {"ruleId":"CVE-1","locations":[{"physicalLocation":{"artifactLocation":{"uri":"go.mod"},"region":{"startLine":5}}}],
+  "properties":{"tool":"trivy","control":"sca","component":"api","reachability":{"state":"reachable"}}},
+ {"ruleId":"CVE-1","locations":[{"physicalLocation":{"artifactLocation":{"uri":"go.mod"},"region":{"startLine":5}}}],
+  "properties":{"tool":"trivy","control":"sca","component":"worker","reachability":{"state":"unreachable"}}}
+]}]}`
+	got, err := Observe([]byte(twoComponents))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := got[0].String(); s != "sca trivy CVE-1 at go.mod:5 in api reachable" {
+		t.Errorf("finding = %q, want the component named", s)
+	}
+	exp := Expected{Findings: []FindingExpectation{
+		{Rule: "CVE-1", Location: "go.mod:5", Component: "api", Reachability: "reachable"},
+		{Rule: "CVE-1", Location: "go.mod:5", Component: "worker", Reachability: "unreachable"},
+	}}
+	if problems, err := Check(exp, nil, got); err != nil || len(problems) != 0 {
+		t.Fatalf("a matching scan reported %v (%v)", problems, err)
+	}
+	exp.Findings[0].Component, exp.Findings[1].Component = "worker", "api"
+	problems, err := Check(exp, nil, got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(problems) != 4 {
+		t.Errorf("swapped verdicts reported %d problems, want 2 missing and 2 unexpected:\n%s",
+			len(problems), strings.Join(problems, "\n"))
+	}
+}
+
 func TestSplitLocation(t *testing.T) {
 	for loc, want := range map[string]struct {
 		file string

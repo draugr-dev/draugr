@@ -14,7 +14,7 @@ your Mend account, so it runs only when a descriptor asks for it.
 
 ```yaml
 config:
-  controllers:
+  controls:
     sca:
       mendSca:
         enabled: true
@@ -93,16 +93,33 @@ mend ua -c <config> -d <dir> -offline true    # writes the payload instead of se
 mutate`. Draugr will not write records into a third party's account because a scan happened to
 run.
 
-## Projects, one per repository
+## Projects
 
-Each repository becomes its own Mend project, named after the repository it came from. That is not
-a preference: Draugr scans a component's repositories concurrently, and an agent upload *replaces*
-a project's inventory rather than adding to it, so repositories sharing a project would overwrite
-one another, and the findings would describe whichever finished last.
+Each repository a component scans reports into its own Mend project, named from three parts in
+order:
 
-The name derives from the repository's resolved source, so a scan from a laptop and a scan from a
-pipeline land in the **same** project rather than two. `productToken` decides which product they
-sit under, and a component may override the project-level one.
+- **`project`**, when the descriptor sets it, as a prefix.
+- **The repository's resolved source**, so a scan from a laptop and a scan from a pipeline land in
+  the same project.
+- **The component's scope**, when it sets `paths` or `ignore` on the repository, as the paths and
+  an 8-character hash of the paths and ignores.
+
+For `project: acme` and `https://github.com/acme/shop`:
+
+```text
+acme-github.com-acme-shop                            # no paths or ignore
+acme-github.com-acme-shop-services-web-0a0abd8c      # paths: [services/web]
+acme-github.com-acme-shop-services-worker-30106123   # paths: [services/worker]
+```
+
+Draugr scans repositories concurrently, and an agent upload *replaces* a project's inventory
+rather than adding to it, so two uploads into one project would overwrite each other and the
+findings would describe whichever finished last. Two components scoped to different parts of one
+repository upload different inventories, which is why the scope is part of the name. Components
+with the same scope on the same repository share one project and one upload.
+
+`productToken` decides which product the projects sit under, and a component may override the
+project-level one.
 
 ## Integration notes
 
@@ -130,7 +147,9 @@ which is exactly what takes longest to process, would report a clean bill of hea
 **Configuration matters more than usual.** What the agent finds depends entirely on how each
 ecosystem's package manager is told to run. `settings` is passed through verbatim rather than
 curated, because the keys are Mend's, they differ per ecosystem, and anyone already running Mend
-knows them. See Mend's Unified Agent configuration reference.
+knows them. See Mend's Unified Agent configuration reference. The scope needs no `excludes` key
+there, because the agent runs over a checkout that holds only what `paths` selects and `ignore`
+leaves.
 
 ## Data
 

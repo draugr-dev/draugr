@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -68,28 +69,104 @@ func tree(t *testing.T, dir string) []string {
 	return out
 }
 
-func TestCheckoutPathsKeepsTheRootAndTheSelectedSubtree(t *testing.T) {
-	// The reason paths has to keep the root: go.mod, .trivyignore and the Dockerfile are how a
-	// scanner knows what it is looking at. Without them Trivy finds no dependencies to check and
-	// reports nothing, which is indistinguishable from a repository that has no vulnerabilities.
+func TestCheckoutPathsKeepsTheSelectedSubtreeAndTheScannersConfiguration(t *testing.T) {
+	// .trivyignore configures how the component is scanned, so it stays. go.mod and the Dockerfile
+	// are content, and a component that does not name them does not own them: two components on
+	// one repository would otherwise each report every finding in them.
 	co, cleanup, err := Checkout(context.Background(), scopedRepo(t), "",
 		Scope{Paths: []string{"services/web"}})
 	if err != nil {
 		t.Fatalf("checkout: %v", err)
 	}
-	dir := co.Dir
 	defer cleanup()
 
-	got := tree(t, dir)
-	for _, want := range []string{"go.mod", ".trivyignore", "Dockerfile", "services/web/main.go"} {
-		if !slices.Contains(got, want) {
-			t.Errorf("missing %q from the scoped checkout: %v", want, got)
-		}
+	got := tree(t, co.Dir)
+	want := []string{".trivyignore", "services/web/main.go", "services/web/testdata/fixture.go"}
+	if !slices.Equal(got, want) {
+		t.Errorf("scoped checkout\n got %v\nwant %v", got, want)
 	}
-	for _, unwanted := range []string{"services/api/main.go", "vendor/lib/lib.go"} {
-		if slices.Contains(got, unwanted) {
-			t.Errorf("%q should not have been checked out: %v", unwanted, got)
+}
+
+func TestComponentsSharingARepositoryEachGetWhatTheyOwn(t *testing.T) {
+	// One component names the root files it owns; the other names only its directory. A root
+	// file reaches the first and not the second, whichever route the checkout takes.
+	src := scopedRepo(t)
+	web := Scope{Paths: []string{"services/web", "go.mod", "Dockerfile"}}
+	api := Scope{Paths: []string{"services/api"}}
+
+	for name, refuseSparse := range map[string]bool{"sparse": false, "fallback": true} {
+		t.Run(name, func(t *testing.T) {
+			if refuseSparse {
+				orig := gitRun
+				t.Cleanup(func() { gitRun = orig })
+				gitRun = func(ctx context.Context, args ...string) error {
+					if slices.Contains(args, "--sparse") {
+						return errors.New("server does not support --filter")
+					}
+					return orig(ctx, args...)
+				}
+			}
+			for scope, want := range map[*Scope][]string{
+				&web: {".trivyignore", "Dockerfile", "go.mod", "services/web/main.go", "services/web/testdata/fixture.go"},
+				&api: {".trivyignore", "services/api/main.go"},
+			} {
+				co, cleanup, err := Checkout(context.Background(), src, "", *scope)
+				if err != nil {
+					t.Fatalf("checkout %v: %v", scope.Paths, err)
+				}
+				got := tree(t, co.Dir)
+				cleanup()
+				if !slices.Equal(got, want) {
+					t.Errorf("%v\n got %v\nwant %v", scope.Paths, got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestCheckoutRefusesAPathTheRepositoryDoesNotHold(t *testing.T) {
+	// services/wbe would otherwise scan the scanners' configuration and nothing else, and report
+	// the silence as a clean result.
+	src := scopedRepo(t)
+	for name, refuseSparse := range map[string]bool{"sparse": false, "fallback": true} {
+		t.Run(name, func(t *testing.T) {
+			if refuseSparse {
+				orig := gitRun
+				t.Cleanup(func() { gitRun = orig })
+				gitRun = func(ctx context.Context, args ...string) error {
+					if slices.Contains(args, "--sparse") {
+						return errors.New("server does not support --filter")
+					}
+					return orig(ctx, args...)
+				}
+			}
+			_, _, err := Checkout(context.Background(), src, "",
+				Scope{Paths: []string{"services/web", "services/wbe", "go.sum"}})
+			if err == nil {
+				t.Fatal("a path the repository does not hold must be refused")
+			}
+			if !strings.Contains(err.Error(), `"services/wbe", "go.sum"`) || strings.Contains(err.Error(), `"services/web"`) {
+				t.Errorf("the error must name the missing entries and only those: %v", err)
+			}
+		})
+	}
+	t.Run("history", func(t *testing.T) {
+		if _, _, err := Checkout(context.Background(), src, "",
+			Scope{Paths: []string{"services/wbe"}, History: true}); err == nil {
+			t.Fatal("a history checkout must refuse the entry too")
 		}
+	})
+}
+
+func TestCheckoutWholeRepositoryWhenAPathNamesTheRoot(t *testing.T) {
+	co, cleanup, err := Checkout(context.Background(), scopedRepo(t), "",
+		Scope{Paths: []string{"services/web", "."}})
+	if err != nil {
+		t.Fatalf("checkout: %v", err)
+	}
+	defer cleanup()
+	if got := len(tree(t, co.Dir)); got != 7 {
+		t.Errorf("files = %d, want all 7: %v", got, tree(t, co.Dir))
 	}
 }
 
@@ -179,11 +256,16 @@ func TestScopeKeyDistinguishesSubtrees(t *testing.T) {
 	}
 }
 
-func TestConeDirsNormalizes(t *testing.T) {
-	got := coneDirs([]string{"services/web/**", "/api/", " ", ".", "lib/*"})
-	want := []string{"services/web", "api", "lib"}
+func TestSelectedNormalizes(t *testing.T) {
+	got := selected([]string{"services/web/**", "/api/", "lib/*", "go.mod"})
+	want := []string{"services/web", "api", "lib", "go.mod"}
 	if !slices.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
+	}
+	for _, root := range [][]string{nil, {"."}, {"web", " "}, {"web", "/"}} {
+		if got := selected(root); got != nil {
+			t.Errorf("selected(%q) = %v, want the whole repository", root, got)
+		}
 	}
 }
 
@@ -238,7 +320,7 @@ func TestPruneEnforcesPathsForTheFallback(t *testing.T) {
 		t.Fatalf("prune: %v", err)
 	}
 	got := tree(t, dir)
-	want := []string{".trivyignore", "Dockerfile", "go.mod", "services/web/main.go"}
+	want := []string{".trivyignore", "services/web/main.go"}
 	if !slices.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
 	}
@@ -315,7 +397,7 @@ func TestCheckoutFallsBackWhenSparseCloneIsRefused(t *testing.T) {
 	defer cleanup()
 
 	got := tree(t, dir)
-	want := []string{".trivyignore", "Dockerfile", "go.mod", "services/web/main.go"}
+	want := []string{".trivyignore", "services/web/main.go"}
 	if !slices.Equal(got, want) {
 		t.Errorf("the fallback must produce the same tree as sparse checkout\n got %v\nwant %v", got, want)
 	}

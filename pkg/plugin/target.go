@@ -29,7 +29,8 @@ type Target interface {
 type RepositoryTarget struct {
 	URL      string
 	Revision string
-	// Paths restricts the scan to these directories; the repository root is always included.
+	// Paths restricts the scan to these directories and files. A root file is in scope only when
+	// an entry names it, apart from the scanners' own configuration.
 	Paths []string
 	// Ignore removes matching paths, applied after Paths.
 	Ignore []string

@@ -316,9 +316,77 @@ func TestEveryPublisherAppearsInAnExample(t *testing.T) {
 //
 // Read from the published schema, which is generated from each scanner's own ConfigSchema, so a
 // scanner that gains an option brings this failure with it.
+//
+// Held per scanner, at the path a descriptor writes it: config.controls.<control>.<scanner>.<option>.
+// Scanners share option names (pkgTypes, dbRepository, byCve, deny, config), so a name matched
+// anywhere in the file passes for a scanner whose block is absent, and the file that claims to
+// show every option shows one scanner's and not the other's.
 func TestEveryScannerOptionAppearsInAnExample(t *testing.T) {
 	t.Parallel()
 
+	controls := controlSchemas(t)
+	body, err := os.ReadFile("../../examples/scanner-options.saga.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if missing := missingScannerOptions(controls, string(body)); len(missing) > 0 {
+		t.Errorf("examples/scanner-options.saga.yaml does not write these under config.controls: %s\n"+
+			"Add each under its own control and scanner, with a line saying what it decides. "+
+			"Comment it out where using it needs a credential or a cluster.",
+			strings.Join(missing, ", "))
+	}
+}
+
+// TestMissingScannerOptionsReadsEachScannersOwnBlock holds the guard above to the per-scanner
+// reading: an option written under one scanner does not answer for the same option under another,
+// and a commented block counts the same as a live one.
+func TestMissingScannerOptionsReadsEachScannersOwnBlock(t *testing.T) {
+	t.Parallel()
+
+	option := map[string]any{"type": "array"}
+	scanner := func(opts ...string) map[string]any {
+		props := map[string]any{"enabled": map[string]any{"type": "boolean"}}
+		for _, o := range opts {
+			props[o] = option
+		}
+		return map[string]any{"type": "object", "properties": props}
+	}
+	controls := map[string]map[string]any{
+		"images": {"enabled": map[string]any{"type": "boolean"}, "trivy": scanner("pkgTypes")},
+		"sca": {
+			"trivyFs": scanner("pkgTypes", "dbRepository"),
+			"grypeFs": scanner("byCve"),
+			"mendSca": scanner("productToken"),
+		},
+		"licenses": {"deny": option, "trivyLicense": scanner("full")},
+	}
+	body := `config:
+  controls:
+    images:
+      trivy:
+        pkgTypes: [library]            # pkgTypes: here does not answer for trivyFs
+    sca:
+      trivyFs:
+        dbRepository: [mirror]
+      grypeFs:
+        byCve: false
+      # mendSca:
+      #   productToken: 1a2b3c4d
+    licenses:
+      trivyLicense:
+        enabled: true
+`
+	got := missingScannerOptions(controls, body)
+	want := []string{"licenses.deny", "licenses.trivyLicense.full", "sca.trivyFs.pkgTypes"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("missing = %v, want %v", got, want)
+	}
+}
+
+// controlSchemas is each control's block from the published schema, keyed by control name: its
+// scanners and its own settings.
+func controlSchemas(t *testing.T) map[string]map[string]any {
+	t.Helper()
 	raw, err := os.ReadFile("../../pkg/saga/draugr.saga.schema.json")
 	if err != nil {
 		t.Fatal(err)
@@ -328,53 +396,86 @@ func TestEveryScannerOptionAppearsInAnExample(t *testing.T) {
 		t.Fatal(err)
 	}
 	defs, _ := doc["$defs"].(map[string]any)
-	if len(defs) == 0 {
-		t.Fatal("the schema declares no $defs, so this guard has been checking nothing")
-	}
-
-	corpus := readExamples(t)
-	seen := map[string]bool{}
-	var missing []string
+	controls := map[string]map[string]any{}
 	for name, def := range defs {
 		// Only the per-control blocks. Everything else in $defs is a descriptor field, which the
 		// field guard already holds.
-		if !strings.HasPrefix(name, "control_") {
+		control, ok := strings.CutPrefix(name, "control_")
+		if !ok {
 			continue
 		}
-		scanners, _ := def.(map[string]any)["properties"].(map[string]any)
-		for scanner, node := range scanners {
-			opts, _ := node.(map[string]any)["properties"].(map[string]any)
-			for opt := range opts {
-				// Every scanner has it, and a reader meets it on the first one.
-				if opt == "enabled" || seen[opt] {
-					continue
-				}
-				seen[opt] = true
-				if !writtenAsAKey(corpus, opt) {
-					missing = append(missing, scanner+"."+opt)
-				}
+		props, _ := def.(map[string]any)["properties"].(map[string]any)
+		controls[control] = props
+	}
+	if len(controls) == 0 {
+		t.Fatal("the schema declares no control blocks, so this guard has been checking nothing")
+	}
+	return controls
+}
+
+// missingScannerOptions lists what body does not write under config.controls, as
+// control.key or control.scanner.option. A key under a control is a scanner when its schema
+// declares properties, and each of those is required too; anything else is a setting of the
+// control's own. `enabled` is exempt at both levels: every control and scanner takes it, and a
+// reader meets it on the first one.
+func missingScannerOptions(controls map[string]map[string]any, body string) []string {
+	written := keyPaths(body)
+	var missing []string
+	for control, keys := range controls {
+		for key, node := range keys {
+			if key == "enabled" {
+				continue
 			}
-			if !seen[scanner] {
-				seen[scanner] = true
-				if !writtenAsAKey(corpus, scanner) {
-					missing = append(missing, scanner)
+			path := "config.controls." + control + "." + key
+			if !written[path] {
+				missing = append(missing, control+"."+key)
+				continue
+			}
+			def, _ := node.(map[string]any)
+			opts, _ := def["properties"].(map[string]any)
+			for opt := range opts {
+				if opt != "enabled" && !written[path+"."+opt] {
+					missing = append(missing, control+"."+key+"."+opt)
 				}
 			}
 		}
 	}
-	if len(missing) > 0 {
-		sort.Strings(missing)
-		t.Errorf("no example writes these scanner options: %s\n"+
-			"examples/scanner-options.saga.yaml is where they belong, each with a line saying "+
-			"what it decides. Comment it out where using it needs a credential or a cluster.",
-			strings.Join(missing, ", "))
-	}
+	sort.Strings(missing)
+	return missing
 }
 
-// writtenAsAKey reports whether the corpus writes key as a YAML key rather than mentioning it in
-// prose. A commented line counts, because a reader copies one as readily as a live one.
-func writtenAsAKey(corpus, key string) bool {
-	q := regexp.QuoteMeta(key)
-	return regexp.MustCompile(`(?m)^[\t ]*(#[\t ]*)?`+q+`:`).MatchString(corpus) ||
-		regexp.MustCompile(`(?m)^[\t ]*(#[\t ]*)?- `+q+`:`).MatchString(corpus)
+// keyLine matches a line that writes a YAML key, live or commented out: indentation, then an
+// optional comment marker with the space after it, then the indentation inside the comment, then
+// the key and the colon that ends it. A word followed by a colon inside a sentence does not match,
+// because the colon must end the line or be followed by a space and the key must open the line.
+var keyLine = regexp.MustCompile(`^( *)(?:# ?( *))?([A-Za-z][A-Za-z0-9_-]*):(?:[\t ]|$)`)
+
+// keyPaths is every dotted path body writes as a key, commented lines included, because a reader
+// copies a commented block as readily as a live one. A commented key's depth is measured inside the
+// comment, so `#   enabled: true` under `# mendSca:` nests the way the uncommented block would.
+// List items are skipped rather than followed: nothing this guard asks for sits inside a list.
+func keyPaths(body string) map[string]bool {
+	type frame struct {
+		indent int
+		key    string
+	}
+	var stack []frame
+	paths := map[string]bool{}
+	for line := range strings.SplitSeq(body, "\n") {
+		m := keyLine.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		indent := len(m[1]) + len(m[2])
+		for len(stack) > 0 && stack[len(stack)-1].indent >= indent {
+			stack = stack[:len(stack)-1]
+		}
+		stack = append(stack, frame{indent, m[3]})
+		keys := make([]string, len(stack))
+		for i, f := range stack {
+			keys[i] = f.key
+		}
+		paths[strings.Join(keys, ".")] = true
+	}
+	return paths
 }

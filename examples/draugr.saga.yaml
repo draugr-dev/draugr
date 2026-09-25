@@ -166,8 +166,10 @@ components:
     repositories:
       - url: https://github.com/acme/web.git
         revision: main       # branch, tag, or commit
-        paths:               # optional: scan only these directories
-          - services/web     #   root files (go.mod, Dockerfile, .trivyignore) come too
+        paths:               # optional: scan only these directories and files
+          - services/web
+          - go.mod           #   a root file is scanned only when named here
+          - go.sum
         ignore:              # optional: remove these, applied after paths
           - "**/testdata/**"
     images:

@@ -1,0 +1,119 @@
+{
+  "controls": [
+    {
+      "errors": 0,
+      "highest": "",
+      "name": "sast",
+      "notes": 0,
+      "threshold": "",
+      "total": 0,
+      "verdict": "pass",
+      "warnings": 0
+    },
+    {
+      "errors": 2,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "sca",
+      "notes": 0,
+      "threshold": "",
+      "total": 2,
+      "verdict": "fail",
+      "warnings": 0
+    }
+  ],
+  "dependencyFiles": [
+    {
+      "component": "api",
+      "control": "sca",
+      "read": 2,
+      "scanners": [
+        "trivy-fs"
+      ]
+    },
+    {
+      "component": "worker",
+      "control": "sca",
+      "read": 2,
+      "scanners": [
+        "trivy-fs"
+      ]
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:8b69677134c8538fd1b8d1525188738cab7a8e7cb6105490a62ecfbee16acc1b",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 1,
+    "p2": 1,
+    "p3": 0,
+    "p4": 0
+  },
+  "project": "go-components",
+  "reachability": {
+    "analyzers": [
+      {
+        "analyzer": "govulncheck",
+        "reachable": 2,
+        "unknown": 0,
+        "unreachable": 2
+      }
+    ],
+    "reachable": 2,
+    "unknown": 0,
+    "unreachable": 2
+  },
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./go-components"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "gosec",
+      "version": "<cleared>"
+    },
+    {
+      "name": "govulncheck",
+      "version": "<cleared>"
+    },
+    {
+      "name": "semgrep",
+      "version": "<cleared>"
+    },
+    {
+      "name": "trivy-fs",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 8,
+    "scans": 8
+  },
+  "verdict": "fail"
+}

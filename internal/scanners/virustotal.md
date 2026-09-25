@@ -15,10 +15,11 @@ you name it. That is deliberate. See *What is sent*.
 
 ```yaml
 config:
-  controllers:
+  controls:
     threats:
       enabled: true
-      scanners: [urlhaus, virustotal]
+      virustotal:
+        enabled: true          # urlhaus keeps running beside it
 ```
 
 ## What it does
@@ -89,7 +90,7 @@ With a paid key, raise it:
 
 ```yaml
 config:
-  controllers:
+  controls:
     threats:
       virustotal:
         requestsPerMinute: 1000

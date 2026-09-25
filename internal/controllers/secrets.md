@@ -20,7 +20,7 @@ those, ask for the history:
 
 ```yaml
 config:
-  controllers:
+  controls:
     secrets:
       gitleaks:
         history: true

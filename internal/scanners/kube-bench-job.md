@@ -43,7 +43,7 @@ unguarded while this one has to be accepted first:
 ```yaml
 config:
   allowEffects: [mutate, privilege]
-  controllers:
+  controls:
     infrastructure:
       enabled: true
       kubeBenchJob:
@@ -91,15 +91,15 @@ The `namespace` option below is unrelated: it is where the Job runs, not what it
 
 ```yaml
 config:
-  controllers:
+  controls:
     infrastructure:
       kubeBenchJob:
         enabled: true
-      namespace: default              # where the Job is created
-      image: docker.io/aquasec/kube-bench:v0.15.6@sha256:8619009…
-      targets: master,node,etcd,controlplane
-      nodeSelector: node-role.kubernetes.io/control-plane=
-      timeout: 5m
+        namespace: default              # where the Job is created
+        image: docker.io/aquasec/kube-bench:v0.15.6@sha256:8619009…
+        targets: master,node,etcd,controlplane
+        nodeSelector: node-role.kubernetes.io/control-plane=
+        timeout: 5m
 ```
 
 The image is **pinned by digest** by default, and the digest is the part that matters. A tag is a

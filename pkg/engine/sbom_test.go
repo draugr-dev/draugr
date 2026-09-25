@@ -149,3 +149,24 @@ func TestSBOMStopsOnContextCancellation(t *testing.T) {
 		t.Error("cancellation should be recorded, not silently skipped")
 	}
 }
+
+func TestSBOMTakesEachScopeOfASharedRepository(t *testing.T) {
+	// Two components on different paths of one repository are two inventories. Deduplicating by
+	// the repository alone filed one whole-repository document under whichever came first.
+	f := &fakeSBOM{}
+	m := sbomModel()
+	m.Components = []saga.Component{
+		{Name: "web", Repositories: []saga.Repository{{URL: "https://git/mono", Paths: []string{"services/web"}}}},
+		{Name: "api", Repositories: []saga.Repository{{URL: "https://git/mono", Paths: []string{"services/api"}, Ignore: []string{"testdata/"}}}},
+	}
+	if _, err := New(NewRegistry(), WithSBOM(f)).Run(context.Background(), m); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	want := []string{
+		"web/https://git/mono@#paths=services/web;ignore=",
+		"api/https://git/mono@#paths=services/api;ignore=testdata/",
+	}
+	if strings.Join(f.calls, ",") != strings.Join(want, ",") {
+		t.Errorf("calls = %v\nwant  = %v", f.calls, want)
+	}
+}

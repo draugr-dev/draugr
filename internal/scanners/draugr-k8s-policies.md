@@ -20,7 +20,7 @@ Evaluates the CIS Kubernetes Benchmark's **policies** section against a live clu
 
 ```yaml
 config:
-  controllers:
+  controls:
     infrastructure:
       enabled: true
       kubeBench: { enabled: false }   # stop exec'ing kube-bench for this section

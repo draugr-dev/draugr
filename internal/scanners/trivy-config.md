@@ -24,11 +24,12 @@ entry](../../docs/reference/glossary.md#iac-scanning-infrastructure-as-code).
 ## Saga options
 
 ```yaml
-controllers:
-  iac:
-    trivyConfig:
-      checks: [security/checks]   # your own Rego, alongside Trivy's built-in checks
-      namespaces: [user]          # the namespaces those checks declare
+config:
+  controls:
+    iac:
+      trivyConfig:
+        checks: [security/checks]   # your own Rego, alongside Trivy's built-in checks
+        namespaces: [user]          # the namespaces those checks declare
 ```
 
 | Option | What it does |

@@ -16,7 +16,7 @@ sent, and the `mutate` effect are identical and are stated there.
 ```yaml
 config:
   allowEffects: [mutate]
-  controllers:
+  controls:
     licenses:
       mendLicenses:
         enabled: true

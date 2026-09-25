@@ -1499,8 +1499,10 @@ const sbomPseudoControl = "(sbom)"
 // generateSBOMs takes one inventory per distinct repository and image in the model.
 //
 // Deduplicated by target identity: several controls scan the same repository, and an SBOM of it
-// is the same document however many controls touched it. Ordered by component then target so a
-// run is reproducible and two runs diff cleanly.
+// is the same document however many controls touched it. A repository's identity carries its
+// scope, so two components on different paths of one repository each get an inventory of their
+// own part, the part their controls scanned. Ordered by component then target so a run is
+// reproducible and two runs diff cleanly.
 func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Document, []string) {
 	cfg := model.Config.SBOM
 	if cfg == nil || !cfg.Enabled {
@@ -1523,6 +1525,7 @@ func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Do
 		for _, r := range comp.Repositories {
 			targets = append(targets, plugin.RepositoryTarget{
 				URL: r.URL, Revision: r.Revision, WorkingTree: e.workingTree,
+				Paths: r.Paths, Ignore: r.Ignore,
 			})
 		}
 		for _, img := range comp.Images {
@@ -1817,12 +1820,15 @@ func claimReason(c vex.Claim) string {
 // disappear.
 func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, model saga.Model) ReachabilitySummary {
 	// Index the analyzers' verdicts by what identifies a dependency finding everywhere else:
-	// the repository it was found in, the package it is about, and the vulnerability id.
+	// the component and repository it was found in, the manifest that declared it, the package it
+	// is about, and the vulnerability id.
 	//
-	// The repository and the manifest are part of the key deliberately. A component may hold
-	// several repositories and a repository several Go modules, and the same dependency can be
-	// called in one and merely required in another; a key without them would report one module's
-	// verdict, and its call path, for all of them.
+	// The component, the repository and the manifest are part of the key deliberately. A
+	// component may hold several repositories, a repository several Go modules, and two
+	// components may share one repository while each scans only its own paths. The same
+	// dependency can be called in one of these and merely required in another, and a key without
+	// all three would give every finding one verdict and a call path through code its own
+	// component may not contain.
 	verdicts := map[reachKey]*sarif.Reachability{}
 	analyzers := map[string]*AnalyzerReachability{}
 	for _, cr := range controls {
@@ -1834,7 +1840,7 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 			if _, ok := analyzers[res.Reachability.Analyzer]; !ok {
 				analyzers[res.Reachability.Analyzer] = &AnalyzerReachability{Analyzer: res.Reachability.Analyzer}
 			}
-			key := reachKey{res.Repository, res.Location.URI, res.Package.Name, res.RuleID}
+			key := reachKey{res.Component, res.Repository, res.Location.URI, res.Package.Name, res.RuleID}
 			verdicts[key] = strongerReachability(verdicts[key], res.Reachability)
 		}
 	}
@@ -1855,12 +1861,24 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 		return ReachabilitySummary{}
 	}
 
+	// Which verdicts another scanner's finding will carry, decided before anything is dropped. An
+	// analyzer's copy and the finding it duplicates can arrive in either order, within one control's
+	// results or across two controls, and deciding as the loop goes would keep the analyzer's copy
+	// whenever it came first.
 	folded := map[reachKey]bool{}
+	for _, cr := range controls {
+		for _, res := range cr.Report.Results {
+			key := reachKey{res.Component, res.Repository, res.Location.URI, packageName(res), res.RuleID}
+			if _, ok := verdicts[key]; ok && res.Reachability == nil {
+				folded[key] = true
+			}
+		}
+	}
 	for name, cr := range controls {
 		kept := cr.Report.Results[:0]
 		for i := range cr.Report.Results {
 			res := cr.Report.Results[i]
-			key := reachKey{res.Repository, res.Location.URI, packageName(res), res.RuleID}
+			key := reachKey{res.Component, res.Repository, res.Location.URI, packageName(res), res.RuleID}
 			switch {
 			case res.Reachability != nil:
 				// An analyzer's own finding. Keep it only where nothing else reported the same
@@ -1874,7 +1892,6 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 				if !ok {
 					break
 				}
-				folded[key] = true
 				// Copied per finding: one analyzer verdict covers every identifier the advisory
 				// is known by, but RankedAs is a fact about this finding's own severity, and a
 				// shared struct would record whichever was banded last for all of them.
@@ -1947,8 +1964,11 @@ func reachabilityRank(s sarif.ReachabilityState) int {
 	}
 }
 
-// reachKey identifies one vulnerability in one package in one repository.
+// reachKey identifies one vulnerability in one package, as one component's scan of one
+// repository reported it.
 type reachKey struct {
+	// component is the component whose job produced the finding, empty for a project-scoped one.
+	component  string
 	repository string
 	// manifest is the file the dependency was declared in: a Go module's go.mod.
 	manifest string

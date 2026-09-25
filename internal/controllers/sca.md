@@ -3,7 +3,9 @@
 - **Industry term:** Software Composition Analysis
 - **Scope:** component
 - **Status:** ✅ implemented (dependency vulnerabilities)
-- **Scanners:** [`trivy-fs`](../scanners/trivy-fs.md)
+- **Scanners:** [`trivy-fs`](../scanners/trivy-fs.md) (default); [`grype-fs`](../scanners/grype-fs.md),
+  [`retirejs`](../scanners/retirejs.md) and [`mend-sca`](../scanners/mend-sca.md) (opt-in);
+  [`govulncheck`](../scanners/govulncheck.md) (enabled by `config.reachability`)
 - **Resource:** a component's `repositories:`
 
 ## What it does

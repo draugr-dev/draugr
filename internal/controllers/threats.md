@@ -38,7 +38,7 @@ below.
 
 ```yaml
 config:
-  controllers:
+  controls:
     threats:
       enabled: true
       virustotal: { enabled: true }

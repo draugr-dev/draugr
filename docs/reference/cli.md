@@ -1459,7 +1459,7 @@ cache:                  # where results are reused between runs, and for how lon
   ttl: 24h
 tools:                  # which build `draugr tools install` fetches
   trivy: { version: "0.69.3" }
-controls:            # merged *underneath* the Saga, so a project overrides only what it names
+controllers:            # merged *underneath* the Saga, so a project overrides only what it names
   sast:
     semgrep:
       config: p/owasp-top-ten

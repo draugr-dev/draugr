@@ -65,7 +65,7 @@ exclusion someone wrote against the CVE. Set `byCve: false` to see the identifie
 
 **No filtering flags.** `--fail-on`, `--only-fixed`, `--ignore-states` and `--exclude` all drop
 findings inside the tool, where Draugr cannot mark them suppressed or record who accepted them.
-`exclusions` in the Saga does that and keeps the evidence; the gate thresholds decide what fails.
+`config.exclude` in the Saga does that and keeps the evidence; the gate thresholds decide what fails.
 
 **It writes an inventory beside its SARIF.** Grype's SARIF names no file it read without a
 finding, so the scan also asks for `-o cyclonedx-json` into a temporary file and counts the
