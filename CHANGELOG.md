@@ -28,9 +28,9 @@ _Nothing yet._
 
 - **An offline scan no longer asks Maven Central about a `pom.xml`.** With `--offline`, Draugr now passes Trivy `--offline-scan`, so it reads the dependencies the pom declares without resolving them over the network.
 
-- **`draugr init` writes `controls:`.** The descriptor it generated used the older `controllers:` key, which still loads; it now uses the key the reference and `draugr controls` name.
+- **`draugr init` writes `controls:`.** It wrote `controllers:`, the older name for the same key, which still loads.
 
-- **Every example in the guides and the descriptor reference is one the CLI accepts.** Code scanning, Azure Pipelines, GitLab, the `draugr-api` reference and the reports guide showed `config.reports`, which the CLI refuses; each now names its reports on the publisher, or leaves them out where the destination renders its own.
+- **Every example in the guides and the descriptor reference is one the CLI accepts.** Code scanning, Azure Pipelines, the `draugr-api` reference and the reports guide showed `config.reports`, which the CLI refuses; each now names its reports on the publisher, or leaves them out where the destination renders its own.
 
 - **gosec and govulncheck analyze every Go module in a repository.** gosec ran once from the root, so a module below it was never analyzed and `sast` passed. It now runs per module. Each govulncheck verdict is located at its own module's `go.mod`, so a module that only requires a dependency is no longer marked reachable by another that calls it.
 
