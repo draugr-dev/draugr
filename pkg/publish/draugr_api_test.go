@@ -245,8 +245,8 @@ func TestAnUnreadableFailureFallsBackToTheStatus(t *testing.T) {
 }
 
 func TestBothReportsAreRequiredAndNamedSeparately(t *testing.T) {
-	// Separate mistakes with separate fixes: one is a missing `json` in config.reports, the other
-	// a missing `sarif`.
+	// The publisher renders both for itself, so either one missing is a renderer that failed, and
+	// the error names which.
 	p := &server{}
 	srv := p.server(t)
 	pub := publisherFor(t, srv.URL)
