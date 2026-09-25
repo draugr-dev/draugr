@@ -44,7 +44,7 @@ func TestZeroConfigRepoScanWithRealScanners(t *testing.T) {
 	console := string(combined)
 	// The band counts, which carry no label of their own: each names its own band, and a run that
 	// ranked nothing prints none of them.
-	if !regexp.MustCompile(`P1 \d+ P2 \d+ P3 \d+ P4 \d+`).MatchString(console) {
+	if !regexp.MustCompile(`\d+ P1 \d+ P2 \d+ P3 \d+ P4`).MatchString(console) {
 		t.Errorf("console output missing the band counts:\n%s", console)
 	}
 	if !containsAny(console, "critical", "high", "medium", "low") {

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -77,7 +78,7 @@ components:
 		return string(out)
 	}
 
-	if out := scan(); strings.Contains(out, "P1 1") {
+	if out := scan(); regexp.MustCompile(`\b[1-9]\d* P1\b`).MatchString(out) {
 		t.Fatalf("the first commit has nothing to find, so the fixture is wrong:\n%s", out)
 	}
 
