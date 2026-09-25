@@ -1,0 +1,29 @@
+# What a scan finds against the latest advisory databases and real registries: each package and
+# the scanners that reported it, and each file a result without a package was reported in. The
+# advisories are left out because they move every day; this is the part that should not.
+#
+# Written by the live tier (go test -tags integration -run TestLive -update-live with
+# DRAUGR_LIVE=1). A nightly run that finds a difference proposes it as a pull request.
+packages:
+  gomod:
+    - name: github.com/tidwall/gjson
+      version: v1.6.5
+      in: services/worker/go.mod
+      foundBy: [sca/govulncheck, sca/trivy]
+  npm:
+    - name: minimist
+      version: 1.2.5
+      in: services/web/package-lock.json
+      foundBy: [sca/trivy]
+  pip:
+    - name: Flask
+      version: 0.12.2
+      in: services/api/requirements.txt
+      foundBy: [sca/trivy]
+files:
+  - file: services/api/app.py
+    foundBy: [sast/Semgrep OSS]
+  - file: services/web/src/index.js
+    foundBy: [sast/Semgrep OSS]
+  - file: services/worker/deploy/aws.env
+    foundBy: [secrets/gitleaks]
