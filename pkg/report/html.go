@@ -1309,10 +1309,10 @@ const htmlDoc = `<!doctype html>
   {{if .Duration}}<p class="took">{{.Duration}}{{if .CacheHits}} · {{.CacheHits}} from cache{{end}}</p>{{end}}
   <span class="spacer"></span>
   {{if .Prioritized}}<span class="bands">
-    <span class="band {{if .P1}}b1{{else}}zero{{end}}">P1 {{.P1}}</span>
-    <span class="band {{if .P2}}b2{{else}}zero{{end}}">P2 {{.P2}}</span>
-    <span class="band {{if .P3}}b3{{else}}zero{{end}}">P3 {{.P3}}</span>
-    <span class="band {{if .P4}}b4{{else}}zero{{end}}">P4 {{.P4}}</span>
+    <span class="band {{if .P1}}b1{{else}}zero{{end}}">{{.P1}} P1</span>
+    <span class="band {{if .P2}}b2{{else}}zero{{end}}">{{.P2}} P2</span>
+    <span class="band {{if .P3}}b3{{else}}zero{{end}}">{{.P3}} P3</span>
+    <span class="band {{if .P4}}b4{{else}}zero{{end}}">{{.P4}} P4</span>
   </span>{{end}}
 </header>
 
@@ -1371,10 +1371,10 @@ the component is, so the same issue ranks differently on a public API than on an
   <span class="ctl-verdict">{{if .Errored}}<span class="err">ERROR</span>{{else if .Fail}}<span class="err">FAIL</span>{{else}}<span class="ok">pass</span>{{end}}</span>
   {{if .NoReport}}<span class="ctl-none">nothing to report, this control did not run</span>
   {{else if .Prioritized}}<span class="sevs">
-    <span class="sev s-p1{{if not .P1}} off{{end}}">P1 {{.P1}}</span>
-    <span class="sev s-p2{{if not .P2}} off{{end}}">P2 {{.P2}}</span>
-    <span class="sev s-p3{{if not .P3}} off{{end}}">P3 {{.P3}}</span>
-    <span class="sev s-p4{{if not .P4}} off{{end}}">P4 {{.P4}}</span>
+    <span class="sev s-p1{{if not .P1}} off{{end}}">{{.P1}} P1</span>
+    <span class="sev s-p2{{if not .P2}} off{{end}}">{{.P2}} P2</span>
+    <span class="sev s-p3{{if not .P3}} off{{end}}">{{.P3}} P3</span>
+    <span class="sev s-p4{{if not .P4}} off{{end}}">{{.P4}} P4</span>
   </span>
   {{else}}<span class="sevs">
     <span class="sev s-critical{{if not .Critical}} off{{end}}">{{.Critical}} critical</span>
@@ -1405,10 +1405,10 @@ as the run.</p>
   <td>
     {{if .Skipped}}
     {{else if and .Prioritized .Findings}}<span class="sevs">
-      <span class="sev s-p1{{if not .P1}} off{{end}}">P1 {{.P1}}</span>
-      <span class="sev s-p2{{if not .P2}} off{{end}}">P2 {{.P2}}</span>
-      <span class="sev s-p3{{if not .P3}} off{{end}}">P3 {{.P3}}</span>
-      <span class="sev s-p4{{if not .P4}} off{{end}}">P4 {{.P4}}</span>
+      <span class="sev s-p1{{if not .P1}} off{{end}}">{{.P1}} P1</span>
+      <span class="sev s-p2{{if not .P2}} off{{end}}">{{.P2}} P2</span>
+      <span class="sev s-p3{{if not .P3}} off{{end}}">{{.P3}} P3</span>
+      <span class="sev s-p4{{if not .P4}} off{{end}}">{{.P4}} P4</span>
     </span>
     {{else if .Findings}}{{plural .Findings "finding"}}
     {{else if not .Errored}}<span class="none">no findings</span>{{end}}
@@ -1481,10 +1481,10 @@ about what they would have found. For everything the tool printed, re-run with
     {{if .Class}}<span class="cls">{{.Class}}</span>{{end}}
     <span class="focus-verdict">{{if .Errored}}<span class="err">ERROR</span>{{else if .Fail}}<span class="err">FAIL</span>{{else}}<span class="ok">PASS</span>{{end}}</span>
     {{if and .Prioritized .Findings}}<span class="sevs">
-      <span class="sev s-p1{{if not .P1}} off{{end}}">P1 {{.P1}}</span>
-      <span class="sev s-p2{{if not .P2}} off{{end}}">P2 {{.P2}}</span>
-      <span class="sev s-p3{{if not .P3}} off{{end}}">P3 {{.P3}}</span>
-      <span class="sev s-p4{{if not .P4}} off{{end}}">P4 {{.P4}}</span>
+      <span class="sev s-p1{{if not .P1}} off{{end}}">{{.P1}} P1</span>
+      <span class="sev s-p2{{if not .P2}} off{{end}}">{{.P2}} P2</span>
+      <span class="sev s-p3{{if not .P3}} off{{end}}">{{.P3}} P3</span>
+      <span class="sev s-p4{{if not .P4}} off{{end}}">{{.P4}} P4</span>
     </span>{{end}}
     <span class="focus-facts">
       {{/* The count only where the bands are not shown. With them it is their sum, and the line

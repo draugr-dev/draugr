@@ -1,6 +1,6 @@
 DRAUGR  FAIL  draugr-demo 0.0.0  34.5s
 
- P1 3 P2 2 P3 2 P4 1
+ 3 P1 2 P2 2 P3 1 P4
 
 WHAT TO DO  5 actions clear 6 findings
   P1  Upgrade jinja2 2.10
@@ -17,10 +17,10 @@ WHAT TO DO  5 actions clear 6 findings
 … and 2 actions not listed.
 
 CONTROLS
-  iac       FAIL   P1 1 P3 1
-  licenses  pass   P3 1
-  sast      FAIL   P2 1
-  sca       FAIL   P1 2 P2 1 P4 1
+  iac       FAIL   1 P1 1 P3
+  licenses  pass   1 P3
+  sast      FAIL   1 P2
+  sca       FAIL   2 P1 1 P2 1 P4
   dast      ERROR  did not run
             nuclei: executable file not found in $PATH
 
@@ -28,7 +28,7 @@ MEASURED AGAINST
   licenses  trivy-license 0.69.3 · policy: deny copyleft
 
 COMPONENTS
-  payments       FAIL   P1 3 P2 2 P3 1
+  payments       FAIL   3 P1 2 P2 1 P3
   internal-tool  pass   no findings
   2 findings not tied to a component (project-wide controls)
 

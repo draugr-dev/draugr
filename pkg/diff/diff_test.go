@@ -238,7 +238,7 @@ func TestConsoleNoLocationAndUnprioritized(t *testing.T) {
 	}
 	// A run that ranked nothing has no bands to draw, and a strip of four zeroes says less than
 	// nothing at all.
-	if strings.Contains(s, "P1 0") {
+	if strings.Contains(s, "0 P1") {
 		t.Errorf("unprioritized delta should not draw a band strip:\n%s", s)
 	}
 }

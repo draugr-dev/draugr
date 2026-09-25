@@ -67,7 +67,7 @@ func TestComponentWithFindingsAndAGapReportsBoth(t *testing.T) {
 	if !strings.Contains(out, "1 image not scanned") {
 		t.Errorf("the gap is missing:\n%s", out)
 	}
-	if !strings.Contains(out, "P1 2") {
+	if !strings.Contains(out, "2 P1") {
 		t.Errorf("the findings are missing:\n%s", out)
 	}
 }

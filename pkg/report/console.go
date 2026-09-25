@@ -954,7 +954,7 @@ func componentBands(col tui.Painter, p [4]int) string {
 		if n == 0 {
 			continue
 		}
-		parts = append(parts, col.Chip(priorityColor(labels[i]), fmt.Sprintf("%s %d", labels[i], n)))
+		parts = append(parts, col.Chip(priorityColor(labels[i]), fmt.Sprintf("%d %s", n, labels[i])))
 	}
 	if len(parts) == 0 {
 		return col.Paint(cDim, "no priorities set")

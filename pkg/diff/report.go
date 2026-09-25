@@ -238,11 +238,11 @@ func renderConsole(w io.Writer, r Result, opts Options) error {
 	_, _ = fmt.Fprintf(w, "%s\n\n", strings.Join(line, "  "))
 
 	writeBandRows(w, col, r)
+	writeGate(w, col, r)
 
 	entries := r.Changed()
 	if len(entries) == 0 {
 		_, _ = fmt.Fprintln(w, col.Paint(tui.StylePass, "Nothing changed. Every finding was already there."))
-		writeGate(w, col, r)
 		return nil
 	}
 
@@ -251,7 +251,6 @@ func renderConsole(w io.Writer, r Result, opts Options) error {
 	} else {
 		writeChanged(w, col, r, entries, opts)
 	}
-	writeGate(w, col, r)
 	writeTry(w, col, r, opts, entries)
 	return nil
 }
@@ -453,11 +452,14 @@ func writeDiffActions(w io.Writer, col tui.Painter, entries []Entry, opts Option
 }
 
 // writeGate states the rule the verdict came from, or says none was asked for.
+//
+// It comes before the listing, the order the pull-request comment uses, so the rule is read before
+// the findings it was applied to and a long table cannot push it off the screen.
 func writeGate(w io.Writer, col tui.Painter, r Result) {
 	if !r.Gate.Stated() {
 		return
 	}
-	_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, "Gate: "+r.Gate.Sentence()+"."))
+	_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(tui.StyleMuted, "Gate: "+r.Gate.Sentence()+"."))
 }
 
 // writeTry offers what else this run can be asked, and only what applies to it.

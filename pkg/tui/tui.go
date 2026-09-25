@@ -359,7 +359,7 @@ func (p Painter) BandChips(counts [4]int) string {
 	labels := [4]string{"P1", "P2", "P3", "P4"}
 	parts := make([]string, 0, len(counts))
 	for i, n := range counts {
-		text := labels[i] + " " + strconv.Itoa(n)
+		text := strconv.Itoa(n) + " " + labels[i]
 		if n == 0 {
 			parts = append(parts, p.Paint(StyleMuted, text))
 			continue

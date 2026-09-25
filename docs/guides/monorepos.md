@@ -115,17 +115,17 @@ draugr scan draugr.saga.yaml --labels team=web
 ```console
 DRAUGR  FAIL  draugr-demo 1.0  (scope: 1 of 3 components)  6.061s
 
- P1 4 P2 4 P3 1 P4 0
+ 4 P1 4 P2 1 P3 0 P4
 
 CONTROLS
   iac       pass   no priorities set
   licenses  pass   no priorities set
   sast      pass   no priorities set
-  sca       FAIL   P1 4 P2 4 P3 1
+  sca       FAIL   4 P1 4 P2 1 P3
   secrets   pass   no priorities set
 
 COMPONENTS
-  storefront  FAIL   P1 4 P2 4 P3 1
+  storefront  FAIL   4 P1 4 P2 1 P3
   api         not scanned
   platform    not scanned
 ```

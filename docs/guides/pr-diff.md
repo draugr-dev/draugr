@@ -71,7 +71,7 @@ lives:
 $ draugr diff out-base/results.sarif out-renamed/results.sarif
 DRAUGR DIFF  1 new  1 fixed  0 unchanged
 
- new  P1 1 P2 0 P3 0 P4 0
+ new  1 P1 0 P2 0 P3 0 P4
 
 CHANGED  2, by priority
   Change   Priority  Severity  Rule              Scanner   Location
@@ -110,20 +110,20 @@ anybody read past a zero:
 ```console
 DRAUGR DIFF  pass  1 unaccepted  28 unchanged
 
- unchanged  P1 13 P2 13 P3 1 P4 0
+ unchanged  13 P1 13 P2 1 P3 0 P4
+
+Gate: fails on any P1 this change introduces.
 
 CHANGED  1, by priority
   Change        Priority  Severity  Rule            Scanner  Location                Upgrade
   ! unaccepted  P1        critical  CVE-2019-20477  trivy    app/requirements.txt:4  PyYAML 5.1 → 5.2
               command execution through python/object/apply constructor in FullLoader
-
-Gate: fails on any P1 this change introduces.
 ```
 
 The `unchanged` strip counts the unchanged findings by band, leaving out findings suppressed in both
-scans. It is the work this change inherited, which the gate does not ask about. The pull-request
-comment draws the same strips as lines under its headline, and states the gate before the list of
-changes:
+scans. It is the work this change inherited, which the gate does not ask about. The gate is stated
+before the list of changes. The pull-request comment draws the same strips as lines under its
+headline, in the same order:
 
 ```markdown
 ✅ **pass** · ⚠️ 1 unaccepted · 28 unchanged

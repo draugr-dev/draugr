@@ -116,7 +116,7 @@ an unchecked copy could read as a clean result.
 With `--offline` and no usable copy, the control reports an error naming the check that failed:
 
 ```
-  sca  ERROR  P1 3
+  sca  ERROR  3 P1
        govulncheck: cannot run offline: local Go vulnerability database fetched 2026-09-20 00:00 UTC,
          older than 24h; run `draugr feeds update govulndb`
 ```

@@ -602,10 +602,10 @@ func TestAPassStillCountsTheWorkItInherited(t *testing.T) {
 	if err := Render(&console, "console", r, Options{}); err != nil {
 		t.Fatal(err)
 	}
-	if want := " unchanged  P1 2 P2 0 P3 1 P4 0\n"; !strings.Contains(console.String(), want) {
+	if want := " unchanged  2 P1 0 P2 1 P3 0 P4\n"; !strings.Contains(console.String(), want) {
 		t.Errorf("the terminal should draw the standing bands, want %q in:\n%s", want, console.String())
 	}
-	if strings.Contains(console.String(), "2 P1") {
+	if headline, _, _ := strings.Cut(console.String(), "\n"); strings.Contains(headline, "P1") {
 		t.Errorf("the terminal carries the bands as chips, not in the headline:\n%s", console.String())
 	}
 }
@@ -620,8 +620,8 @@ func TestTheBandStripsLineUp(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		" new        P1 0 P2 1 P3 0 P4 0\n",
-		" unchanged  P1 1 P2 0 P3 0 P4 0\n",
+		" new        0 P1 1 P2 0 P3 0 P4\n",
+		" unchanged  1 P1 0 P2 0 P3 0 P4\n",
 	} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("want %q in:\n%s", want, out.String())
@@ -633,7 +633,7 @@ func TestTheBandStripsLineUp(t *testing.T) {
 	if err := Render(&out, "console", Result{New: r.New}, Options{}); err != nil {
 		t.Fatal(err)
 	}
-	if want := " new  P1 0 P2 1 P3 0 P4 0\n"; !strings.Contains(out.String(), want) {
+	if want := " new  0 P1 1 P2 0 P3 0 P4\n"; !strings.Contains(out.String(), want) {
 		t.Errorf("want %q in:\n%s", want, out.String())
 	}
 }
@@ -666,6 +666,52 @@ func TestTheCommentStatesTheGateAboveTheList(t *testing.T) {
 	// No gate asked for, no sentence claiming one.
 	var b bytes.Buffer
 	if err := Render(&b, "markdown", Result{New: r.New}, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(b.String(), "Gate:") {
+		t.Errorf("a diff with no gate states one:\n%s", b.String())
+	}
+}
+
+func TestTheTerminalStatesTheGateAboveTheList(t *testing.T) {
+	// Held to the comment's order, because a table long enough to scroll would otherwise push the
+	// rule that decided the verdict off the screen, below everything it was applied to.
+	r := Result{
+		Gate:      Gate{FailOnPriority: "P1"},
+		New:       []sarif.Result{{RuleID: "n", Priority: "P1", Component: "api"}, {RuleID: "n", Priority: "P2", Component: "worker"}},
+		Unchanged: []sarif.Result{{RuleID: "u", Priority: "P3"}},
+	}
+	for view, list := range map[View]string{ViewFindings: "CHANGED", ViewCompact: "CHANGED", ViewActions: "WHAT TO DO"} {
+		var b bytes.Buffer
+		if err := Render(&b, "console", r, Options{View: view}); err != nil {
+			t.Fatal(err)
+		}
+		out := b.String()
+		bandsAt := strings.Index(out, " unchanged  0 P1 0 P2 1 P3 0 P4\n\n")
+		gate := strings.Index(out, "Gate: fails on any P1 this change introduces.\n\n")
+		listAt := strings.Index(out, list)
+		if bandsAt < 0 || gate < 0 || listAt < 0 || bandsAt >= gate || gate >= listAt {
+			t.Errorf("%s: want the bands, then the gate, then the list:\n%s", view, out)
+		}
+		if strings.Count(out, "Gate:") != 1 {
+			t.Errorf("%s: the gate is stated once:\n%s", view, out)
+		}
+	}
+
+	// Nothing changed still says which rule passed it, above the line saying so.
+	var b bytes.Buffer
+	if err := Render(&b, "console", Result{Gate: r.Gate, Unchanged: r.Unchanged}, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+	gate, nothing := strings.Index(out, "Gate: "), strings.Index(out, "Nothing changed.")
+	if gate < 0 || nothing < 0 || gate >= nothing {
+		t.Errorf("want the gate above the empty result:\n%s", out)
+	}
+
+	// No gate asked for, no sentence claiming one.
+	b.Reset()
+	if err := Render(&b, "console", Result{New: r.New}, Options{}); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(b.String(), "Gate:") {

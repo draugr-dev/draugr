@@ -1,6 +1,6 @@
 DRAUGR  FAIL  draugr-demo 0.0.0  34.5s
 
- P1 3 P2 2 P3 2 P4 1
+ 3 P1 2 P2 2 P3 1 P4
 
 CONTROLS
   dast      ERROR  did not run

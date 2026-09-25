@@ -135,7 +135,7 @@ func TestAPartlyScannedComponentReportsBothHalves(t *testing.T) {
 	if !strings.Contains(row, "1/3 images not scanned") {
 		t.Errorf("the gap is missing:\n%s", row)
 	}
-	if !strings.Contains(row, "P3 1") {
+	if !strings.Contains(row, "1 P3") {
 		t.Errorf("the findings are missing:\n%s", row)
 	}
 }
@@ -211,7 +211,7 @@ func TestAnUnrankedRunCountsFindingsInsteadOfBands(t *testing.T) {
 	}
 
 	out := renderHTML(t, d)
-	if strings.Contains(out, "P1 0") {
+	if strings.Contains(out, "0 P1") {
 		t.Error("an unranked run showed empty priority chips")
 	}
 	if !strings.Contains(out, "6 findings") {

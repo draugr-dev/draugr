@@ -81,7 +81,7 @@ func TestConsoleRender(t *testing.T) {
 	// shortlist or the whole set, and this fixture is small enough to be the whole set.
 	// The controls block answers in bands, like the verdict and the components above it. Severity
 	// is what a scanner called the flaw, and it is on the finding's own row.
-	for _, want := range []string{"DRAUGR  FAIL", "app 1.0", "P1 1", "by priority", "CVE-1", "critical"} {
+	for _, want := range []string{"DRAUGR  FAIL", "app 1.0", "1 P1", "by priority", "CVE-1", "critical"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("console output missing %q\n%s", want, s)
 		}
@@ -399,7 +399,7 @@ func TestMinPriorityKeepsCountsAndExplainsItself(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := b.String()
-	if !strings.Contains(out, "P3 1") || !strings.Contains(out, "P4 1") {
+	if !strings.Contains(out, "1 P3") || !strings.Contains(out, "1 P4") {
 		t.Errorf("priority counts should still describe the whole run:\n%s", out)
 	}
 	if !strings.Contains(out, "P2 and above") || !strings.Contains(out, "hidden") {

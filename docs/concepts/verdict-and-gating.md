@@ -141,20 +141,20 @@ A worked example:
 ```text
 DRAUGR  FAIL  draugr-demo 1.0  6.232s
 
- P1 205 P2 638 P3 225 P4 18
+ 205 P1 638 P2 225 P3 18 P4
 
 CONTROLS
-  iac       FAIL   P1 4 P2 5 P3 15 P4 16
-  images    FAIL   P1 175 P2 255 P3 32
-  licenses  FAIL   P2 353 P3 176
-  sast      FAIL   P1 7 P2 8 P4 2
-  sca       FAIL   P1 18 P2 17 P3 2
-  secrets   FAIL   P1 1
+  iac       FAIL   4 P1 5 P2 15 P3 16 P4
+  images    FAIL   175 P1 255 P2 32 P3
+  licenses  FAIL   353 P2 176 P3
+  sast      FAIL   7 P1 8 P2 2 P4
+  sca       FAIL   18 P1 17 P2 2 P3
+  secrets   FAIL   1 P1
 
 COMPONENTS
-  api         FAIL   P1 201 P2 634 P3 221
-  storefront  FAIL   P1 4 P2 4 P3 1
-  platform    pass   P3 3 P4 18
+  api         FAIL   201 P1 634 P2 221 P3
+  storefront  FAIL   4 P1 4 P2 1 P3
+  platform    pass   3 P3 18 P4
 
 SIGNALS
   KEV           2 findings raised
