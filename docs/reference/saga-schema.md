@@ -1115,15 +1115,27 @@ repositories:
       - vendor/
 ```
 
-**`paths` selects directories.** `services/web` and `services/web/**` mean the same thing; a
-trailing `/**` is accepted because it reads naturally. Draugr checks out only those directories, so
-a large repository is also cheaper to scan. The rest is never fetched.
+**`paths` selects directories and files.** `services/web` and `services/web/**` mean the same
+subtree; a trailing `/**` is accepted because it reads naturally. `go.mod` means that one file.
+Draugr checks out only what `paths` names, so a large repository is also cheaper to scan. The rest
+is never fetched.
 
-**Files at the repository root are always included**, whatever `paths` says. `go.mod`,
-`package.json`, `Dockerfile`, `.trivyignore`, `.semgrepignore` and their kin live there, and they
-are how a scanner knows what it is looking at. A tool that cannot find the manifest does not fail.
-It reports fewer findings against a tree it did not understand, and that is indistinguishable from a
-clean scan.
+**A file at the repository root is scanned only when `paths` names it.** A root lockfile, `go.mod`
+or `Dockerfile` belongs to the component that lists it, so two components sharing a repository do
+not each report the findings in it. A component built from the root module or workspace names the
+files it builds from:
+
+```yaml
+paths: [services/web, go.mod, go.sum]
+```
+
+A workspace member whose lockfile sits at the root and is not named appears under **Unread** with
+`no lockfile`, so a missing entry shows in the report. The scanners' configuration at the root is
+kept for every component whatever `paths` says: `.trivyignore`, `.trivyignore.yaml`, `trivy.yaml`,
+`.semgrepignore`, `.gitleaks.toml`, `.gitleaksignore` and `.grype.yaml`.
+
+**An entry the repository does not hold is an error**, naming the entry, at the revision being
+scanned.
 
 **`ignore` removes paths, and runs last**, so it can carve out of a subtree `paths` selected. The
 patterns are gitignore-shaped: a trailing `/` matches a directory and everything beneath it, `*`

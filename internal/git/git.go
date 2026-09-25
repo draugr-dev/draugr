@@ -47,7 +47,8 @@ func Checkout(ctx context.Context, url, revision string, scope Scope) (tree Tree
 	// Both optimizations are off when history is wanted. A shallow clone has no history, and a
 	// partial one has history whose blobs were never fetched, which walks commits it cannot read and
 	// finds nothing in them.
-	sparse := len(coneDirs(scope.Paths)) > 0 && !scope.History
+	keep := selected(scope.Paths)
+	sparse := len(keep) > 0 && !scope.History
 	cloneArgs := []string{"clone", "--quiet"}
 	if revision == "" && !scope.History {
 		cloneArgs = append(cloneArgs, "--depth", "1")
@@ -72,6 +73,10 @@ func Checkout(ctx context.Context, url, revision string, scope Scope) (tree Tree
 			cleanup()
 			return Tree{}, nil, err
 		}
+		if err := requirePaths(ctx, dir, keep); err != nil {
+			cleanup()
+			return Tree{}, nil, err
+		}
 		if err := prune(dir, scope, true); err != nil {
 			cleanup()
 			return Tree{}, nil, fmt.Errorf("restrict checkout to paths: %w", err)
@@ -85,17 +90,18 @@ func Checkout(ctx context.Context, url, revision string, scope Scope) (tree Tree
 			return Tree{}, nil, fmt.Errorf("git checkout %q: %w", revision, err)
 		}
 	}
+	if err := requirePaths(ctx, dir, keep); err != nil {
+		cleanup()
+		return Tree{}, nil, err
+	}
 	if sparse {
-		// Cone mode is what keeps the root files: it materializes every selected directory, the
-		// directories above them, and the repository root. Which is where the manifests and the
-		// scanners' own configuration live.
-		args := append([]string{"-C", dir, "sparse-checkout", "set", "--cone"}, coneDirs(scope.Paths)...)
+		args := append([]string{"-C", dir, "sparse-checkout", "set", "--no-cone"}, sparsePatterns(keep)...)
 		if err := gitRun(ctx, args...); err != nil {
 			cleanup()
 			return Tree{}, nil, fmt.Errorf("git sparse-checkout: %w", err)
 		}
 	}
-	if scope.History && len(coneDirs(scope.Paths)) > 0 {
+	if scope.History && len(keep) > 0 {
 		// Sparse checkout was skipped, so the tree still holds everything. Cut it down the slow
 		// way, which produces the same tree.
 		if err := prune(dir, scope, true); err != nil {
@@ -109,6 +115,24 @@ func Checkout(ctx context.Context, url, revision string, scope Scope) (tree Tree
 		}
 	}
 	return resolved(ctx, dir, url), cleanup, nil
+}
+
+// requirePaths refuses a selected entry the checked-out commit does not hold.
+//
+// Read from the commit's trees, which a partial clone has fetched, so it costs no blob and works
+// before sparse checkout has materialized anything.
+func requirePaths(ctx context.Context, dir string, keep []string) error {
+	if len(keep) == 0 {
+		return nil
+	}
+	missing := missingPaths(keep, func(rel string) bool {
+		return gitRun(ctx, "-C", dir, "rev-parse", "--verify", "--quiet", "HEAD:"+rel) == nil
+	})
+	if len(missing) == 0 {
+		return nil
+	}
+	head, _ := exec.CommandContext(ctx, "git", "-C", dir, "rev-parse", "HEAD").Output() // #nosec G204 -- Draugr's own temporary checkout
+	return errMissingPaths(missing, strings.TrimSpace(string(head)))
 }
 
 // resolved reports the tree, the commit it holds, and what the scan is therefore not seeing.
@@ -245,8 +269,16 @@ func CheckoutWorkingTree(ctx context.Context, path string, scope Scope) (Tree, f
 		}
 	}
 
-	if len(scope.Paths) > 0 || len(scope.Ignore) > 0 {
-		if err := prune(dir, scope, len(scope.Paths) > 0); err != nil {
+	keep := selected(scope.Paths)
+	if missing := missingPaths(keep, func(rel string) bool {
+		_, err := os.Lstat(filepath.Join(dir, filepath.FromSlash(rel)))
+		return err == nil
+	}); len(missing) > 0 {
+		cleanup()
+		return Tree{}, nil, errMissingPaths(missing, "")
+	}
+	if len(keep) > 0 || len(scope.Ignore) > 0 {
+		if err := prune(dir, scope, len(keep) > 0); err != nil {
 			cleanup()
 			return Tree{}, nil, fmt.Errorf("restrict working tree to paths: %w", err)
 		}
@@ -436,6 +468,10 @@ func ResolveRevision(ctx context.Context, url, revision string) (string, error) 
 // Local checkouts only. A remote is resolved with ls-remote, which answers about refs and knows
 // nothing about trees, and fetching one to build a cache key would cost more than the cache saves.
 // The caller falls back to the commit, which is what it used before.
+//
+// The scanners' configuration at the root is part of the identity, because a scoped checkout holds
+// it: a line added to `.trivyignore` changes what every component's scan reports, and a key blind
+// to it would keep serving the result from before.
 func ResolveTree(ctx context.Context, url, commit string, paths []string) (string, error) {
 	if !IsLocalPath(url) || commit == "" || len(paths) == 0 {
 		return "", nil
@@ -463,6 +499,14 @@ func ResolveTree(ctx context.Context, url, commit string, paths []string) (strin
 			return "", nil
 		}
 		ids = append(ids, p+"="+id)
+	}
+	for _, c := range rootConfig {
+		// #nosec G204 -- the descriptor's own repository path and a fixed file name
+		out, err := exec.CommandContext(ctx, "git", "-C", url, "rev-parse", "--verify", "--quiet", commit+":"+c).Output()
+		if err != nil {
+			continue // absent at this commit, and adding one changes the key by appearing
+		}
+		ids = append(ids, c+"="+strings.TrimSpace(string(out)))
 	}
 	return strings.Join(ids, ";"), nil
 }

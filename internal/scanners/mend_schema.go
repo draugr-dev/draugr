@@ -18,7 +18,7 @@ const mendConfigProperties = `
     },
     "project": {
       "type": "string",
-      "description": "Mend project name to report into. Defaults to the component's name, which keeps one project per component rather than per repository."
+      "description": "Prefix for each Mend project name, <project>-<repository>. Each repository reports into its own project, suffixed with the paths and an 8-character hash when the component sets paths or ignore. Unset, names start at the repository."
     },
     "resultTimeout": {
       "type": "string",
@@ -27,7 +27,7 @@ const mendConfigProperties = `
     },
     "settings": {
       "type": "object",
-      "description": "Unified Agent configuration keys, passed through verbatim. Draugr writes the component's scope exclusions first, so anything here overrides them."
+      "description": "Unified Agent configuration keys, passed through verbatim. The agent runs over a checkout already restricted to the component's paths and ignore."
     }`
 
 // mendSCAConfigSchema is the JSON Schema for controllers.sca.mendSca.

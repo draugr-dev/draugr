@@ -321,9 +321,10 @@ can tell "not measured" from "took no time".
 
 ### One repository, several components
 
-A component scoped with `paths:` is keyed on the content of its own subtree rather than on the
-repository's commit. In a monorepo, a commit touching one component leaves every other component's
-entry valid.
+A component scoped with `paths:` is keyed on the content of what its checkout holds rather than on
+the repository's commit: the directories and files its `paths:` names, and the scanners'
+configuration at the root. In a monorepo, a commit touching one component leaves every other
+component's entry valid, and an edit to `.trivyignore` invalidates every component's.
 
 Measured on a two-component tree, twelve jobs, scanning `sca`:
 

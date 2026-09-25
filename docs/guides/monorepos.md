@@ -79,6 +79,31 @@ the output says so. That is the price of carving by ownership, and it is worth n
 tool that carves this way avoids it. A component that needs the whole tree analyzed together is one
 component with a wider `paths:`.
 
+## Root files
+
+A file at the repository root belongs to the component whose `paths:` names it. A root lockfile,
+`go.mod` or `Dockerfile` is scanned once, under its owner, and a credential committed at the root is
+reported once rather than once per component. A component built from the root module or workspace
+names the files it builds from:
+
+```yaml
+  - name: storefront
+    repositories:
+      - url: .
+        paths: [services/storefront, package.json, package-lock.json]
+```
+
+Two components that both name `package-lock.json` both scan it, which is right when both ship what
+it pins. A member whose lockfile sits at the root and is not named appears under **Unread** with
+`no lockfile`, so the missing entry shows in the report.
+
+The scanners' configuration at the root, `.trivyignore`, `.semgrepignore`, `.gitleaks.toml` and the
+rest listed in [scoping a repository](../reference/saga-schema.md#scoping-a-repository), is kept for
+every component, so a suppression written once applies to each.
+
+An entry the repository does not hold, `services/storfront` for `services/storefront`, is refused
+with the entry named.
+
 ## Give each team a pipeline that covers its own code
 
 `--labels` selects components by what they are:
@@ -149,7 +174,7 @@ alert is a positive claim that somebody fixed something.
 
 ## Scanning the same tree repeatedly stays cheap
 
-A job scoped with `paths:` is cached against the content of its own subtree rather than the
+A job scoped with `paths:` is cached against the content its checkout holds rather than the
 repository's commit, so a commit touching one component leaves every other component's result
 valid. That is what keeps a monorepo affordable, because a monorepo takes a commit every few
 minutes and a key naming the whole repository would be invalidated by every one of them.

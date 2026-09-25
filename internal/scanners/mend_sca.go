@@ -110,13 +110,13 @@ func (s mendSCAScanner) Scan(ctx context.Context, target plugin.Target, cfg plug
 	}
 	defer cleanup()
 
-	// One Mend project per repository, never per component. Draugr plans a job per repository, an
-	// upload *replaces* a project's inventory, and those jobs run concurrently, so a component with
-	// two repositories pointed at one project would have them overwrite each other, and the findings
-	// would describe whichever landed last. Derived from the repository URL rather than its
+	// One Mend project per repository and scope, never per component. Draugr plans a job per
+	// repository, an upload *replaces* a project's inventory, and those jobs run concurrently, so two
+	// uploads pointed at one project would overwrite each other, and the findings would describe
+	// whichever landed last. Derived from the repository's source and scope rather than its
 	// identity, because identity includes the revision and that would make a new Mend project on
 	// every commit.
-	settings.project = mendProjectName(settings.project, repo.Source())
+	settings.project = mendProjectName(settings.project, repo)
 
 	summary, err := sharedMendUploads.upload(ctx, mendUploadKey(repo, settings),
 		func(ctx context.Context) (uaSummary, error) { return s.upload(ctx, tree.Dir, settings) })
@@ -367,23 +367,59 @@ func firstLine(s string) string {
 	return strings.TrimSpace(s)
 }
 
-// mendProjectName names the Mend project one repository reports into.
+// mendProjectName names the Mend project one repository, scoped as the component scopes it,
+// reports into.
 //
 // Always repository-scoped. Draugr plans a job per repository and those run concurrently, while a
 // Unified Agent upload *replaces* a project's inventory, so letting a component's repositories
 // share a project would have them overwrite each other, and the findings would describe whichever
 // landed last.
 //
+// Scope-qualified for the same reason. Two components restricted to different `paths:` of one
+// repository upload two different inventories, and a name that left the scope out would send
+// both into one project. An unscoped repository gets no suffix, so its project keeps the name it
+// has always had.
+//
 // Built from the target's Source rather than its raw URL, which means a local checkout and a CI
 // run against the same remote land in the *same* Mend project instead of two, and a credentialed
 // clone URL cannot write a token into a project name on somebody else's server.
-func mendProjectName(prefix, source string) string {
-	repo := mendNameFragment(source)
-	if prefix == "" {
-		return repo
+func mendProjectName(prefix string, repo plugin.RepositoryTarget) string {
+	name := mendNameFragment(repo.Source())
+	if prefix != "" {
+		name = prefix + "-" + name
 	}
-	return prefix + "-" + repo
+	if scope := mendScopeFragment(repo.Paths, repo.Ignore); scope != "" {
+		name += "-" + scope
+	}
+	return name
 }
+
+// mendScopeFragment names a repository scope for a project name. Empty when nothing is
+// restricted.
+//
+// The readable part comes from the paths, so somebody browsing the Mend product can tell the
+// projects apart. The hash covers the whole scope, rendered as the upload key renders it, so two
+// scopes the readable part cannot separate still get two projects: the same paths with different
+// ignores, or paths that differ only in punctuation.
+func mendScopeFragment(paths, ignore []string) string {
+	key := git.Scope{Paths: paths, Ignore: ignore}.Key()
+	if key == "" {
+		return ""
+	}
+	readable := mendSlug(strings.Join(paths, " "))
+	if len(readable) > maxScopeSlug {
+		readable = strings.Trim(readable[:maxScopeSlug], "-.")
+	}
+	if readable == "" {
+		return shortHash(key)
+	}
+	return readable + "-" + shortHash(key)
+}
+
+// maxScopeSlug bounds the readable part of a scope fragment. A component listing many paths would
+// otherwise produce a project name too long to read in a list, and the hash keeps a truncated
+// name distinct.
+const maxScopeSlug = 48
 
 // mendNameFragment makes a stable, readable project-name fragment out of a repository source. The
 // revision is deliberately absent: including it would create a Mend project per commit.
@@ -392,6 +428,18 @@ func mendNameFragment(source string) string {
 	if i := strings.Index(s, "://"); i >= 0 {
 		s = s[i+3:]
 	}
+	if out := mendSlug(s); out != "" {
+		return out
+	}
+	// A path with nothing nameable in it, "." for a checkout with no remote. Its absolute path is
+	// the only thing that distinguishes it, so it is used rather than a shared placeholder that
+	// would silently merge two repositories into one project.
+	return "repo-" + shortHash(source)
+}
+
+// mendSlug lowercases s and collapses every run of characters outside [a-z0-9.] into one dash.
+// Empty when s has nothing nameable in it.
+func mendSlug(s string) string {
 	var b strings.Builder
 	dash := false
 	for _, r := range strings.ToLower(s) {
@@ -406,17 +454,11 @@ func mendNameFragment(source string) string {
 			}
 		}
 	}
-	if out := strings.Trim(b.String(), "-."); out != "" {
-		return out
-	}
-	// A path with nothing nameable in it, "." for a checkout with no remote. Its absolute path is
-	// the only thing that distinguishes it, so it is used rather than a shared placeholder that
-	// would silently merge two repositories into one project.
-	return "repo-" + shortHash(source)
+	return strings.Trim(b.String(), "-.")
 }
 
-// shortHash keeps an unnameable source distinguishable without putting a path into a third
-// party's project list.
+// shortHash keeps an unnameable source, or a scope, distinguishable without putting a path into a
+// third party's project list.
 func shortHash(s string) string {
 	sum := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(sum[:4])

@@ -64,17 +64,17 @@ config:
       #                                              # Required. It names a product and grants no
       #                                              # access, so it belongs here rather than in
       #                                              # the environment
-      #   project: payments-api                      # defaults to the component's name, which
-      #                                              # keeps one project per component rather than
-      #                                              # one per repository
+      #   project: payments-api                      # prefix for each project name. Every
+      #                                              # repository gets its own project, suffixed
+      #                                              # with its paths and a hash when paths or
+      #                                              # ignore is set
       #   resultTimeout: 15m                         # how long to wait for Mend to finish
       #                                              # analyzing. Raise it for a large monorepo,
       #                                              # where the upload finishes long before the
       #                                              # analysis does
       #   settings:                                  # Unified Agent keys, passed through verbatim.
-      #     fileSystemScan: "true"                   # Draugr writes the component's scope
-      #     resolveAllDependencies: "false"          # exclusions first, so anything here overrides
-      #                                              # them
+      #     fileSystemScan: "true"                   # The agent runs over a checkout already
+      #     resolveAllDependencies: "false"          # restricted to paths and ignore
 
     licenses:
       enabled: true

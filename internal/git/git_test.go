@@ -591,3 +591,88 @@ func TestResolveTreeDoesNotDependOnTheOrderPathsWereWritten(t *testing.T) {
 		t.Errorf("order changed the identity: %q then %q", one, two)
 	}
 }
+
+// The working tree holds uncommitted files, so it is asked rather than the commit: a path somebody
+// has just created is in scope, and one they mistyped is refused.
+func TestCheckoutWorkingTreeScopesLikeACommit(t *testing.T) {
+	src, _ := initRepo(t)
+	for _, f := range []string{"web/new.js", "api/b.go", "package-lock.json", ".semgrepignore"} {
+		full := filepath.Join(src, filepath.FromSlash(f))
+		if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	co, cleanup, err := CheckoutWorkingTree(context.Background(), src, Scope{Paths: []string{"web"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	for f, want := range map[string]bool{"web/new.js": true, ".semgrepignore": true, "api/b.go": false, "package-lock.json": false} {
+		if _, err := os.Stat(filepath.Join(co.Dir, filepath.FromSlash(f))); (err == nil) != want {
+			t.Errorf("%s present = %v, want %v", f, err == nil, want)
+		}
+	}
+
+	_, _, err = CheckoutWorkingTree(context.Background(), src, Scope{Paths: []string{"wbe"}})
+	if err == nil || !strings.Contains(err.Error(), `"wbe"`) || !strings.Contains(err.Error(), "working tree") {
+		t.Errorf("a mistyped path must be refused by name, got %v", err)
+	}
+}
+
+// A scoped checkout holds the scanners' configuration and the root files its paths name, so each
+// is part of what its cached result depends on.
+func TestResolveTreeFollowsTheRootFilesAScopedCheckoutHolds(t *testing.T) {
+	dir := t.TempDir()
+	commit := func(files map[string]string) string {
+		t.Helper()
+		for f, body := range files {
+			full := filepath.Join(dir, filepath.FromSlash(f))
+			if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(full, []byte(body), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		runGit(t, dir, "add", "-A")
+		runGit(t, dir, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "c")
+		out, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD").Output() // #nosec G204 -- a temp dir, in a test
+		if err != nil {
+			t.Fatal(err)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	runGit(t, dir, "init", "-q", "-b", "main")
+	ctx := context.Background()
+	key := func(c string, paths ...string) string {
+		t.Helper()
+		k, err := ResolveTree(ctx, dir, c, paths)
+		if err != nil || k == "" {
+			t.Fatalf("no identity for %v at %s: %q %v", paths, c, k, err)
+		}
+		return k
+	}
+
+	first := commit(map[string]string{"web/a.js": "1", "api/b.go": "1", "package-lock.json": "1"})
+	web1, api1 := key(first, "web", "package-lock.json"), key(first, "api")
+
+	second := commit(map[string]string{"package-lock.json": "2"})
+	if key(second, "web", "package-lock.json") == web1 {
+		t.Error("an edit to a root file the component names left its key standing")
+	}
+	if key(second, "api") != api1 {
+		t.Error("an edit to a root file the component does not hold moved its key")
+	}
+
+	third := commit(map[string]string{".trivyignore": "CVE-2024-0001"})
+	if key(third, "api") == api1 {
+		t.Error("adding scanner configuration left the key standing")
+	}
+	fourth := commit(map[string]string{".trivyignore": "CVE-2024-0002"})
+	if key(fourth, "api") == key(third, "api") {
+		t.Error("editing scanner configuration left the key standing")
+	}
+}

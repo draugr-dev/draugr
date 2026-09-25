@@ -1,0 +1,1 @@
+- **Components scoped to different `paths` of one repository each get their own SBOM**, and a `paths` entry the repository does not hold is refused with the entry named. An edit to `.trivyignore` or another root file a scoped checkout holds now invalidates that component's cached result.
