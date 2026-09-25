@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -339,6 +341,74 @@ func TestRepoScannerMergesAHistoryPassAndMarksIt(t *testing.T) {
 	}
 	if !byPath["old/path.ps1"].Historical {
 		t.Error("the history pass produced a finding not marked as history, which is the whole defect")
+	}
+}
+
+// A history pass walks every commit in the repository, whatever the target's scope. Two components
+// sharing one repository must each keep only the history findings under their own paths, or each
+// reports the other's secrets.
+func TestRepoScannerKeepsOnlyHistoryInsideTheScope(t *testing.T) {
+	result := func(uri string) string {
+		loc := ""
+		if uri != "" {
+			loc = `,"locations":[{"physicalLocation":{"artifactLocation":{"uri":"` + uri + `"},"region":{"startLine":1}}}]`
+		}
+		return `{"ruleId":"private-key","level":"error","message":{"text":"secret"}` + loc + `}`
+	}
+	dir := t.TempDir()
+	history := `{"runs":[{"tool":{"driver":{"name":"gitleaks"}},"results":[` + strings.Join([]string{
+		result("services/api/id_rsa"),
+		result("file://" + filepath.Join(dir, "services", "web", "id_rsa")),
+		result("services/web/testdata/id_rsa"),
+		result("id_rsa"),
+		result(""),
+	}, ",") + `]}]}`
+	s := repoScanner{
+		info: plugin.ScannerInfo{Name: "gitleaks", Controls: []string{"secrets"}},
+		args: func(string, plugin.Config) []string { return []string{"tree"} },
+		checkout: func(_ context.Context, _, _ string, _ git.Scope) (git.Tree, func(), error) {
+			return git.Tree{Dir: dir}, func() {}, nil
+		},
+		historyArgs: func(string, plugin.Config) []string { return []string{"history"} },
+		run: func(_ context.Context, _ string, argv []string) ([]byte, error) {
+			if argv[0] == "history" {
+				return []byte(history), nil
+			}
+			return []byte(`{"runs":[{"tool":{"driver":{"name":"gitleaks"}},"results":[]}]}`), nil
+		},
+	}
+
+	for _, c := range []struct {
+		target plugin.RepositoryTarget
+		want   []string
+	}{
+		// A root file is kept only by the component whose paths name it, the way the checkout
+		// keeps it. A result with no path is kept by every component.
+		{plugin.RepositoryTarget{URL: "u", Paths: []string{"services/api"}},
+			[]string{"", "services/api/id_rsa"}},
+		{plugin.RepositoryTarget{URL: "u", Paths: []string{"services/api", "id_rsa"}},
+			[]string{"", "id_rsa", "services/api/id_rsa"}},
+		{plugin.RepositoryTarget{URL: "u", Paths: []string{"services/web"}, Ignore: []string{"**/testdata/**"}},
+			[]string{"", "services/web/id_rsa"}},
+		// An unscoped target keeps everything.
+		{plugin.RepositoryTarget{URL: "u"},
+			[]string{"", "id_rsa", "services/api/id_rsa", "services/web/id_rsa", "services/web/testdata/id_rsa"}},
+	} {
+		got, err := s.Scan(context.Background(), c.target, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var paths []string
+		for _, r := range got.Results {
+			if !r.Historical {
+				t.Errorf("%v: %q is not marked historical", c.target.Paths, r.Location.URI)
+			}
+			paths = append(paths, r.Location.URI)
+		}
+		slices.Sort(paths)
+		if !slices.Equal(paths, c.want) {
+			t.Errorf("paths %v ignore %v: got %v, want %v", c.target.Paths, c.target.Ignore, paths, c.want)
+		}
 	}
 }
 

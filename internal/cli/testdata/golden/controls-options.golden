@@ -69,7 +69,7 @@ What each scanner accepts in its Saga block:
   gitleaks
     Option   Type     What it does
     config   string   Path to a Gitleaks TOML rules file, relative to where Draugr runs. Use it for a ruleset shared across repositories; a .gitleaks.toml committed in the scanned repository is already picked up without this.
-    history  boolean  Also scan the repository's commit history, in addition to the working tree. Off by default: it needs a full clone rather than a shallow one, so it is slower on a large repository. A secret committed and later removed is still fetchable by anyone who can clone, so it is still compromised, this is what finds it. History findings are marked as such, because they name the path the secret had when it was introduced.
+    history  boolean  Also scan the repository's commit history, in addition to the working tree. Off by default: it needs a full clone rather than a shallow one, so it is slower on a large repository. A secret committed and later removed is still fetchable by anyone who can clone, so it is still compromised, this is what finds it. History findings are marked as such, because they name the path the secret had when it was introduced, and are kept only when that path would be checked out by this component's paths and ignore.
 
   gosec
     Option   Type   What it does

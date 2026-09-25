@@ -304,6 +304,61 @@ func TestMatchesAnyTreatsABareNameAsADirectory(t *testing.T) {
 	}
 }
 
+// Contains is the scope applied to a path rather than a tree, for findings the tree cannot narrow.
+// If the two answers ever differ, a history finding lands under a component whose checkout would
+// not have held the file, so every file is held to what prune keeps under every scope here.
+func TestScopeContainsAgreesWithTheCheckout(t *testing.T) {
+	src := scopedRepo(t)
+	full, cleanupFull, err := Checkout(context.Background(), src, "", Scope{})
+	if err != nil {
+		t.Fatalf("checkout: %v", err)
+	}
+	defer cleanupFull()
+	all := tree(t, full.Dir)
+
+	for _, scope := range []Scope{
+		{},
+		{Paths: []string{"services/web"}},
+		{Paths: []string{"services/web/**", "services/api"}},
+		{Ignore: []string{"vendor/"}},
+		{Ignore: []string{"vendor"}},
+		{Paths: []string{"services"}, Ignore: []string{"**/testdata/**"}},
+		{Paths: []string{"services/web"}, Ignore: []string{"*.go"}},
+	} {
+		co, cleanup, err := Checkout(context.Background(), src, "", Scope{})
+		if err != nil {
+			t.Fatalf("checkout: %v", err)
+		}
+		if err := prune(co.Dir, scope, true); err != nil {
+			cleanup()
+			t.Fatalf("prune: %v", err)
+		}
+		kept := tree(t, co.Dir)
+		cleanup()
+		for _, f := range all {
+			if got, want := scope.Contains(f), slices.Contains(kept, f); got != want {
+				t.Errorf("%+v: Contains(%q) = %v, but the checkout kept it: %v", scope, f, got, want)
+			}
+		}
+	}
+}
+
+func TestScopeContainsRefusesPathsOutsideTheRepository(t *testing.T) {
+	s := Scope{}
+	for _, rel := range []string{"", ".", "..", "../other/go.mod"} {
+		if s.Contains(rel) {
+			t.Errorf("Contains(%q) = true, want false", rel)
+		}
+	}
+	// A leading slash or `./` names the same repository-relative file.
+	web := Scope{Paths: []string{"services/web"}}
+	for _, rel := range []string{"/services/web/main.go", "./services/web/main.go"} {
+		if !web.Contains(rel) {
+			t.Errorf("Contains(%q) = false, want true", rel)
+		}
+	}
+}
+
 func TestPruneEnforcesPathsForTheFallback(t *testing.T) {
 	// The path taken when the server cannot do a partial clone or git is too old to do sparse
 	// checkout. It has to produce the same tree as the fast one, or a scan's scope would depend

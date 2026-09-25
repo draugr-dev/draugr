@@ -49,8 +49,8 @@ type repoScanner struct {
 	// only the tree. Nil for the scanners that read a tree, which is all but one.
 	wantsHistory func(cfg plugin.Config) bool
 	// historyArgs, when it returns an argv, runs a second command over the same checkout whose
-	// findings describe commits rather than the tree. Its results are marked Historical and
-	// merged with the first pass's.
+	// findings describe commits rather than the tree. Its results are marked Historical, kept only
+	// where their path falls inside the target's scope, and merged with the first pass's.
 	//
 	// Two passes rather than one over history, because the two answer different questions and a
 	// reader needs both: what is in the tree now, at the path it is at now, and what is reachable
@@ -294,9 +294,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 			if err != nil {
 				return sarif.Report{}, err
 			}
-			for i := range histReport.Results {
-				histReport.Results[i].Historical = true
-			}
+			histReport.Results = scopeHistory(histReport.Results, dir, scope)
 			report = sarif.Merge(report, histReport)
 		}
 	}
@@ -379,6 +377,28 @@ func stripCheckoutDir(dir, msg string) string {
 		return msg
 	}
 	return strings.ReplaceAll(msg, dir+string(filepath.Separator), "")
+}
+
+// scopeHistory marks a history pass's results as Historical and keeps those whose path falls
+// inside scope.
+//
+// The checkout can narrow the tree to a component's paths, but git history cannot be narrowed:
+// every commit in the repository is walked, including those touching files another component
+// owns. Without this, two components sharing a repository each report the other's secrets, and a
+// secret rotated by its owner stays open under a component whose team has no way to fix it. A
+// result with no path is kept, because nothing about it places it outside the scope and dropping
+// it would hide a finding without saying so.
+func scopeHistory(results []sarif.Result, dir string, scope git.Scope) []sarif.Result {
+	narrowed := len(scope.Paths) > 0 || len(scope.Ignore) > 0
+	kept := results[:0]
+	for _, r := range results {
+		r.Historical = true
+		if uri := repoRelPath(dir, r.Location.URI); narrowed && uri != "" && !scope.Contains(uri) {
+			continue
+		}
+		kept = append(kept, r)
+	}
+	return kept
 }
 
 // repoRelPath rewrites an absolute finding path that lives under the checkout dir into a path
