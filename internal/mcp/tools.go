@@ -353,9 +353,7 @@ func SummarizeReportTool(_ context.Context, _ *mcp.CallToolRequest, in Summarize
 	}
 	rep, err := sarif.FromSARIF(data)
 	if err != nil {
-		return nil, SummarizeOutput{}, fmt.Errorf(
-			"parse %s as SARIF: %w (summarize_report reads results.sarif; a report.json summary has no findings to rank)",
-			in.Path, err)
+		return nil, SummarizeOutput{}, fmt.Errorf("%s: %w", in.Path, err)
 	}
 	return nil, summarize(rep, in.MinPriority, in.Limit), nil
 }
@@ -1031,7 +1029,7 @@ func ExplainRuleTool(_ context.Context, _ *mcp.CallToolRequest, in ExplainInput)
 	}
 	rep, err := sarif.FromSARIF(data)
 	if err != nil {
-		return nil, ExplainOutput{}, fmt.Errorf("parse %s as SARIF: %w", in.Path, err)
+		return nil, ExplainOutput{}, fmt.Errorf("%s: %w", in.Path, err)
 	}
 
 	id, rule, err := matchRule(rep, in.RuleID)
@@ -1135,7 +1133,7 @@ func FixListTool(_ context.Context, _ *mcp.CallToolRequest, in FixListInput) (*m
 	}
 	rep, err := sarif.FromSARIF(data)
 	if err != nil {
-		return nil, FixListOutput{}, fmt.Errorf("parse %s as SARIF: %w", in.Path, err)
+		return nil, FixListOutput{}, fmt.Errorf("%s: %w", in.Path, err)
 	}
 
 	limit := in.Limit
@@ -1247,7 +1245,7 @@ func readSARIF(path string) (sarif.Report, error) {
 	}
 	rep, err := sarif.FromSARIF(data)
 	if err != nil {
-		return sarif.Report{}, fmt.Errorf("parse %s as SARIF: %w", path, err)
+		return sarif.Report{}, fmt.Errorf("%s: %w", path, err)
 	}
 	return rep, nil
 }

@@ -2,6 +2,8 @@ package sarif
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"maps"
 	"regexp"
 	"slices"
@@ -646,12 +648,36 @@ func scannersOwn(kind string) string {
 	return OriginScanner
 }
 
+// ErrNotSARIF is returned by FromSARIF for a document it cannot read as a SARIF log: not JSON, or a
+// JSON document with neither of the two members every SARIF log carries, "version" and "runs".
+//
+// Any JSON object unmarshals into a SARIF log without error and with no results, so without the
+// second check a file that is not SARIF at all reads as a scan that found nothing, and every
+// consumer reports that: a diff with nothing new, a summary with nothing to fix.
+var ErrNotSARIF = errors.New("not a SARIF log")
+
+// draugrSummary holds the members only Draugr's report.json has, so that FromSARIF can name the
+// file a reader most likely meant when they hand it that one.
+type draugrSummary struct {
+	Draugr  json.RawMessage `json:"draugr"`
+	Verdict json.RawMessage `json:"verdict"`
+}
+
 // FromSARIF parses standard SARIF 2.1.0 JSON into a Report, flattening all runs and
-// setting each result's Tool from its run's driver name.
+// setting each result's Tool from its run's driver name. A document that is not a SARIF log
+// returns ErrNotSARIF.
 func FromSARIF(data []byte) (Report, error) {
 	var log sarifLog
 	if err := json.Unmarshal(data, &log); err != nil {
-		return Report{}, err
+		return Report{}, fmt.Errorf("%w: %w", ErrNotSARIF, err)
+	}
+	if log.Version == "" && log.Runs == nil {
+		var summary draugrSummary
+		if json.Unmarshal(data, &summary) == nil && summary.Draugr != nil && summary.Verdict != nil {
+			return Report{}, fmt.Errorf("%w: this is Draugr's report.json, which holds the verdict; "+
+				"the findings are in results.sarif in the same directory", ErrNotSARIF)
+		}
+		return Report{}, fmt.Errorf(`%w: it has neither a "version" nor a "runs" member`, ErrNotSARIF)
 	}
 	var out Report
 	for i, run := range log.Runs {
