@@ -282,3 +282,109 @@ func TestParseTrivyLicensesRuleIsTheSameUnderEveryPolicy(t *testing.T) {
 		}
 	}
 }
+
+// fullLicenseJSON is the shape `trivy fs --license-full` reports over two directories: the
+// lockfile's packages, with the lines Trivy's npm parser records for each entry, in one result
+// set; their licenses in a second; and the licenses it read from files in a third, with no package
+// name.
+const fullLicenseJSON = `{"Results":[
+ {"Target":"api/package-lock.json","Class":"lang-pkgs","Type":"npm","Packages":[
+  {"Name":"ms","Version":"2.1.3","Locations":[{"StartLine":16,"EndLine":20}]}]},
+ {"Target":"api/package-lock.json","Class":"license","Packages":[],"Licenses":[
+  {"Severity":"HIGH","Category":"restricted","PkgName":"ms","FilePath":"api/package-lock.json","Name":"GPL-3.0-only"}]},
+ {"Target":"Loose File License(s)","Class":"license-file","Packages":[],"Licenses":[
+  {"Severity":"HIGH","Category":"restricted","PkgName":"","FilePath":"api/LICENSE","Name":"LGPL-3.0","Link":"https://spdx.org/licenses/LGPL-3.0.html"},
+  {"Severity":"HIGH","Category":"restricted","PkgName":"","FilePath":"web/LICENSE","Name":"LGPL-3.0","Link":"https://spdx.org/licenses/LGPL-3.0.html"}]}
+]}`
+
+// fullLicenseLock is a package-lock.json whose root lists each dependency before the package's own
+// node_modules/ entry.
+const fullLicenseLock = `{
+  "name": "api",
+  "lockfileVersion": 3,
+  "packages": {
+    "": {
+      "name": "api",
+      "dependencies": {
+        "ms": "2.1.3",
+        "tslib": "2.6.2"
+      }
+    },
+    "node_modules/tslib": {
+      "version": "2.6.2",
+      "license": "0BSD"
+    },
+    "node_modules/ms": {
+      "version": "2.1.3",
+      "license": "MIT"
+    }
+  }
+}
+`
+
+func parseFullLicenses(t *testing.T) sarif.Report {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "api"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "api", "package-lock.json"), []byte(fullLicenseLock), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rep, err := parseTrivyLicenses([]byte(fullLicenseJSON), dir, nil)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	return rep
+}
+
+// A license Trivy read from a file has no package, so the finding names the file, in each of two.
+func TestAFileLevelLicenseNamesTheFile(t *testing.T) {
+	rep := parseFullLicenses(t)
+	var files []sarif.Result
+	for _, r := range rep.Results {
+		if r.RuleID == "license/LGPL-3.0" {
+			files = append(files, r)
+		}
+	}
+	if len(files) != 2 {
+		t.Fatalf("got %d file-level findings, want one per file", len(files))
+	}
+	for _, r := range files {
+		want := r.Location.URI + " is LGPL-3.0. Copyleft."
+		if !strings.HasPrefix(r.Message, want) {
+			t.Errorf("message = %q, want it to open %q", r.Message, want)
+		}
+		if r.Location.StartLine != 0 {
+			t.Errorf("%s: line = %d, want 0, the license covers the whole file", r.Location.URI, r.Location.StartLine)
+		}
+	}
+	// Every file carrying the license shares the rule, so its description names none of them.
+	if got := rep.Rules["license/LGPL-3.0"].ShortDescription; got != "A file is licensed LGPL-3.0" {
+		t.Errorf("file-level rule description = %q", got)
+	}
+}
+
+// A package's license points at its own node_modules/ entry in package-lock.json, the line Trivy's
+// parser recorded for it, rather than the root's dependency list, which names it first.
+func TestAPackageLicenseLocatesTheLockfileEntry(t *testing.T) {
+	for _, r := range parseFullLicenses(t).Results {
+		if r.RuleID != "license/GPL-3.0-only/ms" {
+			continue
+		}
+		if r.Location.URI != "api/package-lock.json" || r.Location.StartLine != 16 {
+			t.Errorf("location = %s:%d, want api/package-lock.json:16", r.Location.URI, r.Location.StartLine)
+		}
+		if !strings.HasPrefix(r.Message, "ms is GPL-3.0-only.") {
+			t.Errorf("message = %q", r.Message)
+		}
+		return
+	}
+	t.Fatal("the package finding is missing")
+}
+
+func TestLicenseSubjectWithNeitherPackageNorFile(t *testing.T) {
+	if got := licenseSubject(trivyLicense{Name: "MIT"}); got != "A file" {
+		t.Errorf("subject = %q, want a noun rather than a blank", got)
+	}
+}

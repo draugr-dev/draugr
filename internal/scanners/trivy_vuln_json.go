@@ -110,6 +110,10 @@ type trivyModified struct {
 
 // trivyPackage is a package Trivy read, and where in the manifest it read it.
 type trivyPackage struct {
+	// Name and Version identify the package where no UID links a finding to it: a license finding
+	// carries its package's name and nothing else.
+	Name       string `json:"Name"`
+	Version    string `json:"Version"`
 	Identifier struct {
 		UID string `json:"UID"`
 	} `json:"Identifier"`
@@ -118,13 +122,22 @@ type trivyPackage struct {
 	} `json:"Locations"`
 }
 
+// line is the first line of the package's own entry in its manifest, or 0 where Trivy's parser
+// records none.
+func (p trivyPackage) line() int {
+	if len(p.Locations) == 0 {
+		return 0
+	}
+	return p.Locations[0].StartLine
+}
+
 // packageLines maps each package's UID to the first line of its entry, for the packages whose
 // parser records one.
 func (r trivyVulnResult) packageLines() map[string]int {
 	out := map[string]int{}
 	for _, p := range r.Packages {
-		if p.Identifier.UID != "" && len(p.Locations) > 0 && p.Locations[0].StartLine > 0 {
-			out[p.Identifier.UID] = p.Locations[0].StartLine
+		if p.Identifier.UID != "" && p.line() > 0 {
+			out[p.Identifier.UID] = p.line()
 		}
 	}
 	return out

@@ -26,9 +26,9 @@ init:
       repositories: ["."]
 
 findings:
-  - {control: licenses, tool: trivy-license, rule: license/ISC/inherits, location: "licenses-deny/package-lock.json:12"}
-  - {control: licenses, tool: trivy-license, rule: license/0BSD/tslib, location: "licenses-warn/package-lock.json:12"}
-  - {control: licenses, tool: trivy-license, rule: license/ISC/inherits, location: "licenses-warn-isc/package-lock.json:12"}
-  - {control: licenses, tool: trivy-license, rule: license/MIT/ms, location: "trivy-license-deny/package-lock.json:12"}
-  - {control: licenses, tool: trivy-license, rule: license/BSD-3-Clause/sprintf-js, location: "trivy-license-warn/package-lock.json:12"}
+  - {control: licenses, tool: trivy-license, rule: license/ISC/inherits, location: "licenses-deny/package-lock.json:15"}
+  - {control: licenses, tool: trivy-license, rule: license/0BSD/tslib, location: "licenses-warn/package-lock.json:15"}
+  - {control: licenses, tool: trivy-license, rule: license/ISC/inherits, location: "licenses-warn-isc/package-lock.json:15"}
+  - {control: licenses, tool: trivy-license, rule: license/MIT/ms, location: "trivy-license-deny/package-lock.json:15"}
+  - {control: licenses, tool: trivy-license, rule: license/BSD-3-Clause/sprintf-js, location: "trivy-license-warn/package-lock.json:15"}
   - {control: licenses, tool: trivy-license, rule: license/LGPL-3.0, location: "full/LICENSE"}

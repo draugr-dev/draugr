@@ -35,7 +35,7 @@
                   "uriBaseId": "%SRCROOT%"
                 },
                 "region": {
-                  "startLine": 12
+                  "startLine": 15
                 }
               }
             }
@@ -65,7 +65,7 @@
                   "uriBaseId": "%SRCROOT%"
                 },
                 "region": {
-                  "startLine": 12
+                  "startLine": 15
                 }
               }
             }
@@ -98,7 +98,7 @@
             }
           ],
           "message": {
-            "text": " is LGPL-3.0. Copyleft. Distributing software that includes this obliges you to offer your own source under the same terms. Running it as a hosted service usually does not."
+            "text": "full/LICENSE is LGPL-3.0. Copyleft. Distributing software that includes this obliges you to offer your own source under the same terms. Running it as a hosted service usually does not."
           },
           "properties": {
             "component": "full",
@@ -149,7 +149,7 @@
                   "uriBaseId": "%SRCROOT%"
                 },
                 "region": {
-                  "startLine": 12
+                  "startLine": 15
                 }
               }
             }
@@ -179,7 +179,7 @@
                   "uriBaseId": "%SRCROOT%"
                 },
                 "region": {
-                  "startLine": 12
+                  "startLine": 15
                 }
               }
             }
@@ -217,7 +217,7 @@
                 ]
               },
               "shortDescription": {
-                "text": " is licensed LGPL-3.0"
+                "text": "A file is licensed LGPL-3.0"
               }
             },
             {

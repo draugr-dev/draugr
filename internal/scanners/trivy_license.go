@@ -183,7 +183,8 @@ const (
 type trivyLicenseDoc struct {
 	Results []struct {
 		// Target, Class and Packages name the file a set of packages was read from, which Trivy
-		// reports beside the licenses it found in them.
+		// reports beside the licenses it found in them. A license found in a file rather than in
+		// package metadata arrives in a set of its own, class license-file, with no package name.
 		Target   string         `json:"Target"`
 		Class    string         `json:"Class"`
 		Packages []trivyPackage `json:"Packages"`
@@ -237,7 +238,7 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 	deny, warn := stringList(cfg, denyKey), stringList(cfg, warnKey)
 
 	report := sarif.Report{Tool: trivyLicenseScannerName, Rules: map[string]sarif.Rule{}}
-	lines := newLineIndex(dir)
+	lineOf := doc.lineFinder(dir)
 
 	for _, res := range doc.Results {
 		if in, ok := trivyInput(dir, res.Class, res.Target, len(res.Packages)); ok {
@@ -253,26 +254,75 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 				Tool:    trivyLicenseScannerName,
 				RuleID:  ruleID,
 				Level:   level,
-				Message: fmt.Sprintf("%s is %s. %s", lic.PkgName, lic.Name, why),
+				Message: fmt.Sprintf("%s is %s. %s", licenseSubject(lic), lic.Name, why),
 				Location: sarif.Location{
 					URI:       lic.FilePath,
-					StartLine: lines.find(lic.FilePath, lic.PkgName, ""),
+					StartLine: lineOf(lic),
 				},
 			})
-			// The rule holds only what is true wherever this package carries this license: its
-			// name, Trivy's reading of the license, and where to read its terms. The verdict
-			// belongs to the result. Deny and warn are set per component, and SARIF stores one
-			// rule per id for the whole run, so a rule stating one component's verdict would
-			// describe every other component's finding under that id wrongly.
-			report.Rules[ruleID] = sarif.Rule{
-				Name:             lic.Name,
-				ShortDescription: fmt.Sprintf("%s is licensed %s", lic.PkgName, lic.Name),
-				FullDescription:  categoryLevel[strings.ToLower(lic.Category)].why,
-				HelpURI:          licenseHelpURI(lic),
-			}
+			report.Rules[ruleID] = licenseRule(lic)
 		}
 	}
 	return report, nil
+}
+
+// licenseSubject is what a license finding is about: the package, or for a license Trivy found in
+// a file (a LICENSE, a source header) rather than in package metadata, the file. Trivy reports
+// those with no package name, and a message opening on a blank reads as a defect in the report.
+func licenseSubject(lic trivyLicense) string {
+	switch {
+	case lic.PkgName != "":
+		return lic.PkgName
+	case lic.FilePath != "":
+		return lic.FilePath
+	}
+	return "A file"
+}
+
+// licenseRule describes a license rule. A file-level rule, `license/<spdx>`, is shared by every
+// file carrying that license, so its description names none of them; the finding's message does.
+func licenseRule(lic trivyLicense) sarif.Rule {
+	short := fmt.Sprintf("%s is licensed %s", lic.PkgName, lic.Name)
+	if lic.PkgName == "" {
+		short = "A file is licensed " + lic.Name
+	}
+	return sarif.Rule{
+		Name:             lic.Name,
+		ShortDescription: short,
+		FullDescription:  categoryLevel[strings.ToLower(lic.Category)].why,
+		HelpURI:          licenseHelpURI(lic),
+	}
+}
+
+// lineFinder returns the line a license finding's package is declared on.
+//
+// Trivy reports a license with its package's name and manifest and no line. The line comes from
+// the package list Trivy reports for the same manifest, where its parser records each package's
+// own entry: in a package-lock.json that is `node_modules/<name>`, where the first mention of the
+// name is the root's dependency list. Where the parser records no line, the manifest is searched,
+// with the package's version to tell its entry from a reference to it.
+func (d trivyLicenseDoc) lineFinder(dir string) func(trivyLicense) int {
+	type key struct{ file, name string }
+	packages := map[key]trivyPackage{}
+	for _, res := range d.Results {
+		for _, p := range res.Packages {
+			k := key{res.Target, p.Name}
+			if _, seen := packages[k]; !seen {
+				packages[k] = p
+			}
+		}
+	}
+	lines := newLineIndex(dir)
+	return func(lic trivyLicense) int {
+		if lic.PkgName == "" {
+			return 0 // a license in a file belongs to the whole file
+		}
+		p := packages[key{lic.FilePath, lic.PkgName}]
+		if n := p.line(); n > 0 {
+			return n
+		}
+		return lines.find(lic.FilePath, lic.PkgName, p.Version)
+	}
 }
 
 // licenseLevel decides how loudly to report a license, and why. The Saga's deny/warn lists name
