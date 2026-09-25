@@ -221,10 +221,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     # Read only. The scans execute third-party scanners over fixture repositories, so no credential
-    # that can write is on the machine while they run; the one that opens the pull request is minted
-    # after the tests have finished.
+    # that can write ever reaches this machine; live-propose opens the pull request from a fresh one.
     permissions:
       contents: read
+    outputs:
+      changed: ${{ steps.drift.outputs.changed }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -266,6 +267,7 @@ jobs:
         id: drift
         run: |
           set -euo pipefail
+          mkdir -p .live
           git add --intent-to-add -- 'test/integration/testdata/ecosystems/*/live.yaml' test/integration/testdata/draugr-demo.live.yaml
           changed=$(git diff --name-only -- 'test/integration/testdata/ecosystems/*/live.yaml' test/integration/testdata/draugr-demo.live.yaml)
           if [ -z "$changed" ]; then
@@ -278,12 +280,48 @@ jobs:
             echo "The live structure differs from what is recorded in:"
             echo
             printf '%s\n' "$changed" | sed 's/^/- `/; s/$/`/'
-          } | tee /tmp/drift.md >> "$GITHUB_STEP_SUMMARY"
+          } | tee .live/drift.md >> "$GITHUB_STEP_SUMMARY"
+          git diff --binary -- 'test/integration/testdata/ecosystems/*/live.yaml' test/integration/testdata/draugr-demo.live.yaml > .live/live.patch
+
+      - name: Keep the drift for live-propose
+        if: steps.drift.outputs.changed == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: live-drift
+          path: |
+            .live/drift.md
+            .live/live.patch
+          retention-days: 7
+
+  # The live tier's drift, proposed as a pull request.
+  #
+  # A job of its own so that the token able to push a branch is minted on a machine that never ran a
+  # scanner. The live job executes third-party tools over fixture repositories, and a credential
+  # minted after them in the same job shares a machine with anything they left running.
+  live-propose:
+    name: Live tier drift as a pull request
+    needs: live
+    if: needs.live.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: live-drift
+          path: ${{ runner.temp }}/live-drift
+
+      - name: Apply the drift
+        run: git apply --index "$RUNNER_TEMP/live-drift/live.patch"
 
       # Not GITHUB_TOKEN: GitHub starts no workflow for anything that token does, so a pull request
       # opened with it would sit with no checks having run on it.
       - name: Mint an installation token
-        if: steps.drift.outputs.changed == 'true'
         id: app
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
@@ -294,7 +332,6 @@ jobs:
       # merges or closes it. A pull request per night would be a week of near-duplicates about the
       # same advisories.
       - name: Propose the drift as a pull request
-        if: steps.drift.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
           BASE: ${{ github.ref_name }}
@@ -305,7 +342,6 @@ jobs:
           git config user.name "Wilson Santos"
           git config user.email "wilson@draugr.dev"
           git checkout -B "$branch"
-          git add -- 'test/integration/testdata/ecosystems/*/live.yaml' test/integration/testdata/draugr-demo.live.yaml
           git commit -m "Record the live tier's structure as of $(date -u +%F)" \
             -m "What the sealed scenarios and draugr-demo find against the latest advisory databases and real registries. Written by $RUN_URL."
           auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
@@ -318,20 +354,20 @@ jobs:
             echo "Each changed file is one scenario; a line added or removed is a package or file a scanner"
             echo "started or stopped reporting."
             echo
-            cat /tmp/drift.md
+            cat "$RUNNER_TEMP/live-drift/drift.md"
             echo
             echo "Nothing here failed. A scenario that lost a whole ecosystem or control fails the run"
             echo "instead of reaching a pull request."
             echo
             echo "[The run]($RUN_URL) has each scan's output. Each night that finds drift rewrites this"
             echo "branch until the pull request is merged or closed."
-          } > /tmp/body.md
+          } > "$RUNNER_TEMP/body.md"
           number=$(gh pr list --head "$branch" --base "$BASE" --state open --json number --jq '.[0].number // empty')
           if [ -n "$number" ]; then
-            gh pr edit "$number" --body-file /tmp/body.md
+            gh pr edit "$number" --body-file "$RUNNER_TEMP/body.md"
           else
             gh pr create --base "$BASE" --head "$branch" \
-              --title "Record the live tier's structure" --body-file /tmp/body.md
+              --title "Record the live tier's structure" --body-file "$RUNNER_TEMP/body.md"
           fi
 
   # docs/guides/air-gapped.md, held to what it promises.
@@ -400,7 +436,7 @@ jobs:
   # push, say) leaves its issue as it is, because not running says nothing about whether it is fixed.
   notify:
     name: A red suite on main raises an issue
-    needs: [integration, live, airgapped]
+    needs: [integration, live, live-propose, airgapped]
     # Not on pull requests: the author is looking at the failing check already, and an issue would
     # be telling them what their own screen says.
     if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
@@ -435,6 +471,11 @@ jobs:
                 label: "live-tier-red",
                 title: "The live tier is failing on main",
                 why: "**The live tier scans the sealed scenarios and draugr-demo against the latest advisory databases and real registries.** A change in what it finds is proposed as a pull request, so a red run is one of the things no published advisory explains: a scenario that lost every finding in an ecosystem or control, a control that could not run, or output that is not valid SARIF.",
+              },
+              "live-propose": {
+                label: "live-propose-red",
+                title: "The live tier cannot propose its drift on main",
+                why: "**The live tier found drift and could not open the pull request that records it.** The drift is in the run's `live-drift` artifact. The usual causes are a patch that no longer applies to main, or an installation token the release app could not mint.",
               },
               airgapped: {
                 label: "air-gapped-red",
