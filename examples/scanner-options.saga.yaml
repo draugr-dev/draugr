@@ -146,8 +146,8 @@ config:
       #   checks: [policies/rego]                    # Rego files or directories of them, relative
       #                                              # to where Draugr runs, added to Trivy's own
       #                                              # checks. Commented out: the path must exist
-      #   namespaces: [user]                         # the namespaces those checks declare, where
-      #                                              # Trivy does not evaluate them by default
+      #   namespaces: [user]                         # top-level package names to evaluate. Unset,
+      #                                              # derived from the checks' package lines
 
     secrets:
       enabled: true

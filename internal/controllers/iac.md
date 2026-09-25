@@ -14,6 +14,10 @@ deduplicates findings into a per-control result with a severity summary.
 
 Trivy reports per-check severity, so findings are counted as reported.
 
+With `trivyConfig.checks` set and `namespaces` unset, the control derives the namespaces from the
+checks' `package` lines when it plans, and `draugr validate` refuses a check it cannot derive one
+from. [`trivy-config`](../scanners/trivy-config.md) has the rules.
+
 ## Links
 
 - Glossary: [IaC scanning](../../docs/reference/glossary.md#iac-scanning-infrastructure-as-code)

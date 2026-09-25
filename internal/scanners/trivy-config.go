@@ -13,7 +13,9 @@ import (
 //
 // Custom Rego is the main reason teams pick this over a fixed checklist: the misconfigurations
 // that matter to an organization are usually the ones nobody else has written a rule for. Both
-// options add checks; neither removes findings.
+// options add checks; neither removes findings. The iac controller derives namespaces from the
+// checks' package lines when a descriptor names none, because Trivy evaluates no custom namespace
+// unless told to.
 const trivyConfigCheckSchema = `{
   "type": "object",
   "additionalProperties": false,
@@ -21,12 +23,12 @@ const trivyConfigCheckSchema = `{
     "checks": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Paths to Rego check files, or directories of them, relative to where Draugr runs. Adds your own misconfiguration rules to Trivy's built-in ones."
+      "description": "Paths to Rego check files, or directories of them, relative to where Draugr runs. Adds your own misconfiguration rules to Trivy's built-in ones. Without namespaces, every check must declare a package, and the package's first name is the namespace it runs under."
     },
     "namespaces": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Rego namespaces to evaluate, e.g. [\"user\"]. Needed when your checks declare a namespace Trivy does not scan by default."
+      "description": "Top-level Rego package names whose checks Trivy evaluates, e.g. [\"user\"] for package user.tags. Unset, Draugr derives the list from the package lines in checks; set, only the listed namespaces run."
     }
   }
 }`

@@ -57,6 +57,68 @@
           "ruleId": "DRAUGR-0002"
         },
         {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "derived/Dockerfile",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Base image from an untrusted registry"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "derived",
+            "control": "iac",
+            "priority": "P1",
+            "repository": "./options-trivy-config",
+            "security-severity": "8",
+            "tool": "Trivy"
+          },
+          "ruleId": "DRAUGR-0002"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "derived/Dockerfile",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Image names no maintainer"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "derived",
+            "control": "iac",
+            "priority": "P2",
+            "repository": "./options-trivy-config",
+            "security-severity": "5.5",
+            "tool": "Trivy"
+          },
+          "ruleId": "DRAUGR-0001"
+        },
+        {
           "level": "warning",
           "locations": [
             {

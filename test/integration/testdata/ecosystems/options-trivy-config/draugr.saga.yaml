@@ -28,3 +28,11 @@ components:
         trivyConfig:
           checks: [./checks]
           namespaces: [acme]
+  - name: derived
+    repositories:
+      - url: ./options-trivy-config
+        paths: [derived]
+    controls:
+      iac:
+        trivyConfig:
+          checks: [./checks]

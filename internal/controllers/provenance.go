@@ -761,10 +761,18 @@ func stringAt(m map[string]any, key string) string {
 	return v
 }
 
-// stringsAt reads a list of strings from a decoded block, skipping anything that is not one.
+// stringsAt reads a list of strings from a decoded block, skipping anything that is not one or is
+// empty. A []string, which a block built in Go rather than decoded from YAML holds, reads the same.
 func stringsAt(m map[string]any, key string) []string {
-	list, ok := m[key].([]any)
-	if !ok {
+	var list []any
+	switch v := m[key].(type) {
+	case []any:
+		list = v
+	case []string:
+		for _, s := range v {
+			list = append(list, s)
+		}
+	default:
 		return nil
 	}
 	out := make([]string, 0, len(list))

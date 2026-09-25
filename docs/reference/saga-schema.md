@@ -386,7 +386,7 @@ beyond their scanners'.
 | `trivy`, `trivy-fs` | `pkgTypes` (`os`, `library`), `dbRepository`, an internal mirror |
 | `trivy-fs` | `filePatterns` (`analyzer:regex`), `includeDevDeps`, `detectionPriority` (`precise`, `comprehensive`) |
 | `grype`, `grype-fs` | `byCve`. Report under the CVE rather than the advisory ID, on by default |
-| `trivy-config` | `checks`, paths to your own Rego; `namespaces`, the namespaces they declare |
+| `trivy-config` | `checks`, paths to your own Rego; `namespaces`, the top-level package names to evaluate, derived from the checks' `package` lines when unset |
 | `semgrep` | `config`, a registry ref, path or URL |
 | `gitleaks` | `config`, a rules file shared across repositories; `history`, scan commit history too, keeping findings whose path is inside the component's [`paths` and `ignore`](#scoping-a-repository) and reporting a secret still in the tree once, as the tree finding |
 | `virustotal` | `requestsPerMinute` |

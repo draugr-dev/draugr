@@ -290,7 +290,7 @@
           "description": "trivy-config, published by aquasecurity.",
           "properties": {
             "checks": {
-              "description": "Paths to Rego check files, or directories of them, relative to where Draugr runs. Adds your own misconfiguration rules to Trivy's built-in ones.",
+              "description": "Paths to Rego check files, or directories of them, relative to where Draugr runs. Adds your own misconfiguration rules to Trivy's built-in ones. Without namespaces, every check must declare a package, and the package's first name is the namespace it runs under.",
               "items": {
                 "type": "string"
               },
@@ -301,7 +301,7 @@
               "type": "boolean"
             },
             "namespaces": {
-              "description": "Rego namespaces to evaluate, e.g. [\"user\"]. Needed when your checks declare a namespace Trivy does not scan by default.",
+              "description": "Top-level Rego package names whose checks Trivy evaluates, e.g. [\"user\"] for package user.tags. Unset, Draugr derives the list from the package lines in checks; set, only the listed namespaces run.",
               "items": {
                 "type": "string"
               },

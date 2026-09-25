@@ -1,0 +1,1 @@
+- **`trivyConfig.checks` runs without `namespaces`.** Draugr derives the namespaces from each check's `package` line, so a custom Rego check fires with `checks` alone, where Trivy evaluated none of them. `draugr validate` prints the derived list and refuses a check with no `package` line or a path holding no `.rego` file.

@@ -113,7 +113,7 @@ config:
       enabled: true          # Infrastructure-as-Code (Trivy config)
       # trivyConfig:
       #   checks: [security/checks]  # your own Rego, alongside Trivy's built-in checks
-      #   namespaces: [user]         # the namespaces those checks declare
+      #   namespaces: [user]         # optional, derived from the checks' package lines
     headers:
       enabled: true          # HTTP security headers on hosts (native)
     tls:

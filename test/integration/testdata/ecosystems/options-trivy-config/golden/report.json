@@ -1,15 +1,15 @@
 {
   "controls": [
     {
-      "errors": 1,
+      "errors": 2,
       "highest": "high",
       "highestPriority": "P1",
       "name": "iac",
       "notes": 0,
       "threshold": "",
-      "total": 2,
+      "total": 4,
       "verdict": "fail",
-      "warnings": 1
+      "warnings": 2
     }
   ],
   "descriptor": {
@@ -17,7 +17,7 @@
     "effective": "<cleared>",
     "sources": [
       {
-        "digest": "sha256:d3256e48da77f31c9510d75056401b5a9e325a7bc197af974d5c8f0bbf3784c5",
+        "digest": "sha256:c846d0d6052afbcc4ace48b4e600a5553fba6ae25fe145a50a859c599d13fbe3",
         "path": "draugr.saga.yaml",
         "root": true
       }
@@ -28,8 +28,8 @@
     "failOnPriority": "P1"
   },
   "priorities": {
-    "p1": 1,
-    "p2": 1,
+    "p1": 2,
+    "p2": 2,
     "p3": 0,
     "p4": 0
   },
@@ -59,8 +59,8 @@
     "concurrency": "<cleared>",
     "deduped": 0,
     "durationMs": "<cleared>",
-    "jobs": 3,
-    "scans": 3
+    "jobs": 4,
+    "scans": 4
   },
   "verdict": "fail"
 }

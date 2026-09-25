@@ -29,13 +29,33 @@ config:
     iac:
       trivyConfig:
         checks: [security/checks]   # your own Rego, alongside Trivy's built-in checks
-        namespaces: [user]          # the namespaces those checks declare
+        namespaces: [user]          # optional, derived from the checks' package lines when unset
 ```
 
 | Option | What it does |
 |---|---|
 | `checks` | Paths to Rego check files or directories, one `--config-check` each. Relative to where Draugr runs. |
-| `namespaces` | Rego namespaces to evaluate (`--check-namespaces`). Needed when your checks declare one Trivy does not scan by default. |
+| `namespaces` | Top-level package names whose checks Trivy evaluates (`--check-namespaces`). Derived from `checks` when unset. |
+
+Trivy evaluates a custom check only when the first name of its package is listed in
+`--check-namespaces`, which lists no custom namespace by default. A check in
+`package user.draugr.tags` runs under `namespaces: [user]`, and under neither `user.draugr` nor the
+full package name.
+
+With `checks` set and `namespaces` unset, the `iac` control reads the `package` line of every
+check (each `.rego` file under a directory, `_test.rego` files excepted) and passes the first names
+it finds. `draugr validate` prints the derived list for each component:
+
+```console
+$ draugr validate
+✓ draugr.saga.yaml is valid
+  · iac: component "api" evaluates the namespaces its checks declare
+    trivyConfig.namespaces: [acme, user]
+```
+
+`draugr validate` and `draugr scan` refuse a set of checks the list cannot be derived from, naming
+the file: a check with no `package` line, a directory holding no `.rego` file, a path that does not
+exist. Setting `namespaces` turns the derivation off, and only the namespaces listed run.
 
 Both add checks; neither removes findings. Trivy's `--severity` and `--ignorefile` are not
 exposed. See `config.exclude` in the Saga reference for suppressing a finding in a way that stays
@@ -50,9 +70,8 @@ visible.
 - Integration mode: **exec** over a local checkout; Trivy + `git` must be on `PATH`.
 - Trivy exits 0 even when misconfigurations are found (no `--exit-code` set), so findings
   come from the SARIF report; the [`iac`](../controllers/iac.md) controller judges severity.
-- Custom policy is where most of the value is. `checks` takes paths to your own Rego and
-  `namespaces` names the packages they declare, so a rule encoding a mistake your team repeats
-  gates the same way the built-in ones do.
+- Custom policy is where most of the value is. `checks` takes paths to your own Rego, so a rule
+  encoding a mistake your team repeats gates the same way the built-in ones do.
 
 ## Data
 
