@@ -1,0 +1,45 @@
+# Two services with the same shape in one repository, a component scoped to each by paths:. Both
+# pin minimist 1.2.5, both call eval, and both commit a credential, so every finding in services/api
+# has a twin in services/web that differs only in its path. Each is reported once, under the
+# component whose directory holds it. A run that keyed a finding on its rule and package rather than
+# its location would merge the two into one and leave a team without the finding it has to fix.
+# SAST expectations are the ruleid: and ok: comments in each service's src/index.js.
+init:
+  controls: [iac, sast, sca, secrets]
+  components:
+    - name: monorepo-paths
+      repositories: ["."]
+  perDirectory:
+    controls: [iac, sast, sca, secrets]
+    components:
+      - name: monorepo-paths
+        repositories: ["."]
+        ignore: [services/api/, services/web/]
+      - name: api
+        repositories: ["."]
+        paths: [services/api]
+      - name: web
+        repositories: ["."]
+        paths: [services/web]
+
+secrets:
+  - file: services/api/deploy/aws.env
+    rules: [aws-access-token]
+    components: [api]
+  - file: services/web/deploy/aws.env
+    rules: [aws-access-token]
+    components: [web]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2021-44906
+    location: services/api/package-lock.json:15
+    package: npm minimist 1.2.5
+    component: api
+  - control: sca
+    tool: trivy
+    rule: CVE-2021-44906
+    location: services/web/package-lock.json:15
+    package: npm minimist 1.2.5
+    component: web

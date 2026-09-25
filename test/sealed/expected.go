@@ -96,8 +96,15 @@ type ComponentExpectation struct {
 type SecretExpectation struct {
 	// File is where the harness writes it, relative to the repository. It is written on line 1.
 	File string `yaml:"file"`
-	// Rules are the rules that must report it.
+	// Rules are the rules that must report it. Empty means nothing may report it, which is how a
+	// scenario writes a credential outside every component's paths and holds every component to
+	// leaving it alone.
 	Rules []string `yaml:"rules"`
+	// Components are the components that must each report it, once per rule. Empty means one
+	// report from any component, which is enough where one component scans the repository. Where
+	// several share it, a secret reported under a component whose paths do not hold it is a
+	// credential filed with a team that cannot rotate it, and only naming the owner catches that.
+	Components []string `yaml:"components,omitempty"`
 	// Removed deletes the file in a second commit, so the secret is in the repository's history
 	// and not in its tree.
 	Removed bool `yaml:"removed"`
@@ -125,13 +132,16 @@ type FindingExpectation struct {
 // LeavesFieldsUnwritten reports whether a scan of the scenario leaves out fields the normalizers
 // clear: a control that failed to start writes no scanner version, and a scan whose results are
 // all about whole files, or that finds nothing, has no line to take a fingerprint from. Secrets
-// are written on line 1.
+// are written on line 1, except one found only in history, which is a result about a commit
+// rather than a line of the tree.
 func (e Expected) LeavesFieldsUnwritten() bool {
 	if len(e.Errors) > 0 {
 		return true
 	}
-	if len(e.Secrets) > 0 {
-		return false
+	for _, s := range e.Secrets {
+		if !s.Removed {
+			return false
+		}
 	}
 	for _, f := range e.Findings {
 		if _, line, err := splitLocation(f.Location); err == nil && line > 0 {

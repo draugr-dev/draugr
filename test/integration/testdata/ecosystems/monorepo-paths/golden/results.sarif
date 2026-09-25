@@ -1,0 +1,305 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "monorepo-paths/"
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "fields": {
+              "repository": "./monorepo-paths",
+              "revision": "<cleared>"
+            },
+            "tool": "gitleaks",
+            "version": "<cleared>"
+          },
+          {
+            "fields": {
+              "repository": "./monorepo-paths",
+              "revision": "<cleared>"
+            },
+            "tool": "semgrep",
+            "version": "<cleared>"
+          },
+          {
+            "fields": {
+              "repository": "./monorepo-paths",
+              "revision": "<cleared>"
+            },
+            "tool": "trivy-fs",
+            "version": "<cleared>"
+          }
+        ]
+      },
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "services/api/deploy/aws.env",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "aws-access-token has detected secret for file services/api/deploy/aws.env."
+          },
+          "partialFingerprints": {
+            "author": "",
+            "commitMessage": "",
+            "commitSha": "",
+            "date": "",
+            "email": "",
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "api",
+            "control": "secrets",
+            "priority": "P1",
+            "repository": "./monorepo-paths",
+            "tool": "gitleaks"
+          },
+          "ruleId": "aws-access-token"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "services/api/package-lock.json",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 15
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "minimist 1.2.5 → 1.2.6: Fixture: prototype pollution in minimist"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "api",
+            "control": "sca",
+            "package": {
+              "ecosystem": "npm",
+              "fixedVersion": "1.2.6",
+              "name": "minimist",
+              "purl": "pkg:npm/minimist@1.2.5",
+              "version": "1.2.5"
+            },
+            "priority": "P1",
+            "repository": "./monorepo-paths",
+            "tool": "trivy"
+          },
+          "ruleId": "CVE-2021-44906"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "services/api/src/index.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 4
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "eval runs its argument as code"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "api",
+            "control": "sast",
+            "priority": "P1",
+            "repository": "./monorepo-paths",
+            "tool": "Semgrep OSS"
+          },
+          "ruleId": "draugr-fixture-eval"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "services/web/deploy/aws.env",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "aws-access-token has detected secret for file services/web/deploy/aws.env."
+          },
+          "partialFingerprints": {
+            "author": "",
+            "commitMessage": "",
+            "commitSha": "",
+            "date": "",
+            "email": "",
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "web",
+            "control": "secrets",
+            "priority": "P1",
+            "repository": "./monorepo-paths",
+            "tool": "gitleaks"
+          },
+          "ruleId": "aws-access-token"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "services/web/package-lock.json",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 15
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "minimist 1.2.5 → 1.2.6: Fixture: prototype pollution in minimist"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "web",
+            "control": "sca",
+            "package": {
+              "ecosystem": "npm",
+              "fixedVersion": "1.2.6",
+              "name": "minimist",
+              "purl": "pkg:npm/minimist@1.2.5",
+              "version": "1.2.5"
+            },
+            "priority": "P1",
+            "repository": "./monorepo-paths",
+            "tool": "trivy"
+          },
+          "ruleId": "CVE-2021-44906"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "services/web/src/index.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 4
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "eval runs its argument as code"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "web",
+            "control": "sast",
+            "priority": "P1",
+            "repository": "./monorepo-paths",
+            "tool": "Semgrep OSS"
+          },
+          "ruleId": "draugr-fixture-eval"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Fixture advisory for Draugr's sealed tests."
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2021-44906",
+              "id": "CVE-2021-44906",
+              "name": "CVE-2021-44906",
+              "properties": {
+                "tags": [
+                  "scanner:trivy"
+                ]
+              },
+              "shortDescription": {
+                "text": "Fixture: prototype pollution in minimist"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "eval runs its argument as code"
+              },
+              "help": {
+                "text": "eval runs its argument as code"
+              },
+              "id": "draugr-fixture-eval",
+              "name": "draugr-fixture-eval",
+              "properties": {
+                "tags": [
+                  "scanner:Semgrep OSS"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: draugr-fixture-eval"
+              }
+            },
+            {
+              "id": "aws-access-token",
+              "properties": {
+                "tags": [
+                  "scanner:gitleaks"
+                ]
+              },
+              "shortDescription": {
+                "text": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms."
+              }
+            }
+          ],
+          "version": "<cleared>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

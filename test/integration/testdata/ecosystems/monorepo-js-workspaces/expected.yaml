@@ -1,0 +1,30 @@
+# Three JavaScript workspaces in one repository, one per package manager, and a component scoped to
+# each: npm in npm/, pnpm in pnpm/ and Yarn 4 in yarn/. Each workspace pins minimist once, in the
+# lockfile at its own root, for the member under packages/web. The advisory is reported three
+# times, each under the component whose workspace holds that lockfile, and no lockfile's packages
+# are credited to a workspace it does not belong to.
+init:
+  controls: [iac, sast, sca, secrets]
+  components:
+    - name: monorepo-js-workspaces
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2021-44906
+    location: npm/package-lock.json:23
+    package: npm minimist 1.2.5
+    component: npm
+  - control: sca
+    tool: trivy
+    rule: CVE-2021-44906
+    location: pnpm/pnpm-lock.yaml:179
+    package: pnpm minimist 1.2.5
+    component: pnpm
+  - control: sca
+    tool: trivy
+    rule: CVE-2021-44906
+    location: yarn/yarn.lock:22
+    package: yarn minimist 1.2.5
+    component: yarn

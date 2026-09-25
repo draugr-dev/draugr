@@ -1,0 +1,139 @@
+{
+  "controls": [
+    {
+      "errors": 2,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "sast",
+      "notes": 0,
+      "threshold": "",
+      "total": 2,
+      "verdict": "fail",
+      "warnings": 0
+    },
+    {
+      "errors": 3,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "sca",
+      "notes": 0,
+      "threshold": "",
+      "total": 3,
+      "verdict": "fail",
+      "warnings": 0
+    },
+    {
+      "errors": 1,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "secrets",
+      "notes": 0,
+      "threshold": "",
+      "total": 1,
+      "verdict": "fail",
+      "warnings": 0
+    }
+  ],
+  "dependencyFiles": [
+    {
+      "component": "api",
+      "control": "sca",
+      "read": 1,
+      "scanners": [
+        "trivy-fs"
+      ]
+    },
+    {
+      "component": "web",
+      "control": "sca",
+      "read": 1,
+      "scanners": [
+        "trivy-fs"
+      ]
+    },
+    {
+      "component": "worker",
+      "control": "sca",
+      "read": 1,
+      "scanners": [
+        "trivy-fs"
+      ]
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:ff7154456f753a558aceff5c86baf5e0401833111529978132a2fb2c38f088cc",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 6,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0
+  },
+  "project": "monorepo-polyglot",
+  "reachability": {
+    "analyzers": [
+      {
+        "analyzer": "govulncheck",
+        "reachable": 1,
+        "unknown": 0,
+        "unreachable": 0
+      }
+    ],
+    "reachable": 1,
+    "unknown": 0,
+    "unreachable": 0
+  },
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./monorepo-polyglot"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "gitleaks",
+      "version": "<cleared>"
+    },
+    {
+      "name": "govulncheck",
+      "version": "<cleared>"
+    },
+    {
+      "name": "semgrep",
+      "version": "<cleared>"
+    },
+    {
+      "name": "trivy-fs",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 12,
+    "scans": 12
+  },
+  "verdict": "fail"
+}

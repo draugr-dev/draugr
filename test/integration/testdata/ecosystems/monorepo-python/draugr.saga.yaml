@@ -1,0 +1,24 @@
+project: monorepo-python
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+    sast:
+      enabled: true
+      semgrep:
+        config: ${{ DRAUGR_SEALED_SEMGREP_RULES }}
+components:
+  - name: api
+    repositories:
+      - url: ./monorepo-python
+        paths: [services/api]
+  - name: legacy
+    repositories:
+      - url: ./monorepo-python
+        paths: [services/legacy]
+  - name: tools
+    repositories:
+      - url: ./monorepo-python
+        paths: [services/tools]

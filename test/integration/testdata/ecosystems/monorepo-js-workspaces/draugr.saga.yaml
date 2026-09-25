@@ -1,0 +1,20 @@
+project: monorepo-js-workspaces
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: npm
+    repositories:
+      - url: ./monorepo-js-workspaces
+        paths: [npm]
+  - name: pnpm
+    repositories:
+      - url: ./monorepo-js-workspaces
+        paths: [pnpm]
+  - name: yarn
+    repositories:
+      - url: ./monorepo-js-workspaces
+        paths: [yarn]

@@ -1,0 +1,27 @@
+# Two components sharing a repository, one of them scoped to a directory that does not exist:
+# web names services/wbe where the repository holds services/web. A sparse checkout of a path that
+# matches nothing is an empty tree, and every scanner reports an empty tree as clean, so web would
+# pass having been checked for nothing. Each control web runs refuses the path instead, naming it
+# and the revision it is missing from, while api, scoped correctly, is still scanned and reported.
+#
+# The scenario commits no generated secret, so its one commit id is the same on every run and the
+# revision in each error is stable enough to hold in the golden report.json.
+init:
+  controls: [iac, sast, sca, secrets]
+  components:
+    - name: negative-mistyped-path
+      repositories: ["."]
+
+errors:
+  - control: sca
+    contains: 'paths "services/wbe": not in the repository'
+  - control: secrets
+    contains: 'paths "services/wbe": not in the repository'
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2018-1000656
+    location: services/api/requirements.txt:2
+    package: pip Flask 0.12.2
+    component: api

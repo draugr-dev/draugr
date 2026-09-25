@@ -36,6 +36,10 @@ are separated by commas. The rules Semgrep runs are in [`semgrep.yaml`](semgrep.
   descriptor sets each one, usually on one component beside another that leaves it unset.
   `TestEveryScannerOptionHasABehavioralScenario` reads these lists without running anything and
   fails on a registered option no scenario proves and no exception names.
+- **A scenario about one repository split into components is named `monorepo-<case>`.** Its
+  descriptor declares two components or more on the one repository, each scoped by `paths:`, and
+  every finding names the `component:` that must report it. A finding reported under a component
+  whose paths do not hold it fails the scenario as unexpected.
 - **Every dependency format has a scenario.** `TestEveryDependencyFormatHasASealedScenario` fails
   on a manifest or lockfile format that no scenario's `repo/` holds and no exception names.
 - **Manifests end in `.fixture`.** A `requirements.txt`, `go.mod` or `package-lock.json` anywhere in
@@ -47,9 +51,11 @@ are separated by commas. The rules Semgrep runs are in [`semgrep.yaml`](semgrep.
   pinned by digest. Nothing in a lockfile is written by hand, so a fixture can be regenerated when
   a format moves.
 - **Secrets are generated at test time.** `expected.yaml` names the file and the rules that must
-  report it; the harness writes a random AWS-shaped key there before committing. `removed: true`
-  deletes the file in a second commit, so the key is in the history and not in the tree. Commit ids
-  change with the key, and the goldens hold them as `<commit>`.
+  report it; the harness writes a random AWS-shaped key there before committing. `components:`
+  names each component that must report it, once per rule, and an empty `rules:` list writes a key
+  nothing may report. `removed: true` deletes the file in a second commit, so the key is in the
+  history and not in the tree. Commit ids change with the key, and the goldens hold them as
+  `<commit>`.
 - **A package needs an advisory.** A fixture dependency with no entry in `advisories.yaml` has no
   finding to assert.
 - **Every command runs beside a loopback server.** It serves `served/`, the scenario's image, and

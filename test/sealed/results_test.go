@@ -125,6 +125,72 @@ func TestCheckTellsComponentsApart(t *testing.T) {
 	}
 }
 
+func TestCheckHoldsASecretToTheComponentsThatOwnIt(t *testing.T) {
+	// A root secret two components both name is reported once under each; a secret under one
+	// component's paths is reported under that one alone. Filing either under the wrong component
+	// must fail, and so must a second report nothing expects.
+	const reported = `{"runs":[{"results":[
+ {"ruleId":"aws-access-token","locations":[{"physicalLocation":{"artifactLocation":{"uri":"deploy.env"},"region":{"startLine":1}}}],
+  "properties":{"tool":"gitleaks","control":"secrets","component":"api"}},
+ {"ruleId":"aws-access-token","locations":[{"physicalLocation":{"artifactLocation":{"uri":"deploy.env"},"region":{"startLine":1}}}],
+  "properties":{"tool":"gitleaks","control":"secrets","component":"web"}},
+ {"ruleId":"aws-access-token","locations":[{"physicalLocation":{"artifactLocation":{"uri":"services/api/aws.env"},"region":{"startLine":1}}}],
+  "properties":{"tool":"gitleaks","control":"secrets","component":"api"}}
+]}]}`
+	got, err := Observe([]byte(reported))
+	if err != nil {
+		t.Fatal(err)
+	}
+	exp := Expected{Secrets: []SecretExpectation{
+		{File: "deploy.env", Rules: []string{"aws-access-token"}, Components: []string{"api", "web"}},
+		{File: "services/api/aws.env", Rules: []string{"aws-access-token"}, Components: []string{"api"}},
+	}}
+	if problems, err := Check(exp, nil, got); err != nil || len(problems) != 0 {
+		t.Fatalf("a matching scan reported %v (%v)", problems, err)
+	}
+
+	exp.Secrets[1].Components = []string{"web"}
+	problems, err := Check(exp, nil, got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	joined := strings.Join(problems, "\n")
+	for _, want := range []string{
+		"missing (expected.yaml secrets): secrets aws-access-token at services/api/aws.env:1 in web",
+		"unexpected: secrets gitleaks aws-access-token at services/api/aws.env:1 in api",
+	} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("problems lack %q:\n%s", want, joined)
+		}
+	}
+
+	// Without components, one report from any component satisfies it, and a second is unexpected.
+	exp.Secrets = []SecretExpectation{
+		{File: "deploy.env", Rules: []string{"aws-access-token"}},
+		{File: "services/api/aws.env", Rules: []string{"aws-access-token"}},
+	}
+	problems, err = Check(exp, nil, got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(problems) != 1 || !strings.Contains(problems[0], "unexpected: secrets gitleaks aws-access-token at deploy.env:1") {
+		t.Errorf("problems = %v, want the second report of deploy.env unexpected", problems)
+	}
+
+	// With no rules, the secret is one nothing may report: every report of it is unexpected.
+	exp.Secrets = []SecretExpectation{
+		{File: "deploy.env"},
+		{File: "services/api/aws.env", Rules: []string{"aws-access-token"}, Components: []string{"api"}},
+	}
+	problems, err = Check(exp, nil, got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(problems) != 2 || !strings.Contains(strings.Join(problems, "\n"), "unexpected: secrets gitleaks aws-access-token at deploy.env:1 in web") {
+		t.Errorf("problems = %v, want both reports of deploy.env unexpected", problems)
+	}
+}
+
 func TestSplitLocation(t *testing.T) {
 	for loc, want := range map[string]struct {
 		file string

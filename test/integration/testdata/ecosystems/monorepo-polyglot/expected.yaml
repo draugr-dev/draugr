@@ -1,0 +1,57 @@
+# Python, JavaScript and Go under one root, one service each, and a component scoped to each
+# service's directory. Every finding, dependency, code and secret alike, is reported under the one
+# component whose directory holds it and under no other. SAST expectations are the ruleid: and ok:
+# comments in services/api/app.py and services/web/src/index.js.
+#
+# init proposes one component for the whole tree by default, and with --per-directory one per
+# service, each scoped by paths: and carved out of a root component that keeps the rest.
+init:
+  controls: [iac, sast, sca, secrets]
+  scanners: [sast.gosec]
+  reachability: [govulncheck]
+  components:
+    - name: monorepo-polyglot
+      repositories: ["."]
+  perDirectory:
+    controls: [iac, sast, sca, secrets]
+    scanners: [sast.gosec]
+    reachability: [govulncheck]
+    components:
+      - name: monorepo-polyglot
+        repositories: ["."]
+        ignore: [services/api/, services/web/, services/worker/]
+      - name: api
+        repositories: ["."]
+        paths: [services/api]
+      - name: web
+        repositories: ["."]
+        paths: [services/web]
+      - name: worker
+        repositories: ["."]
+        paths: [services/worker]
+
+secrets:
+  - file: services/worker/deploy/aws.env
+    rules: [aws-access-token]
+    components: [worker]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2018-1000656
+    location: services/api/requirements.txt:2
+    package: pip Flask 0.12.2
+    component: api
+  - control: sca
+    tool: trivy
+    rule: CVE-2021-44906
+    location: services/web/package-lock.json:15
+    package: npm minimist 1.2.5
+    component: web
+  - control: sca
+    tool: trivy
+    rule: CVE-2020-36067
+    location: services/worker/go.mod:5
+    package: gomod github.com/tidwall/gjson v1.6.5
+    component: worker
+    reachability: reachable

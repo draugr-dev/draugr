@@ -1,0 +1,28 @@
+project: monorepo-polyglot
+release:
+  version: "1.0"
+config:
+  reachability:
+    analyzers: [govulncheck]
+  controls:
+    sca:
+      enabled: true
+    secrets:
+      enabled: true
+    sast:
+      enabled: true
+      semgrep:
+        config: ${{ DRAUGR_SEALED_SEMGREP_RULES }}
+components:
+  - name: api
+    repositories:
+      - url: ./monorepo-polyglot
+        paths: [services/api]
+  - name: web
+    repositories:
+      - url: ./monorepo-polyglot
+        paths: [services/web]
+  - name: worker
+    repositories:
+      - url: ./monorepo-polyglot
+        paths: [services/worker]

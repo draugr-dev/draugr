@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "monorepo-secret-history/"
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "fields": {
+              "repository": "./monorepo-secret-history",
+              "revision": "<cleared>"
+            },
+            "tool": "gitleaks",
+            "version": "<cleared>"
+          }
+        ]
+      },
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "services/api/old.env",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "aws-access-token has detected secret for file services/api/old.env at commit <commit>."
+          },
+          "partialFingerprints": {
+            "author": "Draugr fixture",
+            "commitMessage": "fixture",
+            "commitSha": "<commit>",
+            "date": "2026-01-01T00:00:00Z",
+            "email": "fixture@draugr.dev"
+          },
+          "properties": {
+            "component": "api",
+            "control": "secrets",
+            "priority": "P1",
+            "repository": "./monorepo-secret-history",
+            "tool": "gitleaks"
+          },
+          "ruleId": "aws-access-token"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "services/web/old.env",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "aws-access-token has detected secret for file services/web/old.env at commit <commit>."
+          },
+          "partialFingerprints": {
+            "author": "Draugr fixture",
+            "commitMessage": "fixture",
+            "commitSha": "<commit>",
+            "date": "2026-01-01T00:00:00Z",
+            "email": "fixture@draugr.dev"
+          },
+          "properties": {
+            "component": "web",
+            "control": "secrets",
+            "priority": "P1",
+            "repository": "./monorepo-secret-history",
+            "tool": "gitleaks"
+          },
+          "ruleId": "aws-access-token"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "rules": [
+            {
+              "id": "aws-access-token",
+              "properties": {
+                "tags": [
+                  "scanner:gitleaks"
+                ]
+              },
+              "shortDescription": {
+                "text": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms."
+              }
+            }
+          ],
+          "version": "<cleared>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

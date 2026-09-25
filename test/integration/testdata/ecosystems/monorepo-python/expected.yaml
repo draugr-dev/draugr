@@ -1,0 +1,41 @@
+# Three Python build systems in one repository, a component scoped to each: Poetry in services/api,
+# setuptools in services/legacy and pip in services/tools. The same flask advisory is reported
+# twice, once in each lockfile that pins it and each under the component that holds that lockfile.
+# Trivy does not open setup.py, so services/legacy's one finding is the SAST result its app.py
+# annotates, and the golden report.json names setup.py as unread under legacy alone.
+init:
+  controls: [iac, sast, sca, secrets]
+  scanners: [sca.grypeFs]
+  components:
+    - name: monorepo-python
+      repositories: ["."]
+  perDirectory:
+    controls: [iac, sast, sca, secrets]
+    scanners: [sca.grypeFs]
+    components:
+      - name: monorepo-python
+        repositories: ["."]
+        ignore: [services/api/, services/legacy/, services/tools/]
+      - name: api
+        repositories: ["."]
+        paths: [services/api]
+      - name: legacy
+        repositories: ["."]
+        paths: [services/legacy]
+      - name: tools
+        repositories: ["."]
+        paths: [services/tools]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2018-1000656
+    location: services/api/poetry.lock:16
+    package: poetry flask 0.12.2
+    component: api
+  - control: sca
+    tool: trivy
+    rule: CVE-2018-1000656
+    location: services/tools/requirements.txt:2
+    package: pip Flask 0.12.2
+    component: tools

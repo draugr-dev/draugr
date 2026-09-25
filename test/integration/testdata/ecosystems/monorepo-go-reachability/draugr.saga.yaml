@@ -1,0 +1,18 @@
+project: monorepo-go-reachability
+release:
+  version: "1.0"
+config:
+  reachability:
+    analyzers: [govulncheck]
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: api
+    repositories:
+      - url: ./monorepo-go-reachability
+        paths: [services/api]
+  - name: worker
+    repositories:
+      - url: ./monorepo-go-reachability
+        paths: [services/worker]

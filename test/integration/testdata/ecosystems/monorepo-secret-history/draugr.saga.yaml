@@ -1,0 +1,18 @@
+project: monorepo-secret-history
+release:
+  version: "1.0"
+config:
+  controls:
+    secrets:
+      enabled: true
+      gitleaks:
+        history: true
+components:
+  - name: api
+    repositories:
+      - url: ./monorepo-secret-history
+        paths: [services/api]
+  - name: web
+    repositories:
+      - url: ./monorepo-secret-history
+        paths: [services/web]

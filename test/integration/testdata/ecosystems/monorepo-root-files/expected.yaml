@@ -1,0 +1,40 @@
+# Files at the repository root, shared by two components scoped to their own directories. A root
+# file belongs to a component only when that component's paths: name it:
+#
+#   requirements.txt  named by api and web   flask reported once under each
+#   shared.env        named by api and web   the credential reported once under each
+#   api.env           named by api           reported under api alone
+#   package-lock.json named by neither       minimist reported under no component
+#   unowned.env       named by neither       reported under no component
+#
+# A checkout that handed every scoped component the whole root would report the last two once per
+# component, filed with teams that neither own nor can fix them.
+init:
+  controls: [iac, sast, sca, secrets]
+  components:
+    - name: monorepo-root-files
+      repositories: ["."]
+
+secrets:
+  - file: shared.env
+    rules: [aws-access-token]
+    components: [api, web]
+  - file: api.env
+    rules: [aws-access-token]
+    components: [api]
+  - file: unowned.env
+    rules: []
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2018-1000656
+    location: requirements.txt:2
+    package: pip Flask 0.12.2
+    component: api
+  - control: sca
+    tool: trivy
+    rule: CVE-2018-1000656
+    location: requirements.txt:2
+    package: pip Flask 0.12.2
+    component: web

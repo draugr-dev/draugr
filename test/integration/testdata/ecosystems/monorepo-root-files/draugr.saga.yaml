@@ -1,0 +1,18 @@
+project: monorepo-root-files
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+    secrets:
+      enabled: true
+components:
+  - name: api
+    repositories:
+      - url: ./monorepo-root-files
+        paths: [services/api, requirements.txt, shared.env, api.env]
+  - name: web
+    repositories:
+      - url: ./monorepo-root-files
+        paths: [services/web, requirements.txt, shared.env]

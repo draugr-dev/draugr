@@ -132,10 +132,16 @@ func wants(exp Expected, anns []Annotation) ([]want, error) {
 		}})
 	}
 	for _, s := range exp.Secrets {
+		owners := s.Components
+		if len(owners) == 0 {
+			owners = []string{""} // one report, from any component
+		}
 		for _, rule := range s.Rules {
-			out = append(out, want{source: "expected.yaml secrets", f: Finding{
-				Control: "secrets", Rule: rule, File: s.File, Line: 1,
-			}})
+			for _, owner := range owners {
+				out = append(out, want{source: "expected.yaml secrets", f: Finding{
+					Control: "secrets", Rule: rule, File: s.File, Line: 1, Component: owner,
+				}})
+			}
 		}
 	}
 	for _, a := range anns {

@@ -1,0 +1,18 @@
+project: negative-mistyped-path
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+    secrets:
+      enabled: true
+components:
+  - name: api
+    repositories:
+      - url: ./negative-mistyped-path
+        paths: [services/api]
+  - name: web
+    repositories:
+      - url: ./negative-mistyped-path
+        paths: [services/wbe]

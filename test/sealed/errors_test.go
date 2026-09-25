@@ -97,6 +97,9 @@ func TestLeavesFieldsUnwritten(t *testing.T) {
 		{"a finding", Expected{Findings: []FindingExpectation{{Location: "pom.xml"}, {Location: "pom.xml:8"}}}, false},
 		{"only whole-file findings", Expected{Findings: []FindingExpectation{{Location: "pom.xml"}}}, true},
 		{"a secret", Expected{Secrets: []SecretExpectation{{}}}, false},
+		{"only secrets in history", Expected{Secrets: []SecretExpectation{{Removed: true}, {Removed: true}}}, true},
+		{"a secret in history and one in the tree", Expected{Secrets: []SecretExpectation{{Removed: true}, {}}}, false},
+		{"a secret in history and a finding", Expected{Secrets: []SecretExpectation{{Removed: true}}, Findings: []FindingExpectation{{}}}, false},
 	} {
 		if got := c.e.LeavesFieldsUnwritten(); got != c.want {
 			t.Errorf("%s: LeavesFieldsUnwritten = %v, want %v", c.name, got, c.want)

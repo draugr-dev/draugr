@@ -1,0 +1,114 @@
+{
+  "controls": [
+    {
+      "errors": 2,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "sast",
+      "notes": 0,
+      "threshold": "",
+      "total": 2,
+      "verdict": "fail",
+      "warnings": 0
+    },
+    {
+      "errors": 2,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "sca",
+      "notes": 0,
+      "threshold": "",
+      "total": 2,
+      "verdict": "fail",
+      "warnings": 0
+    },
+    {
+      "errors": 2,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "secrets",
+      "notes": 0,
+      "threshold": "",
+      "total": 2,
+      "verdict": "fail",
+      "warnings": 0
+    }
+  ],
+  "dependencyFiles": [
+    {
+      "component": "api",
+      "control": "sca",
+      "read": 1,
+      "scanners": [
+        "trivy-fs"
+      ]
+    },
+    {
+      "component": "web",
+      "control": "sca",
+      "read": 1,
+      "scanners": [
+        "trivy-fs"
+      ]
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:19b9491ad2d2b1d0c2fc940096a3a881dac95f930fa7bcb899149fb9c4ef4ef2",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 6,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0
+  },
+  "project": "monorepo-paths",
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./monorepo-paths"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "gitleaks",
+      "version": "<cleared>"
+    },
+    {
+      "name": "semgrep",
+      "version": "<cleared>"
+    },
+    {
+      "name": "trivy-fs",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 6,
+    "scans": 6
+  },
+  "verdict": "fail"
+}

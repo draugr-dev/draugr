@@ -1,0 +1,24 @@
+# Two components scoped to their own directories, with Gitleaks reading the repository's history.
+# Each credential is committed and then deleted, so it exists only in the commit before the last.
+# A history scan reads a full clone rather than the component's sparse checkout, and git history
+# cannot be narrowed to a directory, so every component's pass sees every commit. Each removed
+# credential is still reported under the one component whose paths hold it, and old/root.env,
+# under neither component's paths, is reported under none.
+init:
+  controls: [iac, sast, sca, secrets]
+  components:
+    - name: monorepo-secret-history
+      repositories: ["."]
+
+secrets:
+  - file: services/api/old.env
+    rules: [aws-access-token]
+    components: [api]
+    removed: true
+  - file: services/web/old.env
+    rules: [aws-access-token]
+    components: [web]
+    removed: true
+  - file: old/root.env
+    rules: []
+    removed: true
