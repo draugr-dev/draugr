@@ -57,6 +57,10 @@ type repoScanner struct {
 	// from a commit. One pass over history alone reports every finding at the path it had when it
 	// was introduced, so anything since renamed looks like something already dealt with.
 	historyArgs func(dir string, cfg plugin.Config) []string
+	// secrets, when set, returns the secret each result in one pass's output matched, in the order
+	// decode returns those results, with "" where the output does not say. It is how a history
+	// finding is recognized as a credential the tree pass already reported (see dropStillInTree).
+	secrets func(out []byte) []string
 	// accounts says the parser records every dependency file the tool read packages from in the
 	// report's Inputs, so the files in the tree it did not read can be named beside them.
 	accounts bool
@@ -294,6 +298,10 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 			if err != nil {
 				return sarif.Report{}, err
 			}
+			if s.secrets != nil {
+				histReport.Results = dropStillInTree(dir,
+					report.Results, s.secrets(out), histReport.Results, s.secrets(hist))
+			}
 			histReport.Results = scopeHistory(histReport.Results, dir, scope)
 			report = sarif.Merge(report, histReport)
 		}
@@ -394,6 +402,46 @@ func scopeHistory(results []sarif.Result, dir string, scope git.Scope) []sarif.R
 	for _, r := range results {
 		r.Historical = true
 		if uri := repoRelPath(dir, r.Location.URI); narrowed && uri != "" && !scope.Contains(uri) {
+			continue
+		}
+		kept = append(kept, r)
+	}
+	return kept
+}
+
+// dropStillInTree removes the history findings that are a credential the tree pass also reported,
+// so a secret still in the tree is counted once, as the tree finding, at the path it has now.
+//
+// A secret committed and never removed is found by both passes. The two copies differ in line and
+// message and so in fingerprint, and both would count at the gate as two things to rotate where
+// there is one. The tree copy is the one kept: it names the file as the checkout has it.
+//
+// Two findings are one credential when they share the rule, the repository-relative path and the
+// secret itself. The line is left out, because edits above a secret move it between the commit that
+// introduced it and the tree. The path is kept in, so a history finding is never folded into a tree
+// finding somewhere else: an exclusion written for one path would otherwise silence a copy of the
+// credential at another. The secret is kept in, so a value replaced in place at the same path and
+// line still reports the old one, which remains readable in history. A result whose secret is
+// unknown on either side is never matched, and results the secrets do not line up with are all
+// kept: a duplicate reported twice is visible, and a credential dropped as a duplicate is not.
+//
+// The secrets are compared in memory and written nowhere.
+func dropStillInTree(dir string, tree []sarif.Result, treeSecrets []string, hist []sarif.Result, histSecrets []string) []sarif.Result {
+	if len(tree) != len(treeSecrets) || len(hist) != len(histSecrets) {
+		return hist
+	}
+	key := func(r sarif.Result, secret string) string {
+		return r.RuleID + "\x00" + repoRelPath(dir, r.Location.URI) + "\x00" + secret
+	}
+	inTree := make(map[string]bool, len(tree))
+	for i, r := range tree {
+		if treeSecrets[i] != "" {
+			inTree[key(r, treeSecrets[i])] = true
+		}
+	}
+	kept := hist[:0:0]
+	for i, r := range hist {
+		if histSecrets[i] != "" && inTree[key(r, histSecrets[i])] {
 			continue
 		}
 		kept = append(kept, r)

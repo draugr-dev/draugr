@@ -18,11 +18,8 @@ secrets:
     removed: true
 
 findings:
-  # Twice: once by the tree scan, and once by the history scan reading the commit that added it.
-  - control: secrets
-    tool: gitleaks
-    rule: draugr-fixture-token
-    location: settings.py:3
+  # Once, by the tree scan. The history scan also reads the commit that added it, and a secret
+  # still in the tree at the same path is reported as the tree finding alone.
   - control: secrets
     tool: gitleaks
     rule: draugr-fixture-token

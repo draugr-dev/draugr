@@ -106,7 +106,7 @@ type SecretExpectation struct {
 	// credential filed with a team that cannot rotate it, and only naming the owner catches that.
 	Components []string `yaml:"components,omitempty"`
 	// Removed deletes the file in a second commit, so the secret is in the repository's history
-	// and not in its tree.
+	// and not in its tree, and each report of it has to carry the history mark.
 	Removed bool `yaml:"removed"`
 }
 
@@ -127,6 +127,9 @@ type FindingExpectation struct {
 	Component string `yaml:"component,omitempty"`
 	// Reachability is the verdict reachability analysis reached, where it ran.
 	Reachability string `yaml:"reachability,omitempty"`
+	// Historical says the finding comes from the repository's history rather than its tree, and
+	// the SARIF result has to carry the mark.
+	Historical bool `yaml:"historical,omitempty"`
 }
 
 // LeavesFieldsUnwritten reports whether a scan of the scenario leaves out fields the normalizers

@@ -23,7 +23,7 @@ const gitleaksConfigSchema = `{
     },
     "history": {
       "type": "boolean",
-      "description": "Also scan the repository's commit history, in addition to the working tree. Off by default: it needs a full clone rather than a shallow one, so it is slower on a large repository. A secret committed and later removed is still fetchable by anyone who can clone, so it is still compromised, this is what finds it. History findings are marked as such, because they name the path the secret had when it was introduced, and are kept only when that path would be checked out by this component's paths and ignore."
+      "description": "Also scan the repository's commit history, in addition to the working tree. Off by default: it needs a full clone rather than a shallow one, so it is slower on a large repository. A secret committed and later removed is still fetchable by anyone who can clone, so it is still compromised, this is what finds it. History findings are marked as such, because they name the path the secret had when it was introduced, and are kept only when that path would be checked out by this component's paths and ignore. A secret still in the tree at the same path is reported once, as the tree finding."
     }
   }
 }`
@@ -45,7 +45,44 @@ func NewGitleaks() plugin.Scanner {
 	s.cacheVersion = sharedGitleaksVersion.version
 	s.wantsHistory = gitleaksWantsHistory
 	s.historyArgs = gitleaksHistoryArgs
+	s.secrets = gitleaksSecrets
 	return s
+}
+
+// gitleaksSecrets returns the secret each result in a Gitleaks SARIF report matched, in report
+// order. Gitleaks writes it as the region's snippet; a result without one gives "" and is never
+// treated as a duplicate. Output that does not decode gives nil, which matches no result count and
+// so leaves every finding in place.
+func gitleaksSecrets(out []byte) []string {
+	var doc struct {
+		Runs []struct {
+			Results []struct {
+				Locations []struct {
+					PhysicalLocation struct {
+						Region struct {
+							Snippet struct {
+								Text string `json:"text"`
+							} `json:"snippet"`
+						} `json:"region"`
+					} `json:"physicalLocation"`
+				} `json:"locations"`
+			} `json:"results"`
+		} `json:"runs"`
+	}
+	if json.Unmarshal(out, &doc) != nil {
+		return nil
+	}
+	var secrets []string
+	for _, run := range doc.Runs {
+		for _, r := range run.Results {
+			secret := ""
+			if len(r.Locations) > 0 {
+				secret = r.Locations[0].PhysicalLocation.Region.Snippet.Text
+			}
+			secrets = append(secrets, secret)
+		}
+	}
+	return secrets
 }
 
 // gitleaksArgs scans the working tree, writing SARIF to stdout. --exit-code 0 keeps the

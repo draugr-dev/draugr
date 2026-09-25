@@ -53,46 +53,12 @@
           "properties": {
             "component": "options-gitleaks",
             "control": "secrets",
+            "historical": true,
             "priority": "P1",
             "repository": "./options-gitleaks",
             "tool": "gitleaks"
           },
           "ruleId": "aws-access-token"
-        },
-        {
-          "level": "error",
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "settings.py",
-                  "uriBaseId": "%SRCROOT%"
-                },
-                "region": {
-                  "startLine": 3
-                }
-              }
-            }
-          ],
-          "message": {
-            "text": "draugr-fixture-token has detected secret for file settings.py at commit <commit>."
-          },
-          "partialFingerprints": {
-            "author": "Draugr fixture",
-            "commitMessage": "fixture",
-            "commitSha": "<commit>",
-            "date": "2026-01-01T00:00:00Z",
-            "email": "fixture@draugr.dev",
-            "primaryLocationLineHash/v1": "<cleared>"
-          },
-          "properties": {
-            "component": "options-gitleaks",
-            "control": "secrets",
-            "priority": "P1",
-            "repository": "./options-gitleaks",
-            "tool": "gitleaks"
-          },
-          "ruleId": "draugr-fixture-token"
         },
         {
           "level": "error",

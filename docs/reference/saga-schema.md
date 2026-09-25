@@ -388,7 +388,7 @@ beyond their scanners'.
 | `grype`, `grype-fs` | `byCve`. Report under the CVE rather than the advisory ID, on by default |
 | `trivy-config` | `checks`, paths to your own Rego; `namespaces`, the namespaces they declare |
 | `semgrep` | `config`, a registry ref, path or URL |
-| `gitleaks` | `config`, a rules file shared across repositories; `history`, scan commit history too, keeping findings whose path is inside the component's [`paths` and `ignore`](#scoping-a-repository) |
+| `gitleaks` | `config`, a rules file shared across repositories; `history`, scan commit history too, keeping findings whose path is inside the component's [`paths` and `ignore`](#scoping-a-repository) and reporting a secret still in the tree once, as the tree finding |
 | `virustotal` | `requestsPerMinute` |
 | `nuclei`, `draugr-headers`, `draugr-k8s-policies`, `urlhaus`, `retirejs`, `cosign`, `notation` | `enabled` only |
 

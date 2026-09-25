@@ -3,6 +3,7 @@ package sealed
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -188,6 +189,55 @@ func TestCheckHoldsASecretToTheComponentsThatOwnIt(t *testing.T) {
 	}
 	if len(problems) != 2 || !strings.Contains(strings.Join(problems, "\n"), "unexpected: secrets gitleaks aws-access-token at deploy.env:1 in web") {
 		t.Errorf("problems = %v, want both reports of deploy.env unexpected", problems)
+	}
+}
+
+func TestCheckHoldsTheHistoryMark(t *testing.T) {
+	// A removed secret is reported from history and must carry the mark; a secret still in the
+	// tree is reported once, unmarked. A second, historical report of the tree secret is the
+	// duplicate the mark exists to catch, and an expectation matching either would pass it.
+	const reported = `{"runs":[{"results":[
+ {"ruleId":"aws-access-token","locations":[{"physicalLocation":{"artifactLocation":{"uri":"old/aws.env"},"region":{"startLine":1}}}],
+  "properties":{"tool":"gitleaks","control":"secrets","component":"api","historical":true}},
+ {"ruleId":"generic-api-key","locations":[{"physicalLocation":{"artifactLocation":{"uri":"settings.py"},"region":{"startLine":3}}}],
+  "properties":{"tool":"gitleaks","control":"secrets","component":"web"}}
+]}]}`
+	got, err := Observe([]byte(reported))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "secrets gitleaks aws-access-token at old/aws.env:1 in api (historical)"; got[0].String() != want {
+		t.Errorf("finding = %q, want %q", got[0], want)
+	}
+	exp := Expected{
+		Secrets: []SecretExpectation{{File: "old/aws.env", Rules: []string{"aws-access-token"}, Removed: true}},
+		Findings: []FindingExpectation{
+			{Control: "secrets", Tool: "gitleaks", Rule: "generic-api-key", Location: "settings.py:3"},
+		},
+	}
+	if problems, err := Check(exp, nil, got); err != nil || len(problems) != 0 {
+		t.Fatalf("a matching scan reported %v (%v)", problems, err)
+	}
+
+	// The same secret again from history, beside its tree finding.
+	dup := append(slices.Clone(got), Finding{Control: "secrets", Tool: "gitleaks", Rule: "generic-api-key",
+		File: "settings.py", Line: 3, Component: "web", Historical: true})
+	problems, err := Check(exp, nil, dup)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(problems) != 1 || !strings.Contains(problems[0], "unexpected: secrets gitleaks generic-api-key at settings.py:3 in web (historical)") {
+		t.Errorf("problems = %v, want the history copy unexpected", problems)
+	}
+
+	// A history finding reported without the mark does not satisfy a removed secret.
+	got[0].Historical = false
+	problems, err = Check(exp, nil, got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(problems) != 2 {
+		t.Errorf("problems = %v, want the marked report missing and the unmarked one unexpected", problems)
 	}
 }
 

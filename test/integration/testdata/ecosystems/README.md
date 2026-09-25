@@ -54,8 +54,9 @@ are separated by commas. The rules Semgrep runs are in [`semgrep.yaml`](semgrep.
   report it; the harness writes a random AWS-shaped key there before committing. `components:`
   names each component that must report it, once per rule, and an empty `rules:` list writes a key
   nothing may report. `removed: true` deletes the file in a second commit, so the key is in the
-  history and not in the tree. Commit ids change with the key, and the goldens hold them as
-  `<commit>`.
+  history and not in the tree, and every report of it must carry the history mark. A finding in
+  `findings:` from history says `historical: true`. Commit ids change with the key, and the goldens
+  hold them as `<commit>`.
 - **A package needs an advisory.** A fixture dependency with no entry in `advisories.yaml` has no
   finding to assert.
 - **Every command runs beside a loopback server.** It serves `served/`, the scenario's image, and

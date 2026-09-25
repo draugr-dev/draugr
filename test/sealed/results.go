@@ -18,6 +18,9 @@ type Finding struct {
 	Package      string
 	Component    string
 	Reachability string
+	// Historical is the SARIF result's history mark: the finding comes from a commit rather than
+	// the tree.
+	Historical bool
 }
 
 func (f Finding) String() string {
@@ -40,6 +43,9 @@ func (f Finding) String() string {
 	}
 	if f.Reachability != "" {
 		s += " " + f.Reachability
+	}
+	if f.Historical {
+		s += " (historical)"
 	}
 	return s
 }
@@ -72,6 +78,7 @@ func Observe(sarif []byte) ([]Finding, error) {
 					Reachability *struct {
 						State string `json:"state"`
 					} `json:"reachability"`
+					Historical bool `json:"historical"`
 				} `json:"properties"`
 			} `json:"results"`
 		} `json:"runs"`
@@ -84,7 +91,7 @@ func Observe(sarif []byte) ([]Finding, error) {
 		for _, r := range run.Results {
 			f := Finding{
 				Control: r.Properties.Control, Tool: r.Properties.Tool, Rule: r.RuleID,
-				Component: r.Properties.Component,
+				Component: r.Properties.Component, Historical: r.Properties.Historical,
 			}
 			if len(r.Locations) > 0 {
 				f.File = r.Locations[0].PhysicalLocation.ArtifactLocation.URI
@@ -102,7 +109,9 @@ func Observe(sarif []byte) ([]Finding, error) {
 	return out, nil
 }
 
-// want is one result an expectation requires, with empty fields matching anything.
+// want is one result an expectation requires, with empty fields matching anything. The history
+// mark always has to match: a tree finding and a history finding of one secret are two results,
+// and an expectation that matched either would pass a scan reporting the secret twice.
 type want struct {
 	f      Finding
 	source string
@@ -114,7 +123,8 @@ func (w want) matches(f Finding) bool {
 		w.f.Rule == f.Rule && w.f.File == f.File && w.f.Line == f.Line &&
 		(w.f.Package == "" || w.f.Package == f.Package) &&
 		(w.f.Component == "" || w.f.Component == f.Component) &&
-		(w.f.Reachability == "" || w.f.Reachability == f.Reachability)
+		(w.f.Reachability == "" || w.f.Reachability == f.Reachability) &&
+		w.f.Historical == f.Historical
 }
 
 // wants lists every result a scenario requires: its expected findings, its generated secrets and
@@ -129,6 +139,7 @@ func wants(exp Expected, anns []Annotation) ([]want, error) {
 		out = append(out, want{source: "expected.yaml", f: Finding{
 			Control: e.Control, Tool: e.Tool, Rule: e.Rule, File: file, Line: line,
 			Package: e.Package, Component: e.Component, Reachability: e.Reachability,
+			Historical: e.Historical,
 		}})
 	}
 	for _, s := range exp.Secrets {
@@ -140,6 +151,7 @@ func wants(exp Expected, anns []Annotation) ([]want, error) {
 			for _, owner := range owners {
 				out = append(out, want{source: "expected.yaml secrets", f: Finding{
 					Control: "secrets", Rule: rule, File: s.File, Line: 1, Component: owner,
+					Historical: s.Removed,
 				}})
 			}
 		}

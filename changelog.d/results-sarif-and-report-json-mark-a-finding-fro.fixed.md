@@ -1,0 +1,1 @@
+- **`results.sarif` and `report.json` mark a finding from the commit history.** A gitleaks finding from `history: true` carries `historical: true`, so a consumer of either file can tell a secret in an old commit, at a path the checkout may no longer have, from a secret in the tree.

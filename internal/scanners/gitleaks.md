@@ -52,6 +52,12 @@ commit that introduced it, so a file since renamed is reported under a directory
 exists. Findings from the history pass are marked `historical` in the report, and the tree pass is
 what names the path a live secret is at now.
 
+A secret still in the tree is found by both passes and reported once, as the tree finding. A
+history finding is the same secret as a tree finding when both have the same rule, the same path
+and the same secret value. The line is not compared, because edits above a secret move it after the
+commit that introduced it. A secret at another path, or an older value replaced at the same path, is
+still reported from history.
+
 The history pass reads every commit in the repository, because git history cannot be checked out
 by subtree. A history finding is kept only when the path it names would have been checked out
 under the component's

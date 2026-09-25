@@ -53,6 +53,7 @@
           "properties": {
             "component": "api",
             "control": "secrets",
+            "historical": true,
             "priority": "P1",
             "repository": "./monorepo-secret-history",
             "tool": "gitleaks"
@@ -87,6 +88,7 @@
           "properties": {
             "component": "web",
             "control": "secrets",
+            "historical": true,
             "priority": "P1",
             "repository": "./monorepo-secret-history",
             "tool": "gitleaks"

@@ -48,6 +48,7 @@ Draugr reports as one SARIF tool, so every finding keeps its own attribution in 
 | `security-severity` | The numeric score, where the scanner gave one |
 | `escalation` | Why the band is higher than the severity: the dataset, the fact, and the day it was fetched |
 | `reachability` | Whether your code can reach the vulnerable code, which analyzer decided, and how |
+| `historical` | `true` on a finding from a commit in the repository's history rather than the current tree. Its location is the path the file had in that commit. Absent on a tree finding |
 
 `control` and `tool` answer different questions, and both matter to anything grouping findings:
 one rule id reported by two controls is two separate things to do.
@@ -66,6 +67,13 @@ moves a finding up and one moves it down, and both carry the evidence rather tha
 the analyzer and method for reachability, the dataset and the date for escalation. A reader is told
 to reject a reachability claim that does not say how it was reached; the same standard applies to a
 claim that something is more urgent than its score.
+
+**`historical` marks a location that may not exist in the checkout.** A history scan reports the
+path a file had in the commit that introduced the secret, and a file renamed or deleted since has no
+such path today. The credential is still readable by anyone who can clone the repository, so a
+historical finding needs rotating like a tree one. A secret present in both the tree and the history
+is reported once, as the tree finding. Each entry in `report.json`'s `findings` carries the same
+`historical` field.
 
 ## What the cache contributed
 

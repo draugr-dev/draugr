@@ -1,13 +1,13 @@
 {
   "controls": [
     {
-      "errors": 3,
+      "errors": 2,
       "highest": "high",
       "highestPriority": "P1",
       "name": "secrets",
       "notes": 0,
       "threshold": "",
-      "total": 3,
+      "total": 2,
       "verdict": "fail",
       "warnings": 0
     }
@@ -28,7 +28,7 @@
     "failOnPriority": "P1"
   },
   "priorities": {
-    "p1": 3,
+    "p1": 2,
     "p2": 0,
     "p3": 0,
     "p4": 0

@@ -172,6 +172,11 @@ type findingReport struct {
 	// the call path when it can. Same reason as Escalation, in the other direction: a consumer
 	// acting on a band that reachability lowered can say what lowered it.
 	Reachability *sarif.Reachability `json:"reachability,omitempty"`
+	// Historical says the finding comes from a commit rather than the current tree, so its
+	// location is the path the file had in that commit. A consumer without the mark reads a
+	// location the checkout lacks as a finding already fixed, when a credential in history is still
+	// readable by anyone who can clone.
+	Historical bool `json:"historical,omitempty"`
 	// Suppressed says a config.exclude rule set this finding aside, with the reason somebody gave
 	// and who accepted it.
 	//
@@ -738,6 +743,7 @@ func toFinding(control string, res sarif.Result) findingReport {
 		Location:     loc,
 		Escalation:   res.Escalation,
 		Reachability: res.Reachability,
+		Historical:   res.Historical,
 	}
 }
 
