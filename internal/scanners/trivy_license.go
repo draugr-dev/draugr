@@ -144,7 +144,7 @@ func (s licenseScanner) Prewarm(ctx context.Context) error { return sharedTrivyD
 // exist only under Results[].Licenses[] in the JSON.
 func trivyLicenseArgs(dir string, cfg plugin.Config) []string {
 	argv := []string{"trivy", "fs", "--quiet", "--scanners", "license", "--format", "json"}
-	return offlineTrivyArgs(append(licenseFullArg(argv, cfg), dir))
+	return offlineTrivyArgs(append(showSuppressedArgs(licenseFullArg(argv, cfg)), dir))
 }
 
 // trivyLicenseImageArgv builds `trivy image --quiet --scanners license --format json <ref>`.
@@ -158,7 +158,7 @@ func trivyLicenseImageArgv(target plugin.Target, cfg plugin.Config) ([]string, e
 		return nil, errors.New(trivyLicenseScannerName + ": image target has neither ref nor digest")
 	}
 	argv := []string{"trivy", "image", "--quiet", "--scanners", "license", "--format", "json"}
-	return offlineTrivyArgs(append(licenseFullArg(argv, cfg), ref)), nil
+	return offlineTrivyArgs(append(showSuppressedArgs(licenseFullArg(argv, cfg)), ref)), nil
 }
 
 // licenseFullArg adds --license-full when the descriptor asked for it.
@@ -189,7 +189,20 @@ type trivyLicenseDoc struct {
 		Class    string         `json:"Class"`
 		Packages []trivyPackage `json:"Packages"`
 		Licenses []trivyLicense `json:"Licenses"`
+		// Modified is what Trivy set aside under a rule of its own, reported only when it runs with
+		// --show-suppressed. Read the same way as for vulnerabilities (see trivyModified).
+		Modified []trivyLicenseModified `json:"ExperimentalModifiedFindings"`
 	} `json:"Results"`
+}
+
+// trivyLicenseModified is one entry of that section for a license. Its fields mean what they
+// mean in trivyModified, whose finding is a vulnerability rather than a license.
+type trivyLicenseModified struct {
+	Type      string       `json:"Type"`
+	Status    string       `json:"Status"`
+	Statement string       `json:"Statement"`
+	Source    string       `json:"Source"`
+	Finding   trivyLicense `json:"Finding"`
 }
 
 type trivyLicense struct {
@@ -249,21 +262,43 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 			if !ok {
 				continue
 			}
-			ruleID := licenseRuleID(lic.Name, lic.PkgName)
-			report.Results = append(report.Results, sarif.Result{
-				Tool:    trivyLicenseScannerName,
-				RuleID:  ruleID,
-				Level:   level,
-				Message: fmt.Sprintf("%s is %s. %s", licenseSubject(lic), lic.Name, why),
-				Location: sarif.Location{
-					URI:       lic.FilePath,
-					StartLine: lineOf(lic),
-				},
-			})
-			report.Rules[ruleID] = licenseRule(lic)
+			report.Results = append(report.Results, licenseResult(lic, level, why, lineOf))
+			report.Rules[licenseRuleID(lic.Name, lic.PkgName)] = licenseRule(lic)
+		}
+		for _, m := range res.Modified {
+			if m.Status != "ignored" || m.Type != "license" || m.Finding.Name == "" {
+				continue
+			}
+			// Held to the same policy as a license Trivy reported. An excluded permissive license is
+			// one this scanner would never have raised, and marking it suppressed would record an
+			// acceptance of something that was never a finding.
+			level, why, ok := licenseLevel(m.Finding, deny, warn)
+			if !ok {
+				continue
+			}
+			found := licenseResult(m.Finding, level, why, lineOf)
+			found.Suppression = &sarif.Suppression{
+				Kind:          "external",
+				Origin:        sarif.OriginScanner,
+				Justification: m.Statement,
+				Source:        m.Source,
+			}
+			report.Results = append(report.Results, found)
+			report.Rules[found.RuleID] = licenseRule(m.Finding)
 		}
 	}
 	return report, nil
+}
+
+// licenseResult builds one license finding.
+func licenseResult(lic trivyLicense, level sarif.Level, why string, lineOf func(trivyLicense) int) sarif.Result {
+	return sarif.Result{
+		Tool:     trivyLicenseScannerName,
+		RuleID:   licenseRuleID(lic.Name, lic.PkgName),
+		Level:    level,
+		Message:  fmt.Sprintf("%s is %s. %s", licenseSubject(lic), lic.Name, why),
+		Location: sarif.Location{URI: lic.FilePath, StartLine: lineOf(lic)},
+	}
 }
 
 // licenseSubject is what a license finding is about: the package, or for a license Trivy found in

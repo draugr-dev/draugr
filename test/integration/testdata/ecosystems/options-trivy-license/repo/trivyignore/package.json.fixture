@@ -1,0 +1,9 @@
+{
+  "name": "sealed-license-trivyignore",
+  "version": "1.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "dependencies": {
+    "argparse": "2.0.1"
+  }
+}

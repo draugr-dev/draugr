@@ -70,6 +70,16 @@ same failure as an image finding reported at `library/python:1`: technically a l
 in an editor. So the scanner indexes each manifest once and finds the line the package is declared
 on. When it can't, the finding still points at the file; a line of 0 is honest.
 
+## Exclusions
+
+A license excluded in Trivy's own configuration, such as a line in `.trivyignore`, is reported
+suppressed with `origin: scanner`, the file named as its source, and the statement as its reason
+where the rule gave one. Only a license the license policy would report is carried across: an
+excluded permissive license was never a finding.
+
+Trivy lists what it excluded under `--show-suppressed`, which Draugr passes to Trivy 0.53.0 and
+later. An older Trivy drops the license and leaves no record of it.
+
 ## Links
 
 - Trivy license scanning: https://trivy.dev/latest/docs/scanner/license/

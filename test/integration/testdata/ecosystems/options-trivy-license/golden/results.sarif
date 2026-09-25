@@ -198,6 +198,45 @@
             "tool": "trivy-license"
           },
           "ruleId": "license/BSD-3-Clause/sprintf-js"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "trivyignore/package-lock.json",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 15
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "argparse is Python-2.0. Flagged by this project's license policy (config.controls.licenses.warn)."
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "trivyignore",
+            "control": "licenses",
+            "priority": "P2",
+            "repository": "./options-trivy-license",
+            "tool": "trivy-license"
+          },
+          "ruleId": "license/Python-2.0/argparse",
+          "suppressions": [
+            {
+              "kind": "external",
+              "properties": {
+                "origin": "scanner",
+                "source": ".trivyignore"
+              }
+            }
+          ]
         }
       ],
       "tool": {
@@ -270,6 +309,19 @@
               },
               "shortDescription": {
                 "text": "ms is licensed MIT"
+              }
+            },
+            {
+              "helpUri": "https://spdx.org/licenses/Python-2.0.html",
+              "id": "license/Python-2.0/argparse",
+              "name": "Python-2.0",
+              "properties": {
+                "tags": [
+                  "scanner:trivy-license"
+                ]
+              },
+              "shortDescription": {
+                "text": "argparse is licensed Python-2.0"
               }
             }
           ],

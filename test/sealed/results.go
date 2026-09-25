@@ -21,6 +21,9 @@ type Finding struct {
 	// Historical is the SARIF result's history mark: the finding comes from a commit rather than
 	// the tree.
 	Historical bool
+	// Suppressed is who set the finding aside, as the SARIF suppression's origin names it: saga,
+	// vex, tool or scanner. Empty for a finding nothing set aside.
+	Suppressed string
 }
 
 func (f Finding) String() string {
@@ -46,6 +49,9 @@ func (f Finding) String() string {
 	}
 	if f.Historical {
 		s += " (historical)"
+	}
+	if f.Suppressed != "" {
+		s += " (suppressed: " + f.Suppressed + ")"
 	}
 	return s
 }
@@ -80,6 +86,12 @@ func Observe(sarif []byte) ([]Finding, error) {
 					} `json:"reachability"`
 					Historical bool `json:"historical"`
 				} `json:"properties"`
+				Suppressions []struct {
+					Kind       string `json:"kind"`
+					Properties struct {
+						Origin string `json:"origin"`
+					} `json:"properties"`
+				} `json:"suppressions"`
 			} `json:"results"`
 		} `json:"runs"`
 	}
@@ -103,6 +115,14 @@ func Observe(sarif []byte) ([]Finding, error) {
 			if r.Properties.Reachability != nil {
 				f.Reachability = r.Properties.Reachability.State
 			}
+			if len(r.Suppressions) > 0 {
+				// Draugr names the origin on every suppression it writes. The kind stands in where one
+				// arrives without, so a suppressed finding can never read as an active one.
+				f.Suppressed = r.Suppressions[0].Properties.Origin
+				if f.Suppressed == "" {
+					f.Suppressed = r.Suppressions[0].Kind
+				}
+			}
 			out = append(out, f)
 		}
 	}
@@ -111,7 +131,9 @@ func Observe(sarif []byte) ([]Finding, error) {
 
 // want is one result an expectation requires, with empty fields matching anything. The history
 // mark always has to match: a tree finding and a history finding of one secret are two results,
-// and an expectation that matched either would pass a scan reporting the secret twice.
+// and an expectation that matched either would pass a scan reporting the secret twice. So does the
+// suppression: an expectation written for an active finding fails when the finding arrives set
+// aside, which is a change the gate cannot see.
 type want struct {
 	f      Finding
 	source string
@@ -124,7 +146,7 @@ func (w want) matches(f Finding) bool {
 		(w.f.Package == "" || w.f.Package == f.Package) &&
 		(w.f.Component == "" || w.f.Component == f.Component) &&
 		(w.f.Reachability == "" || w.f.Reachability == f.Reachability) &&
-		w.f.Historical == f.Historical
+		w.f.Historical == f.Historical && w.f.Suppressed == f.Suppressed
 }
 
 // wants lists every result a scenario requires: its expected findings, its generated secrets and
@@ -139,7 +161,7 @@ func wants(exp Expected, anns []Annotation) ([]want, error) {
 		out = append(out, want{source: "expected.yaml", f: Finding{
 			Control: e.Control, Tool: e.Tool, Rule: e.Rule, File: file, Line: line,
 			Package: e.Package, Component: e.Component, Reachability: e.Reachability,
-			Historical: e.Historical,
+			Historical: e.Historical, Suppressed: e.Suppressed,
 		}})
 	}
 	for _, s := range exp.Secrets {

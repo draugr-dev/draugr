@@ -130,6 +130,9 @@ type FindingExpectation struct {
 	// Historical says the finding comes from the repository's history rather than its tree, and
 	// the SARIF result has to carry the mark.
 	Historical bool `yaml:"historical,omitempty"`
+	// Suppressed is the origin of the suppression the finding has to carry: saga, vex, tool or
+	// scanner. Empty means the finding has to arrive active.
+	Suppressed string `yaml:"suppressed,omitempty"`
 }
 
 // LeavesFieldsUnwritten reports whether a scan of the scenario leaves out fields the normalizers

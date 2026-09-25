@@ -1,0 +1,2 @@
+# Sets aside the one license the trivyignore component flags, so its finding arrives suppressed.
+Python-2.0

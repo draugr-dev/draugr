@@ -363,3 +363,43 @@ func TestInit(t *testing.T) {
 	}
 	_ = os.Remove(path)
 }
+
+func TestCheckHoldsTheSuppression(t *testing.T) {
+	// A finding a scanner set aside under its own configuration arrives suppressed, with the origin
+	// naming whose rule it was. An expectation for it has to name the origin, and one written for an
+	// active finding must not accept it.
+	const reported = `{"runs":[{"results":[
+ {"ruleId":"license/ISC/inherits","locations":[{"physicalLocation":{"artifactLocation":{"uri":"package-lock.json"},"region":{"startLine":9}}}],
+  "suppressions":[{"kind":"external","properties":{"origin":"scanner","source":".trivyignore"}}],
+  "properties":{"tool":"trivy-license","control":"licenses","component":"web"}},
+ {"ruleId":"aws-access-token","locations":[{"physicalLocation":{"artifactLocation":{"uri":"app.py"},"region":{"startLine":3}}}],
+  "suppressions":[{"kind":"inSource"}],
+  "properties":{"tool":"gitleaks","control":"secrets","component":"api"}}
+]}]}`
+	got, err := Observe([]byte(reported))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "licenses trivy-license license/ISC/inherits at package-lock.json:9 in web (suppressed: scanner)"; got[0].String() != want {
+		t.Errorf("finding = %q, want %q", got[0], want)
+	}
+	if got[1].Suppressed != "inSource" {
+		t.Errorf("a suppression with no origin read as %q, want its kind", got[1].Suppressed)
+	}
+	exp := Expected{Findings: []FindingExpectation{
+		{Control: "licenses", Rule: "license/ISC/inherits", Location: "package-lock.json:9", Suppressed: "scanner"},
+		{Control: "secrets", Rule: "aws-access-token", Location: "app.py:3", Suppressed: "inSource"},
+	}}
+	if problems, err := Check(exp, nil, got); err != nil || len(problems) != 0 {
+		t.Fatalf("a matching scan reported %v (%v)", problems, err)
+	}
+
+	exp.Findings[0].Suppressed = ""
+	problems, err := Check(exp, nil, got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(problems) != 2 {
+		t.Errorf("problems = %v, want the active finding missing and the suppressed one unexpected", problems)
+	}
+}

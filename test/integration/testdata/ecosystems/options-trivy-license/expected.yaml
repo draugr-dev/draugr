@@ -9,6 +9,10 @@
 # the same inherits as licenses-deny and flags ISC where licenses-deny denies it, so two components
 # report license/ISC/inherits at two levels. SARIF holds one rule for that id, and the golden
 # records it carrying neither verdict: each result's message states its own component's.
+#
+# trivyignore/ locks argparse (Python-2.0) and flags Python-2.0, and the repository's .trivyignore
+# sets that license aside. Trivy drops it from its findings and lists it among what it excluded, so
+# the one result arrives suppressed by the scanner. No other component locks a Python-2.0 package.
 proves:
   - licenses.deny
   - licenses.warn
@@ -32,3 +36,4 @@ findings:
   - {control: licenses, tool: trivy-license, rule: license/MIT/ms, location: "trivy-license-deny/package-lock.json:15"}
   - {control: licenses, tool: trivy-license, rule: license/BSD-3-Clause/sprintf-js, location: "trivy-license-warn/package-lock.json:15"}
   - {control: licenses, tool: trivy-license, rule: license/LGPL-3.0, location: "full/LICENSE"}
+  - {control: licenses, tool: trivy-license, rule: license/Python-2.0/argparse, location: "trivyignore/package-lock.json:15", suppressed: scanner}

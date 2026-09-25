@@ -47,6 +47,13 @@ components:
       licenses:
         trivyLicense:
           warn: [BSD-3-Clause]
+  - name: trivyignore
+    repositories:
+      - url: ./options-trivy-license
+        paths: [trivyignore]
+    controls:
+      licenses:
+        warn: [Python-2.0]
   - name: full
     repositories:
       - url: ./options-trivy-license

@@ -57,6 +57,9 @@ are separated by commas. The rules Semgrep runs are in [`semgrep.yaml`](semgrep.
   history and not in the tree, and every report of it must carry the history mark. A finding in
   `findings:` from history says `historical: true`. Commit ids change with the key, and the goldens
   hold them as `<commit>`.
+- **A suppressed finding names who set it aside.** `suppressed:` holds the origin its suppression
+  must carry: `saga`, `vex`, `tool` or `scanner`. A finding without it must arrive active, so an
+  exclusion that starts applying fails the scenario instead of passing it.
 - **A package needs an advisory.** A fixture dependency with no entry in `advisories.yaml` has no
   finding to assert.
 - **Every command runs beside a loopback server.** It serves `served/`, the scenario's image, and

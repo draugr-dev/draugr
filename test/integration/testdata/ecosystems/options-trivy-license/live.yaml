@@ -17,3 +17,5 @@ files:
     foundBy: [licenses/trivy-license]
   - file: trivy-license-warn/package-lock.json
     foundBy: [licenses/trivy-license]
+  - file: trivyignore/package-lock.json
+    foundBy: [licenses/trivy-license]
