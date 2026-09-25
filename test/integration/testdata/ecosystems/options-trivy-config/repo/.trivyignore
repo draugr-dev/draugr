@@ -1,0 +1,3 @@
+# Excludes the root-user check, which only trivyignore/Dockerfile fails, so options-trivy-config
+# can assert the exclusion arrives suppressed by the scanner.
+DS-0002

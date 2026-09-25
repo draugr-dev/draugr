@@ -1,7 +1,6 @@
 package scanners
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -197,7 +196,7 @@ func withGrypeExclusions(sarifOut, jsonOut []byte, files []grypeRuleFile) ([]byt
 	if len(results) == 0 {
 		return sarifOut, nil
 	}
-	return appendSARIFResults(sarifOut, results, rules)
+	return appendSARIFResults(sarifOut, "grype", results, rules)
 }
 
 // grypeImageRef is the reference an image scan was given, or "" for a directory.
@@ -365,54 +364,4 @@ func grypeDescription(m grypeMatch) string {
 		}
 	}
 	return ""
-}
-
-// appendSARIFResults adds results, and the rules they name that the document lacks, to the first
-// run of a SARIF document. Every other field is carried through as it was read.
-func appendSARIFResults(doc []byte, results, rules []any) ([]byte, error) {
-	dec := json.NewDecoder(bytes.NewReader(doc))
-	dec.UseNumber()
-	var log map[string]any
-	if err := dec.Decode(&log); err != nil {
-		return nil, fmt.Errorf("read its SARIF: %w", err)
-	}
-	runs, _ := log["runs"].([]any)
-	if len(runs) == 0 {
-		runs = []any{map[string]any{"tool": map[string]any{"driver": map[string]any{"name": "grype"}}}}
-	}
-	run, ok := runs[0].(map[string]any)
-	if !ok {
-		return nil, errors.New("read its SARIF: a run is not an object")
-	}
-	existing, _ := run["results"].([]any)
-	run["results"] = append(existing, results...)
-
-	tool, _ := run["tool"].(map[string]any)
-	if tool == nil {
-		tool = map[string]any{}
-		run["tool"] = tool
-	}
-	driver, _ := tool["driver"].(map[string]any)
-	if driver == nil {
-		driver = map[string]any{"name": "grype"}
-		tool["driver"] = driver
-	}
-	have, _ := driver["rules"].([]any)
-	ids := map[any]bool{}
-	for _, r := range have {
-		if m, ok := r.(map[string]any); ok {
-			ids[m["id"]] = true
-		}
-	}
-	for _, r := range rules {
-		id := r.(map[string]any)["id"]
-		if !ids[id] {
-			ids[id] = true
-			have = append(have, r)
-		}
-	}
-	driver["rules"] = have
-	runs[0] = run
-	log["runs"] = runs
-	return json.Marshal(log)
 }

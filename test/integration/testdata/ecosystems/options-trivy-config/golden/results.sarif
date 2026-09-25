@@ -88,6 +88,46 @@
           "ruleId": "DRAUGR-0002"
         },
         {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "trivyignore/Dockerfile",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Image user should not be 'root'"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "trivyignore",
+            "control": "iac",
+            "priority": "P1",
+            "repository": "./options-trivy-config",
+            "security-severity": "8",
+            "tool": "Trivy"
+          },
+          "ruleId": "DS-0002",
+          "suppressions": [
+            {
+              "kind": "external",
+              "properties": {
+                "origin": "scanner",
+                "source": ".trivyignore"
+              }
+            }
+          ]
+        },
+        {
           "level": "warning",
           "locations": [
             {
@@ -188,6 +228,25 @@
               },
               "shortDescription": {
                 "text": "Base image from an untrusted registry"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Running containers with 'root' user can lead to a container escape situation. It is a best practice to run containers as non-root users, which can be done by adding a 'USER' statement to the Dockerfile."
+              },
+              "help": {
+                "text": "Misconfiguration DS-0002\nType: Dockerfile Security Check\nSeverity: HIGH\nCheck: Image user should not be 'root'\nMessage: Specify at least 1 USER command in Dockerfile with non-root user as argument\nLink: [DS-0002](https://avd.aquasec.com/misconfig/ds-0002)\nRunning containers with 'root' user can lead to a container escape situation. It is a best practice to run containers as non-root users, which can be done by adding a 'USER' statement to the Dockerfile."
+              },
+              "helpUri": "https://avd.aquasec.com/misconfig/ds-0002",
+              "id": "DS-0002",
+              "name": "Misconfiguration",
+              "properties": {
+                "tags": [
+                  "scanner:Trivy"
+                ]
+              },
+              "shortDescription": {
+                "text": "Image user should not be 'root'"
               }
             }
           ],

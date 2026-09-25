@@ -36,3 +36,7 @@ components:
       iac:
         trivyConfig:
           checks: [./checks]
+  - name: trivyignore
+    repositories:
+      - url: ./options-trivy-config
+        paths: [trivyignore]

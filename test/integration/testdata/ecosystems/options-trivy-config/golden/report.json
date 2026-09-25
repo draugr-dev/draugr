@@ -17,7 +17,7 @@
     "effective": "<cleared>",
     "sources": [
       {
-        "digest": "sha256:c846d0d6052afbcc4ace48b4e600a5553fba6ae25fe145a50a859c599d13fbe3",
+        "digest": "sha256:ee1b0fc29355e3634b9761668aeb82b8e02c72eb529308d9288b3223fab1ad47",
         "path": "draugr.saga.yaml",
         "root": true
       }
@@ -59,8 +59,15 @@
     "concurrency": "<cleared>",
     "deduped": 0,
     "durationMs": "<cleared>",
-    "jobs": 4,
-    "scans": 4
+    "jobs": 5,
+    "scans": 5
+  },
+  "suppressed": {
+    "p1": 1,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0,
+    "total": 1
   },
   "verdict": "fail"
 }

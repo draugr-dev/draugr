@@ -9,5 +9,7 @@ files:
     foundBy: [iac/Trivy]
   - file: derived/Dockerfile
     foundBy: [iac/Trivy]
+  - file: trivyignore/Dockerfile
+    foundBy: [iac/Trivy]
   - file: user/Dockerfile
     foundBy: [iac/Trivy]

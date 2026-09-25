@@ -20,3 +20,8 @@ findings:
   - {control: iac, tool: Trivy, rule: DRAUGR-0002, location: "acme/Dockerfile:1"}
   - {control: iac, tool: Trivy, rule: DRAUGR-0001, location: "derived/Dockerfile:1"}
   - {control: iac, tool: Trivy, rule: DRAUGR-0002, location: "derived/Dockerfile:1"}
+
+# The repository's .trivyignore excludes DS-0002, and only trivyignore/Dockerfile runs as root.
+# Trivy lists the exclusion under --show-suppressed, and the finding must arrive from there, set
+# aside by the scanner.
+  - {control: iac, tool: Trivy, rule: DS-0002, location: "trivyignore/Dockerfile:1", component: trivyignore, suppressed: scanner}

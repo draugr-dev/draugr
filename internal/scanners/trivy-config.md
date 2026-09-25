@@ -16,10 +16,19 @@ order: 170
 
 ## What it does
 
-Checks out the component's repository, then runs `trivy config --quiet --format sarif <dir>` to
-find insecure **Infrastructure as Code**, Terraform, Kubernetes manifests, Dockerfiles, Helm
-charts, CloudFormation, and more. See the [IaC glossary
+Checks out the component's repository and runs Trivy's misconfiguration checks over it to find
+insecure **Infrastructure as Code**, Terraform, Kubernetes manifests, Dockerfiles, Helm charts,
+CloudFormation, and more. See the [IaC glossary
 entry](../../docs/reference/glossary.md#iac-scanning-infrastructure-as-code).
+
+```
+trivy fs --quiet --scanners misconfig --format json --show-suppressed <dir>
+trivy convert --quiet --format sarif <report>
+```
+
+The scan writes JSON because only the JSON lists what Trivy excluded, and `trivy convert` writes
+the SARIF from that report without scanning again. On a Trivy older than 0.53.0, which has no
+`--show-suppressed`, the scan is `trivy config --quiet --format sarif <dir>`.
 
 ## Saga options
 
@@ -61,6 +70,16 @@ Both add checks; neither removes findings. Trivy's `--severity` and `--ignorefil
 exposed. See `config.exclude` in the Saga reference for suppressing a finding in a way that stays
 visible.
 
+## Exclusions
+
+A check that a line in `.trivyignore` excluded is reported suppressed with `origin: scanner`, the
+file named as its source, and the statement as its reason where the rule gave one. Only a check the
+file failed is carried across; Trivy applies the rule to the checks a file passed as well.
+
+Two exclusions leave no record: an inline `#trivy:ignore:<id>` comment, which Trivy omits from
+every output format, and any exclusion on a Trivy older than 0.53.0.
+[`config.exclude`](../../docs/reference/saga-schema.md#configexclude) keeps the finding and its reason.
+
 ## Links
 
 - Trivy misconfiguration scanning: https://trivy.dev/latest/docs/scanner/misconfiguration/
@@ -69,7 +88,7 @@ visible.
 
 - Integration mode: **exec** over a local checkout; Trivy + `git` must be on `PATH`.
 - Trivy exits 0 even when misconfigurations are found (no `--exit-code` set), so findings
-  come from the SARIF report; the [`iac`](../controllers/iac.md) controller judges severity.
+  come from the report; the [`iac`](../controllers/iac.md) controller judges severity.
 - Custom policy is where most of the value is. `checks` takes paths to your own Rego, so a rule
   encoding a mistake your team repeats gates the same way the built-in ones do.
 
