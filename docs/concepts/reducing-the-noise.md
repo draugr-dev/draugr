@@ -83,6 +83,10 @@ The weakest one splits again on the finding itself, between a directive in the s
 rule in the scanner's own configuration, because those send you to different people: whoever
 committed the line, or whoever owns the file of exclusions.
 
+A scanner exclusion is counted only when the scanner keeps a record of it. A `#trivy:ignore`
+comment in an IaC file and a `.gitleaksignore` entry leave none, so nothing is counted for them.
+The [Saga schema](../reference/saga-schema.md#configexclude) lists the kinds that arrive.
+
 ## Levers that narrow
 
 These change what you are shown without changing what was found. The counts always describe the

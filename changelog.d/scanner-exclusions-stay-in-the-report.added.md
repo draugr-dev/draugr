@@ -1,0 +1,1 @@
+- **A finding a scanner excluded on its own now stays in the report, suppressed.** A `gitleaks:allow` comment, a Grype `ignore:` rule and a `.trivyignore` line covering a license or an IaC check are counted under `scanner exclusions`, with `origin: tool` or `origin: scanner`, the file, and the reason where one was given.

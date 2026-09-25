@@ -1270,11 +1270,11 @@ rule named anybody, so a reader knows to go and read the descriptor. A report us
 |---|---|---|
 | `saga` | a rule in this descriptor | whoever owns the descriptor |
 | `vex` | a claim [imported from a supplier's document](#reading-a-suppliers-vex-componentsvex-configvexsources) | the supplier |
-| `tool` | a directive in the scanned file, a `#nosec` or a `# nosemgrep` | whoever committed the line |
-| `scanner` | the scanner's own configuration, a `.trivyignore` line | whoever owns that file |
+| `tool` | a directive in the scanned file, a `#nosec`, a `# nosemgrep` or a `gitleaks:allow` | whoever committed the line |
+| `scanner` | the scanner's own configuration, a `.trivyignore` line or a Grype `ignore:` rule | whoever owns that file |
 
-Draugr writes the first two and reads the other two from what the scanner reported, using SARIF's
-own `kind`. It records which party made the claim and does not check the claim: nothing here opens
+Draugr writes the first two and reads the other two from the scanner's own record of what it
+excluded, using SARIF's `kind` where the scanner writes one. It records which party made the claim and does not check the claim: nothing here opens
 the supplier's document or reads the comment, so the origin says who to ask and never that the
 answer is right.
 
@@ -1394,10 +1394,15 @@ ACCEPTED
 ```
 
 **`scanner exclusions` is every finding a scanner set aside on its own**, with nothing in this
-descriptor asking it to: a `# nosemgrep` or a `#nosec` beside the line, or a rule in a file the
-scanner reads such as `.trivyignore`. Draugr reports them rather than letting them disappear,
-because a finding somebody excluded and a finding nobody ever had look identical once the scanner
-has dropped it.
+descriptor asking it to: a `# nosemgrep`, a `#nosec` or a `gitleaks:allow` beside the line, or a
+rule in a file the scanner reads such as `.trivyignore` or `.grype.yaml`. Draugr reports them rather
+than letting them disappear, because a finding somebody excluded and a finding nobody ever had look
+identical once the scanner has dropped it.
+
+An exclusion the scanner records in no output format cannot be reported, such as a
+`#trivy:ignore` comment in an IaC file or an entry in `.gitleaksignore`. Where a scanner reports
+only some of its exclusions, its page in the [catalog](catalog.md) says which.
+[`config.exclude`](#configexclude) keeps the finding and the reason in every case.
 
 It is the weakest of the three, and that is why it is a row of its own rather than part of a total.
 Both kinds were written outside the descriptor, neither carries an author or a date, and neither
