@@ -163,3 +163,27 @@ func TestLoadFile(t *testing.T) {
 		t.Fatal("expected error for missing file")
 	}
 }
+
+func TestAKeyWithNoValueIsRefusedWithItsLine(t *testing.T) {
+	for _, c := range []struct{ name, doc, want string }{
+		{"a section", "project: x\nconfig:\ncomponents:\n  - name: web\n    repositories: [{url: .}]\n", "line 2: config has no value"},
+		{"a nested key", "project: x\ncomponents:\n  - name: web\n    exposure:\n    repositories: [{url: .}]\n", "line 4: components[0].exposure has no value"},
+		{"an explicit null", "project: x\nrelease: null\ncomponents:\n  - name: web\n    repositories: [{url: .}]\n", "line 2: release has no value"},
+		{"a tilde", "project: x\nrelease: ~\ncomponents:\n  - name: web\n    repositories: [{url: .}]\n", "line 2: release has no value"},
+		{"a list item", "project: x\ncomponents:\n  - name: web\n    repositories:\n      - url: .\n      -\n", "line 6: components[0].repositories[1] has no value"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := Load([]byte(c.doc))
+			if err == nil || !strings.Contains(err.Error(), c.want) {
+				t.Fatalf("err = %v, want %q", err, c.want)
+			}
+		})
+	}
+}
+
+func TestAQuotedNullIsAString(t *testing.T) {
+	doc := "project: x\ncomponents:\n  - name: web\n    labels: {owner: \"null\"}\n    repositories: [{url: .}]\n"
+	if _, err := Load([]byte(doc)); err != nil {
+		t.Fatalf("a quoted null is a string value: %v", err)
+	}
+}

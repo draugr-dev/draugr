@@ -18,7 +18,6 @@ components:
 `
 
 const invalidSaga = `project: app
-release:
 components:
   - name: web
     exposure: bogus

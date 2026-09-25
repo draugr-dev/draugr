@@ -267,6 +267,9 @@ func LoadFragment(data []byte, path string) (Fragment, error) {
 	if err := labelsAreStrings(&root); err != nil {
 		return Fragment{}, fmt.Errorf("fragment %q: %w", path, err)
 	}
+	if err := noEmptyValues(&root); err != nil {
+		return Fragment{}, fmt.Errorf("fragment %q: %w", path, err)
+	}
 	var f Fragment
 	if root.Kind != 0 {
 		substituted, err := yaml.Marshal(&root)

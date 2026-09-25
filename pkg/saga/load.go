@@ -34,6 +34,9 @@ func loadModel(data []byte, validate bool) (*Model, error) {
 	if err := labelsAreStrings(&root); err != nil {
 		return nil, err
 	}
+	if err := noEmptyValues(&root); err != nil {
+		return nil, err
+	}
 
 	var m Model
 	if root.Kind != 0 { // empty document decodes to the zero Model
@@ -266,6 +269,52 @@ func merged(current, older map[string]ControllerSettings) map[string]ControllerS
 		out[k] = v
 	}
 	return out
+}
+
+// noEmptyValues refuses a key or a list item written with no value, `config:` on a line of its own,
+// or an explicit `null` or `~`.
+//
+// Decoding reads any of these as the field being absent, while the JSON Schema types every field as
+// a mapping, a list or a scalar and refuses null, so an editor would mark an error in a file
+// `draugr validate` accepted. Refusing it names the line, and a reader either deletes the key or
+// fills it in.
+func noEmptyValues(root *yaml.Node) error {
+	var problems []string
+	var walk func(n *yaml.Node, path string)
+	walk = func(n *yaml.Node, path string) {
+		empty := func(v *yaml.Node, at string) bool {
+			if v.Kind == yaml.ScalarNode && v.Tag == "!!null" {
+				problems = append(problems, fmt.Sprintf("line %d: %s has no value; give it one or delete it", v.Line, at))
+				return true
+			}
+			return false
+		}
+		switch n.Kind {
+		case yaml.DocumentNode:
+			for _, c := range n.Content {
+				walk(c, path)
+			}
+		case yaml.SequenceNode:
+			for i, c := range n.Content {
+				here := fmt.Sprintf("%s[%d]", path, i)
+				if !empty(c, here) {
+					walk(c, here)
+				}
+			}
+		case yaml.MappingNode:
+			for i := 0; i+1 < len(n.Content); i += 2 {
+				here := strings.TrimPrefix(path+"."+n.Content[i].Value, ".")
+				if !empty(n.Content[i+1], here) {
+					walk(n.Content[i+1], here)
+				}
+			}
+		}
+	}
+	walk(root, "")
+	if len(problems) > 0 {
+		return fmt.Errorf("%s", strings.Join(problems, "; "))
+	}
+	return nil
 }
 
 // labelsAreStrings refuses a component label whose value YAML reads as something other than a

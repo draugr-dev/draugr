@@ -217,8 +217,8 @@ func set(doc any, path []string, v any) {
 }
 
 // Mutations lists every single change the parity test makes to a descriptor: each string in the
-// wrong case and as a value nothing defines, an unknown key in each mapping, and each label as a
-// number.
+// wrong case and as a value nothing defines, an unknown key in each mapping, each label as a
+// number, and each value and list item as null.
 func Mutations(base any) []Mutation {
 	var out []Mutation
 	var walk func(n any, path []string)
@@ -241,11 +241,18 @@ func Mutations(base any) []Mutation {
 					out = append(out, Mutation{"label-int", strings.Join(here, "."), d})
 					continue
 				}
+				d := deepCopy(base)
+				set(d, here, nil)
+				out = append(out, Mutation{"null", strings.Join(here, "."), d})
 				walk(x[k], here)
 			}
 		case []any:
 			for i, e := range x {
-				walk(e, append(append([]string{}, path...), strconv.Itoa(i)))
+				here := append(append([]string{}, path...), strconv.Itoa(i))
+				d := deepCopy(base)
+				set(d, here, nil)
+				out = append(out, Mutation{"null", strings.Join(here, "."), d})
+				walk(e, here)
 			}
 		case string:
 			if up := strings.ToUpper(x); up != x {

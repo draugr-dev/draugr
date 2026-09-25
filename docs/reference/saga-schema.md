@@ -31,6 +31,9 @@ references: [ ... ]           # optional, links to manual/human controls
 Any string value may reference an environment variable with `${{ VAR_NAME }}`; loading
 fails fast if a referenced variable is unset.
 
+Every key needs a value. `config:` on its own line, `release: null`, `release: ~` and a bare `-` in
+a list are refused. The word null as a value is quoted, `"null"`.
+
 ## `project`
 
 Which project this descriptor describes: lowercase letters, digits and dashes.
