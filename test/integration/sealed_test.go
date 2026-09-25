@@ -203,6 +203,13 @@ func runSealed(t *testing.T, s sealed.Scenario, advs sealed.Advisories, bin, ser
 // own closing hint runs it and where the descriptor's `url: .` resolves.
 func scanWithInit(t *testing.T, c sealed.Container, draugr string, s sealed.Scenario, repo string, anns []sealed.Annotation) {
 	t.Helper()
+	if why := s.Expected.InitScan.Skip; why != "" {
+		if _, err := s.Expected.ForInitScan(); err != nil {
+			t.Fatalf("%s: %v", s.Name, err)
+		}
+		t.Logf("%s: init's descriptor is not scanned: %s", s.Name, why)
+		return
+	}
 	out := filepath.Join(c.Work, "out-init")
 	scan := append([]string{draugr, "scan", filepath.Join(c.Work, "init.saga.yaml"), "--output", out}, s.Expected.Sealed.ScanFlags()...)
 	console, err := c.Command(repo, scan...).CombinedOutput()

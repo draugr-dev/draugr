@@ -14,6 +14,9 @@ proves:
   - trivy-license.warn
   - trivy-license.full
 
+initScan:
+  skip: the options proves names are the subject, and init writes none of them
+
 init:
   controls: [iac, sast, sca, secrets]
   components:

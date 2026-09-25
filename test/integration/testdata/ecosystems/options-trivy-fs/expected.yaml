@@ -4,6 +4,9 @@
 # trivyFs options are proved by python-pip-dev, js-npm-dev and python-pip-ranges.
 proves: [trivy-fs.pkgTypes]
 
+initScan:
+  skip: the options proves names are the subject, and init writes none of them
+
 init:
   controls: [iac, sast, sca, secrets]
   components:

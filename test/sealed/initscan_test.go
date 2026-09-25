@@ -33,4 +33,9 @@ func TestForInitScan(t *testing.T) {
 	if _, err := exp.ForInitScan(); err == nil || !strings.Contains(err.Error(), "CVE-3") {
 		t.Errorf("an unreported rule no finding has was accepted: %v", err)
 	}
+
+	exp.InitScan = InitScanExpectation{Skip: "the options are the subject", Unreported: []string{"CVE-1"}}
+	if _, err := exp.ForInitScan(); err == nil || !strings.Contains(err.Error(), "skip") {
+		t.Errorf("a skipped init scan with departures that would never be checked was accepted: %v", err)
+	}
 }

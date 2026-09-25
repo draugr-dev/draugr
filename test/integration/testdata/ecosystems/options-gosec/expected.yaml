@@ -3,6 +3,9 @@
 # expectations are the ruleid: and ok: comments in each directory's main.go and tagged.go.
 proves: [gosec.include, gosec.exclude, gosec.tags]
 
+initScan:
+  skip: the options proves names are the subject, and init writes none of them
+
 init:
   controls: [iac, sast, sca, secrets]
   components:

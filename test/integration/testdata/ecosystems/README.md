@@ -63,3 +63,5 @@ are separated by commas. The rules Semgrep runs are in [`semgrep.yaml`](semgrep.
   findings and errors. `initScan:` records where it departs: `unreported` names rules the
   hand-written descriptor turns on and init does not, and `errors` replaces the expected errors.
   A departure is a claim about init, so each carries a comment saying which setting init left out.
+  `skip:` holds a reason instead, for a scenario whose descriptor is the subject: options init never
+  writes, or components declared by hand. The test logs it.

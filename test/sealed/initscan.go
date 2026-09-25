@@ -10,6 +10,9 @@ import (
 // on a descriptor option init does not write has to be named here, and a default that stops
 // reaching one fails the scenario.
 type InitScanExpectation struct {
+	// Skip is why a scan with init's descriptor is not compared, for a scenario whose descriptor
+	// is the subject: options init never writes, or components declared by hand. It is logged.
+	Skip string `yaml:"skip"`
 	// Unreported are rules from findings that init's descriptor does not report, because they
 	// need an option the hand-written descriptor sets and init leaves at its default.
 	Unreported []string `yaml:"unreported"`
@@ -21,6 +24,9 @@ type InitScanExpectation struct {
 
 // ForInitScan is e as a scan with init's descriptor must match it.
 func (e Expected) ForInitScan() (Expected, error) {
+	if e.InitScan.Skip != "" && (e.InitScan.Unreported != nil || e.InitScan.Errors != nil) {
+		return Expected{}, fmt.Errorf("initScan.skip is set, so its unreported and errors would never be checked")
+	}
 	out := e
 	out.Findings = nil
 	matched := map[string]bool{}
