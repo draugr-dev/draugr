@@ -17,15 +17,13 @@ repos; private repos need GitHub Advanced Security.
 
 ## 1. Declare the publisher in your Saga
 
-The `github` publisher renders the `sarif` report for itself, so `kind: github` is the whole of
-it. It never stores a secret in
-the descriptor, repo/commit/ref default from the GitHub Actions environment, and the token comes
-from `$GITHUB_TOKEN`. It no-ops outside Actions, so the same Saga still runs locally.
+The `github` publisher renders the `sarif` report for itself, so `kind: github` is the whole of it.
+It never stores a secret in the descriptor, repo/commit/ref default from the GitHub Actions
+environment, and the token comes from `$GITHUB_TOKEN`. It no-ops outside Actions, so the same Saga
+still runs locally.
 
 ```yaml
 config:
-  reports:
-    - format: sarif
   publishers:
     - kind: github         # repo/commit/ref default to the GitHub Actions env
       # repo: owner/name   # optional overrides ($GITHUB_REPOSITORY / $GITHUB_SHA / $GITHUB_REF)
@@ -53,9 +51,11 @@ rest of your policy:
 
 ```yaml
 config:
-  reports:
-    - format: sarif
-      minPriority: P1    # this report only; the JSON beside it stays complete
+  publishers:
+    - kind: github
+      reports:
+        - format: sarif
+          minPriority: P1    # this report only; the JSON beside it stays complete
 ```
 
 ### A descriptor that describes more than one repository

@@ -74,8 +74,6 @@ on each push rather than stacking a copy per run:
 
 ```yaml
 config:
-  reports:
-    - format: markdown
   publishers:
     - kind: azure-pr-comment
 ```
