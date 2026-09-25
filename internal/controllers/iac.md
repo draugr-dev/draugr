@@ -3,7 +3,7 @@
 - **Industry term:** IaC / misconfiguration scanning
 - **Scope:** component
 - **Status:** ✅ implemented
-- **Scanners:** [`trivy-config`](../scanners/trivy-config.md) (Checkov optional, [#52](https://github.com/draugr-dev/draugr/issues/52))
+- **Scanners:** [`trivy-config`](../scanners/trivy-config.md)
 - **Resource:** a component's `repositories:`
 
 ## What it does

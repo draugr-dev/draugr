@@ -17,7 +17,7 @@ Enable it on a component's hosts:
 
 ```yaml
 config:
-  controllers:
+  controls:
     tls:
       enabled: true
 
@@ -28,8 +28,8 @@ components:
         url: https://api.example.com      # port defaults to 443; https:// required
 ```
 
-Per-scanner config uses the standard shape (`controllers.tls.<scanner>`), so the default probe can
-be turned off with `draugr-tls: { enabled: false }` when an opt-in engine is added, and its
+Per-scanner config uses the standard shape (`config.controls.tls.<scanner>`), so the default probe
+can be turned off with `draugrTls: { enabled: false }` when an opt-in engine is added, and its
 certificate-expiry windows tuned. See [`draugr-tls.md`](../scanners/draugr-tls.md#configuration).
 
 ## Links

@@ -3,7 +3,8 @@
 - **Industry term:** CIS benchmark / cluster posture
 - **Scope:** component
 - **Status:** ✅ implemented (CIS section 5. See the scope note below)
-- **Scanners:** [`kube-bench`](../scanners/kube-bench.md)
+- **Scanners:** [`draugr-k8s-policies`](../scanners/draugr-k8s-policies.md) (default);
+  [`kube-bench`](../scanners/kube-bench.md) and [`kube-bench-job`](../scanners/kube-bench-job.md) (opt-in)
 - **Resource:** a component's `infrastructure:` entries with `kind: kubernetes`
 
 ## What it does
@@ -70,7 +71,7 @@ The whole benchmark, which is what most people want:
 
 ```yaml
 config:
-  controllers:
+  controls:
     infrastructure:
       enabled: true
       kubeBenchJob: { enabled: true }   # the node sections; the default covers section 5
@@ -102,7 +103,7 @@ different contract: Draugr creates something in the system it is scanning. It de
 ```yaml
 config:
   allowEffects: [mutate, privilege]
-  controllers:
+  controls:
     infrastructure:
       enabled: true
       kubeBenchJob:
@@ -117,17 +118,20 @@ unguarded.
 
 ```yaml
 config:
-  controllers:
+  controls:
     infrastructure:
       enabled: true
-      context: arn:aws:eks:...         # optional; defaults to the component's `ref`
-      version: "1.34"                  # optional; Draugr asks the cluster otherwise
-      benchmark: gke-1.6.0             # optional; names a benchmark config directly
-      configDir: /etc/kube-bench/cfg   # optional; where kube-bench's definitions live
+      kubeBench:
+        enabled: true
+        context: arn:aws:eks:...         # optional; defaults to the component's `ref`
+        version: "1.34"                  # optional; Draugr asks the cluster otherwise
+        benchmark: gke-1.6.0             # optional; names a benchmark config directly
+        configDir: /etc/kube-bench/cfg   # optional; where kube-bench's definitions live
 ```
 
-Settings pass through to the scanner. Project-level settings apply to every component; a
-component may override them.
+Each setting belongs to the scanner that reads it, under that scanner's key. `kubeBenchJob` takes
+`context` and `benchmark` as well; `draugrK8sPolicies` takes none. Project-level settings apply to
+every component; a component may override them.
 
 **You should not normally need either.** Draugr asks the cluster what it is and picks
 accordingly: a vanilla cluster gets its Kubernetes version supplied, because kube-bench cannot
@@ -142,13 +146,15 @@ for how the choice is made.
 
 ## Links
 
-- Scanner: [`kube-bench`](../scanners/kube-bench.md)
+- Scanners: [`draugr-k8s-policies`](../scanners/draugr-k8s-policies.md),
+  [`kube-bench`](../scanners/kube-bench.md), [`kube-bench-job`](../scanners/kube-bench-job.md)
 - CIS Kubernetes Benchmark: https://www.cisecurity.org/benchmark/kubernetes
 - Saga reference: [`docs/reference/saga-schema.md`](../../docs/reference/saga-schema.md)
 
 ## Notes
 
-- Needs `kubectl` on `PATH` and a working kubeconfig: every section-5 check shells out to it.
-  Draugr reads the ambient kubeconfig, the same as the `k8s-images` surveyor.
+- Needs a working kubeconfig. Draugr reads the ambient one, the same as the `k8s-images` surveyor.
+  `kube-bench` also needs `kubectl` on `PATH`, because every section-5 check it runs shells out to
+  it.
 - Findings are located at the cluster (`kubernetes/<ref>`) rather than a file, because that is
   what was assessed.

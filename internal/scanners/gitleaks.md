@@ -27,10 +27,12 @@ decides severity.
 ## Saga options
 
 ```yaml
-controllers:
-  secrets:
-    gitleaks:
-      config: security/gitleaks.toml   # relative to where Draugr runs
+config:
+  controls:
+    secrets:
+      gitleaks:
+        config: security/gitleaks.toml   # relative to where Draugr runs
+        history: true                    # the commit history as well as the tree
 ```
 
 | Option | What it does |

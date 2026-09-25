@@ -14,7 +14,7 @@ your Mend account, so it runs only when a descriptor asks for it.
 
 ```yaml
 config:
-  controllers:
+  controls:
     sca:
       mendSca:
         enabled: true

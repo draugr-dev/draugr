@@ -13,7 +13,7 @@ actually reach.
 - **Control:** `sca`
 - **Target:** repository
 - **Tool:** [`govulncheck`](https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck), from the Go team
-- **Enabled by:** `controllers.sca.govulncheck.enabled: true`. Opt-in, because it needs the Go
+- **Enabled by:** `config.reachability.analyzers: [govulncheck]`. Opt-in, because it needs the Go
   toolchain and only answers for Go
 
 ## What it does

@@ -17,23 +17,26 @@ order: 160
 
 ## What it does
 
-Runs `trivy image --quiet --format sarif <ref>` to find known vulnerabilities in a
-container image's OS packages and bundled libraries. Output is native SARIF.
+Runs `trivy image --quiet --format json <ref>` to find known vulnerabilities in a
+container image's OS packages and bundled libraries, and converts the result to SARIF. Trivy's JSON
+names the package, the image and its operating system as fields, where its SARIF names the package
+only in prose.
 
 ## Links
 
 - Home / docs: https://trivy.dev
 - Repo: https://github.com/aquasecurity/trivy
-- SARIF/report formats: https://trivy.dev/latest/docs/configuration/reporting/
+- Report formats: https://trivy.dev/latest/docs/configuration/reporting/
 
 ## Saga options
 
 ```yaml
-controllers:
-  sca:
-    trivyFs:
-      pkgTypes: [library]                          # skip the OS layer
-      dbRepository: [registry.internal/trivy-db:2] # an internal mirror
+config:
+  controls:
+    images:
+      trivy:
+        pkgTypes: [library]                          # skip the OS layer
+        dbRepository: [registry.internal/trivy-db:2] # an internal mirror
 ```
 
 | Option | What it does |
