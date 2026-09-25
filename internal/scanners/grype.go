@@ -52,6 +52,7 @@ func NewGrype() plugin.Scanner {
 		ConfigSchema: json.RawMessage(grypeConfigSchema),
 		Argv:         grypeArgv,
 		Run:          grypeRun,
+		Parse:        parseGrypeImageSARIF,
 		CacheVersion: sharedGrypeVersion.cacheVersion,
 		Prewarm:      sharedGrypeDB.warm,
 		Refine:       imageRefLocations,
@@ -179,11 +180,12 @@ func grypeEnv() []string {
 	return []string{"GRYPE_DB_AUTO_UPDATE=false"}
 }
 
-func grypeRun(ctx context.Context, argv []string) ([]byte, error) {
+// grypeRun and grypeRunInDir are vars so a test can substitute the exec without arranging binaries
+// on PATH.
+var grypeRun = func(ctx context.Context, argv []string) ([]byte, error) {
 	return toolexec.RunWithEnv(ctx, "", argv, grypeEnv())
 }
 
-// A var so a test can substitute the exec without arranging binaries on PATH.
 var grypeRunInDir = func(ctx context.Context, dir string, argv []string) ([]byte, error) {
 	return toolexec.RunWithEnv(ctx, dir, argv, grypeEnv())
 }
@@ -199,13 +201,31 @@ var grypeRunInDir = func(ctx context.Context, dir string, argv []string) ([]byte
 // scanning anchors it nowhere, and the same dependency reported by Trivy and by Grype arrives
 // under two different paths and cannot be recognized as the same thing.
 func parseGrypeRepoSARIF(out []byte, dir string, _ plugin.Config) (sarif.Report, error) {
+	report, err := parseGrypeSARIF(out)
+	if err != nil {
+		return sarif.Report{}, err
+	}
+	for i := range report.Results {
+		report.Results[i].Location.URI = grypeRepoPath(dir, report.Results[i].Location.URI)
+	}
+	return report, nil
+}
+
+// parseGrypeImageSARIF decodes Grype's SARIF for an image scan. The location is left as Grype
+// wrote it, because imageRefLocations replaces it with the image reference afterwards.
+func parseGrypeImageSARIF(out []byte, _ plugin.Target, _ plugin.Config) (sarif.Report, error) {
+	return parseGrypeSARIF(out)
+}
+
+// parseGrypeSARIF decodes Grype's SARIF and gives each result the package its rule is about. Shared
+// by the image and repository scanners, which read the same document.
+func parseGrypeSARIF(out []byte) (sarif.Report, error) {
 	report, err := sarif.FromSARIF(out)
 	if err != nil {
 		return sarif.Report{}, err
 	}
 	packages := grypePackages(out)
 	for i := range report.Results {
-		report.Results[i].Location.URI = grypeRepoPath(dir, report.Results[i].Location.URI)
 		if pkg, ok := packages[report.Results[i].RuleID]; ok {
 			p := pkg
 			report.Results[i].Package = &p

@@ -82,10 +82,10 @@ Two scanners on one control report the same vulnerability under different rule i
 that may disagree. Counting both reports one vulnerability as two, which is the arithmetic that
 makes a wall of findings look worse than the system is.
 
-Findings are grouped by **repository, package purl and vulnerability id**, and one of each group is
-counted: the one claiming the most exposure, breaking ties toward the plain advisory id. The others
-stay in the report as evidence, each keeping its own rule id, severity and account, the disagreement
-between two scanners is the reason to run two.
+Findings are grouped by **component, repository or image, package purl and vulnerability id**, and
+one of each group is counted: the one claiming the most exposure, breaking ties toward the plain
+advisory id. The others stay in the report as evidence, each keeping its own rule id, severity and
+account, the disagreement between two scanners is the reason to run two.
 
 Runs after exclusions and VEX, so their matching is unchanged and a decision about a flaw reaches
 every scanner's copy of it.

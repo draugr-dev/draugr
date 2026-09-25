@@ -2121,7 +2121,7 @@ func applyCorrelation(controls map[string]plugin.ControlResult) (groups, extraSu
 	return groups, extraSuppressed
 }
 
-// correlationKey identifies one flaw in one dependency in one repository.
+// correlationKey identifies one flaw in one dependency in one repository or image.
 type correlationKey struct {
 	// component and repository are the subject rather than the observation. The same package at the
 	// same version in two components is two flaws: two teams, two places to fix, and two
@@ -2132,16 +2132,20 @@ type correlationKey struct {
 	// `paths:`, so the repository is identical across them and only the component tells them apart.
 	component  string
 	repository string
-	pkg        string
-	vuln       string
+	// image is the container a finding was read from. A component can declare several images, and
+	// an image finding carries no repository, so the same package in two of them would otherwise
+	// key alike and one image's finding would be counted under the other's.
+	image string
+	pkg   string
+	vuln  string
 }
 
 // correlationKeyOf is the key a finding correlates on, and false for a finding that cannot.
 //
-// Three parts, each load-bearing. The vulnerability rather than the rule id, because two scanners
-// spell the same advisory differently. The package as its purl, because a name alone is ambiguous
-// across ecosystems and the purl is what both tools agree on. And the repository, because a
-// component can hold several and the same dependency in two of them is two things to fix.
+// Each part is load-bearing. The vulnerability rather than the rule id, because two scanners spell
+// the same advisory differently. The package as its purl, because a name alone is ambiguous across
+// ecosystems and the purl is what both tools agree on. And the repository or the image, because a
+// component can hold several of each and the same dependency in two of them is two things to fix.
 //
 // A finding with no package or no vulnerability identity does not correlate. That is most of them,
 // a leaked credential, a misconfigured resource, and inventing a key for those would collapse
@@ -2152,7 +2156,8 @@ func correlationKeyOf(res sarif.Result) (correlationKey, bool) {
 		return correlationKey{}, false
 	}
 	return correlationKey{
-		component: res.Component, repository: res.Repository, pkg: res.Package.PURL, vuln: vuln,
+		component: res.Component, repository: res.Repository, image: res.Image,
+		pkg: res.Package.PURL, vuln: vuln,
 	}, true
 }
 

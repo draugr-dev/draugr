@@ -1,0 +1,29 @@
+# One image, served by the sealed server as 127.0.0.1:18080/images-trivy-grype:1.0 and scanned by
+# both Trivy and Grype. The flask distribution in it has an advisory in both sealed databases. Each
+# scanner reports it under its own rule id and its own spelling of the package, and both give the
+# purl pkg:pypi/flask@0.12.2, so the golden records one finding counted and the other correlated
+# under it.
+init:
+  controls: [iac, sast, sca, secrets]
+  components:
+    - name: images-trivy-grype
+      repositories: ["."]
+
+requests:
+  - GET /v2/images-trivy-grype/manifests/1.0
+
+findings:
+  - control: images
+    tool: trivy
+    rule: CVE-2018-1000656
+    location: 127.0.0.1:18080/images-trivy-grype:1.0
+    package: python-pkg Flask 0.12.2
+  - control: images
+    tool: grype
+    rule: CVE-2018-1000656-flask
+    location: 127.0.0.1:18080/images-trivy-grype:1.0
+    package: python flask 0.12.2
+
+# init reads the repository, which names no image, so its descriptor scans none.
+initScan:
+  unreported: [CVE-2018-1000656, CVE-2018-1000656-flask]

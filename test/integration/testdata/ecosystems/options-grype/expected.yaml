@@ -21,9 +21,11 @@ findings:
     tool: grype
     rule: CVE-2020-14343-pyyaml
     location: 127.0.0.1:18080/options-grype:1.0
+    package: python pyyaml 5.3.1
     component: default
   - control: images
     tool: grype
     rule: GHSA-8q59-q68h-6hv4-pyyaml
     location: 127.0.0.1:18080/options-grype:1.0
+    package: python pyyaml 5.3.1
     component: by-advisory

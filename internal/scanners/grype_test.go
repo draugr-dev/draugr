@@ -215,6 +215,51 @@ func TestGrypeImageLocationsBecomeTheReference(t *testing.T) {
 	}
 }
 
+// grypeImageSARIF is Grype's SARIF for an image, where the package is stated on the rule.
+const grypeImageSARIF = `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"grype","rules":[{
+  "id":"CVE-2018-1000656-flask",
+  "help":{"text":"Vulnerability CVE-2018-1000656\nSeverity: high\nPackage: flask\nVersion: 0.12.2\nFix Version: 0.12.3\nType: python\n"},
+  "properties":{"purls":["pkg:pypi/flask@0.12.2"]}}]}},
+ "results":[{"ruleId":"CVE-2018-1000656-flask","level":"error","message":{"text":"vuln"},
+  "locations":[{"physicalLocation":{"artifactLocation":{"uri":"/usr/lib/python3.12/site-packages/Flask-0.12.2.dist-info/METADATA"}}}]}]}]}`
+
+// TestGrypeImageFindingsCarryThePackage drives the image scanner as it is constructed, over two
+// images. The purl is what correlates Grype's finding with Trivy's on the same image, so an image
+// finding without one is counted twice when both scanners run.
+func TestGrypeImageFindingsCarryThePackage(t *testing.T) {
+	prior := grypeRun
+	t.Cleanup(func() { grypeRun = prior })
+	grypeRun = func(context.Context, []string) ([]byte, error) { return []byte(grypeImageSARIF), nil }
+
+	s := NewGrype()
+	for _, ref := range []string{"registry.example/api:1.0", "registry.example/worker:1.0"} {
+		rep, err := s.Scan(context.Background(), plugin.ImageTarget{Ref: ref}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(rep.Results) != 1 {
+			t.Fatalf("%s: results = %d, want 1", ref, len(rep.Results))
+		}
+		got := rep.Results[0]
+		if got.Package == nil {
+			t.Fatalf("%s: no package on an image finding", ref)
+		}
+		if got.Package.PURL != "pkg:pypi/flask@0.12.2" || got.Package.Name != "flask" ||
+			got.Package.Version != "0.12.2" || got.Package.FixedVersion != "0.12.3" {
+			t.Errorf("%s: package = %+v", ref, *got.Package)
+		}
+		if got.Image != ref || got.Location.URI != ref {
+			t.Errorf("%s: image/location = %q/%q, want the image reference", ref, got.Image, got.Location.URI)
+		}
+	}
+}
+
+func TestParseGrypeImageSARIFRejectsGarbage(t *testing.T) {
+	if _, err := parseGrypeImageSARIF([]byte("not sarif"), plugin.ImageTarget{Ref: "a:1"}, nil); err == nil {
+		t.Error("unparseable output should error rather than report a clean scan")
+	}
+}
+
 func TestGrypeCacheVersionCombinesToolAndDatabase(t *testing.T) {
 	p := &grypeVersionProbe{run: func(_ context.Context, argv []string) ([]byte, error) {
 		if slices.Contains(argv, "version") {

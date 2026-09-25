@@ -1,0 +1,1 @@
+- **Grype image findings name the package.** Each finding carries its package, version, fixing version and purl, so an image scanned by both Trivy and Grype reports one finding with the other scanner listed under it. The same flaw in two images of one component stays two findings.

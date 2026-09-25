@@ -1,0 +1,64 @@
+{
+  "controls": [
+    {
+      "errors": 1,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "images",
+      "notes": 0,
+      "threshold": "",
+      "total": 1,
+      "verdict": "fail",
+      "warnings": 0
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:165b700de1fa2ad69c729898a4c05720adb3e216b3f8c7f43c6612247b19b90c",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 1,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0
+  },
+  "project": "images-trivy-grype",
+  "release": {
+    "version": "1.0"
+  },
+  "scanners": [
+    {
+      "name": "grype",
+      "version": "<cleared>"
+    },
+    {
+      "name": "trivy",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 2,
+    "scans": 2
+  },
+  "verdict": "fail"
+}
