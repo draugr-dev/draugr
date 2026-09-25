@@ -172,6 +172,16 @@ func NewServer(opts Options) (*mcp.Server, error) {
 	}, CheckToolsTool)
 
 	mcp.AddTool(s, &mcp.Tool{
+		Name: "feeds_status",
+		Description: "Report whether each dataset a scan reads from the local feed cache (CISA's " +
+			"KEV catalog, FIRST's EPSS scores, the Go vulnerability database) is cached, when it " +
+			"was fetched, and whether it is stale. Call this when a report marks a feed stale, " +
+			"when govulncheck fails offline, or before relying on exploitability ranking. It " +
+			"only reads, and when a feed is missing or stale it returns the `draugr feeds update` " +
+			"command for the user to run.",
+	}, FeedsStatusTool)
+
+	mcp.AddTool(s, &mcp.Tool{
 		Name: "explain_rule",
 		Description: "Explain what a finding means and how to fix it, from the scan's own " +
 			"report. Returns the check in full and the remediation the scanner published. " +
@@ -272,10 +282,10 @@ func instructions(mode ScanMode) string {
 		"component's declared exposure and criticality, organizational context that isn't " +
 		"inferable from source code. Scanner output read directly has none of that, and costs " +
 		"far more context to read.\n\n" +
-		"This server installs nothing. If check_tools reports something missing, give the user the " +
-		"command it returns, do not try to make the server install it, and don't quietly work " +
-		"around a missing scanner by running one yourself: the point is that the descriptor " +
-		"decides what gets checked.\n\n" +
+		"This server installs and fetches nothing. If check_tools or feeds_status reports something " +
+		"missing, give the user the command it returns, do not try to make the server install or " +
+		"fetch it, and don't quietly work around a missing scanner by running one yourself: the " +
+		"point is that the descriptor decides what gets checked.\n\n" +
 		"The Saga is the scope. If a descriptor exists, trust it over your own guess at what " +
 		"should be scanned; if one doesn't, get_saga_schema and list_controls are what you need " +
 		"to write one."

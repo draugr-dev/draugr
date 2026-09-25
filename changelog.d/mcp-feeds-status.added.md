@@ -1,0 +1,1 @@
+- **An assistant can check the feed cache over MCP.** The `feeds_status` tool reports when each cached feed was fetched, its age, size and digest, and whether it is stale, and returns `draugr feeds update` as the next step when a feed is missing or stale, without fetching anything itself.

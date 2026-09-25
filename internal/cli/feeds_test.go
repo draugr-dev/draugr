@@ -217,28 +217,6 @@ func TestFeedsStatus(t *testing.T) {
 	}
 }
 
-func TestHumanAgeAndBytes(t *testing.T) {
-	ages := map[time.Duration]string{
-		30 * time.Second:  "just now",
-		20 * time.Minute:  "20 minutes",
-		5 * time.Hour:     "5 hours",
-		time.Hour:         "1 hour",
-		119 * time.Minute: "2 hours",
-		96 * time.Hour:    "4 days",
-	}
-	for d, want := range ages {
-		if got := humanAge(d); got != want {
-			t.Errorf("humanAge(%v) = %q, want %q", d, got, want)
-		}
-	}
-	sizes := map[int64]string{512: "512 B", 2048: "2.0 KiB", 5 << 20: "5.0 MiB", 3 << 30: "3.0 GiB"}
-	for n, want := range sizes {
-		if got := humanBytes(n); got != want {
-			t.Errorf("humanBytes(%d) = %q, want %q", n, got, want)
-		}
-	}
-}
-
 func TestLoadExploitSourceFromCache(t *testing.T) {
 	dir := cacheHome(t)
 	seed(t, dir, feeds.KEV, kevJSON, time.Hour)

@@ -89,7 +89,7 @@ func updateFeeds(cmd *cobra.Command, dir string, names []feeds.Name, force bool)
 
 	for _, n := range names {
 		if rec, ok := cached[n]; ok && !force && !rec.Stale(now, feeds.DefaultMaxAge) {
-			_, _ = fmt.Fprintf(out, "%-8s current (%s old) · --force to fetch anyway\n", n, humanAge(rec.Age(now)))
+			_, _ = fmt.Fprintf(out, "%-8s current (%s old) · --force to fetch anyway\n", n, feeds.HumanAge(rec.Age(now)))
 			continue
 		}
 		_, _ = fmt.Fprintf(out, "%-8s fetching %s…\n", n, feeds.URL(n))
@@ -103,15 +103,15 @@ func updateFeeds(cmd *cobra.Command, dir string, names []feeds.Name, force bool)
 			if !cachedOK {
 				return err
 			}
-			_, _ = fmt.Fprintf(out, "%-8s kept the cached copy (%s old): %v\n", n, humanAge(prev.Age(now)), err)
+			_, _ = fmt.Fprintf(out, "%-8s kept the cached copy (%s old): %v\n", n, feeds.HumanAge(prev.Age(now)), err)
 			// Warned as well as printed, because the line above is one of several on a step
 			// nobody reads when it succeeds, and this is the run where the ranking is older than
 			// the operator thinks.
 			slog.WarnContext(cmd.Context(), "feed not refreshed, scanning on the cached copy",
-				"feed", string(n), "age", humanAge(prev.Age(now)), "error", err.Error())
+				"feed", string(n), "age", feeds.HumanAge(prev.Age(now)), "error", err.Error())
 			continue
 		}
-		_, _ = fmt.Fprintf(out, "%-8s %s (%s)\n", n, feeds.Path(dir, n), humanBytes(rec.Bytes))
+		_, _ = fmt.Fprintf(out, "%-8s %s (%s)\n", n, feeds.Path(dir, n), feeds.HumanBytes(rec.Bytes))
 	}
 	return nil
 }
@@ -151,13 +151,13 @@ func feedsStatus(out io.Writer, dir string, now time.Time) {
 			_, _ = fmt.Fprintf(out, "%-10s %-22s %-14s %-10s %s\n", n, "-", "-", "-", "-")
 			continue
 		}
-		age := humanAge(rec.Age(now))
+		age := feeds.HumanAge(rec.Age(now))
 		if rec.Stale(now, feeds.DefaultMaxAge) {
 			stale = append(stale, n)
 			age += " (stale)"
 		}
 		_, _ = fmt.Fprintf(out, "%-10s %-22s %-14s %-10s %s\n",
-			n, rec.FetchedAt.Format("2006-01-02 15:04Z"), age, humanBytes(rec.Bytes), short(rec.SHA256))
+			n, rec.FetchedAt.Format("2006-01-02 15:04Z"), age, feeds.HumanBytes(rec.Bytes), short(rec.SHA256))
 	}
 
 	// Named like every other block, with the path beside the title rather than as it. The first
@@ -190,12 +190,12 @@ func feedsStatus(out io.Writer, dir string, now time.Time) {
 	}
 	if len(staleRanked) > 0 {
 		_, _ = fmt.Fprintf(out, "\n%s older than %s. A scan uses it and marks the report stale. "+
-			"Refresh with `draugr feeds update`.\n", joinNames(staleRanked), humanAge(feeds.DefaultMaxAge))
+			"Refresh with `draugr feeds update`.\n", joinNames(staleRanked), feeds.HumanAge(feeds.DefaultMaxAge))
 	}
 	if staleGo {
 		_, _ = fmt.Fprintf(out, "\ngovulndb older than %s. A scan does not read it. govulncheck queries vuln.go.dev instead, "+
 			"and with --offline the control reports an error. Refresh with `draugr feeds update govulndb`.\n",
-			humanAge(feeds.DefaultMaxAge))
+			feeds.HumanAge(feeds.DefaultMaxAge))
 	}
 }
 
@@ -240,35 +240,4 @@ func feedNames(args []string) ([]feeds.Name, error) {
 		out = append(out, n)
 	}
 	return out, nil
-}
-
-// humanAge renders a duration the way someone reads a staleness report: the largest unit that
-// still says something useful, and never more precision than the answer deserves.
-func humanAge(d time.Duration) string {
-	switch {
-	case d < time.Minute:
-		return "just now"
-	// Rounded rather than truncated: a feed fetched 119 minutes ago is two hours old to
-	// everyone except integer division.
-	case d < time.Hour:
-		return english.Count(int(d.Round(time.Minute).Minutes()), "minute")
-	case d < 48*time.Hour:
-		return english.Count(int(d.Round(time.Hour).Hours()), "hour")
-	default:
-		return english.Count(int(d.Round(time.Hour).Hours())/24, "day")
-	}
-}
-
-// humanBytes renders a size in the largest unit that keeps it under four digits.
-func humanBytes(n int64) string {
-	const unit = 1024
-	if n < unit {
-		return fmt.Sprintf("%d B", n)
-	}
-	div, exp := int64(unit), 0
-	for v := n / unit; v >= unit; v /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGT"[exp])
 }
