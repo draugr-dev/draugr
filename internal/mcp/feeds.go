@@ -112,6 +112,6 @@ func FeedsStatus(dir string, now time.Time) FeedsStatusOutput {
 		out.Next = "draugr feeds update " + strings.Join(refresh, " ")
 	}
 	out.Note = "A scan reads this cache and never refreshes it. The command in next reaches the " +
-		"network and writes to " + dir + ", so Draugr will not run it for you. Run it, or ask the user to."
+		"network and writes to " + dir + "; give it to the user to run."
 	return out
 }

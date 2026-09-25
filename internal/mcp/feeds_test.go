@@ -78,8 +78,8 @@ func TestFeedsStatusEmptyCache(t *testing.T) {
 	if out.Next != "draugr feeds update" {
 		t.Errorf("next = %q, want the bare command that fetches every feed", out.Next)
 	}
-	if !strings.Contains(out.Note, "will not run it") {
-		t.Errorf("note should say Draugr won't fetch for you: %q", out.Note)
+	if !strings.Contains(out.Note, "give it to the user") {
+		t.Errorf("note should hand the fetch to the user: %q", out.Note)
 	}
 	if out.Dir != dir || out.MaxAge != "24 hours" {
 		t.Errorf("dir = %q, maxAge = %q", out.Dir, out.MaxAge)
