@@ -1,0 +1,1 @@
+- **A license a scanner block denies stays denied when the `licenses` control sets its own list.** A `deny` or `warn` under `trivyLicense` or `mendLicenses` was replaced by the control-level list instead of adding to it.

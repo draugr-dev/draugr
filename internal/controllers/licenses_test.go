@@ -252,3 +252,26 @@ func TestLicensesScansAComponentThatOnlyRunsImages(t *testing.T) {
 		t.Errorf("target = %+v, want the image marked as somebody else's", jobs[0].Target)
 	}
 }
+
+func TestLicensesScannerBlockAddsToThePolicy(t *testing.T) {
+	// A scanner block tightens the control's policy like a component does. Replacing its list with
+	// the control's would drop a license the scanner block denies whenever the control denies any.
+	model := saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
+		"licenses": {
+			"deny":         []any{"GPL-3.0-only"},
+			"trivyLicense": map[string]any{"deny": []any{"Sleepycat", "GPL-3.0-only"}, "warn": []any{"MPL-2.0"}},
+		},
+	}}}
+	comp := &saga.Component{Name: "c", Repositories: []saga.Repository{{URL: "https://git/a"}}}
+	jobs, err := Licenses{}.Plan(model, comp)
+	if err != nil || len(jobs) != 1 {
+		t.Fatalf("Plan = %v, %v; want one job", jobs, err)
+	}
+	cfg := jobs[0].Config
+	if deny, _ := cfg["deny"].([]string); strings.Join(deny, ",") != "GPL-3.0-only,Sleepycat" {
+		t.Errorf("deny = %v, want the control's and the scanner block's, deduplicated", cfg["deny"])
+	}
+	if warn := settingStrings(saga.ControllerSettings(cfg), "warn"); strings.Join(warn, ",") != "MPL-2.0" {
+		t.Errorf("warn = %v, want the scanner block's own list where the control sets none", cfg["warn"])
+	}
+}
