@@ -167,8 +167,8 @@ type govulncheckConfig struct {
 // never analyzed, whatever the reason. And "we did not look" must not be reported as "nothing
 // reaches it".
 type govulncheckSBOM struct {
-	// Roots are the main modules the run analyzed, which is how a run is matched to the go.mod
-	// it came from.
+	// Roots are the packages the run's ./... matched. The module holding them is how a run is
+	// matched to the go.mod it came from.
 	Roots   []string `json:"roots"`
 	Modules []struct {
 		Path    string `json:"path"`
@@ -299,11 +299,8 @@ func govulncheckRunResults(run []govulncheckMessage, manifests map[string]string
 			for _, mod := range m.SBOM.Modules {
 				analyzed[mod.Path] = true
 			}
-			for _, root := range m.SBOM.Roots {
-				if path, ok := manifests[root]; ok {
-					manifest = path
-					break
-				}
+			if path, ok := govulncheckManifest(m.SBOM.Roots, manifests); ok {
+				manifest = path
 			}
 		case m.OSV != nil:
 			advisories[m.OSV.ID] = m.OSV
@@ -321,6 +318,27 @@ func govulncheckRunResults(run []govulncheckMessage, manifests map[string]string
 		}
 	}
 	return results
+}
+
+// govulncheckManifest finds the go.mod of the module a run analyzed, from the packages it matched.
+//
+// A root is a package, and equals its module's path only when the package sits at the module
+// root. Commands under cmd/ or a directory per binary do not, so a root is matched to the
+// longest module path that contains it. The longest, because a nested module's path extends
+// the outer module's, and the outer one also contains every package of the nested one.
+func govulncheckManifest(roots []string, manifests map[string]string) (string, bool) {
+	for _, root := range roots {
+		best := ""
+		for mod := range manifests {
+			if (root == mod || strings.HasPrefix(root, mod+"/")) && len(mod) > len(best) {
+				best = mod
+			}
+		}
+		if best != "" {
+			return manifests[best], true
+		}
+	}
+	return "", false
 }
 
 // goModuleManifests maps each module path under root to its go.mod, relative to root.

@@ -84,6 +84,10 @@ type FindingExpectation struct {
 	Location string `yaml:"location"`
 	// Package is "ecosystem name version", for a finding about a dependency.
 	Package string `yaml:"package,omitempty"`
+	// Component is the component the finding was reported for. Empty matches any, which is enough
+	// where one component scans the repository; two components scanning one file report it twice,
+	// and only the component tells those two findings apart.
+	Component string `yaml:"component,omitempty"`
 	// Reachability is the verdict reachability analysis reached, where it ran.
 	Reachability string `yaml:"reachability,omitempty"`
 }
