@@ -117,34 +117,44 @@ func (w want) matches(f Finding) bool {
 		(w.f.Reachability == "" || w.f.Reachability == f.Reachability)
 }
 
-// Check compares what a scan reported with what the scenario expects, and returns one line per
-// difference: an expected result that is missing, a result nothing expected, and a result on a
-// line an annotation marks as one its rule must not report.
-func Check(exp Expected, anns []Annotation, got []Finding) ([]string, error) {
-	var wants []want
+// wants lists every result a scenario requires: its expected findings, its generated secrets and
+// the fixture's ruleid annotations.
+func wants(exp Expected, anns []Annotation) ([]want, error) {
+	var out []want
 	for _, e := range exp.Findings {
 		file, line, err := splitLocation(e.Location)
 		if err != nil {
 			return nil, err
 		}
-		wants = append(wants, want{source: "expected.yaml", f: Finding{
+		out = append(out, want{source: "expected.yaml", f: Finding{
 			Control: e.Control, Tool: e.Tool, Rule: e.Rule, File: file, Line: line,
 			Package: e.Package, Component: e.Component, Reachability: e.Reachability,
 		}})
 	}
 	for _, s := range exp.Secrets {
 		for _, rule := range s.Rules {
-			wants = append(wants, want{source: "expected.yaml secrets", f: Finding{
+			out = append(out, want{source: "expected.yaml secrets", f: Finding{
 				Control: "secrets", Rule: rule, File: s.File, Line: 1,
 			}})
 		}
 	}
 	for _, a := range anns {
 		if a.Want {
-			wants = append(wants, want{source: "ruleid annotation", f: Finding{
+			out = append(out, want{source: "ruleid annotation", f: Finding{
 				Control: "sast", Rule: a.Rule, File: a.File, Line: a.Line,
 			}})
 		}
+	}
+	return out, nil
+}
+
+// Check compares what a scan reported with what the scenario expects, and returns one line per
+// difference: an expected result that is missing, a result nothing expected, and a result on a
+// line an annotation marks as one its rule must not report.
+func Check(exp Expected, anns []Annotation, got []Finding) ([]string, error) {
+	wants, err := wants(exp, anns)
+	if err != nil {
+		return nil, err
 	}
 
 	var problems []string
@@ -179,6 +189,45 @@ func Check(exp Expected, anns []Annotation, got []Finding) ([]string, error) {
 	}
 	sort.Strings(problems)
 	return problems, nil
+}
+
+// CheckPresent holds a scan made against real advisory databases to what the scenario expects,
+// one line per expected result it did not report. The databases are not ours here, so the match is
+// on what they cannot move: a package finding is matched on control, scanner, location and package
+// whatever advisory it carries, an expected reachability verdict asks only that one was reached, and
+// a result nothing expected is allowed.
+func CheckPresent(exp Expected, anns []Annotation, got []Finding) ([]string, error) {
+	wants, err := wants(exp, anns)
+	if err != nil {
+		return nil, err
+	}
+	var problems []string
+	for _, w := range wants {
+		found := false
+		for _, f := range got {
+			if w.present(f) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			problems = append(problems, "missing ("+w.source+"): "+w.f.String())
+		}
+	}
+	sort.Strings(problems)
+	return problems, nil
+}
+
+// present is matches with the advisory and the verdict left to the databases.
+func (w want) present(f Finding) bool {
+	loose := w
+	if w.f.Package != "" {
+		loose.f.Rule = f.Rule
+	}
+	if w.f.Reachability != "" && f.Reachability != "" {
+		loose.f.Reachability = f.Reachability
+	}
+	return loose.matches(f)
 }
 
 // splitLocation reads "file:line", or "file" alone for a result about a whole file.

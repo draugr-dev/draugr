@@ -1,0 +1,57 @@
+# What a scan finds against the latest advisory databases and real registries: each package and
+# the scanners that reported it, and each file a result without a package was reported in. The
+# advisories are left out because they move every day; this is the part that should not.
+#
+# Written by the live tier (go test -tags integration -run TestLive -update-live with
+# DRAUGR_LIVE=1). A nightly run that finds a difference proposes it as a pull request.
+packages:
+  gomod:
+    - name: golang.org/x/text
+      version: v0.3.0
+      in: checkout/go.mod
+      foundBy: [sca/trivy]
+  npm:
+    - name: jquery
+      version: 1.8.3
+      in: app/static/js/jquery.min.js
+      foundBy: [sca/retirejs]
+    - name: jquery
+      version: 1.8.3
+      in: web/package-lock.json
+      foundBy: [sca/trivy]
+    - name: jquery
+      version: 1.8.3
+      in: web/static/js/jquery.min.js
+      foundBy: [sca/retirejs]
+  pip:
+    - name: Flask
+      version: 0.12.2
+      in: app/requirements.txt
+      foundBy: [sca/trivy]
+    - name: Jinja2
+      version: "2.10"
+      in: app/requirements.txt
+      foundBy: [sca/trivy]
+    - name: PyYAML
+      version: "5.1"
+      in: app/requirements.txt
+      foundBy: [sca/trivy]
+    - name: requests
+      version: 2.19.1
+      in: app/requirements.txt
+      foundBy: [sca/trivy]
+files:
+  - file: app/Dockerfile
+    foundBy: [iac/Trivy, sast/Semgrep OSS]
+  - file: app/app.py
+    foundBy: [sast/Semgrep OSS]
+  - file: app/config.example.pem
+    foundBy: [sast/Semgrep OSS, secrets/gitleaks]
+  - file: cgr.dev/chainguard/static:latest
+    foundBy: [licenses/trivy-license]
+  - file: checkout/main.go
+    foundBy: [sast/Semgrep OSS]
+  - file: deploy/pod.yaml
+    foundBy: [iac/Trivy, sast/Semgrep OSS]
+  - file: python:3.8-slim
+    foundBy: [licenses/trivy-license]

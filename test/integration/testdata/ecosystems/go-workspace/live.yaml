@@ -1,0 +1,16 @@
+# What a scan finds against the latest advisory databases and real registries: each package and
+# the scanners that reported it, and each file a result without a package was reported in. The
+# advisories are left out because they move every day; this is the part that should not.
+#
+# Written by the live tier (go test -tags integration -run TestLive -update-live with
+# DRAUGR_LIVE=1). A nightly run that finds a difference proposes it as a pull request.
+packages:
+  gomod:
+    - name: github.com/tidwall/gjson
+      version: v1.6.5
+      in: a/go.mod
+      foundBy: [sca/govulncheck, sca/trivy]
+    - name: github.com/tidwall/gjson
+      version: v1.6.5
+      in: b/go.mod
+      foundBy: [sca/govulncheck, sca/trivy]

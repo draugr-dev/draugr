@@ -17,6 +17,17 @@ name: Integration
 # seconds instead of spending several minutes on a kind cluster. scripts/integration-needed.sh
 # holds that decision, and it names what cannot reach the suite rather than what can, so anything
 # new runs by default and the list is only ever wrong about how long a pull request waits.
+#
+# The `live` and `airgapped` jobs run outside the pull request tier, because what they judge is not a
+# change:
+#
+# - `live` scans the sealed scenarios and draugr-demo nightly against the latest advisory
+#   databases and real registries. Its answer moves as advisories are published, so a difference
+#   becomes a pull request updating the recorded structure instead of a red build.
+# - `airgapped` prepares a home the way docs/guides/air-gapped.md says and scans the whole fixture
+#   corpus offline from it, with no network, nightly and against every release tag. release.yml
+#   waits on this workflow before publishing, so a release that no longer works offline is not
+#   built.
 
 on:
   push:
@@ -40,8 +51,10 @@ on:
 permissions:
   contents: read
 
+# The event is part of the group so that a push to main cancels an earlier push rather than the
+# nightly run, which carries the only live and air-gapped verdicts of the day.
 concurrency:
-  group: integration-${{ github.ref }}
+  group: integration-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -189,21 +202,205 @@ jobs:
         # and a drift guard that never runs is the failure it was written to prevent.
         run: go test -tags integration -v -timeout 15m ./test/integration/... ./internal/scanners/...
 
-  # A red suite on main has to reach a person.
+  # The sealed scenarios and draugr-demo against today's advisory databases and real registries.
   #
-  # Requiring it on pull requests narrows how main goes red without closing it: two pull requests
-  # each green against their own base can be red together, the nightly run judges a tree nobody
-  # pushed that day, and this suite depends on registries and images that move on their own
-  # schedule. In all three the failure arrives when nobody is looking at a checks page. The site's
-  # own scan carries this same job for the same reason: a check that is only a color on a page
-  # somebody has already closed is not a signal.
+  # The sealed tier proves Draugr against databases generated for it, which never change; this
+  # proves the pinned scanners still read the real ones. It asserts structure only, which packages
+  # were found and by which scanners, because the advisories themselves move every day. A
+  # difference is written to the recorded structure and proposed as a pull request, so drift is
+  # reviewed rather than failed. What does fail is a scenario that lost a whole ecosystem or
+  # control, or a control that could not run: no published advisory explains either.
   #
-  # One issue, reused, closed when the suite is green again. A fresh issue per red run turns one
-  # slow-moving break into a week of duplicates, and closing on green is what makes an open one
-  # mean "red now" rather than "was red once".
+  # Not on pull requests, pushes or tags. Its answer depends on the day it runs rather than on the
+  # tree, and a verdict that moves without a change is not one to gate a merge or a release on.
+  live:
+    name: Live tier (latest databases, real registries)
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && !inputs.ref && !startsWith(github.ref, 'refs/tags/'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    # Read only. The scans execute third-party scanners over fixture repositories, so no credential
+    # that can write is on the machine while they run; the one that opens the pull request is minted
+    # after the tests have finished.
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+
+      - name: Build draugr
+        run: make build
+
+      - name: Provision the scanners and the feeds with draugr
+        run: |
+          set -euo pipefail
+          ./bin/draugr tools install -y --all
+          echo "$HOME/.draugr/bin" >> "$GITHUB_PATH"
+          ./bin/draugr feeds update
+
+      - name: Check out the demo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: draugr-dev/draugr-demo
+          path: .live/draugr-demo
+          persist-credentials: false
+
+      # -update-live rewrites every recorded structure the scan no longer matches, and refuses to
+      # write one that lost an ecosystem or a control, failing instead.
+      - name: Run the live tier
+        env:
+          DRAUGR_BIN: ${{ github.workspace }}/bin/draugr
+          DRAUGR_LIVE: "1"
+          DRAUGR_LIVE_DEMO: ${{ github.workspace }}/.live/draugr-demo
+          DRAUGR_INTEGRATION_STRICT: "1"
+        run: go test -tags integration -v -timeout 60m -run 'TestLive' ./test/integration/ -update-live
+
+      - name: What drifted
+        id: drift
+        run: |
+          set -euo pipefail
+          git add --intent-to-add -- 'test/integration/testdata/ecosystems/*/live.yaml' test/integration/testdata/draugr-demo.live.yaml
+          changed=$(git diff --name-only -- 'test/integration/testdata/ecosystems/*/live.yaml' test/integration/testdata/draugr-demo.live.yaml)
+          if [ -z "$changed" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "The live structure matches what is recorded." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "The live structure differs from what is recorded in:"
+            echo
+            printf '%s\n' "$changed" | sed 's/^/- `/; s/$/`/'
+          } | tee /tmp/drift.md >> "$GITHUB_STEP_SUMMARY"
+
+      # Not GITHUB_TOKEN: GitHub starts no workflow for anything that token does, so a pull request
+      # opened with it would sit with no checks having run on it.
+      - name: Mint an installation token
+        if: steps.drift.outputs.changed == 'true'
+        id: app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      # One branch and one pull request, rewritten by each night that finds drift until somebody
+      # merges or closes it. A pull request per night would be a week of near-duplicates about the
+      # same advisories.
+      - name: Propose the drift as a pull request
+        if: steps.drift.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          BASE: ${{ github.ref_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          branch="live/expectations"
+          git config user.name "Wilson Santos"
+          git config user.email "wilson@draugr.dev"
+          git checkout -B "$branch"
+          git add -- 'test/integration/testdata/ecosystems/*/live.yaml' test/integration/testdata/draugr-demo.live.yaml
+          git commit -m "Record the live tier's structure as of $(date -u +%F)" \
+            -m "What the sealed scenarios and draugr-demo find against the latest advisory databases and real registries. Written by $RUN_URL."
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          echo "::add-mask::$auth"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
+            push --force origin "HEAD:refs/heads/$branch"
+          {
+            echo "The live tier scanned the sealed scenarios and draugr-demo against the latest advisory"
+            echo "databases and real registries, and what it found differs from the recorded structure."
+            echo "Each changed file is one scenario; a line added or removed is a package or file a scanner"
+            echo "started or stopped reporting."
+            echo
+            cat /tmp/drift.md
+            echo
+            echo "Nothing here failed. A scenario that lost a whole ecosystem or control fails the run"
+            echo "instead of reaching a pull request."
+            echo
+            echo "[The run]($RUN_URL) has each scan's output. Each night that finds drift rewrites this"
+            echo "branch until the pull request is merged or closed."
+          } > /tmp/body.md
+          number=$(gh pr list --head "$branch" --base "$BASE" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            gh pr edit "$number" --body-file /tmp/body.md
+          else
+            gh pr create --base "$BASE" --head "$branch" \
+              --title "Record the live tier's structure" --body-file /tmp/body.md
+          fi
+
+  # docs/guides/air-gapped.md, held to what it promises.
+  #
+  # A home is prepared once with the network, the way the guide says to prepare a runner, and every
+  # sealed scenario is then scanned with --offline in a container with no network from a copy of
+  # it. Each scanner works from what was prepared or its control says it could not, every Trivy
+  # vulnerability scan carries --offline-scan so a pom.xml is not resolved against Maven Central,
+  # and semgrep's registry rules, which the guide says cannot run offline, make the control error
+  # rather than pass on nothing.
+  #
+  # Nightly, and against every release tag: release.yml calls this workflow with the tag and its
+  # publishing waits on the whole of it, this job included. Not on pull requests. The corpus it
+  # reads is the one the sealed tier already runs on every change; what this adds is real data on
+  # disk, which moves daily and is the wrong thing to block a merge on.
+  airgapped:
+    name: Air-gapped (the fixture corpus, offline)
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+
+      - name: Build draugr
+        run: make build
+
+      - name: Provision the scanners with draugr
+        run: |
+          set -euo pipefail
+          ./bin/draugr tools install -y --all
+          echo "$HOME/.draugr/bin" >> "$GITHUB_PATH"
+
+      - name: Scan the corpus air-gapped
+        env:
+          DRAUGR_BIN: ${{ github.workspace }}/bin/draugr
+          DRAUGR_AIRGAPPED: "1"
+          DRAUGR_INTEGRATION_STRICT: "1"
+        run: go test -tags integration -v -timeout 60m -run 'TestAirGapped' ./test/integration/
+
+  # A red run on main has to reach a person.
+  #
+  # Requiring the suite on pull requests narrows how main goes red without closing it: two pull
+  # requests each green against their own base can be red together, the nightly run judges a tree
+  # nobody pushed that day, and this suite depends on registries and images that move on their own
+  # schedule. The live and air-gapped jobs run only when nobody is watching. In every case the
+  # failure arrives when nobody is looking at a checks page. The site's own scan carries this same
+  # job for the same reason: a check that is only a color on a page somebody has already closed is
+  # not a signal.
+  #
+  # One issue per job, reused, closed when that job is green again. A fresh issue per red run turns
+  # one slow-moving break into a week of duplicates, and closing on green is what makes an open one
+  # mean "red now" rather than "was red once". A job that did not run this time (the live tier on a
+  # push, say) leaves its issue as it is, because not running says nothing about whether it is fixed.
   notify:
     name: A red suite on main raises an issue
-    needs: integration
+    needs: [integration, live, airgapped]
     # Not on pull requests: the author is looking at the failing check already, and an issue would
     # be telling them what their own screen says.
     if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
@@ -212,10 +409,10 @@ jobs:
       contents: read
       issues: write
     steps:
-      - name: Open or update the issue
+      - name: Open, update or close each job's issue
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          RESULT: ${{ needs.integration.result }}
+          RESULTS: ${{ toJSON(needs) }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
           script: |
@@ -223,47 +420,76 @@ jobs:
             // happens to be installed on the machine it lands on. It exists to speak up when the
             // suite cannot, and one that dies with "command not found" is a silence with a red
             // tick on it.
-            const label = "integration-red";
             const { owner, repo } = context.repo;
             const sha = context.sha.slice(0, 8);
             const commit = `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/commit/${context.sha}`;
+            const results = JSON.parse(process.env.RESULTS);
 
-            await github.rest.issues.createLabel({
-              owner, repo, name: label, color: "B60205",
-              description: "The integration suite is failing on main",
-            }).catch(() => {}); // already there
+            const jobs = {
+              integration: {
+                label: "integration-red",
+                title: "The integration suite is failing on main",
+                why: "**This suite is the only place several behaviors are checked against real tools, real registries and a real cluster rather than against fixtures.** Every pull request runs it and it is required to pass, so main going red means something reached it that the gate on each branch did not catch: a merge race, a nightly run against an upstream image that moved, or a registry answering differently than it did an hour ago.",
+              },
+              live: {
+                label: "live-tier-red",
+                title: "The live tier is failing on main",
+                why: "**The live tier scans the sealed scenarios and draugr-demo against the latest advisory databases and real registries.** A change in what it finds is proposed as a pull request, so a red run is one of the things no published advisory explains: a scenario that lost every finding in an ecosystem or control, a control that could not run, or output that is not valid SARIF.",
+              },
+              airgapped: {
+                label: "air-gapped-red",
+                title: "The air-gapped run is failing on main",
+                why: "**The air-gapped run prepares a home as docs/guides/air-gapped.md describes and scans every sealed scenario with --offline and no network.** A red run means the guide no longer holds: a scanner reached for the network, reported nothing where it should have said it could not run, or found less than the scenario expects from the data the guide prepares. Every release tag runs it before anything is published.",
+              },
+            };
 
-            const open = await github.rest.issues.listForRepo({
-              owner, repo, labels: label, state: "open", per_page: 1,
-            });
-            const existing = open.data[0];
+            for (const [job, about] of Object.entries(jobs)) {
+              const result = results[job]?.result;
+              if (result !== "success" && result !== "failure") {
+                console.log(`${job}: ${result ?? "absent"}, leaving its issue as it is`);
+                continue;
+              }
 
-            if (process.env.RESULT !== "failure") {
-              if (!existing) return console.log("green, and nothing open");
-              await github.rest.issues.createComment({
-                owner, repo, issue_number: existing.number,
-                body: `Green again as of \`${sha}\`. Closing, because an open issue with this label means the suite is failing now rather than that it failed once.`,
+              await github.rest.issues.createLabel({
+                owner, repo, name: about.label, color: "B60205", description: about.title,
+              }).catch(() => {}); // already there
+
+              const open = await github.rest.issues.listForRepo({
+                owner, repo, labels: about.label, state: "open", per_page: 1,
               });
-              await github.rest.issues.update({ owner, repo, issue_number: existing.number, state: "closed" });
-              return console.log(`closed #${existing.number}`);
-            }
+              const existing = open.data[0];
 
-            const body = [
-              `The integration suite is failing on main as of [\`${sha}\`](${commit}).`,
-              "",
-              `[The run](${process.env.RUN_URL}) has the log.`,
-              "",
-              "**This suite is the only place several behaviors are checked against real tools, real registries and a real cluster rather than against fixtures.** Every pull request runs it and it is required to pass, so main going red means something reached it that the gate on each branch did not catch: a merge race, a nightly run against an upstream image that moved, or a registry answering differently than it did an hour ago.",
-              "",
-              "This issue closes itself when the suite is green again.",
-            ].join("\n");
+              if (result === "success") {
+                if (!existing) {
+                  console.log(`${job}: green, and nothing open`);
+                  continue;
+                }
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: existing.number,
+                  body: `Green again as of \`${sha}\`. Closing, because an open issue with this label means the job is failing now rather than that it failed once.`,
+                });
+                await github.rest.issues.update({ owner, repo, issue_number: existing.number, state: "closed" });
+                console.log(`${job}: closed #${existing.number}`);
+                continue;
+              }
 
-            if (existing) {
-              await github.rest.issues.update({ owner, repo, issue_number: existing.number, body });
-              return console.log(`updated #${existing.number}`);
+              const body = [
+                `${about.title} as of [\`${sha}\`](${commit}).`,
+                "",
+                `[The run](${process.env.RUN_URL}) has the log.`,
+                "",
+                about.why,
+                "",
+                "This issue closes itself when the job is green again.",
+              ].join("\n");
+
+              if (existing) {
+                await github.rest.issues.update({ owner, repo, issue_number: existing.number, body });
+                console.log(`${job}: updated #${existing.number}`);
+                continue;
+              }
+              const made = await github.rest.issues.create({
+                owner, repo, labels: [about.label], body, title: about.title,
+              });
+              console.log(`${job}: opened #${made.data.number}`);
             }
-            const made = await github.rest.issues.create({
-              owner, repo, labels: [label], body,
-              title: "The integration suite is failing on main",
-            });
-            console.log(`opened #${made.data.number}`);
