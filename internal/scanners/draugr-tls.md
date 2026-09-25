@@ -10,6 +10,7 @@ order: 30
 - **Control:** [`tls`](../controllers/tls.md)
 - **Tool:** none, implemented natively in Go (`crypto/tls`, `crypto/x509`)
 - **Target:** host (`hosts:` entries with an `https://` URL)
+- **Effects:** `network` (opens TLS connections to the endpoint, one handshake per protocol version tested)
 - **Status:** ✅ implemented
 
 ## What it does

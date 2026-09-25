@@ -38,6 +38,8 @@ license. `draugr tools list` shows which are installed and where.
 EFFECTS  (scanners that do more than read)
   Scanner         Effect      What happens
   cosign          disclosure  the digest of each image checked, to the registry holding it and, where a signature carries no inclusion proof, to the Sigstore transparency log
+  draugr-headers  network     sends an HTTP GET to the endpoint and follows its redirects
+  draugr-tls      network     opens TLS connections to the endpoint, one handshake per protocol version tested
   kube-bench-job  mutate      creates a short-lived Job in the cluster and deletes it when the scan finishes
   kube-bench-job  privilege   that Job runs with hostPID and mounts host paths read-only, which is what reading a node's kubelet and control-plane configuration requires
   mend-licenses   disclosure  uploads this component's resolved dependency inventory to Mend, names, versions, checksums, and the absolute paths they were found at

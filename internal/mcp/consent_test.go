@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -380,5 +381,26 @@ func TestEffectsModeRefusesAClientThatCannotAsk(t *testing.T) {
 		if !strings.Contains(text.String(), want) {
 			t.Errorf("refusal should contain %q:\n%s", want, text.String())
 		}
+	}
+}
+
+// A TLS check opens connections to a live host, so under the default mode it is asked about like
+// any other scanner that sends traffic to its target.
+func TestATLSScanAsksBeforeItConnects(t *testing.T) {
+	model := &saga.Model{
+		Config: saga.Config{
+			Controls: map[string]saga.ControllerSettings{"tls": {"enabled": true}},
+		},
+		Components: []saga.Component{
+			{Name: "api", Hosts: []saga.Host{{URL: "https://api.example.com"}}},
+			{Name: "web", Hosts: []saga.Host{{URL: "https://www.example.com"}}},
+		},
+	}
+	p := mustPlan(t, model)
+	if !needsApproval(ScanEffects, p) {
+		t.Fatalf("a tls scan sends traffic to two hosts and must ask first; plan = %+v", p)
+	}
+	if !slices.ContainsFunc(p.effects, func(e string) bool { return strings.HasPrefix(e, "draugr-tls (network)") }) {
+		t.Errorf("effects = %v, want the one draugr-tls declares", p.effects)
 	}
 }
