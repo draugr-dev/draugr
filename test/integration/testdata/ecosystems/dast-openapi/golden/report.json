@@ -1,0 +1,59 @@
+{
+  "controls": [
+    {
+      "errors": 0,
+      "highest": "medium",
+      "highestPriority": "P2",
+      "name": "dast",
+      "notes": 0,
+      "threshold": "",
+      "total": 1,
+      "verdict": "pass",
+      "warnings": 1
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:baa036d30100f8a48d0a5b62ab2c24d3a706a530fd57fab699b07984d1938b2c",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 0,
+    "p2": 1,
+    "p3": 0,
+    "p4": 0
+  },
+  "project": "dast-openapi",
+  "release": {
+    "version": "1.0"
+  },
+  "scanners": [
+    {
+      "name": "nuclei"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 1,
+    "scans": 1
+  },
+  "verdict": "pass"
+}

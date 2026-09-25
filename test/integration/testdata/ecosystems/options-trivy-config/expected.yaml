@@ -4,6 +4,9 @@
 # names its package, so default/ has no findings and user/ and acme/ have one each.
 proves: [trivy-config.checks, trivy-config.namespaces]
 
+initScan:
+  skip: the options proves names are the subject, and init writes none of them
+
 init:
   controls: [iac, sast, sca, secrets]
   components:

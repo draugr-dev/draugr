@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "jvm-maven-repository/"
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "fields": {
+              "repository": "./jvm-maven-repository",
+              "revision": "<cleared>"
+            },
+            "tool": "trivy-fs",
+            "version": "<cleared>"
+          }
+        ]
+      },
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "pom.xml",
+                  "uriBaseId": "%SRCROOT%"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "org.apache.logging.log4j:log4j-core 2.14.1 → 2.15.0: Fixture: remote code execution through JNDI lookups in log messages"
+          },
+          "properties": {
+            "component": "jvm-maven-repository",
+            "control": "sca",
+            "package": {
+              "ecosystem": "pom",
+              "fixedVersion": "2.15.0",
+              "name": "org.apache.logging.log4j:log4j-core",
+              "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1",
+              "version": "2.14.1"
+            },
+            "priority": "P1",
+            "repository": "./jvm-maven-repository",
+            "tool": "trivy"
+          },
+          "ruleId": "CVE-2021-44228"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Fixture advisory for Draugr's sealed tests."
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2021-44228",
+              "id": "CVE-2021-44228",
+              "name": "CVE-2021-44228",
+              "properties": {
+                "tags": [
+                  "scanner:trivy"
+                ]
+              },
+              "shortDescription": {
+                "text": "Fixture: remote code execution through JNDI lookups in log messages"
+              }
+            }
+          ],
+          "version": "<cleared>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

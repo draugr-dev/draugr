@@ -1,0 +1,17 @@
+project: dast-openapi
+release:
+  version: "1.0"
+config:
+  controls:
+    dast:
+      enabled: true
+components:
+  - name: dast-openapi
+    repositories:
+      - url: ./dast-openapi
+    hosts:
+      - name: api
+        url: http://127.0.0.1:18080
+        type: api
+        spec:
+          path: ./dast-openapi/openapi.yaml

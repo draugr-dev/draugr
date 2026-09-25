@@ -230,13 +230,15 @@ func (w want) present(f Finding) bool {
 	return loose.matches(f)
 }
 
-// splitLocation reads "file:line", or "file" alone for a result about a whole file.
+// splitLocation reads "file:line", or "file" alone for a result about a whole file. An image
+// reference or a URL is read whole: its last colon is followed by a tag or a path, which holds a
+// dot or a slash, rather than a line.
 func splitLocation(loc string) (string, int, error) {
 	if loc == "" {
 		return "", 0, fmt.Errorf("a finding needs a location")
 	}
 	i := strings.LastIndex(loc, ":")
-	if i < 0 {
+	if i < 0 || strings.ContainsAny(loc[i+1:], "./") {
 		return loc, 0, nil
 	}
 	line, err := strconv.Atoi(loc[i+1:])

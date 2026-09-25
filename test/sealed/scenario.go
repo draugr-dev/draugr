@@ -2,6 +2,7 @@ package sealed
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io/fs"
 	"math"
@@ -61,7 +62,7 @@ func (s Scenario) Prepare(work string) (string, error) {
 	if _, err := os.Stat(dst); err == nil {
 		return "", fmt.Errorf("%s already exists", dst)
 	}
-	if err := copyTree(src, dst); err != nil {
+	if err := CopyTree(src, dst); err != nil {
 		return "", err
 	}
 	var removed []string
@@ -126,16 +127,22 @@ const WorkdirFiles = "workdir"
 // CopyWorkdir copies the scenario's workdir/ into work, restoring the names of its manifests. A
 // scenario without one copies nothing.
 func (s Scenario) CopyWorkdir(work string) error {
-	src := filepath.Join(s.Dir, WorkdirFiles)
-	if _, err := os.Stat(src); os.IsNotExist(err) {
-		return nil
-	}
-	return copyTree(src, work)
+	return s.CopyIfPresent(WorkdirFiles, work)
 }
 
-// copyTree copies every file under src to the same path under dst, with FixtureSuffix removed
-// from each name.
-func copyTree(src, dst string) error {
+// CopyIfPresent copies the scenario's directory name into dst with CopyTree, and does nothing
+// when the scenario has no such directory.
+func (s Scenario) CopyIfPresent(name, dst string) error {
+	src := filepath.Join(s.Dir, name)
+	if _, err := os.Stat(src); errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	return CopyTree(src, dst)
+}
+
+// CopyTree copies every file under src into dst, restoring the name of each one stored with
+// FixtureSuffix. A file already in dst is replaced.
+func CopyTree(src, dst string) error {
 	// Collected first and copied after, so nothing is read from inside the walk.
 	var files []string
 	err := filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {

@@ -1,0 +1,22 @@
+# An image Grype pulls from the sealed server, which answers the registry API for the image the
+# harness builds from image/ and publishes as 127.0.0.1:18080/images-grype:1.0. The flask
+# distribution in it has an advisory in the sealed Grype database. Trivy is off, so the finding is
+# Grype's alone.
+init:
+  controls: [iac, sast, sca, secrets]
+  components:
+    - name: images-grype
+      repositories: ["."]
+
+requests:
+  - GET /v2/images-grype/manifests/1.0
+
+findings:
+  - control: images
+    tool: grype
+    rule: CVE-2018-1000656-flask
+    location: 127.0.0.1:18080/images-grype:1.0
+
+# init reads the repository, which names no image, so its descriptor scans none.
+initScan:
+  unreported: [CVE-2018-1000656-flask]

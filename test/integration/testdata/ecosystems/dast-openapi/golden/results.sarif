@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "dast-openapi/"
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "fields": {
+              "endpoint": "http://127.0.0.1:18080 spec=./dast-openapi/openapi.yaml methods=get,head",
+              "excluded": "1 operation not scanned: delete (1)",
+              "methods": "get, head",
+              "operations": "1",
+              "spec": "./dast-openapi/openapi.yaml"
+            },
+            "tool": "nuclei"
+          }
+        ]
+      },
+      "results": [
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:18080/items?q=all-sealed"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Sealed fixture debug field in an API response: The response carries the debug marker the sealed fixture plants."
+          },
+          "properties": {
+            "component": "dast-openapi",
+            "control": "dast",
+            "priority": "P2",
+            "security-severity": "5",
+            "tool": "nuclei"
+          },
+          "ruleId": "sealed-debug-exposure"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "rules": [
+            {
+              "id": "sealed-debug-exposure",
+              "properties": {
+                "tags": [
+                  "scanner:nuclei"
+                ]
+              }
+            }
+          ],
+          "version": "<cleared>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

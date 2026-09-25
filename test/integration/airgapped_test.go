@@ -23,7 +23,8 @@ const offlineNotice = "offline: not refreshing scanner data, using what is on di
 
 // TestAirGapped holds Draugr to docs/guides/air-gapped.md. A home is prepared once, with the
 // network, the way the guide says to prepare a runner; then every scenario in the corpus is scanned
-// with --offline in a container with no network, from a copy of that home.
+// with --offline in a container with no network, from a copy of that home. A scenario that scans
+// what the sealed server answers for is left to the sealed tier, since nothing answers here.
 //
 // The sealed tier proves offline against databases generated for it, laid out where the harness
 // knows to put them. This proves the guide: that the commands it lists leave each scanner's real
@@ -63,6 +64,9 @@ func TestAirGapped(t *testing.T) {
 	prepareAirGappedHome(t, bin, prepared)
 
 	for _, s := range scenarios {
+		if servedBySealed(s) {
+			continue
+		}
 		t.Run(s.Name, func(t *testing.T) {
 			work := filepath.Join(root, "scenarios", s.Name)
 			runAirGapped(t, s, bin, prepared, work, "draugr.saga.yaml", s.Expected)
@@ -169,6 +173,7 @@ func runAirGapped(t *testing.T, s sealed.Scenario, bin, prepared, work, descript
 		sealed.LinkTree(prepared, c.Home()),
 		opts.TakeAway(c.Home(), time.Now()),
 		copyFile(filepath.Join(ecosystems, "semgrep.yaml"), filepath.Join(work, "semgrep.yaml"), 0o600),
+		s.CopyWorkdir(work),
 	} {
 		if err != nil {
 			t.Fatal(err)

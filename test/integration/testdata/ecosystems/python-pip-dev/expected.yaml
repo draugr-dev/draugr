@@ -14,3 +14,7 @@ findings:
     rule: CVE-2018-1000656
     location: requirements-dev.txt:2
     package: pip Flask 0.12.2
+
+# init writes no filePatterns, so its descriptor does not read requirements-dev.txt.
+initScan:
+  unreported: [CVE-2018-1000656]

@@ -1,9 +1,15 @@
-# A setup.py, which Trivy does not open and grype-fs does. init turns grype-fs on for it; the sealed
-# scan runs Trivy alone, and the golden report.json names setup.py under dependencyFiles as not
-# read.
+# A setup.py, which Trivy does not open and grype-fs does. The descriptor turns grype-fs on, as init
+# does, and the finding is Grype's, matched against the sealed Grype database.
 init:
   controls: [sca, secrets, sast, iac]
   scanners: [sca.grypeFs]
   components:
     - name: python-setuptools
       repositories: ["."]
+
+findings:
+  - control: sca
+    tool: grype
+    rule: CVE-2018-1000656-flask
+    location: setup.py:1
+    package: python flask 0.12.2

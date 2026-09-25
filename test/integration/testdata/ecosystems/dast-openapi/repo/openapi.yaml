@@ -1,0 +1,37 @@
+openapi: 3.0.3
+info:
+  title: Sealed items
+  version: "1.0"
+servers:
+  - url: https://api.production.example.com
+paths:
+  /items:
+    get:
+      operationId: listItems
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+            example: all
+      responses:
+        "200":
+          description: The items.
+  /items/{id}:
+    delete:
+      operationId: deleteItem
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+        - name: confirm
+          in: query
+          schema:
+            type: string
+            example: "yes"
+      responses:
+        "204":
+          description: Deleted.

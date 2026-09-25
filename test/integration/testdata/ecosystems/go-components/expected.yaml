@@ -2,6 +2,9 @@
 # directories. In the root module api calls gjson's vulnerable Get and worker only calls Valid; in
 # the tools module it is the other way round. Each component's finding in each module carries the
 # verdict for that component's own code.
+initScan:
+  skip: the components and their paths are the subject, and init proposes one component for the repository
+
 init:
   controls: [sca, secrets, sast, iac]
   scanners: [sast.gosec]

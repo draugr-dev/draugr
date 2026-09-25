@@ -1,13 +1,14 @@
 {
   "controls": [
     {
-      "errors": 0,
-      "highest": "",
+      "errors": 1,
+      "highest": "high",
+      "highestPriority": "P1",
       "name": "sca",
       "notes": 0,
       "threshold": "",
-      "total": 0,
-      "verdict": "pass",
+      "total": 1,
+      "verdict": "fail",
       "warnings": 0
     }
   ],
@@ -15,16 +16,10 @@
     {
       "component": "python-setuptools",
       "control": "sca",
-      "read": 0,
+      "read": 1,
       "scanners": [
+        "grype-fs",
         "trivy-fs"
-      ],
-      "unread": [
-        {
-          "path": "setup.py",
-          "reason": "no packages read",
-          "repository": "./python-setuptools"
-        }
       ]
     }
   ],
@@ -33,7 +28,7 @@
     "effective": "<cleared>",
     "sources": [
       {
-        "digest": "sha256:8364d773a17dd9370fc6f1e1e435c2ad9d2a1ba7f7f98e7c73b95aa3d92c743f",
+        "digest": "sha256:2f08828f4a94c8f3da34450b23d266341b300a475d231e7089fe7046145abacc",
         "path": "draugr.saga.yaml",
         "root": true
       }
@@ -42,6 +37,12 @@
   "draugr": "<cleared>",
   "gate": {
     "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 1,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0
   },
   "project": "python-setuptools",
   "release": {
@@ -54,6 +55,10 @@
     }
   ],
   "scanners": [
+    {
+      "name": "grype-fs",
+      "version": "<cleared>"
+    },
     {
       "name": "trivy-fs",
       "version": "<cleared>"
@@ -69,8 +74,8 @@
     "concurrency": "<cleared>",
     "deduped": 0,
     "durationMs": "<cleared>",
-    "jobs": 1,
-    "scans": 1
+    "jobs": 2,
+    "scans": 2
   },
-  "verdict": "pass"
+  "verdict": "fail"
 }

@@ -131,10 +131,14 @@ func TestSplitLocation(t *testing.T) {
 		line int
 		bad  bool
 	}{
-		"a/b.go:12": {file: "a/b.go", line: 12},
-		"a/b.js":    {file: "a/b.js"},
-		"a:0":       {bad: true},
-		"":          {bad: true},
+		"a/b.go:12":                        {file: "a/b.go", line: 12},
+		"a/b.js":                           {file: "a/b.js"},
+		"a:0":                              {bad: true},
+		"a:":                               {bad: true},
+		"":                                 {bad: true},
+		"127.0.0.1:18080/app:1.0":          {file: "127.0.0.1:18080/app:1.0"},
+		"http://127.0.0.1:18080/items?q=1": {file: "http://127.0.0.1:18080/items?q=1"},
+		"a/b.go:x":                         {bad: true},
 	} {
 		file, line, err := splitLocation(loc)
 		if (err != nil) != want.bad || file != want.file || line != want.line {
@@ -217,6 +221,24 @@ func TestInit(t *testing.T) {
 	exp.Scanners, exp.Reachability, exp.Components[1].Paths = nil, nil, nil
 	if p := CheckInit(exp, got); len(p) != 3 {
 		t.Errorf("problems = %v, want the scanners, the analyzers and the components named", p)
+	}
+
+	// An API document init found is proposed in a hosts block written commented out, as init
+	// writes it.
+	writeFixture(t, path, "project: demo\nconfig:\n  controls:\n    sca:\n      enabled: true\ncomponents:\n  - name: demo\n"+
+		"    repositories:\n      - url: .\n    # hosts:\n    #   - name: api\n    #     url: https://api.example.com\n"+
+		"    #     type: api\n    #     spec:\n    #       path: ./openapi.yaml\n")
+	got, err = ObserveInit(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exp = InitExpectation{Controls: []string{"sca"}, Specs: []string{"./openapi.yaml"}, Components: []ComponentExpectation{{Name: "demo", Repositories: []string{"."}}}}
+	if p := CheckInit(exp, got); len(p) != 0 {
+		t.Errorf("a matching descriptor reported %v", p)
+	}
+	exp.Specs = nil
+	if p := CheckInit(exp, got); len(p) != 1 || !strings.Contains(p[0], "proposes host specs") {
+		t.Errorf("problems = %v, want the spec named", p)
 	}
 
 	writeFixture(t, path, "project: [\n")

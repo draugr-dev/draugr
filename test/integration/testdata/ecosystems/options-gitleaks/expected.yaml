@@ -3,6 +3,9 @@
 # The ruleset extends Gitleaks' own, whose aws-access-token rule is the one that reports the key.
 proves: [gitleaks.config, gitleaks.history]
 
+initScan:
+  skip: the options proves names are the subject, and init writes none of them
+
 init:
   controls: [iac, sast, sca, secrets]
   components:
