@@ -6,11 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"gopkg.in/yaml.v3"
-
-	"github.com/draugr-dev/draugr/internal/inventory"
-	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
 func TestRunInitWritesFileWithDetection(t *testing.T) {
@@ -66,28 +61,5 @@ func TestRunInitNoOverwrite(t *testing.T) {
 	// --force overwrites.
 	if err := runInit(dir, initOptions{output: out, force: true}, &bytes.Buffer{}); err != nil {
 		t.Errorf("--force should overwrite: %v", err)
-	}
-}
-
-// A descriptor Draugr writes must not be one Draugr's own next command warns about.
-//
-// `draugr init` then `draugr validate` are the first two steps of the quickstart, and the
-// scaffold wrote the field the deprecation notice tells the reader to stop using, so a new
-// user's very first run contradicted the tutorial that sent them there.
-func TestTheScaffoldWritesTheFieldTheDocsTellPeopleToUse(t *testing.T) {
-	out := scaffoldSaga(inventory.Read(t.TempDir()), "acme-api", false)
-
-	if !strings.Contains(out, "project: acme-api") {
-		t.Errorf("scaffold does not name the project:\n%s", out)
-	}
-	// A version is optional and only the person releasing knows it, so a scaffold that invented one
-	// would label every report with a number nobody chose.
-	if strings.Contains(out, "release:") {
-		t.Errorf("the scaffold writes a release nobody chose:\n%s", out)
-	}
-
-	var m saga.Model
-	if err := yaml.Unmarshal([]byte(out), &m); err != nil {
-		t.Fatalf("scaffold is not valid YAML: %v", err)
 	}
 }

@@ -1,0 +1,1 @@
+- **An AI assistant can propose a descriptor for a project that has none.** The MCP tool `propose_saga` returns the `draugr.saga.yaml` that `draugr init` would write for a directory, per directory if asked, without writing a file, and names any descriptor already there so the assistant validates that one first.
