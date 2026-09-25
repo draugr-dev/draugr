@@ -12,6 +12,22 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.134.0] - 2026-09-25
+
+### Added
+
+- `draugr init` reads the tree. It turns on retire.js for copied JavaScript, Grype for `setup.py`, gosec and govulncheck reachability for Go, and points a commented host at an OpenAPI document, naming the files behind each line. It lists the dependency files no scanner can take packages from. `--per-directory` writes a component for each directory with its own dependency file.
+
+### Changed
+
+- **`release.version` is optional.** A Saga that names its project and its components is complete, and `draugr init` no longer writes a placeholder `0.0.0`. A version, where one is given, still labels every report and the VEX product identifier.
+
+### Fixed
+
+- **A `bun.lockb` or a conda `environment.yml` appears under Unread with the reason `no packages read`.** Both were counted as checked, though no scanner checks the packages in either.
+
+- **The `github` and `draugr-api` publisher errors no longer point at `config.reports`.** A missing report named the removed key as the place to add it, and a descriptor that followed the advice was refused.
+
 ## [0.133.0] - 2026-09-25
 
 ### Added
@@ -5951,7 +5967,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.133.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.134.0...HEAD
+[0.134.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.134.0
 [0.133.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.133.0
 [0.132.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.132.0
 [0.131.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.131.1

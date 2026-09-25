@@ -1,1 +1,0 @@
-- **The `github` and `draugr-api` publisher errors no longer point at `config.reports`.** A missing report named the removed key as the place to add it, and a descriptor that followed the advice was refused.
