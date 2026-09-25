@@ -1,0 +1,16 @@
+# Dependency files no scanner reads: manifests with no lockfile in five ecosystems, a requirements
+# file with no pinned version, and a requirements-dev.txt Trivy's pip analyzer does not open. The
+# golden report.json pins each under dependencyFiles with its reason; requirements.txt is the one
+# file read.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: polyglot-unlocked
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2018-1000656
+    location: requirements.txt:1
+    package: pip flask 0.12.2

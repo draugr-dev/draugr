@@ -80,6 +80,10 @@ type trivyVulnResult struct {
 	// a Debian image is not a Debian finding.
 	Class           string      `json:"Class"`
 	Vulnerabilities []trivyVuln `json:"Vulnerabilities"`
+	// Packages is every package Trivy read from Target, present when it is run with
+	// --list-all-pkgs. Each carries the lines of its own entry in the manifest, which the
+	// vulnerabilities do not.
+	Packages []trivyPackage `json:"Packages"`
 	// ModifiedFindings is what Trivy set aside, present when it was asked to say so. Trivy calls
 	// the field experimental, so it is read for what it holds and its absence is not an error: a
 	// Trivy that stops sending it, or one too old to send it, leaves the report as it was.
@@ -103,6 +107,28 @@ type trivyModified struct {
 	Finding trivyVuln `json:"Finding"`
 }
 
+// trivyPackage is a package Trivy read, and where in the manifest it read it.
+type trivyPackage struct {
+	Identifier struct {
+		UID string `json:"UID"`
+	} `json:"Identifier"`
+	Locations []struct {
+		StartLine int `json:"StartLine"`
+	} `json:"Locations"`
+}
+
+// packageLines maps each package's UID to the first line of its entry, for the packages whose
+// parser records one.
+func (r trivyVulnResult) packageLines() map[string]int {
+	out := map[string]int{}
+	for _, p := range r.Packages {
+		if p.Identifier.UID != "" && len(p.Locations) > 0 && p.Locations[0].StartLine > 0 {
+			out[p.Identifier.UID] = p.Locations[0].StartLine
+		}
+	}
+	return out
+}
+
 type trivyVuln struct {
 	VulnerabilityID  string `json:"VulnerabilityID"`
 	PkgName          string `json:"PkgName"`
@@ -111,6 +137,8 @@ type trivyVuln struct {
 	Status           string `json:"Status"`
 	PkgIdentifier    struct {
 		PURL string `json:"PURL"`
+		// UID is the package this finding is about, matching a trivyPackage's.
+		UID string `json:"UID"`
 	} `json:"PkgIdentifier"`
 	// Layer is where this package entered the image. Trivy reports it per finding, which is the
 	// only reliable way to tell an inherited package from one this component installed.
@@ -165,6 +193,24 @@ func (d trivyVulnDoc) layers() map[string]sarif.Layer {
 // trivyClassOSPkgs is Trivy's name for a result set drawn from the image's own package database.
 const trivyClassOSPkgs = "os-pkgs"
 
+// trivyClassLangPkgs is Trivy's name for a result set read from one language ecosystem's file.
+const trivyClassLangPkgs = "lang-pkgs"
+
+// trivyInput is the dependency file a result set was read from, or false for a set that is not one.
+//
+// Trivy leaves out a file it read no packages from, so the files named here are the ones that
+// contributed, and a file in the tree missing from them contributed nothing. The count is what
+// --list-all-pkgs lists, which the license scan reports without being asked.
+//
+// Only over a checkout: an image has no tree to account against, and the files in it are the
+// image's rather than a repository's.
+func trivyInput(dir, class, target string, packages int) (sarif.Input, bool) {
+	if dir == "" || class != trivyClassLangPkgs || target == "" {
+		return sarif.Input{}, false
+	}
+	return sarif.Input{Path: repoRelPath(dir, target), Packages: packages}, true
+}
+
 // parseTrivyVulns turns Trivy's JSON into the report Draugr publishes.
 func parseTrivyVulns(out []byte, dir string, _ plugin.Config) (sarif.Report, error) {
 	var doc trivyVulnDoc
@@ -173,13 +219,24 @@ func parseTrivyVulns(out []byte, dir string, _ plugin.Config) (sarif.Report, err
 	}
 	rep := sarif.Report{Tool: "trivy", Rules: map[string]sarif.Rule{}}
 	layers := doc.layers()
-	// The manifest is on disk. This is a filesystem scan, so the line Trivy's JSON leaves out can be
-	// read back from it. Zero where it cannot, which is honest: the finding still points at the file.
+	// The line of the package's own entry, from Trivy's parser where it records one. Otherwise the
+	// manifest is on disk, this being a filesystem scan, and the entry is looked for there. Zero
+	// where neither answers, which is honest: the finding still points at the file.
 	lines := newLineIndex(dir)
+	lineOf := func(res trivyVulnResult, known map[string]int, v trivyVuln) int {
+		if n := known[v.PkgIdentifier.UID]; n > 0 {
+			return n
+		}
+		return lines.find(res.Target, v.PkgName, v.InstalledVersion)
+	}
 	for _, res := range doc.Results {
+		if in, ok := trivyInput(dir, res.Class, res.Target, len(res.Packages)); ok {
+			rep.Inputs = append(rep.Inputs, in)
+		}
+		known := res.packageLines()
 		for _, v := range res.Vulnerabilities {
 			found := trivyVulnResultOf(doc, res, v, layers)
-			found.Location.StartLine = lines.find(res.Target, v.PkgName)
+			found.Location.StartLine = lineOf(res, known, v)
 			rep.Results = append(rep.Results, found)
 			if _, seen := rep.Rules[v.VulnerabilityID]; !seen {
 				rep.Rules[v.VulnerabilityID] = trivyVulnRule(v)
@@ -191,7 +248,7 @@ func parseTrivyVulns(out []byte, dir string, _ plugin.Config) (sarif.Report, err
 			if !ok {
 				continue
 			}
-			found.Location.StartLine = lines.find(res.Target, m.Finding.PkgName)
+			found.Location.StartLine = lineOf(res, known, m.Finding)
 			rep.Results = append(rep.Results, found)
 			if _, seen := rep.Rules[m.Finding.VulnerabilityID]; !seen {
 				rep.Rules[m.Finding.VulnerabilityID] = trivyVulnRule(m.Finding)

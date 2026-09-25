@@ -1,0 +1,1 @@
+- **`trivyFs` options for dependencies Trivy skips by default.** `filePatterns` adds files such as `requirements-dev.txt`, `includeDevDeps` reports development dependencies for npm, Yarn and Gradle, and `detectionPriority: comprehensive` reads a range such as `flask>=0.12` as its minimum version.

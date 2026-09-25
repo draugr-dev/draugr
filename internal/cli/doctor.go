@@ -557,7 +557,7 @@ type networkCall struct {
 // a network call is added, which is exactly when someone should be made to think about it.
 var networkCalls = []networkCall{
 	{"draugr tools install", "each tool's pinned release archive, verified against a recorded SHA-256"},
-	{"draugr feeds update", "the CISA KEV catalog and the FIRST EPSS scores"},
+	{"draugr feeds update", "the CISA KEV catalog, the FIRST EPSS scores and the Go vulnerability database"},
 	{"draugr self-update", "the latest draugr release"},
 	{"draugr doctor", "the latest draugr release, to compare against yours (skipped by --offline)"},
 	{"a scan, before it starts", "the reference data each scanner reads, host by host under HOSTS"},

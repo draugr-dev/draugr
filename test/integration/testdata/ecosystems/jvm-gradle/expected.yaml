@@ -1,0 +1,14 @@
+# A sealed scan of the jvm-gradle scenario reports the one vulnerable dependency in the lockfile
+# Gradle generated, at the line of its own entry.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: jvm-gradle
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2021-44228
+    location: gradle.lockfile:5
+    package: gradle org.apache.logging.log4j:log4j-core 2.14.1

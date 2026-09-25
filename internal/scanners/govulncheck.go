@@ -1,14 +1,17 @@
 package scanners
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -40,8 +43,38 @@ func NewGovulncheck() plugin.Scanner {
 		govulncheckArgs,
 		parseGovulncheck,
 	)
-	s.cacheVersion = sharedGovulncheckVersion.version
+	s.cacheVersion = govulncheckCacheVersion
+	s.preflight = govulncheckPreflight
 	return s
+}
+
+// govulncheckCacheVersion is the scanner and database version a cached result was made with.
+// Against a local copy the probe reads that copy, so refreshing it invalidates the cache.
+func govulncheckCacheVersion(ctx context.Context) string {
+	choice := resolveGovulnDB()
+	if choice.url == "" {
+		return sharedGovulncheckVersion.version(ctx)
+	}
+	return localGovulncheckVersion(choice.url).version(ctx)
+}
+
+var (
+	localVersionMu     sync.Mutex
+	localVersionProbes = map[string]*toolVersionProbe{}
+)
+
+// localGovulncheckVersion is the version probe for one local database, created on first use.
+func localGovulncheckVersion(url string) *toolVersionProbe {
+	localVersionMu.Lock()
+	defer localVersionMu.Unlock()
+	if p, ok := localVersionProbes[url]; ok {
+		return p
+	}
+	p := &toolVersionProbe{
+		argv: []string{"govulncheck", "-db", url, "-version"}, extract: govulncheckVersion, run: execArgvCombined,
+	}
+	localVersionProbes[url] = p
+	return p
 }
 
 // govulncheckArgs builds one `govulncheck -C <module> -format json ./...` per Go module in the
@@ -62,17 +95,20 @@ func NewGovulncheck() plugin.Scanner {
 // Deliberately not -test. Analyzing tests would report vulnerabilities reachable only from code
 // that never ships, and the finding a developer cannot act on is the one that teaches them to
 // ignore the report.
-// No -db, deliberately. The flag takes a URL, `file://` included, and pointing it at a local copy
-// is the obvious way to make this scanner work without a network. It is also unsafe: govulncheck
-// reports "No vulnerabilities found" and exits 0 against an empty or unreadable database, so a
-// mirror that was never populated, or one that went stale, reads as a clean result.
-//
-// Left out, a machine with no route to vuln.go.dev gets exit 1 and an error, and the control says
-// it could not run. That is the right answer and it is the one this scanner is meant to give.
+// -db only for a local copy that passed its checks (resolveGovulnDB). govulncheck reports "No
+// vulnerabilities found" and exits 0 against an empty or unreadable database, so a mirror that was
+// never populated, or one that went stale, would read as a clean result; the checks are what make
+// a local copy safe to pass. Without one, govulncheck queries vuln.go.dev, and a machine with no
+// route to it is refused before anything runs.
 func govulncheckArgs(dir string, _ plugin.Config) [][]string {
+	db := resolveGovulnDB().url
 	var out [][]string
 	for _, mod := range goModuleDirs(dir) {
-		out = append(out, []string{"govulncheck", "-C", mod, "-format", "json", "./..."})
+		argv := []string{"govulncheck", "-C", mod}
+		if db != "" {
+			argv = append(argv, "-db", db)
+		}
+		out = append(out, append(argv, "-format", "json", "./..."))
 	}
 	return out
 }
@@ -131,6 +167,9 @@ type govulncheckConfig struct {
 // never analyzed, whatever the reason. And "we did not look" must not be reported as "nothing
 // reaches it".
 type govulncheckSBOM struct {
+	// Roots are the main modules the run analyzed, which is how a run is matched to the go.mod
+	// it came from.
+	Roots   []string `json:"roots"`
 	Modules []struct {
 		Path    string `json:"path"`
 		Version string `json:"version"`
@@ -189,7 +228,7 @@ type govulncheckFrame struct {
 // One result per (advisory alias, module), because that is the shape the rest of the pipeline
 // already speaks: an advisory with three CVEs is three findings to every other scanner, and
 // emitting one would leave two of them with no reachability while looking like a complete answer.
-func parseGovulncheck(out []byte, _ string, _ plugin.Config) (sarif.Report, error) {
+func parseGovulncheck(out []byte, dir string, _ plugin.Config) (sarif.Report, error) {
 	if len(out) == 0 {
 		// No module was found, so nothing ran. Reported rather than returned as a clean result:
 		// a tree this analyzer could not answer for must not be indistinguishable from one where
@@ -217,17 +256,54 @@ func parseGovulncheck(out []byte, _ string, _ plugin.Config) (sarif.Report, erro
 		return sarif.Report{}, err
 	}
 
+	// One run per module, each starting with its config message, and each judged on its own: what
+	// one module calls says nothing about another, and a verdict reached over the union of two
+	// builds would lend one module's call path to the other's finding.
+	manifests := goModuleManifests(dir)
+	asOf := time.Now().UTC().Format("2006-01-02")
+	var results []sarif.Result
+	for _, run := range splitGovulncheckRuns(msgs) {
+		results = append(results, govulncheckRunResults(run, manifests, asOf)...)
+	}
+	return sarif.Report{Tool: govulncheckScanner, Results: results, Provenance: []sarif.Provenance{{
+		Tool:   govulncheckScanner,
+		Fields: []sarif.Field{{Key: "database", Value: resolveGovulnDB().describe()}},
+	}}}, nil
+}
+
+// splitGovulncheckRuns divides a concatenated stream into one slice per govulncheck run. Each run
+// opens with a config message; anything before the first belongs to a run of its own.
+func splitGovulncheckRuns(msgs []govulncheckMessage) [][]govulncheckMessage {
+	var runs [][]govulncheckMessage
+	for _, m := range msgs {
+		if m.Config != nil || len(runs) == 0 {
+			runs = append(runs, nil)
+		}
+		runs[len(runs)-1] = append(runs[len(runs)-1], m)
+	}
+	return runs
+}
+
+// govulncheckRunResults turns one module's run into results located at that module's go.mod.
+func govulncheckRunResults(run []govulncheckMessage, manifests map[string]string, asOf string) []sarif.Result {
 	var scanLevel string
+	manifest := "go.mod"
 	analyzed := map[string]bool{}
 	advisories := map[string]*govulncheckOSV{}
 	byVuln := map[govulncheckKey][]govulncheckFinding{}
-	for _, m := range msgs {
+	for _, m := range run {
 		switch {
 		case m.Config != nil:
 			scanLevel = m.Config.ScanLevel
 		case m.SBOM != nil:
 			for _, mod := range m.SBOM.Modules {
 				analyzed[mod.Path] = true
+			}
+			for _, root := range m.SBOM.Roots {
+				if path, ok := manifests[root]; ok {
+					manifest = path
+					break
+				}
 			}
 		case m.OSV != nil:
 			advisories[m.OSV.ID] = m.OSV
@@ -237,13 +313,47 @@ func parseGovulncheck(out []byte, _ string, _ plugin.Config) (sarif.Report, erro
 			byVuln[key] = append(byVuln[key], *m.Finding)
 		}
 	}
-
-	asOf := time.Now().UTC().Format("2006-01-02")
 	results := make([]sarif.Result, 0, len(byVuln))
 	for _, key := range sortedGovulncheckKeys(byVuln) {
-		results = append(results, govulncheckResults(key, byVuln[key], advisories[key.OSV], analyzed, scanLevel, asOf)...)
+		for _, r := range govulncheckResults(key, byVuln[key], advisories[key.OSV], analyzed, scanLevel, asOf) {
+			r.Location.URI = manifest
+			results = append(results, r)
+		}
 	}
-	return sarif.Report{Tool: govulncheckScanner, Results: results}, nil
+	return results
+}
+
+// goModuleManifests maps each module path under root to its go.mod, relative to root.
+func goModuleManifests(root string) map[string]string {
+	out := map[string]string{}
+	if root == "" {
+		return out
+	}
+	for _, dir := range goModuleDirs(root) {
+		path := filepath.Join(dir, "go.mod")
+		name := goModulePath(path)
+		rel, err := filepath.Rel(root, path)
+		if name == "" || err != nil {
+			continue
+		}
+		out[name] = filepath.ToSlash(rel)
+	}
+	return out
+}
+
+// goModulePath reads the module path a go.mod declares, or "" if it declares none.
+func goModulePath(gomod string) string {
+	raw, err := os.ReadFile(gomod) // #nosec G304 -- a go.mod inside the checkout
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && fields[0] == "module" {
+			return strings.Trim(fields[1], `"`)
+		}
+	}
+	return ""
 }
 
 // govulncheckKey identifies a vulnerability in a module. Both halves are needed: one advisory can

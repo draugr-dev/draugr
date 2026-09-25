@@ -105,7 +105,7 @@ func TestUASummaryAcceptsZeroWhenNothingDeclaresDependencies(t *testing.T) {
 // may read as a clean scan.
 func TestUASummaryRefusesWhenItCannotSeeTheSummary(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module x\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module x\n\nrequire golang.org/x/net v0.1.0\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	err := uaSummary{sawSummary: false}.check(dir)

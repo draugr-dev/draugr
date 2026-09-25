@@ -1,0 +1,13 @@
+project: python-pip-dev
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+      trivyFs:
+        filePatterns: ["pip:requirements-.*\\.txt"]
+components:
+  - name: python-pip-dev
+    repositories:
+      - url: ./python-pip-dev

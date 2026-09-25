@@ -1,0 +1,11 @@
+project: js-yarn-classic
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: js-yarn-classic
+    repositories:
+      - url: ./js-yarn-classic

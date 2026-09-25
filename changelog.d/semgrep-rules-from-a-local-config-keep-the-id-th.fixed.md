@@ -1,0 +1,1 @@
+- **Semgrep rules from a local `config` keep the id their file declares.** Semgrep prefixed each id with the rules file's directory, so the same rule had a different id on every machine and an exclusion or `draugr diff` baseline written on one missed on another.

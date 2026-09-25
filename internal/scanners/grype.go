@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 
@@ -76,7 +77,51 @@ func NewGrypeFS() plugin.Scanner {
 	s.cacheVersion = sharedGrypeVersion.cacheVersion
 	s.prewarm = sharedGrypeDB.warm
 	s.run = grypeRunInDir
+	s.inventory = &inventoryOutput{args: grypeInventoryArgs, parse: parseGrypeInventory}
 	return s
+}
+
+// grypeInventoryArgs has Grype write the packages it read, as CycloneDX, beside its SARIF. The
+// SARIF names a file only where a package in it is vulnerable, so it cannot say what was read.
+func grypeInventoryArgs(path string) []string {
+	return []string{"-o", "cyclonedx-json=" + path}
+}
+
+// parseGrypeInventory counts the packages Grype read from each file.
+//
+// Syft records where it found a package as properties numbered from zero, rooted at the scanned
+// directory as the SARIF paths are. A component of type file is a file Syft cataloged, not a
+// package read from one, and is not counted.
+func parseGrypeInventory(out []byte, dir string) ([]sarif.Input, error) {
+	var doc struct {
+		Components []struct {
+			Type       string `json:"type"`
+			Properties []struct {
+				Name  string `json:"name"`
+				Value string `json:"value"`
+			} `json:"properties"`
+		} `json:"components"`
+	}
+	if err := json.Unmarshal(out, &doc); err != nil {
+		return nil, err
+	}
+	counts := map[string]int{}
+	for _, c := range doc.Components {
+		if c.Type == "file" {
+			continue
+		}
+		for _, p := range c.Properties {
+			if strings.HasPrefix(p.Name, "syft:location:") && strings.HasSuffix(p.Name, ":path") && p.Value != "" {
+				counts[grypeRepoPath(dir, p.Value)]++
+			}
+		}
+	}
+	inputs := make([]sarif.Input, 0, len(counts))
+	for path, n := range counts {
+		inputs = append(inputs, sarif.Input{Path: path, Packages: n})
+	}
+	slices.SortFunc(inputs, func(a, b sarif.Input) int { return strings.Compare(a.Path, b.Path) })
+	return inputs, nil
 }
 
 // grypeFSArgs builds `grype dir:<dir> -q -o sarif` for a checked-out repository.

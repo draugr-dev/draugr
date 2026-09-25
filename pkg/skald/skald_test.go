@@ -589,7 +589,7 @@ func TestJSONOmitsTheCaveatsWhenThereAreNone(t *testing.T) {
 	if err := RenderJSON(&buf, saga.Release{Version: "1"}, run, verdict, ""); err != nil {
 		t.Fatalf("RenderJSON: %v", err)
 	}
-	for _, absent := range []string{"scanErrors", "notMeasured"} {
+	for _, absent := range []string{"scanErrors", "notMeasured", "dependencyFiles"} {
 		if strings.Contains(buf.String(), absent) {
 			t.Errorf("a complete run must not carry %q:\n%s", absent, buf.String())
 		}
@@ -920,5 +920,45 @@ func TestTheDocumentNamesOneGate(t *testing.T) {
 				t.Errorf("both stated: %+v", got)
 			}
 		})
+	}
+}
+
+// What the dependency scans read travels per component, with the files none of them read.
+func TestJSONCarriesTheDependencyFilesNoScanRead(t *testing.T) {
+	run := engine.Result{
+		Controls: map[string]plugin.ControlResult{"sca": {Report: sarif.Report{}}},
+		Inputs: []engine.InputCoverage{
+			{
+				Component: "api", Control: "sca", Scanners: []string{"trivy-fs"}, Read: 2,
+				Unread: []engine.UnreadInput{{Repository: "https://example.com/api", Path: "pyproject.toml", Reason: "no lockfile"}},
+			},
+			{Component: "web", Control: "sca", Scanners: []string{"trivy-fs"}, Read: 1},
+		},
+	}
+	verdict := norn.Result{Verdict: norn.Pass, Controls: []norn.ControlOutcome{{Control: "sca", Verdict: norn.Pass}}}
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Version: "1"}, run, verdict, ""); err != nil {
+		t.Fatalf("RenderJSON: %v", err)
+	}
+	var doc struct {
+		DependencyFiles []struct {
+			Component, Control string
+			Scanners           []string
+			Read               int
+			Unread             []struct{ Repository, Path, Reason string }
+		} `json:"dependencyFiles"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(doc.DependencyFiles) != 2 {
+		t.Fatalf("dependencyFiles = %+v", doc.DependencyFiles)
+	}
+	api, web := doc.DependencyFiles[0], doc.DependencyFiles[1]
+	if api.Component != "api" || api.Read != 2 || len(api.Unread) != 1 || api.Unread[0].Reason != "no lockfile" {
+		t.Errorf("api = %+v", api)
+	}
+	if web.Component != "web" || web.Read != 1 || len(web.Unread) != 0 {
+		t.Errorf("web = %+v", web)
 	}
 }

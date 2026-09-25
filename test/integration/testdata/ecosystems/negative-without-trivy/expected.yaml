@@ -1,0 +1,14 @@
+# Trivy is not on PATH. The control reports that it did not run and names the command that
+# installs the tool, rather than passing with no findings.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: negative-without-trivy
+      repositories: ["."]
+
+sealed:
+  withoutTool: trivy
+
+errors:
+  - control: sca
+    contains: "Run `draugr tools install trivy`"

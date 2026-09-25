@@ -822,8 +822,34 @@
               },
               "type": "array"
             },
+            "detectionPriority": {
+              "anyOf": [
+                {
+                  "const": "precise",
+                  "description": "Pinned versions only. The default."
+                },
+                {
+                  "const": "comprehensive",
+                  "description": "Also a range such as \u003e=1.2 in requirements.txt, read as its minimum version, and Go standard-library vulnerabilities."
+                }
+              ],
+              "description": "How Trivy decides which version of a dependency is installed.",
+              "type": "string"
+            },
             "enabled": {
               "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
+              "type": "boolean"
+            },
+            "filePatterns": {
+              "description": "More files for an analyzer to read, each analyzer:regex, e.g. [\"pip:requirements-.*\\\\.txt\"]. Trivy's pip analyzer reads only requirements.txt.",
+              "items": {
+                "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9-]+:.+)$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "includeDevDeps": {
+              "description": "Report development dependencies too. Trivy leaves them out by default. Applies to npm, Yarn and Gradle.",
               "type": "boolean"
             },
             "pkgTypes": {
@@ -1085,7 +1111,7 @@
           "type": "string"
         },
         "maxAge": {
-          "description": "How old a cached feed may be before \"auto\" refetches it and a scan warns that it is stale. A Go duration; defaults to 24h, tracking EPSS being republished daily. Raise it on a runner deliberately pinned to a known copy of the data.",
+          "description": "How old a cached feed may be before \"auto\" refetches it and a scan warns that it is stale. It is also the age at which govulncheck stops reading the local Go vulnerability database. A Go duration; defaults to 24h, tracking EPSS being republished daily. Raise it on a runner deliberately pinned to a known copy of the data.",
           "examples": [
             "24h",
             "168h"

@@ -1,0 +1,14 @@
+# trivyFs.detectionPriority: comprehensive reads flask>=0.12 as flask 0.12. With the default,
+# Trivy reads pinned versions only and the scan reports nothing.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: python-pip-ranges
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2018-1000656
+    location: requirements.txt:1
+    package: pip flask 0.12

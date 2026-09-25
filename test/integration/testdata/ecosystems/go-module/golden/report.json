@@ -1,0 +1,127 @@
+{
+  "controls": [
+    {
+      "errors": 2,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "sast",
+      "notes": 0,
+      "threshold": "",
+      "total": 2,
+      "verdict": "fail",
+      "warnings": 0
+    },
+    {
+      "errors": 2,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "sca",
+      "notes": 0,
+      "threshold": "",
+      "total": 2,
+      "verdict": "fail",
+      "warnings": 0
+    },
+    {
+      "errors": 1,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "secrets",
+      "notes": 0,
+      "threshold": "",
+      "total": 1,
+      "verdict": "fail",
+      "warnings": 0
+    }
+  ],
+  "dependencyFiles": [
+    {
+      "component": "go-module",
+      "control": "sca",
+      "read": 1,
+      "scanners": [
+        "trivy-fs"
+      ]
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:4492a6b21795f292a9f8c25a66803d21de1889291b410a4eb962f1674f2da723",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 4,
+    "p2": 1,
+    "p3": 0,
+    "p4": 0
+  },
+  "project": "go-module",
+  "reachability": {
+    "analyzers": [
+      {
+        "analyzer": "govulncheck",
+        "reachable": 1,
+        "unknown": 0,
+        "unreachable": 1
+      }
+    ],
+    "reachable": 1,
+    "unknown": 0,
+    "unreachable": 1
+  },
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./go-module"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "gitleaks",
+      "version": "<cleared>"
+    },
+    {
+      "name": "gosec",
+      "version": "<cleared>"
+    },
+    {
+      "name": "govulncheck",
+      "version": "<cleared>"
+    },
+    {
+      "name": "semgrep",
+      "version": "<cleared>"
+    },
+    {
+      "name": "trivy-fs",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 5,
+    "scans": 5
+  },
+  "verdict": "fail"
+}

@@ -18,6 +18,13 @@ var (
 		Hosts: []string{"mirror.gcr.io", "ghcr.io"},
 		Local: "--skip-db-update, which Draugr passes when offline",
 	}}
+	// Misconfiguration checks, published as an OCI bundle. Trivy falls back to the checks compiled
+	// into the binary when it cannot fetch one.
+	trivyChecksData = []plugin.DataSource{{
+		Name:  "checks bundle",
+		Hosts: []string{"mirror.gcr.io"},
+		Local: "--skip-check-update, which Draugr passes when offline, to use the checks built into Trivy",
+	}}
 	grypeData = []plugin.DataSource{{
 		Name:  "vulnerability database",
 		Hosts: []string{"grype.anchore.io"},
@@ -33,13 +40,13 @@ var (
 		Hosts: []string{"raw.githubusercontent.com"},
 		Local: "--jsrepo <file>, which Draugr passes when offline",
 	}}
-	// The Go vulnerability database has a local form and it is not safe to reach for blindly: an
-	// empty or stale directory behind `-db file://` makes govulncheck report no vulnerabilities and
-	// exit 0. Named here so the fact travels, and deliberately not wired.
+	// The Go vulnerability database has a local form that is not safe to pass unchecked: an empty
+	// or stale directory behind `-db file://` makes govulncheck report no vulnerabilities and exit
+	// 0. Draugr passes one only after checking its age and index.
 	govulncheckData = []plugin.DataSource{{
 		Name:    "vulnerability database",
 		Hosts:   []string{"vuln.go.dev"},
-		Local:   "-db file://<dir>, which reports clean rather than failing on an unusable copy",
+		Local:   "draugr feeds update govulndb, checked before each scan and passed as -db file://<dir>",
 		PerScan: true,
 	}}
 	semgrepData = []plugin.DataSource{{

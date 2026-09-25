@@ -1,0 +1,10 @@
+{
+  "name": "sealed-yarn-classic",
+  "version": "1.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "packageManager": "yarn@1.22.22",
+  "dependencies": {
+    "minimist": "1.2.5"
+  }
+}

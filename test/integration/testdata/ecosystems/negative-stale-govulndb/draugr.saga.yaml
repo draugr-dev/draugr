@@ -1,0 +1,13 @@
+project: negative-stale-govulndb
+release:
+  version: "1.0"
+config:
+  reachability:
+    analyzers: [govulncheck]
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: negative-stale-govulndb
+    repositories:
+      - url: ./negative-stale-govulndb

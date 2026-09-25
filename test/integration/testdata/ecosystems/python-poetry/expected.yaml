@@ -1,0 +1,14 @@
+# A sealed scan of the python-poetry scenario reports the one vulnerable dependency in the lockfile
+# Poetry generated, at the line of its own entry.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: python-poetry
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2018-1000656
+    location: poetry.lock:16
+    package: poetry flask 0.12.2

@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "dotnet-nuget/"
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "fields": {
+              "repository": "./dotnet-nuget",
+              "revision": "<cleared>"
+            },
+            "tool": "trivy-fs",
+            "version": "<cleared>"
+          }
+        ]
+      },
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "packages.lock.json",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 5
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Newtonsoft.Json 12.0.1 → 13.0.1: Fixture: denial of service through deeply nested JSON"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "dotnet-nuget",
+            "control": "sca",
+            "package": {
+              "ecosystem": "nuget",
+              "fixedVersion": "13.0.1",
+              "name": "Newtonsoft.Json",
+              "purl": "pkg:nuget/Newtonsoft.Json@12.0.1",
+              "version": "12.0.1"
+            },
+            "priority": "P1",
+            "repository": "./dotnet-nuget",
+            "tool": "trivy"
+          },
+          "ruleId": "CVE-2024-21907"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Fixture advisory for Draugr's sealed tests."
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2024-21907",
+              "id": "CVE-2024-21907",
+              "name": "CVE-2024-21907",
+              "properties": {
+                "tags": [
+                  "scanner:trivy"
+                ]
+              },
+              "shortDescription": {
+                "text": "Fixture: denial of service through deeply nested JSON"
+              }
+            }
+          ],
+          "version": "<cleared>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

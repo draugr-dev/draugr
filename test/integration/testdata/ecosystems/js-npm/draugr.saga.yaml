@@ -1,0 +1,21 @@
+project: js-npm
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+      retirejs:
+        enabled: true
+    secrets:
+      enabled: true
+    sast:
+      enabled: true
+      semgrep:
+        config: ${{ DRAUGR_SEALED_SEMGREP_RULES }}
+    licenses:
+      enabled: true
+components:
+  - name: js-npm
+    repositories:
+      - url: ./js-npm

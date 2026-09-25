@@ -1,0 +1,8 @@
+[package]
+name = "sealed-cargo"
+version = "1.0.0"
+edition = "2021"
+license = "Apache-2.0"
+
+[dependencies]
+smallvec = "=1.6.0"

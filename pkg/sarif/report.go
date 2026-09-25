@@ -670,6 +670,31 @@ type Report struct {
 	// consulted" without this. And silence reads as the second, which makes the whole ranking look
 	// like it came from nowhere.
 	Consulted []Consulted `json:"consulted,omitempty"`
+	// Inputs are the dependency files a scan accounted for: those it read packages from, and those
+	// in its tree it did not, each with the reason.
+	//
+	// The argument Decided makes, applied to files. A dependency scan that reports nothing has
+	// either read every manifest and found them clean or read none of them, and without this the
+	// two produce the same empty report and the same PASS. Empty for a scanner that does not
+	// account for its reads, which says nothing either way.
+	Inputs []Input `json:"inputs,omitempty"`
+}
+
+// Input is one dependency file as a scan accounted for it.
+type Input struct {
+	// Scanner is the scanner that read it, or did not.
+	Scanner string `json:"scanner"`
+	// Repository and Component say whose file it is. Stamped after the scan, like a finding's, so a
+	// cached result shared by two components carries each one's name.
+	Repository string `json:"repository,omitempty"`
+	Component  string `json:"component,omitempty"`
+	// Path is relative to the repository root.
+	Path string `json:"path"`
+	// Packages is how many packages the scanner read from the file.
+	Packages int `json:"packages,omitempty"`
+	// Unread is why the file contributed no packages, and empty when it was read: "no lockfile",
+	// "no pinned versions" or "no packages read".
+	Unread string `json:"unread,omitempty"`
 }
 
 // Consulted is one exploitability dataset a run had available.
@@ -968,6 +993,7 @@ func Merge(reports ...Report) Report {
 		out.addProvenance(rep.Provenance)
 		out.addDecided(rep.Decided)
 		out.addConsulted(rep.Consulted)
+		out.addInputs(rep.Inputs)
 		for _, res := range rep.Results {
 			if res.Tool == "" {
 				res.Tool = rep.Tool
@@ -1038,6 +1064,22 @@ func (r *Report) addConsulted(feeds []Consulted) {
 			continue
 		}
 		r.Consulted = append(r.Consulted, f)
+	}
+}
+
+// addInputs appends inputs that are not already present.
+//
+// Keyed on everything but the count: the same file read by one scanner for one component is one
+// statement, and merging a report with itself must not double it.
+func (r *Report) addInputs(inputs []Input) {
+	for _, in := range inputs {
+		if slices.ContainsFunc(r.Inputs, func(existing Input) bool {
+			return existing.Scanner == in.Scanner && existing.Repository == in.Repository &&
+				existing.Component == in.Component && existing.Path == in.Path
+		}) {
+			continue
+		}
+		r.Inputs = append(r.Inputs, in)
 	}
 }
 

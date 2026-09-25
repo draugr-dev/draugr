@@ -267,6 +267,25 @@ pictures or release notes, which the job recognizes and reports in seconds.
 [`scripts/integration-needed.sh`](scripts/integration-needed.sh) holds that list, and it names what
 cannot reach the suite rather than what can: a path it has never heard of runs the suite.
 
+### Sealed scenarios
+
+`TestSealedScenarios` scans each directory under
+[`test/integration/testdata/ecosystems/`](test/integration/testdata/ecosystems/README.md) in a
+container started with `--network none`, against advisory databases generated from
+`advisories.yaml`, and asserts exact results: what `draugr init` proposes, every finding, and a
+normalized copy of `results.sarif` and `report.json`. It runs in the integration job and needs
+Docker plus the scanners `draugr tools install --all` provides:
+
+```bash
+make build
+PATH="$HOME/.draugr/bin:$PATH" DRAUGR_BIN="$PWD/bin/draugr" \
+  go test -tags integration -run TestSealedScenarios ./test/integration/
+```
+
+`-update-sealed` rewrites the golden reports after an intended change. It never rewrites
+`expected.yaml`: that file states what the scan has to find, and changing it is a decision to make
+in review.
+
 ## Pull requests
 
 1. **Branch** from `main` and keep PRs focused.

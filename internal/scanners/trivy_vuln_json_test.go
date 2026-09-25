@@ -488,3 +488,65 @@ func TestALineIsZeroWhenTheManifestCannotBeRead(t *testing.T) {
 		t.Errorf("uri = %q, want the file it still points at", got)
 	}
 }
+
+// Where Trivy's parser records the lines of a package's entry, that is the line a finding names.
+// In a Cargo.lock the root package lists its dependencies before their own entries, so the first
+// mention of a name is the list, not the package.
+func TestADependencyFindingTakesTheLineTrivyRecorded(t *testing.T) {
+	dir := t.TempDir()
+	lock := "version = 4\n\n[[package]]\nname = \"app\"\ndependencies = [\n \"smallvec\",\n]\n\n[[package]]\nname = \"smallvec\"\nversion = \"1.6.0\"\n"
+	if err := os.WriteFile(filepath.Join(dir, "Cargo.lock"), []byte(lock), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	doc := `{"Results":[{"Target":"Cargo.lock","Type":"cargo","Class":"lang-pkgs",
+	  "Packages":[{"Name":"smallvec","Identifier":{"UID":"u1"},"Locations":[{"StartLine":9,"EndLine":11}]},
+	              {"Name":"app","Identifier":{"UID":"u0"}}],
+	  "Vulnerabilities":[{"VulnerabilityID":"CVE-1","PkgName":"smallvec","InstalledVersion":"1.6.0","PkgIdentifier":{"UID":"u1"},"Severity":"HIGH"}]}]}`
+	rep, err := parseTrivyVulns([]byte(doc), dir, plugin.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := rep.Results[0].Location.StartLine; got != 9 {
+		t.Errorf("line = %d, want 9, the package's own entry", got)
+	}
+}
+
+// With no line from Trivy (its pnpm parser records none), the entry is looked for in the file: a
+// whole name, not in a comment, on the line that also carries the version where there is one.
+func TestTheLineSearchFindsTheEntryRatherThanAMention(t *testing.T) {
+	dir := t.TempDir()
+	for name, body := range map[string]string{
+		// pip-compile explains each pin with a comment naming what needs it.
+		"requirements.txt": "click==8.5.0\n    # via flask\nflask==0.12.2\n",
+		// A longer name that starts with this one, before the package itself.
+		"Gemfile.lock": "GEM\n  specs:\n    rack-test (2.1.0)\n    rack (2.2.3)\n",
+		// The importer names the dependency, with its version below; the packages section holds the
+		// entry.
+		"pnpm-lock.yaml": "importers:\n  .:\n    dependencies:\n      minimist:\n        specifier: 1.2.5\n        version: 1.2.5\npackages:\n  minimist@1.2.5:\n",
+		// The root's metadata names the package and its version on one line, with words between.
+		"uv.lock": "[[package]]\nname = \"flask\"\nversion = \"0.12.2\"\n\n[package.metadata]\nrequires-dist = [{ name = \"flask\", specifier = \"==0.12.2\" }]\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	lines := newLineIndex(dir)
+	for _, tc := range []struct {
+		file, pkg, version string
+		want               int
+	}{
+		{"requirements.txt", "flask", "0.12.2", 3},
+		{"requirements.txt", "Flask", "", 3},
+		{"Gemfile.lock", "rack", "2.2.3", 4},
+		{"Gemfile.lock", "rack", "", 4},
+		{"pnpm-lock.yaml", "minimist", "1.2.5", 8},
+		{"uv.lock", "flask", "0.12.2", 2},
+		// A version nowhere in the file still finds the name.
+		{"pnpm-lock.yaml", "minimist", "9.9.9", 4},
+		{"pnpm-lock.yaml", "absent", "", 0},
+	} {
+		if got := lines.find(tc.file, tc.pkg, tc.version); got != tc.want {
+			t.Errorf("find(%s, %s, %q) = %d, want %d", tc.file, tc.pkg, tc.version, got, tc.want)
+		}
+	}
+}

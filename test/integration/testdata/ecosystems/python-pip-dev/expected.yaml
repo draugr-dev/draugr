@@ -1,0 +1,14 @@
+# trivyFs.filePatterns adds requirements-dev.txt to what Trivy's pip analyzer reads. Without it the
+# file is not read and the scan reports nothing.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: python-pip-dev
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2018-1000656
+    location: requirements-dev.txt:2
+    package: pip Flask 0.12.2

@@ -1,0 +1,13 @@
+project: polyglot-unlocked
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+    licenses:
+      enabled: true
+components:
+  - name: polyglot-unlocked
+    repositories:
+      - url: ./polyglot-unlocked

@@ -1,9 +1,11 @@
-FEED   FETCHED                AGE            SIZE       DIGEST
-kev    -                      -              -          -
-epss   -                      -              -          -
+FEED       FETCHED                AGE            SIZE       DIGEST
+kev        -                      -              -          -
+epss       -                      -              -          -
+govulndb   -                      -              -          -
 
 SOURCES  (cached in <path>)
-  kev   CISA Known Exploited Vulnerabilities catalog · https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
-  epss  FIRST EPSS scores · https://epss.empiricalsecurity.com/epss_scores-current.csv.gz
+  kev        CISA Known Exploited Vulnerabilities catalog · https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
+  epss       FIRST EPSS scores · https://epss.empiricalsecurity.com/epss_scores-current.csv.gz
+  govulndb   Go vulnerability database · https://vuln.go.dev/vulndb.zip
 
-Nothing cached. Run `draugr feeds update` to fetch both.
+Nothing cached. Run `draugr feeds update` to fetch all of them.

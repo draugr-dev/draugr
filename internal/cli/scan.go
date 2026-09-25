@@ -17,6 +17,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 	sbomgen "github.com/draugr-dev/draugr/internal/sbom"
+	"github.com/draugr-dev/draugr/internal/scanners"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/internal/vexload"
@@ -274,7 +275,11 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			return err
 		}
 	}
-	expl, feedProv, err := loadExploitSource(ctx, exploitSettings(opts, model.Config.Exploitability))
+	settings := exploitSettings(opts, model.Config.Exploitability)
+	// The same limit governs every cached feed, including the Go vulnerability database
+	// govulncheck reads, which a scanner cannot see in the descriptor for itself.
+	scanners.SetFeedMaxAge(settings.maxAge)
+	expl, feedProv, err := loadExploitSource(ctx, settings)
 	if err != nil {
 		return err
 	}

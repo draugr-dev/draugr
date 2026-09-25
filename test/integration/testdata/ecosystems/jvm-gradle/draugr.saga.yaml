@@ -1,0 +1,11 @@
+project: jvm-gradle
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: jvm-gradle
+    repositories:
+      - url: ./jvm-gradle

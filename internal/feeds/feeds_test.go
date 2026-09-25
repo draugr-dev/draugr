@@ -22,6 +22,10 @@ func serve(t *testing.T, kev string, epss string, status int) *httptest.Server {
 			w.WriteHeader(status)
 			return
 		}
+		if r.URL.Path == "/govulndb" {
+			_, _ = w.Write(goVulnZip(t, goVulnDBFiles))
+			return
+		}
 		if r.URL.Path == "/epss" {
 			var buf bytes.Buffer
 			zw := gzip.NewWriter(&buf)
@@ -40,6 +44,8 @@ func serve(t *testing.T, kev string, epss string, status int) *httptest.Server {
 	sources = map[Name]source{
 		KEV:  {url: srv.URL + "/kev", file: "kev.json", describe: "test KEV"},
 		EPSS: {url: srv.URL + "/epss", file: "epss.csv", gzipped: true, describe: "test EPSS"},
+		GoVulnDB: {url: srv.URL + "/govulndb", file: "govulndb", zipped: true, check: CheckGoVulnDB,
+			describe: "test Go vulnerability database"},
 	}
 	return srv
 }
@@ -72,8 +78,12 @@ func TestFetchWritesAndRecords(t *testing.T) {
 	}
 
 	m := Load(dir)
-	if len(m) != 2 {
-		t.Fatalf("manifest has %d entries, want 2", len(m))
+	if len(m) != len(Names()) {
+		t.Fatalf("manifest has %d entries, want %d", len(m), len(Names()))
+	}
+	// The Go database arrives zipped and must land unpacked, in the layout govulncheck's -db reads.
+	if err := CheckGoVulnDB(Path(dir, GoVulnDB)); err != nil {
+		t.Errorf("the unpacked Go database fails its own check: %v", err)
 	}
 	if m[KEV].URL == "" {
 		t.Error("the record does not say where it came from, which is the point of keeping it")

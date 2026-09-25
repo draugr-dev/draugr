@@ -9,12 +9,12 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/draugr-dev/draugr/internal/git"
+	"github.com/draugr-dev/draugr/internal/manifests"
 	"github.com/draugr-dev/draugr/internal/mendapi"
 	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -235,14 +235,6 @@ func parseUASummary(out string) uaSummary {
 	return s
 }
 
-// manifests are the files whose presence means "this tree declares dependencies", used to decide
-// whether resolving nothing is a real answer or a broken toolchain.
-var manifests = []string{
-	"requirements.txt", "Pipfile", "pyproject.toml", "setup.py",
-	"package.json", "pom.xml", "build.gradle", "build.gradle.kts",
-	"go.mod", "Gemfile", "composer.json", "Cargo.toml", "*.csproj",
-}
-
 // check refuses a scan that resolved nothing from a tree that declares dependencies.
 //
 // The agent reports success in that case: it exits zero, and it replaces the project's inventory
@@ -284,25 +276,13 @@ func (s uaSummary) check(dir string) error {
 		strings.Join(found, ", "))
 }
 
-// manifestsIn names the dependency manifests present in a tree, sorted.
+// manifestsIn names the dependency files in a tree, by path. The same recognizer the scan uses to
+// report what it did not read, so the two cannot disagree about what counts as a manifest.
 func manifestsIn(dir string) []string {
-	seen := map[string]bool{}
-	_ = filepath.WalkDir(dir, func(_ string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return nil //nolint:nilerr // an unreadable subtree is not worth failing the check over
-		}
-		for _, m := range manifests {
-			if ok, _ := filepath.Match(m, d.Name()); ok {
-				seen[d.Name()] = true
-			}
-		}
-		return nil
-	})
-	out := make([]string, 0, len(seen))
-	for name := range seen {
-		out = append(out, name)
+	var out []string
+	for _, f := range manifests.Find(dir) {
+		out = append(out, f.Path)
 	}
-	sort.Strings(out)
 	return out
 }
 

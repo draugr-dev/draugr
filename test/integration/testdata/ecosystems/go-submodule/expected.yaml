@@ -1,0 +1,15 @@
+# A Go module below the repository root. gosec and govulncheck both analyze it; the gosec
+# expectations are the ruleid: comments in repo/service/main.go.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: go-submodule
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2020-36067
+    location: service/go.mod:5
+    package: gomod github.com/tidwall/gjson v1.6.5
+    reachability: reachable

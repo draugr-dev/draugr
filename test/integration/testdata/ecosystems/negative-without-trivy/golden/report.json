@@ -1,0 +1,49 @@
+{
+  "controls": [
+    {
+      "errors": 0,
+      "highest": "none",
+      "name": "sca",
+      "notes": 0,
+      "scanErrors": [
+        "run trivy-fs: exec: \"trivy\": executable file not found in $PATH. Run `draugr tools install trivy`"
+      ],
+      "threshold": "",
+      "total": 0,
+      "verdict": "fail",
+      "warnings": 0
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:dea0553f67d96b2d59869eca1644d72d73774d13346b473d455ced1cc848ee0f",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "project": "negative-without-trivy",
+  "release": {
+    "version": "1.0"
+  },
+  "stats": {
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 1,
+    "scans": 0
+  },
+  "verdict": "fail"
+}

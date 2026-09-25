@@ -1,0 +1,111 @@
+{
+  "controls": [
+    {
+      "errors": 0,
+      "highest": "",
+      "name": "sast",
+      "notes": 0,
+      "threshold": "",
+      "total": 0,
+      "verdict": "pass",
+      "warnings": 0
+    },
+    {
+      "errors": 1,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "sca",
+      "notes": 0,
+      "threshold": "",
+      "total": 1,
+      "verdict": "fail",
+      "warnings": 0
+    }
+  ],
+  "dependencyFiles": [
+    {
+      "component": "go-workspace",
+      "control": "sca",
+      "read": 2,
+      "scanners": [
+        "trivy-fs"
+      ]
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:370dcf3737f2ea81d5326fcda4f5b2ed98e1cd9159acd941d37ef001ecbe0f05",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 1,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0
+  },
+  "project": "go-workspace",
+  "reachability": {
+    "analyzers": [
+      {
+        "analyzer": "govulncheck",
+        "reachable": 1,
+        "unknown": 0,
+        "unreachable": 1
+      }
+    ],
+    "reachable": 1,
+    "unknown": 0,
+    "unreachable": 1
+  },
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./go-workspace"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "gosec",
+      "version": "<cleared>"
+    },
+    {
+      "name": "govulncheck",
+      "version": "<cleared>"
+    },
+    {
+      "name": "semgrep",
+      "version": "<cleared>"
+    },
+    {
+      "name": "trivy-fs",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 4,
+    "scans": 4
+  },
+  "verdict": "fail"
+}

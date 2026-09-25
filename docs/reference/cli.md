@@ -394,7 +394,7 @@ Grouped the way `draugr scan --help` groups them.
 | `--view` | `findings` | What the report shows. `findings` gives a row each with what argued with the band underneath; `actions` gives a row per thing to do, saying how many findings it clears; `compact` gives one line each, and in `json`/`sarif` output strips indentation and rule documentation for a consumer that parses rather than reads. A view is a rendering: the report files always carry every finding separately. See [what to fix first](../concepts/what-to-fix-first.md) and [machine-readable output](../guides/reports-and-publishers.md#compact-output-for-tools-and-agents) |
 | `--group` | | Deprecated. `--group action` is `--view actions`, `--group none` is `--view findings` |
 | `--evidence` | `false` | Console: also print what stands behind the verdict, tool provenance, what each control measured against, the scanned revision, and what the run cost. `--report evidence` writes the same content to a file |
-| `--top` | `10` | Console: max findings to list in the ranked table (`0` = all). The heading says whether you are looking at a shortlist or every finding |
+| `--top` | `10` | Console: max findings to list in the ranked table (`0` = all). The heading says whether you are looking at a shortlist or every finding. `0` also names every file under **Unread**, where the default is three per component |
 | `--min-priority` |, | List findings at or above this priority band (`P1`–`P4`). Narrows what is **printed**; artifacts and publishers keep the full set. See [below](#what---min-priority-narrows) |
 | `--artifact-min-priority` |, | Also narrow the `-o` artifacts to this band, and record the band inside them. The deliberate opposite of `--min-priority`, and safe for the same reason it is declared. See [below](#what---min-priority-narrows) |
 | `--compact` | `false` | Deprecated. Use `--view compact` |
@@ -1344,28 +1344,36 @@ draugr tools list
 
 ## `draugr feeds`
 
-Fetch and inspect the exploitability datasets that raise a finding's severity by real-world
-signals. Fetching is explicit: a scan reads the cache and never reaches the network on its own,
-so a gated run stays reproducible and works on an air-gapped runner.
+Fetch and inspect the datasets a scan reads from `~/.draugr/feeds`. Fetching is explicit: a scan
+reads the cache and never reaches the network on its own, so a gated run stays reproducible and
+works on an air-gapped runner.
 
-### `draugr feeds update [kev|epss]`
+| Feed | Dataset | Read by |
+|------|---------|---------|
+| `kev` | CISA's Known Exploited Vulnerabilities catalog | [exploitability](saga-schema.md#configexploitability) |
+| `epss` | FIRST's EPSS scores | [exploitability](saga-schema.md#configexploitability) |
+| `govulndb` | the Go vulnerability database | [govulncheck](../../internal/scanners/govulncheck.md) |
 
-Download CISA's KEV catalog and FIRST's EPSS scores into `~/.draugr/feeds`. With no arguments,
-fetches both. A copy less than a day old is left alone unless `--force` is given.
+### `draugr feeds update [kev|epss|govulndb]`
+
+Download the feeds into `~/.draugr/feeds`. With no arguments, fetches all three. A copy less than a
+day old is left alone unless `--force` is given.
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--force` | `false` | fetch even if the cached copy is current |
 
 ```bash
-draugr feeds update            # both
+draugr feeds update            # all three
 draugr feeds update epss       # just the daily one
 draugr feeds update --force    # refetch regardless of age
 ```
 
 EPSS is published gzipped and is decompressed on the way in, so the cache holds a CSV the scanner
-can read directly. Each write is atomic. An interrupted fetch cannot leave half a catalog behind for
-the next scan to read as though it were complete.
+can read directly. The Go vulnerability database is published as a zip and unpacked into
+`~/.draugr/feeds/govulndb`, the directory govulncheck's `-db` reads; an archive whose index is
+empty or unreadable is refused and the previous copy kept. Each write is atomic. An interrupted
+fetch cannot leave half a catalog behind for the next scan to read as though it were complete.
 
 **In CI, run this as its own step.** A feed outage then fails where it happened rather than
 producing a scan that ranked everything as though nothing were exploited.
@@ -1375,13 +1383,16 @@ producing a scan that ranked everything as though nothing were exploited.
 What is cached, how old it is, where it came from, and the digest of each copy.
 
 ```
-FEED   FETCHED                AGE            SIZE       DIGEST
-kev    2026-08-01 09:12Z      6 hours        1.5 MiB    sha256:15b44d7c9c57
-epss   2026-07-29 08:55Z      3 days (stale) 10.3 MiB   sha256:41c20e9dc3cf
+FEED       FETCHED                AGE            SIZE       DIGEST
+kev        2026-09-23 22:05Z      6 hours        1.7 MiB    sha256:e4988831e6d3
+epss       2026-09-21 04:05Z      3 days (stale) 11.0 MiB   sha256:38015ed64ff2
+govulndb   2026-09-24 02:05Z      2 hours        3.2 MiB    sha256:f0645ee8b56c
 ```
 
-Age is the column that matters: EPSS is republished daily, so a stale copy does not fail. It ranks a
-finding lower than today's data would. A scan reading one warns and names the age.
+Age is the column that matters. A stale KEV or EPSS copy does not fail: it ranks a finding on older
+data, and a scan reading one warns and names the age. A stale `govulndb` copy is not read at all;
+govulncheck queries `vuln.go.dev` instead, and with `--offline` the control reports an error.
+`config.exploitability.maxAge` sets the limit for both.
 
 ### Using the cache in a scan
 

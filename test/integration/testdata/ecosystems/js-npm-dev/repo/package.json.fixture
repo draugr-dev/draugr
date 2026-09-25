@@ -1,0 +1,9 @@
+{
+  "name": "sealed-npm-dev",
+  "version": "1.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "minimist": "1.2.5"
+  }
+}

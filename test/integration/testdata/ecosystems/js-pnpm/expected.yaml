@@ -1,0 +1,15 @@
+# A sealed scan of the js-pnpm scenario reports the one vulnerable dependency in the lockfile
+# pnpm generated, at the line of its own entry. pnpm 12 writes its own install as a first YAML
+# document and the project as a second, so the entry is in the second.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: js-pnpm
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2021-44906
+    location: pnpm-lock.yaml:175
+    package: pnpm minimist 1.2.5

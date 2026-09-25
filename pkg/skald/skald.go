@@ -50,7 +50,11 @@ type jsonReport struct {
 	// incomplete, but a scanner that quietly did not run is indistinguishable, in the rest of this
 	// document, from one that ran and found nothing.
 	NotMeasured []notMeasuredReport `json:"notMeasured,omitempty"`
-	Priorities  *priorityCounts     `json:"priorities,omitempty"`
+	// DependencyFiles is what the dependency scans read, per component and control, and the
+	// dependency files in the tree none of them read, with the reason. A manifest no scanner could
+	// read contributes no findings, which is the same thing a clean one contributes.
+	DependencyFiles []dependencyFilesReport `json:"dependencyFiles,omitempty"`
+	Priorities      *priorityCounts         `json:"priorities,omitempty"`
 	// Suppressed are the findings a config.exclude rule set aside, in the bands they were ranked
 	// into. Counted apart from Priorities rather than folded in: an excused finding is not work,
 	// and a count that mixes them says neither how much there is to do nor how much was signed off.
@@ -407,6 +411,22 @@ type notMeasuredReport struct {
 	Reason    string `json:"reason"`
 }
 
+type dependencyFilesReport struct {
+	Component string `json:"component,omitempty"`
+	Control   string `json:"control"`
+	// Scanners are the scanners that accounted for what they read.
+	Scanners []string `json:"scanners"`
+	// Read counts the files at least one of them took packages from.
+	Read   int                `json:"read"`
+	Unread []unreadFileReport `json:"unread,omitempty"`
+}
+
+type unreadFileReport struct {
+	Repository string `json:"repository,omitempty"`
+	Path       string `json:"path"`
+	Reason     string `json:"reason"`
+}
+
 type statsInfo struct {
 	Jobs      int `json:"jobs"`
 	Scans     int `json:"scans"`
@@ -603,6 +623,16 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 		doc.NotMeasured = append(doc.NotMeasured, notMeasuredReport{
 			Control: sk.Control, Scanner: sk.Scanner, Component: sk.Component, Reason: sk.Reason,
 		})
+	}
+
+	for _, cov := range run.Inputs {
+		files := dependencyFilesReport{
+			Component: cov.Component, Control: cov.Control, Scanners: cov.Scanners, Read: cov.Read,
+		}
+		for _, u := range cov.Unread {
+			files.Unread = append(files.Unread, unreadFileReport{Repository: u.Repository, Path: u.Path, Reason: u.Reason})
+		}
+		doc.DependencyFiles = append(doc.DependencyFiles, files)
 	}
 
 	doc.Priorities, doc.Suppressed, doc.Findings = summarizePriorities(run, minPriority)

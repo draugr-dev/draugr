@@ -1,0 +1,11 @@
+project: jvm-maven
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: jvm-maven
+    repositories:
+      - url: ./jvm-maven

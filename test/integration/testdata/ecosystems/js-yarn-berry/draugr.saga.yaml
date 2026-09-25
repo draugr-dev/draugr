@@ -1,0 +1,11 @@
+project: js-yarn-berry
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: js-yarn-berry
+    repositories:
+      - url: ./js-yarn-berry

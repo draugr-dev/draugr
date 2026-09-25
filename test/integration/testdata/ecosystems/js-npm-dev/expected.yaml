@@ -1,0 +1,14 @@
+# trivyFs.includeDevDeps reports minimist, a devDependency. Without it Trivy leaves development
+# dependencies out and the scan reports nothing.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: js-npm-dev
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2021-44906
+    location: package-lock.json:15
+    package: npm minimist 1.2.5

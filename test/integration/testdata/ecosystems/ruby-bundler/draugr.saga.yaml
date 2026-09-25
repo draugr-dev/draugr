@@ -1,0 +1,11 @@
+project: ruby-bundler
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: ruby-bundler
+    repositories:
+      - url: ./ruby-bundler

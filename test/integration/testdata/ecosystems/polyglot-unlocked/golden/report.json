@@ -1,0 +1,182 @@
+{
+  "controls": [
+    {
+      "errors": 0,
+      "highest": "",
+      "name": "licenses",
+      "notes": 0,
+      "threshold": "",
+      "total": 0,
+      "verdict": "pass",
+      "warnings": 0
+    },
+    {
+      "errors": 1,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "sca",
+      "notes": 0,
+      "threshold": "",
+      "total": 1,
+      "verdict": "fail",
+      "warnings": 0
+    }
+  ],
+  "dependencyFiles": [
+    {
+      "component": "polyglot-unlocked",
+      "control": "licenses",
+      "read": 1,
+      "scanners": [
+        "trivy-license"
+      ],
+      "unread": [
+        {
+          "path": "api/pyproject.toml",
+          "reason": "no lockfile",
+          "repository": "./polyglot-unlocked"
+        },
+        {
+          "path": "crate/Cargo.toml",
+          "reason": "no lockfile",
+          "repository": "./polyglot-unlocked"
+        },
+        {
+          "path": "php/composer.json",
+          "reason": "no lockfile",
+          "repository": "./polyglot-unlocked"
+        },
+        {
+          "path": "rb/Gemfile",
+          "reason": "no lockfile",
+          "repository": "./polyglot-unlocked"
+        },
+        {
+          "path": "requirements-dev.txt",
+          "reason": "no packages read",
+          "repository": "./polyglot-unlocked"
+        },
+        {
+          "path": "svc/App.csproj",
+          "reason": "no lockfile",
+          "repository": "./polyglot-unlocked"
+        },
+        {
+          "path": "tools/requirements.txt",
+          "reason": "no pinned versions",
+          "repository": "./polyglot-unlocked"
+        },
+        {
+          "path": "web/package.json",
+          "reason": "no lockfile",
+          "repository": "./polyglot-unlocked"
+        }
+      ]
+    },
+    {
+      "component": "polyglot-unlocked",
+      "control": "sca",
+      "read": 1,
+      "scanners": [
+        "trivy-fs"
+      ],
+      "unread": [
+        {
+          "path": "api/pyproject.toml",
+          "reason": "no lockfile",
+          "repository": "./polyglot-unlocked"
+        },
+        {
+          "path": "crate/Cargo.toml",
+          "reason": "no lockfile",
+          "repository": "./polyglot-unlocked"
+        },
+        {
+          "path": "php/composer.json",
+          "reason": "no lockfile",
+          "repository": "./polyglot-unlocked"
+        },
+        {
+          "path": "rb/Gemfile",
+          "reason": "no lockfile",
+          "repository": "./polyglot-unlocked"
+        },
+        {
+          "path": "requirements-dev.txt",
+          "reason": "no packages read",
+          "repository": "./polyglot-unlocked"
+        },
+        {
+          "path": "svc/App.csproj",
+          "reason": "no lockfile",
+          "repository": "./polyglot-unlocked"
+        },
+        {
+          "path": "tools/requirements.txt",
+          "reason": "no pinned versions",
+          "repository": "./polyglot-unlocked"
+        },
+        {
+          "path": "web/package.json",
+          "reason": "no lockfile",
+          "repository": "./polyglot-unlocked"
+        }
+      ]
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:73028fc65ace43dc8aa96460a60603f87160872e45cefb7333690c0fafc8eec1",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 1,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0
+  },
+  "project": "polyglot-unlocked",
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./polyglot-unlocked"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "trivy-fs",
+      "version": "<cleared>"
+    },
+    {
+      "name": "trivy-license",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 2,
+    "scans": 2
+  },
+  "verdict": "fail"
+}

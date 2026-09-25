@@ -1,0 +1,11 @@
+project: python-pip-tools
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: python-pip-tools
+    repositories:
+      - url: ./python-pip-tools

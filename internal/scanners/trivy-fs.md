@@ -29,19 +29,26 @@ entry](../../docs/reference/glossary.md#sca-software-composition-analysis).
 ## Saga options
 
 ```yaml
-controllers:
+controls:
   sca:
     trivyFs:
       pkgTypes: [library]                          # skip the OS layer
       dbRepository: [registry.internal/trivy-db:2] # an internal mirror
+      filePatterns: ["pip:requirements-.*\\.txt"]  # more files for the pip analyzer
+      includeDevDeps: true                         # development dependencies too
+      detectionPriority: comprehensive             # read >=1.2 as 1.2
 ```
 
 | Option | What it does |
 |---|---|
 | `pkgTypes` | Which package types to analyze: `os`, `library`, or both (`--pkg-types`). Narrow it when the OS layer is a platform team's responsibility. |
 | `dbRepository` | OCI repositories to pull the vulnerability database from, in priority order (`--db-repository`). For runners with no route to a public registry. |
+| `filePatterns` | More files for an analyzer to read, each `analyzer:regex` (`--file-patterns`, once per entry). Trivy's pip analyzer reads only `requirements.txt`; the example adds files named `requirements-<something>.txt`. |
+| `includeDevDeps` | Report development dependencies (`--include-dev-deps`). Trivy leaves them out by default. Applies to npm, Yarn and Gradle. |
+| `detectionPriority` | `precise`, the default, reads pinned versions only. `comprehensive` also reads a range such as `>=1.2` in `requirements.txt` as its minimum version, and reports Go standard-library vulnerabilities (`--detection-priority`). |
 
-The same two options apply to the `trivy` image scanner and the `trivy-fs` filesystem scanner.
+`pkgTypes` and `dbRepository` also apply to the `trivy` image scanner. The other three decide which
+of a checkout's dependencies are read, and belong to `trivy-fs` only.
 Trivy's `--severity` and `--ignorefile` are deliberately absent: both drop findings inside the
 tool, where a suppression cannot be recorded or reviewed. Use `config.exclude` instead.
 
@@ -51,11 +58,15 @@ tool, where a suppression cannot be recorded or reviewed. Use `config.exclude` i
 - Trivy's SARIF output does **not** include license findings. They exist only in its JSON. That
   is why [`trivy-license`](trivy-license.md) is a separate scanner with its own JSON→SARIF
   conversion rather than another flag on this one.
+- Each `lang-pkgs` result in Trivy's JSON names a file it took packages from. Those are the files
+  the report counts as read; every other dependency file in the checkout is listed under
+  **Unread**, see [`sca`](../controllers/sca.md#unread).
 
 ## Data
 
 The **vulnerability database**, from `mirror.gcr.io` and `ghcr.io`, which are Trivy's own
-defaults in that order. Warmed once per run, and `--skip-db-update` is passed when `--offline`
-is set.
+defaults in that order. Warmed once per run. With `--offline`, Draugr passes `--skip-db-update` and
+`--offline-scan`. The second stops Trivy resolving a `pom.xml` against Maven Central, so a
+dependency the pom declares is read from the pom itself.
 
 `config.controls.sca.trivy.dbRepository` replaces both with an internal mirror.

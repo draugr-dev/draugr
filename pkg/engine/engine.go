@@ -553,6 +553,10 @@ type Result struct {
 	// the question the target asked. Reported because a scanner that quietly does not run is
 	// indistinguishable, in the output, from one that ran and found nothing.
 	Skipped []SkippedJob
+	// Inputs is what the dependency scans read, per component and control, with the dependency
+	// files in the tree that none of them read. Reported because a scan that could not read a
+	// manifest finds nothing in it, and that reads as a clean result.
+	Inputs []InputCoverage
 	// Scanners names every scanner this run used, deduplicated and sorted.
 	//
 	// Recorded because a report has to be able to say which tools produced its findings. The SARIF
@@ -1176,6 +1180,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		SBOMs:     docs,
 	}
 	res.Skipped = skipped
+	res.Inputs = inputCoverage(byCtl)
 	if len(ctlErrs) > 0 {
 		res.ScanErrors = ctlErrs
 	}
@@ -1323,6 +1328,16 @@ func appendJobs(dst []PlannedJob, control string, comp *saga.Component, jobs []p
 // can share a repository while disagreeing about who publishes it. The cached findings must never
 // be mutated, so the slice is copied.
 func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report {
+	// Copied before stamping: a cached or deduplicated report is shared by every component that
+	// scans the same repository, and each has to carry its own name.
+	if len(report.Inputs) > 0 {
+		inputs := make([]sarif.Input, len(report.Inputs))
+		copy(inputs, report.Inputs)
+		for i := range inputs {
+			inputs[i].Component = pj.Component
+		}
+		report.Inputs = inputs
+	}
 	if len(report.Results) == 0 {
 		return report
 	}
@@ -1804,9 +1819,10 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 	// Index the analyzers' verdicts by what identifies a dependency finding everywhere else:
 	// the repository it was found in, the package it is about, and the vulnerability id.
 	//
-	// The repository is part of the key deliberately. A component may hold several, and the same
-	// module can be called in one and merely required in another; a key without it would pick
-	// whichever was indexed last and report that verdict for both.
+	// The repository and the manifest are part of the key deliberately. A component may hold
+	// several repositories and a repository several Go modules, and the same dependency can be
+	// called in one and merely required in another; a key without them would report one module's
+	// verdict, and its call path, for all of them.
 	verdicts := map[reachKey]*sarif.Reachability{}
 	analyzers := map[string]*AnalyzerReachability{}
 	for _, cr := range controls {
@@ -1818,7 +1834,7 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 			if _, ok := analyzers[res.Reachability.Analyzer]; !ok {
 				analyzers[res.Reachability.Analyzer] = &AnalyzerReachability{Analyzer: res.Reachability.Analyzer}
 			}
-			key := reachKey{res.Repository, res.Package.Name, res.RuleID}
+			key := reachKey{res.Repository, res.Location.URI, res.Package.Name, res.RuleID}
 			verdicts[key] = strongerReachability(verdicts[key], res.Reachability)
 		}
 	}
@@ -1844,7 +1860,7 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 		kept := cr.Report.Results[:0]
 		for i := range cr.Report.Results {
 			res := cr.Report.Results[i]
-			key := reachKey{res.Repository, packageName(res), res.RuleID}
+			key := reachKey{res.Repository, res.Location.URI, packageName(res), res.RuleID}
 			switch {
 			case res.Reachability != nil:
 				// An analyzer's own finding. Keep it only where nothing else reported the same
@@ -1934,8 +1950,10 @@ func reachabilityRank(s sarif.ReachabilityState) int {
 // reachKey identifies one vulnerability in one package in one repository.
 type reachKey struct {
 	repository string
-	pkg        string
-	rule       string
+	// manifest is the file the dependency was declared in: a Go module's go.mod.
+	manifest string
+	pkg      string
+	rule     string
 }
 
 // packageName is the package a finding is about, or "" for a finding that is not about one.

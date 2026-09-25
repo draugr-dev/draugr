@@ -345,7 +345,8 @@ type ExploitabilityConfig struct {
 	// EPSS bump entirely, which is a thing someone might mean.
 	EPSSThreshold *float64 `yaml:"epssThreshold,omitempty"`
 	// MaxAge is how old a cached feed may be before "auto" refetches it and a scan warns that
-	// it is stale. Empty means the built-in default of 24 hours, which tracks EPSS being
+	// it is stale, and before govulncheck stops reading the local Go vulnerability database.
+	// Empty means the built-in default of 24 hours, which tracks EPSS being
 	// republished daily.
 	//
 	// Configurable because a runner deliberately pinned to a known copy of the data has a legitimate

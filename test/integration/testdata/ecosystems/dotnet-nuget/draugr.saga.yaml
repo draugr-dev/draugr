@@ -1,0 +1,11 @@
+project: dotnet-nuget
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: dotnet-nuget
+    repositories:
+      - url: ./dotnet-nuget

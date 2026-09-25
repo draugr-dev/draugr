@@ -62,26 +62,24 @@ func TestGitleaksWithoutAConfigStillCarriesOurs(t *testing.T) {
 }
 
 func TestGosecTakesRuleSelectionAndBuildTags(t *testing.T) {
-	got := gosecArgs("", plugin.Config{
+	runs := gosecArgs(twoGoModules(t), plugin.Config{
 		"include": []any{"G101", "G204"},
 		"exclude": []any{"G104"},
 		"tags":    []any{"integration"},
 	})
-	for _, want := range []string{"-include=G101,G204", "-exclude=G104", "-tags=integration"} {
-		if !slices.Contains(got, want) {
-			t.Errorf("missing %q in %v", want, got)
+	if len(runs) != 2 {
+		t.Fatalf("runs = %v", runs)
+	}
+	for _, got := range runs {
+		for _, want := range []string{"-include=G101,G204", "-exclude=G104", "-tags=integration"} {
+			if !slices.Contains(got, want) {
+				t.Errorf("missing %q in %v", want, got)
+			}
 		}
-	}
-	// gosec reads flags before the package pattern; an option after it becomes part of it.
-	if got[len(got)-1] != "./..." {
-		t.Errorf("package pattern must stay last: %v", got)
-	}
-}
-
-func TestGosecWithNoOptionsIsUnchanged(t *testing.T) {
-	want := []string{"gosec", "-fmt", "sarif", "-no-fail", "-track-suppressions", "./..."}
-	if got := gosecArgs("", nil); !slices.Equal(got, want) {
-		t.Errorf("got %v, want %v", got, want)
+		// gosec reads flags before the package pattern; an option after it becomes part of it.
+		if !strings.HasSuffix(got[len(got)-1], "/...") {
+			t.Errorf("package pattern must stay last: %v", got)
+		}
 	}
 }
 

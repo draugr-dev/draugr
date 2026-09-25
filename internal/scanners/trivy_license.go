@@ -77,6 +77,7 @@ func NewTrivyLicense() plugin.Scanner {
 	repo := newRepoScannerWithParser(info, trivyLicenseArgs, parseTrivyLicenses)
 	repo.cacheVersion = sharedTrivyVersion.cacheVersion
 	repo.run = retryingRunInDir("trivy", repo.run)
+	repo.accounts = true
 
 	image := tooladapter.New(tooladapter.Config{
 		Name:         info.Name,
@@ -181,6 +182,11 @@ const (
 // trivyLicenseDoc is the slice of Trivy's JSON this scanner reads.
 type trivyLicenseDoc struct {
 	Results []struct {
+		// Target, Class and Packages name the file a set of packages was read from, which Trivy
+		// reports beside the licenses it found in them.
+		Target   string         `json:"Target"`
+		Class    string         `json:"Class"`
+		Packages []trivyPackage `json:"Packages"`
 		Licenses []trivyLicense `json:"Licenses"`
 	} `json:"Results"`
 }
@@ -234,6 +240,9 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 	lines := newLineIndex(dir)
 
 	for _, res := range doc.Results {
+		if in, ok := trivyInput(dir, res.Class, res.Target, len(res.Packages)); ok {
+			report.Inputs = append(report.Inputs, in)
+		}
 		for _, lic := range res.Licenses {
 			level, why, ok := licenseLevel(lic, deny, warn)
 			if !ok {
@@ -247,7 +256,7 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 				Message: fmt.Sprintf("%s is %s. %s", lic.PkgName, lic.Name, why),
 				Location: sarif.Location{
 					URI:       lic.FilePath,
-					StartLine: lines.find(lic.FilePath, lic.PkgName),
+					StartLine: lines.find(lic.FilePath, lic.PkgName, ""),
 				},
 			})
 			report.Rules[ruleID] = sarif.Rule{
@@ -345,9 +354,23 @@ func newLineIndex(dir string) *lineIndex {
 // a line number is a nicety, never worth reading an unbounded file into memory for.
 const maxManifestBytes = 4 << 20 // 4 MiB
 
-// find returns the 1-based line where pkg is mentioned in the manifest, or 0 if it can't be
+// find returns the 1-based line that declares pkg in the manifest, or 0 if it can't be
 // determined. Zero is honest: the finding still points at the file.
-func (l *lineIndex) find(relPath, pkg string) int {
+//
+// A line counts only where the name stands as a whole name, and never in a comment: a lockfile
+// names a package in the comments explaining why something else is there ("# via flask"), and in
+// the dependency lists of the packages that need it, before the package's own entry. Where the
+// version is known, candidates are ranked by how much the line looks like the entry itself:
+//
+//  1. the name followed directly by the version: `minimist@1.2.5:`, `flask==0.12.2`,
+//     `rack (2.2.3)`;
+//  2. the name with the version on one of the next two lines: `name = "flask"` above
+//     `version = "0.12.2"` in uv.lock, poetry.lock, Cargo.lock and composer.lock;
+//  3. the name anywhere.
+//
+// A reference that happens to carry the version, `requires-dist = [{ name = "flask", specifier =
+// "==0.12.2" }]`, has words between the two and ranks with the third.
+func (l *lineIndex) find(relPath, pkg, version string) int {
 	if relPath == "" || pkg == "" {
 		return 0
 	}
@@ -356,12 +379,91 @@ func (l *lineIndex) find(relPath, pkg string) int {
 		lines = readLines(filepath.Join(l.dir, relPath))
 		l.files[relPath] = lines
 	}
+	var best [3]int
 	for i, line := range lines {
-		if strings.Contains(line, pkg) {
+		if isCommentLine(line) || !containsName(line, pkg) {
+			continue
+		}
+		rank := 2
+		switch {
+		case version == "":
 			return i + 1
+		case versionFollowsName(line, pkg, version):
+			rank = 0
+		case versionBelow(lines, i, version):
+			rank = 1
+		}
+		if best[rank] == 0 {
+			best[rank] = i + 1
+		}
+	}
+	for _, n := range best {
+		if n > 0 {
+			return n
 		}
 	}
 	return 0
+}
+
+// versionFollowsName reports whether version comes right after a whole-name occurrence of name in
+// line, with only separators between them.
+func versionFollowsName(line, name, version string) bool {
+	lower, want := strings.ToLower(line), strings.ToLower(name)
+	for from := 0; ; {
+		i := strings.Index(lower[from:], want)
+		if i < 0 {
+			return false
+		}
+		start, end := from+i, from+i+len(want)
+		from = start + 1
+		if (start > 0 && isNameByte(lower[start-1])) || (end < len(lower) && isNameByte(lower[end])) {
+			continue
+		}
+		rest := strings.TrimLeft(lower[end:], "@=:~^<>!( \t\"'v")
+		if strings.HasPrefix(rest, strings.ToLower(version)) {
+			return true
+		}
+	}
+}
+
+// versionBelow reports whether one of the two lines after lines[i] carries version, the shape of an
+// entry written one field per line.
+func versionBelow(lines []string, i int, version string) bool {
+	for j := i + 1; j <= i+2 && j < len(lines); j++ {
+		if strings.Contains(lines[j], version) {
+			return true
+		}
+	}
+	return false
+}
+
+// isCommentLine reports whether a manifest line is a comment in any of the syntaxes lockfiles use.
+func isCommentLine(line string) bool {
+	t := strings.TrimSpace(line)
+	return strings.HasPrefix(t, "#") || strings.HasPrefix(t, "//")
+}
+
+// containsName reports whether name appears in line as a whole package name, case-insensitively:
+// `rack` in `rack (2.2.3)` and not in `rack-test`, `Flask==0.12.2` for `flask`.
+func containsName(line, name string) bool {
+	lower, want := strings.ToLower(line), strings.ToLower(name)
+	for from := 0; ; {
+		i := strings.Index(lower[from:], want)
+		if i < 0 {
+			return false
+		}
+		start, end := from+i, from+i+len(want)
+		if (start == 0 || !isNameByte(lower[start-1])) && (end == len(lower) || !isNameByte(lower[end])) {
+			return true
+		}
+		from = start + 1
+	}
+}
+
+// isNameByte reports whether b can continue a package name, so that a match ending beside one is a
+// longer name rather than this one.
+func isNameByte(b byte) bool {
+	return b >= 'a' && b <= 'z' || b >= '0' && b <= '9' || b == '-' || b == '_' || b == '.'
 }
 
 // readLines reads a manifest, returning nil on any problem, a missing line number degrades the

@@ -1,0 +1,14 @@
+# A sealed scan of the js-yarn-berry scenario reports the one vulnerable dependency in the lockfile
+# Yarn 4 generated, at the line of its own entry.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: js-yarn-berry
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2021-44906
+    location: yarn.lock:8
+    package: yarn minimist 1.2.5

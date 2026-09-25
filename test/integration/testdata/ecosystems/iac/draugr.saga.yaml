@@ -1,0 +1,11 @@
+project: iac
+release:
+  version: "1.0"
+config:
+  controls:
+    iac:
+      enabled: true
+components:
+  - name: iac
+    repositories:
+      - url: ./iac

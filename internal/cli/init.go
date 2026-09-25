@@ -153,7 +153,7 @@ func scaffoldSaga(dir, name string) string {
 	// itself must be one Draugr's own next command accepts. And `init` then `validate` are the first
 	// two steps of the quickstart.
 	fmt.Fprintf(&b, "project: %s\nrelease:\n  version: \"0.0.0\"\n", name)
-	b.WriteString("config:\n  controllers:\n")
+	b.WriteString("config:\n  controls:\n")
 	b.WriteString("    sca:\n      enabled: true       # dependency vulnerabilities (Trivy)\n")
 	b.WriteString("    secrets:\n      enabled: true       # leaked credentials (Gitleaks)\n")
 	b.WriteString("    sast:\n      enabled: true       # code security (Semgrep)\n")

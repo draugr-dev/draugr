@@ -36,6 +36,43 @@ const trivyConfigSchema = `{
   }
 }`
 
+// trivyFSConfigSchema is trivyConfigSchema plus the options that decide which dependencies a
+// filesystem scan reads: files Trivy does not read by default, development dependencies, and
+// version ranges.
+const trivyFSConfigSchema = `{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "pkgTypes": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["os", "library"] },
+      "description": "Which package types to analyze. Defaults to both. Narrow it to [\"library\"] when the OS layer is somebody else's responsibility, a base image maintained by a platform team, so the report covers what this component controls."
+    },
+    "dbRepository": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "OCI repositories to pull the vulnerability database from, in priority order. Point it at an internal mirror where the runner cannot reach a public registry."
+    },
+    "filePatterns": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9-]+:.+)$" },
+      "description": "More files for an analyzer to read, each analyzer:regex, e.g. [\"pip:requirements-.*\\\\.txt\"]. Trivy's pip analyzer reads only requirements.txt."
+    },
+    "includeDevDeps": {
+      "type": "boolean",
+      "description": "Report development dependencies too. Trivy leaves them out by default. Applies to npm, Yarn and Gradle."
+    },
+    "detectionPriority": {
+      "type": "string",
+      "anyOf": [
+        { "const": "precise", "description": "Pinned versions only. The default." },
+        { "const": "comprehensive", "description": "Also a range such as >=1.2 in requirements.txt, read as its minimum version, and Go standard-library vulnerabilities." }
+      ],
+      "description": "How Trivy decides which version of a dependency is installed."
+    }
+  }
+}`
+
 // NewTrivy returns a Scanner that runs Aqua Trivy against container images. It serves the
 // "images" control.
 //
@@ -73,7 +110,7 @@ func NewTrivyFS() plugin.Scanner {
 			Binary:       "trivy",
 			Controls:     []string{"sca"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},
-			ConfigSchema: json.RawMessage(trivyConfigSchema),
+			ConfigSchema: json.RawMessage(trivyFSConfigSchema),
 		},
 		trivyFSArgs,
 		parseTrivyVulns,
@@ -81,16 +118,34 @@ func NewTrivyFS() plugin.Scanner {
 	s.cacheVersion = sharedTrivyVersion.cacheVersion
 	s.prewarm = sharedTrivyDB.warm
 	s.run = retryingRunInDir("trivy", s.run)
+	s.accounts = true
 	return s
 }
 
-// trivyFSArgs builds `trivy fs --quiet --scanners vuln --format json <dir>`.
+// trivyFSArgs builds `trivy fs --quiet --scanners vuln --format json --list-all-pkgs <dir>`.
 //
 // JSON rather than SARIF because the SARIF says which package only in prose. See
-// trivy_vuln_json.go for what that costs and what it buys.
+// trivy_vuln_json.go for what that costs and what it buys. --list-all-pkgs because the package
+// list is where Trivy records the line of each package's entry in its manifest.
 func trivyFSArgs(dir string, cfg plugin.Config) []string {
-	argv := showSuppressedArgs([]string{"trivy", "fs", "--quiet", "--scanners", "vuln", "--format", "json"})
-	return offlineTrivyArgs(append(trivyOptions(argv, cfg), dir))
+	argv := showSuppressedArgs([]string{"trivy", "fs", "--quiet", "--scanners", "vuln", "--format", "json", "--list-all-pkgs"})
+	return offlineTrivyArgs(append(trivyFSOptions(trivyOptions(argv, cfg), cfg), dir))
+}
+
+// trivyFSOptions adds the options that decide which dependencies a filesystem scan reads. Each
+// widens what Trivy examines; none drops a finding.
+func trivyFSOptions(argv []string, cfg plugin.Config) []string {
+	// One flag per pattern: a regex may hold a comma, which a joined value would split.
+	for _, p := range stringList(cfg, "filePatterns") {
+		argv = append(argv, "--file-patterns", p)
+	}
+	if on, _ := cfg["includeDevDeps"].(bool); on {
+		argv = append(argv, "--include-dev-deps")
+	}
+	if v, _ := cfg["detectionPriority"].(string); v != "" {
+		argv = append(argv, "--detection-priority", v)
+	}
+	return argv
 }
 
 // showSuppressedArgs asks Trivy for what it excluded, where the Trivy that will run can answer.
@@ -119,12 +174,14 @@ func trivyOptions(argv []string, cfg plugin.Config) []string {
 	return argv
 }
 
-// offlineTrivyArgs adds --skip-db-update when this process must make no network calls.
+// offlineTrivyArgs adds --skip-db-update and --offline-scan when this process must make no network
+// calls.
 //
 // Skipping the prewarm is not enough on its own: Trivy refreshes its database at scan time too,
 // so without this an offline run still reaches out, several times, once per job. With it, Trivy
 // uses its local cache and says plainly when there isn't one, which is a better message than
-// anything Draugr could write on its behalf.
+// anything Draugr could write on its behalf. --offline-scan stops the other request Trivy makes
+// during a scan, resolving a pom.xml's dependencies against Maven Central.
 func offlineTrivyArgs(argv []string) []string {
 	if !netpolicy.Offline() {
 		return argv
@@ -132,7 +189,7 @@ func offlineTrivyArgs(argv []string) []string {
 	// Before the positional argument: Trivy takes flags ahead of the target.
 	out := make([]string, 0, len(argv)+2)
 	out = append(out, argv[:len(argv)-1]...)
-	out = append(out, "--skip-db-update", "--skip-java-db-update")
+	out = append(out, "--skip-db-update", "--skip-java-db-update", "--offline-scan")
 	return append(out, argv[len(argv)-1])
 }
 

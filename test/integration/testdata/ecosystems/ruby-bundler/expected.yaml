@@ -1,0 +1,14 @@
+# A sealed scan of the ruby-bundler scenario reports the one vulnerable dependency in the lockfile
+# Bundler generated, at the line of its own entry.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: ruby-bundler
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2022-30122
+    location: Gemfile.lock:4
+    package: bundler rack 2.2.3

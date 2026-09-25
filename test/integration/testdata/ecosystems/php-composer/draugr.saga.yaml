@@ -1,0 +1,11 @@
+project: php-composer
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: php-composer
+    repositories:
+      - url: ./php-composer

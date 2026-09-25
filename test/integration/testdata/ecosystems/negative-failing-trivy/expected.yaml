@@ -1,0 +1,14 @@
+# Trivy exits 2 with a message. The control reports the exit status and the message rather than
+# passing with no findings.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: negative-failing-trivy
+      repositories: ["."]
+
+sealed:
+  failingTool: trivy
+
+errors:
+  - control: sca
+    contains: "exit status 2: sealed fixture: this program failed on purpose"
