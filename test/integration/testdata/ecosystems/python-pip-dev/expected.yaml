@@ -1,5 +1,6 @@
 # trivyFs.filePatterns adds requirements-dev.txt to what Trivy's pip analyzer reads. Without it the
-# file is not read and the scan reports nothing.
+# file is not read and the scan reports nothing. init writes a pattern that reaches the file, so the
+# descriptor it proposes reports the same finding.
 proves: [trivy-fs.filePatterns]
 
 init:
@@ -14,7 +15,3 @@ findings:
     rule: CVE-2018-1000656
     location: requirements-dev.txt:2
     package: pip Flask 0.12.2
-
-# init writes no filePatterns, so its descriptor does not read requirements-dev.txt.
-initScan:
-  unreported: [CVE-2018-1000656]

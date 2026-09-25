@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -89,7 +90,7 @@ func TestInitNamesTheFilesBehindEachScanner(t *testing.T) {
 func TestInitOnAnEmptyTreeWritesTheBaseline(t *testing.T) {
 	t.Parallel()
 	got, console := runInitIn(t, map[string]string{"README.md": "shop\n"}, initOptions{})
-	for _, absent := range []string{"reachability", "retirejs", "grypeFs", "gosec", "images", "spec:", "Unread", "Directories", " · "} {
+	for _, absent := range []string{"reachability", "retirejs", "grypeFs", "trivyFs", "gosec", "images", "spec:", "Unread", "Directories", " · "} {
 		if strings.Contains(got, absent) {
 			t.Errorf("empty tree wrote %q:\n%s", absent, got)
 		}
@@ -228,6 +229,68 @@ func TestInitFoundRowNamesEveryGoModule(t *testing.T) {
 	}, initOptions{})
 	if !strings.Contains(console, "  go  go.mod · tools/go.mod  sca · gosec · govulncheck\n") {
 		t.Errorf("console does not name both modules in one row:\n%s", console)
+	}
+}
+
+// A requirements file named anything but requirements.txt is one Trivy opens only through a file
+// pattern, so init writes the pattern that reaches each way such a file is named, and names the
+// files behind it.
+func TestInitWritesFilePatternsForRequirementsTrivyDoesNotOpen(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		name  string
+		files map[string]string
+		want  string
+	}{
+		{"named", map[string]string{"requirements-dev.txt": "flask==0.12.2\n", "requirements.txt": "click==8.0.0\n"},
+			`filePatterns: ['pip:requirements[^/]*\.txt$']   # Trivy opens requirements.txt and no other name · requirements-dev.txt` + "\n"},
+		{"in a directory", map[string]string{"requirements/test.txt": "pytest==8.0.0\n"},
+			`filePatterns: ['pip:(^|/)requirements/[^/]+\.txt$']   # Trivy opens requirements.txt and no other name · requirements/test.txt` + "\n"},
+		{"both", map[string]string{"api/dev-requirements.txt": "black==24.1.0\n", "web/requirements/test.txt": "pytest==8.0.0\n"},
+			`filePatterns: ['pip:requirements[^/]*\.txt$', 'pip:(^|/)requirements/[^/]+\.txt$']`},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			got, console := runInitIn(t, c.files, initOptions{})
+			if !strings.Contains(got, "      trivyFs:\n        "+c.want) {
+				t.Errorf("descriptor missing %q:\n%s", c.want, got)
+			}
+			if !strings.Contains(console, "read by a file pattern") {
+				t.Errorf("console does not list the files under FOUND:\n%s", console)
+			}
+		})
+	}
+
+	// requirements.txt alone is what Trivy opens anyway, and needs no pattern.
+	got, _ := runInitIn(t, map[string]string{"requirements.txt": "flask==0.12.2\n"}, initOptions{})
+	if strings.Contains(got, "trivyFs") {
+		t.Errorf("init wrote a pattern for requirements.txt:\n%s", got)
+	}
+}
+
+// The patterns are Go regexes, which is what Trivy compiles them as, matched against the path
+// relative to the scan root. Each must reach every requirements file init proposes it for and
+// nothing that merely contains the word.
+func TestPipFilePatternsReachWhatInitProposesThemFor(t *testing.T) {
+	t.Parallel()
+	compile := func(p string) *regexp.Regexp {
+		return regexp.MustCompile(strings.TrimPrefix(p, "pip:"))
+	}
+	named, inDir := compile(pipNamedPattern), compile(pipDirPattern)
+	for _, rel := range []string{"requirements-dev.txt", "dev-requirements.txt", "svc/api/requirements-test.txt"} {
+		if !named.MatchString(rel) {
+			t.Errorf("%s does not reach %s", pipNamedPattern, rel)
+		}
+	}
+	for _, rel := range []string{"requirements/test.txt", "svc/requirements/dev.txt"} {
+		if !inDir.MatchString(rel) {
+			t.Errorf("%s does not reach %s", pipDirPattern, rel)
+		}
+	}
+	for _, rel := range []string{"requirements.txt.bak", "requirements/sub/dev.txt", "myrequirements/dev.txt", "notes.txt"} {
+		if named.MatchString(rel) || inDir.MatchString(rel) {
+			t.Errorf("a pattern reaches %s, which is no requirements file", rel)
+		}
 	}
 }
 

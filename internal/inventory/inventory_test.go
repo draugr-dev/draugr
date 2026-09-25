@@ -41,6 +41,9 @@ func TestReadFindsWhatATreeHolds(t *testing.T) {
 
 		"ml/setup.py":         "setup(install_requires=['requests'])\n",
 		"ml/requirements.txt": "requests\n",
+		// Trivy's pip analyzer opens requirements.txt by name and no other requirements file.
+		"ml/requirements-dev.txt": "pytest==8.0.0\n",
+		"ml/dev-requirements.txt": "black==24.1.0\n",
 
 		"deploy/terraform/main.tf":                 "",
 		"deploy/terraform/.terraform/modules/m.tf": "",
@@ -73,6 +76,7 @@ func TestReadFindsWhatATreeHolds(t *testing.T) {
 		{"OpenAPI", got.OpenAPI, []string{"api/openapi.yaml", "api/v1/swagger.json"}},
 		{"Parts", got.Parts, []string{"ml", "tools", "web"}},
 		{"TrivyUnread", paths(got.TrivyUnread), []string{"ml/setup.py"}},
+		{"TrivyByPattern", paths(got.TrivyByPattern), []string{"ml/dev-requirements.txt", "ml/requirements-dev.txt"}},
 	} {
 		if !slices.Equal(c.got, c.want) {
 			t.Errorf("%s = %q, want %q", c.field, c.got, c.want)

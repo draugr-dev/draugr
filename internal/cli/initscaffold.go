@@ -63,6 +63,47 @@ func trivyUnreadNames(t inventory.Tree) string {
 	return strings.Join(names, " or ")
 }
 
+// The trivyFs.filePatterns that point Trivy's pip analyzer at a requirements file it does not open
+// by name. Trivy matches each regex against the path relative to the scan root.
+const (
+	// pipNamedPattern reaches a .txt whose name holds "requirements": requirements-dev.txt,
+	// dev-requirements.txt.
+	pipNamedPattern = `pip:requirements[^/]*\.txt$`
+	// pipDirPattern reaches a .txt directly under a directory named requirements.
+	pipDirPattern = `pip:(^|/)requirements/[^/]+\.txt$`
+)
+
+// pipFilePatterns are the patterns that reach the requirements files in TrivyByPattern, one for
+// each way a requirements file is named.
+func pipFilePatterns(t inventory.Tree) []string {
+	var named, inDir bool
+	for _, f := range t.TrivyByPattern {
+		if strings.Contains(path.Base(f.Path), "requirements") {
+			named = true
+		} else {
+			inDir = true
+		}
+	}
+	var out []string
+	if named {
+		out = append(out, pipNamedPattern)
+	}
+	if inDir {
+		out = append(out, pipDirPattern)
+	}
+	return out
+}
+
+// yamlStrings renders a flow sequence of single-quoted strings, which YAML reads without escapes,
+// so a regex's backslashes are written once.
+func yamlStrings(items []string) string {
+	quoted := make([]string, len(items))
+	for i, s := range items {
+		quoted[i] = "'" + strings.ReplaceAll(s, "'", "''") + "'"
+	}
+	return "[" + strings.Join(quoted, ", ") + "]"
+}
+
 // scaffoldSaga renders a starter Saga for what the tree holds.
 func scaffoldSaga(t inventory.Tree, name string, perDirectory bool) string {
 	// note appends the paths behind a line to its comment, so the reason a control is on can be
@@ -90,6 +131,10 @@ func scaffoldSaga(t inventory.Tree, name string, perDirectory bool) string {
 	}
 	b.WriteString("  controls:\n")
 	b.WriteString("    sca:\n      enabled: true       # dependency vulnerabilities (Trivy)\n")
+	if patterns := pipFilePatterns(t); len(patterns) > 0 {
+		fmt.Fprintf(&b, "      trivyFs:\n        filePatterns: %s   # Trivy opens requirements.txt and no other name%s\n",
+			yamlStrings(patterns), note(pathList(filePaths(t.TrivyByPattern))))
+	}
 	if len(t.VendoredJS) > 0 {
 		fmt.Fprintf(&b, "      retirejs:\n        enabled: true     # copied JavaScript, outside any lockfile%s\n",
 			note(pathList(t.VendoredJS)))
@@ -257,6 +302,9 @@ func foundRows(t inventory.Tree) []foundRow {
 	}
 	if len(t.VendoredJS) > 0 {
 		rows = append(rows, foundRow{"copied JavaScript", pathList(t.VendoredJS), "retirejs"})
+	}
+	if len(t.TrivyByPattern) > 0 {
+		rows = append(rows, foundRow{"read by a file pattern", pathList(filePaths(t.TrivyByPattern)), "trivy-fs filePatterns"})
 	}
 	if len(t.TrivyUnread) > 0 {
 		rows = append(rows, foundRow{"read by Grype only", pathList(filePaths(t.TrivyUnread)), "grype-fs"})

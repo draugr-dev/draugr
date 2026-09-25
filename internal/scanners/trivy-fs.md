@@ -46,7 +46,7 @@ config:
 |---|---|
 | `pkgTypes` | Which package types to analyze: `os`, `library`, or both (`--pkg-types`). Narrow it when the OS layer is a platform team's responsibility. |
 | `dbRepository` | OCI repositories to pull the vulnerability database from, in priority order (`--db-repository`). For runners with no route to a public registry. |
-| `filePatterns` | More files for an analyzer to read, each `analyzer:regex` (`--file-patterns`, once per entry). Trivy's pip analyzer reads only `requirements.txt`; the example adds files named `requirements-<something>.txt`. |
+| `filePatterns` | More files for an analyzer to read, each `analyzer:regex` (`--file-patterns`, once per entry). Trivy's pip analyzer reads only `requirements.txt`; the example adds files named `requirements-<something>.txt`. `draugr init` writes the patterns for the requirements files it finds. |
 | `includeDevDeps` | Report development dependencies (`--include-dev-deps`). Trivy leaves them out by default. Applies to npm, Yarn and Gradle. |
 | `detectionPriority` | `precise`, the default, reads pinned versions only. `comprehensive` also reads a range such as `>=1.2` in `requirements.txt` as its minimum version, and reports Go standard-library vulnerabilities (`--detection-priority`). |
 
