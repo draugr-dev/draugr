@@ -14,3 +14,7 @@ findings:
     rule: CVE-2021-44906
     location: package-lock.json:15
     package: npm minimist 1.2.5
+
+# init leaves includeDevDeps at its default, so its descriptor does not report the devDependency.
+initScan:
+  unreported: [CVE-2021-44906]

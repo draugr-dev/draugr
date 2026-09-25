@@ -1,6 +1,7 @@
 package sealed
 
 import (
+	"database/sql"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -232,5 +233,115 @@ func TestWriteRetireRepoIntoAFile(t *testing.T) {
 func TestTheCheckedInAdvisoriesLoad(t *testing.T) {
 	if _, err := LoadAdvisories("../integration/testdata/ecosystems/advisories.yaml"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestWriteGrypeDB(t *testing.T) {
+	home := t.TempDir()
+	built := time.Date(2026, 9, 24, 6, 0, 0, 0, time.UTC)
+	advs := loadTestAdvisories(t)
+	advs.Advisories = append(advs.Advisories, Advisory{
+		ID: "CVE-2020-0001", Ecosystem: "pip", Package: "Flask", Fixed: "1.0", Severity: "LOW", Title: "second",
+	})
+	if err := WriteGrypeDB(home, advs, built); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(home, ".cache", "grype", "db", "6")
+	db, err := sql.Open("sqlite", "file:"+filepath.Join(dir, "vulnerability.db")+"?mode=ro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+
+	var stamp string
+	var model, revision, addition int
+	if err := db.QueryRow(`SELECT build_timestamp, model, revision, addition FROM db_metadata`).
+		Scan(&stamp, &model, &revision, &addition); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(stamp, "2026-09-24") || model != 6 || revision != grypeSchemaRevision || addition != grypeSchemaAddition {
+		t.Errorf("db_metadata = %s %d.%d.%d", stamp, model, revision, addition)
+	}
+
+	rows, err := db.Query(`SELECT p.ecosystem, p.name, v.name, b.value FROM affected_package_handles a
+		JOIN packages p ON p.id = a.package_id
+		JOIN vulnerability_handles v ON v.id = a.vulnerability_id
+		JOIN blobs b ON b.id = a.blob_id ORDER BY a.id`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var got []string
+	for rows.Next() {
+		var eco, pkg, vuln, blob string
+		if err := rows.Scan(&eco, &pkg, &vuln, &blob); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, eco+" "+pkg+" "+vuln+" "+blob)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		`python flask CVE-2018-1000656 {"cves":["CVE-2018-1000656"],"ranges":[{"fix":{"state":"fixed","version":"0.12.3"},"version":{"constraint":"<0.12.3","type":"python"}}]}`,
+		`go-module golang.org/x/text CVE-2021-38561 {"cves":["CVE-2021-38561"],"ranges":[{"fix":{"state":"fixed","version":"0.3.7"},"version":{"constraint":"<0.3.7","type":"go"}}]}`,
+		`python flask CVE-2020-0001 {"cves":["CVE-2020-0001"],"ranges":[{"fix":{"state":"fixed","version":"1.0"},"version":{"constraint":"<1.0","type":"python"}}]}`,
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("affected packages:\n%s\nwant, with the js advisory left out and both flask advisories on one package:\n%s",
+			strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	var packages int
+	if err := db.QueryRow(`SELECT count(*) FROM packages`).Scan(&packages); err != nil || packages != 2 {
+		t.Errorf("packages = %d (%v), want flask once and x/text", packages, err)
+	}
+
+	raw, err := os.ReadFile(filepath.Join(dir, "import.json")) // #nosec G304 -- under t.TempDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var imported struct {
+		Digest        string `json:"digest"`
+		ClientVersion string `json:"client_version"`
+	}
+	if err := json.Unmarshal(raw, &imported); err != nil {
+		t.Fatal(err)
+	}
+	digest, err := xxh64File(filepath.Join(dir, "vulnerability.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if imported.Digest != "xxh64:"+digest || imported.ClientVersion != "v6.1.9" {
+		t.Errorf("import.json = %s, want the database's digest xxh64:%s and v6.1.9", raw, digest)
+	}
+	// Written twice, the second replaces the first rather than failing on tables that exist.
+	if err := WriteGrypeDB(home, advs, built); err != nil {
+		t.Errorf("rewrite: %v", err)
+	}
+}
+
+func TestGrypePackageName(t *testing.T) {
+	for _, tc := range [][3]string{
+		{"pip", "Zope.Interface", "zope-interface"},
+		{"pip", "typing_extensions", "typing-extensions"},
+		{"maven", "org.apache.logging.log4j:log4j-core", "org.apache.logging.log4j:log4j-core"},
+		{"nuget", "Newtonsoft.Json", "Newtonsoft.Json"},
+	} {
+		if got := grypePackageName(tc[0], tc[1]); got != tc[2] {
+			t.Errorf("grypePackageName(%s, %s) = %s, want %s", tc[0], tc[1], got, tc[2])
+		}
+	}
+}
+
+func TestWriteGrypeDBIntoAFile(t *testing.T) {
+	blocked := filepath.Join(t.TempDir(), "home")
+	if err := os.WriteFile(blocked, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteGrypeDB(blocked, loadTestAdvisories(t), time.Now()); err == nil {
+		t.Error("wrote a database under a file")
+	}
+	if _, err := xxh64File(filepath.Join(blocked, "missing")); err == nil {
+		t.Error("digested a file that does not exist")
 	}
 }

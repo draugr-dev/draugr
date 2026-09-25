@@ -12,3 +12,11 @@ sealed:
 errors:
   - control: sca
     contains: "exit status 2: sealed fixture: this program failed on purpose"
+
+# init enables iac as well, which Trivy also serves, and it reports the failure the same way.
+initScan:
+  errors:
+    - control: sca
+      contains: "exit status 2: sealed fixture: this program failed on purpose"
+    - control: iac
+      contains: "exit status 2: sealed fixture: this program failed on purpose"

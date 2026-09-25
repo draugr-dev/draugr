@@ -1,9 +1,16 @@
-# A PDM project with the pdm.lock PDM generated, which Trivy does not read and grype-fs does.
-# init turns grype-fs on for it; the sealed scan runs Trivy alone, and the golden report.json names
-# pdm.lock under dependencyFiles as not read.
+# A PDM project with the pdm.lock PDM generated, which Trivy does not read and grype-fs does. The
+# descriptor turns grype-fs on, as init does, and the finding is Grype's, matched against the sealed
+# Grype database. Grype reports no line, and names the package in its rule id.
 init:
   controls: [sca, secrets, sast, iac]
   scanners: [sca.grypeFs]
   components:
     - name: python-pdm
       repositories: ["."]
+
+findings:
+  - control: sca
+    tool: grype
+    rule: CVE-2018-1000656-flask
+    location: pdm.lock:1
+    package: python flask 0.12.2

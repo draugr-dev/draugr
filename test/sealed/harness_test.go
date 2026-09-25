@@ -39,6 +39,11 @@ func TestContainerArgs(t *testing.T) {
 	if cmd := c.Command("/w", "true"); cmd.Args[0] != "docker" || cmd.Args[len(cmd.Args)-1] != "true" {
 		t.Errorf("Command = %v", cmd.Args)
 	}
+
+	c.Server, c.Served, c.RequestLog = "/w/bin/serve", "/w/served", "/w/requests.log"
+	if args := strings.Join(c.Args("/w", "draugr", "scan"), " "); !strings.HasSuffix(args, Image+" /w/bin/serve /w/served /w/requests.log draugr scan") {
+		t.Errorf("with a server, the command does not run beside it:\n%s", args)
+	}
 }
 
 func TestHostContainer(t *testing.T) {
@@ -191,6 +196,38 @@ func TestPrepareWithoutARepo(t *testing.T) {
 	s := Scenario{Name: "none", Dir: t.TempDir()}
 	if _, err := s.Prepare(t.TempDir()); err == nil {
 		t.Error("prepared a scenario with no repo directory")
+	}
+}
+
+func TestCopyIfPresent(t *testing.T) {
+	s := Scenario{Name: "demo", Dir: t.TempDir()}
+	writeFixture(t, filepath.Join(s.Dir, "home", ".m2", "settings.xml"+FixtureSuffix), "<settings/>\n")
+	dst := t.TempDir()
+	if err := s.CopyIfPresent("home", dst); err != nil {
+		t.Fatal(err)
+	}
+	if body, err := os.ReadFile(filepath.Join(dst, ".m2", "settings.xml")); err != nil || string(body) != "<settings/>\n" { // #nosec G304 -- under t.TempDir()
+		t.Errorf("copied %q (%v)", body, err)
+	}
+	if err := s.CopyIfPresent("served", filepath.Join(dst, "served")); err != nil {
+		t.Errorf("an absent directory: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dst, "served")); !os.IsNotExist(err) {
+		t.Errorf("an absent directory made %s: %v", filepath.Join(dst, "served"), err)
+	}
+	// Into a file, where the directory cannot be made.
+	blocked := filepath.Join(dst, ".m2", "settings.xml")
+	if err := s.CopyIfPresent("home", blocked); err == nil {
+		t.Error("copied into a file")
+	}
+}
+
+func TestScanFlags(t *testing.T) {
+	if got := (RunOptions{}).ScanFlags(); !slices.Contains(got, "--offline") {
+		t.Errorf("default flags = %v, want --offline", got)
+	}
+	if got := (RunOptions{WithoutOffline: true}).ScanFlags(); slices.Contains(got, "--offline") {
+		t.Errorf("withoutOffline flags = %v", got)
 	}
 }
 

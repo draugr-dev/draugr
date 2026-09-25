@@ -31,6 +31,10 @@ type Container struct {
 	Env map[string]string
 	// UID and GID are who the container runs as, so what it writes belongs to the invoking user.
 	UID, GID int
+	// Server, when set, is the serve helper built from ./serve. Every command then runs beside
+	// ServedHandler on ServedAddr, offering the files under Served and logging each request to
+	// RequestLog.
+	Server, Served, RequestLog string
 }
 
 // Home is the HOME a sealed run sees.
@@ -77,6 +81,9 @@ func (c Container) Args(dir string, argv ...string) []string {
 		args = append(args, "--env", k+"="+env[k])
 	}
 	args = append(args, Image)
+	if c.Server != "" {
+		args = append(args, c.Server, c.Served, c.RequestLog)
+	}
 	return append(args, argv...)
 }
 

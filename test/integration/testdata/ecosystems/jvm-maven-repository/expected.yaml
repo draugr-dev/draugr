@@ -1,0 +1,23 @@
+# A pom.xml whose vulnerable dependency is transitive, declared only in the pom of a library the
+# repository depends on. That pom is served from the sealed Maven repository, which
+# home/.m2/settings.xml mirrors every repository to, so the finding exists only if Trivy resolved
+# the library's pom from it. The scan runs without --offline, because under it Draugr passes
+# --offline-scan and Trivy resolves nothing remotely.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: jvm-maven-repository
+      repositories: ["."]
+
+sealed:
+  withoutOffline: true
+
+requests:
+  - GET /dev/draugr/sealed/sealed-logging/1.0/sealed-logging-1.0.pom
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2021-44228
+    location: pom.xml
+    package: pom org.apache.logging.log4j:log4j-core 2.14.1

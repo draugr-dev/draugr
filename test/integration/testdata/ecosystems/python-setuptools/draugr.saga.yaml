@@ -5,6 +5,8 @@ config:
   controls:
     sca:
       enabled: true
+      grypeFs:
+        enabled: true
 components:
   - name: python-setuptools
     repositories:

@@ -2,14 +2,21 @@ package sealed
 
 import (
 	"fmt"
+	"os"
+	"regexp"
 	"slices"
 	"sort"
 
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
+// commentedSpec is a host's spec path in the block init writes commented out, since it cannot
+// know the URL an API document describes.
+var commentedSpec = regexp.MustCompile(`(?m)^\s*#\s*spec:\s*\n\s*#\s*path:\s*(\S+)`)
+
 // ObserveInit reads the descriptor `draugr init` wrote, through the loader a scan uses, as the
-// controls and scanners it enables and the components it declares.
+// controls and scanners it enables and the components it declares, and from its text, the API
+// documents it proposes as a host's spec.
 func ObserveInit(path string) (InitExpectation, error) {
 	m, err := saga.LoadFile(path)
 	if err != nil {
@@ -43,6 +50,14 @@ func ObserveInit(path string) (InitExpectation, error) {
 		}
 		got.Components = append(got.Components, comp)
 	}
+	raw, err := os.ReadFile(path) // #nosec G304 -- the descriptor the test had init write
+	if err != nil {
+		return InitExpectation{}, err
+	}
+	for _, m := range commentedSpec.FindAllSubmatch(raw, -1) {
+		got.Specs = append(got.Specs, string(m[1]))
+	}
+	sort.Strings(got.Specs)
 	return got, nil
 }
 
@@ -54,14 +69,15 @@ func CheckInit(exp, got InitExpectation) []string {
 		what      string
 		want, got []string
 	}{
-		{"controls", exp.Controls, got.Controls},
-		{"scanners", exp.Scanners, got.Scanners},
-		{"reachability analyzers", exp.Reachability, got.Reachability},
+		{"enables controls", exp.Controls, got.Controls},
+		{"enables scanners", exp.Scanners, got.Scanners},
+		{"enables reachability analyzers", exp.Reachability, got.Reachability},
+		{"proposes host specs", exp.Specs, got.Specs},
 	} {
 		want := slices.Clone(c.want)
 		sort.Strings(want)
 		if !slices.Equal(want, c.got) {
-			problems = append(problems, fmt.Sprintf("init enables %s %v, want %v", c.what, c.got, want))
+			problems = append(problems, fmt.Sprintf("init %s %v, want %v", c.what, c.got, want))
 		}
 	}
 	if !slices.EqualFunc(exp.Components, got.Components, func(a, b ComponentExpectation) bool {

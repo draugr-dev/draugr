@@ -1,0 +1,20 @@
+id: sealed-debug-exposure
+
+info:
+  name: Sealed fixture debug field in an API response
+  author: draugr
+  severity: medium
+  description: The response carries the debug marker the sealed fixture plants.
+
+http:
+  - fuzzing:
+      - part: query
+        type: postfix
+        mode: single
+        fuzz:
+          - "-sealed"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "sealed-debug-marker"

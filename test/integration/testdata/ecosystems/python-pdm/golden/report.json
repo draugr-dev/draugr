@@ -1,13 +1,14 @@
 {
   "controls": [
     {
-      "errors": 0,
-      "highest": "",
+      "errors": 1,
+      "highest": "high",
+      "highestPriority": "P1",
       "name": "sca",
       "notes": 0,
       "threshold": "",
-      "total": 0,
-      "verdict": "pass",
+      "total": 1,
+      "verdict": "fail",
       "warnings": 0
     }
   ],
@@ -15,16 +16,10 @@
     {
       "component": "python-pdm",
       "control": "sca",
-      "read": 0,
+      "read": 1,
       "scanners": [
+        "grype-fs",
         "trivy-fs"
-      ],
-      "unread": [
-        {
-          "path": "pdm.lock",
-          "reason": "no packages read",
-          "repository": "./python-pdm"
-        }
       ]
     }
   ],
@@ -33,7 +28,7 @@
     "effective": "<cleared>",
     "sources": [
       {
-        "digest": "sha256:962c8efdbc73b22a3c2b385876ed9ed0af2344bdffde98661db6a23793702949",
+        "digest": "sha256:7aa90be128a5e8ded57b2aad0fcc1dd9f05259f7068e99f173b5f64f3314b6d3",
         "path": "draugr.saga.yaml",
         "root": true
       }
@@ -42,6 +37,12 @@
   "draugr": "<cleared>",
   "gate": {
     "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 1,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0
   },
   "project": "python-pdm",
   "release": {
@@ -54,6 +55,10 @@
     }
   ],
   "scanners": [
+    {
+      "name": "grype-fs",
+      "version": "<cleared>"
+    },
     {
       "name": "trivy-fs",
       "version": "<cleared>"
@@ -69,8 +74,8 @@
     "concurrency": "<cleared>",
     "deduped": 0,
     "durationMs": "<cleared>",
-    "jobs": 1,
-    "scans": 1
+    "jobs": 2,
+    "scans": 2
   },
-  "verdict": "pass"
+  "verdict": "fail"
 }

@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "images-grype/"
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "tool": "grype",
+            "version": "<cleared>"
+          }
+        ]
+      },
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "127.0.0.1:18080/images-grype:1.0"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A high vulnerability in python package: flask, version 0.12.2 was found in image 127.0.0.1:18080/images-grype:1.0 at: /usr/lib/python3.12/site-packages/Flask-0.12.2.dist-info/METADATA"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "c1ff21c8d522ac6832d540695fa4e00af7cba5a90a58b1e45d9df546dd6368e1:1"
+          },
+          "properties": {
+            "component": "images-grype",
+            "control": "images",
+            "image": "127.0.0.1:18080/images-grype:1.0",
+            "priority": "P1",
+            "security-severity": "7",
+            "tool": "grype"
+          },
+          "ruleId": "CVE-2018-1000656-flask"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Fixture: flask denial of service through crafted JSON"
+              },
+              "help": {
+                "text": "Vulnerability CVE-2018-1000656\nSeverity: high\nPackage: flask\nVersion: 0.12.2\nFix Version: 0.12.3\nType: python\nLocation: /usr/lib/python3.12/site-packages/Flask-0.12.2.dist-info/METADATA\nData Namespace: github:language:python\nLink: [CVE-2018-1000656](https://nvd.nist.gov/vuln/detail/CVE-2018-1000656)"
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2018-1000656",
+              "id": "CVE-2018-1000656-flask",
+              "name": "PythonMatcherExactDirectMatch",
+              "properties": {
+                "tags": [
+                  "scanner:grype"
+                ]
+              },
+              "shortDescription": {
+                "text": "CVE-2018-1000656 high vulnerability for flask package"
+              }
+            }
+          ],
+          "version": "<cleared>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

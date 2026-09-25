@@ -1,0 +1,28 @@
+# An API scanned from its OpenAPI document. The document lists a DELETE and names production in
+# servers:, and the descriptor points the host at the sealed server with the default methods. The
+# finding at the loopback URL shows the scan went where the descriptor said; the request log shows
+# the DELETE was never sent. The template the scan runs is home/nuclei-templates/sealed, and the
+# response it matches is served/items.
+init:
+  controls: [iac, sast, sca, secrets]
+  specs: [./openapi.yaml]
+  components:
+    - name: dast-openapi
+      repositories: ["."]
+
+requests:
+  - GET /items?q=all-sealed
+
+neverRequested:
+  - "DELETE "
+
+findings:
+  - control: dast
+    tool: nuclei
+    rule: sealed-debug-exposure
+    location: http://127.0.0.1:18080/items?q=all-sealed
+
+# init proposes the host commented out, since it cannot know the URL, so its descriptor probes
+# nothing.
+initScan:
+  unreported: [sealed-debug-exposure]

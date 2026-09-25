@@ -5,8 +5,23 @@
       "automationDetails": {
         "id": "python-pdm/"
       },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
       "properties": {
         "draugr/provenance": [
+          {
+            "fields": {
+              "repository": "./python-pdm",
+              "revision": "<cleared>"
+            },
+            "tool": "grype-fs",
+            "version": "<cleared>"
+          },
           {
             "fields": {
               "repository": "./python-pdm",
@@ -17,10 +32,71 @@
           }
         ]
       },
-      "results": [],
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "pdm.lock",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A high vulnerability in python package: flask, version 0.12.2 was found at: /pdm.lock"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "a7d255363aa26d29c504ac8c8798b52ead6705b2ba22251effd8ff183da3ce88:1",
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "python-pdm",
+            "control": "sca",
+            "package": {
+              "ecosystem": "python",
+              "fixedVersion": "0.12.3",
+              "name": "flask",
+              "purl": "pkg:pypi/flask@0.12.2",
+              "version": "0.12.2"
+            },
+            "priority": "P1",
+            "repository": "./python-pdm",
+            "security-severity": "7",
+            "tool": "grype"
+          },
+          "ruleId": "CVE-2018-1000656-flask"
+        }
+      ],
       "tool": {
         "driver": {
           "name": "Draugr",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Fixture: flask denial of service through crafted JSON"
+              },
+              "help": {
+                "text": "Vulnerability CVE-2018-1000656\nSeverity: high\nPackage: flask\nVersion: 0.12.2\nFix Version: 0.12.3\nType: python\nLocation: /pdm.lock\nData Namespace: github:language:python\nLink: [CVE-2018-1000656](https://nvd.nist.gov/vuln/detail/CVE-2018-1000656)"
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2018-1000656",
+              "id": "CVE-2018-1000656-flask",
+              "name": "PythonMatcherExactDirectMatch",
+              "properties": {
+                "tags": [
+                  "scanner:grype"
+                ]
+              },
+              "shortDescription": {
+                "text": "CVE-2018-1000656 high vulnerability for flask package"
+              }
+            }
+          ],
           "version": "<cleared>"
         }
       }

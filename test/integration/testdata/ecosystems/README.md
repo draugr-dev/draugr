@@ -14,6 +14,9 @@ exact and change only when Draugr or a pinned tool does.
 | `golden/` | `results.sarif` and `report.json`, normalized, written by `-update-sealed` |
 | `workdir/` | files copied beside the descriptor, for options that name a path relative to it |
 | `live.yaml` | the packages and files each scanner reports against the real databases, written by `-update-live` |
+| `served/` | files the sealed server answers GET for, at `http://127.0.0.1:18080` |
+| `home/` | files copied into the container's home directory, such as a Maven `settings.xml` |
+| `image/` | a tree the harness builds into an image and serves as `127.0.0.1:18080/<scenario>:1.0` |
 | `Makefile` | `make lock` regenerates the lockfiles with the real package manager |
 
 SAST expectations are comments in the fixture's own code, the convention Semgrep's rule tests use:
@@ -49,3 +52,14 @@ are separated by commas. The rules Semgrep runs are in [`semgrep.yaml`](semgrep.
   change with the key, and the goldens hold them as `<commit>`.
 - **A package needs an advisory.** A fixture dependency with no entry in `advisories.yaml` has no
   finding to assert.
+- **Every command runs beside a loopback server.** It serves `served/`, the scenario's image, and
+  the sealed Semgrep rules as the registry's default pack, and logs every request. `requests:` lists
+  lines the log must start with; `neverRequested:` lists starts no line may have (`"DELETE "`). The
+  container has no other network.
+- **A scanner that resolves from the server scans without `--offline`.** `sealed: withoutOffline:
+  true` drops the flag. `jvm-maven-repository` uses it because its finding depends on Trivy
+  fetching a pom from the server, and under `--offline` Trivy does not ask.
+- **The descriptor `init` wrote is scanned too**, from the repository, and must report the same
+  findings and errors. `initScan:` records where it departs: `unreported` names rules the
+  hand-written descriptor turns on and init does not, and `errors` replaces the expected errors.
+  A departure is a claim about init, so each carries a comment saying which setting init left out.
