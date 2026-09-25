@@ -254,8 +254,12 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, _ plugin.
 
 // nucleiProvenance says whether the scan authenticated, and as what, by naming the variable, never
 // its value.
+//
+// The endpoint is the URL alone rather than the target's identity. The identity appends the spec
+// and auth markers so two jobs against one URL key apart, and the same facts are fields of their
+// own here, so the identity as a value would print each of them twice.
 func nucleiProvenance(host plugin.HostTarget, spec preparedSpec) sarif.Provenance {
-	fields := []sarif.Field{{Key: "endpoint", Value: host.Identity()}}
+	fields := []sarif.Field{{Key: "endpoint", Value: plugin.SourceURL(host.URL)}}
 	if host.Spec != nil {
 		fields = append(fields,
 			sarif.Field{Key: "spec", Value: host.Spec.Path},
