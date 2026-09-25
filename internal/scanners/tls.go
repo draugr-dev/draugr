@@ -106,6 +106,10 @@ func NewTLSProbe() plugin.Scanner {
 			Controls:     []string{"tls"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetHost},
 			ConfigSchema: json.RawMessage(draugrTLSConfigSchema),
+			Effects: []plugin.Effect{{
+				Kind:   plugin.EffectNetwork,
+				Detail: "opens TLS connections to the endpoint, one handshake per protocol version tested",
+			}},
 		},
 		probe: dialTLS,
 		now:   time.Now,

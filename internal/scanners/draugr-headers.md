@@ -12,6 +12,7 @@ order: 10
   its response headers against the OWASP Secure Headers guidance.
 - **Status:** ✅ implemented
 - **Target:** a running endpoint (`HostTarget`), a component's `hosts:`
+- **Effects:** `network` (sends an HTTP GET to the endpoint and follows its redirects)
 - **License / terms:** native Draugr code (Apache-2.0). [OWASP Secure Headers
   Project](https://owasp.org/www-project-secure-headers/) is a **reference only**, no code or
   data is bundled.

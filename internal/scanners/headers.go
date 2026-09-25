@@ -45,6 +45,10 @@ func NewHTTPHeaders() plugin.Scanner {
 			Controls:     []string{"headers"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetHost},
 			ConfigSchema: json.RawMessage(noScannerOptions),
+			Effects: []plugin.Effect{{
+				Kind:   plugin.EffectNetwork,
+				Detail: "sends an HTTP GET to the endpoint and follows its redirects",
+			}},
 		},
 		fetch: httpFetchHeaders,
 	}
