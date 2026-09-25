@@ -16,6 +16,7 @@ type Finding struct {
 	File         string
 	Line         int
 	Package      string
+	Component    string
 	Reachability string
 }
 
@@ -33,6 +34,9 @@ func (f Finding) String() string {
 	s := strings.Join(named, " ") + " at " + at
 	if f.Package != "" {
 		s += " (" + f.Package + ")"
+	}
+	if f.Component != "" {
+		s += " in " + f.Component
 	}
 	if f.Reachability != "" {
 		s += " " + f.Reachability
@@ -57,9 +61,10 @@ func Observe(sarif []byte) ([]Finding, error) {
 					} `json:"physicalLocation"`
 				} `json:"locations"`
 				Properties struct {
-					Tool    string `json:"tool"`
-					Control string `json:"control"`
-					Package *struct {
+					Tool      string `json:"tool"`
+					Control   string `json:"control"`
+					Component string `json:"component"`
+					Package   *struct {
 						Name      string `json:"name"`
 						Version   string `json:"version"`
 						Ecosystem string `json:"ecosystem"`
@@ -77,7 +82,10 @@ func Observe(sarif []byte) ([]Finding, error) {
 	var out []Finding
 	for _, run := range doc.Runs {
 		for _, r := range run.Results {
-			f := Finding{Control: r.Properties.Control, Tool: r.Properties.Tool, Rule: r.RuleID}
+			f := Finding{
+				Control: r.Properties.Control, Tool: r.Properties.Tool, Rule: r.RuleID,
+				Component: r.Properties.Component,
+			}
 			if len(r.Locations) > 0 {
 				f.File = r.Locations[0].PhysicalLocation.ArtifactLocation.URI
 				f.Line = r.Locations[0].PhysicalLocation.Region.StartLine
@@ -105,6 +113,7 @@ func (w want) matches(f Finding) bool {
 		(w.f.Tool == "" || w.f.Tool == f.Tool) &&
 		w.f.Rule == f.Rule && w.f.File == f.File && w.f.Line == f.Line &&
 		(w.f.Package == "" || w.f.Package == f.Package) &&
+		(w.f.Component == "" || w.f.Component == f.Component) &&
 		(w.f.Reachability == "" || w.f.Reachability == f.Reachability)
 }
 
@@ -120,7 +129,7 @@ func Check(exp Expected, anns []Annotation, got []Finding) ([]string, error) {
 		}
 		wants = append(wants, want{source: "expected.yaml", f: Finding{
 			Control: e.Control, Tool: e.Tool, Rule: e.Rule, File: file, Line: line,
-			Package: e.Package, Reachability: e.Reachability,
+			Package: e.Package, Component: e.Component, Reachability: e.Reachability,
 		}})
 	}
 	for _, s := range exp.Secrets {

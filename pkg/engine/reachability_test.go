@@ -292,3 +292,109 @@ func TestApplyReachabilityDoesNotCollapseModules(t *testing.T) {
 		t.Errorf("summary = %+v, want one of each", got)
 	}
 }
+
+// of stamps a finding with the component whose job produced it.
+func of(res sarif.Result, component string) sarif.Result {
+	res.Component = component
+	return res
+}
+
+func TestApplyReachabilityDoesNotCollapseComponentsOrModules(t *testing.T) {
+	// Two components share one repository holding two Go modules, and each scans only its own
+	// paths. In the root module api calls the vulnerable function and worker does not; in the
+	// tools module it is the other way round. Every finding carries the verdict of its own
+	// component's code in its own module, so a key missing either the component or the manifest
+	// hands the reachable verdict, and a call path the finding's code does not contain, to a
+	// finding that is not reachable.
+	const repo, rule, pkg = "monorepo", "CVE-2020-36067", "github.com/tidwall/gjson"
+	calls := map[[2]string]sarif.ReachabilityState{
+		{"api", "go.mod"}:          sarif.ReachabilityReachable,
+		{"api", "tools/go.mod"}:    sarif.ReachabilityUnreachable,
+		{"worker", "go.mod"}:       sarif.ReachabilityUnreachable,
+		{"worker", "tools/go.mod"}: sarif.ReachabilityReachable,
+	}
+	var results []sarif.Result
+	for _, component := range []string{"api", "worker"} {
+		for _, manifest := range []string{"go.mod", "tools/go.mod"} {
+			state := calls[[2]string{component, manifest}]
+			results = append(results,
+				of(in(scanned(repo, rule, pkg), manifest), component),
+				of(in(analyzed(repo, rule, pkg, state), manifest), component),
+			)
+		}
+	}
+	ctrls := controlsWith(results...)
+	e := &Engine{}
+	got := e.applyReachability(ctrls, saga.Model{})
+
+	kept := ctrls["sca"].Report.Results
+	if len(kept) != len(calls) {
+		t.Fatalf("results = %d, want %d, one scanner finding per component and module", len(kept), len(calls))
+	}
+	for _, r := range kept {
+		if r.Tool != "trivy" {
+			t.Errorf("an analyzer finding was kept beside the scanner's: %+v", r)
+			continue
+		}
+		want := calls[[2]string{r.Component, r.Location.URI}]
+		if r.Reachability == nil || r.Reachability.State != want {
+			t.Errorf("%s at %s: verdict = %+v, want %q", r.Component, r.Location.URI, r.Reachability, want)
+		}
+	}
+	if got.Reachable != 2 || got.Unreachable != 2 {
+		t.Errorf("summary = %+v, want two reachable and two unreachable", got)
+	}
+}
+
+func TestApplyReachabilityKeepsAnAnalyzerFindingNoScannerInItsComponentReported(t *testing.T) {
+	// Folding is per component as well. A scanner finding in api says nothing about worker, so
+	// worker's analyzer finding is the only report of the vulnerability there and must be kept,
+	// and api's finding must not be given worker's verdict.
+	const repo, rule, pkg = "monorepo", "CVE-2020-36067", "github.com/tidwall/gjson"
+	ctrls := controlsWith(
+		of(in(scanned(repo, rule, pkg), "go.mod"), "api"),
+		of(in(analyzed(repo, rule, pkg, sarif.ReachabilityReachable), "go.mod"), "worker"),
+	)
+	e := &Engine{}
+	got := e.applyReachability(ctrls, saga.Model{})
+
+	byComponent := map[string]sarif.Result{}
+	for _, r := range ctrls["sca"].Report.Results {
+		byComponent[r.Component] = r
+	}
+	if r := byComponent["api"]; r.Reachability != nil {
+		t.Errorf("api was given another component's verdict: %+v", r.Reachability)
+	}
+	if r, ok := byComponent["worker"]; !ok || r.Tool != "govulncheck" {
+		t.Errorf("worker's analyzer finding was folded away: %+v", ctrls["sca"].Report.Results)
+	}
+	if len(got.Analyzers) != 1 || got.Analyzers[0].Contributed != 1 {
+		t.Errorf("summary = %+v, want the worker finding counted as contributed", got)
+	}
+}
+
+func TestApplyReachabilityFoldsWhicheverFindingArrivesFirst(t *testing.T) {
+	// Jobs finish in any order, so the analyzer's copy can precede the finding it duplicates. Two
+	// repositories, one in each order, so a fold that depends on the order passes on only one.
+	ctrls := controlsWith(
+		analyzed("repo-a", "CVE-2022-32149", "golang.org/x/text", sarif.ReachabilityReachable),
+		scanned("repo-a", "CVE-2022-32149", "golang.org/x/text"),
+		scanned("repo-b", "CVE-2022-32149", "golang.org/x/text"),
+		analyzed("repo-b", "CVE-2022-32149", "golang.org/x/text", sarif.ReachabilityUnreachable),
+	)
+	got := (&Engine{}).applyReachability(ctrls, saga.Model{})
+
+	res := ctrls["sca"].Report.Results
+	if len(res) != 2 {
+		t.Fatalf("results = %d, want 2, one per repository with the analyzer's copies folded away", len(res))
+	}
+	for _, r := range res {
+		if r.Tool != "trivy" || r.Reachability == nil {
+			t.Errorf("%s: tool = %q, reachability = %+v; want the scanner's finding carrying the verdict",
+				r.Repository, r.Tool, r.Reachability)
+		}
+	}
+	if got.Analyzers[0].Contributed != 0 {
+		t.Errorf("contributed = %d, want 0, every analyzer finding had a match", got.Analyzers[0].Contributed)
+	}
+}

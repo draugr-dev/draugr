@@ -1,0 +1,24 @@
+project: go-components
+release:
+  version: "1.0"
+config:
+  reachability:
+    analyzers: [govulncheck]
+  controls:
+    sca:
+      enabled: true
+    sast:
+      enabled: true
+      semgrep:
+        config: ${{ DRAUGR_SEALED_SEMGREP_RULES }}
+      gosec:
+        enabled: true
+components:
+  - name: api
+    repositories:
+      - url: ./go-components
+        ignore: [worker/, tools/worker/]
+  - name: worker
+    repositories:
+      - url: ./go-components
+        ignore: [api/, tools/api/]

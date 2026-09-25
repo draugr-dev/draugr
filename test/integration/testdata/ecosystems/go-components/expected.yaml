@@ -1,0 +1,54 @@
+# Two components share one repository holding two Go modules, and each scans only its own
+# directories. In the root module api calls gjson's vulnerable Get and worker only calls Valid; in
+# the tools module it is the other way round. Each component's finding in each module carries the
+# verdict for that component's own code.
+init:
+  controls: [sca, secrets, sast, iac]
+  scanners: [sast.gosec]
+  reachability: [govulncheck]
+  components:
+    - name: go-components
+      repositories: ["."]
+  # --per-directory: a component for each directory with its own dependency file, carved
+  # out of the root component.
+  perDirectory:
+    controls: [sca, secrets, sast, iac]
+    scanners: [sast.gosec]
+    reachability: [govulncheck]
+    components:
+      - name: go-components
+        repositories: ["."]
+        ignore: [tools/]
+      - name: tools
+        repositories: ["."]
+        paths: [tools]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2020-36067
+    location: go.mod:5
+    package: gomod github.com/tidwall/gjson v1.6.5
+    component: api
+    reachability: reachable
+  - control: sca
+    tool: trivy
+    rule: CVE-2020-36067
+    location: go.mod:5
+    package: gomod github.com/tidwall/gjson v1.6.5
+    component: worker
+    reachability: unreachable
+  - control: sca
+    tool: trivy
+    rule: CVE-2020-36067
+    location: tools/go.mod:5
+    package: gomod github.com/tidwall/gjson v1.6.5
+    component: api
+    reachability: unreachable
+  - control: sca
+    tool: trivy
+    rule: CVE-2020-36067
+    location: tools/go.mod:5
+    package: gomod github.com/tidwall/gjson v1.6.5
+    component: worker
+    reachability: reachable
