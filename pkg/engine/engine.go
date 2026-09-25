@@ -824,9 +824,15 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	ctx = plugin.WithWaitRecorder(ctx, waits)
 
 	var (
-		mu      sync.Mutex
-		wg      sync.WaitGroup
-		byCtl   = make(map[string][]sarif.Report)
+		mu sync.Mutex
+		wg sync.WaitGroup
+		// reports holds each job's report at the job's own position in the plan, nil for a job
+		// that produced none. Indexed rather than appended, so what a control aggregates is in the
+		// order the jobs were planned and not the order they finished in. Merge keeps the first
+		// description it sees of a rule and the first copy of a finding, so an appended slice would
+		// let whichever scanner or component finished first decide what the report says, and two
+		// runs over the same inputs would write different files.
+		reports = make([]*sarif.Report, len(planned))
 		ctlErrs = make(map[string][]string)
 		errs    []error
 		stats   = Stats{Jobs: len(planned), Concurrency: e.concurrency, ByControl: map[string]time.Duration{}}
@@ -1130,7 +1136,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			if !res.cached {
 				effects = append(effects, scanner.Info().Effects...)
 			}
-			byCtl[pj.Control] = append(byCtl[pj.Control], report)
+			reports[jobIndex] = &report
 			switch {
 			case shared:
 				stats.Deduped++
@@ -1157,6 +1163,12 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		errs = append(errs, ctx.Err())
 	}
 	stats.UnpinnedCacheHits = slices.Sorted(maps.Keys(unpinnedHits))
+	byCtl := make(map[string][]sarif.Report)
+	for i, pj := range planned {
+		if reports[i] != nil {
+			byCtl[pj.Control] = append(byCtl[pj.Control], *reports[i])
+		}
+	}
 	// Asked of the cache rather than passed alongside it, so a caller cannot describe one cache
 	// and hand over another.
 	if d, ok := e.cache.(cache.Describer); ok {

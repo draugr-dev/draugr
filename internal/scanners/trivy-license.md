@@ -58,6 +58,11 @@ license anywhere*, is `license/MPL-2.0/*`, while the full id stays available for
 this one dependency*. Package names contain slashes, which is why `config.exclude` patterns match
 `*` across separators.
 
+A rule's description holds Trivy's reading of the license category, and is empty for a category
+the scanner would not report without a policy. Whether a policy denied or flagged the license is
+in each result's message. `deny` and `warn` are set per component, and a SARIF file holds one rule
+per id across every component in the run.
+
 ## Line numbers
 
 Trivy reports licenses against a manifest with **no line number**, unlike its vulnerability

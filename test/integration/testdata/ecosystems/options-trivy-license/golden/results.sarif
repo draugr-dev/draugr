@@ -115,6 +115,36 @@
             {
               "physicalLocation": {
                 "artifactLocation": {
+                  "uri": "licenses-warn-isc/package-lock.json",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "inherits is ISC. Flagged by this project's license policy (config.controls.licenses.warn)."
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "licenses-warn-isc",
+            "control": "licenses",
+            "priority": "P2",
+            "repository": "./options-trivy-license",
+            "tool": "trivy-license"
+          },
+          "ruleId": "license/ISC/inherits"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
                   "uri": "licenses-warn/package-lock.json",
                   "uriBaseId": "%SRCROOT%"
                 },
@@ -191,41 +221,6 @@
               }
             },
             {
-              "fullDescription": {
-                "text": "Denied by this project's license policy (config.controls.licenses.deny)."
-              },
-              "helpUri": "https://spdx.org/licenses/ISC.html",
-              "id": "license/ISC/inherits",
-              "name": "ISC",
-              "properties": {
-                "tags": [
-                  "scanner:trivy-license"
-                ]
-              },
-              "shortDescription": {
-                "text": "inherits is licensed ISC"
-              }
-            },
-            {
-              "fullDescription": {
-                "text": "Denied by this project's license policy (config.controls.licenses.deny)."
-              },
-              "helpUri": "https://spdx.org/licenses/MIT.html",
-              "id": "license/MIT/ms",
-              "name": "MIT",
-              "properties": {
-                "tags": [
-                  "scanner:trivy-license"
-                ]
-              },
-              "shortDescription": {
-                "text": "ms is licensed MIT"
-              }
-            },
-            {
-              "fullDescription": {
-                "text": "Flagged by this project's license policy (config.controls.licenses.warn)."
-              },
               "helpUri": "https://spdx.org/licenses/0BSD.html",
               "id": "license/0BSD/tslib",
               "name": "0BSD",
@@ -239,9 +234,6 @@
               }
             },
             {
-              "fullDescription": {
-                "text": "Flagged by this project's license policy (config.controls.licenses.warn)."
-              },
               "helpUri": "https://spdx.org/licenses/BSD-3-Clause.html",
               "id": "license/BSD-3-Clause/sprintf-js",
               "name": "BSD-3-Clause",
@@ -252,6 +244,32 @@
               },
               "shortDescription": {
                 "text": "sprintf-js is licensed BSD-3-Clause"
+              }
+            },
+            {
+              "helpUri": "https://spdx.org/licenses/ISC.html",
+              "id": "license/ISC/inherits",
+              "name": "ISC",
+              "properties": {
+                "tags": [
+                  "scanner:trivy-license"
+                ]
+              },
+              "shortDescription": {
+                "text": "inherits is licensed ISC"
+              }
+            },
+            {
+              "helpUri": "https://spdx.org/licenses/MIT.html",
+              "id": "license/MIT/ms",
+              "name": "MIT",
+              "properties": {
+                "tags": [
+                  "scanner:trivy-license"
+                ]
+              },
+              "shortDescription": {
+                "text": "ms is licensed MIT"
               }
             }
           ],

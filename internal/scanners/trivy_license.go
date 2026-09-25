@@ -259,10 +259,15 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 					StartLine: lines.find(lic.FilePath, lic.PkgName, ""),
 				},
 			})
+			// The rule holds only what is true wherever this package carries this license: its
+			// name, Trivy's reading of the license, and where to read its terms. The verdict
+			// belongs to the result. Deny and warn are set per component, and SARIF stores one
+			// rule per id for the whole run, so a rule stating one component's verdict would
+			// describe every other component's finding under that id wrongly.
 			report.Rules[ruleID] = sarif.Rule{
 				Name:             lic.Name,
 				ShortDescription: fmt.Sprintf("%s is licensed %s", lic.PkgName, lic.Name),
-				FullDescription:  why,
+				FullDescription:  categoryLevel[strings.ToLower(lic.Category)].why,
 				HelpURI:          licenseHelpURI(lic),
 			}
 		}

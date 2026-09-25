@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -230,5 +231,54 @@ func TestTheLicenseScannerRefusesATargetItCannotRead(t *testing.T) {
 	}
 	if _, err := s.Scan(context.Background(), plugin.HostTarget{URL: "https://example.com"}, plugin.Config{}); err == nil {
 		t.Error("a host target was accepted; nothing there has a dependency tree to read")
+	}
+}
+
+func TestParseTrivyLicensesRuleIsTheSameUnderEveryPolicy(t *testing.T) {
+	// SARIF keeps one rule per id for the whole run, and deny and warn are set per component. Two
+	// components carrying the same package under the same license, one denying it and one only
+	// flagging it, write one rule between them, so the rule must say nothing either verdict would
+	// contradict. The verdict is in each result's message.
+	const doc = `{"Results":[{"Target":"package-lock.json","Class":"lang-pkgs","Licenses":[
+ {"Severity":"LOW","Category":"notice","PkgName":"inherits","FilePath":"package-lock.json","Name":"ISC"},
+ {"Severity":"MEDIUM","Category":"reciprocal","PkgName":"github.com/mid/lib","FilePath":"package-lock.json","Name":"MPL-2.0"}
+]}]}`
+	parse := func(cfg plugin.Config) sarif.Report {
+		t.Helper()
+		rep, err := parseTrivyLicenses([]byte(doc), t.TempDir(), cfg)
+		if err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		return rep
+	}
+	denied := parse(plugin.Config{denyKey: []string{"ISC", "MPL-2.0"}})
+	flagged := parse(plugin.Config{warnKey: []string{"ISC", "MPL-2.0"}})
+
+	for _, id := range []string{"license/ISC/inherits", "license/MPL-2.0/github.com/mid/lib"} {
+		d, ok := denied.Rules[id]
+		if !ok {
+			t.Fatalf("no rule %s under deny", id)
+		}
+		if f := flagged.Rules[id]; !reflect.DeepEqual(d, f) {
+			t.Errorf("rule %s differs by policy:\ndeny: %+v\nwarn: %+v", id, d, f)
+		}
+		if strings.Contains(d.FullDescription, "policy") {
+			t.Errorf("rule %s carries one component's verdict: %q", id, d.FullDescription)
+		}
+	}
+	// The reciprocal license keeps Trivy's reading of it, which holds under either policy.
+	if got := denied.Rules["license/MPL-2.0/github.com/mid/lib"].FullDescription; !strings.Contains(got, "File-level copyleft") {
+		t.Errorf("reciprocal rule description = %q, want the category's meaning", got)
+	}
+	// Each result still states its own verdict.
+	for _, c := range []struct {
+		rep  sarif.Report
+		want string
+	}{{denied, "Denied by this project's license policy"}, {flagged, "Flagged by this project's license policy"}} {
+		for _, r := range c.rep.Results {
+			if !strings.Contains(r.Message, c.want) {
+				t.Errorf("%s message = %q, want %q", r.RuleID, r.Message, c.want)
+			}
+		}
 	}
 }

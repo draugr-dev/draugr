@@ -9,6 +9,8 @@ files:
     foundBy: [licenses/trivy-license]
   - file: licenses-deny/package-lock.json
     foundBy: [licenses/trivy-license]
+  - file: licenses-warn-isc/package-lock.json
+    foundBy: [licenses/trivy-license]
   - file: licenses-warn/package-lock.json
     foundBy: [licenses/trivy-license]
   - file: trivy-license-deny/package-lock.json
