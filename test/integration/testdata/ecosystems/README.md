@@ -72,3 +72,8 @@ are separated by commas. The rules Semgrep runs are in [`semgrep.yaml`](semgrep.
   A departure is a claim about init, so each carries a comment saying which setting init left out.
   `skip:` holds a reason instead, for a scenario whose descriptor is the subject: options init never
   writes, or components declared by hand. The test logs it.
+- **init names no Semgrep ruleset, so its descriptor's `sast` control refuses to run offline.**
+  Semgrep's default pack is fetched from the registry, and under `--offline` the control reports
+  `cannot run offline` instead. The harness expects that error, and no Semgrep finding, wherever
+  init enables `sast`; gosec's findings are still expected. A scenario scanned without `--offline`
+  fetches the default pack from the loopback server, and the log must show the request.

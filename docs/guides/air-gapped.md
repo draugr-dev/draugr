@@ -79,7 +79,9 @@ Semgrep fetches its default rule pack on every invocation, with no cache to prep
 | `semgrep` | the `p/default` rule pack | `semgrep.dev` |
 
 Semgrep can be pointed at rules on disk with its own `config` option, which is the way to run
-`sast` without the registry.
+`sast` without the registry. Under `--offline`, a scan that leaves `config` unset or names a
+registry ruleset does not reach `semgrep.dev`, and the `sast` control reports an error naming
+`config.controls.sast.semgrep.config` instead.
 
 `draugr doctor` lists every host a scan contacts, and marks which are fetched per scan rather than
 warmed once, so the distinction is visible before a pipeline is written rather than after it fails.

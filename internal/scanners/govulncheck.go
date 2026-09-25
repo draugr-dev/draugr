@@ -44,7 +44,7 @@ func NewGovulncheck() plugin.Scanner {
 		parseGovulncheck,
 	)
 	s.cacheVersion = govulncheckCacheVersion
-	s.preflight = govulncheckPreflight
+	s.preflight = func(ctx context.Context, _ plugin.Config) error { return govulncheckPreflight(ctx) }
 	return s
 }
 

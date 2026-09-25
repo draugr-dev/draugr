@@ -53,3 +53,15 @@ no local cache to warm, so a run contacts the registry once per job rather than 
 machine with no network cannot run this scanner on the default pack.
 
 `--config` against rules on disk is the way to run it without the registry.
+
+Under `--offline`, Semgrep does not run on a ruleset it would fetch, and the `sast` control reports
+an error naming the setting:
+
+```
+  sast  ERROR  did not run
+        semgrep: cannot run offline: config.controls.sast.semgrep.config is unset, and Semgrep fetches
+          its default, p/default, from semgrep.dev; set it to a rules file or directory on disk
+```
+
+Semgrep fetches the ruleset when `config` is unset, a registry id (`p/…`, `r/…`, `s/…`), `auto`, a
+product name such as `code`, or a URL. A rules file or directory on disk runs as normal.
