@@ -3,6 +3,7 @@ package ciguard
 import (
 	"bytes"
 	"encoding/json"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,9 +22,8 @@ const (
 	marketplaceFile = "../../.claude-plugin/marketplace.json"
 	pluginHook      = pluginDir + "/scripts/check-draugr.sh"
 
-	// installCommand is the install line the README documents. The hook prints it, so the two
-	// are checked against each other rather than trusted to agree.
-	installCommand = "curl -fsSL https://draugr.dev/install.sh | sh"
+	// installPage is where the plugin README and the hook send somebody without the binary.
+	installPage = "https://draugr.dev/docs/latest/getting-started/install/"
 )
 
 type pluginJSON struct {
@@ -225,12 +225,12 @@ func runHook(t *testing.T, dir string) string {
 	return string(out)
 }
 
-// TestTheHookNamesTheInstallCommandWhenDraugrIsMissing covers the case the hook exists for.
+// TestTheHookNamesTheInstallPageWhenDraugrIsMissing covers the case the hook exists for.
 //
 // Without the binary the plugin's server fails to start, and the only trace is a failed entry in
 // /mcp. The message has to reach the user, which for SessionStart means `systemMessage`: plain
 // stdout reaches Claude alone.
-func TestTheHookNamesTheInstallCommandWhenDraugrIsMissing(t *testing.T) {
+func TestTheHookNamesTheInstallPageWhenDraugrIsMissing(t *testing.T) {
 	t.Parallel()
 	out := runHook(t, t.TempDir())
 
@@ -251,17 +251,43 @@ func TestTheHookNamesTheInstallCommandWhenDraugrIsMissing(t *testing.T) {
 		"systemMessage":     got.SystemMessage,
 		"additionalContext": got.HookSpecificOutput.AdditionalContext,
 	} {
-		if !strings.Contains(text, installCommand) {
-			t.Errorf("%s does not carry the install command %q:\n%s", name, installCommand, text)
+		if !strings.Contains(text, installPage) {
+			t.Errorf("%s does not name the install page %q:\n%s", name, installPage, text)
 		}
 	}
 
-	readme, err := os.ReadFile("../../README.md")
+	readme, err := os.ReadFile(pluginDir + "/README.md")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(readme), installCommand) {
-		t.Errorf("the README no longer documents %q, and the hook still prints it", installCommand)
+	if !strings.Contains(string(readme), installPage) {
+		t.Errorf("the plugin README no longer links %q, and the hook still sends people there", installPage)
+	}
+}
+
+// downloadAndRun matches a command that fetches a script and pipes it to a shell.
+var downloadAndRun = regexp.MustCompile(`\b(curl|wget)\b[^|\n]*\|\s*(sudo\s+)?(ba|z)?sh\b`)
+
+// TestThePluginCarriesNoDownloadAndRun keeps every file the plugin ships free of a command that
+// downloads a script and runs it. Claude's plugin directory shows one anywhere in the plugin, the
+// README included, to users as an install-time risk, because what runs is fetched after review.
+func TestThePluginCarriesNoDownloadAndRun(t *testing.T) {
+	t.Parallel()
+	err := filepath.WalkDir(pluginDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		body, err := os.ReadFile(path) // #nosec G304,G122 -- a path this walk produced in the repository's plugin tree
+		if err != nil {
+			return err
+		}
+		if m := downloadAndRun.Find(body); m != nil {
+			t.Errorf("%s runs a downloaded script (%q); link the install page instead", path, m)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -279,16 +305,18 @@ func TestTheHookIsSilentWhenDraugrIsInstalled(t *testing.T) {
 
 // TestTheHookConfigRunsTheScript keeps hooks.json pointing at a script that exists and runs.
 //
-// The command is the script's path alone. Claude's plugin directory reads a command that is a
-// literal path under CLAUDE_PLUGIN_ROOT as that script and nothing else; with an interpreter in
-// front of it, the command is held for a person to review.
+// The command is the script's path alone, unquoted. Claude's plugin directory reads a command that
+// is a literal path under CLAUDE_PLUGIN_ROOT as that script and nothing else; with an interpreter
+// in front of it or quotes around it, the command is held for a person to review. The empty args
+// select exec form, which runs the path without a shell, so a space in it cannot split it.
 func TestTheHookConfigRunsTheScript(t *testing.T) {
 	t.Parallel()
 	var cfg struct {
 		Hooks map[string][]struct {
 			Hooks []struct {
-				Type    string `json:"type"`
-				Command string `json:"command"`
+				Type    string    `json:"type"`
+				Command string    `json:"command"`
+				Args    *[]string `json:"args"`
 			} `json:"hooks"`
 		} `json:"hooks"`
 	}
@@ -298,9 +326,9 @@ func TestTheHookConfigRunsTheScript(t *testing.T) {
 		t.Fatalf("hooks.json must declare one SessionStart hook, got %+v", groups)
 	}
 	h := groups[0].Hooks[0]
-	want := `"${CLAUDE_PLUGIN_ROOT}/scripts/check-draugr.sh"`
-	if h.Type != "command" || h.Command != want {
-		t.Errorf("SessionStart hook is %s %q, want command %q", h.Type, h.Command, want)
+	want := `${CLAUDE_PLUGIN_ROOT}/scripts/check-draugr.sh`
+	if h.Type != "command" || h.Command != want || h.Args == nil || len(*h.Args) != 0 {
+		t.Errorf("SessionStart hook is %s %q %v, want command %q with empty args", h.Type, h.Command, h.Args, want)
 	}
 	info, err := os.Stat(pluginHook)
 	if err != nil {

@@ -12,13 +12,7 @@ introduced. The full list of tools is in the
 
 ## Requirements
 
-The plugin does not carry the `draugr` binary. Install it first, on Linux or macOS:
-
-```bash
-curl -fsSL https://draugr.dev/install.sh | sh
-```
-
-Other platforms and install methods are on the
+The plugin does not carry the `draugr` binary. Install it first, from the
 [install page](https://draugr.dev/docs/latest/getting-started/install/).
 
 ## Install
@@ -42,7 +36,7 @@ The plugin contains two components and no other code:
   working directory, skipping `node_modules`, `vendor` and build output, and offers each to Claude
   as a resource.
 - **A `SessionStart` hook**, `scripts/check-draugr.sh`, which checks whether `draugr` is on `PATH`.
-  When it is missing, the hook prints the install command above; otherwise it prints nothing. The
+  When it is missing, the hook prints the install page's address; otherwise it prints nothing. The
   hook reads nothing else and makes no network request.
 
 The hook and the plugin's configuration send nothing. Two of the server's tools reach beyond
