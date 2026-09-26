@@ -140,6 +140,14 @@ func hostOf(s string) string {
 
 // fromHelper asks a Docker credential helper for the credential stored under server.
 func fromHelper(ctx context.Context, helper, server string) (Credential, error) {
+	// A name holding a separator would make exec run a path rather than look a binary up on PATH,
+	// so only a bare name is accepted: the helper is always docker-credential-<name> on PATH.
+	if helper == "" || strings.ContainsAny(helper, `/\`) || strings.HasPrefix(helper, ".") {
+		return Credential{}, fmt.Errorf("credential helper %q: not a helper name", helper)
+	}
+	// The command is docker-credential-<name> from the user's own Docker configuration, the binary
+	// Docker itself would run, and the name is a bare word checked above.
+	// nosemgrep: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	cmd := exec.CommandContext(ctx, "docker-credential-"+helper, "get") // #nosec G204 -- the helper the user's own Docker configuration names
 	cmd.Stdin = strings.NewReader(server)
 	var stdout, stderr bytes.Buffer

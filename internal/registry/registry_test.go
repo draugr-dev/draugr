@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -311,6 +312,15 @@ func TestDockerCredential(t *testing.T) {
 		writeConfig(t, `{"credHelpers":{"ghcr.io":"garbled"}}`)
 		if _, err := DockerCredential(ctx, "ghcr.io"); err == nil || !strings.Contains(err.Error(), "unreadable") {
 			t.Errorf("garbled helper: %v", err)
+		}
+	})
+
+	t.Run("helper name that is a path", func(t *testing.T) {
+		for _, name := range []string{"../../tmp/x", `..\x`, ".hidden"} {
+			writeConfig(t, `{"credHelpers":{"ghcr.io":`+strconv.Quote(name)+`}}`)
+			if _, err := DockerCredential(ctx, "ghcr.io"); err == nil || !strings.Contains(err.Error(), "not a helper name") {
+				t.Errorf("helper %q: %v", name, err)
+			}
 		}
 	})
 
