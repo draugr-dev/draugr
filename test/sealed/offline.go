@@ -107,7 +107,7 @@ func copyRegular(from, to string) error {
 }
 
 // TrivyRanOffline reads the log `draugr scan --log-file` writes and returns every Trivy invocation
-// that scans for vulnerabilities without --offline-scan. Without that flag Trivy resolves a pom.xml's
+// that reads dependencies without --offline-scan. Without that flag Trivy resolves a pom.xml's
 // dependencies against Maven Central during the scan, the one request --skip-db-update does not
 // stop. The second result counts the invocations read, so a caller can tell "every one carried the
 // flag" from "there were none".
@@ -125,7 +125,7 @@ func TrivyRanOffline(log []byte) (missing []string, ran int) {
 			argv = argv[:j]
 		}
 		fields := strings.Fields(argv)
-		if len(fields) < 2 || !scansForVulnerabilities(fields[1]) {
+		if len(fields) < 2 || !scansForVulnerabilities(fields[1]) || !readsDependencies(fields) {
 			continue
 		}
 		ran++
@@ -144,4 +144,29 @@ func scansForVulnerabilities(sub string) bool {
 		return true
 	}
 	return false
+}
+
+// readsDependencies reports whether a Trivy invocation's scanners read package manifests, which is
+// what --offline-scan governs. With no --scanners Trivy runs its default set, which includes vuln.
+// A misconfiguration scan evaluates checks against files and resolves no packages, so the flag has
+// nothing to stop there.
+func readsDependencies(argv []string) bool {
+	for i, f := range argv {
+		var list string
+		switch {
+		case f == "--scanners" && i+1 < len(argv):
+			list = argv[i+1]
+		case strings.HasPrefix(f, "--scanners="):
+			list = strings.TrimPrefix(f, "--scanners=")
+		default:
+			continue
+		}
+		for _, s := range strings.Split(list, ",") {
+			if s == "vuln" || s == "license" {
+				return true
+			}
+		}
+		return false
+	}
+	return true
 }

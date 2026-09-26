@@ -217,16 +217,21 @@ func TestTrivyRanOffline(t *testing.T) {
 		`23:36:20 DEBUG  ran external tool tool=trivy argv="trivy fs --quiet --scanners vuln --skip-db-update --skip-java-db-update --offline-scan /tmp/r" duration=43ms`,
 		`23:36:21 DEBUG  ran external tool tool=trivy argv="trivy config --skip-check-update /tmp/r" duration=40ms`,
 		`23:36:21 DEBUG  ran external tool tool=trivy argv="trivy fs --scanners license /tmp/r" duration=40ms`,
+		`23:36:21 DEBUG  ran external tool tool=trivy argv="trivy fs --quiet --scanners misconfig --skip-check-update /tmp/r" duration=40ms`,
+		`23:36:21 DEBUG  ran external tool tool=trivy argv="trivy fs --scanners=secret /tmp/r" duration=40ms`,
+		`23:36:21 DEBUG  ran external tool tool=trivy argv="trivy fs --scanners=vuln,secret /tmp/r" duration=40ms`,
+		`23:36:21 DEBUG  ran external tool tool=trivy argv="trivy fs /tmp/r" duration=40ms`,
 		`23:36:21 DEBUG  ran external tool tool=gitleaks argv="gitleaks dir /tmp/r" duration=40ms`,
 		`23:36:21 DEBUG  ran external tool tool=trivy duration=40ms`,
 		`23:36:21 TRACE  tool stdout tool=trivy stdout="trivy fs /tmp/r"`,
 		`23:36:22 DEBUG  ran external tool tool=trivy argv="trivy`,
 	}, "\n")
 	missing, ran := TrivyRanOffline([]byte(log))
-	if ran != 2 {
-		t.Errorf("read %d vulnerability scans, want 2", ran)
+	if ran != 4 {
+		t.Errorf("read %d scans that read dependencies, want 4", ran)
 	}
-	if want := []string{"trivy fs --scanners license /tmp/r"}; !reflect.DeepEqual(missing, want) {
+	want := []string{"trivy fs --scanners license /tmp/r", "trivy fs --scanners=vuln,secret /tmp/r", "trivy fs /tmp/r"}
+	if !reflect.DeepEqual(missing, want) {
 		t.Errorf("missing = %q, want %q", missing, want)
 	}
 	if missing, ran := TrivyRanOffline(nil); missing != nil || ran != 0 {
