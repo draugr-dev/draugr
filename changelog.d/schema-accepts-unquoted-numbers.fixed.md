@@ -1,1 +1,0 @@
-- An editor using the published schema no longer flags an unquoted number in a free-form field, such as `version: 1.10` or a component named `2024`. `draugr validate` already accepted these and keeps the value as written.

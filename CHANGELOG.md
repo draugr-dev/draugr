@@ -12,6 +12,24 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.135.1] - 2026-09-26
+
+### Fixed
+
+- A license finding names the setting that listed its license, such as `components["api"].controls.licenses.deny`, rather than always naming `config.controls.licenses.deny`. A license listed by several settings names each of them.
+
+- A relative `semgrep.config` path now resolves against the directory Draugr runs in, as `gitleaks.config` does and the reference states. Semgrep had been resolving it inside each checkout, so a component scoped by `paths` failed with `exit status 7`.
+
+- A scan through `draugr mcp` now applies `config.exploitability` and `config.dependencyHealth`, as `draugr scan` does, and reports the feeds it consulted. KEV and EPSS come from the feed cache only, and a missing feed fails the call with the `draugr feeds update` command that fetches it. Dependency health asks for approval under `--scan=effects`, because it sends package URLs to api.deps.dev.
+
+- `draugr init` quotes a project name, component name or path that YAML would read as a number, a boolean or null, such as a directory named `2024`, so the descriptor it writes passes the published schema as well as `draugr validate`. This covers `--per-directory` and `--fragment`.
+
+- An editor using the published schema no longer flags an unquoted number in a free-form field, such as `version: 1.10` or a component named `2024`. `draugr validate` already accepted these and keeps the value as written.
+
+- The `summarize_report` MCP tool's description no longer offers `report.json`, a file the tool refuses because it holds the verdict and no findings.
+
+- `iac` lists a Terraform file under **Unread** when Trivy could not load a module it calls, with the module names as the reason. Such a module's resources were never checked, and the scan still passed. `--offline` now stops Trivy downloading modules from a registry or git host.
+
 ## [0.135.0] - 2026-09-25
 
 ### Added
@@ -6045,7 +6063,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.135.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.135.1...HEAD
+[0.135.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.135.1
 [0.135.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.135.0
 [0.134.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.134.0
 [0.133.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.133.0
