@@ -20,11 +20,9 @@ _Nothing yet._
 
 - A relative `semgrep.config` path now resolves against the directory Draugr runs in, as `gitleaks.config` does and the reference states. Semgrep had been resolving it inside each checkout, so a component scoped by `paths` failed with `exit status 7`.
 
-- A scan started by an assistant through `draugr mcp` now ranks findings with the descriptor's `config.exploitability` settings, as `draugr scan` does, and reports the feeds it consulted. It reads KEV and EPSS from the feed cache only; a feed the cache lacks fails the call with an error naming the `draugr feeds update` command that fetches it.
+- A scan through `draugr mcp` now applies `config.exploitability` and `config.dependencyHealth`, as `draugr scan` does, and reports the feeds it consulted. KEV and EPSS come from the feed cache only, and a missing feed fails the call with the `draugr feeds update` command that fetches it. Dependency health asks for approval under `--scan=effects`, because it sends package URLs to api.deps.dev.
 
 - `draugr init` quotes a project name, component name or path that YAML would read as a number, a boolean or null, such as a directory named `2024`, so the descriptor it writes passes the published schema as well as `draugr validate`. This covers `--per-directory` and `--fragment`.
-
-- A scan started by an assistant through `draugr mcp` now applies `config.dependencyHealth` and holds the Go vulnerability database to `config.exploitability.maxAge`, as `draugr scan` does. A descriptor enabling dependency health now asks for approval under `--scan=effects`, because the scan sends package URLs to api.deps.dev.
 
 - An editor using the published schema no longer flags an unquoted number in a free-form field, such as `version: 1.10` or a component named `2024`. `draugr validate` already accepted these and keeps the value as written.
 
