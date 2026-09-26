@@ -14,11 +14,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/enrich"
 	"github.com/draugr-dev/draugr/internal/exploitdata"
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 	sbomgen "github.com/draugr-dev/draugr/internal/sbom"
-	"github.com/draugr-dev/draugr/internal/scanners"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/internal/vexload"
@@ -276,14 +276,12 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			return err
 		}
 	}
-	settings := exploitSettings(opts, model.Config.Exploitability)
-	// The same limit governs every cached feed, including the Go vulnerability database
-	// govulncheck reads, which a scanner cannot see in the descriptor for itself.
-	scanners.SetFeedMaxAge(settings.MaxAge)
-	expl, feedProv, err := exploitdata.Load(ctx, settings)
+	enrichment, err := enrich.Load(ctx, exploitSettings(opts, model.Config.Exploitability),
+		model.Config.DependencyHealth, os.Stderr)
 	if err != nil {
 		return err
 	}
+	feedProv := enrichment.Feeds
 
 	if opts.jobs < 0 {
 		return fmt.Errorf("--jobs must be >= 0 (0 = auto, one per CPU)")
@@ -295,15 +293,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		return err
 	}
 
-	// Empty until the scan has found packages to ask about; see dependencyHealth.
-	health, healthOpts := dependencyHealth(model.Config.DependencyHealth, os.Stderr)
-
-	eopts := []engine.Option{
-		engine.WithPrioritization(scanpolicy.PrioritizerWith(expl, health)),
-		// Beside the prioritizer, because they describe the same decision from two sides: what
-		// it did, and what it had to work from. A run that enriched without saying what it
-		// consulted produces evidence nobody can check the ranking against.
-		engine.WithConsulted(append(expl.Consulted(), health.Consulted()...)),
+	eopts := append(enrichment.Options,
 		engine.WithSBOM(sbomgen.New()),
 		// So a cache entry names the commit it describes rather than a branch that has moved
 		// under it. One `ls-remote` per repository, against the server a clone would use anyway,
@@ -318,8 +308,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			}
 			return git.RemoteURL(context.Background(), path)
 		}),
-	}
-	eopts = append(eopts, healthOpts...)
+	)
 	if netpolicy.Offline() {
 		eopts = append(eopts, engine.WithoutPrewarm())
 	}

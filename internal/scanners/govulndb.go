@@ -29,7 +29,8 @@ func SetFeedMaxAge(d time.Duration) {
 	govulnDB = &govulnDBResolver{} // a new limit is a new answer
 }
 
-func currentFeedMaxAge() time.Duration {
+// FeedMaxAge is the limit SetFeedMaxAge last set.
+func FeedMaxAge() time.Duration {
 	feedMaxAgeMu.Lock()
 	defer feedMaxAgeMu.Unlock()
 	return feedMaxAge
@@ -93,7 +94,7 @@ func currentGovulnDB() *govulnDBResolver {
 
 func (r *govulnDBResolver) resolve() govulnDBChoice {
 	r.once.Do(func() {
-		local, err := findLocalGoVulnDB(time.Now(), currentFeedMaxAge())
+		local, err := findLocalGoVulnDB(time.Now(), FeedMaxAge())
 		switch {
 		case err == nil:
 			r.choice = govulnDBChoice{url: "file://" + local.Path, local: local}

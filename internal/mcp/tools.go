@@ -11,6 +11,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/enrich"
 	"github.com/draugr-dev/draugr/internal/exploitdata"
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/scanpolicy"
@@ -724,27 +725,27 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 				return ask, ScanOutput{}, nil
 			}
 		}
-		// The descriptor's exploitability data, read the way `draugr scan` reads it, so the same
-		// findings rank the same from either side. From the cache only: a fetch reaches the network
-		// and writes to ~/.draugr/feeds, which is more than the consent above describes, and a feed
-		// that is missing fails the call rather than ranking without it.
+		// The descriptor's enrichments, loaded by the function `draugr scan` calls, so the same
+		// findings rank the same from either side. Feeds from the cache only: a fetch reaches the
+		// network and writes to ~/.draugr/feeds, which is more than the consent above describes,
+		// and a feed that is missing fails the call rather than ranking without it. Dependency
+		// health does reach the network, and the consent names it.
 		exploitSettings := exploitdata.FromDescriptor(model.Config.Exploitability, exploitdata.DefaultThreshold)
 		exploitSettings.CacheOnly = true
-		expl, feedProv, err := exploitdata.Load(ctx, exploitSettings)
+		enrichment, err := enrich.Load(ctx, exploitSettings, model.Config.DependencyHealth, os.Stderr)
 		if err != nil {
 			return nil, ScanOutput{}, fmt.Errorf("load exploitability data: %w", err)
 		}
+		feedProv := enrichment.Feeds
 		// Shared for this run, as the CLI does, an assistant asking for a scan should not pay for five
 		// clones of one repository either.
 		pool := git.NewPool()
 		defer pool.Close()
 		ctx = git.WithPool(ctx, pool)
-		run, runErr := engine.New(reg,
-			engine.WithPrioritization(scanpolicy.DefaultPrioritizer(expl)),
-			engine.WithConsulted(expl.Consulted()),
+		run, runErr := engine.New(reg, append(enrichment.Options,
 			engine.WithRevisionResolver(git.ResolveRevision),
 			engine.WithTreeResolver(git.ResolveTree),
-		).Run(ctx, *model)
+		)...).Run(ctx, *model)
 		if runErr != nil {
 			// Say so rather than swallowing it: a partial scan that reads as complete is worse
 			// than an error, because the agent will report "no findings" with confidence.

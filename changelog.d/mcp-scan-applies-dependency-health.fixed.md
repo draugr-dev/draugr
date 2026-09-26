@@ -1,0 +1,1 @@
+- A scan started by an assistant through `draugr mcp` now applies `config.dependencyHealth` and holds the Go vulnerability database to `config.exploitability.maxAge`, as `draugr scan` does. A descriptor enabling dependency health now asks for approval under `--scan=effects`, because the scan sends package URLs to api.deps.dev.
