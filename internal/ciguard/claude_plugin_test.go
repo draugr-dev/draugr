@@ -265,13 +265,26 @@ func TestTheHookNamesTheInstallPageWhenDraugrIsMissing(t *testing.T) {
 	}
 }
 
-// downloadAndRun matches a command that fetches a script and pipes it to a shell.
-var downloadAndRun = regexp.MustCompile(`\b(curl|wget)\b[^|\n]*\|\s*(sudo\s+)?(ba|z)?sh\b`)
+// heldByTheDirectory are the shapes Claude's plugin directory holds for review wherever they
+// appear in a plugin, the README and the evals included.
+var heldByTheDirectory = []struct {
+	pattern *regexp.Regexp
+	why     string
+}{
+	{
+		regexp.MustCompile(`\b(curl|wget)\b[^|\n]*\|\s*(sudo\s+)?(ba|z)?sh\b`),
+		"runs a downloaded script, which is fetched after review; link the install page instead",
+	},
+	{
+		regexp.MustCompile(`\$\{?PWD\b|\bpwd\s*\)`),
+		"reads the working directory, which the plugin directory treats as the installer's environment; " +
+			"derive the path from the file's own location instead",
+	},
+}
 
-// TestThePluginCarriesNoDownloadAndRun keeps every file the plugin ships free of a command that
-// downloads a script and runs it. Claude's plugin directory shows one anywhere in the plugin, the
-// README included, to users as an install-time risk, because what runs is fetched after review.
-func TestThePluginCarriesNoDownloadAndRun(t *testing.T) {
+// TestThePluginCarriesNothingTheDirectoryHolds keeps every file the plugin ships free of a shape
+// the plugin directory shows to users as an install-time risk.
+func TestThePluginCarriesNothingTheDirectoryHolds(t *testing.T) {
 	t.Parallel()
 	err := filepath.WalkDir(pluginDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
@@ -281,8 +294,10 @@ func TestThePluginCarriesNoDownloadAndRun(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		if m := downloadAndRun.Find(body); m != nil {
-			t.Errorf("%s runs a downloaded script (%q); link the install page instead", path, m)
+		for _, held := range heldByTheDirectory {
+			if m := held.pattern.Find(body); m != nil {
+				t.Errorf("%s %s (%q)", path, held.why, m)
+			}
 		}
 		return nil
 	})

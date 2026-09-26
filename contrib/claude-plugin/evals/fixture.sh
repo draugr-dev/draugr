@@ -3,14 +3,16 @@
 # repository, each calling eval and each committing an AWS-shaped key, declared as two components
 # scoped by paths. Sourced by each case's scaffold script, which runs in the empty workspace.
 #
-# The descriptor enables secrets and sast only. Both read the checkout and nothing else, so a scan
+# The descriptor enables secrets and sast only. Both read files on disk and nothing else, so a scan
 # is deterministic, needs no vulnerability database, and asks for no approval under the server's
 # default --scan=effects.
 set -euo pipefail
 
-EVALS=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-SCENARIO="$EVALS/../../../test/integration/testdata/ecosystems/monorepo-paths"
-RULES="$EVALS/../../../test/integration/testdata/ecosystems/semgrep.yaml"
+# Paths come from this file's own location. The descriptor names the rules by absolute path because
+# Semgrep resolves a relative one against the component's path, not the repository root.
+ECOSYSTEMS=$(readlink -f "$(dirname "${BASH_SOURCE[0]}")/../../../test/integration/testdata/ecosystems")
+SCENARIO="$ECOSYSTEMS/monorepo-paths"
+RULES="$ECOSYSTEMS/semgrep.yaml"
 
 git_() { git -c user.name=eval -c user.email=eval@draugr.invalid -c commit.gpgsign=false "$@"; }
 
@@ -26,8 +28,6 @@ repo() {
   find . -name '*.fixture' -exec sh -c 'mv "$1" "${1%.fixture}"' _ {} \;
   aws_key services/api/deploy/aws.env
   aws_key services/web/deploy/aws.env
-  mkdir -p .draugr
-  cp "$RULES" .draugr/semgrep.yaml
   git_ init -q -b main
   git_ add -A
   git_ commit -q -m "Two services"
@@ -47,7 +47,7 @@ ${CONTROLS:-}    secrets:
     sast:
       enabled: true
       semgrep:
-        config: $PWD/.draugr/semgrep.yaml
+        config: $RULES
 components:
   - name: api
     exposure: public
