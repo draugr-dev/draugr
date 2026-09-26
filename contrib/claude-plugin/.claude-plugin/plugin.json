@@ -7,7 +7,11 @@
     "name": "Draugr",
     "url": "https://draugr.dev"
   },
-  "homepage": "https://draugr.dev/docs/latest/guides/ai-agents-mcp/",
+  "homepage": "https://draugr.dev",
+  "documentationUrl": "https://draugr.dev/docs/latest/guides/ai-agents-mcp/",
+  "supportUrl": "https://github.com/draugr-dev/draugr/issues",
+  "privacyPolicyUrl": "https://draugr.dev/privacy/",
+  "termsOfServiceUrl": "https://draugr.dev/terms/",
   "repository": "https://github.com/draugr-dev/draugr",
   "license": "Apache-2.0",
   "keywords": [
