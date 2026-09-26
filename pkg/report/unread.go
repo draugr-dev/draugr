@@ -14,10 +14,9 @@ import (
 const unreadShown = 3
 
 // unreadNote says what the section lists and what it cost, in the words both formats print.
-const unreadNote = "dependency files no scanner took packages from · their packages were not checked"
+const unreadNote = "dependency files and Terraform modules no scanner read · what they declare was not checked"
 
-// unreadGroup is one component's unread dependency files, each named once however many controls
-// missed it.
+// unreadGroup is one component's unread files, each named once however many controls missed it.
 type unreadGroup struct {
 	component string
 	files     []unreadFile
@@ -88,7 +87,8 @@ func (g unreadGroup) text(limit int, code func(string) string) string {
 	return strings.Join(parts, " · ")
 }
 
-// writeUnread names, per component, the dependency files no scan read packages from.
+// writeUnread names, per component, the dependency files no scan read packages from and the files
+// calling a Terraform module no scan loaded.
 //
 // Its own section rather than rows under "Not measured", which is keyed by control: one line per
 // component keeps a file two controls missed to one mention. Silent when every file was read, and

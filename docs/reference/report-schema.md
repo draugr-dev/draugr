@@ -21,7 +21,7 @@ pipeline should do about it. One is broken infrastructure, the other is work.
 |---|---|
 | `controls[].scanErrors` | what stopped that control, in the scanner's own words. Its counts then describe what the scanners that *did* run found, which is not the same as what is there. A control that produced nothing at all is still listed, with `"verdict": "fail"` and no counts. |
 | `notMeasured[]` | a scanner that was planned and then not run because it could not answer the question its target asked, the control, scanner, component and reason. Not an error: nothing went wrong, and no `scanErrors` are recorded for it. |
-| `dependencyFiles[]` | per component and control, the dependency files the scanners that list their inputs read packages from (`read`, a count) and the ones none of them did (`unread[]`: `repository`, `path` and `reason`). A reason is `no lockfile`, `no pinned versions` or `no packages read`. The packages such a file declares were not checked. |
+| `dependencyFiles[]` | per component and control, the dependency files the scanners that list their inputs read packages from (`read`, a count) and the ones none of them did (`unread[]`: `repository`, `path` and `reason`). A reason is `no lockfile`, `no pinned versions` or `no packages read`. The packages such a file declares were not checked. An `iac` entry lists the Terraform files calling a module Trivy could not load, with `read` at 0 and a reason such as `module "vpc" not loaded`; the resources that module defines were not checked. |
 
 `scanErrors` and `notMeasured[]` are omitted when there is nothing to report, so a clean run's
 document is unchanged. `dependencyFiles[]` is present whenever a scanner that lists its inputs ran,

@@ -693,7 +693,8 @@ type Input struct {
 	// Packages is how many packages the scanner read from the file.
 	Packages int `json:"packages,omitempty"`
 	// Unread is why the file contributed no packages, and empty when it was read: "no lockfile",
-	// "no pinned versions" or "no packages read".
+	// "no pinned versions" or "no packages read". For a Terraform file, the module blocks it calls
+	// that the scanner could not load, as `module "vpc" not loaded`.
 	Unread string `json:"unread,omitempty"`
 }
 

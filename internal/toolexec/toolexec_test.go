@@ -522,3 +522,46 @@ func TestWithCauses(t *testing.T) {
 		})
 	}
 }
+
+// The report and the log arrive apart, so the report still parses and the log can still be read,
+// and a variable given for the child reaches it.
+func TestRunWithStderrKeepsTheStreamsApart(t *testing.T) {
+	out, stderr, err := RunWithStderr(context.Background(), "",
+		[]string{"sh", "-c", `echo "log $DRAUGR_TEST_VAR" >&2; echo report`}, []string{"DRAUGR_TEST_VAR=child"})
+	if err != nil || string(out) != "report\n" || string(stderr) != "log child\n" {
+		t.Errorf("stdout %q stderr %q err %v", out, stderr, err)
+	}
+	if _, _, err := RunWithStderr(context.Background(), "", nil, nil); err == nil {
+		t.Error("an empty command ran")
+	}
+}
+
+// A tool that logs its progress fails on a later line than its first, and the failure is the one
+// that has to reach the error.
+func TestRunWithStderrExplainsWithTheLineThatEndedTheRun(t *testing.T) {
+	script := `printf '2026-09-25T21:46:38-05:00\tINFO\tMisconfiguration scanning is enabled\n' >&2
+printf '2026-09-25T21:46:39-05:00\tERROR\tFailed to load module\n' >&2
+printf '2026-09-25T21:46:40-05:00\tFATAL\tFatal error\trun error: cache may be in use by another process\n' >&2
+exit 1`
+	_, stderr, err := RunWithStderr(context.Background(), "", []string{"sh", "-c", script}, nil)
+	if err == nil || !strings.Contains(err.Error(), "cache may be in use by another process") {
+		t.Errorf("err = %v, want the FATAL line", err)
+	}
+	if !strings.Contains(string(stderr), "Failed to load module") {
+		t.Errorf("stderr %q, want all of it", stderr)
+	}
+}
+
+func TestFirstLinePrefersTheMostSevereLevel(t *testing.T) {
+	t.Parallel()
+	for raw, want := range map[string]string{
+		"t\tINFO\tstarting\nt\tERROR\tone module\nt\tERROR\tanother": "one module",
+		"t\tERROR\tone module\nt\tFATAL\tthe end":                    "the end",
+		"no levels here\nsecond line":                                "no levels here",
+		" \n\t\n":                                                    "",
+	} {
+		if got := firstLine(raw); got != want {
+			t.Errorf("firstLine(%q) = %q, want %q", raw, got, want)
+		}
+	}
+}

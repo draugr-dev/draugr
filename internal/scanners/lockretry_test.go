@@ -259,7 +259,6 @@ func TestEveryTrivyScannerRetriesALockedCache(t *testing.T) {
 		make func() plugin.Scanner
 	}{
 		{"trivy-fs", NewTrivyFS},
-		{"trivy-config", NewTrivyConfig},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			// Substituted before the constructor runs, so what is exercised is the run function
@@ -286,5 +285,28 @@ func TestEveryTrivyScannerRetriesALockedCache(t *testing.T) {
 				t.Errorf("ran %d times, want the contended attempts retried", calls)
 			}
 		})
+	}
+}
+
+// trivy-config runs Trivy through its own exec, to read the log beside the report, so the retry has
+// to be reached through that.
+func TestTrivyConfigRetriesALockedCache(t *testing.T) {
+	fastBackoff(t)
+	calls := 0
+	prior := execWithStderr
+	t.Cleanup(func() { execWithStderr = prior })
+	execWithStderr = func(context.Context, string, []string, []string) ([]byte, []byte, error) {
+		calls++
+		if calls <= 2 {
+			return nil, nil, errLocked
+		}
+		return []byte(trivyMisconfigSARIF), nil, nil
+	}
+	s := NewTrivyConfig().(repoScanner)
+	if _, _, err := s.runLogged(t.Context(), t.TempDir(), []string{"trivy", "config"}); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 3 {
+		t.Errorf("ran %d times, want the contended attempts retried", calls)
 	}
 }

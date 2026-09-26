@@ -7,6 +7,7 @@
 package toolexec
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -91,6 +92,35 @@ func RunWithEnv(ctx context.Context, dir string, argv, env []string) ([]byte, er
 	return out, explain(argv[0], err)
 }
 
+// RunWithStderr is RunWithEnv returning the tool's stderr beside its stdout, kept apart.
+//
+// For a tool that reports on stdout and logs on stderr what it could not do, then exits 0. Trivy
+// logs each Terraform module it failed to load and scans on without it, and nothing in its report
+// says so. A caller that reads only stdout sees a clean scan of less than was there.
+func RunWithStderr(ctx context.Context, dir string, argv, env []string) (stdout, stderr []byte, err error) {
+	if len(argv) == 0 {
+		return nil, nil, errors.New("empty command")
+	}
+	started := time.Now()
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) // #nosec G204 -- configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
+	cmd.Dir = dir
+	if len(env) > 0 {
+		cmd.Env = append(os.Environ(), env...)
+	}
+	var errBuf bytes.Buffer
+	cmd.Stderr = &errBuf
+	out, err := cmd.Output()
+	// Output() fills the exit error's Stderr only when it captured the stream itself, and explain and
+	// log read it from there.
+	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
+		exit.Stderr = errBuf.Bytes()
+	} else if err == nil && errBuf.Len() > 0 {
+		slog.Log(ctx, observability.LevelTrace, "tool stderr", "tool", argv[0], "stderr", errBuf.String())
+	}
+	log(ctx, argv, dir, started, out, err)
+	return out, errBuf.Bytes(), explain(argv[0], err)
+}
+
 // explain puts the tool's own first words into the error.
 //
 // `exit status 1` tells a reader nothing they can act on, and it is what reaches the terminal, the
@@ -131,6 +161,10 @@ func explain(tool string, err error) error {
 
 // firstLine returns what a tool said about its failure: the first non-blank line of stderr,
 // stripped of its log preamble, plus the list it promised if it ended by promising one.
+//
+// Where the tool logs levels, the first line at the most severe level it reached. A tool that logs
+// its progress opens stderr with a line such as `INFO Misconfiguration scanning is enabled`, which
+// is true of every run, and the line that ended this one comes after it at FATAL.
 func firstLine(s string) string {
 	var lines []string
 	for _, line := range strings.Split(s, "\n") {
@@ -141,7 +175,28 @@ func firstLine(s string) string {
 	if len(lines) == 0 {
 		return ""
 	}
-	return shorten(withCauses(message(lines[0]), lines[1:]))
+	first, worst := 0, 0
+	for i, line := range lines {
+		if rank := severity(line); rank > worst {
+			first, worst = i, rank
+		}
+	}
+	return shorten(withCauses(message(lines[first]), lines[first+1:]))
+}
+
+// severity ranks a log line by the level in its preamble: 2 for FATAL or PANIC, 1 for ERROR, and 0
+// for any other level or none.
+func severity(line string) int {
+	fields := strings.Split(line, "\t")
+	for _, f := range fields[:len(fields)-1] {
+		switch strings.ToUpper(strings.TrimSpace(f)) {
+		case "FATAL", "PANIC":
+			return 2
+		case "ERROR":
+			return 1
+		}
+	}
+	return 0
 }
 
 // withCauses appends the sub-errors of a multi-error to the line that announced them.

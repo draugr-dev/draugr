@@ -22,13 +22,17 @@ CloudFormation, and more. See the [IaC glossary
 entry](../../docs/reference/glossary.md#iac-scanning-infrastructure-as-code).
 
 ```
-trivy fs --quiet --scanners misconfig --format json --show-suppressed <dir>
+trivy fs --scanners misconfig --format json --show-suppressed <dir>
 trivy convert --quiet --format sarif <report>
 ```
 
 The scan writes JSON because only the JSON lists what Trivy excluded, and `trivy convert` writes
 the SARIF from that report without scanning again. On a Trivy older than 0.53.0, which has no
-`--show-suppressed`, the scan is `trivy config --quiet --format sarif <dir>`.
+`--show-suppressed`, the scan is `trivy config --format sarif <dir>`.
+
+The scan runs without `--quiet` because Trivy reports a Terraform module it could not load only in
+its log, and exits 0. Each such module is reported under
+[**Unread**](../controllers/iac.md#unread), named by the file that calls it.
 
 ## Saga options
 
@@ -97,3 +101,11 @@ every output format, and any exclusion on a Trivy older than 0.53.0.
 The **checks bundle**, from `mirror.gcr.io/aquasec/trivy-checks`, Trivy's own default, warmed once
 per run. With `--offline`, Draugr passes `--skip-check-update` and Trivy evaluates the checks built
 into the pinned release. Misconfiguration scanning reads no vulnerability database.
+
+**Terraform modules**, from the host each `module` block's `source` names: `registry.terraform.io`
+for a registry address, or the git host for a `git::` or GitHub source. Trivy downloads them into
+`.aqua/cache` under the system temporary directory. A module with a local `source` path is read from the checkout.
+
+With `--offline`, Draugr runs the scan through a closed proxy and allows git only the `file`
+transport, so no module is downloaded and each remote one is reported unread. To scan what a
+module defines, vendor it into the repository, or allow the hosts its `source` names.
