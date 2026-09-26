@@ -7,34 +7,27 @@ name: Evals
 # The unit tests prove each MCP tool returns the right answer. They cannot prove a model picks the
 # tool, reads its answer correctly, or stops at the approval the server asks for, and a reworded
 # tool description can break all three while every Go test still passes. That is what this suite
-# measures, and why it runs on the files a model reads rather than on every change.
+# measures.
 #
-# Every run is billed to an API key, so four things bound what one can cost:
+# It runs by hand, at a commit somebody names, until a run is stable enough to gate a pull request
+# on. A single run per case cannot tell a flaky case from a broken one, and three runs on every pull
+# request that touches the server cost more than an unstable signal is worth.
 #
-# - `pull_request`, never `pull_request_target`. A pull request from a fork gets no secrets, and the
-#   job says so and stops rather than failing for want of a key. A maintainer who has read the diff
-#   runs it by dispatch, naming the commit they read, so a later push cannot ride on the review.
-# - Paths. The suite runs when the server or the plugin changes. The plugin's README is its
-#   directory listing and never reaches the model, so it is left out. The release pull request
-#   touches plugin.json only to set its version, and every change it carries was measured in its
-#   own pull request, so it is skipped.
-# - One run per case on a pull request, about US$0.65 for the suite. A dispatch defaults to three,
-#   about US$3.20, which is what a flaky case needs before it can be told from a broken one.
+#   gh workflow run Evals -f ref=<commit>
+#
+# Every run is billed to an API key, so what one can cost is bounded here:
+#
+# - Dispatch only. A run executes the named commit's code with the key, so for a pull request from a
+#   fork, name the head commit you read, and a later push cannot ride on the review.
+# - Three runs per case by default, about US$3.20 for the suite; one run is about US$0.65.
 # - A fixed suite. The case count, each case's turn limit and the cost ceiling below are all in this
 #   repository, so nothing in a pull request's description or title changes what a run spends.
-# - One run per branch. A new push cancels the run in flight instead of paying for both.
+# - One run per commit. A second dispatch for the same commit cancels the run in flight.
 #
 # The key comes from a workspace of its own with a monthly spend limit, so a runaway run is capped
 # by the account as well as by --max-cost-usd.
 
 on:
-  pull_request:
-    paths:
-      - "internal/mcp/**"
-      - "internal/cli/mcp.go"
-      - "contrib/claude-plugin/**"
-      - "!contrib/claude-plugin/README.md"
-      - ".github/workflows/evals.yml"
   workflow_dispatch:
     inputs:
       ref:
@@ -53,7 +46,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: evals-${{ github.event.pull_request.number || inputs.ref }}
+  group: evals-${{ inputs.ref }}
   cancel-in-progress: true
 
 env:
@@ -69,39 +62,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      # A fork's pull request, and Dependabot's, run without repository secrets. Say so and stop,
-      # rather than failing on a missing key or skipping without a word.
-      - name: Decide whether this run holds the key
-        id: key
-        env:
-          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          HEAD_REF: ${{ github.head_ref }}
-        run: |
-          set -euo pipefail
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ] && [[ "$HEAD_REF" == release-* ]]; then
-            msg="Evals not run: a release pull request changes plugin.json only to set its version."
-            echo "::notice::$msg"
-            echo "$msg" >> "$GITHUB_STEP_SUMMARY"
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          elif [ "$GITHUB_EVENT_NAME" = "pull_request" ] &&
-             { [ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ] || [ "$GITHUB_ACTOR" = "dependabot[bot]" ]; }; then
-            msg="Evals not run: this pull request has no access to the API key. A maintainer can run them after reading the diff: gh workflow run Evals -f ref=$HEAD_SHA"
-            echo "::notice::$msg"
-            echo "$msg" >> "$GITHUB_STEP_SUMMARY"
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: steps.key.outputs.run == 'true'
         with:
           ref: ${{ inputs.ref }}
           persist-credentials: false
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        if: steps.key.outputs.run == 'true'
         with:
           go-version: ${{ env.GO_VERSION }}
           check-latest: true
@@ -110,7 +76,6 @@ jobs:
       # than a release. Each run gets a temporary home, which hides ~/.draugr/bin from Draugr's own
       # lookup, so the scanners go on PATH too.
       - name: Build draugr and provision the scanners the cases use
-        if: steps.key.outputs.run == 'true'
         run: |
           set -euo pipefail
           make build
@@ -119,17 +84,15 @@ jobs:
           echo "$HOME/.draugr/bin" >> "$GITHUB_PATH"
 
       - name: Install Claude Code
-        if: steps.key.outputs.run == 'true'
         run: npm install -g "@anthropic-ai/claude-code@$CLAUDE_CODE_VERSION"
 
       # --ablation none runs the plugin arm only: the gate is whether the plugin does its job, and a
       # no-plugin baseline would double the cost to report a delta the exit code ignores.
       - name: Run the suite
-        if: steps.key.outputs.run == 'true'
         working-directory: contrib/claude-plugin
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          RUNS: ${{ inputs.runs || 1 }}
+          RUNS: ${{ inputs.runs }}
         run: |
           set -euo pipefail
           if [ -z "$ANTHROPIC_API_KEY" ]; then
@@ -152,7 +115,7 @@ jobs:
             -j 4
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always() && steps.key.outputs.run == 'true'
+        if: always()
         with:
           name: eval-results
           path: |
