@@ -1,0 +1,1 @@
+- `draugr doctor saga.yaml` checks each target the scan would read from this machine: each repository revision resolves, each `paths:` entry is committed at it, each image is in the local Docker daemon or readable from its registry, and each host accepts a connection. A failed check exits non-zero. `--offline` skips the checks that need the network.

@@ -16,6 +16,8 @@ import (
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/controllers"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
+	"github.com/draugr-dev/draugr/internal/preflight"
+	"github.com/draugr-dev/draugr/internal/sagafetch"
 	"github.com/draugr-dev/draugr/internal/sbom"
 	"github.com/draugr-dev/draugr/internal/selfupdate"
 	"github.com/draugr-dev/draugr/internal/surfaces"
@@ -37,6 +39,8 @@ type doctorOptions struct {
 	failOnUncovered bool
 	// strict does the same for a tool that is not the version Draugr tests.
 	strict bool
+	// The scope a scan takes, so a preflight checks the targets that scan would read.
+	components, controls, labels, exposure, criticality []string
 }
 
 // doctorRun is what runDoctor needs from the command's flags.
@@ -51,18 +55,27 @@ type doctorRun struct {
 	// version is very likely fine, and a check that fails on very-likely-fine is one people stop
 	// running.
 	strict bool
+	// reach checks each target the descriptor's scan would read. Set by the command; a test that
+	// sets it supplies probes, so nothing leaves the machine.
+	reach bool
+	// offline skips the reachability checks that need the network, and reports each as not
+	// checked.
+	offline bool
+	scope   engine.Scope
+	probes  preflight.Probes
 }
 
 func newDoctorCommand() *cobra.Command {
 	opts := &doctorOptions{}
 	cmd := &cobra.Command{
 		Use:   "doctor [saga.yaml]",
-		Short: "Check that the external scanners a scan needs are installed",
+		Short: "Check that a scan's tools are installed and its targets reachable",
 		Long: "Report which external scanner tools are present, missing, or out of date, with an\n" +
 			"install hint for each.\n\n" +
-			"Given a Saga, also validates the descriptor and checks only the tools its enabled\n" +
-			"controls need; without one, checks them all. Exits non-zero when the descriptor is\n" +
-			"invalid or a required tool is missing.",
+			"Given a Saga, also validates the descriptor, checks only the tools its enabled\n" +
+			"controls need, and checks each target: repositories resolve, paths exist, images\n" +
+			"are readable and hosts connect; without one, checks every tool. Exits non-zero\n" +
+			"when the descriptor is invalid, a required tool is missing or a target check fails.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			sagaPath := ""
@@ -82,7 +95,14 @@ func newDoctorCommand() *cobra.Command {
 					return selfupdate.LatestVersion(ctx, nil)
 				}
 			}
-			run := doctorRun{json: opts.json, failOnUncovered: opts.failOnUncovered, strict: opts.strict}
+			run := doctorRun{
+				json: opts.json, failOnUncovered: opts.failOnUncovered, strict: opts.strict,
+				reach: true, offline: opts.offline || netpolicy.Offline(),
+				scope: engine.Scope{
+					Components: opts.components, Controls: opts.controls, Labels: opts.labels,
+					Exposure: exposures(opts.exposure), Criticality: criticalities(opts.criticality),
+				},
+			}
 			return runDoctor(cmd.Context(), cmd.OutOrStdout(), builtins.Registry(), sagaPath, run, detect, latest)
 		},
 	}
@@ -95,7 +115,21 @@ func newDoctorCommand() *cobra.Command {
 	// CI, and "do not check for a release" is a narrower request than "this machine has no
 	// network" that someone may still want to make on its own.
 	cmd.Flags().BoolVar(&opts.offline, "offline", false,
-		"skip the check for a newer draugr release (also DRAUGR_NO_UPDATE_CHECK=1; implied by the root --offline)")
+		"skip the check for a newer draugr release and every target check that needs the network "+
+			"(also set by the root --offline flag)")
+	cmd.Flags().StringSliceVar(&opts.components, "components", nil,
+		"check only the targets of these components")
+	cmd.Flags().StringSliceVar(&opts.labels, "labels", nil,
+		"check only the targets of components carrying these `key=value` labels; repeat for more, "+
+			"one key twice means either value")
+	cmd.Flags().StringSliceVar(&opts.exposure, "exposure", nil,
+		"check only the targets of components declaring one of these exposures: "+
+			strings.Join(namesOf(saga.Exposures), ", "))
+	cmd.Flags().StringSliceVar(&opts.criticality, "criticality", nil,
+		"check only the targets of components declaring one of these criticalities: "+
+			strings.Join(namesOf(saga.Criticalities), ", "))
+	cmd.Flags().StringSliceVar(&opts.controls, "controls", nil,
+		"check only the targets these controls would read")
 	return cmd
 }
 
@@ -123,10 +157,10 @@ func runDoctor(
 	// that anything is missing, because nothing has asked for anything yet.
 	inventoryOnly := false
 	if sagaPath != "" {
-		loaded, err := saga.LoadFile(sagaPath)
+		loaded, err := doctorLoad(ctx, sagaPath, run.reach, run.offline)
 		if err != nil {
 			if run.json {
-				_ = writeDoctorJSON(w, dv, &descriptorReport{Path: sagaPath, Valid: false, Error: err.Error()}, nil, nil)
+				_ = writeDoctorJSON(w, dv, &descriptorReport{Path: sagaPath, Valid: false, Error: err.Error()}, nil, nil, nil)
 			} else {
 				col := tui.For(w)
 				// The reason is carried by the error, which the CLI prints. Written here too it
@@ -156,6 +190,14 @@ func runDoctor(
 		uncovered = surfaces.Uncovered(model)
 	}
 
+	var checks []preflight.Check
+	if model != nil && run.reach {
+		var err error
+		if checks, err = checkTargets(ctx, reg, model, run); err != nil {
+			return err
+		}
+	}
+
 	statuses := make([]tools.Status, 0, len(required))
 	missing := 0
 	for _, t := range required {
@@ -177,7 +219,7 @@ func runDoctor(
 		if sagaPath != "" {
 			desc = &descriptorReport{Path: sagaPath, Valid: true}
 		}
-		if err := writeDoctorJSON(w, dv, desc, statuses, uncovered); err != nil {
+		if err := writeDoctorJSON(w, dv, desc, statuses, uncovered, checks); err != nil {
 			return err
 		}
 	} else {
@@ -187,6 +229,9 @@ func runDoctor(
 				col.Paint(tui.StylePass, "✓ valid"), col.Paint(tui.StyleMuted, "("+sagaPath+")"))
 		}
 		writeDoctorTable(w, statuses)
+		if len(checks) > 0 {
+			writeTargetChecks(w, checks)
+		}
 		writeNetworkCalls(w, reg)
 		if model != nil {
 			printUncoveredSurfaceNote(w, model)
@@ -223,6 +268,11 @@ func runDoctor(
 		}
 		return fmt.Errorf("%s", advice)
 	}
+	// After the missing-tool checks and before the surface note: a target this machine cannot
+	// reach fails the scan the way a missing tool does, where an uncovered surface only narrows it.
+	if n := preflight.FailedCount(checks); n > 0 {
+		return fmt.Errorf("%s failed", english.Count(n, "target check"))
+	}
 	// After the missing-tool checks, because a tool that is absent stops the scan outright while
 	// an uncovered surface only narrows it, and the more serious answer should be the one given.
 	if len(uncovered) > 0 && run.failOnUncovered {
@@ -247,6 +297,71 @@ func runDoctor(
 		_, _ = fmt.Fprintln(w, "\n"+tui.For(w).Paint(tui.StylePass, msg))
 	}
 	return nil
+}
+
+// doctorLoad loads the descriptor. When targets are to be checked, remote fragments are fetched
+// as `validate` fetches them, because a fragment that cannot be fetched is the first target a scan
+// fails on.
+func doctorLoad(ctx context.Context, path string, reach, offline bool) (*saga.Model, error) {
+	// Offline, a remote fragment is not fetched: doctor's own --offline is narrower than the root
+	// flag the fetcher reads, and the loader it had before target checks existed fetches nothing.
+	if !reach || offline {
+		return saga.LoadFile(path)
+	}
+	fetcher := sagafetch.New(ctx)
+	defer fetcher.Close()
+	res, err := saga.ResolveFile(path, fetcher)
+	if err != nil {
+		return nil, err
+	}
+	return res.Model, nil
+}
+
+// checkTargets plans the scan the flags describe and checks each target it would read.
+//
+// Planned by the engine rather than read off the descriptor, so the targets are the ones the scan
+// would read: a repository no enabled control scans is not checked, and one two components share is
+// checked once. Every effect is allowed, because the question is what the scan could touch, and the
+// approval it asks for is the scan's own business.
+func checkTargets(ctx context.Context, reg *engine.Registry, model *saga.Model, run doctorRun) ([]preflight.Check, error) {
+	if err := run.scope.Validate(*model, controlNames(reg)); err != nil {
+		return nil, err
+	}
+	eng := engine.New(reg,
+		engine.WithScope(run.scope.Resolve(*model)),
+		engine.WithAllowedEffects([]string{
+			string(plugin.EffectNetwork), string(plugin.EffectDisclosure),
+			string(plugin.EffectMutate), string(plugin.EffectPrivilege),
+		}))
+	jobs, err := eng.Plan(*model)
+	if err != nil {
+		return nil, fmt.Errorf("the scan cannot be planned:\n  %s", strings.ReplaceAll(err.Error(), "\n", "\n  "))
+	}
+	targets := make([]plugin.Target, 0, len(jobs))
+	for _, j := range jobs {
+		targets = append(targets, j.Job.Target)
+	}
+	return preflight.Run(ctx, targets, preflight.Options{Offline: run.offline, Probes: run.probes}), nil
+}
+
+// writeTargetChecks lists each target check and its result.
+func writeTargetChecks(w io.Writer, checks []preflight.Check) {
+	col := tui.For(w)
+	_, _ = fmt.Fprintf(w, "\n%s\n", doctorHeading(col, "Targets"))
+	t := tui.NewTable(col, "Kind", "Target", "Result")
+	for _, c := range checks {
+		var result tui.Cell
+		switch c.Status {
+		case preflight.Passed:
+			result = tui.Styled(tui.StylePass, "✓ "+c.Detail)
+		case preflight.Failed:
+			result = tui.Styled(tui.StyleFail, "✗ "+c.Detail)
+		default:
+			result = tui.Styled(tui.StyleMuted, "not checked: "+c.Detail)
+		}
+		t.Row(tui.PlainCell(c.Kind), tui.PlainCell(c.Target), result)
+	}
+	t.Render(w)
 }
 
 // requiredTools returns the external tools needed by the controls enabled anywhere in the
@@ -511,6 +626,7 @@ type toolReport struct {
 
 func writeDoctorJSON(
 	w io.Writer, dv draugrReport, desc *descriptorReport, statuses []tools.Status, uncovered []string,
+	checks []preflight.Check,
 ) error {
 	report := struct {
 		Draugr     draugrReport      `json:"draugr"`
@@ -521,9 +637,11 @@ func writeDoctorJSON(
 		// Present here because the answer a person gets and the answer a pipeline gets diverging
 		// is worse than either being absent.
 		UncoveredSurfaces []string `json:"uncoveredSurfaces,omitempty"`
+		// Targets are the reachability checks, one per distinct target the scan would read.
+		Targets []preflight.Check `json:"targets,omitempty"`
 	}{
 		Draugr: dv, Descriptor: desc, Tools: make([]toolReport, 0, len(statuses)),
-		UncoveredSurfaces: uncovered,
+		UncoveredSurfaces: uncovered, Targets: checks,
 	}
 
 	for _, st := range statuses {
@@ -559,7 +677,7 @@ var networkCalls = []networkCall{
 	{"draugr tools install", "each tool's pinned release archive, verified against a recorded SHA-256"},
 	{"draugr feeds update", "the CISA KEV catalog, the FIRST EPSS scores and the Go vulnerability database"},
 	{"draugr self-update", "the latest draugr release"},
-	{"draugr doctor", "the latest draugr release, to compare against yours (skipped by --offline)"},
+	{"draugr doctor", "the latest draugr release, to compare against yours, and each remote target a scan would read"},
 	{"a scan, before it starts", "the reference data each scanner reads, host by host under HOSTS"},
 	{"a scan, per target", "the registry, for an image; the endpoint itself, for a host or DAST target"},
 	// The only entry where the traffic does not go to something of yours. Listed separately

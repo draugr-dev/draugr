@@ -1116,12 +1116,13 @@ concatenated would not be.
 
 ## `draugr doctor [saga.yaml]`
 
-Preflight the environment: report which external scanner tools are **present, missing, or of what
-version**, with an install hint for each, so a missing tool is caught up front instead of failing
+Preflight the environment: report which external scanner tools are **present, missing, or out of
+date**, with an install hint for each, so a missing tool is caught up front instead of failing
 mid-scan. Given a Saga, it first **validates the descriptor**, then checks only the tools its
 enabled controls need (`trivy`, `gitleaks`, `semgrep`, plus `git` for repo scans, and `gosec` only
-when a component opts into it). **Exits non-zero when the descriptor is invalid or a required tool
-is missing**, so it gates CI: `draugr doctor saga.yaml && draugr scan saga.yaml`.
+when a component opts into it), then checks that each [target](#targets) the scan would read is
+reachable from this machine. **Exits non-zero when the descriptor is invalid, a required tool is
+missing or a target check fails**, so it gates CI: `draugr doctor saga.yaml && draugr scan saga.yaml`.
 
 **Without a Saga it is an inventory, not a verdict.** It lists every tool Draugr can use and which
 are present, and exits zero. Nothing has been selected, so nothing is required. Several entries are
@@ -1158,6 +1159,37 @@ a scan that quietly finds fewer things is the failure a security tool must not h
 The count and the remedy, rather than a mark on every row: a machine that has not reinstalled in a
 while has most of them, and a mark on every row is not a mark.
 
+### Targets
+
+Given a Saga, doctor plans the scan and checks each target the plan reads, with this machine's
+network and credentials:
+
+| Kind | Check | Passes when |
+|------|-------|-------------|
+| `repository` | resolves the revision; a full commit name is looked up in the repository | `git` resolves it |
+| `paths` | reads the tree at that commit | every entry of the component's `paths` is committed there |
+| `image` | the local Docker daemon, then the registry's manifest, with the credential `docker login` stored | either one has the image |
+| `host` | opens a TCP connection, and completes the TLS handshake for `https` | the connection opens |
+
+A target two components share is checked once. A certificate this machine does not trust still
+passes, with the reason in the row, because the scanners that probe an endpoint do not verify it.
+Other target kinds show `not checked`, which neither passes nor fails.
+
+```console
+$ draugr doctor draugr.saga.yaml
+TARGETS
+Kind        Target                                              Result
+repository  https://github.com/draugr-dev/draugr-demo.git@main  ✓ resolves to a103420078f4
+paths       web                                                 ✓ in the tree at a103420078f4
+paths       services/api                                        ✗ paths "services/api": not in the repository at a103420078f4
+image       python:3.8-slim                                     ✓ in the local Docker daemon
+image       ghcr.io/acme/api:2.1                                ✗ 403 forbidden, no credential for ghcr.io
+```
+
+The scope flags `draugr scan` takes narrow the checks to the targets of the components and controls
+they select. `--offline` skips every check that needs the network and marks each `not checked`; a
+local repository and the local Docker daemon are still checked.
+
 ### What nothing is looking at
 
 Every tool being present is only half of "will this scan tell me what I think it will". The other
@@ -1182,24 +1214,29 @@ only narrows it.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--json` | `false` | Emit the report as JSON instead of a table (uncovered surfaces come too, as `uncoveredSurfaces`) |
+| `--json` | `false` | Emit the report as JSON instead of a table (uncovered surfaces come too, as `uncoveredSurfaces`, and target checks as `targets`) |
 | `--fail-on-uncovered` | `false` | Exit non-zero when the descriptor declares a surface no enabled control looks at |
 | `--strict` | `false` | Exit non-zero when a tool is not the version Draugr tests, as well as when one is missing |
-| `--offline` | `false` | Skip the check for a newer draugr release (also `DRAUGR_NO_UPDATE_CHECK=1`) |
+| `--offline` | `false` | Skip the check for a newer draugr release and every target check that needs the network (`DRAUGR_NO_UPDATE_CHECK=1` skips only the release check) |
+| `--components` | all | Check only the targets of these components |
+| `--controls` | all enabled | Check only the targets these controls would read |
+| `--labels`, `--exposure`, `--criticality` | none | Select components as [`draugr scan`](#draugr-scan-sagayaml--dir) does |
 
 ```bash
 draugr doctor                       # inventory: what Draugr can use, and what you have
 draugr doctor draugr.saga.yaml      # check only what this Saga needs (+ validate it)
 draugr doctor --json draugr.saga.yaml
 draugr doctor --fail-on-uncovered draugr.saga.yaml   # and fail if something is unexamined
-draugr doctor --offline             # no network: skip the update check
+draugr doctor --components web draugr.saga.yaml     # only web's targets
+draugr doctor --offline             # no network: skip the update check and remote targets
 ```
 
 Doctor also reports the running Draugr version and, best-effort (unless `--offline` /
 `DRAUGR_NO_UPDATE_CHECK`), whether a newer release is available, nudging [`draugr
 self-update`](#draugr-self-update). The check has a short timeout and never blocks or fails the
 command. Provisioning missing scanner tools (pinned + verified) is handled by [`draugr tools
-install`](#draugr-tools-install-tool); doctor only reports and hints. It never downloads anything.
+install`](#draugr-tools-install-tool); doctor only reports and hints. It never installs anything,
+and the only repository data it fetches is the commit and trees a `paths` check reads.
 
 ---
 

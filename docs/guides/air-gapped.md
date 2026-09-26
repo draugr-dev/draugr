@@ -33,7 +33,7 @@ downloaded.
 | `draugr tools install` | each tool's pinned release archive, verified against a recorded SHA-256 |
 | `draugr feeds update` | the CISA KEV catalog, the FIRST EPSS scores and the Go vulnerability database |
 | `draugr self-update` | the latest Draugr release |
-| `draugr doctor` | the latest Draugr release, to compare against yours |
+| `draugr doctor` | the latest Draugr release, to compare against yours, and each remote target a scan would read |
 | a scan, before it starts | the reference data each scanner reads, warmed once for the whole run |
 | a scan, per target | the registry, for an image; the endpoint itself, for a host or DAST target |
 
@@ -165,9 +165,9 @@ one worth putting in CI for an air-gapped environment.
 
 Two narrower opt-outs remain, for a machine that *does* have a network:
 
-- `draugr doctor --offline` skips only the release check.
-- `DRAUGR_NO_UPDATE_CHECK=1` does the same, for someone who does not want to be told about
-  releases but is otherwise online.
+- `draugr doctor --offline` skips the release check and every target check that needs the network.
+- `DRAUGR_NO_UPDATE_CHECK=1` skips only the release check, for someone who does not want to be told
+  about releases but is otherwise online.
 
 ## Related
 
