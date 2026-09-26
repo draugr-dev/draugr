@@ -30,7 +30,7 @@ type UnreadInput struct {
 	Repository string
 	Path       string
 	// Reason is why it contributed nothing: "no lockfile", "no pinned versions" or "no packages
-	// read".
+	// read", or for a Terraform file the module blocks not loaded, as `module "vpc" not loaded`.
 	Reason string
 }
 

@@ -35,6 +35,10 @@ type repoScanner struct {
 	// parse decodes the tool's output. Nil means the tool emits SARIF.
 	parse func(out []byte, dir string, cfg plugin.Config) (sarif.Report, error)
 	run   func(ctx context.Context, dir string, argv []string) ([]byte, error)
+	// runLogged, when set, runs the main pass in place of run and returns, beside the tool's output,
+	// what its log says it found in the tree and could not read, each as an unread input. For a tool
+	// that reports such a gap only in its log and exits 0.
+	runLogged func(ctx context.Context, dir string, argv []string) ([]byte, []sarif.Input, error)
 	// cacheVersion, when set, contributes a tool/data version to the cache key (see
 	// plugin.CacheVersioner). Nil for scanners with no dynamic version.
 	cacheVersion func(ctx context.Context) string
@@ -277,7 +281,11 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		}
 	} else {
 		var err error
-		out, err = s.runInventoried(ctx, dir, s.args(dir, cfg), &inputs)
+		if s.runLogged != nil {
+			out, inputs, err = s.runLogged(ctx, dir, s.args(dir, cfg))
+		} else {
+			out, err = s.runInventoried(ctx, dir, s.args(dir, cfg), &inputs)
+		}
 		if err != nil {
 			return sarif.Report{}, fmt.Errorf("run %s: %w", s.info.Name, err)
 		}
@@ -286,7 +294,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	if err != nil {
 		return sarif.Report{}, err
 	}
-	if s.inventory != nil {
+	if s.inventory != nil || s.runLogged != nil {
 		report.Inputs = inputs
 	}
 	if s.historyArgs != nil {

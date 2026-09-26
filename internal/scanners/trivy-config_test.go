@@ -21,7 +21,7 @@ func TestTrivyConfigInfo(t *testing.T) {
 
 func TestTrivyConfigArgs(t *testing.T) {
 	argv := trivyConfigArgs("/work/repo", nil)
-	want := []string{"trivy", "config", "--quiet", "--format", "sarif", "/work/repo"}
+	want := []string{"trivy", "config", "--format", "sarif", "/work/repo"}
 	if len(argv) != len(want) {
 		t.Fatalf("argv = %v", argv)
 	}

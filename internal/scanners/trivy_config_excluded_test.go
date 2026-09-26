@@ -56,21 +56,21 @@ const trivyMisconfigSARIF = `{"version": "2.1.0", "runs": [{"tool": {"driver": {
 
 // fakeTrivyMisconfig answers the scan with the JSON report and convert with the SARIF, checking
 // that convert was handed the report the scan wrote.
-func fakeTrivyMisconfig(t *testing.T, calls *[]string) func(context.Context, string, []string) ([]byte, error) {
-	return func(_ context.Context, _ string, argv []string) ([]byte, error) {
+func fakeTrivyMisconfig(t *testing.T, calls *[]string) func(context.Context, string, []string) ([]byte, []byte, error) {
+	return func(_ context.Context, _ string, argv []string) ([]byte, []byte, error) {
 		*calls = append(*calls, argv[1])
 		switch argv[1] {
 		case "fs":
-			return []byte(trivyMisconfigJSON), nil
+			return []byte(trivyMisconfigJSON), nil, nil
 		case "convert":
 			got, err := os.ReadFile(argv[len(argv)-1])
 			if err != nil || !bytes.Equal(got, []byte(trivyMisconfigJSON)) {
 				t.Errorf("convert was handed %q (%v), want the scan's report", got, err)
 			}
-			return []byte(trivyMisconfigSARIF), nil
+			return []byte(trivyMisconfigSARIF), nil, nil
 		}
 		t.Errorf("unexpected command %v", argv)
-		return nil, nil
+		return nil, nil, nil
 	}
 }
 
@@ -88,7 +88,7 @@ func TestAnExcludedMisconfigurationArrivesSuppressed(t *testing.T) {
 		s.checkout = func(context.Context, string, string, git.Scope) (git.Tree, func(), error) {
 			return git.Tree{Dir: dir}, func() {}, nil
 		}
-		s.run = trivyConfigRun(fakeTrivyMisconfig(t, &calls))
+		s.runLogged = trivyConfigRun(fakeTrivyMisconfig(t, &calls))
 		rep, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: repo}, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -145,9 +145,9 @@ func TestAnOlderTrivyConfigScanIsUnchanged(t *testing.T) {
 		t.Errorf("older Trivy: %v", argv)
 	}
 	var calls []string
-	out, err := trivyConfigRun(func(_ context.Context, _ string, a []string) ([]byte, error) {
+	out, _, err := trivyConfigRun(func(_ context.Context, _ string, a []string) ([]byte, []byte, error) {
 		calls = append(calls, a[1])
-		return []byte(trivyMisconfigSARIF), nil
+		return []byte(trivyMisconfigSARIF), nil, nil
 	})(context.Background(), "/tree", argv)
 	if err != nil || string(out) != trivyMisconfigSARIF || len(calls) != 1 {
 		t.Errorf("out changed or convert ran: calls %v err %v", calls, err)
@@ -155,7 +155,7 @@ func TestAnOlderTrivyConfigScanIsUnchanged(t *testing.T) {
 
 	sharedTrivyVersion.val = "trivy@0.74.0;db@2026-07-15T00:56:58Z"
 	argv = trivyConfigArgs("/tree", plugin.Config{"namespaces": []any{"user"}})
-	if strings.Join(argv[:8], " ") != "trivy fs --quiet --scanners misconfig --format json --show-suppressed" ||
+	if strings.Join(argv[:7], " ") != "trivy fs --scanners misconfig --format json --show-suppressed" ||
 		!hasArg(argv, "--check-namespaces") || argv[len(argv)-1] != "/tree" {
 		t.Errorf("current Trivy: %v", argv)
 	}
@@ -166,18 +166,27 @@ func TestAnOlderTrivyConfigScanIsUnchanged(t *testing.T) {
 func TestATrivyConfigScanThatCannotBeReadFails(t *testing.T) {
 	argv := []string{"trivy", "fs", trivyConfigExclusionsArg, "/tree"}
 	boom := errors.New("boom")
-	for name, run := range map[string]func(context.Context, string, []string) ([]byte, error){
-		"scan": func(context.Context, string, []string) ([]byte, error) { return nil, boom },
-		"convert": func(_ context.Context, _ string, a []string) ([]byte, error) {
+	for name, run := range map[string]func(context.Context, string, []string) ([]byte, []byte, error){
+		"scan": func(context.Context, string, []string) ([]byte, []byte, error) { return nil, nil, boom },
+		"convert": func(_ context.Context, _ string, a []string) ([]byte, []byte, error) {
 			if a[1] == "convert" {
-				return nil, boom
+				return nil, nil, boom
 			}
-			return []byte(trivyMisconfigJSON), nil
+			return []byte(trivyMisconfigJSON), nil, nil
 		},
 	} {
-		if _, err := trivyConfigRun(run)(context.Background(), "/tree", argv); !errors.Is(err, boom) {
+		if _, _, err := trivyConfigRun(run)(context.Background(), "/tree", argv); !errors.Is(err, boom) {
 			t.Errorf("%s: err = %v, want Trivy's own", name, err)
 		}
+	}
+	emptyConversion := func(_ context.Context, _ string, a []string) ([]byte, []byte, error) {
+		if a[1] == "convert" {
+			return nil, nil, nil
+		}
+		return []byte(trivyMisconfigJSON), nil, nil
+	}
+	if _, _, err := trivyConfigRun(emptyConversion)(context.Background(), "/tree", argv); err == nil {
+		t.Error("an empty conversion was read as a report")
 	}
 	if _, err := withTrivyMisconfigExclusions([]byte(trivyMisconfigSARIF), []byte("not json")); err == nil {
 		t.Error("an unreadable report was read as nothing excluded")

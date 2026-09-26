@@ -1,0 +1,1 @@
+- `iac` lists a Terraform file under **Unread** when Trivy could not load a module it calls, with the module names as the reason. Such a module's resources were never checked, and the scan still passed. `--offline` now stops Trivy downloading modules from a registry or git host.

@@ -53,7 +53,7 @@ func NewTrivyConfig() plugin.Scanner {
 	// The checks bundle and nothing else: misconfiguration scanning never reads the vulnerability
 	// database, so warming it here would download one for a run that may not use it.
 	s.prewarm = func(ctx context.Context) error { return sharedTrivyChecks.warm(ctx) }
-	s.run = trivyConfigRun(retryingRunInDir("trivy", s.run))
+	s.runLogged = trivyConfigRun(trivyConfigExec)
 	return s
 }
 
@@ -64,10 +64,13 @@ func NewTrivyConfig() plugin.Scanner {
 // --show-suppressed <dir>`, the same checks plus the list of what `.trivyignore` excluded, which
 // trivyConfigRun converts to SARIF. On an older one it is `trivy config --format sarif <dir>`, and
 // an exclusion leaves no record.
+//
+// Neither passes --quiet, which would also drop the line Trivy logs for a module it could not load
+// (see trivyUnloadedModules). The log goes to stderr, which is read and never printed.
 func trivyConfigArgs(dir string, cfg plugin.Config) []string {
-	argv := []string{"trivy", "config", "--quiet", "--format", "sarif"}
+	argv := []string{"trivy", "config", "--format", "sarif"}
 	if sharedTrivyVersion.showsSuppressed() {
-		argv = []string{"trivy", "fs", "--quiet", "--scanners", "misconfig", "--format", "json", trivyConfigExclusionsArg}
+		argv = []string{"trivy", "fs", "--scanners", "misconfig", "--format", "json", trivyConfigExclusionsArg}
 	}
 	for _, path := range stringList(cfg, "checks") {
 		if abs := absPath(path); abs != "" {

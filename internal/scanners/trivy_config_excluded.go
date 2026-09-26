@@ -8,6 +8,8 @@ import (
 	"os"
 	"slices"
 	"strings"
+
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 // `trivy config` drops a misconfiguration `.trivyignore` excludes and has no `--show-suppressed`,
@@ -26,31 +28,40 @@ const trivyConfigExclusionsArg = "--show-suppressed"
 
 // trivyConfigRun wraps the run of a misconfiguration scan. A command asking for what Trivy excluded
 // writes JSON, which is converted to SARIF with the exclusions added; any other command's output is
-// returned as it was.
-func trivyConfigRun(run func(ctx context.Context, dir string, argv []string) ([]byte, error)) func(context.Context, string, []string) ([]byte, error) {
-	return func(ctx context.Context, dir string, argv []string) ([]byte, error) {
-		out, err := run(ctx, dir, argv)
-		if err != nil || !slices.Contains(argv, trivyConfigExclusionsArg) {
-			return out, err
+// returned as it was. Either way the Terraform modules Trivy's log says it could not load are
+// returned beside it (see trivyUnloadedModules).
+func trivyConfigRun(run func(ctx context.Context, dir string, argv []string) (stdout, stderr []byte, err error)) func(context.Context, string, []string) ([]byte, []sarif.Input, error) {
+	return func(ctx context.Context, dir string, argv []string) ([]byte, []sarif.Input, error) {
+		out, stderr, err := run(ctx, dir, argv)
+		if err != nil {
+			return nil, nil, err
+		}
+		unread := trivyUnloadedModules(stderr, dir)
+		if !slices.Contains(argv, trivyConfigExclusionsArg) {
+			return out, unread, nil
 		}
 		f, err := os.CreateTemp("", "draugr-trivy-config-*.json")
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		path := f.Name()
 		defer func() { _ = os.Remove(path) }()
 		if _, err := f.Write(out); err != nil {
 			_ = f.Close()
-			return nil, err
+			return nil, nil, err
 		}
 		if err := f.Close(); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		sarifOut, err := run(ctx, dir, []string{"trivy", "convert", "--quiet", "--format", "sarif", path})
+		sarifOut, _, err := run(ctx, dir, []string{"trivy", "convert", "--quiet", "--format", "sarif", path})
 		if err != nil {
-			return nil, fmt.Errorf("convert its JSON report to SARIF: %w", err)
+			return nil, nil, fmt.Errorf("convert its JSON report to SARIF: %w", err)
 		}
-		return withTrivyMisconfigExclusions(sarifOut, out)
+		out, err = withTrivyMisconfigExclusions(sarifOut, out)
+		if err != nil {
+			return nil, nil, err
+		}
+		return out, unread, nil
 	}
 }
 

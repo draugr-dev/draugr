@@ -421,7 +421,8 @@ type dependencyFilesReport struct {
 	Control   string `json:"control"`
 	// Scanners are the scanners that accounted for what they read.
 	Scanners []string `json:"scanners"`
-	// Read counts the files at least one of them took packages from.
+	// Read counts the files at least one of them took packages from. Always 0 for iac, whose
+	// scanner lists only the Terraform files calling a module it could not load.
 	Read   int                `json:"read"`
 	Unread []unreadFileReport `json:"unread,omitempty"`
 }
