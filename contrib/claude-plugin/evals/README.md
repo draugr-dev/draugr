@@ -2,8 +2,14 @@
 
 Prompts a user would type, answered by a model with the plugin loaded and this checkout's
 `draugr mcp` behind it. Each case is graded on the tools the model called and on what it told the
-user. The `Evals` workflow runs the suite on a pull request that changes `internal/mcp/`,
-`internal/cli/mcp.go` or this plugin.
+user. The `Evals` workflow runs the suite by hand, at a named commit:
+
+```bash
+gh workflow run Evals -f ref=<commit>
+```
+
+Run it on any change to `internal/mcp/`, `internal/cli/mcp.go` or this plugin, since a reworded tool
+description can change what the model does while every Go test still passes.
 
 Each case directory holds:
 
