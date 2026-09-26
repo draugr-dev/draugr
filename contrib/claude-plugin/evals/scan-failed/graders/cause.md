@@ -1,7 +1,14 @@
 ---
 type: llm
+focus: trace
 ---
 
-PASS if the reply identifies that the web component's paths name services/wbe, which does not exist
-in the repository, and says to change it to services/web.
-FAIL if the reply does not identify the mistyped path, or proposes a fix that would not correct it.
+PASS if the agent does both:
+
+1. Identifies that the web component's paths name services/wbe, a directory the repository does
+   not have.
+2. Either tells the user to change it to services/web, or edits draugr.saga.yaml to read
+   services/web.
+
+FAIL if the agent does not identify the mistyped path, or its fix, told or made, would not correct
+it.

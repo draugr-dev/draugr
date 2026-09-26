@@ -35,4 +35,5 @@ default, about US$3.20. Results go to `evals/results/`, which is ignored.
 
 An `llm` grader is read by a smaller model than the one being graded. State what a PASS contains as
 conditions it can check one by one; a criterion written as a double negative is the one that judge
-misreads.
+misreads. The judge reads the final reply unless the grader sets `focus: trace`, which a case needs
+when the model may make the fix with `Write` and report it in one line.
