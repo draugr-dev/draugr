@@ -88,6 +88,34 @@ func TestParseTrivyLicensesPolicyBeatsCategory(t *testing.T) {
 	}
 }
 
+// Two components list the same license in their own blocks. Each finding names its component's
+// setting, and the rule the two share names neither.
+func TestParseTrivyLicensesNamesTheSettingThatListedTheLicense(t *testing.T) {
+	const denied = "license/Apache-2.0/github.com/spf13/cobra"
+	for comp, want := range map[string]string{
+		"api":    `components["api"].controls.licenses.deny`,
+		"worker": `config.controls.licenses.deny, components["worker"].controls.licenses.deny`,
+	} {
+		cfg := plugin.Config{denyKey: []string{"Apache-2.0"}, denyFromKey: map[string]any{"Apache-2.0": want}}
+		rep, err := parseTrivyLicenses([]byte(licenseJSON), t.TempDir(), cfg)
+		if err != nil {
+			t.Fatalf("%s: parse: %v", comp, err)
+		}
+		for _, r := range rep.Results {
+			if r.RuleID == denied && !strings.HasSuffix(r.Message, "Denied by this project's license policy ("+want+").") {
+				t.Errorf("%s: message = %q", comp, r.Message)
+			}
+		}
+		if strings.Contains(rep.Rules[denied].FullDescription, "components[") {
+			t.Errorf("%s: the rule names a component: %q", comp, rep.Rules[denied].FullDescription)
+		}
+	}
+	// A job the control did not plan carries no sources, and names the project's key.
+	if got := policyReason("Flagged", warnKey, ""); got != "Flagged by this project's license policy (config.controls.licenses.warn)." {
+		t.Errorf("without a source: %q", got)
+	}
+}
+
 func TestParseTrivyLicensesResolvesTheDependencyLine(t *testing.T) {
 	// Trivy gives licenses no line at all, unlike its vulnerability findings. Without this every
 	// license lands at the top of go.mod in a pile, the same failure as an image finding reported

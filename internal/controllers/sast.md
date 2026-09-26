@@ -17,7 +17,8 @@ Semgrep runs by default. Each scanner is configured under its own key in
 `config.controls.sast.<scanner>`, with an optional `enabled` flag plus that scanner's options; a Go
 component opts into gosec alongside Semgrep with `config.controls.sast.gosec.enabled: true`. Point
 Semgrep at your own ruleset with `config.controls.sast.semgrep.config` (a registry ref such as
-`p/owasp-top-ten` or a path/URL to a rules file; defaults to `p/default`).
+`p/owasp-top-ten`, a URL, or a rules file or directory resolved relative to where Draugr runs;
+defaults to `p/default`).
 
 The SAST scanners report per-rule severity, so findings are counted as reported (unlike
 `secrets`, which escalates everything to error).

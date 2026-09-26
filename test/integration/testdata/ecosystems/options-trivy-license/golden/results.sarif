@@ -41,7 +41,7 @@
             }
           ],
           "message": {
-            "text": "inherits is ISC. Denied by this project's license policy (config.controls.licenses.deny)."
+            "text": "inherits is ISC. Denied by this project's license policy (components[\"licenses-deny\"].controls.licenses.deny)."
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -71,7 +71,7 @@
             }
           ],
           "message": {
-            "text": "ms is MIT. Denied by this project's license policy (config.controls.licenses.deny)."
+            "text": "ms is MIT. Denied by this project's license policy (components[\"trivy-license-deny\"].controls.licenses.trivyLicense.deny)."
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -125,7 +125,7 @@
             }
           ],
           "message": {
-            "text": "inherits is ISC. Flagged by this project's license policy (config.controls.licenses.warn)."
+            "text": "inherits is ISC. Flagged by this project's license policy (components[\"licenses-warn-isc\"].controls.licenses.warn)."
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -155,7 +155,7 @@
             }
           ],
           "message": {
-            "text": "tslib is 0BSD. Flagged by this project's license policy (config.controls.licenses.warn)."
+            "text": "tslib is 0BSD. Flagged by this project's license policy (components[\"licenses-warn\"].controls.licenses.warn)."
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -185,7 +185,7 @@
             }
           ],
           "message": {
-            "text": "sprintf-js is BSD-3-Clause. Flagged by this project's license policy (config.controls.licenses.warn)."
+            "text": "sprintf-js is BSD-3-Clause. Flagged by this project's license policy (components[\"trivy-license-warn\"].controls.licenses.trivyLicense.warn)."
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -215,7 +215,7 @@
             }
           ],
           "message": {
-            "text": "argparse is Python-2.0. Flagged by this project's license policy (config.controls.licenses.warn)."
+            "text": "argparse is Python-2.0. Flagged by this project's license policy (components[\"trivyignore\"].controls.licenses.warn)."
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"

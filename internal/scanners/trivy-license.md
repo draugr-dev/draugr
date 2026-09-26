@@ -59,8 +59,8 @@ this one dependency*. Package names contain slashes, which is why `config.exclud
 `*` across separators.
 
 A rule's description holds Trivy's reading of the license category, and is empty for a category
-the scanner would not report without a policy. Whether a policy denied or flagged the license is
-in each result's message.
+the scanner would not report without a policy. Each result's message says whether the policy denied
+or flagged the license, and names the setting that listed it.
 
 ## Line numbers
 

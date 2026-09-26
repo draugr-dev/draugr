@@ -1,0 +1,1 @@
+- A relative `semgrep.config` path now resolves against the directory Draugr runs in, as `gitleaks.config` does and the reference states. Semgrep had been resolving it inside each checkout, so a component scoped by `paths` failed with `exit status 7`.

@@ -736,7 +736,7 @@
           "description": "semgrep, published by semgrep.",
           "properties": {
             "config": {
-              "description": "Ruleset to run: a Semgrep registry ref (e.g. p/owasp-top-ten) or a path/URL to a rules file. Defaults to p/default.",
+              "description": "Ruleset to run: a Semgrep registry ref (e.g. p/owasp-top-ten), a URL, or a rules file or directory on disk, resolved relative to where Draugr runs. Defaults to p/default.",
               "type": "string"
             },
             "enabled": {

@@ -136,7 +136,7 @@ What each scanner accepts in its Saga block:
 
   semgrep
     Option  Type    What it does
-    config  string  Ruleset to run: a Semgrep registry ref (e.g. p/owasp-top-ten) or a path/URL to a rules file. Defaults to p/default.
+    config  string  Ruleset to run: a Semgrep registry ref (e.g. p/owasp-top-ten), a URL, or a rules file or directory on disk, resolved relative to where Draugr runs. Defaults to p/default.
 
   trivy
     Option        Type   What it does

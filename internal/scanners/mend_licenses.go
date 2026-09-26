@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"slices"
 	"sort"
 	"strings"
 
@@ -125,8 +124,14 @@ func (s mendLicensesScanner) Scan(ctx context.Context, target plugin.Target, cfg
 }
 
 // mendLicenseReport turns an inventory into license findings.
+//
+// Only what the policy names. Trivy also carries a category, so it can flag a copyleft license a
+// project never listed; Mend supplies none, so this scanner reports exactly the licenses a
+// descriptor asked about and nothing else. That is a real difference between the two scanners on
+// one control, and the colocated doc says so, a project running only this one and expecting
+// category-based flagging would get silence.
 func mendLicenseReport(ctx context.Context, libs []mendapi.InventoryLibrary, cfg plugin.Config) sarif.Report {
-	deny, warn := stringList(cfg, denyKey), stringList(cfg, warnKey)
+	policy := readLicensePolicy(cfg)
 	var rep sarif.Report
 	unmapped := map[string]bool{}
 
@@ -137,7 +142,7 @@ func mendLicenseReport(ctx context.Context, libs []mendapi.InventoryLibrary, cfg
 			if !isSPDX && id != "" {
 				unmapped[id] = true
 			}
-			level, why, matched := mendLicenseLevel(id, deny, warn)
+			level, why, matched := policy.match(id)
 			if !matched {
 				continue
 			}
@@ -152,23 +157,6 @@ func mendLicenseReport(ctx context.Context, libs []mendapi.InventoryLibrary, cfg
 	}
 	warnUnmappedLicenses(ctx, unmapped)
 	return rep
-}
-
-// mendLicenseLevel decides how loudly to report a license.
-//
-// Only what the policy names. Trivy also carries a category, so it can flag a copyleft license a
-// project never listed; Mend supplies none, so this scanner reports exactly the licenses a
-// descriptor asked about and nothing else. That is a real difference between the two scanners on
-// one control, and the colocated doc says so, a project running only this one and expecting
-// category-based flagging would get silence.
-func mendLicenseLevel(id string, deny, warn []string) (sarif.Level, string, bool) {
-	switch {
-	case slices.Contains(deny, id):
-		return sarif.LevelError, "Denied by this project's license policy (config.controls.licenses.deny).", true
-	case slices.Contains(warn, id):
-		return sarif.LevelWarning, "Flagged by this project's license policy (config.controls.licenses.warn).", true
-	}
-	return "", "", false
 }
 
 // mendLicenseID is the identifier a finding is keyed on, and whether it is really SPDX.

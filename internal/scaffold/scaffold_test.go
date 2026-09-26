@@ -273,3 +273,26 @@ func TestProjectNameKeepsTheNameRecognizable(t *testing.T) {
 		}
 	}
 }
+
+func TestScalarQuotesWhatYAMLWouldNotReadAsTheSameString(t *testing.T) {
+	for in, want := range map[string]string{
+		"api":          "api",
+		"services/api": "services/api",
+		"my-app":       "my-app",
+		"2024":         `"2024"`,
+		"1e3":          `"1e3"`,
+		"0x10":         `"0x10"`,
+		"0o17":         `"0o17"`,
+		"true":         `"true"`,
+		"null":         `"null"`,
+		"yes":          `"yes"`,
+		"off":          `"off"`,
+		"a, b/":        `"a, b/"`,
+		"[x]":          `"[x]"`,
+		"#tmp/":        `"#tmp/"`,
+	} {
+		if got := Scalar(in); got != want {
+			t.Errorf("Scalar(%q) = %s, want %s", in, got, want)
+		}
+	}
+}

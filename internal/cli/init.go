@@ -125,7 +125,7 @@ func scaffoldFragment(name string) string {
 	b.WriteString("# It may declare components and exclusions. Policy, the gate and which controls run\n")
 	b.WriteString("# stays in the descriptor that names it, where a reviewer sees it.\n\n")
 	b.WriteString("components:\n")
-	b.WriteString("  - name: " + name + "\n")
+	b.WriteString("  - name: " + scaffold.Scalar(name) + "\n")
 	b.WriteString("    # exposure and criticality belong in the shared fragment: where two fragments\n")
 	b.WriteString("    # describe one component, the first description of a field wins.\n")
 	b.WriteString("    # exposure: internal        # public | authenticated | internal | restricted\n")
