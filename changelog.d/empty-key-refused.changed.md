@@ -1,1 +1,0 @@
-- **A key with no value is refused.** `config:` on its own line, `release: null`, `release: ~` and a bare `-` in a list fail validation with the line named, as they already did in your editor. Delete the key or give it a value.

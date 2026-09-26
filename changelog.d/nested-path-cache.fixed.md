@@ -1,1 +1,0 @@
-- **Components scoped to a nested path are cached.** A component whose `paths:` name a directory below the repository root, such as `services/api`, was re-scanned on every run because its cache entry was never written. A cache write that fails now logs a warning naming the control and the cause.

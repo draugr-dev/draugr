@@ -1,1 +1,0 @@
-- **`draugr mcp` offers the `scan` tool by default, and asks first only when a scan does more than read.** The new default, `--scan=effects`, asks when a scanner probes a live host, sends data to a third party, changes something or needs elevated access, or when a publisher delivers off this machine. `--scan=off` restores the previous default.

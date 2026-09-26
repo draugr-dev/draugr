@@ -1,1 +1,0 @@
-- **Draugr installs in Claude Code as a plugin.** `/plugin marketplace add draugr-dev/draugr` then `/plugin install draugr@draugr` registers the Draugr MCP server. When `draugr` is not on `PATH`, the session opens with the command that installs it.

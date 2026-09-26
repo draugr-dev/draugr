@@ -1,1 +1,0 @@
-- **A gitleaks history scan stays inside each component's `paths` and `ignore`.** Components sharing a repository no longer report the secrets committed under each other's directories; a history finding belongs to the component whose paths held the file when the secret was committed.

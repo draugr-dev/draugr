@@ -1,1 +1,0 @@
-- **Components scoped to different `paths` of one repository each get their own Mend project.** Their uploads shared one project and replaced each other's inventory, so both reported whichever finished last. A scoped component's project name now ends in its paths and an 8-character hash, which starts a new project in Mend; an unscoped repository keeps its project.

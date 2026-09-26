@@ -1,1 +1,0 @@
-- **Messages name `config.controls`.** The license policy reasons, the "no controls ran" error and the MCP hints give the current key rather than the deprecated `config.controllers`.

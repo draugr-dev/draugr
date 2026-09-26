@@ -1,1 +1,0 @@
-- **An MCP scan of `tls` or `headers` asks for approval** before it contacts a host, as a `dast` scan already did. Both scanners now declare the `network` effect, so `draugr controls` and the report record the traffic they send to the endpoint.

@@ -1,1 +1,0 @@
-- **`--offline` stops Semgrep fetching a rule pack.** With `config.controls.sast.semgrep.config` unset or naming a registry ruleset or URL, the `sast` control reports that it cannot run offline and names the setting, instead of reaching `semgrep.dev`. A rules file or directory on disk runs as before.

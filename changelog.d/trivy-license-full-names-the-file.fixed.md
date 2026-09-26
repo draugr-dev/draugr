@@ -1,1 +1,0 @@
-- **License findings from `trivyLicense.full: true` name the file.** A license found in a file such as `LICENSE` opens with the file's path instead of a blank package name, and a package's license finding in `package-lock.json` points at that package's `node_modules/` entry.

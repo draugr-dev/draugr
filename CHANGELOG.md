@@ -12,6 +12,82 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.135.0] - 2026-09-25
+
+### Added
+
+- **Draugr installs in Claude Code as a plugin.** `/plugin marketplace add draugr-dev/draugr` then `/plugin install draugr@draugr` registers the Draugr MCP server. When `draugr` is not on `PATH`, the session opens with the command that installs it.
+
+- **An assistant can check the feed cache over MCP.** The `feeds_status` tool reports whether each feed is cached, when it was fetched, its size, digest and staleness, and returns the `draugr feeds update` command for any missing or stale feed without fetching anything itself.
+
+- **An AI assistant can propose a descriptor for a project that has none.** The MCP tool `propose_saga` returns the `draugr.saga.yaml` that `draugr init` would write, one component per directory with `perDirectory`, and writes nothing. When the directory already holds a descriptor, the output names it.
+
+- **An assistant can say why a finding ranks where it does, and who accepted the ones it does not rank.** MCP findings carry their exploitability escalation, reachability verdict and the other scanners that found them. Accepted findings come back in their own list, with who decided, why and until when. Each result names a next step, and stale KEV or EPSS copies are marked, in `results.sarif` too.
+
+- **A finding a scanner excluded on its own now stays in the report, suppressed.** A `gitleaks:allow` comment, a Grype `ignore:` rule and a `.trivyignore` line covering a license or an IaC check are counted under `scanner exclusions`, with `origin: tool` or `origin: scanner`, the file, and the reason where one was given.
+
+### Changed
+
+- **A file at the repository root is scanned only by a component whose `paths` names it.** Components sharing a repository no longer each report the findings in a root lockfile, `Dockerfile` or committed secret. A component built from the root module names its files, as in `paths: [services/web, go.mod, go.sum]`. Scanner configuration such as `.trivyignore` stays in every scoped checkout.
+
+- **Band counts read count first, as `13 P1`, in `draugr scan`, `draugr diff` and the HTML report**, the order the pull-request comment uses. `draugr diff` states its gate above the list of changes, in the terminal and in the pull-request comment, so a long list cannot push it out of view.
+
+- **`draugr diff` counts the unchanged findings by band**, so a passing diff still shows the P1s the change inherited. The terminal and the pull-request comment both draw an `unchanged` strip under the `new` one, leaving out findings suppressed in both scans.
+
+- **A key with no value is refused.** `config:` on its own line, `release: null`, `release: ~` and a bare `-` in a list fail validation with the line named, as they already did in your editor. Delete the key or give it a value.
+
+- **`draugr mcp` offers the `scan` tool by default, and asks first only when a scan does more than read.** The new default, `--scan=effects`, asks when a scanner probes a live host, sends data to a third party, changes something or needs elevated access, or when a publisher delivers off this machine. `--scan=off` restores the previous default.
+
+### Fixed
+
+- **A gitleaks history scan stays inside each component's `paths` and `ignore`.** Components sharing a repository no longer report the secrets committed under each other's directories; a history finding belongs to the component whose paths held the file when the secret was committed.
+
+- **An MCP scan of `tls` or `headers` asks for approval** before it contacts a host, as a `dast` scan already did. Both scanners now declare the `network` effect, so `draugr controls` and the report record the traffic they send to the endpoint.
+
+- **Components scoped to different `paths` of one repository each get their own Mend project.** Their uploads shared one project and replaced each other's inventory, so both reported whichever finished last. A scoped component's project name now ends in its paths and an 8-character hash, which starts a new project in Mend; an unscoped repository keeps its project.
+
+- **`draugr controls` gives the right way to enable each opt-in scanner.** The footer now writes the `config.controls.` prefix, and marks `govulncheck` as a reachability analyzer enabled through `config.reachability.analyzers`, which is the only key the descriptor accepts for it.
+
+- **The dast MEASURED AGAINST line states each fact once.** `endpoint` shows the URL alone, and the spec, the methods and the authentication appear only in their own fields, in the console, the reports and `results.sarif`.
+
+- **`draugr diff`, `draugr explain` and the MCP report tools refuse a file that is not SARIF.** Given `report.json`, they used to read it as a scan with no findings, so a diff printed "Nothing changed" and a summary listed nothing to fix. They now stop and name `results.sarif`, which holds the findings.
+
+- **`draugr init --per-directory` keeps a JavaScript workspace member with its workspace root.** A directory named by the root `package.json` `workspaces` field or by `pnpm-workspace.yaml` is resolved by the root lockfile and gets no component of its own.
+
+- **`draugr init` proposes gosec and govulncheck for a Go module that requires nothing.** A `go.mod` with no `require` block is enough, and `--per-directory` writes a component for such a module.
+
+- **`draugr init` reaches `requirements-dev.txt` and every other requirements file Trivy does not open by name.** It writes `sca.trivyFs.filePatterns` for them, naming the files behind the patterns.
+
+- **Each component and each Go module gets its own reachability verdict.** Two components sharing a repository no longer receive each other's verdict and call path for the same dependency. A module whose packages sit below its root, under `cmd/` for example, keeps its verdict on its own `go.mod` instead of the root one.
+
+- **`gosec` `include` and `exclude` leave the other rules out of the report.** A rule outside the selection was listed as a finding the scanner had suppressed, with the justification "Globally suppressed.". It is no longer reported, because the descriptor said the rule does not apply to that code.
+
+- **Grype image findings name the package.** Each finding carries its package, version, fixing version and purl, so an image scanned by both Trivy and Grype reports one finding with the other scanner listed under it. The same flaw in two images of one component stays two findings.
+
+- **`summarize_report` and `scan` count a flaw two scanners reported once**, as the gate does, and name the second scanner on it.
+
+- **Messages name `config.controls`.** The license policy reasons, the "no controls ran" error and the MCP hints give the current key rather than the deprecated `config.controllers`.
+
+- **Components scoped to a nested path are cached.** A component whose `paths:` name a directory below the repository root, such as `services/api`, was re-scanned on every run because its cache entry was never written. A cache write that fails now logs a warning naming the control and the cause.
+
+- **`--offline` stops Semgrep fetching a rule pack.** With `config.controls.sast.semgrep.config` unset or naming a registry ruleset or URL, the `sast` control reports that it cannot run offline and names the setting, instead of reaching `semgrep.dev`. A rules file or directory on disk runs as before.
+
+- **A vulnerability both govulncheck and the manifest scanner find is reported once, whichever job finishes first.** When govulncheck finished first, both findings were kept, so one vulnerability appeared twice under two identifiers.
+
+- **`results.sarif` and `report.json` mark a finding from the commit history.** A gitleaks finding from `history: true` carries `historical: true`, so a consumer of either file can tell a secret in an old commit, at a path the checkout may no longer have, from a secret in the tree.
+
+- **A license a scanner block denies stays denied when the `licenses` control sets its own list.** A `deny` or `warn` under `trivyLicense` or `mendLicenses` was replaced by the control-level list instead of adding to it.
+
+- **Components scoped to different `paths` of one repository each get their own SBOM**, and a `paths` entry the repository does not hold is refused with the entry named. An edit to `.trivyignore` or another root file a scoped checkout holds now invalidates that component's cached result.
+
+- **The same scan writes the same SARIF file, whichever job finishes first.** A license rule now describes only the license, and each result's message states whether its component's policy denied or flagged it.
+
+- **`trivyConfig.checks` runs without `namespaces`.** Draugr derives the namespaces from each check's `package` line, so a custom Rego check fires with `checks` alone. `draugr validate` prints the derived list and refuses a check with no `package` line or a path holding no `.rego` file.
+
+- **License findings from `trivyLicense.full: true` name the file.** A license found in a file such as `LICENSE` opens with the file's path instead of a blank package name, and a package's license finding in `package-lock.json` points at that package's `node_modules/` entry.
+
+- **With gitleaks `history: true`, a secret still in the tree is reported and counted once.** The history copy of a secret with the same rule, path and value as a tree finding is dropped, and the tree finding is kept. A secret at another path, or an older value replaced in place, is still reported from history.
+
 ## [0.134.0] - 2026-09-25
 
 ### Added
@@ -5969,7 +6045,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.134.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.135.0...HEAD
+[0.135.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.135.0
 [0.134.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.134.0
 [0.133.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.133.0
 [0.132.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.132.0

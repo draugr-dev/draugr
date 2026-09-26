@@ -1,1 +1,0 @@
-- **Each component and each Go module gets its own reachability verdict.** Two components sharing a repository no longer receive each other's verdict and call path for the same dependency. A module whose packages sit below its root, under `cmd/` for example, keeps its verdict on its own `go.mod` instead of the root one.

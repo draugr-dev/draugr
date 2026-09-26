@@ -1,1 +1,0 @@
-- **`draugr init` proposes gosec and govulncheck for a Go module that requires nothing.** A `go.mod` with no `require` block is enough, and `--per-directory` writes a component for such a module.
