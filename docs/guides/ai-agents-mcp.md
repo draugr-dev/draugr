@@ -151,6 +151,9 @@ decision took out of the ranking comes back in `accepted`, never in `findings`, 
 why, until when, and whether the analysis was this project's or a supplier's VEX statement.
 `suppressed` is the full count and `accepted` is capped at `limit`. `feeds` names the
 exploitability datasets the scan consulted, dated, and marks any older than the scan's `maxAge`.
+The scan reads those datasets from the feed cache and never fetches them, whether
+`config.exploitability` says `cache` or `auto`. A feed the cache does not hold fails the call, and
+the error names the `draugr feeds update` command that fetches it.
 An empty `feeds` means no finding was checked against KEV or EPSS. `next` names the first thing to
 do.
 

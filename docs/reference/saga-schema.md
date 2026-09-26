@@ -1460,6 +1460,10 @@ Populate the cache with [`draugr feeds update`](cli.md#draugr-feeds). In CI, mak
 step and use `cache`, so a feed outage fails where it happened rather than producing a scan that
 ranked everything as though nothing were exploited.
 
+A scan started by an assistant through [`draugr mcp`](../guides/ai-agents-mcp.md) reads `auto` as
+`cache`. It never fetches, and a feed the cache does not hold fails the call with an error naming
+the `draugr feeds update` command that fetches it.
+
 **Flags override this block**, but only the ones you actually type: `--kev`, `--epss` and
 `--epss-threshold`. Passing `--epss-threshold 0.5` beats a descriptor saying `0.1` even though
 0.5 is also the flag's default; not passing it leaves the descriptor's value alone.
