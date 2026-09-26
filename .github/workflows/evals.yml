@@ -1,0 +1,159 @@
+name: Evals
+
+# Runs the Claude Code plugin's eval suite (contrib/claude-plugin/evals): real prompts a user would
+# type, answered by a model with the plugin loaded and the real MCP server behind it, graded on
+# which tools it reached for and what it told the user.
+#
+# The unit tests prove each MCP tool returns the right answer. They cannot prove a model picks the
+# tool, reads its answer correctly, or stops at the approval the server asks for, and a reworded
+# tool description can break all three while every Go test still passes. That is what this suite
+# measures, and why it runs on the files a model reads rather than on every change.
+#
+# Every run is billed to an API key, so four things bound what one can cost:
+#
+# - `pull_request`, never `pull_request_target`. A pull request from a fork gets no secrets, and the
+#   job says so and stops rather than failing for want of a key. A maintainer who has read the diff
+#   runs it by dispatch, naming the commit they read, so a later push cannot ride on the review.
+# - Paths. The suite runs when the server or the plugin changes. The release pull request touches
+#   plugin.json only to set its version, and every change it carries was measured in its own pull
+#   request, so it is skipped.
+# - One run per case on a pull request, about US$0.65 for the suite. A dispatch defaults to three,
+#   about US$3.20, which is what a flaky case needs before it can be told from a broken one.
+# - A fixed suite. The case count, each case's turn limit and the cost ceiling below are all in this
+#   repository, so nothing in a pull request's description or title changes what a run spends.
+# - One run per branch. A new push cancels the run in flight instead of paying for both.
+#
+# The key comes from a workspace of its own with a monthly spend limit, so a runaway run is capped
+# by the account as well as by --max-cost-usd.
+
+on:
+  pull_request:
+    paths:
+      - "internal/mcp/**"
+      - "internal/cli/mcp.go"
+      - "contrib/claude-plugin/**"
+      - ".github/workflows/evals.yml"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: >-
+          The commit to evaluate. For a pull request from a fork, the head commit you reviewed:
+          the run executes that commit's code with the API key.
+        required: true
+        type: string
+      runs:
+        description: Runs per case. The cost ceiling is US$2 per run per case.
+        required: false
+        type: number
+        default: 3
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evals-${{ github.event.pull_request.number || inputs.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.26.6"
+  # Pinned so a score moves because the plugin or the model changed, never because the harness did.
+  CLAUDE_CODE_VERSION: "2.1.283"
+  EVAL_MODEL: claude-sonnet-5
+  JUDGE_MODEL: claude-haiku-4-5
+
+jobs:
+  evals:
+    name: Plugin evals
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      # A fork's pull request, and Dependabot's, run without repository secrets. Say so and stop,
+      # rather than failing on a missing key or skipping without a word.
+      - name: Decide whether this run holds the key
+        id: key
+        env:
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ] && [[ "$HEAD_REF" == release-* ]]; then
+            msg="Evals not run: a release pull request changes plugin.json only to set its version."
+            echo "::notice::$msg"
+            echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_EVENT_NAME" = "pull_request" ] &&
+             { [ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ] || [ "$GITHUB_ACTOR" = "dependabot[bot]" ]; }; then
+            msg="Evals not run: this pull request has no access to the API key. A maintainer can run them after reading the diff: gh workflow run Evals -f ref=$HEAD_SHA"
+            echo "::notice::$msg"
+            echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.key.outputs.run == 'true'
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: steps.key.outputs.run == 'true'
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+
+      # The server the plugin starts is the draugr first on PATH, so it is this commit's build rather
+      # than a release. Each run gets a temporary home, which hides ~/.draugr/bin from Draugr's own
+      # lookup, so the scanners go on PATH too.
+      - name: Build draugr and provision the scanners the cases use
+        if: steps.key.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          make build
+          ./bin/draugr tools install -y gitleaks semgrep
+          echo "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.draugr/bin" >> "$GITHUB_PATH"
+
+      - name: Install Claude Code
+        if: steps.key.outputs.run == 'true'
+        run: npm install -g "@anthropic-ai/claude-code@$CLAUDE_CODE_VERSION"
+
+      # --ablation none runs the plugin arm only: the gate is whether the plugin does its job, and a
+      # no-plugin baseline would double the cost to report a delta the exit code ignores.
+      - name: Run the suite
+        if: steps.key.outputs.run == 'true'
+        working-directory: contrib/claude-plugin
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RUNS: ${{ inputs.runs || 1 }}
+        run: |
+          set -euo pipefail
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::The ANTHROPIC_API_KEY secret is not set." >&2
+            exit 1
+          fi
+          claude plugin eval . \
+            --trust-plugin \
+            --scaffold \
+            --mocks off \
+            --allow-tools "mcp__plugin_draugr_draugr__*" Write \
+            --ablation none \
+            --model "$EVAL_MODEL" \
+            --judge-model "$JUDGE_MODEL" \
+            --threshold 0.8 \
+            --runs "$RUNS" \
+            --max-cost-usd "$((RUNS * 2))" \
+            --no-publish \
+            --json "$RUNNER_TEMP/results.json" \
+            -j 4
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always() && steps.key.outputs.run == 'true'
+        with:
+          name: eval-results
+          path: |
+            ${{ runner.temp }}/results.json
+            contrib/claude-plugin/evals/results/
+          if-no-files-found: ignore

@@ -29,3 +29,7 @@ coverage.*
 key.pem
 *.pem
 contrib/mcpb/server.json
+
+# What `claude plugin eval` writes after every run: per-run transcripts and a report, regenerated
+# each time and meaningful only beside the commit that produced them.
+contrib/claude-plugin/evals/results/

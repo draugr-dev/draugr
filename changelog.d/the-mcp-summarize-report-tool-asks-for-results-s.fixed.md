@@ -1,0 +1,1 @@
+- The `summarize_report` MCP tool's description no longer offers `report.json`, a file the tool refuses because it holds the verdict and no findings.
