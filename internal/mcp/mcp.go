@@ -224,14 +224,15 @@ func NewServer(opts Options) (*mcp.Server, error) {
 	}, DiffReportsTool)
 	mcp.AddTool(s, &mcp.Tool{
 		Name: "summarize_report",
-		Description: "Read an existing Draugr report (results.sarif or report.json) and return " +
+		Description: "Read the results.sarif an earlier draugr scan wrote and return " +
 			"its findings ranked by priority, deduplicated, with the rule documentation link " +
-			"for each. This is the cheap way to answer 'what should I fix first?', it reads a " +
-			"scan that already happened rather than starting a new one. A finding the project " +
+			"for each. Answers 'what should I fix first?' from a scan that already ran, without " +
+			"starting a new one. A finding the project " +
 			"accepted comes back in accepted, with who decided, why and until when; report it as " +
 			"a decision and do not propose fixing it. It covers the controls " +
 			"that scan ran and nothing else, so treat it as a floor to build on rather than a " +
-			"complete account of a codebase's security.",
+			"complete account of a codebase's security. Given a report.json, read the " +
+			"results.sarif in the same directory, since report.json holds the verdict and no findings.",
 	}, SummarizeReportTool)
 
 	if opts.Scan != ScanOff {

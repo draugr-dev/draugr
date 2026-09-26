@@ -214,7 +214,7 @@ func ValidateSagaTool(_ context.Context, _ *mcp.CallToolRequest, in ValidateInpu
 
 // SummarizeInput points at a report already on disk.
 type SummarizeInput struct {
-	Path string `json:"path" jsonschema:"path to a results.sarif or report.json produced by draugr scan"`
+	Path string `json:"path" jsonschema:"path to the results.sarif draugr scan wrote; report.json beside it holds the verdict and no findings"`
 	// MinPriority narrows the list the way --min-priority does on the CLI.
 	MinPriority string `json:"minPriority,omitempty" jsonschema:"only return findings at this priority or above: p1, p2, p3 or p4"`
 	// Limit caps how many findings come back. Context is the scarce resource here.
