@@ -14,9 +14,10 @@ name: Evals
 # - `pull_request`, never `pull_request_target`. A pull request from a fork gets no secrets, and the
 #   job says so and stops rather than failing for want of a key. A maintainer who has read the diff
 #   runs it by dispatch, naming the commit they read, so a later push cannot ride on the review.
-# - Paths. The suite runs when the server or the plugin changes. The release pull request touches
-#   plugin.json only to set its version, and every change it carries was measured in its own pull
-#   request, so it is skipped.
+# - Paths. The suite runs when the server or the plugin changes. The plugin's README is its
+#   directory listing and never reaches the model, so it is left out. The release pull request
+#   touches plugin.json only to set its version, and every change it carries was measured in its
+#   own pull request, so it is skipped.
 # - One run per case on a pull request, about US$0.65 for the suite. A dispatch defaults to three,
 #   about US$3.20, which is what a flaky case needs before it can be told from a broken one.
 # - A fixed suite. The case count, each case's turn limit and the cost ceiling below are all in this
@@ -32,6 +33,7 @@ on:
       - "internal/mcp/**"
       - "internal/cli/mcp.go"
       - "contrib/claude-plugin/**"
+      - "!contrib/claude-plugin/README.md"
       - ".github/workflows/evals.yml"
   workflow_dispatch:
     inputs:
