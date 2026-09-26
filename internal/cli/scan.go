@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/exploitdata"
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 	sbomgen "github.com/draugr-dev/draugr/internal/sbom"
@@ -162,7 +163,7 @@ func newScanCommand() *cobra.Command {
 		"accept scanner effects for this run (mutate, privilege); config.allowEffects is the reviewed equivalent")
 	cmd.Flags().StringVar(&opts.kevFile, "kev", "", "CISA KEV catalog: a file path, or `auto`/`cache` to read ~/.draugr/feeds. A CVE on it is escalated to critical")
 	cmd.Flags().StringVar(&opts.epssFile, "epss", "", "FIRST EPSS scores: a file path, or `auto`/`cache` to read ~/.draugr/feeds. A CVE at/above --epss-threshold is bumped one band")
-	cmd.Flags().Float64Var(&opts.epssThreshold, "epss-threshold", 0.5, "EPSS probability (0-1) that triggers a severity bump")
+	cmd.Flags().Float64Var(&opts.epssThreshold, "epss-threshold", exploitdata.DefaultThreshold, "EPSS probability (0-1) that triggers a severity bump")
 	cmd.Flags().IntVarP(&opts.jobs, "jobs", "j", 0, "max scan jobs to run in parallel (0 = auto, one per CPU); reported as stats.concurrency")
 	cmd.Flags().StringVar(&opts.format, "format", "console",
 		"what to print: "+strings.Join(report.StreamFormats, ", "))
@@ -278,8 +279,8 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	settings := exploitSettings(opts, model.Config.Exploitability)
 	// The same limit governs every cached feed, including the Go vulnerability database
 	// govulncheck reads, which a scanner cannot see in the descriptor for itself.
-	scanners.SetFeedMaxAge(settings.maxAge)
-	expl, feedProv, err := loadExploitSource(ctx, settings)
+	scanners.SetFeedMaxAge(settings.MaxAge)
+	expl, feedProv, err := exploitdata.Load(ctx, settings)
 	if err != nil {
 		return err
 	}

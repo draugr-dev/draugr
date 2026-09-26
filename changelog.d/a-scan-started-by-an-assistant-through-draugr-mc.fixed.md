@@ -1,0 +1,1 @@
+- A scan started by an assistant through `draugr mcp` now ranks findings with the descriptor's `config.exploitability` settings, as `draugr scan` does, and reports the feeds it consulted. It reads KEV and EPSS from the feed cache only; a feed the cache lacks fails the call with an error naming the `draugr feeds update` command that fetches it.

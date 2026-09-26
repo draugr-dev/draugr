@@ -11,6 +11,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/exploitdata"
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/scanpolicy"
 	"github.com/draugr-dev/draugr/internal/surfaces"
@@ -723,13 +724,24 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 				return ask, ScanOutput{}, nil
 			}
 		}
+		// The descriptor's exploitability data, read the way `draugr scan` reads it, so the same
+		// findings rank the same from either side. From the cache only: a fetch reaches the network
+		// and writes to ~/.draugr/feeds, which is more than the consent above describes, and a feed
+		// that is missing fails the call rather than ranking without it.
+		exploitSettings := exploitdata.FromDescriptor(model.Config.Exploitability, exploitdata.DefaultThreshold)
+		exploitSettings.CacheOnly = true
+		expl, feedProv, err := exploitdata.Load(ctx, exploitSettings)
+		if err != nil {
+			return nil, ScanOutput{}, fmt.Errorf("load exploitability data: %w", err)
+		}
 		// Shared for this run, as the CLI does, an assistant asking for a scan should not pay for five
 		// clones of one repository either.
 		pool := git.NewPool()
 		defer pool.Close()
 		ctx = git.WithPool(ctx, pool)
 		run, runErr := engine.New(reg,
-			engine.WithPrioritization(scanpolicy.DefaultPrioritizer(nil)),
+			engine.WithPrioritization(scanpolicy.DefaultPrioritizer(expl)),
+			engine.WithConsulted(expl.Consulted()),
 			engine.WithRevisionResolver(git.ResolveRevision),
 			engine.WithTreeResolver(git.ResolveTree),
 		).Run(ctx, *model)
@@ -767,8 +779,11 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 		// asking for the opposite. Honoring the controls, the exclusions and the gate from a
 		// descriptor while dropping two of its blocks is also the silent no-op this project
 		// refuses everywhere else.
-		delivered, publishErr := deliver(ctx, model, run, verdict, in.MinPriority)
+		delivered, publishErr := deliver(ctx, model, run, verdict, in.MinPriority, feedProv)
 
+		// The run names what the prioritizer consulted; the per-control reports do not carry it.
+		merged := sarif.Merge(collect(reports)...)
+		merged.Consulted = run.Consulted
 		out := ScanOutput{
 			Verdict:         string(verdict.Verdict),
 			Controls:        controls,
@@ -776,7 +791,7 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 			Unread:          unreadFiles(run.Inputs),
 			Unexamined:      unexaminedNote,
 			Delivered:       delivered,
-			SummarizeOutput: summarize(sarif.Merge(collect(reports)...), in.MinPriority, in.Limit),
+			SummarizeOutput: summarize(merged, in.MinPriority, in.Limit),
 		}
 		// A delivery failure is returned rather than folded into the verdict: the findings are
 		// real either way, and a caller told "fail" without being told the upload never happened
