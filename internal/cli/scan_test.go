@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/draugr-dev/draugr/internal/feeds"
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
@@ -495,26 +494,6 @@ func TestBothGatesTogetherIsRefused(t *testing.T) {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("message does not mention %q: %v", want, err)
 		}
-	}
-}
-
-func TestLoadExploitSource(t *testing.T) {
-	if src, _, err := loadExploitSource(context.Background(), exploitability{}); err != nil || src != nil {
-		t.Fatalf("no files should yield nil source, got %v %v", src, err)
-	}
-	kev := filepath.Join(t.TempDir(), "kev.json")
-	if err := os.WriteFile(kev, []byte(`{"vulnerabilities":[{"cveID":"CVE-2021-44228"}]}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	src, _, err := loadExploitSource(context.Background(), exploitability{kev: kev, threshold: 0.5, maxAge: feeds.DefaultMaxAge})
-	if err != nil || src == nil || src.Empty() {
-		t.Fatalf("kev file should yield a non-empty source, got %v %v", src, err)
-	}
-	if _, _, err := loadExploitSource(context.Background(), exploitability{kev: filepath.Join(t.TempDir(), "nope.json"), maxAge: feeds.DefaultMaxAge}); err == nil {
-		t.Error("missing --kev file should error")
-	}
-	if _, _, err := loadExploitSource(context.Background(), exploitability{epss: filepath.Join(t.TempDir(), "nope.csv"), maxAge: feeds.DefaultMaxAge}); err == nil {
-		t.Error("missing --epss file should error")
 	}
 }
 

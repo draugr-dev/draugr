@@ -29,6 +29,7 @@ func deliver(
 	run engine.Result,
 	verdict norn.Result,
 	minPriority string,
+	exploitability []report.FeedProvenance,
 ) ([]string, error) {
 	if len(model.Config.Publishers) == 0 {
 		return nil, nil
@@ -40,6 +41,8 @@ func deliver(
 		MinPriority:  minPriority,
 		Repositories: report.RepositoriesFrom(run),
 		VEX:          model.Config.VEX,
+		// What the ranking was measured against, as `draugr scan` records it.
+		Exploitability: exploitability,
 		// Stamped for the same reason the CLI stamps it: a report offered as evidence has to say
 		// when it ran and what produced it.
 		Generated: time.Now(),
