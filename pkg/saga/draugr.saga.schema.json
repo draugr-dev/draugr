@@ -74,7 +74,10 @@
         },
         "name": {
           "description": "Unique component name.",
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         },
         "repositories": {
           "description": "Source repositories — scanned by sca, secrets, and sast.",
@@ -1045,7 +1048,10 @@
         "acceptedBy": {
           "description": "Who decided this finding was acceptable. Optional; a suppression without one is reported as unattributed.",
           "minLength": 1,
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         },
         "expires": {
           "description": "Date this exclusion stops applying (YYYY-MM-DD). Past it the finding returns and the report says the exclusion lapsed.",
@@ -1056,20 +1062,29 @@
           "description": "Location patterns. A pattern ending in '/' matches everything beneath that directory; otherwise it is a glob against the whole location.",
           "items": {
             "minLength": 1,
-            "type": "string"
+            "type": [
+              "string",
+              "number"
+            ]
           },
           "type": "array"
         },
         "reason": {
           "description": "Why this exclusion exists. Required: an exclusion without a reason is indistinguishable from an oversight.",
           "minLength": 1,
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         },
         "rules": {
           "description": "Rule ids to suppress, matched exactly.",
           "items": {
             "minLength": 1,
-            "type": "string"
+            "type": [
+              "string",
+              "number"
+            ]
           },
           "type": "array"
         },
@@ -1093,7 +1108,10 @@
             "auto",
             "./epss.csv"
           ],
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         },
         "epssThreshold": {
           "description": "EPSS probability at or above which a finding's severity is raised one band. Defaults to 0.5 — a coin-flip chance of exploitation within 30 days. Scores are heavily skewed, so lowering this widens the net faster than the number suggests. Zero disables the EPSS bump while leaving KEV in force.",
@@ -1108,7 +1126,10 @@
             "auto",
             "./kev.json"
           ],
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         },
         "maxAge": {
           "description": "How old a cached feed may be before \"auto\" refetches it and a scan warns that it is stale. It is also the age at which govulncheck stops reading the local Go vulnerability database. A Go duration; defaults to 24h, tracking EPSS being republished daily. Raise it on a runner deliberately pinned to a known copy of the data.",
@@ -1409,7 +1430,10 @@
         },
         "name": {
           "description": "Label for this endpoint.",
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         },
         "spec": {
           "$ref": "#/$defs/hostSpec"
@@ -1430,7 +1454,10 @@
         },
         "url": {
           "description": "Endpoint URL. Must be https:// for the tls control.",
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         }
       },
       "required": [
@@ -1448,7 +1475,10 @@
         },
         "tokenEnv": {
           "description": "Environment variable holding the credential. There is deliberately no field for the credential itself: a descriptor is committed, so a token written into one is a leaked token.",
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         },
         "type": {
           "anyOf": [
@@ -1493,7 +1523,10 @@
         },
         "path": {
           "description": "The OpenAPI or Swagger document, relative to the descriptor.",
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         }
       },
       "required": [
@@ -1525,7 +1558,10 @@
         },
         "image": {
           "description": "Image reference, e.g. registry.example.com/acme/web:1.0",
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         },
         "signedBy": {
           "description": "The signer this image is expected to carry, from config.controls.provenance.signers, whatever that signer's own image patterns say. For the one image that came from somewhere else; a signer states which images it covers, so a project whose registry is its own needs nothing here.",
@@ -1554,7 +1590,10 @@
           "description": "Namespaces this component owns. Omit to audit the whole cluster. Only the draugrK8sPolicies scanner can honor a scope; the others refuse rather than silently report the whole cluster.",
           "items": {
             "minLength": 1,
-            "type": "string"
+            "type": [
+              "string",
+              "number"
+            ]
           },
           "type": "array",
           "uniqueItems": true
@@ -1575,7 +1614,10 @@
         },
         "ref": {
           "description": "Identifier, e.g. a cluster name.",
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         }
       },
       "required": [
@@ -1592,7 +1634,10 @@
         },
         "dir": {
           "description": "file: output directory.",
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         },
         "kind": {
           "anyOf": [
@@ -1692,11 +1737,17 @@
       "properties": {
         "link": {
           "description": "URL to the document.",
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         },
         "type": {
           "description": "Kind of reference, e.g. ThreatModel.",
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         }
       },
       "required": [
@@ -1711,7 +1762,10 @@
       "properties": {
         "version": {
           "description": "Release version, shown on every report and appended to the VEX product identifier. Supports ${{ ENV_VAR }} substitution.",
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         }
       },
       "type": "object"
@@ -1721,7 +1775,10 @@
       "properties": {
         "filename": {
           "description": "Override the artifact's default output filename.",
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         },
         "format": {
           "anyOf": [
@@ -1801,11 +1858,17 @@
         },
         "template": {
           "description": "Inline Go text/template (format: template). Set exactly one of template / templateFile.",
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         },
         "templateFile": {
           "description": "Path to a Go text/template (format: template).",
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         }
       },
       "required": [
@@ -1834,7 +1897,10 @@
           "description": "Remove matching paths from the scan, applied after `paths`. Gitignore-style: a trailing `/` is a directory, `*` matches within a path segment, `**` across them.",
           "items": {
             "minLength": 1,
-            "type": "string"
+            "type": [
+              "string",
+              "number"
+            ]
           },
           "type": "array"
         },
@@ -1842,17 +1908,26 @@
           "description": "Restrict the scan to these directories and files. A root file is scanned only when an entry names it; the scanners' configuration at the root (.trivyignore, .semgrepignore, .gitleaks.toml and similar) is always kept. An entry the repository does not hold is an error.",
           "items": {
             "minLength": 1,
-            "type": "string"
+            "type": [
+              "string",
+              "number"
+            ]
           },
           "type": "array"
         },
         "revision": {
           "description": "Branch, tag, or commit to scan.",
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         },
         "url": {
           "description": "Repository URL, or a local path such as `.`",
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         }
       },
       "required": [
@@ -1918,12 +1993,18 @@
         "author": {
           "description": "Who is making these statements — an organization, ideally with a contact. Defaults to the release name, which is a project rather than a party.",
           "minLength": 1,
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         },
         "product": {
           "description": "The product the statements are about, as an IRI; a package URL is conventional. Defaults to a purl over the release. Set it to whatever the SBOM your consumer holds calls this product, or nothing will match.",
           "minLength": 1,
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         }
       },
       "type": "object"
@@ -1989,17 +2070,26 @@
         "path": {
           "description": "The document's path inside the repository.",
           "minLength": 1,
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         },
         "ref": {
           "description": "The branch, tag or commit to read. Empty takes the default branch. Worth pinning for a claim you gate on; either way the report records the commit actually read.",
           "minLength": 1,
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         },
         "url": {
           "description": "The repository holding the document.",
           "minLength": 1,
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         }
       },
       "required": [
@@ -2015,7 +2105,10 @@
         "path": {
           "description": "A document on disk, resolved relative to where Draugr runs — not to the descriptor and not to the repository, which is the rule every other path in a descriptor follows.",
           "minLength": 1,
-          "type": "string"
+          "type": [
+            "string",
+            "number"
+          ]
         },
         "repository": {
           "$ref": "#/$defs/vexRepository"

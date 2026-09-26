@@ -34,6 +34,10 @@ fails fast if a referenced variable is unset.
 Every key needs a value. `config:` on its own line, `release: null`, `release: ~` and a bare `-` in
 a list are refused. The word null as a value is quoted, `"null"`.
 
+A name, path, version or other free-form value that YAML reads as a number is kept as written, so
+`version: 1.10` stays `1.10` instead of becoming `1.1`. A value from Draugr's own vocabulary, such as
+`exposure`, is refused as a number, and so is a component label's value.
+
 ## `project`
 
 Which project this descriptor describes: lowercase letters, digits and dashes.

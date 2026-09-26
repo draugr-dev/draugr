@@ -217,8 +217,8 @@ func set(doc any, path []string, v any) {
 }
 
 // Mutations lists every single change the parity test makes to a descriptor: each string in the
-// wrong case and as a value nothing defines, an unknown key in each mapping, each label as a
-// number, and each value and list item as null.
+// wrong case, as a value nothing defines and as a number, an unknown key in each mapping, each
+// label as a number, and each value and list item as null.
 func Mutations(base any) []Mutation {
 	var out []Mutation
 	var walk func(n any, path []string)
@@ -263,6 +263,11 @@ func Mutations(base any) []Mutation {
 			d := deepCopy(base)
 			set(d, path, "zz-not-a-value")
 			out = append(out, Mutation{"unknown", strings.Join(path, "."), d})
+			// The same value unquoted. YAML reads 1.5 as a number, and draugr keeps its text in a
+			// string field, so a version or a name written that way loads.
+			d = deepCopy(base)
+			set(d, path, 1.5)
+			out = append(out, Mutation{"number", strings.Join(path, "."), d})
 		}
 	}
 	walk(base, nil)

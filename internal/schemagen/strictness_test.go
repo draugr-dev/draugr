@@ -171,6 +171,25 @@ func isObject(n map[string]any) bool {
 	return has
 }
 
+// isString reports whether a node accepts a string, alone or beside a number.
+//
+// A free-form field YAML may read as a number, a version or a name, is `["string", "number"]`,
+// because draugr keeps the text either way. It is as open as a plain string, so it is held to the
+// same rule.
+func isString(n map[string]any) bool {
+	switch t := n["type"].(type) {
+	case string:
+		return t == "string"
+	case []any:
+		for _, v := range t {
+			if v == "string" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // closed reports whether a node enumerates its values, in any of the spellings this schema uses.
 //
 // Scalars use `anyOf` of `const`, which is what makes an editor show a description beside each
@@ -259,7 +278,7 @@ func loadSchema(t *testing.T) map[string]any {
 func TestEveryStringIsClosedOrSaysWhyNot(t *testing.T) {
 	var loose []string
 	walkSchema(loadSchema(t), "", func(path string, n map[string]any) {
-		if n["type"] != "string" || closed(n) {
+		if !isString(n) || closed(n) {
 			return
 		}
 		if _, ok := n["$ref"]; ok {
@@ -322,7 +341,7 @@ func TestNothingIsExcusedThatIsNoLongerThere(t *testing.T) {
 	seenString := map[string]bool{}
 	seenObject := map[string]bool{}
 	walkSchema(loadSchema(t), "", func(path string, n map[string]any) {
-		if n["type"] == "string" {
+		if isString(n) {
 			seenString[path] = true
 		}
 		if isObject(n) {
@@ -357,7 +376,7 @@ func TestTheFragmentSchemaIsHeldToTheSameRule(t *testing.T) {
 	}
 	var loose []string
 	walkSchema(doc, "", func(path string, n map[string]any) {
-		if n["type"] != "string" || closed(n) {
+		if !isString(n) || closed(n) {
 			return
 		}
 		if _, ok := n["$ref"]; ok {

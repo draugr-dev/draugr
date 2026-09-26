@@ -20,8 +20,9 @@ var parityExceptions = map[string]string{
 // TestTheEditorAndDraugrAgreeOnEveryField holds the JSON Schema and `draugr validate` to the same
 // answer for every field a descriptor can hold.
 //
-// Every example is changed one field at a time, each string into the wrong case and into a value
-// nothing defines, each mapping given a key nothing defines, each label given a number, and both
+// Every example is changed one field at a time, each string into the wrong case, into a value
+// nothing defines and into a number, each mapping given a key nothing defines, each label given a
+// number, and both
 // readers judge every change. They must agree. The examples between them write every field the
 // model has (TestEveryDescriptorFieldAppearsInAnExample), so this covers the schema end to end, and
 // a new field, a new vocabulary or a new scanner option that one reader enforces and the other does
