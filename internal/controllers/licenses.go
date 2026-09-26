@@ -2,8 +2,11 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
+	"maps"
 	"slices"
 	"sort"
+	"strings"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -18,6 +21,10 @@ const (
 	denyKey = "deny"
 	warnKey = "warn"
 )
+
+// policySourceKeys are the job-config keys the control writes beside each list, naming the
+// settings that listed each SPDX id. A descriptor may not write them.
+var policySourceKeys = map[string]string{denyKey: "denyFrom", warnKey: "warnFrom"}
 
 // Licenses reports dependency licenses that carry an obligation.
 //
@@ -103,6 +110,14 @@ func (Licenses) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, 
 			for k, v := range policy {
 				cfg[k] = union(v, settingStrings(saga.ControllerSettings(sel.Config), k))
 			}
+			// Overwritten on every job, so what a finding names is always the control's reading
+			// of the descriptor.
+			for k, fromKey := range policySourceKeys {
+				delete(cfg, fromKey)
+				if from := policySources(model, comp, sel.Name, k); len(from) > 0 {
+					cfg[fromKey] = from
+				}
+			}
 			jobs = append(jobs, plugin.ScanJob{Scanner: sel.Name, Target: target, Config: cfg})
 		}
 	}
@@ -153,6 +168,70 @@ func licensePolicy(model saga.Model, comp *saga.Component) plugin.Config {
 		cfg[warnKey] = warn
 	}
 	return cfg
+}
+
+// policySources maps each SPDX id a job's list holds to the settings that list it, joined in the
+// order they merge: the project's, the component's, then the scanner's own block.
+//
+// A finding names these rather than the project's key, because the list a scanner receives is a
+// union and a license listed only by a component is absent from the key a reader would otherwise
+// be sent to.
+func policySources(model saga.Model, comp *saga.Component, scanner, key string) map[string]any {
+	project := "config.controls." + licensesControl
+	component := fmt.Sprintf("components[%q].controls.%s", comp.Name, licensesControl)
+	from := map[string][]string{}
+	add := func(where string, ids []string) {
+		for _, id := range ids {
+			if id != "" && !slices.Contains(from[id], where) {
+				from[id] = append(from[id], where)
+			}
+		}
+	}
+	add(project+"."+key, settingStrings(model.Config.Controls[licensesControl], key))
+	add(component+"."+key, settingStrings(comp.Controls[licensesControl], key))
+	// Scanner blocks merge with the component's winning outright, so the component's list is the
+	// one the job holds whenever the component writes one.
+	block := configKeyFor(scanner)
+	if blk, ok := asMap(comp.Controls[licensesControl][block]); ok && blk[key] != nil {
+		add(component+"."+block+"."+key, settingStrings(blk, key))
+	} else if blk, ok := asMap(model.Config.Controls[licensesControl][block]); ok {
+		add(project+"."+block+"."+key, settingStrings(blk, key))
+	}
+	if len(from) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(from))
+	for id, where := range from {
+		out[id] = strings.Join(where, ", ")
+	}
+	return out
+}
+
+// Validate refuses a policy-source key written under a scanner's block. The control resolves those
+// from the descriptor on every job, so a written one would do nothing, and the published schema
+// does not offer them.
+func (Licenses) Validate(model saga.Model) []error {
+	problems := noPolicySourceKeys("config.controls", model.Config.Controls)
+	for i := range model.Components {
+		comp := &model.Components[i]
+		problems = append(problems, noPolicySourceKeys(fmt.Sprintf("components[%q].controls", comp.Name), comp.Controls)...)
+	}
+	return problems
+}
+
+// noPolicySourceKeys refuses a policy-source key in any scanner block of the licenses control.
+func noPolicySourceKeys(where string, controls map[string]saga.ControllerSettings) []error {
+	blocks := controlBlocks(controls, licensesControl)
+	var problems []error
+	for _, name := range slices.Sorted(maps.Keys(blocks)) {
+		for _, key := range slices.Sorted(maps.Values(policySourceKeys)) {
+			if _, written := blocks[name][key]; written {
+				problems = append(problems, fmt.Errorf("%s.%s.%s: %q is set by the control and cannot be written in a descriptor",
+					where, licensesControl, name, key))
+			}
+		}
+	}
+	return problems
 }
 
 // unionSetting collects a string list from the project and component blocks for the licenses

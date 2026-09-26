@@ -1,0 +1,1 @@
+- `draugr init` quotes a project name, component name or path that YAML would read as a number, a boolean or null, such as a directory named `2024`, so the descriptor it writes passes the published schema as well as `draugr validate`. This covers `--per-directory` and `--fragment`.

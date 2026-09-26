@@ -578,7 +578,7 @@ never made. Use [`config.exclude`](#configexclude) for a finding you have judged
 the report marked suppressed, and the gate thresholds for what should fail a build. Scanner options
 decide **what gets looked at**; the gate decides what the answer means.
 
-Paths in options, `gitleaks.config`, `trivyConfig.checks`, resolve relative to **where Draugr
+Paths in options, `gitleaks.config`, `semgrep.config`, `trivyConfig.checks`, resolve relative to **where Draugr
 runs**, not to the repository being scanned. Repository scanners work in a temporary clone, and a
 path resolving inside it would point at somewhere your file is not.
 

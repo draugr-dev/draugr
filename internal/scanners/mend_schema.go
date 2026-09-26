@@ -55,6 +55,6 @@ const mendLicensesConfigSchema = `{
       "type": "array",
       "items": { "type": "string" },
       "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"]."
-    }
+    },` + licensePolicySourceProperties + `
   }
 }`

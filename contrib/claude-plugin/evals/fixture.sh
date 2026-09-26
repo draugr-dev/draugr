@@ -9,7 +9,7 @@
 set -euo pipefail
 
 # Paths come from this file's own location. The descriptor names the rules by absolute path because
-# Semgrep resolves a relative one against the component's path, not the repository root.
+# a relative one resolves against the directory Draugr runs in, which the eval harness chooses.
 ECOSYSTEMS=$(readlink -f "$(dirname "${BASH_SOURCE[0]}")/../../../test/integration/testdata/ecosystems")
 SCENARIO="$ECOSYSTEMS/monorepo-paths"
 RULES="$ECOSYSTEMS/semgrep.yaml"

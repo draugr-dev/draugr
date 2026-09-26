@@ -1,6 +1,8 @@
 package scanners
 
 import (
+	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -79,4 +81,31 @@ func TestSemgrepConfigSchemaValid(t *testing.T) {
 	if err := plugin.ValidateConfig(schema, plugin.Config{"rules": "x"}); err == nil {
 		t.Error("unknown key should be rejected by schema")
 	}
+}
+
+// A relative config resolves against Draugr's working directory, whichever directory Semgrep scans:
+// the root of one clone, or a component's directory inside another.
+func TestSemgrepArgsResolvesARelativeConfig(t *testing.T) {
+	wd := t.TempDir()
+	t.Chdir(wd)
+	want := filepath.Join(wd, ".draugr", "semgrep.yaml")
+	for _, dir := range []string{"/tmp/clone-a", "/tmp/clone-b/services/api"} {
+		if got := semgrepConfigArg(t, semgrepArgs(dir, plugin.Config{"config": ".draugr/semgrep.yaml"})); got != want {
+			t.Errorf("scanning %s: --config %s, want %s", dir, got, want)
+		}
+	}
+	for _, config := range []string{"p/owasp-top-ten", "r/python.lang", "s/team", "auto", "https://example.com/r.yaml", want} {
+		if got := semgrepConfigArg(t, semgrepArgs("/tmp/clone-a", plugin.Config{"config": config})); got != config {
+			t.Errorf("--config %s, want %s unchanged", got, config)
+		}
+	}
+}
+
+func semgrepConfigArg(t *testing.T, argv []string) string {
+	t.Helper()
+	i := slices.Index(argv, "--config")
+	if i < 0 || i+1 >= len(argv) {
+		t.Fatalf("no --config in %v", argv)
+	}
+	return argv[i+1]
 }

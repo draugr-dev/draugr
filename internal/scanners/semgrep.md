@@ -39,6 +39,9 @@ the project's **own source code** for security bugs (injection, unsafe APIs, etc
 - Semgrep's SARIF puts each finding's severity in the **rule's** `defaultConfiguration.level`
   (not on the result). Draugr's SARIF parser resolves a result's level from its rule, so
   ERROR/WARNING/INFO map through to error/warning/note correctly.
+- **A `config` path on disk resolves against the directory Draugr runs in** and reaches Semgrep as
+  an absolute path, so it names the same file for every repository, including one scoped by
+  `paths`.
 - **Rules on disk are reported under the id their file declares.** With `config` set to a rules
   file or directory, Semgrep prefixes each rule id with the directory it loaded the rule from, so
   `no-eval` in `/home/alice/rules/x.yaml` arrives as `home.alice.rules.no-eval`. Draugr removes the

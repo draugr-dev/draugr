@@ -27,7 +27,7 @@ const semgrepConfigSchema = `{
   "properties": {
     "config": {
       "type": "string",
-      "description": "Ruleset to run: a Semgrep registry ref (e.g. p/owasp-top-ten) or a path/URL to a rules file. Defaults to p/default."
+      "description": "Ruleset to run: a Semgrep registry ref (e.g. p/owasp-top-ten), a URL, or a rules file or directory on disk, resolved relative to where Draugr runs. Defaults to p/default."
     }
   }
 }`
@@ -141,31 +141,27 @@ func semgrepRegistryHost() string {
 // findings as all new. The part of the prefix that comes from the configured path is removed; for
 // a configured directory, the part that comes from a subdirectory inside it is kept, which keeps
 // two rules declaring one id in different subdirectories apart.
-func parseSemgrep(out []byte, dir string, cfg plugin.Config) (sarif.Report, error) {
+func parseSemgrep(out []byte, _ string, cfg plugin.Config) (sarif.Report, error) {
 	report, err := sarif.FromSARIF(out)
 	if err != nil {
 		return sarif.Report{}, err
 	}
-	config, _ := cfg["config"].(string)
-	for _, prefix := range semgrepRulePrefixes(dir, config) {
+	for _, prefix := range semgrepRulePrefixes(semgrepConfig(cfg)) {
 		renameSemgrepRules(&report, prefix)
 	}
 	return report, nil
 }
 
 // semgrepRulePrefixes are the prefixes Semgrep may have put on the ids of rules loaded from
-// config, or none when config is not a path on disk (a registry ref such as p/default, or a URL).
+// config, the value passed to --config, or none when config is not a path on disk (a registry ref
+// such as p/default, or a URL).
 //
-// Semgrep resolves a relative config against its working directory, the checkout, and builds the
-// prefix from the path as given, leaving out "/", "." and "..".
-func semgrepRulePrefixes(dir, config string) []string {
-	if config == "" {
+// Semgrep builds the prefix from the path as given, leaving out "/", "." and "..".
+func semgrepRulePrefixes(config string) []string {
+	if _, remote := semgrepRemoteHost(config); remote || !filepath.IsAbs(config) {
 		return nil
 	}
 	path := config
-	if !filepath.IsAbs(path) {
-		path = filepath.Join(dir, path)
-	}
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil
@@ -178,16 +174,14 @@ func semgrepRulePrefixes(dir, config string) []string {
 	if p := dottedPrefix(given); p != "" {
 		out = append(out, p)
 	}
-	// An absolute path may reach Semgrep through a symlink, /tmp on macOS for one, and a Semgrep
-	// that resolves it prefixes with the target.
-	if filepath.IsAbs(config) {
-		if resolved, err := filepath.EvalSymlinks(path); err == nil {
-			if !info.IsDir() {
-				resolved = filepath.Dir(resolved)
-			}
-			if p := dottedPrefix(resolved); p != "" && (len(out) == 0 || p != out[0]) {
-				out = append(out, p)
-			}
+	// The path may reach Semgrep through a symlink, /tmp on macOS for one, and a Semgrep that
+	// resolves it prefixes with the target.
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		if !info.IsDir() {
+			resolved = filepath.Dir(resolved)
+		}
+		if p := dottedPrefix(resolved); p != "" && (len(out) == 0 || p != out[0]) {
+			out = append(out, p)
 		}
 	}
 	return out
@@ -242,6 +236,27 @@ func runSemgrepInDir(ctx context.Context, dir string, argv []string) ([]byte, er
 	return toolexec.RunWithEnv(ctx, dir, argv, []string{"SEMGREP_ENABLE_VERSION_CHECK=0"})
 }
 
+// semgrepConfig is the value passed to --config: the default ruleset when none is configured, a
+// ruleset Semgrep fetches as given, and a path on disk made absolute against Draugr's working
+// directory, where the reference says a path in scanner options resolves.
+//
+// Semgrep runs in the scan directory, so a relative path handed to it as written resolves inside
+// the clone, or inside the component's directory for a repository scoped by paths, and names a
+// file that is not there.
+func semgrepConfig(cfg plugin.Config) string {
+	config, _ := cfg["config"].(string)
+	if config == "" {
+		return semgrepDefaultRuleset
+	}
+	if _, remote := semgrepRemoteHost(config); remote {
+		return config
+	}
+	if abs, err := filepath.Abs(config); err == nil {
+		return abs
+	}
+	return config
+}
+
 // semgrepArgs builds `semgrep scan --sarif ... <dir>`.
 //
 //   - --no-error keeps the process successful when findings exist (findings live in the
@@ -251,10 +266,7 @@ func runSemgrepInDir(ctx context.Context, dir string, argv []string) ([]byte, er
 //     team's own rules) when set, else p/default, the OSS default rule pack. (Semgrep's "auto"
 //     config is deliberately not used: it refuses to run with metrics disabled.)
 func semgrepArgs(dir string, cfg plugin.Config) []string {
-	ruleset := semgrepDefaultRuleset
-	if v, ok := cfg["config"].(string); ok && v != "" {
-		ruleset = v
-	}
+	ruleset := semgrepConfig(cfg)
 	return []string{
 		"semgrep", "scan",
 		"--sarif",

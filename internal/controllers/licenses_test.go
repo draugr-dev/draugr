@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -273,5 +274,86 @@ func TestLicensesScannerBlockAddsToThePolicy(t *testing.T) {
 	}
 	if warn := settingStrings(saga.ControllerSettings(cfg), "warn"); strings.Join(warn, ",") != "MPL-2.0" {
 		t.Errorf("warn = %v, want the scanner block's own list where the control sets none", cfg["warn"])
+	}
+}
+
+// Each job names the settings that listed each license: the project's list, the component's own,
+// and the scanner block the job merged, which is the component's when it writes one.
+func TestLicensesPlanNamesWhereEachLicenseWasListed(t *testing.T) {
+	model := saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
+		"licenses": {
+			"deny":         []any{"GPL-3.0-only"},
+			"trivyLicense": map[string]any{"deny": []any{"SSPL-1.0"}, "denyFrom": map[string]any{"SSPL-1.0": "anything"}},
+		},
+	}}}
+	api := &saga.Component{Name: "api",
+		Repositories: []saga.Repository{{URL: "https://git/a"}, {URL: "https://git/b"}},
+		Controls:     map[string]saga.ControllerSettings{"licenses": {"deny": []any{"Sleepycat"}}}}
+	worker := &saga.Component{Name: "worker",
+		Repositories: []saga.Repository{{URL: "https://git/c"}},
+		Controls: map[string]saga.ControllerSettings{"licenses": {
+			"deny":         []any{"GPL-3.0-only"},
+			"trivyLicense": map[string]any{"warn": []any{"MPL-2.0"}},
+		}}}
+	for _, c := range []struct {
+		comp       *saga.Component
+		deny, warn map[string]any
+	}{
+		{api, map[string]any{
+			"GPL-3.0-only": "config.controls.licenses.deny",
+			"Sleepycat":    `components["api"].controls.licenses.deny`,
+			"SSPL-1.0":     "config.controls.licenses.trivyLicense.deny",
+		}, nil},
+		{worker, map[string]any{
+			"GPL-3.0-only": `config.controls.licenses.deny, components["worker"].controls.licenses.deny`,
+			"SSPL-1.0":     "config.controls.licenses.trivyLicense.deny",
+		}, map[string]any{
+			"MPL-2.0": `components["worker"].controls.licenses.trivyLicense.warn`,
+		}},
+	} {
+		jobs, err := Licenses{}.Plan(model, c.comp)
+		if err != nil || len(jobs) != len(c.comp.Repositories) {
+			t.Fatalf("%s: Plan = %v, %v", c.comp.Name, jobs, err)
+		}
+		for _, j := range jobs {
+			if got, _ := j.Config["denyFrom"].(map[string]any); !reflect.DeepEqual(got, c.deny) {
+				t.Errorf("%s: denyFrom = %v, want %v", c.comp.Name, j.Config["denyFrom"], c.deny)
+			}
+			if got, _ := j.Config["warnFrom"].(map[string]any); !reflect.DeepEqual(got, c.warn) {
+				t.Errorf("%s: warnFrom = %v, want %v", c.comp.Name, j.Config["warnFrom"], c.warn)
+			}
+		}
+	}
+	// With no policy anywhere, a job carries no sources.
+	jobs, _ := Licenses{}.Plan(saga.Model{}, &saga.Component{Name: "c", Repositories: []saga.Repository{{URL: "https://git/a"}}})
+	if _, ok := jobs[0].Config["denyFrom"]; ok {
+		t.Errorf("config = %v, want no sources", jobs[0].Config)
+	}
+}
+
+func TestLicensesValidateRefusesAPolicySourceKey(t *testing.T) {
+	model := saga.Model{
+		Config: saga.Config{Controls: map[string]saga.ControllerSettings{
+			"licenses": {"trivyLicense": map[string]any{"denyFrom": map[string]any{}}},
+		}},
+		Components: []saga.Component{
+			{Name: "api", Controls: map[string]saga.ControllerSettings{
+				"licenses": {"mendLicenses": map[string]any{"warnFrom": map[string]any{}}},
+			}},
+			{Name: "worker", Controls: map[string]saga.ControllerSettings{
+				"licenses": {"deny": []any{"GPL-3.0-only"}},
+			}},
+		},
+	}
+	var got []string
+	for _, err := range (Licenses{}).Validate(model) {
+		got = append(got, err.Error())
+	}
+	want := []string{
+		`config.controls.licenses.trivyLicense: "denyFrom" is set by the control and cannot be written in a descriptor`,
+		`components["api"].controls.licenses.mendLicenses: "warnFrom" is set by the control and cannot be written in a descriptor`,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("problems = %q, want %q", got, want)
 	}
 }

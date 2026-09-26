@@ -1,0 +1,1 @@
+- A license finding names the setting that listed its license, such as `components["api"].controls.licenses.deny`, rather than always naming `config.controls.licenses.deny`. A license listed by several settings names each of them.

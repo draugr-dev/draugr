@@ -87,6 +87,10 @@ exists to prevent. So a component can only **tighten**. Loosening has exactly on
 `config.exclude`, which requires a reason and leaves the finding in the report, suppressed and
 auditable, rather than deleted.
 
+A finding names each setting that lists its license: `config.controls.licenses.deny`,
+`components["api"].controls.licenses.deny`, a scanner's own block such as
+`config.controls.licenses.trivyLicense.deny`, or several of them, separated by commas.
+
 ## Depth, and who published it
 
 The two questions readers arrive with, and neither has the answer they expect.

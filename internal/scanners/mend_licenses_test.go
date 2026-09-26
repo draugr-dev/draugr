@@ -87,15 +87,40 @@ func TestMendLicenseReportsOnlyWhatThePolicyNames(t *testing.T) {
 }
 
 func TestMendLicenseLevels(t *testing.T) {
-	deny, warn := []string{"GPL-3.0-only"}, []string{"MPL-2.0"}
-	if l, _, ok := mendLicenseLevel("GPL-3.0-only", deny, warn); !ok || l != sarif.LevelError {
+	policy := licensePolicy{deny: []string{"GPL-3.0-only"}, warn: []string{"MPL-2.0"}}
+	if l, _, ok := policy.match("GPL-3.0-only"); !ok || l != sarif.LevelError {
 		t.Errorf("deny = %v %v", l, ok)
 	}
-	if l, _, ok := mendLicenseLevel("MPL-2.0", deny, warn); !ok || l != sarif.LevelWarning {
+	if l, _, ok := policy.match("MPL-2.0"); !ok || l != sarif.LevelWarning {
 		t.Errorf("warn = %v %v", l, ok)
 	}
-	if _, _, ok := mendLicenseLevel("MIT", deny, warn); ok {
+	if _, _, ok := policy.match("MIT"); ok {
 		t.Error("an unlisted license is inventory, not a finding")
+	}
+}
+
+// A finding names the setting that listed its license, from the sources the control wrote.
+func TestMendLicenseReportNamesThePolicySource(t *testing.T) {
+	libs := []mendapi.InventoryLibrary{{Name: "lib", Licenses: []mendapi.InventoryLicense{
+		{SPDXName: "GPL-3.0-only"}, {SPDXName: "MPL-2.0"},
+	}}}
+	rep := mendLicenseReport(context.Background(), libs, plugin.Config{
+		denyKey:     []string{"GPL-3.0-only"},
+		warnKey:     []string{"MPL-2.0"},
+		denyFromKey: map[string]any{"GPL-3.0-only": `components["api"].controls.licenses.deny`},
+		warnFromKey: map[string]string{"MPL-2.0": "config.controls.licenses.mendLicenses.warn"},
+	})
+	want := []string{
+		`lib is licensed GPL-3.0-only. Denied by this project's license policy (components["api"].controls.licenses.deny).`,
+		"lib is licensed MPL-2.0. Flagged by this project's license policy (config.controls.licenses.mendLicenses.warn).",
+	}
+	if len(rep.Results) != len(want) {
+		t.Fatalf("results = %+v", rep.Results)
+	}
+	for i, w := range want {
+		if rep.Results[i].Message != w {
+			t.Errorf("message = %q, want %q", rep.Results[i].Message, w)
+		}
 	}
 }
 

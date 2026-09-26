@@ -46,9 +46,24 @@ const trivyLicenseConfigSchema = `{
       "type": "array",
       "items": { "type": "string" },
       "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"]."
-    }
+    },` + licensePolicySourceProperties + `
   }
 }`
+
+// licensePolicySourceProperties declares the keys the licenses control writes beside the lists,
+// for a finding to name the setting that listed its license. Read-only: the control resolves them
+// from the descriptor, and a descriptor may not write them.
+const licensePolicySourceProperties = `
+    "denyFrom": {
+      "type": "object",
+      "readOnly": true,
+      "description": "Set by the control: the settings that list each denied SPDX identifier."
+    },
+    "warnFrom": {
+      "type": "object",
+      "readOnly": true,
+      "description": "Set by the control: the settings that list each flagged SPDX identifier."
+    }`
 
 // NewTrivyLicense returns a Scanner that reports licenses carrying an obligation, in a
 // component's repositories and in its images.
@@ -175,8 +190,10 @@ func licenseFullArg(argv []string, cfg plugin.Config) []string {
 
 // Config keys carrying the Saga's license policy into the scanner.
 const (
-	denyKey = "deny"
-	warnKey = "warn"
+	denyKey     = "deny"
+	warnKey     = "warn"
+	denyFromKey = "denyFrom"
+	warnFromKey = "warnFrom"
 )
 
 // trivyLicenseDoc is the slice of Trivy's JSON this scanner reads.
@@ -248,7 +265,7 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 	if err := json.Unmarshal(out, &doc); err != nil {
 		return sarif.Report{}, fmt.Errorf("decode trivy license json: %w", err)
 	}
-	deny, warn := stringList(cfg, denyKey), stringList(cfg, warnKey)
+	policy := readLicensePolicy(cfg)
 
 	report := sarif.Report{Tool: trivyLicenseScannerName, Rules: map[string]sarif.Rule{}}
 	lineOf := doc.lineFinder(dir)
@@ -258,7 +275,7 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 			report.Inputs = append(report.Inputs, in)
 		}
 		for _, lic := range res.Licenses {
-			level, why, ok := licenseLevel(lic, deny, warn)
+			level, why, ok := licenseLevel(lic, policy)
 			if !ok {
 				continue
 			}
@@ -272,7 +289,7 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 			// Held to the same policy as a license Trivy reported. An excluded permissive license is
 			// one this scanner would never have raised, and marking it suppressed would record an
 			// acceptance of something that was never a finding.
-			level, why, ok := licenseLevel(m.Finding, deny, warn)
+			level, why, ok := licenseLevel(m.Finding, policy)
 			if !ok {
 				continue
 			}
@@ -363,18 +380,55 @@ func (d trivyLicenseDoc) lineFinder(dir string) func(trivyLicense) int {
 // licenseLevel decides how loudly to report a license, and why. The Saga's deny/warn lists name
 // SPDX ids directly and beat Trivy's category, because whether a license is acceptable depends on
 // what you do with your software. Something Trivy cannot know and the team always does.
-func licenseLevel(lic trivyLicense, deny, warn []string) (sarif.Level, string, bool) {
-	switch {
-	case slices.Contains(deny, lic.Name):
-		return sarif.LevelError, "Denied by this project's license policy (config.controls.licenses.deny).", true
-	case slices.Contains(warn, lic.Name):
-		return sarif.LevelWarning, "Flagged by this project's license policy (config.controls.licenses.warn).", true
+func licenseLevel(lic trivyLicense, policy licensePolicy) (sarif.Level, string, bool) {
+	if level, why, ok := policy.match(lic.Name); ok {
+		return level, why, true
 	}
 	meta, ok := categoryLevel[strings.ToLower(lic.Category)]
 	if !ok {
 		return "", "", false // permissive, notice, unencumbered: inventory, not a finding
 	}
 	return meta.level, meta.why, true
+}
+
+// licensePolicy is the deny/warn policy a job carries, and the settings each listed id came from.
+type licensePolicy struct {
+	deny, warn         []string
+	denyFrom, warnFrom map[string]string
+}
+
+// readLicensePolicy reads the policy the licenses control wrote into a job's config.
+func readLicensePolicy(cfg plugin.Config) licensePolicy {
+	return licensePolicy{
+		deny: stringList(cfg, denyKey), warn: stringList(cfg, warnKey),
+		denyFrom: stringMap(cfg, denyFromKey), warnFrom: stringMap(cfg, warnFromKey),
+	}
+}
+
+// match reports the level the policy gives an SPDX id, and a reason naming the setting that listed
+// it.
+//
+// The setting rather than the policy in general, because the lists a job carries are the union of
+// the project's, the component's and the scanner block's, and a reader sent to a key that does not
+// mention the license has nowhere to go next. The rule stays policy-free: one rule id is shared by
+// every component, and the components' lists differ.
+func (p licensePolicy) match(id string) (sarif.Level, string, bool) {
+	switch {
+	case slices.Contains(p.deny, id):
+		return sarif.LevelError, policyReason("Denied", denyKey, p.denyFrom[id]), true
+	case slices.Contains(p.warn, id):
+		return sarif.LevelWarning, policyReason("Flagged", warnKey, p.warnFrom[id]), true
+	}
+	return "", "", false
+}
+
+// policyReason is the sentence a policy finding ends with. A job the control did not plan carries
+// no sources, and names the project's key.
+func policyReason(verb, key, from string) string {
+	if from == "" {
+		from = "config.controls.licenses." + key
+	}
+	return fmt.Sprintf("%s by this project's license policy (%s).", verb, from)
 }
 
 // licenseRuleID names a finding as `license/<spdx>/<package>`.
@@ -418,6 +472,24 @@ func stringList(cfg plugin.Config, key string) []string {
 		for _, item := range v {
 			if s, ok := item.(string); ok {
 				out = append(out, s)
+			}
+		}
+		return out
+	}
+	return nil
+}
+
+// stringMap reads a map of strings from a job config, tolerating the map[string]any a decoded
+// copy of it holds.
+func stringMap(cfg plugin.Config, key string) map[string]string {
+	switch v := cfg[key].(type) {
+	case map[string]string:
+		return v
+	case map[string]any:
+		out := make(map[string]string, len(v))
+		for k, item := range v {
+			if s, ok := item.(string); ok {
+				out[k] = s
 			}
 		}
 		return out

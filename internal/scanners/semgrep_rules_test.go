@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -35,22 +36,24 @@ func semgrepRulesTree(t *testing.T) string {
 	return dir
 }
 
-// The prefixes are the ones Semgrep 1.169.0 was measured to produce for each form of --config.
+// The prefixes are the ones Semgrep 1.169.0 was measured to produce for the absolute --config a
+// path on disk is turned into. A relative path resolves against the working directory.
 func TestSemgrepRulePrefixes(t *testing.T) {
 	dir := semgrepRulesTree(t)
-	abs := filepath.Join(dir, "rules", "a.yaml")
+	t.Chdir(dir)
+	rules := dottedPrefix(filepath.Join(dir, "rules"))
 	for config, want := range map[string]string{
-		"rules/a.yaml":               "rules.",
-		"./rules/a.yaml":             "rules.",
-		"rules":                      "rules.",
-		"root.yaml":                  "",
-		"./root.yaml":                "",
-		abs:                          dottedPrefix(filepath.Dir(abs)),
+		"rules/a.yaml":               rules,
+		"./rules/a.yaml":             rules,
+		"rules":                      rules,
+		"root.yaml":                  dottedPrefix(dir),
+		filepath.Join(dir, "rules"):  rules,
+		"missing.yaml":               "",
 		"p/default":                  "",
 		"https://example.com/r.yaml": "",
 		"":                           "",
 	} {
-		got := semgrepRulePrefixes(dir, config)
+		got := semgrepRulePrefixes(semgrepConfig(plugin.Config{"config": config}))
 		if want == "" {
 			if len(got) != 0 {
 				t.Errorf("%q: prefixes %v, want none", config, got)
@@ -70,7 +73,7 @@ func TestSemgrepRulePrefixes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := semgrepRulePrefixes(dir, link); len(got) != 2 || got[1] != dottedPrefix(target) {
+	if got := semgrepRulePrefixes(link); len(got) != 2 || got[1] != dottedPrefix(target) {
 		t.Errorf("through a symlink: prefixes %v", got)
 	}
 	if got := dottedPrefix("../abs"); got != "abs." {
@@ -80,7 +83,10 @@ func TestSemgrepRulePrefixes(t *testing.T) {
 
 func TestParseSemgrepReportsDeclaredRuleIDs(t *testing.T) {
 	dir := semgrepRulesTree(t)
-	report, err := parseSemgrep([]byte(semgrepLocalSARIF), dir, plugin.Config{"config": "rules"})
+	t.Chdir(dir)
+	// Semgrep receives the absolute path, and prefixes with it.
+	out := strings.ReplaceAll(semgrepLocalSARIF, "rules.", dottedPrefix(filepath.Join(dir, "rules")))
+	report, err := parseSemgrep([]byte(out), t.TempDir(), plugin.Config{"config": "rules"})
 	if err != nil {
 		t.Fatal(err)
 	}
