@@ -264,9 +264,6 @@ func LoadFragment(data []byte, path string) (Fragment, error) {
 		return Fragment{}, fmt.Errorf("undefined environment variable(s) referenced in fragment %q: %s",
 			path, strings.Join(missing, ", "))
 	}
-	if err := labelsAreStrings(&root); err != nil {
-		return Fragment{}, fmt.Errorf("fragment %q: %w", path, err)
-	}
 	if err := noEmptyValues(&root); err != nil {
 		return Fragment{}, fmt.Errorf("fragment %q: %w", path, err)
 	}

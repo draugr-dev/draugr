@@ -34,9 +34,10 @@ fails fast if a referenced variable is unset.
 Every key needs a value. `config:` on its own line, `release: null`, `release: ~` and a bare `-` in
 a list are refused. The word null as a value is quoted, `"null"`.
 
-A name, path, version or other free-form value that YAML reads as a number is kept as written, so
-`version: 1.10` stays `1.10` instead of becoming `1.1`. A value from Draugr's own vocabulary, such as
-`exposure`, is refused as a number, and so is a component label's value.
+A free-form value that YAML reads as a number or a boolean is kept as its literal text, so
+`version: 1.10` stays `1.10` instead of becoming `1.1`, and the label `pci: true` has the value
+`true`. A value from Draugr's own vocabulary, such as `exposure`, is refused as a number or a
+boolean.
 
 ## `project`
 
@@ -231,9 +232,6 @@ components:
       team: web
       data-class: pii
 ```
-
-A label's value is a string. YAML reads `tier: 1` as a number and `pci: true` as a boolean, so
-quote such values, `tier: "1"`; `draugr validate` names each one it refuses.
 
 They never reach a verdict. What they do is answer *whose*, in the two places that question is
 asked. `draugr scan --labels team=web` runs only what that team owns, which is how a pipeline in a
