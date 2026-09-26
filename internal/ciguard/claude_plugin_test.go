@@ -210,11 +210,7 @@ func runHook(t *testing.T, dir string) string {
 	if runtime.GOOS == "windows" {
 		t.Skip("the hook is a POSIX shell script")
 	}
-	sh, err := exec.LookPath("sh")
-	if err != nil {
-		t.Fatalf("sh is not on PATH: %v", err)
-	}
-	cmd := exec.Command(sh, pluginHook) // #nosec G204 -- a fixed script in this repository
+	cmd := exec.Command(pluginHook) // #nosec G204 -- a fixed script in this repository
 	cmd.Env = []string{"PATH=" + dir}
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -281,7 +277,11 @@ func TestTheHookIsSilentWhenDraugrIsInstalled(t *testing.T) {
 	}
 }
 
-// TestTheHookConfigRunsTheScript keeps hooks.json pointing at a script that exists.
+// TestTheHookConfigRunsTheScript keeps hooks.json pointing at a script that exists and runs.
+//
+// The command is the script's path alone. Claude's plugin directory reads a command that is a
+// literal path under CLAUDE_PLUGIN_ROOT as that script and nothing else; with an interpreter in
+// front of it, the command is held for a person to review.
 func TestTheHookConfigRunsTheScript(t *testing.T) {
 	t.Parallel()
 	var cfg struct {
@@ -298,11 +298,15 @@ func TestTheHookConfigRunsTheScript(t *testing.T) {
 		t.Fatalf("hooks.json must declare one SessionStart hook, got %+v", groups)
 	}
 	h := groups[0].Hooks[0]
-	want := `sh "${CLAUDE_PLUGIN_ROOT}/scripts/check-draugr.sh"`
+	want := `"${CLAUDE_PLUGIN_ROOT}/scripts/check-draugr.sh"`
 	if h.Type != "command" || h.Command != want {
 		t.Errorf("SessionStart hook is %s %q, want command %q", h.Type, h.Command, want)
 	}
-	if _, err := os.Stat(pluginHook); err != nil {
-		t.Errorf("the hook script is missing: %v", err)
+	info, err := os.Stat(pluginHook)
+	if err != nil {
+		t.Fatalf("the hook script is missing: %v", err)
+	}
+	if info.Mode()&0o111 == 0 {
+		t.Errorf("the hook script is not executable (%v), and Claude Code runs it by its path", info.Mode())
 	}
 }
