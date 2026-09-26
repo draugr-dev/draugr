@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/english"
+	"github.com/draugr-dev/draugr/internal/enrich"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/publish"
@@ -66,6 +67,11 @@ func planScan(reg *engine.Registry, model *saga.Model) (scanPlan, error) {
 		for _, e := range sc.Info().Effects {
 			p.effects = append(p.effects, fmt.Sprintf("%s (%s): %s", name, e.Kind, e.Detail))
 		}
+	}
+	// Not a scanner's effect, so no scanner declares it, and a descriptor that enables it sends
+	// the packages this scan finds to a third party all the same.
+	if detail := enrich.DependencyHealthDetail(model.Config.DependencyHealth); detail != "" {
+		p.effects = append(p.effects, fmt.Sprintf("dependency health (%s): %s", plugin.EffectDisclosure, detail))
 	}
 	for i, pub := range model.Config.Publishers {
 		if !publish.Local(pub.Kind) {

@@ -226,12 +226,14 @@ draugr mcp --scan=always   # never asks
 draugr mcp --scan=off      # the tool isn't offered
 ```
 
-Under `effects`, a scan asks first when either of these holds:
+Under `effects`, a scan asks first when any of these holds:
 
 - a planned scanner declares an [effect](../reference/saga-schema.md#configalloweffects): it probes
   a live host, sends data to a third party, changes something, or needs elevated access
 - a publisher delivers the report off this machine. `file` writes a local directory; every other
   kind sends the report to a service somebody else operates
+- the descriptor enables [dependency health](../reference/saga-schema.md#dependency-health-configdependencyhealth),
+  which sends package URLs to api.deps.dev
 
 A scan of repositories with read-only controls and a `file` publisher runs without a prompt.
 

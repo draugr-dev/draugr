@@ -404,3 +404,30 @@ func TestATLSScanAsksBeforeItConnects(t *testing.T) {
 		t.Errorf("effects = %v, want the one draugr-tls declares", p.effects)
 	}
 }
+
+// Dependency health sends the packages a scan finds to deps.dev. No scanner declares that, so the
+// plan names it itself, and a scan that would otherwise run unasked asks first.
+func TestEffectsModeAsksBeforeDependencyHealth(t *testing.T) {
+	model := &saga.Model{
+		Config: saga.Config{Controls: map[string]saga.ControllerSettings{"secrets": {"enabled": true}}},
+		Components: []saga.Component{
+			{Name: "api", Repositories: []saga.Repository{{URL: "https://example.com/api.git"}}},
+			{Name: "web", Repositories: []saga.Repository{{URL: "https://example.com/web.git"}}},
+		},
+	}
+	if p := mustPlan(t, model); needsApproval(ScanEffects, p) {
+		t.Fatalf("a repository-only plan should not ask: %+v", p.effects)
+	}
+	model.Config.DependencyHealth = &saga.DependencyHealthConfig{Enabled: true}
+	p := mustPlan(t, model)
+	if !needsApproval(ScanEffects, p) {
+		t.Fatalf("a plan enabling dependency health should ask: %+v", p)
+	}
+	want := "dependency health (disclosure): sends package URLs to api.deps.dev"
+	if !slices.Contains(p.effects, want) {
+		t.Errorf("effects = %v, want %q", p.effects, want)
+	}
+	if msg := describeScan(p, "app.saga.yaml"); !strings.Contains(msg, want) {
+		t.Errorf("the prompt does not name it:\n%s", msg)
+	}
+}
