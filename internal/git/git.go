@@ -425,7 +425,9 @@ func ResolveRevision(ctx context.Context, url, revision string) (string, error) 
 
 	args := []string{"ls-remote", "--quiet", url}
 	if revision != "" {
-		args = append(args, revision)
+		// A pattern matches a ref's name and never its peeled line, so the commit an annotated tag
+		// points at is only listed when it is asked for by name.
+		args = append(args, revision, revision+"^{}")
 	} else {
 		args = append(args, "HEAD")
 	}
