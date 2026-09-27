@@ -159,7 +159,6 @@ jobs:
           git push -f origin "refs/tags/$major"
           echo "moved $major -> $tag"
 
-      # Rebuild the docs site (draugr.dev) so its versioned docs pick up this release: the site's
       # Build the MCP Bundle and attach it to the release. It has to run after GoReleaser,
       # because it assembles the published archives rather than rebuilding, so the binaries in
       # the bundle are bit-for-bit the ones people already verify against checksums.txt.
@@ -181,10 +180,9 @@ jobs:
             "$RUNNER_TEMP/draugr-$version.mcpb.sha256" \
             --repo "$GITHUB_REPOSITORY" --clobber
 
-      # This covers the docs, which come from the tag. It does *not* cover the demo assets: the
-      # render job below runs after this, and its pull request waits for a human, so the block
-      # the home page shows is still the previous release's when this fires. site-rebuild.yml
-      # triggers again when those assets land.
+      # This covers the docs, which come from the tag. It fires before the demo-report job below
+      # has attached this release's sample report, so the build it starts serves the previous
+      # release's report at /demo/; that job triggers a second rebuild once its asset exists.
       #
       # `latest` is sourced from the newest release tag, so a fresh release needs a rebuild. This
       # POSTs a Cloudflare Pages Deploy Hook. Configure it once: create the hook in Cloudflare and
@@ -199,6 +197,83 @@ jobs:
             curl -fsS -X POST "$HOOK" && echo "docs rebuild triggered"
           else
             echo "CLOUDFLARE_PAGES_DEPLOY_HOOK not set; skipping docs rebuild"
+          fi
+
+  # The sample report at draugr.dev/demo/cli/report/: a real scan of the demo sandbox by the binary this run
+  # just published, attached to the release as draugr-demo-report.html. The site fetches it from
+  # the newest release at build time, as it does the docs, so no repository holds a copy that can
+  # go stale or be edited by hand.
+  #
+  # A separate job rather than a step in goreleaser, so a render that fails shows as its own red
+  # job on a release that did publish. When it fails there is no asset on this tag, and the site
+  # goes on serving the previous release's report until the next one renders.
+  demo-report:
+    if: ${{ !inputs.dryRun }}
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # upload the report to the release
+    steps:
+      # Neither checkout keeps the token. This job holds a write grant and runs third-party
+      # scanners over the demo's tree, and a credential left in .git/config is one more thing
+      # within their reach.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      # govulncheck runs on the demo's Go module and needs a toolchain to do it.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26"
+          cache: false
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      # The published binary through the public installer, verified against the release's signed
+      # checksums, so the report is what a user who installs this release would get.
+      - name: Install this release
+        env:
+          DRAUGR_VERSION: ${{ env.TAG }}
+          DRAUGR_INSTALL_DIR: ${{ runner.temp }}/bin
+          DRAUGR_REQUIRE_SIGNATURE: "1"
+        run: |
+          sh ./install.sh
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Check out the demo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: draugr-dev/draugr-demo
+          path: demo
+          persist-credentials: false
+
+      - name: Install the scanners the demo needs
+        working-directory: demo
+        run: |
+          set -euo pipefail
+          draugr tools install -y --saga draugr.saga.yaml
+          draugr feeds update
+
+      - name: Render the report
+        env:
+          DEMO_DIR: ${{ github.workspace }}/demo
+        run: DRAUGR="$(command -v draugr)" ./scripts/demo-report.sh "$RUNNER_TEMP/draugr-demo-report.html"
+
+      - name: Attach it to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$TAG" "$RUNNER_TEMP/draugr-demo-report.html" \
+            --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Rebuild the site to serve it
+        env:
+          HOOK: ${{ secrets.CLOUDFLARE_PAGES_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$HOOK" ]; then
+            curl -fsS -X POST "$HOOK" && echo "site rebuild triggered"
+          else
+            echo "CLOUDFLARE_PAGES_DEPLOY_HOOK not set; skipping site rebuild"
           fi
 
   # Publish the server to the MCP Registry once the release exists, so the listing always names a
