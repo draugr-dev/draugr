@@ -16,6 +16,8 @@ import (
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/controllers"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
+	"github.com/draugr-dev/draugr/internal/preflight"
+	"github.com/draugr-dev/draugr/internal/sagafetch"
 	"github.com/draugr-dev/draugr/internal/sbom"
 	"github.com/draugr-dev/draugr/internal/selfupdate"
 	"github.com/draugr-dev/draugr/internal/surfaces"
@@ -37,6 +39,8 @@ type doctorOptions struct {
 	failOnUncovered bool
 	// strict does the same for a tool that is not the version Draugr tests.
 	strict bool
+	// The scope a scan takes, so a preflight checks the targets that scan would read.
+	components, controls, labels, exposure, criticality []string
 }
 
 // doctorRun is what runDoctor needs from the command's flags.
@@ -51,18 +55,27 @@ type doctorRun struct {
 	// version is very likely fine, and a check that fails on very-likely-fine is one people stop
 	// running.
 	strict bool
+	// reach checks each target the descriptor's scan would read. Set by the command; a test that
+	// sets it supplies probes, so nothing leaves the machine.
+	reach bool
+	// offline skips the reachability checks that need the network, and reports each as not
+	// checked.
+	offline bool
+	scope   engine.Scope
+	probes  preflight.Probes
 }
 
 func newDoctorCommand() *cobra.Command {
 	opts := &doctorOptions{}
 	cmd := &cobra.Command{
 		Use:   "doctor [saga.yaml]",
-		Short: "Check that the external scanners a scan needs are installed",
+		Short: "Check that a scan's tools are installed and its targets reachable",
 		Long: "Report which external scanner tools are present, missing, or out of date, with an\n" +
 			"install hint for each.\n\n" +
-			"Given a Saga, also validates the descriptor and checks only the tools its enabled\n" +
-			"controls need; without one, checks them all. Exits non-zero when the descriptor is\n" +
-			"invalid or a required tool is missing.",
+			"Given a Saga, also validates the descriptor, checks only the tools its enabled\n" +
+			"controls need, and checks each target: repositories resolve, paths exist, images\n" +
+			"are readable and hosts connect; without one, checks every tool. Exits non-zero\n" +
+			"when the descriptor is invalid, a required tool is missing or a target check fails.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			sagaPath := ""
@@ -82,7 +95,14 @@ func newDoctorCommand() *cobra.Command {
 					return selfupdate.LatestVersion(ctx, nil)
 				}
 			}
-			run := doctorRun{json: opts.json, failOnUncovered: opts.failOnUncovered, strict: opts.strict}
+			run := doctorRun{
+				json: opts.json, failOnUncovered: opts.failOnUncovered, strict: opts.strict,
+				reach: true, offline: opts.offline || netpolicy.Offline(),
+				scope: engine.Scope{
+					Components: opts.components, Controls: opts.controls, Labels: opts.labels,
+					Exposure: exposures(opts.exposure), Criticality: criticalities(opts.criticality),
+				},
+			}
 			return runDoctor(cmd.Context(), cmd.OutOrStdout(), builtins.Registry(), sagaPath, run, detect, latest)
 		},
 	}
@@ -95,7 +115,21 @@ func newDoctorCommand() *cobra.Command {
 	// CI, and "do not check for a release" is a narrower request than "this machine has no
 	// network" that someone may still want to make on its own.
 	cmd.Flags().BoolVar(&opts.offline, "offline", false,
-		"skip the check for a newer draugr release (also DRAUGR_NO_UPDATE_CHECK=1; implied by the root --offline)")
+		"skip the check for a newer draugr release and every target check that needs the network "+
+			"(also set by the root --offline flag)")
+	cmd.Flags().StringSliceVar(&opts.components, "components", nil,
+		"check only the targets of these components")
+	cmd.Flags().StringSliceVar(&opts.labels, "labels", nil,
+		"check only the targets of components carrying these `key=value` labels; repeat for more, "+
+			"one key twice means either value")
+	cmd.Flags().StringSliceVar(&opts.exposure, "exposure", nil,
+		"check only the targets of components declaring one of these exposures: "+
+			strings.Join(namesOf(saga.Exposures), ", "))
+	cmd.Flags().StringSliceVar(&opts.criticality, "criticality", nil,
+		"check only the targets of components declaring one of these criticalities: "+
+			strings.Join(namesOf(saga.Criticalities), ", "))
+	cmd.Flags().StringSliceVar(&opts.controls, "controls", nil,
+		"check only the targets these controls would read")
 	return cmd
 }
 
@@ -123,10 +157,10 @@ func runDoctor(
 	// that anything is missing, because nothing has asked for anything yet.
 	inventoryOnly := false
 	if sagaPath != "" {
-		loaded, err := saga.LoadFile(sagaPath)
+		loaded, err := doctorLoad(ctx, sagaPath, run.reach, run.offline)
 		if err != nil {
 			if run.json {
-				_ = writeDoctorJSON(w, dv, &descriptorReport{Path: sagaPath, Valid: false, Error: err.Error()}, nil, nil)
+				_ = writeDoctorJSON(w, dv, &descriptorReport{Path: sagaPath, Valid: false, Error: err.Error()}, nil, nil, nil)
 			} else {
 				col := tui.For(w)
 				// The reason is carried by the error, which the CLI prints. Written here too it
@@ -156,6 +190,14 @@ func runDoctor(
 		uncovered = surfaces.Uncovered(model)
 	}
 
+	var checks []preflight.Check
+	if model != nil && run.reach {
+		var err error
+		if checks, err = checkTargets(ctx, reg, model, run); err != nil {
+			return err
+		}
+	}
+
 	statuses := make([]tools.Status, 0, len(required))
 	missing := 0
 	for _, t := range required {
@@ -177,7 +219,7 @@ func runDoctor(
 		if sagaPath != "" {
 			desc = &descriptorReport{Path: sagaPath, Valid: true}
 		}
-		if err := writeDoctorJSON(w, dv, desc, statuses, uncovered); err != nil {
+		if err := writeDoctorJSON(w, dv, desc, statuses, uncovered, checks); err != nil {
 			return err
 		}
 	} else {
@@ -187,7 +229,10 @@ func runDoctor(
 				col.Paint(tui.StylePass, "✓ valid"), col.Paint(tui.StyleMuted, "("+sagaPath+")"))
 		}
 		writeDoctorTable(w, statuses)
-		writeNetworkCalls(w, reg)
+		if len(checks) > 0 {
+			writeTargetChecks(w, checks)
+		}
+		writeNetworkCalls(w, reg, model)
 		if model != nil {
 			printUncoveredSurfaceNote(w, model)
 		}
@@ -223,6 +268,11 @@ func runDoctor(
 		}
 		return fmt.Errorf("%s", advice)
 	}
+	// After the missing-tool checks and before the surface note: a target this machine cannot
+	// reach fails the scan the way a missing tool does, where an uncovered surface only narrows it.
+	if n := preflight.FailedCount(checks); n > 0 {
+		return fmt.Errorf("%s failed", english.Count(n, "target check"))
+	}
 	// After the missing-tool checks, because a tool that is absent stops the scan outright while
 	// an uncovered surface only narrows it, and the more serious answer should be the one given.
 	if len(uncovered) > 0 && run.failOnUncovered {
@@ -249,22 +299,75 @@ func runDoctor(
 	return nil
 }
 
+// doctorLoad loads the descriptor. When targets are to be checked, remote fragments are fetched
+// as `validate` fetches them, because a fragment that cannot be fetched is the first target a scan
+// fails on.
+func doctorLoad(ctx context.Context, path string, reach, offline bool) (*saga.Model, error) {
+	// Offline, a remote fragment is not fetched: doctor's own --offline is narrower than the root
+	// flag the fetcher reads, and the loader it had before target checks existed fetches nothing.
+	if !reach || offline {
+		return saga.LoadFile(path)
+	}
+	fetcher := sagafetch.New(ctx)
+	defer fetcher.Close()
+	res, err := saga.ResolveFile(path, fetcher)
+	if err != nil {
+		return nil, err
+	}
+	return res.Model, nil
+}
+
+// checkTargets plans the scan the flags describe and checks each target it would read.
+//
+// Planned by the engine rather than read off the descriptor, so the targets are the ones the scan
+// would read: a repository no enabled control scans is not checked, and one two components share is
+// checked once. Every effect is allowed, because the question is what the scan could touch, and the
+// approval it asks for is the scan's own business.
+func checkTargets(ctx context.Context, reg *engine.Registry, model *saga.Model, run doctorRun) ([]preflight.Check, error) {
+	if err := run.scope.Validate(*model, controlNames(reg)); err != nil {
+		return nil, err
+	}
+	eng := engine.New(reg,
+		engine.WithScope(run.scope.Resolve(*model)),
+		engine.WithAllowedEffects([]string{
+			string(plugin.EffectNetwork), string(plugin.EffectDisclosure),
+			string(plugin.EffectMutate), string(plugin.EffectPrivilege),
+		}))
+	jobs, err := eng.Plan(*model)
+	if err != nil {
+		return nil, fmt.Errorf("the scan cannot be planned:\n  %s", strings.ReplaceAll(err.Error(), "\n", "\n  "))
+	}
+	targets := make([]plugin.Target, 0, len(jobs))
+	for _, j := range jobs {
+		targets = append(targets, j.Job.Target)
+	}
+	return preflight.Run(ctx, targets, preflight.Options{Offline: run.offline, Probes: run.probes}), nil
+}
+
+// writeTargetChecks lists each target check and its result.
+func writeTargetChecks(w io.Writer, checks []preflight.Check) {
+	col := tui.For(w)
+	_, _ = fmt.Fprintf(w, "\n%s\n", doctorHeading(col, "Targets"))
+	t := tui.NewTable(col, "Kind", "Target", "Result")
+	for _, c := range checks {
+		var result tui.Cell
+		switch c.Status {
+		case preflight.Passed:
+			result = tui.Styled(tui.StylePass, "✓ "+c.Detail)
+		case preflight.Failed:
+			result = tui.Styled(tui.StyleFail, "✗ "+c.Detail)
+		default:
+			result = tui.Styled(tui.StyleMuted, "not checked: "+c.Detail)
+		}
+		t.Row(tui.PlainCell(c.Kind), tui.PlainCell(c.Target), result)
+	}
+	t.Render(w)
+}
+
 // requiredTools returns the external tools needed by the controls enabled anywhere in the
 // model: for each registered scanner serving an enabled control, its binary, plus git when
 // the scanner works on a checked-out repository.
 func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
-	enabled := func(control string) bool {
-		if model.Config.ControllerEnabled(control) {
-			return true
-		}
-		for i := range model.Components {
-			if model.Components[i].ControllerEnabled(control, model.Config) {
-				return true
-			}
-		}
-		return false
-	}
-
 	catalog := tools.Catalog()
 	seen := map[string]bool{}
 	var out []tools.Tool
@@ -295,6 +398,43 @@ func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
 		})
 	}
 
+	for _, info := range scannersInUse(reg, model) {
+		add(info.Binary)
+		for _, extra := range info.AlsoRequires {
+			add(extra)
+		}
+		for _, tk := range info.TargetKinds {
+			if tk == plugin.TargetRepository {
+				add("git")
+			}
+		}
+	}
+
+	// SBOM generation is not a control, so no scanner declares it. It is required by the Saga's
+	// config.sbom block instead.
+	if s := model.Config.SBOM; s != nil && s.Enabled {
+		add(sbom.Binary)
+	}
+
+	sort.Slice(out, func(i, j int) bool { return out[i].Binary < out[j].Binary })
+	return out
+}
+
+// scannersInUse returns the scanners a scan of model would run: each one serving a control the
+// model enables, and among several serving one control, only those the control selects.
+func scannersInUse(reg *engine.Registry, model *saga.Model) []plugin.ScannerInfo {
+	enabled := func(control string) bool {
+		if model.Config.ControllerEnabled(control) {
+			return true
+		}
+		for i := range model.Components {
+			if model.Components[i].ControllerEnabled(control, model.Config) {
+				return true
+			}
+		}
+		return false
+	}
+
 	// A control served by several scanners only requires the ones it will actually run. Asking
 	// for the rest sends someone to install a tool the scan would never have used, and reports a
 	// control as unable to run when it can.
@@ -319,6 +459,7 @@ func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
 		}
 	}
 
+	var out []plugin.ScannerInfo
 	for _, s := range reg.Scanners() {
 		info := s.Info()
 		serves := false
@@ -339,27 +480,10 @@ func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
 			serves = true
 			break
 		}
-		if !serves {
-			continue
-		}
-		add(info.Binary)
-		for _, extra := range info.AlsoRequires {
-			add(extra)
-		}
-		for _, tk := range info.TargetKinds {
-			if tk == plugin.TargetRepository {
-				add("git")
-			}
+		if serves {
+			out = append(out, info)
 		}
 	}
-
-	// SBOM generation is not a control, so no scanner declares it. It is required by the Saga's
-	// config.sbom block instead.
-	if s := model.Config.SBOM; s != nil && s.Enabled {
-		add(sbom.Binary)
-	}
-
-	sort.Slice(out, func(i, j int) bool { return out[i].Binary < out[j].Binary })
 	return out
 }
 
@@ -413,8 +537,7 @@ func writeDoctorTable(w io.Writer, statuses []tools.Status) {
 	// fourteen times.
 	if n := untestedCount(statuses); n > 0 {
 		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(tui.StyleAccent, fmt.Sprintf(
-			"%s not the version Draugr tests. Older scanners find fewer things; "+
-				"`draugr tools install --force` installs the tested build.", english.Count(n, "tool")+" "+english.Choose(n, "is", "are"))))
+			"%s not the version Draugr tests. `draugr tools install --force` installs the tested build.", english.Count(n, "tool")+" "+english.Choose(n, "is", "are"))))
 	}
 }
 
@@ -511,6 +634,7 @@ type toolReport struct {
 
 func writeDoctorJSON(
 	w io.Writer, dv draugrReport, desc *descriptorReport, statuses []tools.Status, uncovered []string,
+	checks []preflight.Check,
 ) error {
 	report := struct {
 		Draugr     draugrReport      `json:"draugr"`
@@ -521,9 +645,11 @@ func writeDoctorJSON(
 		// Present here because the answer a person gets and the answer a pipeline gets diverging
 		// is worse than either being absent.
 		UncoveredSurfaces []string `json:"uncoveredSurfaces,omitempty"`
+		// Targets are the reachability checks, one per distinct target the scan would read.
+		Targets []preflight.Check `json:"targets,omitempty"`
 	}{
 		Draugr: dv, Descriptor: desc, Tools: make([]toolReport, 0, len(statuses)),
-		UncoveredSurfaces: uncovered,
+		UncoveredSurfaces: uncovered, Targets: checks,
 	}
 
 	for _, st := range statuses {
@@ -543,30 +669,88 @@ func writeDoctorJSON(
 	return enc.Encode(report)
 }
 
-// networkCall is one place Draugr can reach out from, and what for.
-type networkCall struct {
-	When string
-	What string
+// disclosedTo is the host each disclosing scanner tells about a target, and what it tells.
+//
+// Written out because an effect's detail is a sentence rather than a host, and a host is what an
+// egress rule takes. TestEveryDisclosingScannerNamesItsHost holds every scanner declaring the
+// disclosure effect to an entry here, so a new one cannot be missing from the list. An empty entry
+// is a scanner whose disclosure goes only to the target's own registry, which the scan contacts
+// anyway.
+var disclosedTo = map[string]struct{ Host, What string }{
+	"urlhaus":       {"urlhaus-api.abuse.ch", "learns each host's name"},
+	"virustotal":    {"www.virustotal.com", "learns each host's domain"},
+	"mend-sca":      {"$MEND_URL", "learns the dependency inventory"},
+	"mend-licenses": {"$MEND_URL", "learns the dependency inventory"},
+	"cosign":        {"rekor.sigstore.dev", "learns an image digest, for a signature with no inclusion proof"},
+	"notation":      {},
 }
 
-// networkCalls is every outbound call Draugr makes, so someone preparing an air-gapped runner
-// has the list rather than discovering it one failure at a time.
+// scanContact is one host a scan contacts besides its own targets, and why.
+type scanContact struct {
+	Control, Scanner, Host, What string
+}
+
+// scanContacts lists, per control, the hosts a scan contacts besides its targets: the reference
+// data each scanner fetches, and the third party a disclosing scanner tells. For a descriptor, the
+// scanners its scan would run; with none, every registered scanner.
 //
-// Written out rather than derived: the point is to be complete, and a list assembled from
-// whatever happens to be registered would silently shrink when something moves. It changes when
-// a network call is added, which is exactly when someone should be made to think about it.
-var networkCalls = []networkCall{
-	{"draugr tools install", "each tool's pinned release archive, verified against a recorded SHA-256"},
-	{"draugr feeds update", "the CISA KEV catalog, the FIRST EPSS scores and the Go vulnerability database"},
-	{"draugr self-update", "the latest draugr release"},
-	{"draugr doctor", "the latest draugr release, to compare against yours (skipped by --offline)"},
-	{"a scan, before it starts", "the reference data each scanner reads, host by host under HOSTS"},
-	{"a scan, per target", "the registry, for an image; the endpoint itself, for a host or DAST target"},
-	// The only entry where the traffic does not go to something of yours. Listed separately
-	// because an air-gapped runner is not the only reason to care: this one discloses your
-	// hostnames to a third party, and someone reading this list to decide what Draugr may reach
-	// should see that without having to know the control exists.
-	{"a scan, with the threats control", "abuse.ch, which learns each host's name"},
+// Derived from the registry, because the hand-kept version of this was wrong: it named two of the
+// seven data sources, and nothing about it could have said so. The test holding every scanner to
+// declaring what it reads is what keeps a derived list from silently shrinking.
+func scanContacts(reg *engine.Registry, model *saga.Model) []scanContact {
+	var scanners []plugin.ScannerInfo
+	if model == nil {
+		for _, s := range reg.Scanners() {
+			scanners = append(scanners, s.Info())
+		}
+	} else {
+		scanners = scannersInUse(reg, model)
+	}
+	var rows []scanContact
+	for _, info := range scanners {
+		for _, control := range info.Controls {
+			for _, d := range info.Data {
+				when := "before the scan"
+				if d.PerScan {
+					when = "every scan"
+				}
+				for _, host := range d.Hosts {
+					rows = append(rows, scanContact{control, info.Name, host, d.Name + " · " + when})
+				}
+			}
+			if to := disclosedTo[info.Name]; to.Host != "" {
+				rows = append(rows, scanContact{control, info.Name, to.Host, to.What})
+			}
+		}
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		a, b := rows[i], rows[j]
+		if a.Control != b.Control {
+			return a.Control < b.Control
+		}
+		if a.Host != b.Host {
+			return a.Host < b.Host
+		}
+		if a.What != b.What {
+			return a.What < b.What
+		}
+		return a.Scanner < b.Scanner
+	})
+	return rows
+}
+
+// withoutScanner drops the scanner from each row and the duplicates that leaves: four
+// Trivy-backed scanners read one database, and a reader writing a firewall rule wants one row.
+func withoutScanner(rows []scanContact) []scanContact {
+	var out []scanContact
+	for _, r := range rows {
+		r.Scanner = ""
+		if n := len(out); n > 0 && out[n-1] == r {
+			continue
+		}
+		out = append(out, r)
+	}
+	return out
 }
 
 // doctorHeading names a section the way a scan report names one.
@@ -578,93 +762,45 @@ func doctorHeading(col tui.Painter, name string) string {
 	return col.Paint(tui.StyleMuted, strings.ToUpper(name))
 }
 
-// writeNetworkCalls lists what Draugr fetches and when.
+// writeNetworkCalls lists, per control, what a scan contacts besides its targets.
 //
 // Shown always rather than only under --offline. Someone deciding whether Draugr can run in
 // their environment is asking this before they have a reason to pass the flag, and a list that
 // appears only once you already know to ask for it answers the wrong question.
-func writeNetworkCalls(w io.Writer, reg *engine.Registry) {
-	col := tui.For(w)
-	_, _ = fmt.Fprintf(w, "\n%s  %s\n", doctorHeading(col, "Network"),
-		col.Paint(tui.StyleMuted, networkHeading()))
-	// Width from the longest entry rather than a constant: a hardcoded 26 silently stops
-	// aligning the moment an entry outgrows it, and the misalignment is the only warning.
-	width := 0
-	for _, c := range networkCalls {
-		if len(c.When) > width {
-			width = len(c.When)
-		}
-	}
-	for _, c := range networkCalls {
-		_, _ = fmt.Fprintf(w, "  %-*s %s\n", width, c.When, col.Paint(tui.StyleMuted, c.What))
-	}
-	writeScannerHosts(w, reg)
-}
-
-// scannerHost is one host a scanner contacts for its reference data, and what for.
-type scannerHost struct {
-	Host string
-	What string
-	When string
-}
-
-// writeScannerHosts lists the hosts a scan contacts, from the registry rather than from a list
-// kept by hand.
 //
-// This is the section somebody copies into an egress rule, which is the common case: a runner that
-// blocks outbound by default is ordinary, and a disconnected one is not. A host is what such a rule
-// takes, so a host is what this prints.
-//
-// Derived, because the hand-kept version of this was wrong. It named two of the seven sources, and
-// nothing about it could have said so. What keeps a derived list from silently shrinking is the
-// test holding every scanner to declaring what it reads, which a list written here could never do.
-func writeScannerHosts(w io.Writer, reg *engine.Registry) {
+// Only the scan. The commands that fetch something say so in their names, tools install, feeds
+// update, self-update, and a scan contacting the targets it was given needs no line either.
+func writeNetworkCalls(w io.Writer, reg *engine.Registry, model *saga.Model) {
 	if reg == nil {
 		return
 	}
-	seen := map[string]bool{}
-	var rows []scannerHost
-	for _, sc := range reg.Scanners() {
-		info := sc.Info()
-		for _, d := range info.Data {
-			when := "before the scan"
-			if d.PerScan {
-				when = "every scan"
-			}
-			for _, host := range d.Hosts {
-				// Four Trivy-backed scanners read one database. One row, because a reader is
-				// writing a firewall rule rather than auditing the registry.
-				key := host + "\x00" + d.Name
-				if seen[key] {
-					continue
-				}
-				seen[key] = true
-				rows = append(rows, scannerHost{Host: host, What: d.Name, When: when})
-			}
-		}
-	}
+	rows := scanContacts(reg, model)
+	col := tui.For(w)
+	_, _ = fmt.Fprintf(w, "\n%s  %s\n", doctorHeading(col, "Network"),
+		col.Paint(tui.StyleMuted, networkHeading()))
 	if len(rows) == 0 {
+		// Said rather than left as an empty heading, which reads as a list that failed to print.
+		_, _ = fmt.Fprintf(w, "  draugr scan  %s\n", col.Paint(tui.StyleMuted, "(contacts only its targets)"))
 		return
 	}
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].Host != rows[j].Host {
-			return rows[i].Host < rows[j].Host
-		}
-		return rows[i].What < rows[j].What
-	})
+	_, _ = fmt.Fprintf(w, "  draugr scan\n")
+	writeContactList(w, col, withoutScanner(rows))
+}
 
-	col := tui.For(w)
-	_, _ = fmt.Fprintf(w, "\n%s  %s\n", doctorHeading(col, "Hosts"),
-		col.Paint(tui.StyleMuted, "(a scan contacts these; for an egress allowlist)"))
-	width := 0
+// writeContactList prints rows under their control, the control named once.
+func writeContactList(w io.Writer, col tui.Painter, rows []scanContact) {
+	cw, hw := 0, 0
 	for _, r := range rows {
-		if len(r.Host) > width {
-			width = len(r.Host)
-		}
+		cw, hw = max(cw, len(r.Control)), max(hw, len(r.Host))
 	}
+	prev := ""
 	for _, r := range rows {
-		_, _ = fmt.Fprintf(w, "  %-*s %s\n", width, r.Host,
-			col.Paint(tui.StyleMuted, r.What+" · "+r.When))
+		control := r.Control
+		if control == prev {
+			control = ""
+		}
+		prev = r.Control
+		_, _ = fmt.Fprintf(w, "    %-*s  %-*s  %s\n", cw, control, hw, r.Host, col.Paint(tui.StyleMuted, r.What))
 	}
 }
 
@@ -673,7 +809,7 @@ func networkHeading() string {
 	if netpolicy.Offline() {
 		return "(offline: none of these will happen)"
 	}
-	return "(what Draugr fetches, and when · --offline stops all of it)"
+	return "(besides its targets · --offline stops all of it)"
 }
 
 // missingToolsAdvice counts what is missing and suggests `tools install` only when it could

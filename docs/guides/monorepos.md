@@ -79,6 +79,10 @@ the output says so. That is the price of carving by ownership, and it is worth n
 tool that carves this way avoids it. A component that needs the whole tree analyzed together is one
 component with a wider `paths:`.
 
+`draugr doctor draugr.saga.yaml` looks up every `paths:` entry in the commit the scan would check
+out, and fails on an entry that is not committed there, such as a directory that has since moved.
+See [targets](../reference/cli.md#targets).
+
 ## Root files
 
 A file at the repository root belongs to the component whose `paths:` names it. A root lockfile,

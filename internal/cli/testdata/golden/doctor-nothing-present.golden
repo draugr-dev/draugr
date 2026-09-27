@@ -17,24 +17,26 @@ semgrep      ✗ missing   -        install: draugr tools install semgrep
 syft         ✗ missing   -        install: draugr tools install syft
 trivy        ✗ missing   -        install: draugr tools install trivy
 
-NETWORK  (what Draugr fetches, and when · --offline stops all of it)
-  draugr tools install             each tool's pinned release archive, verified against a recorded SHA-256
-  draugr feeds update              the CISA KEV catalog, the FIRST EPSS scores and the Go vulnerability database
-  draugr self-update               the latest draugr release
-  draugr doctor                    the latest draugr release, to compare against yours (skipped by --offline)
-  a scan, before it starts         the reference data each scanner reads, host by host under HOSTS
-  a scan, per target               the registry, for an image; the endpoint itself, for a host or DAST target
-  a scan, with the threats control abuse.ch, which learns each host's name
-
-HOSTS  (a scan contacts these; for an egress allowlist)
-  ghcr.io                   vulnerability database · before the scan
-  github.com                template set · before the scan
-  grype.anchore.io          vulnerability database · before the scan
-  mirror.gcr.io             checks bundle · before the scan
-  mirror.gcr.io             vulnerability database · before the scan
-  raw.githubusercontent.com advisory database · before the scan
-  semgrep.dev               rule pack · every scan
-  tuf-repo-cdn.sigstore.dev Sigstore trust root · before the scan
-  vuln.go.dev               vulnerability database · every scan
+NETWORK  (besides its targets · --offline stops all of it)
+  draugr scan
+    dast        github.com                 template set · before the scan
+    iac         mirror.gcr.io              checks bundle · before the scan
+    images      ghcr.io                    vulnerability database · before the scan
+                grype.anchore.io           vulnerability database · before the scan
+                mirror.gcr.io              vulnerability database · before the scan
+    licenses    $MEND_URL                  learns the dependency inventory
+                ghcr.io                    vulnerability database · before the scan
+                mirror.gcr.io              vulnerability database · before the scan
+    provenance  rekor.sigstore.dev         learns an image digest, for a signature with no inclusion proof
+                tuf-repo-cdn.sigstore.dev  Sigstore trust root · before the scan
+    sast        semgrep.dev                rule pack · every scan
+    sca         $MEND_URL                  learns the dependency inventory
+                ghcr.io                    vulnerability database · before the scan
+                grype.anchore.io           vulnerability database · before the scan
+                mirror.gcr.io              vulnerability database · before the scan
+                raw.githubusercontent.com  advisory database · before the scan
+                vuln.go.dev                vulnerability database · every scan
+    threats     urlhaus-api.abuse.ch       learns each host's name
+                www.virustotal.com         learns each host's domain
 
 13 of these are not installed. Which you need depends on your descriptor. Run `draugr doctor <saga>` to check just those, or `draugr tools install` to fetch them all.
