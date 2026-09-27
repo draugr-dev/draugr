@@ -67,7 +67,11 @@
         },
         "labels": {
           "additionalProperties": {
-            "type": "string"
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
           },
           "description": "Free-form key/value metadata, e.g. team or tier.",
           "type": "object"
@@ -76,7 +80,8 @@
           "description": "Unique component name.",
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         },
         "repositories": {
@@ -1050,7 +1055,8 @@
           "minLength": 1,
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         },
         "expires": {
@@ -1064,7 +1070,8 @@
             "minLength": 1,
             "type": [
               "string",
-              "number"
+              "number",
+              "boolean"
             ]
           },
           "type": "array"
@@ -1074,7 +1081,8 @@
           "minLength": 1,
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         },
         "rules": {
@@ -1083,7 +1091,8 @@
             "minLength": 1,
             "type": [
               "string",
-              "number"
+              "number",
+              "boolean"
             ]
           },
           "type": "array"
@@ -1110,7 +1119,8 @@
           ],
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         },
         "epssThreshold": {
@@ -1128,7 +1138,8 @@
           ],
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         },
         "maxAge": {
@@ -1432,7 +1443,8 @@
           "description": "Label for this endpoint.",
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         },
         "spec": {
@@ -1456,7 +1468,8 @@
           "description": "Endpoint URL. Must be https:// for the tls control.",
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         }
       },
@@ -1477,7 +1490,8 @@
           "description": "Environment variable holding the credential. There is deliberately no field for the credential itself: a descriptor is committed, so a token written into one is a leaked token.",
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         },
         "type": {
@@ -1525,7 +1539,8 @@
           "description": "The OpenAPI or Swagger document, relative to the descriptor.",
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         }
       },
@@ -1560,7 +1575,8 @@
           "description": "Image reference, e.g. registry.example.com/acme/web:1.0",
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         },
         "signedBy": {
@@ -1592,7 +1608,8 @@
             "minLength": 1,
             "type": [
               "string",
-              "number"
+              "number",
+              "boolean"
             ]
           },
           "type": "array",
@@ -1616,7 +1633,8 @@
           "description": "Identifier, e.g. a cluster name.",
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         }
       },
@@ -1636,7 +1654,8 @@
           "description": "file: output directory.",
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         },
         "kind": {
@@ -1739,14 +1758,16 @@
           "description": "URL to the document.",
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         },
         "type": {
           "description": "Kind of reference, e.g. ThreatModel.",
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         }
       },
@@ -1764,7 +1785,8 @@
           "description": "Release version, shown on every report and appended to the VEX product identifier. Supports ${{ ENV_VAR }} substitution.",
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         }
       },
@@ -1777,7 +1799,8 @@
           "description": "Override the artifact's default output filename.",
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         },
         "format": {
@@ -1860,14 +1883,16 @@
           "description": "Inline Go text/template (format: template). Set exactly one of template / templateFile.",
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         },
         "templateFile": {
           "description": "Path to a Go text/template (format: template).",
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         }
       },
@@ -1899,7 +1924,8 @@
             "minLength": 1,
             "type": [
               "string",
-              "number"
+              "number",
+              "boolean"
             ]
           },
           "type": "array"
@@ -1910,7 +1936,8 @@
             "minLength": 1,
             "type": [
               "string",
-              "number"
+              "number",
+              "boolean"
             ]
           },
           "type": "array"
@@ -1919,14 +1946,16 @@
           "description": "Branch, tag, or commit to scan.",
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         },
         "url": {
           "description": "Repository URL, or a local path such as `.`",
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         }
       },
@@ -1995,7 +2024,8 @@
           "minLength": 1,
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         },
         "product": {
@@ -2003,7 +2033,8 @@
           "minLength": 1,
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         }
       },
@@ -2072,7 +2103,8 @@
           "minLength": 1,
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         },
         "ref": {
@@ -2080,7 +2112,8 @@
           "minLength": 1,
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         },
         "url": {
@@ -2088,7 +2121,8 @@
           "minLength": 1,
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         }
       },
@@ -2107,7 +2141,8 @@
           "minLength": 1,
           "type": [
             "string",
-            "number"
+            "number",
+            "boolean"
           ]
         },
         "repository": {
@@ -2148,8 +2183,13 @@
     },
     "project": {
       "description": "Which project this descriptor describes: lowercase letters, digits and dashes. A platform files runs under it.",
+      "minimum": 0,
       "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9]([a-z0-9-]*[a-z0-9])?)$",
-      "type": "string"
+      "type": [
+        "string",
+        "integer",
+        "boolean"
+      ]
     },
     "references": {
       "description": "Links to manual or human-performed controls (threat model, architecture diagram, …).",

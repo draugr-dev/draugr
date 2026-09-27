@@ -44,18 +44,21 @@ func TestAnInfrastructureKindHasOneSpelling(t *testing.T) {
 	}
 }
 
-// A label YAML reads as a number or a boolean is refused with the quoted form to write, in a
-// descriptor and in a fragment alike.
-func TestALabelIsAString(t *testing.T) {
-	got := loadErr(t, "    labels:\n      tier: 1\n      team: payments\n")
-	if !strings.Contains(got, `labels.tier is 1, not a string: write tier: "1"`) {
-		t.Errorf("error %q", got)
+// A label YAML reads as a number or a boolean keeps its text, in a descriptor and in a fragment
+// alike: labels are compared as text and never reach the verdict.
+func TestALabelKeepsItsText(t *testing.T) {
+	m, err := Load([]byte(oneSpellingBase + "    labels:\n      tier: 01\n      pci: true\n"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	if got := loadErr(t, "    labels:\n      tier: \"1\"\n"); got != "" {
-		t.Errorf("a quoted label was refused: %s", got)
+	if got := m.Components[0].Labels; got["tier"] != "01" || got["pci"] != "true" {
+		t.Errorf("labels = %v, want tier 01 and pci true as written", got)
 	}
-	_, err := LoadFragment([]byte("components:\n  - name: w\n    labels:\n      pci: true\n"), "f.yaml")
-	if err == nil || !strings.Contains(err.Error(), `pci: "true"`) {
-		t.Errorf("fragment: %v", err)
+	f, err := LoadFragment([]byte("components:\n  - name: w\n    labels:\n      tier: 1.10\n"), "f.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := f.Components[0].Labels["tier"]; got != "1.10" {
+		t.Errorf("fragment label = %q, want 1.10", got)
 	}
 }

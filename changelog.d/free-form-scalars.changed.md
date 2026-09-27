@@ -1,0 +1,1 @@
+- A component label's value written unquoted, such as `tier: 1` or `pci: true`, is accepted and kept as its literal text, where `draugr validate` refused it before. The published schema accepts a boolean in any free-form field, and an integer or a boolean as the `project`, matching `draugr validate`.
