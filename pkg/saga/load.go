@@ -31,9 +31,6 @@ func loadModel(data []byte, validate bool) (*Model, error) {
 			strings.Join(missing, ", "))
 	}
 
-	if err := labelsAreStrings(&root); err != nil {
-		return nil, err
-	}
 	if err := noEmptyValues(&root); err != nil {
 		return nil, err
 	}
@@ -307,50 +304,6 @@ func noEmptyValues(root *yaml.Node) error {
 				if !empty(n.Content[i+1], here) {
 					walk(n.Content[i+1], here)
 				}
-			}
-		}
-	}
-	walk(root, "")
-	if len(problems) > 0 {
-		return fmt.Errorf("%s", strings.Join(problems, "; "))
-	}
-	return nil
-}
-
-// labelsAreStrings refuses a component label whose value YAML reads as something other than a
-// string, `tier: 1` or `pci: true`.
-//
-// Decoding would turn either into the string "1" or "true" without a word, and the JSON Schema
-// requires a string, so an editor would reject a label `draugr validate` accepted. Quoting the value
-// says it is a label rather than a number, and both readers agree.
-func labelsAreStrings(root *yaml.Node) error {
-	var problems []string
-	var walk func(n *yaml.Node, path string)
-	walk = func(n *yaml.Node, path string) {
-		switch n.Kind {
-		case yaml.DocumentNode:
-			for _, c := range n.Content {
-				walk(c, path)
-			}
-		case yaml.SequenceNode:
-			for i, c := range n.Content {
-				walk(c, fmt.Sprintf("%s[%d]", path, i))
-			}
-		case yaml.MappingNode:
-			for i := 0; i+1 < len(n.Content); i += 2 {
-				key, val := n.Content[i], n.Content[i+1]
-				here := strings.TrimPrefix(path+"."+key.Value, ".")
-				if key.Value == "labels" && val.Kind == yaml.MappingNode && strings.HasPrefix(path, "components") {
-					for j := 0; j+1 < len(val.Content); j += 2 {
-						if v := val.Content[j+1]; v.Kind == yaml.ScalarNode && v.Tag != "!!str" {
-							problems = append(problems, fmt.Sprintf(
-								"%s.%s is %s, not a string: write %s: \"%s\"",
-								here, val.Content[j].Value, v.Value, val.Content[j].Value, v.Value))
-						}
-					}
-					continue
-				}
-				walk(val, here)
 			}
 		}
 	}
