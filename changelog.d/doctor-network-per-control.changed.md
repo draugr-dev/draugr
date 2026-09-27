@@ -1,1 +1,0 @@
-- `draugr doctor` lists network use per control under `draugr scan`: each host a scanner fetches reference data from, and each third party a scanner tells about a target, such as `threats  urlhaus-api.abuse.ch  learns each host's name`. Given a descriptor, it lists only the scanners that scan runs. The `HOSTS` section is folded into this list.
