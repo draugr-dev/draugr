@@ -1,6 +1,6 @@
 # Draugr
 
-> Run Trivy, Semgrep, Gitleaks and more from one file. Get one SARIF report and one verdict.
+> Security scanning for CI from one file: Trivy, Semgrep, Gitleaks and more, ranked by exposure and criticality.
 
 [![CI](https://github.com/draugr-dev/draugr/actions/workflows/ci.yml/badge.svg)](https://github.com/draugr-dev/draugr/actions/workflows/ci.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/draugr-dev/draugr/badge)](https://scorecard.dev/viewer/?uri=github.com/draugr-dev/draugr)
