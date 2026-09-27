@@ -26,8 +26,6 @@ downloaded.
 
 ## What Draugr fetches, and when
 
-`draugr doctor` prints this list on any machine, so you don't have to keep it:
-
 | When | What |
 |------|------|
 | `draugr tools install` | each tool's pinned release archive, verified against a recorded SHA-256 |
@@ -40,6 +38,10 @@ downloaded.
 The last row is the one `--offline` cannot help with. Scanning a remote image or probing a live
 endpoint *is* a network operation. If a target is unreachable, the control reports an error rather
 than a pass.
+
+`draugr doctor` prints what a scan contacts besides its targets, per control: each host a scanner
+fetches reference data from, and each third party a disclosing scanner tells about a target. Given
+a descriptor, it lists only the scanners that descriptor's scan runs.
 
 ## Preparing a runner
 

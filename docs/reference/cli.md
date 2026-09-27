@@ -23,8 +23,8 @@ download, `feeds update`, `tools install`, `self-update`, refuses and names what
 fetched. A scan runs against whatever each tool already has on disk, and a tool with nothing on disk
 reports an error rather than a clean result.
 
-`draugr doctor` lists every network call Draugr can make, so a runner can be prepared from that
-list rather than one failure at a time. See
+`draugr doctor` lists every host a scan contacts besides its targets, per control, so a runner can
+be prepared from that list rather than one failure at a time. See
 [running air-gapped](../guides/air-gapped.md).
 
 **Seeing what Draugr is doing.** `--log-level debug` narrates the run: what was planned, the
@@ -1189,6 +1189,26 @@ image       ghcr.io/acme/api:2.1                                ✗ 403 forbidde
 The scope flags `draugr scan` takes narrow the checks to the targets of the components and controls
 they select. `--offline` skips every check that needs the network and marks each `not checked`; a
 local repository and the local Docker daemon are still checked.
+
+### Network
+
+Doctor lists every host a scan contacts besides its targets, per control: the reference data each
+scanner fetches, and the third party a disclosing scanner tells about a target. Given a Saga, the list
+holds only the scanners that scan runs, which makes it the egress allowlist for that runner. Without
+one, it holds every control.
+
+```console
+$ draugr doctor draugr.saga.yaml
+NETWORK  (besides its targets · --offline stops all of it)
+  draugr scan
+    sca      ghcr.io               vulnerability database · before the scan
+             mirror.gcr.io         vulnerability database · before the scan
+    threats  urlhaus-api.abuse.ch  learns each host's name
+```
+
+`before the scan` data is fetched once per run and can be put on the machine in advance; `every
+scan` data is fetched by the tool on each invocation. [Running air-gapped](../guides/air-gapped.md)
+covers both.
 
 ### What nothing is looking at
 
