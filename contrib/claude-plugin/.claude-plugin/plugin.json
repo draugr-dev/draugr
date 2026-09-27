@@ -1,7 +1,7 @@
 {
   "name": "draugr",
   "displayName": "Draugr",
-  "version": "0.135.1",
+  "version": "0.136.0",
   "description": "Security scanning for AI agents: SAST, SCA, secrets, IaC, DAST, ranked by real risk.",
   "author": {
     "name": "Draugr",

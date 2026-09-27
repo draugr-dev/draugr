@@ -12,6 +12,18 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.136.0] - 2026-09-27
+
+### Added
+
+- `draugr doctor saga.yaml` checks each target the scan would read from this machine: each repository revision resolves, each `paths:` entry is committed at it, each image is in the local Docker daemon or readable from its registry, and each host accepts a connection. A failed check exits non-zero. `--offline` skips the checks that need the network.
+
+### Changed
+
+- `draugr doctor` lists network use per control under `draugr scan`: each host a scanner fetches reference data from, and each third party a scanner tells about a target, such as `threats  urlhaus-api.abuse.ch  learns each host's name`. Given a descriptor, it lists only the scanners that scan runs. The `HOSTS` section is folded into this list.
+
+- A component label's value written unquoted, such as `tier: 1` or `pci: true`, is accepted and kept as its literal text, where `draugr validate` refused it before. The published schema now accepts a boolean in any free-form field, and an integer or a boolean as the `project`, as `draugr validate` does.
+
 ## [0.135.1] - 2026-09-26
 
 ### Fixed
@@ -6063,7 +6075,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.135.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.136.0...HEAD
+[0.136.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.136.0
 [0.135.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.135.1
 [0.135.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.135.0
 [0.134.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.134.0
