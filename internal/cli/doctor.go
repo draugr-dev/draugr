@@ -528,8 +528,7 @@ func writeDoctorTable(w io.Writer, statuses []tools.Status) {
 	// fourteen times.
 	if n := untestedCount(statuses); n > 0 {
 		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(tui.StyleAccent, fmt.Sprintf(
-			"%s not the version Draugr tests. Older scanners find fewer things; "+
-				"`draugr tools install --force` installs the tested build.", english.Count(n, "tool")+" "+english.Choose(n, "is", "are"))))
+			"%s not the version Draugr tests. `draugr tools install --force` installs the tested build.", english.Count(n, "tool")+" "+english.Choose(n, "is", "are"))))
 	}
 }
 

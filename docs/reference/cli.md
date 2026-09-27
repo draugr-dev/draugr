@@ -1144,7 +1144,7 @@ is not the one anything exercised. The row says which version was tested and one
 $ draugr doctor
 trivy  ✓ found  0.69.3  /home/you/.draugr/bin/trivy · tested against 0.74.0
 
-1 tool is not the version Draugr tests. Older scanners find fewer things; `draugr tools install --force` installs the tested build.
+1 tool is not the version Draugr tests. `draugr tools install --force` installs the tested build.
 ```
 
 **A note rather than a failure.** Refusing to run would be Draugr mistaking *I have not tested
