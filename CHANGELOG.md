@@ -22,7 +22,7 @@ _Nothing yet._
 
 - `draugr doctor` lists network use per control under `draugr scan`: each host a scanner fetches reference data from, and each third party a scanner tells about a target, such as `threats  urlhaus-api.abuse.ch  learns each host's name`. Given a descriptor, it lists only the scanners that scan runs. The `HOSTS` section is folded into this list.
 
-- A component label's value written unquoted, such as `tier: 1` or `pci: true`, is accepted and kept as its literal text, where `draugr validate` refused it before. The published schema accepts a boolean in any free-form field, and an integer or a boolean as the `project`, matching `draugr validate`.
+- A component label's value written unquoted, such as `tier: 1` or `pci: true`, is accepted and kept as its literal text, where `draugr validate` refused it before. The published schema now accepts a boolean in any free-form field, and an integer or a boolean as the `project`, as `draugr validate` does.
 
 ## [0.135.1] - 2026-09-26
 
