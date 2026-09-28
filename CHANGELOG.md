@@ -12,6 +12,16 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.137.0] - 2026-09-28
+
+### Added
+
+- **A real HTML report to read before installing.** Every release attaches its scan of the [demo sandbox](https://github.com/draugr-dev/draugr-demo) as `draugr-demo-report.html`, and [draugr.dev/demo/cli/report](https://draugr.dev/demo/cli/report/) serves the newest.
+
+### Fixed
+
+- `draugr doctor` shows the commit an annotated tag points at for a remote repository, where it showed the tag object, which no checkout holds. A scan of that tag now shares cached results with a scan naming the same commit by branch or by hash.
+
 ## [0.136.0] - 2026-09-27
 
 ### Added
@@ -6075,7 +6085,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.136.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.137.0...HEAD
+[0.137.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.137.0
 [0.136.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.136.0
 [0.135.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.135.1
 [0.135.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.135.0
