@@ -8,6 +8,7 @@ package diff
 
 import (
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/draugr-dev/draugr/pkg/prioritization"
@@ -66,33 +67,16 @@ func (r Result) HelpURI(ruleID string) string {
 // reason to stop tracking it. A finding that became suppressed was accepted, not fixed; one that
 // stopped being suppressed came back, and nobody introduced it.
 func Compare(base, head sarif.Report) Result {
-	// Two indexes, because a finding can be recognized two ways and the safe rule is "either".
-	// byID is the canonical one, keyed the way it has always been; lookup maps every key a base
-	// finding answers to, including its content fingerprint, onto that canonical id.
-	baseByID := make(map[string]sarif.Result, len(base.Results))
-	lookup := make(map[string]string, 2*len(base.Results))
-	for _, res := range base.Results {
-		id := identity(res)
-		baseByID[id] = res
-		for _, k := range keysOf(res) {
-			lookup[k] = id
-		}
-	}
-	matched := make(map[string]bool, len(baseByID))
-	headIdx := index(head.Results)
+	baseRes, headRes := distinct(base.Results), distinct(head.Results)
+	pair := match(baseRes, headRes)
 
 	var r Result
-	for _, res := range headIdx {
+	matched := make([]bool, len(baseRes))
+	for h, res := range headRes {
 		var was sarif.Result
-		var inBase bool
-		for _, k := range keysOf(res) {
-			id, ok := lookup[k]
-			if !ok {
-				continue
-			}
-			was, inBase = baseByID[id], true
-			matched[id] = true
-			break
+		b, inBase := pair[h]
+		if inBase {
+			was, matched[b] = baseRes[b], true
 		}
 		switch {
 		case res.Suppressed() && (!inBase || !was.Suppressed()):
@@ -112,8 +96,8 @@ func Compare(base, head sarif.Report) Result {
 			r.New = append(r.New, res)
 		}
 	}
-	for id, res := range baseByID {
-		if !matched[id] && !res.Suppressed() {
+	for b, res := range baseRes {
+		if !matched[b] && !res.Suppressed() {
 			// A finding that was suppressed in the base and is gone from the head was not
 			// counting either way, so calling it fixed would inflate the good news.
 			r.Fixed = append(r.Fixed, res)
@@ -136,22 +120,74 @@ func Compare(base, head sarif.Report) Result {
 	return r
 }
 
-// index maps each result to its identity. Later results with the same identity overwrite
-// earlier ones (they are indistinguishable for diffing).
-func index(results []sarif.Result) map[string]sarif.Result {
-	m := make(map[string]sarif.Result, len(results))
+// distinct drops a result that repeats another in every respect, place included.
+//
+// Only an exact repeat. Two findings of one rule in one file are two findings, even where their
+// identity is the same. Keyed on identity alone, the second would be dropped, and a change adding
+// a second instance of a flaw the file already has would report nothing new and pass a gate on new
+// findings.
+func distinct(results []sarif.Result) []sarif.Result {
+	seen := make(map[string]bool, len(results))
+	out := make([]sarif.Result, 0, len(results))
 	for _, res := range results {
-		m[identity(res)] = res
+		k := identity(res) + "\x00" + strconv.Itoa(res.Location.StartLine) + "\x00" + res.PartialFingerprints[sarif.LineHashKey]
+		if seen[k] {
+			continue
+		}
+		seen[k] = true
+		out = append(out, res)
 	}
-	return m
+	return out
 }
 
-// identity is a stable, line-insensitive key for cross-scan comparison. It deliberately
-// excludes the start line (line numbers drift as code moves, which would otherwise report an
-// unchanged finding as fixed+new) and the severity level (a re-scored finding is still the same
-// underlying issue). For CVE findings (SCA/images) the ruleID is the CVE and the URI is the
-// package/image, so this is stable; for SAST it keys on rule + file + message.
-// keysOf returns every key a finding answers to, most specific first.
+// match pairs each head finding with the base finding it is, by index, one to one.
+//
+// Two passes, most specific first. The content fingerprint pairs a finding that moved; identity
+// then pairs one whose surrounding lines were edited, which changes the fingerprint and nothing
+// else. The passes are separate so that a finding matched loosely never takes the base finding
+// another one matched exactly.
+//
+// One to one is the point. Three instances in the head against two in the base leave one unpaired,
+// and that one is new. Within one identity, findings pair in line order, which is the order an
+// unedited file keeps them in.
+func match(base, head []sarif.Result) map[int]int {
+	pair := make(map[int]int, len(head))
+	used := make([]bool, len(base))
+	for _, key := range []func(sarif.Result) string{contentKey, identity} {
+		pool := map[string][]int{}
+		for _, b := range byLine(base) {
+			if k := key(base[b]); k != "" && !used[b] {
+				pool[k] = append(pool[k], b)
+			}
+		}
+		for _, h := range byLine(head) {
+			if _, done := pair[h]; done {
+				continue
+			}
+			k := key(head[h])
+			if k == "" || len(pool[k]) == 0 {
+				continue
+			}
+			b := pool[k][0]
+			pool[k] = pool[k][1:]
+			pair[h], used[b] = b, true
+		}
+	}
+	return pair
+}
+
+// byLine is the indexes of rs, in order of where each finding starts.
+func byLine(rs []sarif.Result) []int {
+	idx := make([]int, len(rs))
+	for i := range idx {
+		idx[i] = i
+	}
+	sort.SliceStable(idx, func(a, b int) bool { return rs[idx[a]].Location.StartLine < rs[idx[b]].Location.StartLine })
+	return idx
+}
+
+// contentKey is a finding's content fingerprint with its tool and subject, or empty where the
+// finding has no fingerprint.
 //
 // **The message is the weak part of the identity, and some scanners put the commit in it.**
 // Gitleaks describes a secret with context that changes between two scans of the same unchanged
@@ -163,24 +199,30 @@ func index(results []sarif.Result) map[string]sarif.Result {
 // lines around the finding rather than taking a scanner's word for it, so it means the same thing
 // whichever tool reported it.
 //
-// Both keys, not the better one, because matching on either can only find more pairs than matching
-// on one. A fingerprint present on just one side, which is what happens when the lines around a
+// Identity is still tried after it, because matching on either can only find more pairs than
+// matching on one. A fingerprint that differs, which is what happens when the lines around a
 // finding were edited, would otherwise make it new and fixed for the opposite reason.
-func keysOf(r sarif.Result) []string {
-	id := identity(r)
+func contentKey(r sarif.Result) string {
 	hash := r.PartialFingerprints[sarif.LineHashKey]
 	if hash == "" {
-		return []string{id}
+		return ""
 	}
 	// The tool and the subject stay in the key. A content hash identifies a place in a file, and
 	// two scanners finding different things there are two findings.
-	content := strings.Join([]string{
+	return strings.Join([]string{
 		"content", r.Tool, r.RuleID, r.Location.URI, hash, r.Component,
 		sarif.RepositoryIdentity(r.Repository),
 	}, "\x00")
-	return []string{content, id}
 }
 
+// identity is a stable, line-insensitive key for cross-scan comparison. It deliberately
+// excludes the start line (line numbers drift as code moves, which would otherwise report an
+// unchanged finding as fixed+new) and the severity level (a re-scored finding is still the same
+// underlying issue). For CVE findings (SCA/images) the ruleID is the CVE and the URI is the
+// package/image, so this is stable; for SAST it keys on rule + file + message.
+//
+// It names a kind of finding in a place, not one finding: a file can hold several findings with
+// the same identity, and match pairs them one to one rather than as one.
 func identity(r sarif.Result) string {
 	// Component and repository are included for the opposite reason line and level are not: they do
 	// not drift, they are the subject. The same flaw at the same line in two components is two
