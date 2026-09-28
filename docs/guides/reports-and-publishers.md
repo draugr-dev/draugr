@@ -585,6 +585,10 @@ programmatically, is in the [report schema](../reference/report-schema.md).
 
 One file, no external assets, safe to email, attach to a build, or open from disk.
 
+[draugr.dev/demo/cli/report](https://draugr.dev/demo/cli/report/) serves the newest release's scan of the
+[demo sandbox](https://github.com/draugr-dev/draugr-demo). Each release also attaches its report as
+`draugr-demo-report.html`.
+
 **It carries its own data.** The report embeds the full SARIF and a tab-separated export of every
 finding, offered as ordinary download links:
 

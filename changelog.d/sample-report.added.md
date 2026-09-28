@@ -1,0 +1,1 @@
+- **A real HTML report to read before installing.** Every release attaches its scan of the [demo sandbox](https://github.com/draugr-dev/draugr-demo) as `draugr-demo-report.html`, and [draugr.dev/demo/cli/report](https://draugr.dev/demo/cli/report/) serves the newest.
