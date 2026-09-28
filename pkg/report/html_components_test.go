@@ -252,7 +252,7 @@ func TestTheStripNamesTheControlsThatFailed(t *testing.T) {
 	if !strings.Contains(strip, "failing sca, secrets") {
 		t.Errorf("the strip does not name the failing controls:\n%s", strip)
 	}
-	clean := section(t, out, `data-m="worker"`, `<p class="state">`)
+	clean := section(t, out, `data-m="worker"`, `class="listbar"`)
 	if strings.Contains(clean, "failing") {
 		t.Errorf("a component that passed every control is described as failing one:\n%s", clean)
 	}
