@@ -587,11 +587,11 @@ func TestAPassStillCountsTheWorkItInherited(t *testing.T) {
 	if err := Render(&md, "markdown", r, Options{}); err != nil {
 		t.Fatal(err)
 	}
-	// The accepted P1 is a decision already taken, so it is in the unchanged count and not in the
-	// bands.
+	// The accepted P1 is a decision already taken: it is in the unchanged count, and in a strip of its
+	// own rather than among the inherited work.
 	for _, want := range []string{
 		"✅ **pass** · 4 unchanged\n",
-		"\n_unchanged_ · **2 P1** · 0 P2 · **1 P3** · 0 P4\n",
+		"\n_unchanged_ · **2 P1** · 0 P2 · **1 P3** · 0 P4<br>\n_still accepted_ · **1 P1** · 0 P2 · 0 P3 · 0 P4\n",
 	} {
 		if !strings.Contains(md.String(), want) {
 			t.Errorf("want %q in the comment:\n%s", want, md.String())
@@ -602,11 +602,55 @@ func TestAPassStillCountsTheWorkItInherited(t *testing.T) {
 	if err := Render(&console, "console", r, Options{}); err != nil {
 		t.Fatal(err)
 	}
-	if want := " unchanged  2 P1 0 P2 1 P3 0 P4\n"; !strings.Contains(console.String(), want) {
+	if want := " unchanged       2 P1 0 P2 1 P3 0 P4\n still accepted  1 P1 0 P2 0 P3 0 P4\n"; !strings.Contains(console.String(), want) {
 		t.Errorf("the terminal should draw the standing bands, want %q in:\n%s", want, console.String())
 	}
 	if headline, _, _ := strings.Cut(console.String(), "\n"); strings.Contains(headline, "P1") {
 		t.Errorf("the terminal carries the bands as chips, not in the headline:\n%s", console.String())
+	}
+}
+
+// Every finding in head is in exactly one strip, so the strips add up to the head scan, and the
+// fixed findings, which are not in head, have none.
+func TestEveryStateInHeadHasAStrip(t *testing.T) {
+	held := func(p string) sarif.Result {
+		return sarif.Result{RuleID: "h", Priority: p, Suppression: &sarif.Suppression{Kind: "external"}}
+	}
+	r := Result{
+		New:        []sarif.Result{{RuleID: "n", Priority: "P2"}},
+		Unaccepted: []sarif.Result{{RuleID: "u", Priority: "P1"}},
+		Accepted:   []sarif.Result{held("P3")},
+		Fixed:      []sarif.Result{{RuleID: "f", Priority: "P1"}},
+		Unchanged:  []sarif.Result{{RuleID: "o", Priority: "P4"}, held("P1"), held("P1")},
+	}
+	var console, md bytes.Buffer
+	if err := Render(&console, "console", r, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := Render(&md, "markdown", r, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		" new             0 P1 1 P2 0 P3 0 P4\n",
+		" unaccepted      1 P1 0 P2 0 P3 0 P4\n",
+		" accepted        0 P1 0 P2 1 P3 0 P4\n",
+		" unchanged       0 P1 0 P2 0 P3 1 P4\n",
+		" still accepted  2 P1 0 P2 0 P3 0 P4\n",
+	} {
+		if !strings.Contains(console.String(), want) {
+			t.Errorf("want %q in:\n%s", want, console.String())
+		}
+	}
+	want := "_new_ · 0 P1 · **1 P2** · 0 P3 · 0 P4<br>\n" +
+		"_unaccepted_ · **1 P1** · 0 P2 · 0 P3 · 0 P4<br>\n" +
+		"_accepted_ · 0 P1 · 0 P2 · **1 P3** · 0 P4<br>\n" +
+		"_unchanged_ · 0 P1 · 0 P2 · 0 P3 · **1 P4**<br>\n" +
+		"_still accepted_ · **2 P1** · 0 P2 · 0 P3 · 0 P4\n"
+	if !strings.Contains(md.String(), want) {
+		t.Errorf("want the strips in order:\n%s\nin:\n%s", want, md.String())
+	}
+	if strips, _, _ := strings.Cut(console.String(), "CHANGED"); strings.Contains(strips, "\n fixed") {
+		t.Errorf("fixed findings are not in head and have no strip:\n%s", console.String())
 	}
 }
 

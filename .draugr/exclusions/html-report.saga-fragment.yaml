@@ -1,0 +1,24 @@
+# The HTML report's self-contained download links.
+config:
+  exclude:
+    - paths:
+        - "pkg/report/htmldata.go"
+      rules:
+        - "go.lang.security.audit.net.unescaped-data-in-url.unescaped-data-in-url"
+        - "go.lang.security.audit.xss.template-html-does-not-escape.unsafe-template-type"
+      reason: >-
+        Both flag the same line: dataURI returns template.URL, which tells html/template to emit
+        the value verbatim. That is deliberate — contextual escaping rejects a data: URI outright,
+        which is the right default because `data:text/html` in an href is a script-injection
+        vector, and it is also what makes the HTML report's self-contained download links
+        impossible any other way.
+
+        It is safe because nothing that reaches the markup comes from the scan. Both callers pass
+        a string literal for the MIME type, and the payload is base64 — an alphabet of letters,
+        digits, '+', '/' and '=' — so it cannot contain a quote or an angle bracket to end the
+        attribute. Whatever a scanner put in a finding is inside the encoded blob.
+
+        The equivalent gosec rule (G203) is suppressed inline at the same line for the same
+        reason. Scoped to this file and these two rules, so the same pattern anywhere else still
+        fails the gate.
+      acceptedBy: "Wilson Santos <wilson@draugr.dev>"

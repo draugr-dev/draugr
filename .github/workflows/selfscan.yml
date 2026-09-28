@@ -200,7 +200,7 @@ jobs:
           # everything is one people learn to route around.
           #
           # To accept a P1 that cannot be fixed now, add a `config.exclude` entry with a reason
-          # to .draugr/self.saga.yaml in the same pull request. The finding stays in the report
+          # to a file under .draugr/exclusions/ in the same pull request. The finding stays in the report
           # marked suppressed, so the decision is visible afterwards rather than invisible.
           fail-on: P1
           # The diff gate, and the reason there are two.
@@ -327,7 +327,7 @@ jobs:
 
           **This does not necessarily mean somebody broke something.** The pull-request gate blocks a new P1 from being merged, so the usual cause of a red branch is that the world changed underneath an unchanged tree: an advisory published against a dependency that was already here, a scanner shipping a rule it did not have last week, or a \`config.exclude\` entry reaching its expiry date.
 
-          Two ways out, and the choice is the point: fix it, or accept it with a \`config.exclude\` entry in \`.draugr/self.saga.yaml\` carrying a reason and an \`acceptedBy\`. The finding stays in the report marked suppressed either way, so the decision is visible afterwards.
+          Two ways out, and the choice is the point: fix it, or accept it with a \`config.exclude\` entry under \`.draugr/exclusions/\` carrying a reason and an \`acceptedBy\`. The finding stays in the report marked suppressed either way, so the decision is visible afterwards.
 
           This issue closes itself when the branch is green again.
           BODY

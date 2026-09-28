@@ -774,15 +774,17 @@ always complete regardless of `--min-priority`.
 **Accepted** is a finding somebody excused rather than fixed, an exclusion added, or a finding that
 arrived already covered by one. **Unaccepted** is a finding whose exclusion was removed or reached
 its `expires` date, so it counts again. Nobody introduced it and nothing about it was ever fixed,
-which is why it is not called reopened.
+which is why it is not called reopened. **Still accepted** is a finding suppressed in `base` and
+still suppressed in `head`. It counts toward the unchanged total and is never listed as a change.
 
 Accepting a risk is not fixing it, and the two are counted apart for that reason: the first is a
 decision worth a reviewer's attention and the second is work somebody did.
 
 Everything the change touched is one table, ranked by priority, with what happened to each finding
-in its own column. Within a band, what needs somebody comes before what does not. Above it, the
-new findings and the unchanged ones are each counted by band; the unchanged count leaves out
-findings suppressed in both scans.
+in its own column. Within a band, what needs somebody comes before what does not. Above it, one
+strip per state counts the findings in `head` by band: new, unaccepted, accepted, unchanged and
+still accepted. Each finding in `head` is in exactly one strip, and a strip with nothing in it is
+not drawn. Fixed has none, because a fixed finding is not in `head`.
 
 | Flag | Default | Description |
 |------|---------|-------------|
