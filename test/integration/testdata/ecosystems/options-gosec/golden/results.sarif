@@ -35,36 +35,6 @@
                   "uriBaseId": "%SRCROOT%"
                 },
                 "region": {
-                  "startLine": 18
-                }
-              }
-            }
-          ],
-          "message": {
-            "text": "Use of weak cryptographic primitive"
-          },
-          "partialFingerprints": {
-            "primaryLocationLineHash/v1": "<cleared>"
-          },
-          "properties": {
-            "component": "default",
-            "control": "sast",
-            "priority": "P1",
-            "repository": "./options-gosec",
-            "tool": "gosec"
-          },
-          "ruleId": "G401"
-        },
-        {
-          "level": "error",
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "default/main.go",
-                  "uriBaseId": "%SRCROOT%"
-                },
-                "region": {
                   "startLine": 21
                 }
               }
@@ -84,96 +54,6 @@
             "tool": "gosec"
           },
           "ruleId": "G702"
-        },
-        {
-          "level": "error",
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "default/main.go",
-                  "uriBaseId": "%SRCROOT%"
-                },
-                "region": {
-                  "startLine": 21
-                }
-              }
-            }
-          ],
-          "message": {
-            "text": "Subprocess launched with a potential tainted input or cmd arguments"
-          },
-          "partialFingerprints": {
-            "primaryLocationLineHash/v1": "<cleared>"
-          },
-          "properties": {
-            "component": "default",
-            "control": "sast",
-            "priority": "P1",
-            "repository": "./options-gosec",
-            "tool": "gosec"
-          },
-          "ruleId": "G204"
-        },
-        {
-          "level": "error",
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "default/main.go",
-                  "uriBaseId": "%SRCROOT%"
-                },
-                "region": {
-                  "startLine": 6
-                }
-              }
-            }
-          ],
-          "message": {
-            "text": "Blocklisted import crypto/md5: weak cryptographic primitive"
-          },
-          "partialFingerprints": {
-            "primaryLocationLineHash/v1": "<cleared>"
-          },
-          "properties": {
-            "component": "default",
-            "control": "sast",
-            "priority": "P1",
-            "repository": "./options-gosec",
-            "tool": "gosec"
-          },
-          "ruleId": "G501"
-        },
-        {
-          "level": "error",
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "exclude/main.go",
-                  "uriBaseId": "%SRCROOT%"
-                },
-                "region": {
-                  "startLine": 18
-                }
-              }
-            }
-          ],
-          "message": {
-            "text": "Use of weak cryptographic primitive"
-          },
-          "partialFingerprints": {
-            "primaryLocationLineHash/v1": "<cleared>"
-          },
-          "properties": {
-            "component": "exclude",
-            "control": "sast",
-            "priority": "P1",
-            "repository": "./options-gosec",
-            "tool": "gosec"
-          },
-          "ruleId": "G401"
         },
         {
           "level": "error",
@@ -211,6 +91,156 @@
             {
               "physicalLocation": {
                 "artifactLocation": {
+                  "uri": "tags/main.go",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 21
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Command injection via taint analysis"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "tags",
+            "control": "sast",
+            "priority": "P1",
+            "repository": "./options-gosec",
+            "tool": "gosec"
+          },
+          "ruleId": "G702"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "default/main.go",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 18
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Use of weak cryptographic primitive"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "default",
+            "control": "sast",
+            "priority": "P2",
+            "repository": "./options-gosec",
+            "tool": "gosec"
+          },
+          "ruleId": "G401"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "default/main.go",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 21
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Subprocess launched with a potential tainted input or cmd arguments"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "default",
+            "control": "sast",
+            "priority": "P2",
+            "repository": "./options-gosec",
+            "tool": "gosec"
+          },
+          "ruleId": "G204"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "default/main.go",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 6
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Blocklisted import crypto/md5: weak cryptographic primitive"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "default",
+            "control": "sast",
+            "priority": "P2",
+            "repository": "./options-gosec",
+            "tool": "gosec"
+          },
+          "ruleId": "G501"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "exclude/main.go",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 18
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Use of weak cryptographic primitive"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "exclude",
+            "control": "sast",
+            "priority": "P2",
+            "repository": "./options-gosec",
+            "tool": "gosec"
+          },
+          "ruleId": "G401"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
                   "uri": "exclude/main.go",
                   "uriBaseId": "%SRCROOT%"
                 },
@@ -229,14 +259,14 @@
           "properties": {
             "component": "exclude",
             "control": "sast",
-            "priority": "P1",
+            "priority": "P2",
             "repository": "./options-gosec",
             "tool": "gosec"
           },
           "ruleId": "G501"
         },
         {
-          "level": "error",
+          "level": "warning",
           "locations": [
             {
               "physicalLocation": {
@@ -259,14 +289,14 @@
           "properties": {
             "component": "include",
             "control": "sast",
-            "priority": "P1",
+            "priority": "P2",
             "repository": "./options-gosec",
             "tool": "gosec"
           },
           "ruleId": "G204"
         },
         {
-          "level": "error",
+          "level": "warning",
           "locations": [
             {
               "physicalLocation": {
@@ -289,44 +319,14 @@
           "properties": {
             "component": "tags",
             "control": "sast",
-            "priority": "P1",
+            "priority": "P2",
             "repository": "./options-gosec",
             "tool": "gosec"
           },
           "ruleId": "G401"
         },
         {
-          "level": "error",
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "tags/main.go",
-                  "uriBaseId": "%SRCROOT%"
-                },
-                "region": {
-                  "startLine": 21
-                }
-              }
-            }
-          ],
-          "message": {
-            "text": "Command injection via taint analysis"
-          },
-          "partialFingerprints": {
-            "primaryLocationLineHash/v1": "<cleared>"
-          },
-          "properties": {
-            "component": "tags",
-            "control": "sast",
-            "priority": "P1",
-            "repository": "./options-gosec",
-            "tool": "gosec"
-          },
-          "ruleId": "G702"
-        },
-        {
-          "level": "error",
+          "level": "warning",
           "locations": [
             {
               "physicalLocation": {
@@ -349,14 +349,14 @@
           "properties": {
             "component": "tags",
             "control": "sast",
-            "priority": "P1",
+            "priority": "P2",
             "repository": "./options-gosec",
             "tool": "gosec"
           },
           "ruleId": "G204"
         },
         {
-          "level": "error",
+          "level": "warning",
           "locations": [
             {
               "physicalLocation": {
@@ -379,14 +379,14 @@
           "properties": {
             "component": "tags",
             "control": "sast",
-            "priority": "P1",
+            "priority": "P2",
             "repository": "./options-gosec",
             "tool": "gosec"
           },
           "ruleId": "G501"
         },
         {
-          "level": "error",
+          "level": "warning",
           "locations": [
             {
               "physicalLocation": {
@@ -409,7 +409,7 @@
           "properties": {
             "component": "tags",
             "control": "sast",
-            "priority": "P1",
+            "priority": "P2",
             "repository": "./options-gosec",
             "tool": "gosec"
           },

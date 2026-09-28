@@ -159,7 +159,7 @@
           "ruleId": "G702"
         },
         {
-          "level": "error",
+          "level": "warning",
           "locations": [
             {
               "physicalLocation": {
@@ -182,7 +182,7 @@
           "properties": {
             "component": "go-submodule",
             "control": "sast",
-            "priority": "P1",
+            "priority": "P2",
             "repository": "./go-submodule",
             "tool": "gosec"
           },
