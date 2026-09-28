@@ -182,25 +182,24 @@ ours.
 
 ### Lifecycle
 
-| Gate | Item found | Action |
+Only open items are looked up. A closed item is never read, reopened or edited again.
+
+| Gate | Open item | Action |
 |---|---|---|
 | fails | none | create, with label and marker |
-| fails | open | rewrite the body **only if it changed** |
-| fails | closed | reopen, with a comment that the gate still fails |
-| fails | gone (transferred, moved, deleted) | create |
-| passes | open | comment that the gate passed, naming the run, then close |
-| passes | none or closed | nothing |
+| fails | one | rewrite the body **only if it changed** |
+| passes | one | comment that the gate passed, naming the run, then close |
+| passes | none | nothing |
 
 **Closing an item does not accept the risk.** Accepting is a `config.exclude` entry with a
-`reason`, an `acceptedBy` and an `expires`, which stays in the report. A closed item on a failing
-gate is therefore reopened, whoever closed it, and the body says how to accept so the way out is
-written down.
+`reason`, an `acceptedBy` and an `expires`, which stays in the report. An item closed by hand while
+the gate still fails is left closed, and the next failing run creates a new one. The body says how
+to accept, so the way out is written down.
 
 **Writes happen on change; comments on transitions.** Azure DevOps Services allows 10,000 REST
 updates per work item and GitLab 5,000 comments per issue, and a write can notify. The body
 carries the run that last changed it, not the latest run, so an unchanged finding set produces an
-identical body and no write. Comments are posted on reopen, on close and on duplicate, never per
-run.
+identical body and no write. Comments are posted on close and on duplicate, never per run.
 
 ### Body
 
@@ -391,12 +390,11 @@ Each error names the fix.
   ([issues](https://docs.github.com/en/rest/issues/issues)), and label auto-creation is not
   documented. `GET …/labels/{name}`, then `POST …/labels` on 404; any 422 on the create re-reads
   the label, because `already_exists` is not a documented response.
-- **Find:** `GET /repos/{o}/{r}/issues?labels=<label>&state=all`, paged by `Link`, skipping items
+- **Find:** `GET /repos/{o}/{r}/issues?labels=<label>&state=open`, paged by `Link`, skipping items
   with a `pull_request` key.
-- **Write:** `POST …/issues`; `PATCH …/issues/{n}` with `state: closed, state_reason: completed`,
-  `state: open, state_reason: reopened`, or `state_reason: duplicate`; comments at
+- **Write:** `POST …/issues`; `PATCH …/issues/{n}` with `state: closed` and `state_reason: completed`
+  or `duplicate`; comments at
   `POST …/issues/{n}/comments`.
-- **Gone:** 301 for a transferred issue, 410 for a deleted one.
 - **Limits:** 80 content-creating requests a minute and 500 an hour. GitHub Enterprise Server
   disables rate limits by default, and an administrator can enable them.
 
@@ -410,18 +408,13 @@ Each error names the fix.
     *Issue Note: Create*, the least privilege;
   - a personal, project or group access token with the `api` scope. Project and group tokens need
     Premium on GitLab.com; on Free, a service account holds the token.
-- **Role:** Planner. A Guest can create an issue and close or reopen one it authored, but cannot
-  change labels on an existing issue, unlock a discussion, or see a confidential duplicate somebody
-  else created ([permissions](https://docs.gitlab.com/user/permissions/)).
-- **Find:** `GET /projects/:id/issues?labels=<label>&author_username=<self>&state=all`, paged by
-  `Link`. `state` has no documented default, so it is always sent. A closed issue with
-  `moved_to_id` set belongs to another project and is treated as gone; the field is undocumented,
-  so a test holds the assumption.
+- **Role:** Planner. A Guest can create an issue and close one it authored, but cannot change
+  labels on an existing issue or see a confidential duplicate somebody else created ([permissions](https://docs.gitlab.com/user/permissions/)).
+- **Find:** `GET /projects/:id/issues?labels=<label>&author_username=<self>&state=opened`, paged
+  by `Link`.
 - **Write:** `POST /projects/:id/issues` creates missing labels as project labels;
-  `PUT …/issues/:iid` with `description` or `state_event: close|reopen`; notes at
+  `PUT …/issues/:iid` with `description` or `state_event: close`; notes at
   `POST …/issues/:iid/notes`.
-- **Locked:** a closed issue with locked discussions cannot be reopened until unlocked
-  (`discussion_locked: false`, Planner). Without the role, a new issue is created.
 - **Limits:** GitLab.com allows 200 issue creations and 60 notes a minute; self-managed defaults to
   300 notes a minute and no issue limit.
 
@@ -438,10 +431,9 @@ Each error names the fix.
   set.
 - **Type:** unless `item.type` names one, the default type of `Microsoft.BugCategory`, then `Issue` (the Basic process has no
   Bug), then `Task`, checked against `workitemtypes` because a type can be renamed or disabled.
-- **States by category, never by name:** close to the one `Completed` state; reopen to the
-  type's initial state. A category can hold several Proposed states (Scrum has *New* and
-  *Approved*), so "the Proposed state" is not unique.
-- **Find:** WIQL on `[System.Tags] CONTAINS '<label>'` and `[System.TeamProject]`, no state filter,
+- **States by category, never by name:** close to the one state in the `Completed`
+  category; an item is open when its state is in neither `Completed` nor `Removed`.
+- **Find:** WIQL on `[System.Tags] CONTAINS '<label>'` and `[System.TeamProject]`, open states only,
   then `GET _apis/wit/workitems?ids=` in batches of 200. Tags are case sensitive and `CONTAINS`
   may match a substring, so tags are split on `;` and compared exactly.
 - **Write:** one JSON-Patch `PATCH` per change, guarded by `{"op":"test","path":"/rev"}`.
@@ -456,10 +448,10 @@ Each error names the fix.
 |---|---|---|---|
 | 1 | Finding detail and metadata | counts by default on every repository, `details: findings` to list them; GitLab confidential by default; per-forge metadata under `item:` | agreed 2026-09-28 |
 | 2 | Order of delivery | GitHub first, with the whole core; GitLab and Azure DevOps each a pull request after it | agreed 2026-09-28 |
-| 3 | Which runs act | the default branch, per scope key | proposed |
-| 4 | A closed item on a failing gate | reopened, whoever closed it | proposed |
-| 5 | Duplicates | oldest kept, the rest closed as duplicates | proposed |
-| 6 | Label | `draugr` | proposed |
+| 3 | Which runs act | the default branch, per scope key; `branches:` adds others | agreed 2026-09-28 |
+| 4 | A closed item on a failing gate | left closed; the next failing run creates a new item | agreed 2026-09-28 |
+| 5 | Two open items with one marker | oldest kept, the rest closed as duplicates | agreed 2026-09-28 |
+| 6 | Label | `draugr`, set by `label` | agreed 2026-09-28 |
 | 7 | Azure work item type | Bug category default, then `Issue`, then `Task` | proposed |
 | 8 | Live test | all three forges, on free tiers, in the live tier ([Live test](#live-test)) | agreed 2026-09-28 |
 
@@ -519,15 +511,17 @@ Each line is a test. Unit tests run against a fake forge server per kind; every 
   a key set on a kind that does not read it fails validation.
 - Details: `counts` emits no location or message; `findings` emits both.
 - Body: three rendered variants shown, and one chosen, before the renderer is built.
-- Live, per forge: fail, pass, fail, pass against the sandbox leaves one item, closed, holding one reopen
-  comment and two close comments, and no second item.
+- Closed by hand: an item closed while the gate fails is left untouched, and the next failing run
+  creates a second item.
+- Live, per forge: fail, pass, fail, pass against the sandbox leaves two closed items, each with
+  one close comment, and no open item.
 
 ## Corrections
 
 The issue's forge facts were checked on 2026-09-28. These differ from what it states, and the
 sections above use the corrected version:
 
-- A GitLab Guest **can** close and reopen issues it authored; it cannot change labels on an
+- A GitLab Guest **can** close issues it authored; it cannot change labels on an
   existing issue.
 - A GitLab `api`-scoped token is not the only option; fine-grained personal access tokens can
   create and update issues from 19.2.
