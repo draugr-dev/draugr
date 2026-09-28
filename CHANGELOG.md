@@ -16,11 +16,11 @@ _Nothing yet._
 
 ### Changed
 
-- **`draugr diff` counts every finding in `head` by band, one strip per state.** Accepted, unaccepted and **still accepted** findings each get a strip beside new and unchanged, so the risk a branch carries under exclusions stays visible on a passing diff. A still accepted finding is suppressed in both `base` and `head`.
+- **`draugr diff` counts every finding in `head` by band, one strip per state.** Accepted and unaccepted findings each get a strip beside new and unchanged, and findings suppressed in both `base` and `head` get one labeled **still accepted**, so the risk a branch carries under exclusions stays visible on a passing diff.
 
 ### Fixed
 
-- **`draugr diff` counts every finding of a rule in a file**, not one per rule, file and message. A change that adds a second instance of a finding the file already has now reports it as new, and `--fail-on-new` fails on it; removing one of two reports one fixed.
+- **`draugr diff` counts every finding of a rule in a file**, not one per rule, file and message. A change that adds a second instance of a finding the file already has now reports it as new, and `--fail-on-new` fails on it. Removing one of the two reports it as fixed.
 
 - **gosec findings now match gosec's own severity ratings.** MEDIUM rules, among them G204, G304 and G306, are medium instead of high and rank one band lower, so a gate at `P1` no longer blocks on them. ([#1320](https://github.com/draugr-dev/draugr/issues/1320))
 
