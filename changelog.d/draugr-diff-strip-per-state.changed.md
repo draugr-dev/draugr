@@ -1,1 +1,0 @@
-- **`draugr diff` counts every finding in `head` by band, one strip per state.** Accepted, unaccepted and **still accepted** findings each get a strip beside new and unchanged, so the risk a branch carries under exclusions stays visible on a passing diff. A still accepted finding is suppressed in both `base` and `head`.

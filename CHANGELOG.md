@@ -12,6 +12,18 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.139.0] - 2026-09-28
+
+### Changed
+
+- **`draugr diff` counts every finding in `head` by band, one strip per state.** Accepted, unaccepted and **still accepted** findings each get a strip beside new and unchanged, so the risk a branch carries under exclusions stays visible on a passing diff. A still accepted finding is suppressed in both `base` and `head`.
+
+### Fixed
+
+- **`draugr diff` counts every finding of a rule in a file**, not one per rule, file and message. A change that adds a second instance of a finding the file already has now reports it as new, and `--fail-on-new` fails on it; removing one of two reports one fixed.
+
+- **gosec findings now match gosec's own severity ratings.** MEDIUM rules, among them G204, G304 and G306, are medium instead of high and rank one band lower, so a gate at `P1` no longer blocks on them. ([#1320](https://github.com/draugr-dev/draugr/issues/1320))
+
 ## [0.138.0] - 2026-09-28
 
 ### Changed
@@ -6091,7 +6103,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.138.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.139.0...HEAD
+[0.139.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.139.0
 [0.138.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.138.0
 [0.137.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.137.0
 [0.136.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.136.0
