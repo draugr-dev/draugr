@@ -1,7 +1,7 @@
 {
   "controls": [
     {
-      "errors": 13,
+      "errors": 3,
       "highest": "high",
       "highestPriority": "P1",
       "name": "sast",
@@ -9,7 +9,7 @@
       "threshold": "",
       "total": 13,
       "verdict": "fail",
-      "warnings": 0
+      "warnings": 10
     }
   ],
   "descriptor": {
@@ -28,8 +28,8 @@
     "failOnPriority": "P1"
   },
   "priorities": {
-    "p1": 13,
-    "p2": 0,
+    "p1": 3,
+    "p2": 10,
     "p3": 0,
     "p4": 0
   },

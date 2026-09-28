@@ -1,0 +1,1 @@
+- **gosec findings now match gosec's own severity ratings.** MEDIUM rules, among them G204, G304 and G306, are medium instead of high and rank one band lower, so a gate at `P1` no longer blocks on them. ([#1320](https://github.com/draugr-dev/draugr/issues/1320))

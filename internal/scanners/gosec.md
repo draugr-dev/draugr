@@ -30,6 +30,13 @@ module's directory. A tree with no `go.mod` is reported as analyzed by nothing, 
 - `-quiet` is deliberately **not** used: it suppresses all output on a clean scan, which would
   leave no SARIF to parse.
 
+## Severity
+
+gosec rates each rule `HIGH`, `MEDIUM` or `LOW`, and a finding's severity is that rating: high,
+medium or low. gosec writes SARIF level `error` for `HIGH` and `MEDIUM` rules alike and records the rating as
+a tag on the rule, so Draugr reads the tag rather than the level. A rule without a rating tag keeps
+the level gosec wrote.
+
 ## What a `#nosec` becomes
 
 gosec reports it as a SARIF suppression of kind `inSource`, which Draugr keeps and marks with
