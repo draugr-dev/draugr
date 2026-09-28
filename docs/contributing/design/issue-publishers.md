@@ -4,7 +4,7 @@ Design record for https://github.com/draugr-dev/draugr/issues/955: the `github-i
 `gitlab-issue` and `azure-work-item` publishers, which keep one tracking item open on the forge
 while the gate fails and close it when the gate passes.
 
-- **Status:** proposed, 2026-09-28. Decisions marked *open* need agreement before the build starts.
+- **Status:** proposed, 2026-09-28. Decisions marked *proposed* need agreement before the build starts.
 - **Intent:** the issue body. This record is the spec. It states what must be true when the work is
   done, written so each acceptance test can be lifted out of it.
 - **Verified against:** `draugr` at `325a33af`, and the GitHub, GitLab and Azure DevOps
@@ -26,12 +26,14 @@ while the gate fails and close it when the gate passes.
   - [Escaping](#escaping)
   - [Size](#size)
   - [Visibility](#visibility)
+  - [Metadata](#metadata)
 - [Configuration](#configuration)
 - [Failure](#failure)
 - [GitHub](#github)
 - [GitLab](#gitlab)
 - [Azure DevOps](#azure-devops)
 - [Decisions](#decisions)
+  - [Live test](#live-test)
 - [Sequence](#sequence)
 - [Acceptance](#acceptance)
 - [Corrections](#corrections)
@@ -210,8 +212,8 @@ The body, in order:
 2. The verdict line: the gate that failed (threshold and band), and `incomplete` when it was.
 3. Open findings by priority and accepted findings by priority, **as two counts, never summed**.
    A suppressed finding stays in the report, so the two legitimately differ.
-4. Findings in priority order, which is fix order: priority, severity, rule, scanner, location,
-   and the fix where one is known.
+4. The failing controls. With `details: findings`, the findings as well, in priority order, which
+   is fix order: priority, severity, rule, scanner, location, and the fix where one is known.
 5. Errors, when the scan was incomplete: one list item per error, naming the component, the
    control and the message.
 6. The run that last changed the body: job URL, commit, descriptor digest, Draugr version.
@@ -252,16 +254,53 @@ Findings are truncated by priority to fit, ending with `and N more` and the run 
 
 ### Visibility
 
-An issue on a public GitHub repository or a public Azure DevOps project is readable by anyone.
-Code-scanning alerts on the same repository are not, so a detailed body can publish more than code
-scanning does. Against that, a public repository's CI log is public too, and the console output
-already prints the findings table.
+An issue on a public GitHub repository or a public Azure DevOps project is readable by anyone,
+while code-scanning alerts on the same repository are not. The body therefore carries **counts by
+default**, on every repository and project: open and accepted findings by priority, the failing
+controls and the run link. `details: findings` adds each finding's location, message and fix, for
+a team whose tracker is where the work is done.
 
-*Open decision 1* chooses between them. The proposal is that on a public repository or project the
-body carries counts by priority, the failing controls and the run link, with no locations or
-messages, unless `details: true`. GitLab issues are created **confidential** unless
-`confidential: false`. Visibility comes from the event payload (`repository.visibility`) on
-GitHub, `CI_PROJECT_VISIBILITY` on GitLab, and the project's `visibility` on Azure.
+GitLab issues are created **confidential** unless `item.confidential: false`, so the counts stay
+with project members.
+
+### Metadata
+
+Each kind sets the metadata its forge offers, in the forge's own vocabulary, under `item:`, **when
+it creates the item**. After that the item belongs to whoever triages it. A later write adds back a
+configured label or tag that has gone missing and changes nothing else, so a reassignment or a
+moved milestone survives the next run.
+
+| Metadata | `github-issue` | `gitlab-issue` | `azure-work-item` |
+|---|---|---|---|
+| labels | `labels` | `labels` | `tags` |
+| assignees | `assignees`, logins | `assignees`, usernames, one on Free | `assignedTo`, an identity |
+| milestone | `milestone`, a title | `milestone`, a title | `iterationPath` |
+| type | `type`, an organization issue type | `type`: `issue`, `incident` or `task` | `type`, a work item type |
+| confidential | none | `confidential` | none |
+| area | none | none | `areaPath` |
+| priority | none | none | `priority`, 1 to 4 |
+| other fields | none | none | `fields`, reference name to value |
+
+- **Names, not ids.** GitHub takes a milestone number and GitLab takes user ids, so the publisher
+  resolves the title (`GET …/milestones?state=all`) and each username (`GET /users?username=`). A
+  name that does not resolve fails the publish and names it.
+- **The tracking label is separate.** `label` finds the item and is always applied; `item.labels`
+  and `item.tags` are applied beside it and never used to find anything, so changing them does not
+  orphan an item.
+- **GitHub drops without saying.** Labels, assignees, milestone and type are "silently dropped"
+  without push access ([issues](https://docs.github.com/en/rest/issues/issues#create-an-issue)),
+  so the publisher compares the created issue with the request and fails naming push access.
+- **GitLab sets metadata once for a Guest.** "Guest users can only set metadata when creating an
+  issue" ([permissions](https://docs.gitlab.com/user/permissions/)), which is one more reason the
+  role is Planner.
+- **Azure tags need a permission.** A new tag needs *Create tag definition*, and a Stakeholder in a
+  private project can assign only tags that already exist
+  ([tags](https://learn.microsoft.com/en-us/azure/devops/boards/queries/add-tags-to-work-items)).
+- **`fields` cannot reach what Draugr owns.** Title, description, state, tags and every field with
+  its own key are refused, so `fields` holds only a process's custom or optional fields.
+- **Paid-tier fields are left out.** GitLab's weight, epic and iteration need Premium, and GitHub's
+  issue fields need an organization that has enabled them. The live test runs on free tiers and
+  could not exercise them.
 
 ## Configuration
 
@@ -272,16 +311,41 @@ New `PublisherConfig` fields. Existing fields keep their meaning: `repo`, `token
 |---|---|---|---|
 | `label` | all three | string | `draugr` |
 | `branches` | all three | list of branch names or globs | the default branch |
-| `details` | all three | bool | per *open decision 1* |
+| `details` | all three | `counts` or `findings` | `counts` |
+| `item` | all three | object, per [Metadata](#metadata) | none |
+
+`item` holds only the keys its kind reads:
+
+| Key | Kinds | Type | Default |
+|---|---|---|---|
+| `labels` | `github-issue`, `gitlab-issue` | list of strings | none |
+| `assignees` | `github-issue`, `gitlab-issue` | list of strings | none |
+| `milestone` | `github-issue`, `gitlab-issue` | string | none |
+| `type` | all three | string | GitHub none; GitLab `issue`; Azure the Bug category's default type, then `Issue`, then `Task` |
 | `confidential` | `gitlab-issue` | bool | `true` |
-| `workItemType` | `azure-work-item` | string | the Bug category's default type, then `Issue`, then `Task` |
+| `tags` | `azure-work-item` | list of strings | none |
+| `assignedTo` | `azure-work-item` | string | none |
 | `areaPath`, `iterationPath` | `azure-work-item` | string | the project root |
+| `priority` | `azure-work-item` | integer, 1 to 4 | the process default |
+| `fields` | `azure-work-item` | map of field reference name to string | none |
 
 ```yaml
 config:
   publishers:
     - kind: github-issue
       label: security
+      item:
+        labels: [triage]
+        assignees: [octocat]
+        milestone: Q4 hardening
+    - kind: azure-work-item
+      details: findings
+      item:
+        tags: [triage]
+        areaPath: Payments\Security
+        priority: 2
+        fields:
+          Custom.Team: Payments
 ```
 
 What the rest of the registration needs, from `docs/contributing/extending/publisher.md` and the
@@ -308,8 +372,10 @@ Each error names the fix.
 | no token | the variable and how to map it into the job |
 | GitHub 403, not a rate limit | the permission in `X-Accepted-GitHub-Permissions` ([troubleshooting](https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api)) |
 | issues disabled | GitHub 410, GitLab 403 |
-| the label missing from a created issue | the token's lack of push access |
+| a requested label, assignee, milestone or type missing from a created issue | the token's lack of push access |
 | Azure tag not created | the *Create tag definition* permission |
+| a milestone or username that does not resolve | the name, and where it was looked up |
+| a `fields` key Draugr owns | the key, and the `item` key that sets it |
 | 404 | the resource may not exist **or** the token may not see it; all three forges answer 404 for both |
 
 ## GitHub
@@ -370,7 +436,7 @@ Each error names the fix.
   definition* the first time the tag is used. The build service is not a Contributor, so that
   permission is not a default. A PAT needs `vso.work_write`, and `vso.code` unless `branches:` is
   set.
-- **Type:** the default type of `Microsoft.BugCategory`, then `Issue` (the Basic process has no
+- **Type:** unless `item.type` names one, the default type of `Microsoft.BugCategory`, then `Issue` (the Basic process has no
   Bug), then `Task`, checked against `workitemtypes` because a type can be renamed or disabled.
 - **States by category, never by name:** close to the one `Completed` state; reopen to the
   type's initial state. A category can hold several Proposed states (Scrum has *New* and
@@ -388,16 +454,32 @@ Each error names the fix.
 
 | # | Decision | Proposal | State |
 |---|---|---|---|
-| 1 | Finding detail in a publicly readable item | counts only on public repositories and projects unless `details: true`; GitLab confidential by default | *open* |
-| 2 | Order of delivery | GitHub first, with the whole core; GitLab and Azure DevOps each a pull request after it | *open* |
+| 1 | Finding detail and metadata | counts by default on every repository, `details: findings` to list them; GitLab confidential by default; per-forge metadata under `item:` | agreed 2026-09-28 |
+| 2 | Order of delivery | GitHub first, with the whole core; GitLab and Azure DevOps each a pull request after it | agreed 2026-09-28 |
 | 3 | Which runs act | the default branch, per scope key | proposed |
 | 4 | A closed item on a failing gate | reopened, whoever closed it | proposed |
 | 5 | Duplicates | oldest kept, the rest closed as duplicates | proposed |
 | 6 | Label | `draugr` | proposed |
 | 7 | Azure work item type | Bug category default, then `Issue`, then `Task` | proposed |
-| 8 | Live test | a dedicated sandbox repository on GitHub, run in the live tier; GitLab and Azure DevOps verified by hand and recorded on their pull requests | *open* |
+| 8 | Live test | all three forges, on free tiers, in the live tier ([Live test](#live-test)) | agreed 2026-09-28 |
+
+### Live test
+
+Each forge has a sandbox the live tier writes to, and each costs nothing:
+
+| Forge | Sandbox | Credential |
+|---|---|---|
+| GitHub | a repository in the `draugr-dev` organization, so `item.type` can be exercised | a fine-grained token scoped to it with *Issues: write*; `GITHUB_TOKEN` reaches only the repository running the workflow ([`GITHUB_TOKEN`](https://docs.github.com/en/actions/concepts/security/github_token)) |
+| GitLab.com Free | a project in a `draugr-dev` group | a personal access token of a service user holding Planner; project access tokens need Premium on GitLab.com ([project access tokens](https://docs.gitlab.com/user/project/settings/project_access_tokens/)) |
+| Azure DevOps | a private project in a free organization; Basic is free for five users ([billing](https://learn.microsoft.com/en-us/azure/devops/organizations/billing/buy-basic-access-add-users)) | an organization-scoped PAT of a Basic user, since a Stakeholder cannot create tags; global PATs stop working on 2026-12-01 ([PATs](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate)) |
+
+An Entra service principal with workload identity federation would remove the stored Azure secret,
+but needs the organization connected to an Entra tenant. It can replace the PAT later without
+touching the publisher.
 
 ## Sequence
+
+Each forge's sandbox and credential exist before its step starts.
 
 1. **Core and `github-issue`.** `RunPublisher`, the default-branch fields in `pkg/ci`, the scope
    key, the retry changes, the body model with both renderers, and the GitHub publisher. The three
@@ -432,8 +514,12 @@ Each line is a test. Unit tests run against a fake forge server per kind; every 
   and retries; `Retry-After` on an Azure 200 delays the next request.
 - Descriptor: `draugr validate`, `draugr doctor` and `draugr scan` against an `examples/`
   descriptor using each kind.
+- Metadata: each `item` key reaches the create request; a second run on an item whose assignee
+  and milestone a person changed leaves both, and adds back a configured label that was removed;
+  a key set on a kind that does not read it fails validation.
+- Details: `counts` emits no location or message; `findings` emits both.
 - Body: three rendered variants shown, and one chosen, before the renderer is built.
-- Live: fail, pass, fail, pass against the real forge leaves one item, closed, holding one reopen
+- Live, per forge: fail, pass, fail, pass against the sandbox leaves one item, closed, holding one reopen
   comment and two close comments, and no second item.
 
 ## Corrections
