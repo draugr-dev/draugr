@@ -1,1 +1,0 @@
-- `draugr doctor` shows the commit an annotated tag points at for a remote repository, where it showed the tag object, which no checkout holds. A scan of that tag now shares cached results with a scan naming the same commit by branch or by hash.
