@@ -456,13 +456,15 @@ Each error names the fix.
   ([issue links](https://docs.gitlab.com/api/issue_links/)):
   `workItemUpdate` with `hierarchyWidget { parentId }`
   ([GraphQL](https://docs.gitlab.com/api/graphql/reference/)). Tasks are on every tier
-  ([tasks](https://docs.gitlab.com/user/tasks/)). Whether a fine-grained token covers the mutation
-  is not documented; the live test decides, and an `api`-scoped token is the fallback.
+  ([tasks](https://docs.gitlab.com/user/tasks/)). A fine-grained token's *Work Item: Update* covers
+  the mutation ([GraphQL permissions](https://docs.gitlab.com/auth/tokens/fine_grained_access_tokens_graphql/)).
 - **Token:** `CI_JOB_TOKEN` cannot write issues or notes, and fine-grained job tokens offer only
   `READ_WORK_ITEMS` ([job token](https://docs.gitlab.com/ci/jobs/ci_job_token/)). The token is
   `GITLAB_TOKEN`, as for the merge-request publisher, and is one of:
-  - a fine-grained personal access token (GitLab 19.2 and later) with *Issue: Create, Update* and
-    *Issue Note: Create*, the least privilege;
+  - a fine-grained personal access token (GitLab 19.2 and later) with *Work Item: Create, Read,
+    Update*, *Label: Read* and *Member: Read*, the least privilege. Issues, notes and milestones
+    sit under *Work Item*; the *Issue* resource grants only subscribing
+    ([REST permissions](https://docs.gitlab.com/auth/tokens/fine_grained_access_tokens_rest/));
   - a personal, project or group access token with the `api` scope. Project and group tokens need
     Premium on GitLab.com; on Free, a service account holds the token.
 - **Role:** Planner. A Guest can create an issue and close one it authored, but cannot change
@@ -528,7 +530,7 @@ Each forge has a sandbox the live tier writes to, and each costs nothing:
 | Forge | Sandbox | Credential |
 |---|---|---|
 | GitHub | a repository in the `draugr-dev` organization, so `item.type` can be exercised | a fine-grained token scoped to it with *Issues: write*; `GITHUB_TOKEN` reaches only the repository running the workflow ([`GITHUB_TOKEN`](https://docs.github.com/en/actions/concepts/security/github_token)) |
-| GitLab.com Free | a project in a `draugr-dev` group | a personal access token of a service user holding Planner; project access tokens need Premium on GitLab.com ([project access tokens](https://docs.gitlab.com/user/project/settings/project_access_tokens/)) |
+| GitLab.com Free | a private project in a group | a fine-grained personal access token of a service user holding Planner; project access tokens need Premium on GitLab.com ([project access tokens](https://docs.gitlab.com/user/project/settings/project_access_tokens/)) |
 | Azure DevOps | a private project in a free organization; Basic is free for five users ([billing](https://learn.microsoft.com/en-us/azure/devops/organizations/billing/buy-basic-access-add-users)) | an organization-scoped PAT of a Basic user, since a Stakeholder cannot create tags; global PATs stop working on 2026-12-01 ([PATs](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate)) |
 
 An Entra service principal with workload identity federation would remove the stored Azure secret,
