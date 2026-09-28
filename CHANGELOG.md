@@ -20,7 +20,7 @@ _Nothing yet._
 
 ### Fixed
 
-- `draugr doctor` shows the commit an annotated tag points at for a remote repository, where it showed the tag object, which no checkout holds. A scan of that tag now shares cached results with a scan naming the same commit by branch or by hash.
+- `draugr doctor` shows the commit an annotated tag points to for a remote repository, instead of the hash of the tag object. A scan of that tag now shares cached results with a scan naming the same commit by branch or by hash.
 
 ## [0.136.0] - 2026-09-27
 
