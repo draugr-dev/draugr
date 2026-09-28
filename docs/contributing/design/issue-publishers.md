@@ -184,7 +184,7 @@ ours.
 
 ### Lifecycle
 
-Only open items are looked up. A closed item is never read, reopened or edited again.
+Only open items are looked up, and a closed item is never read, reopened or edited again.
 
 | Gate | Open item | Action |
 |---|---|---|
@@ -576,6 +576,7 @@ Each line is a test. Unit tests run against a fake forge server per kind; every 
   and milestone a person changed leaves both, and adds back a configured label that was removed;
   a key set on a kind that does not read it fails validation.
 - Details: `counts` emits no location or message; `findings` emits both.
+- Confidential: a GitLab issue created without `item.confidential` is confidential.
 - Children, with two actions per scope: an action no longer reported closes its child and leaves
   the other; 21 failing actions open 20 children and list one in the parent; a child closed by
   hand is created again on the next failing run; a passing gate closes every child, then the
