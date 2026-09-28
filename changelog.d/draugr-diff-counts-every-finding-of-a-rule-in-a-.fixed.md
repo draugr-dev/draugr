@@ -1,0 +1,1 @@
+- **`draugr diff` counts every finding of a rule in a file**, not one per rule, file and message. A change that adds a second instance of a finding the file already has now reports it as new, and `--fail-on-new` fails on it; removing one of two reports one fixed.
