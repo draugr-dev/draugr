@@ -1,1 +1,0 @@
-- **The HTML report opens in tabs, starting on Findings**, with the verdict and the tab row pinned while a long list scrolls. Each list shows 25, 50 or 100 rows at a time and narrows by priority, fix, severity, component, control and scanner, with a count of what matches. Clicking an action's finding count lists the findings it clears.
