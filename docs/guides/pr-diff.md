@@ -42,6 +42,11 @@ The content key is tried first, and only findings that carry a content hash have
 matching pairs the two findings, so a finding whose surrounding lines were edited still matches on
 its identity.
 
+Findings pair one to one. A file can hold several findings with the same identity, one rule
+reporting the same message on three lines, and each base finding pairs with at most one head
+finding. Three in `head` against two in `base` is two unchanged and one new; one in `head` against
+two in `base` is one unchanged and one fixed. Within one identity, findings pair in line order.
+
 Neither key includes the line number or the severity. Code moves, and a finding that slid down
 twelve lines is not a fix plus a new problem. A CVE that gets re-scored is still the same CVE.
 
