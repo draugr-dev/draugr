@@ -4,7 +4,8 @@ Design record for https://github.com/draugr-dev/draugr/issues/955: the `github-i
 `gitlab-issue` and `azure-work-item` publishers, which keep one tracking item open on the forge
 while the gate fails and close it when the gate passes.
 
-- **Status:** proposed, 2026-09-28. Decisions marked *proposed* need agreement before the build starts.
+- **Status:** agreed, 2026-09-28. The build starts at step 1 of [Sequence](#sequence) once this
+  record merges.
 - **Intent:** the issue body. This record is the spec. It states what must be true when the work is
   done, written so each acceptance test can be lifted out of it.
 - **Verified against:** `draugr` at `325a33af`, and the GitHub, GitLab and Azure DevOps
@@ -27,6 +28,7 @@ while the gate fails and close it when the gate passes.
   - [Size](#size)
   - [Visibility](#visibility)
   - [Metadata](#metadata)
+  - [Children](#children)
 - [Configuration](#configuration)
 - [Failure](#failure)
 - [GitHub](#github)
@@ -301,6 +303,48 @@ moved milestone survives the next run.
   issue fields need an organization that has enabled them. The live test runs on free tiers and
   could not exercise them.
 
+### Children
+
+**`children: actions` splits the item into a parent and one child per action.** An action is one
+entry of the console's fix list (`report.ActionsFor`), such as `Upgrade jinja2 2.10`, with every
+finding it clears. The default, `children: none`, keeps one item whose body lists the actions.
+
+```
+children: none                          children: actions
+
+Draugr gate fails: payments             Draugr gate fails: payments        parent
+  P1 Upgrade jinja2 2.10 (2 findings)     Upgrade jinja2 2.10              child
+  P1 Image user should not be root        Image user should not be root    child
+  P2 Detected tainted SQL string          Detected tainted SQL string      child
+```
+
+- **Which actions.** Only actions whose priority fails the gate get a child. Lower ones, and a run
+  that fails only because it was incomplete, are listed in the parent body.
+- **The cap.** At most `maxChildren` children are open at once, 20 by default and never more than
+  100, GitHub's limit per parent
+  ([sub-issues](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/adding-sub-issues)).
+  The highest priorities get them; the rest are listed in the parent body and get a child when an
+  open one closes. The cap limits creation only, so a child is never closed to make room.
+- **Identity.** A child's marker adds `action=` and the first 16 hex characters of the SHA-256 of
+  the action's key. The key is opaque and holds a separator an HTML comment must not carry.
+- **Title.** The action's title, truncated to 255 characters, the shortest limit of the three.
+- **Body.** The action's control, priority, count and the fix where one is known, then its
+  locations and messages when `details: findings`, then how to accept. The parent body links each
+  child.
+
+| Gate | Action | Open child | Child action |
+|---|---|---|---|
+| fails | reported, fails the gate | none | create and link to the parent, while under the cap |
+| fails | reported, fails the gate | one | rewrite the body **only if it changed** |
+| fails | no longer reported | one | comment that the run no longer reports it, then close |
+| passes | any | any | close every open child, then the parent |
+
+A child closed by hand while its action is still reported is left closed, and the next failing run
+creates a new one, as for a single item. A first run on a failing project writes the parent and up
+to the cap in children; on GitHub that is 41 content-creating requests at the default cap, under
+the 80 a minute GitHub allows
+([rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)).
+
 ## Configuration
 
 New `PublisherConfig` fields. Existing fields keep their meaning: `repo`, `tokenEnv`, `org`,
@@ -311,6 +355,8 @@ New `PublisherConfig` fields. Existing fields keep their meaning: `repo`, `token
 | `label` | all three | string | `draugr` |
 | `branches` | all three | list of branch names or globs | the default branch |
 | `details` | all three | `counts` or `findings` | `counts` |
+| `children` | all three | `none` or `actions` | `none` |
+| `maxChildren` | all three | integer, 1 to 100 | 20 |
 | `item` | all three | object, per [Metadata](#metadata) | none |
 
 `item` holds only the keys its kind reads:
@@ -320,7 +366,7 @@ New `PublisherConfig` fields. Existing fields keep their meaning: `repo`, `token
 | `labels` | `github-issue`, `gitlab-issue` | list of strings | none |
 | `assignees` | `github-issue`, `gitlab-issue` | list of strings | none |
 | `milestone` | `github-issue`, `gitlab-issue` | string | none |
-| `type` | all three | string | GitHub none; GitLab `issue`; Azure the Bug category's default type, then `Issue`, then `Task` |
+| `type` | all three | string, the single item's or the parent's type | GitHub none; GitLab `issue`; Azure per [Azure DevOps](#azure-devops) |
 | `confidential` | `gitlab-issue` | bool | `true` |
 | `tags` | `azure-work-item` | list of strings | none |
 | `assignedTo` | `azure-work-item` | string | none |
@@ -385,6 +431,10 @@ Each error names the fix.
 - **Token:** `GITHUB_TOKEN`, with `permissions: issues: write` in the workflow. The restricted
   default grants only `contents` and `packages` read, and it is the default for new organizations
   and personal repositories. A fine-grained token needs *Issues: write*.
+- **Children:** the child is created, then attached with
+  `POST …/issues/{parent}/sub_issues`, whose `sub_issue_id` is the child's `id`, not its number
+  ([sub-issues](https://docs.github.com/en/rest/issues/sub-issues)). Sub-issues are generally
+  available on GitHub.com and on Enterprise Server from 3.18; a 404 there fails naming that version.
 - **Label:** created before the first create. The docs say labels on a new issue are "silently
   dropped" without push access
   ([issues](https://docs.github.com/en/rest/issues/issues)), and label auto-creation is not
@@ -400,7 +450,14 @@ Each error names the fix.
 
 ## GitLab
 
-- **Where:** `CI_API_V4_URL`, project `CI_PROJECT_ID`.
+- **Where:** `CI_API_V4_URL`, project `CI_PROJECT_ID`; `CI_API_GRAPHQL_URL` for children.
+- **Children:** the child is created with `issue_type: task`, then given its parent through GraphQL,
+  since neither the issues API nor the issue links API sets a parent
+  ([issue links](https://docs.gitlab.com/api/issue_links/)):
+  `workItemUpdate` with `hierarchyWidget { parentId }`
+  ([GraphQL](https://docs.gitlab.com/api/graphql/reference/)). Tasks are on every tier
+  ([tasks](https://docs.gitlab.com/user/tasks/)). Whether a fine-grained token covers the mutation
+  is not documented; the live test decides, and an `api`-scoped token is the fallback.
 - **Token:** `CI_JOB_TOKEN` cannot write issues or notes, and fine-grained job tokens offer only
   `READ_WORK_ITEMS` ([job token](https://docs.gitlab.com/ci/jobs/ci_job_token/)). The token is
   `GITLAB_TOKEN`, as for the merge-request publisher, and is one of:
@@ -429,8 +486,16 @@ Each error names the fix.
   definition* the first time the tag is used. The build service is not a Contributor, so that
   permission is not a default. A PAT needs `vso.work_write`, and `vso.code` unless `branches:` is
   set.
-- **Type:** unless `item.type` names one, the default type of `Microsoft.BugCategory`, then `Issue` (the Basic process has no
-  Bug), then `Task`, checked against `workitemtypes` because a type can be renamed or disabled.
+- **Type:** unless `item.type` names one, a single item is the default type of
+  `Microsoft.TaskCategory`, which is Task in every process. With children, the parent is the default
+  type of `Microsoft.RequirementCategory` (User Story in Agile, Product Backlog Item in Scrum,
+  Requirement in CMMI, Issue in Basic;
+  [requirements](https://learn.microsoft.com/en-us/azure/devops/cross-service/manage-requirements))
+  and each child the Task category's. Both come from `workitemtypecategories`, because a process can
+  rename or disable a type.
+- **Children:** the create carries a `/relations/-` entry of `System.LinkTypes.Hierarchy-Reverse`
+  pointing at the parent, so a child is never written without one. A work item holds at most 1,000
+  links ([object limits](https://learn.microsoft.com/en-us/azure/devops/organizations/settings/work/object-limits)).
 - **States by category, never by name:** close to the one state in the `Completed`
   category; an item is open when its state is in neither `Completed` nor `Removed`.
 - **Find:** WIQL on `[System.Tags] CONTAINS '<label>'` and `[System.TeamProject]`, open states only,
@@ -452,8 +517,9 @@ Each error names the fix.
 | 4 | A closed item on a failing gate | left closed; the next failing run creates a new item | agreed 2026-09-28 |
 | 5 | Two open items with one marker | oldest kept, the rest closed as duplicates | agreed 2026-09-28 |
 | 6 | Label | `draugr`, set by `label` | agreed 2026-09-28 |
-| 7 | Azure work item type | Bug category default, then `Issue`, then `Task` | proposed |
+| 7 | Azure work item type | Task for a single item; the requirement type for a parent, with Task children | agreed 2026-09-28 |
 | 8 | Live test | all three forges, on free tiers, in the live tier ([Live test](#live-test)) | agreed 2026-09-28 |
+| 9 | Children | `children: none` by default; `actions` for a parent and a child per action, capped by `maxChildren`, 20 by default | agreed 2026-09-28 |
 
 ### Live test
 
@@ -510,6 +576,11 @@ Each line is a test. Unit tests run against a fake forge server per kind; every 
   and milestone a person changed leaves both, and adds back a configured label that was removed;
   a key set on a kind that does not read it fails validation.
 - Details: `counts` emits no location or message; `findings` emits both.
+- Children, with two actions per scope: an action no longer reported closes its child and leaves
+  the other; 21 failing actions open 20 children and list one in the parent; a child closed by
+  hand is created again on the next failing run; a passing gate closes every child, then the
+  parent; each forge's child carries its parent link; Azure resolves both types from the
+  categories.
 - Body: three rendered variants shown, and one chosen, before the renderer is built.
 - Closed by hand: an item closed while the gate fails is left untouched, and the next failing run
   creates a second item.
