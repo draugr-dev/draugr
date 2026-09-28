@@ -105,6 +105,9 @@ type htmlView struct {
 	// component are the project's, so they offer what appears.
 	Priorities, Severities       []htmlFacet
 	ControlNames, ComponentNames []htmlFacet
+	// Fixes and Scanners are the project's too: which kinds of work this run needs, and which
+	// tools reported anything.
+	Fixes, Scanners []htmlFacet
 	// SARIFHref and TSVHref are data: URIs. Downloads that work with no JavaScript and under any
 	// content-security policy.
 	SARIFHref, TSVHref template.URL
@@ -281,14 +284,20 @@ type htmlFinding struct {
 	// Upgrade is the dependency and the release that clears it, which is the only instruction on
 	// the row. Empty for a finding that is not about a package.
 	Upgrade string
+	// FixKind is Fix as a menu offers it. Every release is a different phrase, and a menu listing
+	// "upgrade to 2.10.1" beside "upgrade to 4.17.21" offers one value per package rather than one
+	// kind of work, so every upgrade is one option.
+	FixKind string
 	// Fix is what to do about this finding, as a phrase rather than a version diff.
 	//
 	// Always set. A column carrying "jinja2 2.10 → 2.10.1" is empty for every finding that is not
 	// about a package, which is most of iac, sast and secrets, and a reader learns to skip it. A
 	// phrase answers for all of them, and says so in the words the plane already uses.
 	Fix string
-	// Moved names what argued with this finding's band, in the words the console uses.
-	Moved string
+	// MovedGlyph and MovedLabel name what argued with this finding's band, in the words the console
+	// uses. MovedDir is "up" or "down" where the band moved, and empty for a mark that moved nothing,
+	// so the chip can wear the color of the direction rather than of whatever raised it.
+	MovedGlyph, MovedLabel, MovedDir string
 	// HelpURI documents the rule. Rendered as a link because this is the one format where a
 	// link costs nothing, and a rule id names a finding without explaining it.
 	HelpURI string
@@ -371,6 +380,7 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	view.Components = htmlComponents(d, s)
 	view.Unattributed = d.UnattributedFindings
 	prio, sev, ctl, comp := map[string]int{}, map[string]int{}, map[string]int{}, map[string]int{}
+	fixes, tools := map[string]int{}, map[string]int{}
 	for _, f := range s.findings {
 		hf := toHTMLFinding(f)
 		view.Findings = append(view.Findings, hf)
@@ -378,6 +388,8 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		sev[hf.Severity]++
 		ctl[hf.Control]++
 		comp[hf.Component]++
+		fixes[hf.FixKind]++
+		tools[hf.Tool]++
 	}
 	// The same grouping the console prints and the control plane's "What to do" shows, from the
 	// same function. A fix list that is a different shape depending on where it is read is three
@@ -413,6 +425,8 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	view.Severities = ourVocabulary([]string{"critical", "high", "medium", "low"}, sev)
 	view.ControlNames = theirVocabulary(ctl)
 	view.ComponentNames = theirVocabulary(comp)
+	view.Fixes = theirVocabulary(fixes)
+	view.Scanners = theirVocabulary(tools)
 	return htmlTemplate.Execute(w, view)
 }
 
@@ -549,9 +563,24 @@ func toHTMLFinding(f finding) htmlFinding {
 	// The rating the band was computed from, so a row does not contradict the band beside it, and
 	// the mark that moved it. Both are what the console shows for the same finding.
 	sev := rankedSeverity(f)
-	var moved string
+	var glyph, label, dir string
 	if m := movedBy(f); m != nil {
-		moved = m.glyph + " " + m.label
+		glyph, label = m.glyph, m.label
+		switch m.glyph {
+		case "↑":
+			dir = "up"
+		case "↓":
+			dir = "down"
+		}
+	}
+	fix := fixPhrase(f)
+	var pkgName string
+	if f.pkg != nil {
+		pkgName = f.pkg.Name
+	}
+	kind := fix
+	if strings.HasPrefix(fix, "upgrade to ") {
+		kind = "upgrade"
 	}
 	title := findingTitle(f)
 	full := strings.Join(strings.Fields(f.message), " ")
@@ -564,13 +593,16 @@ func toHTMLFinding(f finding) htmlFinding {
 		Component: dash(f.component),
 		Location:  dash(f.location), Message: title, Full: full, HelpURI: f.helpURI,
 		Upgrade:       upgradeLabel(f),
-		Fix:           fixPhrase(f),
-		Moved:         moved,
+		Fix:           fix,
+		FixKind:       kind,
+		MovedGlyph:    glyph,
+		MovedLabel:    label,
+		MovedDir:      dir,
 		AcceptedVia:   f.acceptedVia,
 		Justification: f.justification,
 		ActionKey:     actionKeyFor(f),
 		Search: strings.ToLower(strings.Join(
-			[]string{f.ruleID, f.control, f.tool, f.location, f.message, f.priority, string(sev)}, " ")),
+			[]string{f.ruleID, f.control, f.tool, f.component, f.location, f.message, f.priority, string(sev), fix, pkgName}, " ")),
 	}
 }
 
@@ -729,6 +761,7 @@ const htmlDoc = `<!doctype html>
 
     --bg: #0b0e11;
     --surface: #12161b;
+    --surface-sunken: #0e1216;
     --line: #232a31;
     --line-strong: #2f3841;
 
@@ -738,6 +771,7 @@ const htmlDoc = `<!doctype html>
 
     --accent: #e8b84b;
     --accent-quiet: rgb(232 184 75 / 12%);
+    --accent-text: #e8b84b;
     --on-accent: #0b0e11;
 
     /* The priority ramp, and it is not invented here: these are the values the console already
@@ -753,6 +787,11 @@ const htmlDoc = `<!doctype html>
      * color on it measures 3.78:1, under the floor. This clears it at 4.64:1 in both themes,
      * because the P4 fill keeps its hue the way the rest of the ramp does. */
     --on-p4: #ffffff;
+    /* The quiet fills a priority chip in a list sits on, the band's own hue under its own ink. */
+    --p1-quiet: rgb(229 83 75 / 14%);
+    --p2-quiet: rgb(232 184 75 / 14%);
+    --p3-quiet: rgb(124 166 184 / 14%);
+    --p4-quiet: rgb(107 118 128 / 16%);
 
     --pass: #57ab5a;
     --fail: #e5534b;
@@ -760,6 +799,7 @@ const htmlDoc = `<!doctype html>
     --on-fail: #120605;
 
     --radius: 6px;
+    --control-height: 37px;
   }
 
   /* An explicit choice wins over the system in both directions, which is what makes the toggle
@@ -776,6 +816,7 @@ const htmlDoc = `<!doctype html>
 
   --bg: #ffffff;
   --surface: #f6f7f8;
+  --surface-sunken: #eef1f3;
   --line: #dfe3e7;
   --line-strong: #c3cad1;
 
@@ -785,6 +826,7 @@ const htmlDoc = `<!doctype html>
 
   --accent: #a97d12;
   --accent-quiet: rgb(232 184 75 / 26%);
+  --accent-text: #7d5a08;
   --on-accent: #ffffff;
 
   /* The bands keep their hue, because a band that changed color with the theme would be two
@@ -794,6 +836,10 @@ const htmlDoc = `<!doctype html>
   --p2: #e8b84b;
   --p3: #7ca6b8;
   --p4: #6b7680;
+  --p1-quiet: rgb(192 52 43 / 11%);
+  --p2-quiet: rgb(169 125 18 / 26%);
+  --p3-quiet: rgb(52 99 122 / 22%);
+  --p4-quiet: rgb(107 118 128 / 14%);
 
   --pass: #2e7d33;
   --fail: #c0342b;
@@ -806,6 +852,7 @@ const htmlDoc = `<!doctype html>
 
     --bg: #ffffff;
     --surface: #f6f7f8;
+    --surface-sunken: #eef1f3;
     --line: #dfe3e7;
     --line-strong: #c3cad1;
 
@@ -815,6 +862,7 @@ const htmlDoc = `<!doctype html>
 
     --accent: #a97d12;
     --accent-quiet: rgb(232 184 75 / 26%);
+    --accent-text: #7d5a08;
     --on-accent: #ffffff;
 
     /* The bands keep their hue, because a band that changed color with the theme would be two
@@ -824,6 +872,10 @@ const htmlDoc = `<!doctype html>
     --p2: #e8b84b;
     --p3: #7ca6b8;
     --p4: #6b7680;
+    --p1-quiet: rgb(192 52 43 / 11%);
+    --p2-quiet: rgb(169 125 18 / 26%);
+    --p3-quiet: rgb(52 99 122 / 22%);
+    --p4-quiet: rgb(107 118 128 / 14%);
 
     --pass: #2e7d33;
     --fail: #c0342b;
@@ -1066,77 +1118,130 @@ const htmlDoc = `<!doctype html>
   @media print {
     .fold > summary::before { display: none; }
     .fold > summary { cursor: default; }
-    #findings summary.rule::before { visibility: hidden; }
-    #findings .hint { display: none; }
+    .rows .hint { display: none; }
   }
-  /* The release that ends a finding wears the color a passing verdict wears, which is what the
-   * console and the dashboard both do with this fact. */
-  /* A finding is a block, not a row.
-   *
-   * Columns were the wrong shape for this content and no width answered it: a version pair runs
-   * to sixty-five characters, a rule id to fifty, a location to forty, and seven columns of that
-   * in one reading column means something is always cut. The thing that was always cut was the
-   * one column carrying an instruction.
-   *
-   * So the same grammar the plane's findings list uses: chips, then what it is, then a line of
-   * labeled context underneath. Nothing here has a width to blow out. */
-  #findings .f { display: flex; gap: .7rem; padding: .55rem 0; border-top: 1px solid var(--line); }
-  /* Louder than the rule above it, because the rule above it is louder than the hide class.
-   *
-   * The filter hides a finding by adding one class, and a bare one-class rule loses to anything
-   * scoped by an id. The symptom is every filter appearing to do nothing: the count under the
-   * menus moves and not one row leaves the page. */
-  #findings .f.hide { display: none; }
-  #findings .f:first-child { border-top: 0; }
-  #findings .chips { display: flex; gap: .35rem; align-items: flex-start; flex: 0 0 auto; }
-  #findings .what { min-width: 0; }
-  #findings .rule { line-height: 1.45; }
-  #findings .rule .id { font-family: "JetBrains Mono", ui-monospace, monospace; font-weight: 600; }
-  #findings .rule .said { color: var(--muted); }
+  /* A finding is a row in a panel, the shape the plane's lists use: chips in a fixed gutter, then
+   * what it is, then a line of labeled context underneath. Columns were the wrong shape for this
+   * content and no width answered it: a version pair runs to sixty-five characters, a rule id to
+   * fifty, a location to forty, and seven columns of that in one reading column means something is
+   * always cut. The thing that was always cut was the one column carrying an instruction. */
+  .rows {
+    border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--surface-sunken); overflow: hidden; margin-top: 10px;
+  }
+  .rows > .f, .rows > .act {
+    display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 16px; align-items: baseline;
+    padding: 13px 8px; border-bottom: 1px solid var(--line);
+  }
+  /* Past the page, or narrowed away. One class for both, because either way the row is not shown
+   * and the count line says how many were not. */
+  .rows > .cut { display: none; }
+  .rows > .opens, .rows > .act { cursor: pointer; }
+  .rows > .opens:hover, .rows > .act:hover { background: var(--surface); }
+  .rows .chips { display: flex; gap: 6px; align-items: baseline; }
+  .rows .pri {
+    display: inline-block; min-width: 30px; padding: 2px 0; border-radius: 2px; text-align: center;
+    font: 600 11px "JetBrains Mono", ui-monospace, monospace;
+  }
+  .rows .pri.P1 { background: var(--p1-quiet); }
+  .rows .pri.P2 { background: var(--p2-quiet); }
+  .rows .pri.P3 { background: var(--p3-quiet); }
+  .rows .pri.P4 { background: var(--p4-quiet); }
+  /* Severity outlined and priority filled, so the two ratings never read as one: the band is the
+   * decision, and the severity is one of the things it was decided from. */
+  .rows .sevchip {
+    padding: 2px 7px; border-radius: 2px; border: 1px solid var(--line-strong); white-space: nowrap;
+    font: 400 11px "JetBrains Mono", ui-monospace, monospace; color: var(--text);
+  }
+  .rows .sevchip.sev-critical { border-color: var(--p1); }
+  .rows .sevchip.sev-high { border-color: var(--p2); }
+  .rows .sevchip.sev-medium { border-color: var(--p3); }
+  .rows .sevchip.sev-low { border-color: var(--p4); }
+  .rows .what { min-width: 0; overflow-wrap: anywhere; }
+  .rows .rule { line-height: 1.45; }
+  .rows .rule .id, .rows .rule .name {
+    font: 500 15px "Space Grotesk", ui-sans-serif, system-ui, sans-serif; color: var(--text);
+  }
+  .rows .rule .id a { text-decoration: none; }
+  .rows .rule .id a:hover { text-decoration: underline; }
+  .rows .rule .said { font-size: 13px; color: var(--muted); }
   /* A row whose message was shortened opens to the whole of it. A disclosure rather than a dialog:
    * it needs no script, the search box already matches the whole message, printing opens it with
-   * every other fold, and the rows around it stay where they were. Open, the full message takes the summary's
-   * place rather than repeating it. */
-  /* The caret sits in a gutter, so a wrapped message, the full text and the context line all share
-   * the rule id's left edge. */
-  #findings .what { padding-left: 1em; }
-  #findings summary.rule { list-style: none; cursor: pointer; position: relative; }
-  #findings summary.rule::-webkit-details-marker { display: none; }
-  #findings summary.rule::before {
-    content: "\25B8"; position: absolute; left: -1em; color: var(--faint);
-    transition: transform .15s;
+   * every other fold, and the rows around it stay where they were. Closed, it holds one line and
+   * the message runs to an ellipsis; open, the full message takes the summary's place rather than
+   * repeating it. */
+  .rows summary.rule {
+    display: flex; align-items: baseline; gap: 7px; min-width: 0;
+    white-space: nowrap; list-style: none;
   }
-  #findings details[open] > summary.rule::before { transform: rotate(90deg); }
-  #findings .f.opens { cursor: pointer; }
-  #findings .f.opens:hover { background: var(--surface); }
-  #findings .f.opens:hover summary.rule::before,
-  #findings .f.opens:hover .hint { color: var(--text); }
-  #findings .f.opens:hover .hint { border-color: var(--muted); }
-  #findings details[open] > summary .said,
-  #findings details[open] > summary .hint { display: none; }
+  .rows summary.rule::-webkit-details-marker { display: none; }
+  .rows summary.rule .id { flex: none; }
+  .rows summary.rule .said { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .rows details[open] > summary .said,
+  .rows details[open] > summary .hint { display: none; }
   /* Says the row opens, on every row that does, without hovering: a touch screen has no hover, and
    * a report is often read by somebody who was sent it. Hidden from assistive technology, which
    * already announces the summary as a collapsed disclosure. */
-  #findings .hint {
-    margin-left: .45rem; padding: .02rem .4rem; font-size: .7rem; white-space: nowrap;
-    vertical-align: .1em; color: var(--muted);
+  .rows .hint {
+    flex: none; padding: .02rem .4rem; font-size: .7rem; white-space: nowrap; color: var(--muted);
     border: 1px solid var(--line-strong); border-radius: 999px;
   }
-  #findings .full { margin: .25rem 0 .1rem; line-height: 1.5; color: var(--text); overflow-wrap: anywhere; }
+  .rows .opens:hover .hint { color: var(--text); border-color: var(--muted); }
+  .rows .full { margin: .25rem 0 .1rem; line-height: 1.5; color: var(--text); }
   /* The context line. Labeled in the vocabulary the rest of the product uses, and small, because
    * it answers "where" after the row has already answered "what". */
-  #findings .sub {
-    font-size: .78rem; color: var(--faint); margin-top: .15rem;
-    overflow-wrap: anywhere;
+  .rows .sub { margin-top: 3px; font-size: 12.5px; color: var(--muted); }
+  .rows .lbl {
+    font: 10px "JetBrains Mono", ui-monospace, monospace; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--faint);
   }
-  #findings .sub .lbl { text-transform: uppercase; letter-spacing: .04em; opacity: .75; }
-  #findings .faint { color: var(--line-strong); }
+  .rows .faint { color: var(--faint); }
+  /* What moved a band, first on the line, in the color of the direction it moved. */
+  .rows .moved {
+    display: inline-flex; align-items: center; gap: 3px; padding: 0 5px; margin-right: 6px;
+    border: 1px solid var(--line); border-radius: 4px; font-size: 11.5px; color: var(--text);
+    white-space: nowrap;
+  }
+  .rows .moved.up { border-color: var(--p1); }
+  .rows .moved.up .g { color: var(--p1); font-weight: 700; }
+  .rows .moved.down { border-color: var(--p3); }
+  .rows .moved.down .g { color: var(--p3); }
+  /* The count is the way into the rows behind it. A fix list that says "5 findings" and cannot
+   * show which five asks a reader to take it on trust, and the five are already on the page. */
+  .rows .act-clears {
+    font: inherit; padding: 0; border: 0; background: none; color: var(--accent-text); cursor: pointer;
+    text-decoration: underline; text-underline-offset: 2px;
+  }
+
+  /* The count line over a list and the page size beside it, then paging inside the panel's foot.
+   * A report of a thousand findings drawn at once is a page nobody reaches the bottom of, and the
+   * downloads and the sections below it went with the bottom. */
+  .listbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 2px 8px; }
+  .lcount { font: 12px "JetBrains Mono", ui-monospace, monospace; color: var(--muted); }
+  .sizes { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--faint); }
+  .size {
+    padding: 4px 11px; border: 1px solid var(--line-strong); border-radius: 2px; background: none;
+    color: var(--muted); font: 11px "JetBrains Mono", ui-monospace, monospace; cursor: pointer;
+  }
+  .size:hover { border-color: var(--accent); color: var(--text); }
+  .size.on { border-color: transparent; background: var(--accent-quiet); color: var(--accent-text); font-weight: 600; }
+  .next {
+    display: block; width: 100%; padding: 12px 8px 4px; border: 0; background: none;
+    color: var(--accent-text); font: inherit; font-size: 13px; font-weight: 500; text-align: left; cursor: pointer;
+  }
+  .next:hover { background: var(--surface); }
+  .rest { margin: 0; padding: 0 8px 10px; font: 12px "JetBrains Mono", ui-monospace, monospace; color: var(--muted); }
+  .nomatch { margin: 10px 0 0; padding: 30px 8px; color: var(--muted); border-bottom: 1px solid var(--line); }
+  .nomatch b { display: block; font-weight: 500; color: var(--text); }
+  .nomatch span { display: block; margin-top: 3px; font-size: 13px; }
 
   /* Two views of one set, and the toggle between them. The plane leads with the work and keeps the
    * list beside it, because a reader opening a report is deciding what to do rather than scanning
    * output. Hidden until scripts run: without them both sections render, each under its own
-   * heading, which is a complete document rather than a dead control over half of one. */
+   * heading, which is a complete document rather than a dead control over half of one. The same
+   * row picks one subsection at a time where a section holds several. */
   .views { display: flex; gap: .35rem; margin: 0 0 .9rem; }
+  .views.panes { margin-top: .2rem; }
   .view {
     font: inherit; font-size: .86rem; padding: .35rem .8rem; cursor: pointer;
     border: 1px solid var(--line-strong); border-radius: 4px;
@@ -1145,28 +1250,19 @@ const htmlDoc = `<!doctype html>
   .view:hover { color: var(--text); border-color: var(--accent); }
   .view.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
 
-  ul.actions { list-style: none; padding: 0; margin: .4rem 0 1.25rem; }
-  .act {
-    display: grid; gap: .15rem .8rem; align-items: baseline;
-    grid-template-columns: 2.2rem 1fr auto;
-    padding: .55rem .8rem; border: 1px solid var(--line); border-radius: var(--radius);
-    background: var(--surface); margin-bottom: .35rem;
+  /* Sections as tabs, once the script has sorted the page into them. The verdict and the tab row
+   * stay pinned while a long list scrolls under them, so the answer and the way to the rest of the
+   * report are never more than a glance away. Without scripts the page is one document read top to
+   * bottom, and a pinned header over it would cover every heading an anchor jumps to. */
+  body.tabbed .pin {
+    position: sticky; top: 0; z-index: 20; background: var(--bg);
+    padding-top: .6rem; margin: -.6rem 0 1.5rem;
   }
-  .act-title { font-weight: 600; }
-  .act-meta { color: var(--faint); font-size: .8rem; text-align: right; white-space: nowrap; }
-  /* The count is the way into the rows behind it. A fix list that says "5 findings" and cannot
-   * show which five asks a reader to take it on trust, and the five are already on the page. */
-  .act-clears {
-    font: inherit; font-size: inherit; padding: 0; border: 0; background: none;
-    color: var(--accent); cursor: pointer; text-decoration: underline;
-    text-underline-offset: 2px; text-decoration-color: var(--line-strong);
-  }
-  .act-clears:hover { text-decoration-color: var(--accent); }
-
-  .act-where {
-    grid-column: 2 / -1; color: var(--muted); font-size: .8rem;
-    font-family: "JetBrains Mono", ui-monospace, monospace;
-  }
+  body.tabbed .pin .tabs { margin-bottom: 0; }
+  body.tabbed [id] { scroll-margin-top: calc(var(--pin, 0px) + .75rem); }
+  body.tabbed details.fold:not(.sub) > summary,
+  body.tabbed .paned > details.fold.sub > summary { display: none; }
+  .off { display: none !important; }
 
   .errors { border-left: 2px solid var(--p1); padding: .1rem 0 .1rem .9rem; margin: 0 0 1.5rem; list-style: none; }
   .errors li { margin: .25rem 0; }
@@ -1184,41 +1280,44 @@ const htmlDoc = `<!doctype html>
     font-family: "JetBrains Mono", ui-monospace, monospace;
   }
 
-  /* Search and menus in one strip, the count under it. The dashboard narrows every list this way,
-   * and a reader who has learned it there does not learn it again here. */
-  .bar { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; margin: 0 0 .45rem; }
+  /* Search and menus in one strip, the dashboard's, so a reader who has learned it there does not
+   * learn it again here. Priority and fix lead because they decide what to do first; the rest fold
+   * behind Narrow, which carries how many of them are narrowing while they are out of sight. */
+  .bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 28px; }
+  .bar:has(+ .tokens:not(:empty)) { margin-bottom: 12px; }
   .bar input[type=search] {
-    flex: 1 1 18rem; font: inherit; font-size: .86rem; padding: .42rem .65rem;
-    border: 1px solid var(--line-strong); border-radius: 4px;
-    background: var(--surface); color: var(--text);
+    flex: 1 1 auto; min-width: 0; min-height: var(--control-height); box-sizing: border-box; padding: 0 11px;
+    font: 13px "JetBrains Mono", ui-monospace, monospace; color: var(--text); background: var(--surface);
+    border: 1px solid var(--line-strong); border-radius: var(--radius);
   }
   .bar input[type=search]::placeholder { color: var(--faint); }
+  .bar input[type=search]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-  /* A filter menu, the shape the dashboard uses. A chip that opens a list of ticks rather than a
-   * one-of control: choosing P1 and P2 asks for both, because that is what filtering over a set of
-   * values means, and a reader who has learned that there does not learn it again here.
-   *
-   * The chip carries how many are ticked. A closed menu that is narrowing the list has to say so,
-   * or the list reads as unfiltered. */
-  .menu-anchor { position: relative; display: inline-block; }
-  .chip-menu {
-    font: inherit; font-size: .86rem; padding: .42rem .7rem;
-    border: 1px solid var(--line-strong); border-radius: 4px;
-    background: var(--surface); color: var(--muted); cursor: pointer;
+  /* A filter menu, a chip that opens a list of ticks rather than a one-of control: choosing P1 and
+   * P2 asks for both, because that is what filtering over a set of values means. The chip carries
+   * how many are ticked. A closed menu that is narrowing the list has to say so, or the list reads
+   * as unfiltered. */
+  .menu-anchor { position: relative; display: inline-flex; min-height: var(--control-height); }
+  .menu-anchor.folded:not(.shown) { display: none; }
+  .chip-menu, .narrow {
+    display: inline-flex; align-items: center; min-height: var(--control-height); box-sizing: border-box;
+    padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 3px; background: none;
+    color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer;
   }
-  .chip-menu:hover { color: var(--text); border-color: var(--accent); }
+  .chip-menu:hover { border-color: var(--accent); color: var(--text); }
   .chip-menu.on { color: var(--text); border-color: var(--accent); }
+  .chip-menu:focus-visible, .narrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .chip-menu .c, .menu-row .c {
-    font-family: "JetBrains Mono", ui-monospace, monospace;
-    font-size: .68rem; color: var(--faint); margin-left: .3rem;
+    font: 10.5px "JetBrains Mono", ui-monospace, monospace; color: var(--faint); margin-left: 5px;
   }
-  .chip-menu.on .c { color: var(--accent); }
-  .caret { color: var(--faint); margin-left: .25rem; }
+  .chip-menu .c::before { content: "· "; }
+  .caret { color: var(--faint); margin-left: 4px; }
+  .narrow { border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: 12px; }
+  .narrow.open { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
 
   .menu {
-    position: absolute; top: calc(100% + 6px); left: 0; z-index: 20;
-    min-width: 15rem; padding: 6px;
-    border: 1px solid var(--line-strong); border-radius: 4px;
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; min-width: 244px; padding: 6px;
+    box-sizing: border-box; border: 1px solid var(--line-strong); border-radius: 4px;
     background: var(--surface); box-shadow: 0 8px 24px rgb(0 0 0 / 28%);
     display: flex; flex-direction: column; max-height: min(58vh, 460px);
   }
@@ -1226,24 +1325,41 @@ const htmlDoc = `<!doctype html>
    * right margin, and a menu that opens off the edge is a menu whose counts nobody can read. */
   .menu.right { left: auto; right: 0; }
   .menu-head {
-    flex: none; padding: 4px 6px 6px; font-size: .66rem; letter-spacing: .07em;
+    padding: 4px 6px 6px; font-size: 10.5px; letter-spacing: .07em;
     text-transform: uppercase; color: var(--faint);
   }
-  .menu-options { overflow-y: auto; min-height: 0; padding: 1px; margin: -1px; }
+  .menu-options { overflow-y: auto; min-height: 0; }
   .menu-row {
-    display: flex; justify-content: space-between; gap: 1rem;
-    padding: 4px 6px; font-size: .84rem; color: var(--text); cursor: pointer;
+    display: flex; justify-content: space-between; gap: 16px;
+    padding: 4px 6px; font-size: 13px; color: var(--text); cursor: pointer;
   }
-  .menu-row:hover { background: var(--bg); }
-  .menu-row.on { background: var(--bg); box-shadow: inset 2px 0 0 var(--accent); }
-  .menu-row input { margin-right: .5rem; }
+  .menu-row:hover { background: var(--surface-sunken); }
+  .menu-row > span:first-child { display: flex; align-items: baseline; white-space: nowrap; }
+  .menu-row input { margin: 0 8px 0 0; }
   /* A value nothing here carries stays in the list and says zero. Which narrowings exist is part
    * of what the strip teaches, and removing the option answers a different question from the one
    * the reader asked. It is disabled rather than hidden, so nobody spends a click on it. */
   .menu-row:has(input:disabled) { color: var(--faint); cursor: default; }
-  /* What is on, beside what turns it off. A reader has to be able to see the state of the list
-   * without opening a menu, and a filtered list nobody can tell is filtered is one somebody reads
-   * as the whole set. */
+
+  /* What is on, each beside what turns it off. A reader has to be able to see the state of the
+   * list without opening a menu, and a filtered list nobody can tell is filtered is one somebody
+   * reads as the whole set. */
+  .tokens { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 28px; }
+  .tokens:empty { display: none; }
+  .token {
+    padding: 3px 8px; border-radius: 3px; border: 1px solid var(--accent); background: var(--surface-sunken);
+    color: var(--text); font: inherit; font-size: 12.5px; cursor: pointer;
+  }
+  .token .x { color: var(--faint); margin-left: 6px; }
+  .token:hover .x { color: var(--text); }
+  .clear {
+    display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: var(--radius);
+    border: 1px solid var(--line-strong); background: var(--surface); color: var(--text);
+    font: inherit; font-size: 12.5px; cursor: pointer;
+  }
+  .clear:hover { border-color: var(--accent); background: var(--surface-sunken); }
+  .clear .x { color: var(--faint); }
+
   /* The component the reader narrowed to, between the menus and the count. Above the list rather
    * than in it, because it describes the whole of what is below and nothing in the list says it. */
   .focus {
@@ -1255,21 +1371,6 @@ const htmlDoc = `<!doctype html>
   .focus-name { font-weight: 600; }
   .focus-verdict { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .76rem; letter-spacing: .1em; }
   .focus-facts { color: var(--muted); font-size: .84rem; margin-left: auto; }
-  .state { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .7rem; margin: 0 0 1rem; }
-  .count { color: var(--faint); font-size: .82rem; }
-  .tokens { display: flex; flex-wrap: wrap; gap: .3rem; }
-  .token {
-    font: inherit; font-size: .78rem; padding: .12rem .45rem;
-    border: 1px solid var(--accent); border-radius: 3px;
-    background: var(--surface); color: var(--text); cursor: pointer;
-  }
-  .token .x { color: var(--faint); margin-left: .35rem; }
-  .token:hover .x { color: var(--text); }
-  .linkish {
-    padding: 0; border: 0; background: none; color: var(--accent);
-    cursor: pointer; font: inherit; font-size: .82rem;
-  }
-  .linkish:hover { text-decoration: underline; }
 
   .dl { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; margin: 0 0 1rem; }
   .dl a {
@@ -1284,8 +1385,6 @@ const htmlDoc = `<!doctype html>
   }
   .bar-fill { display: block; height: 100%; background: var(--p3); }
 
-  .hide { display: none; }
-
   footer {
     color: var(--faint); font-size: .82rem; margin-top: 2.5rem;
     border-top: 1px solid var(--line); padding-top: .8rem;
@@ -1294,7 +1393,12 @@ const htmlDoc = `<!doctype html>
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   @media print {
-    .bar, .facets, .dl, .nav { display: none; }
+    body.tabbed .pin { position: static; }
+    .off { display: revert !important; }
+    body.tabbed details.fold:not(.sub) > summary,
+    body.tabbed .paned > details.fold.sub > summary { display: revert; }
+    #tools, .views, .listbar, .next, .rest, .dl { display: none !important; }
+    .rows > .cut { display: grid; }
     body { max-width: none; background: #fff; color: #000; }
     tr { break-inside: avoid; }
     a::after { content: " (" attr(href) ")"; font-size: .8em; color: #444; }
@@ -1302,6 +1406,7 @@ const htmlDoc = `<!doctype html>
 </style>
 </head>
 <body>
+<div class="pin">
 <header class="strip">
   <span class="mark">Draugr</span>
   <h1><span class="verdict {{if .Pass}}pass{{else}}fail{{end}}">{{.Verdict}}</span></h1>
@@ -1317,11 +1422,11 @@ const htmlDoc = `<!doctype html>
 </header>
 
 <nav class="tabs" aria-label="Sections of this report">
+  <a class="tab" href="#findings-h">Findings</a>
   {{if .Signals}}<a class="tab" href="#signals">Signals</a>{{end}}
   {{if .Controls}}<a class="tab" href="#controls">Controls</a>{{end}}
   {{if .Components}}<a class="tab" href="#components">Components</a>{{end}}
   {{if .Errors}}<a class="tab err" href="#errors">Errors</a>{{end}}
-  <a class="tab" href="#findings-h">Findings</a>
   {{if or .Suppressed .Decisions .Unmatched .Excluded}}<a class="tab" href="#suppressed">Accepted</a>{{end}}
   {{if or .Gate .SBOMCount .Slowest .Scanned .Provenance .Exploitability}}<a class="tab" href="#timing">Evidence</a>{{end}}
   <a class="tab" href="#about">About</a>
@@ -1347,6 +1452,7 @@ const htmlDoc = `<!doctype html>
     </button>
   </span>
 </nav>
+</div>
 
 {{if .Prioritized}}
 <p class="note">Priority combines how severe a finding is with how exposed and how business-critical
@@ -1440,41 +1546,21 @@ about what they would have found. For everything the tool printed, re-run with
   <button type="button" class="view on" data-view="work">What to do</button>
   <button type="button" class="view" data-view="all">All findings</button>
 </div>
-
-<section id="work">
-  <h3 class="sub js-off">What to do</h3>
-  <p class="note">One row per thing to do rather than per finding.</p>
-  <ul class="actions">
-  {{range .Actions}}<li class="act">
-    <span class="pri {{.Priority}}">{{.Priority}}</span>
-    <span class="act-title">{{.Title}}</span>
-    <span class="act-meta">{{.Control}} · <button type="button" class="act-clears" data-a="{{.Key}}" data-title="{{.Title}}">{{.Clears}} finding{{if ne .Clears 1}}s{{end}}</button>{{if .Upstream}} · upstream{{end}}{{if .Cached}} · from cache{{end}}</span>
-    {{if .Where}}<span class="act-where">{{.Where}}</span>{{end}}
-  </li>{{end}}
-  </ul>
-  {{if .External}}<p class="note">{{plural .External "finding"}} are somebody else's to fix, so they are
-  reported rather than listed as work.</p>{{end}}
-</section>
 {{end}}
 
-<section id="all">
-<h3 class="sub js-off">All findings</h3>
-{{if .MinPriority}}<p class="note">{{if .Hidden}}{{plural .Hidden "lower-priority finding"}} are not listed, and the counts still describe the whole run{{else}}The counts describe the whole run{{end}}.</p>{{end}}
-
-<p class="dl">
-  {{if .SARIFHref}}<a href="{{.SARIFHref}}" download="results.sarif">⬇ SARIF</a>{{end}}
-  {{if .TSVHref}}<a href="{{.TSVHref}}" download="findings.tsv">⬇ TSV</a>{{end}}
-  {{if .SARIFTooBig}}<span class="note">SARIF too large to embed · re-run with <code class="cmd">-o &lt;dir&gt;</code>.</span>{{end}}
-</p>
-
+{{if .Findings}}
 <div id="tools" hidden>
   <div class="bar">
-    <input type="search" id="q" placeholder="Search rule, message, file, component…" aria-label="Search findings">
+    <input type="search" id="q" placeholder="Find a rule, a package, a file or a message" aria-label="Find a finding">
     {{template "menu" dict "K" "p" "Label" "Priority" "Options" .Priorities}}
-    {{template "menu" dict "K" "s" "Label" "Severity" "Options" .Severities}}
-    {{template "menu" dict "K" "c" "Label" "Control" "Options" .ControlNames}}
-    {{template "menu" dict "K" "m" "Label" "Component" "Options" .ComponentNames}}
+    {{template "menu" dict "K" "fix" "Label" "Fix" "Options" .Fixes}}
+    <button type="button" class="narrow" id="narrow" aria-expanded="false">Narrow ▾</button>
+    {{template "menu" dict "K" "s" "Label" "Severity" "Options" .Severities "Folded" true}}
+    {{template "menu" dict "K" "m" "Label" "Component" "Options" .ComponentNames "Folded" true}}
+    {{template "menu" dict "K" "c" "Label" "Control" "Options" .ControlNames "Folded" true}}
+    {{template "menu" dict "K" "sc" "Label" "Scanner" "Options" .Scanners "Folded" true}}
   </div>
+  <div class="tokens" id="tokens"></div>
   {{range .Components}}{{if not .Skipped}}
   <div class="focus" data-m="{{.Name}}" hidden>
     <span class="focus-name">{{.Name}}</span>
@@ -1495,51 +1581,87 @@ about what they would have found. For everything the tool printed, re-run with
     </span>
   </div>
   {{end}}{{end}}
-  <p class="state">
-    <span class="count" id="count"></span>
-    <span class="tokens" id="tokens"></span>
-    <button type="button" class="linkish" id="clear" hidden>Show everything</button>
-  </p>
 </div>
+{{end}}
+
+{{if .Actions}}
+<section id="work">
+  <h3 class="sub js-off">What to do</h3>
+  <p class="note">One row per thing to do rather than per finding.</p>
+  {{template "listbar"}}
+  <div class="rows" id="acts">
+  {{range .Actions}}<div class="act" data-a="{{.Key}}" data-title="{{.Title}}">
+    <span class="chips"><span class="pri {{.Priority}}">{{.Priority}}</span></span>
+    <div class="what">
+      <div class="rule"><span class="name">{{.Title}}</span></div>
+      <div class="sub"><span class="lbl">control</span> {{.Control}}<span class="faint"> · </span><button type="button" class="act-clears" data-a="{{.Key}}" data-title="{{.Title}}">{{plural .Clears "finding"}}</button>{{if .Upstream}}<span class="faint"> · </span>upstream{{end}}{{if .Cached}}<span class="faint"> · </span>from cache{{end}}{{if .Where}}<span class="faint"> · </span>{{.Where}}{{end}}</div>
+    </div>
+  </div>{{end}}
+  {{template "paging"}}
+  </div>
+  {{template "nomatch"}}
+  {{if .External}}<p class="note">{{plural .External "finding"}} are somebody else's to fix, so they are
+  reported rather than listed as work.</p>{{end}}
+</section>
+{{end}}
+
+<section id="all">
+<h3 class="sub js-off">All findings</h3>
+{{if .MinPriority}}<p class="note">{{if .Hidden}}{{plural .Hidden "lower-priority finding"}} are not listed, and the counts still describe the whole run{{else}}The counts describe the whole run{{end}}.</p>{{end}}
+
+{{if .Findings}}
+{{template "listbar"}}
+<div class="rows" id="findings">
+{{range .Findings}}<div class="f" data-p="{{.Priority}}" data-s="{{.Severity}}" data-c="{{.Control}}" data-m="{{.Component}}" data-fix="{{.FixKind}}" data-sc="{{.Tool}}" data-a="{{.ActionKey}}" data-q="{{.Search}}">
+  <span class="chips"><span class="pri {{.Priority}}">{{.Priority}}</span><span class="sevchip {{.SevClass}}">{{.Severity}}</span></span>
+  <div class="what">
+    {{if .Full}}<details class="more"><summary class="rule">{{template "rule" .}}<span class="hint" aria-hidden="true">more</span></summary><p class="full">{{.Full}}</p></details>
+    {{- else}}<div class="rule">{{template "rule" .}}</div>{{end}}
+    <div class="sub">{{if .MovedLabel}}<span class="moved {{.MovedDir}}"><span class="g">{{.MovedGlyph}}</span>{{.MovedLabel}}</span>{{end}}{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}{{if .Location}}{{.Location}}<span class="faint"> · </span>{{end}}<span class="lbl">scanner</span> {{.Tool}}<span class="faint"> · </span><span class="lbl">fix</span> {{.Fix}}</div>
+  </div>
+</div>{{end}}
+{{template "paging"}}
+</div>
+{{template "nomatch"}}
+{{else if .Errors}}
+<p>No findings from the controls that ran. See the errors reported above.</p>
+{{else}}
+<p>No findings. ✓</p>
+{{end}}
+
+<p class="dl">
+  {{if .SARIFHref}}<a href="{{.SARIFHref}}" download="results.sarif">⬇ SARIF</a>{{end}}
+  {{if .TSVHref}}<a href="{{.TSVHref}}" download="findings.tsv">⬇ TSV</a>{{end}}
+  {{if .SARIFTooBig}}<span class="note">SARIF too large to embed · re-run with <code class="cmd">-o &lt;dir&gt;</code>.</span>{{end}}
+</p>
+</section>
+</details>
 
 {{define "rule"}}<span class="id">{{if .HelpURI}}<a href="{{.HelpURI}}">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}</span>{{if .Message}}<span class="said"><span class="faint"> · </span>{{.Message}}</span>{{end}}{{end}}
 {{define "menu"}}
-<span class="menu-anchor">
-  <button class="chip-menu" type="button" data-k="{{.K}}" aria-expanded="false" aria-haspopup="true">
-    {{.Label}}<span class="c num" hidden></span><span class="caret" aria-hidden="true">&#9662;</span>
+<span class="menu-anchor{{if .Folded}} folded{{end}}" data-k="{{.K}}">
+  <button class="chip-menu" type="button" aria-expanded="false" aria-haspopup="true">
+    {{.Label}}<span class="c" hidden></span><span class="caret" aria-hidden="true">&#9662;</span>
   </button>
   <div class="menu" hidden role="group" aria-label="{{.Label}}">
     <div class="menu-head">{{.Label}}</div>
     <div class="menu-options">
       {{range .Options}}
       <label class="menu-row">
-        <span><input type="checkbox" class="f" data-k="{{$.K}}" value="{{.Value}}"{{if not .Count}} disabled{{end}}> {{.Value}}</span>
-        <span class="c num">{{.Count}}</span>
+        <span><input type="checkbox" data-k="{{$.K}}" value="{{.Value}}"{{if not .Count}} disabled{{end}}>{{.Value}}</span>
+        <span class="c">{{.Count}}</span>
       </label>
       {{end}}
     </div>
   </div>
 </span>
 {{end}}
-{{if .Findings}}
-<div id="findings">
-{{range .Findings}}<div class="f" data-p="{{.Priority}}" data-s="{{.Severity}}" data-c="{{.Control}}" data-m="{{.Component}}" data-a="{{.ActionKey}}" data-q="{{.Search}}">
-  <span class="chips"><span class="pri {{.Priority}}">{{.Priority}}</span><span class="{{.SevClass}}">{{.Severity}}</span></span>
-  <div class="what">
-    {{if .Full}}<details class="more"><summary class="rule">{{template "rule" .}}<span class="hint" aria-hidden="true">more</span></summary><p class="full">{{.Full}}</p></details>
-    {{- else}}<div class="rule">{{template "rule" .}}</div>{{end}}
-    <div class="sub mono">{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}{{if .Location}}{{.Location}}<span class="faint"> · </span>{{end}}<span class="lbl">scanner</span> {{.Tool}}{{if .Moved}}<span class="faint"> · </span><span class="moved">{{.Moved}}</span>{{end}}<span class="faint"> · </span><span class="lbl">fix</span> {{.Fix}}</div>
-  </div>
+{{define "listbar"}}<div class="listbar" hidden>
+  <span class="lcount"></span>
+  <span class="sizes">Show <button type="button" class="size" data-n="25">25</button><button type="button" class="size" data-n="50">50</button><button type="button" class="size" data-n="100">100</button></span>
 </div>{{end}}
-</div>
-<p class="empty" id="none" hidden>No findings match this filter.</p>
-{{else if .Errors}}
-<p>No findings from the controls that ran. See the errors reported above.</p>
-{{else}}
-<p>No findings. ✓</p>
-{{end}}
-</details>
-</section>
+{{define "paging"}}<button type="button" class="next" hidden></button><p class="rest" hidden></p>{{end}}
+{{define "nomatch"}}<p class="nomatch" hidden><b>Nothing here matches.</b><span>Take a narrowing off to widen it.</span></p>{{end}}
 
 {{if or .Suppressed .Imported .Silenced .Decisions .Unmatched .Excluded}}
 <details class="fold" open><summary id="suppressed"><span class="sec">Accepted</span></summary>
@@ -1723,230 +1845,381 @@ about what they would have found. For everything the tool printed, re-run with
     });
   }
 
+  // Sections as tabs. Every element after the pinned row belongs to the section whose heading it
+  // follows, and one section shows at a time; the headings go, because the tab row names them. A
+  // section holding several subsections shows one of those at a time too, under a second row.
+  // Before the findings, because a report with none still has sections to move between.
+  var pin = document.querySelector(".pin");
+  var nav = pin && pin.querySelector("nav.tabs");
+  if (pin && nav) {
+    var tabs = Array.prototype.slice.call(nav.querySelectorAll("a.tab"));
+    var ids = tabs.map(function (t) { return t.getAttribute("href").slice(1); });
+    // What the pinned row covers, measured, so an anchor lands below it rather than under it.
+    var measure = function () {
+      document.documentElement.style.setProperty("--pin", pin.offsetHeight + "px");
+    };
+    if (window.ResizeObserver) new ResizeObserver(measure).observe(pin);
+    measure();
+    document.body.classList.add("tabbed");
+
+    var pane = {}, current = ids[0];
+    ids.forEach(function (id) { pane[id] = []; });
+    for (var node = pin.nextElementSibling; node; node = node.nextElementSibling) {
+      if (node.tagName === "SCRIPT") continue;
+      var head = node.matches("details.fold:not(.sub)") && node.querySelector(":scope > summary[id]");
+      if (head && pane[head.id]) current = head.id;
+      if (node.id && pane[node.id]) current = node.id;
+      // A heading that is hidden cannot be pressed to open its section again.
+      if (node.matches("details.fold")) node.open = true;
+      pane[current].push(node);
+    }
+
+    var subOf = {};
+    Array.prototype.forEach.call(document.querySelectorAll("details.fold:not(.sub)"), function (top) {
+      var subs = Array.prototype.slice.call(top.querySelectorAll(":scope > details.fold.sub"));
+      if (subs.length < 2) return;
+      var parent = top.querySelector(":scope > summary").id;
+      var row = document.createElement("div");
+      row.className = "views panes";
+      subs.forEach(function (sub) {
+        var sum = sub.querySelector(":scope > summary");
+        var name = sum.textContent.trim();
+        var id = parent + "-" + name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        sum.id = id;
+        sub.open = true;
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "view";
+        b.textContent = name;
+        b.dataset.sub = id;
+        b.addEventListener("click", function () { history.pushState(null, "", "#" + id); route(); });
+        row.appendChild(b);
+        subOf[id] = { top: parent, el: sub, row: row, subs: subs };
+      });
+      top.classList.add("paned");
+      top.insertBefore(row, subs[0]);
+    });
+
+    var showSub = function (id) {
+      var s = subOf[id];
+      s.subs.forEach(function (x) { x.classList.toggle("off", x !== s.el); });
+      Array.prototype.forEach.call(s.row.children, function (b) {
+        b.classList.toggle("on", b.dataset.sub === id);
+        b.setAttribute("aria-pressed", String(b.dataset.sub === id));
+      });
+    };
+    // A second row with nothing chosen shows its first subsection rather than none of them.
+    var firstSubs = function () {
+      var seen = {};
+      Object.keys(subOf).forEach(function (id) {
+        var top = subOf[id].top;
+        if (seen[top]) return;
+        seen[top] = true;
+        if (!subOf[id].row.querySelector(".on")) showSub(id);
+      });
+    };
+    var showPane = function (id) {
+      ids.forEach(function (k) {
+        pane[k].forEach(function (n) { n.classList.toggle("off", k !== id); });
+      });
+      tabs.forEach(function (t) {
+        var on = t.getAttribute("href") === "#" + id;
+        t.classList.toggle("on", on);
+        if (on) t.setAttribute("aria-current", "true"); else t.removeAttribute("aria-current");
+      });
+      firstSubs();
+    };
+    // The address says which section is open, so a link to one opens it and Back returns.
+    var route = function () {
+      var h = decodeURIComponent(location.hash.slice(1));
+      var target = h && document.getElementById(h);
+      if (!target || pane[h]) { showPane(target ? h : ids[0]); window.scrollTo(0, 0); return; }
+      if (subOf[h]) { showPane(subOf[h].top); showSub(h); window.scrollTo(0, 0); return; }
+      var owner = ids.filter(function (k) {
+        return pane[k].some(function (n) { return n.contains(target); });
+      })[0];
+      if (owner) showPane(owner);
+      Object.keys(subOf).forEach(function (k) { if (subOf[k].el.contains(target)) showSub(k); });
+      target.scrollIntoView();
+    };
+    window.addEventListener("hashchange", route);
+    window.addEventListener("popstate", route);
+    route();
+  }
+
   var tools = document.getElementById("tools");
-  var rows = Array.prototype.slice.call(document.querySelectorAll("#findings .f"));
-  if (!tools || !rows.length) return;
+  var list = document.getElementById("findings");
+  if (!tools || !list) return;
   tools.hidden = false;
+
+  var rows = Array.prototype.map.call(list.querySelectorAll(":scope > .f"), function (el) {
+    return { el: el, d: el.dataset, ok: true };
+  });
 
   // The whole row opens its message, not only the line the disclosure owns. A link inside the row
   // keeps its own meaning, the summary toggles itself natively, and a click that ends a text
   // selection is somebody copying a path rather than asking for more.
-  rows.forEach(function (row) {
-    var more = row.querySelector("details.more");
+  rows.forEach(function (r) {
+    var more = r.el.querySelector("details.more");
     if (!more) return;
-    row.classList.add("opens");
-    row.addEventListener("click", function (e) {
+    r.el.classList.add("opens");
+    r.el.addEventListener("click", function (e) {
       if (e.target.closest("a, summary")) return;
       if (String(window.getSelection && window.getSelection()) !== "") return;
       more.open = !more.open;
     });
   });
 
-  // Two views of one set. "What to do" leads, the list sits behind the toggle, and the headings
-  // that separate them without scripts are dropped because the toggle now names them.
+  // Ticks within one menu add up, and the menus narrow each other. Choosing P1 and P2 asks for
+  // both rather than replacing one with the other; across menus it is an and, because each
+  // answers a different question. Nothing ticked in a menu is no constraint from that menu.
+  var dims = Array.prototype.map.call(tools.querySelectorAll(".menu-anchor"), function (a) {
+    var boxes = Array.prototype.slice.call(a.querySelectorAll("input[type=checkbox]"));
+    return {
+      k: a.dataset.k, anchor: a, folded: a.classList.contains("folded"),
+      button: a.querySelector(".chip-menu"), menu: a.querySelector(".menu"),
+      badge: a.querySelector(".chip-menu .c"), boxes: boxes,
+    };
+  });
+  var q = document.getElementById("q");
+  var narrow = document.getElementById("narrow");
+  var tokenBox = document.getElementById("tokens");
+  var strips = Array.prototype.slice.call(tools.querySelectorAll(".focus"));
+
+  // A narrowing set by following an action rather than by a menu. Held apart from the menus
+  // because it is not a dimension somebody browses: it is one row of the fix list, and the way
+  // out of it is the token it leaves in the row above.
+  var state = { q: "", act: "", actTitle: "", open: false, cap: {}, size: 50 };
+  try { state.size = Number(localStorage.getItem("draugr-report-page-size")) || 50; } catch (e) { /* the default */ }
+
+  function ticked(d) {
+    return d.boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.value; });
+  }
+  function passes(r, skip) {
+    for (var i = 0; i < dims.length; i++) {
+      var d = dims[i];
+      if (d.k === skip) continue;
+      var on = ticked(d);
+      if (on.length && on.indexOf(r.d[d.k]) < 0) return false;
+    }
+    return true;
+  }
+  function searched(r) { return !state.q || r.d.q.indexOf(state.q) >= 0; }
+  function inAction(r) { return !state.act || r.d.a === state.act; }
+  function narrowed() {
+    return state.q || state.act || dims.some(function (d) { return ticked(d).length; });
+  }
+
+  function closeMenus() {
+    dims.forEach(function (d) {
+      d.menu.hidden = true;
+      d.button.setAttribute("aria-expanded", "false");
+    });
+  }
+  dims.forEach(function (d) {
+    d.button.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var wasOpen = !d.menu.hidden;
+      closeMenus();
+      if (wasOpen) return;
+      d.menu.hidden = false;
+      d.button.setAttribute("aria-expanded", "true");
+      // Measured rather than assumed: which chips sit near the right margin depends on how the
+      // strip wrapped, which depends on the window.
+      d.menu.classList.remove("right");
+      if (d.menu.getBoundingClientRect().right > document.documentElement.clientWidth - 8) {
+        d.menu.classList.add("right");
+      }
+      var first = d.menu.querySelector("input:not([disabled])");
+      if (first) first.focus();
+    });
+    d.menu.addEventListener("click", function (e) { e.stopPropagation(); });
+    d.boxes.forEach(function (b) { b.addEventListener("change", reset); });
+  });
+  // One menu at a time, and the page takes the click that closes it.
+  document.addEventListener("click", closeMenus);
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeMenus(); });
+  narrow.addEventListener("click", function () { state.open = !state.open; render(); });
+  q.addEventListener("input", function () { state.q = q.value.trim().toLowerCase(); reset(); });
+
+  // Two views of one set. What to do leads and the list sits behind the toggle; the headings that
+  // separate them without scripts go, because the toggle names them.
   var views = document.getElementById("views");
   var work = document.getElementById("work");
   var all = document.getElementById("all");
-  if (views && work && all) {
-    views.hidden = false;
-    Array.prototype.forEach.call(document.querySelectorAll(".js-off"), function (h) {
-      h.hidden = true;
-    });
-    var show = function (which) {
-      work.hidden = which !== "work";
-      all.hidden = which !== "all";
-      Array.prototype.forEach.call(views.querySelectorAll(".view"), function (b) {
-        b.classList.toggle("on", b.dataset.view === which);
-        b.setAttribute("aria-pressed", String(b.dataset.view === which));
-      });
-    };
+  function showView(which) {
+    if (!views) return;
+    work.classList.toggle("off", which !== "work");
+    all.classList.toggle("off", which !== "all");
     Array.prototype.forEach.call(views.querySelectorAll(".view"), function (b) {
-      b.addEventListener("click", function () { show(b.dataset.view); });
+      b.classList.toggle("on", b.dataset.view === which);
+      b.setAttribute("aria-pressed", String(b.dataset.view === which));
     });
-    show("work");
+  }
+  if (views && work) {
+    views.hidden = false;
+    Array.prototype.forEach.call(document.querySelectorAll(".js-off"), function (h) { h.classList.add("off"); });
+    Array.prototype.forEach.call(views.querySelectorAll(".view"), function (b) {
+      b.addEventListener("click", function () { showView(b.dataset.view); });
+    });
+    showView("work");
+  }
 
-    // Following a count is a question about those findings, so it opens the list already narrowed
-    // to them. The token it leaves in the row above is how a reader gets back, and is the only
-    // thing on screen that says why the list is short.
-    Array.prototype.forEach.call(document.querySelectorAll(".act-clears"), function (btn) {
-      btn.addEventListener("click", function () {
-        actionKey = btn.dataset.a || "";
-        actionTitle = btn.dataset.title || "";
-        show("all");
-        apply();
+  // One row per action, and a row is the way into the findings it clears. Following it opens the
+  // list already narrowed to them; the token it leaves is how a reader gets back.
+  var byAct = {};
+  rows.forEach(function (r) { (byAct[r.d.a] = byAct[r.d.a] || []).push(r); });
+  var acts = Array.prototype.map.call(document.querySelectorAll("#acts > .act"), function (el) {
+    var a = {
+      el: el, key: el.dataset.a, label: el.dataset.title || "", ok: true,
+      count: el.querySelector(".act-clears"),
+    };
+    a.title = a.label.toLowerCase();
+    a.total = (byAct[a.key] || []).length;
+    el.addEventListener("click", function () {
+      state.act = a.key;
+      state.actTitle = a.label;
+      showView("all");
+      reset();
+      window.scrollTo(0, 0);
+    });
+    return a;
+  });
+
+  // The count over each list, the page size beside it, and paging in the panel's foot.
+  function panel(section, items, noun) {
+    if (!section) return null;
+    var p = {
+      items: items, noun: noun, bar: section.querySelector(".listbar"),
+      rows: section.querySelector(".rows"), next: section.querySelector(".next"),
+      rest: section.querySelector(".rest"), empty: section.querySelector(".nomatch"),
+    };
+    p.bar.hidden = false;
+    p.sizes = Array.prototype.slice.call(p.bar.querySelectorAll(".size"));
+    p.sizes.forEach(function (b) {
+      b.addEventListener("click", function () {
+        state.size = Number(b.dataset.n);
+        try { localStorage.setItem("draugr-report-page-size", String(state.size)); } catch (e) { /* this page only */ }
+        reset();
       });
     });
+    p.next.addEventListener("click", function () { p.cap += state.size; render(); });
+    return p;
   }
+  var panels = [panel(work, acts, "action"), panel(all, rows, "finding")].filter(Boolean);
 
-  var q = document.getElementById("q");
-  var count = document.getElementById("count");
-  var none = document.getElementById("none");
-  var boxes = Array.prototype.slice.call(document.querySelectorAll("#tools input.f"));
-  var anchors = Array.prototype.slice.call(document.querySelectorAll("#tools .menu-anchor"));
-
-  // Ticks within one menu add up, and the menus narrow each other. Choosing P1 and P2 asks for
-  // both rather than replacing one with the other, which is what a filter over a set of values
-  // means; across dimensions it is an and, because each answers a different question.
-  //
-  // Nothing ticked in a menu is no constraint from that menu rather than a demand for nothing. A
-  // reader who unticks every priority to be shown an empty table has expressed no such intent.
-  // A narrowing set by following an action rather than by a menu. Held apart from the menus
-  // because it is not a dimension somebody browses: it is one row of the fix list, and the way out
-  // of it is the token it puts in the row above.
-  var actionKey = "", actionTitle = "";
-
-  function ticked(kind) {
-    var on = boxes.filter(function (b) { return b.dataset.k === kind && b.checked; });
-    return on.length ? on.map(function (b) { return b.value; }) : null;
-  }
-
-  function closeMenus(except) {
-    anchors.forEach(function (a) {
-      if (a === except) return;
-      a.querySelector(".menu").hidden = true;
-      a.querySelector(".chip-menu").setAttribute("aria-expanded", "false");
+  function counted(n, noun) { return n.toLocaleString() + " " + noun + (n === 1 ? "" : "s"); }
+  function paint(p) {
+    var matched = p.items.filter(function (x) { return x.ok; }).length, shown = 0;
+    p.items.forEach(function (x) {
+      var visible = x.ok && shown < p.cap;
+      if (visible) shown++;
+      x.el.classList.toggle("cut", !visible);
     });
+    p.bar.querySelector(".lcount").textContent = matched === p.items.length
+      ? counted(matched, p.noun)
+      : matched.toLocaleString() + " of " + p.items.length.toLocaleString();
+    p.sizes.forEach(function (b) { b.classList.toggle("on", Number(b.dataset.n) === state.size); });
+    var left = matched - shown;
+    p.next.hidden = p.rest.hidden = left <= 0;
+    p.next.textContent = "Show " + Math.min(state.size, left) + " more";
+    p.rest.textContent = shown.toLocaleString() + " of " + matched.toLocaleString();
+    p.bar.hidden = p.rows.hidden = !matched;
+    p.empty.hidden = !!matched;
   }
 
-  anchors.forEach(function (a) {
-    var button = a.querySelector(".chip-menu");
-    var menu = a.querySelector(".menu");
-    button.addEventListener("click", function (e) {
-      e.stopPropagation();
-      var wasOpen = !menu.hidden;
-      closeMenus();
-      if (wasOpen) return;
-      menu.hidden = false;
-      button.setAttribute("aria-expanded", "true");
-      // Measured rather than assumed: which chips sit near the right margin depends on how the
-      // strip wrapped, which depends on the window.
-      menu.classList.remove("right");
-      if (menu.getBoundingClientRect().right > document.documentElement.clientWidth - 8) {
-        menu.classList.add("right");
+  function token(label, title, off) {
+    var t = document.createElement("button");
+    t.type = "button";
+    t.className = "token";
+    t.title = title;
+    t.appendChild(document.createTextNode(label));
+    var x = document.createElement("span");
+    x.className = "x";
+    x.textContent = "×";
+    t.appendChild(x);
+    t.addEventListener("click", function () { off(); reset(); });
+    tokenBox.appendChild(t);
+  }
+
+  function render() {
+    rows.forEach(function (r) { r.ok = passes(r) && searched(r) && inAction(r); });
+    // Under a narrowing each action says how many of its findings are left, and one with none
+    // left goes. A search that names the action keeps all of its findings.
+    acts.forEach(function (a) {
+      var titled = state.q && a.title.indexOf(state.q) >= 0, n = 0;
+      (byAct[a.key] || []).forEach(function (r) { if (passes(r) && (titled || searched(r))) n++; });
+      a.ok = n > 0;
+      a.count.textContent = (n === a.total ? "" : n + " of ") + counted(a.total, "finding");
+    });
+    panels.forEach(paint);
+
+    var folded = 0;
+    dims.forEach(function (d) {
+      var on = ticked(d).length;
+      if (d.folded) {
+        folded += on;
+        d.anchor.classList.toggle("shown", state.open);
       }
-      var first = menu.querySelector("input:not([disabled])");
-      if (first) first.focus();
+      d.badge.textContent = on ? String(on) : "";
+      d.badge.hidden = !on;
+      d.button.classList.toggle("on", on > 0);
+      // Each option counts what ticking it would show, given every other narrowing that is on.
+      var c = {};
+      rows.forEach(function (r) {
+        if (passes(r, d.k) && searched(r) && inAction(r)) c[r.d[d.k]] = (c[r.d[d.k]] || 0) + 1;
+      });
+      d.boxes.forEach(function (b) {
+        b.closest(".menu-row").querySelector(".c").textContent = (c[b.value] || 0).toLocaleString();
+        b.disabled = !c[b.value] && !b.checked;
+      });
     });
-    menu.addEventListener("click", function (e) { e.stopPropagation(); });
-  });
-  // One menu at a time, and the page takes the click that closes it.
-  document.addEventListener("click", function () { closeMenus(); });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeMenus(); });
+    narrow.textContent = "Narrow" + (folded ? " " + folded : "") + " " + (state.open ? "▴" : "▾");
+    narrow.classList.toggle("open", state.open);
+    narrow.setAttribute("aria-expanded", String(state.open));
 
-  function apply() {
-    var needle = (q.value || "").trim().toLowerCase();
-    var p = ticked("p"), s = ticked("s"), c = ticked("c"), m = ticked("m");
-    var shown = 0;
-    rows.forEach(function (row) {
-      var d = row.dataset;
-      var ok = (!p || p.indexOf(d.p) >= 0) &&
-               (!s || s.indexOf(d.s) >= 0) &&
-               (!c || c.indexOf(d.c) >= 0) &&
-               (!m || m.indexOf(d.m) >= 0) &&
-               (!actionKey || d.a === actionKey) &&
-               (!needle || d.q.indexOf(needle) >= 0);
-      row.classList.toggle("hide", !ok);
-      if (ok) shown++;
+    // Every narrowing that is on, each carrying the way to take it off, and one control that takes
+    // them all off, offered only when something is narrowed.
+    while (tokenBox.firstChild) tokenBox.removeChild(tokenBox.firstChild);
+    dims.forEach(function (d) {
+      d.boxes.forEach(function (b) {
+        if (b.checked) token(b.value.toLowerCase(), "Stop filtering by " + b.value, function () { b.checked = false; });
+      });
     });
-    // A menu that is narrowing says so and says by how much, because a list nobody can tell is
-    // filtered is a list somebody reads as the whole set.
-    anchors.forEach(function (a) {
-      var button = a.querySelector(".chip-menu");
-      var n = a.querySelectorAll("input.f:checked").length;
-      var badge = button.querySelector(".c");
-      badge.textContent = n ? String(n) : "";
-      badge.hidden = !n;
-      button.classList.toggle("on", n > 0);
-    });
-    focus(m);
-    a11yRows();
-    tokens();
-    count.textContent = shown === rows.length
-      ? shown + (shown === 1 ? " finding" : " findings")
-      : "showing " + shown + " of " + rows.length;
-    none.hidden = shown > 0;
-  }
+    if (state.act) {
+      token(state.actTitle.toLowerCase(), "Show every finding again", function () { state.act = ""; state.actTitle = ""; });
+    }
+    if (narrowed()) {
+      var clear = document.createElement("button");
+      clear.type = "button";
+      clear.className = "clear";
+      var x = document.createElement("span");
+      x.className = "x";
+      x.textContent = "✕";
+      clear.appendChild(x);
+      clear.appendChild(document.createTextNode(" Clear filters"));
+      clear.addEventListener("click", function () {
+        dims.forEach(function (d) { d.boxes.forEach(function (b) { b.checked = false; }); });
+        q.value = "";
+        state.q = state.act = state.actTitle = "";
+        reset();
+      });
+      tokenBox.appendChild(clear);
+    }
 
-  // What the reader narrowed to, said once above the list they narrowed. Only for a single
-  // component: the facts on it are that component's verdict, its failing controls and its gaps,
-  // and there is no such thing for two, because a strip averaging them is a number nothing holds.
-  var strips = Array.prototype.slice.call(document.querySelectorAll(".focus"));
-  function focus(m) {
-    var only = m && m.length === 1 ? m[0] : "";
+    // What the reader narrowed to, said once above the list. Only for a single component: the
+    // facts on it are that component's verdict, its failing controls and its gaps, and there is no
+    // such thing for two, because a strip averaging them is a number nothing holds.
+    var m = dims.filter(function (d) { return d.k === "m"; }).map(ticked)[0] || [];
+    var only = m.length === 1 ? m[0] : "";
     strips.forEach(function (el) { el.hidden = el.dataset.m !== only; });
   }
-
-  function a11yRows() {
-    boxes.forEach(function (b) {
-      b.closest(".menu-row").classList.toggle("on", b.checked);
-    });
+  // A narrowing starts every list from its first page again.
+  function reset() {
+    panels.forEach(function (p) { p.cap = state.size; });
+    render();
   }
-
-  // Every narrowing that is on, each carrying the way to take it off, and one control that takes
-  // them all off. Offered only when something is narrowed: a reset beside an unfiltered list is a
-  // button that does nothing, and a reader who presses it learns the control is not worth reading.
-  var tokenBox = document.getElementById("tokens");
-  var clear = document.getElementById("clear");
-  function tokens() {
-    while (tokenBox.firstChild) tokenBox.removeChild(tokenBox.firstChild);
-    var on = boxes.filter(function (b) { return b.checked; });
-    on.forEach(function (b) {
-      var t = document.createElement("button");
-      t.type = "button";
-      t.className = "token";
-      t.title = "Stop filtering by " + b.value;
-      t.appendChild(document.createTextNode(b.value));
-      var x = document.createElement("span");
-      x.className = "x";
-      x.textContent = "\u2715";
-      t.appendChild(x);
-      t.addEventListener("click", function () { b.checked = false; apply(); });
-      tokenBox.appendChild(t);
-    });
-    // The action, named by what it is rather than by its key: a reader who followed "5 findings"
-    // is looking at one upgrade, and the token has to say which.
-    if (actionKey) {
-      var t = document.createElement("button");
-      t.type = "button";
-      t.className = "token";
-      t.title = "Show every finding again";
-      t.appendChild(document.createTextNode(actionTitle));
-      var x = document.createElement("span");
-      x.className = "x";
-      x.textContent = "\u2715";
-      t.appendChild(x);
-      t.addEventListener("click", function () { actionKey = ""; actionTitle = ""; apply(); });
-      tokenBox.appendChild(t);
-    }
-    // The search counts as a narrowing, because a reader who typed and forgot is in exactly the
-    // state this row exists to make visible.
-    if (q.value.trim()) {
-      var t = document.createElement("button");
-      t.type = "button";
-      t.className = "token";
-      t.title = "Clear the search";
-      t.appendChild(document.createTextNode("\u201c" + q.value.trim() + "\u201d"));
-      var x = document.createElement("span");
-      x.className = "x";
-      x.textContent = "\u2715";
-      t.appendChild(x);
-      t.addEventListener("click", function () { q.value = ""; apply(); });
-      tokenBox.appendChild(t);
-    }
-    clear.hidden = !on.length && !q.value.trim() && !actionKey;
-  }
-
-  clear.addEventListener("click", function () {
-    boxes.forEach(function (b) { b.checked = false; });
-    q.value = "";
-    actionKey = "";
-    actionTitle = "";
-    apply();
-  });
-
-  q.addEventListener("input", apply);
-  boxes.forEach(function (b) { b.addEventListener("change", apply); });
-  apply();
+  reset();
 })();
 </script>
 </body>

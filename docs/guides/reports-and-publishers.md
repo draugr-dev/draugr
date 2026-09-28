@@ -618,12 +618,22 @@ shortened one. Links on the row, such as an advisory, keep working. It is a nati
 disclosure that works without JavaScript. The report's search matches the whole message, and
 printing includes every message in full.
 
-**Search and filtering** are progressive enhancement. The page renders complete without
-JavaScript: the full table, both downloads, and every section. The script only reveals a search
-box and per-priority, per-severity and per-control toggles, so a reader whose viewer strips
-scripts sees the whole report rather than controls that do nothing.
+**The report opens in tabs, starting on Findings.** The verdict and the tab row stay pinned while
+a long list scrolls. Findings holds two lists: *What to do*, one row per action with the number
+of findings it clears, and *All findings*. Clicking an action's count opens *All findings*
+narrowed to those findings.
 
-**Suppressed findings get their own section**, each with its justification, because "who decided
+**Each list narrows and pages.** A search box matches the rule, package, file and whole message;
+menus narrow by priority, fix, severity, component, control and scanner, each value carrying how
+many rows it would leave. The list shows 25, 50 or 100 rows at a time, and the choice is kept for
+the next report opened in the same browser.
+
+**Tabs, search and paging are progressive enhancement.** The page renders complete without
+JavaScript: every section in order, every row, and both downloads. The script adds the tabs and
+reveals the controls, so a reader whose viewer strips scripts sees the whole report rather than
+controls that do nothing. Printing also includes every section and every row.
+
+**Suppressed findings get their own tab**, *Accepted*, each with its justification, because "who decided
 this was acceptable, and when" is the question the report exists to answer.
 
 The footer records when the scan ran, which version produced it, and the run's statistics.
