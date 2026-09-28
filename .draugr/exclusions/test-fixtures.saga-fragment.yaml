@@ -1,0 +1,50 @@
+# Credential-shaped fixtures in Draugr's own tests. Each is a literal a secret scanner has to
+# recognize for the test to prove anything, and none was ever issued by anything.
+config:
+  exclude:
+    - paths:
+        - "internal/scanners/mend_sca_test.go"
+      rules:
+        - "generic-api-key"
+      reason: >-
+        A parser test whose fixture is a verbatim block of Mend Unified Agent output, including
+        the `Request Token:` line the parser has to find. The token is a made-up UUID, and it is
+        a correlation id rather than a credential — it authenticates nothing and is worthless to
+        anyone holding it. Trimming it out of the fixture would leave the test asserting that the
+        parser handles output the agent does not produce.
+      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
+
+    - paths:
+        - "test/integration/repo_scan_test.go"
+      rules:
+        - "private-key"
+      reason: >-
+        The integration test writes a throwaway RSA key into a temporary repo so the secrets
+        control has something real to find; a test asserting it finds nothing asserts nothing.
+        The key material is fake and was never valid anywhere.
+      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
+
+    - paths:
+        - "pkg/publish/azure_pr_comment_test.go"
+      rules:
+        - "generic-api-key"
+      reason: >-
+        Table-driven fixtures for the test that proves a pipeline token goes in as a bearer and a
+        personal access token as basic auth — sending one as the other is a 401 with nothing to
+        explain it. One value is a structurally valid JWT whose payload is the empty object, the
+        other is sixteen hex digits; both are literals in the table, neither was ever issued by
+        anything. A credential-shaped string is what the test is about, so there is no version of
+        it that does not look like this to a scanner.
+      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
+
+    - paths:
+        - "pkg/engine/engine_test.go"
+      rules:
+        - "gitlab-pat"
+      reason: >-
+        The fixture for the test that proves planning never writes a credential into a log. It has
+        to be a value a secret scanner recognizes, because a token Draugr's own scanner would miss
+        is a token that proves nothing about whether the log redacts it. The literal is
+        "NOTAREALTOKEN" followed by digits, issued by nobody and valid nowhere. Finding it here is
+        the secrets control working; so is leaving it in place.
+      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
