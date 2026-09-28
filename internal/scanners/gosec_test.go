@@ -2,6 +2,7 @@ package scanners
 
 import (
 	"context"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 func TestGosecInfo(t *testing.T) {
@@ -114,6 +116,40 @@ func TestParseGosec(t *testing.T) {
 	if _, err := parseGosec([]byte(`{"runs":"x"}`), "", nil); err == nil {
 		t.Error("a document that is not SARIF was accepted")
 	}
+}
+
+// gosec writes level error for MEDIUM and HIGH rules alike, so the level comes from the rating tag
+// on the rule. A rule without one keeps the level gosec wrote.
+func TestParseGosecRatesByGosecSeverity(t *testing.T) {
+	rule := func(id, tags string) string {
+		return `{"id":"` + id + `","defaultConfiguration":{"level":"error"},"properties":{"tags":[` + tags + `]}}`
+	}
+	result := func(id string) string {
+		return `{"ruleId":"` + id + `","level":"error","message":{"text":"m"},"locations":[{"physicalLocation":` +
+			`{"artifactLocation":{"uri":"main.go"},"region":{"startLine":3}}}]}`
+	}
+	doc := `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"gosec","rules":[` +
+		rule("G703", `"security","HIGH"`) + "," + rule("G304", `"security","MEDIUM"`) + "," +
+		rule("G104", `"security","LOW"`) + "," + rule("G999", `"security"`) + `]}},"results":[` +
+		result("G703") + "," + result("G304") + "," + result("G104") + "," + result("G999") + `]}]}`
+	rep, err := parseGosec([]byte(doc), "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]sarif.Severity{}
+	for _, r := range rep.Results {
+		got[r.RuleID] = r.Severity("")
+	}
+	want := map[string]sarif.Severity{
+		"G703": sarif.SeverityHigh,
+		"G304": sarif.SeverityMedium,
+		"G104": sarif.SeverityLow,
+		"G999": sarif.SeverityHigh,
+	}
+	if !maps.Equal(got, want) {
+		t.Errorf("severities = %v, want %v", got, want)
+	}
+
 }
 
 // A rule include or exclude left out comes back from gosec as an external suppression, and is

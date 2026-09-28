@@ -134,6 +134,9 @@ func parseGosec(out []byte, dir string, cfg plugin.Config) (sarif.Report, error)
 		if err != nil {
 			return sarif.Report{}, err
 		}
+		if err := rateByGosecSeverity(&rep, doc); err != nil {
+			return sarif.Report{}, err
+		}
 		if i := len(reports); dir != "" && i < len(modules) {
 			underModule(&rep, dir, modules[i])
 		}
@@ -146,6 +149,55 @@ func parseGosec(out []byte, dir string, cfg plugin.Config) (sarif.Report, error)
 		return sarif.Report{}, fmt.Errorf("gosec wrote %d reports for %d modules", len(reports), len(modules))
 	}
 	return sarif.Merge(reports...), nil
+}
+
+// gosecSeverityLevel is the SARIF level each of gosec's severity ratings means.
+var gosecSeverityLevel = map[string]sarif.Level{
+	"HIGH":   sarif.LevelError,
+	"MEDIUM": sarif.LevelWarning,
+	"LOW":    sarif.LevelNote,
+}
+
+// rateByGosecSeverity sets each result's level from the severity gosec gave its rule.
+//
+// gosec writes level error for its MEDIUM rules as well as its HIGH ones, and states the rating
+// only as a tag on the rule: `"tags": ["security", "MEDIUM"]`. Read by level alone, every MEDIUM
+// rule would rank as high, a band above where gosec itself put it. A rule with no rating tag keeps
+// the level gosec wrote.
+func rateByGosecSeverity(rep *sarif.Report, doc []byte) error {
+	var log struct {
+		Runs []struct {
+			Tool struct {
+				Driver struct {
+					Rules []struct {
+						ID         string `json:"id"`
+						Properties struct {
+							Tags []string `json:"tags"`
+						} `json:"properties"`
+					} `json:"rules"`
+				} `json:"driver"`
+			} `json:"tool"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(doc, &log); err != nil {
+		return fmt.Errorf("read gosec rule severities: %w", err)
+	}
+	levels := map[string]sarif.Level{}
+	for _, run := range log.Runs {
+		for _, rule := range run.Tool.Driver.Rules {
+			for _, tag := range rule.Properties.Tags {
+				if l, ok := gosecSeverityLevel[tag]; ok {
+					levels[rule.ID] = l
+				}
+			}
+		}
+	}
+	for i := range rep.Results {
+		if l, ok := levels[rep.Results[i].RuleID]; ok {
+			rep.Results[i].Level = l
+		}
+	}
+	return nil
 }
 
 // outOfSelection reports whether a result is one of the rules -include or -exclude left out.
