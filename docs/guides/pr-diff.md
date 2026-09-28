@@ -98,7 +98,7 @@ Both rows are one credential, moved from `config.go` to `settings.go`, and a gat
 Whatever is in `head` and not in `base` is **new**; in `base` and not in `head` is **fixed**; in
 both is **unchanged**.
 
-Two more, for the findings somebody decided about rather than changed:
+Three more, for the findings somebody decided about rather than changed:
 
 - **accepted**, suppressed in `head` and not in `base`. Somebody added an exclusion, or a finding
   arrived that an existing rule already covers. **Accepting a risk is not fixing it**, and this is
@@ -107,33 +107,64 @@ Two more, for the findings somebody decided about rather than changed:
   it reached its `expires` date. Nobody introduced this finding and nothing about it was ever
   fixed, which is why it is not called reopened: a decision about it ended, and that is the part
   that needs acting on.
+- **still accepted**, suppressed in `base` and still suppressed in `head`. The acceptance predates
+  the change and the change left it alone. It counts toward the headline's unchanged total and is
+  never listed as a change.
 
-Everything the change touched is one table, ranked by priority, with what happened in its own
-column. A state that did not happen is not named, so a diff with nothing accepted does not make
-anybody read past a zero:
+A change that does all of it at once, in a repository holding leaked AWS keys: it adds
+`billing.go` with a new key, deletes `old.go`, removes the exclusion covering `legacy.go` and adds
+one covering `fixtures/`, and leaves `config.go` and the already excluded `vendor_client.go` as
+they were. Everything the change touched is one table, ranked by priority, with what happened in
+its own column:
 
 ```console
-DRAUGR DIFF  pass  1 unaccepted  28 unchanged
+$ draugr diff out-base/results.sarif out-head/results.sarif --fail-on-new P1
+DRAUGR DIFF  FAIL  1 new  1 unaccepted  1 accepted  1 fixed  2 unchanged
 
- unchanged  13 P1 13 P2 1 P3 0 P4
+ new             1 P1 0 P2 0 P3 0 P4
+ unaccepted      1 P1 0 P2 0 P3 0 P4
+ accepted        1 P1 0 P2 0 P3 0 P4
+ unchanged       1 P1 0 P2 0 P3 0 P4
+ still accepted  1 P1 0 P2 0 P3 0 P4
 
 Gate: fails on any P1 this change introduces.
 
-CHANGED  1, by priority
-  Change        Priority  Severity  Rule            Scanner  Location                Upgrade
-  ! unaccepted  P1        critical  CVE-2019-20477  trivy    app/requirements.txt:4  PyYAML 5.1 → 5.2
-              command execution through python/object/apply constructor in FullLoader
+CHANGED  4, by priority
+  Change        Priority  Severity  Rule              Scanner   Location
+  + new         P1        high      aws-access-token  gitleaks  billing.go:3
+              aws-access-token has detected secret for file billing.go.
+  ! unaccepted  P1        high      aws-access-token  gitleaks  legacy.go:3
+              aws-access-token has detected secret for file legacy.go.
+  ~ accepted    P1        high      aws-access-token  gitleaks  fixtures/seed.go:3
+              aws-access-token has detected secret for file fixtures/seed.go.
+  - fixed       P1        high      aws-access-token  gitleaks  old.go:3
+              aws-access-token has detected secret for file old.go.
+
+TRY
+  --view compact     one line each, to see how much there is
+  --view actions     the same findings as a list of things to do
+  --format markdown  the comment a pull request gets
+draugr: differential gate: 1 new finding at or above the threshold
 ```
 
-The `unchanged` strip counts the unchanged findings by band, leaving out findings suppressed in both
-scans. It is the work this change inherited, which the gate does not ask about. The gate is stated
-before the list of changes. The pull-request comment draws the same strips as lines under its
-headline, in the same order:
+The strips under the headline count the findings in `head` by band, one strip per state. Every
+finding in `head` is in exactly one of them, so together they are the `head` scan; `fixed` has no
+strip because a fixed finding is not in `head`. The `unchanged` strip is the work this change
+inherited and the `still accepted` strip is the risk it inherited, and the gate asks about
+neither. A state that did not happen is not named, in the headline, the strips or the table, so a
+diff with nothing accepted does not make anybody read past a zero.
+
+`--format markdown` on the same pair opens the pull-request comment with the same headline and the
+same strips, in the same order:
 
 ```markdown
-✅ **pass** · ⚠️ 1 unaccepted · 28 unchanged
+❌ **FAIL** · 🔺 1 new · ⚠️ 1 unaccepted · 🤝 1 accepted · ✅ 1 fixed · 2 unchanged
 
-_unchanged_ · **13 P1** · **13 P2** · **1 P3** · 0 P4
+_new_ · **1 P1** · 0 P2 · 0 P3 · 0 P4<br>
+_unaccepted_ · **1 P1** · 0 P2 · 0 P3 · 0 P4<br>
+_accepted_ · **1 P1** · 0 P2 · 0 P3 · 0 P4<br>
+_unchanged_ · **1 P1** · 0 P2 · 0 P3 · 0 P4<br>
+_still accepted_ · **1 P1** · 0 P2 · 0 P3 · 0 P4
 
 _Gate: fails on any P1 this change introduces._
 ```

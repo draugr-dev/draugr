@@ -125,15 +125,17 @@ func headline(r Result, emoji bool) []string {
 	return append(parts, fmt.Sprintf("%d unchanged", len(r.Unchanged)))
 }
 
-// standingBands counts the unchanged findings that are not suppressed, by band.
-func standingBands(fs []sarif.Result) [4]int {
-	var open []sarif.Result
+// splitUnchanged separates the unchanged findings still counting from the ones suppressed in both
+// scans, which are still accepted.
+func splitUnchanged(fs []sarif.Result) (open, held []sarif.Result) {
 	for _, f := range fs {
-		if !f.Suppressed() {
+		if f.Suppressed() {
+			held = append(held, f)
+		} else {
 			open = append(open, f)
 		}
 	}
-	return bands(open)
+	return open, held
 }
 
 // verdict is what the gate decided, or empty where nothing was asked of this run.
@@ -572,7 +574,7 @@ func writeMarkdownVerdict(w io.Writer, r Result) {
 	}
 }
 
-// writeMarkdownBands is the terminal's two band strips as lines of a comment, each only where it
+// writeMarkdownBands is the terminal's band strips as lines of a comment, each only where it
 // has something in it. A bold count stands in for the terminal's filled chip.
 func writeMarkdownBands(w io.Writer, r Result) {
 	var lines []string
@@ -707,12 +709,14 @@ func renderJSON(w io.Writer, r Result) error {
 	return enc.Encode(doc)
 }
 
-// writeBandRows draws a strip of band chips for the new findings and one for the unchanged ones
-// still counting, each only where it has something in it.
+// writeBandRows draws a strip of band chips for every state a finding in head can be in, each only
+// where it has something in it.
 //
 // Fixed findings get no strip, because it would put the good news in the same red as the bad. The
-// two strips stay apart rather than summed, because the gate asks about the first and the second
-// is work this change inherited.
+// strips stay apart rather than summed, because each answers a different question: the gate asks
+// about new, unaccepted is a decision that ended, accepted is one this change took, unchanged is
+// work this change inherited, and still accepted is what somebody decided to live with before it.
+// Every finding in head is in exactly one strip, so the strips add up to the head scan.
 func writeBandRows(w io.Writer, col tui.Painter, r Result) {
 	rows := bandRows(r)
 	width := 0
@@ -739,10 +743,17 @@ type bandRow struct {
 	counts [4]int
 }
 
-// bandRows is the new findings and the unchanged ones still counting, in the order both reports
-// draw them.
+// bandRows is every state of a finding in head, in the order both reports draw them: the changes
+// in the headline's order, then the two that did not change.
 func bandRows(r Result) []bandRow {
-	return []bandRow{{"new", bands(r.New)}, {"unchanged", standingBands(r.Unchanged)}}
+	open, held := splitUnchanged(r.Unchanged)
+	return []bandRow{
+		{string(ChangeNew), bands(r.New)},
+		{string(ChangeUnaccepted), bands(r.Unaccepted)},
+		{string(ChangeAccepted), bands(r.Accepted)},
+		{"unchanged", bands(open)},
+		{"still accepted", bands(held)},
+	}
 }
 
 // bands counts findings by band.
