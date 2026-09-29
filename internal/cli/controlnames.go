@@ -233,6 +233,14 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 			report("config.gate.controls", name)
 		}
 	}
+	for i, p := range model.Config.Publishers {
+		if p.Select == nil {
+			continue
+		}
+		for _, name := range p.Select.Controls {
+			report(fmt.Sprintf("config.publishers[%d].select.controls", i), name)
+		}
+	}
 	for i := range model.Components {
 		c := &model.Components[i]
 		where := fmt.Sprintf("components[%q].controls", c.Name)

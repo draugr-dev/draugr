@@ -44,7 +44,7 @@ func TestFilePublisherRequiresDir(t *testing.T) {
 
 func TestKinds(t *testing.T) {
 	got := Kinds()
-	want := []string{"azure-pr-comment", "draugr-api", "file", "github", "github-pr-comment", "gitlab-mr-comment"}
+	want := []string{"azure-pr-comment", "draugr-api", "file", "github", "github-issue", "github-pr-comment", "gitlab-mr-comment"}
 	if len(got) != len(want) {
 		t.Fatalf("Kinds() = %v, want %v", got, want)
 	}
@@ -336,6 +336,25 @@ func TestEveryPublisherSaysWhatDistinguishesIt(t *testing.T) {
 			cfg.Marker = "x"
 		case "url":
 			cfg.URL = "x"
+		case "repo, select and split":
+			// Three fields, so the value is compared field by field rather than against "x".
+			base := saga.PublisherConfig{Kind: kind, Repo: "acme/web"}
+			other := []saga.PublisherConfig{
+				{Kind: kind, Repo: "acme/api"},
+				{Kind: kind, Repo: "acme/web", Select: &saga.PublisherSelect{Controls: []string{"sca"}}},
+				{Kind: kind, Repo: "acme/web", Split: saga.SplitControl},
+			}
+			for _, o := range other {
+				if DistinguishingValue(o) == DistinguishingValue(base) {
+					t.Errorf("%s: %+v reads the same as %+v", kind, o, base)
+				}
+			}
+			none := base
+			none.Split = saga.SplitNone
+			if DistinguishingValue(none) != DistinguishingValue(base) {
+				t.Errorf("%s: split none and no split are one destination", kind)
+			}
+			continue
 		default:
 			t.Errorf("%s is distinguished by %q, which DistinguishingValue cannot read", kind, field)
 			continue

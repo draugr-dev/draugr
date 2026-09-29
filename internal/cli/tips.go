@@ -13,6 +13,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
+	"github.com/draugr-dev/draugr/pkg/publish"
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/tui"
@@ -183,6 +184,22 @@ func printUncoveredSurfaceNote(w io.Writer, model *saga.Model) {
 			tui.Styled(tui.StyleMuted, strings.Join(g.Controls, ", ")))
 	}
 	t.Render(w)
+}
+
+// printUntrackedNote lists the components no issue publisher covers. Their findings still fail
+// the gate, and open no issue.
+func printUntrackedNote(w io.Writer, model *saga.Model) {
+	names := publish.Untracked(model)
+	if len(names) == 0 {
+		return
+	}
+	col := tui.For(w)
+	_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, "UNTRACKED"))
+	for _, n := range names {
+		_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(tui.StyleStrong, n))
+	}
+	_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(tui.StyleMuted,
+		english.Choose(len(names), "No issue publisher selects this component.", "No issue publisher selects these components.")))
 }
 
 // uncoveredFor is what the descriptor declares and no enabled control examines, in the report's

@@ -96,6 +96,22 @@ config:
       # the notes API and cannot post, so it is not a substitute, Draugr says so rather than
       # letting it fail as a bare 401.
 
+    - kind: github-issue            # a GitHub issue that is open while the gate fails
+      # A run on the default branch opens the issue, rewrites it when the findings change, and
+      # closes it with a comment when the gate passes. A pull-request run changes nothing.
+      # In GitHub Actions the repository and $GITHUB_TOKEN are read from the environment, and the
+      # workflow grants `permissions: issues: write`. Outside Actions this publisher no-ops.
+      select:
+        controls: [images]          # the part of the run these issues cover; the whole run when unset
+      split: component              # none | control | component: one issue per component here
+      minPriority: P2               # only a P1 or P2 finding opens an issue, and the body lists only those
+      label: draugr-images          # finds this entry's issues and is applied to each; draugr when unset
+      # branches: [main, "release/*"]   # the branches whose runs change an issue; the default branch when unset
+      item:                         # set when an issue is created, then left to whoever triages it
+        labels: [security]
+        assignees: [octocat]
+        milestone: Hardening        # a milestone's title, open or closed
+
 # Two components, because the reports this example is about only earn their shape with more than
 # one: the console gains a per-component verdict, the markdown report a component table, and a
 # pull-request comment can say which service a new finding belongs to. With one component every

@@ -292,6 +292,7 @@ or keep one
 | `github-pr-comment` | `markdown` | `marker` | a sticky pull-request comment (posts the `markdown` report) | `repo`, `pr` (default from the env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
 | `azure-pr-comment` | `markdown` | `marker` | a sticky Azure DevOps pull-request comment (posts the `markdown` report) | `org`, `project`, `repo`, `pr` (default from the Azure Pipelines env); token from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`) |
 | `gitlab-mr-comment` | `markdown` | `marker` | a sticky GitLab merge-request comment (posts the `markdown` report) | `repo`, `pr` (default from the GitLab CI env); token from `$GITLAB_TOKEN` (or `tokenEnv`) |
+| `github-issue` | the run | `repo`, `select` and `split` | a GitHub issue that is open while the gate fails | `repo` (default from the env), `select`, `split`, `minPriority`, `label`, `branches`, `item`; token from `$GITHUB_TOKEN` (or `tokenEnv`) |
 | `draugr-api` | `json`, `sarif` | `url` | any server implementing Draugr's run-ingest API (posts the `json` report, uploads the `sarif` one) | `url` (or `$DRAUGR_API_URL`); token from `$DRAUGR_API_TOKEN` (or `tokenEnv`) |
 
 No publisher stores a secret in the Saga. Every token comes from an environment variable, and each
@@ -457,6 +458,77 @@ Draugr's own notes are told apart from GitLab's by the marker, and system notes 
 "marked as draft") are never candidates for the edit. The note list is read in full rather than a
 first page, so a long discussion cannot push the marker out of sight and turn the sticky comment
 into a new one each run.
+
+### GitHub issues
+
+A `github-issue` entry keeps one issue open for as long as the gate fails on the default branch:
+
+```yaml
+config:
+  publishers:
+    - kind: github-issue
+```
+
+| Run | What happens to the issue |
+|---|---|
+| the gate fails and no issue is open | one is opened, with the tracking label |
+| the gate fails and the findings changed | its body is rewritten |
+| the gate fails and the findings are the same | nothing is sent |
+| the gate passes | it is closed as completed, with a comment naming the branch and the job |
+| a pull request, or a branch outside `branches` | nothing is sent, and the log says why |
+
+An unchanged run sends no write, so nobody watching the issue is notified by a scheduled scan that
+found nothing new. Two open issues carrying the same marker are resolved by closing the newer one
+as a duplicate of the older.
+
+The body opens with the count of findings that fail the gate, then lists the actions that clear
+them, each with its findings, files and lines. Over GitHub's size limit, the lowest-priority
+actions lose their findings first and are then left out, and the body says how many and links the
+job that has the full list.
+
+**Grant the token `issues: write`.** The workflow's `GITHUB_TOKEN` starts read-only in new
+organizations and personal repositories:
+
+```yaml
+permissions:
+  contents: read
+  issues: write
+```
+
+Without it GitHub answers 403, and Draugr names the permission from GitHub's
+`X-Accepted-GitHub-Permissions` header:
+
+```console
+draugr: policy verdict: fail (publishing also failed: publisher "github-issue": github-issue publisher: list issues in acme/shop: 403, the token needs issues=write. For GITHUB_TOKEN, grant it in the workflow with `permissions: issues: write`)
+```
+
+**Different teams, different issues.** `select` gives an entry the part of the run it covers, and
+`split` opens one issue per control or per component within it. Each issue closes when its own part
+passes, while the run may still fail on somebody else's:
+
+```yaml
+config:
+  publishers:
+    - kind: github-issue                  # the payments team's components
+      select: { labels: { team: payments } }
+      item: { assignees: [payments-lead] }
+    - kind: github-issue                  # license findings, for legal review
+      select: { controls: [licenses] }
+      label: draugr-licenses
+    - kind: github-issue                  # everything else, one issue per component
+      split: component
+      minPriority: P2
+```
+
+When an entry sets `select`, `draugr doctor` names the components no issue entry covers:
+
+```console
+UNTRACKED
+  batch
+  No issue publisher selects this component.
+```
+
+The fields are in the [descriptor reference](../reference/saga-schema.md#configpublishers).
 
 ### When a forge is having a bad minute
 

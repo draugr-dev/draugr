@@ -235,6 +235,7 @@ func runDoctor(
 		writeNetworkCalls(w, reg, model)
 		if model != nil {
 			printUncoveredSurfaceNote(w, model)
+			printUntrackedNote(w, model)
 		}
 	}
 

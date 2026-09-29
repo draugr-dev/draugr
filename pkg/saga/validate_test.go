@@ -708,3 +708,36 @@ func TestAReleaseIsOptional(t *testing.T) {
 		}
 	}
 }
+
+// The issue fields are refused at load when a run could not act on them: a split or band nobody
+// defined, a select that narrows nothing, a label the forge's filter would split in two, and a
+// branch pattern path.Match cannot read.
+func TestValidateIssueFields(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		cfg  PublisherConfig
+		want string
+	}{
+		{"everything set", PublisherConfig{Kind: "github-issue", Label: "security", Split: SplitComponent,
+			MinPriority: "P2", Branches: []string{"main", "release/*"},
+			Select: &PublisherSelect{Controls: []string{"sca"}}}, ""},
+		{"split none", PublisherConfig{Kind: "github-issue", Split: SplitNone}, ""},
+		{"unknown split", PublisherConfig{Kind: "github-issue", Split: "team"}, `split is "team", but a split is`},
+		{"unknown band", PublisherConfig{Kind: "github-issue", MinPriority: "high"}, `minPriority is "high"`},
+		{"empty select", PublisherConfig{Kind: "github-issue", Select: &PublisherSelect{}}, "select names no components"},
+		{"empty label map", PublisherConfig{Kind: "github-issue", Select: &PublisherSelect{Labels: map[string]string{}}}, "select names no components"},
+		{"comma in label", PublisherConfig{Kind: "github-issue", Label: "a,b"}, "cannot hold a comma"},
+		{"bad branch pattern", PublisherConfig{Kind: "github-issue", Branches: []string{"release/["}}, "is not a valid pattern"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			m := &Model{Release: Release{Version: "1"}, Config: Config{Publishers: []PublisherConfig{c.cfg}}}
+			err := m.Validate()
+			switch {
+			case c.want == "" && err != nil:
+				t.Fatalf("rejected: %v", err)
+			case c.want != "" && (err == nil || !strings.Contains(err.Error(), c.want)):
+				t.Fatalf("want an error containing %q, got %v", c.want, err)
+			}
+		})
+	}
+}
