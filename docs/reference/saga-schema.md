@@ -740,6 +740,8 @@ In GitHub Actions the repository and `$GITHUB_TOKEN` (or `tokenEnv`) come from t
 the workflow grants `permissions: issues: write`. A fine-grained token needs *Issues: write*. Without
 push access GitHub drops labels, assignees, milestone and type from a new issue without an error,
 so the publisher compares the created issue with the request and fails naming what was dropped.
+With push access GitHub refuses a value it cannot apply, such as a login that cannot be assigned,
+and the publish fails naming it.
 
 **An issue on a public repository is readable by anyone**, and the body lists findings with their
 files and lines. Listing the same repository's code-scanning alerts takes write access. For a public

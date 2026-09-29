@@ -336,6 +336,23 @@ func TestASplitByControlHasAPartForEachCoveredControl(t *testing.T) {
 	}
 }
 
+func TestASplitByControlBodyCountsNoControlAgain(t *testing.T) {
+	data := runOver(map[string][]sarif.Result{
+		"sca":  {codeFinding("api", "c1", "P1", "go.mod"), codeFinding("web", "c2", "P1", "go.mod")},
+		"sast": {codeFinding("web", "r1", "P1", "a.go")},
+	})
+	split := issueEntry{Split: splitControl}
+	body := newIssueBody(data, "all", split, issueParts(data, split)[1]).render(markdownFormat{}, 60_000)
+	if strings.Contains(body, "`sca` 2") {
+		t.Errorf("a body split by control counts its control again\n%s", body)
+	}
+
+	whole := newIssueBody(data, "all", issueEntry{}, onlyPart(t, data, issueEntry{})).render(markdownFormat{}, 60_000)
+	if !strings.Contains(whole, "`sca` 2 · `sast` 1") {
+		t.Errorf("a body covering several controls lacks the count of each\n%s", whole)
+	}
+}
+
 func TestASplitByComponentCoversEveryDeclaredComponent(t *testing.T) {
 	data := runOver(map[string][]sarif.Result{
 		"sca":   {codeFinding("api", "c1", "P1", "go.mod"), codeFinding("worker", "c2", "P1", "go.mod")},

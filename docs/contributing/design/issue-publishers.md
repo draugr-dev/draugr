@@ -523,6 +523,7 @@ Each error names the fix.
 | GitHub 403, not a rate limit | the permission in `X-Accepted-GitHub-Permissions` ([troubleshooting](https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api)) |
 | issues disabled | GitHub 410, GitLab 403 |
 | a requested label, assignee, milestone or type missing from a created issue | the token's lack of push access |
+| GitHub 422 | each field GitHub refused, from the `errors` in its answer |
 | Azure tag not created | the *Create tag definition* permission |
 | a milestone or username that does not resolve | the name, and where it was looked up |
 | a `fields` key Draugr owns | the key, and the `item` key that sets it |

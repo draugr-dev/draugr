@@ -71,8 +71,10 @@ func newIssueBody(data report.Data, scope string, entry issueEntry, part issuePa
 		ClosesOn:    entry.ClosesOn,
 		MinPriority: entry.MinPriority,
 	}
+	// A part split by control is one control, named in the title, so a line counting it would
+	// repeat the verdict.
 	for control, n := range part.Failing {
-		if n > 0 {
+		if n > 0 && part.Split != splitControl {
 			b.Controls = append(b.Controls, controlCount{control, n})
 		}
 	}

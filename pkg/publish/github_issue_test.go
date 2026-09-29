@@ -625,6 +625,20 @@ func TestGitHubRefusalsSayWhatToFix(t *testing.T) {
 	}
 }
 
+func TestAFieldGitHubRefusesIsNamed(t *testing.T) {
+	refused := &githubStatusError{status: http.StatusUnprocessableEntity, what: "create an issue", repo: "acme/app",
+		body: `{"message":"Validation Failed","errors":[{"message":"assignees octocat cannot be assigned to this issue","field":"assignees"}]}`}
+	want := "github-issue publisher: create an issue in acme/app: 422, assignees octocat cannot be assigned to this issue"
+	if got := refused.Error(); got != want {
+		t.Errorf("err = %q, want %q", got, want)
+	}
+	bare := &githubStatusError{status: http.StatusUnprocessableEntity, what: "create an issue", repo: "acme/app",
+		body: `{"message":"Validation Failed"}`}
+	if got := bare.Error(); !strings.HasSuffix(got, `422: {"message":"Validation Failed"}`) {
+		t.Errorf("err = %q, want GitHub's body when it names no field", got)
+	}
+}
+
 func TestAFailedWriteIsReportedAndTheRestStillRun(t *testing.T) {
 	gh, srv := newFakeGitHub(t)
 	p := issuePublisher(t, srv, saga.PublisherConfig{Split: saga.SplitControl})
