@@ -12,6 +12,22 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.140.0] - 2026-09-29
+
+### Added
+
+- **A GitHub issue that stays open while the gate fails.** The `github-issue` publisher opens an issue on a failing default-branch run, rewrites it when the findings change, and closes it with a comment when the gate passes. `select` and `split` give each team its own issues, and `minPriority` keeps lower bands out of them. The workflow needs `issues: write`.
+
+### Changed
+
+- **Each row in `--view actions` and the HTML report starts with a verb.** A row that stands for a rule reads `Fix missing-user`, `Remove and rotate private-key`, or `Review ssl-issuer` when the finding reports information, with the scanner's description beneath. Licenses in an image somebody else builds become one review of that image, separate from the update.
+
+### Fixed
+
+- **The GitHub Action runs on a self-hosted runner without the `gh` CLI.** It downloads the Draugr release with `curl` and still verifies the signed checksums. It had used `gh`, which only GitHub's own runner images carry, and stopped at `gh: command not found` without it.
+
+- **The MCP server's fix list counts a flaw two scanners report once**, as the console does. Actions for a library found by both Trivy and Retire.js no longer clear more findings than the scan contains.
+
 ## [0.139.0] - 2026-09-28
 
 ### Changed
@@ -6103,7 +6119,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.139.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.140.0...HEAD
+[0.140.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.140.0
 [0.139.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.139.0
 [0.138.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.138.0
 [0.137.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.137.0

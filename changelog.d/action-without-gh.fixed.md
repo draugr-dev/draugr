@@ -1,1 +1,0 @@
-- **The GitHub Action runs on a self-hosted runner without the `gh` CLI.** It resolved and downloaded the Draugr release with `gh`, which only GitHub's own runner images carry, so on a runner without it the job stopped at `gh: command not found`. It now uses `curl` against the public release, and still verifies the signed checksums.
