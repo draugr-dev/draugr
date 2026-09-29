@@ -30,6 +30,8 @@ type action struct {
 	// control the findings came from, and the worst priority among them.
 	control  string
 	priority string
+	// byRule marks an action grouped on a rule rather than on one change that clears it.
+	byRule bool
 	// findings are every finding this action resolves, most urgent first.
 	findings []finding
 	// upstream marks an action whose unit of work is an image somebody else publishes. The image
@@ -123,7 +125,6 @@ func groupActions(findings []finding, unpinned []string) (actions []action, exte
 	}
 	order := []string{}
 	byKey := map[string]*action{}
-	ruled := map[string]bool{}
 
 	for _, f := range findings {
 		if f.remediation == sarif.RemediationExternal {
@@ -133,10 +134,9 @@ func groupActions(findings []finding, unpinned []string) (actions []action, exte
 		key, title, byRule := actionFor(f)
 		a, seen := byKey[key]
 		if !seen {
-			a = &action{key: key, title: title, control: f.control, priority: f.priority}
+			a = &action{key: key, title: title, control: f.control, priority: f.priority, byRule: byRule}
 			byKey[key] = a
 			order = append(order, key)
-			ruled[key] = byRule
 		}
 		// Findings arrive most urgent first, so the first one sets the band and no later, lesser
 		// one lowers it: an action that clears a P1 is P1 work whatever else it clears.
@@ -148,7 +148,7 @@ func groupActions(findings []finding, unpinned []string) (actions []action, exte
 		if f, ok := a.exemplar(); ok {
 			a.upstream = f.builtUpstream
 		}
-		if ruled[key] {
+		if a.byRule {
 			a.summary = summaryFor(a)
 		}
 		// Every finding, not any: an action grouping one stale row with three fresh ones is not
@@ -535,6 +535,30 @@ type Action struct {
 	// several means the reader's package manager settles it, and naming one of them as sufficient
 	// would read as "do this and you are done" while leaving findings behind.
 	FixedVersions []string `json:"fixedVersions,omitempty"`
+	// Findings are every finding this action clears, most urgent first, uncapped where Where and
+	// RuleIDs are capped. Not serialized: an assistant asking what to do is answered by the counts,
+	// and a publisher that lists the findings reads them here.
+	Findings []ActionFinding `json:"-"`
+	// OneChange marks an action that one change resolves: an upgrade, a newer image, a license
+	// review. Its findings are what the change clears. An action for a rule has each finding at a
+	// place that needs its own edit.
+	OneChange bool `json:"-"`
+}
+
+// ActionFinding is one finding an action clears.
+type ActionFinding struct {
+	Control    string
+	RuleID     string
+	Tool       string
+	Priority   string
+	Severity   sarif.Severity
+	Message    string
+	Component  string
+	Repository string
+	// Location is the file and line, or the image for a finding inside one.
+	Location    string
+	HelpURI     string
+	Fingerprint string
 }
 
 // ActionsFor groups a run's findings into the fix list, most urgent first.
@@ -568,7 +592,8 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 			}
 			findings = append(findings, finding{
 				control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
-				component: res.Component, repository: res.Repository,
+				fingerprint: res.Fingerprint(),
+				component:   res.Component, repository: res.Repository,
 				location: locationOf(res), message: res.Message,
 				level: res.Level, severity: res.Severity(""),
 				helpURI: rep.HelpURI(res.RuleID),
@@ -610,6 +635,22 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 			RuleIDs:       rules,
 			Key:           a.key,
 			FixedVersions: a.fixedVersions(),
+			Findings:      actionFindings(a.findings),
+			OneChange:     !a.byRule,
+		})
+	}
+	return out
+}
+
+// actionFindings is the exported view of an action's findings, in the order the action holds them.
+func actionFindings(fs []finding) []ActionFinding {
+	out := make([]ActionFinding, 0, len(fs))
+	for _, f := range fs {
+		out = append(out, ActionFinding{
+			Control: f.control, RuleID: f.ruleID, Tool: f.tool, Priority: f.priority,
+			Severity: f.severity, Message: f.message, Component: f.component,
+			Repository: f.repository, Location: f.location, HelpURI: f.helpURI,
+			Fingerprint: f.fingerprint,
 		})
 	}
 	return out

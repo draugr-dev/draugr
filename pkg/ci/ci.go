@@ -40,6 +40,18 @@ type Context struct {
 	// publish enough to build one. A guessed URL is worse than none.
 	URL string `json:"url,omitempty" yaml:"url,omitempty"`
 
+	// Branch is the branch being built, without its refs/heads/ prefix, and empty for a tag, a
+	// pull request or a merge request. DefaultBranch is the repository's default branch where the
+	// platform says so without an API call. PullRequest reports a run triggered by a pull or merge
+	// request, including GitHub's pull_request_target, whose ref names the base branch.
+	//
+	// Read on GitHub Actions, GitLab CI and Azure Pipelines, for a publisher deciding whether this
+	// run may change the state of something the default branch owns. Not written into a report:
+	// Ref already records what was built.
+	Branch        string `json:"-" yaml:"-"`
+	DefaultBranch string `json:"-" yaml:"-"`
+	PullRequest   bool   `json:"-" yaml:"-"`
+
 	// RunBy is who the platform reports as having started the pipeline, and CommitAuthor who it
 	// reports as having written the commit being built. Two fields because they are usually two
 	// people: for a suppression, one wrote the line and the other pressed a button, and a trail
@@ -138,6 +150,12 @@ func detect(env func(string) string, readFile func(string) ([]byte, error), with
 			c.TriggeredBy = &Actor{Handle: t}
 		}
 		c.CommitAuthor = githubCommitAuthor(env, readFile, withEmail)
+		event := env("GITHUB_EVENT_NAME")
+		c.PullRequest = event == "pull_request" || event == "pull_request_target"
+		if !c.PullRequest && strings.HasPrefix(c.Ref, "refs/heads/") {
+			c.Branch = env("GITHUB_REF_NAME")
+		}
+		c.DefaultBranch = githubDefaultBranch(env, readFile)
 		return c
 	case env("GITLAB_CI") != "" || env("CI_JOB_ID") != "":
 		return Context{
@@ -151,6 +169,11 @@ func detect(env func(string) string, readFile func(string) ([]byte, error), with
 			RunBy: actor(Actor{Handle: env("GITLAB_USER_LOGIN"), Name: env("GITLAB_USER_NAME"),
 				ID: env("GITLAB_USER_ID"), Email: email("GITLAB_USER_EMAIL")}),
 			CommitAuthor: nameAndEmail(env("CI_COMMIT_AUTHOR"), withEmail),
+			// CI_COMMIT_BRANCH is absent from merge request and tag pipelines, which is what
+			// makes it the branch rather than CI_COMMIT_REF_NAME.
+			Branch:        env("CI_COMMIT_BRANCH"),
+			DefaultBranch: env("CI_DEFAULT_BRANCH"),
+			PullRequest:   env("CI_MERGE_REQUEST_IID") != "",
 		}
 	case env("TF_BUILD") != "" || env("BUILD_BUILDID") != "":
 		return Context{
@@ -164,6 +187,9 @@ func detect(env func(string) string, readFile func(string) ([]byte, error), with
 			RunBy: actor(Actor{Name: env("BUILD_REQUESTEDFOR"), ID: env("BUILD_REQUESTEDFORID"),
 				Email: email("BUILD_REQUESTEDFOREMAIL")}),
 			CommitAuthor: actor(Actor{Name: env("BUILD_SOURCEVERSIONAUTHOR")}),
+			// Azure publishes no default branch in the environment; reading it is an API call.
+			Branch:      strings.TrimPrefix(branchRef(env("BUILD_SOURCEBRANCH")), "refs/heads/"),
+			PullRequest: env("BUILD_REASON") == "PullRequest",
 		}
 	case env("CIRCLECI") != "" || env("CIRCLE_WORKFLOW_ID") != "":
 		return Context{
@@ -212,6 +238,36 @@ func nameAndEmail(v string, withEmail bool) *Actor {
 		a.Email = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(addr), ">"))
 	}
 	return actor(a)
+}
+
+// branchRef returns ref when it names a branch, and "" for a tag or a pull request's merge ref.
+func branchRef(ref string) string {
+	if strings.HasPrefix(ref, "refs/heads/") {
+		return ref
+	}
+	return ""
+}
+
+// githubDefaultBranch reads the repository's default branch from the event GitHub describes the
+// run with. Every event that names a repository carries it.
+func githubDefaultBranch(env func(string) string, readFile func(string) ([]byte, error)) string {
+	path := env("GITHUB_EVENT_PATH")
+	if path == "" {
+		return ""
+	}
+	body, err := readFile(path)
+	if err != nil {
+		return ""
+	}
+	var event struct {
+		Repository struct {
+			DefaultBranch string `json:"default_branch"`
+		} `json:"repository"`
+	}
+	if json.Unmarshal(body, &event) != nil {
+		return ""
+	}
+	return event.Repository.DefaultBranch
 }
 
 // githubCommitAuthor reads the author of the pushed commit from the event GitHub describes the run

@@ -37,6 +37,17 @@ type Publisher interface {
 	Publish(ctx context.Context, artifacts []report.Artifact) error
 }
 
+// RunPublisher is a Publisher whose delivery depends on the run itself, not only on what was
+// rendered from it. An issue publisher is one: whether to open, update or close an item follows the
+// gate, and what the item lists follows the findings.
+//
+// Run calls PublishRun in place of Publish when the built publisher implements it.
+type RunPublisher interface {
+	Publisher
+	// PublishRun delivers from the run's data, with the same artifacts Publish would receive.
+	PublishRun(ctx context.Context, data report.Data, artifacts []report.Artifact) error
+}
+
 // builders maps a config kind to a constructor that validates the config and returns a
 // Publisher. Registering here keeps the set of built-in publishers in one place.
 var builders = map[string]func(saga.PublisherConfig) (Publisher, error){
@@ -251,7 +262,7 @@ func Run(ctx context.Context, publishers []saga.PublisherConfig, data report.Dat
 		// whoever is taking files. Only the file publisher writes them, and it ignores what it
 		// cannot use.
 		deliver = append(deliver, sboms...)
-		if err := p.Publish(ctx, deliver); err != nil {
+		if err := deliverTo(ctx, p, data, deliver); err != nil {
 			failures = append(failures, fmt.Errorf("publisher %q: %w", cfg.Kind, err))
 		}
 	}
@@ -259,6 +270,14 @@ func Run(ctx context.Context, publishers []saga.PublisherConfig, data report.Dat
 	// thing it was to deliver could not be built, and naming the delivery ahead of the cause sends
 	// a reader to the wrong half.
 	return errors.Join(append(buildErrs, failures...)...)
+}
+
+// deliverTo hands a publisher its artifacts, and the run as well when it asks for one.
+func deliverTo(ctx context.Context, p Publisher, data report.Data, artifacts []report.Artifact) error {
+	if rp, ok := p.(RunPublisher); ok {
+		return rp.PublishRun(ctx, data, artifacts)
+	}
+	return p.Publish(ctx, artifacts)
 }
 
 // reportKey identifies a report by everything that changes what it renders, so two destinations

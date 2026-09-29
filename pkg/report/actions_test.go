@@ -718,3 +718,52 @@ func TestActionsForCarriesTheSummary(t *testing.T) {
 		t.Errorf("actions = %+v, want the rule's description as the summary", got)
 	}
 }
+
+// An action carries every finding it clears, uncapped where Where is capped, across the controls
+// that fed it, with enough of each to list it: a publisher that writes the findings under the
+// action reads them here rather than regrouping the run itself.
+func TestAnActionCarriesEveryFindingItClears(t *testing.T) {
+	var sca []sarif.Result
+	for i := range 7 {
+		sca = append(sca, sarif.Result{RuleID: fmt.Sprintf("CVE-%d", i), Priority: "P2", Level: sarif.LevelWarning,
+			Tool: "trivy", Component: "api", Location: sarif.Location{URI: fmt.Sprintf("svc%d/requirements.txt", i), StartLine: 3},
+			Package: &sarif.Package{Name: "flask", Ecosystem: "pypi", Version: "0.12.2", FixedVersion: "2.3.2"}})
+	}
+	images := sarif.Result{RuleID: "CVE-9", Priority: "P1", Level: sarif.LevelError, Tool: "grype", Component: "web",
+		Location: sarif.Location{URI: "requirements.txt"},
+		Package:  &sarif.Package{Name: "flask", Ecosystem: "pypi", Version: "0.12.2", FixedVersion: "2.3.2"}}
+	rule := func(loc string) sarif.Result {
+		return sarif.Result{RuleID: "no-root", Priority: "P3", Level: sarif.LevelWarning, Tool: "checkov",
+			Component: "api", Location: sarif.Location{URI: loc}}
+	}
+	got := ActionsFor(map[string]sarif.Report{
+		"sca":    {Results: sca},
+		"images": {Results: []sarif.Result{images}},
+		"iac": {Results: []sarif.Result{rule("a/Dockerfile"), rule("b/Dockerfile")},
+			Rules: map[string]sarif.Rule{"no-root": {ShortDescription: "Image runs as root"}}},
+	})
+	if len(got) != 2 {
+		t.Fatalf("want the upgrade and the rule, got %d: %+v", len(got), got)
+	}
+	upgrade, byRule := got[0], got[1]
+	if len(upgrade.Findings) != 8 || upgrade.Clears != 8 {
+		t.Fatalf("the upgrade lists %d findings and clears %d, want 8 of each", len(upgrade.Findings), upgrade.Clears)
+	}
+	if !upgrade.OneChange || byRule.OneChange {
+		t.Errorf("OneChange: upgrade %v, rule %v; want true, false", upgrade.OneChange, byRule.OneChange)
+	}
+	first := upgrade.Findings[0]
+	want := ActionFinding{Control: "images", RuleID: "CVE-9", Tool: "grype", Priority: "P1",
+		Severity: sarif.SeverityHigh, Component: "web", Location: "requirements.txt",
+		HelpURI:     "https://nvd.nist.gov/vuln/detail/CVE-9",
+		Fingerprint: images.Fingerprint()}
+	if first != want {
+		t.Errorf("first finding = %+v\nwant %+v", first, want)
+	}
+	if upgrade.Findings[1].Location != "svc0/requirements.txt:3" {
+		t.Errorf("a location carries its line: %q", upgrade.Findings[1].Location)
+	}
+	if len(byRule.Findings) != 2 || byRule.Findings[0].Control != "iac" {
+		t.Errorf("rule findings = %+v", byRule.Findings)
+	}
+}

@@ -430,3 +430,47 @@ func TestOneReportIsRenderedOnceForEveryDestinationAskingForIt(t *testing.T) {
 		t.Error("two destinations asking for one report were given two different documents")
 	}
 }
+
+type artifactsOnly struct{ got []report.Artifact }
+
+func (p *artifactsOnly) Kind() string { return "artifacts-only" }
+func (p *artifactsOnly) Publish(_ context.Context, a []report.Artifact) error {
+	p.got = a
+	return nil
+}
+
+type runAware struct {
+	artifactsOnly
+	data *report.Data
+}
+
+func (p *runAware) PublishRun(_ context.Context, d report.Data, a []report.Artifact) error {
+	p.data, p.got = &d, a
+	return nil
+}
+
+// A publisher that asks for the run gets it, and one that does not is handed its artifacts as
+// before. An issue publisher decides what to do from the gate, which no rendered artifact carries.
+func TestAPublisherThatAsksForTheRunIsGivenIt(t *testing.T) {
+	data := sampleData()
+	artifacts := []report.Artifact{{Format: "json", Filename: "report.json"}}
+
+	plain := &artifactsOnly{}
+	if err := deliverTo(context.Background(), plain, data, artifacts); err != nil {
+		t.Fatal(err)
+	}
+	if len(plain.got) != 1 {
+		t.Errorf("a plain publisher received %d artifacts, want 1", len(plain.got))
+	}
+
+	aware := &runAware{}
+	if err := deliverTo(context.Background(), aware, data, artifacts); err != nil {
+		t.Fatal(err)
+	}
+	if aware.data == nil {
+		t.Fatal("PublishRun was not called for a publisher that implements it")
+	}
+	if aware.data.Verdict.Verdict != norn.Fail || len(aware.got) != 1 {
+		t.Errorf("PublishRun got verdict %q and %d artifacts, want FAIL and 1", aware.data.Verdict.Verdict, len(aware.got))
+	}
+}

@@ -53,7 +53,7 @@ func TestEveryPlatformIsRead(t *testing.T) {
 			},
 			Context{
 				System: "azure-pipelines", Repository: "acme/payments", Ref: "refs/heads/main",
-				Workflow: "security", Job: "scan", RunID: "99",
+				Workflow: "security", Job: "scan", RunID: "99", Branch: "main",
 			},
 		},
 		"circleci": {
@@ -254,5 +254,69 @@ func TestDetectOutsideCI(t *testing.T) {
 	}
 	if Detect().Detected() || DetectWithEmail().Detected() {
 		t.Error("detected a CI system in an environment with none")
+	}
+}
+
+// A pull request's pipeline must be told apart from the default branch's: a publisher that closed
+// a tracking item on a passing pull request would close it while the default branch still fails.
+// pull_request_target is the case that looks like the default branch, since its ref names the base.
+func TestEveryForgeSaysWhichBranchAndWhetherAPullRequest(t *testing.T) {
+	event := []byte(`{"repository":{"default_branch":"trunk"}}`)
+	readFile := func(path string) ([]byte, error) {
+		if path == "/ev.json" {
+			return event, nil
+		}
+		return nil, errors.New("no file")
+	}
+	type want struct {
+		branch, defaultBranch string
+		pullRequest           bool
+	}
+	for name, tc := range map[string]struct {
+		env  map[string]string
+		want want
+	}{
+		"github push": {map[string]string{"GITHUB_ACTIONS": "true", "GITHUB_EVENT_NAME": "push",
+			"GITHUB_REF": "refs/heads/trunk", "GITHUB_REF_NAME": "trunk", "GITHUB_EVENT_PATH": "/ev.json"},
+			want{"trunk", "trunk", false}},
+		"github tag": {map[string]string{"GITHUB_ACTIONS": "true", "GITHUB_EVENT_NAME": "push",
+			"GITHUB_REF": "refs/tags/v1", "GITHUB_REF_NAME": "v1", "GITHUB_EVENT_PATH": "/ev.json"},
+			want{"", "trunk", false}},
+		"github pull request": {map[string]string{"GITHUB_ACTIONS": "true", "GITHUB_EVENT_NAME": "pull_request",
+			"GITHUB_REF": "refs/pull/4/merge", "GITHUB_REF_NAME": "4/merge", "GITHUB_EVENT_PATH": "/ev.json"},
+			want{"", "trunk", true}},
+		"github pull request target": {map[string]string{"GITHUB_ACTIONS": "true", "GITHUB_EVENT_NAME": "pull_request_target",
+			"GITHUB_REF": "refs/heads/trunk", "GITHUB_REF_NAME": "trunk", "GITHUB_EVENT_PATH": "/ev.json"},
+			want{"", "trunk", true}},
+		"github no event file": {map[string]string{"GITHUB_ACTIONS": "true", "GITHUB_EVENT_NAME": "schedule",
+			"GITHUB_REF": "refs/heads/trunk", "GITHUB_REF_NAME": "trunk", "GITHUB_EVENT_PATH": "/missing.json"},
+			want{"trunk", "", false}},
+		"gitlab branch": {map[string]string{"GITLAB_CI": "true", "CI_COMMIT_BRANCH": "trunk",
+			"CI_COMMIT_REF_NAME": "trunk", "CI_DEFAULT_BRANCH": "trunk"},
+			want{"trunk", "trunk", false}},
+		"gitlab merge request": {map[string]string{"GITLAB_CI": "true", "CI_COMMIT_REF_NAME": "feature",
+			"CI_DEFAULT_BRANCH": "trunk", "CI_MERGE_REQUEST_IID": "9"},
+			want{"", "trunk", true}},
+		"azure branch": {map[string]string{"TF_BUILD": "True", "BUILD_SOURCEBRANCH": "refs/heads/trunk",
+			"BUILD_REASON": "IndividualCI"},
+			want{"trunk", "", false}},
+		"azure pull request": {map[string]string{"TF_BUILD": "True", "BUILD_SOURCEBRANCH": "refs/pull/4/merge",
+			"BUILD_REASON": "PullRequest"},
+			want{"", "", true}},
+		"azure tag": {map[string]string{"TF_BUILD": "True", "BUILD_SOURCEBRANCH": "refs/tags/v1"},
+			want{"", "", false}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			c := detect(envOf(tc.env), readFile, false)
+			got := want{c.Branch, c.DefaultBranch, c.PullRequest}
+			if got != tc.want {
+				t.Errorf("got %+v, want %+v", got, tc.want)
+			}
+		})
+	}
+	garbage := func(string) ([]byte, error) { return []byte("not json"), nil }
+	env := map[string]string{"GITHUB_ACTIONS": "true", "GITHUB_EVENT_PATH": "/ev.json"}
+	if c := detect(envOf(env), garbage, false); c.DefaultBranch != "" {
+		t.Errorf("bad json: default branch %q", c.DefaultBranch)
 	}
 }
