@@ -376,3 +376,36 @@ func TestPerControlBandsAloneStillGateOnTheDefault(t *testing.T) {
 		}
 	}
 }
+
+// FindingFails is Evaluate's test for one finding, so a consumer judging part of a run reaches the
+// verdict Evaluate would: a control fails exactly when one of its findings does.
+func TestAControlFailsExactlyWhenOneOfItsFindingsDoes(t *testing.T) {
+	suppressed := &sarif.Suppression{Kind: "external", Justification: "fixture"}
+	correlated := &sarif.Correlation{CountedUnder: "sca"}
+	findings := []sarif.Result{
+		{Level: sarif.LevelError, Priority: "P1"},
+		{Level: sarif.LevelWarning, Priority: "P2"},
+		{Level: sarif.LevelNote, Priority: "P3"},
+		{Level: sarif.LevelError, Priority: "P1", Suppression: suppressed},
+		{Level: sarif.LevelError, Priority: "P1", Correlation: correlated},
+		{Level: sarif.LevelNone},
+	}
+	policies := map[string]Policy{
+		"default band":      {},
+		"band P2":           {FailOnPriority: "P2"},
+		"per-control band":  {PerControlBand: map[string]string{"images": "P3"}},
+		"severity high":     {FailOn: sarif.SeverityHigh},
+		"severity low":      {FailOn: sarif.SeverityLow},
+		"per-control sever": {FailOn: sarif.SeverityCritical, PerControl: map[string]sarif.Severity{"images": sarif.SeverityMedium}},
+	}
+	for name, p := range policies {
+		for _, control := range []string{"images", "sca"} {
+			for i, f := range findings {
+				want := p.Evaluate(map[string]sarif.Report{control: {Results: []sarif.Result{f}}}).Verdict == Fail
+				if got := p.FindingFails(control, f); got != want {
+					t.Errorf("%s, %s, finding %d: FindingFails = %v, Evaluate fails = %v", name, control, i, got, want)
+				}
+			}
+		}
+	}
+}

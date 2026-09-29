@@ -241,7 +241,8 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	}
 	// Resolved once, here, where the descriptor is: everything downstream reads what was left out
 	// off the scope rather than needing the descriptor again. A rendered report knows what ran,
-	// not what was declared.
+	// not what was declared. The request is kept too, for what is keyed on it.
+	requested := scope
 	scope = scope.Resolve(*model)
 
 	minPriority, err := validatePriority("--min-priority", opts.minPriority)
@@ -444,6 +445,8 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		Unclassified:         !usesRiskClassification(model),
 		Components:           components,
 		Scope:                reportScope(scope),
+		Requested:            requested,
+		Incomplete:           incomplete,
 		UnattributedFindings: unattributed,
 		Exploitability:       feedProv,
 		Tools:                builds,

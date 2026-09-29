@@ -178,6 +178,22 @@ func (p Policy) Evaluate(reports map[string]sarif.Report) Result {
 	return res
 }
 
+// FindingFails reports whether one finding, reported under control, trips this policy's gate.
+//
+// Evaluate's test applied to a single finding, for a consumer that judges part of a run: a control
+// fails exactly when one of its findings does. A suppressed finding never fails; a correlated copy
+// counts on a severity gate, as it does in HighestSeverity, and not on a band gate.
+func (p Policy) FindingFails(control string, res sarif.Result) bool {
+	if res.Suppressed() {
+		return false
+	}
+	if threshold := p.thresholdFor(control); threshold != "" {
+		sev := res.Severity("")
+		return sev.AtLeast(threshold) && sev.Rank() > 0
+	}
+	return !res.Correlated() && p.priorityFails(control, res.Priority)
+}
+
 // sortedControls orders control names so a run is reproducible.
 func sortedControls(reports map[string]sarif.Report) []string {
 	names := make([]string, 0, len(reports))

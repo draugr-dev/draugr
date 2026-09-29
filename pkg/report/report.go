@@ -88,6 +88,14 @@ type Data struct {
 	// it was measured against, the same gap that suppression closes for findings, where the question
 	// is never "did the scanner run" but "who decided this was acceptable".
 	Gate GateSettings
+	// Requested is the scope as the caller asked for it, before labels, exposure and criticality
+	// were resolved to component names. Scope holds the resolved form, which changes whenever a
+	// component gains or loses a label; anything keyed on what was asked for reads this one.
+	Requested engine.Scope
+	// Incomplete reports a run that failed because a scanner could not finish: an error nothing
+	// waived, or a waivable one without --allow-scan-errors. The verdict already says fail; this
+	// says the failure is about what was not looked at.
+	Incomplete bool
 
 	// View is what the report shows and how densely, one setting rather than two that have to be
 	// combined. The zero value is ViewFindings.
@@ -591,6 +599,8 @@ func automationSegment(s string) string { return strings.ReplaceAll(s, "/", "-")
 
 type finding struct {
 	control, ruleID, tool, priority, location, message string
+	// fingerprint identifies the finding across runs.
+	fingerprint string
 	// component is which part of the application the finding belongs to, empty for a
 	// project-scoped control. A location alone is ambiguous once a descriptor has more than one.
 	component string
