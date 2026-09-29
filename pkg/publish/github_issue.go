@@ -300,8 +300,32 @@ func (e *githubStatusError) Error() string {
 		return prefix + ": 410, issues are turned off for the repository"
 	case http.StatusNotFound:
 		return prefix + ": 404, the repository or item does not exist, or the token cannot see it"
+	case http.StatusUnprocessableEntity:
+		if why := validationMessages(e.body); why != "" {
+			return fmt.Sprintf("%s: 422, %s", prefix, why)
+		}
 	}
 	return fmt.Sprintf("%s: %d: %s", prefix, e.status, e.body)
+}
+
+// validationMessages is what a 422 says about each field GitHub refused, such as an assignee who
+// cannot be assigned, joined; empty when the body carries none.
+func validationMessages(body string) string {
+	var v struct {
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+	if json.Unmarshal([]byte(body), &v) != nil {
+		return ""
+	}
+	var out []string
+	for _, e := range v.Errors {
+		if e.Message != "" {
+			out = append(out, e.Message)
+		}
+	}
+	return strings.Join(out, "; ")
 }
 
 func isStatus(err error, status int) bool {

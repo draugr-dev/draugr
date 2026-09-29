@@ -18,8 +18,8 @@ name: Integration
 # holds that decision, and it names what cannot reach the suite rather than what can, so anything
 # new runs by default and the list is only ever wrong about how long a pull request waits.
 #
-# The `live` and `airgapped` jobs run outside the pull request tier, because what they judge is not a
-# change:
+# The `live`, `airgapped` and `forges` jobs run outside the pull request tier, because what they
+# judge is not a change:
 #
 # - `live` scans the sealed scenarios and draugr-demo nightly against the latest advisory
 #   databases and real registries. Its answer moves as advisories are published, so a difference
@@ -28,6 +28,8 @@ name: Integration
 #   corpus offline from it, with no network, nightly and against every release tag. release.yml
 #   waits on this workflow before publishing, so a release that no longer works offline is not
 #   built.
+# - `forges` drives the issue publishers against sandbox repositories on the forges themselves,
+#   nightly and on demand.
 
 on:
   push:
@@ -420,6 +422,47 @@ jobs:
           DRAUGR_INTEGRATION_STRICT: "1"
         run: go test -tags integration -v -timeout 60m -run 'TestAirGapped' ./test/integration/
 
+  # The issue publishers against a real forge. The unit tests answer from a fake written to GitHub's
+  # documentation, and this job checks that GitHub still answers that way. The tests open and close
+  # issues in a private sandbox repository and confirm that GitHub keeps an issue's type and
+  # milestone, accepts the duplicate state reason, and shows a write in its issue list within the
+  # time the publisher allows for.
+  #
+  # Nightly and on demand, never on a pull request or a release tag. A pull request from a fork gets
+  # no secrets, and an API having a bad minute is the wrong thing to block a merge or a release on.
+  forges:
+    name: Forges (issue publishers against real repositories)
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && !inputs.ref && !startsWith(github.ref, 'refs/tags/'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+
+      # The tests skip without a sandbox, which is right on a laptop and wrong here: a nightly job
+      # that skipped everything would be green and would have checked nothing.
+      - name: Drive the GitHub issue publisher against the sandbox
+        env:
+          SANDBOX_GITHUB_TOKEN: ${{ secrets.SANDBOX_GITHUB_TOKEN }}
+          SANDBOX_GITHUB_REPO: ${{ vars.SANDBOX_GITHUB_REPO }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SANDBOX_GITHUB_TOKEN" ] || [ -z "$SANDBOX_GITHUB_REPO" ]; then
+            echo "::error::SANDBOX_GITHUB_TOKEN (secret) and SANDBOX_GITHUB_REPO (variable) must both be set"
+            exit 1
+          fi
+          go test -tags integration -v -count=1 -timeout 15m -run 'TestLiveGitHub' ./pkg/publish/
+
   # A red run on main has to reach a person.
   #
   # Requiring the suite on pull requests narrows how main goes red without closing it: two pull
@@ -436,7 +479,7 @@ jobs:
   # push, say) leaves its issue as it is, because not running says nothing about whether it is fixed.
   notify:
     name: A red suite on main raises an issue
-    needs: [integration, live, live-propose, airgapped]
+    needs: [integration, live, live-propose, airgapped, forges]
     # Not on pull requests: the author is looking at the failing check already, and an issue would
     # be telling them what their own screen says.
     if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
@@ -476,6 +519,11 @@ jobs:
                 label: "live-propose-red",
                 title: "The live tier cannot propose its drift on main",
                 why: "**The live tier found drift and could not open the pull request that records it.** The drift is in the run's `live-drift` artifact. The usual causes are a patch that no longer applies to main, or an installation token the release app could not mint.",
+              },
+              forges: {
+                label: "forges-red",
+                title: "The issue publishers are failing against a real forge",
+                why: "**The forges job drives each issue publisher against a sandbox repository on the forge itself.** The unit tests answer from a fake written to the forge's documentation, so a red run here means the forge no longer answers the way the fake does, or that the sandbox token has expired. The failing test names the field the forge dropped or refused, the state it would not take, or the write its issue list did not show in time.",
               },
               airgapped: {
                 label: "air-gapped-red",
