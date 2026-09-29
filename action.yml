@@ -388,6 +388,11 @@ runs:
 
         # Base = the PR target commit, scanned in a detached worktree.
         git fetch --no-tags --depth 1 origin "$BASE_SHA" 2>/dev/null || true
+        # A runner that keeps its checkout between jobs keeps the worktree registration too, while
+        # RUNNER_TEMP is emptied; a job canceled before the removal below leaves one pointing at a
+        # directory that no longer exists, and `worktree add` refuses the path. Pruned first, so the
+        # path is free whatever the last job on this machine did.
+        git worktree prune
         git worktree add --detach "$worktree" "$BASE_SHA"
         ( cd "$worktree/$wd" && draugr scan "$INPUT_SAGA" -o "$base_out" "${scan_common[@]}" ) || true
         git worktree remove --force "$worktree" 2>/dev/null || true
