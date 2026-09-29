@@ -42,7 +42,8 @@ type fakeGitHub struct {
 	issues     map[int64]*fakeIssue
 	next       int64
 	labels     map[string]bool
-	milestones []string // titles; a milestone's number is its index plus one
+	labelDefs  map[string]map[string]string // what each label was created with
+	milestones []string                     // titles; a milestone's number is its index plus one
 	pageSize   int
 	requests   []string
 
@@ -63,7 +64,7 @@ type ghRefusal struct {
 func newFakeGitHub(t *testing.T) (*fakeGitHub, *httptest.Server) {
 	t.Helper()
 	f := &fakeGitHub{t: t, issues: map[int64]*fakeIssue{}, next: 1, labels: map[string]bool{}, pageSize: 100,
-		refuse: map[string]ghRefusal{}}
+		labelDefs: map[string]map[string]string{}, refuse: map[string]ghRefusal{}}
 	srv := httptest.NewServer(f)
 	t.Cleanup(srv.Close)
 	return f, srv
@@ -183,6 +184,13 @@ func (f *fakeGitHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			i.Comments = append(i.Comments, str(in["body"]))
 		case len(parts) == 3 && parts[2] == "labels" && r.Method == http.MethodPost:
 			i.Labels = append(i.Labels, strs(in["labels"])...)
+		case len(parts) == 4 && parts[2] == "labels" && r.Method == http.MethodDelete:
+			k := slices.Index(i.Labels, parts[3])
+			if k < 0 {
+				http.NotFound(w, r)
+				return
+			}
+			i.Labels = slices.Delete(i.Labels, k, k+1)
 		default:
 			http.NotFound(w, r)
 			return
@@ -197,6 +205,7 @@ func (f *fakeGitHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case rest == "labels" && r.Method == http.MethodPost:
 		name := str(in["name"])
 		f.labels[name] = true
+		f.labelDefs[name] = map[string]string{"color": str(in["color"]), "description": str(in["description"])}
 		if f.racedLabel {
 			f.racedLabel = false
 			w.WriteHeader(http.StatusUnprocessableEntity)
@@ -538,7 +547,7 @@ func TestACreatedIssueCarriesTheItemMetadata(t *testing.T) {
 	}})
 	publishRun(t, p, onMain(map[string][]sarif.Result{"sca": {codeFinding("api", "c1", "P1", "go.mod")}}))
 	i := gh.issue(1)
-	if !slices.Equal(i.Labels, []string{"security", "triage"}) || !slices.Equal(i.Assignees, []string{"octocat"}) ||
+	if !slices.Equal(i.Labels, []string{"security", "triage", "draugr:priority:P1"}) || !slices.Equal(i.Assignees, []string{"octocat"}) ||
 		i.Milestone != 2 || i.Type != "Bug" {
 		t.Errorf("issue = %+v", i)
 	}
@@ -732,5 +741,137 @@ func TestAMarkerValueReadsBackAsWritten(t *testing.T) {
 		if got := unescapeMarker(markerValue(s)); got != s {
 			t.Errorf("unescapeMarker(markerValue(%q)) = %q", s, got)
 		}
+	}
+}
+
+// classified is a finding on a component declared with an exposure and a criticality.
+func classified(component, control, priority, exposure, criticality string) sarif.Result {
+	r := codeFinding(component, control+"-rule", priority, "main.go")
+	r.Exposure, r.Criticality = exposure, criticality
+	return r
+}
+
+func TestFactLabelsFollowTheFindings(t *testing.T) {
+	gh, srv := newFakeGitHub(t)
+	p := issuePublisher(t, srv, saga.PublisherConfig{LabelBy: saga.LabelFacts})
+	data := onMain(map[string][]sarif.Result{
+		"sca":  {classified("web", "sca", "P1", "public", "critical")},
+		"sast": {classified("api", "sast", "P2", "internal", "important")},
+	})
+	data.Gate = report.GateSettings{FailOnPriority: "P2"}
+	publishRun(t, p, data)
+	want := []string{"draugr", "draugr:control:sast", "draugr:control:sca", "draugr:criticality:critical",
+		"draugr:criticality:important", "draugr:exposure:internal", "draugr:exposure:public", "draugr:priority:P1"}
+	if got := gh.issue(1).Labels; !slices.Equal(got, want) {
+		t.Errorf("labels = %q, want %q", got, want)
+	}
+
+	// The P1 is fixed and the sast scan fails: the labels follow, removing what no longer applies.
+	delete(data.Run.Controls, "sca")
+	data.Incomplete = true
+	data.Run.ScanErrors = map[string][]string{"sast": {"semgrep: exit 2"}}
+	publishRun(t, p, data)
+	got := slices.Clone(gh.issue(1).Labels)
+	slices.Sort(got)
+	want = []string{"draugr", "draugr:control:sast", "draugr:criticality:important", "draugr:exposure:internal",
+		"draugr:incomplete", "draugr:priority:P2"}
+	if !slices.Equal(got, want) {
+		t.Errorf("labels = %q, want %q", got, want)
+	}
+
+	before := len(gh.writes())
+	publishRun(t, p, data)
+	if w := gh.writes()[before:]; len(w) != 0 {
+		t.Errorf("unchanged labels were written again: %q", w)
+	}
+}
+
+func TestFactLabelsSayWhatTheyCarry(t *testing.T) {
+	gh, srv := newFakeGitHub(t)
+	p := issuePublisher(t, srv, saga.PublisherConfig{LabelBy: saga.LabelFacts})
+	publishRun(t, p, onMain(map[string][]sarif.Result{"sca": {classified("web", "sca", "P1", "public", "critical")}}))
+	if d := gh.labelDefs["draugr:priority:P1"]; d["color"] != "b60205" || !strings.Contains(d["description"], "highest priority") {
+		t.Errorf("priority label = %v", d)
+	}
+	if d := gh.labelDefs["draugr"]; d["description"] != "" {
+		t.Errorf("the tracking label was described: %v", d)
+	}
+	for _, c := range []struct{ name, color, says string }{
+		{"draugr:priority:P2", "d93f0b", "highest priority"},
+		{"draugr:priority:P3", "fbca04", "highest priority"},
+		{"draugr:priority:P4", "c5def5", "highest priority"},
+		{"draugr:control:sca", "1d76db", "control"},
+		{"draugr:exposure:public", "5319e7", "exposure"},
+		{"draugr:criticality:critical", "5319e7", "criticality"},
+		{"draugr:incomplete", "e99695", "scan error"},
+	} {
+		color, description := labelStyle(c.name)
+		if color != c.color || !strings.Contains(description, c.says) || len(description) > 100 {
+			t.Errorf("%s: %s %q", c.name, color, description)
+		}
+	}
+}
+
+func TestEachSplitPartKeepsItsOwnFactLabels(t *testing.T) {
+	gh, srv := newFakeGitHub(t)
+	p := issuePublisher(t, srv, saga.PublisherConfig{Split: saga.SplitControl, LabelBy: saga.LabelBy{"priority", "control"}})
+	data := onMain(map[string][]sarif.Result{
+		"sca":  {classified("web", "sca", "P1", "public", "critical")},
+		"sast": {classified("api", "sast", "P2", "internal", "important")},
+	})
+	data.Gate = report.GateSettings{FailOnPriority: "P2"}
+	publishRun(t, p, data)
+	byControl := map[string][]string{}
+	for _, i := range gh.openIssues() {
+		byControl[strings.SplitN(i.Title, " ", 2)[0]] = i.Labels
+	}
+	if got := byControl["sast"]; !slices.Equal(got, []string{"draugr", "draugr:control:sast", "draugr:priority:P2"}) {
+		t.Errorf("sast labels = %q", got)
+	}
+	if got := byControl["sca"]; !slices.Equal(got, []string{"draugr", "draugr:control:sca", "draugr:priority:P1"}) {
+		t.Errorf("sca labels = %q", got)
+	}
+}
+
+func TestAnEmptyLabelByKeepsNoFactLabels(t *testing.T) {
+	gh, srv := newFakeGitHub(t)
+	failing := onMain(map[string][]sarif.Result{"sca": {codeFinding("api", "c1", "P1", "go.mod")}})
+	publishRun(t, issuePublisher(t, srv, saga.PublisherConfig{}), failing)
+	if got := gh.issue(1).Labels; !slices.Equal(got, []string{"draugr", "draugr:priority:P1"}) {
+		t.Fatalf("unset labelBy: labels = %q", got)
+	}
+	publishRun(t, issuePublisher(t, srv, saga.PublisherConfig{LabelBy: saga.LabelBy{}}), failing)
+	if got := gh.issue(1).Labels; !slices.Equal(got, []string{"draugr"}) {
+		t.Errorf("empty labelBy: labels = %q", got)
+	}
+}
+
+func TestAFactLabelChangedByHandIsPutRight(t *testing.T) {
+	gh, srv := newFakeGitHub(t)
+	p := issuePublisher(t, srv, saga.PublisherConfig{})
+	failing := onMain(map[string][]sarif.Result{"sca": {codeFinding("api", "c1", "P1", "go.mod")}})
+	publishRun(t, p, failing)
+	gh.issue(1).Labels = []string{"draugr", "Draugr:Priority:P3", "wontfix"}
+	publishRun(t, p, failing)
+	if got := gh.issue(1).Labels; !slices.Equal(got, []string{"draugr", "wontfix", "draugr:priority:P1"}) {
+		t.Errorf("labels = %q", got)
+	}
+}
+
+func TestAFactLabelAlreadyGoneIsNotAFailure(t *testing.T) {
+	gh, srv := newFakeGitHub(t)
+	p := issuePublisher(t, srv, saga.PublisherConfig{})
+	failing := onMain(map[string][]sarif.Result{"sca": {codeFinding("api", "c1", "P1", "go.mod")}})
+	publishRun(t, p, failing)
+	failing.Run.Controls["sca"].Report.Results[0].Priority = "P2"
+	failing.Gate = report.GateSettings{FailOnPriority: "P2"}
+	gh.refuse["DELETE /repos/acme/app/issues/1/labels/"] = ghRefusal{status: http.StatusNotFound}
+	publishRun(t, p, failing)
+
+	gh.refuse = map[string]ghRefusal{"DELETE /repos/acme/app/issues/1/labels/": {status: http.StatusForbidden}}
+	failing.Run.Controls["sca"].Report.Results[0].Priority = "P1"
+	gh.issue(1).Labels = []string{"draugr", "draugr:priority:P2"}
+	if err := p.PublishRun(context.Background(), failing, nil); err == nil || !strings.Contains(err.Error(), "remove label draugr:priority:P2") {
+		t.Errorf("err = %v", err)
 	}
 }

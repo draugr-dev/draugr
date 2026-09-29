@@ -710,6 +710,7 @@ config:
       split: component               # none (default) | control | component
       minPriority: P2
       label: draugr                  # the default
+      labelBy: [priority, control]   # [priority] when unset; [] keeps none
       branches: [main, "release/*"]  # the default branch when unset
       item:
         labels: [triage]
@@ -724,11 +725,30 @@ config:
 | `split` | `none` | `control` or `component`: one issue per control or per component within what `select` covers. An issue closes when its own part passes. |
 | `minPriority` | every band | `P1` to `P4`. An issue opens only while it holds a failing finding at or above this band, and its body lists only those. The body's count of failing findings stays complete. |
 | `label` | `draugr` | the label that finds this entry's issues, applied to each. Created in the repository when it does not exist. A comma is refused. |
+| `labelBy` | `[priority]` | the facts kept on each issue as labels, from `priority`, `control`, `exposure`, `criticality` and `incomplete`. `[]` keeps none. |
 | `branches` | the default branch | branch names or globs, `*` matching any characters. A run on any other branch changes nothing. |
 | `item.labels` | none | labels applied beside `label` when an issue is created. A later run adds back one that was removed. |
 | `item.assignees` | none | logins assigned when an issue is created. |
 | `item.milestone` | none | a milestone's title, open or closed, set when an issue is created. |
 | `item.type` | none | an issue type the organization defines, set when an issue is created. |
+
+Each fact in `labelBy` is a label named `draugr:<fact>:<value>`:
+
+| Fact | Label | On the issue while |
+|---|---|---|
+| `priority` | `draugr:priority:P1` | the band is the highest among the findings the issue lists |
+| `control` | `draugr:control:sca` | the issue lists a finding of the control |
+| `exposure` | `draugr:exposure:public` | the issue lists a finding on a component declaring the exposure |
+| `criticality` | `draugr:criticality:critical` | the issue lists a finding on a component declaring the criticality |
+| `incomplete` | `draugr:incomplete` | a scan error stops a control the issue covers |
+
+Every run adds the fact labels that apply and removes the ones that no longer do, writing only when
+they change, so a fact label removed by hand comes back and one added by hand is removed. A `label`
+or `item.labels` value named like a fact label is refused.
+
+The title names what tells an issue apart, then the project: the split part, the `select`, and the
+run's `--components`, `--labels` or `--controls`, as in `sca fails the Draugr gate · team=payments ·
+shop`. An issue with none of them is `shop fails the Draugr gate`.
 
 After an issue is created it belongs to whoever triages it: a reassignment, a moved milestone or an
 edited title survives the next run. Each issue carries a hidden marker naming the project, the run's

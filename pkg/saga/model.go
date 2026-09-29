@@ -584,13 +584,72 @@ type PublisherConfig struct {
 	// are the branches whose runs may open, rewrite or close an item, the repository's default
 	// branch when unset, because a passing pull-request run would otherwise close an item the
 	// default branch still fails. Select, Split and MinPriority decide which part of the run each
-	// item covers; Item is the metadata set on an item when it is created.
+	// item covers; LabelBy names the facts every run keeps on an item as labels; Item is the
+	// metadata set on an item when it is created.
 	Label       string           `yaml:"label,omitempty"`
 	Branches    []string         `yaml:"branches,omitempty"`
 	Select      *PublisherSelect `yaml:"select,omitempty"`
 	Split       string           `yaml:"split,omitempty"`
 	MinPriority string           `yaml:"minPriority,omitempty"`
+	LabelBy     LabelBy          `yaml:"labelBy,omitempty"`
 	Item        *IssueItem       `yaml:"item,omitempty"`
+}
+
+// Facts an issue publisher keeps on an item as labels, each named `draugr:<fact>:<value>`.
+const (
+	LabelByPriority    = "priority"
+	LabelByControl     = "control"
+	LabelByExposure    = "exposure"
+	LabelByCriticality = "criticality"
+	LabelByIncomplete  = "incomplete"
+)
+
+// LabelFacts lists the values `labelBy` takes.
+var LabelFacts = []string{LabelByPriority, LabelByControl, LabelByExposure, LabelByCriticality, LabelByIncomplete}
+
+// factLabelPrefix begins the name of every label an issue publisher keeps for a fact.
+const factLabelPrefix = "draugr:"
+
+// LabelBy is the facts an issue publisher keeps as labels. Unset keeps the priority alone, and an
+// empty list keeps none.
+//
+// A type of its own so that an empty list survives being written back out: omitempty drops an
+// empty slice, which would turn `labelBy: []` into the default in `draugr validate --resolved`.
+type LabelBy []string
+
+// IsZero reports an unset list, the only one omitempty may drop.
+func (l LabelBy) IsZero() bool { return l == nil }
+
+// Facts is the list in effect: the one written, or the priority alone when none was.
+func (l LabelBy) Facts() []string {
+	if l == nil {
+		return []string{LabelByPriority}
+	}
+	return l
+}
+
+// FactLabel names the label that carries one value of a fact, `draugr:control:sca`. The incomplete
+// fact has no value and is `draugr:incomplete`.
+func FactLabel(fact, value string) string {
+	if value == "" {
+		return factLabelPrefix + fact
+	}
+	return factLabelPrefix + fact + ":" + value
+}
+
+// IsFactLabel reports whether a label is one an issue publisher keeps for a fact, whichever facts an
+// entry names, compared without regard to case as forges compare labels.
+func IsFactLabel(name string) bool {
+	lower := strings.ToLower(name)
+	if lower == FactLabel(LabelByIncomplete, "") {
+		return true
+	}
+	for _, f := range LabelFacts {
+		if f != LabelByIncomplete && strings.HasPrefix(lower, factLabelPrefix+f+":") {
+			return true
+		}
+	}
+	return false
 }
 
 // Split values for an issue publisher: one item for everything the entry covers, or one per

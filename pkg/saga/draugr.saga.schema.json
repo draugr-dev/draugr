@@ -1766,6 +1766,36 @@
             "boolean"
           ]
         },
+        "labelBy": {
+          "description": "github-issue: the facts every run keeps on an issue as labels, adding the ones that apply and removing the ones that no longer do. Defaults to priority. [] keeps none.",
+          "items": {
+            "anyOf": [
+              {
+                "const": "priority",
+                "description": "draugr:priority:P1, the highest band among the findings the issue lists."
+              },
+              {
+                "const": "control",
+                "description": "draugr:control:sca, for each control with a finding the issue lists."
+              },
+              {
+                "const": "exposure",
+                "description": "draugr:exposure:public, for each exposure among the components with a finding the issue lists."
+              },
+              {
+                "const": "criticality",
+                "description": "draugr:criticality:critical, for each criticality among the components with a finding the issue lists."
+              },
+              {
+                "const": "incomplete",
+                "description": "draugr:incomplete, while a scan error stops a control the issue covers."
+              }
+            ],
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
         "marker": {
           "description": "github-pr-comment / azure-pr-comment / gitlab-mr-comment: hidden marker identifying the sticky comment to update.",
           "type": "string"

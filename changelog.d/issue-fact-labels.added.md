@@ -1,0 +1,1 @@
+- **A `github-issue` publisher labels each issue with the highest priority it lists**, such as `draugr:priority:P1`, so a board or a saved search can sort by it. `labelBy` adds the control, the exposure, the criticality, and a label for an incomplete scan. Every run adds the labels that apply and removes the ones that no longer do.

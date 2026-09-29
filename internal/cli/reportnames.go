@@ -124,6 +124,7 @@ func checkIssueFields(model *saga.Model, i int, p saga.PublisherConfig) []string
 		{"select", p.Select != nil},
 		{"split", p.Split != ""},
 		{"minPriority", p.MinPriority != ""},
+		{"labelBy", p.LabelBy != nil},
 		{"item", p.Item != nil},
 	} {
 		if f.set {
