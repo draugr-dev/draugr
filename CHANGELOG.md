@@ -16,7 +16,7 @@ _Nothing yet._
 
 ### Added
 
-- **A GitHub issue that stays open while the gate fails.** The `github-issue` publisher opens an issue on a failing default-branch run, rewrites it when the findings change, and closes it with a comment when the gate passes. `select` and `split` give each team its own issues, and `minPriority` keeps lower bands out of them.
+- **A GitHub issue that stays open while the gate fails.** The `github-issue` publisher opens an issue on a failing default-branch run, rewrites it when the findings change, and closes it with a comment when the gate passes. `select` and `split` give each team its own issues, and `minPriority` keeps lower bands out of them. The workflow needs `issues: write`.
 
 ### Changed
 
@@ -24,7 +24,7 @@ _Nothing yet._
 
 ### Fixed
 
-- **The GitHub Action runs on a self-hosted runner without the `gh` CLI.** It resolved and downloaded the Draugr release with `gh`, which only GitHub's own runner images carry, so on a runner without it the job stopped at `gh: command not found`. It now uses `curl` against the public release, and still verifies the signed checksums.
+- **The GitHub Action runs on a self-hosted runner without the `gh` CLI.** It downloads the Draugr release with `curl` and still verifies the signed checksums. It had used `gh`, which only GitHub's own runner images carry, and stopped at `gh: command not found` without it.
 
 - **The MCP server's fix list counts a flaw two scanners report once**, as the console does. Actions for a library found by both Trivy and Retire.js no longer clear more findings than the scan contains.
 
