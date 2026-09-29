@@ -634,10 +634,17 @@ type finding struct {
 	// operatingSystem is the release an image finding came from, for the same reason: moving off
 	// a release past end of service life is one action for everything in that layer.
 	operatingSystem string
-	level           sarif.Level
-	severity        sarif.Severity
-	score           float64
-	hasScore        bool
+	// image is the container image a finding was found in, for the controls that scan one. The
+	// location is not always the image: a license Trivy read from a file is located at the file.
+	image string
+	// ruleSummary is the one-line description the scanner published for the rule, when it
+	// published one. A finding's message describes this occurrence; this describes every
+	// occurrence, which is what a row standing for several of them needs.
+	ruleSummary string
+	level       sarif.Level
+	severity    sarif.Severity
+	score       float64
+	hasScore    bool
 }
 
 // sevCounts tallies findings by normalized severity band.
@@ -793,6 +800,8 @@ func summarize(d Data) summary {
 				builtUpstream:   res.BuiltUpstream,
 				pkg:             res.Package,
 				operatingSystem: res.OperatingSystem,
+				image:           res.Image,
+				ruleSummary:     rep.Rules[res.RuleID].ShortDescription,
 			})
 		}
 	}

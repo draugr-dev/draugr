@@ -1981,6 +1981,11 @@ func renderActions(w io.Writer, col tui.Painter, actions []action, compact bool)
 		if compact {
 			continue
 		}
+		// What the rule found, under a title that only names the rule. Dim, because it is the
+		// scanner's description of the problem and the line above is the instruction.
+		if a.summary != "" {
+			_, _ = fmt.Fprintf(w, "      %s\n", col.Paint(cDim, elide(a.summary, max(width-6, minTitleWidth))))
+		}
 
 		// Labeled and lit the way a finding's facts line is, so the two listings read alike. The
 		// count carries the accent: it is what ranks one action above another, and a line of one

@@ -148,7 +148,9 @@ func TestEachListCarriesItsCountAndPaging(t *testing.T) {
 func TestAnActionIsARowThatOpensItsFindings(t *testing.T) {
 	page := renderHTML(t, goldenFullData())
 	acts := section(t, page, `id="acts"`, `</section>`)
-	for _, want := range []string{`<div class="act" data-a="`, `<span class="lbl">control</span>`, `class="act-clears"`} {
+	for _, want := range []string{`<div class="act" data-a="`, `<span class="lbl">control</span>`, `class="act-clears"`,
+		// What a rule found, under a title that only names the rule, as the console prints it.
+		`<div class="sub">Detected user input flowing into a raw SQL string</div>`} {
 		if !strings.Contains(acts, want) {
 			t.Errorf("the action rows are missing %q", want)
 		}

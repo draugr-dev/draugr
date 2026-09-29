@@ -16,6 +16,7 @@ Draugr's fix list answers a different question: **what should I do, and what wil
 ```
 WHAT TO DO  <n> actions clear <m> findings
   <band>  <the action>
+          <what the rule found, when the action names a rule>
           control <control> · <n> findings · <upstream, when not yours> ·
           <where it applies> · <the rule it names, and how many more it clears>
 ```
@@ -36,7 +37,9 @@ three rows makes the repetitive work crowd out everything else.
 | `images`, when you build it | package | upgrade it in your image |
 | `images`, when somebody else builds it | image | take a newer image |
 | `images`, OS layer past end of life | operating system release | move the base |
-| `secrets` | file | remove the credential |
+| `secrets` | rule | remove the credential and rotate it |
+| `licenses`, when somebody else builds it | image or repository | review the licenses it carries |
+| `licenses`, in your own dependencies | package and license | replace the package or accept its license |
 | `iac` | rule | apply one fix across N files |
 | `infrastructure` | check | one cluster setting |
 
@@ -113,9 +116,10 @@ images:
     builtBy: upstream        # self (default), or upstream
 ```
 
-On `upstream`, every finding in the image becomes one action. *take a newer image*, instead of one
-row per vulnerable library. Nobody can upgrade a package inside an image they do not build; the fix
-is a newer image, or a wait for whoever publishes it.
+On `upstream`, every vulnerability in the image becomes one action. *take a newer image*, instead of
+one row per vulnerable library. Nobody can upgrade a package inside an image they do not build; the
+fix is a newer image, or a wait for whoever publishes it. Its licenses become a second action, a
+review of what the image carries, because a newer image carries the same licenses.
 
 On `self` (the default), a package inside the image is yours, and the rows say to upgrade it.
 
@@ -143,6 +147,7 @@ hides work you could have done; the reverse costs a row you skip.
 |---|---|
 | the band | the highest band among the findings this one action clears |
 | the action | what to do, naming the thing and the version in hand |
+| the summary | the scanner's description of what the rule found, under an action that names a rule |
 | the control | which control the findings came from |
 | the count | how many findings this action clears |
 | `upstream` | present only where the component is somebody else's to fix |

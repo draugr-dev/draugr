@@ -614,7 +614,7 @@ func actionKeyFor(f finding) string {
 	if f.remediation == sarif.RemediationExternal {
 		return ""
 	}
-	key, _ := actionFor(f)
+	key, _, _ := actionFor(f)
 	return key
 }
 
@@ -622,6 +622,7 @@ func actionKeyFor(f finding) string {
 type htmlAction struct {
 	Key      string
 	Title    string
+	Summary  string
 	Priority string
 	Control  string
 	Clears   int
@@ -639,7 +640,7 @@ func toHTMLAction(a action) htmlAction {
 		title += " → " + v
 	}
 	out := htmlAction{
-		Key: a.key, Title: title, Priority: a.priority, Control: a.control,
+		Key: a.key, Title: title, Summary: a.summary, Priority: a.priority, Control: a.control,
 		Clears: a.count(), Upstream: a.upstream, Cached: a.cached,
 	}
 	if out.Priority == "" {
@@ -1594,6 +1595,7 @@ about what they would have found. For everything the tool printed, re-run with
     <span class="chips"><span class="pri {{.Priority}}">{{.Priority}}</span></span>
     <div class="what">
       <div class="rule"><span class="name">{{.Title}}</span></div>
+      {{if .Summary}}<div class="sub">{{.Summary}}</div>{{end}}
       <div class="sub"><span class="lbl">control</span> {{.Control}}<span class="faint"> · </span><button type="button" class="act-clears" data-a="{{.Key}}" data-title="{{.Title}}">{{plural .Clears "finding"}}</button>{{if .Upstream}}<span class="faint"> · </span>upstream{{end}}{{if .Cached}}<span class="faint"> · </span>from cache{{end}}{{if .Where}}<span class="faint"> · </span>{{.Where}}{{end}}</div>
     </div>
   </div>{{end}}
