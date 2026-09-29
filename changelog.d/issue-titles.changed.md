@@ -1,1 +1,0 @@
-- **A new GitHub issue is titled by what tells it apart, then the project**, such as `sca fails the Draugr gate · team=payments · shop`, so split issues read apart in a list. Issues already open keep their titles.
