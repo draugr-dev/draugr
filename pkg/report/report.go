@@ -96,6 +96,10 @@ type Data struct {
 	// waived, or a waivable one without --allow-scan-errors. The verdict already says fail; this
 	// says the failure is about what was not looked at.
 	Incomplete bool
+	// Labels holds each declared component's labels by component name, with an entry for every
+	// component the descriptor declares, labeled or not. A publisher covering part of a run by
+	// label reads it; the rendered reports do not.
+	Labels map[string]map[string]string
 
 	// View is what the report shows and how densely, one setting rather than two that have to be
 	// combined. The zero value is ViewFindings.

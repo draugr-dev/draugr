@@ -1548,3 +1548,17 @@ func TestTheWrittenSARIFNamesWhichAnalysisItIs(t *testing.T) {
 		t.Errorf("id moved with the findings: %q then %q", got, again)
 	}
 }
+
+func TestComponentLabelsHasAnEntryForEveryComponent(t *testing.T) {
+	m := &saga.Model{Components: []saga.Component{
+		{Name: "api", Labels: map[string]string{"team": "payments"}},
+		{Name: "web"},
+	}}
+	got := componentLabels(m)
+	if len(got) != 2 || got["api"]["team"] != "payments" {
+		t.Errorf("componentLabels = %v", got)
+	}
+	if _, ok := got["web"]; !ok {
+		t.Errorf("an unlabeled component has no entry: %v", got)
+	}
+}
