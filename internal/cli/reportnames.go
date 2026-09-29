@@ -66,6 +66,11 @@ func checkReportNames(model *saga.Model) error {
 			seen[id] = i
 		}
 
+		problems = append(problems, checkIssueFields(model, i, p)...)
+		if publish.IssueKind(p.Kind) {
+			continue
+		}
+
 		// A destination with no format of its own and none named delivers nothing. `file` is the
 		// only such kind: a directory has no inherent format, so what goes in it is a choice
 		// somebody has to make.
@@ -101,4 +106,65 @@ func checkReportNames(model *saga.Model) error {
 	return errors.New(strings.Join(problems, "\n") +
 		"\n\nformats: " + strings.Join(append(report.Formats(), "template"), ", ") +
 		"\npublishers: " + strings.Join(publish.Kinds(), ", "))
+}
+
+// checkIssueFields holds a publisher's issue fields to the kind that reads them.
+//
+// An issue field on any other kind is ignored, so a descriptor carrying one claims a narrowing or
+// a label that nothing applies. An issue publisher builds its body from the run, so `reports` on
+// one names formats nothing renders.
+func checkIssueFields(model *saga.Model, i int, p saga.PublisherConfig) []string {
+	var set []string
+	for _, f := range []struct {
+		name string
+		set  bool
+	}{
+		{"label", p.Label != ""},
+		{"branches", len(p.Branches) > 0},
+		{"select", p.Select != nil},
+		{"split", p.Split != ""},
+		{"minPriority", p.MinPriority != ""},
+		{"item", p.Item != nil},
+	} {
+		if f.set {
+			set = append(set, f.name)
+		}
+	}
+	if !publish.IssueKind(p.Kind) {
+		if len(set) == 0 {
+			return nil
+		}
+		return []string{fmt.Sprintf(
+			"config.publishers[%d]: the %s publisher does not read %s, which only an issue publisher reads",
+			i, p.Kind, list(set))}
+	}
+
+	var problems []string
+	if len(p.Reports) > 0 {
+		problems = append(problems, fmt.Sprintf(
+			"config.publishers[%d].reports: the %s publisher builds its body from the run and renders no report; remove reports",
+			i, p.Kind))
+	}
+	if model.ProjectName() == "" {
+		problems = append(problems, fmt.Sprintf(
+			"config.publishers[%d]: the %s publisher finds its issues by project, and the descriptor names none; set project",
+			i, p.Kind))
+	}
+	if p.Select != nil {
+		declared := map[string]bool{}
+		for _, c := range model.Components {
+			declared[c.Name] = true
+		}
+		for _, name := range p.Select.Components {
+			if declared[name] {
+				continue
+			}
+			msg := fmt.Sprintf("config.publishers[%d].select.components: %q is not a component of this descriptor", i, name)
+			if near := nearestName(name, declared); near != "" {
+				msg += fmt.Sprintf(", did you mean %q?", near)
+			}
+			problems = append(problems, msg)
+		}
+	}
+	return problems
 }

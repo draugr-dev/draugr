@@ -1,0 +1,1 @@
+- **A GitHub issue that stays open while the gate fails.** The `github-issue` publisher opens an issue on a failing default-branch run, rewrites it when the findings change, and closes it with a comment when the gate passes. `select` and `split` give each team its own issues, and `minPriority` keeps lower bands out of them.

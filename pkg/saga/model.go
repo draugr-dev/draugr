@@ -577,6 +577,60 @@ type PublisherConfig struct {
 	// environment, while this is the organization's default and loses to it. Merging them would
 	// make an ambient value indistinguishable from an intentional one.
 	DefaultURL string `yaml:"-"`
+
+	// github-issue: one tracking item kept open while the gate fails and closed when it passes.
+	//
+	// Label finds the items this entry owns and is always applied, `draugr` when unset. Branches
+	// are the branches whose runs may open, rewrite or close an item, the repository's default
+	// branch when unset, because a passing pull-request run would otherwise close an item the
+	// default branch still fails. Select, Split and MinPriority decide which part of the run each
+	// item covers; Item is the metadata set on an item when it is created.
+	Label       string           `yaml:"label,omitempty"`
+	Branches    []string         `yaml:"branches,omitempty"`
+	Select      *PublisherSelect `yaml:"select,omitempty"`
+	Split       string           `yaml:"split,omitempty"`
+	MinPriority string           `yaml:"minPriority,omitempty"`
+	Item        *IssueItem       `yaml:"item,omitempty"`
+}
+
+// Split values for an issue publisher: one item for everything the entry covers, or one per
+// control or per component within it.
+const (
+	SplitNone      = "none"
+	SplitControl   = "control"
+	SplitComponent = "component"
+)
+
+// Splits lists the values `split` takes.
+var Splits = []string{SplitNone, SplitControl, SplitComponent}
+
+// PublisherSelect is the part of a run an issue publisher's items cover, with the meaning of
+// `--components`, `--labels` and `--controls`. A list matches any of its values, every label must
+// match, and the fields together narrow.
+type PublisherSelect struct {
+	Components []string          `yaml:"components,omitempty"`
+	Labels     map[string]string `yaml:"labels,omitempty"`
+	Controls   []string          `yaml:"controls,omitempty"`
+}
+
+// IsZero reports a selection that names nothing, which covers the whole run.
+func (s *PublisherSelect) IsZero() bool {
+	return s == nil || (len(s.Components) == 0 && len(s.Labels) == 0 && len(s.Controls) == 0)
+}
+
+// IssueItem is the metadata an issue publisher sets when it creates an item, in the forge's own
+// vocabulary. After that the item belongs to whoever triages it: a later run adds back a
+// configured label that has gone missing and changes nothing else.
+type IssueItem struct {
+	// Labels are applied beside the tracking label and never used to find an item, so changing
+	// them does not orphan one.
+	Labels []string `yaml:"labels,omitempty"`
+	// Assignees are logins.
+	Assignees []string `yaml:"assignees,omitempty"`
+	// Milestone is a milestone's title, resolved to its number when the item is created.
+	Milestone string `yaml:"milestone,omitempty"`
+	// Type is an issue type the organization defines.
+	Type string `yaml:"type,omitempty"`
 }
 
 // Component is one logical part of an application: its repositories, images, hosts, and

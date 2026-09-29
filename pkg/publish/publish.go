@@ -54,6 +54,7 @@ var builders = map[string]func(saga.PublisherConfig) (Publisher, error){
 	"file":              newFilePublisher,
 	"github":            newGithubPublisher,
 	"github-pr-comment": newGithubPRCommentPublisher,
+	"github-issue":      newGithubIssuePublisher,
 	"azure-pr-comment":  newAzurePRCommentPublisher,
 	"gitlab-mr-comment": newGitLabMRCommentPublisher,
 	"draugr-api":        newDraugrAPIPublisher,
@@ -86,6 +87,8 @@ var rendered = map[string][]string{
 	"file":              nil,
 	"github":            {"sarif"},
 	"github-pr-comment": {"markdown"},
+	// The body is built from the run rather than from a rendered report.
+	"github-issue":      nil,
 	"azure-pr-comment":  {"markdown"},
 	"gitlab-mr-comment": {"markdown"},
 	// The report carries the verdict and the findings carry the evidence, and the plane stores
@@ -110,6 +113,9 @@ var distinguishes = map[string]string{
 	"file":              "dir",
 	"github":            "repo",
 	"github-pr-comment": "marker",
+	// Two entries on one repository keep separate items when their selection or split differs,
+	// because those are what the marker is built from.
+	"github-issue":      "repo, select and split",
 	"azure-pr-comment":  "marker",
 	"gitlab-mr-comment": "marker",
 	"draugr-api":        "url",
@@ -135,6 +141,8 @@ func DistinguishingValue(cfg saga.PublisherConfig) string {
 		return cfg.Marker
 	case "url":
 		return cfg.URL
+	case "repo, select and split":
+		return cfg.Repo + "\x00" + issueKey(cfg)
 	}
 	return ""
 }
@@ -150,6 +158,7 @@ var local = map[string]bool{
 	"file":              true,
 	"github":            false,
 	"github-pr-comment": false,
+	"github-issue":      false,
 	"azure-pr-comment":  false,
 	"gitlab-mr-comment": false,
 	"draugr-api":        false,

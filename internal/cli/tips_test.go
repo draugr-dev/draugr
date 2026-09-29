@@ -95,6 +95,29 @@ func TestSurfaceNoteSaysNothingWhenCovered(t *testing.T) {
 	}
 }
 
+func TestUntrackedNoteNamesWhatNoIssuePublisherSelects(t *testing.T) {
+	model := &saga.Model{
+		Config: saga.Config{Publishers: []saga.PublisherConfig{
+			{Kind: "github-issue", Select: &saga.PublisherSelect{Components: []string{"api"}}},
+		}},
+		Components: []saga.Component{{Name: "api"}, {Name: "web"}, {Name: "batch"}},
+	}
+	var out bytes.Buffer
+	printUntrackedNote(&out, model)
+	for _, want := range []string{"UNTRACKED", "  web\n", "  batch\n", "No issue publisher selects these components."} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("the note never said %q:\n%s", want, out.String())
+		}
+	}
+
+	model.Config.Publishers = append(model.Config.Publishers, saga.PublisherConfig{Kind: "github-issue"})
+	out.Reset()
+	printUntrackedNote(&out, model)
+	if out.Len() != 0 {
+		t.Errorf("an entry with no select covers every component:\n%s", out.String())
+	}
+}
+
 // priorityRun returns a run holding one finding at the given priority.
 func priorityRun(priority string) engine.Result {
 	return engine.Result{Controls: map[string]plugin.ControlResult{

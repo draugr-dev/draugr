@@ -695,6 +695,59 @@ carry **`api`** scope. `CI_JOB_TOKEN` is read-only on the notes API and cannot p
 knowing before reaching for the variable GitLab already provides. See [reports &
 publishers](../guides/reports-and-publishers.md#gitlab).
 
+The **`github-issue`** publisher keeps a GitHub issue open while the gate fails. A run on a tracked
+branch opens the issue, rewrites its body when the findings change, and closes it with a comment
+when the gate passes. A pull-request run changes nothing. The body lists the actions that clear the
+findings and the findings under each. See [reports &
+publishers](../guides/reports-and-publishers.md#github-issues) for the lifecycle.
+
+```yaml
+config:
+  publishers:
+    - kind: github-issue
+      select:                        # the whole run when unset
+        labels: { team: payments }
+      split: component               # none (default) | control | component
+      minPriority: P2
+      label: draugr                  # the default
+      branches: [main, "release/*"]  # the default branch when unset
+      item:
+        labels: [triage]
+        assignees: [octocat]
+        milestone: Q4 hardening
+        type: Bug
+```
+
+| Field | Default | Meaning |
+|---|---|---|
+| `select` | the whole run | the findings and errors this entry's issues cover. `components`, `labels` and `controls` mean what `--components`, `--labels` and `--controls` mean. A list matches any of its values, every label must match, and the keys together must all match. |
+| `split` | `none` | `control` or `component`: one issue per control or per component within what `select` covers. An issue closes when its own part passes. |
+| `minPriority` | every band | `P1` to `P4`. An issue opens only while it holds a failing finding at or above this band, and its body lists only those. The body's count of failing findings stays complete. |
+| `label` | `draugr` | the label that finds this entry's issues, applied to each. Created in the repository when it does not exist. A comma is refused. |
+| `branches` | the default branch | branch names or globs, `*` matching any characters. A run on any other branch changes nothing. |
+| `item.labels` | none | labels applied beside `label` when an issue is created. A later run adds back one that was removed. |
+| `item.assignees` | none | logins assigned when an issue is created. |
+| `item.milestone` | none | a milestone's title, open or closed, set when an issue is created. |
+| `item.type` | none | an issue type the organization defines, set when an issue is created. |
+
+After an issue is created it belongs to whoever triages it: a reassignment, a moved milestone or an
+edited title survives the next run. Each issue carries a hidden marker naming the project, the run's
+scope, `select` and the split part, and a run acts only on the issues whose marker matches it, so a
+run narrowed with `--controls` never closes an issue a full run opened. The descriptor must set
+`project`.
+
+In GitHub Actions the repository and `$GITHUB_TOKEN` (or `tokenEnv`) come from the environment, and
+the workflow grants `permissions: issues: write`. A fine-grained token needs *Issues: write*. Without
+push access GitHub drops labels, assignees, milestone and type from a new issue without an error,
+so the publisher compares the created issue with the request and fails naming what was dropped.
+
+**An issue on a public repository is readable by anyone**, and the body lists findings with their
+files and lines. Listing the same repository's code-scanning alerts takes write access. For a public
+repository, upload findings to code scanning with the `github` publisher instead.
+
+When an entry sets `select`, `draugr doctor` lists the components no issue entry covers under
+`UNTRACKED`.
+
 The **`draugr-api`** publisher posts the run to any server implementing Draugr's run-ingest API.
 [Draugr Server](https://draugr.dev) is one, hosted, or installed where you want it, the same
 artifact either way, and the three calls are documented in [reports &

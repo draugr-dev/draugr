@@ -124,6 +124,8 @@ var sections = map[string]string{
 	"sbomconfig":             "config.sbom",
 	"reportconfig":           "config.reports",
 	"publisherconfig":        "config.publishers",
+	"publisherselect":        "config.publishers[].select",
+	"issueitem":              "config.publishers[].item",
 	"vexconfig":              "config.vex",
 	// One type with two homes, and naming either one alone would be a half-answer to somebody
 	// looking at the other.

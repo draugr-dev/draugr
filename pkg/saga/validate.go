@@ -3,6 +3,7 @@ package saga
 import (
 	"errors"
 	"fmt"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -66,6 +67,7 @@ func (m *Model) Validate() error {
 					i, j, r.MinPriority, orList(Priorities)))
 			}
 		}
+		errs = append(errs, p.validateIssueFields(i)...)
 	}
 	if g := m.Config.Gate; g != nil {
 		if g.FailOnPriority != "" && !slices.Contains(Priorities, g.FailOnPriority) {
@@ -632,3 +634,35 @@ func orList[T ~string](values []T) string {
 // OrList is orList for callers outside this package, so one phrasing serves every place a closed
 // vocabulary is offered back to somebody who missed it.
 func OrList[T ~string](values []T) string { return orList(values) }
+
+// validateIssueFields checks the values of an issue publisher's fields. Whether the kind takes
+// them, and whether a selected component or control exists, is decided where the kinds and the
+// registry are known.
+func (p PublisherConfig) validateIssueFields(i int) []error {
+	var errs []error
+	if p.Split != "" && !slices.Contains(Splits, p.Split) {
+		errs = append(errs, fmt.Errorf("config.publishers[%d].split is %q, but a split is %s",
+			i, p.Split, orList(Splits)))
+	}
+	if p.MinPriority != "" && !slices.Contains(Priorities, p.MinPriority) {
+		errs = append(errs, fmt.Errorf("config.publishers[%d].minPriority is %q, but a priority band is %s",
+			i, p.MinPriority, orList(Priorities)))
+	}
+	// An empty select covers the whole run, which is what leaving it out already says. Written
+	// out, it reads as a narrowing that narrows nothing.
+	if p.Select != nil && p.Select.IsZero() {
+		errs = append(errs, fmt.Errorf(
+			"config.publishers[%d].select names no components, labels or controls; remove it to cover the whole run", i))
+	}
+	// Forges take a label filter as a comma-separated list, so a label holding a comma would be
+	// searched for as two labels and its items never found.
+	if strings.Contains(p.Label, ",") {
+		errs = append(errs, fmt.Errorf("config.publishers[%d].label is %q, but a label cannot hold a comma", i, p.Label))
+	}
+	for _, b := range p.Branches {
+		if _, err := path.Match(b, ""); err != nil {
+			errs = append(errs, fmt.Errorf("config.publishers[%d].branches: %q is not a valid pattern", i, b))
+		}
+	}
+	return errs
+}

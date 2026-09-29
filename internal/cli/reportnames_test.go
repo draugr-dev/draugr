@@ -58,13 +58,17 @@ func TestValidateAcceptsWhatThisBuildActuallyHas(t *testing.T) {
 	// duplicate check does not fire on a list whose point is coverage.
 	var publishers []saga.PublisherConfig
 	for i, k := range publisherKindsForTest() {
-		publishers = append(publishers, saga.PublisherConfig{
+		p := saga.PublisherConfig{
 			Kind: k, Dir: fmt.Sprintf("./out-%d", i), Repo: fmt.Sprintf("acme/r%d", i),
 			Marker: fmt.Sprintf("<!-- %d -->", i), URL: fmt.Sprintf("https://h%d.example", i),
 			Reports: reports,
-		})
+		}
+		if publish.IssueKind(k) {
+			p.Reports = nil // an issue body is built from the run, so it takes no format
+		}
+		publishers = append(publishers, p)
 	}
-	if err := checkReportNames(&saga.Model{Config: saga.Config{
+	if err := checkReportNames(&saga.Model{Project: "shop", Config: saga.Config{
 		Publishers: publishers,
 	}}); err != nil {
 		t.Errorf("validate rejects something this build provides: %v", err)
@@ -91,5 +95,50 @@ func TestValidateOnEmptyNames(t *testing.T) {
 func TestCheckReportNamesOnNil(t *testing.T) {
 	if err := checkReportNames(nil); err != nil {
 		t.Errorf("nil model: %v", err)
+	}
+}
+
+// The issue fields are held to the kind that reads them, and an issue publisher to what it needs.
+func TestValidateIssueFieldsAgainstTheKind(t *testing.T) {
+	model := func(project string, p saga.PublisherConfig) *saga.Model {
+		return &saga.Model{Project: project, Components: []saga.Component{{Name: "web"}, {Name: "batch"}},
+			Config: saga.Config{Publishers: []saga.PublisherConfig{p}}}
+	}
+	for _, c := range []struct {
+		name  string
+		model *saga.Model
+		want  []string
+	}{
+		{"complete", model("shop", saga.PublisherConfig{Kind: "github-issue", Label: "sec",
+			Select: &saga.PublisherSelect{Components: []string{"web", "batch"}}, Split: saga.SplitControl}), nil},
+		{"issue fields on another kind", model("shop", saga.PublisherConfig{Kind: "github-pr-comment",
+			Label: "sec", MinPriority: "P2"}),
+			[]string{"the github-pr-comment publisher does not read label or minPriority"}},
+		{"reports on an issue kind", model("shop", saga.PublisherConfig{Kind: "github-issue",
+			Reports: []saga.ReportConfig{{Format: "markdown"}}}),
+			[]string{"config.publishers[0].reports", "renders no report"}},
+		{"no project", model("", saga.PublisherConfig{Kind: "github-issue"}),
+			[]string{"names none; set project"}},
+		{"unknown component", model("shop", saga.PublisherConfig{Kind: "github-issue",
+			Select: &saga.PublisherSelect{Components: []string{"wbe", "zzz"}}}),
+			[]string{`"wbe" is not a component of this descriptor, did you mean "web"?`, `"zzz" is not a component`}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			err := checkReportNames(c.model)
+			if len(c.want) == 0 {
+				if err != nil {
+					t.Fatalf("rejected: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("accepted")
+			}
+			for _, w := range c.want {
+				if !strings.Contains(err.Error(), w) {
+					t.Errorf("want %q in:\n%v", w, err)
+				}
+			}
+		})
 	}
 }

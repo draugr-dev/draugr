@@ -54,6 +54,13 @@ func TestCheckControlNamesRejectsTypos(t *testing.T) {
 				{Name: "web", Controls: map[string]saga.ControllerSettings{"secrit": {"enabled": true}}}}},
 			`components["web"].controls`,
 		},
+		{
+			"an issue publisher's select",
+			&saga.Model{Config: saga.Config{Publishers: []saga.PublisherConfig{
+				{Kind: "file"},
+				{Kind: "github-issue", Select: &saga.PublisherSelect{Controls: []string{"sast", "secrit"}}}}}},
+			"config.publishers[1].select.controls",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

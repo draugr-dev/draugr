@@ -79,6 +79,8 @@ func schemaCases() []schemaCase {
 		{"config", Config{}},
 		{"reportConfig", ReportConfig{}},
 		{"publisherConfig", PublisherConfig{}},
+		{"publisherSelect", PublisherSelect{}},
+		{"issueItem", IssueItem{}},
 		{"component", Component{}},
 		{"repository", Repository{}},
 		{"image", Image{}},

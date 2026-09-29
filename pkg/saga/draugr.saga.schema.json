@@ -1643,9 +1643,70 @@
       ],
       "type": "object"
     },
+    "issueItem": {
+      "additionalProperties": false,
+      "description": "Metadata set on an issue when it is created. A later run adds back a configured label that was removed and changes nothing else.",
+      "properties": {
+        "assignees": {
+          "description": "GitHub logins.",
+          "items": {
+            "minLength": 1,
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "type": "array"
+        },
+        "labels": {
+          "description": "Labels applied beside the tracking label.",
+          "items": {
+            "minLength": 1,
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "type": "array"
+        },
+        "milestone": {
+          "description": "A milestone's title, open or closed.",
+          "minLength": 1,
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "type": {
+          "description": "An issue type the organization defines.",
+          "minLength": 1,
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        }
+      },
+      "type": "object"
+    },
     "publisherConfig": {
       "additionalProperties": false,
       "properties": {
+        "branches": {
+          "description": "github-issue: the branches whose runs open, rewrite and close issues, as names or globs. Defaults to the repository's default branch.",
+          "items": {
+            "minLength": 1,
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "type": "array"
+        },
         "commit": {
           "description": "github: commit SHA. Defaults to $GITHUB_SHA.",
           "type": "string"
@@ -1657,6 +1718,10 @@
             "number",
             "boolean"
           ]
+        },
+        "item": {
+          "$ref": "#/$defs/issueItem",
+          "description": "github-issue: the metadata set on an issue when it is created."
         },
         "kind": {
           "anyOf": [
@@ -1671,6 +1736,10 @@
             {
               "const": "github-pr-comment",
               "description": "Post the Markdown report as a sticky pull-request comment."
+            },
+            {
+              "const": "github-issue",
+              "description": "Keep a GitHub issue open while the gate fails, and close it when the gate passes."
             },
             {
               "const": "azure-pr-comment",
@@ -1688,8 +1757,39 @@
           "description": "Where to deliver reports.",
           "type": "string"
         },
+        "label": {
+          "description": "github-issue: the label that finds this entry's issues, applied to each one. Defaults to draugr.",
+          "minLength": 1,
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
         "marker": {
           "description": "github-pr-comment / azure-pr-comment / gitlab-mr-comment: hidden marker identifying the sticky comment to update.",
+          "type": "string"
+        },
+        "minPriority": {
+          "anyOf": [
+            {
+              "const": "P1",
+              "description": "Blocks a release: urgent in this component's context."
+            },
+            {
+              "const": "P2",
+              "description": "Scheduled work."
+            },
+            {
+              "const": "P3",
+              "description": "Backlog."
+            },
+            {
+              "const": "P4",
+              "description": "Noted, rarely acted on."
+            }
+          ],
+          "description": "github-issue: the lowest band that opens an issue. The body lists only the actions at or above it. Defaults to every band.",
           "type": "string"
         },
         "org": {
@@ -1719,6 +1819,28 @@
           },
           "type": "array"
         },
+        "select": {
+          "$ref": "#/$defs/publisherSelect",
+          "description": "github-issue: the part of the run this entry's issues cover. Defaults to the whole run."
+        },
+        "split": {
+          "anyOf": [
+            {
+              "const": "none",
+              "description": "One issue for everything the entry covers."
+            },
+            {
+              "const": "control",
+              "description": "One issue per control."
+            },
+            {
+              "const": "component",
+              "description": "One issue per component."
+            }
+          ],
+          "description": "github-issue: one issue, or one per control or component. Defaults to none.",
+          "type": "string"
+        },
         "tokenEnv": {
           "description": "Environment variable holding the token (default GITHUB_TOKEN; SYSTEM_ACCESSTOKEN for azure-pr-comment; GITLAB_TOKEN for gitlab-mr-comment). The token itself is never stored in the Saga.",
           "type": "string"
@@ -1731,6 +1853,43 @@
       "required": [
         "kind"
       ],
+      "type": "object"
+    },
+    "publisherSelect": {
+      "additionalProperties": false,
+      "description": "The part of a run an issue entry covers, with the meaning of --components, --labels and --controls. A list matches any of its values, every label must match, and the keys together narrow.",
+      "properties": {
+        "components": {
+          "description": "Component names.",
+          "items": {
+            "minLength": 1,
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "type": "array"
+        },
+        "controls": {
+          "description": "Control names.",
+          "items": {
+            "$ref": "#/$defs/controlName"
+          },
+          "type": "array"
+        },
+        "labels": {
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "description": "Component labels, each of which must match.",
+          "type": "object"
+        }
+      },
       "type": "object"
     },
     "reachabilityConfig": {
