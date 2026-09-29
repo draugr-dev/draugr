@@ -16,15 +16,15 @@ _Nothing yet._
 
 ### Added
 
-- **A `github-issue` publisher labels each issue with the highest priority it lists**, such as `draugr:priority:P1`, so a board or a saved search can sort by it. `labelBy` adds the control, the exposure, the criticality, and a label for an incomplete scan. Every run adds the labels that apply and removes the ones that no longer do.
+- **A `github-issue` publisher labels each issue with the highest priority among its findings**, such as `draugr:priority:P1`. The entry's `labelBy` adds labels for the control, the exposure, the criticality and an incomplete scan. Every run adds the labels that apply and removes the ones that no longer do.
 
 ### Changed
 
-- **A new GitHub issue is titled by what tells it apart, then the project**, such as `sca fails the Draugr gate · team=payments · shop`, so split issues read apart in a list. Issues already open keep their titles.
+- **A new GitHub issue is titled by what tells it apart, then the project**, such as `sca fails the Draugr gate · team=payments · shop`. Issues already open keep their titles.
 
 ### Fixed
 
-- **The Action's diff mode runs on a self-hosted runner that keeps its checkout between jobs.** It clears the record of a base-commit checkout left by a canceled job before making its own, instead of failing with `is a missing but already registered worktree`.
+- **The Action's diff mode works on a self-hosted runner that keeps its checkout between jobs.** It clears a stale worktree record left by a canceled job instead of failing with `is a missing but already registered worktree`.
 
 ## [0.140.0] - 2026-09-29
 
