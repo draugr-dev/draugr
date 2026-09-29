@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -21,6 +22,11 @@ type action struct {
 	key string
 	// title is what to do, in the imperative.
 	title string
+	// summary is the scanner's own one-line description of what is wrong, for an action titled by a
+	// rule's name. Empty where the title already says it, and where the findings describe
+	// themselves differently: one of several descriptions, printed as though it were all of them,
+	// would be wrong about the rest.
+	summary string
 	// control the findings came from, and the worst priority among them.
 	control  string
 	priority string
@@ -69,7 +75,11 @@ func displayLocation(f finding) string {
 	if f.control != "images" {
 		return f.location
 	}
-	ref := f.location
+	return displayImage(f.location)
+}
+
+// displayImage is an image reference without its digest or registry host.
+func displayImage(ref string) string {
 	if at := strings.Index(ref, "@"); at > 0 {
 		ref = ref[:at]
 	}
@@ -113,18 +123,20 @@ func groupActions(findings []finding, unpinned []string) (actions []action, exte
 	}
 	order := []string{}
 	byKey := map[string]*action{}
+	ruled := map[string]bool{}
 
 	for _, f := range findings {
 		if f.remediation == sarif.RemediationExternal {
 			external = append(external, f)
 			continue
 		}
-		key, title := actionFor(f)
+		key, title, byRule := actionFor(f)
 		a, seen := byKey[key]
 		if !seen {
 			a = &action{key: key, title: title, control: f.control, priority: f.priority}
 			byKey[key] = a
 			order = append(order, key)
+			ruled[key] = byRule
 		}
 		// Findings arrive most urgent first, so the first one sets the band and no later, lesser
 		// one lowers it: an action that clears a P1 is P1 work whatever else it clears.
@@ -135,6 +147,9 @@ func groupActions(findings []finding, unpinned []string) (actions []action, exte
 		a := *byKey[key]
 		if f, ok := a.exemplar(); ok {
 			a.upstream = f.builtUpstream
+		}
+		if ruled[key] {
+			a.summary = summaryFor(a)
 		}
 		// Every finding, not any: an action grouping one stale row with three fresh ones is not
 		// a stale action, and marking it so would tell a reader to distrust work that is current.
@@ -172,8 +187,24 @@ func moreUrgent(a, b action) bool {
 }
 
 // actionFor returns the key two findings share when one fix clears both, and how to say it.
-func actionFor(f finding) (key, title string) {
+// byRule reports an action titled by the name of the rule it groups on, which is the one kind of
+// title that does not say what is wrong.
+func actionFor(f finding) (key, title string, byRule bool) {
 	switch {
+	// The licenses in an image or a repository somebody else publishes are one review. Nobody running
+	// the scan can swap a package inside it, so what is left is to read what it carries and decide
+	// whether that is acceptable to ship, once for the whole of it.
+	//
+	// Before the upstream cases below, which would title this "Update" and send the reader for a
+	// newer version carrying the same licenses.
+	case f.control == "licenses" && f.builtUpstream && licenseUnit(f) != "":
+		return "licenses\x00" + licenseUnit(f), "Review the licenses in " + licenseUnit(f), false
+
+	// A license in the reader's own dependencies is a decision about one package: replace it, or
+	// accept the terms it comes with. No version is named, because no version changes a license.
+	case f.control == "licenses":
+		return f.control + "\x00" + f.ruleID, licenseTitle(f), false
+
 	// An image somebody else publishes is one action however many packages are wrong inside it,
 	// and the action is the image. Nobody running the scan can upgrade a library they do not
 	// build: the fix is a newer image, or a wait for whoever publishes it. Grouping these by
@@ -185,7 +216,7 @@ func actionFor(f finding) (key, title string) {
 	case f.builtUpstream && f.control == "images" && f.location != "":
 		// The image is the title, so the row does not repeat it below, and the reason it is the
 		// unit of work goes in the meta as one word rather than a clause on every line.
-		return "image\x00" + f.location, "Update " + displayLocation(f)
+		return "image\x00" + f.location, "Update " + displayLocation(f), false
 
 	// The same argument one level up, for a repository somebody else publishes. The unit of work is
 	// their software, not a file inside it: keying on the location here would title the action
@@ -195,7 +226,7 @@ func actionFor(f finding) (key, title string) {
 	// Falls back to the component when the repository is a local path, which is what a scan of a
 	// checkout reports. "Update ." names nothing.
 	case f.builtUpstream && upstreamUnit(f) != "":
-		return "upstream\x00" + upstreamUnit(f), "Update " + upstreamUnit(f)
+		return "upstream\x00" + upstreamUnit(f), "Update " + upstreamUnit(f), false
 
 	// An upgrade is one action however many vulnerabilities it resolves, which is the case that
 	// pays off most: a library a year out of date carries a dozen findings and one fix.
@@ -206,7 +237,7 @@ func actionFor(f finding) (key, title string) {
 	// failure this exists to remove.
 	case f.pkg != nil && f.pkg.Name != "" && f.pkg.FixedVersion != "":
 		return "upgrade\x00" + f.pkg.Ecosystem + "\x00" + f.pkg.Name,
-			fmt.Sprintf("Upgrade %s %s", f.pkg.Name, f.pkg.Version)
+			fmt.Sprintf("Upgrade %s %s", f.pkg.Name, f.pkg.Version), false
 
 	// A dependency nobody has fixed yet. Still one decision per package rather than one per
 	// advisory, and still an action: there is no version to move to, so the choice is to replace
@@ -216,43 +247,198 @@ func actionFor(f finding) (key, title string) {
 	// advisory's description of the flaw, which describes what is wrong and never says what to do.
 	case f.pkg != nil && f.pkg.Name != "" && f.remediation != sarif.RemediationUpstream:
 		return "nofix\x00" + f.pkg.Ecosystem + "\x00" + f.pkg.Name,
-			fmt.Sprintf("Replace or accept %s %s, no fix available", f.pkg.Name, f.pkg.Version)
+			fmt.Sprintf("Replace or accept %s %s, no fix available", f.pkg.Name, f.pkg.Version), false
 
 	// Nothing fixes these where they are, and the release underneath is the fix, one move for every
 	// finding in that layer, and usually the largest single reduction available.
 	case f.remediation == sarif.RemediationUpstream && f.operatingSystem != "":
 		return "os\x00" + f.operatingSystem,
 			fmt.Sprintf("Move off %s, past end of service life, so no fix is coming",
-				f.operatingSystem)
+				f.operatingSystem), false
 
 	// The same rule in several places is one thing to understand and apply, whether that is a
 	// missing directive in three Dockerfiles or a credential committed to four files.
 	default:
-		return f.control + "\x00" + f.ruleID, titleFor(f)
+		return f.control + "\x00" + f.ruleID, titleFor(f), true
 	}
 }
 
-// titleFor writes the imperative for a finding that is its own action.
+// titleFor writes the imperative for a finding that is its own action: a verb, then the rule.
 //
-// The scanner's own sentence, which already describes the problem, rather than a phrasing of
-// Draugr's invention: a rule's message is written by whoever knows the rule.
+// The verb is Draugr's and the rule's name is the scanner's. A scanner's message describes what is
+// wrong, "Privileged", "By not specifying a USER, a program in the container may run as 'root'",
+// and a list of those under a heading promising things to do reads as a list of complaints. The
+// verb is the part a scanner never writes, and the rule's name is the part it always does.
 func titleFor(f finding) string {
-	title := strings.TrimSpace(f.message)
-	if title == "" {
-		title = f.ruleID
+	name := ruleName(f.ruleID, f.message)
+	if name == "" {
+		return truncate(firstSentence(f.message), actionTitleWidth)
 	}
-	// First line only. A scanner's message often carries a paragraph after it, and the first line
-	// is the part written to be read on its own.
-	if i := strings.IndexByte(title, '\n'); i > 0 {
-		title = strings.TrimSpace(title[:i])
+	return truncate(actionVerb(f)+" "+name, actionTitleWidth)
+}
+
+// actionVerb is what a reader does about a rule's findings.
+//
+// A committed credential is not fixed by editing the file: it is already in the history and
+// in every clone of it, so the action is to take it out and to replace it wherever it is used.
+// A host on a threat feed is somebody else's, and what the reader can do is find out why the
+// application talks to it. A finding scored below low is information a scanner reports about a
+// target, a certificate's issuer or a detected technology, and there is nothing in it to fix.
+func actionVerb(f finding) string {
+	switch {
+	case f.control == "secrets":
+		return "Remove and rotate"
+	case f.control == "threats":
+		return "Investigate"
+	case f.hasScore && f.score < informationalBelow:
+		return "Review"
+	default:
+		return "Fix"
 	}
+}
+
+// informationalBelow is the score under which a finding reports a fact rather than a flaw. Nuclei's
+// info templates score 1.0, and its low ones 2.0.
+const informationalBelow = 2
+
+// summaryFor is the one line saying what an action's rule found, or "" when the title already says
+// it or the findings do not agree on one.
+//
+// The rule's published description where it has one, because it describes the rule rather than one
+// occurrence. The first finding's message otherwise, and only when every finding's says the same:
+// "Certificate expires in 27 day(s)" is true of one host and false of the next.
+func summaryFor(a action) string {
+	if len(a.findings) == 0 || strings.Contains(a.title, "“") {
+		return ""
+	}
+	sum := describe(a.findings[0])
+	for _, f := range a.findings[1:] {
+		if describe(f) != sum {
+			return ""
+		}
+	}
+	if sum == "" || truncate(sum, actionTitleWidth) == a.title {
+		return ""
+	}
+	return sum
+}
+
+// describe is what a finding's rule is about, in one sentence.
+//
+// A rule description that names the rule's own id is a scanner filling the field rather than
+// describing anything. Semgrep's reads "Semgrep Finding: <id>", and the message says more.
+func describe(f finding) string {
+	if d := f.ruleSummary; d != "" && !strings.Contains(d, f.ruleID) {
+		return firstSentence(d)
+	}
+	return firstSentence(f.message)
+}
+
+// licenseUnit names the image or repository whose licenses are one review.
+func licenseUnit(f finding) string {
+	if f.image != "" {
+		return displayImage(f.image)
+	}
+	return upstreamUnit(f)
+}
+
+// licenseTitle is the decision a license finding in the reader's own code asks for.
+//
+// The rule id carries the package, `license/<spdx>/<package>`, and the package name may itself
+// hold slashes, so the license is the segment after the prefix and the package everything after
+// that. A license Trivy read from a file rather than a package has no package segment.
+func licenseTitle(f finding) string {
+	rest, ok := strings.CutPrefix(f.ruleID, "license/")
+	if !ok || rest == "" {
+		return truncate(firstSentence(f.message), actionTitleWidth)
+	}
+	spdx, pkg, ok := strings.Cut(rest, "/")
+	if !ok || pkg == "" {
+		return truncate("Review the files licensed "+spdx, actionTitleWidth)
+	}
+	return truncate("Replace or accept "+pkg+", licensed "+spdx, actionTitleWidth)
+}
+
+// ruleName is what a rule is called, in the words a reader can recognize it by.
+//
+// Rule identifiers come in three shapes, and each says its name in a different place:
+//
+//   - A namespaced path, "headers/csp-unsafe-inline" or Semgrep's
+//     "dockerfile.security.missing-user.missing-user". The last segment is the name and the rest
+//     is where the scanner files it.
+//   - A slug, "private-key" or "tls-cert-expired", which is already a name.
+//   - A catalog number, "KSV-0017", "DS-0002", a CIS section. It names nothing to somebody who has
+//     not looked it up, so the scanner's one-line summary goes beside it, quoted, because it is
+//     the scanner's wording and often not a sentence of its own.
+//
+// Empty when the finding has no rule, which leaves the title to the message.
+func ruleName(id, message string) string {
+	name := id
+	if i := strings.LastIndexByte(name, '/'); i >= 0 && i < len(name)-1 {
+		name = name[i+1:]
+	}
+	// Only a dotted path whose last segment is a word. A CIS section, "1.2.3", is dotted too, and
+	// its last segment is a number, not a name.
+	if i := strings.LastIndexByte(name, '.'); i >= 0 && hasLower(name[i+1:]) {
+		name = name[i+1:]
+	}
+	if name == "" || hasLower(name) {
+		return name
+	}
+	if summary := firstSentence(message); summary != "" && summary != id {
+		return name + " “" + summary + "”"
+	}
+	return name
+}
+
+// hasLower reports whether s holds a lowercase letter, the tell of a name rather than a number
+// somebody assigned.
+func hasLower(s string) bool {
+	return strings.IndexFunc(s, unicode.IsLower) >= 0
+}
+
+// firstSentence is the opening sentence of a scanner's message, the part written to be read on
+// its own.
+func firstSentence(msg string) string {
+	s := strings.TrimSpace(msg)
+	// First line only. A scanner's message often carries a paragraph after it.
+	if i := strings.IndexByte(s, '\n'); i > 0 {
+		s = strings.TrimSpace(s[:i])
+	}
+	// A doubled space inside a line reads as a typo on a terminal.
+	s = strings.Join(strings.Fields(s), " ")
 	// A sentence boundary is a full stop followed by a space. Splitting on the full stop alone cuts
 	// "str.format_map" to "str" and a version to its major, the punctuation inside an identifier
 	// looks exactly like the punctuation at the end of a sentence.
-	if i := strings.Index(title, ". "); i > 0 {
-		title = title[:i]
+	for from := 0; ; {
+		i := strings.Index(s[from:], ". ")
+		if i < 0 {
+			// The last sentence ends at the end of the message, and its full stop goes the same way
+			// the others do.
+			if t := strings.TrimSuffix(s, "."); t != s && !abbreviation(t) {
+				return t
+			}
+			return s
+		}
+		i += from
+		if i > 0 && !abbreviation(s[:i]) {
+			return s[:i]
+		}
+		from = i + 2
 	}
-	return truncate(title, actionTitleWidth)
+}
+
+// abbreviation reports whether the word ending s is an abbreviation, whose full stop ends the word
+// rather than the sentence: single letters, each followed by a full stop, "e.g" or "i.e" or an
+// initial. "str.format_map" is not one, and ends a sentence as often as anything else does.
+func abbreviation(s string) bool {
+	word := s[strings.LastIndexAny(s, " (")+1:]
+	for part := range strings.SplitSeq(word, ".") {
+		if r := []rune(part); len(r) != 1 || !unicode.IsLetter(r[0]) {
+			return false
+		}
+	}
+	return true
 }
 
 // actionTitleWidth keeps an action row inside a normal terminal alongside its control and count.
@@ -316,6 +502,9 @@ func (a action) exemplar() (finding, bool) {
 type Action struct {
 	// Title is what to do, in the imperative.
 	Title string `json:"title"`
+	// Summary is the scanner's one-line description of what is wrong, for an action whose title
+	// names a rule rather than saying what it found. Empty where the title says it already.
+	Summary string `json:"summary,omitempty"`
 	// Control the findings came from, and the worst priority among them.
 	Control  string `json:"control,omitempty"`
 	Priority string `json:"priority,omitempty"`
@@ -371,7 +560,10 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 	for _, name := range names {
 		rep := reports[name]
 		for _, res := range rep.Results {
-			if res.Suppressed() {
+			// A flaw another scanner's finding is already counted for, skipped as the console skips
+			// it. Counted twice, one library's advisories would clear more findings here than the
+			// console says exist.
+			if res.Suppressed() || res.Correlated() {
 				continue
 			}
 			findings = append(findings, finding{
@@ -385,6 +577,8 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 				builtUpstream:   res.BuiltUpstream,
 				pkg:             res.Package,
 				operatingSystem: res.OperatingSystem,
+				image:           res.Image,
+				ruleSummary:     rep.Rules[res.RuleID].ShortDescription,
 			})
 		}
 	}
@@ -407,6 +601,7 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 		}
 		out = append(out, Action{
 			Title:         a.title,
+			Summary:       a.summary,
 			Control:       a.control,
 			Priority:      a.priority,
 			Clears:        a.count(),

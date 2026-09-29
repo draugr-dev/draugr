@@ -1,6 +1,7 @@
 package report
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -157,14 +158,14 @@ func TestActionsFlagWhatCameFromCache(t *testing.T) {
 	}
 	got, _ := groupActions(in, []string{"acme/api:latest"})
 
-	byTitle := map[string]action{}
+	byImage := map[string]action{}
 	for _, a := range got {
-		byTitle[a.title] = a
+		byImage[a.findings[0].location] = a
 	}
-	if !byTitle["a"].cached {
+	if !byImage["acme/api:latest"].cached {
 		t.Error("the action from a tag-keyed cache entry is not marked")
 	}
-	if byTitle["b"].cached {
+	if byImage["acme/db:1.2"].cached {
 		t.Error("an action that was freshly scanned was marked as cached")
 	}
 }
@@ -456,8 +457,11 @@ func TestAnActionCarriesEveryVersionThatClearsIt(t *testing.T) {
 //
 // The unit of work is their software, not a file inside it. Keying on the location would title the
 // action after `requirements.txt`, an instruction to edit a file in a repository the reader cannot
-// push to, which is exactly the advice `builtBy: upstream` exists to stop. Three packages here, so
-// the test can tell one action from three.
+// push to, which is exactly the advice `builtBy: upstream` exists to stop. Two packages here, so
+// the test can tell one action from two.
+//
+// Its licenses are a second action, a review. A newer version carries the same licenses, so an
+// update that claimed to clear them would claim findings it leaves in place.
 func TestFindingsInSomebodyElsesRepositoryBecomeOneAction(t *testing.T) {
 	fs := []finding{
 		{control: "sca", ruleID: "CVE-1", location: "requirements.txt:1", repository: "https://github.com/vendor/console.git",
@@ -466,22 +470,25 @@ func TestFindingsInSomebodyElsesRepositoryBecomeOneAction(t *testing.T) {
 			component: "analytics", builtUpstream: true, priority: "P2", pkg: &sarif.Package{Name: "PyYAML", Version: "5.1"}},
 		{control: "licenses", ruleID: "license/GPL-3.0-only/x", location: "requirements.txt:3",
 			repository: "https://github.com/vendor/console.git", component: "analytics", builtUpstream: true, priority: "P3"},
+		{control: "licenses", ruleID: "license/AGPL-3.0-only/y", location: "requirements.txt:4",
+			repository: "https://github.com/vendor/console.git", component: "analytics", builtUpstream: true, priority: "P3"},
 	}
 
 	got, _ := groupActions(fs, nil)
-	if len(got) != 1 {
-		t.Fatalf("grouped into %d actions, want one, their software is the unit: %+v", len(got), got)
+	if len(got) != 2 {
+		t.Fatalf("grouped into %d actions, want an update and a review: %+v", len(got), got)
 	}
-	// Named as a reader would say it, not as a clone URL. The license finding is in there too:
-	// the declaration is about who can change the thing, not about what found the problem.
-	if got[0].title != "Update vendor/console" {
-		t.Errorf("title = %q, want the repository named", got[0].title)
+	// Named as a reader would say it, not as a clone URL.
+	if got[0].title != "Update vendor/console" || len(got[0].findings) != 2 {
+		t.Errorf("first action = %q clearing %d, want the repository named, clearing both packages",
+			got[0].title, len(got[0].findings))
 	}
-	if len(got[0].findings) != 3 {
-		t.Errorf("clears %d, want all three", len(got[0].findings))
+	if got[1].title != "Review the licenses in vendor/console" || len(got[1].findings) != 2 {
+		t.Errorf("second action = %q clearing %d, want one review of every license in it",
+			got[1].title, len(got[1].findings))
 	}
-	if !got[0].upstream {
-		t.Error("the action does not say it is somebody else's")
+	if !got[0].upstream || !got[1].upstream {
+		t.Error("an action does not say it is somebody else's")
 	}
 }
 
@@ -508,5 +515,206 @@ func TestAnUpstreamImageIsStillNamedByTheImage(t *testing.T) {
 	}, nil)
 	if len(got) != 1 || got[0].title != "Update vendor/console:4.2" {
 		t.Errorf("actions = %+v, want one named after the image", got)
+	}
+}
+
+// TestARuleActionIsTitledWithAVerbAndTheRulesName holds every shape a rule identifier comes in to
+// a title that says what to do.
+//
+// The scanner's message describes the flaw, and under a heading promising things to do a row
+// reading "Privileged" or "By not specifying a USER, a program in the container may run as 'root'"
+// is a complaint rather than an action. Each case is an identifier shape a built-in scanner emits.
+func TestARuleActionIsTitledWithAVerbAndTheRulesName(t *testing.T) {
+	for _, tc := range []struct {
+		name, control, ruleID, message, want string
+	}{
+		{"a dotted path names itself in its last segment", "sast",
+			"dockerfile.security.missing-user.missing-user",
+			"By not specifying a USER, a program in the container may run as 'root'. This is a security hazard.",
+			"Fix missing-user"},
+		{"a namespaced path names itself after the last slash", "dast",
+			"headers/csp-unsafe-inline", "Content-Security-Policy allows 'unsafe-inline' scripts.",
+			"Fix csp-unsafe-inline"},
+		{"a slug is already a name", "dast", "tls-cert-expired",
+			"Certificate expired on 2026-01-31. Clients will refuse to connect, renew it now.",
+			"Fix tls-cert-expired"},
+		{"a catalog number carries the scanner's summary beside it", "iac", "KSV-0017", "Privileged",
+			"Fix KSV-0017 “Privileged”"},
+		{"a CIS section is dotted and still a number", "infrastructure", "kube-bench/cis/1.2.3",
+			"Ensure that the --anonymous-auth argument is set to false",
+			"Fix 1.2.3 “Ensure that the --anonymous-auth argument is set to false”"},
+		{"a catalog number with no message is left alone", "iac", "KSV-0017", "", "Fix KSV-0017"},
+		{"a committed credential is removed and rotated", "secrets", "private-key",
+			"private-key has detected secret for file app/config.example.pem.",
+			"Remove and rotate private-key"},
+		{"a host on a threat feed is investigated", "threats", "urlhaus/malware-host",
+			"URLhaus lists this host as serving malware", "Investigate malware-host"},
+		{"no rule leaves the title to the message", "sast", "",
+			"Something is wrong here. And more detail.", "Something is wrong here"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := titleFor(finding{control: tc.control, ruleID: tc.ruleID, message: tc.message})
+			if got != tc.want {
+				t.Errorf("title = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// A finding scored below low reports a fact about a target, and the verb says there is nothing to
+// fix. Nuclei's info templates score 1.0; its low ones 2.0, and those are still something to fix.
+func TestAnInformationalFindingIsReviewed(t *testing.T) {
+	info := finding{control: "dast", ruleID: "ssl-issuer", score: 1, hasScore: true}
+	if got := titleFor(info); got != "Review ssl-issuer" {
+		t.Errorf("title = %q, want Review", got)
+	}
+	low := finding{control: "dast", ruleID: "weak-cipher-suites", score: 2, hasScore: true}
+	if got := titleFor(low); got != "Fix weak-cipher-suites" {
+		t.Errorf("title = %q, want Fix", got)
+	}
+	// No score is not a score of zero.
+	if got := titleFor(finding{control: "dast", ruleID: "tech-detect"}); got != "Fix tech-detect" {
+		t.Errorf("title = %q, want Fix for a finding with no score", got)
+	}
+}
+
+// An abbreviation's full stop is not the end of the sentence. Cutting there leaves a summary ending
+// on an open parenthesis.
+func TestTheFirstSentenceRunsPastAnAbbreviation(t *testing.T) {
+	for msg, want := range map[string]string{
+		"Missing Strict-Transport-Security: add HSTS (e.g. 'max-age=31536000') to force HTTPS. More.": "Missing Strict-Transport-Security: add HSTS (e.g. 'max-age=31536000') to force HTTPS",
+		"Pin it, i.e. name a digest. Tags move.":                                                      "Pin it, i.e. name a digest",
+		"Reported by J. Smith. Details follow.":                                                       "Reported by J. Smith",
+		"Use str.format_map. It is safer.":                                                            "Use str.format_map",
+		"Fixed in 4.3.1. Upgrade.":                                                                    "Fixed in 4.3.1",
+		"No boundary at all":                                                                          "No boundary at all",
+		"Its own  set of rules. More.":                                                                "Its own set of rules",
+	} {
+		if got := firstSentence(msg); got != want {
+			t.Errorf("firstSentence(%q) = %q, want %q", msg, got, want)
+		}
+	}
+}
+
+// A rule's name says which rule and nothing about what it found, so the scanner's description goes
+// on its own line. Only where every finding agrees on it: one host's expiry date printed under an
+// action covering three hosts is wrong about two of them.
+func TestARuleActionCarriesTheScannersSummary(t *testing.T) {
+	rule := func(loc, msg string) finding {
+		return finding{control: "sast", ruleID: "python.lang.eval-detected.eval-detected", location: loc,
+			message: msg, priority: "P2"}
+	}
+	got, _ := groupActions([]finding{
+		rule("a.py:1", "Detected the use of eval(). It is dangerous."),
+		rule("b.py:1", "Detected the use of eval(). It is dangerous."),
+	}, nil)
+	if len(got) != 1 || got[0].summary != "Detected the use of eval()" {
+		t.Errorf("actions = %+v, want one with the message's first sentence as its summary", got)
+	}
+
+	got, _ = groupActions([]finding{
+		{control: "tls", ruleID: "tls-cert-expiring", location: "a.example", message: "Certificate expires in 3 day(s).", priority: "P2"},
+		{control: "tls", ruleID: "tls-cert-expiring", location: "b.example", message: "Certificate expires in 9 day(s).", priority: "P2"},
+	}, nil)
+	if len(got) != 1 || got[0].summary != "" {
+		t.Errorf("summary = %q, want none where the findings disagree", got[0].summary)
+	}
+
+	// The rule's own description describes every occurrence; a message naming one file does not.
+	got, _ = groupActions([]finding{
+		{control: "secrets", ruleID: "private-key", location: "a.pem", priority: "P1",
+			message:     "private-key has detected secret for file a.pem.",
+			ruleSummary: "Identified a Private Key, which may compromise cryptographic security."},
+		{control: "secrets", ruleID: "private-key", location: "b.pem", priority: "P1",
+			message:     "private-key has detected secret for file b.pem.",
+			ruleSummary: "Identified a Private Key, which may compromise cryptographic security."},
+	}, nil)
+	if want := "Identified a Private Key, which may compromise cryptographic security"; len(got) != 1 || got[0].summary != want {
+		t.Errorf("summary = %q, want the rule's description", got[0].summary)
+	}
+
+	// A description that only names the rule describes nothing, and the message does better.
+	got, _ = groupActions([]finding{{control: "sast", ruleID: "x.y.missing-user", location: "Dockerfile:1",
+		priority: "P2", message: "By not specifying a USER, a program may run as root. More.",
+		ruleSummary: "Semgrep Finding: x.y.missing-user"}}, nil)
+	if want := "By not specifying a USER, a program may run as root"; got[0].summary != want {
+		t.Errorf("summary = %q, want the message's", got[0].summary)
+	}
+
+	for _, f := range []finding{
+		// The title quotes it already.
+		{control: "iac", ruleID: "KSV-0017", location: "pod.yaml", message: "Privileged", priority: "P1"},
+		// The title is the message.
+		{control: "sast", location: "main.py:1", message: "Something is wrong here.", priority: "P1"},
+		// An upgrade says what to do and needs no description of the advisory.
+		{control: "sca", ruleID: "CVE-1", location: "go.mod", message: "A flaw.", priority: "P1",
+			pkg: &sarif.Package{Name: "x", Version: "1", FixedVersion: "2"}},
+	} {
+		got, _ := groupActions([]finding{f}, nil)
+		if got[0].summary != "" {
+			t.Errorf("%q has summary %q, want none", got[0].title, got[0].summary)
+		}
+	}
+}
+
+// A license is not cleared by a newer version, so it never folds into an update. In an image
+// somebody else publishes, every license is one review of that image; in the reader's own code, each
+// is a decision about one package.
+func TestLicensesAreReviewedNotUpdated(t *testing.T) {
+	got, _ := groupActions([]finding{
+		{control: "images", ruleID: "CVE-1", location: "python:3.8-slim", builtUpstream: true, priority: "P1",
+			image: "python:3.8-slim", pkg: &sarif.Package{Name: "openssl", Version: "1", FixedVersion: "2"}},
+		{control: "licenses", ruleID: "license/GPL-2.0-or-later/adduser", location: "python:3.8-slim",
+			builtUpstream: true, priority: "P2", component: "api", image: "python:3.8-slim"},
+		{control: "licenses", ruleID: "license/GPL-3.0-only/bash", location: "python:3.8-slim",
+			builtUpstream: true, priority: "P2", component: "api", image: "python:3.8-slim"},
+		{control: "licenses", ruleID: "license/LGPL-2.1-only/libc", location: "cgr.dev/chainguard/static@sha256:abc",
+			builtUpstream: true, priority: "P2", component: "api", image: "cgr.dev/chainguard/static@sha256:abc"},
+		{control: "licenses", ruleID: "license/AGPL-3.0-only/golang.org/x/thing", location: "go.mod",
+			priority: "P3", component: "api"},
+		{control: "licenses", ruleID: "license/GPL-3.0-only", location: "vendor/COPYING", priority: "P3"},
+	}, nil)
+	var titles []string
+	for _, a := range got {
+		titles = append(titles, fmt.Sprintf("%s (%d)", a.title, a.count()))
+	}
+	want := []string{
+		"Update python:3.8-slim (1)",
+		"Review the licenses in python:3.8-slim (2)",
+		"Review the licenses in chainguard/static (1)",
+		"Replace or accept golang.org/x/thing, licensed AGPL-3.0-only (1)",
+		"Review the files licensed GPL-3.0-only (1)",
+	}
+	if !reflect.DeepEqual(titles, want) {
+		t.Errorf("actions =\n  %s\nwant\n  %s", strings.Join(titles, "\n  "), strings.Join(want, "\n  "))
+	}
+}
+
+// ActionsFor answers for the same findings the console lists. A flaw two scanners report is one
+// finding there, counted under one of them, and the fix list an assistant reads cannot clear more
+// than the console says exist.
+func TestActionsForSkipsWhatAnotherScannerCounts(t *testing.T) {
+	jquery := &sarif.Package{Name: "jquery", Version: "1.8.1", FixedVersion: "3.5.0", Ecosystem: "npm"}
+	got := ActionsFor(map[string]sarif.Report{"sca": {Results: []sarif.Result{
+		{Tool: "trivy", RuleID: "CVE-2020-11023", Priority: "P1", Package: jquery,
+			Location: sarif.Location{URI: "web/package-lock.json"}},
+		{Tool: "retirejs", RuleID: "CVE-2020-11023", Priority: "P1", Package: jquery,
+			Location:    sarif.Location{URI: "web/static/js/jquery.min.js"},
+			Correlation: &sarif.Correlation{CountedUnder: "trivy"}},
+	}}})
+	if len(got) != 1 || got[0].Clears != 1 {
+		t.Errorf("actions = %+v, want one clearing the one finding the console counts", got)
+	}
+}
+
+// The summary reaches a caller outside the package, which is what an issue body is written from.
+func TestActionsForCarriesTheSummary(t *testing.T) {
+	got := ActionsFor(map[string]sarif.Report{"secrets": {
+		Results: []sarif.Result{{Tool: "gitleaks", RuleID: "private-key", Priority: "P1",
+			Message: "private-key has detected secret for file a.pem.", Location: sarif.Location{URI: "a.pem"}}},
+		Rules: map[string]sarif.Rule{"private-key": {ShortDescription: "Identified a Private Key."}},
+	}})
+	if len(got) != 1 || got[0].Summary != "Identified a Private Key" {
+		t.Errorf("actions = %+v, want the rule's description as the summary", got)
 	}
 }

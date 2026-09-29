@@ -1,0 +1,1 @@
+- **Each row in `--view actions` and the HTML report starts with a verb.** A row that stands for a rule reads `Fix missing-user`, `Remove and rotate private-key`, or `Review ssl-issuer` when the finding reports information, with the scanner's description beneath. Licenses in an image somebody else builds become one review of that image, separate from the update.
