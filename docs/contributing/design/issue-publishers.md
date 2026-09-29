@@ -19,6 +19,7 @@ while the gate fails and close it when the gate passes.
   - [Gate](#gate)
   - [Branches](#branches)
   - [Scope](#scope)
+  - [Selection](#selection)
   - [Retries](#retries)
 - [Item](#item)
   - [Identity](#identity)
@@ -72,13 +73,15 @@ assistant's session is out of scope.
 
 ### Gate
 
-The item follows the gate as the exit code reports it, not the raw verdict.
+The item follows the gate as the exit code reports it, not the raw verdict, evaluated over what
+the item covers ([Selection](#selection)). An entry with no `select` and no `split` covers the
+whole run, and its item follows the exit code exactly.
 
 | Run | Item action |
 |---|---|
-| verdict fail, gate enabled | failing |
-| scan incomplete (a scanner missing or erroring) | failing; the body lists the errors |
-| verdict pass | passing |
+| a finding the item covers fails the gate | failing |
+| scan incomplete (a scanner missing or erroring) for a component or control the item covers | failing; the body lists the errors |
+| nothing the item covers fails the gate | passing |
 | `--no-gate` (`Gate.Disabled`) | none; logged as `gate disabled, item left as it is` |
 | `--no-publish` | none; no publisher runs |
 | canceled or killed before publishing | none; nothing runs |
@@ -134,6 +137,60 @@ within the controls it looked at and ignores components (`draugr-server`, `inter
 An item is a single object with one state, not a set of findings, so there is nothing to close
 partially. The expected configuration is one scheduled full run, which has the key `all`.
 
+### Selection
+
+**Each publisher entry decides which part of the run its items cover.** Different components
+belong to different teams, and some controls belong to somebody other than the code's owners, since
+a license finding goes to legal review and a leaked secret is an incident. Three optional fields
+shape an entry:
+
+| Field | Effect | Unset |
+|---|---|---|
+| `select` | keeps the findings and errors of the components and controls it names | the whole run |
+| `split` | one item per `control` or per `component` within what the entry covers | one item |
+| `minPriority` | the item opens only while it holds an open finding at or above this band, and its body lists only actions at or above it | every band |
+
+`select` takes `components`, `labels` and `controls`, with the meaning of `--components`,
+`--labels` and `--controls`. A list matches any of its values, every label must match, and the
+keys together must all match.
+
+```yaml
+config:
+  publishers:
+    - kind: github-issue                      # the payments team's components
+      select: { labels: { team: payments } }
+      item: { assignees: [payments-lead] }
+    - kind: github-issue                      # license findings, for legal review
+      select: { controls: [licenses] }
+      item: { assignees: [legal-reviewer] }
+    - kind: github-issue                      # the web team's repository, one item per control
+      repo: acme/web
+      tokenEnv: WEB_ISSUES_TOKEN
+      select: { components: [frontend, gateway] }
+      split: control
+      minPriority: P2
+```
+
+- **The gate is the item's own.** The payments item closes when the payments components pass,
+  while the run still fails on another team's. An error that names no component counts for every
+  item.
+- **The key is the selection as written.** `select` enters the marker as `select=`, in the scope
+  key's shape (`components=frontend,gateway;controls=licenses`), and a split item adds
+  `control=sca` or `component=api`. Both come from the descriptor, not from the components a label
+  resolves to, so relabeling a component opens no second item. Both sit beside the scope key, so a
+  narrowed run still acts only on the items of its own scope.
+- **A split item lives while its part fails.** With `split: control`, a control that starts
+  failing opens its item, and one that passes closes its item and leaves the others open.
+- **Selections may overlap.** An entry with no `select` still covers everything, for a team that
+  follows every finding.
+- **Uncovered components are named.** When an issue entry sets `select`, `draugr doctor` lists
+  the components no issue entry covers, since their findings reach no item.
+- **`minPriority` narrows only.** It cannot open an item on a passing gate, which is `failOn`'s
+  job. The counts at the top of the body stay complete, and the close comment says whether the gate
+  passed or nothing at or above `minPriority` remained.
+- **One destination, distinct keys.** Two entries of one kind against one destination are refused
+  unless their `select` or `split` differ, since both would find and rewrite the same item.
+
 ### Retries
 
 The shared client in `pkg/publish/retry.go` retries 429, 502, 503 and 504, honors `Retry-After`
@@ -167,6 +224,9 @@ server; the marker in the body tells our item from a person's that reuses the la
 ```
 <!-- draugr:issue v1 project=<project> scope=<scope key> -->
 ```
+
+An entry that sets `select` adds `select=<select key>`, and a split item adds `control=<name>` or
+`component=<name>` ([Selection](#selection)).
 
 GitLab adds the token's own user as `author_username`, from `GET /user`. GitHub and Azure have no
 equivalent a CI token can answer (`GITHUB_TOKEN` is an installation token and cannot call
@@ -205,47 +265,87 @@ identical body and no write. Comments are posted on close and on duplicate, neve
 
 ### Body
 
-Title: `Draugr gate fails: <project>`, with ` (<scope key>)` appended when the scope is not `all`.
+Title: `Draugr gate fails: <project>`. When any is set, the scope key other than `all`, the
+`select` key and the split value follow in parentheses, separated by `; `.
 
 The body, in order:
 
 1. The marker.
-2. The verdict line: the gate that failed (threshold and band), and `incomplete` when it was.
-3. Open findings by priority and accepted findings by priority, **as two counts, never summed**.
-   A suppressed finding stays in the report, so the two legitimately differ.
-4. The failing controls. With `details: findings`, the findings as well, in priority order, which
-   is fix order: priority, severity, rule, scanner, location, and the fix where one is known.
-5. Errors, when the scan was incomplete: one list item per error, naming the component, the
+2. The verdict line: the number of open findings that fail the gate, the gate band with each
+   control's own band where it differs, the number of accepted findings, and `incomplete` when it
+   was. Open and accepted are **two counts, never summed**, because an accepted finding stays in the
+   report.
+3. The failing controls on one line, each with the number of its findings that fail the gate,
+   highest first.
+4. Errors, when the scan was incomplete: one list item per error, naming the component, the
    control and the message.
+5. **Actions**: every action of `report.ActionsFor` the item covers, in fix order, each a collapsed
+   `<details>`. The summary line holds the priority, the action's title, its control and the number
+   of findings it clears. Inside are the rule's description (`Action.Summary`) when there is one,
+   then a table of the findings: priority and severity, the rule and its message, and the component
+   and scanner above the location.
+   - An action that is one change (an upgrade, an image update, a license review) lists its first
+     10 findings, then `And N more, cleared by the same action.`
+   - An action for a rule lists every finding, since each location is a place to change.
 6. The run that last changed the body: job URL, commit, descriptor digest, Draugr version.
-7. How to accept, with a `config.exclude` example.
+7. **Accept**: the sentence "A [`config.exclude`](https://draugr.dev/docs/latest/reference/saga-schema/#configexclude)
+   entry in the descriptor accepts a finding. It stays in the report, marked accepted."
 8. A line saying the item closes itself when the gate passes.
+
+The top of the body, the first action and its first finding, from the demo run:
+
+```markdown
+<!-- draugr:issue v1 project=draugr-demo scope=all -->
+**565 findings fail the gate** · gate P1, P2 for `licenses` · 2 accepted
+
+`licenses` 353 · `images` 182 · `sca` 18 · `sast` 7 · `iac` 4 · `secrets` 1
+
+### Actions
+
+<details><summary><b>P1</b> Update python:3.8-slim · <code>images</code> · 472 findings</summary>
+
+| Priority | Finding | Where |
+|---|---|---|
+| P1 critical | [`CVE-2019-1010022`](https://avd.aquasec.com/nvd/cve-2019-1010022)<br>libc-bin 2.36-9+deb12u8, no fix available: glibc: stack guard protection bypass | `api` · trivy<br>`python:3.8-slim` |
+```
+
+The example is shown without the zero-width spaces of [Escaping](#escaping), which would be
+invisible here. An action's number counts every finding it clears; how many fail the gate is on the
+verdict line.
 
 The PR-comment markdown (`pkg/report/markdown.go`) is not reused. It opens with emoji, stops at 25
 findings, has no size cap, does not render the scope and emits scanner text unescaped. The body
 comes from one model rendered twice, as Markdown for GitHub and GitLab and as HTML for Azure,
 whose `System.Description` is HTML. The module has no Markdown library and does not need one.
 
-The body is a surface a user reads, so **three variants are rendered and one is chosen before the
-renderer is built**.
+The layout was chosen from rendered variants (decision 13).
 
 ### Escaping
 
 Every rule, message, path, component name and decision reason is scanner- or author-supplied.
 None of it may act on the forge:
 
-- **Mentions and references.** `@name` notifies, and `#123`, `!123` and `GH-123` link and
-  back-link. Every such string goes in a code span, with a fence longer than any backtick run
-  inside it, and newlines collapsed.
+- **Mentions and references.** `@name` notifies, `#123`, `!123` and `GH-123` link and back-link,
+  `:name:` becomes an emoji, and GitLab reads `%`, `&`, `$` and `~` as references to a milestone,
+  an epic, a snippet and a label. Messages and titles stay plain text, with newlines collapsed, a
+  zero-width space (U+200B) after each of `@ # ! : % & $ ~` and inside `GH-` and `www.`, and
+  Markdown punctuation backslash-escaped. They read as prose; the cost is that text copied out of the
+  item carries the invisible character.
+- **Identifiers.** Rule ids, paths, component names, versions and digests go in a code span, with
+  a fence longer than any backtick run inside it.
+- **HTML blocks.** Markdown is not parsed inside `<summary>`, so text there is HTML-escaped and
+  takes the same zero-width spaces.
 - **GitLab quick actions.** A line starting with `/` in a description or note runs as a command
   ([quick actions](https://docs.gitlab.com/user/project/quick_actions/)), and GitLab does not
   document that a code span prevents it. The invariant is therefore structural. **Every line of the
   body starts with a character Draugr wrote**, so no line can start with scanner text.
-- **Azure HTML.** Every string is HTML-escaped.
+- **Azure HTML.** Every string is HTML-escaped and takes the same zero-width spaces.
 
 ### Size
 
-Findings are truncated by priority to fit, ending with `and N more` and the run link:
+**Every action stays listed.** Over the budget, the lowest-priority actions lose their findings
+tables first. If the list of actions alone exceeds the budget, the lowest-priority actions are left
+out and the body ends with how many were left out and the run link, which holds the full list.
 
 | Forge | Documented limit | Budget |
 |---|---|---|
@@ -255,13 +355,13 @@ Findings are truncated by priority to fit, ending with `and N more` and the run 
 
 ### Visibility
 
-An issue on a public GitHub repository or a public Azure DevOps project is readable by anyone,
-while code-scanning alerts on the same repository are not. The body therefore carries **counts by
-default**, on every repository and project: open and accepted findings by priority, the failing
-controls and the run link. `details: findings` adds each finding's location, message and fix, for
-a team whose tracker is where the work is done.
+**The body lists the findings, on every repository and project.** An issue with only counts gives
+nobody anything to act on. An issue on a public GitHub repository or a public Azure DevOps project
+is readable by anyone, while code-scanning alerts on the same repository are not, and the reference
+docs say so beside the configuration. A team that cannot publish findings there tracks them in code
+scanning or on a Draugr server instead.
 
-GitLab issues are created **confidential** unless `item.confidential: false`, so the counts stay
+GitLab issues are created **confidential** unless `item.confidential: false`, so the findings stay
 with project members.
 
 ### Metadata
@@ -318,18 +418,20 @@ Draugr gate fails: payments             Draugr gate fails: payments        paren
   P2 Detected tainted SQL string          Detected tainted SQL string      child
 ```
 
-- **Which actions.** Only actions whose priority fails the gate get a child. Lower ones, and a run
-  that fails only because it was incomplete, are listed in the parent body.
+- **Which actions.** Only actions whose priority fails the gate, and is at or above `minPriority`,
+  get a child. Lower ones, and a run that fails only because it was incomplete, are listed in the
+  parent body.
 - **The cap.** At most `maxChildren` children are open at once, 20 by default and never more than
   100, GitHub's limit per parent
   ([sub-issues](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/adding-sub-issues)).
   The highest priorities get them; the rest are listed in the parent body and get a child when an
-  open one closes. The cap limits creation only, so a child is never closed to make room.
+  open one closes. The cap limits creation only, so a child is never closed to make room, and it
+  applies per item, so each item of a split entry has its own.
 - **Identity.** A child's marker adds `action=` and the first 16 hex characters of the SHA-256 of
   the action's key. The key is opaque and holds a separator an HTML comment must not carry.
 - **Title.** The action's title, truncated to 255 characters, the shortest limit of the three.
 - **Body.** The action's control, priority, count and the fix where one is known, then its
-  locations and messages when `details: findings`, then how to accept. The parent body links each
+  findings table as the parent body draws it, then how to accept. The parent body links each
   child.
 
 | Gate | Action | Open child | Child action |
@@ -354,7 +456,9 @@ New `PublisherConfig` fields. Existing fields keep their meaning: `repo`, `token
 |---|---|---|---|
 | `label` | all three | string | `draugr` |
 | `branches` | all three | list of branch names or globs | the default branch |
-| `details` | all three | `counts` or `findings` | `counts` |
+| `select` | all three | object: `components`, `labels`, `controls`, per [Selection](#selection) | the whole run |
+| `split` | all three | `none`, `control` or `component` | `none` |
+| `minPriority` | all three | `P1` to `P4` | every band |
 | `children` | all three | `none` or `actions` | `none` |
 | `maxChildren` | all three | integer, 1 to 100 | 20 |
 | `item` | all three | object, per [Metadata](#metadata) | none |
@@ -384,7 +488,7 @@ config:
         assignees: [octocat]
         milestone: Q4 hardening
     - kind: azure-work-item
-      details: findings
+      select: { controls: [licenses] }
       item:
         tags: [triage]
         areaPath: Payments\Security
@@ -397,8 +501,9 @@ What the rest of the registration needs, from `docs/contributing/extending/publi
 tests that hold it:
 
 - `builders`, `rendered` (nothing, since the body is built from `report.Data`), `local` (false).
-- `distinguishes`: `repo` for the GitHub and GitLab kinds, `project` for Azure. Two entries of one
-  kind against one destination would fight over the same item.
+- `distinguishes`: `repo` for the GitHub and GitLab kinds, `project` for Azure, together with
+  `select` and `split`. Two entries of one kind against one destination with the same selection
+  would fight over the same item.
 - Both schema files, with an enum or an `openStrings` entry for every new string field
   (`internal/schemagen/strictness_test.go`), and `TestSchemaCoversEveryModelField`.
 - A field set on a kind that does not read it is refused by validation, not ignored.
@@ -513,7 +618,7 @@ Each error names the fix.
 
 | # | Decision | Proposal | State |
 |---|---|---|---|
-| 1 | Finding detail and metadata | counts by default on every repository, `details: findings` to list them; GitLab confidential by default; per-forge metadata under `item:` | agreed 2026-09-28 |
+| 1 | Finding detail and metadata | the body lists findings on every repository, with no `details` field; GitLab confidential by default; per-forge metadata under `item:` | agreed 2026-09-28; counts-only default dropped the same day |
 | 2 | Order of delivery | GitHub first, with the whole core; GitLab and Azure DevOps each a pull request after it | agreed 2026-09-28 |
 | 3 | Which runs act | the default branch, per scope key; `branches:` adds others | agreed 2026-09-28 |
 | 4 | A closed item on a failing gate | left closed; the next failing run creates a new item | agreed 2026-09-28 |
@@ -522,6 +627,10 @@ Each error names the fix.
 | 7 | Azure work item type | Task for a single item; the requirement type for a parent, with Task children | agreed 2026-09-28 |
 | 8 | Live test | all three forges, on free tiers, in the live tier ([Live test](#live-test)) | agreed 2026-09-28 |
 | 9 | Children | `children: none` by default; `actions` for a parent and a child per action, capped by `maxChildren`, 20 by default | agreed 2026-09-28 |
+| 10 | Minimum band | `minPriority` per entry: the item opens only while an open finding is at or above it, and the body lists only those actions; counts stay complete | agreed 2026-09-28 |
+| 11 | Escaping | zero-width space after sigils in messages and titles; code spans for rule ids, paths, component names, versions and digests | agreed 2026-09-28 |
+| 12 | Routing | `select` with `components`, `labels` and `controls`; `split: none`, `control` or `component`; each item follows its own part of the gate | agreed 2026-09-28 |
+| 13 | Body layout | verdict line, failing controls on one line, then every action collapsed with its findings; each action shows the findings it clears; the accept section is one linked sentence | agreed 2026-09-28 |
 
 ### Live test
 
@@ -542,9 +651,8 @@ touching the publisher.
 Each forge's sandbox and credential exist before its step starts.
 
 1. **Core and `github-issue`.** `RunPublisher`, the default-branch fields in `pkg/ci`, the scope
-   key, the retry changes, the body model with both renderers, and the GitHub publisher. The three
-   body variants are shown and one chosen before the renderer is written. Docs, CHANGELOG, an
-   `examples/` descriptor.
+   key, the retry changes, selection, the body model with both renderers, and the GitHub
+   publisher. Docs, CHANGELOG, an `examples/` descriptor.
 2. **`gitlab-issue`.**
 3. **`azure-work-item`.**
 4. **Dogfood, after a release containing step 1.** Replace the issue steps in `selfscan.yml`,
@@ -567,9 +675,22 @@ Each line is a test. Unit tests run against a fake forge server per kind; every 
 - Identity: an item with the label and no marker is untouched; two marked items leave the oldest
   open and close the other with a comment naming it.
 - Writes: an unchanged finding set sends no write; a changed one sends one.
-- Scanner text: a message holding `@user`, `#12`, a backtick run and a leading `/` appears inside
-  a code span whose fence is longer than the run, and no body line starts with scanner text.
-- Size: a report over budget ends with `and N more` and keeps the highest priorities.
+- Scanner text: a message holding `@user`, `#12`, `:tada:`, `%1`, `*emphasis*` and a leading `/`
+  renders as its own text, with a zero-width space after each sigil and the punctuation escaped; a
+  rule id holding a backtick run sits in a code span whose fence is longer than the run; no body
+  line starts with scanner text.
+- Size: a report over budget keeps every action listed and drops the findings tables of the lowest
+  priorities first.
+- Body: the demo run renders the verdict line, the failing controls line and every action; an
+  upgrade action lists 10 findings and the number of the rest; a rule action lists every finding.
+- Selection, with two entries and two components each: a `select` entry's item closes when its
+  components pass while the run still fails; `split: control` opens one item per failing control
+  and closes one when its control passes, leaving the other open; two entries of one kind against
+  one destination with the same `select` and `split` fail validation; `draugr doctor` names a
+  component no entry covers; relabeling a component leaves a `select` key unchanged.
+- Minimum band: with `minPriority: P1`, a run failing only at P2 opens nothing and closes an open
+  item with a comment naming `minPriority`; the body of a failing run lists no P2 action and its
+  counts include P2.
 - Failure: each row of the failure table produces its message; a 403 with rate-limit headers waits
   and retries; `Retry-After` on an Azure 200 delays the next request.
 - Descriptor: `draugr validate`, `draugr doctor` and `draugr scan` against an `examples/`
@@ -577,14 +698,12 @@ Each line is a test. Unit tests run against a fake forge server per kind; every 
 - Metadata: each `item` key reaches the create request; a second run on an item whose assignee
   and milestone a person changed leaves both, and adds back a configured label that was removed;
   a key set on a kind that does not read it fails validation.
-- Details: `counts` emits no location or message; `findings` emits both.
 - Confidential: a GitLab issue created without `item.confidential` is confidential.
 - Children, with two actions per scope: an action no longer reported closes its child and leaves
   the other; 21 failing actions open 20 children and list one in the parent; a child closed by
   hand is created again on the next failing run; a passing gate closes every child, then the
   parent; each forge's child carries its parent link; Azure resolves both types from the
   categories.
-- Body: three rendered variants shown, and one chosen, before the renderer is built.
 - Closed by hand: an item closed while the gate fails is left untouched, and the next failing run
   creates a second item.
 - Live, per forge: fail, pass, fail, pass against the sandbox leaves two closed items, each with
