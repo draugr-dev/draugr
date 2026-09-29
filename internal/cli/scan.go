@@ -447,6 +447,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		Scope:                reportScope(scope),
 		Requested:            requested,
 		Incomplete:           incomplete,
+		Labels:               componentLabels(model),
 		UnattributedFindings: unattributed,
 		Exploitability:       feedProv,
 		Tools:                builds,
@@ -1151,4 +1152,13 @@ func detectedCI(cfg *saga.CIConfig) *ci.Context {
 		return &c
 	}
 	return nil
+}
+
+// componentLabels is each declared component's labels by name, with an entry for every component.
+func componentLabels(model *saga.Model) map[string]map[string]string {
+	out := make(map[string]map[string]string, len(model.Components))
+	for i := range model.Components {
+		out[model.Components[i].Name] = model.Components[i].Labels
+	}
+	return out
 }
