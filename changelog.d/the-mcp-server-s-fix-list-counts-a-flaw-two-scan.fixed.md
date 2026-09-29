@@ -1,1 +1,0 @@
-- **The MCP server's fix list counts a flaw two scanners report once**, as the console does. Actions for a library found by both Trivy and Retire.js no longer clear more findings than the scan contains.
