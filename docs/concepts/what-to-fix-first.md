@@ -16,7 +16,7 @@ Draugr's fix list answers a different question: **what should I do, and what wil
 ```
 WHAT TO DO  <n> actions clear <m> findings
   <band>  <the action>
-          <what the rule found, when the action names a rule>
+          <the scanner's description of the rule, when the action names one>
           control <control> · <n> findings · <upstream, when not yours> ·
           <where it applies> · <the rule it names, and how many more it clears>
 ```
@@ -147,7 +147,7 @@ hides work you could have done; the reverse costs a row you skip.
 |---|---|
 | the band | the highest band among the findings this one action clears |
 | the action | what to do, naming the thing and the version in hand |
-| the summary | the scanner's description of what the rule found, under an action that names a rule |
+| the summary | the scanner's description of the rule, under an action that names a rule |
 | the control | which control the findings came from |
 | the count | how many findings this action clears |
 | `upstream` | present only where the component is somebody else's to fix |
