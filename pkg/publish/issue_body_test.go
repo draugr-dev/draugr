@@ -121,16 +121,46 @@ func TestAMarkerValueCannotEndTheComment(t *testing.T) {
 	}
 }
 
-func TestTheTitleNamesWhatTellsTheItemApart(t *testing.T) {
-	plain := issueTitle("demo", "all", issueEntry{}, issuePart{})
-	if plain != "Draugr gate fails: demo" {
-		t.Errorf("title = %q", plain)
+func TestTheTitleNamesWhatTellsTheItemApartFirst(t *testing.T) {
+	pii := issueEntry{Select: issueSelection{Labels: map[string]string{"data-class": "pii"}}, Split: splitControl}
+	platform := issueEntry{Select: issueSelection{Labels: map[string]string{"team": "platform"}}}
+	for _, c := range []struct {
+		name  string
+		scope engine.Scope
+		entry issueEntry
+		part  issuePart
+		want  string
+	}{
+		{"the whole run", engine.Scope{}, issueEntry{}, issuePart{}, "draugr-demo fails the Draugr gate"},
+		{"a selection", engine.Scope{}, platform, issuePart{},
+			"team=platform fails the Draugr gate · draugr-demo"},
+		{"a split part, named bare", engine.Scope{}, pii, issuePart{Split: splitControl, Value: "sca"},
+			"sca fails the Draugr gate · data-class=pii · draugr-demo"},
+		{"a narrowed run", engine.Scope{Controls: []string{"sca"}}, issueEntry{}, issuePart{},
+			"control sca fails the Draugr gate · draugr-demo"},
+		{"alternatives and selectors", engine.Scope{
+			Controls: []string{"sast", "sca"}, Labels: []string{"tier=1", "team=web"},
+			Exposure: []saga.Exposure{saga.ExposurePublic}, Criticality: []saga.Criticality{saga.CriticalityCritical},
+		}, issueEntry{}, issuePart{},
+			"team=web, tier=1, control sast or sca, exposure public, criticality critical fails the Draugr gate · draugr-demo"},
+		{"every source at once", engine.Scope{Components: []string{"web", "api"}},
+			issueEntry{Select: issueSelection{Components: []string{"api"}}, Split: splitControl},
+			issuePart{Split: splitControl, Value: "iac"},
+			"iac fails the Draugr gate · component api · component api or web · draugr-demo"},
+	} {
+		if got := issueTitle("draugr-demo", c.scope, c.entry, c.part); got != c.want {
+			t.Errorf("%s: title = %q, want %q", c.name, got, c.want)
+		}
 	}
-	entry := issueEntry{Select: issueSelection{Labels: map[string]string{"team": "payments"}}, Split: splitControl}
-	got := issueTitle("@demo", "controls=sca", entry, issuePart{Split: splitControl, Value: "sca"})
-	want := "Draugr gate fails: @" + zw + "demo (controls=sca; labels=team=payments; sca)"
-	if got != want {
-		t.Errorf("title = %q, want %q", got, want)
+}
+
+func TestATitleActsOnNothingAndFitsGitHub(t *testing.T) {
+	if got := issueTitle("@demo", engine.Scope{}, issueEntry{}, issuePart{}); got != "@"+zw+"demo fails the Draugr gate" {
+		t.Errorf("title = %q", got)
+	}
+	long := issueTitle(strings.Repeat("a", 300), engine.Scope{}, issueEntry{}, issuePart{})
+	if n := len([]rune(long)); n != maxTitle || !strings.HasSuffix(long, "…") {
+		t.Errorf("a long title is %d characters, ending %q", n, long[len(long)-8:])
 	}
 }
 

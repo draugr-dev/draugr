@@ -728,6 +728,13 @@ func TestValidateIssueFields(t *testing.T) {
 		{"empty label map", PublisherConfig{Kind: "github-issue", Select: &PublisherSelect{Labels: map[string]string{}}}, "select names no components"},
 		{"comma in label", PublisherConfig{Kind: "github-issue", Label: "a,b"}, "cannot hold a comma"},
 		{"bad branch pattern", PublisherConfig{Kind: "github-issue", Branches: []string{"release/["}}, "is not a valid pattern"},
+		{"every fact", PublisherConfig{Kind: "github-issue", LabelBy: LabelFacts}, ""},
+		{"no facts", PublisherConfig{Kind: "github-issue", LabelBy: LabelBy{}}, ""},
+		{"unknown fact", PublisherConfig{Kind: "github-issue", LabelBy: LabelBy{"severity"}}, `labelBy: "severity" is not a fact`},
+		{"fact twice", PublisherConfig{Kind: "github-issue", LabelBy: LabelBy{"control", "control"}}, `labelBy names "control" twice`},
+		{"label shaped like a fact", PublisherConfig{Kind: "github-issue", Label: "Draugr:Priority:P1"}, "named like the labels labelBy keeps"},
+		{"item label shaped like a fact", PublisherConfig{Kind: "github-issue", Item: &IssueItem{Labels: []string{"draugr:incomplete"}}}, "named like the labels labelBy keeps"},
+		{"label sharing the prefix", PublisherConfig{Kind: "github-issue", Label: "draugr:images"}, ""},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			m := &Model{Release: Release{Version: "1"}, Config: Config{Publishers: []PublisherConfig{c.cfg}}}

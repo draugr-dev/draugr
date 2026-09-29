@@ -124,12 +124,17 @@ func (p githubIssuePublisher) open(ctx context.Context) ([]trackedItem, error) {
 	return out, nil
 }
 
-// create opens an issue with the tracking label and the configured metadata, then checks that
-// GitHub kept the metadata. GitHub drops labels, assignees, a milestone and a type without an error
-// when the token cannot set them.
-func (p githubIssuePublisher) create(ctx context.Context, title, body string) error {
+// create opens an issue with the tracking label, the configured metadata and the fact labels, then
+// checks that GitHub kept the metadata. GitHub drops labels, assignees, a milestone and a type
+// without an error when the token cannot set them.
+func (p githubIssuePublisher) create(ctx context.Context, title, body string, facts []string) error {
 	item := p.item()
-	labels := append([]string{p.label}, item.Labels...)
+	var labels []string
+	for _, l := range append(append([]string{p.label}, item.Labels...), facts...) {
+		if !containsFold(labels, l) {
+			labels = append(labels, l)
+		}
+	}
 	for _, l := range labels {
 		if err := p.ensureLabel(ctx, l); err != nil {
 			return err
@@ -191,24 +196,39 @@ func (p githubIssuePublisher) rewrite(ctx context.Context, n int64, body string)
 	return err
 }
 
-func (p githubIssuePublisher) restoreLabels(ctx context.Context, item trackedItem) error {
-	var missing []string
-	for _, l := range p.item().Labels {
-		if !containsFold(item.Labels, l) {
+func (p githubIssuePublisher) syncLabels(ctx context.Context, item trackedItem, facts []string) error {
+	var missing, stale []string
+	for _, l := range append(append([]string(nil), p.item().Labels...), facts...) {
+		if !containsFold(item.Labels, l) && !containsFold(missing, l) {
 			missing = append(missing, l)
 		}
 	}
-	if len(missing) == 0 {
-		return nil
+	for _, l := range item.Labels {
+		if saga.IsFactLabel(l) && !containsFold(facts, l) {
+			stale = append(stale, l)
+		}
 	}
-	for _, l := range missing {
-		if err := p.ensureLabel(ctx, l); err != nil {
+	n := strconv.FormatInt(item.Number, 10)
+	if len(missing) > 0 {
+		for _, l := range missing {
+			if err := p.ensureLabel(ctx, l); err != nil {
+				return err
+			}
+		}
+		if _, err := p.do(ctx, "label #"+n, http.MethodPost,
+			p.repoURL("issues/"+n+"/labels"), map[string][]string{"labels": missing}, nil); err != nil {
 			return err
 		}
 	}
-	_, err := p.do(ctx, "label #"+strconv.FormatInt(item.Number, 10), http.MethodPost,
-		p.repoURL("issues/"+strconv.FormatInt(item.Number, 10)+"/labels"), map[string][]string{"labels": missing}, nil)
-	return err
+	for _, l := range stale {
+		// A 404 is a label somebody removed since the issue was read, which is the state wanted.
+		_, err := p.do(ctx, "remove label "+l+" from #"+n, http.MethodDelete,
+			p.repoURL("issues/"+n+"/labels/"+url.PathEscape(l)), nil, nil)
+		if err != nil && !isStatus(err, http.StatusNotFound) {
+			return err
+		}
+	}
+	return nil
 }
 
 func (p githubIssuePublisher) comment(ctx context.Context, n int64, text string) error {
@@ -236,14 +256,44 @@ func (p githubIssuePublisher) ensureLabel(ctx context.Context, name string) erro
 	if !isStatus(err, http.StatusNotFound) {
 		return err
 	}
-	_, err = p.do(ctx, "create label "+name, http.MethodPost, p.repoURL("labels"),
-		map[string]string{"name": name, "color": "b60205"}, nil)
+	color, description := labelStyle(name)
+	req := map[string]string{"name": name, "color": color}
+	if description != "" {
+		req["description"] = description
+	}
+	_, err = p.do(ctx, "create label "+name, http.MethodPost, p.repoURL("labels"), req, nil)
 	// Another run creating the same label answers 422, which GitHub does not document as meaning
 	// that. The label is read again rather than trusted to exist.
 	if isStatus(err, http.StatusUnprocessableEntity) {
 		_, err = p.do(ctx, "read label "+name, http.MethodGet, at, nil, nil)
 	}
 	return err
+}
+
+// labelStyle is the color and description a label is created with. A fact label says what it
+// carries, for the reader who meets it without having configured it; a configured label is the
+// tracking color with no description.
+func labelStyle(name string) (color, description string) {
+	if !saga.IsFactLabel(name) {
+		return "b60205", ""
+	}
+	fact, value, _ := strings.Cut(strings.TrimPrefix(strings.ToLower(name), "draugr:"), ":")
+	switch fact {
+	case saga.LabelByPriority:
+		color = map[string]string{"p1": "b60205", "p2": "d93f0b", "p3": "fbca04"}[value]
+		if color == "" {
+			color = "c5def5"
+		}
+		return color, "The highest priority among the findings the issue lists. Kept by Draugr."
+	case saga.LabelByControl:
+		return "1d76db", "A control with a finding the issue lists. Kept by Draugr."
+	case saga.LabelByExposure:
+		return "5319e7", "An exposure of a component with a finding the issue lists. Kept by Draugr."
+	case saga.LabelByCriticality:
+		return "5319e7", "A criticality of a component with a finding the issue lists. Kept by Draugr."
+	default:
+		return "e99695", "A scan error stops a control the issue covers. Kept by Draugr."
+	}
 }
 
 // milestone resolves a milestone's title to the number an issue takes.

@@ -265,8 +265,13 @@ identical body and no write. Comments are posted on close and on duplicate, neve
 
 ### Body
 
-Title: `Draugr gate fails: <project>`. When any is set, the scope key other than `all`, the
-`select` key and the split value follow in parentheses, separated by `; `.
+Title: `<first> fails the Draugr gate · <rest>`, capped at 255 characters. The names, in order, are
+the split value, the `select` in words, the run's scope in words and the project; the first present
+leads and the others follow, separated by ` · `. The split value leads because it is what tells
+sibling issues apart in a list. `split: control` under `select: { labels: { team: payments } }` gives
+`sca fails the Draugr gate · team=payments · shop`, and a run with neither gives
+`shop fails the Draugr gate`. The title is written once and never rewritten, so a triager's edit
+survives.
 
 The body, in order:
 
@@ -388,6 +393,11 @@ moved milestone survives the next run.
 - **The tracking label is separate.** `label` finds the item and is always applied; `item.labels`
   and `item.tags` are applied beside it and never used to find anything, so changing them does not
   orphan an item.
+- **Fact labels are Draugr's.** `labelBy` names facts kept as labels, `draugr:<fact>:<value>`,
+  which every run brings in line with the item: added when they apply, removed when they do not,
+  written only on change. They are the one piece of metadata a later run rewrites, because a stale
+  `draugr:priority:P1` on an issue now holding P3 findings misleads every board sorted by it. A
+  `label` or `item.labels` value in that namespace is refused so the two never fight.
 - **GitHub drops without saying.** Labels, assignees, milestone and type are "silently dropped"
   without push access ([issues](https://docs.github.com/en/rest/issues/issues#create-an-issue)),
   so the publisher compares the created issue with the request and fails naming push access.
@@ -412,7 +422,7 @@ finding it clears. The default, `children: none`, keeps one item whose body list
 ```
 children: none                          children: actions
 
-Draugr gate fails: payments             Draugr gate fails: payments        parent
+payments fails the Draugr gate          payments fails the Draugr gate     parent
   P1 Upgrade jinja2 2.10 (2 findings)     Upgrade jinja2 2.10              child
   P1 Image user should not be root        Image user should not be root    child
   P2 Detected tainted SQL string          Detected tainted SQL string      child
@@ -455,6 +465,7 @@ New `PublisherConfig` fields. Existing fields keep their meaning: `repo`, `token
 | Field | Kinds | Type | Default |
 |---|---|---|---|
 | `label` | all three | string | `draugr` |
+| `labelBy` | all three | list of `priority`, `control`, `exposure`, `criticality`, `incomplete` | `[priority]` |
 | `branches` | all three | list of branch names or globs | the default branch |
 | `select` | all three | object: `components`, `labels`, `controls`, per [Selection](#selection) | the whole run |
 | `split` | all three | `none`, `control` or `component` | `none` |
@@ -632,6 +643,7 @@ Each error names the fix.
 | 11 | Escaping | zero-width space after sigils in messages and titles; code spans for rule ids, paths, component names, versions and digests | agreed 2026-09-28 |
 | 12 | Routing | `select` with `components`, `labels` and `controls`; `split: none`, `control` or `component`; each item follows its own part of the gate | agreed 2026-09-28 |
 | 13 | Body layout | verdict line, failing controls on one line, then every action collapsed with its findings; each action shows the findings it clears; the accept section is one linked sentence | agreed 2026-09-28 |
+| 14 | Title and fact labels | the title leads with what tells an issue apart and ends with the project; `labelBy` keeps `priority` by default, with `control`, `exposure`, `criticality` and `incomplete` on request | agreed 2026-09-29 |
 
 ### Live test
 

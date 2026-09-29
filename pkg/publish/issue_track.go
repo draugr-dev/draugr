@@ -43,10 +43,13 @@ type issueTracker interface {
 	budget() int
 	// open lists the open items that carry the tracking label, oldest first.
 	open(ctx context.Context) ([]trackedItem, error)
-	create(ctx context.Context, title, body string) error
+	// create opens an item carrying the tracking label, the configured labels and facts, the
+	// labels labelBy keeps.
+	create(ctx context.Context, title, body string, facts []string) error
 	rewrite(ctx context.Context, number int64, body string) error
-	// restoreLabels adds back the configured labels an item no longer carries.
-	restoreLabels(ctx context.Context, item trackedItem) error
+	// syncLabels adds back the configured labels an item no longer carries, and makes its fact
+	// labels exactly facts.
+	syncLabels(ctx context.Context, item trackedItem, facts []string) error
 	comment(ctx context.Context, number int64, text string) error
 	close(ctx context.Context, number int64, reason closeReason) error
 	// ref is how a comment refers to another item.
@@ -156,8 +159,8 @@ func trackIssues(ctx context.Context, t issueTracker, data report.Data, cfg saga
 		mine := byMarker[marker]
 		var err error
 		if part.Fails {
-			err = keepOpen(ctx, t, mine, issueTitle(project, scope, entry, part),
-				newIssueBody(data, scope, entry, part).render(f, t.budget()))
+			err = keepOpen(ctx, t, mine, issueTitle(project, data.Requested, entry, part),
+				newIssueBody(data, scope, entry, part).render(f, t.budget()), factLabels(cfg.LabelBy.Facts(), part))
 		} else {
 			err = closeAll(ctx, t, mine, closedPassing, passedText(f, data, entry, part))
 		}
@@ -184,11 +187,11 @@ func trackIssues(ctx context.Context, t issueTracker, data report.Data, cfg saga
 	return errors.Join(errs...)
 }
 
-// keepOpen leaves one open item holding body: the oldest when there are several, a new one when
-// there are none.
-func keepOpen(ctx context.Context, t issueTracker, items []trackedItem, title, body string) error {
+// keepOpen leaves one open item holding body and carrying facts: the oldest when there are several,
+// a new one when there are none.
+func keepOpen(ctx context.Context, t issueTracker, items []trackedItem, title, body string, facts []string) error {
 	if len(items) == 0 {
-		return t.create(ctx, title, body)
+		return t.create(ctx, title, body, facts)
 	}
 	keep := items[0]
 	if err := closeAll(ctx, t, items[1:], closedDuplicate, "Duplicate of "+t.ref(keep.Number)+"."); err != nil {
@@ -201,7 +204,7 @@ func keepOpen(ctx context.Context, t issueTracker, items []trackedItem, title, b
 			return err
 		}
 	}
-	return t.restoreLabels(ctx, keep)
+	return t.syncLabels(ctx, keep, facts)
 }
 
 // closeAll comments on each item, then closes it. Comments are posted on these transitions and

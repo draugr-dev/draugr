@@ -292,7 +292,7 @@ or keep one
 | `github-pr-comment` | `markdown` | `marker` | a sticky pull-request comment (posts the `markdown` report) | `repo`, `pr` (default from the env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
 | `azure-pr-comment` | `markdown` | `marker` | a sticky Azure DevOps pull-request comment (posts the `markdown` report) | `org`, `project`, `repo`, `pr` (default from the Azure Pipelines env); token from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`) |
 | `gitlab-mr-comment` | `markdown` | `marker` | a sticky GitLab merge-request comment (posts the `markdown` report) | `repo`, `pr` (default from the GitLab CI env); token from `$GITLAB_TOKEN` (or `tokenEnv`) |
-| `github-issue` | the run | `repo`, `select` and `split` | a GitHub issue that is open while the gate fails | `repo` (default from the env), `select`, `split`, `minPriority`, `label`, `branches`, `item`; token from `$GITHUB_TOKEN` (or `tokenEnv`) |
+| `github-issue` | the run | `repo`, `select` and `split` | a GitHub issue that is open while the gate fails | `repo` (default from the env), `select`, `split`, `minPriority`, `label`, `labelBy`, `branches`, `item`; token from `$GITHUB_TOKEN` (or `tokenEnv`) |
 | `draugr-api` | `json`, `sarif` | `url` | any server implementing Draugr's run-ingest API (posts the `json` report, uploads the `sarif` one) | `url` (or `$DRAUGR_API_URL`); token from `$DRAUGR_API_TOKEN` (or `tokenEnv`) |
 
 No publisher stores a secret in the Saga. Every token comes from an environment variable, and each
@@ -471,8 +471,8 @@ config:
 
 | Run | What happens to the issue |
 |---|---|
-| the gate fails and no issue is open | one is opened, with the tracking label |
-| the gate fails and the findings changed | its body is rewritten |
+| the gate fails and no issue is open | one is opened, with the tracking label and the priority label |
+| the gate fails and the findings changed | its body is rewritten, and its fact labels follow |
 | the gate fails and the findings are the same | nothing is sent |
 | the gate passes | it is closed as completed, with a comment naming the branch and the job |
 | a pull request, or a branch outside `branches` | nothing is sent, and the log says why |
@@ -480,6 +480,17 @@ config:
 An unchanged run sends no write, so nobody watching the issue is notified by a scheduled scan that
 found nothing new. Two open issues carrying the same marker are resolved by closing the newer one
 as a duplicate of the older.
+
+The priority label, `draugr:priority:P1`, names the highest band among the findings the issue
+lists, so a board or a saved search can sort issues by it. `labelBy` adds the control, the exposure,
+the criticality, and a label for an incomplete scan:
+
+```yaml
+config:
+  publishers:
+    - kind: github-issue
+      labelBy: [priority, control, incomplete]
+```
 
 The body opens with the count of findings that fail the gate, then lists the actions that clear
 them, each with its findings, files and lines. Over GitHub's size limit, the lowest-priority

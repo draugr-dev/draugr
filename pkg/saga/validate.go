@@ -659,6 +659,28 @@ func (p PublisherConfig) validateIssueFields(i int) []error {
 	if strings.Contains(p.Label, ",") {
 		errs = append(errs, fmt.Errorf("config.publishers[%d].label is %q, but a label cannot hold a comma", i, p.Label))
 	}
+	seen := map[string]bool{}
+	for _, f := range p.LabelBy {
+		switch {
+		case !slices.Contains(LabelFacts, f):
+			errs = append(errs, fmt.Errorf("config.publishers[%d].labelBy: %q is not a fact. A fact is %s",
+				i, f, orList(LabelFacts)))
+		case seen[f]:
+			errs = append(errs, fmt.Errorf("config.publishers[%d].labelBy names %q twice", i, f))
+		}
+		seen[f] = true
+	}
+	// Every run removes a fact label that no longer applies and adds back a configured one that is
+	// missing, so a configured label shaped like a fact label would be removed and restored forever.
+	configured := []string{p.Label}
+	if p.Item != nil {
+		configured = append(configured, p.Item.Labels...)
+	}
+	for _, l := range configured {
+		if IsFactLabel(l) {
+			errs = append(errs, fmt.Errorf("config.publishers[%d]: the label %q is named like the labels labelBy keeps. Choose another name", i, l))
+		}
+	}
 	for _, b := range p.Branches {
 		if _, err := path.Match(b, ""); err != nil {
 			errs = append(errs, fmt.Errorf("config.publishers[%d].branches: %q is not a valid pattern", i, b))

@@ -9,6 +9,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
 	"github.com/draugr-dev/draugr/pkg/report"
+	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
@@ -61,6 +62,47 @@ type issuePart struct {
 	// BelowMinimum reports a part whose findings fail the gate with none at or above the entry's
 	// minPriority, so its close comment can say which of the two let it close.
 	BelowMinimum bool
+	// Listed describes the findings the body lists, the open ones that fail the gate at or above
+	// the entry's minPriority, for the labels labelBy keeps.
+	Listed listedFacts
+}
+
+// listedFacts is what the labels of labelBy are read from: the highest priority among the listed
+// findings, and the controls, exposures and criticalities they carry.
+type listedFacts struct {
+	Top                             string
+	Controls, Exposure, Criticality map[string]bool
+}
+
+// factLabels is the labels an item keeps for the facts an entry names, sorted.
+func factLabels(facts []string, part issuePart) []string {
+	var out []string
+	for _, f := range facts {
+		switch f {
+		case saga.LabelByPriority:
+			if part.Listed.Top != "" {
+				out = append(out, saga.FactLabel(f, part.Listed.Top))
+			}
+		case saga.LabelByControl:
+			for _, v := range sortedKeys(part.Listed.Controls) {
+				out = append(out, saga.FactLabel(f, v))
+			}
+		case saga.LabelByExposure:
+			for _, v := range sortedKeys(part.Listed.Exposure) {
+				out = append(out, saga.FactLabel(f, v))
+			}
+		case saga.LabelByCriticality:
+			for _, v := range sortedKeys(part.Listed.Criticality) {
+				out = append(out, saga.FactLabel(f, v))
+			}
+		case saga.LabelByIncomplete:
+			if len(part.Errors) > 0 {
+				out = append(out, saga.FactLabel(f, ""))
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // failingTotal is the number of open findings in the part that fail the gate.
@@ -97,15 +139,20 @@ func scopeKey(s engine.Scope) string {
 
 // key is the selection in the scope key's shape, empty when it selects nothing.
 func (s issueSelection) key() string {
+	return selectorKey(map[string][]string{
+		"components": s.Components,
+		"controls":   s.Controls,
+		"labels":     s.labelPairs(),
+	})
+}
+
+// labelPairs is the selection's labels as `key=value`, in no particular order.
+func (s issueSelection) labelPairs() []string {
 	labels := make([]string, 0, len(s.Labels))
 	for k, v := range s.Labels {
 		labels = append(labels, k+"="+v)
 	}
-	return selectorKey(map[string][]string{
-		"components": s.Components,
-		"controls":   s.Controls,
-		"labels":     labels,
-	})
+	return labels
 }
 
 // selectorKey joins each non-empty selector as `name=v1,v2`, names in alphabetical order and each
@@ -275,7 +322,8 @@ func keepResults(r sarif.Report, keep func(sarif.Result) bool) sarif.Report {
 
 // judge counts a part's findings and decides whether its item should be open.
 func judge(split, value string, reports map[string]sarif.Report, errs []issueError, policy norn.Policy, minPriority string) issuePart {
-	p := issuePart{Split: split, Value: value, Reports: reports, Errors: errs, Failing: map[string]int{}}
+	p := issuePart{Split: split, Value: value, Reports: reports, Errors: errs, Failing: map[string]int{},
+		Listed: listedFacts{Controls: map[string]bool{}, Exposure: map[string]bool{}, Criticality: map[string]bool{}}}
 	atMinimum := false
 	for control, r := range reports {
 		for _, res := range r.Results {
@@ -287,8 +335,20 @@ func judge(split, value string, reports map[string]sarif.Report, errs []issueErr
 				continue
 			}
 			p.Failing[control]++
-			if atOrAbove(res.Priority, minPriority) {
-				atMinimum = true
+			if !atOrAbove(res.Priority, minPriority) {
+				continue
+			}
+			atMinimum = true
+			if res.Priority != "" && (p.Listed.Top == "" ||
+				prioritization.Priority(res.Priority).Rank() > prioritization.Priority(p.Listed.Top).Rank()) {
+				p.Listed.Top = res.Priority
+			}
+			p.Listed.Controls[control] = true
+			if res.Exposure != "" {
+				p.Listed.Exposure[res.Exposure] = true
+			}
+			if res.Criticality != "" {
+				p.Listed.Criticality[res.Criticality] = true
 			}
 		}
 	}
@@ -346,24 +406,81 @@ func markerValue(s string) string {
 	return b.String()
 }
 
-// issueTitle is the item's title: the project, then whatever else tells this item from the
-// entry's others, in parentheses.
-func issueTitle(project, scope string, entry issueEntry, part issuePart) string {
+// issueTitle is the item's title: what tells this item from the entry's others first, then what
+// every item of the entry shares, and the project last, where a narrow list cuts it off.
+//
+// The subject is the most specific of the split part, the selection, the run's scope and the
+// project. A split part is named bare, since the entry's split already says what kind it is.
+func issueTitle(project string, scope engine.Scope, entry issueEntry, part issuePart) string {
+	var names []string
+	if part.Value != "" {
+		names = append(names, part.Value)
+	}
+	sel := entry.Select
+	if s := selectionWords(sel.labelPairs(), sel.Components, sel.Controls, nil, nil); s != "" {
+		names = append(names, s)
+	}
+	exposure := make([]string, len(scope.Exposure))
+	for i, e := range scope.Exposure {
+		exposure[i] = string(e)
+	}
+	criticality := make([]string, len(scope.Criticality))
+	for i, c := range scope.Criticality {
+		criticality[i] = string(c)
+	}
+	if s := selectionWords(scope.Labels, scope.Components, scope.Controls, exposure, criticality); s != "" {
+		names = append(names, s)
+	}
+	names = append(names, project)
+
 	// Project names, keys and component names come from the descriptor, so they are broken the
 	// way scanner text is; a title is plain text on every forge and takes no backslash escapes.
-	var qualifiers []string
-	if scope != "all" {
-		qualifiers = append(qualifiers, scope)
+	for i, n := range names {
+		names[i] = breakTokens(flatten(n))
 	}
-	if k := entry.Select.key(); k != "" {
-		qualifiers = append(qualifiers, k)
+	title := names[0] + " fails the Draugr gate"
+	for _, n := range names[1:] {
+		title += " · " + n
 	}
-	if part.Value != "" {
-		qualifiers = append(qualifiers, part.Value)
+	return truncateRunes(title, maxTitle)
+}
+
+// maxTitle is the longest title written, in characters. GitHub refuses one over 256.
+const maxTitle = 255
+
+// truncateRunes shortens s to at most n characters, ending it with an ellipsis when it was cut.
+func truncateRunes(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
 	}
-	title := "Draugr gate fails: " + breakTokens(flatten(project))
-	if len(qualifiers) > 0 {
-		title += " (" + breakTokens(flatten(strings.Join(qualifiers, "; "))) + ")"
+	return string(r[:n-1]) + "…"
+}
+
+// selectionWords is a selection as a title names it: every label as `key=value`, then each other
+// selector as its name and its values, `control sca or sast`, the selectors joined by commas. Values
+// within a selector are alternatives and selectors narrow together, which is what `or` and the
+// comma say.
+func selectionWords(labels, components, controls, exposure, criticality []string) string {
+	var out []string
+	sortedLabels := append([]string(nil), labels...)
+	sort.Strings(sortedLabels)
+	out = append(out, sortedLabels...)
+	for _, s := range []struct {
+		name   string
+		values []string
+	}{
+		{"component", components},
+		{"control", controls},
+		{"exposure", exposure},
+		{"criticality", criticality},
+	} {
+		if len(s.values) == 0 {
+			continue
+		}
+		values := append([]string(nil), s.values...)
+		sort.Strings(values)
+		out = append(out, s.name+" "+strings.Join(values, " or "))
 	}
-	return title
+	return strings.Join(out, ", ")
 }
