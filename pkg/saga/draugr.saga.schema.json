@@ -1648,7 +1648,7 @@
       "description": "Metadata set on an issue when it is created. A later run adds back a configured label that was removed and changes nothing else.",
       "properties": {
         "assignees": {
-          "description": "GitHub logins.",
+          "description": "Logins on GitHub, usernames on GitLab.",
           "items": {
             "minLength": 1,
             "type": [
@@ -1658,6 +1658,10 @@
             ]
           },
           "type": "array"
+        },
+        "confidential": {
+          "description": "gitlab-issue: whether a new issue is visible only to project members. Defaults to true.",
+          "type": "boolean"
         },
         "labels": {
           "description": "Labels applied beside the tracking label.",
@@ -1681,7 +1685,7 @@
           ]
         },
         "type": {
-          "description": "An issue type the organization defines.",
+          "description": "An issue type the organization defines on GitHub; issue, incident or task on GitLab.",
           "minLength": 1,
           "type": [
             "string",
@@ -1694,9 +1698,30 @@
     },
     "publisherConfig": {
       "additionalProperties": false,
+      "else": {
+        "properties": {
+          "item": {
+            "not": {
+              "required": [
+                "confidential"
+              ]
+            }
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "gitlab-issue"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
       "properties": {
         "branches": {
-          "description": "github-issue: the branches whose runs open, rewrite and close issues, as names or globs. Defaults to the repository's default branch.",
+          "description": "github-issue, gitlab-issue: the branches whose runs open, rewrite and close issues, as names or globs. Defaults to the repository's default branch.",
           "items": {
             "minLength": 1,
             "type": [
@@ -1721,7 +1746,7 @@
         },
         "item": {
           "$ref": "#/$defs/issueItem",
-          "description": "github-issue: the metadata set on an issue when it is created."
+          "description": "github-issue, gitlab-issue: the metadata set on an issue when it is created."
         },
         "kind": {
           "anyOf": [
@@ -1750,6 +1775,10 @@
               "description": "Post the Markdown report as a sticky GitLab merge-request comment."
             },
             {
+              "const": "gitlab-issue",
+              "description": "Keep a GitLab issue open while the gate fails, and close it when the gate passes."
+            },
+            {
               "const": "draugr-api",
               "description": "Post the run to any server implementing Draugr's run-ingest API, such as Draugr Cloud. Requires the json and sarif report formats."
             }
@@ -1758,7 +1787,7 @@
           "type": "string"
         },
         "label": {
-          "description": "github-issue: the label that finds this entry's issues, applied to each one. Defaults to draugr.",
+          "description": "github-issue, gitlab-issue: the label that finds this entry's issues, applied to each one. Defaults to draugr.",
           "minLength": 1,
           "type": [
             "string",
@@ -1767,7 +1796,7 @@
           ]
         },
         "labelBy": {
-          "description": "github-issue: the facts every run keeps on an issue as labels, adding the ones that apply and removing the ones that no longer do. Defaults to priority. [] keeps none.",
+          "description": "github-issue, gitlab-issue: the facts every run keeps on an issue as labels, adding the ones that apply and removing the ones that no longer do. Defaults to priority. [] keeps none.",
           "items": {
             "anyOf": [
               {
@@ -1819,7 +1848,7 @@
               "description": "Noted, rarely acted on."
             }
           ],
-          "description": "github-issue: the lowest band that opens an issue. The body lists only the actions at or above it. Defaults to every band.",
+          "description": "github-issue, gitlab-issue: the lowest band that opens an issue. The body lists only the actions at or above it. Defaults to every band.",
           "type": "string"
         },
         "org": {
@@ -1851,7 +1880,7 @@
         },
         "select": {
           "$ref": "#/$defs/publisherSelect",
-          "description": "github-issue: the part of the run this entry's issues cover. Defaults to the whole run."
+          "description": "github-issue, gitlab-issue: the part of the run this entry's issues cover. Defaults to the whole run."
         },
         "split": {
           "anyOf": [
@@ -1868,7 +1897,7 @@
               "description": "One issue per component."
             }
           ],
-          "description": "github-issue: one issue, or one per control or component. Defaults to none.",
+          "description": "github-issue, gitlab-issue: one issue, or one per control or component. Defaults to none.",
           "type": "string"
         },
         "tokenEnv": {
@@ -1883,6 +1912,30 @@
       "required": [
         "kind"
       ],
+      "then": {
+        "properties": {
+          "item": {
+            "properties": {
+              "type": {
+                "anyOf": [
+                  {
+                    "const": "issue",
+                    "description": "GitLab's default issue type."
+                  },
+                  {
+                    "const": "incident",
+                    "description": "A service disruption, listed under the project's incidents. Needs the Reporter role."
+                  },
+                  {
+                    "const": "task",
+                    "description": "A planning item that sits under an issue."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
       "type": "object"
     },
     "publisherSelect": {

@@ -293,6 +293,7 @@ or keep one
 | `azure-pr-comment` | `markdown` | `marker` | a sticky Azure DevOps pull-request comment (posts the `markdown` report) | `org`, `project`, `repo`, `pr` (default from the Azure Pipelines env); token from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`) |
 | `gitlab-mr-comment` | `markdown` | `marker` | a sticky GitLab merge-request comment (posts the `markdown` report) | `repo`, `pr` (default from the GitLab CI env); token from `$GITLAB_TOKEN` (or `tokenEnv`) |
 | `github-issue` | the run | `repo`, `select` and `split` | a GitHub issue that is open while the gate fails | `repo` (default from the env), `select`, `split`, `minPriority`, `label`, `labelBy`, `branches`, `item`; token from `$GITHUB_TOKEN` (or `tokenEnv`) |
+| `gitlab-issue` | the run | `repo`, `select` and `split` | a GitLab issue that is open while the gate fails | `repo` (default from the GitLab CI env), `select`, `split`, `minPriority`, `label`, `labelBy`, `branches`, `item`; token from `$GITLAB_TOKEN` (or `tokenEnv`) |
 | `draugr-api` | `json`, `sarif` | `url` | any server implementing Draugr's run-ingest API (posts the `json` report, uploads the `sarif` one) | `url` (or `$DRAUGR_API_URL`); token from `$DRAUGR_API_TOKEN` (or `tokenEnv`) |
 
 No publisher stores a secret in the Saga. Every token comes from an environment variable, and each
@@ -540,6 +541,38 @@ UNTRACKED
 ```
 
 The fields are in the [descriptor reference](../reference/saga-schema.md#configpublishers).
+
+### GitLab issues
+
+A `gitlab-issue` entry keeps a GitLab issue open on the same terms as a `github-issue` entry, and
+reads the same fields:
+
+```yaml
+config:
+  publishers:
+    - kind: gitlab-issue
+```
+
+Where GitLab differs:
+
+| | GitLab |
+|---|---|
+| visibility | a new issue is confidential, visible only to project members. `item.confidential: false` opens it to everyone who can see the project. |
+| closing | GitLab records no close reason, so the reason is posted as a comment before the issue closes. |
+| `item.type` | `issue`, `incident` or `task`. An incident needs the Reporter role. |
+| `item.assignees` | usernames of project members. GitLab Free keeps one. |
+| labels | created by GitLab on first use, in its default color |
+
+**The token.** `CI_JOB_TOKEN` cannot write issues, so set `$GITLAB_TOKEN` as a masked CI/CD variable
+holding either:
+
+- a fine-grained personal access token with *Work Item: Create, Read and Update*, *Label: Read* and
+  *Member: Read*
+- an access token with the `api` scope
+
+Its user needs the Planner role or higher. A metadata value the user has no role to set is dropped
+by GitLab without an error, so the publisher compares the created issue with the request and fails
+naming what was dropped.
 
 ### When a forge is having a bad minute
 

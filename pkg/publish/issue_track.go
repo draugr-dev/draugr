@@ -20,6 +20,7 @@ const defaultIssueLabel = "draugr"
 // issue fields of PublisherConfig.
 var issueKinds = map[string]bool{
 	"github-issue": true,
+	"gitlab-issue": true,
 }
 
 // IssueKind reports whether kind keeps a tracking item, and so reads `label`, `branches`,

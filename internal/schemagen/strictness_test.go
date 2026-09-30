@@ -179,6 +179,21 @@ func isObject(n map[string]any) bool {
 	return has
 }
 
+// narrows reports whether path is inside an `if`, `then`, `else` or `not`.
+//
+// Those subschemas apply beside the object they sit in and constrain keys it already declares, so
+// the object's own `additionalProperties: false` still closes it. Closing one of them as well would
+// refuse every key it does not repeat.
+func narrows(path string) bool {
+	for _, seg := range strings.Split(path, ".") {
+		switch seg {
+		case "if", "then", "else", "not":
+			return true
+		}
+	}
+	return false
+}
+
 // isString reports whether a node accepts a string, alone or beside a number.
 //
 // A free-form field YAML may read as a number, a version or a name, is `["string", "number"]`,
@@ -315,7 +330,7 @@ func TestEveryStringIsClosedOrSaysWhyNot(t *testing.T) {
 func TestEveryObjectIsClosedOrSaysWhyNot(t *testing.T) {
 	var open []string
 	walkSchema(loadSchema(t), "", func(path string, n map[string]any) {
-		if !isObject(n) {
+		if !isObject(n) || narrows(path) {
 			return
 		}
 		switch ap := n["additionalProperties"].(type) {

@@ -724,13 +724,14 @@ config:
 | `select` | the whole run | the findings and errors this entry's issues cover. `components`, `labels` and `controls` mean what `--components`, `--labels` and `--controls` mean. A list matches any of its values, every label must match, and the keys together must all match. |
 | `split` | `none` | `control` or `component`: one issue per control or per component within what `select` covers. An issue closes when its own part passes. |
 | `minPriority` | every band | `P1` to `P4`. An issue opens only while it holds a failing finding at or above this band, and its body lists only those. The body's count of failing findings stays complete. |
-| `label` | `draugr` | the label that finds this entry's issues, applied to each. Created in the repository when it does not exist. A comma is refused. |
+| `label` | `draugr` | the label that finds this entry's issues, applied to each. Created when it does not exist. A comma is refused. |
 | `labelBy` | `[priority]` | the facts kept on each issue as labels, from `priority`, `control`, `exposure`, `criticality` and `incomplete`. `[]` keeps none. |
 | `branches` | the default branch | branch names or globs, `*` matching any characters. A run on any other branch changes nothing. |
 | `item.labels` | none | labels applied beside `label` when an issue is created. A later run adds back one that was removed. |
-| `item.assignees` | none | logins assigned when an issue is created. |
+| `item.assignees` | none | logins on GitHub, or usernames of project members on GitLab, assigned when an issue is created. |
 | `item.milestone` | none | a milestone's title, open or closed, set when an issue is created. |
-| `item.type` | none | an issue type the organization defines, set when an issue is created. |
+| `item.type` | none | set when an issue is created: on GitHub an issue type the organization defines, on GitLab `issue`, `incident` or `task`, where `incident` needs the Reporter role. |
+| `item.confidential` | `true` | whether a new issue is visible only to project members. `gitlab-issue` only. |
 
 Each fact in `labelBy` is a label named `draugr:<fact>:<value>`:
 
@@ -766,6 +767,25 @@ and the publish fails naming it.
 **An issue on a public repository is readable by anyone**, and the body lists findings with their
 files and lines. Listing the same repository's code-scanning alerts takes write access. For a public
 repository, upload findings to code scanning with the `github` publisher instead.
+
+The **`gitlab-issue`** publisher keeps a GitLab issue open on the same terms and reads the same
+fields. The project and the API root come from the GitLab CI environment, and `repo` accepts a
+numeric project id or a full path. The token comes from `$GITLAB_TOKEN` (or `tokenEnv`): a
+fine-grained token with *Work Item: Create, Read and Update*, *Label: Read* and *Member: Read*, or
+one with the `api` scope, of a user with the Planner role or higher. `CI_JOB_TOKEN` cannot write
+issues. A new issue is confidential unless `item.confidential` is `false`. GitLab records no close
+reason, so the comment posted before the close is the only record of why. GitLab Free keeps one
+assignee, and the publish fails naming any assignee GitLab dropped.
+
+```yaml
+config:
+  publishers:
+    - kind: gitlab-issue
+      item:
+        assignees: [alex]      # a project member's username
+        type: incident         # issue (default) | incident | task
+        confidential: false    # true when unset
+```
 
 When an entry sets `select`, `draugr doctor` lists the components no issue entry covers under
 `UNTRACKED`.

@@ -84,3 +84,29 @@ func excepted(path string) bool {
 	}
 	return false
 }
+
+// TestTheEditorHoldsItemFieldsToTheKind covers the two item fields only gitlab-issue reads, which a
+// one-field mutation of an example never moves onto another kind.
+func TestTheEditorHoldsItemFieldsToTheKind(t *testing.T) {
+	doc := func(kind string, item map[string]any) any {
+		return map[string]any{
+			"project":    "shop",
+			"config":     map[string]any{"publishers": []any{map[string]any{"kind": kind, "item": item}}},
+			"components": []any{map[string]any{"name": "web", "images": []any{map[string]any{"image": "alpine:3.19"}}}},
+		}
+	}
+	for _, c := range []struct {
+		name string
+		doc  any
+		ok   bool
+	}{
+		{"confidential on gitlab-issue", doc("gitlab-issue", map[string]any{"confidential": false, "type": "task"}), true},
+		{"confidential on github-issue", doc("github-issue", map[string]any{"confidential": false}), false},
+		{"a GitHub type on gitlab-issue", doc("gitlab-issue", map[string]any{"type": "Bug"}), false},
+		{"any type on github-issue", doc("github-issue", map[string]any{"type": "Bug"}), true},
+	} {
+		if err := sagatest.SchemaError(t, c.doc, false); (err == nil) != c.ok {
+			t.Errorf("%s: the schema accepts=%v, want %v (%v)", c.name, err == nil, c.ok, err)
+		}
+	}
+}
