@@ -113,12 +113,12 @@ func TestLiveAzureMarkdownProbe(t *testing.T) {
 		[]map[string]any{{"op": "add", "path": "/multilineFieldsFormat/System.Description", "value": "Markdown"}})
 	t.Logf("UPDATE repeating format op: %d %.200s", code, resp)
 
-	comment := "The gate passes on `main` in [job 7](https://example.com/7).\n\n- **bold** and a `code span`"
-	for _, q := range []string{
-		"comments?format=markdown&api-version=7.1-preview.4",
-	} {
-		code, resp := raw(http.MethodPost, "wit/workItems/"+n+"/"+q, "application/json", map[string]string{"text": comment})
-		t.Logf("COMMENT %s: %d %.300s", q, code, resp)
+	comment := "The gate passes on " + mdCode(`feat/<b>x</b> "q" & 'y'`, false) +
+		" in [job 7](https://example.com/7?a=1&b=2).\n\nText: " + mdText(h)
+	for label, text := range map[string]string{"raw": comment, "escaped": html.EscapeString(comment)} {
+		code, resp := raw(http.MethodPost, "wit/workItems/"+n+"/comments?format=markdown&api-version=7.1-preview.4",
+			"application/json", map[string]string{"text": text})
+		t.Logf("COMMENT %s: %d %.600s", label, code, resp)
 	}
 	code, resp = raw(http.MethodGet, "wit/workItems/"+n+"/comments?order=asc&api-version=7.2-preview.4", "", nil)
 	var cs struct {
