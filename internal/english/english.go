@@ -8,7 +8,10 @@
 // markdown renderer and a gate's error message depend on the report package to say "one finding".
 package english
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Two shapes, named apart so neither can be called for the other's job. Count and Noun derive the
 // plural from the word, which is right for a regular noun. Choose takes both forms, which is what a
@@ -51,4 +54,15 @@ func isVowel(b byte) bool {
 		return true
 	}
 	return false
+}
+
+// And joins names the way a sentence does, so three of them do not read as a chain of ands.
+func And(names []string) string {
+	switch len(names) {
+	case 0:
+		return ""
+	case 1:
+		return names[0]
+	}
+	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
 }

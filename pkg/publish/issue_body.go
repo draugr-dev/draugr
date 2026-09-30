@@ -3,6 +3,7 @@ package publish
 import (
 	"fmt"
 	"html"
+	"regexp"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -176,6 +177,9 @@ type issueFormat interface {
 	rule() string
 	// separator joins blocks.
 	separator() string
+	// canonical is a body as the forge would store it, so a body read back compares equal to the
+	// one written when they say the same thing.
+	canonical(body string) string
 }
 
 // markdownFormat writes GitHub and GitLab Markdown. Every line it emits starts with a character
@@ -190,6 +194,7 @@ func (markdownFormat) para(s string) string               { return s }
 func (markdownFormat) heading(s string) string            { return "### " + s }
 func (markdownFormat) rule() string                       { return "---" }
 func (markdownFormat) separator() string                  { return "\n\n" }
+func (markdownFormat) canonical(body string) string       { return body }
 
 func (markdownFormat) table(head []string, rows [][]string) string {
 	lines := []string{"| " + strings.Join(head, " | ") + " |", strings.Repeat("|---", len(head)) + "|"}
@@ -224,6 +229,22 @@ func (htmlFormat) para(s string) string    { return "<p>" + s + "</p>" }
 func (htmlFormat) heading(s string) string { return "<h3>" + s + "</h3>" }
 func (htmlFormat) rule() string            { return "<hr>" }
 func (htmlFormat) separator() string       { return "\n" }
+
+// htmlSpace is whitespace against a tag, which Azure DevOps adds and removes when it sanitizes
+// a description.
+var htmlSpace = regexp.MustCompile(`\s+</|>\s+<`)
+
+// canonical drops whitespace against tags and decodes entities, since Azure stores a description
+// with spaces added before some closing tags and with entities written its own way.
+func (htmlFormat) canonical(body string) string {
+	body = htmlSpace.ReplaceAllStringFunc(body, func(m string) string {
+		if strings.HasPrefix(m, ">") {
+			return "><"
+		}
+		return "</"
+	})
+	return html.UnescapeString(body)
+}
 
 func (htmlFormat) table(head []string, rows [][]string) string {
 	var b strings.Builder
@@ -518,5 +539,5 @@ func withoutRun(f issueFormat, body string) string {
 // bodyChanged reports whether a rendered body describes something the item's current body does
 // not.
 func bodyChanged(f issueFormat, current, next string) bool {
-	return withoutRun(f, current) != withoutRun(f, next)
+	return withoutRun(f, f.canonical(current)) != withoutRun(f, f.canonical(next))
 }

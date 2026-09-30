@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/publish"
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -153,10 +154,12 @@ func checkIssueFields(model *saga.Model, i int, p saga.PublisherConfig) []string
 			i, p.Kind))
 	}
 	if it := p.Item; it != nil {
-		if it.Confidential != nil && p.Kind != "gitlab-issue" {
-			problems = append(problems, fmt.Sprintf(
-				"config.publishers[%d]: the %s publisher does not read item.confidential; gitlab-issue does",
-				i, p.Kind))
+		for _, key := range itemKeys(*it) {
+			if readers := itemReaders[key]; !slices.Contains(readers, p.Kind) {
+				problems = append(problems, fmt.Sprintf(
+					"config.publishers[%d]: the %s publisher does not read item.%s, which only %s %s",
+					i, p.Kind, key, english.And(readers), english.Choose(len(readers), "reads", "read")))
+			}
 		}
 		if p.Kind == "gitlab-issue" && it.Type != "" && !slices.Contains(publish.GitLabIssueTypes, it.Type) {
 			problems = append(problems, fmt.Sprintf(
@@ -181,4 +184,46 @@ func checkIssueFields(model *saga.Model, i int, p saga.PublisherConfig) []string
 		}
 	}
 	return problems
+}
+
+// itemReaders names the kinds that read each `item` key. A key set on any other kind is refused,
+// since nothing would apply it.
+var itemReaders = map[string][]string{
+	"labels":        {"github-issue", "gitlab-issue"},
+	"assignees":     {"github-issue", "gitlab-issue"},
+	"milestone":     {"github-issue", "gitlab-issue"},
+	"type":          {"github-issue", "gitlab-issue", "azure-work-item"},
+	"confidential":  {"gitlab-issue"},
+	"tags":          {"azure-work-item"},
+	"assignedTo":    {"azure-work-item"},
+	"areaPath":      {"azure-work-item"},
+	"iterationPath": {"azure-work-item"},
+	"priority":      {"azure-work-item"},
+	"fields":        {"azure-work-item"},
+}
+
+// itemKeys lists the `item` keys an entry sets, in the order the reference documents them.
+func itemKeys(it saga.IssueItem) []string {
+	var out []string
+	for _, k := range []struct {
+		name string
+		set  bool
+	}{
+		{"labels", len(it.Labels) > 0},
+		{"assignees", len(it.Assignees) > 0},
+		{"milestone", it.Milestone != ""},
+		{"type", it.Type != ""},
+		{"confidential", it.Confidential != nil},
+		{"tags", len(it.Tags) > 0},
+		{"assignedTo", it.AssignedTo != ""},
+		{"areaPath", it.AreaPath != ""},
+		{"iterationPath", it.IterationPath != ""},
+		{"priority", it.Priority != nil},
+		{"fields", len(it.Fields) > 0},
+	} {
+		if k.set {
+			out = append(out, k.name)
+		}
+	}
+	return out
 }

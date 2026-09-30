@@ -659,6 +659,10 @@ func (p PublisherConfig) validateIssueFields(i int) []error {
 	if strings.Contains(p.Label, ",") {
 		errs = append(errs, fmt.Errorf("config.publishers[%d].label is %q, but a label cannot hold a comma", i, p.Label))
 	}
+	// Azure DevOps stores a work item's tags as one string separated by semicolons.
+	if p.Kind == "azure-work-item" && strings.Contains(p.Label, ";") {
+		errs = append(errs, fmt.Errorf("config.publishers[%d].label is %q, but a tag cannot hold a semicolon", i, p.Label))
+	}
 	seen := map[string]bool{}
 	for _, f := range p.LabelBy {
 		switch {
@@ -673,8 +677,9 @@ func (p PublisherConfig) validateIssueFields(i int) []error {
 	// Every run removes a fact label that no longer applies and adds back a configured one that is
 	// missing, so a configured label shaped like a fact label would be removed and restored forever.
 	configured := []string{p.Label}
-	if p.Item != nil {
-		configured = append(configured, p.Item.Labels...)
+	if it := p.Item; it != nil {
+		configured = append(append(configured, it.Labels...), it.Tags...)
+		errs = append(errs, it.validateAzure(i)...)
 	}
 	for _, l := range configured {
 		if IsFactLabel(l) {
@@ -687,4 +692,38 @@ func (p PublisherConfig) validateIssueFields(i int) []error {
 		}
 	}
 	return errs
+}
+
+// validateAzure holds the Azure DevOps keys of an item to what a work item takes.
+func (it IssueItem) validateAzure(i int) []error {
+	var errs []error
+	if it.Priority != nil && (*it.Priority < 1 || *it.Priority > 4) {
+		errs = append(errs, fmt.Errorf("config.publishers[%d].item.priority is %d, but a work item's priority is 1 to 4", i, *it.Priority))
+	}
+	for _, t := range it.Tags {
+		if strings.ContainsAny(t, ";,") {
+			errs = append(errs, fmt.Errorf("config.publishers[%d].item.tags: %q holds a semicolon or a comma, which separate tags", i, t))
+		}
+	}
+	for _, name := range sortedFieldNames(it.Fields) {
+		if name == "" {
+			errs = append(errs, fmt.Errorf("config.publishers[%d].item.fields names a field with no name", i))
+			continue
+		}
+		for _, owned := range AzureOwnedFields {
+			if strings.EqualFold(name, owned) {
+				errs = append(errs, fmt.Errorf("config.publishers[%d].item.fields sets %s, which the publisher or another item key sets", i, name))
+			}
+		}
+	}
+	return errs
+}
+
+func sortedFieldNames(m map[string]string) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	slices.Sort(out)
+	return out
 }

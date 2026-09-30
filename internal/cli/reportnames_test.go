@@ -126,10 +126,20 @@ func TestValidateIssueFieldsAgainstTheKind(t *testing.T) {
 			Item: &saga.IssueItem{Type: "incident", Confidential: new(bool)}}), nil},
 		{"confidential on GitHub", model("shop", saga.PublisherConfig{Kind: "github-issue",
 			Item: &saga.IssueItem{Confidential: new(bool)}}),
-			[]string{"the github-issue publisher does not read item.confidential; gitlab-issue does"}},
+			[]string{"the github-issue publisher does not read item.confidential, which only gitlab-issue reads"}},
 		{"a GitHub type on GitLab", model("shop", saga.PublisherConfig{Kind: "gitlab-issue",
 			Item: &saga.IssueItem{Type: "Bug"}}),
 			[]string{`config.publishers[0].item.type is "Bug", but a GitLab issue type is issue, incident or task`}},
+		{"an Azure work item", model("shop", saga.PublisherConfig{Kind: "azure-work-item", Item: &saga.IssueItem{
+			Type: "Bug", Tags: []string{"sec"}, AssignedTo: "a@example.com", AreaPath: `Shop\Web`, IterationPath: `Shop\S1`,
+			Priority: new(2), Fields: map[string]string{"Custom.Team": "web"}}}), nil},
+		{"GitHub keys on Azure", model("shop", saga.PublisherConfig{Kind: "azure-work-item",
+			Item: &saga.IssueItem{Labels: []string{"sec"}, Milestone: "Q3"}}),
+			[]string{"the azure-work-item publisher does not read item.labels, which only github-issue and gitlab-issue read",
+				"does not read item.milestone"}},
+		{"Azure keys on GitLab", model("shop", saga.PublisherConfig{Kind: "gitlab-issue",
+			Item: &saga.IssueItem{Tags: []string{"sec"}, Priority: new(1)}}),
+			[]string{"the gitlab-issue publisher does not read item.tags, which only azure-work-item reads", "item.priority"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			err := checkReportNames(c.model)

@@ -19,8 +19,9 @@ const defaultIssueLabel = "draugr"
 // issueKinds names the publishers that keep a tracking item, which are the kinds that read the
 // issue fields of PublisherConfig.
 var issueKinds = map[string]bool{
-	"github-issue": true,
-	"gitlab-issue": true,
+	"github-issue":    true,
+	"gitlab-issue":    true,
+	"azure-work-item": true,
 }
 
 // IssueKind reports whether kind keeps a tracking item, and so reads `label`, `branches`,

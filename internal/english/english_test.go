@@ -70,6 +70,22 @@ func TestChooseTakesBothForms(t *testing.T) {
 	}
 }
 
+func TestAndJoinsLikeASentence(t *testing.T) {
+	for _, c := range []struct {
+		names []string
+		want  string
+	}{
+		{nil, ""},
+		{[]string{"a"}, "a"},
+		{[]string{"a", "b"}, "a and b"},
+		{[]string{"a", "b", "c"}, "a, b and c"},
+	} {
+		if got := And(c.names); got != c.want {
+			t.Errorf("And(%q) = %q, want %q", c.names, got, c.want)
+		}
+	}
+}
+
 // TestThereIsOneRuleForPlurals holds the repository to this package.
 //
 // Every renderer that needed a plural used to write its own, and the ones nobody reread drifted:
