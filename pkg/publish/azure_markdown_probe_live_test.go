@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"html"
 	"io"
 	"net/http"
 	"net/url"
@@ -50,7 +51,10 @@ func TestLiveAzureMarkdownProbe(t *testing.T) {
 	rendered := newIssueBody(data, "all", issueEntry{}, part).render(markdownFormat{}, 60_000)
 	fields := strings.TrimSuffix(strings.TrimPrefix(marker, "<!-- draugr:issue "), " -->")
 	rest := strings.TrimPrefix(rendered, marker+"\n")
-	body := "[//]: # \"draugr:issue " + fields + "\"\n\n<span data-draugr-issue=\"" + fields + "\"></span>\n\n" + rest
+	h := `say "hi" & <b>bold</b> 'q' a<b`
+	body := "<span data-draugr-issue=\"" + html.EscapeString(fields) + "\"></span>\n\n" + rest +
+		"\n\n### Probe\n\nText: " + mdText(h) + "\n\nCode: " + mdCode(h, false) +
+		"\n\n| Text | Code |\n|---|---|\n| " + mdText(h) + " | " + mdCode(h, true) + " |"
 	t.Logf("SENT description:\n%s", body)
 
 	ops := []map[string]any{
