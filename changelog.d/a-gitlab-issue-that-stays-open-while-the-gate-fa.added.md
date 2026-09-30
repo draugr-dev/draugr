@@ -1,0 +1,1 @@
+- **A GitLab issue that stays open while the gate fails.** The `gitlab-issue` publisher takes the same `select`, `split`, `minPriority`, `label` and `labelBy` as `github-issue`, and creates each issue confidential unless `item.confidential` is `false`. `item.type` sets `issue`, `incident` or `task`. The token needs the Planner role; `CI_JOB_TOKEN` cannot write issues.

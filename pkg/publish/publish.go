@@ -57,6 +57,7 @@ var builders = map[string]func(saga.PublisherConfig) (Publisher, error){
 	"github-issue":      newGithubIssuePublisher,
 	"azure-pr-comment":  newAzurePRCommentPublisher,
 	"gitlab-mr-comment": newGitLabMRCommentPublisher,
+	"gitlab-issue":      newGitLabIssuePublisher,
 	"draugr-api":        newDraugrAPIPublisher,
 }
 
@@ -91,6 +92,7 @@ var rendered = map[string][]string{
 	"github-issue":      nil,
 	"azure-pr-comment":  {"markdown"},
 	"gitlab-mr-comment": {"markdown"},
+	"gitlab-issue":      nil,
 	// The report carries the verdict and the findings carry the evidence, and the plane stores
 	// both, so neither alone is a run it can show anybody.
 	"draugr-api": {"json", "sarif"},
@@ -118,6 +120,7 @@ var distinguishes = map[string]string{
 	"github-issue":      "repo, select and split",
 	"azure-pr-comment":  "marker",
 	"gitlab-mr-comment": "marker",
+	"gitlab-issue":      "repo, select and split",
 	"draugr-api":        "url",
 }
 
@@ -161,6 +164,7 @@ var local = map[string]bool{
 	"github-issue":      false,
 	"azure-pr-comment":  false,
 	"gitlab-mr-comment": false,
+	"gitlab-issue":      false,
 	"draugr-api":        false,
 }
 

@@ -122,6 +122,14 @@ func TestValidateIssueFieldsAgainstTheKind(t *testing.T) {
 		{"unknown component", model("shop", saga.PublisherConfig{Kind: "github-issue",
 			Select: &saga.PublisherSelect{Components: []string{"wbe", "zzz"}}}),
 			[]string{`"wbe" is not a component of this descriptor, did you mean "web"?`, `"zzz" is not a component`}},
+		{"a GitLab issue", model("shop", saga.PublisherConfig{Kind: "gitlab-issue",
+			Item: &saga.IssueItem{Type: "incident", Confidential: new(bool)}}), nil},
+		{"confidential on GitHub", model("shop", saga.PublisherConfig{Kind: "github-issue",
+			Item: &saga.IssueItem{Confidential: new(bool)}}),
+			[]string{"the github-issue publisher does not read item.confidential; gitlab-issue does"}},
+		{"a GitHub type on GitLab", model("shop", saga.PublisherConfig{Kind: "gitlab-issue",
+			Item: &saga.IssueItem{Type: "Bug"}}),
+			[]string{`config.publishers[0].item.type is "Bug", but a GitLab issue type is issue, incident or task`}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			err := checkReportNames(c.model)

@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -150,6 +151,18 @@ func checkIssueFields(model *saga.Model, i int, p saga.PublisherConfig) []string
 		problems = append(problems, fmt.Sprintf(
 			"config.publishers[%d]: the %s publisher finds its issues by project, and the descriptor names none; set project",
 			i, p.Kind))
+	}
+	if it := p.Item; it != nil {
+		if it.Confidential != nil && p.Kind != "gitlab-issue" {
+			problems = append(problems, fmt.Sprintf(
+				"config.publishers[%d]: the %s publisher does not read item.confidential; gitlab-issue does",
+				i, p.Kind))
+		}
+		if p.Kind == "gitlab-issue" && it.Type != "" && !slices.Contains(publish.GitLabIssueTypes, it.Type) {
+			problems = append(problems, fmt.Sprintf(
+				"config.publishers[%d].item.type is %q, but a GitLab issue type is %s",
+				i, it.Type, list(publish.GitLabIssueTypes)))
+		}
 	}
 	if p.Select != nil {
 		declared := map[string]bool{}

@@ -228,11 +228,8 @@ server; the marker in the body tells our item from a person's that reuses the la
 An entry that sets `select` adds `select=<select key>`, and a split item adds `control=<name>` or
 `component=<name>` ([Selection](#selection)).
 
-GitLab adds the token's own user as `author_username`, from `GET /user`. GitHub and Azure have no
-equivalent a CI token can answer (`GITHUB_TOKEN` is an installation token and cannot call
-`GET /user`), so on those two identity is label and marker. Somebody with triage access can forge
-both; the consequence is that Draugr edits or closes an item they wrote on purpose to look like
-ours.
+Identity is label and marker on every forge. Somebody with triage access can forge both; the
+consequence is that Draugr edits or closes an item they wrote on purpose to look like ours.
 
 - **Looked up by listing, never by search.** GitHub search allows 30 requests a minute and does
   not document how fresh its index is ([search](https://docs.github.com/en/rest/search/search)).
@@ -387,9 +384,11 @@ moved milestone survives the next run.
 | priority | none | none | `priority`, 1 to 4 |
 | other fields | none | none | `fields`, reference name to value |
 
-- **Names, not ids.** GitHub takes a milestone number and GitLab takes user ids, so the publisher
-  resolves the title (`GET …/milestones?state=all`) and each username (`GET /users?username=`). A
-  name that does not resolve fails the publish and names it.
+- **Names, not ids.** GitHub takes a milestone number and GitLab takes a milestone id and user ids,
+  so the publisher resolves the title (`GET …/milestones?state=all` on GitHub,
+  `GET …/milestones?title=&include_ancestors=true` on GitLab) and, on GitLab, each username among
+  the project's members (`GET …/members/all?query=`). A name that does not resolve fails the
+  publish and names it.
 - **The tracking label is separate.** `label` finds the item and is always applied; `item.labels`
   and `item.tags` are applied beside it and never used to find anything, so changing them does not
   orphan an item.
@@ -533,7 +532,7 @@ Each error names the fix.
 | no token | the variable and how to map it into the job |
 | GitHub 403, not a rate limit | the permission in `X-Accepted-GitHub-Permissions` ([troubleshooting](https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api)) |
 | issues disabled | GitHub 410, GitLab 403 |
-| a requested label, assignee, milestone or type missing from a created issue | the token's lack of push access |
+| a requested label, assignee, milestone or type missing from a created issue | the token's lack of push access on GitHub, of the Planner role on GitLab, and GitLab Free's one assignee |
 | GitHub 422 | each field GitHub refused, from the `errors` in its answer |
 | Azure tag not created | the *Create tag definition* permission |
 | a milestone or username that does not resolve | the name, and where it was looked up |
@@ -586,11 +585,11 @@ Each error names the fix.
     Premium on GitLab.com; on Free, a service account holds the token.
 - **Role:** Planner. A Guest can create an issue and close one it authored, but cannot change
   labels on an existing issue or see a confidential duplicate somebody else created ([permissions](https://docs.gitlab.com/user/permissions/)).
-- **Find:** `GET /projects/:id/issues?labels=<label>&author_username=<self>&state=opened`, paged
-  by `Link`.
-- **Write:** `POST /projects/:id/issues` creates missing labels as project labels;
-  `PUT …/issues/:iid` with `description` or `state_event: close`; notes at
-  `POST …/issues/:iid/notes`.
+- **Find:** `GET /projects/:id/issues?labels=<label>&state=opened`, paged by `X-Next-Page`.
+- **Write:** `POST /projects/:id/issues` creates missing labels as project labels, in GitLab's
+  default color; `PUT …/issues/:iid` with `description`, with `add_labels` and `remove_labels` in
+  one request, or with `state_event: close`; notes at `POST …/issues/:iid/notes`. GitLab records
+  no close reason, so a duplicate or untracked item is closed after the comment that says why.
 - **Limits:** GitLab.com allows 200 issue creations and 60 notes a minute; self-managed defaults to
   300 notes a minute and no issue limit.
 
@@ -742,3 +741,13 @@ sections above use the corrected version:
 - The catalog states that authenticated integrations such as Jira and ServiceNow are out of scope.
   A forge issue tracker is the CI job's own forge, reached with a token the job already has or can
   be granted, so it needs no third-party account; the catalog says so when the publishers land.
+
+Building `gitlab-issue` on 2026-09-29 changed three GitLab facts above:
+
+- Identity does not filter on `author_username`. Resolving the token's user needs *User: Read*
+  (`GET /user`), which the least-privilege token otherwise does not hold, and the filter would lose
+  every open item when the token moves to another user.
+- Assignees resolve through `GET /projects/:id/members/all?query=`, which *Member: Read* covers.
+  `GET /users?username=` needs *User: Read* at the instance level.
+- Milestones resolve through `GET /projects/:id/milestones?title=&include_ancestors=true`, so a
+  group milestone is found as well as a project one.

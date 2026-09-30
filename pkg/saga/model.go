@@ -578,7 +578,8 @@ type PublisherConfig struct {
 	// make an ambient value indistinguishable from an intentional one.
 	DefaultURL string `yaml:"-"`
 
-	// github-issue: one tracking item kept open while the gate fails and closed when it passes.
+	// github-issue, gitlab-issue: one tracking item kept open while the gate fails and closed when
+	// it passes.
 	//
 	// Label finds the items this entry owns and is always applied, `draugr` when unset. Branches
 	// are the branches whose runs may open, rewrite or close an item, the repository's default
@@ -684,12 +685,15 @@ type IssueItem struct {
 	// Labels are applied beside the tracking label and never used to find an item, so changing
 	// them does not orphan one.
 	Labels []string `yaml:"labels,omitempty"`
-	// Assignees are logins.
+	// Assignees are logins on GitHub and usernames on GitLab.
 	Assignees []string `yaml:"assignees,omitempty"`
 	// Milestone is a milestone's title, resolved to its number when the item is created.
 	Milestone string `yaml:"milestone,omitempty"`
-	// Type is an issue type the organization defines.
+	// Type is an issue type the organization defines on GitHub, and issue, incident or task on
+	// GitLab.
 	Type string `yaml:"type,omitempty"`
+	// Confidential is whether a GitLab issue is visible only to project members, true when unset.
+	Confidential *bool `yaml:"confidential,omitempty"`
 }
 
 // Component is one logical part of an application: its repositories, images, hosts, and

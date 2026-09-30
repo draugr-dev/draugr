@@ -113,6 +113,18 @@ config:
         assignees: [octocat]
         milestone: Hardening        # a milestone's title, open or closed
 
+    - kind: gitlab-issue            # the same, as a GitLab issue
+      # In GitLab CI the project is read from the runner (CI_PROJECT_ID). The token comes from
+      # $GITLAB_TOKEN: a fine-grained token with Work Item: Create, Read and Update, Label: Read
+      # and Member: Read, or the api scope, of a user with the Planner role. CI_JOB_TOKEN cannot
+      # write issues. Outside GitLab CI this publisher no-ops.
+      minPriority: P1
+      item:
+        labels: [security]
+        assignees: [alex]           # a project member's username
+        type: incident              # issue | incident | task; issue when unset
+        confidential: false         # visible to everyone who can see the project; true when unset
+
 # Two components, because the reports this example is about only earn their shape with more than
 # one: the console gains a per-component verdict, the markdown report a component table, and a
 # pull-request comment can say which service a new finding belongs to. With one component every

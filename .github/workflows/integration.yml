@@ -436,7 +436,7 @@ jobs:
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && !inputs.ref && !startsWith(github.ref, 'refs/tags/'))
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     permissions:
       contents: read
     steps:
@@ -462,6 +462,20 @@ jobs:
             exit 1
           fi
           go test -tags integration -v -count=1 -timeout 15m -run 'TestLiveGitHub' ./pkg/publish/
+
+      # Runs whether or not the GitHub step passed, so one forge's failure does not hide the other's.
+      - name: Drive the GitLab issue publisher against the sandbox
+        if: ${{ success() || failure() }}
+        env:
+          SANDBOX_GITLAB_TOKEN: ${{ secrets.SANDBOX_GITLAB_TOKEN }}
+          SANDBOX_GITLAB_PROJECT: ${{ vars.SANDBOX_GITLAB_PROJECT }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SANDBOX_GITLAB_TOKEN" ] || [ -z "$SANDBOX_GITLAB_PROJECT" ]; then
+            echo "::error::SANDBOX_GITLAB_TOKEN (secret) and SANDBOX_GITLAB_PROJECT (variable) must both be set"
+            exit 1
+          fi
+          go test -tags integration -v -count=1 -timeout 15m -run 'TestLiveGitLab' ./pkg/publish/
 
   # A red run on main has to reach a person.
   #
