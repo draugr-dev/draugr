@@ -52,9 +52,10 @@ func TestLiveAzureMarkdownProbe(t *testing.T) {
 	fields := strings.TrimSuffix(strings.TrimPrefix(marker, "<!-- draugr:issue "), " -->")
 	rest := strings.TrimPrefix(rendered, marker+"\n")
 	h := `say "hi" & <b>bold</b> 'q' a<b`
-	body := "<span data-draugr-issue=\"" + html.EscapeString(fields) + "\"></span>\n\n" + rest +
-		"\n\n### Probe\n\nText: " + mdText(h) + "\n\nCode: " + mdCode(h, false) +
+	source := rendered + "\n\n### Probe\n\nText: " + mdText(h) + "\n\nCode: " + mdCode(h, false) +
 		"\n\n| Text | Code |\n|---|---|\n| " + mdText(h) + " | " + mdCode(h, true) + " |"
+	body := html.EscapeString(source)
+	_, _ = fields, rest
 	t.Logf("SENT description:\n%s", body)
 
 	ops := []map[string]any{
