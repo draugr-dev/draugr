@@ -135,8 +135,8 @@ config:
       item:
         tags: [security]            # beside the tracking tag, which is the label
         assignedTo: alex@example.com
-        areaPath: Payments\Platform # the project's default area when unset
-        iterationPath: Payments\Sprint 12 # the default iteration when unset
+        areaPath: Payments\Platform # this and iterationPath: the project's defaults when unset
+        iterationPath: Payments\Sprint 12
         priority: 1                 # 1 highest to 4 lowest
         # type: Bug                 # the default type of the Task category when unset
         fields:                     # any other field on the type, by reference name

@@ -495,16 +495,6 @@ func azureIn(desc string) string {
 	return "<!-- draugr:issue " + fields + " -->\n" + strings.TrimSpace(rest)
 }
 
-// azureFieldKeys names the `item` key that sets each field, so a field Azure refuses is reported
-// as the key the reader wrote.
-var azureFieldKeys = map[string]string{
-	"System.AssignedTo":              "item.assignedTo",
-	"System.AreaPath":                "item.areaPath",
-	"System.IterationPath":           "item.iterationPath",
-	"Microsoft.VSTS.Common.Priority": "item.priority",
-	"System.Tags":                    "item.tags",
-}
-
 // azureStatusError is an answer Azure DevOps gave that was not a success, worded for the reader
 // who has to fix it.
 type azureStatusError struct {
@@ -527,7 +517,7 @@ func (e *azureStatusError) Error() string {
 	case http.StatusPreconditionFailed:
 		return prefix + ": 412, somebody changed the item while the run was writing it; the next run writes it again"
 	}
-	if key := azureFieldKeys[e.field]; key != "" {
+	if key := saga.AzureFieldKeys[e.field]; key != "" {
 		return fmt.Sprintf("%s: %d, %s: %s", prefix, e.status, key, e.message)
 	}
 	if e.field != "" && strings.Contains(e.field, ".") {
@@ -554,7 +544,7 @@ func (p *azureWorkItemPublisher) do(ctx context.Context, what, method, target, c
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	}
-	resp, err := p.client.Do(req)
+	resp, err := p.client.Do(req) // #nosec G704 -- the collection and repository come from the pipeline's own environment
 	if err != nil {
 		return fmt.Errorf("azure-work-item publisher: %s in %s: %w", what, p.project, err)
 	}

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -173,6 +174,25 @@ func TestSchemaEnumsMatchConstants(t *testing.T) {
 	check("criticality", []string{
 		string(CriticalityCritical), string(CriticalityImportant), string(CriticalitySupporting),
 	})
+}
+
+// The schema's list of fields item.fields may not name is written by hand, and an editor that
+// accepts a field validation refuses tells the reader the descriptor is fine until the run.
+func TestSchemaRefusesTheFieldsValidationRefuses(t *testing.T) {
+	for _, path := range []string{schemaPath, fragmentSchemaPath} {
+		fields, _ := definitionFor(t, readSchema(t, path), "issueItem")["properties"].(map[string]any)["fields"].(map[string]any)
+		names, _ := fields["propertyNames"].(map[string]any)
+		not, _ := names["not"].(map[string]any)
+		enum, _ := not["enum"].([]any)
+		got := make([]string, 0, len(enum))
+		for _, e := range enum {
+			s, _ := e.(string)
+			got = append(got, s)
+		}
+		if !slices.Equal(got, AzureOwnedFields) {
+			t.Errorf("%s: item.fields refuses %q, validation refuses %q", path, got, AzureOwnedFields)
+		}
+	}
 }
 
 // A schema that doesn't accept our own examples is worse than none.

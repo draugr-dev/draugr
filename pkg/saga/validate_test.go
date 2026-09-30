@@ -745,7 +745,9 @@ func TestValidateIssueFields(t *testing.T) {
 		{"tag shaped like a fact", PublisherConfig{Kind: "azure-work-item", Item: &IssueItem{Tags: []string{"draugr:priority:P1"}}}, "named like the labels labelBy keeps"},
 		{"unnamed field", PublisherConfig{Kind: "azure-work-item", Item: &IssueItem{Fields: map[string]string{"": "x"}}}, "names a field with no name"},
 		{"owned field", PublisherConfig{Kind: "azure-work-item", Item: &IssueItem{Fields: map[string]string{"system.title": "x"}}},
-			"item.fields sets system.title, which the publisher or another item key sets"},
+			"item.fields sets system.title, which the publisher writes"},
+		{"field another key sets", PublisherConfig{Kind: "azure-work-item", Item: &IssueItem{Fields: map[string]string{"System.AssignedTo": "x"}}},
+			"item.fields sets System.AssignedTo; set it with item.assignedTo"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			m := &Model{Release: Release{Version: "1"}, Config: Config{Publishers: []PublisherConfig{c.cfg}}}

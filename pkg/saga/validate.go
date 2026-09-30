@@ -711,8 +711,13 @@ func (it IssueItem) validateAzure(i int) []error {
 			continue
 		}
 		for _, owned := range AzureOwnedFields {
-			if strings.EqualFold(name, owned) {
-				errs = append(errs, fmt.Errorf("config.publishers[%d].item.fields sets %s, which the publisher or another item key sets", i, name))
+			if !strings.EqualFold(name, owned) {
+				continue
+			}
+			if key := AzureFieldKeys[owned]; key != "" {
+				errs = append(errs, fmt.Errorf("config.publishers[%d].item.fields sets %s; set it with %s", i, name, key))
+			} else {
+				errs = append(errs, fmt.Errorf("config.publishers[%d].item.fields sets %s, which the publisher writes", i, name))
 			}
 		}
 	}

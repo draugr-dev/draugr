@@ -294,6 +294,7 @@ or keep one
 | `gitlab-mr-comment` | `markdown` | `marker` | a sticky GitLab merge-request comment (posts the `markdown` report) | `repo`, `pr` (default from the GitLab CI env); token from `$GITLAB_TOKEN` (or `tokenEnv`) |
 | `github-issue` | the run | `repo`, `select` and `split` | a GitHub issue that is open while the gate fails | `repo` (default from the env), `select`, `split`, `minPriority`, `label`, `labelBy`, `branches`, `item`; token from `$GITHUB_TOKEN` (or `tokenEnv`) |
 | `gitlab-issue` | the run | `repo`, `select` and `split` | a GitLab issue that is open while the gate fails | `repo` (default from the GitLab CI env), `select`, `split`, `minPriority`, `label`, `labelBy`, `branches`, `item`; token from `$GITLAB_TOKEN` (or `tokenEnv`) |
+| `azure-work-item` | the run | `project`, `select` and `split` | an Azure Boards work item that is open while the gate fails | `org`, `project` (default from the Azure Pipelines env), `select`, `split`, `minPriority`, `label`, `labelBy`, `branches`, `item`; token from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`) |
 | `draugr-api` | `json`, `sarif` | `url` | any server implementing Draugr's run-ingest API (posts the `json` report, uploads the `sarif` one) | `url` (or `$DRAUGR_API_URL`); token from `$DRAUGR_API_TOKEN` (or `tokenEnv`) |
 
 No publisher stores a secret in the Saga. Every token comes from an environment variable, and each
@@ -573,6 +574,54 @@ holding either:
 Its user needs the Planner role or higher. A metadata value the user has no role to set is dropped
 by GitLab without an error, so the publisher compares the created issue with the request and fails
 naming what was dropped.
+
+### Azure work items
+
+An `azure-work-item` entry keeps an Azure Boards work item open on the same terms as a
+`github-issue` entry. The collection and project come from the pipeline, and `item` takes Azure's
+fields:
+
+```yaml
+config:
+  publishers:
+    - kind: azure-work-item
+      item:
+        tags: [security]
+        assignedTo: alex@example.com
+        areaPath: Payments\Platform
+        iterationPath: Payments\Sprint 12
+        priority: 1
+        fields:
+          Microsoft.VSTS.Common.Activity: Development
+```
+
+Where Azure differs:
+
+| | Azure DevOps |
+|---|---|
+| `item.type` | a work item type. Defaults to the Task category's default type, which is Task in every process Azure ships. |
+| closing | to the state in the Completed category of the item's type: Closed in Agile and CMMI, Done in Scrum and Basic. The comment posted before it says why. |
+| tags | `label`, `item.tags` and the `labelBy` facts are all tags. A tag holding `;` or `,` is refused. |
+| `item.assignedTo` | an email address, or a display name the organization resolves to one person |
+| `item.fields` | other fields, by reference name. A field the publisher writes, or one another `item` key sets, is refused. |
+| branches | Azure Pipelines names no default branch, so the publisher reads it from the repository unless `branches` is set. |
+
+**The token.** Map `System.AccessToken` into the step, as for `azure-pr-comment`:
+
+```yaml
+- script: draugr scan draugr.saga.yaml
+  env:
+    SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+```
+
+The build identity, **`<Project> Build Service`**, needs *View work items in this node* and *Edit
+work items in this node* on the area path where items land, set in *Project settings → Boards →
+Project configuration → Areas → Security*, and *Create tag definition* the first time a tag is used.
+Reading the default branch needs *Read* on the repository; setting `branches` skips the read. A
+personal access token needs *Work Items: Read & Write*, and *Code: Read* unless `branches` is set.
+
+The publisher compares the created work item with the request and fails naming any tag or assignee
+Azure did not keep.
 
 ### When a forge is having a bad minute
 

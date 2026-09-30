@@ -137,6 +137,7 @@ rendered report is delivered to every publisher.
 | `gitlab-mr-comment` | a sticky GitLab merge-request comment (posts the `markdown` report) | `repo`, `pr` (default from the GitLab CI env); token from `$GITLAB_TOKEN` (or `tokenEnv`) |
 | `github-issue` | a GitHub issue that is open while the gate fails, closed when it passes | `repo` (default from the env), `select`, `split`, `minPriority`, `label`, `labelBy`, `branches`, `item`; token from `$GITHUB_TOKEN` (or `tokenEnv`) |
 | `gitlab-issue` | a GitLab issue that is open while the gate fails, closed when it passes | `repo` (default from the GitLab CI env), `select`, `split`, `minPriority`, `label`, `labelBy`, `branches`, `item`; token from `$GITLAB_TOKEN` (or `tokenEnv`) |
+| `azure-work-item` | an Azure Boards work item that is open while the gate fails, closed when it passes | `org`, `project` (default from the Azure Pipelines env), `select`, `split`, `minPriority`, `label`, `labelBy`, `branches`, `item`; token from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`) |
 | `draugr-api` | any server implementing Draugr's run-ingest API (posts the `json` report, uploads the `sarif` one) | `url` (or `$DRAUGR_API_URL`); token from `$DRAUGR_API_TOKEN` (or `tokenEnv`) |
 
 No publisher stores a secret in the Saga. Every token comes from an environment variable, and each

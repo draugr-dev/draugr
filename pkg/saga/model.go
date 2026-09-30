@@ -720,6 +720,17 @@ var AzureOwnedFields = []string{
 	"System.IterationPath", "Microsoft.VSTS.Common.Priority",
 }
 
+// AzureFieldKeys names the `item` key that sets each Azure DevOps field one sets, so a refusal
+// names the key the reader wrote.
+var AzureFieldKeys = map[string]string{
+	"System.AssignedTo":              "item.assignedTo",
+	"System.AreaPath":                "item.areaPath",
+	"System.IterationPath":           "item.iterationPath",
+	"Microsoft.VSTS.Common.Priority": "item.priority",
+	"System.Tags":                    "item.tags",
+	"System.WorkItemType":            "item.type",
+}
+
 // Component is one logical part of an application: its repositories, images, hosts, and
 // infrastructure, plus optional per-component controller overrides and risk classification.
 type Component struct {

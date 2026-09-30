@@ -163,7 +163,7 @@ func (f *fakeAzure) wire(i *azItem) map[string]any {
 
 func (f *fakeAzure) fail(w http.ResponseWriter, status int, body string) {
 	w.WriteHeader(status)
-	_, _ = w.Write([]byte(body))
+	_, _ = w.Write([]byte(body)) // #nosec G705 -- a fake server answering the test's own requests
 }
 
 var (
