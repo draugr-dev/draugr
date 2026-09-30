@@ -558,9 +558,10 @@ type PublisherConfig struct {
 	PR     int    `yaml:"pr,omitempty"`
 	Marker string `yaml:"marker,omitempty"`
 
-	// azure-pr-comment: Org is the collection URI (default $SYSTEM_TEAMFOUNDATIONCOLLECTIONURI)
-	// and Project the team project (default $SYSTEM_TEAMPROJECT). Repo defaults to
-	// $BUILD_REPOSITORY_NAME and the token to $SYSTEM_ACCESSTOKEN (or TokenEnv).
+	// azure-pr-comment, azure-work-item: Org is the collection URI (default
+	// $SYSTEM_TEAMFOUNDATIONCOLLECTIONURI) and Project the team project (default
+	// $SYSTEM_TEAMPROJECT). Repo defaults to $BUILD_REPOSITORY_NAME and the token to
+	// $SYSTEM_ACCESSTOKEN (or TokenEnv).
 	Org     string `yaml:"org,omitempty"`
 	Project string `yaml:"project,omitempty"`
 
@@ -578,8 +579,8 @@ type PublisherConfig struct {
 	// make an ambient value indistinguishable from an intentional one.
 	DefaultURL string `yaml:"-"`
 
-	// github-issue, gitlab-issue: one tracking item kept open while the gate fails and closed when
-	// it passes.
+	// github-issue, gitlab-issue, azure-work-item: one tracking item kept open while the gate fails
+	// and closed when it passes.
 	//
 	// Label finds the items this entry owns and is always applied, `draugr` when unset. Branches
 	// are the branches whose runs may open, rewrite or close an item, the repository's default
@@ -689,11 +690,45 @@ type IssueItem struct {
 	Assignees []string `yaml:"assignees,omitempty"`
 	// Milestone is a milestone's title, resolved to its number when the item is created.
 	Milestone string `yaml:"milestone,omitempty"`
-	// Type is an issue type the organization defines on GitHub, and issue, incident or task on
-	// GitLab.
+	// Type is an issue type the organization defines on GitHub, issue, incident or task on GitLab,
+	// and a work item type on Azure DevOps.
 	Type string `yaml:"type,omitempty"`
 	// Confidential is whether a GitLab issue is visible only to project members, true when unset.
 	Confidential *bool `yaml:"confidential,omitempty"`
+
+	// Tags are applied to an Azure DevOps work item beside the tracking tag, as Labels are
+	// elsewhere.
+	Tags []string `yaml:"tags,omitempty"`
+	// AssignedTo is the identity an Azure DevOps work item is assigned to: an email address, or a
+	// display name the organization resolves to one person.
+	AssignedTo string `yaml:"assignedTo,omitempty"`
+	// AreaPath and IterationPath place an Azure DevOps work item, the project root when unset.
+	AreaPath      string `yaml:"areaPath,omitempty"`
+	IterationPath string `yaml:"iterationPath,omitempty"`
+	// Priority is an Azure DevOps work item's priority, 1 to 4, the process default when unset.
+	Priority *int `yaml:"priority,omitempty"`
+	// Fields sets other Azure DevOps fields by reference name, `Custom.Team`. A field Draugr or
+	// another key already sets is refused.
+	Fields map[string]string `yaml:"fields,omitempty"`
+}
+
+// AzureOwnedFields are the Azure DevOps fields `item.fields` may not set: the ones the publisher
+// writes itself, and the ones another `item` key sets.
+var AzureOwnedFields = []string{
+	"System.Title", "System.Description", "System.State", "System.Reason", "System.Tags",
+	"System.WorkItemType", "System.History", "System.AssignedTo", "System.AreaPath",
+	"System.IterationPath", "Microsoft.VSTS.Common.Priority",
+}
+
+// AzureFieldKeys names the `item` key that sets each Azure DevOps field one sets, so a refusal
+// names the key the reader wrote.
+var AzureFieldKeys = map[string]string{
+	"System.AssignedTo":              "item.assignedTo",
+	"System.AreaPath":                "item.areaPath",
+	"System.IterationPath":           "item.iterationPath",
+	"Microsoft.VSTS.Common.Priority": "item.priority",
+	"System.Tags":                    "item.tags",
+	"System.WorkItemType":            "item.type",
 }
 
 // Component is one logical part of an application: its repositories, images, hosts, and

@@ -134,7 +134,7 @@ func (p azurePRCommentPublisher) findExisting(ctx context.Context) (int64, int64
 	if err != nil {
 		return 0, 0, err
 	}
-	p.authorize(req)
+	azureAuthorize(req, p.token)
 	resp, err := p.client.Do(req)
 	if err != nil {
 		return 0, 0, err
@@ -174,7 +174,7 @@ func (p azurePRCommentPublisher) send(ctx context.Context, method, endpoint stri
 	if err != nil {
 		return err
 	}
-	p.authorize(req)
+	azureAuthorize(req, p.token)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := p.client.Do(req)
 	if err != nil {
@@ -195,17 +195,17 @@ func (p azurePRCommentPublisher) send(ctx context.Context, method, endpoint stri
 	return nil
 }
 
-// authorize sets the right scheme for the credential it was given.
+// azureAuthorize sets the right scheme for the credential it was given.
 //
 // Azure takes two kinds and they are not interchangeable: the pipeline's own SYSTEM_ACCESSTOKEN
 // is a JWT and goes in as a bearer, while a personal access token goes in as basic auth with an
 // empty username. Sniffing the JWT header keeps this right even when someone puts the pipeline
 // token in a differently named variable.
-func (p azurePRCommentPublisher) authorize(req *http.Request) {
-	if strings.HasPrefix(p.token, "eyJ") {
-		req.Header.Set("Authorization", "Bearer "+p.token)
+func azureAuthorize(req *http.Request, token string) {
+	if strings.HasPrefix(token, "eyJ") {
+		req.Header.Set("Authorization", "Bearer "+token)
 		return
 	}
 	req.Header.Set("Authorization", "Basic "+
-		base64.StdEncoding.EncodeToString([]byte(":"+p.token)))
+		base64.StdEncoding.EncodeToString([]byte(":"+token)))
 }

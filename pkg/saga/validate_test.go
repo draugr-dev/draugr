@@ -735,6 +735,19 @@ func TestValidateIssueFields(t *testing.T) {
 		{"label shaped like a fact", PublisherConfig{Kind: "github-issue", Label: "Draugr:Priority:P1"}, "named like the labels labelBy keeps"},
 		{"item label shaped like a fact", PublisherConfig{Kind: "github-issue", Item: &IssueItem{Labels: []string{"draugr:incomplete"}}}, "named like the labels labelBy keeps"},
 		{"label sharing the prefix", PublisherConfig{Kind: "github-issue", Label: "draugr:images"}, ""},
+		{"semicolon in an Azure tag", PublisherConfig{Kind: "azure-work-item", Label: "a;b"}, "a tag cannot hold a semicolon"},
+		{"semicolon in a GitHub label", PublisherConfig{Kind: "github-issue", Label: "a;b"}, ""},
+		{"Azure item", PublisherConfig{Kind: "azure-work-item", Item: &IssueItem{Tags: []string{"sec"}, Priority: new(4),
+			Fields: map[string]string{"Custom.Team": "web"}}}, ""},
+		{"priority 0", PublisherConfig{Kind: "azure-work-item", Item: &IssueItem{Priority: new(0)}}, "item.priority is 0, but a work item's priority is 1 to 4"},
+		{"priority 5", PublisherConfig{Kind: "azure-work-item", Item: &IssueItem{Priority: new(5)}}, "item.priority is 5"},
+		{"separator in a tag", PublisherConfig{Kind: "azure-work-item", Item: &IssueItem{Tags: []string{"a,b"}}}, `item.tags: "a,b" holds a semicolon or a comma`},
+		{"tag shaped like a fact", PublisherConfig{Kind: "azure-work-item", Item: &IssueItem{Tags: []string{"draugr:priority:P1"}}}, "named like the labels labelBy keeps"},
+		{"unnamed field", PublisherConfig{Kind: "azure-work-item", Item: &IssueItem{Fields: map[string]string{"": "x"}}}, "names a field with no name"},
+		{"owned field", PublisherConfig{Kind: "azure-work-item", Item: &IssueItem{Fields: map[string]string{"system.title": "x"}}},
+			"item.fields sets system.title, which the publisher writes"},
+		{"field another key sets", PublisherConfig{Kind: "azure-work-item", Item: &IssueItem{Fields: map[string]string{"System.AssignedTo": "x"}}},
+			"item.fields sets System.AssignedTo; set it with item.assignedTo"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			m := &Model{Release: Release{Version: "1"}, Config: Config{Publishers: []PublisherConfig{c.cfg}}}

@@ -9,7 +9,6 @@ package surfaces
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -123,21 +122,10 @@ func Uncovered(model *saga.Model) []string {
 	out := make([]string, 0, len(gaps))
 	for _, g := range gaps {
 		out = append(out, fmt.Sprintf("%s declares the %s surface, and the %s %s not enabled",
-			g.Component, g.Surface, andList(g.Controls),
+			g.Component, g.Surface, english.And(g.Controls),
 			english.Choose(len(g.Controls), "control is", "controls are")))
 	}
 	return out
-}
-
-// andList joins names the way a sentence does, so three of them do not read as a chain of ands.
-func andList(names []string) string {
-	switch len(names) {
-	case 0:
-		return ""
-	case 1:
-		return names[0]
-	}
-	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
 }
 
 // sortedKeys returns a map's keys in order, so the list is stable between runs.

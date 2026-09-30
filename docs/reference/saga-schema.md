@@ -724,14 +724,19 @@ config:
 | `select` | the whole run | the findings and errors this entry's issues cover. `components`, `labels` and `controls` mean what `--components`, `--labels` and `--controls` mean. A list matches any of its values, every label must match, and the keys together must all match. |
 | `split` | `none` | `control` or `component`: one issue per control or per component within what `select` covers. An issue closes when its own part passes. |
 | `minPriority` | every band | `P1` to `P4`. An issue opens only while it holds a failing finding at or above this band, and its body lists only those. The body's count of failing findings stays complete. |
-| `label` | `draugr` | the label that finds this entry's issues, applied to each. Created when it does not exist. A comma is refused. |
+| `label` | `draugr` | the label that finds this entry's issues, applied to each. Created when it does not exist. A comma is refused, and on Azure DevOps a semicolon. |
 | `labelBy` | `[priority]` | the facts kept on each issue as labels, from `priority`, `control`, `exposure`, `criticality` and `incomplete`. `[]` keeps none. |
 | `branches` | the default branch | branch names or globs, `*` matching any characters. A run on any other branch changes nothing. |
 | `item.labels` | none | labels applied beside `label` when an issue is created. A later run adds back one that was removed. |
 | `item.assignees` | none | logins on GitHub, or usernames of project members on GitLab, assigned when an issue is created. |
 | `item.milestone` | none | a milestone's title, open or closed, set when an issue is created. |
-| `item.type` | none | set when an issue is created: on GitHub an issue type the organization defines, on GitLab `issue`, `incident` or `task`, where `incident` needs the Reporter role. |
+| `item.type` | none | set when an issue is created: on GitHub an issue type the organization defines, on GitLab `issue`, `incident` or `task`, where `incident` needs the Reporter role, and on Azure DevOps a work item type, the Task category's default when unset. |
 | `item.confidential` | `true` | whether a new issue is visible only to project members. `gitlab-issue` only. |
+| `item.tags` | none | tags applied beside `label` when a work item is created. A later run adds back one that was removed. `azure-work-item` only. |
+| `item.assignedTo` | none | an email address, or a display name the organization resolves to one person. `azure-work-item` only. |
+| `item.areaPath`, `item.iterationPath` | the project's defaults | where a new work item is placed, as in `Payments\Platform`. `azure-work-item` only. |
+| `item.priority` | the process default | `1` to `4`. `azure-work-item` only. |
+| `item.fields` | none | other fields set on a new work item, by reference name. A field the publisher writes, or one another `item` key sets, is refused. `azure-work-item` only. |
 
 Each fact in `labelBy` is a label named `draugr:<fact>:<value>`:
 
@@ -785,6 +790,30 @@ config:
         assignees: [alex]      # a project member's username
         type: incident         # issue (default) | incident | task
         confidential: false    # true when unset
+```
+
+The **`azure-work-item`** publisher keeps an Azure Boards work item open on the same terms and
+reads the same fields, with Azure's in `item` in place of labels, assignees and milestone. `org` and
+`project` default from the Azure Pipelines environment. The token comes from `$SYSTEM_ACCESSTOKEN`
+(or `tokenEnv`), mapped into the step; the build identity needs *View* and *Edit work items in this
+node* on the area path, and *Create tag definition* for a tag new to the organization. A work item
+closes to the state in the Completed category of its type, after a comment saying why. Azure
+Pipelines names no default branch, so unless `branches` is set the publisher reads it from the
+repository, which needs *Read* on it. See [reports &
+publishers](../guides/reports-and-publishers.md#azure-work-items).
+
+```yaml
+config:
+  publishers:
+    - kind: azure-work-item
+      item:
+        tags: [security]
+        assignedTo: alex@example.com
+        areaPath: Payments\Platform
+        priority: 1                     # 1 to 4
+        type: Bug                       # the Task category's default when unset
+        fields:
+          Custom.Team: Payments
 ```
 
 When an entry sets `select`, `draugr doctor` lists the components no issue entry covers under

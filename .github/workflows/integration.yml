@@ -477,6 +477,20 @@ jobs:
           fi
           go test -tags integration -v -count=1 -timeout 15m -run 'TestLiveGitLab' ./pkg/publish/
 
+      - name: Drive the Azure work-item publisher against the sandbox
+        if: ${{ success() || failure() }}
+        env:
+          SANDBOX_AZURE_TOKEN: ${{ secrets.SANDBOX_AZURE_TOKEN }}
+          SANDBOX_AZURE_ORG_URL: ${{ vars.SANDBOX_AZURE_ORG_URL }}
+          SANDBOX_AZURE_PROJECT: ${{ vars.SANDBOX_AZURE_PROJECT }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SANDBOX_AZURE_TOKEN" ] || [ -z "$SANDBOX_AZURE_ORG_URL" ] || [ -z "$SANDBOX_AZURE_PROJECT" ]; then
+            echo "::error::SANDBOX_AZURE_TOKEN (secret), SANDBOX_AZURE_ORG_URL and SANDBOX_AZURE_PROJECT (variables) must all be set"
+            exit 1
+          fi
+          go test -tags integration -v -count=1 -timeout 15m -run 'TestLiveAzure' ./pkg/publish/
+
   # A red run on main has to reach a person.
   #
   # Requiring the suite on pull requests narrows how main goes red without closing it: two pull

@@ -21,6 +21,7 @@ var bareEnumIsFine = map[string]string{
 	"/$defs/control_sca/properties/trivyFs/properties/pkgTypes/items":  "the same two",
 	"/$defs/hostSpec/properties/methods/items":                         "HTTP methods, which the reader typing one already knows",
 	"/$defs/reachabilityConfig/properties/analyzers/items":             "a tool name, and the tool's own doc is what explains it",
+	"/$defs/issueItem/properties/fields/propertyNames/not":             "fields the publisher sets, refused rather than offered, so an editor never lists them",
 }
 
 // Every closed vocabulary in the schema explains each of its values, or says why it does not.

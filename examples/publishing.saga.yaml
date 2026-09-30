@@ -125,6 +125,23 @@ config:
         type: incident              # issue | incident | task; issue when unset. incident needs Reporter
         confidential: false         # visible to everyone who can see the project; true when unset
 
+    - kind: azure-work-item         # the same, as an Azure Boards work item
+      # In Azure Pipelines the collection and project are read from the pipeline, and the token
+      # from $SYSTEM_ACCESSTOKEN, mapped into the step with `env: {SYSTEM_ACCESSTOKEN:
+      # $(System.AccessToken)}`. The build service needs View and Edit work items in this node on
+      # the area path, and Create tag definition for a tag the organization does not have yet.
+      # Outside Azure Pipelines this publisher no-ops.
+      minPriority: P1
+      item:
+        tags: [security]            # beside the tracking tag, which is the label
+        assignedTo: alex@example.com
+        areaPath: Payments\Platform # this and iterationPath: the project's defaults when unset
+        iterationPath: Payments\Sprint 12
+        priority: 1                 # 1 highest to 4 lowest
+        # type: Bug                 # the default type of the Task category when unset
+        fields:                     # any other field on the type, by reference name
+          Microsoft.VSTS.Common.Activity: Development
+
 # Two components, because the reports this example is about only earn their shape with more than
 # one: the console gains a per-component verdict, the markdown report a component table, and a
 # pull-request comment can say which service a new finding belongs to. With one component every

@@ -621,7 +621,15 @@ Each error names the fix.
 - **Find:** WIQL on `[System.Tags] CONTAINS '<label>'` and `[System.TeamProject]`, open states only,
   then `GET _apis/wit/workitems?ids=` in batches of 200. Tags are case sensitive and `CONTAINS`
   may match a substring, so tags are split on `;` and compared exactly.
-- **Write:** one JSON-Patch `PATCH` per change, guarded by `{"op":"test","path":"/rev"}`.
+- **Marker:** Azure's sanitizer removes HTML comments from `System.Description` and keeps `data-*`
+  attributes, so the marker's fields travel in a `data-draugr-issue` attribute on a `<div>` wrapping
+  the body. Reading a description back moves them into the comment form every other kind stores,
+  so the core finds and compares items the same way on every forge.
+- **Canonical body:** the sanitizer also adds a space before `</p>`, `</h3>`, `</td>`, `</li>` and
+  `</ul>`. A stored body and a rendered one are compared with whitespace before a closing tag
+  removed, so an unchanged run writes nothing.
+- **Write:** one JSON-Patch `PATCH` per change, guarded by `{"op":"test","path":"/rev"}`; a stale
+  revision answers 412. A comment changes the revision, so the close after it is not guarded.
   Comments use `7.1-preview.4`, which takes HTML; the Markdown `format` parameter exists only on
   7.2-preview on Services.
 - **Limits:** on Services, 200 TSTUs per pipeline in a sliding five minutes and 10,000 REST

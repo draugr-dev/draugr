@@ -1645,10 +1645,28 @@
     },
     "issueItem": {
       "additionalProperties": false,
-      "description": "Metadata set on an issue when it is created. A later run adds back a configured label that was removed and changes nothing else.",
+      "description": "Metadata set on an issue or work item when it is created. A later run adds back a configured label or tag that was removed and changes nothing else.",
       "properties": {
+        "areaPath": {
+          "description": "azure-work-item: the area path, such as Shop\\Payments. Defaults to the project's default area.",
+          "minLength": 1,
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "assignedTo": {
+          "description": "azure-work-item: the identity a new work item is assigned to, as an email address or display name.",
+          "minLength": 1,
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
         "assignees": {
-          "description": "Logins on GitHub, usernames on GitLab.",
+          "description": "github-issue, gitlab-issue: logins on GitHub, usernames on GitLab.",
           "items": {
             "minLength": 1,
             "type": [
@@ -1663,8 +1681,46 @@
           "description": "gitlab-issue: whether a new issue is visible only to project members. Defaults to true.",
           "type": "boolean"
         },
+        "fields": {
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "description": "azure-work-item: other fields set on a new work item, by reference name, such as Microsoft.VSTS.Common.Severity.",
+          "propertyNames": {
+            "minLength": 1,
+            "not": {
+              "enum": [
+                "System.Title",
+                "System.Description",
+                "System.State",
+                "System.Reason",
+                "System.Tags",
+                "System.WorkItemType",
+                "System.History",
+                "System.AssignedTo",
+                "System.AreaPath",
+                "System.IterationPath",
+                "Microsoft.VSTS.Common.Priority"
+              ]
+            }
+          },
+          "type": "object"
+        },
+        "iterationPath": {
+          "description": "azure-work-item: the iteration path, such as Shop\\Sprint 12. Defaults to the project's default iteration.",
+          "minLength": 1,
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
         "labels": {
-          "description": "Labels applied beside the tracking label.",
+          "description": "github-issue, gitlab-issue: labels applied beside the tracking label.",
           "items": {
             "minLength": 1,
             "type": [
@@ -1676,7 +1732,7 @@
           "type": "array"
         },
         "milestone": {
-          "description": "A milestone's title, open or closed.",
+          "description": "github-issue, gitlab-issue: a milestone's title, open or closed.",
           "minLength": 1,
           "type": [
             "string",
@@ -1684,8 +1740,26 @@
             "boolean"
           ]
         },
+        "priority": {
+          "description": "azure-work-item: Microsoft.VSTS.Common.Priority, 1 highest to 4 lowest.",
+          "maximum": 4,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "tags": {
+          "description": "azure-work-item: tags applied beside the tracking tag.",
+          "items": {
+            "minLength": 1,
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "type": "array"
+        },
         "type": {
-          "description": "An issue type the organization defines on GitHub; issue, incident or task on GitLab.",
+          "description": "An issue type the organization defines on GitHub; issue, incident or task on GitLab; a work item type on Azure DevOps, defaulting to the default type of the Task category.",
           "minLength": 1,
           "type": [
             "string",
@@ -1698,30 +1772,135 @@
     },
     "publisherConfig": {
       "additionalProperties": false,
-      "else": {
-        "properties": {
-          "item": {
-            "not": {
-              "required": [
-                "confidential"
-              ]
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "item": {
+                "not": {
+                  "required": [
+                    "confidential"
+                  ]
+                }
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "gitlab-issue"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "item": {
+                "properties": {
+                  "type": {
+                    "anyOf": [
+                      {
+                        "const": "issue",
+                        "description": "GitLab's default issue type."
+                      },
+                      {
+                        "const": "incident",
+                        "description": "A service disruption, listed under the project's incidents. Needs the Reporter role."
+                      },
+                      {
+                        "const": "task",
+                        "description": "A planning item that sits under an issue."
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "else": {
+            "properties": {
+              "item": {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "tags"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "assignedTo"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "areaPath"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "iterationPath"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "priority"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "fields"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "azure-work-item"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "item": {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "labels"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "assignees"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "milestone"
+                      ]
+                    }
+                  ]
+                }
+              }
             }
           }
         }
-      },
-      "if": {
-        "properties": {
-          "kind": {
-            "const": "gitlab-issue"
-          }
-        },
-        "required": [
-          "kind"
-        ]
-      },
+      ],
       "properties": {
         "branches": {
-          "description": "github-issue, gitlab-issue: the branches whose runs open, rewrite and close issues, as names or globs. Defaults to the repository's default branch.",
+          "description": "github-issue, gitlab-issue, azure-work-item: the branches whose runs open, rewrite and close issues, as names or globs. Defaults to the repository's default branch.",
           "items": {
             "minLength": 1,
             "type": [
@@ -1746,7 +1925,7 @@
         },
         "item": {
           "$ref": "#/$defs/issueItem",
-          "description": "github-issue, gitlab-issue: the metadata set on an issue when it is created."
+          "description": "github-issue, gitlab-issue, azure-work-item: the metadata set on an issue or work item when it is created."
         },
         "kind": {
           "anyOf": [
@@ -1771,6 +1950,10 @@
               "description": "Post the Markdown report as a sticky Azure DevOps pull-request comment."
             },
             {
+              "const": "azure-work-item",
+              "description": "Keep an Azure Boards work item open while the gate fails, and close it when the gate passes."
+            },
+            {
               "const": "gitlab-mr-comment",
               "description": "Post the Markdown report as a sticky GitLab merge-request comment."
             },
@@ -1787,7 +1970,7 @@
           "type": "string"
         },
         "label": {
-          "description": "github-issue, gitlab-issue: the label that finds this entry's issues, applied to each one. Defaults to draugr.",
+          "description": "github-issue, gitlab-issue, azure-work-item: the label, or tag on Azure DevOps, that finds this entry's items, applied to each one. Defaults to draugr.",
           "minLength": 1,
           "type": [
             "string",
@@ -1796,7 +1979,7 @@
           ]
         },
         "labelBy": {
-          "description": "github-issue, gitlab-issue: the facts every run keeps on an issue as labels, adding the ones that apply and removing the ones that no longer do. Defaults to priority. [] keeps none.",
+          "description": "github-issue, gitlab-issue, azure-work-item: the facts every run keeps on an issue as labels, adding the ones that apply and removing the ones that no longer do. Defaults to priority. [] keeps none.",
           "items": {
             "anyOf": [
               {
@@ -1848,11 +2031,11 @@
               "description": "Noted, rarely acted on."
             }
           ],
-          "description": "github-issue, gitlab-issue: the lowest band that opens an issue. The body lists only the actions at or above it. Defaults to every band.",
+          "description": "github-issue, gitlab-issue, azure-work-item: the lowest band that opens an issue. The body lists only the actions at or above it. Defaults to every band.",
           "type": "string"
         },
         "org": {
-          "description": "azure-pr-comment: collection URI. Defaults to $SYSTEM_TEAMFOUNDATIONCOLLECTIONURI.",
+          "description": "azure-pr-comment, azure-work-item: collection URI. Defaults to $SYSTEM_TEAMFOUNDATIONCOLLECTIONURI.",
           "type": "string"
         },
         "pr": {
@@ -1860,7 +2043,7 @@
           "type": "integer"
         },
         "project": {
-          "description": "azure-pr-comment: team project. Defaults to $SYSTEM_TEAMPROJECT.",
+          "description": "azure-pr-comment, azure-work-item: team project. Defaults to $SYSTEM_TEAMPROJECT.",
           "type": "string"
         },
         "ref": {
@@ -1880,7 +2063,7 @@
         },
         "select": {
           "$ref": "#/$defs/publisherSelect",
-          "description": "github-issue, gitlab-issue: the part of the run this entry's issues cover. Defaults to the whole run."
+          "description": "github-issue, gitlab-issue, azure-work-item: the part of the run this entry's issues cover. Defaults to the whole run."
         },
         "split": {
           "anyOf": [
@@ -1897,11 +2080,11 @@
               "description": "One issue per component."
             }
           ],
-          "description": "github-issue, gitlab-issue: one issue, or one per control or component. Defaults to none.",
+          "description": "github-issue, gitlab-issue, azure-work-item: one issue, or one per control or component. Defaults to none.",
           "type": "string"
         },
         "tokenEnv": {
-          "description": "Environment variable holding the token (default GITHUB_TOKEN; SYSTEM_ACCESSTOKEN for azure-pr-comment; GITLAB_TOKEN for gitlab-mr-comment). The token itself is never stored in the Saga.",
+          "description": "Environment variable holding the token (default GITHUB_TOKEN; SYSTEM_ACCESSTOKEN for azure-pr-comment and azure-work-item; GITLAB_TOKEN for gitlab-mr-comment). The token itself is never stored in the Saga.",
           "type": "string"
         },
         "url": {
@@ -1912,30 +2095,6 @@
       "required": [
         "kind"
       ],
-      "then": {
-        "properties": {
-          "item": {
-            "properties": {
-              "type": {
-                "anyOf": [
-                  {
-                    "const": "issue",
-                    "description": "GitLab's default issue type."
-                  },
-                  {
-                    "const": "incident",
-                    "description": "A service disruption, listed under the project's incidents. Needs the Reporter role."
-                  },
-                  {
-                    "const": "task",
-                    "description": "A planning item that sits under an issue."
-                  }
-                ]
-              }
-            }
-          }
-        }
-      },
       "type": "object"
     },
     "publisherSelect": {

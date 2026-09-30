@@ -4,11 +4,13 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"testing"
 
 	"gopkg.in/yaml.v3"
 
 	"github.com/draugr-dev/draugr/internal/sagatest"
+	"github.com/draugr-dev/draugr/pkg/publish"
 )
 
 // parityExceptions are the fields where `draugr validate` refuses a value the JSON Schema accepts,
@@ -85,8 +87,9 @@ func excepted(path string) bool {
 	return false
 }
 
-// TestTheEditorHoldsItemFieldsToTheKind covers the two item fields only gitlab-issue reads, which a
-// one-field mutation of an example never moves onto another kind.
+// TestTheEditorHoldsItemFieldsToTheKind holds the schema to itemReaders: every item key is
+// accepted on the kinds that read it and refused on the others, which a one-field mutation of an
+// example never tests, since it never moves a key onto another kind.
 func TestTheEditorHoldsItemFieldsToTheKind(t *testing.T) {
 	doc := func(kind string, item map[string]any) any {
 		return map[string]any{
@@ -95,15 +98,45 @@ func TestTheEditorHoldsItemFieldsToTheKind(t *testing.T) {
 			"components": []any{map[string]any{"name": "web", "images": []any{map[string]any{"image": "alpine:3.19"}}}},
 		}
 	}
+	values := map[string]any{
+		"labels":        []any{"security"},
+		"assignees":     []any{"octocat"},
+		"milestone":     "Q3",
+		"type":          "task",
+		"confidential":  false,
+		"tags":          []any{"security"},
+		"assignedTo":    "dev@example.com",
+		"areaPath":      `Shop\Payments`,
+		"iterationPath": `Shop\Sprint 12`,
+		"priority":      2,
+		"fields":        map[string]any{"Microsoft.VSTS.Common.Severity": "2 - High"},
+	}
+	for key, readers := range itemReaders {
+		value, ok := values[key]
+		if !ok {
+			t.Errorf("item.%s has no sample value here, so nothing holds the schema to its readers", key)
+			continue
+		}
+		for _, kind := range publish.Kinds() {
+			if !publish.IssueKind(kind) {
+				continue
+			}
+			want := slices.Contains(readers, kind)
+			if err := sagatest.SchemaError(t, doc(kind, map[string]any{key: value}), false); (err == nil) != want {
+				t.Errorf("item.%s on %s: the schema accepts=%v, want %v (%v)", key, kind, err == nil, want, err)
+			}
+		}
+	}
 	for _, c := range []struct {
 		name string
 		doc  any
 		ok   bool
 	}{
-		{"confidential on gitlab-issue", doc("gitlab-issue", map[string]any{"confidential": false, "type": "task"}), true},
-		{"confidential on github-issue", doc("github-issue", map[string]any{"confidential": false}), false},
 		{"a GitHub type on gitlab-issue", doc("gitlab-issue", map[string]any{"type": "Bug"}), false},
 		{"any type on github-issue", doc("github-issue", map[string]any{"type": "Bug"}), true},
+		{"any type on azure-work-item", doc("azure-work-item", map[string]any{"type": "User Story"}), true},
+		{"a field the publisher sets", doc("azure-work-item", map[string]any{"fields": map[string]any{"System.Title": "x"}}), false},
+		{"priority 5", doc("azure-work-item", map[string]any{"priority": 5}), false},
 	} {
 		if err := sagatest.SchemaError(t, c.doc, false); (err == nil) != c.ok {
 			t.Errorf("%s: the schema accepts=%v, want %v (%v)", c.name, err == nil, c.ok, err)
