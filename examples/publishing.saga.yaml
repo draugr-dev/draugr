@@ -122,7 +122,7 @@ config:
       item:
         labels: [security]
         assignees: [alex]           # a project member's username
-        type: incident              # issue | incident | task; issue when unset
+        type: incident              # issue | incident | task; issue when unset. incident needs Reporter
         confidential: false         # visible to everyone who can see the project; true when unset
 
 # Two components, because the reports this example is about only earn their shape with more than

@@ -585,6 +585,8 @@ Each error names the fix.
     Premium on GitLab.com; on Free, a service account holds the token.
 - **Role:** Planner. A Guest can create an issue and close one it authored, but cannot change
   labels on an existing issue or see a confidential duplicate somebody else created ([permissions](https://docs.gitlab.com/user/permissions/)).
+  Creating an incident needs Reporter; for a Planner GitLab creates an issue instead, and the
+  publisher fails naming the role.
 - **Find:** `GET /projects/:id/issues?labels=<label>&state=opened`, paged by `X-Next-Page`.
 - **Write:** `POST /projects/:id/issues` creates missing labels as project labels, in GitLab's
   default color; `PUT …/issues/:iid` with `description`, with `add_labels` and `remove_labels` in

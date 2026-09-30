@@ -185,15 +185,18 @@ func (p gitlabIssuePublisher) create(ctx context.Context, title, body string, fa
 	if milestone != 0 && (got.Milestone == nil || got.Milestone.ID != milestone) {
 		dropped = append(dropped, "milestone "+item.Milestone)
 	}
+	why := "GitLab keeps one assignee on the Free tier, and drops metadata the token's user has no role to set"
 	if item.Type != "" && !strings.EqualFold(got.IssueType, item.Type) {
 		dropped = append(dropped, "type "+item.Type)
+		if strings.EqualFold(item.Type, "incident") {
+			why = "An incident needs the Reporter role, and GitLab creates an issue for a user without it"
+		}
 	}
 	if got.Confidential != p.confidential() {
 		dropped = append(dropped, "confidential "+strconv.FormatBool(p.confidential()))
 	}
 	if len(dropped) > 0 {
-		return fmt.Errorf("gitlab-issue publisher: created #%d in %s without %s. GitLab keeps one assignee "+
-			"on the Free tier, and drops metadata the token's user has no role to set", got.IID, p.project, strings.Join(dropped, ", "))
+		return fmt.Errorf("gitlab-issue publisher: created #%d in %s without %s. %s", got.IID, p.project, strings.Join(dropped, ", "), why)
 	}
 	return nil
 }

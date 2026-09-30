@@ -559,7 +559,7 @@ Where GitLab differs:
 |---|---|
 | visibility | a new issue is confidential, visible only to project members. `item.confidential: false` opens it to everyone who can see the project. |
 | closing | GitLab records no close reason, so the reason is posted as a comment before the issue closes. |
-| `item.type` | `issue`, `incident` or `task` |
+| `item.type` | `issue`, `incident` or `task`. An incident needs the Reporter role. |
 | `item.assignees` | usernames of project members. GitLab Free keeps one. |
 | labels | created by GitLab on first use, in its default color |
 

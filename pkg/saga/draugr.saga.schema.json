@@ -1924,7 +1924,7 @@
                   },
                   {
                     "const": "incident",
-                    "description": "A service disruption, listed under the project's incidents."
+                    "description": "A service disruption, listed under the project's incidents. Needs the Reporter role."
                   },
                   {
                     "const": "task",

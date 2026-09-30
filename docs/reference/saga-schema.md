@@ -730,7 +730,7 @@ config:
 | `item.labels` | none | labels applied beside `label` when an issue is created. A later run adds back one that was removed. |
 | `item.assignees` | none | logins on GitHub, or usernames of project members on GitLab, assigned when an issue is created. |
 | `item.milestone` | none | a milestone's title, open or closed, set when an issue is created. |
-| `item.type` | none | set when an issue is created: on GitHub an issue type the organization defines, on GitLab `issue`, `incident` or `task`. |
+| `item.type` | none | set when an issue is created: on GitHub an issue type the organization defines, on GitLab `issue`, `incident` or `task`, where `incident` needs the Reporter role. |
 | `item.confidential` | `true` | whether a new issue is visible only to project members. `gitlab-issue` only. |
 
 Each fact in `labelBy` is a label named `draugr:<fact>:<value>`:

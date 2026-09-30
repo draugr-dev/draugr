@@ -231,12 +231,13 @@ func (g *liveGitLab) jobText(verb string) string {
 // The fake in gitlab_issue_test.go answers the way GitLab is documented to. This is the check that
 // GitLab still answers that way, and that the token the docs describe is enough: that it creates
 // the labels an issue names, keeps a type, an assignee and confidentiality, and lets the token's
-// user comment and close.
+// user comment and close. The type is task because the sandbox's user holds Planner, and an
+// incident needs Reporter.
 func TestLiveGitLabIssueLifecycle(t *testing.T) {
 	g := newLiveGitLab(t)
 	assignee := g.member()
 	p := g.publisher(saga.PublisherConfig{Item: &saga.IssueItem{
-		Labels: []string{"triage"}, Assignees: []string{assignee}, Type: "incident",
+		Labels: []string{"triage"}, Assignees: []string{assignee}, Type: "task",
 	}})
 
 	failing := map[string][]sarif.Result{"sca": {upgradeFinding("api", "CVE-2026-0001", "P1")}}
@@ -247,8 +248,8 @@ func TestLiveGitLabIssueLifecycle(t *testing.T) {
 			t.Errorf("labels = %q, want %s", first.Labels, want)
 		}
 	}
-	if first.IssueType != "incident" {
-		t.Errorf("type = %q, want incident", first.IssueType)
+	if first.IssueType != "task" {
+		t.Errorf("type = %q, want task", first.IssueType)
 	}
 	if !first.Confidential {
 		t.Error("a new issue is not confidential")

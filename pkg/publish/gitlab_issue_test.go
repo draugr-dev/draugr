@@ -54,6 +54,8 @@ type fakeGitLab struct {
 	dropAssignees bool
 	// dropConfidential makes a create answer as a public issue.
 	dropConfidential bool
+	// planner makes a create answer as GitLab does for a Planner: an incident becomes an issue.
+	planner bool
 	// refuse answers every request whose "METHOD path" starts with the key with the status.
 	refuse map[string]int
 }
@@ -149,7 +151,7 @@ func (f *fakeGitLab) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		i := &glIssue{IID: f.next, State: "opened", Title: str(in["title"]), Body: str(in["description"]),
 			Type: "issue", Confidential: in["confidential"] == true && !f.dropConfidential}
 		f.next++
-		if t := str(in["issue_type"]); t != "" {
+		if t := str(in["issue_type"]); t != "" && (t != "incident" || !f.planner) {
 			i.Type = t
 		}
 		i.Labels = strings.Split(str(in["labels"]), ",")
@@ -457,6 +459,17 @@ func TestMetadataGitLabDroppedIsReported(t *testing.T) {
 	p := gitlabIssues(t, srv, saga.PublisherConfig{Item: &saga.IssueItem{Assignees: []string{"alex"}}})
 	err := p.PublishRun(context.Background(), failingSCA(), nil)
 	if err == nil || !strings.Contains(err.Error(), "created #1 in acme/app without assignee alex, confidential true") {
+		t.Errorf("err = %v", err)
+	}
+}
+
+// A Planner's incident is created as an issue, and the error says which role an incident takes.
+func TestMetadataGitLabIncidentNeedsReporter(t *testing.T) {
+	gl, srv := newFakeGitLab(t)
+	gl.planner = true
+	p := gitlabIssues(t, srv, saga.PublisherConfig{Item: &saga.IssueItem{Type: "incident"}})
+	err := p.PublishRun(context.Background(), failingSCA(), nil)
+	if err == nil || !strings.Contains(err.Error(), "without type incident. An incident needs the Reporter role") {
 		t.Errorf("err = %v", err)
 	}
 }
