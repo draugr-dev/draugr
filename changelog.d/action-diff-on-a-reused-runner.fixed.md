@@ -1,1 +1,0 @@
-- **The Action's diff mode runs on a self-hosted runner that keeps its checkout between jobs.** It clears the record of a base-commit checkout left by a canceled job before making its own, instead of failing with `is a missing but already registered worktree`.

@@ -12,6 +12,20 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.141.0] - 2026-09-29
+
+### Added
+
+- **A `github-issue` publisher labels each issue with the highest priority among its findings**, such as `draugr:priority:P1`. The entry's `labelBy` adds labels for the control, the exposure, the criticality and an incomplete scan. Every run adds the labels that apply and removes the ones that no longer do.
+
+### Changed
+
+- **A new GitHub issue is titled by what tells it apart, then the project**, such as `sca fails the Draugr gate · team=payments · shop`. Issues already open keep their titles.
+
+### Fixed
+
+- **The Action's diff mode works on a self-hosted runner that keeps its checkout between jobs.** It clears a stale worktree record left by a canceled job instead of failing with `is a missing but already registered worktree`.
+
 ## [0.140.0] - 2026-09-29
 
 ### Added
@@ -6119,7 +6133,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.140.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.141.0...HEAD
+[0.141.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.141.0
 [0.140.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.140.0
 [0.139.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.139.0
 [0.138.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.138.0
