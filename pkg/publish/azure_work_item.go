@@ -536,7 +536,7 @@ func (p *azureWorkItemPublisher) do(ctx context.Context, what, method, target, c
 		}
 		body = bytes.NewReader(b)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, target, body) //nolint:gosec // collection URI from env
+	req, err := http.NewRequestWithContext(ctx, method, target, body) // #nosec G704 -- the collection URI comes from the pipeline's own environment
 	if err != nil {
 		return err
 	}
