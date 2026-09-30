@@ -28,14 +28,28 @@ type azItem struct {
 	Type, State string
 	Title       string
 	Description string
-	Tags        []string
-	Fields      map[string]any
-	Comments    []string
+	// Format is the description's multilineFieldsFormat, empty for HTML.
+	Format   string
+	Tags     []string
+	Fields   map[string]any
+	Comments []azComment
+}
+
+// azComment is a comment and the format it was posted in.
+type azComment struct{ Text, Format string }
+
+// said is the Markdown each comment was written from.
+func (i *azItem) said() []string {
+	out := make([]string, len(i.Comments))
+	for n, c := range i.Comments {
+		out[n] = azureIn(c.Text)
+	}
+	return out
 }
 
 // fakeAzure answers the work-item endpoints of the acme collection from memory, for any project in
-// it, and records every request. It stores a description the way Azure does: HTML comments
-// removed, and a space added before some closing tags.
+// it, and records every request. It stores a description the way Azure does, through an HTML
+// sanitizer whatever its format.
 type fakeAzure struct {
 	t        *testing.T
 	mu       sync.Mutex
@@ -136,14 +150,16 @@ func (f *fakeAzure) writes() []string {
 }
 
 var (
-	azComment   = regexp.MustCompile(`<!--.*?-->`)
-	azCloseTags = regexp.MustCompile(`</(p|h3|td|li|ul)>`)
+	azHTMLComment = regexp.MustCompile(`<!--.*?-->`)
+	azCloseTags   = regexp.MustCompile(`</(p|h3|td|li|ul|summary|details)>`)
+	azEntities    = strings.NewReplacer("&#34;", "&quot;", "&#39;", "'")
 )
 
-// azSanitize is what Azure DevOps does to a description it stores.
+// azSanitize is what Azure DevOps does to a description or comment it stores: HTML comments
+// removed, a space added before some closing tags, and entities spelled its own way.
 func azSanitize(s string) string {
-	s = azComment.ReplaceAllString(s, "")
-	return azCloseTags.ReplaceAllString(s, " </$1>")
+	s = azHTMLComment.ReplaceAllString(s, "")
+	return azEntities.Replace(azCloseTags.ReplaceAllString(s, " </$1>"))
 }
 
 func azTags(tags []string) string {
@@ -158,7 +174,11 @@ func (f *fakeAzure) wire(i *azItem) map[string]any {
 	for k, v := range i.Fields {
 		fields[k] = v
 	}
-	return map[string]any{"id": i.ID, "rev": i.Rev, "fields": fields}
+	out := map[string]any{"id": i.ID, "rev": i.Rev, "fields": fields}
+	if i.Format != "" {
+		out["multilineFieldsFormat"] = map[string]string{"System.Description": strings.ToLower(i.Format)}
+	}
+	return out
 }
 
 func (f *fakeAzure) fail(w http.ResponseWriter, status int, body string) {
@@ -283,6 +303,10 @@ func (f *fakeAzure) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				f.fail(w, http.StatusPreconditionFailed, `{"message":"VS403351: Test Operation for path /rev failed"}`)
 				return
 			}
+			if strings.HasPrefix(op.Path, "/multilineFieldsFormat/") {
+				f.fail(w, http.StatusBadRequest, `{"message":"The type changed without a value"}`)
+				return
+			}
 		}
 		f.apply(i, ops)
 		i.Rev++
@@ -291,7 +315,7 @@ func (f *fakeAzure) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		n, _ := strconv.ParseInt(strings.TrimSuffix(strings.TrimPrefix(rest, "wit/workItems/"), "/comments"), 10, 64)
 		i := f.items[n]
 		text, _ := in["text"].(string)
-		i.Comments = append(i.Comments, azComment.ReplaceAllString(text, ""))
+		i.Comments = append(i.Comments, azComment{Text: azSanitize(text), Format: r.URL.Query().Get("format")})
 		i.Rev++
 		_ = enc.Encode(map[string]any{"id": len(i.Comments)})
 	default:
@@ -301,6 +325,9 @@ func (f *fakeAzure) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (f *fakeAzure) apply(i *azItem, ops []patchOp) {
 	for _, op := range ops {
+		if op.Path == "/multilineFieldsFormat/System.Description" {
+			i.Format = op.Value.(string)
+		}
 		field, ok := strings.CutPrefix(op.Path, "/fields/")
 		if !ok {
 			continue
@@ -374,16 +401,16 @@ func TestAFailingRunOpensOneWorkItemAndAPassingRunClosesIt(t *testing.T) {
 	}
 	i := open[0]
 	if i.Type != "Task" || i.Title == "" || !slices.Equal(i.Tags, []string{"draugr", "draugr:priority:P1"}) ||
-		!strings.Contains(i.Description, `<div data-draugr-issue="v1 project=demo scope=all">`) ||
-		strings.Contains(i.Description, "<!--") {
+		i.Format != "Markdown" || !strings.HasPrefix(azureIn(i.Description), "<!-- draugr:issue v1 project=demo scope=all -->\n") ||
+		!strings.Contains(azureIn(i.Description), "### Actions") {
 		t.Errorf("item = %+v", i)
 	}
 
 	publishAzure(t, srv, saga.PublisherConfig{}, azureCI(map[string][]sarif.Result{"sca": nil}))
 	i = az.item(i.ID)
-	want := `The gate passes on <code>main</code> in <a href="https://dev.azure.com/acme/Shop%20App/_build/results?buildId=77">job 77</a>.`
-	if i.State != "Closed" || len(i.Comments) != 1 || !strings.Contains(i.Comments[0], want) {
-		t.Errorf("item = %s, comments %q, want Closed with %q", i.State, i.Comments, want)
+	want := "The gate passes on `main` in [job 77](https://dev.azure.com/acme/Shop%20App/_build/results?buildId=77)."
+	if i.State != "Closed" || !slices.Equal(i.said(), []string{want}) || i.Comments[0].Format != "markdown" {
+		t.Errorf("item = %s, comments %+v, want Closed with %q in Markdown", i.State, i.Comments, want)
 	}
 	for _, a := range az.auth {
 		if a != "Bearer eyJ.pipeline" {
@@ -417,28 +444,52 @@ func TestAnUnchangedRunWritesNothingToAzure(t *testing.T) {
 	}
 }
 
-func TestTheWorkItemCarrierRoundTrips(t *testing.T) {
-	body := "<!-- draugr:issue v1 project=a%26b scope=component/api -->\n<p>x</p>"
-	out := azureOut(body)
-	if out != `<div data-draugr-issue="v1 project=a%26b scope=component/api"><p>x</p></div>` {
-		t.Errorf("out = %s", out)
+// A body survives what Azure does to Markdown, hostile scanner text included, and reads back as
+// the body written.
+func TestAWorkItemDescriptionRoundTripsThroughTheSanitizer(t *testing.T) {
+	hostile := codeFinding("api", "xss", "P1", "a.js")
+	hostile.Message = `<b>bold</b> "q" & 'y' a<b <!-- gone -->`
+	data := azureCI(map[string][]sarif.Result{"sast": {hostile}})
+	body := newIssueBody(data, "all", issueEntry{}, issueParts(data, issueEntry{})[0]).render(markdownFormat{}, azureWorkItemBudget)
+	stored := azSanitize(azureOut(body))
+	if azureIn(stored) != body {
+		t.Errorf("read back\n%s\nwant\n%s", azureIn(stored), body)
 	}
-	stored := `<div title="kept" data-draugr-issue="v1 project=a%26b scope=component/api"><p>x </p></div>`
-	if in := azureIn(stored); markerLine(in) != markerLine(body) || !strings.HasSuffix(in, "<p>x </p>") {
-		t.Errorf("in = %q", in)
+	if strings.ContainsAny(stored, "<>") {
+		t.Errorf("the sanitizer met a tag in\n%s", stored)
 	}
-	if azureOut("no marker") != "no marker" || azureIn("<p>somebody's own</p>") != "<p>somebody's own</p>" {
-		t.Error("a body without a marker changed")
+	if bodyChanged(markdownFormat{}, azureIn(stored), body) {
+		t.Error("a stored body reads as changed")
 	}
-	f := htmlFormat{}
-	if bodyChanged(f, "<p>a </p>\n<ul><li>b </li></ul>", "<p>a</p>\n<ul><li>b</li></ul>") {
-		t.Error("whitespace Azure adds reads as a change")
+	if azureIn(azSanitize(body)) == body {
+		t.Error("the fake sanitizer leaves an unescaped body alone, so it proves nothing")
 	}
-	if !bodyChanged(f, "<p>a</p>", "<p>b</p>") {
-		t.Error("a changed body reads as unchanged")
+}
+
+// A description at the budget, escaped at the widest, fits the field.
+func TestTheBudgetFitsTheFieldOnceEscaped(t *testing.T) {
+	if n := len(azSanitize(azureOut(strings.Repeat(`"`, azureWorkItemBudget)))); n > 1_000_000 {
+		t.Errorf("a body at the budget stores as %d characters", n)
 	}
-	if !bodyChanged(markdownFormat{}, "a ", "a") == bodyChanged(markdownFormat{}, "a", "a") {
-		t.Error("markdown bodies are compared as HTML")
+}
+
+// The format is set when an item is created; setting it again on a rewrite is refused.
+func TestTheMarkdownFormatIsSetOnlyOnCreate(t *testing.T) {
+	az, srv := newFakeAzure(t)
+	publishAzure(t, srv, saga.PublisherConfig{}, failingAzure())
+	failing := failingAzure()
+	failing.Run.Controls["sca"].Report.Results[0].Location.StartLine = 9
+	publishAzure(t, srv, saga.PublisherConfig{}, failing)
+	var sets int
+	for _, ops := range az.bodies {
+		for _, op := range ops {
+			if op.Path == "/multilineFieldsFormat/System.Description" {
+				sets++
+			}
+		}
+	}
+	if i := az.item(1); sets != 1 || i.Format != "Markdown" || !strings.Contains(azureIn(i.Description), "go.mod:9") {
+		t.Errorf("format set %d times, item %+v", sets, i)
 	}
 }
 
@@ -479,14 +530,14 @@ func TestAWorkItemIsFoundByItsOwnTagAndItsTypesStates(t *testing.T) {
 	az.statesSeparately = true
 	az.add(azItem{Title: "longer tag", Description: "x", Tags: []string{"draugr-other"}})
 	az.add(azItem{Type: "User Story", State: "Resolved", Title: "still open", Tags: []string{"Draugr"},
-		Description: azureOut("<!-- draugr:issue v1 project=demo scope=all -->\n<p>old</p>")})
+		Description: azureOut("<!-- draugr:issue v1 project=demo scope=all -->\nold")})
 	az.add(azItem{Type: "Bug", State: "Resolved", Title: "closed for a bug", Tags: []string{"draugr"},
-		Description: azureOut("<!-- draugr:issue v1 project=demo scope=all -->\n<p>old</p>")})
+		Description: azureOut("<!-- draugr:issue v1 project=demo scope=all -->\nold")})
 	publishAzure(t, srv, saga.PublisherConfig{}, failingAzure())
 	if len(az.items) != 3 {
 		t.Fatalf("items = %d, want the resolved story rewritten rather than another created", len(az.items))
 	}
-	if strings.Contains(az.item(2).Description, "<p>old </p>") {
+	if strings.HasSuffix(az.item(2).Description, "\nold") {
 		t.Error("the story was not rewritten")
 	}
 
@@ -507,9 +558,9 @@ func TestADuplicateWorkItemIsClosedWithALink(t *testing.T) {
 	az.mu.Unlock()
 
 	publishAzure(t, srv, saga.PublisherConfig{}, failingAzure())
-	want := `Duplicate of <a href="` + srv.URL + `/acme/Shop%20App/_workitems/edit/1">#1</a>.`
-	if d := az.item(2); d.State != "Closed" || !slices.Equal(d.Comments, []string{want}) {
-		t.Errorf("duplicate = %s %q, want %q", d.State, d.Comments, want)
+	want := "Duplicate of [#1](" + srv.URL + "/acme/Shop%20App/_workitems/edit/1)."
+	if d := az.item(2); d.State != "Closed" || !slices.Equal(d.said(), []string{want}) {
+		t.Errorf("duplicate = %s %q, want %q", d.State, d.said(), want)
 	}
 }
 
@@ -658,7 +709,7 @@ func TestAWorkItemChangedDuringTheRunIsReported(t *testing.T) {
 		t.Fatal(err)
 	}
 	az.item(1).Rev++ // somebody edits it
-	err := p.rewrite(context.Background(), 1, "<p>new</p>")
+	err := p.rewrite(context.Background(), 1, "new")
 	if err == nil || !strings.Contains(err.Error(), "412, somebody changed the item while the run was writing it") {
 		t.Errorf("err = %v", err)
 	}
@@ -667,7 +718,7 @@ func TestAWorkItemChangedDuringTheRunIsReported(t *testing.T) {
 func TestAWorkItemTypeWithNoCompletedStateIsNamed(t *testing.T) {
 	az, srv := newFakeAzure(t)
 	az.states["Odd"] = [][2]string{{"New", "Proposed"}}
-	az.add(azItem{Type: "Odd", Tags: []string{"draugr"}, Description: azureOut("<!-- draugr:issue v1 project=demo scope=all -->\n<p>x</p>")})
+	az.add(azItem{Type: "Odd", Tags: []string{"draugr"}, Description: azureOut("<!-- draugr:issue v1 project=demo scope=all -->\nx")})
 	err := azureItems(t, srv, saga.PublisherConfig{}).PublishRun(context.Background(), azureCI(map[string][]sarif.Result{"sca": nil}), nil)
 	if err == nil || !strings.Contains(err.Error(), "the Odd type in Shop App has no state in the Completed category") {
 		t.Errorf("err = %v", err)
@@ -722,7 +773,7 @@ func TestTheAzureWorkItemPublisherNeedsAProjectAndAToken(t *testing.T) {
 	if err := p.Publish(context.Background(), nil); err == nil {
 		t.Error("Publish without the run did nothing")
 	}
-	if got := p.(*azureWorkItemPublisher).ref(12); got != `<a href="https://dev.azure.com/acme/Shop/_workitems/edit/12">#12</a>` {
+	if got := p.(*azureWorkItemPublisher).ref(12); got != "[#12](https://dev.azure.com/acme/Shop/_workitems/edit/12)" {
 		t.Errorf("ref = %s", got)
 	}
 }

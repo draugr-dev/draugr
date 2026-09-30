@@ -796,7 +796,8 @@ The **`azure-work-item`** publisher keeps an Azure Boards work item open on the 
 reads the same fields, with Azure's in `item` in place of labels, assignees and milestone. `org` and
 `project` default from the Azure Pipelines environment. The token comes from `$SYSTEM_ACCESSTOKEN`
 (or `tokenEnv`), mapped into the step; the build identity needs *View* and *Edit work items in this
-node* on the area path, and *Create tag definition* for a tag new to the organization. A work item
+node* on the area path, and *Create tag definition* for a tag new to the organization. The
+description is Markdown; Azure DevOps Services is supported, and Server is untested. A work item
 closes to the state in the Completed category of its type, after a comment saying why. Azure
 Pipelines names no default branch, so unless `branches` is set the publisher reads it from the
 repository, which needs *Read* on it. See [reports &

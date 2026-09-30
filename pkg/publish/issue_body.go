@@ -3,7 +3,6 @@ package publish
 import (
 	"fmt"
 	"html"
-	"regexp"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -160,8 +159,8 @@ func repositoryName(url string) string {
 	return strings.Join(parts, "/")
 }
 
-// issueFormat is how a body is written for one forge: Markdown for GitHub and GitLab, HTML for
-// Azure DevOps. The body's structure lives once, in render, and each format only spells it.
+// issueFormat is how a body is written. The body's structure lives once, in render, and a format
+// only spells it.
 type issueFormat interface {
 	// text is scanner or author text, safe to place anywhere but the start of a line.
 	text(s string) string
@@ -177,13 +176,10 @@ type issueFormat interface {
 	rule() string
 	// separator joins blocks.
 	separator() string
-	// canonical is a body as the forge would store it, so a body read back compares equal to the
-	// one written when they say the same thing.
-	canonical(body string) string
 }
 
-// markdownFormat writes GitHub and GitLab Markdown. Every line it emits starts with a character
-// it wrote, so no line can start with scanner text and run as a GitLab quick action.
+// markdownFormat writes the Markdown every forge renders. Every line it emits starts with a
+// character it wrote, so no line can start with scanner text and run as a GitLab quick action.
 type markdownFormat struct{}
 
 func (markdownFormat) text(s string) string               { return mdText(s) }
@@ -194,7 +190,6 @@ func (markdownFormat) para(s string) string               { return s }
 func (markdownFormat) heading(s string) string            { return "### " + s }
 func (markdownFormat) rule() string                       { return "---" }
 func (markdownFormat) separator() string                  { return "\n\n" }
-func (markdownFormat) canonical(body string) string       { return body }
 
 func (markdownFormat) table(head []string, rows [][]string) string {
 	lines := []string{"| " + strings.Join(head, " | ") + " |", strings.Repeat("|---", len(head)) + "|"}
@@ -214,54 +209,6 @@ func (markdownFormat) list(items []string) string {
 
 func (markdownFormat) details(summary, body string) string {
 	return "<details><summary>" + summary + "</summary>\n\n" + body + "\n\n</details>"
-}
-
-// htmlFormat writes the HTML of an Azure DevOps description.
-type htmlFormat struct{}
-
-func (htmlFormat) text(s string) string         { return htmlText(s) }
-func (htmlFormat) code(s string, _ bool) string { return htmlCode(s) }
-func (htmlFormat) link(label, url string) string {
-	return `<a href="` + html.EscapeString(url) + `">` + label + "</a>"
-}
-func (htmlFormat) bold(s string) string    { return "<b>" + s + "</b>" }
-func (htmlFormat) para(s string) string    { return "<p>" + s + "</p>" }
-func (htmlFormat) heading(s string) string { return "<h3>" + s + "</h3>" }
-func (htmlFormat) rule() string            { return "<hr>" }
-func (htmlFormat) separator() string       { return "\n" }
-
-// htmlSpace is whitespace against a tag, which Azure DevOps adds and removes when it sanitizes
-// a description.
-var htmlSpace = regexp.MustCompile(`\s+</|>\s+<`)
-
-// canonical drops whitespace against tags and decodes entities, since Azure stores a description
-// with spaces added before some closing tags and with entities written its own way.
-func (htmlFormat) canonical(body string) string {
-	body = htmlSpace.ReplaceAllStringFunc(body, func(m string) string {
-		if strings.HasPrefix(m, ">") {
-			return "><"
-		}
-		return "</"
-	})
-	return html.UnescapeString(body)
-}
-
-func (htmlFormat) table(head []string, rows [][]string) string {
-	var b strings.Builder
-	b.WriteString("<table><tr><th>" + strings.Join(head, "</th><th>") + "</th></tr>")
-	for _, r := range rows {
-		b.WriteString("<tr><td>" + strings.Join(r, "</td><td>") + "</td></tr>")
-	}
-	b.WriteString("</table>")
-	return b.String()
-}
-
-func (htmlFormat) list(items []string) string {
-	return "<ul><li>" + strings.Join(items, "</li><li>") + "</li></ul>"
-}
-
-func (htmlFormat) details(summary, body string) string {
-	return "<details><summary>" + summary + "</summary>" + body + "</details>"
 }
 
 // htmlCode is an identifier in a `<code>` element. A forge links no mention or reference inside
@@ -539,5 +486,5 @@ func withoutRun(f issueFormat, body string) string {
 // bodyChanged reports whether a rendered body describes something the item's current body does
 // not.
 func bodyChanged(f issueFormat, current, next string) bool {
-	return withoutRun(f, f.canonical(current)) != withoutRun(f, f.canonical(next))
+	return withoutRun(f, current) != withoutRun(f, next)
 }

@@ -230,13 +230,11 @@ func TestNoBodyLineStartsWithScannerText(t *testing.T) {
 	data.Incomplete = true
 	data.Run.ScanErrors = map[string][]string{"sast": {"/unlabel ~x"}}
 
-	for _, f := range []issueFormat{markdownFormat{}, htmlFormat{}} {
-		part := issueParts(data, issueEntry{})[0]
-		body := newIssueBody(data, "all", issueEntry{}, part).render(f, 60_000)
-		for _, line := range strings.Split(body, "\n") {
-			if line != "" && !strings.ContainsRune("<|*`#-AFCN", rune(line[0])) {
-				t.Errorf("%T: line starts with text Draugr did not write: %q", f, line)
-			}
+	part := issueParts(data, issueEntry{})[0]
+	body := newIssueBody(data, "all", issueEntry{}, part).render(markdownFormat{}, 60_000)
+	for _, line := range strings.Split(body, "\n") {
+		if line != "" && !strings.ContainsRune("<|*`#-AFCN", rune(line[0])) {
+			t.Errorf("line starts with text Draugr did not write: %q", line)
 		}
 	}
 }
@@ -569,51 +567,21 @@ func TestABodyOverBudgetWithoutTablesLeavesOutTheLastActions(t *testing.T) {
 
 func TestAnUnchangedFindingSetIsAnUnchangedBody(t *testing.T) {
 	data := runOver(map[string][]sarif.Result{"sca": {codeFinding("api", "c1", "P1", "go.mod")}})
-	for _, f := range []issueFormat{markdownFormat{}, htmlFormat{}} {
-		render := func(d report.Data) string {
-			return newIssueBody(d, "all", issueEntry{}, issueParts(d, issueEntry{})[0]).render(f, 900_000)
-		}
-		data.CI = &ci.Context{RunID: "1", URL: "https://ci.test/1"}
-		first := render(data)
-		data.CI = &ci.Context{RunID: "2", URL: "https://ci.test/2"}
-		second := render(data)
-		if first == second || bodyChanged(f, first, strings.ReplaceAll(second, "\n", "\r\n")) {
-			t.Errorf("%T: a new run with the same findings changed the body", f)
-		}
-		changed := runOver(map[string][]sarif.Result{"sca": {codeFinding("api", "c9", "P1", "go.mod")}})
-		changed.CI = data.CI
-		if !bodyChanged(f, second, render(changed)) {
-			t.Errorf("%T: a different finding left the body unchanged", f)
-		}
+	f := markdownFormat{}
+	render := func(d report.Data) string {
+		return newIssueBody(d, "all", issueEntry{}, issueParts(d, issueEntry{})[0]).render(f, 900_000)
 	}
-}
-
-func TestTheHTMLBodyHasTheMarkdownBodysSections(t *testing.T) {
-	hostile := codeFinding("api", "xss", "P1", "a.js")
-	hostile.Message = "<script>alert(@x)</script>"
-	data := runOver(map[string][]sarif.Result{"sast": {hostile}})
-	data.CI = &ci.Context{RunID: "7", URL: "https://ci.test/runs/7?a=1&b=2"}
-
-	body := newIssueBody(data, "all", issueEntry{ClosesOn: []string{"main"}}, issueParts(data, issueEntry{})[0]).
-		render(htmlFormat{}, 900_000)
-	for _, want := range []string{
-		"<!-- draugr:issue v1 project=demo scope=all -->",
-		"<p><b>1 finding fails the gate</b> · gate P1</p>",
-		"<p><code>sast</code> 1</p>",
-		"<h3>Actions</h3>",
-		"<details><summary><b>P1</b> ",
-		"<table><tr><th>Priority</th><th>Finding</th><th>Where</th></tr>",
-		"&lt;script&gt;alert(@" + zw + "x)&lt;/script&gt;",
-		`<a href="https://ci.test/runs/7?a=1&amp;b=2">7</a>`,
-		"<h3>Accept</h3>",
-		"<hr>\n<p>Closes itself when the gate passes on <code>main</code>.</p>",
-	} {
-		if !strings.Contains(body, want) {
-			t.Errorf("HTML body lacks %q\n%s", want, body)
-		}
+	data.CI = &ci.Context{RunID: "1", URL: "https://ci.test/1"}
+	first := render(data)
+	data.CI = &ci.Context{RunID: "2", URL: "https://ci.test/2"}
+	second := render(data)
+	if first == second || bodyChanged(f, first, strings.ReplaceAll(second, "\n", "\r\n")) {
+		t.Error("a new run with the same findings changed the body")
 	}
-	if strings.Contains(body, "<script>") {
-		t.Errorf("HTML body carries scanner markup\n%s", body)
+	changed := runOver(map[string][]sarif.Result{"sca": {codeFinding("api", "c9", "P1", "go.mod")}})
+	changed.CI = data.CI
+	if !bodyChanged(f, second, render(changed)) {
+		t.Error("a different finding left the body unchanged")
 	}
 }
 
