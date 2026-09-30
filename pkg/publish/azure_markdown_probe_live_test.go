@@ -47,7 +47,10 @@ func TestLiveAzureMarkdownProbe(t *testing.T) {
 	})
 	part := issueParts(data, issueEntry{})[0]
 	marker := issueMarker(a.name, "all", issueEntry{}, part)
-	body := marker + "\n" + newIssueBody(data, "all", issueEntry{}, part).render(markdownFormat{}, 60_000)
+	rendered := newIssueBody(data, "all", issueEntry{}, part).render(markdownFormat{}, 60_000)
+	fields := strings.TrimSuffix(strings.TrimPrefix(marker, "<!-- draugr:issue "), " -->")
+	rest := strings.TrimPrefix(rendered, marker+"\n")
+	body := "[//]: # \"draugr:issue " + fields + "\"\n\n<span data-draugr-issue=\"" + fields + "\"></span>\n\n" + rest
 	t.Logf("SENT description:\n%s", body)
 
 	ops := []map[string]any{
@@ -57,7 +60,7 @@ func TestLiveAzureMarkdownProbe(t *testing.T) {
 		{"op": "add", "path": "/multilineFieldsFormat/System.Description", "value": "Markdown"},
 	}
 	var id float64
-	for _, v := range []string{"7.1", "7.2-preview.3"} {
+	for _, v := range []string{"7.1"} {
 		code, resp := raw(http.MethodPost, "wit/workitems/$Task?api-version="+v, "application/json-patch+json", ops)
 		t.Logf("CREATE api-version=%s: %d %.400s", v, code, resp)
 		if code < 300 && id == 0 {
@@ -107,10 +110,7 @@ func TestLiveAzureMarkdownProbe(t *testing.T) {
 
 	comment := "The gate passes on `main` in [job 7](https://example.com/7).\n\n- **bold** and a `code span`"
 	for _, q := range []string{
-		"comments?api-version=7.1-preview.4",
 		"comments?format=markdown&api-version=7.1-preview.4",
-		"comments?format=markdown&api-version=7.2-preview.4",
-		"comments?format=1&api-version=7.2-preview.4",
 	} {
 		code, resp := raw(http.MethodPost, "wit/workItems/"+n+"/"+q, "application/json", map[string]string{"text": comment})
 		t.Logf("COMMENT %s: %d %.300s", q, code, resp)
