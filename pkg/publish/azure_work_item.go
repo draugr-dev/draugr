@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,9 +19,10 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
-// azureWorkItemBudget is the longest description written to a work item. Azure DevOps holds
-// 1,000,000 characters in a long-text field, and the margin covers what its sanitizer adds.
-const azureWorkItemBudget = 900_000
+// azureWorkItemBudget is the longest body written to a work item, before escaping. Azure DevOps
+// holds 1,000,000 characters in a long-text field, and escaping writes a character as at most six,
+// `&quot;` for a double quote.
+const azureWorkItemBudget = 150_000
 
 // azureIDBatch is the most work items one `GET _apis/wit/workitems?ids=` returns.
 const azureIDBatch = 200
@@ -37,9 +37,8 @@ const (
 // and closes it when that part passes. The collection and project come from the pipeline, as for
 // azure-pr-comment.
 //
-// An item is found by tag and identified by the marker in its description. Azure DevOps removes
-// HTML comments from a description, so the marker travels in a data attribute and is read back
-// into the form every other kind stores.
+// An item is found by tag and identified by the marker in its description. The description is the
+// Markdown body every other kind writes, stored as Markdown; azureOut says why it is escaped.
 type azureWorkItemPublisher struct {
 	cfg              saga.PublisherConfig
 	baseURL, project string
@@ -119,13 +118,13 @@ func (p *azureWorkItemPublisher) PublishRun(ctx context.Context, data report.Dat
 }
 
 func (*azureWorkItemPublisher) kind() string        { return "azure-work-item" }
-func (*azureWorkItemPublisher) format() issueFormat { return htmlFormat{} }
+func (*azureWorkItemPublisher) format() issueFormat { return markdownFormat{} }
 func (*azureWorkItemPublisher) budget() int         { return azureWorkItemBudget }
 
 // ref links another work item. A comment written through the API links no bare `#12`.
 func (p *azureWorkItemPublisher) ref(n int64) string {
 	id := strconv.FormatInt(n, 10)
-	return `<a href="` + html.EscapeString(strings.TrimSuffix(p.baseURL, "_apis/")+"_workitems/edit/"+id) + `">#` + id + "</a>"
+	return "[#" + id + "](" + strings.TrimSuffix(p.baseURL, "_apis/") + "_workitems/edit/" + id + ")"
 }
 
 // defaultBranch reads the repository's default branch, which Azure reports as a full ref.
@@ -241,6 +240,9 @@ func (p *azureWorkItemPublisher) create(ctx context.Context, title, body string,
 	ops := []patchOp{
 		{Op: "add", Path: "/fields/System.Title", Value: title},
 		{Op: "add", Path: "/fields/System.Description", Value: azureOut(body)},
+		// The format is set once. The field keeps it through later writes, and a write that sets
+		// it again is refused.
+		{Op: "add", Path: "/multilineFieldsFormat/System.Description", Value: "Markdown"},
 		{Op: "add", Path: "/fields/System.Tags", Value: strings.Join(tags, "; ")},
 	}
 	for _, f := range []struct{ field, value string }{
@@ -316,11 +318,11 @@ func (p *azureWorkItemPublisher) syncLabels(ctx context.Context, item trackedIte
 	return p.patch(ctx, "tag", item.Number, patchOp{Op: "add", Path: "/fields/System.Tags", Value: strings.Join(tags, "; ")})
 }
 
-// comment posts an HTML comment. The markdown `format` parameter exists only on 7.2-preview.
+// comment posts a Markdown comment, escaped as a description is, since the same sanitizer reads it.
 func (p *azureWorkItemPublisher) comment(ctx context.Context, n int64, text string) error {
-	target := p.baseURL + "wit/workItems/" + strconv.FormatInt(n, 10) + "/comments?api-version=7.1-preview.4"
+	target := p.baseURL + "wit/workItems/" + strconv.FormatInt(n, 10) + "/comments?format=markdown&api-version=7.1-preview.4"
 	return p.do(ctx, "comment on "+strconv.FormatInt(n, 10), http.MethodPost, target, "application/json",
-		map[string]string{"text": text}, nil)
+		map[string]string{"text": azureOut(text)}, nil)
 }
 
 // close moves the item to its type's Completed state. The comment posted before it says why, and
@@ -465,35 +467,15 @@ func splitTags(field string) []string {
 	return out
 }
 
-// azureMarker finds the element carrying the marker in a description as Azure stores it.
-var azureMarker = regexp.MustCompile(`<div\s[^>]*?data-draugr-issue="([^"]*)"[^>]*>`)
+// azureOut is a body as a Markdown description or comment takes it. Azure DevOps runs an HTML
+// sanitizer over Markdown before storing it, which removes the marker's comment and rewrites
+// any tag in scanner text, so the body is sent HTML-escaped. The renderer decodes the entities
+// before reading the Markdown.
+func azureOut(body string) string { return html.EscapeString(body) }
 
-// azureOut moves a body's marker into a data attribute on an element wrapping the body, since
-// Azure removes HTML comments from a description and keeps data attributes.
-func azureOut(body string) string {
-	marker := markerLine(body)
-	if marker == "" {
-		return body
-	}
-	fields := strings.TrimSuffix(strings.TrimPrefix(marker, "<!-- draugr:issue "), " -->")
-	rest := strings.TrimLeft(strings.Replace(body, marker, "", 1), "\n")
-	return `<div data-draugr-issue="` + html.EscapeString(fields) + `">` + rest + "</div>"
-}
-
-// azureIn reverses azureOut on a description read back, so the marker is found and the body
-// compared as every other kind stores them.
-func azureIn(desc string) string {
-	m := azureMarker.FindStringSubmatchIndex(desc)
-	if m == nil {
-		return desc
-	}
-	fields := html.UnescapeString(desc[m[2]:m[3]])
-	rest := desc[:m[0]] + desc[m[1]:]
-	if i := strings.LastIndex(rest, "</div>"); i >= 0 {
-		rest = rest[:i] + rest[i+len("</div>"):]
-	}
-	return "<!-- draugr:issue " + fields + " -->\n" + strings.TrimSpace(rest)
-}
+// azureIn is the body a stored description was written from. Azure changes only how some
+// entities are spelled, which decoding removes.
+func azureIn(desc string) string { return html.UnescapeString(desc) }
 
 // azureStatusError is an answer Azure DevOps gave that was not a success, worded for the reader
 // who has to fix it.

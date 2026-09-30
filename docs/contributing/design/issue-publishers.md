@@ -317,8 +317,8 @@ verdict line.
 
 The PR-comment markdown (`pkg/report/markdown.go`) is not reused. It opens with emoji, stops at 25
 findings, has no size cap, does not render the scope and emits scanner text unescaped. The body
-comes from one model rendered twice, as Markdown for GitHub and GitLab and as HTML for Azure,
-whose `System.Description` is HTML. The module has no Markdown library and does not need one.
+comes from one model rendered as Markdown, the one format every forge's issue body takes. The
+module has no Markdown library and does not need one.
 
 The layout was chosen from rendered variants (decision 13).
 
@@ -341,7 +341,10 @@ None of it may act on the forge:
   ([quick actions](https://docs.gitlab.com/user/project/quick_actions/)), and GitLab does not
   document that a code span prevents it. The invariant is therefore structural. **Every line of the
   body starts with a character Draugr wrote**, so no line can start with scanner text.
-- **Azure HTML.** Every string is HTML-escaped and takes the same zero-width spaces.
+- **Azure DevOps.** Azure runs an HTML sanitizer over a Markdown description or comment before it
+  stores one, and it rewrites a tag even inside a code span. The whole Markdown body is therefore
+  HTML-escaped once more on the way out, and Azure's renderer decodes the entities before it reads
+  the Markdown.
 
 ### Size
 
@@ -353,7 +356,7 @@ out and the body ends with how many were left out and the run link, which holds 
 |---|---|---|
 | GitHub | none (65,536 characters is widely reported) | 60,000 characters |
 | GitLab | 1,048,576 characters description, 1,000,000 note ([issues](https://docs.gitlab.com/api/issues/)) | 1,000,000 |
-| Azure DevOps | 1,000,000 characters for a long text field ([object limits](https://learn.microsoft.com/en-us/azure/devops/organizations/settings/work/object-limits)) | 900,000 of HTML |
+| Azure DevOps | 1,000,000 characters for a long text field ([object limits](https://learn.microsoft.com/en-us/azure/devops/organizations/settings/work/object-limits)) | 150,000, which escaping takes to at most 900,000 |
 
 ### Visibility
 
@@ -598,8 +601,10 @@ Each error names the fix.
 ## Azure DevOps
 
 - **Where:** `SYSTEM_TEAMFOUNDATIONCOLLECTIONURI`, as `azure-pr-comment` reads it (the same value as
-  `SYSTEM_COLLECTIONURI`); project `SYSTEM_TEAMPROJECT`; API version 7.1, so Azure DevOps Server
-  2022.1 or later. Server 2022 RTW supports 7.0 only.
+  `SYSTEM_COLLECTIONURI`); project `SYSTEM_TEAMPROJECT`; API version 7.1. Markdown descriptions are
+  documented for Azure DevOps Services only ([Markdown in work items](https://learn.microsoft.com/en-us/azure/devops/release-notes/roadmap/2024/boards-markdown-in-work-items)),
+  so Services is the supported target. Server is untested; a Server without the format either
+  refuses the create, which the run reports, or stores the escaped Markdown as text.
 - **Token:** `SYSTEM_ACCESSTOKEN`, mapped into the step. The build identity
   (`{Project} Build Service ({Org})`, or the collection identity, which is the default) needs
   *View* and *Edit work items in this node* on the area path where items land, and *Create tag
@@ -621,17 +626,17 @@ Each error names the fix.
 - **Find:** WIQL on `[System.Tags] CONTAINS '<label>'` and `[System.TeamProject]`, open states only,
   then `GET _apis/wit/workitems?ids=` in batches of 200. Tags are case sensitive and `CONTAINS`
   may match a substring, so tags are split on `;` and compared exactly.
-- **Marker:** Azure's sanitizer removes HTML comments from `System.Description` and keeps `data-*`
-  attributes, so the marker's fields travel in a `data-draugr-issue` attribute on a `<div>` wrapping
-  the body. Reading a description back moves them into the comment form every other kind stores,
-  so the core finds and compares items the same way on every forge.
-- **Canonical body:** the sanitizer also adds a space before `</p>`, `</h3>`, `</td>`, `</li>` and
-  `</ul>`. A stored body and a rendered one are compared with whitespace before a closing tag
-  removed, so an unchanged run writes nothing.
+- **Format:** the create carries `{"op":"add","path":"/multilineFieldsFormat/System.Description",
+  "value":"Markdown"}`. The field keeps the format through later writes, and an update that sends
+  the operation again answers 400, so only the create sends it.
+- **Body:** the description is the Markdown body GitHub and GitLab take, marker included,
+  HTML-escaped ([Escaping](#escaping)). Unescaped, the sanitizer removes the marker's comment, adds
+  a space before a closing tag, and rewrites a tag in scanner text. Escaped, it changes only how
+  `&quot;` and `&#39;` are spelled, so decoding a stored description gives back the body written,
+  and an unchanged run writes nothing.
 - **Write:** one JSON-Patch `PATCH` per change, guarded by `{"op":"test","path":"/rev"}`; a stale
   revision answers 412. A comment changes the revision, so the close after it is not guarded.
-  Comments use `7.1-preview.4`, which takes HTML; the Markdown `format` parameter exists only on
-  7.2-preview on Services.
+  Comments use `7.1-preview.4` with `format=markdown`, escaped as the description is.
 - **Limits:** on Services, 200 TSTUs per pipeline in a sliding five minutes and 10,000 REST
   updates per work item. Neither applies to Server.
 
@@ -653,6 +658,7 @@ Each error names the fix.
 | 12 | Routing | `select` with `components`, `labels` and `controls`; `split: none`, `control` or `component`; each item follows its own part of the gate | agreed 2026-09-28 |
 | 13 | Body layout | verdict line, failing controls on one line, then every action collapsed with its findings; each action shows the findings it clears; the accept section is one linked sentence | agreed 2026-09-28 |
 | 14 | Title and fact labels | the title leads with what tells an issue apart and ends with the project; `labelBy` keeps `priority` by default, with `control`, `exposure`, `criticality` and `incomplete` on request | agreed 2026-09-29 |
+| 15 | Azure description format | Markdown, the body GitHub and GitLab take, HTML-escaped and set to Markdown on create; comments in Markdown; Services only, with no HTML path for Server | agreed 2026-09-30 |
 
 ### Live test
 

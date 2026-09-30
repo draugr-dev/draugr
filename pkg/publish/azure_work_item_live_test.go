@@ -55,6 +55,7 @@ type liveAzureItem struct {
 		Activity    string          `json:"Microsoft.VSTS.Common.Activity"`
 		AssignedTo  json.RawMessage `json:"System.AssignedTo"`
 	} `json:"fields"`
+	Formats map[string]string `json:"multilineFieldsFormat"`
 }
 
 func (i liveAzureItem) tags() []string { return splitTags(i.Fields.Tags) }
@@ -166,7 +167,7 @@ func (a *liveAzure) set(n int64, field string, value any) {
 		[]patchOp{{Op: "add", Path: "/fields/" + field, Value: value}}, nil)
 }
 
-// comments are the comments on a work item, oldest first.
+// comments are the Markdown the comments on a work item were written from, oldest first.
 func (a *liveAzure) comments(n int64) []string {
 	a.t.Helper()
 	var got struct {
@@ -177,7 +178,7 @@ func (a *liveAzure) comments(n int64) []string {
 	a.api(http.MethodGet, "wit/workItems/"+strconv.FormatInt(n, 10)+"/comments?order=asc&api-version=7.1-preview.4", "", nil, &got)
 	out := make([]string, 0, len(got.Comments))
 	for _, c := range got.Comments {
-		out = append(out, c.Text)
+		out = append(out, azureIn(c.Text))
 	}
 	return out
 }
@@ -274,9 +275,10 @@ func (a *liveAzure) mustPublish(p *azureWorkItemPublisher, data report.Data) {
 // gate passes.
 //
 // The fake in azure_work_item_test.go answers the way the sandbox answered a probe. This is the
-// check that Azure DevOps still answers that way: that its sanitizer keeps the marker's data
-// attribute and changes nothing an unchanged run would rewrite, that it keeps every tag, the
-// priority, the assignee and an extra field, and that the token may comment and close.
+// check that Azure DevOps still answers that way: that it stores the description as Markdown, that
+// its sanitizer changes nothing an unchanged run would rewrite, markup in scanner text included,
+// that it keeps every tag, the priority, the assignee and an extra field, and that the token may
+// comment and close.
 func TestLiveAzureWorkItemLifecycle(t *testing.T) {
 	a := newLiveAzure(t)
 	assignee := a.me()
@@ -286,7 +288,9 @@ func TestLiveAzureWorkItemLifecycle(t *testing.T) {
 		Fields: map[string]string{"Microsoft.VSTS.Common.Activity": "Development"},
 	}})
 
-	failing := map[string][]sarif.Result{"sca": {upgradeFinding("api", "CVE-2026-0001", "P1")}}
+	hostile := upgradeFinding("api", "CVE-2026-0001", "P1")
+	hostile.Message = `openssl <b>1.1.1</b> "q" & 'y' a<b <!-- c -->`
+	failing := map[string][]sarif.Result{"sca": {hostile}}
 	a.mustPublish(p, a.onMain(failing))
 	first := a.openCount(1)[0]
 	for _, want := range []string{liveLabel, "triage", "draugr:priority:P1"} {
@@ -306,7 +310,10 @@ func TestLiveAzureWorkItemLifecycle(t *testing.T) {
 	if !strings.Contains(string(first.Fields.AssignedTo), assignee) {
 		t.Errorf("assignedTo = %s, want %s", first.Fields.AssignedTo, assignee)
 	}
-	if !strings.Contains(first.Fields.Description, `data-draugr-issue="v1 project=`+a.name+" ") {
+	if !strings.EqualFold(first.Formats["System.Description"], "markdown") {
+		t.Errorf("multilineFieldsFormat = %v, want the description in Markdown", first.Formats)
+	}
+	if !strings.HasPrefix(azureIn(first.Fields.Description), "<!-- draugr:issue v1 project="+a.name+" ") {
 		t.Errorf("the description lost the marker:\n%s", first.Fields.Description)
 	}
 
@@ -347,7 +354,8 @@ func TestLiveAzureWorkItemLifecycle(t *testing.T) {
 	if i := a.item(dup.ID); a.category(i.Fields.Type, i.Fields.State) != azureCompleted {
 		t.Errorf("duplicate %d = %s, want a Completed state", dup.ID, i.Fields.State)
 	}
-	link := "_workitems/edit/" + strconv.FormatInt(first.ID, 10) + `">#` + strconv.FormatInt(first.ID, 10) + "</a>"
+	id := strconv.FormatInt(first.ID, 10)
+	link := "[#" + id + "](" + a.org + url.PathEscape(a.project) + "/_workitems/edit/" + id + ")"
 	if cs := a.comments(dup.ID); len(cs) != 1 || !strings.Contains(cs[0], "Duplicate of ") || !strings.Contains(cs[0], link) {
 		t.Errorf("duplicate comments = %q, want a link to %d", cs, first.ID)
 	}
@@ -366,8 +374,8 @@ func TestLiveAzureWorkItemLifecycle(t *testing.T) {
 	if i := a.item(first.ID); a.category(i.Fields.Type, i.Fields.State) != azureCompleted {
 		t.Errorf("%d = %s, want a Completed state", first.ID, i.Fields.State)
 	}
-	job := "buildId=" + strconv.Itoa(a.run) + `">job ` + strconv.Itoa(a.run) + "</a>"
-	if cs := a.comments(first.ID); len(cs) != 1 || !strings.Contains(cs[0], "The gate passes on <code>main</code>") || !strings.Contains(cs[0], job) {
+	job := "[job " + strconv.Itoa(a.run) + "]("
+	if cs := a.comments(first.ID); len(cs) != 1 || !strings.Contains(cs[0], "The gate passes on `main`") || !strings.Contains(cs[0], job) {
 		t.Errorf("closing comments = %q, want the gate passing in job %d", cs, a.run)
 	}
 }

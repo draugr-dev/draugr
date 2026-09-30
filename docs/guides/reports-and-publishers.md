@@ -599,6 +599,7 @@ Where Azure differs:
 
 | | Azure DevOps |
 |---|---|
+| description | Markdown, the body a `github-issue` entry writes. Markdown work items are documented for Azure DevOps Services and not for Azure DevOps Server. |
 | `item.type` | a work item type. Defaults to the Task category's default type, which is Task in every process Azure ships. |
 | closing | to the state in the Completed category of the item's type: Closed in Agile and CMMI, Done in Scrum and Basic. The comment posted before it says why. |
 | tags | `label`, `item.tags` and the `labelBy` facts are all tags. A tag holding `;` or `,` is refused. |
