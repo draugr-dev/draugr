@@ -1173,6 +1173,28 @@ func TestDiffAnswersWhetherTheChangeMadeItWorse(t *testing.T) {
 	}
 }
 
+// TestDiffCountsAFindingThatChangedComponentAsMoved. Splitting a component reports every finding
+// it held under a new one; an assistant told that is a change with nothing new or fixed, rather
+// than a change that introduced the whole backlog.
+func TestDiffCountsAFindingThatChangedComponentAsMoved(t *testing.T) {
+	f := sarif.Result{RuleID: "CVE-1", Tool: "trivy", Priority: "P1", Level: sarif.LevelError,
+		Repository: "repo", Location: sarif.Location{URI: "api/go.mod", StartLine: 3}}
+	was, now := f, f
+	was.Component, now.Component = "app", "api"
+
+	_, out, err := DiffReportsTool(context.Background(), nil, DiffInput{
+		BasePath:  writeSARIF(t, sarif.Report{Results: []sarif.Result{was}}),
+		HeadPath:  writeSARIF(t, sarif.Report{Results: []sarif.Result{now}}),
+		FailOnNew: "P1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.NewCount != 0 || out.FixedCount != 0 || out.MovedCount != 1 || out.WouldFail {
+		t.Errorf("want one moved finding and no gate failure, got %+v", out)
+	}
+}
+
 // TestDiffGateAnswersTheQuestionCIWillAsk, rather than a different one: a change that introduces
 // only a low finding does not fail a gate set to high, and saying otherwise trains people to
 // ignore the answer.
