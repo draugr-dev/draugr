@@ -417,28 +417,38 @@ moved milestone survives the next run.
 
 ### Children
 
-**`children: actions` splits the item into a parent and one child per action.** An action is one
-entry of the console's fix list (`report.ActionsFor`), such as `Upgrade jinja2 2.10`, with every
-finding it clears. The default, `children: none`, keeps one item whose body lists the actions.
+**`children: actions` splits the item into a parent and one child per action**, and `children:
+controls` into a parent and one child per control. An action is one entry of the console's fix list
+(`report.ActionsFor`), such as `Upgrade jinja2 2.10`, with every finding it clears. The default,
+`children: none`, keeps one item whose body lists the actions.
 
 ```
 children: none                          children: actions
 
-payments fails the Draugr gate          payments fails the Draugr gate     parent
-  P1 Upgrade jinja2 2.10 (2 findings)     Upgrade jinja2 2.10              child
-  P1 Image user should not be root        Image user should not be root    child
-  P2 Detected tainted SQL string          Detected tainted SQL string      child
+payments fails the Draugr gate          payments fails the Draugr gate        parent
+  P1 Upgrade jinja2 2.10 (2 findings)     P1 · Upgrade jinja2 2.10            child
+  P1 Image user should not be root        P1 · Image user should not be root  child
+  P2 Detected tainted SQL string          P2 · Detected tainted SQL string    child
+
+children: controls
+
+payments fails the Draugr gate                                                parent
+  P1 · sca                                                                    child
+  P1 · images                                                                 child
+  P2 · sast                                                                   child
 ```
+
+The rules below are written for `actions`; [Per control](#per-control) gives what differs for
+`controls`.
 
 - **Which actions.** Every action the item covers gets a child: each action of `report.ActionsFor`
   at or above `minPriority`, whether or not its own priority fails the gate. The set is the one the
   **Actions** section lists under `children: none`, so the choice between the two changes where the
   actions are written and never which.
-- **The parent.** The body of [Body](#body) without its **Actions** section: the marker, the
-  verdict line, the failing controls, the errors, the run, how to accept, and when it closes. The
-  parent does not list its children; each forge shows them beside the body, as sub-issues on
-  GitHub, child items on GitLab and related work on Azure DevOps, and a second list in the body
-  would be one more thing to keep in step with the forge's.
+- **The parent.** The body of [Body](#body), with only the actions that have no child in its
+  **Actions** section. The parent does not list its children; each forge shows them beside the
+  body, as sub-issues on GitHub, child items on GitLab and related work on Azure DevOps, and a
+  second list in the body would be one more thing to keep in step with the forge's.
 - **The cap.** At most `maxChildren` children are open at once, 100 by default and at most,
   GitHub's limit per parent
   ([sub-issues](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/adding-sub-issues)).
@@ -450,13 +460,29 @@ payments fails the Draugr gate          payments fails the Draugr gate     paren
   by their markers and creates the rest. Stopping early is not a failure: the parent and every
   child written are current.
 - **Actions without a child.** When the cap or the budget leaves actions without a child, the
-  parent states how many, out of how many, and which of the two stopped it. The full list is in the
-  run's report. The count accounts for actions the forge's panel does not show, so it is the one
-  place the parent counts them.
+  parent's **Actions** section opens with how many actions have a child, out of how many, and which
+  of the two stopped the rest, then lists the rest as `children: none` does, findings tables
+  included and in fix order. [Size](#size) applies to that list as to any other. An action leaves
+  the list in the run that creates its child, so every action is in exactly one place: the forge's
+  panel or the parent's body. With every action in a child, the section is left out.
+
+  ```
+  ### Actions
+
+  20 of 46 actions have an item. The other 26 are listed below and get an item as open items close,
+  since `maxChildren` is 20.
+
+  <details><summary><b>P2</b> Fix KSV-0001 “Can elevate its own privileges” · <code>iac</code> · 1 finding</summary>
+  ```
+
+  When the budget stopped the run, the sentence reads `The other 26 are listed below and get an
+  item on the next run.`
 - **Identity.** A child's marker adds `action=` and the first 16 hex characters of the SHA-256 of
   the action's key. The key is opaque and holds a separator an HTML comment must not carry.
-- **Title.** The action's title, truncated to 255 characters, the shortest limit of the three.
-  Whether it carries the action's priority is chosen from rendered variants.
+- **Title.** The action's priority, ` · `, then its title, such as `P1 · Upgrade jinja2 2.10`,
+  truncated to 255 characters, the shortest limit of the three. The forge's panel lists children by
+  title, so the priority leading it is what lets the panel read in fix order. Chosen from rendered
+  variants on 2026-10-01.
 - **Body.** The action's priority, control, number of findings and the fix where one is known, then
   its findings table as the **Actions** section draws it, then the run, how to accept, and when it
   closes.
@@ -464,16 +490,36 @@ payments fails the Draugr gate          payments fails the Draugr gate     paren
 | Gate | Action | Open child | Child action |
 |---|---|---|---|
 | fails | reported | none | create with its parent link, while under the cap and the budget |
-| fails | reported | one | rewrite the body **only if it changed** |
+| fails | reported | one | rewrite the body **only if it changed**; rewrite the title only if the priority changed |
 | fails | no longer reported | one | comment that the run no longer reports it, then close |
 | passes | any | any | close every open child, then the parent |
+| any | any | one of another kind | comment that `children` changed, then close |
 
-A child closed by hand while its action is still reported is left closed, and the next failing run
-creates a new one, as for a single item. On GitHub a child costs two content-creating requests, the
+A title is otherwise left alone, so a person who renames a child keeps the name until its
+priority moves. A child closed by hand while its action is still reported is left closed, and the
+next failing run creates a new one, as for a single item. On GitHub a child costs two content-creating requests, the
 issue and its sub-issue link, against the 80 a minute GitHub allows
 ([rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)),
 with writes at least one second apart. The demo's 46 actions take one run; a parent with 100
 children can take two.
+
+#### Per control
+
+`children: controls` gives each control that has an action the item covers one child, which holds
+that control's actions. Everything above applies with a control in place of an action, except:
+
+- **Identity.** A child's marker adds `child=` and the control's name, such as `child=sca`, a key
+  no split item carries.
+- **Title.** The highest priority of the control's actions, ` · `, then the control's name, such as
+  `P1 · images`. It is rewritten only when that priority changes.
+- **Body.** The control's highest priority, its name and the number of its findings that fail the
+  gate, then its actions as the **Actions** section draws them, in fix order and under
+  [Size](#size), then the run, how to accept, and when it closes. Its body is rewritten as its
+  actions change, and it closes when the control has no action left in the item.
+- **Actions without a child.** The parent's **Actions** section lists the actions of every control
+  without a child, opening with how many controls have a child, out of how many.
+- **With `split: control`.** Refused by validation, since each item already covers one control and
+  its one child would repeat the parent.
 
 ## Configuration
 
@@ -488,7 +534,7 @@ New `PublisherConfig` fields. Existing fields keep their meaning: `repo`, `token
 | `select` | all three | object: `components`, `labels`, `controls`, per [Selection](#selection) | the whole run |
 | `split` | all three | `none`, `control` or `component` | `none` |
 | `minPriority` | all three | `P1` to `P4` | every band |
-| `children` | all three | `none` or `actions` | `none` |
+| `children` | all three | `none`, `actions` or `controls` | `none` |
 | `maxChildren` | all three | integer, 1 to 100 | 100 |
 | `item` | all three | object, per [Metadata](#metadata) | none |
 
@@ -668,7 +714,7 @@ Each error names the fix.
 | 6 | Label | `draugr`, set by `label` | agreed 2026-09-28 |
 | 7 | Azure work item type | Task for a single item; the requirement type for a parent, with Task children | agreed 2026-09-28 |
 | 8 | Live test | all three forges, on free tiers, in the live tier ([Live test](#live-test)) | agreed 2026-09-28 |
-| 9 | Children | `children: none` by default; `actions` for a parent and a child per action the item covers, capped by `maxChildren`, 100 by default; the parent body does not list its children | agreed 2026-09-28, revised 2026-09-30 |
+| 9 | Children | `children: none` by default; `actions` for a parent and a child per action the item covers, `controls` for a child per control, capped by `maxChildren`, 100 by default; the parent body does not list its children and lists every action without one; a child's title leads with its priority | agreed 2026-09-28, revised 2026-10-01 |
 | 10 | Minimum band | `minPriority` per entry: the item opens only while an open finding is at or above it, and the body lists only those actions; counts stay complete | agreed 2026-09-28 |
 | 11 | Escaping | zero-width space after sigils in messages and titles; code spans for rule ids, paths, component names, versions and digests | agreed 2026-09-28 |
 | 12 | Routing | `select` with `components`, `labels` and `controls`; `split: none`, `control` or `component`; each item follows its own part of the gate | agreed 2026-09-28 |
@@ -745,11 +791,18 @@ Each line is a test. Unit tests run against a fake forge server per kind; every 
 - Confidential: a GitLab issue created without `item.confidential` is confidential.
 - Children, with two actions per scope: an action no longer reported closes its child and leaves
   the other; an action whose priority passes the gate gets a child; the parent body lists no
-  action; with `maxChildren: 2`, three actions open two children and the parent states the third;
-  a run whose budget ends after one child creates the second on the next run; a child closed by
-  hand is created again on the next failing run; a passing gate closes every child, then the
-  parent; each forge's child carries its parent link; Azure resolves both types from the
+  action that has a child; with `maxChildren: 2`, three actions open two children and the parent
+  lists the third, which leaves the parent's list when a child closes and frees the cap; a run
+  whose budget ends after one child creates the second on the next run; a priority change
+  rewrites a child's title, and a renamed child keeps its name while its priority holds; a child
+  closed by hand is created again on the next failing run; a passing gate closes every child, then
+  the parent; each forge's child carries its parent link; Azure resolves both types from the
   categories.
+- Children per control, with two controls per scope: each control's child lists only its own
+  actions; a control with no action left closes its child and leaves the other; a new action
+  rewrites its control's child; changing `children` from `actions` to `controls` closes every
+  action child and opens the control children; `children: controls` with `split: control` fails
+  validation.
 - Closed by hand: an item closed while the gate fails is left untouched, and the next failing run
   creates a second item.
 - Live, per forge: fail, pass, fail, pass against the sandbox leaves two closed items, each with
