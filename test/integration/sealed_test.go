@@ -59,7 +59,13 @@ func TestSealedScenarios(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Run(s.Name, func(t *testing.T) { runSealed(t, s, advs, bin, server) })
+		// In parallel, up to -parallel at once, which defaults to the number of CPUs. A scenario
+		// shares nothing writable with another: each has its own work directory, HOME, Go caches
+		// and container, and its loopback server listens inside a network namespace of its own.
+		t.Run(s.Name, func(t *testing.T) {
+			t.Parallel()
+			runSealed(t, s, advs, bin, server)
+		})
 	}
 }
 
