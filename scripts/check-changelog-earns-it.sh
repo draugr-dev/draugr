@@ -12,8 +12,9 @@
 # None of them asks the only question that decides whether an entry belongs, which is whether the
 # change reaches anybody outside this repository.
 #
-# It got through. A fix to the text of an issue raised by our own CI workflow carried an entry all
-# the way into published release notes, correct in form at every step.
+# An entry for a change only maintainers can observe, the text of an issue our own CI raises,
+# passes every one of those checks and lands in published release notes, correct in form at every
+# step.
 #
 # # Why the list names what cannot reach a user
 #

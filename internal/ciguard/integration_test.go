@@ -79,8 +79,8 @@ func TestIntegrationReportsOnEveryPullRequest(t *testing.T) {
 			continue
 		}
 		if job.If != "" {
-			t.Errorf("the %s job is conditional on %q, so it can be skipped, and a skipped "+
-				"required check blocks a pull request rather than failing it", name, job.If)
+			t.Errorf("the %s job is conditional on %q, so it can be skipped, and GitHub counts a "+
+				"skipped required check as passed: the pull request merges without the suite having run", name, job.If)
 		}
 
 		// The suite provisions its own scanners, so a missing one is provisioning being wrong
@@ -221,9 +221,8 @@ func TestTheDecisionRunsAnythingItHasNotBeenTold(t *testing.T) {
 // configuration. A reader told the suite is advisory reads a red main as something to get to later,
 // and the sentence is the only thing on the page that tells them how much it matters.
 //
-// So the two claims it must not make are the two that were true before the suite became required:
-// that it can be skipped, and that a failure does not block a merge. Both are checkable against the
-// file that makes them.
+// So it must not claim either property of an optional suite: that it can be skipped, or that a
+// failure does not block a merge. Both are checkable against the file that makes them.
 func TestTheRaisedIssueDescribesTheSuiteItRaises(t *testing.T) {
 	raw, err := os.ReadFile("../../.github/workflows/integration.yml")
 	if err != nil {
@@ -238,8 +237,8 @@ func TestTheRaisedIssueDescribesTheSuiteItRaises(t *testing.T) {
 		"can reach main without it ever having run",
 	} {
 		if strings.Contains(body, wrong) {
-			t.Errorf("the workflow says %q, which stopped being true when the suite became required "+
-				"and unconditional; the issue it raises is where a reader learns how much a red main matters", wrong)
+			t.Errorf("the workflow says %q, which is untrue of a required, unconditional suite; "+
+				"the issue it raises is where a reader learns how much a red main matters", wrong)
 		}
 	}
 }
@@ -249,15 +248,16 @@ func TestTheRaisedIssueDescribesTheSuiteItRaises(t *testing.T) {
 // Everything else guarding the CHANGELOG guards its mechanism: one file per change so branches
 // cannot collide, no hand-editing so a section cannot land in the wrong place, released sections
 // frozen so history is not rewritten. None of them asks whether the change reaches anybody outside
-// this repository, and a fix to the text of an issue raised by our own CI carried an entry all the
-// way into published release notes, correct in form at every step.
+// this repository. An entry for a change only maintainers can observe, the text of an issue our own
+// CI raises, passes every one of them and lands in published release notes, correct in form at
+// every step.
 func TestAnEntryIsRefusedOnAChangeNobodyCanObserve(t *testing.T) {
 	t.Parallel()
 	for name, tc := range map[string]struct {
 		changed []string
 		refused bool
 	}{
-		// The one that got through, exactly as it was merged.
+		// A workflow's own prose, with the test that holds it: observable by maintainers alone.
 		"a workflow's own prose": {
 			changed: []string{
 				".github/workflows/integration.yml",
