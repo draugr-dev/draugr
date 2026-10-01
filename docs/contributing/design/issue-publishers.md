@@ -430,34 +430,50 @@ payments fails the Draugr gate          payments fails the Draugr gate     paren
   P2 Detected tainted SQL string          Detected tainted SQL string      child
 ```
 
-- **Which actions.** Only actions whose priority fails the gate, and is at or above `minPriority`,
-  get a child. Lower ones, and a run that fails only because it was incomplete, are listed in the
-  parent body.
-- **The cap.** At most `maxChildren` children are open at once, 20 by default and never more than
-  100, GitHub's limit per parent
+- **Which actions.** Every action the item covers gets a child: each action of `report.ActionsFor`
+  at or above `minPriority`, whether or not its own priority fails the gate. The set is the one the
+  **Actions** section lists under `children: none`, so the choice between the two changes where the
+  actions are written and never which.
+- **The parent.** The body of [Body](#body) without its **Actions** section: the marker, the
+  verdict line, the failing controls, the errors, the run, how to accept, and when it closes. The
+  parent does not list its children; each forge shows them beside the body, as sub-issues on
+  GitHub, child items on GitLab and related work on Azure DevOps, and a second list in the body
+  would be one more thing to keep in step with the forge's.
+- **The cap.** At most `maxChildren` children are open at once, 100 by default and at most,
+  GitHub's limit per parent
   ([sub-issues](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/adding-sub-issues)).
-  The highest priorities get them; the rest are listed in the parent body and get a child when an
-  open one closes. The cap limits creation only, so a child is never closed to make room, and it
-  applies per item, so each item of a split entry has its own.
+  Children are created in fix order, so the highest priorities are created first. The cap limits
+  creation only, so a child is never closed to make room, and it applies per item, so each item of
+  a split entry has its own.
+- **Pacing.** Children are created at the pace of [Retries](#retries), and a run stops creating
+  them when its budget would not cover the next one. The next run finds the children already open
+  by their markers and creates the rest. Stopping early is not a failure: the parent and every
+  child written are current.
+- **Actions without a child.** When the cap or the budget leaves actions without a child, the
+  parent states how many, out of how many, and which of the two stopped it. The full list is in the
+  run's report. The count accounts for actions the forge's panel does not show, so it is the one
+  place the parent counts them.
 - **Identity.** A child's marker adds `action=` and the first 16 hex characters of the SHA-256 of
   the action's key. The key is opaque and holds a separator an HTML comment must not carry.
 - **Title.** The action's title, truncated to 255 characters, the shortest limit of the three.
-- **Body.** The action's control, priority, count and the fix where one is known, then its
-  findings table as the parent body draws it, then how to accept. The parent body links each
-  child.
+  Whether it carries the action's priority is chosen from rendered variants.
+- **Body.** The action's priority, control, number of findings and the fix where one is known, then
+  its findings table as the **Actions** section draws it, then the run, how to accept, and when it
+  closes.
 
 | Gate | Action | Open child | Child action |
 |---|---|---|---|
-| fails | reported, fails the gate | none | create and link to the parent, while under the cap |
-| fails | reported, fails the gate | one | rewrite the body **only if it changed** |
+| fails | reported | none | create with its parent link, while under the cap and the budget |
+| fails | reported | one | rewrite the body **only if it changed** |
 | fails | no longer reported | one | comment that the run no longer reports it, then close |
 | passes | any | any | close every open child, then the parent |
 
 A child closed by hand while its action is still reported is left closed, and the next failing run
-creates a new one, as for a single item. A first run on a failing project writes the parent and up
-to the cap in children; on GitHub that is 41 content-creating requests at the default cap, under
-the 80 a minute GitHub allows
-([rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)).
+creates a new one, as for a single item. On GitHub a child costs two content-creating requests, the
+issue and its sub-issue link, against the 80 a minute GitHub allows
+([rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)),
+with writes at least one second apart. The demo's 46 actions take one run; a parent with 100
+children can take two.
 
 ## Configuration
 
@@ -473,7 +489,7 @@ New `PublisherConfig` fields. Existing fields keep their meaning: `repo`, `token
 | `split` | all three | `none`, `control` or `component` | `none` |
 | `minPriority` | all three | `P1` to `P4` | every band |
 | `children` | all three | `none` or `actions` | `none` |
-| `maxChildren` | all three | integer, 1 to 100 | 20 |
+| `maxChildren` | all three | integer, 1 to 100 | 100 |
 | `item` | all three | object, per [Metadata](#metadata) | none |
 
 `item` holds only the keys its kind reads:
@@ -652,7 +668,7 @@ Each error names the fix.
 | 6 | Label | `draugr`, set by `label` | agreed 2026-09-28 |
 | 7 | Azure work item type | Task for a single item; the requirement type for a parent, with Task children | agreed 2026-09-28 |
 | 8 | Live test | all three forges, on free tiers, in the live tier ([Live test](#live-test)) | agreed 2026-09-28 |
-| 9 | Children | `children: none` by default; `actions` for a parent and a child per action, capped by `maxChildren`, 20 by default | agreed 2026-09-28 |
+| 9 | Children | `children: none` by default; `actions` for a parent and a child per action the item covers, capped by `maxChildren`, 100 by default; the parent body does not list its children | agreed 2026-09-28, revised 2026-09-30 |
 | 10 | Minimum band | `minPriority` per entry: the item opens only while an open finding is at or above it, and the body lists only those actions; counts stay complete | agreed 2026-09-28 |
 | 11 | Escaping | zero-width space after sigils in messages and titles; code spans for rule ids, paths, component names, versions and digests | agreed 2026-09-28 |
 | 12 | Routing | `select` with `components`, `labels` and `controls`; `split: none`, `control` or `component`; each item follows its own part of the gate | agreed 2026-09-28 |
@@ -728,7 +744,9 @@ Each line is a test. Unit tests run against a fake forge server per kind; every 
   a key set on a kind that does not read it fails validation.
 - Confidential: a GitLab issue created without `item.confidential` is confidential.
 - Children, with two actions per scope: an action no longer reported closes its child and leaves
-  the other; 21 failing actions open 20 children and list one in the parent; a child closed by
+  the other; an action whose priority passes the gate gets a child; the parent body lists no
+  action; with `maxChildren: 2`, three actions open two children and the parent states the third;
+  a run whose budget ends after one child creates the second on the next run; a child closed by
   hand is created again on the next failing run; a passing gate closes every child, then the
   parent; each forge's child carries its parent link; Azure resolves both types from the
   categories.
