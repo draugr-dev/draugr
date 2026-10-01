@@ -1,1 +1,0 @@
-- **An Azure Boards work item that stays open while the gate fails.** The `azure-work-item` publisher takes the same `select`, `split`, `minPriority`, `label` and `labelBy` as `github-issue`. `item` sets tags, the assignee, the area and iteration paths, the priority, the type and other fields by reference name. A work item closes to its type's Completed state.

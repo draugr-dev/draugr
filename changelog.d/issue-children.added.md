@@ -1,1 +1,0 @@
-- **An issue per fix under the issue the gate opens.** `children: actions` gives `github-issue`, `gitlab-issue` and `azure-work-item` a child per action, titled with its priority, or one per control with `children: controls`. `maxChildren` caps how many stay open; the parent lists the rest. A child closes when its action leaves the report.
