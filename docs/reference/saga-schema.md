@@ -1298,6 +1298,20 @@ finding only when the path it names would have been checked out, by the rules ab
 the one the secret had in the commit that introduced it, so the finding belongs to the component
 whose `paths` held that path.
 
+**[`gosec`](../../internal/scanners/gosec.md) and [`govulncheck`](../../internal/scanners/govulncheck.md)
+analyze whole Go modules.** Both type-check packages, and a package does not type-check without the
+packages it imports, so a component whose `paths` hold part of a module is analyzed with all of it.
+The modules analyzed are the ones holding a `.go` file `paths` selects and the ones whose `go.mod`
+it names. A path with no Go code in it, a frontend directory, adds none. Components carved out of
+one module share one analysis, and each finding goes to:
+
+- the component whose `paths` hold the finding's file;
+- when no component's `paths` hold it, every component whose `paths` name the module's `go.mod`.
+  An `internal/` package two services import and neither lists is the usual case.
+
+A component's `ignore` still removes the findings in the paths it matches. A repository named by a
+remote URL is analyzed as `paths` writes it, because its tree cannot be listed without fetching it.
+
 > `ignore` here is not the same tool as `config.exclude`, below. `ignore` narrows what is
 > **scanned**, the files never reach the tool, and nothing is reported about them. `exclude`
 > narrows what is **counted**: the finding is still made, still in the report, marked suppressed

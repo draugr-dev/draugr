@@ -50,12 +50,13 @@ const gosecConfigSchema = `{
 func NewGosec() plugin.Scanner {
 	s := newRepoScannerPerModule(
 		plugin.ScannerInfo{
-			Name:         "gosec",
-			Origin:       "securego",
-			Binary:       "gosec",
-			Controls:     []string{"sast"},
-			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},
-			ConfigSchema: json.RawMessage(gosecConfigSchema),
+			Name:           "gosec",
+			Origin:         "securego",
+			Binary:         "gosec",
+			Controls:       []string{"sast"},
+			TargetKinds:    []plugin.TargetKind{plugin.TargetRepository},
+			ConfigSchema:   json.RawMessage(gosecConfigSchema),
+			ModuleManifest: "go.mod",
 		},
 		gosecArgs,
 		parseGosec,

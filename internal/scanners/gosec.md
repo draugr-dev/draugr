@@ -22,6 +22,11 @@ directory holding a `go.mod` outside `vendor/` and `testdata/`. A module below t
 module nested inside another are each analyzed, and each finding is located under its own
 module's directory. A tree with no `go.mod` is reported as analyzed by nothing, never as clean.
 
+A component scoped by `paths` to part of a module shares an analysis of the whole module, and keeps
+only the findings in its own files. [Scoping a
+repository](../../docs/reference/saga-schema.md#scoping-a-repository) has the rule for shared code
+no component names.
+
 - `-no-fail` keeps the process successful when findings exist (findings live in the SARIF
   report, not the exit code; the [`sast`](../controllers/sast.md) controller judges severity).
 - `-track-suppressions` keeps a `#nosec` result in the report, marked, carrying the text after

@@ -184,6 +184,14 @@ type ScannerInfo struct {
 	// Declared here so the descriptor can be refused instead: the pairing is visible in the file,
 	// and `draugr validate` is the cheap place to be told.
 	ClusterWide bool
+	// ModuleManifest names the file marking the root of the build unit this scanner analyzes
+	// whole, `go.mod` for a Go analyzer. Empty for a scanner that reads files one at a time.
+	//
+	// Such an analyzer type-checks packages, and a package needs every package it imports, so a
+	// checkout narrowed to one component's `paths` can leave nothing that compiles. Set, the engine
+	// widens a scoped job to the modules its paths belong to, analyzes each module once however
+	// many components share it, and gives each finding to the component whose paths hold its file.
+	ModuleManifest string
 	// ConfigSchema is a JSON Schema for Config; it drives validation and the config wizard.
 	ConfigSchema json.RawMessage
 	// Effects declare what this scanner does to a target beyond reading it. Empty. The common case.
