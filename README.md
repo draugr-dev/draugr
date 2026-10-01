@@ -159,8 +159,9 @@ Pipelines](docs/guides/azure-pipelines.md), a step template
 
 **From an AI coding assistant.** Ask one to check a change and it will, using whatever scanner it
 finds over a scope it chose. `draugr mcp` serves Draugr over the [Model Context
-Protocol](https://modelcontextprotocol.io) so it reads your *committed* descriptor instead, and
-scanning is off by default, because it clones repositories and runs external tools.
+Protocol](https://modelcontextprotocol.io) so it reads your *committed* descriptor instead. A scan
+that does more than read the checkout, such as probing a live host or sending data to a third
+party, asks you first.
 
 ```bash
 claude mcp add draugr -- draugr mcp
