@@ -756,7 +756,7 @@ func TestAnActionCarriesEveryFindingItClears(t *testing.T) {
 	want := ActionFinding{Control: "images", RuleID: "CVE-9", Tool: "grype", Priority: "P1",
 		Severity: sarif.SeverityHigh, Component: "web", Location: "requirements.txt",
 		HelpURI:     "https://nvd.nist.gov/vuln/detail/CVE-9",
-		Fingerprint: images.Fingerprint()}
+		Fingerprint: images.Fingerprint(), Upgrade: "flask 0.12.2 → 2.3.2"}
 	if first != want {
 		t.Errorf("first finding = %+v\nwant %+v", first, want)
 	}
