@@ -1358,17 +1358,20 @@ components:
     criticality: supporting
     images: [{image: alpine:3}]
 `
+	stderr := captureStderr(t)
 	var out bytes.Buffer
-	err := runScan(context.Background(), writeSaga(t, saga), scanOptions{},
+	err := runScan(context.Background(), writeSaga(t, saga), scanOptions{format: "json"},
 		fakeRegistry(sarif.LevelNote), &out)
 	if err != nil {
 		t.Fatalf("the run should continue: %v", err)
 	}
-	// Only the warning block, because every component is named again further down in the results
-	// the scan produced, where naming them is the point.
-	warning := gateWarning(out.String())
+	// A pipeline reads stdout as one document, so the notice goes beside it rather than into it.
+	if !json.Valid(out.Bytes()) {
+		t.Errorf("stdout is not a JSON document:\n%s", out.String())
+	}
+	warning := gateWarning(stderr())
 	if !strings.Contains(warning, "internal-tool") {
-		t.Errorf("the component out of reach was not named:\n%s", out.String())
+		t.Errorf("the component out of reach was not named:\n%s", stderr())
 	}
 	if strings.Contains(warning, "public-api") {
 		t.Errorf("a component the gate does judge was named as out of reach:\n%s", warning)

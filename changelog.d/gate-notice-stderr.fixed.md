@@ -1,0 +1,1 @@
+- **`draugr scan --format json` and `--format sarif` print one parseable document when a component cannot reach the gate's band.** The notice naming that component goes to stderr with the other notices.
