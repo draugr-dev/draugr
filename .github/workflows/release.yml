@@ -73,9 +73,8 @@ jobs:
   # fixture corpus with no network from a home prepared as docs/guides/air-gapped.md says, so a
   # release that no longer works offline is not built.
   #
-  # Advisory on a pull request and binding here, deliberately. Requiring it on every change would
-  # make most of them wait on a kind cluster to learn what a unit test already said. A release is
-  # the moment that cost is obviously worth paying.
+  # Every pull request has already passed it, and it runs again here because the tag is what gets
+  # built, and the air-gapped job runs only on a tag and on the nightly schedule.
   integration:
     uses: ./.github/workflows/integration.yml
     with:
