@@ -285,7 +285,8 @@ The body, in order:
    `<details>`. The summary line holds the priority, the action's title, its control and the number
    of findings it clears. Inside are the rule's description (`Action.Summary`) when there is one,
    then a table of the findings: priority and severity, the rule and its message, and the component
-   and scanner above the location.
+   and scanner above the location. A dependency finding's message opens with its upgrade,
+   `jinja2 2.10 → 2.10.1` or `, no fix available`, whether or not the scanner's own text states it.
    - An action that is one change (an upgrade, an image update, a license review) lists its first
      10 findings, then `And N more, cleared by the same action.`
    - An action for a rule lists every finding, since each location is a place to change.

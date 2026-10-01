@@ -27,7 +27,7 @@ func codeFinding(component, rule, priority, file string) sarif.Result {
 func upgradeFinding(component, advisory, priority string) sarif.Result {
 	r := codeFinding(component, advisory, priority, "go.mod")
 	r.Tool = "trivy"
-	r.Message = "openssl 1.1.1: " + advisory
+	r.Message = "openssl 1.1.1 → 1.1.1w: " + advisory
 	r.Package = &sarif.Package{Name: "openssl", Version: "1.1.1", FixedVersion: "1.1.1w", Ecosystem: "gomod"}
 	return r
 }
@@ -282,7 +282,7 @@ func TestAFindingRowNamesTheRuleMessageAndPlace(t *testing.T) {
 		Rules:   map[string]sarif.Rule{"CVE-2019-1010022": {HelpURI: "https://avd.aquasec.com/nvd/cve-2019-1010022"}},
 	}}
 	body := renderMarkdown(data, issueEntry{})
-	want := "| P1 critical | [`CVE-2019-1010022`](https://avd.aquasec.com/nvd/cve-2019-1010022)<br>openssl 1.1.1" +
+	want := "| P1 critical | [`CVE-2019-1010022`](https://avd.aquasec.com/nvd/cve-2019-1010022)<br>openssl 1.1.1 → 1.1.1w" +
 		`:` + zw + " CVE-2019-1010022 | `api` · trivy<br>`go.mod:3` |"
 	if !strings.Contains(body, want) {
 		t.Errorf("body lacks row\n%s\nwant %s", body, want)

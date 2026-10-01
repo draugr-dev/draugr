@@ -627,3 +627,38 @@ func TestAChildNamesItsControlsOwnGate(t *testing.T) {
 		t.Errorf("gates:\n%s\n---\n%s", kids[0].Body, kids[1].Body)
 	}
 }
+
+func TestAChildNamesItsFixOnlyWhenThereIsOne(t *testing.T) {
+	head := func(fixed ...string) string {
+		b := issueBody{Marker: "<!-- m -->", Child: &childHead{
+			Priority: "P1", Control: "sca", Clears: 2, Gate: "P1",
+			Action: &report.Action{FixedVersions: fixed},
+		}}
+		return strings.Join(b.head(markdownFormat{}), "\n")
+	}
+	if got := head("3.1.6"); !strings.Contains(got, "**P1** · `sca` · 2 findings · gate P1 · fixed in `3.1.6`") {
+		t.Errorf("one release is not named\n%s", got)
+	}
+	for _, fixed := range [][]string{nil, {"2.10.1", "3.1.6"}} {
+		if got := head(fixed...); strings.Contains(got, "fixed in") {
+			t.Errorf("%d releases are listed in the head\n%s", len(fixed), got)
+		}
+	}
+}
+
+func TestAFindingRowOpensWithItsUpgradeWhicheverScannerWroteIt(t *testing.T) {
+	const up = "jinja2 2.10 → 2.10.1"
+	for _, c := range []struct{ name, message, want string }{
+		{"a scanner that states the upgrade", up + ": sandbox escape", up + ": sandbox escape"},
+		{"a scanner that never states it", "sandbox escape", up + ": sandbox escape"},
+		{"a finding with no message", "", up},
+	} {
+		got := findingMessage(report.ActionFinding{Message: c.message, Upgrade: up})
+		if got != c.want {
+			t.Errorf("%s: %q, want %q", c.name, got, c.want)
+		}
+	}
+	if got := findingMessage(report.ActionFinding{Message: " a SQL query built from input "}); got != "a SQL query built from input" {
+		t.Errorf("a finding with no upgrade: %q", got)
+	}
+}

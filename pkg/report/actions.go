@@ -559,6 +559,9 @@ type ActionFinding struct {
 	Location    string
 	HelpURI     string
 	Fingerprint string
+	// Upgrade is the dependency and the version that clears it, `jinja2 2.10 → 2.10.1`, or its
+	// "no fix available". Empty for a finding that is not about a dependency.
+	Upgrade string
 }
 
 // ActionsFor groups a run's findings into the fix list, most urgent first.
@@ -650,7 +653,7 @@ func actionFindings(fs []finding) []ActionFinding {
 			Control: f.control, RuleID: f.ruleID, Tool: f.tool, Priority: f.priority,
 			Severity: f.severity, Message: f.message, Component: f.component,
 			Repository: f.repository, Location: f.location, HelpURI: f.helpURI,
-			Fingerprint: f.fingerprint,
+			Fingerprint: f.fingerprint, Upgrade: upgradeLabel(f),
 		})
 	}
 	return out

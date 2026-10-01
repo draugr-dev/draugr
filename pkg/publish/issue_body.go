@@ -348,12 +348,10 @@ func (b issueBody) head(f issueFormat) []string {
 			line = append(line, f.code(c.Control, false))
 		}
 		line = append(line, english.Count(c.Clears, "finding"), "gate "+c.Gate)
-		if c.Action != nil && len(c.Action.FixedVersions) > 0 {
-			fixed := make([]string, len(c.Action.FixedVersions))
-			for i, v := range c.Action.FixedVersions {
-				fixed[i] = f.code(v, false)
-			}
-			line = append(line, "fixed in "+strings.Join(fixed, ", "))
+		// One release is the action's target. Several are each finding's own, unordered because
+		// version order belongs to the ecosystem, and each findings row already names its fix.
+		if c.Action != nil && len(c.Action.FixedVersions) == 1 {
+			line = append(line, "fixed in "+f.code(c.Action.FixedVersions[0], false))
 		}
 		return append(blocks, f.para(strings.Join(line, " · ")))
 	}
@@ -516,17 +514,34 @@ func actionSummary(a report.Action) string {
 	return s + " · " + english.Count(a.Clears, "finding")
 }
 
+// findingMessage is the finding's message, opened by the upgrade that clears it.
+//
+// Some scanners already open their message that way and some never state the version, so the
+// prefix is removed before it is added: the row reads the same whichever scanner wrote it.
+func findingMessage(af report.ActionFinding) string {
+	msg := strings.TrimSpace(af.Message)
+	if af.Upgrade == "" {
+		return msg
+	}
+	msg = strings.TrimPrefix(strings.TrimPrefix(msg, af.Upgrade), ": ")
+	if msg == "" {
+		return af.Upgrade
+	}
+	return af.Upgrade + ": " + msg
+}
+
 // findingRow is one finding: its band, the rule and message, and where it is.
 func findingRow(f issueFormat, af report.ActionFinding) []string {
 	band := strings.TrimSpace(af.Priority + " " + string(af.Severity))
 
-	finding := f.text(af.Message)
+	message := findingMessage(af)
+	finding := f.text(message)
 	if af.RuleID != "" {
 		rule := f.code(af.RuleID, true)
 		if u := safeURL(af.HelpURI); u != "" {
 			rule = f.link(rule, u)
 		}
-		if af.Message != "" {
+		if message != "" {
 			rule += "<br>" + finding
 		}
 		finding = rule
