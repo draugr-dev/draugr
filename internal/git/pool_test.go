@@ -129,7 +129,7 @@ func TestPoolSharedTreeIsReadOnly(t *testing.T) {
 		t.Error("a scanner could overwrite a file another scanner is reading")
 	}
 	// Still readable, which is the whole point of having it.
-	if _, err := os.ReadFile(filepath.Join(tree.Dir, "f.txt")); err != nil { //nolint:gosec // the test's own temp dir
+	if _, err := os.ReadFile(filepath.Join(tree.Dir, "f.txt")); err != nil {
 		t.Errorf("the shared checkout is not readable: %v", err)
 	}
 }

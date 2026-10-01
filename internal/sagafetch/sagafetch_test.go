@@ -31,13 +31,13 @@ func repo(t *testing.T) (string, string) {
 		{"-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "fragment"},
 		{"tag", "v1.0.0"},
 	} {
-		cmd := exec.Command("git", args...) //nolint:gosec // fixed argv, test-local repo
+		cmd := exec.Command("git", args...) // #nosec G204 -- fixed argv, test-local repo
 		cmd.Dir = dir
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Skipf("git unavailable: %v %s", err, out)
 		}
 	}
-	//nolint:gosec // fixed argv against the temp dir this test just made
+	// #nosec G204 -- fixed argv against the temp dir this test just made
 	sha, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD").Output()
 	if err != nil {
 		t.Fatal(err)

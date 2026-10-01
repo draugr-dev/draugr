@@ -217,7 +217,7 @@ func evaluateHeaders(url, hostType string, h http.Header) []sarif.Result {
 // on Accept, and a CDN can inject a script only into responses a browser would render, so a page
 // fetched with a bare Accept is not the page a visitor's browser holds the policy against.
 func httpFetchHeaders(ctx context.Context, target string, browser bool) (response, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil) //nolint:gosec // host URL is operator-provided in the Saga
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
 		return response{}, err
 	}

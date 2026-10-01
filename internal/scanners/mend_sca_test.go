@@ -410,7 +410,7 @@ func repoAt(t *testing.T, dir string) {
 	t.Helper()
 	for _, args := range [][]string{{"init", "-q", "."}, {"add", "-A"},
 		{"-c", "user.email=e@e", "-c", "user.name=e", "commit", "-q", "-m", "i"}} {
-		cmd := exec.Command("git", args...) //nolint:gosec // fixed argv in a temp dir
+		cmd := exec.Command("git", args...) // #nosec G204 -- fixed argv in a temp dir
 		cmd.Dir = dir
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Skipf("git unavailable: %v %s", err, out)

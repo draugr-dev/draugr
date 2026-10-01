@@ -600,7 +600,7 @@ func TestWriteArtifactsWritesSBOMs(t *testing.T) {
 		"sbom-web-https-git-web.spdx.json": `"spdxVersion"`,
 		"sbom-api-api-1.cdx.json":          `"bomFormat"`,
 	} {
-		b, err := os.ReadFile(filepath.Join(dir, name)) //nolint:gosec // test-controlled path under t.TempDir
+		b, err := os.ReadFile(filepath.Join(dir, name)) // #nosec G304 -- test-controlled path under t.TempDir
 		if err != nil {
 			t.Errorf("expected %s: %v", name, err)
 			continue

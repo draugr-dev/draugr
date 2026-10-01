@@ -94,7 +94,7 @@ func templateText(cfg saga.ReportConfig) (string, error) {
 	case cfg.Template != "":
 		return cfg.Template, nil
 	case cfg.TemplateFile != "":
-		data, err := os.ReadFile(cfg.TemplateFile) //nolint:gosec // operator-provided template path
+		data, err := os.ReadFile(cfg.TemplateFile)
 		if err != nil {
 			return "", fmt.Errorf("template report: %w", err)
 		}

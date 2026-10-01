@@ -91,7 +91,7 @@ func (g githubPublisher) Publish(ctx context.Context, artifacts []report.Artifac
 	}
 
 	url := fmt.Sprintf("%s/repos/%s/code-scanning/sarifs", g.apiURL, g.repo)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body)) //nolint:gosec // API URL from GitHub-provided env
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}

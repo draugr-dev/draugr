@@ -81,7 +81,7 @@ func TestRunSurveyWritesFile(t *testing.T) {
 	if err := runSurvey(context.Background(), opts, []surveyor.Request{{Surveyor: "github-org-repos"}}, stubRegistry(), &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(out) //nolint:gosec // test reads a temp file
+	data, err := os.ReadFile(out) // #nosec G304 -- test reads a temp file
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestRunSurveyMerge(t *testing.T) {
 	if err := runSurvey(context.Background(), opts, []surveyor.Request{{Surveyor: "k8s-images"}}, stubRegistry(), &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
 	}
-	data, _ := os.ReadFile(out) //nolint:gosec // test reads a temp file
+	data, _ := os.ReadFile(out) // #nosec G304 -- test reads a temp file
 	s := string(data)
 	if !strings.Contains(s, "existing") || !strings.Contains(s, "cluster") {
 		t.Errorf("merged Saga should contain both components:\n%s", s)

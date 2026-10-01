@@ -210,7 +210,7 @@ func Fetch(ctx context.Context, dir string, n Name, client *http.Client) (Record
 
 // get retrieves a URL, refusing anything but 200 and reading at most maxFeedBytes.
 func get(ctx context.Context, client *http.Client, url string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil) //nolint:gosec // pinned feed URL
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}

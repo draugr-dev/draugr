@@ -349,7 +349,7 @@ func SummarizeReportTool(_ context.Context, _ *mcp.CallToolRequest, in Summarize
 	if in.Path == "" {
 		return nil, SummarizeOutput{}, fmt.Errorf("path is required")
 	}
-	data, err := os.ReadFile(in.Path) //nolint:gosec // an operator-chosen path, same as the CLI takes
+	data, err := os.ReadFile(in.Path)
 	if err != nil {
 		return nil, SummarizeOutput{}, fmt.Errorf("read report: %w", err)
 	}
@@ -1041,7 +1041,7 @@ func ExplainRuleTool(_ context.Context, _ *mcp.CallToolRequest, in ExplainInput)
 	if in.RuleID == "" || in.Path == "" {
 		return nil, ExplainOutput{}, fmt.Errorf("ruleId and path are both required")
 	}
-	data, err := os.ReadFile(in.Path) //nolint:gosec // an operator-chosen path, same as the CLI takes
+	data, err := os.ReadFile(in.Path)
 	if err != nil {
 		return nil, ExplainOutput{}, fmt.Errorf("read report: %w", err)
 	}
@@ -1145,7 +1145,7 @@ func FixListTool(_ context.Context, _ *mcp.CallToolRequest, in FixListInput) (*m
 	if in.Path == "" {
 		return nil, FixListOutput{}, fmt.Errorf("path is required")
 	}
-	data, err := os.ReadFile(in.Path) //nolint:gosec // an operator-chosen path, same as the CLI takes
+	data, err := os.ReadFile(in.Path)
 	if err != nil {
 		return nil, FixListOutput{}, fmt.Errorf("read report: %w", err)
 	}

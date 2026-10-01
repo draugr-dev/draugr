@@ -170,7 +170,7 @@ func TestEveryToolDocStatesItsTerms(t *testing.T) {
 func assertStatesTerms(t *testing.T, kind, dir, name string) {
 	t.Helper()
 	path := filepath.Join(repoRoot, dir, name+".md")
-	body, err := os.ReadFile(path) //nolint:gosec // a path built from the registry, inside this repo
+	body, err := os.ReadFile(path) // #nosec G304 -- a path built from the registry, inside this repo
 	if err != nil {
 		return // the colocated-docs test already reports a missing file, and better
 	}
@@ -200,7 +200,7 @@ func TestDisclosingScannersDocumentWhatTheySend(t *testing.T) {
 			continue
 		}
 		path := filepath.Join(repoRoot, "internal/scanners", info.Name+".md")
-		body, err := os.ReadFile(path) //nolint:gosec // a path built from the registry, inside this repo
+		body, err := os.ReadFile(path) // #nosec G304 -- a path built from the registry, inside this repo
 		if err != nil {
 			continue
 		}

@@ -598,11 +598,11 @@ func TestDiscoverySurvivesAnUnreadableDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	locked := filepath.Join(root, "locked")
-	if err := os.Mkdir(locked, 0o000); err != nil { //nolint:gosec // unreadable on purpose: that's the case under test
+	if err := os.Mkdir(locked, 0o000); err != nil {
 		t.Fatal(err)
 	}
 	// Restore a mode the test framework can remove.
-	t.Cleanup(func() { _ = os.Chmod(locked, 0o750) }) //nolint:gosec // a directory needs the execute bit
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o750) }) // #nosec G302 -- a directory needs the execute bit
 
 	found, err := findSagas(root)
 	if err != nil {

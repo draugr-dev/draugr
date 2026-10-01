@@ -393,7 +393,7 @@ func (p githubIssuePublisher) do(ctx context.Context, what, method, target strin
 		}
 		body = bytes.NewReader(b)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, target, body) //nolint:gosec // API URL from env
+	req, err := http.NewRequestWithContext(ctx, method, target, body)
 	if err != nil {
 		return nil, err
 	}

@@ -37,7 +37,7 @@ func scopedRepo(t *testing.T) string {
 		{"init", "-q", "-b", "main"}, {"add", "-A"},
 		{"-c", "user.email=t@example.test", "-c", "user.name=t", "commit", "-q", "-m", "init"},
 	} {
-		//nolint:gosec // a fixture repository in the test's own temp dir
+		// #nosec G204 -- a fixture repository in the test's own temp dir
 		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v: %s", args, err, out)
@@ -412,7 +412,7 @@ func TestCheckoutScopedAtARevision(t *testing.T) {
 	// Scope and revision together: the checkout happens before the sparse set, so getting the
 	// order wrong would scope the default branch and then move off it.
 	src := scopedRepo(t)
-	//nolint:gosec // src is the fixture repository created above
+	// #nosec G204 -- src is the fixture repository created above
 	sha, err := exec.Command("git", "-C", src, "rev-parse", "HEAD").Output()
 	if err != nil {
 		t.Fatal(err)

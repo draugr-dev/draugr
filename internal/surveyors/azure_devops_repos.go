@@ -173,7 +173,7 @@ func (a AzureDevOpsRepos) fetch(ctx context.Context, ref, token string) ([]adoRe
 	endpoint := fmt.Sprintf("%s/%s/_apis/git/repositories?api-version=7.1",
 		a.baseURL, strings.Join(segs, "/"))
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil) //nolint:gosec // scope-derived API URL by design
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err
 	}

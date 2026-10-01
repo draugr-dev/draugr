@@ -76,7 +76,7 @@ func assertGolden(t *testing.T, path string, got []byte) {
 		t.Logf("wrote %s", path)
 		return
 	}
-	want, err := os.ReadFile(path) //nolint:gosec // a fixed path under testdata/
+	want, err := os.ReadFile(path) // #nosec G304 -- a fixed path under testdata/
 	if err != nil {
 		t.Fatalf("read golden: %v (run: go test ./pkg/report -update)", err)
 	}

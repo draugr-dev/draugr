@@ -124,7 +124,7 @@ func (p githubPRCommentPublisher) findExisting(ctx context.Context) (int64, erro
 // commentsPage reads one page of comments, returning the marked comment's id and the next page's
 // URL. An empty next URL means this was the last page.
 func (p githubPRCommentPublisher) commentsPage(ctx context.Context, url string) (int64, string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil) //nolint:gosec // API URL from env
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return 0, "", err
 	}
@@ -174,7 +174,7 @@ func (p githubPRCommentPublisher) send(ctx context.Context, method, url, body st
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(payload)) //nolint:gosec // API URL from env
+	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(payload))
 	if err != nil {
 		return err
 	}

@@ -116,7 +116,7 @@ func (g GitHubOrgRepos) fetch(ctx context.Context, org, token string) ([]ghRepo,
 // getPage fetches one page of repos and returns it plus the next-page URL (empty when
 // none). It closes the response body.
 func (g GitHubOrgRepos) getPage(ctx context.Context, url, token string) ([]ghRepo, string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil) //nolint:gosec // org-derived API URL by design
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, "", err
 	}

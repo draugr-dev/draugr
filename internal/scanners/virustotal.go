@@ -34,7 +34,7 @@ var virusTotalEndpoint = virusTotalAPI
 // virusTotalKeyEnv holds the API key. VirusTotal asks that keys not be embedded "in scripts or
 // software from which it can be easily retrieved", which is why it is read from the environment
 // and never from a descriptor.
-const virusTotalKeyEnv = "VIRUSTOTAL_API_KEY" //nolint:gosec // the name of a variable, not a credential
+const virusTotalKeyEnv = "VIRUSTOTAL_API_KEY"
 
 // virusTotalFreeRate is the published public-API allowance: 4 requests a minute.
 //

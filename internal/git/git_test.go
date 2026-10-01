@@ -27,7 +27,7 @@ func initRepo(t *testing.T) (dir, headSHA string) {
 
 func runGit(t *testing.T, dir string, args ...string) []byte {
 	t.Helper()
-	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...) //nolint:gosec // test helper
+	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...) // #nosec G204 -- test helper
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %v: %v\n%s", args, err, out)
