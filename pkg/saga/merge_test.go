@@ -98,13 +98,13 @@ func TestMergeKeepsWhatALaterSurveyLearned(t *testing.T) {
 // starts scanning less than it did is the dangerous direction, and nobody re-reads a descriptor
 // to check it still covers what it covered yesterday.
 func TestMergeNeverNarrowsAClusterScope(t *testing.T) {
-	whole := []Component{{Name: "c", Infrastructure: []Infrastructure{{Kind: "kubernetes", Ref: "c"}}}}
-	scoped := Component{Name: "c", Infrastructure: []Infrastructure{
-		{Kind: "kubernetes", Ref: "c", Namespaces: []string{"team-a"}},
+	whole := []Component{{Name: "c", Kubernetes: []KubernetesCluster{{Ref: "c"}}}}
+	scoped := Component{Name: "c", Kubernetes: []KubernetesCluster{
+		{Ref: "c", Namespaces: []string{"team-a"}},
 	}}
 
 	got := UpsertComponent(whole, scoped)
-	if ns := got[0].Infrastructure[0].Namespaces; len(ns) != 0 {
+	if ns := got[0].Kubernetes[0].Namespaces; len(ns) != 0 {
 		t.Errorf("namespaces = %v, want the whole cluster kept", ns)
 	}
 
@@ -117,17 +117,17 @@ func TestMergeNeverNarrowsAClusterScope(t *testing.T) {
 // Two scoped surveys union, because each names namespaces the other did not.
 func TestMergeUnionsTwoScopedSurveys(t *testing.T) {
 	got := UpsertComponent(
-		[]Component{{Name: "c", Infrastructure: []Infrastructure{{Kind: "kubernetes", Ref: "c", Namespaces: []string{"a"}}}}},
-		Component{Name: "c", Infrastructure: []Infrastructure{{Kind: "kubernetes", Ref: "c", Namespaces: []string{"b"}}}},
+		[]Component{{Name: "c", Kubernetes: []KubernetesCluster{{Ref: "c", Namespaces: []string{"a"}}}}},
+		Component{Name: "c", Kubernetes: []KubernetesCluster{{Ref: "c", Namespaces: []string{"b"}}}},
 	)
-	ns := got[0].Infrastructure[0].Namespaces
+	ns := got[0].Kubernetes[0].Namespaces
 	if len(ns) != 2 || ns[0] != "a" || ns[1] != "b" {
 		t.Errorf("namespaces = %v, want both", ns)
 	}
 	// Nothing was narrowed, so nothing should be reported.
 	if n := NarrowsScope(
-		&Model{Components: []Component{{Name: "c", Infrastructure: []Infrastructure{{Kind: "kubernetes", Ref: "c", Namespaces: []string{"a"}}}}}},
-		Fragment{Components: []Component{{Name: "c", Infrastructure: []Infrastructure{{Kind: "kubernetes", Ref: "c", Namespaces: []string{"b"}}}}}},
+		&Model{Components: []Component{{Name: "c", Kubernetes: []KubernetesCluster{{Ref: "c", Namespaces: []string{"a"}}}}}},
+		Fragment{Components: []Component{{Name: "c", Kubernetes: []KubernetesCluster{{Ref: "c", Namespaces: []string{"b"}}}}}},
 	); len(n) != 0 {
 		t.Errorf("NarrowsScope = %v, want nothing", n)
 	}

@@ -66,7 +66,7 @@ correctness lives:
 - **Image**. The digest when there is one, otherwise the reference.
 - **Host**, the normalized URL, plus markers for the authentication and the spec in use. Two scans
   of one URL that are not comparable, one authenticated, one not, must not share a key.
-- **Infrastructure**, the platform and the named instance.
+- **Kubernetes**, the cluster's ref and the namespaces the audit is narrowed to.
 
 ### Why identity has to mean content
 

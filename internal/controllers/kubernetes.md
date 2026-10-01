@@ -1,18 +1,18 @@
-# Controller: `infrastructure` (CIS Kubernetes Benchmark)
+# Controller: `kubernetes` (CIS Kubernetes Benchmark)
 
 - **Industry term:** CIS benchmark / cluster posture
 - **Scope:** component
 - **Status:** ✅ implemented (CIS section 5. See the scope note below)
 - **Scanners:** [`draugr-k8s-policies`](../scanners/draugr-k8s-policies.md) (default);
   [`kube-bench`](../scanners/kube-bench.md) and [`kube-bench-job`](../scanners/kube-bench-job.md) (opt-in)
-- **Resource:** a component's `infrastructure:` entries with `kind: kubernetes`
+- **Resource:** a component's `kubernetes:` entries
 
 ## What it does
 
 Plans one scan per Kubernetes cluster a component declares, and aggregates the findings.
 
 **Component-scoped, not project-scoped**, because that is where the Saga puts the data:
-`infrastructure:` is a list on a component describing what that component runs on. A cluster with
+`kubernetes:` is a list on a component naming the clusters it runs on. A cluster with
 nothing else to say for it is simply a component with no repositories, images or hosts:
 
 ```yaml
@@ -20,9 +20,8 @@ components:
   - name: prod-cluster
     exposure: public
     criticality: critical
-    infrastructure:
-      - kind: kubernetes
-        ref: prod-eu-west-1
+    kubernetes:
+      - ref: prod-eu-west-1
 ```
 
 **`ref` selects the cluster, it does not merely name it.** It is matched against a kubeconfig
@@ -39,10 +38,6 @@ examined.
 
 Two components on the same cluster produce two jobs with the same target, which the engine
 collapses. The shared case costs one scan, not two.
-
-Infrastructure of another kind is skipped rather than rejected. A Saga may describe surfaces
-Draugr has no benchmark for, and refusing to plan the ones it understands would make a descriptor
-less useful the more honestly it was written.
 
 ## Scope: what this control covers, and what it does not
 
@@ -72,7 +67,7 @@ The whole benchmark, which is what most people want:
 ```yaml
 config:
   controls:
-    infrastructure:
+    kubernetes:
       enabled: true
       kubeBenchJob: { enabled: true }   # the node sections; the default covers section 5
 ```
@@ -104,7 +99,7 @@ different contract: Draugr creates something in the system it is scanning. It de
 config:
   allowEffects: [mutate, privilege]
   controls:
-    infrastructure:
+    kubernetes:
       enabled: true
       kubeBenchJob:
         enabled: true
@@ -119,7 +114,7 @@ unguarded.
 ```yaml
 config:
   controls:
-    infrastructure:
+    kubernetes:
       enabled: true
       kubeBench:
         enabled: true

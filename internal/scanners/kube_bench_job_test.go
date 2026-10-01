@@ -189,7 +189,7 @@ func TestKubeBenchJobScan(t *testing.T) {
 		return raw, nil
 	}
 
-	rep, err := s.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes", Ref: "prod"}, nil)
+	rep, err := s.Scan(context.Background(), plugin.KubernetesTarget{Ref: "prod"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +209,7 @@ func TestKubeBenchJobAlwaysCleansUp(t *testing.T) {
 	s.logs = func(context.Context, kubernetes.Interface, string, string) ([]byte, error) {
 		return nil, io.ErrUnexpectedEOF // the run failed after the Job was created
 	}
-	if _, err := s.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes"}, nil); err == nil {
+	if _, err := s.Scan(context.Background(), plugin.KubernetesTarget{}, nil); err == nil {
 		t.Fatal("expected the log failure to surface")
 	}
 	jobs, err := c.BatchV1().Jobs("default").List(context.Background(), metav1.ListOptions{})
@@ -286,7 +286,7 @@ func TestJobLogsWithNoPod(t *testing.T) {
 func TestKubeBenchJobReportsClientFailure(t *testing.T) {
 	s := NewKubeBenchJob().(kubeBenchJobScanner)
 	s.client = func(string) (kubernetes.Interface, error) { return nil, io.ErrUnexpectedEOF }
-	if _, err := s.Scan(context.Background(), plugin.InfraTarget{}, nil); err == nil {
+	if _, err := s.Scan(context.Background(), plugin.KubernetesTarget{}, nil); err == nil {
 		t.Error("expected the client failure to surface")
 	}
 }
@@ -300,7 +300,7 @@ func TestKubeBenchJobHonorsNamespace(t *testing.T) {
 		sawNamespace = ns
 		return []byte(`{"Controls":[]}`), nil
 	}
-	if _, err := s.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes"},
+	if _, err := s.Scan(context.Background(), plugin.KubernetesTarget{},
 		plugin.Config{"namespace": "security"}); err != nil {
 		t.Fatal(err)
 	}
@@ -318,7 +318,7 @@ func TestKubeBenchJobFindingsNameTheJobScanner(t *testing.T) {
 	}
 	s := jobScanner(completedCluster())
 	s.logs = func(context.Context, kubernetes.Interface, string, string) ([]byte, error) { return raw, nil }
-	rep, err := s.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes"}, nil)
+	rep, err := s.Scan(context.Background(), plugin.KubernetesTarget{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

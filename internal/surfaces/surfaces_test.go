@@ -119,7 +119,7 @@ func TestEnableControlsForSurface(t *testing.T) {
 	}{
 		{"repositories", saga.Component{Repositories: []saga.Repository{{URL: "u"}}}, []string{"iac", "sast", "sca", "secrets"}},
 		{"images", saga.Component{Images: []saga.Image{{Image: "nginx:1"}}}, []string{"images"}},
-		{"infrastructure", saga.Component{Infrastructure: []saga.Infrastructure{{Kind: "kubernetes"}}}, []string{"infrastructure"}},
+		{"kubernetes", saga.Component{Kubernetes: []saga.KubernetesCluster{{}}}, []string{"kubernetes"}},
 
 		// Passive host controls only. dast sends attack traffic at a live service, and enabling
 		// that because a survey noticed the service exists is not discovery's decision to make.

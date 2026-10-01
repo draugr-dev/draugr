@@ -56,9 +56,9 @@ func TestGroupActionsFoldsOneFixIntoOneRow(t *testing.T) {
 // because they share a prefix would hide eleven of them.
 func TestGroupActionsKeepsDistinctWorkDistinct(t *testing.T) {
 	in := []finding{
-		{control: "infrastructure", ruleID: "kube-bench/cis/1.1.1", priority: "P1", message: "API server file permissions"},
-		{control: "infrastructure", ruleID: "kube-bench/cis/1.1.2", priority: "P1", message: "API server file ownership"},
-		{control: "infrastructure", ruleID: "kube-bench/cis/1.1.3", priority: "P1", message: "Controller manager permissions"},
+		{control: "kubernetes", ruleID: "kube-bench/cis/1.1.1", priority: "P1", message: "API server file permissions"},
+		{control: "kubernetes", ruleID: "kube-bench/cis/1.1.2", priority: "P1", message: "API server file ownership"},
+		{control: "kubernetes", ruleID: "kube-bench/cis/1.1.3", priority: "P1", message: "Controller manager permissions"},
 	}
 	got, _ := groupActions(in, nil)
 	if len(got) != 3 {
@@ -87,7 +87,7 @@ func TestGroupActionsFoldsOneRuleAcrossFiles(t *testing.T) {
 // reader cannot do teaches them the list is not worth reading.
 func TestGroupActionsExcludesWhatNobodyCanFix(t *testing.T) {
 	in := []finding{
-		{control: "infrastructure", ruleID: "kube-bench/cis/1.1.1", priority: "P1",
+		{control: "kubernetes", ruleID: "kube-bench/cis/1.1.1", priority: "P1",
 			remediation: sarif.RemediationExternal, message: "API server file permissions"},
 		pkgFinding("sca", "CVE-1", "P3", "poetry.lock", "cryptography", "49.0.0", "50.0.1"),
 	}
@@ -540,7 +540,7 @@ func TestARuleActionIsTitledWithAVerbAndTheRulesName(t *testing.T) {
 			"Fix tls-cert-expired"},
 		{"a catalog number carries the scanner's summary beside it", "iac", "KSV-0017", "Privileged",
 			"Fix KSV-0017 “Privileged”"},
-		{"a CIS section is dotted and still a number", "infrastructure", "kube-bench/cis/1.2.3",
+		{"a CIS section is dotted and still a number", "kubernetes", "kube-bench/cis/1.2.3",
 			"Ensure that the --anonymous-auth argument is set to false",
 			"Fix 1.2.3 “Ensure that the --anonymous-auth argument is set to false”"},
 		{"a catalog number with no message is left alone", "iac", "KSV-0017", "", "Fix KSV-0017"},

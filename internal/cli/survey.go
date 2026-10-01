@@ -176,9 +176,9 @@ func newSurveyK8sCommand(opts *surveyOptions) *cobra.Command {
 	var clusterNamespaces []string
 	cluster := &cobra.Command{
 		Use:   "cluster",
-		Short: "Discover the cluster itself, as infrastructure to audit",
-		Long: "Write the cluster as an `infrastructure` component, so the CIS benchmark controls\n" +
-			"apply to it. Separate from `k8s images`: those are the application, this is what it\n" +
+		Short: "Discover the cluster itself, to audit against the CIS benchmark",
+		Long: "Write the cluster as a component's `kubernetes:` entry, so the kubernetes control\n" +
+			"audits it. Separate from `k8s images`: those are the application, this is what it\n" +
 			"runs on, and they will differ in criticality.\n\n" +
 			"With --namespace, the component owns that namespace rather than the whole cluster.\n" +
 			"Repeat it for several, and each becomes its own component, they are audited\n" +
@@ -585,18 +585,18 @@ func surveySummary(opts surveyOptions, frag saga.Fragment, components []saga.Com
 		verb = "merged into"
 	}
 
-	var repos, images, hosts, infra int
+	var repos, images, hosts, clusters int
 	for _, c := range components {
 		repos += len(c.Repositories)
 		images += len(c.Images)
 		hosts += len(c.Hosts)
-		infra += len(c.Infrastructure)
+		clusters += len(c.Kubernetes)
 	}
 	parts := []string{english.Count(len(components), "component")}
 	for _, p := range []struct {
 		n    int
 		noun string
-	}{{repos, "repository"}, {images, "image"}, {hosts, "host"}, {infra, "infrastructure target"}} {
+	}{{repos, "repository"}, {images, "image"}, {hosts, "host"}, {clusters, "cluster"}} {
 		if p.n > 0 {
 			parts = append(parts, english.Count(p.n, p.noun))
 		}

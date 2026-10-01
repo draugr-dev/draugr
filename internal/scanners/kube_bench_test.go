@@ -22,10 +22,10 @@ func TestKubeBenchInfo(t *testing.T) {
 	if info.Name != "kube-bench" || info.Binary != "kube-bench" {
 		t.Errorf("Info() = %+v", info)
 	}
-	if len(info.Controls) != 1 || info.Controls[0] != "infrastructure" {
+	if len(info.Controls) != 1 || info.Controls[0] != "kubernetes" {
 		t.Errorf("controls = %v, want [infrastructure]", info.Controls)
 	}
-	if len(info.TargetKinds) != 1 || info.TargetKinds[0] != plugin.TargetInfra {
+	if len(info.TargetKinds) != 1 || info.TargetKinds[0] != plugin.TargetKubernetes {
 		t.Errorf("target kinds = %v, want [infrastructure]", info.TargetKinds)
 	}
 }
@@ -53,7 +53,7 @@ func TestKubeBenchArgvDefaults(t *testing.T) {
 	// Stubbed absent, or the argv depends on whether the developer has run `draugr tools install
 	// kube-bench`. Which is a fact about the machine, not the default.
 	withoutProvisionedCfg(t)
-	plan, err := kubeBenchArgv(plugin.InfraTarget{Platform: "kubernetes"}, nil)
+	plan, err := kubeBenchArgv(plugin.KubernetesTarget{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestKubeBenchArgvDefaults(t *testing.T) {
 // benchmark sixteen minor versions stale, and it under-reports. Draugr tells it the version.
 func TestKubeBenchArgvPassesTheDetectedClusterVersion(t *testing.T) {
 	withClusterVersion(t, "1.29", nil)
-	plan, err := kubeBenchArgv(plugin.InfraTarget{}, nil)
+	plan, err := kubeBenchArgv(plugin.KubernetesTarget{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +80,7 @@ func TestKubeBenchArgvPassesTheDetectedClusterVersion(t *testing.T) {
 // so rather than letting kube-bench pick one.
 func TestKubeBenchArgvRefusesToGuessTheVersion(t *testing.T) {
 	withClusterVersion(t, "", errors.New("no kubeconfig"))
-	_, err := kubeBenchArgv(plugin.InfraTarget{}, nil)
+	_, err := kubeBenchArgv(plugin.KubernetesTarget{}, nil)
 	if err == nil {
 		t.Fatal("expected an error when the cluster version cannot be determined")
 	}
@@ -95,7 +95,7 @@ func TestKubeBenchArgvRefusesToGuessTheVersion(t *testing.T) {
 // no Kubernetes version maps to. So it must not be overridden by detection.
 func TestKubeBenchArgvExplicitBenchmarkWins(t *testing.T) {
 	withClusterVersion(t, "1.34", errors.New("should not be consulted"))
-	plan, err := kubeBenchArgv(plugin.InfraTarget{}, plugin.Config{
+	plan, err := kubeBenchArgv(plugin.KubernetesTarget{}, plugin.Config{
 		"targets": "policies", "benchmark": "gke-1.6.0", "configDir": "/opt/cfg",
 	})
 	if err != nil {
@@ -116,7 +116,7 @@ func TestKubeBenchArgvExplicitBenchmarkWins(t *testing.T) {
 // reach at plan time.
 func TestKubeBenchArgvExplicitVersionSkipsDetection(t *testing.T) {
 	withClusterVersion(t, "", errors.New("should not be consulted"))
-	plan, err := kubeBenchArgv(plugin.InfraTarget{}, plugin.Config{"version": "1.31"})
+	plan, err := kubeBenchArgv(plugin.KubernetesTarget{}, plugin.Config{"version": "1.31"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +211,7 @@ func TestKubeBenchLevel(t *testing.T) {
 // also select the cluster, a scan would name one cluster and describe another. Which is the worst
 // way for a compliance report to be wrong, because it looks right.
 func TestKubeContextComesFromTheDeclaredRef(t *testing.T) {
-	got := kubeContext(plugin.InfraTarget{Platform: "kubernetes", Ref: "prod-eu-west-1"}, nil)
+	got := kubeContext(plugin.KubernetesTarget{Ref: "prod-eu-west-1"}, nil)
 	if got != "prod-eu-west-1" {
 		t.Errorf("kubeContext = %q, want the declared ref", got)
 	}
@@ -219,7 +219,7 @@ func TestKubeContextComesFromTheDeclaredRef(t *testing.T) {
 
 // An organization's name for a cluster is not always its kubeconfig context name.
 func TestKubeContextSettingOverridesTheRef(t *testing.T) {
-	got := kubeContext(plugin.InfraTarget{Ref: "prod-eu-west-1"}, plugin.Config{"context": "arn:aws:eks:..."})
+	got := kubeContext(plugin.KubernetesTarget{Ref: "prod-eu-west-1"}, plugin.Config{"context": "arn:aws:eks:..."})
 	if got != "arn:aws:eks:..." {
 		t.Errorf("kubeContext = %q, want the explicit setting", got)
 	}
@@ -227,7 +227,7 @@ func TestKubeContextSettingOverridesTheRef(t *testing.T) {
 
 // No ref and no setting means the ambient kubeconfig is already pointed where the operator wants.
 func TestKubeContextEmptyMeansAmbient(t *testing.T) {
-	if got := kubeContext(plugin.InfraTarget{Platform: "kubernetes"}, nil); got != "" {
+	if got := kubeContext(plugin.KubernetesTarget{}, nil); got != "" {
 		t.Errorf("kubeContext = %q, want empty", got)
 	}
 	env, cleanup, err := kubeContextEnv("")
@@ -311,7 +311,7 @@ func TestKubeBenchScan(t *testing.T) {
 			return raw, nil
 		},
 	}
-	rep, err := s.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes"}, nil)
+	rep, err := s.Scan(context.Background(), plugin.KubernetesTarget{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -344,7 +344,7 @@ func TestKubeBenchScanReportsToolFailure(t *testing.T) {
 			return nil, errors.New("exit status 1: kubectl not found")
 		},
 	}
-	_, err := s.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes"}, nil)
+	_, err := s.Scan(context.Background(), plugin.KubernetesTarget{}, nil)
 	if err == nil || !strings.Contains(err.Error(), "kube-bench") {
 		t.Errorf("want an error naming the scanner, got %v", err)
 	}
@@ -358,7 +358,7 @@ func TestKubeBenchScanReportsUnreadableOutput(t *testing.T) {
 		info: plugin.ScannerInfo{Name: kubeBenchScannerName},
 		run:  func(context.Context, []string, []string) ([]byte, error) { return []byte("not json"), nil },
 	}
-	if _, err := s.Scan(context.Background(), plugin.InfraTarget{}, nil); err == nil {
+	if _, err := s.Scan(context.Background(), plugin.KubernetesTarget{}, nil); err == nil {
 		t.Error("expected a decode error")
 	}
 }
@@ -432,7 +432,7 @@ func TestKubeBenchScanLabelsAnUnnamedCluster(t *testing.T) {
 		info: plugin.ScannerInfo{Name: kubeBenchScannerName},
 		run:  func(context.Context, []string, []string) ([]byte, error) { return raw, nil },
 	}
-	rep, err := s.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes"}, nil)
+	rep, err := s.Scan(context.Background(), plugin.KubernetesTarget{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -511,7 +511,7 @@ func TestPlatformFrom(t *testing.T) {
 func TestKubeBenchArgvLetsAManagedClusterPickItsOwnBenchmark(t *testing.T) {
 	withClusterFacts(t, clusterFacts{Version: "1.30", Platform: "eks"}, nil)
 
-	plan, err := kubeBenchArgv(plugin.InfraTarget{}, nil)
+	plan, err := kubeBenchArgv(plugin.KubernetesTarget{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -530,7 +530,7 @@ func TestKubeBenchArgvLetsAManagedClusterPickItsOwnBenchmark(t *testing.T) {
 func TestKubeBenchArgvStillPinsTheVersionForAVanillaCluster(t *testing.T) {
 	withClusterFacts(t, clusterFacts{Version: "1.34"}, nil)
 
-	plan, err := kubeBenchArgv(plugin.InfraTarget{}, nil)
+	plan, err := kubeBenchArgv(plugin.KubernetesTarget{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -620,7 +620,7 @@ func TestKubeBenchScanRefusesTheWrongBenchmark(t *testing.T) {
 		},
 	}
 
-	rep, err := s.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes"}, nil)
+	rep, err := s.Scan(context.Background(), plugin.KubernetesTarget{}, nil)
 	if err == nil {
 		t.Fatalf("a scan against the wrong benchmark must fail, got %d findings", len(rep.Results))
 	}
@@ -649,7 +649,7 @@ func TestKubeBenchScanAcceptsThePlatformBenchmark(t *testing.T) {
 		run:  func(context.Context, []string, []string) ([]byte, error) { return out, nil },
 	}
 
-	rep, err := s.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes"}, nil)
+	rep, err := s.Scan(context.Background(), plugin.KubernetesTarget{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -739,7 +739,7 @@ func TestKubeBenchUsesTheProvisionedConfigDir(t *testing.T) {
 	t.Cleanup(func() { provisionedKubeBenchCfg = orig })
 	provisionedKubeBenchCfg = func() string { return "/somewhere/data/kube-bench" }
 
-	plan, err := kubeBenchArgv(plugin.InfraTarget{Platform: "kubernetes"},
+	plan, err := kubeBenchArgv(plugin.KubernetesTarget{},
 		plugin.Config{"benchmark": "cis-1.12"})
 	if err != nil {
 		t.Fatalf("kubeBenchArgv: %v", err)
@@ -756,7 +756,7 @@ func TestKubeBenchPrefersAnExplicitConfigDir(t *testing.T) {
 	t.Cleanup(func() { provisionedKubeBenchCfg = orig })
 	provisionedKubeBenchCfg = func() string { return "/provisioned" }
 
-	plan, err := kubeBenchArgv(plugin.InfraTarget{Platform: "kubernetes"}, plugin.Config{"configDir": "/mine", "benchmark": "cis-1.12"})
+	plan, err := kubeBenchArgv(plugin.KubernetesTarget{}, plugin.Config{"configDir": "/mine", "benchmark": "cis-1.12"})
 	if err != nil {
 		t.Fatalf("kubeBenchArgv: %v", err)
 	}
@@ -774,7 +774,7 @@ func TestKubeBenchLeavesTheSearchAloneWhenNothingIsProvisioned(t *testing.T) {
 	t.Cleanup(func() { provisionedKubeBenchCfg = orig })
 	provisionedKubeBenchCfg = func() string { return "" }
 
-	plan, err := kubeBenchArgv(plugin.InfraTarget{Platform: "kubernetes"},
+	plan, err := kubeBenchArgv(plugin.KubernetesTarget{},
 		plugin.Config{"benchmark": "cis-1.12"})
 	if err != nil {
 		t.Fatalf("kubeBenchArgv: %v", err)

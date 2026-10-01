@@ -14,7 +14,7 @@ func TestCheckControlNamesAcceptsWhatIsRegistered(t *testing.T) {
 		Config: saga.Config{
 			Controls: map[string]saga.ControllerSettings{
 				"sca": {"enabled": true}, "licenses": {"enabled": true},
-				"infrastructure": {"enabled": true},
+				"kubernetes": {"enabled": true},
 			},
 			// A threshold for a control that is not enabled here is fine: a descriptor may be
 			// shared, and the name is real either way.
@@ -147,7 +147,7 @@ func TestCheckControlNamesAcceptsRealScannerKeys(t *testing.T) {
 	m := &saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 		"headers":        {"enabled": true, "draugrHeaders": saga.ControllerSettings{"enabled": false}},
 		"sast":           {"semgrep": saga.ControllerSettings{"config": "p/default"}, "gosec": saga.ControllerSettings{"enabled": true}},
-		"infrastructure": {"draugrK8sPolicies": saga.ControllerSettings{"enabled": true}},
+		"kubernetes": {"draugrK8sPolicies": saga.ControllerSettings{"enabled": true}},
 	}}}
 	if err := checkControlNames(builtins.Registry(), m); err != nil {
 		t.Errorf("rejected valid scanner keys: %v", err)
@@ -343,5 +343,31 @@ func TestKnownReachabilityAnalyzerIsAccepted(t *testing.T) {
 	}}
 	if err := checkControlNames(builtins.Registry(), model); err != nil {
 		t.Fatalf("valid descriptor rejected: %v", err)
+	}
+}
+
+// A descriptor written for an earlier release names the control by its old name. It is refused,
+// and the error names the current one rather than guessing from spelling, which here would find
+// nothing: the two names share no letters worth matching.
+func TestARenamedControlNamesItsReplacement(t *testing.T) {
+	m := &saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
+		"infrastructure": {"enabled": true},
+	}}}
+	err := checkControlNames(builtins.Registry(), m)
+	if err == nil {
+		t.Fatal("config.controls.infrastructure was accepted")
+	}
+	if !strings.Contains(err.Error(), `"infrastructure" is not a control this build of Draugr provides, it is "kubernetes" now`) {
+		t.Errorf("error does not name the replacement: %v", err)
+	}
+}
+
+func TestControlsArgumentNamesARenamedControl(t *testing.T) {
+	cmd := newControlsCommand()
+	cmd.SetOut(&strings.Builder{})
+	cmd.SetArgs([]string{"infrastructure"})
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), `it is "kubernetes" now`) {
+		t.Errorf("draugr controls infrastructure: %v, want the replacement named", err)
 	}
 }

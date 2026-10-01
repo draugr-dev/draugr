@@ -504,12 +504,12 @@ const doctorSagaInfrastructure = `project: platform
 release: {version: "1.0"}
 config:
   controllers:
-    infrastructure:
+    kubernetes:
       enabled: true
       kubeBench: {enabled: true}
 components:
   - name: cluster
-    infrastructure: [{kind: kubernetes, ref: prod}]
+    kubernetes: [{ref: prod}]
 `
 
 // The same control with its default scanner, which reads the Kubernetes API and shells out to
@@ -518,10 +518,10 @@ const doctorSagaInfrastructureDefault = `project: platform
 release: {version: "1.0"}
 config:
   controllers:
-    infrastructure: {enabled: true}
+    kubernetes: {enabled: true}
 components:
   - name: cluster
-    infrastructure: [{kind: kubernetes, ref: prod}]
+    kubernetes: [{ref: prod}]
 `
 
 // Some tools shell out in turn. kube-bench's CIS policy checks are scripts that invoke kubectl, so

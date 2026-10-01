@@ -173,7 +173,7 @@ config:
                                                      # renewal is automated, so the gate fires when
                                                      # renewal has failed rather than on schedule
 
-    infrastructure:
+    kubernetes:
       enabled: true
       draugrK8sPolicies:
         enabled: true                                # reads the cluster and changes nothing, which
@@ -237,6 +237,5 @@ components:
     hosts:
       - name: api
         url: https://api.example.com
-    infrastructure:
-      - kind: kubernetes
-        ref: prod-eu
+    kubernetes:
+      - ref: prod-eu

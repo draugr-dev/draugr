@@ -39,7 +39,7 @@ func dropUnnarrowable(reg *Registry, planned []PlannedJob) ([]PlannedJob, []Skip
 	var kept []PlannedJob
 	var skipped []SkippedJob
 	for _, pj := range planned {
-		infra, ok := pj.Job.Target.(plugin.InfraTarget)
+		infra, ok := pj.Job.Target.(plugin.KubernetesTarget)
 		if !ok || len(infra.Namespaces) == 0 {
 			kept = append(kept, pj)
 			continue

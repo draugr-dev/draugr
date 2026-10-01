@@ -71,9 +71,9 @@ What this run qualifies. `version` is required. It's what the evidence is filed 
 ### `components`
 
 One entry per logical part of the app, each listing whatever surface applies:
-`repositories`, `images`, `hosts`, `infrastructure`. All are optional and a component may have
+`repositories`, `images`, `hosts`, `kubernetes`. All are optional and a component may have
 only one. A Kubernetes cluster with no code of its own is a perfectly good component with
-nothing but an `infrastructure` entry.
+nothing but a `kubernetes` entry.
 
 Surface is what drives the plan. Draugr expands each enabled control across the components it
 applies to, so adding an image to a component is what makes image scanning run against it.

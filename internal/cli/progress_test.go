@@ -185,7 +185,7 @@ func TestProgressShowsHowLongAStepHasBeenRunning(t *testing.T) {
 	ev := engine.ProgressEvent{
 		Total: 2, Complete: 1,
 		Steps: []engine.ProgressStep{
-			{Control: "infrastructure", Scanner: "kube-bench-job", Total: 1, Running: 1,
+			{Control: "kubernetes", Scanner: "kube-bench-job", Total: 1, Running: 1,
 				RunningSince: time.Now().Add(-95 * time.Second)},
 			{Control: "sast", Scanner: "semgrep", Total: 1, Done: 1},
 		},
@@ -264,7 +264,7 @@ func TestAFrameNeverOccupiesMoreRowsThanItErases(t *testing.T) {
 		Total: 9, Complete: 1,
 		Steps: []engine.ProgressStep{
 			{Control: "images", Scanner: "trivy", Total: 4, Done: 1, Running: 2},
-			{Control: "infrastructure", Scanner: "kube-bench", Total: 5, Done: 0, Running: 1, Failed: 2},
+			{Control: "kubernetes", Scanner: "kube-bench", Total: 5, Done: 0, Running: 1, Failed: 2},
 		},
 	})
 
@@ -285,7 +285,7 @@ func TestAnUnknownWidthCutsNothing(t *testing.T) {
 	var full, unknown bytes.Buffer
 	ev := engine.ProgressEvent{
 		Total: 9, Complete: 1,
-		Steps: []engine.ProgressStep{{Control: "infrastructure", Scanner: "kube-bench", Total: 5, Running: 1}},
+		Steps: []engine.ProgressStep{{Control: "kubernetes", Scanner: "kube-bench", Total: 5, Running: 1}},
 	}
 	t.Cleanup(func() { active.Store(nil) })
 	(&progressLine{w: &full, columns: func() int { return 200 }}).update(ev)

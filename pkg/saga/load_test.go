@@ -31,9 +31,8 @@ components:
       - name: api
         url: https://api.acme.com
         type: api
-    infrastructure:
-      - kind: kubernetes
-        ref: prod
+    kubernetes:
+      - ref: prod
     controllers:
       sast:
         enabled: true
@@ -57,8 +56,8 @@ func TestLoadValid(t *testing.T) {
 	if c.Repositories[0].URL == "" || c.Images[0].Image == "" || c.Hosts[0].URL == "" {
 		t.Errorf("component surface not parsed: %+v", c)
 	}
-	if c.Infrastructure[0].Kind != "kubernetes" {
-		t.Errorf("infra = %+v", c.Infrastructure)
+	if c.Kubernetes[0].Ref != "prod" {
+		t.Errorf("kubernetes = %+v", c.Kubernetes)
 	}
 	if len(m.References) != 1 {
 		t.Errorf("references not parsed")

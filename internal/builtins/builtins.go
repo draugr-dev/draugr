@@ -20,7 +20,7 @@ func Registry() *engine.Registry {
 	reg.RegisterController(controllers.NewSecrets())
 	reg.RegisterController(controllers.NewSAST())
 	reg.RegisterController(controllers.NewIAC())
-	reg.RegisterController(controllers.NewInfrastructure())
+	reg.RegisterController(controllers.NewKubernetes())
 	reg.RegisterController(controllers.NewHeaders())
 	reg.RegisterController(controllers.NewThreats())
 	reg.RegisterController(controllers.NewDAST())

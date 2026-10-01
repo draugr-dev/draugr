@@ -13,7 +13,7 @@ func TestTargetKinds(t *testing.T) {
 		{RepositoryTarget{URL: "u", Revision: "r"}, TargetRepository},
 		{ImageTarget{Ref: "img:1"}, TargetImage},
 		{HostTarget{URL: "https://x"}, TargetHost},
-		{InfraTarget{Platform: "kubernetes", Ref: "prod"}, TargetInfra},
+		{KubernetesTarget{Ref: "prod"}, TargetKubernetes},
 	}
 	for _, c := range cases {
 		if got := c.target.Kind(); got != c.kind {
@@ -29,7 +29,7 @@ func TestTargetIdentity(t *testing.T) {
 	if got := (HostTarget{URL: "https://api"}).Identity(); got != "https://api" {
 		t.Errorf("host identity = %q", got)
 	}
-	if got := (InfraTarget{Platform: "kubernetes", Ref: "prod"}).Identity(); got != "kubernetes/prod" {
+	if got := (KubernetesTarget{Ref: "prod"}).Identity(); got != "kubernetes/prod" {
 		t.Errorf("infra identity = %q", got)
 	}
 }

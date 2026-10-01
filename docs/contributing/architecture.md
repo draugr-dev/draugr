@@ -76,16 +76,15 @@ components:
       - name: api
         url: https://api.acme.com
         type: api
-    infrastructure:
-      - kind: kubernetes
-        ref: prod-cluster
+    kubernetes:
+      - ref: prod-cluster
     controls:                       # per-component overrides
       sast: { semgrep: { config: p/owasp-top-ten } }
 
 references:      # links to manual/human controls (threat model, arch diagram, …)
 ```
 
-Component surface types (`repositories`, `images`, `hosts`, `infrastructure`) map to scanner
+Component surface types (`repositories`, `images`, `hosts`, `kubernetes`) map to scanner
 **Target** kinds. `fragments:` lets each service keep its own **Saga fragment** next to its
 source, locally or in another repository, and the loader assembles them before anything runs.
 Surveyors contribute the same `saga.Fragment` type through the same merge, so a discovered

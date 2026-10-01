@@ -40,7 +40,7 @@ func NewK8sCluster() *K8sCluster {
 func (K8sCluster) Info() plugin.SurveyorInfo {
 	return plugin.SurveyorInfo{
 		Name:     "k8s-cluster",
-		Provides: []plugin.TargetKind{plugin.TargetInfra},
+		Provides: []plugin.TargetKind{plugin.TargetKubernetes},
 	}
 }
 
@@ -68,11 +68,8 @@ func (k K8sCluster) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.
 	}
 
 	comp := saga.Component{
-		Name: componentNameFor(ref),
-		Infrastructure: []saga.Infrastructure{{
-			Kind: "kubernetes",
-			Ref:  ref,
-		}},
+		Name:       componentNameFor(ref),
+		Kubernetes: []saga.KubernetesCluster{{Ref: ref}},
 	}
 	if err := requireNamespace(ctx, cs, scope.Ref); err != nil {
 		return saga.Fragment{}, err
@@ -83,7 +80,7 @@ func (k K8sCluster) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.
 	// it; leaving it out would emit a cluster-wide component the operator then has to narrow by
 	// hand, having already said which namespace they meant.
 	if scope.Ref != "" {
-		comp.Infrastructure[0].Namespaces = []string{scope.Ref}
+		comp.Kubernetes[0].Namespaces = []string{scope.Ref}
 	}
 
 	// exposure and criticality are deliberately absent. Neither is a property of the cluster. They

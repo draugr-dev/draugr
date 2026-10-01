@@ -58,10 +58,10 @@
           },
           "type": "array"
         },
-        "infrastructure": {
-          "description": "Infrastructure this component runs on.",
+        "kubernetes": {
+          "description": "Kubernetes clusters this component runs on — checked by the kubernetes control.",
           "items": {
-            "$ref": "#/$defs/infrastructure"
+            "$ref": "#/$defs/kubernetesCluster"
           },
           "type": "array"
         },
@@ -206,7 +206,7 @@
           "description": "Find known flaws in the operating system and packages baked into a container image."
         },
         {
-          "const": "infrastructure",
+          "const": "kubernetes",
           "description": "Check a Kubernetes cluster against the CIS Benchmark, rather than taking it on trust."
         },
         {
@@ -376,7 +376,7 @@
       },
       "type": "object"
     },
-    "control_infrastructure": {
+    "control_kubernetes": {
       "additionalProperties": false,
       "description": "Check a Kubernetes cluster against the CIS Benchmark, rather than taking it on trust.",
       "properties": {
@@ -990,8 +990,8 @@
         "images": {
           "$ref": "#/$defs/control_images"
         },
-        "infrastructure": {
-          "$ref": "#/$defs/control_infrastructure"
+        "kubernetes": {
+          "$ref": "#/$defs/control_kubernetes"
         },
         "licenses": {
           "$ref": "#/$defs/control_licenses"
@@ -1214,10 +1214,10 @@
           },
           "type": "array"
         },
-        "infrastructure": {
-          "description": "Infrastructure this component runs on.",
+        "kubernetes": {
+          "description": "Kubernetes clusters this component runs on — checked by the kubernetes control.",
           "items": {
-            "$ref": "#/$defs/infrastructure"
+            "$ref": "#/$defs/kubernetesCluster"
           },
           "type": "array"
         },
@@ -1673,60 +1673,6 @@
       ],
       "type": "object"
     },
-    "infrastructure": {
-      "additionalProperties": false,
-      "properties": {
-        "kind": {
-          "anyOf": [
-            {
-              "const": "kubernetes",
-              "description": "A Kubernetes cluster, audited against a CIS benchmark."
-            }
-          ],
-          "description": "The infrastructure surface to audit. `ref` names the concrete instance.",
-          "type": "string"
-        },
-        "namespaces": {
-          "description": "Namespaces this component owns. Omit to audit the whole cluster. Only the draugrK8sPolicies scanner can honor a scope; the others refuse rather than silently report the whole cluster.",
-          "items": {
-            "minLength": 1,
-            "type": [
-              "string",
-              "number",
-              "boolean"
-            ]
-          },
-          "type": "array",
-          "uniqueItems": true
-        },
-        "operatedBy": {
-          "anyOf": [
-            {
-              "const": "self",
-              "description": "You operate this, so a misconfiguration is yours to change."
-            },
-            {
-              "const": "provider",
-              "description": "A cloud provider operates it, so controls it owns are reported as theirs rather than as yours to fix."
-            }
-          ],
-          "description": "Who runs this surface. \"provider\" for a managed service, where the control plane, API server and etcd are not reachable by the team that owns the workloads — findings about those are reported but never presented as work this team can do. RBAC, Pod Security and network policy stay theirs either way. Defaults to \"self\".",
-          "type": "string"
-        },
-        "ref": {
-          "description": "Identifier, e.g. a cluster name.",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
-        }
-      },
-      "required": [
-        "kind"
-      ],
-      "type": "object"
-    },
     "issueItem": {
       "additionalProperties": false,
       "description": "Metadata set on an issue or work item when it is created. A later run adds back a configured label or tag that was removed and changes nothing else.",
@@ -1845,6 +1791,48 @@
         "type": {
           "description": "An issue type the organization defines on GitHub; issue, incident or task on GitLab; a work item type on Azure DevOps, defaulting to the default type of the Task category.",
           "minLength": 1,
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "kubernetesCluster": {
+      "additionalProperties": false,
+      "description": "A Kubernetes cluster this component runs on, audited against the CIS Kubernetes Benchmark.",
+      "properties": {
+        "namespaces": {
+          "description": "Namespaces this component owns. Omit to audit the whole cluster. Only the draugrK8sPolicies scanner can honor a scope; the others refuse rather than silently report the whole cluster.",
+          "items": {
+            "minLength": 1,
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "operatedBy": {
+          "anyOf": [
+            {
+              "const": "self",
+              "description": "You operate this, so a misconfiguration is yours to change."
+            },
+            {
+              "const": "provider",
+              "description": "A cloud provider operates it, so controls it owns are reported as theirs rather than as yours to fix."
+            }
+          ],
+          "description": "Who runs this surface. \"provider\" for a managed service, where the control plane, API server and etcd are not reachable by the team that owns the workloads — findings about those are reported but never presented as work this team can do. RBAC, Pod Security and network policy stay theirs either way. Defaults to \"self\".",
+          "type": "string"
+        },
+        "ref": {
+          "description": "The kubeconfig context that selects the cluster. Omit to audit the current context.",
           "type": [
             "string",
             "number",

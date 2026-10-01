@@ -790,7 +790,7 @@ func splitScanErrors(scanErrors map[string][]string) (unwaived, waived []string)
 // disagree with the whole, and the disagreement would surface as a component reading PASS under a
 // headline that says FAIL.
 //
-// Findings with no component come from project-scoped controls (infrastructure). They are
+// Findings with no component come from project-scoped controls. They are
 // counted rather than assigned: a breakdown that quietly omits them makes the parts look like
 // the whole.
 func componentVerdicts(
@@ -1128,7 +1128,7 @@ func declaredTargets(c saga.Component) map[string]int {
 		string(plugin.TargetImage):      len(c.Images),
 		string(plugin.TargetRepository): len(c.Repositories),
 		string(plugin.TargetHost):       len(c.Hosts),
-		string(plugin.TargetInfra):      len(c.Infrastructure),
+		string(plugin.TargetKubernetes): len(c.Kubernetes),
 	} {
 		if n > 0 {
 			counts[kind] = n

@@ -25,10 +25,10 @@ import (
 // because something noticed the service exists is not a decision Draugr gets to make on someone's
 // behalf.
 var Controls = map[string][]string{
-	"repositories":   {"sca", "secrets", "sast", "iac"},
-	"images":         {"images"},
-	"hosts":          {"headers", "tls"},
-	"infrastructure": {"infrastructure"},
+	"repositories": {"sca", "secrets", "sast", "iac"},
+	"images":       {"images"},
+	"hosts":        {"headers", "tls"},
+	"kubernetes":   {"kubernetes"},
 }
 
 // NeverSuggested names controls that examine a surface and are never turned on for anybody.
@@ -57,8 +57,8 @@ func ComponentHas(c *saga.Component, surface string) bool {
 		return len(c.Images) > 0
 	case "hosts":
 		return len(c.Hosts) > 0
-	case "infrastructure":
-		return len(c.Infrastructure) > 0
+	case "kubernetes":
+		return len(c.Kubernetes) > 0
 	}
 	return false
 }

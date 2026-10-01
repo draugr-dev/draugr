@@ -66,7 +66,7 @@ var openStrings = map[string]string{
 	"$defs.component.properties.name":                                "the component's own name",
 	"$defs.host.properties.name":                                     "the endpoint's own name",
 	"$defs.release.properties.version":                               "the project's version string, in whatever scheme it uses",
-	"$defs.infrastructure.properties.ref":                            "a cluster name, chosen by whoever runs it",
+	"$defs.kubernetesCluster.properties.ref":                         "a cluster name, chosen by whoever runs it",
 	"$defs.vexConfig.properties.author":                              "who is asserting, free text",
 	"$defs.vexConfig.properties.product":                             "the product identifier a consumer will match on",
 	"$defs.excludeRule.properties.reason":                            "why somebody excused a finding, in their words",
@@ -93,7 +93,7 @@ var openStrings = map[string]string{
 	"$defs.vexRepository.properties.ref":                           "a branch, tag or commit",
 	"$defs.reference.properties.link":                              "a link to a document",
 	"$defs.excludeRule.properties.paths.items":                     "a path the rule applies to",
-	"$defs.infrastructure.properties.namespaces.items":             "a namespace name",
+	"$defs.kubernetesCluster.properties.namespaces.items":          "a namespace name",
 	"$defs.publisherConfig.properties.dir":                         "a directory to write into",
 	"$defs.publisherConfig.properties.url":                         "a forge's base URL",
 	"$defs.publisherConfig.properties.org":                         "an organization on that forge",
@@ -124,23 +124,23 @@ var openStrings = map[string]string{
 	// Another tool's vocabulary. Enumerating it here would freeze a list that tool owns and that
 	// changes on its release schedule, not ours, and the schema would then reject a value the
 	// tool accepts.
-	"$defs.control_sast.properties.semgrep.properties.config":                      "a Semgrep registry ref or a path",
-	"$defs.control_secrets.properties.gitleaks.properties.config":                  "a path to a gitleaks ruleset",
-	"$defs.control_infrastructure.properties.kubeBench.properties.benchmark":       "kube-bench's own benchmark names",
-	"$defs.control_infrastructure.properties.kubeBench.properties.targets":         "kube-bench's own target names",
-	"$defs.control_infrastructure.properties.kubeBench.properties.version":         "a Kubernetes version",
-	"$defs.control_infrastructure.properties.kubeBench.properties.context":         "a kubeconfig context name",
-	"$defs.control_infrastructure.properties.kubeBench.properties.configDir":       "a path inside the image",
-	"$defs.control_infrastructure.properties.kubeBenchJob.properties.benchmark":    "kube-bench's own benchmark names",
-	"$defs.control_infrastructure.properties.kubeBenchJob.properties.targets":      "kube-bench's own target names",
-	"$defs.control_infrastructure.properties.kubeBenchJob.properties.context":      "a kubeconfig context name",
-	"$defs.control_infrastructure.properties.kubeBenchJob.properties.image":        "an image reference",
-	"$defs.control_infrastructure.properties.kubeBenchJob.properties.namespace":    "a namespace name",
-	"$defs.control_infrastructure.properties.kubeBenchJob.properties.nodeSelector": "a node label selector",
-	"$defs.control_licenses.properties.mendLicenses.properties.project":            "a project name in Mend",
-	"$defs.control_licenses.properties.mendLicenses.properties.productToken":       "a token identifying a Mend product",
-	"$defs.control_sca.properties.mendSca.properties.project":                      "a project name in Mend",
-	"$defs.control_sca.properties.mendSca.properties.productToken":                 "a token identifying a Mend product",
+	"$defs.control_sast.properties.semgrep.properties.config":                  "a Semgrep registry ref or a path",
+	"$defs.control_secrets.properties.gitleaks.properties.config":              "a path to a gitleaks ruleset",
+	"$defs.control_kubernetes.properties.kubeBench.properties.benchmark":       "kube-bench's own benchmark names",
+	"$defs.control_kubernetes.properties.kubeBench.properties.targets":         "kube-bench's own target names",
+	"$defs.control_kubernetes.properties.kubeBench.properties.version":         "a Kubernetes version",
+	"$defs.control_kubernetes.properties.kubeBench.properties.context":         "a kubeconfig context name",
+	"$defs.control_kubernetes.properties.kubeBench.properties.configDir":       "a path inside the image",
+	"$defs.control_kubernetes.properties.kubeBenchJob.properties.benchmark":    "kube-bench's own benchmark names",
+	"$defs.control_kubernetes.properties.kubeBenchJob.properties.targets":      "kube-bench's own target names",
+	"$defs.control_kubernetes.properties.kubeBenchJob.properties.context":      "a kubeconfig context name",
+	"$defs.control_kubernetes.properties.kubeBenchJob.properties.image":        "an image reference",
+	"$defs.control_kubernetes.properties.kubeBenchJob.properties.namespace":    "a namespace name",
+	"$defs.control_kubernetes.properties.kubeBenchJob.properties.nodeSelector": "a node label selector",
+	"$defs.control_licenses.properties.mendLicenses.properties.project":        "a project name in Mend",
+	"$defs.control_licenses.properties.mendLicenses.properties.productToken":   "a token identifying a Mend product",
+	"$defs.control_sca.properties.mendSca.properties.project":                  "a project name in Mend",
+	"$defs.control_sca.properties.mendSca.properties.productToken":             "a token identifying a Mend product",
 
 	// A keyword or a path. The keywords are in `examples`, which offers them without rejecting
 	// the path, and an enum here would reject every real file.
@@ -432,7 +432,7 @@ func TestTheFragmentSchemaIsHeldToTheSameRule(t *testing.T) {
 // again, which is the thing the rest of this file exists to prevent.
 func TestApplyRefusesASchemaItCannotFillIn(t *testing.T) {
 	for _, def := range []string{
-		"$defs", "controllers", "config", "reportConfig", "reachabilityConfig", "infrastructure",
+		"$defs", "controllers", "config", "reportConfig", "reachabilityConfig",
 	} {
 		t.Run(def, func(t *testing.T) {
 			doc := loadSchema(t)

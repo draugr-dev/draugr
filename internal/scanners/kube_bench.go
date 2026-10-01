@@ -20,7 +20,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
-// kubeBenchScannerName identifies the scanner behind the "infrastructure" control.
+// kubeBenchScannerName identifies the scanner behind the "kubernetes" control.
 const kubeBenchScannerName = "kube-bench"
 
 // kubeBenchScanner audits a Kubernetes cluster against the CIS Kubernetes Benchmark.
@@ -64,7 +64,7 @@ const kubeBenchConfigSchema = `{
   }
 }`
 
-// NewKubeBench returns a Scanner for the "infrastructure" control.
+// NewKubeBench returns a Scanner for the "kubernetes" control.
 func NewKubeBench() plugin.Scanner {
 	return kubeBenchScanner{
 		info: plugin.ScannerInfo{
@@ -74,8 +74,8 @@ func NewKubeBench() plugin.Scanner {
 			// Its CIS policy checks are shell scripts that invoke kubectl; without it the tool
 			// runs and reports every check as failed.
 			AlsoRequires: []string{"kubectl"},
-			Controls:     []string{"infrastructure"},
-			TargetKinds:  []plugin.TargetKind{plugin.TargetInfra},
+			Controls:     []string{"kubernetes"},
+			TargetKinds:  []plugin.TargetKind{plugin.TargetKubernetes},
 			// Its checks are shell pipelines with the scope written into them, `kubectl get pods
 			// --all-namespaces`, and no flag to change it.
 			ClusterWide:  true,
@@ -105,7 +105,7 @@ func (s kubeBenchScanner) CacheVersion(ctx context.Context) string {
 
 // Scan audits the cluster the target names and converts kube-bench's JSON to SARIF.
 func (s kubeBenchScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
-	infra, ok := target.(plugin.InfraTarget)
+	infra, ok := target.(plugin.KubernetesTarget)
 	if !ok {
 		return sarif.Report{}, fmt.Errorf("kube-bench: unsupported target %T (want infrastructure)", target)
 	}
@@ -379,7 +379,7 @@ func kubeContext(target plugin.Target, cfg plugin.Config) string {
 	if ctx := stringSetting(cfg, contextKey, ""); ctx != "" {
 		return ctx
 	}
-	if t, ok := target.(plugin.InfraTarget); ok {
+	if t, ok := target.(plugin.KubernetesTarget); ok {
 		return t.Ref
 	}
 	return ""

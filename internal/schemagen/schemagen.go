@@ -128,30 +128,6 @@ func analyzersDef(reg *engine.Registry) map[string]any {
 	}
 }
 
-// infraKindDef builds the `infrastructure.kind` values from the surfaces Draugr audits.
-//
-// It said `type: string` and accepted anything, while the planner drops a kind nothing serves, so
-// a component declaring `kind: k8s` was scanned for everything except the infrastructure it named
-// and read as covered. `operatedBy`, the field beside it, has had a values list and a validation
-// error for exactly this reason since it was added.
-//
-// The `anyOf` of `const` shape rather than a plain enum, because that is what makes an editor show
-// the description beside each completion, the same as `exposure` and `criticality`.
-func infraKindDef() map[string]any {
-	one := make([]any, 0, len(saga.InfrastructureKinds))
-	for _, k := range saga.InfrastructureKinds {
-		one = append(one, map[string]any{
-			"const":       k,
-			"description": "A Kubernetes cluster, audited against a CIS benchmark.",
-		})
-	}
-	return map[string]any{
-		"description": "The infrastructure surface to audit. `ref` names the concrete instance.",
-		"type":        "string",
-		"anyOf":       one,
-	}
-}
-
 // controlDefs builds one definition per control, naming the scanners that serve it and the
 // options each accepts.
 //
@@ -386,16 +362,6 @@ func Apply(schemaJSON []byte, reg *engine.Registry) ([]byte, error) {
 		return nil, fmt.Errorf("reachabilityConfig has no properties")
 	}
 	rchProps["analyzers"] = analyzersDef(reg)
-
-	infra, ok := defs["infrastructure"].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("schema has no infrastructure definition")
-	}
-	infraProps, ok := infra["properties"].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("infrastructure has no properties")
-	}
-	infraProps["kind"] = infraKindDef()
 
 	rc, ok := defs["reportConfig"].(map[string]any)
 	if !ok {

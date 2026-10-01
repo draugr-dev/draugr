@@ -361,7 +361,7 @@ func TestValidateRejectsUnusableControllerKeys(t *testing.T) {
 			t.Parallel()
 			m := &Model{
 				Release: Release{Version: "1.0"},
-				Config:  Config{Controls: map[string]ControllerSettings{"infrastructure": tc.settings}},
+				Config:  Config{Controls: map[string]ControllerSettings{"kubernetes": tc.settings}},
 			}
 			err := m.Validate()
 			if err == nil {
@@ -384,15 +384,15 @@ func TestValidateRejectsUnusableControllerKeys(t *testing.T) {
 // became three blocks. Untested, an empty map is indistinguishable from a dead one, and the day it
 // is needed is not the day to find out it stopped working.
 func TestRemovedControllerKeysExplainTheReplacement(t *testing.T) {
-	removedControllerKeys["infrastructure"] = map[string]string{
+	removedControllerKeys["kubernetes"] = map[string]string{
 		"mode": "per-scanner blocks: `kubeBenchJob: { enabled: true }`",
 	}
-	t.Cleanup(func() { delete(removedControllerKeys, "infrastructure") })
+	t.Cleanup(func() { delete(removedControllerKeys, "kubernetes") })
 
 	m := &Model{
 		Release: Release{Version: "1.0"},
 		Config: Config{Controls: map[string]ControllerSettings{
-			"infrastructure": {"mode": "job"},
+			"kubernetes": {"mode": "job"},
 		}},
 	}
 	err := m.Validate()
@@ -429,7 +429,7 @@ func TestValidateAcceptsCamelCaseControllerKeys(t *testing.T) {
 	m := &Model{
 		Release: Release{Version: "1.0"},
 		Config: Config{Controls: map[string]ControllerSettings{
-			"infrastructure": {"enabled": true, "kubeBenchJob": map[string]any{"enabled": true}},
+			"kubernetes": {"enabled": true, "kubeBenchJob": map[string]any{"enabled": true}},
 		}},
 	}
 	if err := m.Validate(); err != nil {

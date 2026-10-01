@@ -12,23 +12,23 @@ import (
 func k8sComponent(settings saga.ControllerSettings) *saga.Component {
 	c := &saga.Component{
 		Name: "platform",
-		Infrastructure: []saga.Infrastructure{
-			{Kind: "kubernetes", Ref: "prod"},
-			{Kind: "kubernetes", Ref: "staging"},
+		Kubernetes: []saga.KubernetesCluster{
+			{Ref: "prod"},
+			{Ref: "staging"},
 		},
 	}
 	if settings != nil {
-		c.Controls = map[string]saga.ControllerSettings{"infrastructure": settings}
+		c.Controls = map[string]saga.ControllerSettings{"kubernetes": settings}
 	}
 	return c
 }
 
-func TestInfrastructureInfo(t *testing.T) {
-	info := NewInfrastructure().Info()
-	if info.Name != "infrastructure" {
+func TestKubernetesInfo(t *testing.T) {
+	info := NewKubernetes().Info()
+	if info.Name != "kubernetes" {
 		t.Errorf("name = %q", info.Name)
 	}
-	// Component-scoped because `infrastructure:` is a component field in the Saga. What this
+	// Component-scoped because `kubernetes:` is a component field in the Saga: the clusters this
 	// component runs on.
 	if info.Scope != plugin.ScopeComponent {
 		t.Errorf("scope = %q, want component", info.Scope)
@@ -40,8 +40,8 @@ func TestInfrastructureInfo(t *testing.T) {
 	}
 }
 
-func TestInfrastructurePlanOneJobPerCluster(t *testing.T) {
-	jobs, err := Infrastructure{}.Plan(saga.Model{}, k8sComponent(nil))
+func TestKubernetesPlanOneJobPerCluster(t *testing.T) {
+	jobs, err := Kubernetes{}.Plan(saga.Model{}, k8sComponent(nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,24 +58,8 @@ func TestInfrastructurePlanOneJobPerCluster(t *testing.T) {
 	}
 }
 
-// A descriptor may name surfaces Draugr has no benchmark for. Skipping them beats refusing to
-// plan the ones it does understand, otherwise describing your estate honestly costs you scans.
-func TestInfrastructurePlanSkipsOtherPlatforms(t *testing.T) {
-	comp := &saga.Component{Infrastructure: []saga.Infrastructure{
-		{Kind: "aws", Ref: "prod-account"},
-		{Kind: "Kubernetes", Ref: "prod"}, // case-insensitive
-	}}
-	jobs, err := Infrastructure{}.Plan(saga.Model{}, comp)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(jobs) != 1 || jobs[0].Target.Identity() != "kubernetes/prod" {
-		t.Errorf("want only the kubernetes surface, got %+v", jobs)
-	}
-}
-
-func TestInfrastructurePlanNilComponent(t *testing.T) {
-	jobs, err := Infrastructure{}.Plan(saga.Model{}, nil)
+func TestKubernetesPlanNilComponent(t *testing.T) {
+	jobs, err := Kubernetes{}.Plan(saga.Model{}, nil)
 	if err != nil || jobs != nil {
 		t.Errorf("nil component should plan nothing, got %v, %v", jobs, err)
 	}
@@ -83,8 +67,8 @@ func TestInfrastructurePlanNilComponent(t *testing.T) {
 
 // Settings reach the scanner untouched. The control has no opinion about which CIS sections to
 // run beyond the default; it is the scanner that knows which of them travel.
-func TestInfrastructurePassesSettingsThrough(t *testing.T) {
-	jobs, err := Infrastructure{}.Plan(saga.Model{}, k8sComponent(saga.ControllerSettings{
+func TestKubernetesPassesSettingsThrough(t *testing.T) {
+	jobs, err := Kubernetes{}.Plan(saga.Model{}, k8sComponent(saga.ControllerSettings{
 		"benchmark": "cis-1.9",
 	}))
 	if err != nil {
@@ -97,11 +81,11 @@ func TestInfrastructurePassesSettingsThrough(t *testing.T) {
 
 // Project settings should apply to every component without being restated, and a component
 // should still be able to say something different.
-func TestInfrastructureMergesProjectAndComponentSettings(t *testing.T) {
+func TestKubernetesMergesProjectAndComponentSettings(t *testing.T) {
 	model := saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
-		"infrastructure": {"benchmark": "cis-1.9"},
+		"kubernetes": {"benchmark": "cis-1.9"},
 	}}}
-	jobs, err := Infrastructure{}.Plan(model, k8sComponent(saga.ControllerSettings{"targets": "policies"}))
+	jobs, err := Kubernetes{}.Plan(model, k8sComponent(saga.ControllerSettings{"targets": "policies"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,15 +97,15 @@ func TestInfrastructureMergesProjectAndComponentSettings(t *testing.T) {
 	}
 }
 
-func TestInfrastructureAggregate(t *testing.T) {
-	res, err := Infrastructure{}.Aggregate([]sarif.Report{{Results: []sarif.Result{
+func TestKubernetesAggregate(t *testing.T) {
+	res, err := Kubernetes{}.Aggregate([]sarif.Report{{Results: []sarif.Result{
 		{RuleID: "cis/5.1.1", Level: sarif.LevelError},
 		{RuleID: "cis/5.2.1", Level: sarif.LevelWarning},
 	}}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Control != "infrastructure" {
+	if res.Control != "kubernetes" {
 		t.Errorf("control = %q", res.Control)
 	}
 	if res.Summary.Errors != 1 || res.Summary.Warnings != 1 {
@@ -129,8 +113,8 @@ func TestInfrastructureAggregate(t *testing.T) {
 	}
 }
 
-func TestInfrastructureAggregateEmpty(t *testing.T) {
-	res, err := Infrastructure{}.Aggregate(nil)
+func TestKubernetesAggregateEmpty(t *testing.T) {
+	res, err := Kubernetes{}.Aggregate(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +131,7 @@ func TestPlanKeepsThePoliciesScannerWhenTheJobIsEnabled(t *testing.T) {
 	t.Parallel()
 
 	comp := k8sComponent(saga.ControllerSettings{"kubeBenchJob": map[string]any{"enabled": true}})
-	jobs, err := Infrastructure{}.Plan(saga.Model{}, comp)
+	jobs, err := Kubernetes{}.Plan(saga.Model{}, comp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +153,7 @@ func TestPlanKeepsThePoliciesScannerWhenTheJobIsEnabled(t *testing.T) {
 // Scanner blocks are keyed by a camelCase descriptor key, not by the scanner's own name, the two
 // differ for every hyphenated scanner. Getting this wrong is silent: the block matches nothing
 // and the scanner simply does not run.
-func TestInfrastructureScannerSelection(t *testing.T) {
+func TestKubernetesScannerSelection(t *testing.T) {
 	t.Parallel()
 
 	block := func(enabled bool) map[string]any { return map[string]any{"enabled": enabled} }
@@ -200,7 +184,7 @@ func TestInfrastructureScannerSelection(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			jobs, err := Infrastructure{}.Plan(saga.Model{}, k8sComponent(tc.settings))
+			jobs, err := Kubernetes{}.Plan(saga.Model{}, k8sComponent(tc.settings))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -236,9 +220,9 @@ func keysOf(m map[string]bool) []string {
 //
 // Enabling a control is the most ordinary thing a descriptor does, and `draugr survey` writes it
 // that way. So this is reachable from a generated descriptor, not only a hand-written one.
-func TestInfrastructureDoesNotPassTheControlsOwnKeysToAScanner(t *testing.T) {
+func TestKubernetesDoesNotPassTheControlsOwnKeysToAScanner(t *testing.T) {
 	model := saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
-		"infrastructure": {
+		"kubernetes": {
 			"enabled":           true,
 			"context":           "prod",
 			"draugrK8sPolicies": saga.ControllerSettings{"enabled": true},
@@ -247,9 +231,9 @@ func TestInfrastructureDoesNotPassTheControlsOwnKeysToAScanner(t *testing.T) {
 	}}}
 	comp := &saga.Component{
 		Name:           "cluster",
-		Infrastructure: []saga.Infrastructure{{Kind: "kubernetes", Ref: "prod"}},
+		Kubernetes: []saga.KubernetesCluster{{Ref: "prod"}},
 	}
-	jobs, err := Infrastructure{}.Plan(model, comp)
+	jobs, err := Kubernetes{}.Plan(model, comp)
 	if err != nil {
 		t.Fatal(err)
 	}

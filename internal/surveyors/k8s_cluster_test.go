@@ -29,13 +29,13 @@ func TestK8sClusterInfo(t *testing.T) {
 	if info.Name != "k8s-cluster" {
 		t.Errorf("name = %q", info.Name)
 	}
-	// Infrastructure, not images. The whole reason this is a separate surveyor.
-	if len(info.Provides) != 1 || info.Provides[0] != plugin.TargetInfra {
-		t.Errorf("provides = %v, want [infrastructure]", info.Provides)
+	// The cluster, not its images. The whole reason this is a separate surveyor.
+	if len(info.Provides) != 1 || info.Provides[0] != plugin.TargetKubernetes {
+		t.Errorf("provides = %v, want [kubernetes]", info.Provides)
 	}
 }
 
-func TestK8sClusterEmitsAnInfrastructureComponent(t *testing.T) {
+func TestK8sClusterEmitsAKubernetesComponent(t *testing.T) {
 	t.Parallel()
 
 	frag, err := clusterSurveyor(fake.NewSimpleClientset(), "prod-cluster").
@@ -52,8 +52,8 @@ func TestK8sClusterEmitsAnInfrastructureComponent(t *testing.T) {
 	if c.Name != "prod-cluster" {
 		t.Errorf("name = %q, want the context name", c.Name)
 	}
-	if len(c.Infrastructure) != 1 || c.Infrastructure[0].Kind != "kubernetes" || c.Infrastructure[0].Ref != "prod-cluster" {
-		t.Errorf("infrastructure = %+v", c.Infrastructure)
+	if len(c.Kubernetes) != 1 || c.Kubernetes[0].Ref != "prod-cluster" {
+		t.Errorf("kubernetes = %+v", c.Kubernetes)
 	}
 	if len(c.Images) != 0 || len(c.Repositories) != 0 {
 		t.Error("this surveyor describes the cluster, not what runs on it")
@@ -76,7 +76,7 @@ func TestK8sClusterWritesTheScopedNamespace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := frag.Components[0].Infrastructure[0].Namespaces
+	got := frag.Components[0].Kubernetes[0].Namespaces
 	if len(got) != 1 || got[0] != "team-a" {
 		t.Errorf("namespaces = %v, want [team-a]", got)
 	}
@@ -86,7 +86,7 @@ func TestK8sClusterWritesTheScopedNamespace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ns := unscoped.Components[0].Infrastructure[0].Namespaces; len(ns) != 0 {
+	if ns := unscoped.Components[0].Kubernetes[0].Namespaces; len(ns) != 0 {
 		t.Errorf("an unscoped survey owns the whole cluster, got namespaces %v", ns)
 	}
 }
@@ -117,7 +117,7 @@ func TestK8sClusterPrefersTheRequestedContext(t *testing.T) {
 		t.Fatal(err)
 	}
 	sagatest.FragmentAccepted(t, frag)
-	if ref := frag.Components[0].Infrastructure[0].Ref; ref != "staging" {
+	if ref := frag.Components[0].Kubernetes[0].Ref; ref != "staging" {
 		t.Errorf("ref = %q, want the requested context", ref)
 	}
 }

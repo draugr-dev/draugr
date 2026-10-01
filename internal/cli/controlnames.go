@@ -39,7 +39,9 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 			return
 		}
 		msg := fmt.Sprintf("%s: %q is not a control this build of Draugr provides", where, name)
-		if near := nearestName(name, known); near != "" {
+		if now, ok := saga.RenamedControls[name]; ok {
+			msg += fmt.Sprintf(", it is %q now", now)
+		} else if near := nearestName(name, known); near != "" {
 			msg += fmt.Sprintf(", did you mean %q?", near)
 		}
 		problems = append(problems, msg)

@@ -98,9 +98,8 @@ components:
           tokenEnv: DRAUGR_API_TOKEN            #   the variable holding it; there is no field
                                                 #   for the credential itself, because a
                                                 #   descriptor is committed
-    infrastructure:
-      - kind: kubernetes                        # required, the only surface Draugr audits today
-        ref: prod-cluster
+    kubernetes:
+      - ref: prod-cluster
         namespaces: [team-a, team-a-jobs]       # optional, the namespaces this component owns
         operatedBy: provider                    # optional, self (default) or provider
     controls:              # optional per-component overrides (same shape as config.controls)
@@ -173,8 +172,7 @@ would hide the half that is not, and those are usually the findings that matter.
 Whether a cluster is managed is a fact about a contract, not something a scanner can see in what
 it reads, which is why it is declared here alongside `exposure` and `criticality`.
 
-**Infrastructure namespaces:** `namespaces` narrows an infrastructure surface to the part of a
-cluster the component owns; omit it and the audit covers the whole cluster. Not every scanner can
+**Cluster namespaces:** `namespaces` narrows a cluster to the part the component owns; omit it and the audit covers the whole cluster. Not every scanner can
 honor it. `kube-bench` runs checks written as cluster-wide `kubectl` queries, and `kube-bench-job`
 reads a node's own filesystem, which has no namespace, so both always describe the whole cluster.
 Neither is run against a component that sets `namespaces`. The alternative would be a report that
@@ -183,8 +181,8 @@ planned, and the report says so, under **Not measured**, naming the scanner and 
 
 ```
 NOT MEASURED
-  infrastructure  kube-bench-job on team-a · audits the whole cluster and cannot be narrowed
-                  to namespace team-a
+  kubernetes  kube-bench-job on team-a · audits the whole cluster and cannot be narrowed to
+              namespace team-a
 ```
 
 Nothing has to be turned off by hand. To get both, node-level checks over the whole cluster, and API
@@ -193,14 +191,12 @@ checks scoped to what you own, declare the cluster twice:
 ```yaml
 components:
   - name: team-a
-    infrastructure:
-      - kind: kubernetes
-        ref: prod-cluster
+    kubernetes:
+      - ref: prod-cluster
         namespaces: [team-a]     # draugr-k8s-policies narrows to this
   - name: prod-cluster           # the same cluster, claimed whole
-    infrastructure:
-      - kind: kubernetes
-        ref: prod-cluster        # kube-bench and kubeBenchJob run here
+    kubernetes:
+      - ref: prod-cluster        # kube-bench and kubeBenchJob run here
 ```
 
 **Risk classification** (`exposure`, `criticality`), optional, and the two axes of risk
@@ -590,7 +586,7 @@ most, because it is what lets a descriptor outlive any particular tool.
 
 > Implemented today: **`images`** (Trivy), **`sca`** (Trivy fs), **`licenses`** (Trivy),
 > **`secrets`** (Gitleaks), **`sast`** (Semgrep; opt-in gosec), **`iac`** (Trivy config),
-> **`infrastructure`** (native CIS checks; opt-in kube-bench), **`headers`** (native HTTP-header
+> **`kubernetes`** (native CIS checks; opt-in kube-bench), **`headers`** (native HTTP-header
 > checks, including a graded CSP), **`dast`** (Nuclei), **`tls`** (native TLS/certificate
 > probe), and **`threats`** (abuse.ch URLhaus reputation. Needs a free key, and discloses your
 > hostnames to a third party). `sbom` ships as evidence under `config.sbom` rather than as a

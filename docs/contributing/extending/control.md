@@ -25,7 +25,7 @@ read and every suppression ambiguous.
 `internal/controllers/<control>.go`, implementing three methods.
 
 **`Info()`** returns `{Name, Scope}`. `ScopeComponent` unless the control is genuinely
-project-wide, as `infrastructure` is.
+project-wide.
 
 **`Plan(model, comp)`** returns one `plugin.ScanJob` per resource. This is where the
 one-job-per-repository rule lives:

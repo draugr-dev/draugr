@@ -41,7 +41,7 @@ three rows makes the repetitive work crowd out everything else.
 | `licenses`, when somebody else builds it | image or repository | review the licenses it carries |
 | `licenses`, in your own dependencies | package and license | replace the package or accept its license |
 | `iac` | rule | apply one fix across N files |
-| `infrastructure` | check | one cluster setting |
+| `kubernetes` | check | one cluster setting |
 
 Only where the fix genuinely is one fix. Twelve benchmark checks against one cluster are twelve
 things to change, and folding them together because they share a prefix would hide eleven of them.
@@ -94,9 +94,8 @@ the same argument that puts `exposure` and `criticality` in the descriptor.
 ### `operatedBy`. Who runs this infrastructure
 
 ```yaml
-infrastructure:
-  - kind: kubernetes
-    ref: prod-cluster
+kubernetes:
+  - ref: prod-cluster
     operatedBy: provider     # self (default), or provider
 ```
 

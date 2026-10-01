@@ -847,7 +847,7 @@ belong to:
 | Command | Discovers | Options |
 |---|---|---|
 | `draugr survey k8s images` | unique container images running in a cluster, with their digests | `--namespace`, `--no-exposure` |
-| `draugr survey k8s cluster` | the cluster itself, as an `infrastructure` component | `--namespace` |
+| `draugr survey k8s cluster` | the cluster itself, as a component's `kubernetes:` entry | `--namespace` |
 | `draugr survey github repos` | repositories in a GitHub organization | `--org` |
 | `draugr survey gitlab projects` | projects in a GitLab group, subgroups included | `--group` |
 | `draugr survey azure repos` | Git repositories in an Azure DevOps organization or project | `--org`, `--project` |
@@ -971,7 +971,7 @@ and the count alone would read as success.
 
 **The output is scannable as written.** Discovery enables the controls the surface it found can be
 checked with, repositories imply `sca`, `secrets`, `sast` and `iac`; images imply `images`; hosts
-imply `headers` and `tls`; infrastructure implies `infrastructure`. A descriptor that describes an
+imply `headers` and `tls`; clusters imply `kubernetes`. A descriptor that describes an
 application but enables nothing would report `PASS` on its first scan having checked nothing, which
 is not what "the descriptor writes itself" should mean.
 
@@ -1133,7 +1133,7 @@ missing or a target check fails**, so it gates CI: `draugr doctor saga.yaml && d
 
 **Without a Saga it is an inventory, not a verdict.** It lists every tool Draugr can use and which
 are present, and exits zero. Nothing has been selected, so nothing is required. Several entries are
-alternatives nobody needs by default: the `infrastructure` control's default scanner reads the
+alternatives nobody needs by default: the `kubernetes` control's default scanner reads the
 Kubernetes API directly and needs no binary, so `kube-bench` being absent is not a problem to solve.
 Pass a descriptor to ask the question that has an answer.
 

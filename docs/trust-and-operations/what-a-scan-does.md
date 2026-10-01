@@ -53,7 +53,7 @@ or `--allow-effects mutate` for a single run. A scanner whose effect has not bee
 the run *before* it does anything, and the refusal says what it would have done:
 
 ```
-infrastructure/platform/kube-bench-job: this scanner has effects that have not been accepted:
+kubernetes/platform/kube-bench-job: this scanner has effects that have not been accepted:
   mutate (creates a short-lived Job in the cluster and deletes it when the scan finishes);
   privilege (that Job runs with hostPID and mounts host paths read-only…)
 ```

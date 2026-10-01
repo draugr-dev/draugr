@@ -7,7 +7,7 @@ order: 100
 
 # Scanner: `kube-bench-job` (CIS benchmark, run inside the cluster)
 
-- **Control:** [`infrastructure`](../controllers/infrastructure.md)
+- **Control:** [`kubernetes`](../controllers/kubernetes.md)
 - **Tool:** Aqua **kube-bench**, as a container image, https://github.com/aquasecurity/kube-bench
 - **Status:** ✅ implemented (CIS sections 1–4)
 - **Target:** a Kubernetes cluster (`InfraTarget`)
@@ -44,7 +44,7 @@ unguarded while this one has to be accepted first:
 config:
   allowEffects: [mutate, privilege]
   controls:
-    infrastructure:
+    kubernetes:
       enabled: true
       kubeBenchJob:
         enabled: true
@@ -76,7 +76,7 @@ it.
 The sections this Job runs read a node's own filesystem, which has no namespace, so a namespace
 scope is not unimplemented here, it is meaningless. The findings always describe the whole cluster.
 
-A component that sets `namespaces` on its infrastructure entry therefore cannot be served by this
+A component that sets `namespaces` on its `kubernetes` entry therefore cannot be served by this
 scanner, so no Job is created for it and the report says so under **Not measured**. A scanner that
 quietly does not run reads exactly like one that ran and found nothing.
 
@@ -92,7 +92,7 @@ The `namespace` option below is unrelated: it is where the Job runs, not what it
 ```yaml
 config:
   controls:
-    infrastructure:
+    kubernetes:
       kubeBenchJob:
         enabled: true
         namespace: default              # where the Job is created
