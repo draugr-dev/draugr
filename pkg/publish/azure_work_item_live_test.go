@@ -48,6 +48,7 @@ type liveAzureItem struct {
 	Rev    int   `json:"rev"`
 	Fields struct {
 		Type        string          `json:"System.WorkItemType"`
+		Title       string          `json:"System.Title"`
 		State       string          `json:"System.State"`
 		Description string          `json:"System.Description"`
 		Tags        string          `json:"System.Tags"`
