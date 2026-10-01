@@ -178,3 +178,62 @@ func TestOnlyListedControlsAreOffered(t *testing.T) {
 		t.Errorf("sca options = %v, want none: a control says nothing in a fragment by default", got)
 	}
 }
+
+// Two components, so a refusal names the one that carries the block rather than the first one in
+// the file, and both spellings, because the older one decodes into its own field.
+func TestAFragmentComponentMayNotCarryControls(t *testing.T) {
+	t.Parallel()
+	off := map[string]ControllerSettings{"sast": {"gosec": map[string]any{"enabled": false}}}
+	cases := []struct {
+		name string
+		comp Component
+		want string
+	}{
+		{"controls", Component{Name: "api", Controls: off}, "component \"api\" sets `controls`"},
+		{"the older spelling", Component{Name: "api", Controllers: off}, "component \"api\" sets `controllers`"},
+		{"a component with no name", Component{Controls: off}, "components[1] sets `controls`"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			frag := Fragment{Components: []Component{{Name: "web"}, c.comp}}
+			err := validateFragmentComponents(frag.Components)
+			if len(err) != 1 {
+				t.Fatalf("errors = %v, want exactly one", err)
+			}
+			if !strings.Contains(err[0].Error(), c.want) {
+				t.Errorf("error = %q, want it to contain %q", err[0], c.want)
+			}
+		})
+	}
+}
+
+// Through LoadFragment, so the refusal is what a reader of `draugr validate` meets: the file, the
+// component, and the key.
+func TestALoadedFragmentWithComponentControlsIsRefused(t *testing.T) {
+	t.Parallel()
+	doc := []byte(`components:
+  - name: web
+    repositories:
+      - url: ../web
+  - name: api
+    controls:
+      sast:
+        gosec:
+          enabled: false
+    repositories:
+      - url: .
+`)
+	_, err := LoadFragment(doc, "components/api.saga-fragment.yaml")
+	if err == nil {
+		t.Fatal("accepted a fragment component carrying controls")
+	}
+	for _, want := range []string{"components/api.saga-fragment.yaml", "component \"api\" sets `controls`"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error = %q, want it to contain %q", err, want)
+		}
+	}
+	if strings.Contains(err.Error(), "\"web\"") {
+		t.Errorf("error = %q names a component that carries no controls", err)
+	}
+}

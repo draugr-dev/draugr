@@ -1176,6 +1176,90 @@
       "description": "How reachable this component is — the likelihood axis of risk prioritization.",
       "type": "string"
     },
+    "fragmentComponent": {
+      "additionalProperties": false,
+      "description": "One logical part of the app. All surface lists are optional — declare what applies.",
+      "properties": {
+        "builtBy": {
+          "anyOf": [
+            {
+              "const": "self",
+              "description": "You build this, so a finding in it is yours to fix in the code."
+            },
+            {
+              "const": "upstream",
+              "description": "Somebody else publishes this, so the fix is a newer version rather than a change here."
+            }
+          ],
+          "description": "Who publishes this component's targets, unless one of them says otherwise: \"self\" (the default) or \"upstream\". Set it once on a component that is entirely somebody else's software, instead of writing it on every repository and image — where a target added later silently defaults back to self.",
+          "type": "string"
+        },
+        "criticality": {
+          "$ref": "#/$defs/criticality"
+        },
+        "exposure": {
+          "$ref": "#/$defs/exposure"
+        },
+        "hosts": {
+          "description": "Running endpoints — probed by headers, tls, and dast.",
+          "items": {
+            "$ref": "#/$defs/host"
+          },
+          "type": "array"
+        },
+        "images": {
+          "description": "Container images — scanned by the images control.",
+          "items": {
+            "$ref": "#/$defs/image"
+          },
+          "type": "array"
+        },
+        "infrastructure": {
+          "description": "Infrastructure this component runs on.",
+          "items": {
+            "$ref": "#/$defs/infrastructure"
+          },
+          "type": "array"
+        },
+        "labels": {
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "description": "Free-form key/value metadata, e.g. team or tier.",
+          "type": "object"
+        },
+        "name": {
+          "description": "Unique component name.",
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "repositories": {
+          "description": "Source repositories — scanned by sca, secrets, and sast.",
+          "items": {
+            "$ref": "#/$defs/repository"
+          },
+          "type": "array"
+        },
+        "vex": {
+          "description": "Exploitability claims somebody else made about this component, read and applied to its findings. Scoped to the component so one supplier's assurance cannot reach another's findings.",
+          "items": {
+            "$ref": "#/$defs/vexSource"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
     "fragmentConfig": {
       "additionalProperties": false,
       "description": "The part of config a fragment may set.",
