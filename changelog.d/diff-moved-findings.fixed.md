@@ -1,1 +1,0 @@
-- **`draugr diff` reports a finding that changed component as moved**, rather than as fixed under the old component and new under the next. Splitting or renaming a component no longer fails a gate on new findings, and the diff lists each pair of components with the findings whose priority changed between them.

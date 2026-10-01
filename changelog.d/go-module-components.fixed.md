@@ -1,1 +1,0 @@
-- **gosec and govulncheck analyze a component whose `paths` hold part of a Go module.** Components in one module share a whole-module analysis, and each finding goes to the component whose `paths` hold its file. A finding in shared code that no component lists goes to each component naming the `go.mod`.

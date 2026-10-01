@@ -1,1 +1,0 @@
-- **A fragment that sets a component's `controls` is refused**, naming the file and the component. Component controls apply only from the descriptor, which is where `validate --resolved` and the scan both read them.
