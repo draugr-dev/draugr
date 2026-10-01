@@ -122,6 +122,13 @@ func headline(r Result, emoji bool) []string {
 		}
 		parts = append(parts, part)
 	}
+	if n := len(r.Moved); n > 0 {
+		part := fmt.Sprintf("%d moved", n)
+		if emoji {
+			part = "↪️ " + part
+		}
+		parts = append(parts, part)
+	}
 	return append(parts, fmt.Sprintf("%d unchanged", len(r.Unchanged)))
 }
 
@@ -243,17 +250,18 @@ func renderConsole(w io.Writer, r Result, opts Options) error {
 	writeGate(w, col, r)
 
 	entries := r.Changed()
-	if len(entries) == 0 {
-		_, _ = fmt.Fprintln(w, col.Paint(tui.StylePass, "Nothing changed. Every finding was already there."))
-		return nil
-	}
-
-	if opts.View == ViewActions {
+	switch {
+	case len(entries) == 0:
+		_, _ = fmt.Fprintln(w, col.Paint(tui.StylePass, nothingChanged(r)))
+	case opts.View == ViewActions:
 		writeDiffActions(w, col, entries, opts)
-	} else {
+	default:
 		writeChanged(w, col, r, entries, opts)
 	}
-	writeTry(w, col, r, opts, entries)
+	writeMoved(w, col, r, opts)
+	if len(entries) > 0 || len(r.Moved) > 0 {
+		writeTry(w, col, r, opts, entries)
+	}
 	return nil
 }
 
@@ -490,10 +498,15 @@ func writeTry(w io.Writer, col tui.Painter, r Result, opts Options, entries []En
 // --- markdown ---
 
 func renderMarkdown(w io.Writer, r Result, opts Options) error {
+	render := renderMarkdownTable
 	if opts.View == ViewActions {
-		return renderMarkdownActions(w, r, opts)
+		render = renderMarkdownActions
 	}
-	return renderMarkdownTable(w, r, opts)
+	if err := render(w, r, opts); err != nil {
+		return err
+	}
+	writeMarkdownMoved(w, r, opts)
+	return nil
 }
 
 // renderMarkdownActions is the comment for a pipeline that wants the work rather than the list.
@@ -508,7 +521,7 @@ func renderMarkdownActions(w io.Writer, r Result, opts Options) error {
 
 	entries := r.Changed()
 	if len(entries) == 0 {
-		_, _ = fmt.Fprintln(w, "Nothing changed. Every finding was already there.")
+		_, _ = fmt.Fprintln(w, nothingChanged(r))
 		return nil
 	}
 
@@ -605,7 +618,7 @@ func renderMarkdownTable(w io.Writer, r Result, opts Options) error {
 
 	entries := r.Changed()
 	if len(entries) == 0 {
-		_, _ = fmt.Fprintln(w, "Nothing changed. Every finding was already there.")
+		_, _ = fmt.Fprintln(w, nothingChanged(r))
 		return nil
 	}
 
@@ -675,11 +688,20 @@ type jsonDiff struct {
 	Summary jsonSummary    `json:"summary"`
 	New     []sarif.Result `json:"new"`
 	Fixed   []sarif.Result `json:"fixed"`
+	Moved   []jsonMove     `json:"moved"`
+}
+
+// jsonMove is a finding as head has it, with the component and band it had in base.
+type jsonMove struct {
+	Finding       sarif.Result `json:"finding"`
+	FromComponent string       `json:"fromComponent"`
+	FromPriority  string       `json:"fromPriority,omitempty"`
 }
 
 type jsonSummary struct {
 	New       int `json:"new"`
 	Fixed     int `json:"fixed"`
+	Moved     int `json:"moved"`
 	Unchanged int `json:"unchanged"`
 
 	NewBySeverity   SeverityCounts `json:"newBySeverity"`
@@ -691,12 +713,16 @@ type jsonSummary struct {
 func renderJSON(w io.Writer, r Result) error {
 	doc := jsonDiff{
 		Summary: jsonSummary{
-			New: len(r.New), Fixed: len(r.Fixed), Unchanged: len(r.Unchanged),
+			New: len(r.New), Fixed: len(r.Fixed), Moved: len(r.Moved), Unchanged: len(r.Unchanged),
 			NewBySeverity: countSeverities(r.New), FixedBySeverity: countSeverities(r.Fixed),
 			NewByPriority: countPriorities(r.New), FixedByPriority: countPriorities(r.Fixed),
 		},
 		New:   r.New,
 		Fixed: r.Fixed,
+		Moved: make([]jsonMove, 0, len(r.Moved)),
+	}
+	for _, m := range r.Moved {
+		doc.Moved = append(doc.Moved, jsonMove{Finding: m.Result, FromComponent: m.Was.Component, FromPriority: m.Was.Priority})
 	}
 	if doc.New == nil {
 		doc.New = []sarif.Result{}
@@ -751,6 +777,7 @@ func bandRows(r Result) []bandRow {
 		{string(ChangeNew), bands(r.New)},
 		{string(ChangeUnaccepted), bands(r.Unaccepted)},
 		{string(ChangeAccepted), bands(r.Accepted)},
+		{"moved", bands(movedResults(r.Moved))},
 		{"unchanged", bands(open)},
 		{"still accepted", bands(held)},
 	}

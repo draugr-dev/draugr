@@ -1188,6 +1188,7 @@ type DiffInput struct {
 type DiffOutput struct {
 	NewCount   int `json:"newCount" jsonschema:"findings present in head and absent from base"`
 	FixedCount int `json:"fixedCount" jsonschema:"findings present in base and absent from head"`
+	MovedCount int `json:"movedCount,omitempty" jsonschema:"findings in both scans under a different component, as splitting or renaming a component reports them; neither new nor fixed, and no gate reads them"`
 	// New is what the change introduced, most urgent first, carrying the same remediation and
 	// package detail a summary does.
 	New []Finding `json:"new,omitempty"`
@@ -1227,7 +1228,7 @@ func DiffReportsTool(_ context.Context, _ *mcp.CallToolRequest, in DiffInput) (*
 	res := diff.Compare(base, head)
 	rules := sarif.Report{Rules: res.Rules}
 
-	out := DiffOutput{NewCount: len(res.New), FixedCount: len(res.Fixed)}
+	out := DiffOutput{NewCount: len(res.New), FixedCount: len(res.Fixed), MovedCount: len(res.Moved)}
 	out.New = findingsFrom(rules, res.New, limit)
 	out.Fixed = findingsFrom(rules, res.Fixed, limit)
 

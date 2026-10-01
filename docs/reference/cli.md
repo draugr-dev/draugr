@@ -766,8 +766,8 @@ what was found rather than a catalog.
 
 ## `draugr diff <base.sarif> <head.sarif>`
 
-Compare two scans and classify every finding as **new**, **unaccepted**, **accepted**, **fixed** or
-**unchanged**, the security delta of a change, typically a PR's head vs its base branch. Inputs are
+Compare two scans and classify every finding as **new**, **unaccepted**, **accepted**, **fixed**,
+**moved** or **unchanged**, the security delta of a change, typically a PR's head vs its base branch. Inputs are
 the `results.sarif` files that [`draugr scan -o`](#draugr-scan-sagayaml--dir) writes, which are
 always complete regardless of `--min-priority`.
 
@@ -776,21 +776,25 @@ arrived already covered by one. **Unaccepted** is a finding whose exclusion was 
 its `expires` date, so it counts again. Nobody introduced it and nothing about it was ever fixed,
 which is why it is not called reopened. **Still accepted** is a finding suppressed in `base` and
 still suppressed in `head`. It counts toward the unchanged total and is never listed as a change.
+**Moved** is a finding with the same tool, rule, file, repository and suppression, reported under a
+different component, as splitting or renaming a component reports every finding it held. Moves are
+listed one row per pair of components, then a row for each finding whose priority changed with its
+component.
 
 Accepting a risk is not fixing it, and the two are counted apart for that reason: the first is a
 decision worth a reviewer's attention and the second is work somebody did.
 
 Everything the change touched is one table, ranked by priority, with what happened to each finding
 in its own column. Within a band, what needs somebody comes before what does not. Above it, one
-strip per state counts the findings in `head` by band: new, unaccepted, accepted, unchanged and
-still accepted. Each finding in `head` is in exactly one strip, and a strip with nothing in it is
+strip per state counts the findings in `head` by band: new, unaccepted, accepted, moved, unchanged
+and still accepted. Each finding in `head` is in exactly one strip, and a strip with nothing in it is
 not drawn. Fixed has none, because a fixed finding is not in `head`.
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--format` | `console` | output format: `console`, `json`, `markdown`, `sarif`. `sarif` emits the **new** findings only, for code scanning on a pull request |
 | `--view` | `findings` | console: how much of each row to show. `findings` adds the finding's own sentence under the row, `compact` is one line each, `actions` groups by the thing to do |
-| `--top` | `0` | console: how many findings to list, `0` being all of them. Zero by default because a diff is already only what one change did; the flag is for a dependency bump that introduces forty |
+| `--top` | `0` | console: how many findings to list, `0` being all of them. Caps the moved findings whose priority changed the same way. Zero by default because a diff is already only what one change did; the flag is for a dependency bump that introduces forty |
 | `--min-priority` |, | report only **new** findings at or above this priority band (`P1`–`P4`); fixed and unchanged are unaffected. Narrows the diff, never the scans it was computed from |
 | `--repository` |. | keep only **new** findings from this repository, plus those belonging to none (an image, a host). For a code-scanning upload, whose paths anchor to one checkout |
 | `--fail-on-new` |. | fail if a **new** finding is at or above this: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`) |
@@ -801,7 +805,8 @@ not drawn. Fixed has none, because a fixed finding is not in `head`.
 The gate reads **new** only. An accepted finding does not trip it, which is the point of accepting
 it, and an unaccepted one does not either: the gate exists to stop a change introducing something,
 and an acceptance ending is a decision to make again rather than a regression. Both are reported
-regardless, which is where somebody should see them.
+regardless, which is where somebody should see them. A moved finding does not trip it either,
+because it was in `base`.
 
 Where no gate is asked for, the report states no verdict. `draugr diff` without `--fail-on-new`
 compares and exits 0, and a verdict nobody asked for would be inventing one.

@@ -38,6 +38,14 @@ type Result struct {
 	// Named for the decision rather than for the finding. "Reopened" is issue-tracker vocabulary
 	// for something that was fixed and came back, and nothing here was ever fixed.
 	Unaccepted []sarif.Result
+	// Moved is a finding the head reports under a different component from the base, in the same
+	// repository, file, tool and rule, and in the same state: counting in both, or excused in both.
+	//
+	// A pull request that divides a repository into components differently changes every finding's
+	// component and nothing else. Reported as fixed under the old component and new under the
+	// other, each one would trip a gate on new findings. The gate does not read Moved, the same way
+	// it does not read Accepted.
+	Moved []Move
 	// Rules is what the scanners said about the rules these findings cite, carried over from the
 	// reports being compared.
 	//
@@ -53,6 +61,15 @@ type Result struct {
 	// Tripped is the new findings that met the gate. Empty where none did, and where no gate was
 	// asked for at all, which are different states the Gate itself tells apart.
 	Tripped []sarif.Result
+}
+
+// Move is a finding in a different component in the head from the one it had in the base: the
+// head's copy, with the base's beside it, so a row can name both components and both priorities.
+// A priority that changed with the component is the new component's classification, not a sign
+// the finding is new.
+type Move struct {
+	sarif.Result
+	Was sarif.Result
 }
 
 // HelpURI is where a reader can look up a rule: what the scanner published, or a URL derived from
@@ -79,6 +96,8 @@ func Compare(base, head sarif.Report) Result {
 			was, matched[b] = baseRes[b], true
 		}
 		switch {
+		case inBase && res.Component != was.Component && res.Suppressed() == was.Suppressed():
+			r.Moved = append(r.Moved, Move{Result: res, Was: was})
 		case res.Suppressed() && (!inBase || !was.Suppressed()):
 			// Excused in this change: either somebody wrote a rule for a finding that was counting, or a
 			// finding arrived that an existing rule already covers. Both are a decision to live with
@@ -109,6 +128,7 @@ func Compare(base, head sarif.Report) Result {
 	sortResults(r.Unchanged)
 	sortResults(r.Accepted)
 	sortResults(r.Unaccepted)
+	sortMoves(r.Moved)
 	// Head first, so a rule the change updated is described as it is now; base fills in whatever
 	// only the old scan saw, which is every fixed finding's rule.
 	r.Rules = map[string]sarif.Rule{}
@@ -142,10 +162,12 @@ func distinct(results []sarif.Result) []sarif.Result {
 
 // match pairs each head finding with the base finding it is, by index, one to one.
 //
-// Two passes, most specific first. The content fingerprint pairs a finding that moved; identity
-// then pairs one whose surrounding lines were edited, which changes the fingerprint and nothing
-// else. The passes are separate so that a finding matched loosely never takes the base finding
-// another one matched exactly.
+// Four passes, most specific first. The content fingerprint pairs a finding that moved within its
+// file; identity then pairs one whose surrounding lines were edited, which changes the fingerprint
+// and nothing else. The last two repeat both without the component, pairing a finding whose
+// component changed and nothing about it did. The passes are separate so that a finding matched
+// loosely never takes the base finding another one matched exactly, and a finding still in its own
+// component is never paired with a copy in another one.
 //
 // One to one is the point. Three instances in the head against two in the base leave one unpaired,
 // and that one is new. Within one identity, findings pair in line order, which is the order an
@@ -153,7 +175,7 @@ func distinct(results []sarif.Result) []sarif.Result {
 func match(base, head []sarif.Result) map[int]int {
 	pair := make(map[int]int, len(head))
 	used := make([]bool, len(base))
-	for _, key := range []func(sarif.Result) string{contentKey, identity} {
+	for _, key := range []func(sarif.Result) string{contentKey, identity, anyComponent(contentKey), anyComponent(identity)} {
 		pool := map[string][]int{}
 		for _, b := range byLine(base) {
 			if k := key(base[b]); k != "" && !used[b] {
@@ -215,6 +237,16 @@ func contentKey(r sarif.Result) string {
 	}, "\x00")
 }
 
+// anyComponent is key with the component left out, for pairing a finding whose component changed.
+// The key's own fields are otherwise kept, so the repository, the file, the tool and the rule still
+// have to agree.
+func anyComponent(key func(sarif.Result) string) func(sarif.Result) string {
+	return func(r sarif.Result) string {
+		r.Component = ""
+		return key(r)
+	}
+}
+
 // identity is a stable, line-insensitive key for cross-scan comparison. It deliberately
 // excludes the start line (line numbers drift as code moves, which would otherwise report an
 // unchanged finding as fixed+new) and the severity level (a re-scored finding is still the same
@@ -238,28 +270,35 @@ func identity(r sarif.Result) string {
 	}, "\x00")
 }
 
+// sortMoves orders moves the way sortResults orders findings, by the head copy.
+func sortMoves(ms []Move) {
+	sort.SliceStable(ms, func(i, j int) bool { return moreUrgent(ms[i].Result, ms[j].Result) })
+}
+
 // sortResults orders most-urgent first: by priority, then numeric score, then SARIF level, then
 // ruleID for a stable tie-break.
 func sortResults(rs []sarif.Result) {
-	sort.SliceStable(rs, func(i, j int) bool {
-		a, b := rs[i], rs[j]
-		if ra, rb := prioritization.Priority(a.Priority).Rank(), prioritization.Priority(b.Priority).Rank(); ra != rb {
-			return ra > rb
-		}
-		// Severity before the number behind it. The rating is the comparable thing; the score
-		// refines it where both have one, and a finding raised to critical by an exploitation
-		// catalog usually carries no score at all.
-		if sa, sb := a.Severity("").Rank(), b.Severity("").Rank(); sa != sb {
-			return sa > sb
-		}
-		if a.Score != b.Score {
-			return a.Score > b.Score
-		}
-		if a.Level.Rank() != b.Level.Rank() {
-			return a.Level.Rank() > b.Level.Rank()
-		}
-		return a.RuleID < b.RuleID
-	})
+	sort.SliceStable(rs, func(i, j int) bool { return moreUrgent(rs[i], rs[j]) })
+}
+
+// moreUrgent reports whether a sorts before b.
+func moreUrgent(a, b sarif.Result) bool {
+	if ra, rb := prioritization.Priority(a.Priority).Rank(), prioritization.Priority(b.Priority).Rank(); ra != rb {
+		return ra > rb
+	}
+	// Severity before the number behind it. The rating is the comparable thing; the score
+	// refines it where both have one, and a finding raised to critical by an exploitation
+	// catalog usually carries no score at all.
+	if sa, sb := a.Severity("").Rank(), b.Severity("").Rank(); sa != sb {
+		return sa > sb
+	}
+	if a.Score != b.Score {
+		return a.Score > b.Score
+	}
+	if a.Level.Rank() != b.Level.Rank() {
+		return a.Level.Rank() > b.Level.Rank()
+	}
+	return a.RuleID < b.RuleID
 }
 
 // SeverityCounts tallies findings by Draugr's normalized severity band.
@@ -500,6 +539,12 @@ func (r Result) Counted() Result {
 	out.Unchanged = counted(r.Unchanged)
 	out.Accepted = counted(r.Accepted)
 	out.Unaccepted = counted(r.Unaccepted)
+	out.Moved = nil
+	for _, m := range r.Moved {
+		if !m.Correlated() {
+			out.Moved = append(out.Moved, m)
+		}
+	}
 	return out
 }
 

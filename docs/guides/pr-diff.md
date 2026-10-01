@@ -8,7 +8,7 @@ order: 30
 # Gate PRs on new findings
 
 `draugr diff` compares two scans and classifies every finding as **new**, **unaccepted**,
-**accepted**, **fixed** or **unchanged**, the security delta of a change, typically a PR's head vs its base
+**accepted**, **fixed**, **moved** or **unchanged**, the security delta of a change, typically a PR's head vs its base
 branch. This lets you gate a PR only on the findings it *introduces*, not the pre-existing backlog,
 so the gate stays adoptable where a whole-backlog gate would block every PR.
 
@@ -54,6 +54,13 @@ The component and the repository are part of both keys. The same flaw in two com
 same file in two repositories, is two findings. A repository is compared by its identity rather
 than as written, so `https://…/api`, `https://…/api.git` and `git@…:api.git` are one repository.
 
+A finding matched by neither key is then tried against the other side with the component left out
+of both keys. A pair found this way is **moved**: the same tool, rule, file and repository, now
+reported under a different component, which is what splitting or renaming a component does to every
+finding it held. A pair whose suppression differs is not a move, because an exclusion that stopped
+covering the finding, or started to, is a decision to review; it is reported as unaccepted or
+accepted.
+
 The message is part of the identity key, which is why both sides have to come from the same
 Draugr: a release that rewords what a scanner reported changes the key for any finding without a
 content hash. See [do not pay for the base scan twice](#do-not-pay-for-the-base-scan-twice).
@@ -68,6 +75,7 @@ commit scanned as `head` against the original as `base`:
 | the file renamed | new and fixed | the file is part of both keys |
 | the credential removed | fixed | |
 | a second component scanning the same repository | new for the second component, unchanged for the first | the component is part of both keys |
+| the component split in two, `paths` dividing the repository | moved | the tool, rule, file and repository match under another component |
 
 A rename is the case to recognize, because nothing about the finding changed except where it
 lives:
@@ -172,6 +180,59 @@ _Gate: fails on any P1 this change introduces._
 `--view compact` is the same table one line each, and `--view actions` groups it into the things
 somebody would do. `--top` caps the listing, and is `0` by default because a diff is already only
 what one change did.
+
+### Moved findings
+
+A moved finding is one that changed component and nothing else. The gate does not read moved
+findings, as it does not read accepted ones, so a pull request that divides a repository into
+components passes a gate on new findings whatever backlog the repository carries.
+
+A move lists one row per pair of components, with how many findings moved and how their priorities
+changed. A finding whose priority changed is listed again on its own row, because the component it
+now belongs to declares a different exposure or criticality, and that declaration is the part of
+the pull request to check. Here one component, `shop`, is split into `api`, `checkout` and
+`storefront` with `paths`, and no code changes:
+
+```console
+$ draugr diff out-base/results.sarif out-head/results.sarif --fail-on-new P1
+DRAUGR DIFF  pass  45 moved  0 unchanged
+
+ moved  20 P1 24 P2 1 P3 0 P4
+
+Gate: fails on any P1 this change introduces.
+
+Nothing is new or fixed.
+
+MOVED  45
+  From  To          Findings  Priority
+  shop  api         32        unchanged
+  shop  checkout    6         4 P1 → P2
+  shop  storefront  7         2 P1 → P2
+
+PRIORITY CHANGED  6, by priority
+  Priority  Severity  Rule            Scanner  Component          Location
+  P1 → P2   high      CVE-2020-14040  trivy    shop → checkout    checkout/go.mod:5
+            possibility to trigger an infinite loop in encoding/unicode could lead to crash
+  P1 → P2   high      CVE-2021-38561  trivy    shop → checkout    checkout/go.mod:5
+            golang: out-of-bounds read in golang.org/x/text/language leads to DoS
+  P1 → P2   high      CVE-2022-32149  trivy    shop → checkout    checkout/go.mod:5
+            golang: golang.org/x/text/language: ParseAcceptLanguage takes a long time to parse complex tags
+  P1 → P2   high      CVE-2026-56852  trivy    shop → checkout    checkout/go.mod:5
+            Denial of Service via invalid UTF-8 input
+  P1 → P2   high      NSWG-ECO-328    trivy    shop → storefront  web/package-lock.json:12
+            Cross-Site Scripting (XSS)
+  P1 → P2   high      NSWG-ECO-329    trivy    shop → storefront  web/package-lock.json:12
+            XSS via improper selector detection
+
+TRY
+  --view compact     one line each, to see how much there is
+  --format markdown  the comment a pull request gets
+```
+
+`checkout` declares `exposure: internal`, so its findings rank lower than they did under `shop`,
+which declared `public`. `--top` caps the priority-changed rows; the pairs are always listed.
+`--format markdown` carries the same two tables under `### Moved` and `### Priority changed`, and
+`--format json` lists each move under `moved` with the component and priority it had in `base`.
 
 ### Where the base comes from
 
