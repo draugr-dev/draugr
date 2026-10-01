@@ -89,8 +89,48 @@ jobs:
       # job and no message naming the scope, which is what internal/ciguard exists to catch.
       issues: write
 
+  # The cross-compiled builds, compiled while the gates above run, so goreleaser starts from a warm
+  # Go build cache instead of compiling every target cold after them.
+  #
+  # The cache holds compiled packages, keyed by Go on their sources, the toolchain and the flags;
+  # linking, where the version is stamped, is left to goreleaser. Same commit, same toolchain, same
+  # .goreleaser.yaml and the same checkout path, so goreleaser finds every package it would compile.
+  # Read-only and without secrets, and the archive goes no further than this run.
+  #
+  # A run artifact rather than an actions/cache entry: the cache is several gigabytes, and one per
+  # release would evict the caches every pull request reads.
+  warm-build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.6"
+          check-latest: true
+          cache: false
+      - name: Compile every target
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          version: "~> v2"
+          args: build --snapshot --clean
+      - name: Pack the build cache
+        run: tar -C "$(go env GOCACHE)" -cf - . | zstd -T0 -q -o "$RUNNER_TEMP/gocache.tar.zst"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gocache
+          path: ${{ runner.temp }}/gocache.tar.zst
+          # Already compressed, and read once by the job below.
+          compression-level: 0
+          retention-days: 1
+
   goreleaser:
-    needs: [selfscan, integration]
+    needs: [selfscan, integration, warm-build]
     runs-on: ubuntu-latest
     permissions:
       contents: write # create the GitHub release and upload assets
@@ -109,6 +149,14 @@ jobs:
           # checked, not on whichever one setup-go resolved that morning.
           go-version: "1.26.6"
           check-latest: true
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: gocache
+          path: ${{ runner.temp }}
+      - name: Unpack the build cache
+        run: |
+          mkdir -p "$(go env GOCACHE)"
+          zstd -d -q -c "$RUNNER_TEMP/gocache.tar.zst" | tar -C "$(go env GOCACHE)" -xf -
       - name: Install syft (SBOM generation)
         uses: anchore/sbom-action/download-syft@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
       - name: Install cosign (signing)
