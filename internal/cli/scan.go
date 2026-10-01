@@ -261,8 +261,10 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// Not under --no-gate. Refusing a run because its gate cannot fire, on the flag that exists to
 	// stop the gate deciding anything, is the check arguing with the person who already answered
 	// it. `draugr diff` gating the pair either side of it is the ordinary case.
+	//
+	// To stderr, so a json or sarif report on stdout stays one document a pipeline can parse.
 	if !opts.noGate {
-		if err := reportUnreachableGate(w, model, failOnPriority); err != nil {
+		if err := reportUnreachableGate(os.Stderr, model, failOnPriority); err != nil {
 			return err
 		}
 	}
