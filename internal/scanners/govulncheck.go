@@ -31,14 +31,15 @@ const govulncheckScanner = "govulncheck"
 func NewGovulncheck() plugin.Scanner {
 	s := newRepoScannerPerModule(
 		plugin.ScannerInfo{
-			Name:         govulncheckScanner,
-			Origin:       "Go team",
-			Data:         govulncheckData,
-			Reachability: true,
-			Binary:       "govulncheck",
-			Controls:     []string{"sca"},
-			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},
-			ConfigSchema: json.RawMessage(noScannerOptions),
+			Name:           govulncheckScanner,
+			Origin:         "Go team",
+			Data:           govulncheckData,
+			Reachability:   true,
+			Binary:         "govulncheck",
+			Controls:       []string{"sca"},
+			TargetKinds:    []plugin.TargetKind{plugin.TargetRepository},
+			ConfigSchema:   json.RawMessage(noScannerOptions),
+			ModuleManifest: "go.mod",
 		},
 		govulncheckArgs,
 		parseGovulncheck,

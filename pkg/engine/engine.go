@@ -46,6 +46,9 @@ type Engine struct {
 	// resolveTree identifies the content of a scoped job's own subtree, so a job reading part of a
 	// repository is keyed on the part rather than on the whole. Nil falls back to the commit.
 	resolveTree func(ctx context.Context, url, commit string, paths []string) (string, error)
+	// resolveModules lists the module directories a scoped job has to analyze whole. Nil keeps every
+	// job's paths as written.
+	resolveModules ModuleResolver
 	// revisions memoizes that per run. A descriptor naming one repository from several components
 	// would otherwise ask the same question once per control.
 	revisions   map[string]string
@@ -157,6 +160,16 @@ func WithRevisionResolver(fn func(ctx context.Context, url, revision string) (st
 // takes a commit every few minutes, which is where the cache was going to matter most.
 func WithTreeResolver(fn func(ctx context.Context, url, commit string, paths []string) (string, error)) Option {
 	return func(e *Engine) { e.resolveTree = fn }
+}
+
+// WithModuleResolver supplies the module directories a scoped job has to analyze whole. See
+// ModuleResolver.
+//
+// Without one, a scanner that analyzes whole modules reads a component's paths as written, which
+// works for a component holding its own module and leaves nothing that compiles for one holding
+// part of a module.
+func WithModuleResolver(fn ModuleResolver) Option {
+	return func(e *Engine) { e.resolveModules = fn }
 }
 
 // WithWorkingTree scans repositories as they are on disk, uncommitted work included, instead of
@@ -345,6 +358,9 @@ type PlannedJob struct {
 	Criticality saga.Criticality
 	// Labels are what the component declares about itself, carried onto every finding it produces.
 	Labels map[string]string
+	// owner decides which of a module-wide analysis's findings are this job's, for a job widened
+	// to the modules its paths belong to. Nil for every other job. See widenToModules.
+	owner *moduleOwner
 }
 
 // Plan expands the model into scan jobs. Only registered controllers that are enabled
@@ -812,6 +828,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// here rather than in the controller because only the registry knows what a scanner can
 	// do, and the rule is about the scanner rather than about any one control.
 	planned, skipped := dropUnnarrowable(e.reg, planned)
+	planned = e.widenToModules(ctx, planned, model)
 
 	ctx, runSpan := tracer.Start(ctx, "engine.run",
 		trace.WithAttributes(attribute.Int("jobs", len(planned))))
@@ -1130,7 +1147,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			span.SetAttributes(attribute.Bool("cache.hit", res.cached), attribute.Bool("dedup", shared))
 			jobTook := time.Since(jobStart)
 			recordFindings(jobCtx, pj.Control, res.report)
-			report := e.stampJobFields(res.report, pj)
+			report := e.stampJobFields(pj.owner.attribute(res.report), pj)
 			mu.Lock()
 			stats.ByControl[pj.Control] += jobTook
 			if !res.cached {

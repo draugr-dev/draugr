@@ -303,6 +303,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		// and only when caching is on.
 		engine.WithRevisionResolver(git.ResolveRevision),
 		engine.WithTreeResolver(git.ResolveTree),
+		engine.WithModuleResolver(git.ModuleRoots),
 		// Name a local checkout by the repository it came from, so a scan here and a scan in a
 		// pipeline recognize each other as one source rather than two.
 		engine.WithRemoteResolver(func(path string) string {

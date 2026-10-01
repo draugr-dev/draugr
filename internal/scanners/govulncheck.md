@@ -40,13 +40,21 @@ only requires it is not lent that call path. Two components sharing a repository
 `paths:` or `ignore:`, each get the verdict for their own code. A module inside a `go.work` workspace is analyzed as
 the workspace builds it, which is the build `go build` in that directory produces.
 
+**Components carved out of one module** share one analysis of the whole module, as [Scoping a
+repository](../../docs/reference/saga-schema.md#scoping-a-repository) describes, and each keeps the
+call paths that start in its own files. govulncheck reports one call path per vulnerable function,
+so a component with none of its own is `unknown`: the path reported shows that another component
+calls the function and says nothing about whether this one does. The verdict stays with the
+component whose `paths` name the module's `go.mod`, and goes to any other component only with a call
+path from its files.
+
 ## The three verdicts, and why there are three
 
 | verdict | means |
 |---|---|
 | `reachable` | a call path was found, and is attached as evidence |
 | `unreachable` | the module was analyzed and no path was found |
-| `unknown` | no analysis covered it |
+| `unknown` | no analysis covered it, or the only call path found starts in another component's code |
 
 The third is the one that keeps the other two honest. A dependency used **only from `_test.go`
 files** produces no `govulncheck` output at all, not a module-level record, nothing, at every scan
