@@ -310,6 +310,7 @@ func fragmentFieldHint(err error) error {
 func (f Fragment) Validate() error {
 	var errs []error
 	errs = append(errs, validateComponents(f.Components)...)
+	errs = append(errs, validateFragmentComponents(f.Components)...)
 	errs = append(errs, validateExclusions(f.Config.Exclude, "config.exclude")...)
 	errs = append(errs, validateFragmentControls(f.Config.Controls)...)
 	errs = append(errs, validateFragmentRefs(f.Fragments, "fragments")...)

@@ -417,6 +417,9 @@ func Apply(schemaJSON []byte, reg *engine.Registry) ([]byte, error) {
 	}
 	defs["fragmentControls"] = fragmentControlsDef(reg)
 	fcProps["controls"] = map[string]any{"$ref": "#/$defs/fragmentControls"}
+	if err := addFragmentComponent(defs); err != nil {
+		return nil, err
+	}
 
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
@@ -478,6 +481,9 @@ func FragmentSchema(sagaJSON []byte) ([]byte, error) {
 			kept[name] = v
 		}
 	}
+	if err := pointAtFragmentComponents(kept); err != nil {
+		return nil, err
+	}
 	kept["config"] = map[string]any{"$ref": "#/$defs/fragmentConfig"}
 	doc["properties"] = kept
 
@@ -488,4 +494,50 @@ func FragmentSchema(sagaJSON []byte) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// addFragmentComponent writes a copy of the component definition without `controls` or its older
+// spelling `controllers`, which the loader refuses from a fragment. A component override can
+// switch a scanner off for that component, so it is policy, and an editor should say so before
+// `draugr validate` does.
+//
+// In the Saga schema's `$defs` beside fragmentControls rather than only in the fragment's, so the
+// strictness guards walk it once, from the one file both schemas share definitions with.
+func addFragmentComponent(defs map[string]any) error {
+	comp, ok := defs["component"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("schema has no component definition")
+	}
+	compProps, ok := comp["properties"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("component has no properties")
+	}
+	fragComp := make(map[string]any, len(comp))
+	for k, v := range comp {
+		fragComp[k] = v
+	}
+	fragProps := make(map[string]any, len(compProps))
+	for k, v := range compProps {
+		if k != "controls" && k != "controllers" {
+			fragProps[k] = v
+		}
+	}
+	fragComp["properties"] = fragProps
+	defs["fragmentComponent"] = fragComp
+	return nil
+}
+
+// pointAtFragmentComponents makes a fragment's `components` list hold fragmentComponent entries.
+func pointAtFragmentComponents(props map[string]any) error {
+	list, ok := props["components"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("schema has no components property")
+	}
+	fragList := make(map[string]any, len(list))
+	for k, v := range list {
+		fragList[k] = v
+	}
+	fragList["items"] = map[string]any{"$ref": "#/$defs/fragmentComponent"}
+	props["components"] = fragList
+	return nil
 }

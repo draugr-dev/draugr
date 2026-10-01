@@ -427,3 +427,23 @@ func assertStrict(t *testing.T, doc map[string]any) {
 		}
 	}
 }
+
+// A fragment's component is refused `controls` by the loader, so its schema must not offer the key
+// an editor would complete; the descriptor's component still does.
+func TestTheFragmentSchemaRefusesComponentControls(t *testing.T) {
+	for path, offered := range map[string]bool{schemaPath: true, fragmentSchemaPath: false} {
+		doc := readSchema(t, path)
+		items, _ := doc["properties"].(map[string]any)["components"].(map[string]any)["items"].(map[string]any)
+		ref, _ := items["$ref"].(string)
+		def := definitionFor(t, doc, strings.TrimPrefix(ref, "#/$defs/"))
+		props, _ := def["properties"].(map[string]any)
+		if def["additionalProperties"] != false {
+			t.Errorf("%s: %s accepts keys it does not list", path, ref)
+		}
+		for _, key := range []string{"controls", "controllers"} {
+			if _, has := props[key]; has != offered {
+				t.Errorf("%s: %s offers `%s` = %v, want %v", path, ref, key, has, offered)
+			}
+		}
+	}
+}

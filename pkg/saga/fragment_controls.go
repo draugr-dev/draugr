@@ -203,3 +203,31 @@ func AppendFragmentControls(into *FragmentConfig, from map[string]ControllerSett
 		}
 	}
 }
+
+// validateFragmentComponents refuses a component's own `controls:`, under either spelling.
+//
+// The same rule as `config.controls`, one level down: a component override can switch a scanner
+// off for that component, and that is a decision the descriptor makes where a reviewer sees it.
+// Refused rather than merged or dropped, because a block that loads and then does nothing is read
+// back by `validate --resolved` as a setting in force.
+func validateFragmentComponents(comps []Component) []error {
+	var errs []error
+	for i, c := range comps {
+		where := fmt.Sprintf("components[%d]", i)
+		if c.Name != "" {
+			where = fmt.Sprintf("component %q", c.Name)
+		}
+		if len(c.Controls) > 0 {
+			errs = append(errs, componentControlsRefused(where, "controls"))
+		}
+		if len(c.Controllers) > 0 {
+			errs = append(errs, componentControlsRefused(where, "controllers"))
+		}
+	}
+	return errs
+}
+
+func componentControlsRefused(where, key string) error {
+	return fmt.Errorf("%s sets `%s`, which a fragment may not carry; set them on the component in "+
+		"the descriptor that names the fragment, where a reviewer sees them", where, key)
+}

@@ -1881,7 +1881,8 @@ fragments:
 **A fragment adds scope, adds attributed suppressions, or contributes a setting that can only add
 findings. It cannot change policy.** It may carry `components`, `config.exclude`, further
 `fragments`, and the short list of control settings in the table below. Nothing else. `release`,
-`config.gate` and any other control setting are rejected, naming the rule. That is what makes a
+`config.gate`, a component's own `controls` and any other control setting are rejected, naming the
+rule. That is what makes a
 `fragments:` line safe to review: pulling a file in can never quietly lower your gate or switch a
 control off, and the worst it can do is add suppressions, which are individually attributed and
 counted in the report.
