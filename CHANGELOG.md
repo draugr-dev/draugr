@@ -12,6 +12,16 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.142.0] - 2026-10-01
+
+### Added
+
+- **A GitLab issue that stays open while the gate fails.** The `gitlab-issue` publisher takes the same `select`, `split`, `minPriority`, `label` and `labelBy` as `github-issue`, and creates each issue confidential, visible to project members only, unless `item.confidential: false` is set. `item.type` sets `issue`, `incident` or `task`. The token needs the Planner role, or Reporter for an incident; `CI_JOB_TOKEN` cannot write issues.
+
+- **An Azure Boards work item that stays open while the gate fails.** The `azure-work-item` publisher takes the same `select`, `split`, `minPriority`, `label` and `labelBy` as `github-issue`. `item` sets tags, the assignee, the area and iteration paths, the priority, the type and other fields by reference name. A work item closes to its type's Completed state.
+
+- **An issue per fix under the issue the gate opens.** With `children: actions`, the `github-issue`, `gitlab-issue` and `azure-work-item` publishers open a child item for each action, titled with its priority, and `children: controls` opens one per control. `maxChildren` caps how many stay open; the parent lists the rest. A child closes when its action leaves the report.
+
 ## [0.141.0] - 2026-09-29
 
 ### Added
@@ -6133,7 +6143,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.141.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.142.0...HEAD
+[0.142.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.142.0
 [0.141.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.141.0
 [0.140.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.140.0
 [0.139.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.139.0
