@@ -17,6 +17,10 @@ import (
 // when nothing asked it to.
 const needed = "steps.needed.outputs.run == 'true'"
 
+// requiredSuiteJobs are the integration jobs branch protection requires by name. Each one decides
+// for itself whether the diff needs it, so each is held to the rules below.
+var requiredSuiteJobs = []string{"integration", "sealed"}
+
 type integrationWorkflow struct {
 	On   map[string]any `yaml:"on"`
 	Jobs map[string]struct {
@@ -68,27 +72,55 @@ func TestIntegrationReportsOnEveryPullRequest(t *testing.T) {
 			"forever on a required check that will not run", trigger)
 	}
 
-	job, ok := workflow.Jobs["integration"]
-	if !ok {
-		t.Fatal("no integration job; branch protection requires it by name")
-	}
-	if job.If != "" {
-		t.Errorf("the integration job is conditional on %q, so it can be skipped, and a skipped "+
-			"required check blocks a pull request rather than failing it", job.If)
-	}
+	for _, name := range requiredSuiteJobs {
+		job, ok := workflow.Jobs[name]
+		if !ok {
+			t.Errorf("no %s job; branch protection requires it by name", name)
+			continue
+		}
+		if job.If != "" {
+			t.Errorf("the %s job is conditional on %q, so it can be skipped, and a skipped "+
+				"required check blocks a pull request rather than failing it", name, job.If)
+		}
 
-	// The suite provisions its own scanners, so a missing one is provisioning being wrong rather
-	// than the test being unrunnable. Without this the tests skip themselves and the job reports
-	// success for having run nothing.
-	strict := false
-	for _, step := range job.Steps {
-		if strings.Contains(step.Run, "go test -tags integration") {
-			strict = step.Env["DRAUGR_INTEGRATION_STRICT"] == "1"
+		// The suite provisions its own scanners, so a missing one is provisioning being wrong
+		// rather than the test being unrunnable. Without this the tests skip themselves and the
+		// job reports success for having run nothing.
+		strict := false
+		for _, step := range job.Steps {
+			if strings.Contains(step.Run, "go test -tags integration") {
+				strict = step.Env["DRAUGR_INTEGRATION_STRICT"] == "1"
+			}
+		}
+		if !strict {
+			t.Errorf("DRAUGR_INTEGRATION_STRICT is not set on the %s job's test step, so a "+
+				"scanner that failed to install leaves the tests skipping and the job green", name)
 		}
 	}
-	if !strict {
-		t.Error("DRAUGR_INTEGRATION_STRICT is not set on the test step, so a scanner that failed " +
-			"to install leaves the tests skipping and the job green")
+}
+
+// TestTheSealedScenariosRunInOneJob holds the split between the two required jobs.
+//
+// The kind job skips the sealed scenarios and the sealed job runs nothing else. If the skip stays
+// and the other job's filter drifts, the scenarios run nowhere and both jobs are green.
+func TestTheSealedScenariosRunInOneJob(t *testing.T) {
+	t.Parallel()
+	workflow := readIntegrationWorkflow(t)
+
+	for name, want := range map[string]string{
+		"integration": "-skip '^TestSealedScenarios$'",
+		"sealed":      "-run '^TestSealedScenarios$'",
+	} {
+		found := false
+		for _, step := range workflow.Jobs[name].Steps {
+			if strings.Contains(step.Run, "go test -tags integration") {
+				found = found || strings.Contains(step.Run, want)
+			}
+		}
+		if !found {
+			t.Errorf("the %s job's test step does not pass %s, so the sealed scenarios run in "+
+				"both jobs or in neither", name, want)
+		}
 	}
 }
 
@@ -99,7 +131,17 @@ func TestIntegrationReportsOnEveryPullRequest(t *testing.T) {
 // and which nothing else would report: the job is green either way, several minutes later.
 func TestEveryCostlyStepWaitsForTheDecision(t *testing.T) {
 	t.Parallel()
-	job := readIntegrationWorkflow(t).Jobs["integration"]
+	workflow := readIntegrationWorkflow(t)
+	for _, name := range requiredSuiteJobs {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			everyCostlyStepWaits(t, workflow, name)
+		})
+	}
+}
+
+func everyCostlyStepWaits(t *testing.T, workflow integrationWorkflow, name string) {
+	job := workflow.Jobs[name]
 
 	decided := -1
 	for i, step := range job.Steps {
