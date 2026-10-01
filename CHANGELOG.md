@@ -12,6 +12,12 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.142.1] - 2026-10-01
+
+### Fixed
+
+- **Each finding in an issue names the version that fixes it, whichever scanner reported it,** as `jinja2 2.10 → 2.10.1`. A sub-issue's first line names a fixed version only when its action has one, rather than every release behind a base image.
+
 ## [0.142.0] - 2026-10-01
 
 ### Added
@@ -6143,7 +6149,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.142.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.142.1...HEAD
+[0.142.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.142.1
 [0.142.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.142.0
 [0.141.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.141.0
 [0.140.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.140.0
