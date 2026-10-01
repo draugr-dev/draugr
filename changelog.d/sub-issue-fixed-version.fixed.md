@@ -1,1 +1,0 @@
-- **Each finding in an issue names the version that fixes it, whichever scanner reported it,** as `jinja2 2.10 → 2.10.1`. A sub-issue's first line names a fixed version only when its action has one, rather than every release behind a base image.
