@@ -12,9 +12,10 @@ name: Integration
 # and a real cluster rather than against fixtures, so it is the only place their failure is visible
 # before a release tag.
 #
-# The job always runs and always reports. What it decides first is whether it has anything to
-# judge: a pull request whose diff is nothing but prose, pictures and release notes reports in
-# seconds instead of spending several minutes on a kind cluster. scripts/integration-needed.sh
+# The pull request tier is two jobs, the kind cluster with the real scanners and the sealed
+# scenarios, both required. Each always runs and always reports. What it decides first is whether
+# it has anything to judge: a pull request whose diff is nothing but prose, pictures and release
+# notes reports in seconds instead of spending several minutes. scripts/integration-needed.sh
 # holds that decision, and it names what cannot reach the suite rather than what can, so anything
 # new runs by default and the list is only ever wrong about how long a pull request waits.
 #
@@ -76,7 +77,8 @@ jobs:
     name: Integration (kind + real scanners)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - &checkout-history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref }}
           # The whole history, because the step below diffs this branch against the commit it
@@ -86,7 +88,8 @@ jobs:
       # Whether this run has anything to judge. Only a pull request has a diff to narrow; a push, a
       # schedule, a dispatch and a release tag all run the suite, because the question they answer
       # is about a tree rather than about a change.
-      - name: Decide whether the diff needs the suite
+      - &decide
+        name: Decide whether the diff needs the suite
         id: needed
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
@@ -202,7 +205,49 @@ jobs:
         # internal/scanners carries the CIS catalog drift check, which needs the definitions
         # fetched above. It is listed explicitly because ./test/integration/... would not reach it,
         # and a drift guard that never runs is the failure it was written to prevent.
-        run: go test -tags integration -v -timeout 15m ./test/integration/... ./internal/scanners/...
+        #
+        # The sealed scenarios are the `sealed` job's.
+        run: >-
+          go test -tags integration -v -timeout 15m -skip '^TestSealedScenarios$'
+          ./test/integration/... ./internal/scanners/...
+
+  # The sealed scenarios, beside the kind job rather than inside it. They need no cluster, and they
+  # are CPU-bound: each one builds Go and runs the scanners in a container of its own, so running
+  # several at once on one runner makes each slower and saves nothing. A second runner brings its
+  # own CPUs, and the two jobs finish in about the time the longer one takes.
+  #
+  # Required, and decided the same way as the kind job: the job always runs and reports, and the
+  # shared step decides whether it does the work.
+  sealed:
+    name: Integration (sealed scenarios)
+    runs-on: ubuntu-latest
+    steps:
+      - *checkout-history
+      - *decide
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: steps.needed.outputs.run == 'true'
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+
+      - name: Build draugr
+        if: steps.needed.outputs.run == 'true'
+        run: make build
+
+      - name: Provision the scanners with draugr
+        if: steps.needed.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          ./bin/draugr tools install -y --all
+          echo "$HOME/.draugr/bin" >> "$GITHUB_PATH"
+
+      - name: Run the sealed scenarios
+        if: steps.needed.outputs.run == 'true'
+        env:
+          DRAUGR_BIN: ${{ github.workspace }}/bin/draugr
+          DRAUGR_INTEGRATION_STRICT: "1"
+        run: go test -tags integration -v -timeout 15m -run '^TestSealedScenarios$' ./test/integration/
 
   # The sealed scenarios and draugr-demo against today's advisory databases and real registries.
   #
@@ -507,7 +552,7 @@ jobs:
   # push, say) leaves its issue as it is, because not running says nothing about whether it is fixed.
   notify:
     name: A red suite on main raises an issue
-    needs: [integration, live, live-propose, airgapped, forges]
+    needs: [integration, sealed, live, live-propose, airgapped, forges]
     # Not on pull requests: the author is looking at the failing check already, and an issue would
     # be telling them what their own screen says.
     if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
@@ -537,6 +582,11 @@ jobs:
                 label: "integration-red",
                 title: "The integration suite is failing on main",
                 why: "**This suite is the only place several behaviors are checked against real tools, real registries and a real cluster rather than against fixtures.** Every pull request runs it and it is required to pass, so main going red means something reached it that the gate on each branch did not catch: a merge race, a nightly run against an upstream image that moved, or a registry answering differently than it did an hour ago.",
+              },
+              sealed: {
+                label: "sealed-red",
+                title: "The sealed scenarios are failing on main",
+                why: "**The sealed scenarios scan each fixture under test/integration/testdata/ecosystems in a container with no network, against advisory databases generated for them, and assert exact results.** Every pull request runs them and they are required to pass, so main going red means something reached main that the gate on each branch did not catch, usually a merge race between two changes that each passed alone.",
               },
               live: {
                 label: "live-tier-red",
