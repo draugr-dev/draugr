@@ -157,7 +157,8 @@ silences only the first, so a codebase using it passes `make gate` and fails the
 same line.
 
 Name the rule, and give a reason after `--`. A bare `#nosec` silences every gosec rule on that
-line, including one nobody has reviewed.
+line, including one nobody has reviewed. `scripts/check-gosec-suppressions.sh`, in `make gate` and
+CI, refuses `//nolint:gosec` and a `#nosec` without both.
 
 ### Writing the comment that explains a guard
 

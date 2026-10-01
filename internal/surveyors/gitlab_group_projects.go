@@ -151,7 +151,7 @@ func (g GitLabGroupProjects) getPage(ctx context.Context, group, token string, p
 	endpoint := fmt.Sprintf("%s/groups/%s/projects?include_subgroups=true&per_page=100&page=%d",
 		g.baseURL, url.PathEscape(group), page)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil) //nolint:gosec // group-derived API URL by design
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, 0, err
 	}

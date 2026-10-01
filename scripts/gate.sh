@@ -76,6 +76,9 @@ fi
 echo "▶ no-conflict-markers"
 ./scripts/check-no-conflict-markers.sh
 
+echo "▶ gosec-suppressions"
+./scripts/check-gosec-suppressions.sh
+
 echo "▶ doc-anchors"
 ./scripts/check-doc-anchors.py
 

@@ -57,7 +57,7 @@ func TestScanImageWithRealTrivy(t *testing.T) {
 		t.Fatalf("expected report.json to be written: %v", err)
 	}
 
-	data, err := os.ReadFile(sarifPath) //nolint:gosec // test-controlled temp path
+	data, err := os.ReadFile(sarifPath) // #nosec G304 -- test-controlled temp path
 	if err != nil {
 		t.Fatal(err)
 	}

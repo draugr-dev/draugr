@@ -94,6 +94,9 @@ jobs:
       - name: No unresolved conflict markers
         run: ./scripts/check-no-conflict-markers.sh
 
+      - name: gosec suppressions are #nosec, with a rule and a reason
+        run: ./scripts/check-gosec-suppressions.sh
+
       - name: Markdown heading links resolve
         run: ./scripts/check-doc-anchors.py
 

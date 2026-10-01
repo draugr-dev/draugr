@@ -28,7 +28,7 @@ var urlhausEndpoint = urlhausAPI
 // urlhausKeyEnv holds the abuse.ch Auth-Key. Free, and required: abuse.ch made authentication
 // mandatory, so this scanner cannot work without one and says so rather than failing at the
 // network.
-const urlhausKeyEnv = "URLHAUS_AUTH_KEY" //nolint:gosec // the name of a variable, not a credential
+const urlhausKeyEnv = "URLHAUS_AUTH_KEY"
 
 // urlhausScanner asks abuse.ch whether a component's own hosts are known to serve malware.
 //

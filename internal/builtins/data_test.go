@@ -79,7 +79,7 @@ func TestEveryToolDocSaysWhatItReads(t *testing.T) {
 	for _, s := range Registry().Scanners() {
 		info := s.Info()
 		path := filepath.Join(repoRoot, "internal/scanners", info.Name+".md")
-		body, err := os.ReadFile(path) //nolint:gosec // a path built from the registry, inside this repo
+		body, err := os.ReadFile(path) // #nosec G304 -- a path built from the registry, inside this repo
 		if err != nil {
 			continue // the colocated-docs test reports a missing file, and better
 		}
@@ -108,7 +108,7 @@ func TestEveryToolDocSaysWhatItReads(t *testing.T) {
 // for it concludes does not exist.
 func TestTheCatalogNamesEveryReportFormat(t *testing.T) {
 	path := filepath.Join(repoRoot, "docs/reference/catalog.md")
-	body, err := os.ReadFile(path) //nolint:gosec // a path inside this repository
+	body, err := os.ReadFile(path) // #nosec G304 -- a path inside this repository
 	if err != nil {
 		t.Fatal(err)
 	}

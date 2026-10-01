@@ -205,7 +205,7 @@ func verifySignature(ctx context.Context, client *http.Client, base string, chec
 }
 
 func get(ctx context.Context, client *http.Client, url string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil) //nolint:gosec // release URL derived from the pinned repo + version
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +293,7 @@ func replaceBinary(exe string, data []byte) error {
 		_ = tmp.Close()
 		return err
 	}
-	if err := tmp.Chmod(0o755); err != nil { //nolint:gosec // an executable must be executable
+	if err := tmp.Chmod(0o755); err != nil {
 		_ = tmp.Close()
 		return err
 	}

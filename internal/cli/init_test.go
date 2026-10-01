@@ -22,7 +22,7 @@ func TestRunInitWritesFileWithDetection(t *testing.T) {
 	if err := runInit(dir, initOptions{output: out}, &buf); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(out) //nolint:gosec // out is a test-controlled temp path
+	data, err := os.ReadFile(out) // #nosec G304 -- out is a test-controlled temp path
 	if err != nil {
 		t.Fatalf("expected %s written: %v", out, err)
 	}

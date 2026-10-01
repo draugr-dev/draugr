@@ -96,7 +96,7 @@ func stubCosign(t *testing.T, present bool, verifyErr error) {
 func withExe(t *testing.T) string {
 	t.Helper()
 	exe := filepath.Join(t.TempDir(), "draugr")
-	if err := os.WriteFile(exe, []byte("old"), 0o755); err != nil { //nolint:gosec // fixture
+	if err := os.WriteFile(exe, []byte("old"), 0o755); err != nil { // #nosec G306 -- fixture
 		t.Fatal(err)
 	}
 	orig := resolveExe
@@ -141,7 +141,7 @@ func TestUpdateReplacesBinary_SHAOnly(t *testing.T) {
 	if res.SignatureVerified || res.Note == "" {
 		t.Errorf("expected SHA-only with a note, got %+v", res)
 	}
-	if on, _ := os.ReadFile(exe); !bytes.Equal(on, newBin) { //nolint:gosec // temp path
+	if on, _ := os.ReadFile(exe); !bytes.Equal(on, newBin) { // #nosec G304 -- temp path
 		t.Errorf("binary not replaced: %q", on)
 	}
 }
@@ -166,7 +166,7 @@ func TestUpdateCosignFails(t *testing.T) {
 	if _, err := Update(context.Background(), Options{Version: "9.9.9"}); err == nil {
 		t.Fatal("expected error when cosign verification fails")
 	}
-	if on, _ := os.ReadFile(exe); string(on) != "old" { //nolint:gosec // temp path
+	if on, _ := os.ReadFile(exe); string(on) != "old" { // #nosec G304 -- temp path
 		t.Error("binary must not be replaced when signature verification fails")
 	}
 }
@@ -178,7 +178,7 @@ func TestUpdateChecksumMismatch(t *testing.T) {
 	if _, err := Update(context.Background(), Options{Version: "9.9.9"}); err == nil {
 		t.Fatal("expected a checksum verification error")
 	}
-	if on, _ := os.ReadFile(exe); string(on) != "old" { //nolint:gosec // temp path
+	if on, _ := os.ReadFile(exe); string(on) != "old" { // #nosec G304 -- temp path
 		t.Error("binary must not be replaced on checksum mismatch")
 	}
 }

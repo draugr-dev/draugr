@@ -183,7 +183,7 @@ func TestPublishersIgnoreMinPriority(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	got, err := os.ReadFile(filepath.Join(dir, "results.sarif")) //nolint:gosec // a fixed name under t.TempDir()
+	got, err := os.ReadFile(filepath.Join(dir, "results.sarif")) // #nosec G304 -- a fixed name under t.TempDir()
 	if err != nil {
 		t.Fatal(err)
 	}

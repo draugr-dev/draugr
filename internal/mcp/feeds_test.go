@@ -31,7 +31,7 @@ func seedFeed(t *testing.T, dir string, n feeds.Name, now time.Time, age time.Du
 	}
 	m := map[feeds.Name]feeds.Record{}
 	manifest := filepath.Join(dir, ".draugr-feeds.json")
-	if data, err := os.ReadFile(manifest); err == nil { //nolint:gosec // under the test's temp dir
+	if data, err := os.ReadFile(manifest); err == nil { // #nosec G304 -- under the test's temp dir
 		_ = json.Unmarshal(data, &m)
 	}
 	m[n] = feeds.Record{URL: feeds.URL(n), FetchedAt: now.Add(-age), SHA256: strings.Repeat("a", 64), Bytes: 2048}

@@ -102,7 +102,7 @@ func TestLocalCompressesEntries(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	//nolint:gosec // a path under the test's own temp dir
+	// #nosec G304 -- a path under the test's own temp dir
 	stored, err := os.ReadFile(filepath.Join(dir, "k"+entrySuffix))
 	if err != nil {
 		t.Fatal(err)

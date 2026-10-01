@@ -369,7 +369,7 @@ func tlsAddress(raw string) (addr, serverName string, err error) {
 func dialTLS(ctx context.Context, addr, serverName string, minVer, maxVer uint16) (tls.ConnectionState, error) {
 	d := &tls.Dialer{
 		NetDialer: &net.Dialer{Timeout: 10 * time.Second},
-		Config: &tls.Config{ //nolint:gosec // MinVersion is set per probe: we must attempt old versions to detect them
+		Config: &tls.Config{ // MinVersion is set per probe: we must attempt old versions to detect them
 			ServerName: serverName,
 			MinVersion: minVer,
 			MaxVersion: maxVer,

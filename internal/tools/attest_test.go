@@ -15,7 +15,7 @@ func installed(t *testing.T, binDir, tool, version string, body []byte) string {
 		t.Fatal(err)
 	}
 	path := filepath.Join(binDir, tool)
-	if err := os.WriteFile(path, body, 0o700); err != nil { //nolint:gosec // a fake binary in a temp dir
+	if err := os.WriteFile(path, body, 0o700); err != nil { // #nosec G306 -- a fake binary in a temp dir
 		t.Fatal(err)
 	}
 	sum, err := fileSHA256(path)
@@ -73,7 +73,7 @@ func TestAttestNoticesAChangedBinary(t *testing.T) {
 	// The hash check is what makes "attested" a claim about a file rather than about a path.
 	binDir := filepath.Join(t.TempDir(), "bin")
 	path := installed(t, binDir, "trivy", "0.69.3", []byte("original"))
-	if err := os.WriteFile(path, []byte("something else"), 0o700); err != nil { //nolint:gosec // temp dir
+	if err := os.WriteFile(path, []byte("something else"), 0o700); err != nil { // #nosec G306 -- temp dir
 		t.Fatal(err)
 	}
 
@@ -93,7 +93,7 @@ func TestAttestNoticesAnUnrecordedBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := filepath.Join(binDir, "trivy")
-	if err := os.WriteFile(path, []byte("x"), 0o700); err != nil { //nolint:gosec // temp dir
+	if err := os.WriteFile(path, []byte("x"), 0o700); err != nil { // #nosec G306 -- temp dir
 		t.Fatal(err)
 	}
 

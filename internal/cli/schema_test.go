@@ -38,7 +38,7 @@ func TestSchemaCommandWritesFile(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(out) //nolint:gosec // test reads a file under t.TempDir()
+	data, err := os.ReadFile(out) // #nosec G304 -- test reads a file under t.TempDir()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -813,7 +813,7 @@ func checksumsContain(checksums []byte, file, sha string) bool {
 }
 
 func download(ctx context.Context, client *http.Client, url string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil) //nolint:gosec // pinned manifest URL
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -900,7 +900,7 @@ func writeExecutable(dest string, data []byte) error {
 		_ = tmp.Close()
 		return err
 	}
-	if err := tmp.Chmod(0o755); err != nil { //nolint:gosec // scanner binaries must be executable
+	if err := tmp.Chmod(0o755); err != nil {
 		_ = tmp.Close()
 		return err
 	}
@@ -939,7 +939,7 @@ func manifestPath(destDir string) string { return filepath.Join(destDir, manifes
 
 func loadManifest(destDir string) map[string]installRecord {
 	out := map[string]installRecord{}
-	data, err := os.ReadFile(manifestPath(destDir)) //nolint:gosec // path is ours, under destDir
+	data, err := os.ReadFile(manifestPath(destDir))
 	if err != nil {
 		return out
 	}

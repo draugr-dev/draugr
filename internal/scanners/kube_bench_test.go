@@ -275,7 +275,6 @@ users:
 		t.Fatalf("env = %v, want a KUBECONFIG override", env)
 	}
 	// The written config selects the requested context, and the operator's own file is untouched.
-	//nolint:gosec // the path came from kubeContextEnv, which just created it under t.TempDir
 	written, err := os.ReadFile(strings.TrimPrefix(env[0], "KUBECONFIG="))
 	if err != nil {
 		t.Fatal(err)
@@ -283,7 +282,7 @@ users:
 	if !strings.Contains(string(written), "current-context: real") {
 		t.Errorf("the temporary kubeconfig should select the requested context:\n%s", written)
 	}
-	orig, _ := os.ReadFile(path) //nolint:gosec // a path this test wrote under t.TempDir
+	orig, _ := os.ReadFile(path) // #nosec G304 -- a path this test wrote under t.TempDir
 	if !strings.Contains(string(orig), "current-context: real") {
 		t.Error("the operator's own kubeconfig must not be modified")
 	}

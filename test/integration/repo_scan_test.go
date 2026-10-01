@@ -52,7 +52,7 @@ func TestZeroConfigRepoScanWithRealScanners(t *testing.T) {
 	}
 
 	// --- SARIF invariants ---
-	data, err := os.ReadFile(filepath.Join(out, "results.sarif")) //nolint:gosec // test temp path
+	data, err := os.ReadFile(filepath.Join(out, "results.sarif")) // #nosec G304 -- test temp path
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -96,7 +96,7 @@ func TestInstallSuccess(t *testing.T) {
 	if got.Path != binPath {
 		t.Errorf("Path = %q, want %q", got.Path, binPath)
 	}
-	on, err := os.ReadFile(binPath) //nolint:gosec // test reads a file it just wrote under t.TempDir()
+	on, err := os.ReadFile(binPath) // #nosec G304 -- test reads a file it just wrote under t.TempDir()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +131,7 @@ func TestInstallBareBinary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Install bare binary: %v", err)
 	}
-	on, err := os.ReadFile(filepath.Join(dest, "barebin")) //nolint:gosec // test temp path
+	on, err := os.ReadFile(filepath.Join(dest, "barebin")) // #nosec G304 -- test temp path
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,7 +266,7 @@ func TestInstallZipArchive(t *testing.T) {
 	if _, err := Install(context.Background(), "faketool", dest, srv.Client(), false); err != nil {
 		t.Fatalf("Install from zip: %v", err)
 	}
-	on, err := os.ReadFile(filepath.Join(dest, "faketool")) //nolint:gosec // test temp path
+	on, err := os.ReadFile(filepath.Join(dest, "faketool")) // #nosec G304 -- test temp path
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -448,7 +448,7 @@ func TestInstallReplacesModifiedBinary(t *testing.T) {
 	if got.AlreadyPresent {
 		t.Fatal("a modified binary must not count as already installed")
 	}
-	on, err := os.ReadFile(binPath) //nolint:gosec // test reads a file under t.TempDir()
+	on, err := os.ReadFile(binPath) // #nosec G304 -- test reads a file under t.TempDir()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -485,7 +485,7 @@ func TestInstallReinstallsWhenPinChanges(t *testing.T) {
 	if got.AlreadyPresent {
 		t.Fatal("a changed pin must reinstall")
 	}
-	on, _ := os.ReadFile(filepath.Join(dest, "faketool")) //nolint:gosec // test file under t.TempDir()
+	on, _ := os.ReadFile(filepath.Join(dest, "faketool")) // #nosec G304 -- test file under t.TempDir()
 	if string(on) != "v2" {
 		t.Errorf("installed content = %q, want the new build", on)
 	}
@@ -533,7 +533,7 @@ func TestExtractTreeWritesTheWholeSubtree(t *testing.T) {
 	if n != 3 {
 		t.Errorf("wrote %d files, want 3", n)
 	}
-	//nolint:gosec // dest is this test's own temp directory
+	// #nosec G304 -- dest is this test's own temp directory
 	if b, err := os.ReadFile(filepath.Join(dest, "cis-1.12", "master.yaml")); err != nil || string(b) != "master" {
 		t.Errorf("nested layout not preserved: %v %q", err, b)
 	}

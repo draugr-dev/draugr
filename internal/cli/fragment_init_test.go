@@ -21,7 +21,7 @@ func TestInitFragmentWritesAValidFragmentNamedAfterItsDirectory(t *testing.T) {
 	if err := runInit(comp, opts, &out); err != nil {
 		t.Fatalf("runInit: %v", err)
 	}
-	data, err := os.ReadFile(opts.output) //nolint:gosec // test-controlled path
+	data, err := os.ReadFile(opts.output)
 	if err != nil {
 		t.Fatal(err)
 	}
