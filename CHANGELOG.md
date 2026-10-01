@@ -16,13 +16,13 @@ _Nothing yet._
 
 ### Fixed
 
-- **`draugr diff` reports a finding that changed component as moved**, rather than as fixed under the old component and new under the next. Splitting or renaming a component no longer fails a gate on new findings, and the diff lists each pair of components with the findings whose priority changed between them.
+- **`draugr diff` reports a finding that changed component as moved**, rather than as fixed under the old component and new under the next. Splitting or renaming a component no longer fails a gate on new findings, and the diff lists each old and new component pair with the moved findings whose priority changed in the move.
 
-- **A fragment that sets a component's `controls` is refused**, naming the file and the component. Component controls apply only from the descriptor, which is where `validate --resolved` and the scan both read them.
+- **A fragment that sets a component's `controls` is refused**, naming the file and the component. A component's `controls` are set in the descriptor, where `validate --resolved` and the scan both read them.
 
 - **`draugr scan --format json` and `--format sarif` print one parseable document when a component cannot reach the gate's band.** The notice naming that component goes to stderr with the other notices.
 
-- **gosec and govulncheck analyze a component whose `paths` hold part of a Go module.** Components in one module share a whole-module analysis, and each finding goes to the component whose `paths` hold its file. A finding in shared code that no component lists goes to each component naming the `go.mod`.
+- **gosec and govulncheck analyze a component whose `paths` hold part of a Go module.** Components in one module share a whole-module analysis, and each finding goes to the component whose `paths` hold its file. A finding in code that no component's `paths` hold goes to every component whose `paths` include the module's `go.mod`.
 
 ## [0.142.1] - 2026-10-01
 
