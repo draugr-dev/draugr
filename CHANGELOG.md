@@ -12,6 +12,18 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.142.2] - 2026-10-01
+
+### Fixed
+
+- **`draugr diff` reports a finding that changed component as moved**, rather than as fixed under the old component and new under the next. Splitting or renaming a component no longer fails a gate on new findings, and the diff lists each pair of components with the findings whose priority changed between them.
+
+- **A fragment that sets a component's `controls` is refused**, naming the file and the component. Component controls apply only from the descriptor, which is where `validate --resolved` and the scan both read them.
+
+- **`draugr scan --format json` and `--format sarif` print one parseable document when a component cannot reach the gate's band.** The notice naming that component goes to stderr with the other notices.
+
+- **gosec and govulncheck analyze a component whose `paths` hold part of a Go module.** Components in one module share a whole-module analysis, and each finding goes to the component whose `paths` hold its file. A finding in shared code that no component lists goes to each component naming the `go.mod`.
+
 ## [0.142.1] - 2026-10-01
 
 ### Fixed
@@ -6149,7 +6161,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.142.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.142.2...HEAD
+[0.142.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.142.2
 [0.142.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.142.1
 [0.142.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.142.0
 [0.141.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.141.0
