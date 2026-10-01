@@ -32,7 +32,11 @@ type fakeIssue struct {
 	Type        string
 	PullRequest bool
 	Comments    []string
+	SubIssues   []int64 // the numbers of its sub-issues
 }
+
+// fakeIssueID is the id GitHub links a sub-issue by, which is not its number.
+func fakeIssueID(number int64) int64 { return 5000 + number }
 
 // fakeGitHub answers the issues, labels and milestones endpoints of one repository, acme/app, from
 // memory, and records every request it was sent.
@@ -177,9 +181,20 @@ func (f *fakeGitHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if b, ok := in["body"]; ok {
 				i.Body = str(b)
 			}
+			if t, ok := in["title"]; ok {
+				i.Title = str(t)
+			}
 			if s, ok := in["state"]; ok {
 				i.State, i.StateReason = str(s), str(in["state_reason"])
 			}
+		case len(parts) == 3 && parts[2] == "sub_issues" && r.Method == http.MethodPost:
+			id, _ := in["sub_issue_id"].(float64)
+			child := f.issues[int64(id)-fakeIssueID(0)]
+			if child == nil {
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				return
+			}
+			i.SubIssues = append(i.SubIssues, child.Number)
 		case len(parts) == 3 && parts[2] == "comments" && r.Method == http.MethodPost:
 			i.Comments = append(i.Comments, str(in["body"]))
 		case len(parts) == 3 && parts[2] == "labels" && r.Method == http.MethodPost:
@@ -248,7 +263,7 @@ func (f *fakeGitHub) wire(i *fakeIssue) map[string]any {
 	for _, a := range i.Assignees {
 		assignees = append(assignees, map[string]string{"login": a})
 	}
-	out := map[string]any{"number": i.Number, "body": i.Body, "labels": labels, "assignees": assignees}
+	out := map[string]any{"id": fakeIssueID(i.Number), "number": i.Number, "body": i.Body, "labels": labels, "assignees": assignees}
 	if i.Milestone != 0 {
 		out["milestone"] = map[string]any{"number": i.Milestone}
 	}

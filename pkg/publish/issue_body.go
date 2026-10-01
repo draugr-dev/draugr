@@ -32,6 +32,22 @@ type issueBody struct {
 	Run         issueRun
 	ClosesOn    []string
 	MinPriority string
+	// Lead opens the Actions section of a parent whose actions do not all have a child.
+	Lead string
+	// Child is set on a child's body, and replaces the verdict with the child's own line.
+	Child *childHead
+}
+
+// childHead is what a child's body opens with: its priority, control, findings and gate, and for
+// a child per action, the action itself.
+type childHead struct {
+	Priority string
+	Control  string
+	Clears   int
+	// Gate is the band the child's control is judged against.
+	Gate string
+	// Action is set on a child per action, whose findings the body tables directly.
+	Action *report.Action
 }
 
 // issueGate is the threshold the part is judged against: the gate's own, and each covered
@@ -221,6 +237,9 @@ func htmlCode(s string) string { return "<code>" + html.EscapeString(flatten(s))
 // the last, lose their findings tables first; if the list alone is still over, the last actions
 // are left out and a line says how many and where the full list is.
 func (b issueBody) render(f issueFormat, budget int) string {
+	if b.Child != nil && b.Child.Action != nil {
+		return b.renderAction(f, budget)
+	}
 	head := b.head(f)
 	tail := b.tail(f)
 	full := make([]string, len(b.Actions))
@@ -237,8 +256,11 @@ func (b issueBody) render(f issueFormat, budget int) string {
 	assemble := func() []string {
 		listed := shown[:len(shown)-omitted]
 		blocks := append([]string(nil), head...)
-		if len(listed) > 0 {
+		if len(listed) > 0 || b.Lead != "" {
 			blocks = append(blocks, f.heading("Actions"))
+		}
+		if b.Lead != "" {
+			blocks = append(blocks, f.para(b.Lead))
 		}
 		blocks = append(blocks, listed...)
 		if n := stripped - omitted; n == 1 {
@@ -253,14 +275,7 @@ func (b issueBody) render(f issueFormat, budget int) string {
 		}
 		return append(blocks, tail...)
 	}
-	size := func() int {
-		blocks := assemble()
-		n := (len(blocks) - 1) * utf8.RuneCountInString(f.separator())
-		for _, s := range blocks {
-			n += utf8.RuneCountInString(s)
-		}
-		return n
-	}
+	size := func() int { return joinedSize(f, assemble()) }
 	for i := len(shown) - 1; i >= 0 && size() > budget; i-- {
 		shown[i] = short[i]
 		stripped++
@@ -271,9 +286,77 @@ func (b issueBody) render(f issueFormat, budget int) string {
 	return strings.Join(assemble(), f.separator())
 }
 
-// head is the marker, the verdict, the failing controls and any errors.
+// joinedSize is the length of blocks joined by the format's separator, in characters.
+func joinedSize(f issueFormat, blocks []string) int {
+	n := (len(blocks) - 1) * utf8.RuneCountInString(f.separator())
+	for _, s := range blocks {
+		n += utf8.RuneCountInString(s)
+	}
+	return n
+}
+
+// renderAction writes a child per action: its line, the scanner's description, and its findings
+// table, cut to the budget from the least urgent finding, which is the last.
+func (b issueBody) renderAction(f issueFormat, budget int) string {
+	a := *b.Child.Action
+	head := b.head(f)
+	tail := b.tail(f)
+	rows := make([][]string, len(a.Findings))
+	for i, af := range a.Findings {
+		rows[i] = findingRow(f, af)
+	}
+	shown := len(rows)
+	same := 0
+	if a.OneChange && shown > oneChangeRows {
+		same = shown - oneChangeRows
+		shown = oneChangeRows
+	}
+	cut := 0
+	assemble := func() []string {
+		blocks := append([]string(nil), head...)
+		if a.Summary != "" {
+			blocks = append(blocks, "<p>"+htmlText(a.Summary)+"</p>")
+		}
+		if n := shown - cut; n > 0 {
+			blocks = append(blocks, f.heading("Findings"), f.table([]string{"Priority", "Finding", "Where"}, rows[:n]))
+		}
+		if same > 0 {
+			blocks = append(blocks, f.para(fmt.Sprintf("And %d more, cleared by the same action.", same)))
+		}
+		if cut > 0 {
+			blocks = append(blocks, f.para(fmt.Sprintf("And %d more, left out for size, listed in %s.", cut, b.runRef(f))))
+		}
+		return append(blocks, tail...)
+	}
+	for cut < shown && joinedSize(f, assemble()) > budget {
+		cut++
+	}
+	return strings.Join(assemble(), f.separator())
+}
+
+// head is the marker, the verdict, the failing controls and any errors. A child's is the marker,
+// its priority for the next run to compare, and its own line.
 func (b issueBody) head(f issueFormat) []string {
 	blocks := []string{b.Marker}
+	if c := b.Child; c != nil {
+		line := []string{}
+		if c.Priority != "" {
+			blocks = append(blocks, priorityPrefix+c.Priority+" -->")
+			line = append(line, f.bold(c.Priority))
+		}
+		if c.Control != "" {
+			line = append(line, f.code(c.Control, false))
+		}
+		line = append(line, english.Count(c.Clears, "finding"), "gate "+c.Gate)
+		if c.Action != nil && len(c.Action.FixedVersions) > 0 {
+			fixed := make([]string, len(c.Action.FixedVersions))
+			for i, v := range c.Action.FixedVersions {
+				fixed[i] = f.code(v, false)
+			}
+			line = append(line, "fixed in "+strings.Join(fixed, ", "))
+		}
+		return append(blocks, f.para(strings.Join(line, " · ")))
+	}
 
 	verdict := []string{f.bold(failingPhrase(b.Failing))}
 	gate := "gate " + b.Gate.Default
@@ -346,6 +429,12 @@ func (b issueBody) tail(f issueFormat) []string {
 	closes := "Closes itself when the gate passes on " + b.branches(f)
 	if b.MinPriority != "" {
 		closes += " or no finding at or above " + b.MinPriority + " fails it"
+	}
+	switch {
+	case b.Child != nil && b.Child.Action != nil:
+		closes += ", or when a run no longer reports this action"
+	case b.Child != nil:
+		closes += ", or when a run no longer reports an action for this control"
 	}
 	return append(blocks, f.rule(), f.para(closes+"."))
 }

@@ -493,6 +493,7 @@ The rules below are written for `actions`; [Per control](#per-control) gives wha
 | fails | reported | one | rewrite the body **only if it changed**; rewrite the title only if the priority changed |
 | fails | no longer reported | one | comment that the run no longer reports it, then close |
 | passes | any | any | close every open child, then the parent |
+| fails | reported | one, its parent closed | comment naming the new parent, then close; the new parent gets a child of its own |
 | any | any | one of another kind | comment that `children` changed, then close |
 
 A title is otherwise left alone, so a person who renames a child keeps the name until its
@@ -512,8 +513,8 @@ that control's actions. Everything above applies with a control in place of an a
   no split item carries.
 - **Title.** The highest priority of the control's actions, ` · `, then the control's name, such as
   `P1 · images`. It is rewritten only when that priority changes.
-- **Body.** The control's highest priority, its name and the number of its findings that fail the
-  gate, then its actions as the **Actions** section draws them, in fix order and under
+- **Body.** The control's highest priority, its name and the number of findings its actions clear,
+  then its actions as the **Actions** section draws them, in fix order and under
   [Size](#size), then the run, how to accept, and when it closes. Its body is rewritten as its
   actions change, and it closes when the control has no action left in the item.
 - **Actions without a child.** The parent's **Actions** section lists the actions of every control
@@ -637,7 +638,8 @@ Each error names the fix.
   ([issue links](https://docs.gitlab.com/api/issue_links/)):
   `workItemUpdate` with `hierarchyWidget { parentId }`
   ([GraphQL](https://docs.gitlab.com/api/graphql/reference/)). Tasks are on every tier
-  ([tasks](https://docs.gitlab.com/user/tasks/)). A fine-grained token's *Work Item: Update* covers
+  ([tasks](https://docs.gitlab.com/user/tasks/)). A task has no children, so `item.type: task` with
+  `children` is refused by validation. A fine-grained token's *Work Item: Update* covers
   the mutation ([GraphQL permissions](https://docs.gitlab.com/auth/tokens/fine_grained_access_tokens_graphql/)).
 - **Token:** `CI_JOB_TOKEN` cannot write issues or notes, and fine-grained job tokens offer only
   `READ_WORK_ITEMS` ([job token](https://docs.gitlab.com/ci/jobs/ci_job_token/)). The token is
@@ -679,7 +681,8 @@ Each error names the fix.
   Requirement in CMMI, Issue in Basic;
   [requirements](https://learn.microsoft.com/en-us/azure/devops/cross-service/manage-requirements))
   and each child the Task category's. Both come from `workitemtypecategories`, because a process can
-  rename or disable a type.
+  rename or disable a type. `item.type` and `item.fields` describe the parent, so a child takes
+  neither: a field required on the parent's type may not exist on the Task's.
 - **Children:** the create carries a `/relations/-` entry of `System.LinkTypes.Hierarchy-Reverse`
   pointing at the parent, so a child is never written without one. A work item holds at most 1,000
   links ([object limits](https://learn.microsoft.com/en-us/azure/devops/organizations/settings/work/object-limits)).

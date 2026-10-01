@@ -29,12 +29,16 @@ type issueSelection struct {
 }
 
 // issueEntry is what shapes one entry's items: its selection, how it splits, the lowest band that
-// opens an item, and the branches its closing line names.
+// opens an item, the branches its closing line names, and the children each item has.
 type issueEntry struct {
 	Select      issueSelection
 	Split       string
 	MinPriority string
 	ClosesOn    []string
+	// Children is `actions` or `controls`, and empty for an item with none.
+	Children string
+	// MaxChildren is the most children an item has open.
+	MaxChildren int
 }
 
 // issueError is one thing that stopped a control completing.

@@ -316,6 +316,28 @@ func (p *pacing) affords(wait time.Duration) bool {
 	return p.waited+wait <= p.budget
 }
 
+// room reports whether the budget covers this many more writes at the write gap, after any delay
+// already announced.
+func (p *pacing) room(writes int) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	wait := max(p.notBefore.Sub(p.now()), 0) + time.Duration(writes)*p.writeGap
+	return p.waited+wait <= p.budget
+}
+
+// clientAffords reports whether a client's budget covers this many more writes. A client that is
+// not paced has no budget, and always does.
+func clientAffords(c *http.Client, writes int) bool {
+	if c == nil {
+		return true
+	}
+	rt, ok := c.Transport.(*retryTransport)
+	if !ok || rt.pace == nil {
+		return true
+	}
+	return rt.pace.room(writes)
+}
+
 // hold delays the next request by wait.
 func (p *pacing) hold(wait time.Duration) {
 	p.mu.Lock()

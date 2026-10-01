@@ -709,6 +709,8 @@ config:
         labels: { team: payments }
       split: component               # none (default) | control | component
       minPriority: P2
+      children: actions              # none (default) | actions | controls
+      maxChildren: 20                # 100 when unset
       label: draugr                  # the default
       labelBy: [priority, control]   # [priority] when unset; [] keeps none
       branches: [main, "release/*"]  # the default branch when unset
@@ -724,19 +726,21 @@ config:
 | `select` | the whole run | the findings and errors this entry's issues cover. `components`, `labels` and `controls` mean what `--components`, `--labels` and `--controls` mean. A list matches any of its values, every label must match, and the keys together must all match. |
 | `split` | `none` | `control` or `component`: one issue per control or per component within what `select` covers. An issue closes when its own part passes. |
 | `minPriority` | every band | `P1` to `P4`. An issue opens only while it holds a failing finding at or above this band, and its body lists only those. The body's count of failing findings stays complete. |
+| `children` | `none` | `actions` or `controls`: each issue becomes a parent with a child per action, or per control holding that control's actions. `controls` is refused with `split: control`. |
+| `maxChildren` | `100` | `1` to `100`. The most children open under one parent; the actions without one are listed in the parent. Set only with `children`. |
 | `label` | `draugr` | the label that finds this entry's issues, applied to each. Created when it does not exist. A comma is refused, and on Azure DevOps a semicolon. |
 | `labelBy` | `[priority]` | the facts kept on each issue as labels, from `priority`, `control`, `exposure`, `criticality` and `incomplete`. `[]` keeps none. |
 | `branches` | the default branch | branch names or globs, `*` matching any characters. A run on any other branch changes nothing. |
 | `item.labels` | none | labels applied beside `label` when an issue is created. A later run adds back one that was removed. |
 | `item.assignees` | none | logins on GitHub, or usernames of project members on GitLab, assigned when an issue is created. |
 | `item.milestone` | none | a milestone's title, open or closed, set when an issue is created. |
-| `item.type` | none | set when an issue is created: on GitHub an issue type the organization defines, on GitLab `issue`, `incident` or `task`, where `incident` needs the Reporter role, and on Azure DevOps a work item type, the Task category's default when unset. |
+| `item.type` | none | set when an issue is created: on GitHub an issue type the organization defines, on GitLab `issue`, `incident` or `task`, where `incident` needs the Reporter role and `task` is refused with `children`, and on Azure DevOps a work item type, the Task category's default when unset, or the Requirement category's for a parent. A child takes no type on GitHub, is a task on GitLab and the Task category's default on Azure DevOps. |
 | `item.confidential` | `true` | whether a new issue is visible only to project members. `gitlab-issue` only. |
 | `item.tags` | none | tags applied beside `label` when a work item is created. A later run adds back one that was removed. `azure-work-item` only. |
 | `item.assignedTo` | none | an email address, or a display name the organization resolves to one person. `azure-work-item` only. |
 | `item.areaPath`, `item.iterationPath` | the project's defaults | where a new work item is placed, as in `Payments\Platform`. `azure-work-item` only. |
 | `item.priority` | the process default | `1` to `4`. `azure-work-item` only. |
-| `item.fields` | none | other fields set on a new work item, by reference name. A field the publisher writes, or one another `item` key sets, is refused. `azure-work-item` only. |
+| `item.fields` | none | other fields set on a new work item, by reference name, and never on a child. A field the publisher writes, or one another `item` key sets, is refused. `azure-work-item` only. |
 
 Each fact in `labelBy` is a label named `draugr:<fact>:<value>`:
 
@@ -756,8 +760,18 @@ The title names what tells an issue apart, then the project: the split part, the
 run's `--components`, `--labels` or `--controls`, as in `sca fails the Draugr gate · team=payments ·
 shop`. An issue with none of them is `shop fails the Draugr gate`.
 
+With `children`, a child's title is its priority, then the action's title or the control's name, as
+in `P1 · Upgrade jinja2 2.10`, and its body is the action's findings or the control's actions. The
+parent opens with how many actions have a child, then lists the actions that have none. Children are
+created highest priority first, up to `maxChildren` open under one parent and within the run's [wait
+budget](../guides/reports-and-publishers.md#when-a-forge-is-having-a-bad-minute); the next run
+creates the rest. A child closes when the run no longer reports its action or control, when the
+parent's part passes, or when `children` changes. A child is a sub-issue on GitHub, which needs
+GitHub.com or GitHub Enterprise Server 3.18 or later, a task given its parent through the GraphQL
+API on GitLab, and a child work item on Azure DevOps.
+
 After an issue is created it belongs to whoever triages it: a reassignment, a moved milestone or an
-edited title survives the next run. Each issue carries a hidden marker naming the project, the run's
+edited title survives the next run, and a child's edited title survives until its priority changes. Each issue carries a hidden marker naming the project, the run's
 scope, `select` and the split part, and a run acts only on the issues whose marker matches it, so a
 run narrowed with `--controls` never closes an issue a full run opened. The descriptor must set
 `project`.

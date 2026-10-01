@@ -28,7 +28,11 @@ type glIssue struct {
 	Type         string
 	Confidential bool
 	Notes        []string
+	Parent       int64 // the iid of the issue it is a child of
 }
+
+// glWorkItemID is the id GitLab's GraphQL API names an issue by, which is not its iid.
+func glWorkItemID(iid int64) int64 { return 7000 + iid }
 
 type glMember struct {
 	ID       int64
@@ -58,6 +62,9 @@ type fakeGitLab struct {
 	planner bool
 	// refuse answers every request whose "METHOD path" starts with the key with the status.
 	refuse map[string]int
+	// graphqlErrors and workItemErrors are the errors a GraphQL mutation answers with, at the top
+	// level and in the mutation's own result.
+	graphqlErrors, workItemErrors []string
 }
 
 const glProject = "/api/v4/projects/acme%2Fapp/"
@@ -126,6 +133,10 @@ func (f *fakeGitLab) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if r.URL.Path == "/api/graphql" {
+		f.graphql(w, r)
+		return
+	}
 	rest, ok := strings.CutPrefix(r.URL.EscapedPath(), glProject)
 	if !ok {
 		http.NotFound(w, r)
@@ -189,6 +200,9 @@ func (f *fakeGitLab) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if b, ok := in["description"]; ok {
 				i.Body = str(b)
 			}
+			if t, ok := in["title"]; ok {
+				i.Title = str(t)
+			}
 			if str(in["state_event"]) == "close" {
 				i.State = "closed"
 			}
@@ -232,6 +246,39 @@ func (f *fakeGitLab) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// graphql answers the one mutation the publisher sends, which sets a work item's parent.
+func (f *fakeGitLab) graphql(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Query     string            `json:"query"`
+		Variables map[string]string `json:"variables"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&in)
+	f.bodies = append(f.bodies, map[string]any{"query": in.Query})
+	if len(f.graphqlErrors) > 0 {
+		var errs []map[string]string
+		for _, e := range f.graphqlErrors {
+			errs = append(errs, map[string]string{"message": e})
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"workItemUpdate": nil}, "errors": errs})
+		return
+	}
+	iid := func(gid string) int64 {
+		n, _ := strconv.ParseInt(strings.TrimPrefix(gid, "gid://gitlab/WorkItem/"), 10, 64)
+		return n - glWorkItemID(0)
+	}
+	child, parent := f.issues[iid(in.Variables["id"])], f.issues[iid(in.Variables["parent"])]
+	errs := append([]string{}, f.workItemErrors...)
+	switch {
+	case !strings.Contains(in.Query, "hierarchyWidget"):
+		errs = append(errs, "unexpected query")
+	case child == nil || parent == nil:
+		errs = append(errs, "no such work item")
+	case len(errs) == 0:
+		child.Parent = parent.IID
+	}
+	_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"workItemUpdate": map[string]any{"errors": errs}}})
+}
+
 // page writes one page of a list, with the X-Next-Page header GitLab sends when there is another.
 func (f *fakeGitLab) page(w http.ResponseWriter, r *http.Request, total int, item func(int) any) {
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
@@ -253,7 +300,7 @@ func (f *fakeGitLab) wire(i *glIssue) map[string]any {
 	for _, a := range i.Assignees {
 		assignees = append(assignees, map[string]string{"username": a})
 	}
-	out := map[string]any{"iid": i.IID, "description": i.Body, "labels": i.Labels, "assignees": assignees,
+	out := map[string]any{"id": glWorkItemID(i.IID), "iid": i.IID, "description": i.Body, "labels": i.Labels, "assignees": assignees,
 		"issue_type": i.Type, "confidential": i.Confidential}
 	if i.Milestone != 0 {
 		out["milestone"] = map[string]any{"id": i.Milestone}

@@ -25,13 +25,16 @@ var issueKinds = map[string]bool{
 }
 
 // IssueKind reports whether kind keeps a tracking item, and so reads `label`, `branches`,
-// `select`, `split`, `minPriority` and `item`.
+// `select`, `split`, `minPriority`, `children`, `maxChildren` and `item`.
 func IssueKind(kind string) bool { return issueKinds[kind] }
 
 // trackedItem is an open item carrying the tracking label.
 type trackedItem struct {
 	// Number is what the forge calls the item by in its own references, #12 on GitHub.
 	Number int64
+	// ID is what the forge links a child to its parent by, which on GitHub and GitLab is not the
+	// number. Set on an item create returns.
+	ID     int64
 	Body   string
 	Labels []string
 }
@@ -46,9 +49,14 @@ type issueTracker interface {
 	// open lists the open items that carry the tracking label, oldest first.
 	open(ctx context.Context) ([]trackedItem, error)
 	// create opens an item carrying the tracking label, the configured labels and facts, the
-	// labels labelBy keeps.
-	create(ctx context.Context, title, body string, facts []string) error
+	// labels labelBy keeps, as a child of parent when parent is set.
+	create(ctx context.Context, title, body string, facts []string, parent *trackedItem) (trackedItem, error)
 	rewrite(ctx context.Context, number int64, body string) error
+	retitle(ctx context.Context, number int64, title string) error
+	// affords reports whether the run's budget covers this many more writes.
+	affords(writes int) bool
+	// childWrites is how many writes creating one child takes.
+	childWrites() int
 	// syncLabels adds back the configured labels an item no longer carries, and makes its fact
 	// labels exactly facts.
 	syncLabels(ctx context.Context, item trackedItem, facts []string) error
@@ -69,7 +77,10 @@ const (
 
 // entryOf is the part of a publisher's configuration that decides what its items cover.
 func entryOf(cfg saga.PublisherConfig) issueEntry {
-	e := issueEntry{MinPriority: cfg.MinPriority, ClosesOn: cfg.Branches}
+	e := issueEntry{MinPriority: cfg.MinPriority, ClosesOn: cfg.Branches, MaxChildren: cfg.ChildLimit()}
+	if cfg.Children != saga.ChildrenNone {
+		e.Children = cfg.Children
+	}
 	if cfg.Split != saga.SplitNone {
 		e.Split = cfg.Split
 	}
@@ -140,31 +151,58 @@ func trackIssues(ctx context.Context, t issueTracker, data report.Data, cfg saga
 	}
 
 	entry := entryOf(cfg)
-	scope := scopeKey(data.Requested)
+	s := &tracking{t: t, data: data, cfg: cfg, entry: entry, project: project, scope: scopeKey(data.Requested)}
 	items, err := t.open(ctx)
 	if err != nil {
 		return err
 	}
-	byMarker := map[string][]trackedItem{}
+	// A child's marker is its parent's with one field more, so both are filed under the marker of
+	// the part they track.
+	parents := map[string][]trackedItem{}
+	kids := map[string][]trackedItem{}
 	for _, it := range items {
-		if m := markerLine(it.Body); m != "" {
-			byMarker[m] = append(byMarker[m], it)
+		m := markerLine(it.Body)
+		if m == "" {
+			continue
+		}
+		if parent, field := splitMarker(m); field != "" {
+			kids[parent] = append(kids[parent], it)
+		} else {
+			parents[m] = append(parents[m], it)
 		}
 	}
 
 	f := t.format()
 	var errs []error
 	current := map[string]bool{}
-	for _, part := range issueParts(data, entry) {
-		marker := issueMarker(project, scope, entry, part)
-		current[marker] = true
-		mine := byMarker[marker]
-		var err error
+	parts := issueParts(data, entry)
+	failing := 0
+	for _, part := range parts {
 		if part.Fails {
-			err = keepOpen(ctx, t, mine, issueTitle(project, data.Requested, entry, part),
-				newIssueBody(data, scope, entry, part).render(f, t.budget()), factLabels(cfg.LabelBy.Facts(), part))
-		} else {
-			err = closeAll(ctx, t, mine, closedPassing, passedText(f, data, entry, part))
+			failing++
+		}
+	}
+	for _, part := range parts {
+		marker := issueMarker(project, s.scope, entry, part)
+		current[marker] = true
+		mine, children := parents[marker], kids[marker]
+		var err error
+		switch {
+		case part.Fails && entry.Children != childrenNone:
+			failing--
+			// Each parent still to be written may need one write of its own.
+			err = s.keepFamily(ctx, part, family{marker: marker, parents: mine, kids: children}, 1+failing)
+		case part.Fails:
+			failing--
+			if err = closeAll(ctx, t, children, closedUntracked, childrenChangedText(f, entry.Children)); err == nil {
+				err = keepOpen(ctx, t, mine, issueTitle(project, data.Requested, entry, part),
+					newIssueBody(data, s.scope, entry, part).render(f, t.budget()), factLabels(cfg.LabelBy.Facts(), part))
+			}
+		default:
+			text := passedText(f, data, entry, part)
+			if err = closeAll(ctx, t, children, closedPassing, text); err == nil {
+				err = closeAll(ctx, t, mine, closedPassing, text)
+			}
 		}
 		if err != nil {
 			errs = append(errs, err)
@@ -172,28 +210,41 @@ func trackIssues(ctx context.Context, t issueTracker, data report.Data, cfg saga
 	}
 
 	// A split item whose part has left the run: a control no longer run, or a component no longer
-	// declared. Nothing would ever close it otherwise.
+	// declared. Nothing would ever close it otherwise. Its children close first.
 	if entry.Split != splitNone {
-		prefix := strings.TrimSuffix(issueMarker(project, scope, entry, issuePart{}), " -->") + " " + entry.Split + "="
-		for marker, mine := range byMarker {
-			if current[marker] || !strings.HasPrefix(marker, prefix) {
-				continue
-			}
-			value := strings.TrimSuffix(strings.TrimPrefix(marker, prefix), " -->")
-			text := fmt.Sprintf("The run no longer includes %s %s.", entry.Split, f.code(unescapeMarker(value), false))
-			if err := closeAll(ctx, t, mine, closedUntracked, text); err != nil {
-				errs = append(errs, err)
+		prefix := strings.TrimSuffix(issueMarker(project, s.scope, entry, issuePart{}), " -->") + " " + entry.Split + "="
+		for _, group := range []map[string][]trackedItem{kids, parents} {
+			for _, marker := range sortedKeys(group) {
+				if current[marker] || !strings.HasPrefix(marker, prefix) {
+					continue
+				}
+				value := strings.TrimSuffix(strings.TrimPrefix(marker, prefix), " -->")
+				text := fmt.Sprintf("The run no longer includes %s %s.", entry.Split, f.code(unescapeMarker(value), false))
+				if err := closeAll(ctx, t, group[marker], closedUntracked, text); err != nil {
+					errs = append(errs, err)
+				}
 			}
 		}
 	}
 	return errors.Join(errs...)
 }
 
+// tracking is one entry's run of trackIssues: the forge, the run, and what the entry's markers are
+// built from.
+type tracking struct {
+	t              issueTracker
+	data           report.Data
+	cfg            saga.PublisherConfig
+	entry          issueEntry
+	project, scope string
+}
+
 // keepOpen leaves one open item holding body and carrying facts: the oldest when there are several,
 // a new one when there are none.
 func keepOpen(ctx context.Context, t issueTracker, items []trackedItem, title, body string, facts []string) error {
 	if len(items) == 0 {
-		return t.create(ctx, title, body, facts)
+		_, err := t.create(ctx, title, body, facts, nil)
+		return err
 	}
 	keep := items[0]
 	if err := closeAll(ctx, t, items[1:], closedDuplicate, "Duplicate of "+t.ref(keep.Number)+"."); err != nil {
