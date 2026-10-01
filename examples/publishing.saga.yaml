@@ -107,6 +107,8 @@ config:
       minPriority: P2               # only a P1 or P2 finding opens an issue, and the body lists only those
       label: draugr-images          # finds this entry's issues and is applied to each; draugr when unset
       labelBy: [priority, exposure] # kept as labels on every run, draugr:priority:P1 and draugr:exposure:public
+      children: actions             # none | actions | controls: each issue becomes a parent with a sub-issue per action
+      maxChildren: 20               # the most sub-issues open under one issue; the other actions stay in its body
       # branches: [main, "release/*"]   # the branches whose runs change an issue; the default branch when unset
       item:                         # set when an issue is created, then left to whoever triages it
         labels: [security]
@@ -138,7 +140,8 @@ config:
         areaPath: Payments\Platform # this and iterationPath: the project's defaults when unset
         iterationPath: Payments\Sprint 12
         priority: 1                 # 1 highest to 4 lowest
-        # type: Bug                 # the default type of the Task category when unset
+        # type: Bug                 # the default type of the Task category when unset, of the
+                                    # Requirement category with children
         fields:                     # any other field on the type, by reference name
           Microsoft.VSTS.Common.Activity: Development
 

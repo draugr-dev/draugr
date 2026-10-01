@@ -1911,6 +1911,24 @@
           },
           "type": "array"
         },
+        "children": {
+          "anyOf": [
+            {
+              "const": "none",
+              "description": "One issue listing every action."
+            },
+            {
+              "const": "actions",
+              "description": "A parent issue with a child per action."
+            },
+            {
+              "const": "controls",
+              "description": "A parent issue with a child per control."
+            }
+          ],
+          "description": "github-issue, gitlab-issue, azure-work-item: one issue, or a parent with a child per action or per control. Defaults to none.",
+          "type": "string"
+        },
         "commit": {
           "description": "github: commit SHA. Defaults to $GITHUB_SHA.",
           "type": "string"
@@ -2011,6 +2029,12 @@
         "marker": {
           "description": "github-pr-comment / azure-pr-comment / gitlab-mr-comment: hidden marker identifying the sticky comment to update.",
           "type": "string"
+        },
+        "maxChildren": {
+          "description": "github-issue, gitlab-issue, azure-work-item: the most children each parent has open, with children: actions or controls. Defaults to 100.",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
         },
         "minPriority": {
           "anyOf": [

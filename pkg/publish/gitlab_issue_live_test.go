@@ -44,7 +44,9 @@ type liveGitLab struct {
 }
 
 type liveGitLabIssue struct {
+	ID           int64    `json:"id"`
 	IID          int64    `json:"iid"`
+	Title        string   `json:"title"`
 	State        string   `json:"state"`
 	Description  string   `json:"description"`
 	UpdatedAt    string   `json:"updated_at"`

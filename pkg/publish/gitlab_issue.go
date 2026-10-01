@@ -87,11 +87,16 @@ func (gitlabIssuePublisher) format() issueFormat { return markdownFormat{} }
 func (gitlabIssuePublisher) budget() int         { return gitlabIssueBudget }
 func (gitlabIssuePublisher) ref(n int64) string  { return "#" + strconv.FormatInt(n, 10) }
 
+// childWrites is the task and the mutation that gives it its parent.
+func (gitlabIssuePublisher) childWrites() int          { return 2 }
+func (p gitlabIssuePublisher) affords(writes int) bool { return clientAffords(p.client, writes) }
+
 type gitlabUser struct {
 	Username string `json:"username"`
 }
 
 type gitlabIssue struct {
+	ID          int64        `json:"id"`
 	IID         int64        `json:"iid"`
 	Description string       `json:"description"`
 	Labels      []string     `json:"labels"`
@@ -124,8 +129,75 @@ func (p gitlabIssuePublisher) open(ctx context.Context) ([]trackedItem, error) {
 
 // create opens an issue with the tracking label, the configured metadata and the fact labels, then
 // checks that GitLab kept the metadata. GitLab creates a label the project does not have.
-func (p gitlabIssuePublisher) create(ctx context.Context, title, body string, facts []string) error {
+//
+// A child is a task, the type GitLab nests under an issue or an incident, given its parent through
+// GraphQL: the REST API sets no parent.
+func (p gitlabIssuePublisher) create(ctx context.Context, title, body string, facts []string, parent *trackedItem) (trackedItem, error) {
+	got, err := p.createIssue(ctx, title, body, facts, parent != nil)
+	if err != nil || parent == nil {
+		return got, err
+	}
+	if err := p.setParent(ctx, got, *parent); err != nil {
+		// A task with no parent is one nobody will find from the issue, and the next run would not
+		// know to link it.
+		_ = p.close(ctx, got.Number, closedUntracked)
+		return trackedItem{}, err
+	}
+	return got, nil
+}
+
+// setParent makes child a child of parent, by the work item ids GitLab gives every issue.
+func (p gitlabIssuePublisher) setParent(ctx context.Context, child, parent trackedItem) error {
+	const mutation = `mutation($id: WorkItemID!, $parent: WorkItemID!) {
+  workItemUpdate(input: {id: $id, hierarchyWidget: {parentId: $parent}}) { errors }
+}`
+	req := map[string]any{"query": mutation, "variables": map[string]string{
+		"id":     "gid://gitlab/WorkItem/" + strconv.FormatInt(child.ID, 10),
+		"parent": "gid://gitlab/WorkItem/" + strconv.FormatInt(parent.ID, 10),
+	}}
+	var got struct {
+		Data struct {
+			WorkItemUpdate *struct {
+				Errors []string `json:"errors"`
+			} `json:"workItemUpdate"`
+		} `json:"data"`
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+	what := "make #" + strconv.FormatInt(child.Number, 10) + " a child of #" + strconv.FormatInt(parent.Number, 10)
+	if _, err := p.do(ctx, what, http.MethodPost, p.graphqlURL(), req, &got); err != nil {
+		return err
+	}
+	var why []string
+	for _, e := range got.Errors {
+		why = append(why, e.Message)
+	}
+	if u := got.Data.WorkItemUpdate; u != nil {
+		why = append(why, u.Errors...)
+	} else if len(why) == 0 {
+		why = append(why, "GitLab returned no result")
+	}
+	if len(why) > 0 {
+		return fmt.Errorf("gitlab-issue publisher: %s in %s: %s", what, p.project, strings.Join(why, "; "))
+	}
+	return nil
+}
+
+// graphqlURL is the GraphQL endpoint: the runner's CI_API_GRAPHQL_URL, or the one beside the REST
+// root.
+func (p gitlabIssuePublisher) graphqlURL() string {
+	if u := os.Getenv("CI_API_GRAPHQL_URL"); u != "" {
+		return u
+	}
+	return strings.TrimSuffix(p.apiURL, "/api/v4") + "/api/graphql"
+}
+
+func (p gitlabIssuePublisher) createIssue(ctx context.Context, title, body string, facts []string, child bool) (trackedItem, error) {
 	item := p.item()
+	if child {
+		item.Type = "task"
+	}
 	var labels []string
 	for _, l := range append(append([]string{p.label}, item.Labels...), facts...) {
 		if !containsFold(labels, l) {
@@ -146,7 +218,7 @@ func (p gitlabIssuePublisher) create(ctx context.Context, title, body string, fa
 	for _, a := range item.Assignees {
 		id, err := p.member(ctx, a)
 		if err != nil {
-			return err
+			return trackedItem{}, err
 		}
 		ids = append(ids, id)
 	}
@@ -161,14 +233,14 @@ func (p gitlabIssuePublisher) create(ctx context.Context, title, body string, fa
 	if item.Milestone != "" {
 		id, err := p.milestone(ctx, item.Milestone)
 		if err != nil {
-			return err
+			return trackedItem{}, err
 		}
 		milestone = id
 		req["milestone_id"] = id
 	}
 	var got gitlabIssue
 	if _, err := p.do(ctx, "create an issue", http.MethodPost, p.projectURL("issues"), req, &got); err != nil {
-		return err
+		return trackedItem{}, err
 	}
 
 	var dropped []string
@@ -196,14 +268,20 @@ func (p gitlabIssuePublisher) create(ctx context.Context, title, body string, fa
 		dropped = append(dropped, "confidential "+strconv.FormatBool(p.confidential()))
 	}
 	if len(dropped) > 0 {
-		return fmt.Errorf("gitlab-issue publisher: created #%d in %s without %s. %s", got.IID, p.project, strings.Join(dropped, ", "), why)
+		return trackedItem{}, fmt.Errorf("gitlab-issue publisher: created #%d in %s without %s. %s", got.IID, p.project, strings.Join(dropped, ", "), why)
 	}
-	return nil
+	return trackedItem{Number: got.IID, ID: got.ID, Body: body, Labels: got.Labels}, nil
 }
 
 func (p gitlabIssuePublisher) rewrite(ctx context.Context, n int64, body string) error {
 	_, err := p.do(ctx, "update #"+strconv.FormatInt(n, 10), http.MethodPut,
 		p.issueURL(n), map[string]string{"description": body}, nil)
+	return err
+}
+
+func (p gitlabIssuePublisher) retitle(ctx context.Context, n int64, title string) error {
+	_, err := p.do(ctx, "retitle #"+strconv.FormatInt(n, 10), http.MethodPut,
+		p.issueURL(n), map[string]string{"title": title}, nil)
 	return err
 }
 

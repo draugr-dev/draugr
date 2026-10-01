@@ -748,6 +748,19 @@ func TestValidateIssueFields(t *testing.T) {
 			"item.fields sets system.title, which the publisher writes"},
 		{"field another key sets", PublisherConfig{Kind: "azure-work-item", Item: &IssueItem{Fields: map[string]string{"System.AssignedTo": "x"}}},
 			"item.fields sets System.AssignedTo; set it with item.assignedTo"},
+		{"children per action", PublisherConfig{Kind: "github-issue", Children: ChildrenActions, MaxChildren: new(20)}, ""},
+		{"children per control, split by component", PublisherConfig{Kind: "gitlab-issue", Children: ChildrenControls,
+			Split: SplitComponent}, ""},
+		{"children none", PublisherConfig{Kind: "azure-work-item", Children: ChildrenNone}, ""},
+		{"unknown children", PublisherConfig{Kind: "github-issue", Children: "findings"},
+			`children is "findings", but children is none, actions or controls`},
+		{"maxChildren 0", PublisherConfig{Kind: "github-issue", Children: ChildrenActions, MaxChildren: new(0)}, "maxChildren is 0, but it is 1 to 100"},
+		{"maxChildren 101", PublisherConfig{Kind: "github-issue", Children: ChildrenActions, MaxChildren: new(101)}, "maxChildren is 101"},
+		{"maxChildren without children", PublisherConfig{Kind: "github-issue", MaxChildren: new(5)}, "and children is none"},
+		{"children per control, split by control", PublisherConfig{Kind: "github-issue", Children: ChildrenControls,
+			Split: SplitControl}, "one child repeating it"},
+		{"children under a GitLab task", PublisherConfig{Kind: "gitlab-issue", Children: ChildrenActions,
+			Item: &IssueItem{Type: "task"}}, "a GitLab task has no children"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			m := &Model{Release: Release{Version: "1"}, Config: Config{Publishers: []PublisherConfig{c.cfg}}}
@@ -759,5 +772,14 @@ func TestValidateIssueFields(t *testing.T) {
 				t.Fatalf("want an error containing %q, got %v", c.want, err)
 			}
 		})
+	}
+}
+
+func TestChildLimitIsMaxChildrenOrTheCeiling(t *testing.T) {
+	if got := (PublisherConfig{}).ChildLimit(); got != MaxChildrenLimit {
+		t.Errorf("unset: %d, want %d", got, MaxChildrenLimit)
+	}
+	if got := (PublisherConfig{MaxChildren: new(20)}).ChildLimit(); got != 20 {
+		t.Errorf("maxChildren 20: %d", got)
 	}
 }

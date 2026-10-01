@@ -292,9 +292,9 @@ or keep one
 | `github-pr-comment` | `markdown` | `marker` | a sticky pull-request comment (posts the `markdown` report) | `repo`, `pr` (default from the env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
 | `azure-pr-comment` | `markdown` | `marker` | a sticky Azure DevOps pull-request comment (posts the `markdown` report) | `org`, `project`, `repo`, `pr` (default from the Azure Pipelines env); token from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`) |
 | `gitlab-mr-comment` | `markdown` | `marker` | a sticky GitLab merge-request comment (posts the `markdown` report) | `repo`, `pr` (default from the GitLab CI env); token from `$GITLAB_TOKEN` (or `tokenEnv`) |
-| `github-issue` | the run | `repo`, `select` and `split` | a GitHub issue that is open while the gate fails | `repo` (default from the env), `select`, `split`, `minPriority`, `label`, `labelBy`, `branches`, `item`; token from `$GITHUB_TOKEN` (or `tokenEnv`) |
-| `gitlab-issue` | the run | `repo`, `select` and `split` | a GitLab issue that is open while the gate fails | `repo` (default from the GitLab CI env), `select`, `split`, `minPriority`, `label`, `labelBy`, `branches`, `item`; token from `$GITLAB_TOKEN` (or `tokenEnv`) |
-| `azure-work-item` | the run | `project`, `select` and `split` | an Azure Boards work item that is open while the gate fails | `org`, `project` (default from the Azure Pipelines env), `select`, `split`, `minPriority`, `label`, `labelBy`, `branches`, `item`; token from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`) |
+| `github-issue` | the run | `repo`, `select` and `split` | a GitHub issue that is open while the gate fails | `repo` (default from the env), `select`, `split`, `minPriority`, `children`, `maxChildren`, `label`, `labelBy`, `branches`, `item`; token from `$GITHUB_TOKEN` (or `tokenEnv`) |
+| `gitlab-issue` | the run | `repo`, `select` and `split` | a GitLab issue that is open while the gate fails | `repo` (default from the GitLab CI env), `select`, `split`, `minPriority`, `children`, `maxChildren`, `label`, `labelBy`, `branches`, `item`; token from `$GITLAB_TOKEN` (or `tokenEnv`) |
+| `azure-work-item` | the run | `project`, `select` and `split` | an Azure Boards work item that is open while the gate fails | `org`, `project` (default from the Azure Pipelines env), `select`, `split`, `minPriority`, `children`, `maxChildren`, `label`, `labelBy`, `branches`, `item`; token from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`) |
 | `draugr-api` | `json`, `sarif` | `url` | any server implementing Draugr's run-ingest API (posts the `json` report, uploads the `sarif` one) | `url` (or `$DRAUGR_API_URL`); token from `$DRAUGR_API_TOKEN` (or `tokenEnv`) |
 
 No publisher stores a secret in the Saga. Every token comes from an environment variable, and each
@@ -533,6 +533,28 @@ config:
       minPriority: P2
 ```
 
+**An issue per fix.** `children: actions` makes each issue a parent with a sub-issue for every
+action, so each fix is assigned, tracked and closed on its own. `children: controls` gives each
+control a sub-issue holding that control's actions.
+
+```yaml
+config:
+  publishers:
+    - kind: github-issue
+      children: actions     # none (default) | actions | controls
+      maxChildren: 20       # 100 when unset
+```
+
+A child's title leads with its priority, as in `P1 · Upgrade jinja2 2.10`, so the forge's sub-issue
+panel reads in fix order, and its body is the action's findings table. The parent lists only the
+actions that have no child. A run creates children highest priority first, up to `maxChildren` open
+under one parent, and stops early when the next child would not fit the time a run may spend
+[waiting on the forge](#when-a-forge-is-having-a-bad-minute). The parent then opens its list with
+how many actions have a child, and the rest get one as open children close or on the next run.
+
+A child closes when the run no longer reports its action, and when the gate passes every child
+closes before its parent. A child renamed by hand keeps the name until its priority changes.
+
 When an entry sets `select`, `draugr doctor` names the components no issue entry covers:
 
 ```console
@@ -560,7 +582,8 @@ Where GitLab differs:
 |---|---|
 | visibility | a new issue is confidential, visible only to project members. `item.confidential: false` opens it to everyone who can see the project. |
 | closing | GitLab records no close reason, so the reason is posted as a comment before the issue closes. |
-| `item.type` | `issue`, `incident` or `task`. An incident needs the Reporter role. |
+| `item.type` | `issue`, `incident` or `task`. An incident needs the Reporter role. A task has no children, so `task` with `children` is refused. |
+| children | tasks, each given its parent through the GraphQL API, which the same token reaches |
 | `item.assignees` | usernames of project members. GitLab Free keeps one. |
 | labels | created by GitLab on first use, in its default color |
 
@@ -600,7 +623,8 @@ Where Azure differs:
 | | Azure DevOps |
 |---|---|
 | description | Markdown, the body a `github-issue` entry writes. Azure DevOps Services is supported; Azure DevOps Server is untested. |
-| `item.type` | a work item type. Defaults to the Task category's default type, which is Task in every process Azure ships. |
+| `item.type` | a work item type. Defaults to the Task category's default type, which is Task in every process Azure ships. With `children`, the parent defaults to the Requirement category's: User Story in Agile, Product Backlog Item in Scrum, Requirement in CMMI, Issue in Basic. |
+| children | the Task category's default type, linked to the parent as its child. `item.type` and `item.fields` set the parent's only. |
 | closing | to the state in the Completed category of the item's type: Closed in Agile and CMMI, Done in Scrum and Basic. The comment posted before it says why. |
 | tags | `label`, `item.tags` and the `labelBy` facts are all tags. A tag holding `;` or `,` is refused. |
 | `item.assignedTo` | an email address, or a display name the organization resolves to one person |

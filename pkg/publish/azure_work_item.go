@@ -42,13 +42,17 @@ const (
 type azureWorkItemPublisher struct {
 	cfg              saga.PublisherConfig
 	baseURL, project string
-	token            string
-	label            string
-	client           *http.Client
+	// collection is the organization's URL, which a link between two items names.
+	collection string
+	token      string
+	label      string
+	client     *http.Client
 	// seen is what open learned about each item, which the writes after it need.
 	seen map[int64]azureSeen
 	// states maps a work item type to its states' categories, filled as types are met.
 	states map[string]map[string]string
+	// defaults maps a type category to its default type, filled as categories are read.
+	defaults map[string]string
 }
 
 // azureSeen is an item's revision, which guards a write against an edit made since it was read,
@@ -62,13 +66,14 @@ func newAzureWorkItemPublisher(cfg saga.PublisherConfig) (Publisher, error) {
 	tokenEnv := firstNonEmpty(cfg.TokenEnv, "SYSTEM_ACCESSTOKEN")
 	collection := firstNonEmpty(cfg.Org, os.Getenv("SYSTEM_TEAMFOUNDATIONCOLLECTIONURI"))
 	p := &azureWorkItemPublisher{
-		cfg:     cfg,
-		project: firstNonEmpty(cfg.Project, os.Getenv("SYSTEM_TEAMPROJECT")),
-		token:   os.Getenv(tokenEnv),
-		label:   firstNonEmpty(cfg.Label, defaultIssueLabel),
-		client:  newIssueClient(http.DefaultClient),
-		seen:    map[int64]azureSeen{},
-		states:  map[string]map[string]string{},
+		cfg:      cfg,
+		project:  firstNonEmpty(cfg.Project, os.Getenv("SYSTEM_TEAMPROJECT")),
+		token:    os.Getenv(tokenEnv),
+		label:    firstNonEmpty(cfg.Label, defaultIssueLabel),
+		client:   newIssueClient(http.DefaultClient),
+		seen:     map[int64]azureSeen{},
+		states:   map[string]map[string]string{},
+		defaults: map[string]string{},
 	}
 	if os.Getenv("TF_BUILD") != "True" && cfg.Org == "" && p.token == "" {
 		return skipPublisher{kind: "azure-work-item", reason: "not an Azure Pipelines environment"}, nil
@@ -87,7 +92,8 @@ func newAzureWorkItemPublisher(cfg saga.PublisherConfig) (Publisher, error) {
 	if len(missing) > 0 {
 		return nil, fmt.Errorf("azure-work-item publisher missing: %s", strings.Join(missing, "; "))
 	}
-	p.baseURL = strings.TrimSuffix(collection, "/") + "/" + url.PathEscape(p.project) + "/_apis/"
+	p.collection = strings.TrimSuffix(collection, "/") + "/"
+	p.baseURL = p.collection + url.PathEscape(p.project) + "/_apis/"
 	return p, nil
 }
 
@@ -120,6 +126,10 @@ func (p *azureWorkItemPublisher) PublishRun(ctx context.Context, data report.Dat
 func (*azureWorkItemPublisher) kind() string        { return "azure-work-item" }
 func (*azureWorkItemPublisher) format() issueFormat { return markdownFormat{} }
 func (*azureWorkItemPublisher) budget() int         { return azureWorkItemBudget }
+
+// childWrites is the work item alone: its link to the parent is part of creating it.
+func (*azureWorkItemPublisher) childWrites() int          { return 1 }
+func (p *azureWorkItemPublisher) affords(writes int) bool { return clientAffords(p.client, writes) }
 
 // ref links another work item. A comment written through the API links no bare `#12`.
 func (p *azureWorkItemPublisher) ref(n int64) string {
@@ -221,13 +231,24 @@ func (p *azureWorkItemPublisher) open(ctx context.Context) ([]trackedItem, error
 // create opens a work item with the tracking tag, the configured metadata and the fact tags, then
 // checks that Azure kept every tag. A tag is new to the organization the first time it is used,
 // and creating one takes a permission of its own.
-func (p *azureWorkItemPublisher) create(ctx context.Context, title, body string, facts []string) error {
+//
+// An item with children is the default type of the Requirement category unless item.type names
+// one, and each child the default type of the Task category, created with its parent link. A child
+// takes no item.fields, which name fields of the parent's type.
+func (p *azureWorkItemPublisher) create(ctx context.Context, title, body string, facts []string, parent *trackedItem) (trackedItem, error) {
 	item := p.item()
 	itemType := item.Type
+	category := azureTaskCategory
+	switch {
+	case parent != nil:
+		itemType, item.Fields = "", nil
+	case p.cfg.Children != "" && p.cfg.Children != saga.ChildrenNone:
+		category = azureRequirementCategory
+	}
 	if itemType == "" {
-		t, err := p.defaultType(ctx)
+		t, err := p.defaultType(ctx, category)
 		if err != nil {
-			return err
+			return trackedItem{}, err
 		}
 		itemType = t
 	}
@@ -265,12 +286,20 @@ func (p *azureWorkItemPublisher) create(ctx context.Context, title, body string,
 	for _, name := range names {
 		ops = append(ops, patchOp{Op: "add", Path: "/fields/" + name, Value: item.Fields[name]})
 	}
+	if parent != nil {
+		ops = append(ops, patchOp{Op: "add", Path: "/relations/-", Value: map[string]string{
+			"rel": "System.LinkTypes.Hierarchy-Reverse",
+			"url": p.collection + "_apis/wit/workItems/" + strconv.FormatInt(parent.Number, 10),
+		}})
+	}
 
 	var got azureWorkItem
 	target := p.baseURL + "wit/workitems/" + url.PathEscape("$"+itemType) + "?api-version=7.1"
 	if err := p.do(ctx, "create a work item of type "+itemType, http.MethodPost, target, "application/json-patch+json", ops, &got); err != nil {
-		return err
+		return trackedItem{}, err
 	}
+	// A rewrite or close later in the run is guarded by the revision, and closes to a state of the type.
+	p.seen[got.ID] = azureSeen{rev: got.Rev, itemType: itemType}
 	var dropped []string
 	kept := splitTags(got.Fields.Tags)
 	for _, t := range tags {
@@ -282,10 +311,15 @@ func (p *azureWorkItemPublisher) create(ctx context.Context, title, body string,
 		dropped = append(dropped, "assignedTo "+item.AssignedTo)
 	}
 	if len(dropped) > 0 {
-		return fmt.Errorf("azure-work-item publisher: created %d in %s without %s. A tag new to the organization needs "+
+		return trackedItem{}, fmt.Errorf("azure-work-item publisher: created %d in %s without %s. A tag new to the organization needs "+
 			"Create tag definition", got.ID, p.project, strings.Join(dropped, ", "))
 	}
-	return nil
+	return trackedItem{Number: got.ID, ID: got.ID, Body: body, Labels: kept}, nil
+}
+
+// retitle replaces the title, unless the item changed since it was read.
+func (p *azureWorkItemPublisher) retitle(ctx context.Context, n int64, title string) error {
+	return p.patch(ctx, "retitle", n, patchOp{Op: "add", Path: "/fields/System.Title", Value: title})
 }
 
 // rewrite replaces the description, unless the item changed since it was read.
@@ -365,21 +399,32 @@ func (p *azureWorkItemPublisher) patch(ctx context.Context, what string, n int64
 	return nil
 }
 
-// defaultType is the default type of the Task category, Task in every process that ships with
-// Azure DevOps. A process can rename or disable a type, and the category follows it.
-func (p *azureWorkItemPublisher) defaultType(ctx context.Context) (string, error) {
+// Work item type categories. Their default types are what a process calls a task and a backlog
+// item: Task, and User Story, Product Backlog Item, Requirement or Issue in the processes that ship
+// with Azure DevOps. A process can rename or disable a type, and the category follows it.
+const (
+	azureTaskCategory        = "Task"
+	azureRequirementCategory = "Requirement"
+)
+
+// defaultType is the default type of a category.
+func (p *azureWorkItemPublisher) defaultType(ctx context.Context, category string) (string, error) {
+	if t := p.defaults[category]; t != "" {
+		return t, nil
+	}
 	var cat struct {
 		DefaultWorkItemType struct {
 			Name string `json:"name"`
 		} `json:"defaultWorkItemType"`
 	}
-	if err := p.do(ctx, "read the Task category", http.MethodGet,
-		p.baseURL+"wit/workitemtypecategories/Microsoft.TaskCategory?api-version=7.1", "", nil, &cat); err != nil {
+	if err := p.do(ctx, "read the "+category+" category", http.MethodGet,
+		p.baseURL+"wit/workitemtypecategories/Microsoft."+category+"Category?api-version=7.1", "", nil, &cat); err != nil {
 		return "", err
 	}
 	if cat.DefaultWorkItemType.Name == "" {
-		return "", fmt.Errorf("azure-work-item publisher: the Task category in %s has no default type; set item.type", p.project)
+		return "", fmt.Errorf("azure-work-item publisher: the %s category in %s has no default type; set item.type", category, p.project)
 	}
+	p.defaults[category] = cat.DefaultWorkItemType.Name
 	return cat.DefaultWorkItemType.Name, nil
 }
 

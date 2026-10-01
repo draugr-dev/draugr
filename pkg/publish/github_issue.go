@@ -75,7 +75,12 @@ func (githubIssuePublisher) format() issueFormat { return markdownFormat{} }
 func (githubIssuePublisher) budget() int         { return githubIssueBudget }
 func (githubIssuePublisher) ref(n int64) string  { return "#" + strconv.FormatInt(n, 10) }
 
+// childWrites is the issue and its sub-issue link.
+func (githubIssuePublisher) childWrites() int          { return 2 }
+func (p githubIssuePublisher) affords(writes int) bool { return clientAffords(p.client, writes) }
+
 type githubIssue struct {
+	ID     int64  `json:"id"`
 	Number int64  `json:"number"`
 	Body   string `json:"body"`
 	Labels []struct {
@@ -127,8 +132,34 @@ func (p githubIssuePublisher) open(ctx context.Context) ([]trackedItem, error) {
 // create opens an issue with the tracking label, the configured metadata and the fact labels, then
 // checks that GitHub kept the metadata. GitHub drops labels, assignees, a milestone and a type
 // without an error when the token cannot set them.
-func (p githubIssuePublisher) create(ctx context.Context, title, body string, facts []string) error {
+//
+// A child is linked to its parent as a sub-issue, and takes no type: the configured one describes
+// the parent.
+func (p githubIssuePublisher) create(ctx context.Context, title, body string, facts []string, parent *trackedItem) (trackedItem, error) {
+	got, err := p.createIssue(ctx, title, body, facts, parent == nil)
+	if err != nil || parent == nil {
+		return got, err
+	}
+	n := strconv.FormatInt(parent.Number, 10)
+	_, err = p.do(ctx, "link #"+strconv.FormatInt(got.Number, 10)+" to #"+n, http.MethodPost,
+		p.repoURL("issues/"+n+"/sub_issues"), map[string]int64{"sub_issue_id": got.ID}, nil)
+	if err == nil {
+		return got, nil
+	}
+	if isStatus(err, http.StatusNotFound) {
+		err = fmt.Errorf("%w. Sub-issues need GitHub.com or GitHub Enterprise Server 3.18 or later", err)
+	}
+	// A child that is not linked is an issue nobody will find from its parent, and the next run
+	// would not know to link it.
+	_ = p.close(ctx, got.Number, closedUntracked)
+	return trackedItem{}, err
+}
+
+func (p githubIssuePublisher) createIssue(ctx context.Context, title, body string, facts []string, typed bool) (trackedItem, error) {
 	item := p.item()
+	if !typed {
+		item.Type = ""
+	}
 	var labels []string
 	for _, l := range append(append([]string{p.label}, item.Labels...), facts...) {
 		if !containsFold(labels, l) {
@@ -137,7 +168,7 @@ func (p githubIssuePublisher) create(ctx context.Context, title, body string, fa
 	}
 	for _, l := range labels {
 		if err := p.ensureLabel(ctx, l); err != nil {
-			return err
+			return trackedItem{}, err
 		}
 	}
 	req := map[string]any{"title": title, "body": body, "labels": labels}
@@ -148,7 +179,7 @@ func (p githubIssuePublisher) create(ctx context.Context, title, body string, fa
 	if item.Milestone != "" {
 		n, err := p.milestone(ctx, item.Milestone)
 		if err != nil {
-			return err
+			return trackedItem{}, err
 		}
 		milestone = n
 		req["milestone"] = n
@@ -158,7 +189,7 @@ func (p githubIssuePublisher) create(ctx context.Context, title, body string, fa
 	}
 	var got githubIssue
 	if _, err := p.do(ctx, "create an issue", http.MethodPost, p.repoURL("issues"), req, &got); err != nil {
-		return err
+		return trackedItem{}, err
 	}
 
 	var dropped []string
@@ -183,16 +214,22 @@ func (p githubIssuePublisher) create(ctx context.Context, title, body string, fa
 		dropped = append(dropped, "type "+item.Type)
 	}
 	if len(dropped) > 0 {
-		return fmt.Errorf("github-issue publisher: created #%d in %s without %s. GitHub drops these "+
+		return trackedItem{}, fmt.Errorf("github-issue publisher: created #%d in %s without %s. GitHub drops these "+
 			"without an error when the token has no push access to the repository, or an assignee "+
 			"cannot be assigned", got.Number, p.repo, strings.Join(dropped, ", "))
 	}
-	return nil
+	return trackedItem{Number: got.Number, ID: got.ID, Body: body, Labels: got.labelNames()}, nil
 }
 
 func (p githubIssuePublisher) rewrite(ctx context.Context, n int64, body string) error {
 	_, err := p.do(ctx, "update #"+strconv.FormatInt(n, 10), http.MethodPatch,
 		p.repoURL("issues/"+strconv.FormatInt(n, 10)), map[string]string{"body": body}, nil)
+	return err
+}
+
+func (p githubIssuePublisher) retitle(ctx context.Context, n int64, title string) error {
+	_, err := p.do(ctx, "retitle #"+strconv.FormatInt(n, 10), http.MethodPatch,
+		p.repoURL("issues/"+strconv.FormatInt(n, 10)), map[string]string{"title": title}, nil)
 	return err
 }
 

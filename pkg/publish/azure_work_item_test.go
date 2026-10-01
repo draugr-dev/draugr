@@ -33,6 +33,9 @@ type azItem struct {
 	Tags     []string
 	Fields   map[string]any
 	Comments []azComment
+	// Parent is the id of the item it is a child of, and ParentURL the address it was linked by.
+	Parent    int64
+	ParentURL string
 }
 
 // azComment is a comment and the format it was posted in.
@@ -242,6 +245,8 @@ func (f *fakeAzure) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_ = enc.Encode(map[string]any{"value": ss})
 	case r.Method == http.MethodGet && rest == "wit/workitemtypecategories/Microsoft.TaskCategory":
 		_ = enc.Encode(map[string]any{"defaultWorkItemType": map[string]string{"name": "Task"}})
+	case r.Method == http.MethodGet && rest == "wit/workitemtypecategories/Microsoft.RequirementCategory":
+		_ = enc.Encode(map[string]any{"defaultWorkItemType": map[string]string{"name": "User Story"}})
 	case r.Method == http.MethodGet && strings.HasPrefix(rest, "git/repositories/"):
 		_ = enc.Encode(map[string]string{"defaultBranch": f.defaultBranch})
 	case r.Method == http.MethodPost && rest == "wit/wiql":
@@ -327,6 +332,10 @@ func (f *fakeAzure) apply(i *azItem, ops []patchOp) {
 	for _, op := range ops {
 		if op.Path == "/multilineFieldsFormat/System.Description" {
 			i.Format = op.Value.(string)
+		}
+		if rel, ok := op.Value.(map[string]any); ok && op.Path == "/relations/-" && rel["rel"] == "System.LinkTypes.Hierarchy-Reverse" {
+			i.ParentURL = rel["url"].(string)
+			i.Parent, _ = strconv.ParseInt(i.ParentURL[strings.LastIndexByte(i.ParentURL, '/')+1:], 10, 64)
 		}
 		field, ok := strings.CutPrefix(op.Path, "/fields/")
 		if !ok {

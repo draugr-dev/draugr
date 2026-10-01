@@ -587,15 +587,42 @@ type PublisherConfig struct {
 	// branch when unset, because a passing pull-request run would otherwise close an item the
 	// default branch still fails. Select, Split and MinPriority decide which part of the run each
 	// item covers; LabelBy names the facts every run keeps on an item as labels; Item is the
-	// metadata set on an item when it is created.
+	// metadata set on an item when it is created. Children makes each item a parent with a child
+	// per action or per control, and MaxChildren caps how many children each parent has open.
 	Label       string           `yaml:"label,omitempty"`
 	Branches    []string         `yaml:"branches,omitempty"`
 	Select      *PublisherSelect `yaml:"select,omitempty"`
 	Split       string           `yaml:"split,omitempty"`
 	MinPriority string           `yaml:"minPriority,omitempty"`
+	Children    string           `yaml:"children,omitempty"`
+	MaxChildren *int             `yaml:"maxChildren,omitempty"`
 	LabelBy     LabelBy          `yaml:"labelBy,omitempty"`
 	Item        *IssueItem       `yaml:"item,omitempty"`
 }
+
+// ChildLimit is the most children each parent may have open: maxChildren, or MaxChildrenLimit
+// when it is unset.
+func (p PublisherConfig) ChildLimit() int {
+	if p.MaxChildren == nil {
+		return MaxChildrenLimit
+	}
+	return *p.MaxChildren
+}
+
+// Children values for an issue publisher: one item holding every action, or a parent with a child
+// per action or per control.
+const (
+	ChildrenNone     = "none"
+	ChildrenActions  = "actions"
+	ChildrenControls = "controls"
+)
+
+// ChildKinds lists the values `children` takes.
+var ChildKinds = []string{ChildrenNone, ChildrenActions, ChildrenControls}
+
+// MaxChildrenLimit is the most children a parent may have open, and the default of `maxChildren`.
+// GitHub allows 100 sub-issues per parent.
+const MaxChildrenLimit = 100
 
 // Facts an issue publisher keeps on an item as labels, each named `draugr:<fact>:<value>`.
 const (

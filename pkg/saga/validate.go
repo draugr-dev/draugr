@@ -648,6 +648,7 @@ func (p PublisherConfig) validateIssueFields(i int) []error {
 		errs = append(errs, fmt.Errorf("config.publishers[%d].minPriority is %q, but a priority band is %s",
 			i, p.MinPriority, orList(Priorities)))
 	}
+	errs = append(errs, p.validateChildren(i)...)
 	// An empty select covers the whole run, which is what leaving it out already says. Written
 	// out, it reads as a narrowing that narrows nothing.
 	if p.Select != nil && p.Select.IsZero() {
@@ -690,6 +691,37 @@ func (p PublisherConfig) validateIssueFields(i int) []error {
 		if _, err := path.Match(b, ""); err != nil {
 			errs = append(errs, fmt.Errorf("config.publishers[%d].branches: %q is not a valid pattern", i, b))
 		}
+	}
+	return errs
+}
+
+// validateChildren checks `children` and `maxChildren`, and that the two agree with `split`.
+func (p PublisherConfig) validateChildren(i int) []error {
+	var errs []error
+	if p.Children != "" && !slices.Contains(ChildKinds, p.Children) {
+		errs = append(errs, fmt.Errorf("config.publishers[%d].children is %q, but children is %s",
+			i, p.Children, orList(ChildKinds)))
+	}
+	if p.MaxChildren != nil {
+		if n := *p.MaxChildren; n < 1 || n > MaxChildrenLimit {
+			errs = append(errs, fmt.Errorf("config.publishers[%d].maxChildren is %d, but it is 1 to %d",
+				i, n, MaxChildrenLimit))
+		}
+		if p.Children == "" || p.Children == ChildrenNone {
+			errs = append(errs, fmt.Errorf(
+				"config.publishers[%d].maxChildren caps the children of children: actions or controls, and children is none", i))
+		}
+	}
+	// Each item of a split by control already covers one control, so its one child would repeat it.
+	if p.Children == ChildrenControls && p.Split == SplitControl {
+		errs = append(errs, fmt.Errorf(
+			"config.publishers[%d] sets children: controls with split: control, which gives each item one child repeating it", i))
+	}
+	// A child on GitLab is a task, and GitLab nests no task under another.
+	if p.Kind == "gitlab-issue" && p.Item != nil && p.Item.Type == "task" &&
+		(p.Children == ChildrenActions || p.Children == ChildrenControls) {
+		errs = append(errs, fmt.Errorf(
+			"config.publishers[%d] sets children with item.type task, and a GitLab task has no children", i))
 	}
 	return errs
 }
