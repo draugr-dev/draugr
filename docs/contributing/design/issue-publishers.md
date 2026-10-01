@@ -469,12 +469,14 @@ The rules below are written for `actions`; [Per control](#per-control) gives wha
   ```
   ### Actions
 
-  20 of 46 actions have an item. The other 26 get one as open items close, since `maxChildren` is 20.
+  20 of 46 actions have an item. The other 26 are listed below and get an item as open items close,
+  since `maxChildren` is 20.
 
   <details><summary><b>P2</b> Fix KSV-0001 “Can elevate its own privileges” · <code>iac</code> · 1 finding</summary>
   ```
 
-  When the budget stopped the run, the sentence reads `The other 26 get one on the next run.`
+  When the budget stopped the run, the sentence reads `The other 26 are listed below and get an
+  item on the next run.`
 - **Identity.** A child's marker adds `action=` and the first 16 hex characters of the SHA-256 of
   the action's key. The key is opaque and holds a separator an HTML comment must not carry.
 - **Title.** The action's priority, ` · `, then its title, such as `P1 · Upgrade jinja2 2.10`,
