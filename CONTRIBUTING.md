@@ -127,6 +127,22 @@ make changelog-show      # exactly what a tag would publish
 ./scripts/changelog.sh next    # the version that implies
 ```
 
+### Changing the Claude Code plugin
+
+`contrib/claude-plugin` is the plugin Anthropic's plugin directory lists in Claude Code and Cowork.
+The directory reads the folder from `main` on every push and publishes each new `version` in its
+`plugin.json` once that version passes the directory's review, with no step on our side. A merge
+into the folder is a change to a published listing, and the next version carries it to everybody
+who installs the plugin.
+
+The version comes from the release. `Release prepare` sets it with `scripts/set-plugin-version.sh`,
+so merging the release pull request is what publishes a new plugin version. Leave it to the
+release; a version set by hand publishes the folder as it stands on `main`, with no release behind
+it.
+
+Run the plugin's [eval suite](contrib/claude-plugin/evals/README.md) before merging a change to the
+folder.
+
 ### Why the OpenSSF Scorecard says `SAST: 0`
 
 It is not a gap and it is not going to be fixed by adding a tool.
