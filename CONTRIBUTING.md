@@ -290,8 +290,9 @@ cannot reach the suite rather than what can: a path it has never heard of runs t
 [`test/integration/testdata/ecosystems/`](test/integration/testdata/ecosystems/README.md) in a
 container started with `--network none`, against advisory databases generated from
 `advisories.yaml`, and asserts exact results: what `draugr init` proposes, every finding, and a
-normalized copy of `results.sarif` and `report.json`. It runs in the integration job and needs
-Docker plus the scanners `draugr tools install --all` provides:
+normalized copy of `results.sarif` and `report.json`. In CI it is a required job of its own,
+`Integration (sealed scenarios)`, which runs beside the kind job. Locally it needs Docker plus
+the scanners `draugr tools install --all` provides:
 
 ```bash
 make build
