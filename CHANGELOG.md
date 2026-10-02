@@ -16,7 +16,7 @@ _Nothing yet._
 
 ### Fixed
 
-- **`report.json` says which Draugr produced the run wherever it is sent**, not only in the file `-o` writes. `--format json` and every publisher, the `draugr-api` publisher included, now carry the `draugr` version and commit, so a platform that requires them accepts the run.
+- **The JSON report names the Draugr version and commit wherever it goes**: on stdout with `--format json` and through every publisher, including `draugr-api`, as well as in the file `-o` writes. A platform that requires them accepts the run.
 
 ## [0.143.0] - 2026-10-02
 
