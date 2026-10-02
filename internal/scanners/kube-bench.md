@@ -34,8 +34,8 @@ kube-bench has no cluster flag: every `policies` check shells out to `kubectl`, 
 cluster from the environment. Left alone it would audit whatever context the machine happens to
 have selected.
 
-So the scanner resolves the context, the component's `ref`, or an explicit `context` setting, copies
-the kubeconfig with that context made current, and points the tool at the copy through `KUBECONFIG`.
+So the scanner resolves the context, the cluster's `context` under `clusters:` or the kubeconfig's
+current one, copies the kubeconfig with that context made current, and points the tool at the copy through `KUBECONFIG`.
 A copy rather than `kubectl config use-context`, which would change the operator's own default as a
 side effect of running a scan. The temporary file is removed afterwards.
 
@@ -57,8 +57,8 @@ quietly. So Draugr asks the cluster for its version, the same ambient kubeconfig
 surveyor uses, and passes `--version`, letting kube-bench apply its own mapping. Its mapping stays
 correct as it adds benchmarks; a table copied into Draugr would drift.
 
-If the version cannot be determined, the scan **fails** rather than falling back. Set `version`
-or `benchmark` to override.
+If the version cannot be determined, the scan **fails** rather than falling back. Set the cluster's
+`version` or `benchmark` under `clusters:` to override.
 
 ### On a managed cluster, supplying the version is the wrong move
 

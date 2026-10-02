@@ -94,10 +94,12 @@ the same argument that puts `exposure` and `criticality` in the descriptor.
 ### `operatedBy`. Who runs this infrastructure
 
 ```yaml
-kubernetes:
-  - ref: prod-cluster
+clusters:
+  prod-cluster:
     operatedBy: provider     # self (default), or provider
 ```
+
+Declared on the cluster, once, so every component on it agrees.
 
 On `provider`, findings about the parts a managed platform runs are reported and counted but never
 presented as work to do: the API server, etcd, the controller manager, and kube-proxy, which every

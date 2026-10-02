@@ -235,3 +235,30 @@ func TestRepositoriesAndImagesSayWhoPublishesThem(t *testing.T) {
 		t.Error("a cluster answers who runs it with operatedBy, not with BuiltUpstream")
 	}
 }
+
+// A cluster's context and benchmark decide what a scan of it returns without being part of its
+// identity, which a report shows and which stays the same on every machine. They reach the cache
+// key, so a run through another context or against another benchmark is never answered with an
+// earlier one, and two components on the same cluster still share one scan.
+func TestAClustersFactsSeparateCacheEntriesButNotIdentities(t *testing.T) {
+	base := KubernetesTarget{Cluster: "prod", Context: "prod-admin", Benchmark: "eks-1.5.0"}
+	if base.Identity() != "kubernetes/prod" {
+		t.Errorf("identity = %q, want the cluster's name alone", base.Identity())
+	}
+	key := func(t Target) CacheKey { return ComputeCacheKey("draugr-k8s-policies", "1", t, nil) }
+	if key(base) != key(KubernetesTarget{Cluster: "prod", Context: "prod-admin", Benchmark: "eks-1.5.0"}) {
+		t.Error("the same cluster gave two cache keys, so two components on it would scan twice")
+	}
+	for name, other := range map[string]KubernetesTarget{
+		"another context":   {Cluster: "prod", Context: "staging-admin", Benchmark: "eks-1.5.0"},
+		"another benchmark": {Cluster: "prod", Context: "prod-admin", Benchmark: "cis-1.10"},
+		"another version":   {Cluster: "prod", Context: "prod-admin", Benchmark: "eks-1.5.0", Version: "1.30"},
+	} {
+		if key(base) == key(other) {
+			t.Errorf("%s shares the cache key", name)
+		}
+		if base.Identity() != other.Identity() {
+			t.Errorf("%s changed the identity", name)
+		}
+	}
+}

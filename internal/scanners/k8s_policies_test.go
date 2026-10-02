@@ -516,26 +516,33 @@ func TestScopedListingQueriesOnlyItsNamespaces(t *testing.T) {
 	}
 }
 
-// A scoped audit is usually run by a scoped credential, so a refused cluster-wide read must
-// leave that check undecided rather than abort a run whose namespaced half is perfectly good.
-// Unscoped, the same refusal means the cluster was not audited, and must fail.
-func TestClusterWideRefusalDependsOnScope(t *testing.T) {
+// A scoped audit never reads cluster-wide objects: the cluster-scoped checks belong to the
+// component declaring the whole cluster, and a namespace owner's credential usually cannot read
+// them anyway. Unscoped, a refused cluster-wide read means the cluster was not audited, and fails.
+func TestClusterWideReadsDependOnScope(t *testing.T) {
 	t.Parallel()
 
+	reads := 0
 	newClient := func() *fake.Clientset {
 		c := fake.NewSimpleClientset()
-		c.PrependReactor("list", "clusterrolebindings", func(k8stesting.Action) (bool, runtime.Object, error) {
-			return true, nil, errors.New("clusterrolebindings is forbidden")
-		})
+		for _, resource := range []string{"clusterrolebindings", "clusterroles"} {
+			c.PrependReactor("list", resource, func(k8stesting.Action) (bool, runtime.Object, error) {
+				reads++
+				return true, nil, errors.New(resource + " is forbidden")
+			})
+		}
 		return c
 	}
 
 	scoped, err := evaluatePolicies(context.Background(), newClient(), []string{"team-a"})
 	if err != nil {
-		t.Fatalf("a scoped audit must survive being denied a cluster-wide read: %v", err)
+		t.Fatalf("a scoped audit failed: %v", err)
+	}
+	if reads != 0 {
+		t.Errorf("a scoped audit read cluster-wide objects %d times, want none", reads)
 	}
 	if _, decided := scoped["5.1.1"]; decided {
-		t.Error("5.1.1 should be undecided when its objects could not be read")
+		t.Error("5.1.1 is a cluster-scoped check and has no answer in a scoped audit")
 	}
 
 	if _, err := evaluatePolicies(context.Background(), newClient(), nil); err == nil {
@@ -851,4 +858,57 @@ func TestAClusterWideScanSaysSo(t *testing.T) {
 			}
 		})
 	}
+}
+
+// A namespaced run reports the namespaced checks only. The cluster-scoped ones, decided or left for
+// review, are the whole-cluster component's, so a shared cluster's answer is filed once, and the
+// coverage figure counts what the run could answer.
+func TestANamespacedRunReportsOnlyTheNamespacedChecks(t *testing.T) {
+	t.Parallel()
+	clusterScoped := map[string]bool{}
+	namespaced := 0
+	for _, c := range cisPolicies {
+		if c.ClusterScoped {
+			clusterScoped[draugrCISRulePrefix+c.ID] = true
+		} else {
+			namespaced++
+		}
+	}
+	if len(clusterScoped) == 0 || namespaced == 0 {
+		t.Fatal("the catalog marks no check as cluster-scoped, or every one")
+	}
+	decided := map[string]policyVerdict{"5.1.1": {Detail: "bound to cluster-admin: ci"}, "5.1.5": {Detail: "default used"}}
+
+	scoped := policiesReport(decided, "kubernetes/prod[team-a]", []string{"team-a"})
+	for _, r := range scoped.Results {
+		if clusterScoped[r.RuleID] {
+			t.Errorf("a namespaced run reported the cluster-scoped %s", r.RuleID)
+		}
+	}
+	if got, want := coverageOf(scoped), fmt.Sprintf("1 of %d checks decided", namespaced); got != want {
+		t.Errorf("scoped coverage = %q, want %q", got, want)
+	}
+
+	whole := policiesReport(decided, "kubernetes/prod", nil)
+	found := false
+	for _, r := range whole.Results {
+		found = found || r.RuleID == draugrCISRulePrefix+"5.1.1"
+	}
+	if !found {
+		t.Error("the whole-cluster run did not report 5.1.1")
+	}
+	if got, want := coverageOf(whole), fmt.Sprintf("2 of %d checks decided", len(cisPolicies)); got != want {
+		t.Errorf("whole coverage = %q, want %q", got, want)
+	}
+}
+
+func coverageOf(r sarif.Report) string {
+	for _, p := range r.Provenance {
+		for _, f := range p.Fields {
+			if f.Key == "coverage" {
+				return f.Value
+			}
+		}
+	}
+	return ""
 }

@@ -52,6 +52,11 @@ func TestK8sClusterEmitsAKubernetesComponent(t *testing.T) {
 	if c.Name != "prod-cluster" {
 		t.Errorf("name = %q, want the context name", c.Name)
 	}
+	// The cluster is declared once, under the context it was surveyed through, and the component
+	// refers to it by name.
+	if got := frag.Clusters["prod-cluster"]; got.Context != "prod-cluster" {
+		t.Errorf("clusters = %+v, want prod-cluster reached through its context", frag.Clusters)
+	}
 	if len(c.Kubernetes) != 1 || c.Kubernetes[0].Cluster != "prod-cluster" {
 		t.Errorf("kubernetes = %+v", c.Kubernetes)
 	}
