@@ -12,6 +12,12 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.143.0] - 2026-10-02
+
+### Changed
+
+- **The `infrastructure` control is now `kubernetes`, and a component lists its clusters under `kubernetes:`**, the same entries without `kind`. `infrastructure:` on a component, `config.controls.infrastructure` and `--controls infrastructure` are refused, each with an error naming the new spelling.
+
 ## [0.142.2] - 2026-10-01
 
 ### Fixed
@@ -6161,7 +6167,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.142.2...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.143.0...HEAD
+[0.143.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.143.0
 [0.142.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.142.2
 [0.142.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.142.1
 [0.142.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.142.0
