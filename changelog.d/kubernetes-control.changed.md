@@ -1,1 +1,0 @@
-- **The `infrastructure` control is now `kubernetes`, and a component lists its clusters under `kubernetes:`**, the same entries without `kind`. `infrastructure:` on a component, `config.controls.infrastructure` and `--controls infrastructure` are refused, each with an error naming the new spelling.

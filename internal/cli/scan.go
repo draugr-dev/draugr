@@ -465,6 +465,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		// offered as evidence has to answer both, and only the CLI knows either.
 		Generated: time.Now(),
 		Version:   reportVersion(),
+		Commit:    buildCommit(),
 	}
 	if format == "template" {
 		art, err := report.Build(saga.ReportConfig{
@@ -634,16 +635,12 @@ func criticalities(vals []string) []saga.Criticality {
 // another. The renderers a person reads turn it into a label themselves.
 func reportVersion() string { return strings.TrimPrefix(version.Version, "v") }
 
-// buildRef is the Draugr that produced a report, for the documents that record it.
-//
-// The commit as well as the version, because a version alone does not identify a development
-// build and those are what most runs of an unreleased change are.
-func buildRef() *skald.Build {
-	b := &skald.Build{Version: reportVersion()}
-	if version.Commit != "" && version.Commit != "none" {
-		b.Commit = version.Commit
+// buildCommit is the commit the binary was built from, or "" when the build was not stamped.
+func buildCommit() string {
+	if version.Commit == "none" {
+		return ""
 	}
-	return b
+	return version.Commit
 }
 
 // defaultArtifacts is what -o writes when --report says nothing: the two a pipeline already
@@ -711,10 +708,8 @@ func writeArtifacts(dir string, formats []string, data report.Data, release saga
 			if err := writeTo(filepath.Join(dir, name), func(w io.Writer) error {
 				// Named, because a document with no project in it is one a platform files under nothing. And
 				// there is no release name left for it to be recovered from.
-				prov := data.JSONProvenance()
-				prov.Gate, prov.Build = data.GateForReport(), buildRef()
 				return skald.RenderJSONFor(w, data.ProjectName(), release, run, verdict,
-					firstNonEmpty(declared, minPriority), data.JSONFeeds(), sarif.MarshalOptions{}, prov)
+					firstNonEmpty(declared, minPriority), data.JSONFeeds(), sarif.MarshalOptions{}, data.JSONProvenance())
 			}); err != nil {
 				return err
 			}

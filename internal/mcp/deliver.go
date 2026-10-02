@@ -46,7 +46,8 @@ func deliver(
 		// Stamped for the same reason the CLI stamps it: a report offered as evidence has to say
 		// when it ran and what produced it.
 		Generated: time.Now(),
-		Version:   reportVersion(),
+		Version:   strings.TrimPrefix(version.Version, "v"),
+		Commit:    buildCommit(),
 	}
 	if err := publish.Run(ctx, model.Config.Publishers, data); err != nil {
 		return nil, err
@@ -54,11 +55,14 @@ func deliver(
 	return deliveryLines(model), nil
 }
 
-// reportVersion stamps the build into a published report, matching what `draugr scan` writes so
-// a report delivered through MCP and one delivered from the CLI cannot be told apart by it.
-func reportVersion() string {
-	if version.Version == "" || version.Version == "dev" {
-		return "(development build)"
+// buildCommit is the commit the binary was built from, or "" when the build was not stamped.
+//
+// Version and commit are stamped raw, as `draugr scan` stamps them, so a report delivered through
+// MCP and one delivered from the CLI cannot be told apart by either. The formats a person reads
+// label the version themselves.
+func buildCommit() string {
+	if version.Commit == "none" {
+		return ""
 	}
-	return "v" + strings.TrimPrefix(version.Version, "v")
+	return version.Commit
 }

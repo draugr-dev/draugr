@@ -2022,3 +2022,22 @@ func TestTheExclusionBreakdownStopsNamingFilesAndCountsThem(t *testing.T) {
 		t.Errorf("past the cap the line should count the files:\n  %s", line)
 	}
 }
+
+// Every path that writes the JSON document records the build, not only the -o artifact: the
+// reporter behind --format json and every publisher builds through JSONProvenance.
+func TestTheJSONReportSaysWhichDraugrProducedIt(t *testing.T) {
+	d := Data{Version: "0.143.0", Commit: "19b01f2"}
+	if b := d.JSONProvenance().Build; b == nil || b.Version != "0.143.0" || b.Commit != "19b01f2" {
+		t.Errorf("provenance build = %+v", b)
+	}
+	if b := (Data{}).JSONProvenance().Build; b != nil {
+		t.Errorf("a caller that stamped nothing got a build: %+v", b)
+	}
+	a, err := Build(saga.ReportConfig{Format: "json"}, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(a.Bytes), `"draugr": {`) || !strings.Contains(string(a.Bytes), `"version": "0.143.0"`) {
+		t.Errorf("rendered report carries no draugr block:\n%.400s", a.Bytes)
+	}
+}
