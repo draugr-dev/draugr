@@ -1,1 +1,0 @@
-- **`report.json` says which Draugr produced the run wherever it is sent**, not only in the file `-o` writes. `--format json` and every publisher, the `draugr-api` publisher included, now carry the `draugr` version and commit, so a platform that requires them accepts the run.
