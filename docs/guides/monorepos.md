@@ -1,6 +1,6 @@
 ---
 title: Scan a monorepo
-description: One repository, many teams. How to carve it into components, give each team a pipeline that covers its own code, and keep two scans of one commit from erasing each other.
+description: How to split a monorepo into components, give each team a pipeline that covers its own code, and keep two scans of one commit from erasing each other.
 section: Guides
 order: 26
 ---
