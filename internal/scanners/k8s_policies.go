@@ -74,7 +74,7 @@ func (s draugrK8sPoliciesScanner) CacheVersion(context.Context) string {
 // cluster's actual state; the rest are reported as requiring a human, which is what CIS says
 // about them and what kube-bench reports too. A partially implemented scanner that omitted the
 // rest would return a shorter, cleaner report that quietly means less.
-func (s draugrK8sPoliciesScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
+func (s draugrK8sPoliciesScanner) Scan(ctx context.Context, target plugin.Target, _ plugin.Config) (sarif.Report, error) {
 	if _, ok := target.(plugin.KubernetesTarget); !ok {
 		return sarif.Report{}, fmt.Errorf("%s: unsupported target %T (want a Kubernetes cluster)", draugrK8sPoliciesScannerName, target)
 	}

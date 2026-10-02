@@ -358,10 +358,10 @@ func validateClusters(clusters map[string]Cluster, components []Component) []err
 			switch {
 			case strings.TrimSpace(ref.Cluster) == "":
 				errs = append(errs, fmt.Errorf("%s: kubernetes[%d].cluster is required, naming an entry "+
-					"under clusters:", where, j))
+					"in clusters", where, j))
 				continue
 			case clusters == nil || !hasCluster(clusters, ref.Cluster):
-				msg := fmt.Sprintf("%s: kubernetes[%d].cluster %q is not declared under clusters:",
+				msg := fmt.Sprintf("%s: kubernetes[%d].cluster %q is not declared in clusters",
 					where, j, ref.Cluster)
 				if names := slices.Sorted(maps.Keys(clusters)); len(names) > 0 {
 					msg += " (it has " + strings.Join(names, ", ") + ")"

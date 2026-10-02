@@ -260,7 +260,7 @@ func kubeBenchArgv(target plugin.Target, cfg plugin.Config) (kubeBenchPlan, erro
 				"kube-bench: cannot determine the cluster's Kubernetes version, and kube-bench "+
 					"would silently audit against a stale benchmark instead of saying so: %w. "+
 					"Set the cluster's version (e.g. \"1.34\") or benchmark (e.g. \"cis-1.12\") "+
-					"under clusters:", err)
+					"on its entry in clusters", err)
 		}
 		if facts.Platform != "" {
 			// Deliberately neither flag: this is the only way kube-bench will select the

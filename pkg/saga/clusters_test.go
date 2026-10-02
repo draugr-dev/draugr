@@ -36,12 +36,12 @@ clusters:
 components:
   - name: c
     kubernetes: [{cluster: prdo}]
-`, `kubernetes[0].cluster "prdo" is not declared under clusters: (it has prod, staging)`},
+`, `kubernetes[0].cluster "prdo" is not declared in clusters (it has prod, staging)`},
 		"no clusters at all": {`
 components:
   - name: c
     kubernetes: [{cluster: prod}]
-`, `kubernetes[0].cluster "prod" is not declared under clusters:`},
+`, `kubernetes[0].cluster "prod" is not declared in clusters`},
 		"one cluster twice": {`
 clusters:
   prod: {}
