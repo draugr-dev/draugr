@@ -72,11 +72,18 @@ every component on a cluster agrees about it.
 
 ```yaml
 clusters:
-  prod-cluster:                 # the name components use
-    context: prod-eu-admin      # optional, the kubeconfig context that reaches it
+  prod-us:                      # the name components use
+    context: prod-us-admin      # optional, the kubeconfig context that reaches it
     operatedBy: provider        # optional, self (default) or provider
     benchmark: eks-1.5.0        # optional, what kube-bench audits against
+  prod-eu:
+    context: prod-eu-admin
     version: "1.30"             # optional, selects kube-bench's benchmark when benchmark is unset
+components:
+  - name: payments
+    kubernetes: [{cluster: prod-us}]
+  - name: analytics
+    kubernetes: [{cluster: prod-eu, namespaces: [analytics]}]
 ```
 
 | Field | Description |
@@ -203,9 +210,9 @@ a repository or image added later silently defaults back to `self`.
 the component declares the whole cluster. The cluster-wide checks, such as ClusterRoleBindings,
 admission webhooks and the CNI, run only for a component that declares the whole cluster, so a
 shared cluster's answer is filed once. A namespaced entry gets the checks about objects in its
-namespaces. Not every scanner can honor a scope. `kube-bench` runs checks written as cluster-wide `kubectl` queries, and `kube-bench-job`
-reads a node's own filesystem, which has no namespace, so both always describe the whole cluster.
-Neither is run against a component that sets `namespaces`. The alternative would be a report that
+namespaces. `kube-bench` runs checks written as cluster-wide `kubectl` queries and `kube-bench-job`
+reads a node's own filesystem, which has no namespace, so neither can honor a scope and neither is
+run against a component that sets `namespaces`. The alternative would be a report that
 looks scoped and lists somebody else's namespaces against this component, so the scan is not
 planned, and the report says so, under **Not measured**, naming the scanner and the component:
 
