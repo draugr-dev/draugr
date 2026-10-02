@@ -153,3 +153,29 @@ func TestMergeFragmentsKeepsTheReasonBelongingToTheExposureItKept(t *testing.T) 
 		t.Errorf("reason = %q, want the one belonging to the exposure that was kept", got)
 	}
 }
+
+// Two surveys merge their clusters by name, and the first definition and the first reason for a
+// proposal win, the same rule the components follow: a value already proposed is the one that
+// stays, so its reason has to stay with it.
+func TestMergeFragmentsKeepsTheFirstClusterAndReason(t *testing.T) {
+	a := saga.Fragment{
+		Clusters:        map[string]saga.Cluster{"prod": {Context: "prod-admin"}},
+		ExposureReasons: map[string]string{"svc": "an Ingress routes into it"},
+		SignerReasons:   map[string]string{"acme-ci": "read from ghcr.io/acme/api:1.0"},
+	}
+	b := saga.Fragment{
+		Clusters:        map[string]saga.Cluster{"prod": {Context: "other"}, "dev": {Context: "dev"}},
+		ExposureReasons: map[string]string{"svc": "a LoadBalancer Service", "web": "an Ingress"},
+		SignerReasons:   map[string]string{"acme-ci": "read elsewhere", "chainguard": "read from cgr.dev"},
+	}
+	m := MergeFragments(a, b)
+	if m.Clusters["prod"].Context != "prod-admin" || m.Clusters["dev"].Context != "dev" {
+		t.Errorf("clusters = %+v, want prod from the first survey and dev added", m.Clusters)
+	}
+	if m.ExposureReasons["svc"] != "an Ingress routes into it" || m.ExposureReasons["web"] != "an Ingress" {
+		t.Errorf("exposure reasons = %v", m.ExposureReasons)
+	}
+	if m.SignerReasons["acme-ci"] != "read from ghcr.io/acme/api:1.0" || m.SignerReasons["chainguard"] == "" {
+		t.Errorf("signer reasons = %v", m.SignerReasons)
+	}
+}
