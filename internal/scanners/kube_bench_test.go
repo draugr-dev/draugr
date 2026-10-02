@@ -288,7 +288,7 @@ users:
 	}
 }
 
-func TestKubeBenchRejectsNonInfraTargets(t *testing.T) {
+func TestKubeBenchRejectsNonKubernetesTargets(t *testing.T) {
 	_, err := NewKubeBench().Scan(context.Background(), plugin.HostTarget{URL: "https://x"}, nil)
 	if err == nil || !strings.Contains(err.Error(), "unsupported target") {
 		t.Errorf("want an unsupported-target error, got %v", err)

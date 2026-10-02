@@ -16,7 +16,7 @@ questions](#10-open-questions)
 ## 1. One-paragraph model
 
 A developer writes a **Saga** (`draugr.saga.yaml`) describing their app's surface, repos,
-images, endpoints, infrastructure. Optionally, **Surveyors** discover that surface and write the
+images, endpoints, clusters. Optionally, **Surveyors** discover that surface and write the
 Saga for them. The **engine** builds an execution plan (which **Controllers** apply to which
 components), runs the relevant **Scanners** concurrently, and normalizes every result to
 **SARIF**. The **Norn** evaluates results against policy to produce a pass/fail verdict, and the

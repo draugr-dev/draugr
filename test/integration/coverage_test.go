@@ -163,7 +163,7 @@ components:
 		t.Errorf("the kubernetes control is absent from the report:\n%s", console)
 	}
 	if strings.Contains(console, "kubernetes  ERROR") {
-		t.Errorf("the infrastructure control could not run against a real cluster:\n%s", console)
+		t.Errorf("the kubernetes control could not run against a real cluster:\n%s", console)
 	}
 }
 

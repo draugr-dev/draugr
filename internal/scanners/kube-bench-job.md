@@ -10,7 +10,7 @@ order: 100
 - **Control:** [`kubernetes`](../controllers/kubernetes.md)
 - **Tool:** Aqua **kube-bench**, as a container image, https://github.com/aquasecurity/kube-bench
 - **Status:** ✅ implemented (CIS sections 1–4)
-- **Target:** a Kubernetes cluster (`InfraTarget`)
+- **Target:** a Kubernetes cluster (`KubernetesTarget`)
 - **License / terms:** **Apache-2.0** (permissive). Run as a pod from the published image.
 - **Effects:** `mutate` (creates a Job), `privilege` (hostPID, host path mounts)
 

@@ -33,7 +33,7 @@ concept](../concepts/surveyors.md).
 
 **In:** `draugr.saga.yaml`. **Out:** a validated in-memory model.
 
-The Saga lists your **components** (repositories, images, hosts, infrastructure) and which
+The Saga lists your **components** (repositories, images, hosts, Kubernetes clusters) and which
 **controls** are enabled. Loading it: parses YAML, substitutes `${{ VAR }}` from the
 environment (comments are ignored), and validates (required fields, unique component
 names). See the [Saga schema](../reference/saga-schema.md).

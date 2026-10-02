@@ -11,7 +11,7 @@ Draugr turns a description of your app into trustworthy, audit-ready security ev
 starting point is the **Saga**.
 
 `draugr.saga.yaml` is the source of truth, a *security bill of materials for a running application*.
-It lists your **components** (repositories, images, hosts, infrastructure) and which **controls**
+It lists your **components** (repositories, images, hosts, Kubernetes clusters) and which **controls**
 must pass. You write what you know; Draugr works out the rest.
 
 ## Why a descriptor at all

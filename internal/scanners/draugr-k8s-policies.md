@@ -10,7 +10,7 @@ order: 20
 - **Control:** [`kubernetes`](../controllers/kubernetes.md)
 - **Tool:** none. This scanner reads the Kubernetes API directly
 - **Status:** ✅ implemented, partial coverage of the section (see below)
-- **Target:** a Kubernetes cluster (`InfraTarget`)
+- **Target:** a Kubernetes cluster (`KubernetesTarget`)
 - **License / terms:** Apache-2.0 (Draugr's own). No third-party tool is executed.
 
 ## What it does

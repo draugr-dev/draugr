@@ -10,7 +10,7 @@ order: 90
 - **Control:** [`kubernetes`](../controllers/kubernetes.md)
 - **Tool:** Aqua **kube-bench**, https://github.com/aquasecurity/kube-bench
 - **Status:** ✅ implemented (CIS section 5)
-- **Target:** a Kubernetes cluster (`InfraTarget`)
+- **Target:** a Kubernetes cluster (`KubernetesTarget`)
 - **License / terms:** **Apache-2.0** (permissive). Run via **exec**.
 
 ## What it does

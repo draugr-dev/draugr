@@ -312,7 +312,7 @@ func provenanceAccount(reports []sarif.Report) []sarif.Provenance {
 
 	// The shape the other controls in this block use: what was covered, over what, and the one
 	// qualifier that changes how much the coverage is worth. `coverage` and `scope` are the
-	// infrastructure control's own keys, carrying the same meaning here.
+	// kubernetes control's own keys, carrying the same meaning here.
 	//
 	// Counts, not lists. The things worth saying grow with the descriptor: an identity is about
 	// ninety-five characters and a project can declare a dozen signers over twenty images. Written

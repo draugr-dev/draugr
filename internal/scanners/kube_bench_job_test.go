@@ -221,7 +221,7 @@ func TestKubeBenchJobAlwaysCleansUp(t *testing.T) {
 	}
 }
 
-func TestKubeBenchJobRejectsNonInfraTargets(t *testing.T) {
+func TestKubeBenchJobRejectsNonKubernetesTargets(t *testing.T) {
 	_, err := NewKubeBenchJob().Scan(context.Background(), plugin.HostTarget{URL: "https://x"}, nil)
 	if err == nil || !strings.Contains(err.Error(), "unsupported target") {
 		t.Errorf("want an unsupported-target error, got %v", err)
