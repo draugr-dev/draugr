@@ -230,7 +230,7 @@ func TestKubernetesDoesNotPassTheControlsOwnKeysToAScanner(t *testing.T) {
 		},
 	}}}
 	comp := &saga.Component{
-		Name:           "cluster",
+		Name:       "cluster",
 		Kubernetes: []saga.KubernetesCluster{{Ref: "prod"}},
 	}
 	jobs, err := Kubernetes{}.Plan(model, comp)

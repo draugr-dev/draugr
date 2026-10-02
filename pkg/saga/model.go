@@ -770,10 +770,10 @@ type Component struct {
 	// Here as well as on each target because a component that is entirely somebody else's software, a
 	// vendor console, an open-source service you run from source. Otherwise needs the field written
 	// on every repository and every image, and a target added later silently defaults back to `self`.
-	BuiltBy        BuiltBy          `yaml:"builtBy,omitempty"`
-	Repositories   []Repository     `yaml:"repositories,omitempty"`
-	Images         []Image          `yaml:"images,omitempty"`
-	Hosts          []Host           `yaml:"hosts,omitempty"`
+	BuiltBy      BuiltBy      `yaml:"builtBy,omitempty"`
+	Repositories []Repository `yaml:"repositories,omitempty"`
+	Images       []Image      `yaml:"images,omitempty"`
+	Hosts        []Host       `yaml:"hosts,omitempty"`
 	// Kubernetes are the clusters this component runs on, checked by the kubernetes control.
 	Kubernetes []KubernetesCluster `yaml:"kubernetes,omitempty"`
 	// Controls overrides the project's per-control configuration for this component.

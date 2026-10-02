@@ -145,8 +145,8 @@ func TestCheckControlNamesRejectsUnknownScannerKeys(t *testing.T) {
 
 func TestCheckControlNamesAcceptsRealScannerKeys(t *testing.T) {
 	m := &saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
-		"headers":        {"enabled": true, "draugrHeaders": saga.ControllerSettings{"enabled": false}},
-		"sast":           {"semgrep": saga.ControllerSettings{"config": "p/default"}, "gosec": saga.ControllerSettings{"enabled": true}},
+		"headers":    {"enabled": true, "draugrHeaders": saga.ControllerSettings{"enabled": false}},
+		"sast":       {"semgrep": saga.ControllerSettings{"config": "p/default"}, "gosec": saga.ControllerSettings{"enabled": true}},
 		"kubernetes": {"draugrK8sPolicies": saga.ControllerSettings{"enabled": true}},
 	}}}
 	if err := checkControlNames(builtins.Registry(), m); err != nil {

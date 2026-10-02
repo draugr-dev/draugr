@@ -285,7 +285,7 @@ func TestSurveyK8sClusterRunsTheClusterSurveyor(t *testing.T) {
 	reg := surveyor.NewRegistry()
 	var got []surveyor.Request
 	reg.Register(stubSurveyor{name: "k8s-cluster", comp: saga.Component{
-		Name:           "prod",
+		Name:       "prod",
 		Kubernetes: []saga.KubernetesCluster{{Ref: "prod"}},
 	}})
 
@@ -338,7 +338,7 @@ func TestSurveyOutputIsScannable(t *testing.T) {
 
 	reg := surveyor.NewRegistry()
 	reg.Register(stubSurveyor{name: "k8s-cluster", comp: saga.Component{
-		Name:           "prod",
+		Name:       "prod",
 		Kubernetes: []saga.KubernetesCluster{{Ref: "prod"}},
 	}})
 
