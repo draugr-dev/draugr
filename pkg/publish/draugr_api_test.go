@@ -528,3 +528,33 @@ func TestTheAPIPublisherNeedsNothingDeclaredBesideIt(t *testing.T) {
 		t.Error("the evidence uploaded was not the SARIF report")
 	}
 }
+
+// The run a publisher posts says which Draugr produced it, as the report.json written to disk
+// does. A platform refuses a run that cannot say, so a document that dropped the block on the way
+// to the publisher turned every publish into a refusal while the file beside it looked complete.
+func TestThePostedRunSaysWhichDraugrProducedIt(t *testing.T) {
+	p := &server{}
+	srv := p.server(t)
+	t.Setenv(apiURLEnv, srv.URL)
+	t.Setenv(apiTokenEnv, "drgr_ci_test")
+	d := sampleData()
+	d.Version, d.Commit = "0.143.0", "19b01f2"
+	if err := Run(context.Background(), []saga.PublisherConfig{{Kind: "draugr-api"}}, d); err != nil {
+		t.Fatal(err)
+	}
+	if len(p.runs) != 1 {
+		t.Fatalf("runs posted = %d, want 1", len(p.runs))
+	}
+	var posted struct {
+		Draugr *struct {
+			Version string `json:"version"`
+			Commit  string `json:"commit"`
+		} `json:"draugr"`
+	}
+	if err := json.Unmarshal(p.runs[0].body, &posted); err != nil {
+		t.Fatalf("posted run is not JSON: %v", err)
+	}
+	if posted.Draugr == nil || posted.Draugr.Version != "0.143.0" || posted.Draugr.Commit != "19b01f2" {
+		t.Errorf("draugr block = %+v, want version 0.143.0 and commit 19b01f2:\n%s", posted.Draugr, p.runs[0].body)
+	}
+}

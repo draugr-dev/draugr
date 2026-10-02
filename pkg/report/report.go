@@ -121,6 +121,10 @@ type Data struct {
 	// so a caller that does not set them still renders a valid report.
 	Generated time.Time
 	Version   string
+	// Commit is the commit the Draugr binary was built from, empty when it was not stamped. A
+	// version alone does not identify a development build, and those produce most runs of an
+	// unreleased change.
+	Commit string
 	// VEX names the author and product for the "vex" format. Nil falls back to the release,
 	// which is enough for a valid document and not enough for a publishable one.
 	VEX *saga.VEXConfig
@@ -439,13 +443,18 @@ func (jsonReporter) Render(w io.Writer, d Data) error {
 }
 
 // JSONProvenance is what produced the run, as the JSON document records it: the descriptor, the CI
-// job and the gate.
+// job, the gate and the Draugr build.
 //
-// One function for every path that writes the document, the -o artifact and the reporter a
-// publisher uses, so a report.json on disk and the same run's --format json cannot record
-// different provenance.
+// One function for every path that writes the document, the -o artifact, --format json and the
+// reporter a publisher uses, so the same run cannot record different provenance depending on
+// where it was sent. A platform receiving the document by publisher reads the build from it to
+// know which Draugr produced the run.
 func (d Data) JSONProvenance() skald.Provenance {
-	return skald.Provenance{Descriptor: d.Descriptor, CI: d.CI, Gate: d.Gate.skald()}
+	p := skald.Provenance{Descriptor: d.Descriptor, CI: d.CI, Gate: d.Gate.skald()}
+	if d.Version != "" || d.Commit != "" {
+		p.Build = &skald.Build{Version: d.Version, Commit: d.Commit}
+	}
+	return p
 }
 
 // JSONFeeds is the exploitability data the run was ranked against, as the JSON document records it.
