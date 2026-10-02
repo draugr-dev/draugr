@@ -75,10 +75,10 @@ components:
 // went: the context and the operator to the cluster's entry, the benchmark settings too.
 func TestTheOldClusterFieldsNameTheirNewHome(t *testing.T) {
 	for body, want := range map[string]string{
-		"components:\n  - name: c\n    kubernetes: [{ref: prod}]\n":                 "`clusters: {prod: {context: prod-eu-west-1}}`",
-		"components:\n  - name: c\n    kubernetes: [{operatedBy: provider}]\n":      "moved to the cluster's entry under the top-level `clusters:`",
-		"config:\n  controls:\n    kubernetes: {enabled: true, context: prod}\n":   "config.controls.kubernetes.context was removed. Use `context` on the cluster's entry",
-		"config:\n  controls:\n    kubernetes: {enabled: true, benchmark: x}\n":    "config.controls.kubernetes.benchmark was removed",
+		"components:\n  - name: c\n    kubernetes: [{ref: prod}]\n":                  "`clusters: {prod: {context: prod-eu-west-1}}`",
+		"components:\n  - name: c\n    kubernetes: [{operatedBy: provider}]\n":       "moved to the cluster's entry under the top-level `clusters:`",
+		"config:\n  controls:\n    kubernetes: {enabled: true, context: prod}\n":     "config.controls.kubernetes.context was removed. Use `context` on the cluster's entry",
+		"config:\n  controls:\n    kubernetes: {enabled: true, benchmark: x}\n":      "config.controls.kubernetes.benchmark was removed",
 		"config:\n  controls:\n    kubernetes: {enabled: true, version: \"1.30\"}\n": "config.controls.kubernetes.version was removed",
 	} {
 		_, err := Load([]byte(clusterHeader + body))
