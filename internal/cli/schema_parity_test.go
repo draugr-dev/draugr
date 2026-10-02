@@ -16,7 +16,8 @@ import (
 // parityExceptions are the fields where `draugr validate` refuses a value the JSON Schema accepts,
 // each for a reason no schema can express.
 var parityExceptions = map[string]string{
-	`^fragments\.\d+\.path$`: "a file that has to exist, which a schema cannot know",
+	`^fragments\.\d+\.path$`:                      "a file that has to exist, which a schema cannot know",
+	`^components\.\d+\.kubernetes\.\d+\.cluster$`: "a name the same descriptor declares under clusters:, which a schema cannot cross-reference",
 }
 
 // TestTheEditorAndDraugrAgreeOnEveryField holds the JSON Schema and `draugr validate` to the same

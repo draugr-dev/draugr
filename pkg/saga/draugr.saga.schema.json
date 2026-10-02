@@ -12,6 +12,82 @@
       },
       "type": "object"
     },
+    "cluster": {
+      "additionalProperties": false,
+      "description": "A Kubernetes cluster's own facts, declared once and shared by every component whose kubernetes: entry names it.",
+      "properties": {
+        "benchmark": {
+          "description": "The CIS benchmark kube-bench audits this cluster against, such as cis-1.10 or eks-1.5.0. Omit to let kube-bench choose from the cluster's version.",
+          "minLength": 1,
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "context": {
+          "description": "The kubeconfig context that reaches the cluster. Omit to use the kubeconfig's current context.",
+          "minLength": 1,
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "operatedBy": {
+          "anyOf": [
+            {
+              "const": "self",
+              "description": "You operate this, so a misconfiguration is yours to change."
+            },
+            {
+              "const": "provider",
+              "description": "A cloud provider operates it, so controls it owns are reported as theirs rather than as yours to fix."
+            }
+          ],
+          "description": "Who runs the cluster. \"provider\" for a managed service, where the control plane, API server and etcd are not reachable by the team that owns the workloads — findings about those are reported but never presented as work this team can do. RBAC, Pod Security and network policy stay theirs either way. Defaults to \"self\".",
+          "type": "string"
+        },
+        "version": {
+          "description": "The Kubernetes version kube-bench selects a benchmark from when it cannot read it from the cluster, such as \"1.34\". Ignored when benchmark is set.",
+          "minLength": 1,
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "clusterRef": {
+      "additionalProperties": false,
+      "description": "One component's use of a cluster declared under clusters:.",
+      "properties": {
+        "cluster": {
+          "description": "The name of an entry under clusters:.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "namespaces": {
+          "description": "Namespaces this component owns. Omit to declare the whole cluster, which is the only entry that runs the cluster-wide checks. Only the draugrK8sPolicies scanner can honor a scope; the others refuse rather than silently report the whole cluster.",
+          "items": {
+            "minLength": 1,
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "cluster"
+      ],
+      "type": "object"
+    },
     "component": {
       "additionalProperties": false,
       "description": "One logical part of the app. All surface lists are optional — declare what applies.",
@@ -59,9 +135,9 @@
           "type": "array"
         },
         "kubernetes": {
-          "description": "Kubernetes clusters this component runs on — checked by the kubernetes control.",
+          "description": "The clusters this component runs on, by name from clusters: — checked by the kubernetes control.",
           "items": {
-            "$ref": "#/$defs/kubernetesCluster"
+            "$ref": "#/$defs/clusterRef"
           },
           "type": "array"
         },
@@ -399,16 +475,8 @@
           "additionalProperties": false,
           "description": "kube-bench, published by aquasecurity.",
           "properties": {
-            "benchmark": {
-              "description": "kube-bench benchmark to run, e.g. cis-1.9 or eks-1.5.0. Defaults to letting kube-bench detect the cluster's version.",
-              "type": "string"
-            },
             "configDir": {
               "description": "Path to kube-bench's cfg/ tree of benchmark definitions. Needed when the binary is on PATH and its cfg lives beside it rather than in /etc/kube-bench/cfg.",
-              "type": "string"
-            },
-            "context": {
-              "description": "kubeconfig context to run against. Defaults to the current context.",
               "type": "string"
             },
             "enabled": {
@@ -418,10 +486,6 @@
             "targets": {
               "description": "Comma-separated kube-bench targets to run, e.g. \"master,node\". Defaults to the node checks, which are what a scan from outside the control plane can answer.",
               "type": "string"
-            },
-            "version": {
-              "description": "Kubernetes version to select the benchmark for, e.g. \"1.29\". Ignored when benchmark is set.",
-              "type": "string"
             }
           },
           "type": "object"
@@ -430,14 +494,6 @@
           "additionalProperties": false,
           "description": "kube-bench-job, published by aquasecurity.",
           "properties": {
-            "benchmark": {
-              "description": "kube-bench benchmark to run, e.g. cis-1.9. Defaults to letting kube-bench detect the cluster's version.",
-              "type": "string"
-            },
-            "context": {
-              "description": "kubeconfig context to create the Job in. Defaults to the current context.",
-              "type": "string"
-            },
             "enabled": {
               "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
               "type": "boolean"
@@ -1215,9 +1271,9 @@
           "type": "array"
         },
         "kubernetes": {
-          "description": "Kubernetes clusters this component runs on — checked by the kubernetes control.",
+          "description": "The clusters this component runs on, by name from clusters: — checked by the kubernetes control.",
           "items": {
-            "$ref": "#/$defs/kubernetesCluster"
+            "$ref": "#/$defs/clusterRef"
           },
           "type": "array"
         },
@@ -1791,48 +1847,6 @@
         "type": {
           "description": "An issue type the organization defines on GitHub; issue, incident or task on GitLab; a work item type on Azure DevOps, defaulting to the default type of the Task category.",
           "minLength": 1,
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
-        }
-      },
-      "type": "object"
-    },
-    "kubernetesCluster": {
-      "additionalProperties": false,
-      "description": "A Kubernetes cluster this component runs on, audited against the CIS Kubernetes Benchmark.",
-      "properties": {
-        "namespaces": {
-          "description": "Namespaces this component owns. Omit to audit the whole cluster. Only the draugrK8sPolicies scanner can honor a scope; the others refuse rather than silently report the whole cluster.",
-          "items": {
-            "minLength": 1,
-            "type": [
-              "string",
-              "number",
-              "boolean"
-            ]
-          },
-          "type": "array",
-          "uniqueItems": true
-        },
-        "operatedBy": {
-          "anyOf": [
-            {
-              "const": "self",
-              "description": "You operate this, so a misconfiguration is yours to change."
-            },
-            {
-              "const": "provider",
-              "description": "A cloud provider operates it, so controls it owns are reported as theirs rather than as yours to fix."
-            }
-          ],
-          "description": "Who runs this surface. \"provider\" for a managed service, where the control plane, API server and etcd are not reachable by the team that owns the workloads — findings about those are reported but never presented as work this team can do. RBAC, Pod Security and network policy stay theirs either way. Defaults to \"self\".",
-          "type": "string"
-        },
-        "ref": {
-          "description": "The kubeconfig context that selects the cluster. Omit to audit the current context.",
           "type": [
             "string",
             "number",
@@ -2661,6 +2675,13 @@
   "additionalProperties": false,
   "description": "The draugr.saga.yaml descriptor — a declarative account of an application's security surface and the controls that must pass. See https://draugr.dev/docs/latest/reference/saga-schema/",
   "properties": {
+    "clusters": {
+      "additionalProperties": {
+        "$ref": "#/$defs/cluster"
+      },
+      "description": "The Kubernetes clusters the components run on, each declared once by a name that components' kubernetes: entries refer to.",
+      "type": "object"
+    },
     "components": {
       "description": "The app's parts. Each component declares the surfaces it exposes; Draugr plans scans per surface.",
       "items": {

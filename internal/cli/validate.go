@@ -235,7 +235,7 @@ func loadAndWarn(path string) ([]string, error) {
 	if err != nil {
 		return nil, nil
 	}
-	return res.Model.ExcludeWarnings(filepath.Dir(path)), nil
+	return append(res.Model.ExcludeWarnings(filepath.Dir(path)), res.Model.ClusterWarnings()...), nil
 }
 
 // explanations collects what each control has to say about a descriptor that has already

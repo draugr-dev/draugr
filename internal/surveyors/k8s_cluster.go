@@ -67,9 +67,14 @@ func (k K8sCluster) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.
 		ref = k.currentContext()
 	}
 
+	// The cluster is declared once, named after the context the operator already calls it by, and the
+	// component refers to it. The context is written only when one was resolved: an empty one means
+	// the kubeconfig's current context, which is what a survey of no particular context read.
+	name := componentNameFor(ref)
+	cluster := saga.Cluster{Context: ref}
 	comp := saga.Component{
-		Name:       componentNameFor(ref),
-		Kubernetes: []saga.KubernetesCluster{{Ref: ref}},
+		Name:       name,
+		Kubernetes: []saga.ClusterRef{{Cluster: name}},
 	}
 	if err := requireNamespace(ctx, cs, scope.Ref); err != nil {
 		return saga.Fragment{}, err
@@ -85,14 +90,16 @@ func (k K8sCluster) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.
 
 	// exposure and criticality are deliberately absent. Neither is a property of the cluster. They
 	// are judgements about what its failure costs, which `draugr classify` asks a human.
-	return saga.Fragment{Components: []saga.Component{comp}}, nil
+	return saga.Fragment{
+		Clusters:   map[string]saga.Cluster{name: cluster},
+		Components: []saga.Component{comp},
+	}, nil
 }
 
 // componentNameFor names the component after the cluster it describes.
 //
 // A descriptor with a component called "cluster" says nothing once there are two of them, and the
-// context is what the operator already calls it, the same string the infrastructure scanner
-// resolves back to a kubeconfig entry.
+// context is what the operator already calls it.
 func componentNameFor(ref string) string {
 	if ref == "" {
 		return "cluster"

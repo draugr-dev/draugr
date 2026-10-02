@@ -50,18 +50,22 @@ func (Kubernetes) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob
 	if comp == nil {
 		return nil, nil
 	}
-	// Control-level settings apply to every scanner the control runs: `context` names the
-	// cluster, not a tool, and repeating it per scanner would be a way to get them out of step.
-	// A scanner block overlays them, so a per-scanner value still wins.
+	// Control-level settings apply to every scanner the control runs, and a scanner block overlays
+	// them. What belongs to a cluster, its context and its benchmark, comes from `clusters:` on the
+	// target instead, so two clusters can differ.
 	shared := clusterConfig(model, comp)
 	selections := resolveScanners(model, comp, kubernetesControl, []string{draugrK8sPoliciesScanner})
 	var jobs []plugin.ScanJob
-	for _, cluster := range comp.Kubernetes {
+	for _, ref := range comp.Kubernetes {
+		// Validation refuses a name with no declaration, so a missing one here is a model built in
+		// code; the zero cluster audits the current context, as an undeclared one always did.
+		cluster := model.Clusters[ref.Cluster]
 		for _, sel := range selections {
 			jobs = append(jobs, plugin.ScanJob{
 				Scanner: sel.Name,
 				Target: plugin.KubernetesTarget{
-					Ref: cluster.Ref, Namespaces: cluster.Namespaces,
+					Cluster: ref.Cluster, Context: cluster.Context, Namespaces: ref.Namespaces,
+					Benchmark: cluster.Benchmark, Version: cluster.Version,
 					ProviderOperated: cluster.OperatedBy == saga.OperatedByProvider,
 				},
 				Config: withShared(shared, sel.Config),

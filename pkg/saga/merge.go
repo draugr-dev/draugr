@@ -151,13 +151,13 @@ func unionHosts(a, b []Host) []Host {
 	return a
 }
 
-func unionClusters(a, b []KubernetesCluster) []KubernetesCluster {
+func unionClusters(a, b []ClusterRef) []ClusterRef {
 	at := map[string]int{}
 	for i, in := range a {
-		at[in.Ref] = i
+		at[in.Cluster] = i
 	}
 	for _, in := range b {
-		key := in.Ref
+		key := in.Cluster
 		i, ok := at[key]
 		if !ok {
 			at[key] = len(a)
@@ -213,15 +213,15 @@ func NarrowsScopeIn(components []Component, frag Fragment) []string {
 	for _, c := range components {
 		for _, in := range c.Kubernetes {
 			if len(in.Namespaces) == 0 {
-				wide[c.Name+"/"+in.Ref] = true
+				wide[c.Name+"/"+in.Cluster] = true
 			}
 		}
 	}
 	var out []string
 	for _, c := range frag.Components {
 		for _, in := range c.Kubernetes {
-			if len(in.Namespaces) > 0 && wide[c.Name+"/"+in.Ref] {
-				out = append(out, c.Name+" ("+in.Ref+")")
+			if len(in.Namespaces) > 0 && wide[c.Name+"/"+in.Cluster] {
+				out = append(out, c.Name+" ("+in.Cluster+")")
 			}
 		}
 	}

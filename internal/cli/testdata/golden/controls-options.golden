@@ -93,16 +93,11 @@ What each scanner accepts in its Saga block:
 
   kube-bench
     Option     Type    What it does
-    benchmark  string  kube-bench benchmark to run, e.g. cis-1.9 or eks-1.5.0. Defaults to letting kube-bench detect the cluster's version.
     configDir  string  Path to kube-bench's cfg/ tree of benchmark definitions. Needed when the binary is on PATH and its cfg lives beside it rather than in /etc/kube-bench/cfg.
-    context    string  kubeconfig context to run against. Defaults to the current context.
     targets    string  Comma-separated kube-bench targets to run, e.g. "master,node". Defaults to the node checks, which are what a scan from outside the control plane can answer.
-    version    string  Kubernetes version to select the benchmark for, e.g. "1.29". Ignored when benchmark is set.
 
   kube-bench-job
     Option        Type    What it does
-    benchmark     string  kube-bench benchmark to run, e.g. cis-1.9. Defaults to letting kube-bench detect the cluster's version.
-    context       string  kubeconfig context to create the Job in. Defaults to the current context.
     image         string  kube-bench image the Job runs. Pin it to a digest for a reproducible benchmark, and to an internal mirror where the cluster cannot reach a public registry.
     namespace     string  Namespace to create the Job in. It must already exist; Draugr does not create namespaces.
     nodeSelector  string  Node selector for the Job, as comma-separated key=value pairs. Use it to benchmark a specific node pool.

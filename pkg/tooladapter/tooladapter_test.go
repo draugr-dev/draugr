@@ -144,7 +144,7 @@ func TestAdapterUsesTheConfiguredParser(t *testing.T) {
 			}}, nil
 		},
 	})
-	rep, err := a.Scan(context.Background(), plugin.KubernetesTarget{Ref: "prod"}, nil)
+	rep, err := a.Scan(context.Background(), plugin.KubernetesTarget{Cluster: "prod", Context: "prod"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

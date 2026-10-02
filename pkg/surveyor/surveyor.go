@@ -84,6 +84,17 @@ func MergeFragments(frags ...saga.Fragment) saga.Fragment {
 		for _, comp := range frag.Components {
 			out.Components = saga.UpsertComponent(out.Components, comp)
 		}
+		// Clusters by name, first wins as for the components. Two surveys of one cluster agree on
+		// it, and a disagreement surfaces when the merged fragment reaches a descriptor and is
+		// validated there.
+		for name, cluster := range frag.Clusters {
+			if out.Clusters == nil {
+				out.Clusters = map[string]saga.Cluster{}
+			}
+			if _, seen := out.Clusters[name]; !seen {
+				out.Clusters[name] = cluster
+			}
+		}
 		for name, reason := range frag.ExposureReasons {
 			// First wins, matching the component merge: the surface unions, but a value already
 			// proposed is the one that stays, so its reason has to stay with it.

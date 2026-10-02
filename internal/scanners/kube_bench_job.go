@@ -52,10 +52,6 @@ const kubeBenchJobConfigSchema = `{
       "type": "string",
       "description": "Comma-separated kube-bench targets to run, e.g. \"master,node\"."
     },
-    "benchmark": {
-      "type": "string",
-      "description": "kube-bench benchmark to run, e.g. cis-1.9. Defaults to letting kube-bench detect the cluster's version."
-    },
     "namespace": {
       "type": "string",
       "description": "Namespace to create the Job in. It must already exist; Draugr does not create namespaces."
@@ -72,10 +68,6 @@ const kubeBenchJobConfigSchema = `{
       "type": "string",
       "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+)$",
       "description": "How long to wait for the Job to finish, e.g. \"5m\"."
-    },
-    "context": {
-      "type": "string",
-      "description": "kubeconfig context to create the Job in. Defaults to the current context."
     }
   }
 }`
@@ -168,17 +160,18 @@ func (s kubeBenchJobScanner) Scan(ctx context.Context, target plugin.Target, cfg
 		}
 	}
 	if _, ok := target.(plugin.KubernetesTarget); !ok {
-		return sarif.Report{}, fmt.Errorf("%s: unsupported target %T (want infrastructure)",
+		return sarif.Report{}, fmt.Errorf("%s: unsupported target %T (want a Kubernetes cluster)",
 			kubeBenchJobScannerName, target)
 	}
-	kubeCtx := kubeContext(target, cfg)
+	kubeCtx := kubeContext(target)
 	client, err := s.client(kubeCtx)
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", kubeBenchJobScannerName, err)
 	}
 
 	namespace := stringSetting(cfg, namespaceKey, defaultJobNamespace)
-	job := s.buildJob(cfg)
+	cluster, _ := target.(plugin.KubernetesTarget)
+	job := s.buildJob(cfg, cluster.Benchmark)
 
 	created, err := client.BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
@@ -213,15 +206,15 @@ func (s kubeBenchJobScanner) Scan(ctx context.Context, target plugin.Target, cfg
 	if infra, ok := target.(plugin.KubernetesTarget); ok {
 		providerOperated = infra.ProviderOperated
 	}
-	return parseKubeBenchOperated(out, kubeBenchJobScannerName, clusterLabel(kubeCtx), providerOperated)
+	return parseKubeBenchOperated(out, kubeBenchJobScannerName, clusterLabel(target), providerOperated)
 }
 
 // buildJob renders the Job, following kube-bench's own manifest: host PID so it can see the
 // control-plane processes, and read-only host mounts for the files the benchmark inspects.
-func (s kubeBenchJobScanner) buildJob(cfg plugin.Config) *batchv1.Job {
+func (s kubeBenchJobScanner) buildJob(cfg plugin.Config, benchmark string) *batchv1.Job {
 	targets := stringSetting(cfg, targetsKey, defaultJobTargets)
 	args := []string{"run", "--json", "--targets", targets}
-	if benchmark := stringSetting(cfg, benchmarkKey, ""); benchmark != "" {
+	if benchmark != "" {
 		args = append(args, "--benchmark", benchmark)
 	}
 

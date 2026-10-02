@@ -73,12 +73,12 @@ func TestMergeFragmentsUnionsSurface(t *testing.T) {
 	a := saga.Fragment{Components: []saga.Component{{
 		Name:         "svc",
 		Repositories: []saga.Repository{{URL: "u", Revision: "1"}},
-		Kubernetes:   []saga.KubernetesCluster{{Ref: "prod"}},
+		Kubernetes:   []saga.ClusterRef{{Cluster: "prod"}},
 	}}}
 	b := saga.Fragment{Components: []saga.Component{{
 		Name:         "svc",
 		Repositories: []saga.Repository{{URL: "u", Revision: "1"}}, // dup
-		Kubernetes:   []saga.KubernetesCluster{{Ref: "dev"}},
+		Kubernetes:   []saga.ClusterRef{{Cluster: "dev"}},
 	}}}
 	merged := MergeFragments(a, b)
 	if len(merged.Components) != 1 {

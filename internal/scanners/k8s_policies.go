@@ -76,9 +76,9 @@ func (s draugrK8sPoliciesScanner) CacheVersion(context.Context) string {
 // rest would return a shorter, cleaner report that quietly means less.
 func (s draugrK8sPoliciesScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
 	if _, ok := target.(plugin.KubernetesTarget); !ok {
-		return sarif.Report{}, fmt.Errorf("%s: unsupported target %T (want infrastructure)", draugrK8sPoliciesScannerName, target)
+		return sarif.Report{}, fmt.Errorf("%s: unsupported target %T (want a Kubernetes cluster)", draugrK8sPoliciesScannerName, target)
 	}
-	kubeCtx := kubeContext(target, cfg)
+	kubeCtx := kubeContext(target)
 	client, err := s.client(kubeCtx)
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", draugrK8sPoliciesScannerName, err)
@@ -89,13 +89,15 @@ func (s draugrK8sPoliciesScanner) Scan(ctx context.Context, target plugin.Target
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", draugrK8sPoliciesScannerName, err)
 	}
-	report := policiesReport(decided, clusterScopeLabel(kubeCtx, infra.Namespaces), infra.Namespaces)
+	report := policiesReport(decided, clusterScopeLabel(target), infra.Namespaces)
 
 	// A managed cluster has a section of its benchmark that this scanner does not read. Say so,
 	// rather than letting the report imply the benchmark is only what was assessed. Detection
 	// failing is not fatal: the policies findings stand on their own.
-	if facts, err := detectCluster(kubeCtx); err == nil {
-		if res, rule, ok := managedServicesFinding(facts.Platform, clusterScopeLabel(kubeCtx, infra.Namespaces)); ok {
+	//
+	// The managed section is the cluster's, so only the component declaring the whole cluster says it.
+	if facts, err := detectCluster(kubeCtx); err == nil && len(infra.Namespaces) == 0 {
+		if res, rule, ok := managedServicesFinding(facts.Platform, clusterScopeLabel(target)); ok {
 			report.Results = append(report.Results, res)
 			report.Rules[managedServicesRuleID] = rule
 		}
@@ -129,25 +131,25 @@ func evaluatePolicies(ctx context.Context, client kubernetes.Interface, namespac
 	out := map[string]policyVerdict{}
 	scoped := len(namespaces) > 0
 
-	// Cluster-scoped reads. When the audit is scoped, the credential running it may be scoped too. A
-	// team with read on its own namespaces and nothing else is the normal case, and the one this
-	// feature exists for. So being refused here leaves the check undecided rather than failing the
-	// run: the namespaced checks are still worth having, and a check reported for manual review is an
-	// honest answer where an aborted scan is none.
+	// Cluster-scoped reads, for a run over the whole cluster only. A component that owns namespaces
+	// gets the namespaced checks; the cluster-scoped ones belong to the component declaring the whole
+	// cluster. Asked here they would file a shared cluster's answer once per namespace owner, and need
+	// a credential a namespace owner usually lacks.
 	//
-	// Unscoped, the same refusal is a real failure. Nothing was asked to be narrowed, so a
-	// cluster-wide audit that cannot read cluster-wide objects has not audited the cluster.
-	crbs, err := client.RbacV1().ClusterRoleBindings().List(ctx, metav1.ListOptions{})
-	switch {
-	case err == nil:
+	// Unscoped, a refusal is a real failure. Nothing was asked to be narrowed, so an audit that
+	// cannot read cluster-wide objects has not audited the cluster.
+	var clusterRoles []rbacv1.ClusterRole
+	if !scoped {
+		crbs, err := client.RbacV1().ClusterRoleBindings().List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("list clusterrolebindings: %w", err)
+		}
 		out["5.1.1"] = checkClusterAdminBindings(crbs.Items)
-	case !scoped:
-		return nil, fmt.Errorf("list clusterrolebindings: %w", err)
-	}
-
-	clusterRoles, err := client.RbacV1().ClusterRoles().List(ctx, metav1.ListOptions{})
-	if err != nil && !scoped {
-		return nil, fmt.Errorf("list clusterroles: %w", err)
+		crs, err := client.RbacV1().ClusterRoles().List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("list clusterroles: %w", err)
+		}
+		clusterRoles = crs.Items
 	}
 
 	roles, err := listNamespaced(namespaces, func(ns string) (*rbacv1.RoleList, error) {
@@ -156,7 +158,7 @@ func evaluatePolicies(ctx context.Context, client kubernetes.Interface, namespac
 	if err != nil {
 		return nil, fmt.Errorf("list roles: %w", err)
 	}
-	out["5.1.3"] = checkWildcardRules(roles, clusterRoles.Items)
+	out["5.1.3"] = checkWildcardRules(roles, clusterRoles)
 
 	accounts, err := listNamespaced(namespaces, func(ns string) (*corev1.ServiceAccountList, error) {
 		return client.CoreV1().ServiceAccounts(ns).List(ctx, metav1.ListOptions{})
@@ -272,6 +274,21 @@ func summarize(items []string) string {
 	return fmt.Sprintf("%s and %d more", strings.Join(items[:show], ", "), len(items)-show)
 }
 
+// applicableChecks is the catalog for a run over the whole cluster, or its namespaced checks for a
+// run scoped to namespaces.
+func applicableChecks(scoped bool) []cisPolicyCheck {
+	if !scoped {
+		return cisPolicies
+	}
+	out := make([]cisPolicyCheck, 0, len(cisPolicies))
+	for _, c := range cisPolicies {
+		if !c.ClusterScoped {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 // policiesReport renders the whole section: a verdict where there is one, a manual prompt
 // everywhere else.
 func policiesReport(decided map[string]policyVerdict, location string, namespaces []string) sarif.Report {
@@ -281,9 +298,17 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 	// is the one a reader cannot otherwise get: counting manual-review findings by hand is the
 	// only alternative, and a clean report gives no hint that two thirds of the section was never
 	// decided.
+	// A namespaced run answers the namespaced checks only, so its coverage counts those.
+	checks := applicableChecks(len(namespaces) > 0)
+	answered := 0
+	for _, check := range checks {
+		if _, ok := decided[check.ID]; ok {
+			answered++
+		}
+	}
 	fields := []sarif.Field{
 		{Key: "benchmark", Value: cisCatalogVersion},
-		{Key: "coverage", Value: fmt.Sprintf("%d of %d checks decided", len(decided), len(cisPolicies))},
+		{Key: "coverage", Value: fmt.Sprintf("%d of %d checks decided", answered, len(checks))},
 	}
 
 	// The same coverage figure, structured. The sentence above is for a person; this is what lets a
@@ -291,7 +316,7 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 	// scanner dissenting and a scanner being silent, and the two mean opposite things.
 	//
 	// The catalog's order, not the map's, so a report does not differ from itself between runs.
-	for _, check := range cisPolicies {
+	for _, check := range checks {
 		if _, settled := decided[check.ID]; !settled {
 			continue
 		}
@@ -309,7 +334,7 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 	fields = append(fields, sarif.Field{Key: "scope", Value: scopeDescription(namespaces)})
 	report.Provenance = []sarif.Provenance{{Tool: draugrK8sPoliciesScannerName, Fields: fields}}
 
-	for _, check := range cisPolicies {
+	for _, check := range checks {
 		// Namespaced by emitter. kube-bench audits the same benchmark and numbers its checks
 		// identically, so a bare "cis/5.1.1" is a rule id two tools both claim, and the Scanner column
 		// only disambiguates them inside Draugr's own console. In SARIF, in GitHub code scanning and in
@@ -706,8 +731,10 @@ func scopeDescription(namespaces []string) string {
 // A finding located at the cluster when only part of it was examined overstates the evidence:
 // the same rule id against `kubernetes/prod` means something different depending on whether
 // seventy-seven other namespaces were looked at.
-func clusterScopeLabel(kubeCtx string, namespaces []string) string {
-	label := clusterLabel(kubeCtx)
+func clusterScopeLabel(target plugin.Target) string {
+	label := clusterLabel(target)
+	t, _ := target.(plugin.KubernetesTarget)
+	namespaces := t.Namespaces
 	if len(namespaces) == 0 {
 		return label
 	}

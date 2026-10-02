@@ -12,9 +12,9 @@ import (
 func k8sComponent(settings saga.ControllerSettings) *saga.Component {
 	c := &saga.Component{
 		Name: "platform",
-		Kubernetes: []saga.KubernetesCluster{
-			{Ref: "prod"},
-			{Ref: "staging"},
+		Kubernetes: []saga.ClusterRef{
+			{Cluster: "prod"},
+			{Cluster: "staging"},
 		},
 	}
 	if settings != nil {
@@ -231,7 +231,7 @@ func TestKubernetesDoesNotPassTheControlsOwnKeysToAScanner(t *testing.T) {
 	}}}
 	comp := &saga.Component{
 		Name:       "cluster",
-		Kubernetes: []saga.KubernetesCluster{{Ref: "prod"}},
+		Kubernetes: []saga.ClusterRef{{Cluster: "prod"}},
 	}
 	jobs, err := Kubernetes{}.Plan(model, comp)
 	if err != nil {

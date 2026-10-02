@@ -3,6 +3,7 @@ package saga
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -51,9 +52,13 @@ func (m *Model) Validate() error {
 				"or digit", m.Project))
 	}
 
-	errs = append(errs, validateControllerKeys("", m.Config.Controls)...)
+	errs = append(errs, validateControllerKeys("config.", m.Config.Controls)...)
 
 	errs = append(errs, validateComponents(m.Components)...)
+	errs = append(errs, validateClusters(m.Clusters, m.Components)...)
+	for _, conflict := range m.clusterConflicts {
+		errs = append(errs, errors.New(conflict))
+	}
 	errs = append(errs, m.Config.AllowEffects.validate()...)
 
 	for i, p := range m.Config.Publishers {
@@ -178,13 +183,21 @@ func camelCaseKey(key string) string {
 // either way. Naming the replacement costs one line here and saves the reader from discovering
 // it by comparing two reports.
 var removedControllerKeys = map[string]map[string]string{
-	// Empty on purpose. A key that names no scanner is already rejected with the list of keys
-	// the control does accept, which covers every rename without an entry here.
-	//
-	// This is for the case that error cannot serve: a setting whose replacement is not a renaming but
-	// a different shape, where knowing the old name is the only way to explain the new one.
-	// `infrastructure.mode` was one. It became per-scanner blocks. And there are no users to migrate
-	// today, so it is gone with it.
+	// A key that names no scanner is already rejected with the list of keys the control does
+	// accept, which covers every rename without an entry here. This is for the case that error
+	// cannot serve: a setting whose replacement is not a renaming but a different shape, where
+	// knowing the old name is the only way to explain the new one.
+	"kubernetes": {
+		"context":   clusterFact("context"),
+		"benchmark": clusterFact("benchmark"),
+		"version":   clusterFact("version"),
+	},
+}
+
+// clusterFact explains a kubernetes control setting that became a fact about each cluster.
+func clusterFact(key string) string {
+	return fmt.Sprintf("`%s` on the cluster's entry under the top-level `clusters:`, since one value "+
+		"cannot fit two clusters", key)
 }
 
 // validateControllerKeys rejects descriptor keys that do not follow the schema's convention.
@@ -229,7 +242,7 @@ func validateControllerKeys(where string, controllers map[string]ControllerSetti
 		for key := range settings {
 			if replacement, gone := removedControllerKeys[control][key]; gone {
 				errs = append(errs, fmt.Errorf(
-					"%scontrollers.%s.%s was removed. Use %s",
+					"%scontrols.%s.%s was removed. Use %s",
 					where, control, key, replacement))
 				continue
 			}
@@ -237,7 +250,7 @@ func validateControllerKeys(where string, controllers map[string]ControllerSetti
 				continue
 			}
 			errs = append(errs, fmt.Errorf(
-				"%scontrollers.%s.%s: descriptor keys are camelCase. Use %q",
+				"%scontrols.%s.%s: descriptor keys are camelCase. Use %q",
 				where, control, key, camelCaseKey(key)))
 		}
 	}
@@ -313,17 +326,63 @@ func validateComponents(comps []Component) []error {
 			errs = append(errs, validateHostAuth(h.Auth, fmt.Sprintf("%s: hosts[%d].auth", where, j))...)
 			errs = append(errs, validateHostSpec(h.Spec, fmt.Sprintf("%s: hosts[%d].spec", where, j))...)
 		}
-		for j, cluster := range c.Kubernetes {
-			// A misspelling here reads as "self", so the findings a managed control plane cannot act on
-			// stay at the top of the list, the descriptor claims a decision it is not making, and the run
-			// looks the same either way.
-			if cluster.OperatedBy != "" && !cluster.OperatedBy.Valid() {
-				errs = append(errs, fmt.Errorf("%s: kubernetes[%d].operatedBy %q is not %s",
-					where, j, cluster.OperatedBy, OperatedByValues))
+	}
+	return errs
+}
+
+// validateClusters checks the declared clusters and every component's use of them.
+//
+// A name that matches no declaration is refused rather than skipped, because a skipped cluster is a
+// component scanned for everything except what it runs on, and reads as covered. The same cluster
+// twice in one component is refused too: it counts one cluster as two, and the whole-cluster entry
+// already covers the namespaces the other names.
+func validateClusters(clusters map[string]Cluster, components []Component) []error {
+	var errs []error
+	for _, name := range slices.Sorted(maps.Keys(clusters)) {
+		c := clusters[name]
+		if strings.TrimSpace(name) == "" {
+			errs = append(errs, errors.New("clusters: a cluster needs a name"))
+		}
+		// A misspelling here reads as "self", so the findings a managed control plane cannot act on
+		// stay at the top of the list, the descriptor claims a decision it is not making, and the run
+		// looks the same either way.
+		if c.OperatedBy != "" && !c.OperatedBy.Valid() {
+			errs = append(errs, fmt.Errorf("clusters.%s.operatedBy %q is not %s",
+				name, c.OperatedBy, orList(OperatedByValues)))
+		}
+	}
+	for i, comp := range components {
+		where := fmt.Sprintf("components[%d] (%s)", i, comp.Name)
+		seen := map[string]int{}
+		for j, ref := range comp.Kubernetes {
+			switch {
+			case strings.TrimSpace(ref.Cluster) == "":
+				errs = append(errs, fmt.Errorf("%s: kubernetes[%d].cluster is required, naming an entry "+
+					"under clusters:", where, j))
+				continue
+			case clusters == nil || !hasCluster(clusters, ref.Cluster):
+				msg := fmt.Sprintf("%s: kubernetes[%d].cluster %q is not declared under clusters:",
+					where, j, ref.Cluster)
+				if names := slices.Sorted(maps.Keys(clusters)); len(names) > 0 {
+					msg += " (it has " + strings.Join(names, ", ") + ")"
+				}
+				errs = append(errs, errors.New(msg))
 			}
+			if first, dup := seen[ref.Cluster]; dup {
+				errs = append(errs, fmt.Errorf("%s: kubernetes[%d] names cluster %q again, after "+
+					"kubernetes[%d]; a component runs on a cluster once, whole or by namespaces",
+					where, j, ref.Cluster, first))
+				continue
+			}
+			seen[ref.Cluster] = j
 		}
 	}
 	return errs
+}
+
+func hasCluster(clusters map[string]Cluster, name string) bool {
+	_, ok := clusters[name]
+	return ok
 }
 
 // validateHostAuth checks an endpoint's auth block.

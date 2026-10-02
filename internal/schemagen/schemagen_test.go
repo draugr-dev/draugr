@@ -446,7 +446,7 @@ func TestHandWrittenEnumsMatchTheirSource(t *testing.T) {
 		},
 		{
 			name: "who operates a cluster",
-			path: []string{"kubernetesCluster", "properties", "operatedBy"},
+			path: []string{"cluster", "properties", "operatedBy"},
 			want: []string{string(saga.OperatedBySelf), string(saga.OperatedByProvider)},
 		},
 	} {

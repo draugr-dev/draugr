@@ -433,7 +433,7 @@ func FragmentSchema(sagaJSON []byte) ([]byte, error) {
 
 	doc["$id"] = "https://draugr.dev/schema/draugr.saga-fragment.schema.json"
 	doc["title"] = "Draugr Saga fragment"
-	doc["description"] = "A partial Draugr Saga: components, exclusions and a short list of " +
+	doc["description"] = "A partial Draugr Saga: clusters, components, exclusions and a short list of " +
 		"control settings, merged into the descriptor that names it. A fragment adds scope, adds " +
 		"attributed suppressions, or contributes a setting that can only add findings; it cannot " +
 		"change policy, so it carries no release or gate, and cannot switch a control off."
@@ -442,7 +442,9 @@ func FragmentSchema(sagaJSON []byte) ([]byte, error) {
 	delete(doc, "required")
 
 	kept := map[string]any{}
-	for _, name := range []string{"components", "fragments"} {
+	// Clusters too: a team's fragment names the cluster its component runs on, and the loader
+	// refuses a name two documents define differently.
+	for _, name := range []string{"clusters", "components", "fragments"} {
 		if v, found := props[name]; found {
 			kept[name] = v
 		}

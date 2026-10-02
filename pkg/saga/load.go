@@ -137,7 +137,8 @@ var sections = map[string]string{
 	"host":              "components[].hosts",
 	"hostauth":          "components[].hosts[].auth",
 	"hostspec":          "components[].hosts[].spec",
-	"kubernetescluster": "components[].kubernetes",
+	"clusterref":        "components[].kubernetes",
+	"cluster":           "clusters.<name>",
 	"fragmentref":       "fragments",
 	"reference":         "references",
 	"fragment":          "the top level of a fragment",
@@ -161,6 +162,11 @@ var removedFields = map[string]string{
 		"adds to them",
 	"components[].hosts.environment":      environmentRemoved,
 	"components[].kubernetes.environment": environmentRemoved,
+	"components[].kubernetes.ref": "a component names its cluster with `cluster:` now, and the " +
+		"cluster is declared once under the top-level `clusters:`, where its kubeconfig context is " +
+		"`context`: `clusters: {prod: {context: prod-eu-west-1}}` and `kubernetes: [{cluster: prod}]`",
+	"components[].kubernetes.operatedBy": "it is a fact about the cluster, so it moved to the " +
+		"cluster's entry under the top-level `clusters:`, beside its `context`",
 	"components.infrastructure": "it is `kubernetes:` now, with the same entries and no `kind`, " +
 		"as in `kubernetes: [{ref: prod-eu-west-1}]`; the control that checks it is `kubernetes` " +
 		"under `config.controls`",

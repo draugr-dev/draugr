@@ -27,7 +27,15 @@ type stubSurveyor struct {
 
 func (s stubSurveyor) Info() plugin.SurveyorInfo { return plugin.SurveyorInfo{Name: s.name} }
 func (s stubSurveyor) Survey(context.Context, plugin.SurveyScope) (saga.Fragment, error) {
-	return saga.Fragment{Components: []saga.Component{s.comp}}, nil
+	frag := saga.Fragment{Components: []saga.Component{s.comp}}
+	// A component on a cluster arrives with the cluster declared, as the real surveyor writes it.
+	for _, ref := range s.comp.Kubernetes {
+		if frag.Clusters == nil {
+			frag.Clusters = map[string]saga.Cluster{}
+		}
+		frag.Clusters[ref.Cluster] = saga.Cluster{Context: ref.Cluster}
+	}
+	return frag, nil
 }
 
 func stubRegistry() *surveyor.Registry {
@@ -286,7 +294,7 @@ func TestSurveyK8sClusterRunsTheClusterSurveyor(t *testing.T) {
 	var got []surveyor.Request
 	reg.Register(stubSurveyor{name: "k8s-cluster", comp: saga.Component{
 		Name:       "prod",
-		Kubernetes: []saga.KubernetesCluster{{Ref: "prod"}},
+		Kubernetes: []saga.ClusterRef{{Cluster: "prod"}},
 	}})
 
 	var buf bytes.Buffer
@@ -295,8 +303,9 @@ func TestSurveyK8sClusterRunsTheClusterSurveyor(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "kubernetes:") || !strings.Contains(out, "ref: prod") {
-		t.Errorf("expected a kubernetes entry:\n%s", out)
+	if !strings.Contains(out, "clusters:") || !strings.Contains(out, "context: prod") ||
+		!strings.Contains(out, "cluster: prod") {
+		t.Errorf("expected the cluster declared and a kubernetes entry naming it:\n%s", out)
 	}
 	if strings.Contains(out, "images:") {
 		t.Error("the cluster surveyor must not emit images, that is the other surveyor's job")
@@ -339,7 +348,7 @@ func TestSurveyOutputIsScannable(t *testing.T) {
 	reg := surveyor.NewRegistry()
 	reg.Register(stubSurveyor{name: "k8s-cluster", comp: saga.Component{
 		Name:       "prod",
-		Kubernetes: []saga.KubernetesCluster{{Ref: "prod"}},
+		Kubernetes: []saga.ClusterRef{{Cluster: "prod"}},
 	}})
 
 	var buf bytes.Buffer
@@ -493,7 +502,8 @@ func TestSurveySaysWhenANamespaceScopeWasNotApplied(t *testing.T) {
 	out := filepath.Join(dir, "draugr.saga.yaml")
 	if err := os.WriteFile(out, []byte(
 		"project: app\nrelease:\n  version: \"1.0\"\n"+
-			"components:\n  - name: prod\n    kubernetes:\n      - ref: prod\n",
+			"clusters:\n  prod:\n    context: prod\n"+
+			"components:\n  - name: prod\n    kubernetes:\n      - cluster: prod\n",
 	), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -501,8 +511,8 @@ func TestSurveySaysWhenANamespaceScopeWasNotApplied(t *testing.T) {
 	reg := surveyor.NewRegistry()
 	reg.Register(stubSurveyor{name: "k8s-cluster", comp: saga.Component{
 		Name: "prod",
-		Kubernetes: []saga.KubernetesCluster{{
-			Ref: "prod", Namespaces: []string{"team-a"},
+		Kubernetes: []saga.ClusterRef{{
+			Cluster: "prod", Namespaces: []string{"team-a"},
 		}},
 	}})
 

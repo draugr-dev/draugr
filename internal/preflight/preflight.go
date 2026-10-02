@@ -38,7 +38,7 @@ const (
 
 // Check is one target checked, and what came of it.
 type Check struct {
-	// Kind is what was checked: repository, paths, image, host or infrastructure.
+	// Kind is what was checked: repository, paths, image, host or cluster.
 	Kind string `json:"kind"`
 	// Target names it, without credentials.
 	Target string `json:"target"`
@@ -57,6 +57,9 @@ type Probes struct {
 	Image func(ctx context.Context, ref string, offline bool) (string, error)
 	// Host opens a connection to an endpoint and says what it established.
 	Host func(ctx context.Context, rawURL string) (string, error)
+	// Cluster resolves a kubeconfig context, "" for the current one, asks its API server for its
+	// version, and says what answered.
+	Cluster func(ctx context.Context, kubeContext string) (string, error)
 }
 
 // Options shape a run.
@@ -123,6 +126,18 @@ func Run(ctx context.Context, targets []plugin.Target, opts Options) []Check {
 			raw := t.URL
 			units = append(units, func(ctx context.Context) []Check {
 				return []Check{hostCheck(ctx, p, raw, u, opts.Offline)}
+			})
+		case plugin.KubernetesTarget:
+			// Once per cluster and context, however many components use it or how they scope it:
+			// the namespaces narrow an audit, and reaching the cluster is the same question for all.
+			key := "cluster:" + t.Cluster + "@" + t.Context
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			name, kubeCtx := t.Cluster, t.Context
+			units = append(units, func(ctx context.Context) []Check {
+				return []Check{clusterCheck(ctx, p, name, kubeCtx, opts.Offline)}
 			})
 		default:
 			id := string(t.Kind()) + ":" + t.Identity()
@@ -272,6 +287,25 @@ func hostCheck(ctx context.Context, p Probes, raw, name string, offline bool) Ch
 	return c
 }
 
+func clusterCheck(ctx context.Context, p Probes, name, kubeCtx string, offline bool) Check {
+	target := "kubernetes/" + name
+	if name == "" {
+		target = "kubernetes"
+	}
+	c := Check{Kind: "cluster", Target: target}
+	if offline {
+		c.Status, c.Detail = NotChecked, offlineReason
+		return c
+	}
+	detail, err := p.Cluster(ctx, kubeCtx)
+	if err != nil {
+		c.Status, c.Detail = Failed, err.Error()
+		return c
+	}
+	c.Status, c.Detail = Passed, detail
+	return c
+}
+
 // errNotChecked is an image probe declining to go to the network under --offline.
 var errNotChecked = errors.New("not checked")
 
@@ -290,6 +324,9 @@ func (p Probes) withDefaults() Probes {
 	}
 	if p.Host == nil {
 		p.Host = dialHost
+	}
+	if p.Cluster == nil {
+		p.Cluster = reachCluster
 	}
 	return p
 }

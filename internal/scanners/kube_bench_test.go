@@ -95,8 +95,8 @@ func TestKubeBenchArgvRefusesToGuessTheVersion(t *testing.T) {
 // no Kubernetes version maps to. So it must not be overridden by detection.
 func TestKubeBenchArgvExplicitBenchmarkWins(t *testing.T) {
 	withClusterVersion(t, "1.34", errors.New("should not be consulted"))
-	plan, err := kubeBenchArgv(plugin.KubernetesTarget{}, plugin.Config{
-		"targets": "policies", "benchmark": "gke-1.6.0", "configDir": "/opt/cfg",
+	plan, err := kubeBenchArgv(plugin.KubernetesTarget{Benchmark: "gke-1.6.0"}, plugin.Config{
+		"targets": "policies", "configDir": "/opt/cfg",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -116,7 +116,7 @@ func TestKubeBenchArgvExplicitBenchmarkWins(t *testing.T) {
 // reach at plan time.
 func TestKubeBenchArgvExplicitVersionSkipsDetection(t *testing.T) {
 	withClusterVersion(t, "", errors.New("should not be consulted"))
-	plan, err := kubeBenchArgv(plugin.KubernetesTarget{}, plugin.Config{"version": "1.31"})
+	plan, err := kubeBenchArgv(plugin.KubernetesTarget{Version: "1.31"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,27 +207,19 @@ func TestKubeBenchLevel(t *testing.T) {
 	}
 }
 
-// The Saga's `ref` names the cluster to audit, and findings are labeled with it. If it did not
-// also select the cluster, a scan would name one cluster and describe another. Which is the worst
-// way for a compliance report to be wrong, because it looks right.
-func TestKubeContextComesFromTheDeclaredRef(t *testing.T) {
-	got := kubeContext(plugin.KubernetesTarget{Ref: "prod-eu-west-1"}, nil)
-	if got != "prod-eu-west-1" {
-		t.Errorf("kubeContext = %q, want the declared ref", got)
+// The cluster's declared context selects what is audited, whatever the cluster is called. If it
+// did not, a scan would name one cluster and describe another, which is the worst way for a
+// compliance report to be wrong, because it looks right.
+func TestKubeContextComesFromTheClusterDeclaration(t *testing.T) {
+	got := kubeContext(plugin.KubernetesTarget{Cluster: "prod-eu", Context: "arn:aws:eks:eu-west-1:1:cluster/prod"})
+	if got != "arn:aws:eks:eu-west-1:1:cluster/prod" {
+		t.Errorf("kubeContext = %q, want the declared context", got)
 	}
 }
 
-// An organization's name for a cluster is not always its kubeconfig context name.
-func TestKubeContextSettingOverridesTheRef(t *testing.T) {
-	got := kubeContext(plugin.KubernetesTarget{Ref: "prod-eu-west-1"}, plugin.Config{"context": "arn:aws:eks:..."})
-	if got != "arn:aws:eks:..." {
-		t.Errorf("kubeContext = %q, want the explicit setting", got)
-	}
-}
-
-// No ref and no setting means the ambient kubeconfig is already pointed where the operator wants.
+// No context means the ambient kubeconfig is already pointed where the operator wants.
 func TestKubeContextEmptyMeansAmbient(t *testing.T) {
-	if got := kubeContext(plugin.KubernetesTarget{}, nil); got != "" {
+	if got := kubeContext(plugin.KubernetesTarget{}); got != "" {
 		t.Errorf("kubeContext = %q, want empty", got)
 	}
 	env, cleanup, err := kubeContextEnv("")
@@ -397,16 +389,19 @@ func withCurrentContext(t *testing.T, name string) {
 	t.Cleanup(func() { currentKubeContext = prev })
 }
 
-// `ref` is optional in the schema, so falling back to the ambient context is a reachable
-// default. The label has to follow it: a compliance report reading "kubernetes/" says nothing
-// about what was examined.
-func TestClusterLabelNamesTheAmbientContext(t *testing.T) {
+// A finding is labeled with the cluster's name, which is the same on every machine, not with the
+// context that reached it. A target built without a name falls back to the context, the ambient
+// one resolved: a compliance report reading "kubernetes/" says nothing about what was examined.
+func TestClusterLabelNamesTheCluster(t *testing.T) {
 	withCurrentContext(t, "kind-local")
-	if got := clusterLabel(""); got != "kubernetes/kind-local" {
-		t.Errorf("clusterLabel(\"\") = %q, want the ambient context named", got)
+	if got := clusterLabel(plugin.KubernetesTarget{Cluster: "prod-eu", Context: "arn:aws:eks:x"}); got != "kubernetes/prod-eu" {
+		t.Errorf("clusterLabel = %q, want the cluster's name", got)
 	}
-	if got := clusterLabel("prod-eu-west-1"); got != "kubernetes/prod-eu-west-1" {
-		t.Errorf("clusterLabel = %q", got)
+	if got := clusterLabel(plugin.KubernetesTarget{Context: "staging"}); got != "kubernetes/staging" {
+		t.Errorf("clusterLabel with no name = %q, want the context", got)
+	}
+	if got := clusterLabel(plugin.KubernetesTarget{}); got != "kubernetes/kind-local" {
+		t.Errorf("clusterLabel with nothing = %q, want the ambient context named", got)
 	}
 }
 
@@ -414,7 +409,7 @@ func TestClusterLabelNamesTheAmbientContext(t *testing.T) {
 // honest to name, and a trailing slash is not a name.
 func TestClusterLabelWithNothingToName(t *testing.T) {
 	withCurrentContext(t, "")
-	if got := clusterLabel(""); got != "kubernetes" {
+	if got := clusterLabel(plugin.KubernetesTarget{}); got != "kubernetes" {
 		t.Errorf("clusterLabel = %q, want a bare platform name", got)
 	}
 }

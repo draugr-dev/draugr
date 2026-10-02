@@ -507,9 +507,11 @@ config:
     kubernetes:
       enabled: true
       kubeBench: {enabled: true}
+clusters:
+  prod: {context: prod}
 components:
   - name: cluster
-    kubernetes: [{ref: prod}]
+    kubernetes: [{cluster: prod}]
 `
 
 // The same control with its default scanner, which reads the Kubernetes API and shells out to
@@ -519,9 +521,11 @@ release: {version: "1.0"}
 config:
   controllers:
     kubernetes: {enabled: true}
+clusters:
+  prod: {context: prod}
 components:
   - name: cluster
-    kubernetes: [{ref: prod}]
+    kubernetes: [{cluster: prod}]
 `
 
 // Some tools shell out in turn. kube-bench's CIS policy checks are scripts that invoke kubectl, so

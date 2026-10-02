@@ -39,7 +39,7 @@ func infraJob(scanner, component string, namespaces ...string) PlannedJob {
 		Component: component,
 		Job: plugin.ScanJob{
 			Scanner: scanner,
-			Target:  plugin.KubernetesTarget{Ref: "prod", Namespaces: namespaces},
+			Target:  plugin.KubernetesTarget{Cluster: "prod", Context: "prod", Namespaces: namespaces},
 		},
 	}
 }

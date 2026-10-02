@@ -277,7 +277,7 @@ func scanPolicies(t *testing.T, client kubernetes.Interface) (sarif.Report, erro
 		info:   plugin.ScannerInfo{Name: draugrK8sPoliciesScannerName},
 		client: func(string) (kubernetes.Interface, error) { return client, nil },
 	}
-	return s.Scan(context.Background(), plugin.KubernetesTarget{Ref: "test"}, nil)
+	return s.Scan(context.Background(), plugin.KubernetesTarget{Cluster: "test", Context: "test"}, nil)
 }
 
 // The catalog is the coverage guarantee, so it has to be internally sound: no duplicate ids,
@@ -548,11 +548,11 @@ func TestClusterWideRefusalDependsOnScope(t *testing.T) {
 func TestClusterScopeLabel(t *testing.T) {
 	t.Parallel()
 
-	if got := clusterScopeLabel("prod", nil); got != "kubernetes/prod" {
+	if got := clusterScopeLabel(plugin.KubernetesTarget{Cluster: "prod"}); got != "kubernetes/prod" {
 		t.Errorf("unscoped label = %q", got)
 	}
 	// Sorted, so the same scope written in a different order is the same identity.
-	got := clusterScopeLabel("prod", []string{"team-b", "team-a"})
+	got := clusterScopeLabel(plugin.KubernetesTarget{Cluster: "prod", Namespaces: []string{"team-b", "team-a"}})
 	if want := "kubernetes/prod[team-a,team-b]"; got != want {
 		t.Errorf("scoped label = %q, want %q", got, want)
 	}
@@ -564,7 +564,7 @@ func TestClusterScopeLabel(t *testing.T) {
 func TestScannersThatCannotScopeRefuse(t *testing.T) {
 	t.Parallel()
 
-	target := plugin.KubernetesTarget{Ref: "prod", Namespaces: []string{"team-a"}}
+	target := plugin.KubernetesTarget{Cluster: "prod", Context: "prod", Namespaces: []string{"team-a"}}
 
 	kb := kubeBenchScanner{
 		info: plugin.ScannerInfo{Name: kubeBenchScannerName},

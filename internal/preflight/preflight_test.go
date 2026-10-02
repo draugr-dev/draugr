@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
+
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 const sha = "0123456789abcdef0123456789abcdef01234567"
@@ -27,6 +29,7 @@ type fakes struct {
 	revisions map[string]error // url -> error; absent resolves to sha
 	missing   map[string]bool  // path -> absent from the tree
 	images    map[string]error
+	clusters  map[string]error // kubeconfig context -> error; absent answers
 }
 
 func (f *fakes) record(s string) {
@@ -62,6 +65,13 @@ func (f *fakes) probes() Probes {
 			return probeImage(context.Background(), ref, offline,
 				func(context.Context, string) bool { return strings.HasPrefix(ref, "local/") },
 				func(context.Context, string) error { return f.images[ref] })
+		},
+		Cluster: func(_ context.Context, kubeCtx string) (string, error) {
+			f.record("cluster " + kubeCtx)
+			if err := f.clusters[kubeCtx]; err != nil {
+				return "", err
+			}
+			return "context " + kubeCtx + " · Kubernetes v1.34.0", nil
 		},
 		Host: func(_ context.Context, raw string) (string, error) {
 			f.record("host " + raw)
@@ -99,8 +109,9 @@ func TestRunChecksEachDistinctTargetOnce(t *testing.T) {
 		plugin.ImageTarget{Ref: "local/web:dev"},
 		plugin.ImageTarget{Ref: "ghcr.io/acme/private:1"},
 		plugin.HostTarget{URL: "https://app.example.com"},
-		plugin.KubernetesTarget{Ref: "prod"},
-		plugin.KubernetesTarget{Ref: "prod"},
+		// One cluster used whole by one component and by namespaces by another: one check.
+		plugin.KubernetesTarget{Cluster: "prod", Context: "prod-admin"},
+		plugin.KubernetesTarget{Cluster: "prod", Context: "prod-admin", Namespaces: []string{"payments"}},
 	}
 	checks := Run(context.Background(), targets, Options{Probes: f.probes(), Concurrency: 2})
 
@@ -112,8 +123,7 @@ func TestRunChecksEachDistinctTargetOnce(t *testing.T) {
 		{"image", "local/web:dev", Passed, "in the local Docker daemon"},
 		{"image", "ghcr.io/acme/private:1", Failed, "401 unauthorized, no credential for ghcr.io"},
 		{"host", "https://app.example.com", Passed, "TLS handshake completes"},
-		{"kubernetes", plugin.KubernetesTarget{Ref: "prod"}.Identity(), NotChecked,
-			"doctor has no reachability check for this kind of target"},
+		{"cluster", "kubernetes/prod", Passed, "context prod-admin · Kubernetes v1.34.0"},
 	}
 	if !slices.Equal(checks, want) {
 		t.Errorf("checks:\n got %v\nwant %v", checks, want)
@@ -341,5 +351,51 @@ func TestLocalImageWithoutDocker(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	if localImage(context.Background(), "nginx:1") {
 		t.Error("an image was found with no docker on PATH")
+	}
+}
+
+// A cluster whose context does not resolve, or whose API server does not answer, fails before a
+// scan does, naming the cluster; --offline leaves it unchecked rather than passed.
+func TestAClusterThatCannotBeReachedFails(t *testing.T) {
+	f := &fakes{clusters: map[string]error{"gone": errors.New(`no kubeconfig context named "gone" (it has prod-admin)`)}}
+	checks := Run(context.Background(), []plugin.Target{plugin.KubernetesTarget{Cluster: "old", Context: "gone"}},
+		Options{Probes: f.probes()})
+	want := []Check{{"cluster", "kubernetes/old", Failed, `no kubeconfig context named "gone" (it has prod-admin)`}}
+	if !slices.Equal(checks, want) {
+		t.Errorf("checks = %v, want %v", checks, want)
+	}
+	checks = Run(context.Background(), []plugin.Target{plugin.KubernetesTarget{Cluster: "prod"}},
+		Options{Probes: f.probes(), Offline: true})
+	if len(checks) != 1 || checks[0].Status != NotChecked || checks[0].Detail != offlineReason {
+		t.Errorf("offline = %v, want not checked", checks)
+	}
+	if n := count(f.calls, "cluster "); n != 1 {
+		t.Errorf("cluster probes = %d, want only the online one", n)
+	}
+}
+
+// The context a cluster is reached through: the one named, or the kubeconfig's current one.
+func TestResolveContext(t *testing.T) {
+	raw := &clientcmdapi.Config{
+		CurrentContext: "dev",
+		Contexts:       map[string]*clientcmdapi.Context{"dev": {}, "prod-admin": {}},
+	}
+	for kubeCtx, want := range map[string]string{"": "dev", "prod-admin": "prod-admin"} {
+		if got, err := resolveContext(raw, kubeCtx); err != nil || got != want {
+			t.Errorf("resolveContext(%q) = %q, %v; want %q", kubeCtx, got, err, want)
+		}
+	}
+	if _, err := resolveContext(raw, "gone"); err == nil || !strings.Contains(err.Error(), "dev, prod-admin") {
+		t.Errorf("an unknown context: %v, want the ones the kubeconfig has", err)
+	}
+	if _, err := resolveContext(&clientcmdapi.Config{}, ""); err == nil || !strings.Contains(err.Error(), "no current context") {
+		t.Errorf("no current context: %v", err)
+	}
+	many := &clientcmdapi.Config{Contexts: map[string]*clientcmdapi.Context{}}
+	for _, n := range []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"} {
+		many.Contexts[n] = &clientcmdapi.Context{}
+	}
+	if _, err := resolveContext(many, "z"); err == nil || !strings.Contains(err.Error(), "and 2 more") {
+		t.Errorf("a long list is not capped: %v", err)
 	}
 }

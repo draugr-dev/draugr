@@ -3,8 +3,10 @@ package saga
 import (
 	"bytes"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -234,11 +236,40 @@ func stampExclusions(rules []ExcludeRule, source string) {
 // says which ones a fragment may carry at all, and every one of them adds to what the descriptor
 // declares rather than answering over it.
 func Merge(model *Model, frag Fragment) {
+	mergeClusters(model, frag)
 	for _, comp := range frag.Components {
 		model.Components = UpsertComponent(model.Components, comp)
 	}
 	model.Config.Exclude = append(model.Config.Exclude, frag.Config.Exclude...)
 	mergeFragmentControls(&model.Config, frag.Config.Controls, frag.Source)
+}
+
+// mergeClusters adds a fragment's clusters to the model's.
+//
+// A cluster is declared once so that every component on it agrees about it. Two documents may both
+// name one, as a team's fragment naming the cluster its component runs on, but only with the same
+// facts: two contexts or two operators for one name leave no single answer to which applied. The
+// first definition is kept and the disagreement recorded, for Validate to refuse naming both.
+func mergeClusters(model *Model, frag Fragment) {
+	for _, name := range slices.Sorted(maps.Keys(frag.Clusters)) {
+		cluster := frag.Clusters[name]
+		existing, ok := model.Clusters[name]
+		switch {
+		case !ok:
+			if model.Clusters == nil {
+				model.Clusters = map[string]Cluster{}
+			}
+			model.Clusters[name] = cluster
+		case existing != cluster:
+			from := frag.Source
+			if from == "" {
+				from = "a fragment"
+			}
+			model.clusterConflicts = append(model.clusterConflicts, fmt.Sprintf(
+				"clusters.%s: %s defines it differently from an earlier document "+
+					"(%+v there, %+v here); a cluster is declared once", name, from, existing, cluster))
+		}
+	}
 }
 
 // loadFragmentFile reads and decodes one fragment.

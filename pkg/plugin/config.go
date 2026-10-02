@@ -21,6 +21,9 @@ type CacheKey string
 // and independent of config map ordering.
 func ComputeCacheKey(scanner, version string, t Target, cfg Config) CacheKey {
 	parts := []string{scanner, version, string(t.Kind()), t.Identity()}
+	if d, ok := t.(CacheDetailer); ok {
+		parts = append(parts, d.CacheDetail())
+	}
 
 	keys := make([]string, 0, len(cfg))
 	for k := range cfg {
