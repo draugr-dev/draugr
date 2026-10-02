@@ -71,6 +71,15 @@ func TestScopeValidateRejectsAMisspelling(t *testing.T) {
 	}
 }
 
+// A pipeline written for an earlier release passes the old name. The list of controls is in the
+// error already; naming the replacement saves reading it.
+func TestScopeValidateNamesARenamedControl(t *testing.T) {
+	err := Scope{Controls: []string{"infrastructure"}}.Validate(threeComponents(), []string{"kubernetes", "sca"})
+	if err == nil || !strings.Contains(err.Error(), `"infrastructure" is "kubernetes" now`) {
+		t.Errorf("--controls infrastructure: %v, want the replacement named", err)
+	}
+}
+
 func TestScopeValidateAcceptsWhatExists(t *testing.T) {
 	s := Scope{Components: []string{"app", "payments"}, Controls: []string{"sca"}}
 	if err := s.Validate(threeComponents(), []string{"sca", "secrets"}); err != nil {

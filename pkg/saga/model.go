@@ -770,11 +770,12 @@ type Component struct {
 	// Here as well as on each target because a component that is entirely somebody else's software, a
 	// vendor console, an open-source service you run from source. Otherwise needs the field written
 	// on every repository and every image, and a target added later silently defaults back to `self`.
-	BuiltBy        BuiltBy          `yaml:"builtBy,omitempty"`
-	Repositories   []Repository     `yaml:"repositories,omitempty"`
-	Images         []Image          `yaml:"images,omitempty"`
-	Hosts          []Host           `yaml:"hosts,omitempty"`
-	Infrastructure []Infrastructure `yaml:"infrastructure,omitempty"`
+	BuiltBy      BuiltBy      `yaml:"builtBy,omitempty"`
+	Repositories []Repository `yaml:"repositories,omitempty"`
+	Images       []Image      `yaml:"images,omitempty"`
+	Hosts        []Host       `yaml:"hosts,omitempty"`
+	// Kubernetes are the clusters this component runs on, checked by the kubernetes control.
+	Kubernetes []KubernetesCluster `yaml:"kubernetes,omitempty"`
 	// Controls overrides the project's per-control configuration for this component.
 	Controls map[string]ControllerSettings `yaml:"controls,omitempty"`
 
@@ -1008,25 +1009,10 @@ type HostAuth struct {
 	TokenEnv string `yaml:"tokenEnv"`
 }
 
-// InfrastructureKinds are the surfaces Draugr audits, and the only values `kind` accepts.
-//
-// Listed rather than left open because a kind nothing serves is dropped when jobs are planned, so
-// a component declaring `kind: k8s` is scanned for everything except the infrastructure it named,
-// and reads as covered. The same argument as `operatedBy` beside it: the run looks the same either
-// way.
-var InfrastructureKinds = []string{"kubernetes"}
-
-// ValidInfrastructureKind reports whether a kind is one Draugr audits.
-// The spelling the JSON Schema offers and no other, so an editor and `draugr validate` agree.
-func ValidInfrastructureKind(kind string) bool {
-	return slices.Contains(InfrastructureKinds, kind)
-}
-
-// Infrastructure is an infrastructure surface. Kind is one of InfrastructureKinds; Ref names the
-// concrete instance.
-type Infrastructure struct {
-	Kind string `yaml:"kind"`
-	Ref  string `yaml:"ref,omitempty"`
+// KubernetesCluster is a Kubernetes cluster a component runs on. Ref selects it by kubeconfig
+// context.
+type KubernetesCluster struct {
+	Ref string `yaml:"ref,omitempty"`
 	// Namespaces narrows the audit to the namespaces this component owns. Empty means the whole
 	// cluster.
 	//
@@ -1057,7 +1043,7 @@ type Infrastructure struct {
 	OperatedBy OperatedBy `yaml:"operatedBy,omitempty"`
 }
 
-// OperatedBy says who runs an infrastructure surface.
+// OperatedBy says who runs a cluster.
 type OperatedBy string
 
 // Who operates a surface.

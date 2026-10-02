@@ -38,7 +38,7 @@ reports with the build being scanned.
 ## Add more of your surface
 
 Each component is one logical part of your app. List whatever applies, repositories, images, hosts,
-infrastructure, and enable the controls that should cover it:
+Kubernetes clusters, and enable the controls that should cover it:
 
 ```yaml
 config:

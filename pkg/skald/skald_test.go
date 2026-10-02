@@ -599,14 +599,14 @@ func TestJSONOmitsTheCaveatsWhenThereAreNone(t *testing.T) {
 // The skip travels too, naming what could not be answered and for which component.
 func TestJSONCarriesWhatWasNotMeasured(t *testing.T) {
 	run := engine.Result{
-		Controls: map[string]plugin.ControlResult{"infrastructure": {Report: sarif.Report{}}},
+		Controls: map[string]plugin.ControlResult{"kubernetes": {Report: sarif.Report{}}},
 		Skipped: []engine.SkippedJob{{
-			Control: "infrastructure", Scanner: "kube-bench-job", Component: "team-a",
+			Control: "kubernetes", Scanner: "kube-bench-job", Component: "team-a",
 			Reason: "audits the whole cluster and cannot be narrowed to namespace team-a",
 		}},
 	}
 	verdict := norn.Result{Verdict: norn.Pass, Controls: []norn.ControlOutcome{
-		{Control: "infrastructure", Verdict: norn.Pass},
+		{Control: "kubernetes", Verdict: norn.Pass},
 	}}
 	var buf bytes.Buffer
 	if err := RenderJSON(&buf, saga.Release{Version: "1"}, run, verdict, ""); err != nil {

@@ -160,7 +160,7 @@ Unlike the other controls this one assesses a *platform* rather than an artifact
 its findings are located at a cluster rather than a file, and why a cluster can sensibly be a
 component with no code of its own.
 
-In Draugr: the **`infrastructure`** control. By default it reads the
+In Draugr: the **`kubernetes`** control. By default it reads the
 benchmark's **policies** section, RBAC, service accounts, Pod Security Standards, network policies,
 secrets usage, straight from the Kubernetes API, which needs no tool installed and takes seconds on
 a large cluster.

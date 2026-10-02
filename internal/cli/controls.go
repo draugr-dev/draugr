@@ -13,6 +13,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/controllers"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/saga"
 
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
@@ -324,7 +325,9 @@ func knownControl(reg *engine.Registry, name string) error {
 	}
 	sort.Strings(names)
 	msg := fmt.Sprintf("%q is not a control this build provides", name)
-	if near := nearestName(name, known); near != "" {
+	if now, ok := saga.RenamedControls[name]; ok {
+		msg += fmt.Sprintf(", it is %q now", now)
+	} else if near := nearestName(name, known); near != "" {
 		msg += fmt.Sprintf(", did you mean %q?", near)
 	}
 	return fmt.Errorf("%s\n\nit has: %s", msg, strings.Join(names, ", "))

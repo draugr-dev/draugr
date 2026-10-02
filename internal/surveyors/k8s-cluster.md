@@ -1,21 +1,20 @@
 # Surveyor: `k8s-cluster`
 
-- **Discovers:** the cluster itself, as an `infrastructure` component
+- **Discovers:** the cluster itself, as a component's `kubernetes:` entry
 - **Command:** `draugr survey k8s cluster`
 - **Auth:** ambient kubeconfig (`KUBECONFIG`, `~/.kube/config`, or in-cluster)
 - **License / terms:** Apache-2.0 (Draugr's own). No third-party tool is executed.
 
 ## What it does
 
-Writes the cluster you are pointed at as a component with an `infrastructure` entry, so the
-[`infrastructure`](../controllers/infrastructure.md) control applies to it:
+Writes the cluster you are pointed at as a component with a `kubernetes` entry, so the
+[`kubernetes`](../controllers/kubernetes.md) control applies to it:
 
 ```yaml
 components:
   - name: prod-cluster
-    infrastructure:
-      - kind: kubernetes
-        ref: prod-cluster
+    kubernetes:
+      - ref: prod-cluster
 ```
 
 ```bash
@@ -39,9 +38,8 @@ classification over both.
 `--namespace` makes the component own that namespace rather than the whole cluster:
 
 ```yaml
-    infrastructure:
-      - kind: kubernetes
-        ref: prod-cluster
+    kubernetes:
+      - ref: prod-cluster
         namespaces: [team-a]
 ```
 
@@ -70,5 +68,5 @@ are set, [prioritization](../../docs/concepts/prioritization.md) has half its in
   is watching than at the scan of a cluster they believed had been checked.
 - The component is named after the context, because a descriptor with a component called
   `cluster` says nothing once there are two of them, and the context is what the operator already
-  calls it, the same string the infrastructure scanner resolves back to a kubeconfig entry.
+  calls it, the same string the kubernetes control's scanners resolve back to a kubeconfig entry.
 - No external binary and no `kubectl`: this reads the Kubernetes API directly.

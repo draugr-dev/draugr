@@ -17,7 +17,7 @@ applies to and aggregates the results. Controllers are either **project-scoped**
 **component-scoped**.
 
 > Implemented today: **`images`**, **`sca`**, **`licenses`**, **`secrets`**, **`sast`**,
-> **`iac`**, **`headers`**, **`dast`**, **`tls`**, **`infrastructure`**, **`threats`**.
+> **`iac`**, **`headers`**, **`dast`**, **`tls`**, **`kubernetes`**, **`threats`**.
 > See the [integrations catalog](../reference/catalog.md) or run `draugr controls`.
 >
 > **An SBOM is not a control.** Every row in the controls table means "checked, and here is the
@@ -32,7 +32,7 @@ integrated declaratively through a *tool adapter*: the adapter describes how to 
 and Draugr runs it and parses the SARIF it returns.
 
 Several scanners need no external tool at all, because they read an API or a response directly:
-`headers`, `tls` and the default `infrastructure` scanner are Draugr's own code, so there is
+`headers`, `tls` and the default `kubernetes` scanner are Draugr's own code, so there is
 nothing to install for them.
 
 ```bash

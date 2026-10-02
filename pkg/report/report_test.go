@@ -673,17 +673,17 @@ func TestConsoleAttachesAFailureToItsOwnControl(t *testing.T) {
 	d := Data{
 		Run: engine.Result{
 			Controls: map[string]plugin.ControlResult{
-				"infrastructure": {Report: sarif.Report{
+				"kubernetes": {Report: sarif.Report{
 					Results: []sarif.Result{{RuleID: "R", Level: sarif.LevelWarning, Message: "m"}},
 				}},
 				"secrets": {Report: sarif.Report{
 					Results: []sarif.Result{{RuleID: "S", Level: sarif.LevelError, Message: "m"}},
 				}},
 			},
-			ScanErrors: map[string][]string{"infrastructure": {"kube-bench-job always audits the whole cluster"}},
+			ScanErrors: map[string][]string{"kubernetes": {"kube-bench-job always audits the whole cluster"}},
 		},
 		Verdict: norn.Result{Verdict: norn.Fail, Controls: []norn.ControlOutcome{
-			{Control: "infrastructure", Verdict: norn.Fail, Counts: sarif.Counts{Warning: 1}},
+			{Control: "kubernetes", Verdict: norn.Fail, Counts: sarif.Counts{Warning: 1}},
 			{Control: "secrets", Verdict: norn.Fail, Counts: sarif.Counts{Error: 1}},
 		}},
 	}
@@ -692,7 +692,7 @@ func TestConsoleAttachesAFailureToItsOwnControl(t *testing.T) {
 		t.Fatalf("Render: %v", err)
 	}
 	out := buf.String()
-	infra := strings.Index(out, "infrastructure")
+	infra := strings.Index(out, "kubernetes")
 	msg := strings.Index(out, "kube-bench-job")
 	secrets := strings.Index(out, "secrets")
 	if infra < 0 || msg < 0 || secrets < 0 {
@@ -976,7 +976,7 @@ func TestProvenanceLines(t *testing.T) {
 	t.Parallel()
 
 	d := Data{Run: engine.Result{Controls: map[string]plugin.ControlResult{
-		"infrastructure": {Report: sarif.Report{Provenance: []sarif.Provenance{
+		"kubernetes": {Report: sarif.Report{Provenance: []sarif.Provenance{
 			{Tool: "kube-bench-job", Version: "0.15.6", Fields: []sarif.Field{{Key: "benchmark", Value: "gke-1.9.0"}}},
 			{Tool: "draugr-k8s-policies", Fields: []sarif.Field{{Key: "coverage", Value: "20 of 34"}}},
 		}}},
@@ -993,7 +993,7 @@ func TestProvenanceLines(t *testing.T) {
 		t.Fatalf("want an entry per scanner account with something measured, got %d: %+v", len(got), got)
 	}
 	// Control order is deterministic, or two runs of the same scan render differently.
-	if got[0].Control != "infrastructure" || got[1].Control != "infrastructure" {
+	if got[0].Control != "kubernetes" || got[1].Control != "kubernetes" {
 		t.Errorf("controls should be ordered, got %q then %q", got[0].Control, got[1].Control)
 	}
 	if got[0].Label() != "kube-bench-job 0.15.6" {
@@ -1717,19 +1717,19 @@ func TestConsoleNamesAScannerThatCouldNotAnswer(t *testing.T) {
 	d := Data{
 		Run: engine.Result{
 			Controls: map[string]plugin.ControlResult{
-				"infrastructure": {Report: sarif.Report{
+				"kubernetes": {Report: sarif.Report{
 					Results: []sarif.Result{{RuleID: "R", Level: sarif.LevelWarning, Message: "m"}},
 				}},
 			},
 			Skipped: []engine.SkippedJob{{
-				Control:   "infrastructure",
+				Control:   "kubernetes",
 				Scanner:   "kube-bench-job",
 				Component: "team-a",
 				Reason:    "audits the whole cluster and cannot be narrowed to namespace team-a",
 			}},
 		},
 		Verdict: norn.Result{Verdict: norn.Fail, Controls: []norn.ControlOutcome{
-			{Control: "infrastructure", Verdict: norn.Fail, Counts: sarif.Counts{Warning: 1}},
+			{Control: "kubernetes", Verdict: norn.Fail, Counts: sarif.Counts{Warning: 1}},
 		}},
 	}
 	var buf bytes.Buffer
@@ -1767,17 +1767,17 @@ func TestMarkdownNamesAScannerThatCouldNotAnswer(t *testing.T) {
 	d := Data{
 		Run: engine.Result{
 			Controls: map[string]plugin.ControlResult{
-				"infrastructure": {Report: sarif.Report{
+				"kubernetes": {Report: sarif.Report{
 					Results: []sarif.Result{{RuleID: "R", Level: sarif.LevelWarning, Message: "m"}},
 				}},
 			},
 			Skipped: []engine.SkippedJob{{
-				Control: "infrastructure", Scanner: "kube-bench-job", Component: "team-a",
+				Control: "kubernetes", Scanner: "kube-bench-job", Component: "team-a",
 				Reason: "audits the whole cluster and cannot be narrowed to namespace team-a",
 			}},
 		},
 		Verdict: norn.Result{Verdict: norn.Fail, Controls: []norn.ControlOutcome{
-			{Control: "infrastructure", Verdict: norn.Fail, Counts: sarif.Counts{Warning: 1}},
+			{Control: "kubernetes", Verdict: norn.Fail, Counts: sarif.Counts{Warning: 1}},
 		}},
 	}
 	var buf bytes.Buffer
@@ -1924,7 +1924,7 @@ func TestTheFixSaysWhereTheProblemLives(t *testing.T) {
 		{"headers", "headers/csp-blocks-inline-handler", "move it into a file, or allow it by hash"},
 		{"headers", "headers/csp-blocks-script-origin", "allow the origin, or stop loading from it"},
 		{"tls", "weak-cipher", "change the server's configuration"},
-		{"infrastructure", "cis/5.1.1", "change the cluster's configuration"},
+		{"kubernetes", "cis/5.1.1", "change the cluster's configuration"},
 		{"threats", "urlhaus-listed", "stop contacting the host"},
 		// Three rules on one control, three different next steps.
 		{"provenance", "provenance-unexpected-identity", "find out what signed it before running it"},

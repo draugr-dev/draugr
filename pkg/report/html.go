@@ -224,7 +224,7 @@ func fixPhrase(f finding) string {
 		return headersFix(f.ruleID)
 	case "tls":
 		return "change the server's configuration"
-	case "infrastructure":
+	case "kubernetes":
 		return "change the cluster's configuration"
 	case "threats":
 		return "stop contacting the host"

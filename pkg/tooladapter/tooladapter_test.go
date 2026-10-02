@@ -131,7 +131,7 @@ func TestAdapterPrewarm(t *testing.T) {
 func TestAdapterUsesTheConfiguredParser(t *testing.T) {
 	a := New(Config{
 		Name:        "custom",
-		TargetKinds: []plugin.TargetKind{plugin.TargetInfra},
+		TargetKinds: []plugin.TargetKind{plugin.TargetKubernetes},
 		Argv: func(plugin.Target, plugin.Config) ([]string, error) {
 			return []string{"custom", "run"}, nil
 		},
@@ -144,7 +144,7 @@ func TestAdapterUsesTheConfiguredParser(t *testing.T) {
 			}}, nil
 		},
 	})
-	rep, err := a.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes", Ref: "prod"}, nil)
+	rep, err := a.Scan(context.Background(), plugin.KubernetesTarget{Ref: "prod"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,14 +164,14 @@ func TestAdapterUsesTheConfiguredParser(t *testing.T) {
 func TestAdapterReportsParserFailures(t *testing.T) {
 	a := New(Config{
 		Name:        "custom",
-		TargetKinds: []plugin.TargetKind{plugin.TargetInfra},
+		TargetKinds: []plugin.TargetKind{plugin.TargetKubernetes},
 		Argv:        func(plugin.Target, plugin.Config) ([]string, error) { return []string{"custom"}, nil },
 		Run:         func(context.Context, []string) ([]byte, error) { return []byte("{}"), nil },
 		Parse: func([]byte, plugin.Target, plugin.Config) (sarif.Report, error) {
 			return sarif.Report{}, errors.New("bad shape")
 		},
 	})
-	_, err := a.Scan(context.Background(), plugin.InfraTarget{}, nil)
+	_, err := a.Scan(context.Background(), plugin.KubernetesTarget{}, nil)
 	if err == nil {
 		t.Fatal("expected the parser error to surface")
 	}

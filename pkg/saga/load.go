@@ -129,19 +129,19 @@ var sections = map[string]string{
 	"vexconfig":              "config.vex",
 	// One type with two homes, and naming either one alone would be a half-answer to somebody
 	// looking at the other.
-	"vexsource":      "config.vexSources or components[].vex",
-	"vexrepository":  "config.vexSources[].repository",
-	"component":      "components",
-	"repository":     "components[].repositories",
-	"image":          "components[].images",
-	"host":           "components[].hosts",
-	"hostauth":       "components[].hosts[].auth",
-	"hostspec":       "components[].hosts[].spec",
-	"infrastructure": "components[].infrastructure",
-	"fragmentref":    "fragments",
-	"reference":      "references",
-	"fragment":       "the top level of a fragment",
-	"fragmentconfig": "config, in a fragment",
+	"vexsource":         "config.vexSources or components[].vex",
+	"vexrepository":     "config.vexSources[].repository",
+	"component":         "components",
+	"repository":        "components[].repositories",
+	"image":             "components[].images",
+	"host":              "components[].hosts",
+	"hostauth":          "components[].hosts[].auth",
+	"hostspec":          "components[].hosts[].spec",
+	"kubernetescluster": "components[].kubernetes",
+	"fragmentref":       "fragments",
+	"reference":         "references",
+	"fragment":          "the top level of a fragment",
+	"fragmentconfig":    "config, in a fragment",
 }
 
 // removedFields explains a field that used to parse, keyed by "section.field".
@@ -159,8 +159,11 @@ var removedFields = map[string]string{
 		"where `filename` and `minPriority` now mean something. For local artifacts with no " +
 		"destination, `-o <dir>` writes report.json and results.sarif, and `--report <format>` " +
 		"adds to them",
-	"components[].hosts.environment":          environmentRemoved,
-	"components[].infrastructure.environment": environmentRemoved,
+	"components[].hosts.environment":      environmentRemoved,
+	"components[].kubernetes.environment": environmentRemoved,
+	"components.infrastructure": "it is `kubernetes:` now, with the same entries and no `kind`, " +
+		"as in `kubernetes: [{ref: prod-eu-west-1}]`; the control that checks it is `kubernetes` " +
+		"under `config.controls`",
 }
 
 // environmentRemoved explains a target that still labels itself.
@@ -172,6 +175,15 @@ var removedFields = map[string]string{
 const environmentRemoved = "nothing read it once config.allowEffects stopped being keyed by " +
 	"environment, so deleting the line changes no result. A scan that may do different things " +
 	"to different targets is a second descriptor"
+
+// RenamedControls maps a control's former name to its current one.
+//
+// A descriptor or a command line written against an earlier release still names the old control,
+// and "not a control" alone leaves its author searching the list for what it became. The old name
+// is refused rather than read, so this only shapes the error.
+var RenamedControls = map[string]string{
+	"infrastructure": "kubernetes",
+}
 
 var unknownField = regexp.MustCompile(`field (\S+) not found in type (\S+)`)
 

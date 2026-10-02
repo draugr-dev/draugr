@@ -336,7 +336,7 @@ func TestASelectedPartPassesWhileTheRunFails(t *testing.T) {
 }
 
 func TestAFindingThatNamesNoComponentCountsForEverySelection(t *testing.T) {
-	data := runOver(map[string][]sarif.Result{"infrastructure": {codeFinding("", "open-port", "P1", "")}})
+	data := runOver(map[string][]sarif.Result{"kubernetes": {codeFinding("", "open-port", "P1", "")}})
 	for _, team := range []string{"payments", "web"} {
 		entry := issueEntry{Select: issueSelection{Labels: map[string]string{"team": team}}}
 		if p := onlyPart(t, data, entry); !p.Fails {

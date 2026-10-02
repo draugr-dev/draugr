@@ -23,23 +23,23 @@ func narrowingRegistry(t *testing.T) *Registry {
 	t.Helper()
 	reg := NewRegistry()
 	reg.RegisterScanner(stubNarrowScanner{info: plugin.ScannerInfo{
-		Name: "whole-cluster-only", Controls: []string{"infrastructure"},
-		TargetKinds: []plugin.TargetKind{plugin.TargetInfra}, ClusterWide: true,
+		Name: "whole-cluster-only", Controls: []string{"kubernetes"},
+		TargetKinds: []plugin.TargetKind{plugin.TargetKubernetes}, ClusterWide: true,
 	}})
 	reg.RegisterScanner(stubNarrowScanner{info: plugin.ScannerInfo{
-		Name: "api-reader", Controls: []string{"infrastructure"},
-		TargetKinds: []plugin.TargetKind{plugin.TargetInfra},
+		Name: "api-reader", Controls: []string{"kubernetes"},
+		TargetKinds: []plugin.TargetKind{plugin.TargetKubernetes},
 	}})
 	return reg
 }
 
 func infraJob(scanner, component string, namespaces ...string) PlannedJob {
 	return PlannedJob{
-		Control:   "infrastructure",
+		Control:   "kubernetes",
 		Component: component,
 		Job: plugin.ScanJob{
 			Scanner: scanner,
-			Target:  plugin.InfraTarget{Platform: "kubernetes", Ref: "prod", Namespaces: namespaces},
+			Target:  plugin.KubernetesTarget{Ref: "prod", Namespaces: namespaces},
 		},
 	}
 }

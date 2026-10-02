@@ -828,7 +828,7 @@ func TestComponentVerdictsJudgeEachComponentByTheSamePolicy(t *testing.T) {
 			{RuleID: "CVE-1", Level: sarif.LevelError, Component: "payments", Priority: "P1"},
 			{RuleID: "CVE-2", Level: sarif.LevelNote, Component: "internal-tool", Priority: "P4"},
 		}},
-		"infrastructure": {Tool: "draugr-k8s-policies", Results: []sarif.Result{
+		"kubernetes": {Tool: "draugr-k8s-policies", Results: []sarif.Result{
 			{RuleID: "cis/5.1.1", Level: sarif.LevelWarning}, // project-scoped: no component
 		}},
 	}
@@ -1288,7 +1288,7 @@ func TestComponentVerdictsAttributeUnscannedTargets(t *testing.T) {
 		{Control: "images", Component: "mesh", Kind: "image", Target: "r/a:1"},
 		{Control: "images", Component: "mesh", Kind: "image", Target: "r/b:1"},
 		{Control: "images", Component: "api", Kind: "image", Target: "r/c:1"},
-		{Control: "infrastructure", Component: "", Kind: "infra", Target: "kubernetes/x"},
+		{Control: "kubernetes", Component: "", Kind: "infra", Target: "kubernetes/x"},
 	}
 
 	got, _ := componentVerdicts(norn.Policy{}, model, nil, engine.Scope{}, unscanned)

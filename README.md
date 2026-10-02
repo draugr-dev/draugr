@@ -119,7 +119,7 @@ its own license, and you can swap it.
 | `dast` | problems only visible from outside a running app | Nuclei, authenticated, and from an OpenAPI spec |
 | `headers` | how your site answers a browser | native |
 | `tls` | certificates and encryption | native |
-| `infrastructure` | your Kubernetes cluster, against the CIS benchmarks | native, kube-bench opt-in |
+| `kubernetes` | your Kubernetes cluster, against the CIS benchmarks | native, kube-bench opt-in |
 | `threats` | whether anything you talk to is on a public blocklist | abuse.ch URLhaus |
 | `provenance` | whether an image is signed by the builder you expect | Sigstore cosign |
 

@@ -71,14 +71,14 @@ func TestRunCollectsErrors(t *testing.T) {
 
 func TestMergeFragmentsUnionsSurface(t *testing.T) {
 	a := saga.Fragment{Components: []saga.Component{{
-		Name:           "svc",
-		Repositories:   []saga.Repository{{URL: "u", Revision: "1"}},
-		Infrastructure: []saga.Infrastructure{{Kind: "kubernetes", Ref: "prod"}},
+		Name:         "svc",
+		Repositories: []saga.Repository{{URL: "u", Revision: "1"}},
+		Kubernetes:   []saga.KubernetesCluster{{Ref: "prod"}},
 	}}}
 	b := saga.Fragment{Components: []saga.Component{{
-		Name:           "svc",
-		Repositories:   []saga.Repository{{URL: "u", Revision: "1"}}, // dup
-		Infrastructure: []saga.Infrastructure{{Kind: "kubernetes", Ref: "dev"}},
+		Name:         "svc",
+		Repositories: []saga.Repository{{URL: "u", Revision: "1"}}, // dup
+		Kubernetes:   []saga.KubernetesCluster{{Ref: "dev"}},
 	}}}
 	merged := MergeFragments(a, b)
 	if len(merged.Components) != 1 {
@@ -88,8 +88,8 @@ func TestMergeFragmentsUnionsSurface(t *testing.T) {
 	if len(c.Repositories) != 1 {
 		t.Errorf("repos should dedup to 1, got %d", len(c.Repositories))
 	}
-	if len(c.Infrastructure) != 2 {
-		t.Errorf("infra should union to 2, got %d", len(c.Infrastructure))
+	if len(c.Kubernetes) != 2 {
+		t.Errorf("infra should union to 2, got %d", len(c.Kubernetes))
 	}
 }
 

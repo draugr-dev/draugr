@@ -21,13 +21,13 @@ const (
     TargetRepository TargetKind = "repository"
     TargetImage      TargetKind = "image"
     TargetHost       TargetKind = "host"
-    TargetInfra      TargetKind = "infrastructure"
+    TargetKubernetes TargetKind = "kubernetes"
 )
 
 type RepositoryTarget struct { URL, Revision string; Paths []string }
 type ImageTarget      struct { Ref, Digest string }  // digest drives Identity() (cache key)
 type HostTarget       struct { Name, URL, Type string }      // type: browser | api
-type InfraTarget      struct { Platform, Ref string }        // e.g. kubernetes / prod-cluster
+type KubernetesTarget struct { Ref string }                  // e.g. prod-cluster
 
 // ImageTarget.PinnedRef() returns the digest-pinned reference (repo:tag@sha256:…) a scanner
 // should pull, so the bytes scanned match the digest the result is cached under.

@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"maps"
-	"strings"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -22,57 +21,48 @@ const (
 	//
 	// kube-bench stays available as `kubeBench: { enabled: true }`. It is the reference the
 	// native reader is checked against, and the thing to reach for if the two ever disagree.
-	infrastructureControl = "infrastructure"
-	kubernetesPlatform    = "kubernetes"
+	kubernetesControl = "kubernetes"
 )
 
-// Infrastructure assesses the platform a component runs on against the CIS Kubernetes
-// Benchmark.
+// Kubernetes assesses the clusters a component runs on against the CIS Kubernetes Benchmark.
 //
 // Component-scoped rather than project-scoped, because that is where the Saga puts the data:
-// `infrastructure:` is a list on a component, describing what that component runs on. Two
-// components on the same cluster produce two jobs with the same target, which the engine
-// collapses. So the shared case costs one scan, not two.
-type Infrastructure struct{}
+// `kubernetes:` is a list on a component, naming the clusters it runs on. Two components on the
+// same cluster produce two jobs with the same target, which the engine collapses. So the shared
+// case costs one scan, not two.
+type Kubernetes struct{}
 
-// NewInfrastructure returns the infrastructure controller.
-func NewInfrastructure() plugin.Controller { return Infrastructure{} }
+// NewKubernetes returns the kubernetes controller.
+func NewKubernetes() plugin.Controller { return Kubernetes{} }
 
 // Info identifies the controller.
-func (Infrastructure) Info() plugin.ControllerInfo {
+func (Kubernetes) Info() plugin.ControllerInfo {
 	return plugin.ControllerInfo{
-		Name:            infrastructureControl,
+		Name:            kubernetesControl,
 		Scope:           plugin.ScopeComponent,
 		Summary:         "Check a Kubernetes cluster against the CIS Benchmark, rather than taking it on trust.",
 		DefaultScanners: []string{draugrK8sPoliciesScanner},
 	}
 }
 
-// Plan produces one scan job per Kubernetes infrastructure entry on the component.
-//
-// Infrastructure of another kind is skipped rather than failed: a Saga may describe surfaces
-// Draugr has no benchmark for, and refusing to plan the ones it does understand would make the
-// descriptor less useful the more honestly it was written.
-func (Infrastructure) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
+// Plan produces one scan job per cluster on the component, for each scanner selected.
+func (Kubernetes) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
 	if comp == nil {
 		return nil, nil
 	}
 	// Control-level settings apply to every scanner the control runs: `context` names the
 	// cluster, not a tool, and repeating it per scanner would be a way to get them out of step.
 	// A scanner block overlays them, so a per-scanner value still wins.
-	shared := infraConfig(model, comp)
-	selections := resolveScanners(model, comp, infrastructureControl, []string{draugrK8sPoliciesScanner})
+	shared := clusterConfig(model, comp)
+	selections := resolveScanners(model, comp, kubernetesControl, []string{draugrK8sPoliciesScanner})
 	var jobs []plugin.ScanJob
-	for _, infra := range comp.Infrastructure {
-		if !strings.EqualFold(infra.Kind, kubernetesPlatform) {
-			continue
-		}
+	for _, cluster := range comp.Kubernetes {
 		for _, sel := range selections {
 			jobs = append(jobs, plugin.ScanJob{
 				Scanner: sel.Name,
-				Target: plugin.InfraTarget{
-					Platform: kubernetesPlatform, Ref: infra.Ref, Namespaces: infra.Namespaces,
-					ProviderOperated: infra.OperatedBy == saga.OperatedByProvider,
+				Target: plugin.KubernetesTarget{
+					Ref: cluster.Ref, Namespaces: cluster.Namespaces,
+					ProviderOperated: cluster.OperatedBy == saga.OperatedByProvider,
 				},
 				Config: withShared(shared, sel.Config),
 			})
@@ -81,10 +71,10 @@ func (Infrastructure) Plan(model saga.Model, comp *saga.Component) ([]plugin.Sca
 	return jobs, nil
 }
 
-// infraConfig resolves the control's settings for a component: the project's, with the
+// clusterConfig resolves the control's settings for a component: the project's, with the
 // component's layered over.
-func infraConfig(model saga.Model, comp *saga.Component) plugin.Config {
-	settings := mergedSettings(model.Config.Controls[infrastructureControl], comp.Controls[infrastructureControl])
+func clusterConfig(model saga.Model, comp *saga.Component) plugin.Config {
+	settings := mergedSettings(model.Config.Controls[kubernetesControl], comp.Controls[kubernetesControl])
 	if len(settings) == 0 {
 		return nil
 	}
@@ -122,11 +112,11 @@ func mergedSettings(project, component saga.ControllerSettings) saga.ControllerS
 }
 
 // Aggregate merges the scan reports and summarizes findings by severity.
-func (Infrastructure) Aggregate(reports []sarif.Report) (plugin.ControlResult, error) {
+func (Kubernetes) Aggregate(reports []sarif.Report) (plugin.ControlResult, error) {
 	merged := sarif.Merge(reports...)
 	counts := merged.Counts()
 	return plugin.ControlResult{
-		Control: infrastructureControl,
+		Control: kubernetesControl,
 		Report:  merged,
 		Summary: plugin.Summary{
 			Errors:   counts.Error,

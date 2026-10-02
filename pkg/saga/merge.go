@@ -23,7 +23,7 @@ func unionComponent(a, b Component) Component {
 	a.Repositories = unionRepositories(a.Repositories, b.Repositories)
 	a.Images = unionImages(a.Images, b.Images)
 	a.Hosts = unionHosts(a.Hosts, b.Hosts)
-	a.Infrastructure = unionInfra(a.Infrastructure, b.Infrastructure)
+	a.Kubernetes = unionClusters(a.Kubernetes, b.Kubernetes)
 	a.VEX = unionVEX(a.VEX, b.VEX)
 	return a
 }
@@ -151,13 +151,13 @@ func unionHosts(a, b []Host) []Host {
 	return a
 }
 
-func unionInfra(a, b []Infrastructure) []Infrastructure {
+func unionClusters(a, b []KubernetesCluster) []KubernetesCluster {
 	at := map[string]int{}
 	for i, in := range a {
-		at[in.Kind+"/"+in.Ref] = i
+		at[in.Ref] = i
 	}
 	for _, in := range b {
-		key := in.Kind + "/" + in.Ref
+		key := in.Ref
 		i, ok := at[key]
 		if !ok {
 			at[key] = len(a)
@@ -211,16 +211,16 @@ func NarrowsScope(model *Model, frag Fragment) []string {
 func NarrowsScopeIn(components []Component, frag Fragment) []string {
 	wide := map[string]bool{}
 	for _, c := range components {
-		for _, in := range c.Infrastructure {
+		for _, in := range c.Kubernetes {
 			if len(in.Namespaces) == 0 {
-				wide[c.Name+"/"+in.Kind+"/"+in.Ref] = true
+				wide[c.Name+"/"+in.Ref] = true
 			}
 		}
 	}
 	var out []string
 	for _, c := range frag.Components {
-		for _, in := range c.Infrastructure {
-			if len(in.Namespaces) > 0 && wide[c.Name+"/"+in.Kind+"/"+in.Ref] {
+		for _, in := range c.Kubernetes {
+			if len(in.Namespaces) > 0 && wide[c.Name+"/"+in.Ref] {
 				out = append(out, c.Name+" ("+in.Ref+")")
 			}
 		}

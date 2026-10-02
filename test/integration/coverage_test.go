@@ -134,10 +134,10 @@ components:
 	}
 }
 
-// TestInfrastructureControlAuditsTheCluster covers the infrastructure control against the kind
+// TestKubernetesControlAuditsTheCluster covers the kubernetes control against the kind
 // cluster the workflow already stands up. Its default scanner is native, so this needs no binary,
 // only a reachable cluster, which is the one thing this job has and unit tests cannot fake.
-func TestInfrastructureControlAuditsTheCluster(t *testing.T) {
+func TestKubernetesControlAuditsTheCluster(t *testing.T) {
 	// Asking the cluster rather than assuming one: this file's other tests run without it.
 	clientset(t)
 
@@ -149,22 +149,21 @@ func TestInfrastructureControlAuditsTheCluster(t *testing.T) {
 release: { version: "1.0" }
 config:
   controllers:
-    infrastructure: { enabled: true }
+    kubernetes: { enabled: true }
 components:
   - name: cluster
     exposure: internal
     criticality: critical
-    infrastructure:
-      - kind: kubernetes
-        ref: %s
+    kubernetes:
+      - ref: %s
 `, currentKubeContext(t)))
 
 	console, _ := scanTo(t, dir, "draugr.saga.yaml")
-	if !strings.Contains(console, "infrastructure") {
-		t.Errorf("the infrastructure control is absent from the report:\n%s", console)
+	if !strings.Contains(console, "kubernetes") {
+		t.Errorf("the kubernetes control is absent from the report:\n%s", console)
 	}
-	if strings.Contains(console, "infrastructure  ERROR") {
-		t.Errorf("the infrastructure control could not run against a real cluster:\n%s", console)
+	if strings.Contains(console, "kubernetes  ERROR") {
+		t.Errorf("the kubernetes control could not run against a real cluster:\n%s", console)
 	}
 }
 

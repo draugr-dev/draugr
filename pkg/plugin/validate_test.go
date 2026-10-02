@@ -234,3 +234,87 @@ func TestAPatternIsEnforced(t *testing.T) {
 		t.Errorf("options did not carry the pattern: %+v", opts)
 	}
 }
+
+// Two components auditing one cluster with different namespaces ask different questions, so their
+
+// Only a full object name pins a revision. A branch, a tag, a short hash and nothing at all each
+
+// The engine asks a target who publishes it through UpstreamPublished. Repositories and images
+
+// Options is what `draugr controls --options` and the schema generator read, so it has to report
+
+// every constraint the validator enforces: required first, the values an enum, an array's items or
+
+// settings stands in for saga.ControllerSettings: a named map type, which is what yaml.v3 decodes
+
+// a nested block into inside a descriptor.
+type settings map[string]any
+
+// A nested block arrives as whatever map type encloses it. It is an object all the same, and an
+
+// unknown key inside it is still refused; a map keyed by something other than strings is not one.
+func TestANestedBlockIsAnObjectWhateverMapTypeItArrivedAs(t *testing.T) {
+	schema := json.RawMessage(`{
+	  "type": "object", "additionalProperties": false,
+	  "properties": {"auth": {"type": "object", "additionalProperties": false,
+	                          "properties": {"user": {"type": "string"}}}}
+	}`)
+	if err := ValidateConfig(schema, Config{"auth": settings{"user": "x"}}); err != nil {
+		t.Errorf("a named map type was refused as an object: %v", err)
+	}
+	if err := ValidateConfig(schema, Config{"auth": settings{"role": "x"}}); err == nil ||
+		!strings.Contains(err.Error(), `unknown option "role"`) {
+		t.Errorf("an unknown key in a named map type: %v", err)
+	}
+	if err := ValidateConfig(schema, Config{"auth": map[int]any{1: "x"}}); err == nil ||
+		!strings.Contains(err.Error(), "expected object") {
+		t.Errorf("a map keyed by integers was accepted as an object: %v", err)
+	}
+}
+
+// A wrong type is reported by the JSON name of what arrived, so the reader can see which line of
+
+// their descriptor holds it.
+func TestAWrongTypeNamesWhatArrived(t *testing.T) {
+	schema := json.RawMessage(`{"type": "object", "properties": {"name": {"type": "string"}}}`)
+	for value, want := range map[any]string{
+		true:    "got boolean",
+		1:       "got integer",
+		1.5:     "got number",
+		"x":     "",
+		nil:     "got null",
+		uint(3): "got integer",
+	} {
+		err := ValidateConfig(schema, Config{"name": value})
+		if want == "" {
+			if err != nil {
+				t.Errorf("%v: %v", value, err)
+			}
+			continue
+		}
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%#v: error %v, want %q", value, err, want)
+		}
+	}
+	for value, want := range map[string]any{
+		"got array":  []any{"x"},
+		"got object": map[string]any{"a": 1},
+	} {
+		if err := ValidateConfig(schema, Config{"name": want}); err == nil || !strings.Contains(err.Error(), value) {
+			t.Errorf("%#v: error %v, want %q", want, err, value)
+		}
+	}
+}
+
+// An anyOf of consts is a closed vocabulary: a value outside it is refused, naming the ones it has.
+func TestAnAnyOfOfConstsIsEnforced(t *testing.T) {
+	schema := json.RawMessage(`{"type": "object", "properties": {"mode": {"type": "string",
+	  "anyOf": [{"const": "fast"}, {"const": "full"}]}}}`)
+	if err := ValidateConfig(schema, Config{"mode": "full"}); err != nil {
+		t.Errorf("a listed value was refused: %v", err)
+	}
+	err := ValidateConfig(schema, Config{"mode": "quick"})
+	if err == nil || !strings.Contains(err.Error(), "fast") || !strings.Contains(err.Error(), "full") {
+		t.Errorf("an unlisted value: %v, want it refused naming fast and full", err)
+	}
+}

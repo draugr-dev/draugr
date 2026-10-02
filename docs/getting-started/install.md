@@ -155,7 +155,7 @@ Prefer your own install (Homebrew, package manager, an existing copy)? That work
 - [retire.js](https://github.com/RetireJS/retire.js), opt-in for `sca`, and the one that finds
   JavaScript no lockfile describes.
 - [Nuclei](https://github.com/projectdiscovery/nuclei), `dast` control.
-- [kube-bench](https://github.com/aquasecurity/kube-bench), **opt-in** for the `infrastructure`
+- [kube-bench](https://github.com/aquasecurity/kube-bench), **opt-in** for the `kubernetes`
   control's scored checks, which read a node's filesystem. Needs `kubectl` as well: its CIS checks
   are scripts that invoke it.
 - [govulncheck](https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck), opt-in for `sca`, and what
@@ -167,7 +167,7 @@ Prefer your own install (Homebrew, package manager, an existing copy)? That work
 Two of these need a language runtime already present: **Semgrep** needs Python 3.10 or newer with
 `pip`, and **retire.js** needs Node 18 or newer with `npm`.
 
-`headers`, `tls` and `infrastructure` are native by default and need nothing installed: the
-`infrastructure` control reads the cluster through the Kubernetes API unless you opt into
+`headers`, `tls` and `kubernetes` are native by default and need nothing installed: the
+`kubernetes` control reads the cluster through the Kubernetes API unless you opt into
 kube-bench for the checks that need a node's filesystem. `draugr doctor` reports which of these
 *your* Saga requires, so the list you have to care about is usually shorter than this one.

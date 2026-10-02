@@ -173,8 +173,14 @@ func (s Scope) Validate(model saga.Model, controls []string) error {
 			quoteList("component", bad), atMost(sorted(declared), listCap)))
 	}
 	if bad := missing(s.Controls, controls); len(bad) > 0 {
-		errs = append(errs, fmt.Sprintf("--controls: no such %s (run `draugr controls`, this build has: %s)",
-			quoteList("control", bad), strings.Join(sorted(controls), ", ")))
+		msg := fmt.Sprintf("--controls: no such %s (run `draugr controls`, this build has: %s)",
+			quoteList("control", bad), strings.Join(sorted(controls), ", "))
+		for _, name := range bad {
+			if now, ok := saga.RenamedControls[name]; ok {
+				msg += fmt.Sprintf("; %q is %q now", name, now)
+			}
+		}
+		errs = append(errs, msg)
 	}
 	for _, sel := range s.Labels {
 		// Both halves required. An empty value would otherwise match a component that declares no

@@ -285,8 +285,8 @@ func TestSurveyK8sClusterRunsTheClusterSurveyor(t *testing.T) {
 	reg := surveyor.NewRegistry()
 	var got []surveyor.Request
 	reg.Register(stubSurveyor{name: "k8s-cluster", comp: saga.Component{
-		Name:           "prod",
-		Infrastructure: []saga.Infrastructure{{Kind: "kubernetes", Ref: "prod"}},
+		Name:       "prod",
+		Kubernetes: []saga.KubernetesCluster{{Ref: "prod"}},
 	}})
 
 	var buf bytes.Buffer
@@ -295,8 +295,8 @@ func TestSurveyK8sClusterRunsTheClusterSurveyor(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "infrastructure") || !strings.Contains(out, "kubernetes") {
-		t.Errorf("expected an infrastructure component:\n%s", out)
+	if !strings.Contains(out, "kubernetes:") || !strings.Contains(out, "ref: prod") {
+		t.Errorf("expected a kubernetes entry:\n%s", out)
 	}
 	if strings.Contains(out, "images:") {
 		t.Error("the cluster surveyor must not emit images, that is the other surveyor's job")
@@ -338,8 +338,8 @@ func TestSurveyOutputIsScannable(t *testing.T) {
 
 	reg := surveyor.NewRegistry()
 	reg.Register(stubSurveyor{name: "k8s-cluster", comp: saga.Component{
-		Name:           "prod",
-		Infrastructure: []saga.Infrastructure{{Kind: "kubernetes", Ref: "prod"}},
+		Name:       "prod",
+		Kubernetes: []saga.KubernetesCluster{{Ref: "prod"}},
 	}})
 
 	var buf bytes.Buffer
@@ -353,7 +353,7 @@ func TestSurveyOutputIsScannable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("survey output is not a valid Saga: %v", err)
 	}
-	if !m.Config.ControllerEnabled("infrastructure") {
+	if !m.Config.ControllerEnabled("kubernetes") {
 		t.Errorf("a surveyed cluster should be scannable without hand-editing:\n%s", buf.String())
 	}
 }
@@ -467,7 +467,7 @@ func TestRequestPerNamespaceDefaultsToTheWholeCluster(t *testing.T) {
 
 func TestSurveyNamespaceFlagTakesSeveral(t *testing.T) {
 	t.Parallel()
-	// The descriptor's `infrastructure.namespaces` is a list, so discovery that could only
+	// The descriptor's `kubernetes[].namespaces` is a list, so discovery that could only
 	// express one left a user who owns three unable to survey what they can describe.
 	cmd := newSurveyCommand()
 	for _, path := range [][]string{{"k8s", "images"}, {"k8s", "cluster"}} {
@@ -493,7 +493,7 @@ func TestSurveySaysWhenANamespaceScopeWasNotApplied(t *testing.T) {
 	out := filepath.Join(dir, "draugr.saga.yaml")
 	if err := os.WriteFile(out, []byte(
 		"project: app\nrelease:\n  version: \"1.0\"\n"+
-			"components:\n  - name: prod\n    infrastructure:\n      - kind: kubernetes\n        ref: prod\n",
+			"components:\n  - name: prod\n    kubernetes:\n      - ref: prod\n",
 	), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -501,8 +501,8 @@ func TestSurveySaysWhenANamespaceScopeWasNotApplied(t *testing.T) {
 	reg := surveyor.NewRegistry()
 	reg.Register(stubSurveyor{name: "k8s-cluster", comp: saga.Component{
 		Name: "prod",
-		Infrastructure: []saga.Infrastructure{{
-			Kind: "kubernetes", Ref: "prod", Namespaces: []string{"team-a"},
+		Kubernetes: []saga.KubernetesCluster{{
+			Ref: "prod", Namespaces: []string{"team-a"},
 		}},
 	}})
 

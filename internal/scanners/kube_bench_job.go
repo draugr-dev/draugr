@@ -87,8 +87,8 @@ func NewKubeBenchJob() plugin.Scanner {
 			Name:   kubeBenchJobScannerName,
 			Origin: "aquasecurity",
 			// No Binary: the work happens in the cluster, from an image.
-			Controls:    []string{"infrastructure"},
-			TargetKinds: []plugin.TargetKind{plugin.TargetInfra},
+			Controls:    []string{"kubernetes"},
+			TargetKinds: []plugin.TargetKind{plugin.TargetKubernetes},
 			// The Job reads a node's own filesystem, which has no namespace. So a namespace scope is not
 			// unimplemented here, it is meaningless.
 			ClusterWide:  true,
@@ -159,7 +159,7 @@ const (
 
 // Scan creates the Job, waits for it, collects its output, and removes it.
 func (s kubeBenchJobScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
-	if infra, ok := target.(plugin.InfraTarget); ok {
+	if infra, ok := target.(plugin.KubernetesTarget); ok {
 		// The Job reads a node's filesystem, which has no namespace. Honoring a scope is not merely
 		// unimplemented here. It is meaningless, and silently ignoring it would report node-wide
 		// findings against a component that asked for three namespaces.
@@ -167,7 +167,7 @@ func (s kubeBenchJobScanner) Scan(ctx context.Context, target plugin.Target, cfg
 			return sarif.Report{}, err
 		}
 	}
-	if _, ok := target.(plugin.InfraTarget); !ok {
+	if _, ok := target.(plugin.KubernetesTarget); !ok {
 		return sarif.Report{}, fmt.Errorf("%s: unsupported target %T (want infrastructure)",
 			kubeBenchJobScannerName, target)
 	}
@@ -210,7 +210,7 @@ func (s kubeBenchJobScanner) Scan(ctx context.Context, target plugin.Target, cfg
 	// This scanner audits the node types a managed platform runs, so what the descriptor says
 	// about who operates the cluster decides whether its findings are the team's to act on.
 	providerOperated := false
-	if infra, ok := target.(plugin.InfraTarget); ok {
+	if infra, ok := target.(plugin.KubernetesTarget); ok {
 		providerOperated = infra.ProviderOperated
 	}
 	return parseKubeBenchOperated(out, kubeBenchJobScannerName, clusterLabel(kubeCtx), providerOperated)

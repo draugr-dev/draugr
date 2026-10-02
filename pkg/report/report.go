@@ -145,8 +145,8 @@ type Data struct {
 	// But a report that cannot say which build produced its findings cannot be reproduced, so the
 	// answer is to record it.
 	Tools []ToolBuild
-	// UnattributedFindings counts findings that belong to no component, a project-scoped control like
-	// `infrastructure` produces them. Reported alongside the component breakdown, because a breakdown
+	// UnattributedFindings counts findings that belong to no component, which a project-scoped
+	// control produces. Reported alongside the component breakdown, because a breakdown
 	// that silently omits them makes the parts look like the whole.
 	UnattributedFindings int
 }

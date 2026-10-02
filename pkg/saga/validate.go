@@ -313,27 +313,13 @@ func validateComponents(comps []Component) []error {
 			errs = append(errs, validateHostAuth(h.Auth, fmt.Sprintf("%s: hosts[%d].auth", where, j))...)
 			errs = append(errs, validateHostSpec(h.Spec, fmt.Sprintf("%s: hosts[%d].spec", where, j))...)
 		}
-		for j, infra := range c.Infrastructure {
+		for j, cluster := range c.Kubernetes {
 			// A misspelling here reads as "self", so the findings a managed control plane cannot act on
 			// stay at the top of the list, the descriptor claims a decision it is not making, and the run
 			// looks the same either way.
-			if infra.OperatedBy != "" && !infra.OperatedBy.Valid() {
-				errs = append(errs, fmt.Errorf("%s: infrastructure[%d].operatedBy %q is not %s",
-					where, j, infra.OperatedBy, OperatedByValues))
-			}
-			// A kind nothing audits is dropped when jobs are planned, so the component is scanned
-			// for everything except the infrastructure it named and reads as covered. Refused
-			// here, where the descriptor can still be corrected, rather than at the point where
-			// the only symptom is a control that found nothing.
-			if strings.TrimSpace(infra.Kind) == "" {
-				errs = append(errs, fmt.Errorf("%s: infrastructure[%d].kind is required (%s)",
-					where, j, InfrastructureKinds))
-			} else if ValidInfrastructureKind(strings.ToLower(infra.Kind)) && !ValidInfrastructureKind(infra.Kind) {
-				errs = append(errs, lowercaseOnly(fmt.Sprintf("%s: infrastructure[%d].kind", where, j), infra.Kind))
-			} else if !ValidInfrastructureKind(infra.Kind) {
-				errs = append(errs, fmt.Errorf(
-					"%s: infrastructure[%d].kind %q is not a surface Draugr audits (it has %v)",
-					where, j, infra.Kind, InfrastructureKinds))
+			if cluster.OperatedBy != "" && !cluster.OperatedBy.Valid() {
+				errs = append(errs, fmt.Errorf("%s: kubernetes[%d].operatedBy %q is not %s",
+					where, j, cluster.OperatedBy, OperatedByValues))
 			}
 		}
 	}

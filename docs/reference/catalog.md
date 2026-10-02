@@ -37,7 +37,7 @@ executing on your machine, which is a question worth being able to answer withou
 | `iac` | IaC / misconfiguration | component | ✅ | `trivy-config` | [doc](../../internal/controllers/iac.md) |
 | `headers` | HTTP security headers | component | ✅ | `draugr-headers` (native) | [doc](../../internal/controllers/headers.md) |
 | `dast` | Dynamic Application Security Testing | component | ✅ | `nuclei` | [doc](../../internal/controllers/dast.md) |
-| `infrastructure` | CIS benchmarks / posture | component | ✅ | `draugr-k8s-policies` (default), `kube-bench` and `kube-bench-job` (opt-in) | [doc](../../internal/controllers/infrastructure.md) |
+| `kubernetes` | CIS Kubernetes Benchmark / cluster posture | component | ✅ | `draugr-k8s-policies` (default), `kube-bench` and `kube-bench-job` (opt-in) | [doc](../../internal/controllers/kubernetes.md) |
 | `tls` | TLS/certificate assessment | component | ✅ | `draugr-tls` (native) | [doc](../../internal/controllers/tls.md) |
 | `licenses` | Dependency license compliance, in repositories and images | component | ✅ | `trivy-license` (default), `mend-licenses` (opt-in) | [doc](../../internal/controllers/licenses.md) |
 | `threats` | Threat intelligence | component | ✅ | `urlhaus` (default), `virustotal` (opt-in) | [doc](../../internal/controllers/threats.md) |
@@ -76,9 +76,9 @@ reference](saga-schema.md#sbom-generation).
 | `mend-licenses` | licenses | Mend CLI (Unified Agent) | proprietary | ✅ | [doc](../../internal/scanners/mend-licenses.md) |
 | `trivy-config` | iac | Aqua Trivy (config) | Apache-2.0 | ✅ | [doc](../../internal/scanners/trivy-config.md) |
 | `trivy-license` | licenses | Aqua Trivy (license) | Apache-2.0 | ✅ | [doc](../../internal/scanners/trivy-license.md) |
-| `kube-bench` | infrastructure | Aqua kube-bench | Apache-2.0 | ✅ | [doc](../../internal/scanners/kube-bench.md) |
-| `kube-bench-job` | infrastructure | Aqua kube-bench (in-cluster Job) | Apache-2.0 | ✅ | [doc](../../internal/scanners/kube-bench-job.md) |
-| `draugr-k8s-policies` | infrastructure | native (no tool) | Apache-2.0 | ✅ | [doc](../../internal/scanners/draugr-k8s-policies.md) |
+| `kube-bench` | kubernetes | Aqua kube-bench | Apache-2.0 | ✅ | [doc](../../internal/scanners/kube-bench.md) |
+| `kube-bench-job` | kubernetes | Aqua kube-bench (in-cluster Job) | Apache-2.0 | ✅ | [doc](../../internal/scanners/kube-bench-job.md) |
+| `draugr-k8s-policies` | kubernetes | native (no tool) | Apache-2.0 | ✅ | [doc](../../internal/scanners/draugr-k8s-policies.md) |
 | `draugr-headers` | headers | native (no tool) | Apache-2.0 | ✅ | [doc](../../internal/scanners/draugr-headers.md) |
 | `nuclei` | dast | ProjectDiscovery Nuclei | MIT | ✅ | [doc](../../internal/scanners/nuclei.md) |
 | `draugr-tls` | tls | native (no tool) | Apache-2.0 | ✅ | [doc](../../internal/scanners/draugr-tls.md) |
@@ -92,7 +92,7 @@ reference](saga-schema.md#sbom-generation).
 | Surveyor | Discovers | Auth | Status | Doc |
 |----------|-----------|------|:------:|-----|
 | `k8s-images` | container images (with running digests) in a k8s cluster | kubeconfig | ✅ | [doc](../../internal/surveyors/k8s-images.md) |
-| `k8s-cluster` | the cluster itself, as an `infrastructure` component | kubeconfig | ✅ | [doc](../../internal/surveyors/k8s-cluster.md) |
+| `k8s-cluster` | the cluster itself, as a component's `kubernetes:` entry | kubeconfig | ✅ | [doc](../../internal/surveyors/k8s-cluster.md) |
 | `github-org-repos` | repositories in a GitHub org | `GITHUB_TOKEN` | ✅ | [doc](../../internal/surveyors/github-org-repos.md) |
 | `gitlab-group-projects` | projects in a GitLab group, subgroups included | `GITLAB_TOKEN` | ✅ | [doc](../../internal/surveyors/gitlab-group-projects.md) |
 | `azure-devops-repos` | Git repositories in an Azure DevOps organization or project | `AZURE_DEVOPS_EXT_PAT` | ✅ | [doc](../../internal/surveyors/azure-devops-repos.md) |

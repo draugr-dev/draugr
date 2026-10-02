@@ -37,13 +37,6 @@ func TestAHostTypeIsOneDraugrKnows(t *testing.T) {
 	}
 }
 
-func TestAnInfrastructureKindHasOneSpelling(t *testing.T) {
-	got := loadErr(t, "    infrastructure:\n      - kind: Kubernetes\n        ref: prod\n")
-	if !strings.Contains(got, `"Kubernetes" must be lowercase: kubernetes`) {
-		t.Errorf("error %q", got)
-	}
-}
-
 // A label YAML reads as a number or a boolean keeps its text, in a descriptor and in a fragment
 // alike: labels are compared as text and never reach the verdict.
 func TestALabelKeepsItsText(t *testing.T) {

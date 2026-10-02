@@ -265,7 +265,7 @@ func TestK8sPoliciesReportsAnUnreachableCluster(t *testing.T) {
 		info:   plugin.ScannerInfo{Name: draugrK8sPoliciesScannerName},
 		client: func(string) (kubernetes.Interface, error) { return nil, errors.New("no kubeconfig") },
 	}
-	_, err := s.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes"}, nil)
+	_, err := s.Scan(context.Background(), plugin.KubernetesTarget{}, nil)
 	if err == nil || !strings.Contains(err.Error(), draugrK8sPoliciesScannerName) {
 		t.Errorf("want an error naming the scanner, got %v", err)
 	}
@@ -277,7 +277,7 @@ func scanPolicies(t *testing.T, client kubernetes.Interface) (sarif.Report, erro
 		info:   plugin.ScannerInfo{Name: draugrK8sPoliciesScannerName},
 		client: func(string) (kubernetes.Interface, error) { return client, nil },
 	}
-	return s.Scan(context.Background(), plugin.InfraTarget{Platform: "kubernetes", Ref: "test"}, nil)
+	return s.Scan(context.Background(), plugin.KubernetesTarget{Ref: "test"}, nil)
 }
 
 // The catalog is the coverage guarantee, so it has to be internally sound: no duplicate ids,
@@ -564,7 +564,7 @@ func TestClusterScopeLabel(t *testing.T) {
 func TestScannersThatCannotScopeRefuse(t *testing.T) {
 	t.Parallel()
 
-	target := plugin.InfraTarget{Platform: "kubernetes", Ref: "prod", Namespaces: []string{"team-a"}}
+	target := plugin.KubernetesTarget{Ref: "prod", Namespaces: []string{"team-a"}}
 
 	kb := kubeBenchScanner{
 		info: plugin.ScannerInfo{Name: kubeBenchScannerName},

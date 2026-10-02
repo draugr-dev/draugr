@@ -1,16 +1,16 @@
 ---
 title: "draugr-k8s-policies"
-description: "Evaluates the CIS Benchmark's policies section against a live cluster through the Kubernetes API. Native, and the default for the infrastructure control."
+description: "Evaluates the CIS Benchmark's policies section against a live cluster through the Kubernetes API. Native, and the default for the kubernetes control."
 section: Scanners
 order: 20
 ---
 
 # Scanner: `draugr-k8s-policies` (CIS policies section, natively)
 
-- **Control:** [`infrastructure`](../controllers/infrastructure.md)
+- **Control:** [`kubernetes`](../controllers/kubernetes.md)
 - **Tool:** none. This scanner reads the Kubernetes API directly
 - **Status:** ✅ implemented, partial coverage of the section (see below)
-- **Target:** a Kubernetes cluster (`InfraTarget`)
+- **Target:** a Kubernetes cluster (`KubernetesTarget`)
 - **License / terms:** Apache-2.0 (Draugr's own). No third-party tool is executed.
 
 ## What it does
@@ -21,7 +21,7 @@ Evaluates the CIS Kubernetes Benchmark's **policies** section against a live clu
 ```yaml
 config:
   controls:
-    infrastructure:
+    kubernetes:
       enabled: true
       kubeBench: { enabled: false }   # stop exec'ing kube-bench for this section
       draugrK8sPolicies: { enabled: true }
@@ -136,9 +136,8 @@ without noticing, which is the part that can be automated.
 On a shared cluster the cluster is not the unit anyone owns:
 
 ```yaml
-infrastructure:
-  - kind: kubernetes
-    ref: prod-cluster
+kubernetes:
+  - ref: prod-cluster
     namespaces: [team-a, team-a-jobs]
 ```
 
@@ -201,8 +200,8 @@ The scanner records what it measured and against what, which travels in `--forma
 
 ```
 Measured against
-- infrastructure · draugr-k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided · scope whole cluster
-- infrastructure · draugr-k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided · scope namespace team-a
+- kubernetes · draugr-k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided · scope whole cluster
+- kubernetes · draugr-k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided · scope namespace team-a
 ```
 
 Three facts, and each answers a question a reader has about a finding they are looking at.
@@ -261,7 +260,7 @@ run until they are accepted.
 - No external binary, so nothing for `draugr tools install` to fetch and nothing for
   `draugr doctor` to report missing. The `kubectl` requirement that
   [`kube-bench`](kube-bench.md) carries does not apply here.
-- The cluster is chosen the same way as the other infrastructure scanners: the component's
+- The cluster is chosen the same way as the control's other scanners: the component's
   `ref`, an explicit `context` setting, or the ambient kubeconfig context.
 - Findings are located at the cluster (`kubernetes/<ref>`), not a file. That is what was
   assessed.

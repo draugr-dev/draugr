@@ -99,8 +99,8 @@ func TestRunChecksEachDistinctTargetOnce(t *testing.T) {
 		plugin.ImageTarget{Ref: "local/web:dev"},
 		plugin.ImageTarget{Ref: "ghcr.io/acme/private:1"},
 		plugin.HostTarget{URL: "https://app.example.com"},
-		plugin.InfraTarget{Platform: "kubernetes", Ref: "prod"},
-		plugin.InfraTarget{Platform: "kubernetes", Ref: "prod"},
+		plugin.KubernetesTarget{Ref: "prod"},
+		plugin.KubernetesTarget{Ref: "prod"},
 	}
 	checks := Run(context.Background(), targets, Options{Probes: f.probes(), Concurrency: 2})
 
@@ -112,7 +112,7 @@ func TestRunChecksEachDistinctTargetOnce(t *testing.T) {
 		{"image", "local/web:dev", Passed, "in the local Docker daemon"},
 		{"image", "ghcr.io/acme/private:1", Failed, "401 unauthorized, no credential for ghcr.io"},
 		{"host", "https://app.example.com", Passed, "TLS handshake completes"},
-		{"infrastructure", plugin.InfraTarget{Platform: "kubernetes", Ref: "prod"}.Identity(), NotChecked,
+		{"kubernetes", plugin.KubernetesTarget{Ref: "prod"}.Identity(), NotChecked,
 			"doctor has no reachability check for this kind of target"},
 	}
 	if !slices.Equal(checks, want) {

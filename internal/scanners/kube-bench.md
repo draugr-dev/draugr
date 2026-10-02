@@ -7,10 +7,10 @@ order: 90
 
 # Scanner: `kube-bench` (CIS Kubernetes Benchmark)
 
-- **Control:** [`infrastructure`](../controllers/infrastructure.md)
+- **Control:** [`kubernetes`](../controllers/kubernetes.md)
 - **Tool:** Aqua **kube-bench**, https://github.com/aquasecurity/kube-bench
 - **Status:** ✅ implemented (CIS section 5)
-- **Target:** a Kubernetes cluster (`InfraTarget`)
+- **Target:** a Kubernetes cluster (`KubernetesTarget`)
 - **License / terms:** **Apache-2.0** (permissive). Run via **exec**.
 
 ## What it does
@@ -177,10 +177,9 @@ Two consequences worth being direct about:
 
 This scanner always audits the whole cluster. Its checks are `kubectl` pipelines with the scope
 written into them, `--all-namespaces`, with no flag to change it, so a component that sets
-`namespaces` on its infrastructure entry cannot be honored.
+`namespaces` on its `kubernetes` entry cannot be honored.
 
-So it is not planned for such a component, the way a controller does not plan for an
-infrastructure kind it has no benchmark for. The alternative is worse than a missing feature: the
+So it is not planned for such a component. The alternative is worse than a missing feature: the
 report would look scoped, the rule ids would look scoped, and the findings would be somebody
 else's. The report names the skip under **Not measured**, because a scanner that quietly does not
 run reads exactly like one that ran and found nothing.

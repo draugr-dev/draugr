@@ -16,7 +16,7 @@ questions](#10-open-questions)
 ## 1. One-paragraph model
 
 A developer writes a **Saga** (`draugr.saga.yaml`) describing their app's surface, repos,
-images, endpoints, infrastructure. Optionally, **Surveyors** discover that surface and write the
+images, endpoints, clusters. Optionally, **Surveyors** discover that surface and write the
 Saga for them. The **engine** builds an execution plan (which **Controllers** apply to which
 components), runs the relevant **Scanners** concurrently, and normalizes every result to
 **SARIF**. The **Norn** evaluates results against policy to produce a pass/fail verdict, and the
@@ -76,16 +76,15 @@ components:
       - name: api
         url: https://api.acme.com
         type: api
-    infrastructure:
-      - kind: kubernetes
-        ref: prod-cluster
+    kubernetes:
+      - ref: prod-cluster
     controls:                       # per-component overrides
       sast: { semgrep: { config: p/owasp-top-ten } }
 
 references:      # links to manual/human controls (threat model, arch diagram, …)
 ```
 
-Component surface types (`repositories`, `images`, `hosts`, `infrastructure`) map to scanner
+Component surface types (`repositories`, `images`, `hosts`, `kubernetes`) map to scanner
 **Target** kinds. `fragments:` lets each service keep its own **Saga fragment** next to its
 source, locally or in another repository, and the loader assembles them before anything runs.
 Surveyors contribute the same `saga.Fragment` type through the same merge, so a discovered

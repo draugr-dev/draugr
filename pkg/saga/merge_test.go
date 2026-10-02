@@ -98,13 +98,13 @@ func TestMergeKeepsWhatALaterSurveyLearned(t *testing.T) {
 // starts scanning less than it did is the dangerous direction, and nobody re-reads a descriptor
 // to check it still covers what it covered yesterday.
 func TestMergeNeverNarrowsAClusterScope(t *testing.T) {
-	whole := []Component{{Name: "c", Infrastructure: []Infrastructure{{Kind: "kubernetes", Ref: "c"}}}}
-	scoped := Component{Name: "c", Infrastructure: []Infrastructure{
-		{Kind: "kubernetes", Ref: "c", Namespaces: []string{"team-a"}},
+	whole := []Component{{Name: "c", Kubernetes: []KubernetesCluster{{Ref: "c"}}}}
+	scoped := Component{Name: "c", Kubernetes: []KubernetesCluster{
+		{Ref: "c", Namespaces: []string{"team-a"}},
 	}}
 
 	got := UpsertComponent(whole, scoped)
-	if ns := got[0].Infrastructure[0].Namespaces; len(ns) != 0 {
+	if ns := got[0].Kubernetes[0].Namespaces; len(ns) != 0 {
 		t.Errorf("namespaces = %v, want the whole cluster kept", ns)
 	}
 
@@ -117,18 +117,49 @@ func TestMergeNeverNarrowsAClusterScope(t *testing.T) {
 // Two scoped surveys union, because each names namespaces the other did not.
 func TestMergeUnionsTwoScopedSurveys(t *testing.T) {
 	got := UpsertComponent(
-		[]Component{{Name: "c", Infrastructure: []Infrastructure{{Kind: "kubernetes", Ref: "c", Namespaces: []string{"a"}}}}},
-		Component{Name: "c", Infrastructure: []Infrastructure{{Kind: "kubernetes", Ref: "c", Namespaces: []string{"b"}}}},
+		[]Component{{Name: "c", Kubernetes: []KubernetesCluster{{Ref: "c", Namespaces: []string{"a"}}}}},
+		Component{Name: "c", Kubernetes: []KubernetesCluster{{Ref: "c", Namespaces: []string{"b"}}}},
 	)
-	ns := got[0].Infrastructure[0].Namespaces
+	ns := got[0].Kubernetes[0].Namespaces
 	if len(ns) != 2 || ns[0] != "a" || ns[1] != "b" {
 		t.Errorf("namespaces = %v, want both", ns)
 	}
 	// Nothing was narrowed, so nothing should be reported.
 	if n := NarrowsScope(
-		&Model{Components: []Component{{Name: "c", Infrastructure: []Infrastructure{{Kind: "kubernetes", Ref: "c", Namespaces: []string{"a"}}}}}},
-		Fragment{Components: []Component{{Name: "c", Infrastructure: []Infrastructure{{Kind: "kubernetes", Ref: "c", Namespaces: []string{"b"}}}}}},
+		&Model{Components: []Component{{Name: "c", Kubernetes: []KubernetesCluster{{Ref: "c", Namespaces: []string{"a"}}}}}},
+		Fragment{Components: []Component{{Name: "c", Kubernetes: []KubernetesCluster{{Ref: "c", Namespaces: []string{"b"}}}}}},
 	); len(n) != 0 {
 		t.Errorf("NarrowsScope = %v, want nothing", n)
+	}
+}
+
+// Two descriptions of one component each naming supplier VEX documents keep every document once.
+// The same repository path at two revisions is two claims, so both stay.
+func TestMergingAComponentKeepsEverySupplierDocumentOnce(t *testing.T) {
+	repo := func(ref string) VEXSource {
+		return VEXSource{Repository: &VEXRepository{URL: "https://github.com/s/r", Ref: ref, Path: "vex.json"}}
+	}
+	ours := Component{Name: "api", VEX: []VEXSource{{Path: "vex/ours.json"}, {URL: "https://s.example/vex.json"}}}
+	theirs := Component{Name: "api", VEX: []VEXSource{
+		{Path: "vex/ours.json"}, {URL: "https://s.example/vex.json"}, repo("v1"), repo("v2"), repo("v1"),
+	}}
+	got := UpsertComponent([]Component{ours}, theirs)[0].VEX
+	if len(got) != 4 {
+		t.Fatalf("vex = %+v, want the path, the url and the repository at two revisions", got)
+	}
+	if got := UpsertComponent([]Component{ours}, Component{Name: "api"})[0].VEX; len(got) != 2 {
+		t.Errorf("merging a description with no sources changed them: %+v", got)
+	}
+}
+
+// A cluster both descriptions name is one cluster, with both namespace lists; one only the second
+// names is added.
+func TestMergingAComponentUnionsItsClusters(t *testing.T) {
+	got := UpsertComponent(
+		[]Component{{Name: "c", Kubernetes: []KubernetesCluster{{Ref: "prod", Namespaces: []string{"a"}}}}},
+		Component{Name: "c", Kubernetes: []KubernetesCluster{{Ref: "prod", Namespaces: []string{"b"}}, {Ref: "dev"}}},
+	)[0].Kubernetes
+	if len(got) != 2 || got[0].Ref != "prod" || len(got[0].Namespaces) != 2 || got[1].Ref != "dev" {
+		t.Errorf("clusters = %+v, want prod with both namespaces, then dev", got)
 	}
 }

@@ -14,7 +14,7 @@ const (
 	TargetRepository TargetKind = "repository"
 	TargetImage      TargetKind = "image"
 	TargetHost       TargetKind = "host"
-	TargetInfra      TargetKind = "infrastructure"
+	TargetKubernetes TargetKind = "kubernetes"
 )
 
 // Target is something a scanner can act on. Identity returns a stable string that uniquely
@@ -297,11 +297,9 @@ func (t HostTarget) Identity() string {
 	return id
 }
 
-// InfraTarget is an infrastructure surface (e.g. a Kubernetes cluster). Platform is the
-// kind of infrastructure (e.g. "kubernetes"); Ref names the concrete instance.
-type InfraTarget struct {
-	Platform string
-	Ref      string
+// KubernetesTarget is a Kubernetes cluster. Ref names it by kubeconfig context.
+type KubernetesTarget struct {
+	Ref string
 	// Namespaces narrows the audit to part of the cluster. Empty means all of it.
 	Namespaces []string
 	// ProviderOperated says the surface is a managed service, so part of it is not reachable by
@@ -312,17 +310,17 @@ type InfraTarget struct {
 	Environment string
 }
 
-// Kind returns TargetInfra.
-func (InfraTarget) Kind() TargetKind { return TargetInfra }
+// Kind returns TargetKubernetes.
+func (KubernetesTarget) Kind() TargetKind { return TargetKubernetes }
 
-// Identity returns the platform and ref, e.g. "kubernetes/prod".
+// Identity returns the cluster's ref, e.g. "kubernetes/prod".
 // Identity names what was assessed, and therefore what a cached result may be reused for.
 //
 // The namespaces belong in it: two components auditing the same cluster with different scopes
 // are asking different questions, and a cache keyed on the cluster alone would answer the second
 // with the first one's findings.
-func (t InfraTarget) Identity() string {
-	id := t.Platform + "/" + t.Ref
+func (t KubernetesTarget) Identity() string {
+	id := "kubernetes/" + t.Ref
 	if len(t.Namespaces) == 0 {
 		return id
 	}
