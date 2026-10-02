@@ -237,3 +237,26 @@ func TestALoadedFragmentWithComponentControlsIsRefused(t *testing.T) {
 		t.Errorf("error = %q names a component that carries no controls", err)
 	}
 }
+
+// Two surveys merged in memory both contribute their signers, before either reaches a descriptor.
+// A setting that is not a list has no rule for combining and is left to the descriptor.
+func TestAppendFragmentControlsJoinsWhatTwoSurveysProposed(t *testing.T) {
+	into := &FragmentConfig{}
+	AppendFragmentControls(into, map[string]ControllerSettings{
+		"provenance": {"signers": []any{map[string]any{"name": "acme-ci"}}, "enabled": true},
+	})
+	AppendFragmentControls(into, map[string]ControllerSettings{
+		"provenance": {"signers": []any{map[string]any{"name": "chainguard"}}},
+		"sca":        {"ignored": []any{}},
+	})
+	got, _ := asSequence(into.Controls["provenance"]["signers"])
+	if len(got) != 2 {
+		t.Fatalf("signers = %v, want both surveys' signers", got)
+	}
+	if _, ok := into.Controls["provenance"]["enabled"]; ok {
+		t.Error("a setting that is not a list was appended")
+	}
+	if _, ok := into.Controls["sca"]; ok {
+		t.Error("an empty list created a control block")
+	}
+}

@@ -1,6 +1,7 @@
 package saga
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -64,3 +65,24 @@ func TestWhoPublishesATargetResolvesMostSpecificFirst(t *testing.T) {
 		})
 	}
 }
+
+// A descriptor Draugr writes is indented the way Draugr writes it, so the next edit to one field
+// is a one-line diff rather than a whole-file reindent.
+func TestMarshalWritesTheIndentDraugrUses(t *testing.T) {
+	out, err := Marshal(Model{Project: "p", Release: Release{Version: "1"},
+		Components: []Component{{Name: "api", Kubernetes: []KubernetesCluster{{Ref: "prod"}}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(out), "\n  - name: api\n    kubernetes:\n      - ref: prod\n") {
+		t.Errorf("not written at a two-space indent:\n%s", out)
+	}
+	if _, err := Marshal(unmarshalable{}); err == nil {
+		t.Error("a value that refuses to marshal was written")
+	}
+}
+
+// unmarshalable refuses to be written, as a value a descriptor cannot hold does.
+type unmarshalable struct{}
+
+func (unmarshalable) MarshalYAML() (any, error) { return nil, errors.New("cannot be written") }

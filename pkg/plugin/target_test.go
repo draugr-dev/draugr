@@ -171,3 +171,67 @@ func TestHostIdentitySeparatesScansThatAreNotComparable(t *testing.T) {
 		t.Errorf("case and order changed the key:\n %q\n %q", same.Identity(), writes.Identity())
 	}
 }
+
+// identities differ; the same namespaces in another order ask the same one, so theirs do not.
+func TestKubernetesIdentityCarriesTheNamespaces(t *testing.T) {
+	whole := KubernetesTarget{Ref: "prod"}
+	teamA := KubernetesTarget{Ref: "prod", Namespaces: []string{"payments", "api"}}
+	reordered := KubernetesTarget{Ref: "prod", Namespaces: []string{"api", "payments"}}
+	teamB := KubernetesTarget{Ref: "prod", Namespaces: []string{"search"}}
+
+	if got := teamA.Identity(); got != "kubernetes/prod[api,payments]" {
+		t.Errorf("identity = %q, want the namespaces sorted after the ref", got)
+	}
+	if teamA.Identity() != reordered.Identity() {
+		t.Error("the same namespaces in another order gave another identity")
+	}
+	for _, other := range []KubernetesTarget{whole, teamB} {
+		if teamA.Identity() == other.Identity() {
+			t.Errorf("%v and %v share an identity", teamA, other)
+		}
+	}
+	if !slices.Equal(teamA.Namespaces, []string{"payments", "api"}) {
+		t.Error("Identity reordered the target's own namespaces")
+	}
+}
+
+// name whatever they point at today.
+func TestRepositoryPinnedOnlyByAFullCommit(t *testing.T) {
+	for rev, want := range map[string]bool{
+		"0123456789abcdef0123456789abcdef01234567": true,
+		"0123456789ABCDEF0123456789ABCDEF01234567": false,
+		"0123456": false,
+		"main":    false,
+		"v1.4.2":  false,
+		"":        false,
+		"0123456789abcdef0123456789abcdef012345678": false,
+	} {
+		if got := (RepositoryTarget{URL: "https://example.com/r", Revision: rev}).Pinned(); got != want {
+			t.Errorf("Pinned(%q) = %v, want %v", rev, got, want)
+		}
+	}
+}
+
+// answer; a cluster answers with operatedBy instead and does not implement it.
+func TestRepositoriesAndImagesSayWhoPublishesThem(t *testing.T) {
+	for _, tc := range []struct {
+		target Target
+		want   bool
+	}{
+		{RepositoryTarget{URL: "u", Upstream: true}, true},
+		{RepositoryTarget{URL: "u"}, false},
+		{ImageTarget{Ref: "app:1", Upstream: true}, true},
+		{ImageTarget{Ref: "app:1"}, false},
+	} {
+		up, ok := tc.target.(UpstreamPublished)
+		if !ok {
+			t.Fatalf("%T does not implement UpstreamPublished", tc.target)
+		}
+		if got := up.BuiltUpstream(); got != tc.want {
+			t.Errorf("%T.BuiltUpstream() = %v, want %v", tc.target, got, tc.want)
+		}
+	}
+	if _, ok := Target(KubernetesTarget{}).(UpstreamPublished); ok {
+		t.Error("a cluster answers who runs it with operatedBy, not with BuiltUpstream")
+	}
+}

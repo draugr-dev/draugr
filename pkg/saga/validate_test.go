@@ -783,3 +783,63 @@ func TestChildLimitIsMaxChildrenOrTheCeiling(t *testing.T) {
 		t.Errorf("maxChildren 20: %d", got)
 	}
 }
+
+// A supplier VEX source is one document. Naming none leaves nothing to read; naming two leaves the
+// run to pick, and a pick nobody made either excuses findings nobody excused or excuses none.
+func TestAVEXSourceNamesExactlyOneDocument(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		source VEXSource
+		want   string
+	}{
+		{"a path", VEXSource{Path: "vex/openvex.json"}, ""},
+		{"a url", VEXSource{URL: "https://supplier.example/vex.json"}, ""},
+		{"a repository", VEXSource{Repository: &VEXRepository{URL: "https://github.com/s/r", Path: "vex.json"}}, ""},
+		{"nothing", VEXSource{}, "needs one of path, url or repository"},
+		{"two places", VEXSource{Path: "a.json", URL: "https://s.example/a.json"}, "names more than one"},
+		{"not http", VEXSource{URL: "ftp://s.example/a.json"}, "must be http(s)"},
+		{"a repository with no url", VEXSource{Repository: &VEXRepository{Path: "vex.json"}}, "repository.url is required"},
+		{"a repository with no path", VEXSource{Repository: &VEXRepository{URL: "https://github.com/s/r"}}, "repository.path is required"},
+		{"a path outside the repository", VEXSource{Repository: &VEXRepository{URL: "u", Path: "../vex.json"}}, "must be inside the repository"},
+		{"an absolute path", VEXSource{Repository: &VEXRepository{URL: "u", Path: "/etc/vex.json"}}, "must be inside the repository"},
+	} {
+		// Both homes a source can have, the project's and a component's, under the same rule.
+		for where, m := range map[string]*Model{
+			"config.vexSources": {Release: Release{Version: "1"}, Config: Config{VEXSources: []VEXSource{tc.source}}},
+			"components[].vex":  {Release: Release{Version: "1"}, Components: []Component{{Name: "api", VEX: []VEXSource{tc.source}}}},
+		} {
+			err := m.Validate()
+			switch {
+			case tc.want == "" && err != nil:
+				t.Errorf("%s in %s: %v", tc.name, where, err)
+			case tc.want != "" && (err == nil || !strings.Contains(err.Error(), tc.want)):
+				t.Errorf("%s in %s: error %v, want %q", tc.name, where, err, tc.want)
+			}
+		}
+	}
+}
+
+// A misspelled operatedBy would read as "self", so the findings a managed control plane cannot act
+// on stay at the top of the list. Refused, naming the values it has.
+func TestAClusterOperatedByIsOneOfItsValues(t *testing.T) {
+	m := &Model{Release: Release{Version: "1"}, Components: []Component{{Name: "platform",
+		Kubernetes: []KubernetesCluster{{Ref: "prod", OperatedBy: OperatedByProvider}, {Ref: "dev", OperatedBy: "managed"}}}}}
+	err := m.Validate()
+	if err == nil || !strings.Contains(err.Error(), `kubernetes[1].operatedBy "managed" is not`) ||
+		strings.Contains(err.Error(), "kubernetes[0]") {
+		t.Errorf("error %v, want only the second cluster refused", err)
+	}
+}
+
+func TestOrListReadsAsAChoice(t *testing.T) {
+	for want, values := range map[string][]string{
+		"":                                  nil,
+		"public":                            {"public"},
+		"public or internal":                {"public", "internal"},
+		"public, authenticated or internal": {"public", "authenticated", "internal"},
+	} {
+		if got := OrList(values); got != want {
+			t.Errorf("OrList(%v) = %q, want %q", values, got, want)
+		}
+	}
+}

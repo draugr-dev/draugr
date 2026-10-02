@@ -186,3 +186,25 @@ func TestAQuotedNullIsAString(t *testing.T) {
 		t.Fatalf("a quoted null is a string value: %v", err)
 	}
 }
+
+// A model built in code may carry both spellings of the controls block. The current one wins
+// for a control both name, and a control only the older names is kept rather than dropped.
+func TestTheOlderControlsSpellingFoldsIntoTheCurrent(t *testing.T) {
+	m := &Model{
+		Config: Config{
+			Controls:    map[string]ControllerSettings{"sca": {"enabled": true}},
+			Controllers: map[string]ControllerSettings{"sca": {"enabled": false}, "secrets": {"enabled": true}},
+		},
+		Components: []Component{{Name: "api", Controllers: map[string]ControllerSettings{"sast": {"enabled": false}}}},
+	}
+	foldOlderSpellings(m)
+	if m.Config.Controllers != nil || m.Components[0].Controllers != nil {
+		t.Error("the older spelling was left in place")
+	}
+	if m.Config.Controls["sca"]["enabled"] != true || m.Config.Controls["secrets"]["enabled"] != true {
+		t.Errorf("config controls = %v, want sca from the current spelling and secrets kept", m.Config.Controls)
+	}
+	if m.Components[0].Controls["sast"]["enabled"] != false {
+		t.Errorf("component controls = %v, want the older block carried over", m.Components[0].Controls)
+	}
+}
