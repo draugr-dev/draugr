@@ -1,0 +1,1 @@
+- **Each Kubernetes cluster is declared once, under a top-level `clusters:`, and components refer to it by name** with `kubernetes: [{cluster: <name>}]`. The cluster holds its kubeconfig `context`, `operatedBy` and kube-bench's `benchmark` and `version`. Only a component declaring the whole cluster runs the cluster-wide checks. `draugr doctor` checks that each cluster answers.

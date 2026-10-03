@@ -12,9 +12,9 @@ import (
 func k8sComponent(settings saga.ControllerSettings) *saga.Component {
 	c := &saga.Component{
 		Name: "platform",
-		Kubernetes: []saga.KubernetesCluster{
-			{Ref: "prod"},
-			{Ref: "staging"},
+		Kubernetes: []saga.ClusterRef{
+			{Cluster: "prod"},
+			{Cluster: "staging"},
 		},
 	}
 	if settings != nil {
@@ -231,7 +231,7 @@ func TestKubernetesDoesNotPassTheControlsOwnKeysToAScanner(t *testing.T) {
 	}}}
 	comp := &saga.Component{
 		Name:       "cluster",
-		Kubernetes: []saga.KubernetesCluster{{Ref: "prod"}},
+		Kubernetes: []saga.ClusterRef{{Cluster: "prod"}},
 	}
 	jobs, err := Kubernetes{}.Plan(model, comp)
 	if err != nil {
@@ -253,5 +253,30 @@ func TestKubernetesDoesNotPassTheControlsOwnKeysToAScanner(t *testing.T) {
 		if j.Config["context"] != "prod" {
 			t.Errorf("%s lost the shared context: %v", j.Scanner, j.Config)
 		}
+	}
+}
+
+// Each entry's cluster is looked up in clusters:, and its facts reach the target: the context
+// that reaches it, its benchmark and who operates it. Two clusters, so a fact cannot be shared
+// between them by accident.
+func TestKubernetesPlanCarriesEachClustersFacts(t *testing.T) {
+	model := saga.Model{Clusters: map[string]saga.Cluster{
+		"prod":    {Context: "prod-admin", Benchmark: "eks-1.5.0", OperatedBy: saga.OperatedByProvider},
+		"staging": {Context: "staging-admin", Version: "1.30"},
+	}}
+	jobs, err := Kubernetes{}.Plan(model, k8sComponent(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]plugin.KubernetesTarget{}
+	for _, j := range jobs {
+		k := j.Target.(plugin.KubernetesTarget)
+		got[k.Cluster] = k
+	}
+	if p := got["prod"]; p.Context != "prod-admin" || p.Benchmark != "eks-1.5.0" || !p.ProviderOperated {
+		t.Errorf("prod = %+v", p)
+	}
+	if s := got["staging"]; s.Context != "staging-admin" || s.Version != "1.30" || s.Benchmark != "" || s.ProviderOperated {
+		t.Errorf("staging = %+v", s)
 	}
 }

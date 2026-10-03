@@ -64,6 +64,55 @@ release:
 |-------|----------|-------------|
 | `version` | | The version being assessed, shown on every report and appended to the VEX product identifier. Without one, a report names the project alone |
 
+## `clusters`
+
+Each Kubernetes cluster the components run on, declared once by a name their `kubernetes:` entries
+refer to. The facts that belong to the cluster itself are here rather than on each component, so
+every component on a cluster agrees about it.
+
+```yaml
+clusters:
+  prod-us:                      # the name components use
+    context: prod-us-admin      # optional, the kubeconfig context that reaches it
+    operatedBy: provider        # optional, self (default) or provider
+    benchmark: eks-1.5.0        # optional, what kube-bench audits against
+  prod-eu:
+    context: prod-eu-admin
+    version: "1.30"             # optional, selects kube-bench's benchmark when benchmark is unset
+components:
+  - name: payments
+    kubernetes: [{cluster: prod-us}]
+  - name: analytics
+    kubernetes: [{cluster: prod-eu, namespaces: [analytics]}]
+```
+
+| Field | Description |
+|---|---|
+| `context` | The kubeconfig context that reaches the cluster. Omit for the kubeconfig's current context. Reports name the cluster, not the context, so `context: ${{ KUBE_CONTEXT }}` lets machines that name their contexts differently run one descriptor |
+| `operatedBy` | `self`, the default, or `provider` for a managed service |
+| `benchmark` | The CIS benchmark kube-bench and kube-bench-job audit against, such as `cis-1.10` or `eks-1.5.0`. Omit to let kube-bench choose from the cluster's version |
+| `version` | The Kubernetes version kube-bench selects a benchmark from when it cannot read it from the cluster. Ignored when `benchmark` is set |
+
+**Who operates it:** `operatedBy` says whether this team runs the cluster (`self`, the default) or a
+managed platform does (`provider`). It states a fact, and what follows from it is derived rather
+than asserted: on a managed cluster the control plane, the API server and etcd are not reachable.
+There is no host to log into and no file to change, so findings about their configuration are
+reported and counted but never presented as work this team can do.
+
+It narrows what it excuses, deliberately. RBAC, Pod Security, network policy and the rest of the
+policies section stay this team's whoever runs the cluster underneath, and node configuration is
+usually theirs too through node pool settings. Marking a whole cluster as somebody else's problem
+would hide the half that is not, and those are usually the findings that matter.
+
+Whether a cluster is managed is a fact about a contract, not something a scanner can see in what
+it reads, which is why it is declared rather than detected, as `exposure` and `criticality` are.
+
+A component's `kubernetes:` entry names a cluster with `cluster:` and may narrow it to the
+namespaces it owns. `draugr validate` refuses a name nothing declares and the same cluster twice in
+one component, and warns about a declared cluster no component uses. A fragment may declare the
+clusters its components run on; a name two documents declare must carry the same facts in both.
+`draugr doctor` resolves each cluster's context and asks its API server for its version.
+
 ## `components`
 
 Each component is one logical part of the app. All surface lists are optional; provide
@@ -99,9 +148,8 @@ components:
                                                 #   for the credential itself, because a
                                                 #   descriptor is committed
     kubernetes:
-      - ref: prod-cluster
+      - cluster: prod-cluster                   # required, a name declared under clusters:
         namespaces: [team-a, team-a-jobs]       # optional, the namespaces this component owns
-        operatedBy: provider                    # optional, self (default) or provider
     controls:              # optional per-component overrides (same shape as config.controls)
       images:
         enabled: true
@@ -158,24 +206,13 @@ a repository or image added later silently defaults back to `self`.
     - image: ghcr.io/vendor/console:4.2
 ```
 
-**Who operates it:** `operatedBy` says whether this team runs the surface (`self`, the default) or a
-managed platform does (`provider`). It states a fact, and what follows from it is derived rather
-than asserted: on a managed cluster the control plane, the API server and etcd are not reachable.
-There is no host to log into and no file to change, so findings about their configuration are
-reported and counted but never presented as work this team can do.
-
-It narrows what it excuses, deliberately. RBAC, Pod Security, network policy and the rest of the
-policies section stay this team's whoever runs the cluster underneath, and node configuration is
-usually theirs too through node pool settings. Marking a whole cluster as somebody else's problem
-would hide the half that is not, and those are usually the findings that matter.
-
-Whether a cluster is managed is a fact about a contract, not something a scanner can see in what
-it reads, which is why it is declared here alongside `exposure` and `criticality`.
-
-**Cluster namespaces:** `namespaces` narrows a cluster to the part the component owns; omit it and the audit covers the whole cluster. Not every scanner can
-honor it. `kube-bench` runs checks written as cluster-wide `kubectl` queries, and `kube-bench-job`
-reads a node's own filesystem, which has no namespace, so both always describe the whole cluster.
-Neither is run against a component that sets `namespaces`. The alternative would be a report that
+**Cluster namespaces:** `namespaces` narrows a cluster to the part the component owns; omit it and
+the component declares the whole cluster. The cluster-wide checks, such as ClusterRoleBindings,
+admission webhooks and the CNI, run only for a component that declares the whole cluster, so a
+shared cluster's answer is filed once. A namespaced entry gets the checks about objects in its
+namespaces. `kube-bench` runs checks written as cluster-wide `kubectl` queries and `kube-bench-job`
+reads a node's own filesystem, which has no namespace, so neither can honor a scope and neither is
+run against a component that sets `namespaces`. The alternative would be a report that
 looks scoped and lists somebody else's namespaces against this component, so the scan is not
 planned, and the report says so, under **Not measured**, naming the scanner and the component:
 
@@ -185,18 +222,20 @@ NOT MEASURED
               namespace team-a
 ```
 
-Nothing has to be turned off by hand. To get both, node-level checks over the whole cluster, and API
-checks scoped to what you own, declare the cluster twice:
+Nothing has to be turned off by hand. One component claims the cluster whole and gets the
+cluster-wide and node-level checks; each team's component claims its namespaces:
 
 ```yaml
+clusters:
+  prod-cluster: {context: prod-eu-admin}
 components:
+  - name: platform               # the cluster, claimed whole
+    kubernetes:
+      - cluster: prod-cluster    # cluster-wide checks, kube-bench and kubeBenchJob run here
   - name: team-a
     kubernetes:
-      - ref: prod-cluster
+      - cluster: prod-cluster
         namespaces: [team-a]     # draugr-k8s-policies narrows to this
-  - name: prod-cluster           # the same cluster, claimed whole
-    kubernetes:
-      - ref: prod-cluster        # kube-bench and kubeBenchJob run here
 ```
 
 **Risk classification** (`exposure`, `criticality`), optional, and the two axes of risk

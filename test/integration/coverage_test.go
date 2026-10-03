@@ -150,12 +150,15 @@ release: { version: "1.0" }
 config:
   controllers:
     kubernetes: { enabled: true }
+clusters:
+  kind:
+    context: %s
 components:
   - name: cluster
     exposure: internal
     criticality: critical
     kubernetes:
-      - ref: %s
+      - cluster: kind
 `, currentKubeContext(t)))
 
 	console, _ := scanTo(t, dir, "draugr.saga.yaml")

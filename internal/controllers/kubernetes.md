@@ -5,38 +5,45 @@
 - **Status:** ✅ implemented (CIS section 5. See the scope note below)
 - **Scanners:** [`draugr-k8s-policies`](../scanners/draugr-k8s-policies.md) (default);
   [`kube-bench`](../scanners/kube-bench.md) and [`kube-bench-job`](../scanners/kube-bench-job.md) (opt-in)
-- **Resource:** a component's `kubernetes:` entries
+- **Resource:** a component's `kubernetes:` entries, naming clusters declared under `clusters:`
 
 ## What it does
 
-Plans one scan per Kubernetes cluster a component declares, and aggregates the findings.
+Plans one scan per cluster a component's `kubernetes:` entries name, and aggregates the findings.
 
-**Component-scoped, not project-scoped**, because that is where the Saga puts the data:
-`kubernetes:` is a list on a component naming the clusters it runs on. A cluster with
-nothing else to say for it is simply a component with no repositories, images or hosts:
+**Each cluster is declared once, under `clusters:`**, with the facts that are the cluster's: the
+kubeconfig context that reaches it, who operates it, and the benchmark kube-bench audits it
+against. Components refer to it by name. A cluster with nothing else to say for it is a component
+with no repositories, images or hosts:
 
 ```yaml
+clusters:
+  prod-eu:
+    context: prod-eu-west-1
 components:
   - name: prod-cluster
     exposure: public
     criticality: critical
     kubernetes:
-      - ref: prod-eu-west-1
+      - cluster: prod-eu
 ```
 
-**`ref` selects the cluster, it does not merely name it.** It is matched against a kubeconfig
-context, and both Draugr's version lookup and the `kubectl` calls kube-bench makes are pointed at
-that context. Findings are labeled with it, so if it did not also select the cluster a report would
-name one cluster and describe another, the worst way for a compliance artifact to be wrong, because
-it looks right. A `ref` with no matching context fails the scan.
+**The context selects the cluster, it does not merely describe it.** Draugr's version lookup, its
+own API reads and the `kubectl` calls kube-bench makes are all pointed at it, so a report never
+names one cluster and describes another. A context the kubeconfig does not have fails the scan, and
+`draugr doctor` says so before one runs. Without a context, Draugr audits the kubeconfig's current
+one.
 
-Where an organization's name for a cluster is not its kubeconfig context name, set `context`.
+**Findings name the cluster, not the context:** `kubernetes/prod-eu[payments]`. The name is the same
+on every machine that runs the descriptor, where context names often are not.
 
-`ref` is optional. Without it Draugr audits the kubeconfig's current context, and labels the
-findings with **that** context's name, not a blank, so the report still says which cluster it
-examined.
+**The cluster-wide checks run once, for the component that declares the cluster whole.** A
+component that names `namespaces` gets the checks about objects in them; ClusterRoleBindings,
+admission webhooks, the CNI and the rest of the cluster-scoped checks are the whole-cluster
+component's. On a shared cluster that files each cluster-wide answer once, rather than once per
+team that owns a namespace of it.
 
-Two components on the same cluster produce two jobs with the same target, which the engine
+Two components on the same cluster and scope produce two jobs with the same target, which the engine
 collapses. The shared case costs one scan, not two.
 
 ## Scope: what this control covers, and what it does not
@@ -118,17 +125,19 @@ config:
       enabled: true
       kubeBench:
         enabled: true
-        context: arn:aws:eks:...         # optional; defaults to the component's `ref`
-        version: "1.34"                  # optional; Draugr asks the cluster otherwise
-        benchmark: gke-1.6.0             # optional; names a benchmark config directly
         configDir: /etc/kube-bench/cfg   # optional; where kube-bench's definitions live
+clusters:
+  prod-eu:
+    context: arn:aws:eks:...             # optional; the kubeconfig's current context otherwise
+    version: "1.34"                      # optional; Draugr asks the cluster otherwise
+    benchmark: gke-1.6.0                 # optional; names a benchmark config directly
 ```
 
-Each setting belongs to the scanner that reads it, under that scanner's key. `kubeBenchJob` takes
-`context` and `benchmark` as well; `draugrK8sPolicies` takes none. Project-level settings apply to
-every component; a component may override them.
+Each scanner setting belongs to the scanner that reads it, under that scanner's key, and
+`draugrK8sPolicies` takes none. What belongs to a cluster, its context, benchmark and version, is on
+the cluster under `clusters:`, so two clusters on different versions can each have their own.
 
-**You should not normally need either.** Draugr asks the cluster what it is and picks
+**You should not normally need `benchmark` or `version`.** Draugr asks the cluster what it is and picks
 accordingly: a vanilla cluster gets its Kubernetes version supplied, because kube-bench cannot
 detect it from outside a node and quietly assumes an old one if left to guess; a managed one
 (EKS, GKE, AKS, k3s, RKE2, ACK) gets its provider benchmark, which kube-bench will only select
@@ -151,5 +160,5 @@ for how the choice is made.
 - Needs a working kubeconfig. Draugr reads the ambient one, the same as the `k8s-images` surveyor.
   `kube-bench` also needs `kubectl` on `PATH`, because every section-5 check it runs shells out to
   it.
-- Findings are located at the cluster (`kubernetes/<ref>`) rather than a file, because that is
+- Findings are located at the cluster (`kubernetes/<name>`) rather than a file, because that is
   what was assessed.

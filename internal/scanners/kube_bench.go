@@ -45,18 +45,6 @@ const kubeBenchConfigSchema = `{
       "type": "string",
       "description": "Comma-separated kube-bench targets to run, e.g. \"master,node\". Defaults to the node checks, which are what a scan from outside the control plane can answer."
     },
-    "benchmark": {
-      "type": "string",
-      "description": "kube-bench benchmark to run, e.g. cis-1.9 or eks-1.5.0. Defaults to letting kube-bench detect the cluster's version."
-    },
-    "version": {
-      "type": "string",
-      "description": "Kubernetes version to select the benchmark for, e.g. \"1.29\". Ignored when benchmark is set."
-    },
-    "context": {
-      "type": "string",
-      "description": "kubeconfig context to run against. Defaults to the current context."
-    },
     "configDir": {
       "type": "string",
       "description": "Path to kube-bench's cfg/ tree of benchmark definitions. Needed when the binary is on PATH and its cfg lives beside it rather than in /etc/kube-bench/cfg."
@@ -107,7 +95,7 @@ func (s kubeBenchScanner) CacheVersion(ctx context.Context) string {
 func (s kubeBenchScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
 	infra, ok := target.(plugin.KubernetesTarget)
 	if !ok {
-		return sarif.Report{}, fmt.Errorf("kube-bench: unsupported target %T (want infrastructure)", target)
+		return sarif.Report{}, fmt.Errorf("kube-bench: unsupported target %T (want a Kubernetes cluster)", target)
 	}
 	if err := refuseNamespaceScope(kubeBenchScannerName, infra.Namespaces); err != nil {
 		return sarif.Report{}, err
@@ -120,7 +108,7 @@ func (s kubeBenchScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 	// the environment. Without this the scan audits whatever context the machine has selected while
 	// labeling the findings with the one the Saga declared, a report naming one cluster and
 	// describing another.
-	env, cleanup, err := kubeContextEnv(kubeContext(target, cfg))
+	env, cleanup, err := kubeContextEnv(kubeContext(target))
 	if err != nil {
 		return sarif.Report{}, err
 	}
@@ -145,7 +133,7 @@ func (s kubeBenchScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 	// false: this scanner runs the policies section, which is RBAC, Pod Security and network policy,
 	// the team's whoever operates the cluster underneath them.
 	return reportFromKubeBench(
-		doc, kubeBenchScannerName, clusterLabel(kubeContext(target, cfg)), false), nil
+		doc, kubeBenchScannerName, clusterLabel(target), false), nil
 }
 
 // kubeContextEnv writes a kubeconfig whose current context is the one being audited, and returns
@@ -166,9 +154,8 @@ func kubeContextEnv(kubeCtx string) (env []string, cleanup func(), err error) {
 	}
 	if _, ok := raw.Contexts[kubeCtx]; !ok {
 		return nil, noop, fmt.Errorf(
-			"kube-bench: no kubeconfig context named %q, the component's infrastructure `ref` "+
-				"selects the cluster to audit, so it has to match a context (or set "+
-				"controllers.infrastructure.context)", kubeCtx)
+			"kube-bench: no kubeconfig context named %q, the cluster's `context` under clusters: "+
+				"selects the cluster to audit, so it has to match a context in the kubeconfig", kubeCtx)
 	}
 	raw.CurrentContext = kubeCtx
 
@@ -190,16 +177,6 @@ func kubeContextEnv(kubeCtx string) (env []string, cleanup func(), err error) {
 const (
 	// targetsKey selects which CIS sections to run, comma-separated.
 	targetsKey = "targets"
-	// benchmarkKey pins the benchmark config directly (e.g. "cis-1.9", "gke-1.6.0",
-	// "rke2-cis-1.7"). Use it for a platform whose benchmark is not derived from the Kubernetes
-	// version; otherwise let the version decide.
-	benchmarkKey = "benchmark"
-	// versionKey pins the Kubernetes version kube-bench maps to a benchmark (e.g. "1.34"). Unset
-	// means Draugr asks the cluster. See detectClusterFacts.
-	versionKey = "version"
-	// contextKey names the kubeconfig context to audit. Unset means the component's
-	// infrastructure `ref`, and only then the kubeconfig's current context.
-	contextKey = "context"
 	// configDirKey points at kube-bench's own `cfg/` tree of benchmark definitions. kube-bench
 	// looks in /etc/kube-bench/cfg by default, which is right when it was installed from a
 	// package and wrong when someone put the binary on PATH and left the cfg beside it, a
@@ -262,17 +239,18 @@ const defaultKubeBenchTargets = "policies"
 // it, verifyBenchmark checks the benchmark the tool reports having used.
 func kubeBenchArgv(target plugin.Target, cfg plugin.Config) (kubeBenchPlan, error) {
 	targets := stringSetting(cfg, targetsKey, defaultKubeBenchTargets)
-	kubeCtx := kubeContext(target, cfg)
+	kubeCtx := kubeContext(target)
+	cluster, _ := target.(plugin.KubernetesTarget)
 	plan := kubeBenchPlan{argv: []string{"kube-bench", "run", "--json", "--targets", targets}}
 	argv := plan.argv
 
-	switch benchmark := stringSetting(cfg, benchmarkKey, ""); {
+	switch benchmark := cluster.Benchmark; {
 	case benchmark != "":
 		// An explicit benchmark names a config directly, including the platform ones
 		// (gke-*, rke2-*, eks-*) that no Kubernetes version maps to.
 		argv = append(argv, "--benchmark", benchmark)
 	default:
-		if version := stringSetting(cfg, versionKey, ""); version != "" {
+		if version := cluster.Version; version != "" {
 			argv = append(argv, "--version", version)
 			break
 		}
@@ -281,8 +259,8 @@ func kubeBenchArgv(target plugin.Target, cfg plugin.Config) (kubeBenchPlan, erro
 			return kubeBenchPlan{}, fmt.Errorf(
 				"kube-bench: cannot determine the cluster's Kubernetes version, and kube-bench "+
 					"would silently audit against a stale benchmark instead of saying so: %w. "+
-					"Set controllers.infrastructure.version (e.g. \"1.34\") or .benchmark "+
-					"(e.g. \"cis-1.12\")", err)
+					"Set the cluster's version (e.g. \"1.34\") or benchmark (e.g. \"cis-1.12\") "+
+					"on its entry in clusters", err)
 		}
 		if facts.Platform != "" {
 			// Deliberately neither flag: this is the only way kube-bench will select the
@@ -351,12 +329,16 @@ func detectCurrentKubeContext() string {
 
 // clusterLabel names the cluster a finding is about.
 //
-// Normally that is the context being audited. When the Saga declares infrastructure without a
-// `ref`, which the schema allows, Draugr falls back to the ambient context, and the label has to
-// follow: a report reading `kubernetes/` says nothing about what was examined, and "which cluster
-// is this about" is the first question asked of a compliance artifact. So the ambient context is
-// resolved and named, rather than left blank.
-func clusterLabel(kubeCtx string) string {
+// Its name under `clusters:`, which is the same on every machine that runs the descriptor and is
+// what the components refer to. A target built without one, by a caller outside the descriptor, is
+// named by the context that reached it, the ambient one resolved rather than left blank: a report
+// reading `kubernetes/` says nothing about what was examined, and "which cluster is this about" is
+// the first question asked of a compliance artifact.
+func clusterLabel(target plugin.Target) string {
+	if t, ok := target.(plugin.KubernetesTarget); ok && t.Cluster != "" {
+		return "kubernetes/" + t.Cluster
+	}
+	kubeCtx := kubeContext(target)
 	if kubeCtx == "" {
 		kubeCtx = currentKubeContext()
 	}
@@ -366,21 +348,15 @@ func clusterLabel(kubeCtx string) string {
 	return "kubernetes/" + kubeCtx
 }
 
-// kubeContext decides which cluster this scan is about.
+// kubeContext is the kubeconfig context that reaches the cluster: the cluster's `context` under
+// `clusters:`, or "" for the kubeconfig's current one.
 //
-// The Saga's `ref` names the concrete instance, so it is the natural answer. And it has to be
-// used, not merely displayed. Findings are labeled with it; if the scan actually audited whatever
-// context the machine happened to have selected, the report would name one cluster and describe
-// another. Mislabeled evidence is worse than none.
-//
-// An explicit `context` setting wins, for the case where the kubeconfig's name for a cluster is
-// not the name the organization uses for it.
-func kubeContext(target plugin.Target, cfg plugin.Config) string {
-	if ctx := stringSetting(cfg, contextKey, ""); ctx != "" {
-		return ctx
-	}
+// It has to be used, not merely displayed. If the scan audited whatever context the machine
+// happened to have selected, the report would name one cluster and describe another, and
+// mislabeled evidence is worse than none.
+func kubeContext(target plugin.Target) string {
 	if t, ok := target.(plugin.KubernetesTarget); ok {
-		return t.Ref
+		return t.Context
 	}
 	return ""
 }

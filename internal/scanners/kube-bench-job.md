@@ -131,7 +131,7 @@ scanner could do. If the wait times out, the Job is removed and the error says s
 - **Managed clusters.** On GKE, EKS, AKS and ACK the control plane is not yours, so `master`,
   `etcd` and `controlplane` cannot be inspected by any tool. `targets: node` is the useful
   setting there.
-- Findings are located at the cluster (`kubernetes/<ref>`), the same as the read-only scanner.
+- Findings are located at the cluster (`kubernetes/<name>`), the same as the read-only scanner.
 
 ## Data
 

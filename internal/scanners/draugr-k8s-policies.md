@@ -137,7 +137,7 @@ On a shared cluster the cluster is not the unit anyone owns:
 
 ```yaml
 kubernetes:
-  - ref: prod-cluster
+  - cluster: prod-cluster
     namespaces: [team-a, team-a-jobs]
 ```
 
@@ -201,7 +201,7 @@ The scanner records what it measured and against what, which travels in `--forma
 ```
 Measured against
 - kubernetes · draugr-k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided · scope whole cluster
-- kubernetes · draugr-k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided · scope namespace team-a
+- kubernetes · draugr-k8s-policies: benchmark cis-1.12 · coverage 18 of 22 checks decided · scope namespace team-a
 ```
 
 Three facts, and each answers a question a reader has about a finding they are looking at.
@@ -260,9 +260,9 @@ run until they are accepted.
 - No external binary, so nothing for `draugr tools install` to fetch and nothing for
   `draugr doctor` to report missing. The `kubectl` requirement that
   [`kube-bench`](kube-bench.md) carries does not apply here.
-- The cluster is chosen the same way as the control's other scanners: the component's
-  `ref`, an explicit `context` setting, or the ambient kubeconfig context.
-- Findings are located at the cluster (`kubernetes/<ref>`), not a file. That is what was
+- The cluster is chosen the same way as the control's other scanners: the cluster's `context`
+  under `clusters:`, or the ambient kubeconfig context.
+- Findings are located at the cluster (`kubernetes/<name>`), not a file. That is what was
   assessed.
 
 ## Data

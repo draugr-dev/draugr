@@ -129,19 +129,20 @@ var sections = map[string]string{
 	"vexconfig":              "config.vex",
 	// One type with two homes, and naming either one alone would be a half-answer to somebody
 	// looking at the other.
-	"vexsource":         "config.vexSources or components[].vex",
-	"vexrepository":     "config.vexSources[].repository",
-	"component":         "components",
-	"repository":        "components[].repositories",
-	"image":             "components[].images",
-	"host":              "components[].hosts",
-	"hostauth":          "components[].hosts[].auth",
-	"hostspec":          "components[].hosts[].spec",
-	"kubernetescluster": "components[].kubernetes",
-	"fragmentref":       "fragments",
-	"reference":         "references",
-	"fragment":          "the top level of a fragment",
-	"fragmentconfig":    "config, in a fragment",
+	"vexsource":      "config.vexSources or components[].vex",
+	"vexrepository":  "config.vexSources[].repository",
+	"component":      "components",
+	"repository":     "components[].repositories",
+	"image":          "components[].images",
+	"host":           "components[].hosts",
+	"hostauth":       "components[].hosts[].auth",
+	"hostspec":       "components[].hosts[].spec",
+	"clusterref":     "components[].kubernetes",
+	"cluster":        "clusters.<name>",
+	"fragmentref":    "fragments",
+	"reference":      "references",
+	"fragment":       "the top level of a fragment",
+	"fragmentconfig": "config, in a fragment",
 }
 
 // removedFields explains a field that used to parse, keyed by "section.field".
@@ -161,6 +162,11 @@ var removedFields = map[string]string{
 		"adds to them",
 	"components[].hosts.environment":      environmentRemoved,
 	"components[].kubernetes.environment": environmentRemoved,
+	"components[].kubernetes.ref": "a component names its cluster with `cluster:` now, and the " +
+		"cluster is declared once under the top-level `clusters:`, where its kubeconfig context is " +
+		"`context`: `clusters: {prod: {context: prod-eu-west-1}}` and `kubernetes: [{cluster: prod}]`",
+	"components[].kubernetes.operatedBy": "it is a fact about the cluster, so it moved to the " +
+		"cluster's entry under the top-level `clusters:`, beside its `context`",
 	"components.infrastructure": "it is `kubernetes:` now, with the same entries and no `kind`, " +
 		"as in `kubernetes: [{ref: prod-eu-west-1}]`; the control that checks it is `kubernetes` " +
 		"under `config.controls`",

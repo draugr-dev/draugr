@@ -822,12 +822,12 @@ func TestAVEXSourceNamesExactlyOneDocument(t *testing.T) {
 // A misspelled operatedBy would read as "self", so the findings a managed control plane cannot act
 // on stay at the top of the list. Refused, naming the values it has.
 func TestAClusterOperatedByIsOneOfItsValues(t *testing.T) {
-	m := &Model{Release: Release{Version: "1"}, Components: []Component{{Name: "platform",
-		Kubernetes: []KubernetesCluster{{Ref: "prod", OperatedBy: OperatedByProvider}, {Ref: "dev", OperatedBy: "managed"}}}}}
+	m := &Model{Release: Release{Version: "1"},
+		Clusters: map[string]Cluster{"prod": {OperatedBy: OperatedByProvider}, "dev": {OperatedBy: "managed"}}}
 	err := m.Validate()
-	if err == nil || !strings.Contains(err.Error(), `kubernetes[1].operatedBy "managed" is not`) ||
-		strings.Contains(err.Error(), "kubernetes[0]") {
-		t.Errorf("error %v, want only the second cluster refused", err)
+	if err == nil || !strings.Contains(err.Error(), `clusters.dev.operatedBy "managed" is not`) ||
+		strings.Contains(err.Error(), "clusters.prod") {
+		t.Errorf("error %v, want only dev refused", err)
 	}
 }
 

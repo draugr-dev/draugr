@@ -17,12 +17,20 @@ import (
 type Model struct {
 	// Project is which project this descriptor describes, and the name a platform files its runs
 	// under. Lowercase letters, digits and dashes.
-	Project    string        `yaml:"project,omitempty"`
-	Release    Release       `yaml:"release,omitempty"`
-	Config     Config        `yaml:"config,omitempty"`
-	Components []Component   `yaml:"components,omitempty"`
-	Fragments  []FragmentRef `yaml:"fragments,omitempty"`
-	References []Reference   `yaml:"references,omitempty"`
+	Project string  `yaml:"project,omitempty"`
+	Release Release `yaml:"release,omitempty"`
+	Config  Config  `yaml:"config,omitempty"`
+	// Clusters are the Kubernetes clusters the components run on, each declared once by a name the
+	// components' `kubernetes:` entries refer to.
+	Clusters   map[string]Cluster `yaml:"clusters,omitempty"`
+	Components []Component        `yaml:"components,omitempty"`
+	Fragments  []FragmentRef      `yaml:"fragments,omitempty"`
+	References []Reference        `yaml:"references,omitempty"`
+
+	// clusterConflicts records a cluster name two documents defined differently, found while
+	// fragments merged, for Validate to refuse. Merging keeps the first definition and carries on,
+	// so every conflict is reported at once rather than one per run.
+	clusterConflicts []string
 }
 
 // Release identifies what is being assessed. Its version, and nothing else: what a release is
@@ -774,8 +782,9 @@ type Component struct {
 	Repositories []Repository `yaml:"repositories,omitempty"`
 	Images       []Image      `yaml:"images,omitempty"`
 	Hosts        []Host       `yaml:"hosts,omitempty"`
-	// Kubernetes are the clusters this component runs on, checked by the kubernetes control.
-	Kubernetes []KubernetesCluster `yaml:"kubernetes,omitempty"`
+	// Kubernetes are the clusters this component runs on, by name from `clusters:`, checked by the
+	// kubernetes control.
+	Kubernetes []ClusterRef `yaml:"kubernetes,omitempty"`
 	// Controls overrides the project's per-control configuration for this component.
 	Controls map[string]ControllerSettings `yaml:"controls,omitempty"`
 
@@ -1009,12 +1018,44 @@ type HostAuth struct {
 	TokenEnv string `yaml:"tokenEnv"`
 }
 
-// KubernetesCluster is a Kubernetes cluster a component runs on. Ref selects it by kubeconfig
-// context.
-type KubernetesCluster struct {
-	Ref string `yaml:"ref,omitempty"`
+// Cluster is a Kubernetes cluster's own facts, declared once under `clusters:` and shared by every
+// component that runs on it.
+type Cluster struct {
+	// Context is the kubeconfig context that reaches the cluster. Empty means the kubeconfig's current
+	// context. Kept apart from the cluster's name, which is what reports and components use, so a
+	// descriptor works on a machine whose contexts are named differently: `${{ KUBE_CONTEXT }}`.
+	Context string `yaml:"context,omitempty"`
+	// OperatedBy says who runs the cluster: "self", or "provider" for a managed service.
+	//
+	// It states a fact rather than a judgement, and what follows from it. That a finding about the
+	// provider's half is not something this team can go and fix. Is derived rather than asserted.
+	// "managed" was the obvious word and is ambiguous: managed by whom, and a managed service is
+	// still yours to pay for.
+	//
+	// Declared rather than detected, because whether a cluster is managed is a fact about a
+	// contract and not something visible in what a scanner reads. The same argument that puts
+	// exposure and criticality on a component.
+	//
+	// It narrows what it excuses. On a managed cluster the provider runs the control plane, the
+	// API server and etcd; RBAC, Pod Security and network policy remain the team's, and those
+	// are usually the findings that matter. Marking a whole cluster as somebody else's problem
+	// would hide the half that is not.
+	OperatedBy OperatedBy `yaml:"operatedBy,omitempty"`
+	// Benchmark is the CIS benchmark kube-bench audits this cluster against, such as cis-1.10 or
+	// eks-1.5.0. Empty lets kube-bench choose from the cluster's version. A fact about the cluster
+	// rather than a setting of the control: two clusters on different versions need different ones.
+	Benchmark string `yaml:"benchmark,omitempty"`
+	// Version is the Kubernetes version kube-bench selects a benchmark from, when it cannot read it
+	// from the cluster. Ignored when Benchmark is set.
+	Version string `yaml:"version,omitempty"`
+}
+
+// ClusterRef is one component's use of a cluster declared under `clusters:`.
+type ClusterRef struct {
+	// Cluster names an entry under `clusters:`.
+	Cluster string `yaml:"cluster"`
 	// Namespaces narrows the audit to the namespaces this component owns. Empty means the whole
-	// cluster.
+	// cluster, and only a component declaring the whole cluster runs the cluster-wide checks.
 	//
 	// On a shared cluster the cluster is not the unit anyone owns. Most of what the benchmark's
 	// policies section examines is namespace-scoped, so a team owning three namespaces of eighty
@@ -1025,22 +1066,6 @@ type KubernetesCluster struct {
 	// describe a component, so declaring them against a whole shared cluster asserts them on
 	// everybody else's workloads too.
 	Namespaces []string `yaml:"namespaces,omitempty"`
-	// OperatedBy says who runs this surface: "self", or "provider" for a managed service.
-	//
-	// It states a fact rather than a judgement, and what follows from it. That a finding about the
-	// provider's half is not something this team can go and fix. Is derived rather than asserted.
-	// "managed" was the obvious word and is ambiguous: managed by whom, and a managed service is
-	// still yours to pay for.
-	//
-	// Declared rather than detected, because whether a cluster is managed is a fact about a
-	// contract and not something visible in what a scanner reads. The same argument that puts
-	// exposure and criticality here.
-	//
-	// It narrows what it excuses. On a managed cluster the provider runs the control plane, the
-	// API server and etcd; RBAC, Pod Security and network policy remain the team's, and those
-	// are usually the findings that matter. Marking a whole cluster as somebody else's problem
-	// would hide the half that is not.
-	OperatedBy OperatedBy `yaml:"operatedBy,omitempty"`
 }
 
 // OperatedBy says who runs a cluster.
@@ -1120,6 +1145,9 @@ type Fragment struct {
 	// Components are merged by name, a repeated name unions the two surfaces rather than replacing or
 	// colliding, so a component described in two places ends up whole.
 	Components []Component `yaml:"components,omitempty"`
+	// Clusters are clusters this fragment's components run on. A name another document also defines
+	// must carry the same facts there, or the descriptor is refused naming both.
+	Clusters map[string]Cluster `yaml:"clusters,omitempty"`
 	// Config is the subset of a Saga's config a fragment may carry.
 	Config FragmentConfig `yaml:"config,omitempty"`
 	// Fragments are further fragments this one pulls in, resolved relative to it.

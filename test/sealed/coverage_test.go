@@ -126,13 +126,8 @@ var optionExceptions = map[string]string{
 	"draugr-tls.expiryErrorDays": "reads the certificate a live endpoint presents, and the sealed tier has no network",
 	"draugr-tls.expiryWarnDays":  "reads the certificate a live endpoint presents, and the sealed tier has no network",
 
-	"kube-bench.benchmark":        "benchmarks a Kubernetes cluster, which the sealed tier does not run",
 	"kube-bench.configDir":        "benchmarks a Kubernetes cluster, which the sealed tier does not run",
-	"kube-bench.context":          "benchmarks a Kubernetes cluster, which the sealed tier does not run",
 	"kube-bench.targets":          "benchmarks a Kubernetes cluster, which the sealed tier does not run",
-	"kube-bench.version":          "benchmarks a Kubernetes cluster, which the sealed tier does not run",
-	"kube-bench-job.benchmark":    "benchmarks a Kubernetes cluster, which the sealed tier does not run",
-	"kube-bench-job.context":      "benchmarks a Kubernetes cluster, which the sealed tier does not run",
 	"kube-bench-job.image":        "benchmarks a Kubernetes cluster, which the sealed tier does not run",
 	"kube-bench-job.namespace":    "benchmarks a Kubernetes cluster, which the sealed tier does not run",
 	"kube-bench-job.nodeSelector": "benchmarks a Kubernetes cluster, which the sealed tier does not run",

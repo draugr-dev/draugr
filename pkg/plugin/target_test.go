@@ -13,7 +13,7 @@ func TestTargetKinds(t *testing.T) {
 		{RepositoryTarget{URL: "u", Revision: "r"}, TargetRepository},
 		{ImageTarget{Ref: "img:1"}, TargetImage},
 		{HostTarget{URL: "https://x"}, TargetHost},
-		{KubernetesTarget{Ref: "prod"}, TargetKubernetes},
+		{KubernetesTarget{Cluster: "prod"}, TargetKubernetes},
 	}
 	for _, c := range cases {
 		if got := c.target.Kind(); got != c.kind {
@@ -29,7 +29,7 @@ func TestTargetIdentity(t *testing.T) {
 	if got := (HostTarget{URL: "https://api"}).Identity(); got != "https://api" {
 		t.Errorf("host identity = %q", got)
 	}
-	if got := (KubernetesTarget{Ref: "prod"}).Identity(); got != "kubernetes/prod" {
+	if got := (KubernetesTarget{Cluster: "prod"}).Identity(); got != "kubernetes/prod" {
 		t.Errorf("infra identity = %q", got)
 	}
 }
@@ -174,10 +174,10 @@ func TestHostIdentitySeparatesScansThatAreNotComparable(t *testing.T) {
 
 // identities differ; the same namespaces in another order ask the same one, so theirs do not.
 func TestKubernetesIdentityCarriesTheNamespaces(t *testing.T) {
-	whole := KubernetesTarget{Ref: "prod"}
-	teamA := KubernetesTarget{Ref: "prod", Namespaces: []string{"payments", "api"}}
-	reordered := KubernetesTarget{Ref: "prod", Namespaces: []string{"api", "payments"}}
-	teamB := KubernetesTarget{Ref: "prod", Namespaces: []string{"search"}}
+	whole := KubernetesTarget{Cluster: "prod"}
+	teamA := KubernetesTarget{Cluster: "prod", Namespaces: []string{"payments", "api"}}
+	reordered := KubernetesTarget{Cluster: "prod", Namespaces: []string{"api", "payments"}}
+	teamB := KubernetesTarget{Cluster: "prod", Namespaces: []string{"search"}}
 
 	if got := teamA.Identity(); got != "kubernetes/prod[api,payments]" {
 		t.Errorf("identity = %q, want the namespaces sorted after the ref", got)
@@ -233,5 +233,32 @@ func TestRepositoriesAndImagesSayWhoPublishesThem(t *testing.T) {
 	}
 	if _, ok := Target(KubernetesTarget{}).(UpstreamPublished); ok {
 		t.Error("a cluster answers who runs it with operatedBy, not with BuiltUpstream")
+	}
+}
+
+// A cluster's context and benchmark decide what a scan of it returns without being part of its
+// identity, which a report shows and which stays the same on every machine. They reach the cache
+// key, so a run through another context or against another benchmark is never answered with an
+// earlier one, and two components on the same cluster still share one scan.
+func TestAClustersFactsSeparateCacheEntriesButNotIdentities(t *testing.T) {
+	base := KubernetesTarget{Cluster: "prod", Context: "prod-admin", Benchmark: "eks-1.5.0"}
+	if base.Identity() != "kubernetes/prod" {
+		t.Errorf("identity = %q, want the cluster's name alone", base.Identity())
+	}
+	key := func(t Target) CacheKey { return ComputeCacheKey("draugr-k8s-policies", "1", t, nil) }
+	if key(base) != key(KubernetesTarget{Cluster: "prod", Context: "prod-admin", Benchmark: "eks-1.5.0"}) {
+		t.Error("the same cluster gave two cache keys, so two components on it would scan twice")
+	}
+	for name, other := range map[string]KubernetesTarget{
+		"another context":   {Cluster: "prod", Context: "staging-admin", Benchmark: "eks-1.5.0"},
+		"another benchmark": {Cluster: "prod", Context: "prod-admin", Benchmark: "cis-1.10"},
+		"another version":   {Cluster: "prod", Context: "prod-admin", Benchmark: "eks-1.5.0", Version: "1.30"},
+	} {
+		if key(base) == key(other) {
+			t.Errorf("%s shares the cache key", name)
+		}
+		if base.Identity() != other.Identity() {
+			t.Errorf("%s changed the identity", name)
+		}
 	}
 }

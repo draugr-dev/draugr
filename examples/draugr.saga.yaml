@@ -155,6 +155,16 @@ config:
     #     - format: markdown
     #       minPriority: P2  # narrow the comment, not the artifact above
 
+# Each cluster once, with the facts that are the cluster's rather than any one component's.
+clusters:
+  prod-cluster:
+    context: prod-cluster        # the kubeconfig context that reaches it; omit for the current one
+    operatedBy: provider         # self (default) | provider, for a managed service
+    # It states a fact rather than a judgement: on a managed cluster the provider runs the
+    # control plane, the API server and etcd. RBAC, Pod Security and network policy stay
+    # yours, and those are usually the findings that matter, so this narrows what it
+    # excuses rather than marking the whole cluster somebody else's problem.
+
 components:
   # A public web app: source, the image it builds, and the endpoint it serves.
   # exposure + criticality are what turn severities into P1–P4, see the prioritization docs.
@@ -251,13 +261,9 @@ components:
       tls:
         enabled: false       # no endpoint to probe
     kubernetes:
-      - ref: prod-cluster
-        namespaces: [etl]        # the namespaces this component owns; empty means the whole cluster
-        operatedBy: provider     # self (default) | provider, for a managed service
-        # It states a fact rather than a judgement: on a managed cluster the provider runs the
-        # control plane, the API server and etcd. RBAC, Pod Security and network policy stay
-        # yours, and those are usually the findings that matter, so this narrows what it
-        # excuses rather than marking the whole cluster somebody else's problem.
+      - cluster: prod-cluster    # a name declared under clusters: above
+        namespaces: [etl]        # the namespaces this component owns. Omit to declare the whole
+                                 # cluster, which is the entry that runs the cluster-wide checks
 
 # Links to human-performed controls, recorded alongside the automated ones.
 references:

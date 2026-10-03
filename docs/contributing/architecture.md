@@ -65,6 +65,9 @@ config:                                # global controller config, overridable p
     images:    { enabled: true }
     dast:      { enabled: true }
 
+clusters:        # each Kubernetes cluster once; components refer to it by name
+  prod-cluster: { context: prod-eu-admin }
+
 components:
   - name: backend
     repositories:
@@ -77,7 +80,7 @@ components:
         url: https://api.acme.com
         type: api
     kubernetes:
-      - ref: prod-cluster
+      - cluster: prod-cluster       # declared under clusters:
     controls:                       # per-component overrides
       sast: { semgrep: { config: p/owasp-top-ten } }
 

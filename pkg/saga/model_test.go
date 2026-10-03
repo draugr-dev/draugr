@@ -70,11 +70,11 @@ func TestWhoPublishesATargetResolvesMostSpecificFirst(t *testing.T) {
 // is a one-line diff rather than a whole-file reindent.
 func TestMarshalWritesTheIndentDraugrUses(t *testing.T) {
 	out, err := Marshal(Model{Project: "p", Release: Release{Version: "1"},
-		Components: []Component{{Name: "api", Kubernetes: []KubernetesCluster{{Ref: "prod"}}}}})
+		Components: []Component{{Name: "api", Kubernetes: []ClusterRef{{Cluster: "prod"}}}}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(out), "\n  - name: api\n    kubernetes:\n      - ref: prod\n") {
+	if !strings.Contains(string(out), "\n  - name: api\n    kubernetes:\n      - cluster: prod\n") {
 		t.Errorf("not written at a two-space indent:\n%s", out)
 	}
 	if _, err := Marshal(unmarshalable{}); err == nil {

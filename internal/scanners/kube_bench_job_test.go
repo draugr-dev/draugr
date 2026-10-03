@@ -77,7 +77,7 @@ func TestKubeBenchJobInfo(t *testing.T) {
 func TestKubeBenchJobSpec(t *testing.T) {
 	s := NewKubeBenchJob().(kubeBenchJobScanner)
 	s.now = fixedNow
-	job := s.buildJob(nil)
+	job := s.buildJob(nil, "")
 
 	pod := job.Spec.Template.Spec
 	if !pod.HostPID {
@@ -122,12 +122,12 @@ func TestKubeBenchJobSpec(t *testing.T) {
 func TestKubeBenchJobHonorsConfig(t *testing.T) {
 	s := NewKubeBenchJob().(kubeBenchJobScanner)
 	s.now = fixedNow
+	// The benchmark is the cluster's, from its declaration; the rest are this scanner's settings.
 	job := s.buildJob(plugin.Config{
 		"image":        "registry.example.com/kube-bench:v0.15.6",
 		"targets":      "node",
-		"benchmark":    "cis-1.9",
 		"nodeSelector": "node-role.kubernetes.io/control-plane=, kubernetes.io/os=linux",
-	})
+	}, "cis-1.9")
 	c := job.Spec.Template.Spec.Containers[0]
 	if c.Image != "registry.example.com/kube-bench:v0.15.6" {
 		t.Errorf("image = %q", c.Image)
@@ -189,7 +189,7 @@ func TestKubeBenchJobScan(t *testing.T) {
 		return raw, nil
 	}
 
-	rep, err := s.Scan(context.Background(), plugin.KubernetesTarget{Ref: "prod"}, nil)
+	rep, err := s.Scan(context.Background(), plugin.KubernetesTarget{Cluster: "prod", Context: "prod"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

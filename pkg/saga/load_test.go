@@ -18,6 +18,9 @@ config:
     sast:
       enabled: false
     dast: {}
+clusters:
+  prod:
+    context: prod-eu-west-1
 components:
   - name: backend
     labels:
@@ -32,7 +35,7 @@ components:
         url: https://api.acme.com
         type: api
     kubernetes:
-      - ref: prod
+      - cluster: prod
     controllers:
       sast:
         enabled: true
@@ -56,8 +59,8 @@ func TestLoadValid(t *testing.T) {
 	if c.Repositories[0].URL == "" || c.Images[0].Image == "" || c.Hosts[0].URL == "" {
 		t.Errorf("component surface not parsed: %+v", c)
 	}
-	if c.Kubernetes[0].Ref != "prod" {
-		t.Errorf("kubernetes = %+v", c.Kubernetes)
+	if c.Kubernetes[0].Cluster != "prod" || m.Clusters["prod"].Context != "prod-eu-west-1" {
+		t.Errorf("kubernetes = %+v, clusters = %+v", c.Kubernetes, m.Clusters)
 	}
 	if len(m.References) != 1 {
 		t.Errorf("references not parsed")

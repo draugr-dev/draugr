@@ -297,11 +297,17 @@ func (t HostTarget) Identity() string {
 	return id
 }
 
-// KubernetesTarget is a Kubernetes cluster. Ref names it by kubeconfig context.
+// KubernetesTarget is a Kubernetes cluster, as the descriptor's `clusters:` declares it.
 type KubernetesTarget struct {
-	Ref string
+	// Cluster is the cluster's name in the descriptor, which reports and identities use.
+	Cluster string
+	// Context is the kubeconfig context that reaches the cluster, or "" for the current one.
+	Context string
 	// Namespaces narrows the audit to part of the cluster. Empty means all of it.
 	Namespaces []string
+	// Benchmark and Version select the CIS benchmark a tool audits against, for a tool that takes
+	// one. Empty lets the tool choose from the cluster.
+	Benchmark, Version string
 	// ProviderOperated says the surface is a managed service, so part of it is not reachable by
 	// the team that owns the workloads on it. Carried from the descriptor, because a scanner
 	// cannot see a support contract.
@@ -313,18 +319,32 @@ type KubernetesTarget struct {
 // Kind returns TargetKubernetes.
 func (KubernetesTarget) Kind() TargetKind { return TargetKubernetes }
 
-// Identity returns the cluster's ref, e.g. "kubernetes/prod".
-// Identity names what was assessed, and therefore what a cached result may be reused for.
+// Identity returns the cluster's name and scope, e.g. "kubernetes/prod[payments]".
 //
 // The namespaces belong in it: two components auditing the same cluster with different scopes
 // are asking different questions, and a cache keyed on the cluster alone would answer the second
-// with the first one's findings.
+// with the first one's findings. The context and the benchmark do not: they decide the result too,
+// and CacheDetail carries them into the cache key, but the identity is what a report shows and it
+// stays the same on a machine whose contexts are named differently.
 func (t KubernetesTarget) Identity() string {
-	id := "kubernetes/" + t.Ref
+	id := "kubernetes/" + t.Cluster
 	if len(t.Namespaces) == 0 {
 		return id
 	}
 	ns := slices.Clone(t.Namespaces)
 	slices.Sort(ns)
 	return id + "[" + strings.Join(ns, ",") + "]"
+}
+
+// CacheDetail is what decides a cluster's result beyond its identity: the context that reached
+// it and the benchmark it was measured against. Part of the cache and dedupe key, so a run
+// through another context, or against another benchmark, is never answered with an earlier one.
+func (t KubernetesTarget) CacheDetail() string {
+	return "context=" + t.Context + ";benchmark=" + t.Benchmark + ";version=" + t.Version
+}
+
+// CacheDetailer is an optional interface a Target implements when something other than its
+// identity decides what a scan of it returns.
+type CacheDetailer interface {
+	CacheDetail() string
 }

@@ -52,7 +52,12 @@ func TestK8sClusterEmitsAKubernetesComponent(t *testing.T) {
 	if c.Name != "prod-cluster" {
 		t.Errorf("name = %q, want the context name", c.Name)
 	}
-	if len(c.Kubernetes) != 1 || c.Kubernetes[0].Ref != "prod-cluster" {
+	// The cluster is declared once, under the context it was surveyed through, and the component
+	// refers to it by name.
+	if got := frag.Clusters["prod-cluster"]; got.Context != "prod-cluster" {
+		t.Errorf("clusters = %+v, want prod-cluster reached through its context", frag.Clusters)
+	}
+	if len(c.Kubernetes) != 1 || c.Kubernetes[0].Cluster != "prod-cluster" {
 		t.Errorf("kubernetes = %+v", c.Kubernetes)
 	}
 	if len(c.Images) != 0 || len(c.Repositories) != 0 {
@@ -117,7 +122,7 @@ func TestK8sClusterPrefersTheRequestedContext(t *testing.T) {
 		t.Fatal(err)
 	}
 	sagatest.FragmentAccepted(t, frag)
-	if ref := frag.Components[0].Kubernetes[0].Ref; ref != "staging" {
+	if ref := frag.Components[0].Kubernetes[0].Cluster; ref != "staging" {
 		t.Errorf("ref = %q, want the requested context", ref)
 	}
 }

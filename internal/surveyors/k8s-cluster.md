@@ -7,14 +7,18 @@
 
 ## What it does
 
-Writes the cluster you are pointed at as a component with a `kubernetes` entry, so the
+Declares the cluster you are pointed at under `clusters:`, reached through the context the survey
+used, and writes a component that refers to it, so the
 [`kubernetes`](../controllers/kubernetes.md) control applies to it:
 
 ```yaml
+clusters:
+  prod-cluster:
+    context: prod-cluster
 components:
   - name: prod-cluster
     kubernetes:
-      - ref: prod-cluster
+      - cluster: prod-cluster
 ```
 
 ```bash
@@ -25,7 +29,7 @@ draugr survey k8s cluster --context staging -o draugr.saga.yaml
 ## Why this is not part of `k8s-images`
 
 Both read the same cluster with the same credentials, so folding them together would save a
-connection. It would also mean a surveyor named for images emitting an infrastructure component, a
+connection. It would also mean a surveyor named for images emitting a cluster, a
 surprise to anyone reading `survey k8s images` in a script, and a generated descriptor is only worth
 trusting if the command that produced it predicts its contents.
 
@@ -39,7 +43,7 @@ classification over both.
 
 ```yaml
     kubernetes:
-      - ref: prod-cluster
+      - cluster: prod-cluster
         namespaces: [team-a]
 ```
 

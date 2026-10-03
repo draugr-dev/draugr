@@ -16,7 +16,7 @@ func decodableTypes() map[string]bool {
 	found := map[string]bool{}
 	var walk func(reflect.Type)
 	walk = func(rt reflect.Type) {
-		for rt.Kind() == reflect.Pointer || rt.Kind() == reflect.Slice {
+		for rt.Kind() == reflect.Pointer || rt.Kind() == reflect.Slice || rt.Kind() == reflect.Map {
 			rt = rt.Elem()
 		}
 		if rt.Kind() != reflect.Struct || found[strings.ToLower(rt.Name())] {
@@ -42,7 +42,7 @@ func yamlKeys() map[string]bool {
 	keys := map[string]bool{}
 	var walk func(reflect.Type)
 	walk = func(rt reflect.Type) {
-		for rt.Kind() == reflect.Pointer || rt.Kind() == reflect.Slice {
+		for rt.Kind() == reflect.Pointer || rt.Kind() == reflect.Slice || rt.Kind() == reflect.Map {
 			rt = rt.Elem()
 		}
 		if rt.Kind() != reflect.Struct {

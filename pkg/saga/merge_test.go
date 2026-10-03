@@ -98,9 +98,9 @@ func TestMergeKeepsWhatALaterSurveyLearned(t *testing.T) {
 // starts scanning less than it did is the dangerous direction, and nobody re-reads a descriptor
 // to check it still covers what it covered yesterday.
 func TestMergeNeverNarrowsAClusterScope(t *testing.T) {
-	whole := []Component{{Name: "c", Kubernetes: []KubernetesCluster{{Ref: "c"}}}}
-	scoped := Component{Name: "c", Kubernetes: []KubernetesCluster{
-		{Ref: "c", Namespaces: []string{"team-a"}},
+	whole := []Component{{Name: "c", Kubernetes: []ClusterRef{{Cluster: "c"}}}}
+	scoped := Component{Name: "c", Kubernetes: []ClusterRef{
+		{Cluster: "c", Namespaces: []string{"team-a"}},
 	}}
 
 	got := UpsertComponent(whole, scoped)
@@ -117,8 +117,8 @@ func TestMergeNeverNarrowsAClusterScope(t *testing.T) {
 // Two scoped surveys union, because each names namespaces the other did not.
 func TestMergeUnionsTwoScopedSurveys(t *testing.T) {
 	got := UpsertComponent(
-		[]Component{{Name: "c", Kubernetes: []KubernetesCluster{{Ref: "c", Namespaces: []string{"a"}}}}},
-		Component{Name: "c", Kubernetes: []KubernetesCluster{{Ref: "c", Namespaces: []string{"b"}}}},
+		[]Component{{Name: "c", Kubernetes: []ClusterRef{{Cluster: "c", Namespaces: []string{"a"}}}}},
+		Component{Name: "c", Kubernetes: []ClusterRef{{Cluster: "c", Namespaces: []string{"b"}}}},
 	)
 	ns := got[0].Kubernetes[0].Namespaces
 	if len(ns) != 2 || ns[0] != "a" || ns[1] != "b" {
@@ -126,8 +126,8 @@ func TestMergeUnionsTwoScopedSurveys(t *testing.T) {
 	}
 	// Nothing was narrowed, so nothing should be reported.
 	if n := NarrowsScope(
-		&Model{Components: []Component{{Name: "c", Kubernetes: []KubernetesCluster{{Ref: "c", Namespaces: []string{"a"}}}}}},
-		Fragment{Components: []Component{{Name: "c", Kubernetes: []KubernetesCluster{{Ref: "c", Namespaces: []string{"b"}}}}}},
+		&Model{Components: []Component{{Name: "c", Kubernetes: []ClusterRef{{Cluster: "c", Namespaces: []string{"a"}}}}}},
+		Fragment{Components: []Component{{Name: "c", Kubernetes: []ClusterRef{{Cluster: "c", Namespaces: []string{"b"}}}}}},
 	); len(n) != 0 {
 		t.Errorf("NarrowsScope = %v, want nothing", n)
 	}
@@ -156,10 +156,10 @@ func TestMergingAComponentKeepsEverySupplierDocumentOnce(t *testing.T) {
 // names is added.
 func TestMergingAComponentUnionsItsClusters(t *testing.T) {
 	got := UpsertComponent(
-		[]Component{{Name: "c", Kubernetes: []KubernetesCluster{{Ref: "prod", Namespaces: []string{"a"}}}}},
-		Component{Name: "c", Kubernetes: []KubernetesCluster{{Ref: "prod", Namespaces: []string{"b"}}, {Ref: "dev"}}},
+		[]Component{{Name: "c", Kubernetes: []ClusterRef{{Cluster: "prod", Namespaces: []string{"a"}}}}},
+		Component{Name: "c", Kubernetes: []ClusterRef{{Cluster: "prod", Namespaces: []string{"b"}}, {Cluster: "dev"}}},
 	)[0].Kubernetes
-	if len(got) != 2 || got[0].Ref != "prod" || len(got[0].Namespaces) != 2 || got[1].Ref != "dev" {
+	if len(got) != 2 || got[0].Cluster != "prod" || len(got[0].Namespaces) != 2 || got[1].Cluster != "dev" {
 		t.Errorf("clusters = %+v, want prod with both namespaces, then dev", got)
 	}
 }
