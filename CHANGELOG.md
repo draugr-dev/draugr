@@ -12,6 +12,24 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.144.0] - 2026-10-03
+
+### Added
+
+- **`report.json` lists each target the run planned**, under `targets[]`: its kind, the address `draugr doctor` uses, whether it was reached, failed or skipped, the scanner's message, and the components that declare it. A pipeline can name the repository, image, host or cluster that stopped a scan without parsing scanner text.
+
+- **`draugr doctor` checks that each Kubernetes cluster under `clusters:` answers**, through the kubeconfig context the cluster names, or the current context when it names none.
+
+### Changed
+
+- **Each Kubernetes cluster is declared once, under a top-level `clusters:`, and components refer to it by name** with `kubernetes: [{cluster: <name>}]`. A `kubernetes:` entry written for 0.143 is refused, with a message naming where each field moved. An entry's `ref` becomes `cluster:`, and `operatedBy`, `context`, `benchmark` and `version` belong to the cluster. Only a whole-cluster component runs the cluster-wide checks.
+
+- **What makes a run cover less without failing it is one Caveats block**, shown in every view. It lists a declared surface no enabled control checks, a scanner that cannot honor a component's scope, and a dependency file no scanner read, and it replaces the Not checked, Not measured and Unread sections.
+
+- **A target no scanner could read is named once, under Errors**, with the components it leaves unscanned and the scanner's reason in a few words, rather than as the scanner's message under each control that tried. Every such component reads `ERROR`. Under `--allow-scan-errors` the verdict line carries `partial` and the number of targets not reached.
+
+- **An upgrade names one version to move to, even where its advisories disagree.** It is the lowest release that clears every finding the upgrade counts, ordered by the package's own ecosystem, such as Debian's revisions or PEP 440, so jquery 1.8.3, whose advisories name nine releases, gets one. JSON output and MCP carry it as `target`.
+
 ## [0.143.1] - 2026-10-02
 
 ### Fixed
@@ -6173,7 +6191,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.143.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.144.0...HEAD
+[0.144.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.144.0
 [0.143.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.143.1
 [0.143.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.143.0
 [0.142.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.142.2
