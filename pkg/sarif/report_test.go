@@ -506,3 +506,15 @@ func TestMergeDeduplicatesInputs(t *testing.T) {
 		t.Errorf("inputs = %+v, want the two components' statements once each", got)
 	}
 }
+
+// Unchecked checks merge the same way: one check for one component is one statement however many
+// times its report is merged, and the same check for two components is two.
+func TestMergeDeduplicatesUnchecked(t *testing.T) {
+	a := Report{Unchecked: []Unchecked{
+		{Scanner: "prowler", Component: "api", Check: "compute_instance_public_ip", Group: "compute", Reason: "denied compute.instances.list"},
+		{Scanner: "prowler", Component: "web", Check: "compute_instance_public_ip", Group: "compute", Reason: "denied compute.instances.list"},
+	}}
+	if got := Merge(a, a).Unchecked; len(got) != 2 {
+		t.Errorf("unchecked = %+v, want the two components' statements once each", got)
+	}
+}

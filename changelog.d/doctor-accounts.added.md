@@ -1,0 +1,1 @@
+- **`draugr doctor` checks that the credentials in the environment can read each declared cloud account**, and `report.json` lists every check a scan could not evaluate under `unreadChecks[]`, by component and service, with the reason.

@@ -123,6 +123,9 @@ config:
                              # nightly-etl declares one below, and a surface no control looks at
                              # is a component that passes without being examined,
                              # `draugr doctor` reports that, and --fail-on-uncovered enforces it
+    cloud:
+      enabled: true          # the live Google Cloud project nightly-etl runs in, against the CIS
+                             # benchmark, through Prowler, which you install
     # threats:
     #   enabled: true        # whether a component's hosts appear on public lists of known-hostile
     #                        # addresses (URLhaus). It asks about the endpoints declared below
@@ -164,6 +167,12 @@ clusters:
     # control plane, the API server and etcd. RBAC, Pod Security and network policy stay
     # yours, and those are usually the findings that matter, so this narrows what it
     # excuses rather than marking the whole cluster somebody else's problem.
+
+# Each cloud account once: a Google Cloud project, by its ID.
+accounts:
+  data-prod:
+    provider: gcp                # gcp is the provider Draugr checks
+    project: acme-data-prod      # the project ID, as `gcloud projects list` prints it
 
 components:
   # A public web app: source, the image it builds, and the endpoint it serves.
@@ -264,6 +273,10 @@ components:
       - cluster: prod-cluster    # a name declared under clusters: above
         namespaces: [etl]        # the namespaces this component owns. Omit to declare the whole
                                  # cluster, which is the entry that runs the cluster-wide checks
+    cloud:
+      - account: data-prod       # a name declared under accounts: above
+        regions: [us-central1]   # the regions this component's resources are in. Omit to declare
+                                 # the whole account, which gets the findings that have no region
 
 # Links to human-performed controls, recorded alongside the automated ones.
 references:

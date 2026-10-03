@@ -112,7 +112,7 @@ func outcomeKey(t plugin.Target) string {
 
 // outcomeIdentity names a target the way doctor does: a repository by source and revision whatever
 // paths a job read, an image by its pinned reference, a host by its URL without credentials, a
-// cluster by its name whatever namespaces.
+// cluster by its name whatever namespaces, an account by its provider and ID whatever regions.
 func outcomeIdentity(t plugin.Target) (kind, id string) {
 	switch t := t.(type) {
 	case plugin.RepositoryTarget:
@@ -125,6 +125,8 @@ func outcomeIdentity(t plugin.Target) (kind, id string) {
 		return "image", t.PinnedRef()
 	case plugin.HostTarget:
 		return "host", plugin.SourceURL(t.URL)
+	case plugin.AccountTarget:
+		return "account", t.Provider + "/" + t.ID
 	case plugin.KubernetesTarget:
 		if t.Cluster == "" {
 			return "cluster", "kubernetes"

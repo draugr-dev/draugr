@@ -1125,6 +1125,7 @@ func declaredTargets(c saga.Component) map[string]int {
 		string(plugin.TargetRepository): len(c.Repositories),
 		string(plugin.TargetHost):       len(c.Hosts),
 		string(plugin.TargetKubernetes): len(c.Kubernetes),
+		string(plugin.TargetAccount):    len(c.Cloud),
 	} {
 		if n > 0 {
 			counts[kind] = n

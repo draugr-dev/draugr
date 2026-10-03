@@ -1,6 +1,64 @@
 {
   "$comment": "A fragment adds scope or attributed suppressions and cannot change policy, which is the rule this file expresses so an editor can enforce it. Generated in full; before editing it by hand, read docs/contributing/schema.md in the draugr repository.",
   "$defs": {
+    "account": {
+      "additionalProperties": false,
+      "description": "A cloud account's own facts, declared once and shared by every component whose cloud: entry names it.",
+      "properties": {
+        "project": {
+          "description": "The Google Cloud project's ID, as gcloud projects list prints it.",
+          "minLength": 1,
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "const": "gcp",
+              "description": "Google Cloud, where the account is a project named by project:."
+            }
+          ],
+          "description": "The cloud the account belongs to.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "project"
+      ],
+      "type": "object"
+    },
+    "accountRef": {
+      "additionalProperties": false,
+      "description": "One component's use of an account declared under accounts:.",
+      "properties": {
+        "account": {
+          "description": "The name of an entry under accounts:.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "regions": {
+          "description": "Regions this component's resources are in. Omit to declare the whole account, which is the only entry that receives the findings belonging to no region, such as the account's IAM policy.",
+          "items": {
+            "minLength": 1,
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "account"
+      ],
+      "type": "object"
+    },
     "ciConfig": {
       "additionalProperties": false,
       "description": "What a run records about the CI job it ran in. A run always records who the CI system reports as having started the pipeline and who wrote the commit, as a handle and the platform's stable id; an email address is recorded only when asked for.",
@@ -105,6 +163,14 @@
           ],
           "description": "Who publishes this component's targets, unless one of them says otherwise: \"self\" (the default) or \"upstream\". Set it once on a component that is entirely somebody else's software, instead of writing it on every repository and image — where a target added later silently defaults back to self.",
           "type": "string"
+        },
+        "cloud": {
+          "description": "The cloud account this component runs in, by name from accounts:, checked by the cloud control.",
+          "items": {
+            "$ref": "#/$defs/accountRef"
+          },
+          "maxItems": 1,
+          "type": "array"
         },
         "controllers": {
           "$ref": "#/$defs/controllers",
@@ -266,6 +332,10 @@
     "controlName": {
       "anyOf": [
         {
+          "const": "cloud",
+          "description": "Check a live cloud account against the provider's CIS Benchmark."
+        },
+        {
           "const": "dast",
           "description": "Find problems only visible from outside a running app (dynamic testing)."
         },
@@ -316,6 +386,33 @@
       ],
       "description": "A control this build of Draugr implements. A name that is not here is rejected: a control Draugr cannot run is a check that will not happen, and a descriptor should not be able to ask for one quietly.",
       "type": "string"
+    },
+    "control_cloud": {
+      "additionalProperties": false,
+      "description": "Check a live cloud account against the provider's CIS Benchmark.",
+      "properties": {
+        "enabled": {
+          "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
+          "type": "boolean"
+        },
+        "prowler": {
+          "additionalProperties": false,
+          "description": "prowler, published by prowler-cloud.",
+          "properties": {
+            "compliance": {
+              "description": "The Prowler compliance framework to run, such as cis_4.0_gcp. Defaults to cis_5.0_gcp. `prowler gcp --list-compliance` lists them.",
+              "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9_.]+_gcp)$",
+              "type": "string"
+            },
+            "enabled": {
+              "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
     },
     "control_dast": {
       "additionalProperties": false,
@@ -1034,6 +1131,9 @@
       "additionalProperties": false,
       "description": "Security controls, keyed by name. A control runs only when enabled here (or on a component). Each scanner is configured under its own key inside the control.",
       "properties": {
+        "cloud": {
+          "$ref": "#/$defs/control_cloud"
+        },
         "dast": {
           "$ref": "#/$defs/control_dast"
         },
@@ -1249,6 +1349,14 @@
           ],
           "description": "Who publishes this component's targets, unless one of them says otherwise: \"self\" (the default) or \"upstream\". Set it once on a component that is entirely somebody else's software, instead of writing it on every repository and image — where a target added later silently defaults back to self.",
           "type": "string"
+        },
+        "cloud": {
+          "description": "The cloud account this component runs in, by name from accounts:, checked by the cloud control.",
+          "items": {
+            "$ref": "#/$defs/accountRef"
+          },
+          "maxItems": 1,
+          "type": "array"
         },
         "criticality": {
           "$ref": "#/$defs/criticality"
@@ -2673,8 +2781,15 @@
   "$id": "https://draugr.dev/schema/draugr.saga-fragment.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "A partial Draugr Saga: clusters, components, exclusions and a short list of control settings, merged into the descriptor that names it. A fragment adds scope, adds attributed suppressions, or contributes a setting that can only add findings; it cannot change policy, so it carries no release or gate, and cannot switch a control off.",
+  "description": "A partial Draugr Saga: clusters, accounts, components, exclusions and a short list of control settings, merged into the descriptor that names it. A fragment adds scope, adds attributed suppressions, or contributes a setting that can only add findings; it cannot change policy, so it carries no release or gate, and cannot switch a control off.",
   "properties": {
+    "accounts": {
+      "additionalProperties": {
+        "$ref": "#/$defs/account"
+      },
+      "description": "The cloud accounts the components run in, each declared once by a name that components' cloud: entries refer to.",
+      "type": "object"
+    },
     "clusters": {
       "additionalProperties": {
         "$ref": "#/$defs/cluster"

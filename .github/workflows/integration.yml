@@ -475,6 +475,153 @@ jobs:
   #
   # Nightly and on demand, never on a pull request or a release tag. A pull request from a fork gets
   # no secrets, and an API having a bad minute is the wrong thing to block a merge or a release on.
+  # The cloud control against a real Google Cloud project. Each run applies the misconfigured
+  # resources in testdata/cloud-fixture to the empty project draugr-ops keeps, scans it as two
+  # identities, and destroys the resources whatever happened in between. Signed in to without a
+  # key, through workload identity federation, which the project allows from main and from a
+  # workflow_dispatch, never from a pull request: a pull request's code runs before anybody has read
+  # it, and this repository is public.
+  cloud:
+    name: Live cloud (Google Cloud)
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && !inputs.ref && !startsWith(github.ref, 'refs/tags/'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # One run at a time: Prowler scans the whole project, and two runs' resources in it would each
+    # be the other's findings.
+    concurrency:
+      group: live-cloud
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT: ${{ vars.GCP_FIXTURE_PROJECT_ID }}
+      RUN: ${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      # Nothing fails silently: without the project and its identities, a run that skipped every
+      # step would be green and would have checked nothing.
+      - name: The fixture's variables are set
+        env:
+          PROVIDER: ${{ vars.GCP_FIXTURE_WORKLOAD_IDENTITY_PROVIDER }}
+          SETUP_SA: ${{ vars.GCP_FIXTURE_SETUP_SERVICE_ACCOUNT }}
+          SCAN_SA: ${{ vars.GCP_FIXTURE_SCAN_SERVICE_ACCOUNT }}
+          NARROW_SA: ${{ vars.GCP_FIXTURE_SCAN_NARROW_SERVICE_ACCOUNT }}
+        run: |
+          missing=""
+          for v in PROJECT PROVIDER SETUP_SA SCAN_SA NARROW_SA; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::repository variables not set:$missing. draugr-ops applies the fixture project and its identities; its infrastructure playbook names the variables"
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_version: 1.12.6
+          tofu_wrapper: false
+
+      - name: Build draugr
+        run: make build
+
+      # Prowler from its image, pinned by digest, rather than from PyPI with its two hundred
+      # dependencies resolved at install time, on a job holding credentials. As root in the
+      # container: the image's own user cannot write into the directory the scanner makes, which
+      # only the runner's user can, and the image's virtualenv is readable by nobody else.
+      - name: Put Prowler on PATH
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/bin"
+          cat > "$RUNNER_TEMP/bin/prowler" <<'SH'
+          #!/bin/sh
+          exec docker run --rm --network host --user 0:0 -e HOME=/tmp \
+            -v /tmp:/tmp -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" \
+            -e GOOGLE_APPLICATION_CREDENTIALS -e HTTPS_PROXY -e https_proxy -e NO_PROXY -e no_proxy \
+            prowlercloud/prowler@sha256:9dbcc3c9abd71ec6d37610e6a5a2c45279bc6488caf8aaa948a9e8e368622d30 "$@"
+          SH
+          chmod +x "$RUNNER_TEMP/bin/prowler"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Sign in to create the fixture
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_FIXTURE_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_FIXTURE_SETUP_SERVICE_ACCOUNT }}
+
+      # A run that was canceled before its destroy step leaves resources behind, and they would be
+      # this run's findings too.
+      - name: Remove what an earlier run left
+        run: |
+          set -euo pipefail
+          for kind in "firewall-rules" "networks subnets" "networks"; do
+            extra=""
+            [ "$kind" = "networks subnets" ] && extra="--region=us-central1"
+            for name in $(gcloud compute $kind list --project "$PROJECT" --filter="name~^draugr-fixture-" --format="value(name)"); do
+              gcloud compute $kind delete "$name" $extra --project "$PROJECT" --quiet
+            done
+          done
+
+      - name: Apply the fixture
+        working-directory: test/integration/testdata/cloud-fixture
+        run: |
+          tofu init -input=false
+          tofu apply -input=false -auto-approve -var "project=$PROJECT" -var "run=$RUN"
+
+      - name: Sign in to scan with full read access
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_FIXTURE_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_FIXTURE_SCAN_SERVICE_ACCOUNT }}
+
+      - name: Scan with full read access
+        env:
+          DRAUGR_BIN: ${{ github.workspace }}/bin/draugr
+          DRAUGR_INTEGRATION_STRICT: "1"
+          DRAUGR_CLOUD_LIVE_PROJECT: ${{ vars.GCP_FIXTURE_PROJECT_ID }}
+          DRAUGR_CLOUD_LIVE_EXPECT: full
+          DRAUGR_CLOUD_LIVE_RUN: ${{ env.RUN }}
+        run: go test -tags integration -v -count=1 -timeout 25m -run '^TestLiveCloudAccount$' ./test/integration/
+
+      - name: Sign in to scan with no service readable
+        if: ${{ success() || failure() }}
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_FIXTURE_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_FIXTURE_SCAN_NARROW_SERVICE_ACCOUNT }}
+
+      - name: Scan with no service readable
+        if: ${{ success() || failure() }}
+        env:
+          DRAUGR_BIN: ${{ github.workspace }}/bin/draugr
+          DRAUGR_INTEGRATION_STRICT: "1"
+          DRAUGR_CLOUD_LIVE_PROJECT: ${{ vars.GCP_FIXTURE_PROJECT_ID }}
+          DRAUGR_CLOUD_LIVE_EXPECT: narrow
+          DRAUGR_CLOUD_LIVE_RUN: ${{ env.RUN }}
+        run: go test -tags integration -v -count=1 -timeout 25m -run '^TestLiveCloudAccount$' ./test/integration/
+
+      - name: Sign in to destroy the fixture
+        if: always()
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_FIXTURE_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_FIXTURE_SETUP_SERVICE_ACCOUNT }}
+
+      - name: Destroy the fixture
+        if: always()
+        working-directory: test/integration/testdata/cloud-fixture
+        run: tofu destroy -input=false -auto-approve -var "project=$PROJECT" -var "run=$RUN"
+
   forges:
     name: Forges (issue publishers against real repositories)
     if: >-
@@ -552,7 +699,7 @@ jobs:
   # push, say) leaves its issue as it is, because not running says nothing about whether it is fixed.
   notify:
     name: A red suite on main raises an issue
-    needs: [integration, sealed, live, live-propose, airgapped, forges]
+    needs: [integration, sealed, live, live-propose, airgapped, forges, cloud]
     # Not on pull requests: the author is looking at the failing check already, and an issue would
     # be telling them what their own screen says.
     if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
@@ -602,6 +749,11 @@ jobs:
                 label: "forges-red",
                 title: "The issue publishers are failing against a real forge",
                 why: "**The forges job drives each issue publisher against a sandbox repository on the forge itself.** The unit tests answer from a fake written to the forge's documentation, so a red run here means the forge no longer answers the way the fake does, or that the sandbox token has expired. The failing test names the field the forge dropped or refused, the state it would not take, or the write its issue list did not show in time.",
+              },
+              cloud: {
+                label: "live-cloud-red",
+                title: "The cloud control is failing against a real Google Cloud project",
+                why: "**The live cloud job applies misconfigured resources to the fixture project, scans it with Prowler as an identity that can read everything and one that can read none of its services, and destroys the resources.** The unit tests drive a fake Prowler, so a red run here means Prowler's output, its log or a permission name moved under the scanner, or that the fixture's identities stopped signing in. The failing step says which.",
               },
               airgapped: {
                 label: "air-gapped-red",

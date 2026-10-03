@@ -58,7 +58,7 @@ func notReached(d Data) []engine.TargetOutcome {
 }
 
 // kindOrder is the order a component declares its targets in.
-var kindOrder = []string{"repository", "image", "host", "cluster"}
+var kindOrder = []string{"repository", "image", "host", "cluster", "account"}
 
 // shortReason is the part of a failure that says what went wrong, in the scanner's words: its last
 // clause, or the one before when the last only repeats the address. "git clone: exit status 128:
@@ -91,8 +91,8 @@ func targetError(d Data, control, msg string) bool {
 // caveat is one shortfall that does not fail the run.
 type caveat struct{ component, what, kind, detail string }
 
-// caveats gathers what was declared and not checked, what could not be measured and what was not
-// read, by component.
+// caveats gathers what was declared and not checked, what could not be measured, and the files and
+// checks that were not read, by component.
 func caveats(d Data) []caveat {
 	var out []caveat
 	for _, g := range d.Uncovered {
@@ -100,6 +100,12 @@ func caveats(d Data) []caveat {
 	}
 	for _, sk := range d.Run.Skipped {
 		out = append(out, caveat{sk.Component, sk.Scanner, "not measured", sk.Reason})
+	}
+	// A service's checks the scan could not evaluate, one row per service, because one granted
+	// permission clears all of them. The control is not named: the service says which one it is.
+	for _, g := range d.Run.UnreadChecks {
+		out = append(out, caveat{g.Component, g.Group, "unread",
+			english.Count(len(g.Checks), "check") + " · " + g.Reason})
 	}
 	for _, g := range unreadByComponent(d.Run.Inputs) {
 		for _, f := range g.files {

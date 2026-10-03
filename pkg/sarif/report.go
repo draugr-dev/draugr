@@ -678,6 +678,27 @@ type Report struct {
 	// two produce the same empty report and the same PASS. Empty for a scanner that does not
 	// account for its reads, which says nothing either way.
 	Inputs []Input `json:"inputs,omitempty"`
+	// Unchecked are the checks a scan could not evaluate, each with the reason: a read the check
+	// needs that the scan's identity was denied.
+	//
+	// The argument Inputs makes, applied to checks. A denied read does not fail a check: depending on
+	// the check it passes, fails or produces nothing, so a check the scan could not evaluate and one
+	// it found clean have to be told apart here rather than read off the results.
+	Unchecked []Unchecked `json:"unchecked,omitempty"`
+}
+
+// Unchecked is one check a scan could not evaluate.
+type Unchecked struct {
+	// Scanner is the scanner whose check it is.
+	Scanner string `json:"scanner"`
+	// Component is whose check it was, stamped after the scan as an Input's is.
+	Component string `json:"component,omitempty"`
+	// Check is the check's identifier, and Group what it reads, which a reader grants access to:
+	// the cloud service, such as "compute".
+	Check string `json:"check"`
+	Group string `json:"group"`
+	// Reason is why it could not be evaluated, such as "denied compute.instances.list".
+	Reason string `json:"reason"`
 }
 
 // Input is one dependency file as a scan accounted for it.
@@ -999,6 +1020,7 @@ func Merge(reports ...Report) Report {
 		out.addDecided(rep.Decided)
 		out.addConsulted(rep.Consulted)
 		out.addInputs(rep.Inputs)
+		out.addUnchecked(rep.Unchecked)
 		for _, res := range rep.Results {
 			if res.Tool == "" {
 				res.Tool = rep.Tool
@@ -1085,6 +1107,18 @@ func (r *Report) addInputs(inputs []Input) {
 			continue
 		}
 		r.Inputs = append(r.Inputs, in)
+	}
+}
+
+// addUnchecked appends unchecked checks that are not already present, keyed as addInputs keys.
+func (r *Report) addUnchecked(unchecked []Unchecked) {
+	for _, u := range unchecked {
+		if slices.ContainsFunc(r.Unchecked, func(existing Unchecked) bool {
+			return existing.Scanner == u.Scanner && existing.Component == u.Component && existing.Check == u.Check
+		}) {
+			continue
+		}
+		r.Unchecked = append(r.Unchecked, u)
 	}
 }
 

@@ -226,6 +226,8 @@ func fixPhrase(f finding) string {
 		return "change the server's configuration"
 	case "kubernetes":
 		return "change the cluster's configuration"
+	case "cloud":
+		return "change the account's configuration"
 	case "threats":
 		return "stop contacting the host"
 	}

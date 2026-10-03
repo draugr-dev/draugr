@@ -89,3 +89,6 @@ components:
         # their own test against advisory data generated for it. None of it is part of Draugr.
         ignore:
           - test/integration/testdata/ecosystems
+          # The cloud control's live-test fixture: infrastructure code misconfigured on purpose,
+          # applied to an empty project for a run and destroyed after it.
+          - test/integration/testdata/cloud-fixture

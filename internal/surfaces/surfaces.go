@@ -29,6 +29,7 @@ var Controls = map[string][]string{
 	"images":       {"images"},
 	"hosts":        {"headers", "tls"},
 	"kubernetes":   {"kubernetes"},
+	"cloud":        {"cloud"},
 }
 
 // NeverSuggested names controls that examine a surface and are never turned on for anybody.
@@ -59,6 +60,8 @@ func ComponentHas(c *saga.Component, surface string) bool {
 		return len(c.Hosts) > 0
 	case "kubernetes":
 		return len(c.Kubernetes) > 0
+	case "cloud":
+		return len(c.Cloud) > 0
 	}
 	return false
 }
