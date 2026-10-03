@@ -18,11 +18,13 @@ _Nothing yet._
 
 - **`report.json` lists each target the run planned**, under `targets[]`: its kind, the address `draugr doctor` uses, whether it was reached, failed or skipped, the scanner's message, and the components that declare it. A pipeline can name the repository, image, host or cluster that stopped a scan without parsing scanner text.
 
+- **`draugr doctor` checks that each Kubernetes cluster under `clusters:` answers**, through the kubeconfig context the cluster names, or the current context when it names none.
+
 ### Changed
 
-- **What makes a run cover less without failing it is one Caveats block**, shown in every view: a declared surface no enabled control checks, a scanner that cannot honor a component's scope, and a dependency file no scanner read. It replaces the Not checked, Not measured and Unread sections.
+- **Each Kubernetes cluster is declared once, under a top-level `clusters:`, and components refer to it by name** with `kubernetes: [{cluster: <name>}]`. A `kubernetes:` entry written for 0.143 is refused, with a message naming where each field moved. An entry's `ref` becomes `cluster:`, and `operatedBy`, `context`, `benchmark` and `version` belong to the cluster. Only a whole-cluster component runs the cluster-wide checks.
 
-- **Each Kubernetes cluster is declared once, under a top-level `clusters:`, and components refer to it by name** with `kubernetes: [{cluster: <name>}]`. The cluster holds its kubeconfig `context`, `operatedBy` and kube-bench's `benchmark` and `version`. Only a component declaring the whole cluster runs the cluster-wide checks. `draugr doctor` checks that each cluster answers.
+- **What makes a run cover less without failing it is one Caveats block**, shown in every view. It lists a declared surface no enabled control checks, a scanner that cannot honor a component's scope, and a dependency file no scanner read, and it replaces the Not checked, Not measured and Unread sections.
 
 - **A target no scanner could read is named once, under Errors**, with the components it leaves unscanned and the scanner's reason in a few words, rather than as the scanner's message under each control that tried. Every such component reads `ERROR`. Under `--allow-scan-errors` the verdict line carries `partial` and the number of targets not reached.
 
