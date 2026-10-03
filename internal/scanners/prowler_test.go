@@ -196,8 +196,10 @@ func TestProwlerReadsDenialsFromItsLog(t *testing.T) {
 		checks:   []string{"cloudsql_instance_public_ip", "dns_dnssec_disabled", "compute_instance_public_ip"},
 		findings: []map[string]any{ocsf("dns_dnssec_disabled", "PASS", "medium", "global", "zone/a")},
 		log: `{"timestamp": "t", "filename": "service.py:80", "level": "ERROR", "module": "service", "message": "HttpError[80]: <HttpError 403 when requesting https://serviceusage.googleapis.com/v1/projects/shop-prod-4821/services/sqladmin.googleapis.com returned "Permission denied">"}
-{"timestamp": "t", "filename": "compute_service.py:99", "level": "ERROR", "module": "compute_service", "message": "PERMISSION_DENIED: the caller does not have permission"}
+{"timestamp": "t", "filename": "compute_service.py:99", "level": "ERROR", "module": "compute_service", "message": "HttpError 403 returned "Permission 'compute.zones.list' denied on resource '//compute.googleapis.com/projects/shop-prod-4821'""}
 {"timestamp": "t", "level": "ERROR", "message": "an unrelated failure"}
+{"timestamp": "t", "filename": "logging_service.py:74", "level": "ERROR", "module": "logging_service", "message": "HttpError[57]: <HttpError 403 when requesting https://logging.googleapis.com/v2/organizations/463126129727/sinks?alt=json returned "Permission 'logging.sinks.list' denied on resource '//logging.googleapis.com/organizations/463126129727' (or it may not exist).""}
+{"timestamp": "t", "filename": "service.py:78", "level": "ERROR", "module": "service", "message": "dns API has not been used in project shop-prod-4821 before or it is disabled."}
 `,
 	}
 	report, err := newTestProwler(f, &grantAll{}).Scan(context.Background(), shopProd, nil)
@@ -206,11 +208,20 @@ func TestProwlerReadsDenialsFromItsLog(t *testing.T) {
 	}
 	var groups []string
 	for _, u := range report.Unchecked {
-		groups = append(groups, u.Group+":"+u.Check)
+		groups = append(groups, u.Group+":"+u.Check+":"+u.Reason)
 	}
 	slices.Sort(groups)
-	if !slices.Equal(groups, []string{"cloudsql:cloudsql_instance_public_ip", "compute:compute_instance_public_ip"}) {
-		t.Errorf("unread = %v", groups)
+	want := []string{
+		"cloudsql:cloudsql_instance_public_ip:denied a read Prowler's log names",
+		"compute:compute_instance_public_ip:denied compute.zones.list",
+	}
+	if !slices.Equal(groups, want) {
+		t.Errorf("unread = %v\nwant %v", groups, want)
+	}
+	// A denial on the organization leaves the project's logging checks alone and is said in the
+	// account of the run; a disabled API is no denial at all.
+	if got := report.Provenance[0].Describe(); !strings.Contains(got, "organization: not read, denied logging.sinks.list") {
+		t.Errorf("provenance = %q", got)
 	}
 }
 
@@ -227,8 +238,8 @@ func TestDeniedIn(t *testing.T) {
 			t.Errorf("deniedIn(%q) = %v, want %v", line, got, want)
 		}
 	}
-	if got := loggedDenials(filepath.Join(t.TempDir(), "missing.log")); len(got) != 0 {
-		t.Errorf("a missing log named %v", got)
+	if project, above := loggedDenials(filepath.Join(t.TempDir(), "missing.log")); len(project) != 0 || len(above) != 0 {
+		t.Errorf("a missing log named %v and %v", project, above)
 	}
 }
 
@@ -352,9 +363,14 @@ func TestProwlerLocation(t *testing.T) {
 		f    ocsfFinding
 		want string
 	}{
-		{finding("projects/p/global/firewalls/ssh", "ssh"), "projects/p/global/firewalls/ssh"},
+		// What Prowler 5.44.0 writes against a real project.
+		{finding("shop-prod-4821", "shop prod"), "gcp/shop-prod-4821"},
+		{finding("sa@shop-prod-4821.iam.gserviceaccount.com", "projects/shop-prod-4821/serviceAccounts/sa@shop-prod-4821.iam.gserviceaccount.com"),
+			"projects/shop-prod-4821/serviceAccounts/sa@shop-prod-4821.iam.gserviceaccount.com"},
+		{finding("cloudasset.googleapis.com", "Cloud Asset Inventory"), "cloudasset.googleapis.com"},
+		{finding("default", "default"), "default"},
 		{finding("8814202563123", "draugr-fixture-1-ssh"), "draugr-fixture-1-ssh"},
-		{finding("shop-prod-4821", "GCP Project"), "gcp/shop-prod-4821"},
+		{finding("", "fw-1"), "fw-1"},
 		{ocsfFinding{}, "gcp/shop-prod-4821"},
 	} {
 		if got := prowlerLocation(shopProd, c.f); got != c.want {

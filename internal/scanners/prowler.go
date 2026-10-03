@@ -137,12 +137,18 @@ func (s prowlerScanner) Scan(ctx context.Context, target plugin.Target, cfg plug
 		return sarif.Report{}, err
 	}
 	// The log is the backstop: a read the preflight could not foresee, denied mid-scan.
-	for service, reason := range loggedDenials(filepath.Join(dir, "prowler.log")) {
+	logged, above := loggedDenials(filepath.Join(dir, "prowler.log"))
+	for service, reason := range logged {
 		if _, known := denied[service]; !known {
 			denied[service] = reason
 		}
 	}
-	return prowlerReport(account, compliance, checks, findings, denied), nil
+	report := prowlerReport(account, compliance, checks, findings, denied)
+	if len(above) > 0 {
+		report.Provenance[0].Fields = append(report.Provenance[0].Fields,
+			sarif.Field{Key: "organization", Value: "not read, " + strings.Join(above, ", ")})
+	}
+	return report, nil
 }
 
 // preflight asks which services' reads the credentials are denied, by service, with the first
@@ -242,16 +248,28 @@ var (
 	denialRE = regexp.MustCompile(`(?i)\b403\b|PERMISSION_DENIED|permission denied|does not have .*permission`)
 	apiRE    = regexp.MustCompile(`https://([a-z]+)\.googleapis\.com|services/([a-z]+)\.googleapis\.com`)
 	moduleRE = regexp.MustCompile(`"module":\s*"([a-z]+)_service"`)
+	// permissionRE is the permission a Google error names: "Permission 'logging.sinks.list' denied".
+	permissionRE = regexp.MustCompile(`Permission '([a-zA-Z0-9_.]+)' denied`)
+	// aboveRE is a request against the organization or a folder rather than the project.
+	aboveRE = regexp.MustCompile(`googleapis\.com/(?:v[0-9a-z]+/)?(?:organizations|folders)/`)
 )
 
-// loggedDenials names the services Prowler's log records a permission failure for. The log is
-// one JSON object a line, written from a template that does not escape the message, so it is read
-// with patterns rather than decoded.
-func loggedDenials(path string) map[string]string {
-	out := map[string]string{}
+// loggedDenials reads Prowler's log for permission failures: within the project, the services
+// they leave unread, each with the denied permission where the log names it; above it, the
+// permissions denied on the organization or a folder.
+//
+// Prowler also reads organization settings, log sinks and essential contacts, where the
+// credentials reach that far. Those are outside the account the descriptor declares, so a denial
+// there leaves no project check unread; it is reported as what the scan could not see rather than
+// discarded.
+//
+// The log is one JSON object a line, written from a template that does not escape the message, so
+// it is read with patterns rather than decoded.
+func loggedDenials(path string) (project map[string]string, above []string) {
+	project = map[string]string{}
 	f, err := os.Open(path) // #nosec G304 -- a file Prowler wrote into a directory this scan made
 	if err != nil {
-		return out
+		return project, nil
 	}
 	defer func() { _ = f.Close() }()
 	sc := bufio.NewScanner(f)
@@ -261,13 +279,24 @@ func loggedDenials(path string) map[string]string {
 		if !denialRE.MatchString(line) {
 			continue
 		}
+		reason := "denied a read Prowler's log names"
+		if m := permissionRE.FindStringSubmatch(line); m != nil {
+			reason = "denied " + m[1]
+		}
+		if aboveRE.MatchString(line) {
+			if !slices.Contains(above, reason) {
+				above = append(above, reason)
+			}
+			continue
+		}
 		for _, service := range deniedIn(line) {
-			if _, seen := out[service]; !seen {
-				out[service] = "denied a read, as Prowler's log records"
+			if _, seen := project[service]; !seen {
+				project[service] = reason
 			}
 		}
 	}
-	return out
+	slices.Sort(above)
+	return project, above
 }
 
 // deniedIn names the services a denial line is about: the API whose service-usage entry it asked
@@ -381,20 +410,28 @@ func prowlerReport(account plugin.AccountTarget, compliance string, checks []str
 	return report
 }
 
-// prowlerLocation is where a finding is: the resource's path when Prowler gives one, its name when
-// it gives that instead, and the account for a finding about the account itself, which Prowler
-// names "GCP Project".
+// prowlerLocation is where a finding is: the account for a finding about the project itself,
+// otherwise the resource's path when Prowler gives one, and its identifier when it does not. A
+// project's name is its display name, "draugr cloud fixture", which locates nothing.
 func prowlerLocation(account plugin.AccountTarget, f ocsfFinding) string {
 	if len(f.Resources) > 0 {
 		r := f.Resources[0]
 		switch {
-		case strings.Contains(r.UID, "/"):
-			return r.UID
-		case r.Name != "" && r.Name != "GCP Project":
+		case r.UID == account.ID || (r.UID == "" && r.Name == ""):
+		case strings.Contains(r.Name, "/"):
 			return r.Name
+		case r.UID == "" || allDigits(r.UID):
+			// A numeric ID names a resource to an API and to nobody reading a report.
+			return r.Name
+		default:
+			return r.UID
 		}
 	}
 	return account.Provider + "/" + account.ID
+}
+
+func allDigits(s string) bool {
+	return s != "" && strings.Trim(s, "0123456789") == ""
 }
 
 // cisGCPTaxonomy names the benchmark a check's requirement belongs to.

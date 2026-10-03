@@ -31,7 +31,10 @@ Three things happen around the run, each because Prowler's output alone would mi
    missing permission is reported unread and its result discarded. Credentials holding none of the permissions, or that cannot see the project, are an
    error.
 3. **The log is read for denials the preflight did not foresee**, and the services it names are
-   treated the same way.
+   treated the same way. Prowler also reads organization settings, log sinks and essential contacts
+   where the credentials reach that far. A denial there is outside the declared project and leaves
+   no check unread; the measured-against line names it, as `organization: not read, denied
+   logging.sinks.list`.
 
 Findings in a component's claimed regions are kept, matching zones of a region; a component that
 claims the whole account gets every finding, including those with no region.

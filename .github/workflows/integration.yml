@@ -536,14 +536,17 @@ jobs:
         run: make build
 
       # Prowler from its image, pinned by digest, rather than from PyPI with its two hundred
-      # dependencies resolved at install time, on a job holding credentials.
+      # dependencies resolved at install time, on a job holding credentials. As root in the
+      # container: the image's own user cannot write into the directory the scanner makes, which
+      # only the runner's user can, and the image's virtualenv is readable by nobody else.
       - name: Put Prowler on PATH
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/bin"
           cat > "$RUNNER_TEMP/bin/prowler" <<'SH'
           #!/bin/sh
-          exec docker run --rm --network host -v /tmp:/tmp -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" \
+          exec docker run --rm --network host --user 0:0 -e HOME=/tmp \
+            -v /tmp:/tmp -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" \
             -e GOOGLE_APPLICATION_CREDENTIALS -e HTTPS_PROXY -e https_proxy -e NO_PROXY -e no_proxy \
             prowlercloud/prowler@sha256:9dbcc3c9abd71ec6d37610e6a5a2c45279bc6488caf8aaa948a9e8e368622d30 "$@"
           SH
