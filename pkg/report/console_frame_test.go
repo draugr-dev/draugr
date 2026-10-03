@@ -1,7 +1,6 @@
 package report
 
 import (
-	"bytes"
 	"strings"
 	"testing"
 	"time"
@@ -172,39 +171,6 @@ func TestALocationLinksToTheRevisionThatWasRead(t *testing.T) {
 				t.Errorf("forFinding = %q,\n          want %q", got, tc.want)
 			}
 		})
-	}
-}
-
-// What a descriptor declares and no enabled control examines, as a table: every line answers the
-// same two questions, and a reader comparing them should not have to find the answer in a
-// different place on every row.
-func TestUncoveredSurfacesAreATable(t *testing.T) {
-	t.Parallel()
-
-	var b bytes.Buffer
-	writeUncovered(&b, tui.Plain(), Data{Uncovered: []Gap{
-		{Component: "api", Surface: "hosts", Controls: []string{"dast", "headers", "tls"}},
-		{Component: "api", Surface: "images", Controls: []string{"images"}},
-	}})
-	out := b.String()
-	for _, want := range []string{
-		"NOT CHECKED",
-		// A heading row, because a surface is the reader's own word and a control is Draugr's and
-		// they are spelled alike. Without it `api images … images` is one word twice and says
-		// nothing about which is which.
-		"Component  Surface  Controls off",
-		"api        hosts    dast, headers, tls",
-		"api        images   images",
-	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("missing %q:\n%s", want, out)
-		}
-	}
-	// Nothing declared that nothing looks at, so no block and no heading.
-	var empty bytes.Buffer
-	writeUncovered(&empty, tui.Plain(), Data{})
-	if empty.Len() != 0 {
-		t.Errorf("a fully covered descriptor should print nothing:\n%s", empty.String())
 	}
 }
 

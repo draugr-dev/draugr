@@ -77,7 +77,7 @@ The sections this Job runs read a node's own filesystem, which has no namespace,
 scope is not unimplemented here, it is meaningless. The findings always describe the whole cluster.
 
 A component that sets `namespaces` on its `kubernetes` entry therefore cannot be served by this
-scanner, so no Job is created for it and the report says so under **Not measured**. A scanner that
+scanner, so no Job is created for it and the report says so under **Caveats** as `not measured`. A scanner that
 quietly does not run reads exactly like one that ran and found nothing.
 
 Nothing needs disabling by hand. Declare the cluster twice, once narrowed to the namespaces a

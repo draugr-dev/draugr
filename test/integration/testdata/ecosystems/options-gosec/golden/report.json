@@ -62,5 +62,18 @@
     "jobs": 4,
     "scans": 4
   },
+  "targets": [
+    {
+      "components": [
+        "default",
+        "exclude",
+        "include",
+        "tags"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./options-gosec"
+    }
+  ],
   "verdict": "fail"
 }

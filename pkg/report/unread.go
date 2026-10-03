@@ -6,14 +6,13 @@ import (
 	"strings"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
-	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
-// unreadShown caps the files a component's line names. The rest are counted, `--top 0` names every
-// one, and report.json carries them all.
+// unreadShown caps the files a component's line names in markdown. The rest are counted, and
+// report.json carries them all.
 const unreadShown = 3
 
-// unreadNote says what the section lists and what it cost, in the words both formats print.
+// unreadNote says what the markdown section lists and what it cost.
 const unreadNote = "dependency files and Terraform modules no scanner read · what they declare was not checked"
 
 // unreadGroup is one component's unread files, each named once however many controls missed it.
@@ -87,34 +86,7 @@ func (g unreadGroup) text(limit int, code func(string) string) string {
 	return strings.Join(parts, " · ")
 }
 
-// writeUnread names, per component, the dependency files no scan read packages from and the files
-// calling a Terraform module no scan loaded.
-//
-// Its own section rather than rows under "Not measured", which is keyed by control: one line per
-// component keeps a file two controls missed to one mention. Silent when every file was read, and
-// report.json still states how many were. A scanner that does not list what it read contributes
-// nothing here, so a file is only called unread when something that does list them passed it by.
-func writeUnread(w io.Writer, col tui.Painter, d Data) {
-	groups := unreadByComponent(d.Run.Inputs)
-	if len(groups) == 0 {
-		return
-	}
-	width := 0
-	for _, g := range groups {
-		width = max(width, len(g.component))
-	}
-	_, _ = fmt.Fprintln(w, heading(col, "Unread")+"  "+col.Paint(cDim, unreadNote))
-	for _, g := range groups {
-		limit := unreadShown
-		if consoleFixFirstLimit(d.TopN) < 0 {
-			limit = -1
-		}
-		writeUnder(w, col, width, g.component, g.text(limit, func(s string) string { return s }))
-	}
-	_, _ = fmt.Fprintln(w)
-}
-
-// writeUnreadRows is writeUnread for the format pasted into a pull request, where a passing check
+// writeUnreadRows lists the unread files for the format pasted into a pull request, where a passing check
 // is read as covering the whole repository.
 func writeUnreadRows(w io.Writer, d Data) {
 	groups := unreadByComponent(d.Run.Inputs)

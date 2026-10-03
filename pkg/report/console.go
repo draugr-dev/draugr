@@ -82,6 +82,15 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	if note := scopeNote(d); note != "" {
 		_, _ = fmt.Fprintf(w, "  %s", col.Paint(cAccent, note))
 	}
+	// Beside the verdict, for the reason the scope note is: a pass that accepted errors covered less
+	// than it says, and the word PASS must not be readable on its own.
+	if d.AcceptedErrors {
+		note := "partial · scan errors accepted"
+		if n := len(notReached(d)); n > 0 {
+			note = fmt.Sprintf("partial · %d of %s not reached", n, english.Count(len(d.Run.Targets), "target"))
+		}
+		_, _ = fmt.Fprintf(w, "  %s", col.Paint(cAccent, note))
+	}
 	// What the run cost, where somebody asking is looking. It was reported only under --evidence,
 	// which is the flag for "can I trust this" rather than for "how long did that take", so the
 	// one question every reader has was the one answered furthest from the top.
@@ -145,6 +154,11 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		// worth the extra pass rather than a footnote.
 		why := func(control string) {
 			for _, msg := range dedupeMessages(errored[control]) {
+				// A failure to reach a target is said once, by target, in the errors block. Under each
+				// control that tried, one missing repository is a line per control.
+				if targetError(d, control, msg) {
+					continue
+				}
 				// Wrapped rather than clamped to one line. A clamp suits a tool's own stderr, which can be a
 				// whole usage screen. But these are Draugr's sentences too, and the half a reader acts on is
 				// the end of them.
@@ -194,13 +208,12 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		if !dense(d) {
 			writeMeasuredAgainst(w, col, d, width)
 		}
-		// What a scanner could not narrow stays: it says the run covered less than it looks like.
-		writeNotMeasured(w, col, d, width)
 		_, _ = fmt.Fprintln(w)
 	}
-	// In every view, for the reason "Not measured" is: a file no scanner read is part of the
-	// repository the verdict appears to cover.
-	writeUnread(w, col, d)
+	// In every view. An error is why the run is incomplete, and a caveat is what it did not cover;
+	// a dense view drops context, never either of those.
+	writeErrors(w, col, d)
+	writeCaveats(w, col, d)
 
 	if !dense(d) {
 		writeComponents(w, col, d)
@@ -900,27 +913,15 @@ func writeComponents(w io.Writer, col tui.Painter, d Data) {
 		if c.Verdict == norn.Fail {
 			verdict, style = "FAIL", cFail
 		}
-		// A component nothing was able to look at has not passed. Its scans failed, so "no findings" is
-		// true only in the sense that none were possible. Which is the reading this row must not invite,
-		// and the same reason a component the scope excluded is listed apart rather than among the
-		// passes.
-		if len(c.Unscanned) > 0 && c.Findings == 0 {
+		// A component with a target no scanner read has not passed, whatever it found in the rest.
+		// With nothing found, "no findings" is true only in the sense that none were possible; with
+		// findings, they are not the whole picture. Which target, and why, the errors block says once.
+		if len(c.Unscanned) > 0 {
 			verdict, style = "ERROR", cFail
 		}
 		detail := col.Paint(cDim, "no findings")
 		if c.Findings > 0 {
 			detail = componentBands(col, c.Priorities)
-		}
-		// Appended rather than substituted. A component that was partly scanned has findings
-		// worth acting on *and* a gap, and either reading alone is wrong: the findings are not
-		// the whole picture, and the gap does not mean nothing was found.
-		if len(c.Unscanned) > 0 {
-			if c.Findings == 0 {
-				detail = ""
-			} else {
-				detail += "  "
-			}
-			detail += col.Paint(cFail, unscannedDetail(c.Unscanned, c.Declared))
 		}
 		_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
 			fmt.Sprintf("%-*s", width, c.Name),
@@ -1093,30 +1094,6 @@ func writeMeasuredAgainst(w io.Writer, col tui.Painter, d Data, width int) {
 			text += " · " + l.Detail
 		}
 		writeUnder(w, col, width, l.Control, text)
-	}
-}
-
-// writeNotMeasured names a scanner that was planned for a component and then not run.
-//
-// Beside "Measured against" because it is the same question answered the other way, and a reader
-// deciding what a PASS is worth needs both halves. Without it a scanner that could not answer the
-// question a component asked looks exactly like one that answered it and found nothing. Which is
-// the difference this report exists to make visible.
-func writeNotMeasured(w io.Writer, col tui.Painter, d Data, width int) {
-	if len(d.Run.Skipped) == 0 {
-		return
-	}
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, heading(col, "Not measured"))
-	for _, sk := range d.Run.Skipped {
-		text := sk.Scanner
-		if sk.Component != "" {
-			text += " on " + sk.Component
-		}
-		if sk.Reason != "" {
-			text += " · " + sk.Reason
-		}
-		writeUnder(w, col, width, sk.Control, text)
 	}
 }
 
@@ -1524,7 +1501,6 @@ func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) (t
 // nobody sees, which is what a duplicated tail drifts into.
 func writeTail(w io.Writer, col tui.Painter, s summary, d Data, truncated bool) {
 	writeEffects(w, col, s, d)
-	writeUncovered(w, col, d)
 	// What stands behind the verdict, under the findings rather than over them.
 	//
 	// It answers "can I trust this run" where the findings answer "what did it find", and the
@@ -1881,38 +1857,6 @@ func claimSummary(c vex.Claim) string {
 	return c.Vulnerability + " · " + c.PURL
 }
 
-// uncoveredColumns label the two vocabularies this block puts side by side.
-//
-// A surface is a word the reader wrote in their own descriptor and a control is a word from
-// Draugr's, and for `images`, `hosts` and `repositories` they are spelled the same, which is most
-// of the rows this block exists for. Unlabeled and adjacent they read as one word repeated, and
-// `api images … images` says nothing about which is which.
-//
-// Headed rather than reworded, because the fix first listing above already answers this the same
-// way: columns whose values cannot identify themselves get a row that names them.
-var uncoveredColumns = []string{"Component", "Surface", "Controls off"}
-
-// writeUncovered names what the descriptor declares and no enabled control looks at.
-//
-// A table rather than a sentence each, because every line answers the same three questions and a
-// reader comparing them should not have to find the answer in a different place on every row.
-func writeUncovered(w io.Writer, col tui.Painter, d Data) {
-	if len(d.Uncovered) == 0 {
-		return
-	}
-	t := tui.NewTable(col, uncoveredColumns...).Indent("  ")
-	for _, g := range d.Uncovered {
-		t.Row(
-			tui.Styled(tui.StyleStrong, g.Component),
-			tui.Styled(tui.StyleStrong, g.Surface),
-			tui.Styled(cDim, strings.Join(g.Controls, ", ")),
-		)
-	}
-	_, _ = fmt.Fprintln(w, heading(col, "Not checked"))
-	t.Render(w)
-	_, _ = fmt.Fprintln(w)
-}
-
 // clears reads as a verb agreeing with the count before it.
 func clears(actions []action) string {
 	if len(actions) == 1 {
@@ -2154,11 +2098,7 @@ const evidenceLabel = 12
 func unscannedDetail(us []engine.Unscanned, declared map[string]int) string {
 	byKind := map[string]int{}
 	for _, u := range us {
-		kind := u.Kind
-		if kind == "" {
-			kind = "target"
-		}
-		byKind[kind]++
+		byKind[kindNoun(u.Kind)]++
 	}
 	kinds := make([]string, 0, len(byKind))
 	for kind := range byKind {
@@ -2169,7 +2109,11 @@ func unscannedDetail(us []engine.Unscanned, declared map[string]int) string {
 	for _, kind := range kinds {
 		// "3 of 3" and "3 of 30" are different situations. One is a component nothing looked at, the
 		// other a gap in one that was mostly covered. And the bare count reads as the first either way.
-		if total := declared[kind]; total > 0 {
+		total := declared[kind]
+		if kind == "cluster" {
+			total += declared["kubernetes"]
+		}
+		if total > 0 {
 			parts = append(parts, fmt.Sprintf("%d/%d %s", byKind[kind], total, english.Noun(total, kind)))
 			continue
 		}
@@ -2380,4 +2324,15 @@ func signalLabel(e *sarif.Escalation) string {
 		}
 		return "EPSS"
 	}
+}
+
+// kindNoun is the word a reader uses for a target kind: a Kubernetes target is a cluster.
+func kindNoun(kind string) string {
+	switch kind {
+	case "":
+		return "target"
+	case "kubernetes":
+		return "cluster"
+	}
+	return kind
 }

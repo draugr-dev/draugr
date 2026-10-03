@@ -135,5 +135,17 @@
     "jobs": 12,
     "scans": 12
   },
+  "targets": [
+    {
+      "components": [
+        "api",
+        "web",
+        "worker"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./monorepo-polyglot"
+    }
+  ],
   "verdict": "fail"
 }

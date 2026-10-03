@@ -45,5 +45,16 @@
     "jobs": 1,
     "scans": 0
   },
+  "targets": [
+    {
+      "components": [
+        "negative-failing-trivy"
+      ],
+      "detail": "run trivy-fs: exit status 2: sealed fixture: this program failed on purpose",
+      "kind": "repository",
+      "status": "failed",
+      "target": "./negative-failing-trivy"
+    }
+  ],
   "verdict": "fail"
 }

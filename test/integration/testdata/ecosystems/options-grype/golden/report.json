@@ -56,5 +56,16 @@
     "jobs": 2,
     "scans": 2
   },
+  "targets": [
+    {
+      "components": [
+        "by-advisory",
+        "default"
+      ],
+      "kind": "image",
+      "status": "reached",
+      "target": "127.0.0.1:18080/options-grype:1.0"
+    }
+  ],
   "verdict": "fail"
 }

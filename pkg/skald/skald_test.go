@@ -962,3 +962,40 @@ func TestJSONCarriesTheDependencyFilesNoScanRead(t *testing.T) {
 		t.Errorf("web = %+v", web)
 	}
 }
+
+// Each target's outcome reaches the document with the names a reader filters on, and a run that
+// planned none leaves the key out rather than printing an empty list.
+func TestRenderJSONCarriesTargets(t *testing.T) {
+	run := sampleRun()
+	run.Targets = []engine.TargetOutcome{
+		{Kind: "repository", Target: "https://github.com/acme/api@main", Status: engine.TargetReached, Components: []string{"api", "web"}},
+		{Kind: "repository", Target: "https://github.com/acme/api-archive@main", Status: engine.TargetFailed,
+			Detail: "trivy-fs: git clone: Repository not found", Components: []string{"api"}},
+	}
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Version: "1"}, run, sampleVerdict(), ""); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Targets []map[string]any `json:"targets"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	want := []map[string]any{
+		{"kind": "repository", "target": "https://github.com/acme/api@main", "status": "reached", "components": []any{"api", "web"}},
+		{"kind": "repository", "target": "https://github.com/acme/api-archive@main", "status": "failed",
+			"detail": "trivy-fs: git clone: Repository not found", "components": []any{"api"}},
+	}
+	if !reflect.DeepEqual(doc.Targets, want) {
+		t.Errorf("targets = %v, want %v", doc.Targets, want)
+	}
+
+	buf.Reset()
+	if err := RenderJSON(&buf, saga.Release{Version: "1"}, sampleRun(), sampleVerdict(), ""); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), `"targets"`) {
+		t.Errorf("a run with no targets printed the key:\n%s", buf.String())
+	}
+}

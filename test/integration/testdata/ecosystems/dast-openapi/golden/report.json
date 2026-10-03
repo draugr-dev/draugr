@@ -55,5 +55,15 @@
     "jobs": 1,
     "scans": 1
   },
+  "targets": [
+    {
+      "components": [
+        "dast-openapi"
+      ],
+      "kind": "host",
+      "status": "reached",
+      "target": "http://127.0.0.1:18080"
+    }
+  ],
   "verdict": "pass"
 }

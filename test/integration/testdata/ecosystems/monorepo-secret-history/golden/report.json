@@ -62,5 +62,16 @@
     "jobs": 2,
     "scans": 2
   },
+  "targets": [
+    {
+      "components": [
+        "api",
+        "web"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./monorepo-secret-history"
+    }
+  ],
   "verdict": "fail"
 }

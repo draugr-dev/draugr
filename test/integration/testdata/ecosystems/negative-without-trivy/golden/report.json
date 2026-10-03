@@ -45,5 +45,16 @@
     "jobs": 1,
     "scans": 0
   },
+  "targets": [
+    {
+      "components": [
+        "negative-without-trivy"
+      ],
+      "detail": "run trivy-fs: exec: \"trivy\": executable file not found in $PATH. Run `draugr tools install trivy`",
+      "kind": "repository",
+      "status": "skipped",
+      "target": "./negative-without-trivy"
+    }
+  ],
   "verdict": "fail"
 }

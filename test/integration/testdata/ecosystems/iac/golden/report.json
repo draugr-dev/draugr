@@ -62,5 +62,15 @@
     "jobs": 1,
     "scans": 1
   },
+  "targets": [
+    {
+      "components": [
+        "iac"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./iac"
+    }
+  ],
   "verdict": "fail"
 }

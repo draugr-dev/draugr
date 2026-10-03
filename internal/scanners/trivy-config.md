@@ -31,8 +31,8 @@ the SARIF from that report without scanning again. On a Trivy older than 0.53.0,
 `--show-suppressed`, the scan is `trivy config --format sarif <dir>`.
 
 The scan runs without `--quiet` because Trivy reports a Terraform module it could not load only in
-its log, and exits 0. Each such module is reported under
-[**Unread**](../controllers/iac.md#unread), named by the file that calls it.
+its log, and exits 0. Each such module is reported as
+[unread](../controllers/iac.md#unread), named by the file that calls it.
 
 ## Saga options
 

@@ -81,8 +81,25 @@ This matters most in CI, where a scanner failing to provision is the common fail
 warning in the log goes unread. A green build from a check that never ran is the one outcome a
 gate must not produce.
 
-Pass `--allow-scan-errors` for best-effort scanning. The run then passes on findings alone. The
-errored control is still reported either way; the flag buys a passing exit code, not silence.
+A target no scanner could read fails the run the same way: a repository that does not exist, an
+image the registry does not have, a host that does not resolve, a cluster context that is not in
+the kubeconfig. The report names each target once, under **Errors**, with the components it leaves
+unscanned, and each of those components reads `ERROR` whatever else it found:
+
+```
+ERRORS  4 of 5 targets not reached
+  Target                                         Components  Why
+  repository https://github.com/draugr-dev/gone  api         Repository not found
+  image ghcr.io/draugr-dev/gone:1                billing     manifest unknown
+  host https://shop.invalid                      web         no such host
+  cluster kubernetes/legacy                      reporting   context "legacy" does not exist
+```
+
+The scanner's whole message is in `report.json`, under `targets[]`.
+
+Pass `--allow-scan-errors` for best-effort scanning. The run then passes on findings alone, and
+the verdict line carries `partial` with the number of targets not reached. The errored control is
+still reported either way; the flag buys a passing exit code, not silence.
 
 ### A surface nobody looked at *does* pass, so it is reported instead
 
@@ -96,13 +113,14 @@ thing to have: scanning a repository you do not own for committed secrets and no
 real use, and a tool that failed the run would be failing a decision somebody made on purpose. A
 gate that objects to intent is one people learn to work around.
 
-So it is reported rather than enforced. Every scan says what it did not look at:
+So it is reported rather than enforced. Every scan says what it did not look at, under
+**Caveats**:
 
 ```
-NOT CHECKED
-  Component  Surface  Controls off
-  api        hosts    dast, headers, tls
-  api        images   images
+CAVEATS  do not fail the run
+  Component  What    Caveat       Why
+  api        hosts   not checked  dast, headers, tls off
+  api        images  not checked  images off
 ```
 
 [`draugr doctor`](../reference/cli.md#draugr-doctor-sagayaml) says the same thing **before** the

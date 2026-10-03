@@ -72,5 +72,15 @@
     "jobs": 1,
     "scans": 1
   },
+  "targets": [
+    {
+      "components": [
+        "dotnet-csproj"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./dotnet-csproj"
+    }
+  ],
   "verdict": "pass"
 }

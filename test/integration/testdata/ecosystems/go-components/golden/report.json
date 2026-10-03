@@ -115,5 +115,16 @@
     "jobs": 8,
     "scans": 8
   },
+  "targets": [
+    {
+      "components": [
+        "api",
+        "worker"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./go-components"
+    }
+  ],
   "verdict": "fail"
 }

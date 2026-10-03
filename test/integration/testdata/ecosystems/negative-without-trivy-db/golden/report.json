@@ -45,5 +45,16 @@
     "jobs": 1,
     "scans": 0
   },
+  "targets": [
+    {
+      "components": [
+        "negative-without-trivy-db"
+      ],
+      "detail": "run trivy-fs: exit status 1: run error: init error: DB error: database error: --skip-db-update cannot be specified on the first run",
+      "kind": "repository",
+      "status": "failed",
+      "target": "./negative-without-trivy-db"
+    }
+  ],
   "verdict": "fail"
 }

@@ -134,7 +134,7 @@ none of those, which is why copyleft warns rather than fails by default.
 
 ## Notes
 
-- A dependency file `trivy-license` took no packages from is listed under **Unread**, with the
+- A dependency file `trivy-license` took no packages from is listed as unread, with the
   same reasons as [`sca`](sca.md#unread). Its packages' licenses were not checked.
 - Findings are **not** legal advice. Trivy's categories are a starting point for a conversation;
   whether an obligation applies depends on whether you distribute, how you link, and which

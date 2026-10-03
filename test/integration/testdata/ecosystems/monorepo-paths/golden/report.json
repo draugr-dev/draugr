@@ -110,5 +110,16 @@
     "jobs": 6,
     "scans": 6
   },
+  "targets": [
+    {
+      "components": [
+        "api",
+        "web"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./monorepo-paths"
+    }
+  ],
   "verdict": "fail"
 }

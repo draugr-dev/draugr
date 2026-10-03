@@ -123,5 +123,15 @@
     "jobs": 5,
     "scans": 5
   },
+  "targets": [
+    {
+      "components": [
+        "go-module"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./go-module"
+    }
+  ],
   "verdict": "fail"
 }

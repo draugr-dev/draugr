@@ -72,5 +72,15 @@
     "jobs": 1,
     "scans": 1
   },
+  "targets": [
+    {
+      "components": [
+        "python-conda"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./python-conda"
+    }
+  ],
   "verdict": "pass"
 }

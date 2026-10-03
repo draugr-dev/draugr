@@ -72,5 +72,15 @@
     "jobs": 1,
     "scans": 1
   },
+  "targets": [
+    {
+      "components": [
+        "js-yarn-classic"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./js-yarn-classic"
+    }
+  ],
   "verdict": "fail"
 }

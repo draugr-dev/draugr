@@ -110,5 +110,17 @@
     "jobs": 6,
     "scans": 6
   },
+  "targets": [
+    {
+      "components": [
+        "api",
+        "legacy",
+        "tools"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./monorepo-python"
+    }
+  ],
   "verdict": "fail"
 }

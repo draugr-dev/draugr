@@ -72,5 +72,15 @@
     "jobs": 1,
     "scans": 1
   },
+  "targets": [
+    {
+      "components": [
+        "js-npm-dev"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./js-npm-dev"
+    }
+  ],
   "verdict": "fail"
 }

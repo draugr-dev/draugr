@@ -108,5 +108,15 @@
     "jobs": 4,
     "scans": 4
   },
+  "targets": [
+    {
+      "components": [
+        "go-submodule"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./go-submodule"
+    }
+  ],
   "verdict": "fail"
 }

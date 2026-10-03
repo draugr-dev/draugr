@@ -1,0 +1,1 @@
+- **`report.json` lists each target the run planned**, under `targets[]`: its kind, the address `draugr doctor` uses, whether it was reached, failed or skipped, the scanner's message, and the components that declare it. A pipeline can name the repository, image, host or cluster that stopped a scan without parsing scanner text.
