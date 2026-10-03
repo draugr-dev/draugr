@@ -348,10 +348,10 @@ func (b issueBody) head(f issueFormat) []string {
 			line = append(line, f.code(c.Control, false))
 		}
 		line = append(line, english.Count(c.Clears, "finding"), "gate "+c.Gate)
-		// One release is the action's target. Several are each finding's own, unordered because
-		// version order belongs to the ecosystem, and each findings row already names its fix.
-		if c.Action != nil && len(c.Action.FixedVersions) == 1 {
-			line = append(line, "fixed in "+f.code(c.Action.FixedVersions[0], false))
+		// The one release that clears the action, where one can be named; each findings row
+		// already names its own fix.
+		if c.Action != nil && c.Action.Target != "" {
+			line = append(line, "fixed in "+f.code(c.Action.Target, false))
 		}
 		return append(blocks, f.para(strings.Join(line, " · ")))
 	}

@@ -124,36 +124,6 @@ func TestAQualifierDoesNotHideAMatch(t *testing.T) {
 	}
 }
 
-// The case that would have shipped bad advice. github.com/golang/protobuf@v1.5.4 is deprecated in
-// favor of a different module, and the version offered against it is v1.5.1, which is older.
-// Rendering that as the fix tells somebody to downgrade a working dependency.
-func TestARecommendationIsOnlyEverForwards(t *testing.T) {
-	for name, tc := range map[string]struct {
-		current, candidate string
-		newer, ok          bool
-	}{
-		"the protobuf case, backwards": {"v1.5.4", "v1.5.1", false, true},
-		"jquery, forwards":             {"1.8.3", "4.0.0", true, true},
-		"pyyaml, forwards":             {"5.1", "6.0.3", true, true},
-		"identical":                    {"1.2.3", "1.2.3", false, true},
-		"more segments, still newer":   {"1.2", "1.2.1", true, true},
-		"a pre-release suffix":         {"v1.5.4-rc1", "v1.6.0", true, true},
-		"unreadable, so no opinion":    {"2026.wat", "1.0.0", false, false},
-		"a date-like scheme":           {"20230311", "20240101", true, true},
-		"empty":                        {"", "1.0.0", false, false},
-	} {
-		t.Run(name, func(t *testing.T) {
-			newer, ok := dephealth.Newer(tc.current, tc.candidate)
-			if ok != tc.ok {
-				t.Fatalf("decidable=%v, wanted %v", ok, tc.ok)
-			}
-			if ok && newer != tc.newer {
-				t.Errorf("%s → %s: newer=%v, wanted %v", tc.current, tc.candidate, newer, tc.newer)
-			}
-		})
-	}
-}
-
 // A source that consulted the data and found nothing wrong is a different statement from one that
 // never ran, and the evidence has to be able to tell them apart.
 func TestConsultedSaysHowMuchWasChecked(t *testing.T) {

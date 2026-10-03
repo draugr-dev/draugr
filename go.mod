@@ -1,10 +1,11 @@
 module github.com/draugr-dev/draugr
 
-go 1.26.0
+go 1.26.3
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/google/jsonschema-go v0.4.3
+	github.com/google/osv-scalibr v0.5.3
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10

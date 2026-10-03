@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/draugr-dev/draugr/internal/depsdev"
+	"github.com/draugr-dev/draugr/internal/versionorder"
 	"github.com/draugr-dev/draugr/pkg/dephealth"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -88,7 +89,7 @@ func TestDepsDevStillAnswersWhatWeParse(t *testing.T) {
 	// proves the comparison is not rejecting everything.
 	if pkg.Recommended == "" {
 		t.Error("no upgrade offered for a package the service recommends moving off")
-	} else if newer, ok := dephealth.Newer("1.8.3", pkg.Recommended); !ok || !newer {
+	} else if order, ok := versionorder.Compare("npm", "1.8.3", pkg.Recommended); !ok || order >= 0 {
 		t.Errorf("recommended %q is not newer than 1.8.3", pkg.Recommended)
 	}
 }
@@ -107,7 +108,7 @@ func TestABackwardsRecommendationNeverReachesAReader(t *testing.T) {
 		t.Fatalf("no answer for %s", backwardsPurl)
 	}
 	if pkg.Recommended != "" {
-		if newer, _ := dephealth.Newer("v1.5.4", pkg.Recommended); !newer {
+		if order, _ := versionorder.Compare("Go", "v1.5.4", pkg.Recommended); order >= 0 {
 			t.Errorf("offered %q as an upgrade from v1.5.4, which is backwards", pkg.Recommended)
 		}
 	}

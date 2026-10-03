@@ -453,12 +453,8 @@ func truncate(s string, n int) string {
 	return strings.TrimSpace(string(r[:n-1])) + "…"
 }
 
-// fixedVersions lists the releases the findings say resolve them, in the order first seen.
-//
-// Draugr does not pick one. Version ordering is the ecosystem's own. 5.10 is above 5.9 in most and
-// below it as a string, and naming the wrong release as sufficient is worse advice than naming
-// several: it reads as "upgrade to this and you are done" when it would leave findings behind.
-// Listing them lets the reader apply the ordering their package manager already knows.
+// fixedVersions lists the releases the findings say resolve them, in the order first seen: each
+// advisory's own answer, which target combines into one where the ecosystem's order allows.
 func (a action) fixedVersions() []string {
 	seen := map[string]bool{}
 	var out []string
@@ -472,12 +468,15 @@ func (a action) fixedVersions() []string {
 	return out
 }
 
-// target is the version to upgrade to, when every advisory in the group agrees on one.
+// target is the version to move to, or "" when there is no one answer.
 //
-// Only when they agree. Where they disagree there is no single answer Draugr can give. Version
-// ordering belongs to the ecosystem, and naming the wrong release as sufficient reads as "do this
-// and you are done" while leaving findings behind. The reader's package manager settles it.
+// For an upgrade, the lowest release that clears every finding, by the package's own ecosystem's
+// order. For any other action, the release only when every advisory in it names the same one: an
+// image's findings are in many packages, and no one package's release is the image's fix.
 func (a action) target() string {
+	if strings.HasPrefix(a.key, "upgrade\x00") {
+		return upgradeTarget(a.findings)
+	}
 	fixes := a.fixedVersions()
 	if len(fixes) == 1 {
 		return fixes[0]
@@ -528,13 +527,13 @@ type Action struct {
 	// Not serialized. It is an identity for a caller holding this package's own output in memory,
 	// and it contains a separator that has no business in a JSON document an assistant reads.
 	Key string `json:"-"`
-	// FixedVersions are the releases that clear this, in the order the advisories named them.
-	//
-	// Every one of them, not the newest: advisories disagree about which release resolves them,
-	// and version ordering belongs to the ecosystem rather than here. One entry is the answer;
-	// several means the reader's package manager settles it, and naming one of them as sufficient
-	// would read as "do this and you are done" while leaving findings behind.
+	// FixedVersions are the releases the advisories name as fixing these findings, in the order
+	// first seen, each advisory's own answer.
 	FixedVersions []string `json:"fixedVersions,omitempty"`
+	// Target is the one version to move to. For an upgrade it is the lowest release that clears
+	// every finding, by the package's own ecosystem's order. Empty when no one release can be named,
+	// for an ecosystem Draugr cannot order or for an image whose findings are in many packages.
+	Target string `json:"target,omitempty"`
 	// Findings are every finding this action clears, most urgent first, uncapped where Where and
 	// RuleIDs are capped. Not serialized: an assistant asking what to do is answered by the counts,
 	// and a publisher that lists the findings reads them here.
@@ -638,6 +637,7 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 			RuleIDs:       rules,
 			Key:           a.key,
 			FixedVersions: a.fixedVersions(),
+			Target:        a.target(),
 			Findings:      actionFindings(a.findings),
 			OneChange:     !a.byRule,
 		})
