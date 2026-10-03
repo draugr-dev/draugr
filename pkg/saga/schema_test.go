@@ -295,17 +295,24 @@ func TestRemovedFieldSaysSo(t *testing.T) {
 
 // A descriptor written for an earlier release declares its clusters under `infrastructure:`. The
 // key is refused, and the error carries the replacement, so the fix is one edit rather than a
-// search through the reference.
+// search through the reference. The replacement has to be one the loader accepts, or following the
+// advice is a second error.
 func TestTheOldClusterKeyNamesItsReplacement(t *testing.T) {
 	_, err := Load([]byte("project: p\nrelease: {version: \"1\"}\ncomponents:\n  - name: c\n" +
 		"    infrastructure:\n      - kind: kubernetes\n        ref: prod\n"))
 	if err == nil {
 		t.Fatal("components[].infrastructure still parses")
 	}
-	for _, want := range []string{"components.infrastructure was removed", "`kubernetes:`", "no `kind`"} {
+	for _, want := range []string{"components.infrastructure was removed",
+		"`clusters: {prod: {context: prod-eu-west-1}}`", "`kubernetes: [{cluster: prod}]`"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error does not mention %q: %v", want, err)
 		}
+	}
+	if _, err := Load([]byte("project: p\nrelease: {version: \"1\"}\n" +
+		"clusters: {prod: {context: prod-eu-west-1}}\ncomponents:\n  - name: c\n" +
+		"    kubernetes: [{cluster: prod}]\n")); err != nil {
+		t.Errorf("the replacement the error names does not load: %v", err)
 	}
 }
 
