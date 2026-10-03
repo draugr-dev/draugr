@@ -337,3 +337,28 @@ func TestEveryServiceACheckReadsHasPermissions(t *testing.T) {
 		t.Errorf("with nothing granted, compute = %q", got)
 	}
 }
+
+func TestProwlerLocation(t *testing.T) {
+	finding := func(uid, name string) ocsfFinding {
+		var f ocsfFinding
+		f.Resources = append(f.Resources, struct {
+			UID    string `json:"uid"`
+			Name   string `json:"name"`
+			Region string `json:"region"`
+		}{UID: uid, Name: name})
+		return f
+	}
+	for _, c := range []struct {
+		f    ocsfFinding
+		want string
+	}{
+		{finding("projects/p/global/firewalls/ssh", "ssh"), "projects/p/global/firewalls/ssh"},
+		{finding("8814202563123", "draugr-fixture-1-ssh"), "draugr-fixture-1-ssh"},
+		{finding("shop-prod-4821", "GCP Project"), "gcp/shop-prod-4821"},
+		{ocsfFinding{}, "gcp/shop-prod-4821"},
+	} {
+		if got := prowlerLocation(shopProd, c.f); got != c.want {
+			t.Errorf("prowlerLocation(%+v) = %q, want %q", c.f.Resources, got, c.want)
+		}
+	}
+}

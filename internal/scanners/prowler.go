@@ -339,10 +339,7 @@ func prowlerReport(account plugin.AccountTarget, compliance string, checks []str
 		}
 		level, score := prowlerSeverity(f.Severity)
 		ruleID := prowlerRulePrefix + check
-		uri := account.Provider + "/" + account.ID
-		if len(f.Resources) > 0 && f.Resources[0].UID != "" {
-			uri = f.Resources[0].UID
-		}
+		uri := prowlerLocation(account, f)
 		report.Results = append(report.Results, sarif.Result{
 			Tool:     prowlerScannerName,
 			RuleID:   ruleID,
@@ -382,6 +379,22 @@ func prowlerReport(account plugin.AccountTarget, compliance string, checks []str
 		},
 	}}
 	return report
+}
+
+// prowlerLocation is where a finding is: the resource's path when Prowler gives one, its name when
+// it gives that instead, and the account for a finding about the account itself, which Prowler
+// names "GCP Project".
+func prowlerLocation(account plugin.AccountTarget, f ocsfFinding) string {
+	if len(f.Resources) > 0 {
+		r := f.Resources[0]
+		switch {
+		case strings.Contains(r.UID, "/"):
+			return r.UID
+		case r.Name != "" && r.Name != "GCP Project":
+			return r.Name
+		}
+	}
+	return account.Provider + "/" + account.ID
 }
 
 // cisGCPTaxonomy names the benchmark a check's requirement belongs to.

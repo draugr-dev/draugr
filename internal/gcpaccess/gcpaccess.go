@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"slices"
@@ -49,7 +50,10 @@ type Tester struct {
 func New(ctx context.Context) (*Tester, error) {
 	creds, err := google.FindDefaultCredentials(ctx, scope)
 	if err != nil {
-		return nil, fmt.Errorf("%w (%w)", ErrNoCredentials, err)
+		// The library's own words add a documentation link and nothing a reader can act on beyond
+		// what ErrNoCredentials says; they are logged for whoever is debugging the lookup.
+		slog.DebugContext(ctx, "no application default credentials", "error", err)
+		return nil, ErrNoCredentials
 	}
 	return &Tester{client: oauth2Client(ctx, creds), endpoint: endpoint}, nil
 }

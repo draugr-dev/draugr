@@ -87,6 +87,9 @@ jobs:
       # jobs do or do not run, though, so withholding this fails the release at startup with no
       # job and no message naming the scope, which is what internal/ciguard exists to catch.
       issues: write
+      # For the live cloud job, which signs in to Google Cloud without a key. It runs only on the
+      # nightly schedule and a manual dispatch, never from here; the grant is the same startup rule.
+      id-token: write
 
   # The cross-compiled builds, compiled while the gates above run, so goreleaser starts from a warm
   # Go build cache instead of compiling every target cold after them.

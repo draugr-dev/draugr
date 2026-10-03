@@ -12,8 +12,8 @@ import (
 	"testing"
 )
 
-// The cloud control against a real Google Cloud project: the fixture draugr-ops keeps,
-// misconfigured on purpose and holding nothing.
+// The cloud control against a real Google Cloud project: the empty one draugr-ops keeps, with the
+// misconfigured resources in testdata/cloud-fixture applied to it for the run and destroyed after.
 //
 // The unit tests drive a fake Prowler that writes what the scanner expects to read. What only a real
 // project proves is that Prowler still writes it: the OCSF a Google Cloud finding carries, the
@@ -26,15 +26,17 @@ const (
 	// cloudLiveExpectEnv says which identity the job signed in as: "full", holding what Prowler
 	// documents, or "narrow", which can see the project and read none of its services.
 	cloudLiveExpectEnv = "DRAUGR_CLOUD_LIVE_EXPECT"
+	// cloudLiveRunEnv is the run the fixture was applied for, the suffix of its resources' names.
+	cloudLiveRunEnv = "DRAUGR_CLOUD_LIVE_RUN"
 )
 
 func TestLiveCloudAccount(t *testing.T) {
 	project := os.Getenv(cloudLiveProjectEnv)
 	if project == "" {
-		t.Skipf("set %s to the fixture project, and %s to full or narrow, to scan a real Google Cloud project",
-			cloudLiveProjectEnv, cloudLiveExpectEnv)
+		t.Skipf("set %s to the fixture project, %s to full or narrow, and %s to the run testdata/cloud-fixture "+
+			"was applied for, to scan a real Google Cloud project", cloudLiveProjectEnv, cloudLiveExpectEnv, cloudLiveRunEnv)
 	}
-	expect := os.Getenv(cloudLiveExpectEnv)
+	expect, run := os.Getenv(cloudLiveExpectEnv), os.Getenv(cloudLiveRunEnv)
 	requireTool(t, "prowler", "the cloud control's scanner")
 
 	dir := t.TempDir()
@@ -43,6 +45,7 @@ func TestLiveCloudAccount(t *testing.T) {
 		"accounts:\n  fixture: {provider: gcp, project: " + project + "}\n" +
 		"components:\n  - name: platform\n    cloud: [{account: fixture}]\n" +
 		"  - name: network\n    cloud: [{account: fixture, regions: [us-central1]}]\n"
+	// #nosec G703 -- a path under this test's own temporary directory; the environment shapes the content, not the path
 	if err := os.WriteFile(descriptor, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +86,17 @@ func TestLiveCloudAccount(t *testing.T) {
 	var log struct {
 		Runs []struct {
 			Results []struct {
-				RuleID     string `json:"ruleId"`
+				RuleID    string `json:"ruleId"`
+				Locations []struct {
+					PhysicalLocation struct {
+						ArtifactLocation struct {
+							URI string `json:"uri"`
+						} `json:"artifactLocation"`
+					} `json:"physicalLocation"`
+				} `json:"locations"`
+				Message struct {
+					Text string `json:"text"`
+				} `json:"message"`
 				Properties struct {
 					Component string `json:"component"`
 				} `json:"properties"`
@@ -118,23 +131,32 @@ func TestLiveCloudAccount(t *testing.T) {
 			t.Errorf("a scan that cannot read compute left it unlisted: %+v", doc.UnreadChecks)
 		}
 	default:
-		// Everything Prowler documents is held, so nothing is unread, and the fixture's open firewall
-		// is found, by the component that declares the network's region.
+		// Everything Prowler documents is held, so nothing is unread. This run's firewall rules have no
+		// region and are the whole account's; its subnet is in us-central1 and is the component's that
+		// claims the region.
 		if len(doc.UnreadChecks) > 0 {
 			t.Errorf("a full scan left checks unread: %+v", doc.UnreadChecks)
 		}
 		var found []string
-		for _, run := range log.Runs {
-			for _, r := range run.Results {
-				found = append(found, r.Properties.Component+" "+r.RuleID)
+		for _, r := range log.Runs {
+			for _, res := range r.Results {
+				uri := ""
+				if len(res.Locations) > 0 {
+					uri = res.Locations[0].PhysicalLocation.ArtifactLocation.URI
+				}
+				// The resource's name, wherever Prowler put it, ties a finding to this run.
+				if strings.Contains(uri+" "+res.Message.Text, "draugr-fixture-"+run) {
+					found = append(found, res.Properties.Component+" "+res.RuleID)
+				}
 			}
 		}
 		for _, want := range []string{
-			"network prowler/compute_firewall_ssh_access_from_the_internet_allowed",
-			"network prowler/compute_firewall_rdp_access_from_the_internet_allowed",
+			"platform prowler/compute_firewall_ssh_access_from_the_internet_allowed",
+			"platform prowler/compute_firewall_rdp_access_from_the_internet_allowed",
+			"network prowler/compute_subnet_flow_logs_enabled",
 		} {
 			if !slices.Contains(found, want) {
-				t.Errorf("missing %q among %v", want, found)
+				t.Errorf("missing %q among this run's findings %v", want, found)
 			}
 		}
 	}
