@@ -69,5 +69,19 @@
     "p4": 0,
     "total": 1
   },
+  "targets": [
+    {
+      "components": [
+        "acme",
+        "default",
+        "derived",
+        "trivyignore",
+        "user"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./options-trivy-config"
+    }
+  ],
   "verdict": "fail"
 }

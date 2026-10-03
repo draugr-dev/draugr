@@ -72,5 +72,15 @@
     "jobs": 1,
     "scans": 1
   },
+  "targets": [
+    {
+      "components": [
+        "jvm-gradle"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./jvm-gradle"
+    }
+  ],
   "verdict": "fail"
 }

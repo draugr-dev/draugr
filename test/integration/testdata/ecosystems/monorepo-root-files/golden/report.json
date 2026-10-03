@@ -95,5 +95,16 @@
     "jobs": 4,
     "scans": 4
   },
+  "targets": [
+    {
+      "components": [
+        "api",
+        "web"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./monorepo-root-files"
+    }
+  ],
   "verdict": "fail"
 }

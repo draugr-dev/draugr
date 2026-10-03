@@ -127,5 +127,22 @@
     "p4": 0,
     "total": 1
   },
+  "targets": [
+    {
+      "components": [
+        "default",
+        "full",
+        "licenses-deny",
+        "licenses-warn",
+        "licenses-warn-isc",
+        "trivy-license-deny",
+        "trivy-license-warn",
+        "trivyignore"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./options-trivy-license"
+    }
+  ],
   "verdict": "fail"
 }

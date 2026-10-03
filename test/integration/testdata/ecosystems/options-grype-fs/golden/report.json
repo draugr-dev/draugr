@@ -95,5 +95,17 @@
     "p4": 0,
     "total": 1
   },
+  "targets": [
+    {
+      "components": [
+        "by-advisory",
+        "default",
+        "grype-yaml"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./options-grype-fs"
+    }
+  ],
   "verdict": "fail"
 }

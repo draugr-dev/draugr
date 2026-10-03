@@ -102,5 +102,15 @@
     "jobs": 3,
     "scans": 3
   },
+  "targets": [
+    {
+      "components": [
+        "python-pip"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./python-pip"
+    }
+  ],
   "verdict": "fail"
 }

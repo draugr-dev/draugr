@@ -77,5 +77,15 @@
     "jobs": 2,
     "scans": 2
   },
+  "targets": [
+    {
+      "components": [
+        "python-setuptools"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./python-setuptools"
+    }
+  ],
   "verdict": "fail"
 }

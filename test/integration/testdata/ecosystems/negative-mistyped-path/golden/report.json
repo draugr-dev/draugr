@@ -92,5 +92,16 @@
     "jobs": 4,
     "scans": 2
   },
+  "targets": [
+    {
+      "components": [
+        "api",
+        "web"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./negative-mistyped-path"
+    }
+  ],
   "verdict": "fail"
 }

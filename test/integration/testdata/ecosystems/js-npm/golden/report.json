@@ -128,5 +128,15 @@
     "jobs": 5,
     "scans": 5
   },
+  "targets": [
+    {
+      "components": [
+        "js-npm"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./js-npm"
+    }
+  ],
   "verdict": "fail"
 }

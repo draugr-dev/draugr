@@ -88,5 +88,17 @@
     "jobs": 3,
     "scans": 3
   },
+  "targets": [
+    {
+      "components": [
+        "npm",
+        "pnpm",
+        "yarn"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./monorepo-js-workspaces"
+    }
+  ],
   "verdict": "fail"
 }

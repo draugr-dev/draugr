@@ -56,5 +56,15 @@
     "jobs": 1,
     "scans": 1
   },
+  "targets": [
+    {
+      "components": [
+        "images-grype"
+      ],
+      "kind": "image",
+      "status": "reached",
+      "target": "127.0.0.1:18080/images-grype:1.0"
+    }
+  ],
   "verdict": "fail"
 }

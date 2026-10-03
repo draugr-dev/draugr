@@ -178,5 +178,15 @@
     "jobs": 2,
     "scans": 2
   },
+  "targets": [
+    {
+      "components": [
+        "polyglot-unlocked"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./polyglot-unlocked"
+    }
+  ],
   "verdict": "fail"
 }

@@ -87,5 +87,16 @@
     "jobs": 2,
     "scans": 2
   },
+  "targets": [
+    {
+      "components": [
+        "default",
+        "os-only"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./options-trivy-fs"
+    }
+  ],
   "verdict": "fail"
 }
