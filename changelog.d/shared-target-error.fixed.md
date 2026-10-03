@@ -1,0 +1,1 @@
+- **A repository two components share, when it cannot be read, is named once under Errors** and no longer repeated under its control with a count of the jobs that tried.

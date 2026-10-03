@@ -153,12 +153,16 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		// problem. Nothing in the sentence contradicts the misreading, which is what makes it
 		// worth the extra pass rather than a footnote.
 		why := func(control string) {
-			for _, msg := range dedupeMessages(errored[control]) {
-				// A failure to reach a target is said once, by target, in the errors block. Under each
-				// control that tried, one missing repository is a line per control.
-				if targetError(d, control, msg) {
-					continue
+			// A failure to reach a target is said once, by target, in the errors block. Under each
+			// control that tried, one missing repository is a line per control. Set aside before the
+			// count of jobs is added, which would make a message two components share match nothing.
+			var own []string
+			for _, msg := range errored[control] {
+				if !targetError(d, control, msg) {
+					own = append(own, msg)
 				}
+			}
+			for _, msg := range dedupeMessages(own) {
 				// Wrapped rather than clamped to one line. A clamp suits a tool's own stderr, which can be a
 				// whole usage screen. But these are Draugr's sentences too, and the half a reader acts on is
 				// the end of them.
