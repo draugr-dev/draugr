@@ -167,9 +167,10 @@ var removedFields = map[string]string{
 		"`context`: `clusters: {prod: {context: prod-eu-west-1}}` and `kubernetes: [{cluster: prod}]`",
 	"components[].kubernetes.operatedBy": "it is a fact about the cluster, so it moved to the " +
 		"cluster's entry under the top-level `clusters:`, beside its `context`",
-	"components.infrastructure": "it is `kubernetes:` now, with the same entries and no `kind`, " +
-		"as in `kubernetes: [{ref: prod-eu-west-1}]`; the control that checks it is `kubernetes` " +
-		"under `config.controls`",
+	"components.infrastructure": "it is `kubernetes:` now, and each entry names its cluster with " +
+		"`cluster:`, declared once under the top-level `clusters:`, as in " +
+		"`clusters: {prod: {context: prod-eu-west-1}}` with `kubernetes: [{cluster: prod}]`; the " +
+		"control that checks it is `kubernetes` under `config.controls`",
 }
 
 // environmentRemoved explains a target that still labels itself.
