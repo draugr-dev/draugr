@@ -214,13 +214,8 @@ namespaces. `kube-bench` runs checks written as cluster-wide `kubectl` queries a
 reads a node's own filesystem, which has no namespace, so neither can honor a scope and neither is
 run against a component that sets `namespaces`. The alternative would be a report that
 looks scoped and lists somebody else's namespaces against this component, so the scan is not
-planned, and the report says so under **Caveats**, naming the scanner and the component:
-
-```
-CAVEATS  do not fail the run
-  Component  What            Caveat        Why
-  team-a     kube-bench-job  not measured  audits the whole cluster and cannot be narrowed to namespace team-a
-```
+planned, and the report says so under **Caveats**, in a `not measured` row naming the component,
+the scanner and the namespaces it could not be narrowed to.
 
 Nothing has to be turned off by hand. One component claims the cluster whole and gets the
 cluster-wide and node-level checks; each team's component claims its namespaces:

@@ -1501,7 +1501,6 @@ func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) (t
 // nobody sees, which is what a duplicated tail drifts into.
 func writeTail(w io.Writer, col tui.Painter, s summary, d Data, truncated bool) {
 	writeEffects(w, col, s, d)
-
 	// What stands behind the verdict, under the findings rather than over them.
 	//
 	// It answers "can I trust this run" where the findings answer "what did it find", and the

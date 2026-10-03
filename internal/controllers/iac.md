@@ -21,13 +21,14 @@ from. [`trivy-config`](../scanners/trivy-config.md) has the rules.
 ## Unread
 
 A Terraform file is **unread** when it calls a module `trivy-config` could not load. The resources
-that module defines were not checked, and the report lists the calling file under **Unread**, once
-per component, with the module names as the reason:
+that module defines were not checked, and the report lists the calling file under **Caveats** as
+`unread`, with the module names as the reason:
 
 ```
-UNREAD  dependency files and Terraform modules no scanner read · what they declare was not checked
-  infra  infra/mod/main.tf module "sg" not loaded (iac) · infra/prod/main.tf modules "vpc",
-         "eks" not loaded (iac)
+CAVEATS  do not fail the run
+  Component  What                Caveat  Why
+  infra      infra/mod/main.tf   unread  module "sg" not loaded (iac)
+  infra      infra/prod/main.tf  unread  modules "vpc", "eks" not loaded (iac)
 ```
 
 A module whose `source` is a local path loads when the path is in the checkout. A module from a

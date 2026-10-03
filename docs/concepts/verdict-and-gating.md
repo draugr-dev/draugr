@@ -87,13 +87,12 @@ the kubeconfig. The report names each target once, under **Errors**, with the co
 unscanned, and each of those components reads `ERROR` whatever else it found:
 
 ```
-ERRORS  5 of 9 targets not reached
-  Target                                                     Components  Why
-  host https://shop.invalid                                  web         no such host
-  image ghcr.io/draugr-dev/shop-billing:4.1                  billing     manifest unknown
-  cluster kubernetes/legacy                                  reporting   context "legacy-admin" does not exist
-  repository https://github.com/draugr-dev/shop-api-archive  api         Repository not found
-  repository https://github.com/draugr-dev/shop-billing      billing     Repository not found
+ERRORS  4 of 5 targets not reached
+  Target                                         Components  Why
+  repository https://github.com/draugr-dev/gone  api         Repository not found
+  image ghcr.io/draugr-dev/gone:1                billing     manifest unknown
+  host https://shop.invalid                      web         no such host
+  cluster kubernetes/legacy                      reporting   context "legacy" does not exist
 ```
 
 The scanner's whole message is in `report.json`, under `targets[]`.

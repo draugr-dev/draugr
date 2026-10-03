@@ -62,8 +62,8 @@ tool, where a suppression cannot be recorded or reviewed. Use `config.exclude` i
   [`licenses`](../controllers/licenses.md) control, which has its own policy and its own gate
   threshold.
 - Each `lang-pkgs` result in Trivy's JSON names a file it took packages from. Those are the files
-  the report counts as read; every other dependency file in the checkout is listed under
-  **Unread**, see [`sca`](../controllers/sca.md#unread).
+  the report counts as read; every other dependency file in the checkout is listed as unread, see
+  [`sca`](../controllers/sca.md#unread).
 
 ## Data
 

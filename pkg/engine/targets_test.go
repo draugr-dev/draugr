@@ -132,9 +132,11 @@ func TestOutcomeIdentityMatchesDoctor(t *testing.T) {
 		target   plugin.Target
 		kind, id string
 	}{
+		// #nosec G101 -- placeholder credentials, there to prove they are left out of the name.
 		{plugin.RepositoryTarget{URL: "https://user:token@github.com/acme/api", Revision: "v1", Paths: []string{"svc"}}, "repository", "https://github.com/acme/api@v1"},
 		{plugin.RepositoryTarget{URL: "https://github.com/acme/api"}, "repository", "https://github.com/acme/api"},
 		{plugin.ImageTarget{Ref: "ghcr.io/acme/api:1", Digest: "sha256:ab"}, "image", "ghcr.io/acme/api:1@sha256:ab"},
+		// #nosec G101 -- placeholder credentials, there to prove they are left out of the name.
 		{plugin.HostTarget{URL: "https://user:pw@api.example.com/"}, "host", "https://api.example.com/"},
 		{plugin.KubernetesTarget{Cluster: "prod", Namespaces: []string{"b", "a"}}, "cluster", "kubernetes/prod"},
 		{plugin.KubernetesTarget{}, "cluster", "kubernetes"},

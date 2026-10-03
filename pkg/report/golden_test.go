@@ -100,7 +100,7 @@ func goldenMismatch(path string) string {
 		"       docs/getting-started/first-saga.md, docs/getting-started/quickstart.md,\n" +
 		"       docs/guides/monorepos.md,\n" +
 		"       docs/reference/cli.md,\n" +
-		"       docs/reference/saga-schema.md\n" +
+		"       internal/controllers/iac.md\n" +
 		"     described rather than pasted, so only a shape change reaches them:\n" +
 		"       docs/concepts/principles.md, docs/concepts/what-to-fix-first.md,\n" +
 		"       docs/guides/findings-in-your-editor.md, docs/guides/caching-and-performance.md\n" +
@@ -354,14 +354,15 @@ var pastesConsoleOutput = map[string]bool{
 	"docs/guides/monorepos.md":            true,
 	"docs/guides/provenance.md":           true,
 	"docs/reference/cli.md":               true,
-	"docs/reference/saga-schema.md":       true,
+	"internal/controllers/iac.md":         true,
 }
 
 // consoleShapes are strings only this renderer produces, so a fence carrying one is a paste rather
 // than a shell session or a scanner's own output.
 var consoleShapes = []string{
 	"DRAUGR  ", "FIX FIRST", "WHAT TO DO", "CONTROLS", "COMPONENTS", "MEASURED AGAINST",
-	"NOT MEASURED", "NOT CHECKED", "REACHABILITY", "raised from ", "lowered from ",
+	"CAVEATS  do not fail the run", "targets not reached", "NOT CHECKED", "REACHABILITY",
+	"raised from ", "lowered from ",
 	"suppressed by config.exclude",
 }
 
@@ -437,7 +438,8 @@ func TestEveryPasteOfTheConsoleIsTracked(t *testing.T) {
 // exactly what goes stale.
 var retiredShapes = []string{
 	"Draugr · ", "Priorities:", "Fix first (", "Fix first · ",
-	"↑ ranked as ", "↓ ranked as ", "more finding(s)",
+	"↑ ranked as ", "↓ ranked as ", "more finding(s)", "NOT MEASURED",
+	"UNREAD  dependency files and Terraform modules",
 }
 
 // retiredHeadings are the section labels this renderer used to write, matched on the whole line.

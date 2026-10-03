@@ -1,8 +1,10 @@
 package report
 
 import (
+	"cmp"
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strings"
 
@@ -29,8 +31,10 @@ const errorRowsShown = 10
 // --format json.
 const whyWidth = 80
 
-// notReached is the run's targets every scanner tried and failed to read, in plan order. A target
-// no scanner was run for is a caveat, under "not measured", because nothing failed.
+// notReached is the run's targets every scanner tried and failed to read, by kind in the order a
+// descriptor declares them and then by address, so twenty images from one registry that is down
+// sit together. A target no scanner was run for is a caveat, under "not measured", because nothing
+// failed.
 func notReached(d Data) []engine.TargetOutcome {
 	var out []engine.TargetOutcome
 	for _, t := range d.Run.Targets {
@@ -38,8 +42,23 @@ func notReached(d Data) []engine.TargetOutcome {
 			out = append(out, t)
 		}
 	}
+	rank := func(kind string) int {
+		if i := slices.Index(kindOrder, kind); i >= 0 {
+			return i
+		}
+		return len(kindOrder)
+	}
+	slices.SortStableFunc(out, func(a, b engine.TargetOutcome) int {
+		if c := cmp.Compare(rank(a.Kind), rank(b.Kind)); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Target, b.Target)
+	})
 	return out
 }
+
+// kindOrder is the order a component declares its targets in.
+var kindOrder = []string{"repository", "image", "host", "cluster"}
 
 // shortReason is the part of a failure that says what went wrong, in the scanner's words: its last
 // clause, or the one before when the last only repeats the address. "git clone: exit status 128:

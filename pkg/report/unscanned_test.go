@@ -146,6 +146,13 @@ func TestUnscannedDetailSaysHowMuchOfTheComponent(t *testing.T) {
 			want:     "2/2 images, 1/4 repositories not scanned",
 		},
 		{
+			// Declared as `kubernetes:` and counted under that kind, read as clusters.
+			name:     "a kubernetes target is a cluster",
+			us:       []engine.Unscanned{{Kind: "kubernetes"}},
+			declared: map[string]int{"kubernetes": 2},
+			want:     "1/2 clusters not scanned",
+		},
+		{
 			// Nothing declared this kind. A project-wide target, say. So there is no denominator to give
 			// and inventing one would be worse than the bare count.
 			name:     "no denominator to give",
