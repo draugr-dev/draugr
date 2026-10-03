@@ -51,7 +51,8 @@ func TestLiveCloudAccount(t *testing.T) {
 	}
 	out := filepath.Join(dir, "out")
 	// #nosec G204 -- the binary under test, from $DRAUGR_BIN or LookPath, with arguments this test wrote
-	cmd := exec.Command(draugrBin(t), "scan", descriptor, "--output", out, "--allow-scan-errors", "--log-level", "warn")
+	// --no-gate: the fixture fails the benchmark on purpose, and what is asserted is how, not whether.
+	cmd := exec.Command(draugrBin(t), "scan", descriptor, "--output", out, "--allow-scan-errors", "--no-gate", "--log-level", "warn")
 	cmd.Dir = dir
 	if console, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("draugr scan: %v\n%s", err, console)

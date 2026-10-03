@@ -347,6 +347,13 @@ func TestEveryServiceACheckReadsHasPermissions(t *testing.T) {
 	if got := deniedServices(nil)["compute"]; got != "denied "+gcpServiceGate {
 		t.Errorf("with nothing granted, compute = %q", got)
 	}
+	// Checked on each dataset and bucket, so a project never reports them held, even to its owner
+	// (asked of a real project on 2026-10-03). Asking would call the service denied for everybody.
+	for _, p := range []string{"bigquery.tables.list", "bigquery.tables.get", "storage.buckets.getIamPolicy"} {
+		if slices.Contains(perms, p) {
+			t.Errorf("the preflight asks the project for %s, which the project never reports", p)
+		}
+	}
 }
 
 func TestProwlerLocation(t *testing.T) {

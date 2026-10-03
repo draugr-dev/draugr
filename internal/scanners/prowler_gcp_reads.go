@@ -19,16 +19,22 @@ import (
 // it cannot ask.
 const gcpServiceGate = "serviceusage.services.get"
 
-// gcpServiceReads are the permissions each Prowler service's reads need, beyond the gate.
+// gcpServiceReads are the permissions each Prowler service's reads need, beyond the gate, that
+// Google can answer for on the project.
+//
+// Not every read: bigquery.tables.list and .get are checked on each dataset, and
+// storage.buckets.getIamPolicy on each bucket, and testIamPermissions on the project never reports
+// them, not even to its owner. Asked here, they would make every service that needs them read as
+// denied. Their denials come from Prowler's log instead.
 var gcpServiceReads = map[string][]string{
 	"accessapproval": {"accessapproval.settings.get"},
 	"apikeys":        {"apikeys.keys.list"},
-	"bigquery":       {"bigquery.datasets.get", "bigquery.tables.list", "bigquery.tables.get"},
+	"bigquery":       {"bigquery.datasets.get"},
 	"cloudresourcemanager": {
 		"resourcemanager.projects.get", "resourcemanager.projects.getIamPolicy",
 	},
 	"cloudsql":     {"cloudsql.instances.list"},
-	"cloudstorage": {"storage.buckets.list", "storage.buckets.getIamPolicy"},
+	"cloudstorage": {"storage.buckets.list"},
 	"compute": {
 		"compute.instances.list", "compute.firewalls.list", "compute.networks.list",
 		"compute.subnetworks.list", "compute.zones.list", "compute.regions.list",

@@ -28,7 +28,10 @@ Three things happen around the run, each because Prowler's output alone would mi
 2. **A permission preflight.** Before Prowler runs, the scanner lists the permissions the checks
    need and asks Google's `testIamPermissions` which of them the credentials hold. A denied read
    gives a pass, a fail or no result, depending on the check. A check reading a service with a
-   missing permission is reported unread and its result discarded. Credentials holding none of the permissions, or that cannot see the project, are an
+   missing permission is reported unread and its result discarded. Three reads are checked on each
+   dataset and bucket rather than on the project, `bigquery.tables.list`, `bigquery.tables.get` and
+   `storage.buckets.getIamPolicy`, and a project never reports them held, so their denials come
+   from the log. Credentials holding none of the permissions, or that cannot see the project, are an
    error.
 3. **The log is read for denials the preflight did not foresee**, and the services it names are
    treated the same way. Prowler also reads organization settings, log sinks and essential contacts
