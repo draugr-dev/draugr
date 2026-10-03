@@ -28,6 +28,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/versionorder"
 	"github.com/draugr-dev/draugr/pkg/dephealth"
 )
 
@@ -301,10 +302,12 @@ func decode(raw []byte, byKey map[Key]string) (map[string]dephealth.Package, err
 				Kind: f.Type, Reason: f.DeprecatedContext.Reason,
 			})
 		}
-		// Only ever forwards. The service offered v1.5.1 against a deprecated v1.5.4, and a report
-		// telling somebody to downgrade a working dependency is worse than one saying nothing.
+		// Only ever forwards, by the package's own ecosystem's order. The service offered v1.5.1
+		// against a deprecated v1.5.4, and a report telling somebody to downgrade a working
+		// dependency is worse than one saying nothing.
+		ecosystem := versionorder.Ecosystem(purl, "")
 		for _, rec := range r.Findings.RecommendedVersions {
-			if newer, ok := dephealth.Newer(k.Version, rec.VersionKey.Version); ok && newer {
+			if order, ok := versionorder.Compare(ecosystem, k.Version, rec.VersionKey.Version); ok && order < 0 {
 				pkg.Recommended = rec.VersionKey.Version
 				break
 			}

@@ -3,7 +3,7 @@ DRAUGR  FAIL  draugr-demo 0.0.0  34.5s
  3 P1 2 P2 2 P3 1 P4
 
 WHAT TO DO  5 actions clear 6 findings
-  P1  Upgrade jinja2 2.10
+  P1  Upgrade jinja2 2.10 → 2.11.3
       control sca · 2 findings · app/requirements.txt:5 · CVE-2019-10906 +1
   P1  Fix CVE-2019-20477 “PyYAML: command execution through python/object/app…
       control sca · 1 finding · app/requirements.txt:4 · CVE-2019-20477

@@ -154,8 +154,10 @@ hides work you could have done; the reverse costs a row you skip.
 | `upstream` | present only where the component is somebody else's to fix |
 | the second line | the releases that carry the fix, or why none is named |
 
-The target version appears only when every advisory agrees on one. Where they disagree, Draugr does
-not choose: version ordering belongs to the ecosystem. `5.10` is above `5.9` in most schemes and
+An upgrade names its target version after an arrow. The target is the lowest release that clears
+every finding the row counts, ordered by the package's own ecosystem, so advisories naming several
+releases of one library become one release to move to. Where the ecosystem is not one Draugr can order, the target
+appears only when every advisory names the same release. `5.10` is above `5.9` in most schemes and
 below it as a string, and naming the wrong release as sufficient reads as *do this and you are done*
 while leaving findings behind.
 

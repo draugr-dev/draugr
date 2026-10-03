@@ -629,19 +629,21 @@ func TestAChildNamesItsControlsOwnGate(t *testing.T) {
 }
 
 func TestAChildNamesItsFixOnlyWhenThereIsOne(t *testing.T) {
-	head := func(fixed ...string) string {
+	head := func(target string, fixed ...string) string {
 		b := issueBody{Marker: "<!-- m -->", Child: &childHead{
 			Priority: "P1", Control: "sca", Clears: 2, Gate: "P1",
-			Action: &report.Action{FixedVersions: fixed},
+			Action: &report.Action{FixedVersions: fixed, Target: target},
 		}}
 		return strings.Join(b.head(markdownFormat{}), "\n")
 	}
-	if got := head("3.1.6"); !strings.Contains(got, "**P1** · `sca` · 2 findings · gate P1 · fixed in `3.1.6`") {
-		t.Errorf("one release is not named\n%s", got)
+	// Two advisories naming two releases, and the one that clears both.
+	if got := head("3.1.6", "2.10.1", "3.1.6"); !strings.Contains(got, "**P1** · `sca` · 2 findings · gate P1 · fixed in `3.1.6`") {
+		t.Errorf("the target is not named\n%s", got)
 	}
+	// No release clears them all, or none can be ordered: the head names none.
 	for _, fixed := range [][]string{nil, {"2.10.1", "3.1.6"}} {
-		if got := head(fixed...); strings.Contains(got, "fixed in") {
-			t.Errorf("%d releases are listed in the head\n%s", len(fixed), got)
+		if got := head("", fixed...); strings.Contains(got, "fixed in") {
+			t.Errorf("%d releases with no target named one in the head\n%s", len(fixed), got)
 		}
 	}
 }

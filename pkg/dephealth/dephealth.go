@@ -31,7 +31,6 @@ package dephealth
 
 import (
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -202,56 +201,6 @@ func normalize(purl string) string {
 		purl = purl[:i]
 	}
 	return strings.TrimSpace(purl)
-}
-
-// Newer reports whether candidate is a later version than current, and whether that could be
-// decided at all.
-//
-// Deliberately narrow. It compares dotted numeric segments, with an optional leading "v" and any
-// pre-release suffix ignored, which covers the ecosystems this data indexes. Anything it cannot
-// read confidently returns ok=false, and a caller that cannot tell must say nothing rather than
-// guess: the cost of a wrong "upgrade to" is somebody downgrading a working dependency.
-func Newer(current, candidate string) (newer, ok bool) {
-	a, aok := numeric(current)
-	b, bok := numeric(candidate)
-	if !aok || !bok {
-		return false, false
-	}
-	for i := 0; i < len(a) || i < len(b); i++ {
-		x, y := 0, 0
-		if i < len(a) {
-			x = a[i]
-		}
-		if i < len(b) {
-			y = b[i]
-		}
-		if x != y {
-			return y > x, true
-		}
-	}
-	return false, true // identical
-}
-
-// numeric splits a version into its leading run of dotted integers.
-func numeric(v string) ([]int, bool) {
-	v = strings.TrimSpace(v)
-	v = strings.TrimPrefix(v, "v")
-	// A pre-release or build suffix ends the part that can be compared as numbers.
-	if i := strings.IndexAny(v, "-+"); i >= 0 {
-		v = v[:i]
-	}
-	if v == "" {
-		return nil, false
-	}
-	var out []int
-	for _, part := range strings.Split(v, ".") {
-		n, err := strconv.Atoi(part)
-		if err != nil {
-			return nil, false
-		}
-		out = append(out, n)
-	}
-	return out, true
 }
 
 // Purls returns the package identities this source holds, sorted, so two runs over the same inputs
