@@ -162,3 +162,26 @@ func TestCaveatsGatherEveryShortfallThatDoesNotFail(t *testing.T) {
 		t.Errorf("a caveat is listed as an error:\n%s", out)
 	}
 }
+
+// One repository two components share fails once per component's job, with one message. It is
+// still said once, by target, and not again under the control with a count of the jobs.
+func TestATargetTwoComponentsShareIsNotRepeatedUnderItsControl(t *testing.T) {
+	const lib = "https://github.com/acme/lib"
+	msg := "trivy-fs: git clone " + lib + ": exit status 128: remote: Repository not found."
+	d := Data{
+		Run: engine.Result{
+			Controls:   map[string]plugin.ControlResult{"sca": {Report: sarif.Report{}}},
+			ScanErrors: map[string][]string{"sca": {msg, msg}},
+			Stats: engine.Stats{Failures: []engine.Unscanned{
+				{Control: "sca", Component: "api", Kind: "repository", Target: lib, Detail: msg},
+				{Control: "sca", Component: "web", Kind: "repository", Target: lib, Detail: msg},
+			}},
+			Targets: []engine.TargetOutcome{failedRepository(lib, "api", "web")},
+		},
+		Verdict: norn.Result{Verdict: norn.Fail, Controls: []norn.ControlOutcome{{Control: "sca", Verdict: norn.Pass}}},
+	}
+	out := renderWith(t, consoleReporter{}, d)
+	if strings.Contains(out, "(2 jobs)") || strings.Count(out, "acme/lib") != 1 {
+		t.Errorf("the shared repository is repeated:\n%s", out)
+	}
+}
