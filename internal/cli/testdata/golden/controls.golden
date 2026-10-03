@@ -1,5 +1,6 @@
 CONTROLS
 Control     Scanners                                                 Purpose
+cloud       prowler                                                  Check a live cloud account against the provider's CIS Benchmark.
 dast        nuclei                                                   Find problems only visible from outside a running app (dynamic testing).
 headers     draugr-headers                                           Check how a running site answers a browser, the settings that stop a page being abused.
 iac         trivy-config                                             Find settings that leave a door open, in Terraform, Kubernetes and Dockerfiles.
@@ -26,6 +27,7 @@ PUBLISHERS  (who each scanner comes from)
   mend.io              mend-licenses, mend-sca
   notaryproject        notation
   projectdiscovery     nuclei
+  prowler-cloud        prowler
   securego             gosec
   semgrep              semgrep
   sigstore             cosign

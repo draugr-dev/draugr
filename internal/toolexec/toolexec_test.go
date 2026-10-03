@@ -367,6 +367,13 @@ func TestFirstLineKeepsWhatIdentifiesTheFailure(t *testing.T) {
 				`image "ghcr.io/draugr-dev/does-not-exist:9.9.9" in ["docker" "containerd" "podman" "remote"]`,
 			want: "unable to find the specified image",
 		},
+		{
+			// A Python tool that crashed: the frames say where, the last line says what.
+			name: "a Python traceback",
+			raw: "Traceback (most recent call last):\n  File \"/home/prowler/.venv/bin/prowler\", line 8, in <module>\n" +
+				"    sys.exit(prowler())\nPermissionError: [Errno 13] Permission denied: '/tmp/draugr-prowler-1/scan.ocsf.json'\n",
+			want: "PermissionError: [Errno 13] Permission denied: '/tmp/draugr-prowler-1/scan.ocsf.json'",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

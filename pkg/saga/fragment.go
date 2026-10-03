@@ -237,6 +237,7 @@ func stampExclusions(rules []ExcludeRule, source string) {
 // declares rather than answering over it.
 func Merge(model *Model, frag Fragment) {
 	mergeClusters(model, frag)
+	mergeAccounts(model, frag)
 	for _, comp := range frag.Components {
 		model.Components = UpsertComponent(model.Components, comp)
 	}

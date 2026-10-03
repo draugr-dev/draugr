@@ -203,6 +203,12 @@ config:
       #   timeout: 5m                                # how long to wait for the Job
       #   targets: "master,node"
 
+    # cloud:
+    #   enabled: true
+    #   prowler:
+    #     compliance: cis_4.0_gcp                    # a Prowler framework, cis_5.0_gcp by default;
+    #                                                # `prowler gcp --list-compliance` names them
+
     # dast:
     #   enabled: true                                # sends real requests to a live endpoint, so
     #   nuclei:                                      # point it at staging and nothing else

@@ -114,6 +114,7 @@ var optionExceptions = map[string]string{
 	"mend-licenses.settings":       "Mend is a hosted service; the sealed tier has no network",
 	"mend-licenses.warn":           "Mend is a hosted service; the sealed tier has no network",
 	"virustotal.requestsPerMinute": "VirusTotal is a hosted API; the sealed tier has no network",
+	"prowler.compliance":           "Prowler reads a live cloud account; the sealed tier has no network",
 
 	"trivy.dbRepository":    "a database mirror is fetched over the network, and the sealed tier writes the database in place",
 	"trivy-fs.dbRepository": "a database mirror is fetched over the network, and the sealed tier writes the database in place",

@@ -175,6 +175,11 @@ func firstLine(s string) string {
 	if len(lines) == 0 {
 		return ""
 	}
+	// A Python tool that crashed prints its traceback, and the line that says what went wrong is
+	// the last one, after the frames: "Traceback (most recent call last):" says only that it died.
+	if strings.HasPrefix(lines[0], "Traceback (most recent call last)") {
+		return shorten(lines[len(lines)-1])
+	}
 	first, worst := 0, 0
 	for i, line := range lines {
 		if rank := severity(line); rank > worst {

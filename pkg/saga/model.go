@@ -22,7 +22,10 @@ type Model struct {
 	Config  Config  `yaml:"config,omitempty"`
 	// Clusters are the Kubernetes clusters the components run on, each declared once by a name the
 	// components' `kubernetes:` entries refer to.
-	Clusters   map[string]Cluster `yaml:"clusters,omitempty"`
+	Clusters map[string]Cluster `yaml:"clusters,omitempty"`
+	// Accounts are the cloud accounts the components run in, each declared once by a name the
+	// components' `cloud:` entries refer to.
+	Accounts   map[string]Account `yaml:"accounts,omitempty"`
 	Components []Component        `yaml:"components,omitempty"`
 	Fragments  []FragmentRef      `yaml:"fragments,omitempty"`
 	References []Reference        `yaml:"references,omitempty"`
@@ -31,6 +34,8 @@ type Model struct {
 	// fragments merged, for Validate to refuse. Merging keeps the first definition and carries on,
 	// so every conflict is reported at once rather than one per run.
 	clusterConflicts []string
+	// accountConflicts is clusterConflicts for accounts.
+	accountConflicts []string
 }
 
 // Release identifies what is being assessed. Its version, and nothing else: what a release is
@@ -785,6 +790,9 @@ type Component struct {
 	// Kubernetes are the clusters this component runs on, by name from `clusters:`, checked by the
 	// kubernetes control.
 	Kubernetes []ClusterRef `yaml:"kubernetes,omitempty"`
+	// Cloud are the cloud accounts this component runs in, by name from `accounts:`, checked by the
+	// cloud control.
+	Cloud []AccountRef `yaml:"cloud,omitempty"`
 	// Controls overrides the project's per-control configuration for this component.
 	Controls map[string]ControllerSettings `yaml:"controls,omitempty"`
 
@@ -1148,6 +1156,8 @@ type Fragment struct {
 	// Clusters are clusters this fragment's components run on. A name another document also defines
 	// must carry the same facts there, or the descriptor is refused naming both.
 	Clusters map[string]Cluster `yaml:"clusters,omitempty"`
+	// Accounts are cloud accounts this fragment's components run in, held to the same rule.
+	Accounts map[string]Account `yaml:"accounts,omitempty"`
 	// Config is the subset of a Saga's config a fragment may carry.
 	Config FragmentConfig `yaml:"config,omitempty"`
 	// Fragments are further fragments this one pulls in, resolved relative to it.

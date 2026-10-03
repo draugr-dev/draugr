@@ -578,6 +578,10 @@ type Result struct {
 	// files in the tree that none of them read. Reported because a scan that could not read a
 	// manifest finds nothing in it, and that reads as a clean result.
 	Inputs []InputCoverage
+	// UnreadChecks are the checks a scan could not evaluate, by component and service, each with
+	// the reason. Reported because a check whose read was denied can pass, fail or say nothing, and
+	// none of those is a result.
+	UnreadChecks []UnreadChecks
 	// Scanners names every scanner this run used, deduplicated and sorted.
 	//
 	// Recorded because a report has to be able to say which tools produced its findings. The SARIF
@@ -1242,6 +1246,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	}
 	res.Skipped = skipped
 	res.Inputs = inputCoverage(byCtl)
+	res.UnreadChecks = unreadChecks(byCtl)
 	if len(ctlErrs) > 0 {
 		res.ScanErrors = ctlErrs
 	}
@@ -1398,6 +1403,14 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 			inputs[i].Component = pj.Component
 		}
 		report.Inputs = inputs
+	}
+	if len(report.Unchecked) > 0 {
+		unchecked := make([]sarif.Unchecked, len(report.Unchecked))
+		copy(unchecked, report.Unchecked)
+		for i := range unchecked {
+			unchecked[i].Component = pj.Component
+		}
+		report.Unchecked = unchecked
 	}
 	if len(report.Results) == 0 {
 		return report

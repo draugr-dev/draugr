@@ -50,6 +50,18 @@ func runWithoutSemgrepVersionCheck(ctx context.Context, argv []string) ([]byte, 
 	return toolexec.RunWithEnv(ctx, "", argv, []string{"SEMGREP_ENABLE_VERSION_CHECK=0"})
 }
 
+// runWithoutProwlerVersionCheck asks Prowler its version with its update check unable to connect.
+//
+// `prowler --version` asks api.github.com for the newest release, and has no flag to stop it, so the
+// question "which build is this" would reach the network on every scan. Pointed at a proxy that
+// refuses at once, the request fails, Prowler prints its version alone, and nothing leaves the
+// machine.
+func runWithoutProwlerVersionCheck(ctx context.Context, argv []string) ([]byte, error) {
+	return toolexec.RunWithEnv(ctx, "", argv, []string{
+		"HTTPS_PROXY=http://127.0.0.1:1", "https_proxy=http://127.0.0.1:1", "NO_PROXY=", "no_proxy=",
+	})
+}
+
 // firstMatch returns the first capture of re, trimmed, or "".
 func firstMatch(re *regexp.Regexp) func([]byte) string {
 	return func(out []byte) string {
@@ -73,6 +85,7 @@ var (
 	// template set is republished daily, so it is the template version that decides whether a
 	// cached "clean" is still true.
 	nucleiTemplateVersionRE = regexp.MustCompile(`nuclei-templates version:\s*(\S+)\s*\(`)
+	prowlerVersionRE        = regexp.MustCompile(`Prowler\s+([0-9]+\.[0-9]+\.[0-9]+[^\s]*)`)
 	// retire.js prints a bare version: "5.4.3".
 	retireJSVersionRE = regexp.MustCompile(`([0-9]+\.[0-9]+\.[0-9]+[^\s]*)`)
 	// govulncheck prints a block naming itself and the database it read:
@@ -113,6 +126,10 @@ var (
 		argv:    []string{"nuclei", "-templates-version"},
 		extract: firstMatch(nucleiTemplateVersionRE),
 		run:     execArgvCombined,
+	}
+	// Prowler prints "Prowler 5.44.0".
+	sharedProwlerVersion = &toolVersionProbe{
+		argv: []string{"prowler", "--version"}, extract: firstMatch(prowlerVersionRE), run: runWithoutProwlerVersionCheck,
 	}
 	sharedRetireJSVersion = &toolVersionProbe{
 		argv: []string{"retire", "--version"}, extract: firstMatch(retireJSVersionRE), run: execArgv,

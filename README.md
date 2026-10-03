@@ -122,6 +122,7 @@ its own license, and you can swap it.
 | `headers` | how your site answers a browser | native |
 | `tls` | certificates and encryption | native |
 | `kubernetes` | your Kubernetes cluster, against the CIS benchmarks | native, kube-bench opt-in |
+| `cloud` | your cloud account as it is, against the CIS benchmarks | Prowler |
 | `threats` | whether anything you talk to is on a public blocklist | abuse.ch URLhaus |
 | `provenance` | whether an image is signed by the builder you expect | Sigstore cosign |
 

@@ -140,6 +140,7 @@ func TestOutcomeIdentityMatchesDoctor(t *testing.T) {
 		{plugin.HostTarget{URL: "https://user:pw@api.example.com/"}, "host", "https://api.example.com/"},
 		{plugin.KubernetesTarget{Cluster: "prod", Namespaces: []string{"b", "a"}}, "cluster", "kubernetes/prod"},
 		{plugin.KubernetesTarget{}, "cluster", "kubernetes"},
+		{plugin.AccountTarget{Account: "prod", Provider: "gcp", ID: "shop-prod-4821", Regions: []string{"us-central1"}}, "account", "gcp/shop-prod-4821"},
 		{opaqueTarget{}, "sbom", "sbom/app.cdx.json"},
 	} {
 		kind, id := outcomeIdentity(c.target)

@@ -23,6 +23,8 @@ the JSON Schema Draugr publishes. See [write a Saga in your editor](../guides/ed
 project: payments-api         # which project this describes
 release: { ... }              # optional, the version the reports are labeled with
 config: { ... }               # optional, controls, reports, and publishers
+clusters: { ... }             # optional, the Kubernetes clusters the components run on
+accounts: { ... }             # optional, the cloud accounts the components run in
 components: [ ... ]           # the app's parts
 fragments: [ ... ]            # optional, merge other Saga files into this one
 references: [ ... ]           # optional, links to manual/human controls
@@ -113,6 +115,36 @@ one component, and warns about a declared cluster no component uses. A fragment 
 clusters its components run on; a name two documents declare must carry the same facts in both.
 `draugr doctor` resolves each cluster's context and asks its API server for its version.
 
+## `accounts`
+
+Each cloud account the components run in, declared once by a name their `cloud:` entries refer to,
+and checked by the [`cloud`](../../internal/controllers/cloud.md) control. An account is the unit a
+provider bills and grants permissions on: a Google Cloud project.
+
+```yaml
+accounts:
+  shop-prod:                    # the name components use
+    provider: gcp               # required; Google Cloud is the one Draugr checks today
+    project: shop-prod-4821     # required for gcp, the project ID
+components:
+  - name: platform
+    cloud: [{account: shop-prod}]
+  - name: api
+    cloud: [{account: shop-prod, regions: [us-central1]}]
+```
+
+| Field | Description |
+|---|---|
+| `provider` | The cloud the account belongs to: `gcp` |
+| `project` | The Google Cloud project ID, as `gcloud projects list` prints it |
+
+A component's `cloud:` entry names an account with `account:` and may narrow it to the regions its
+resources are in. Findings that belong to no region, such as the project's IAM policy, go to the
+component that declares the whole account. A component runs in one account. `draugr validate`
+refuses a name nothing declares, a provider other than `gcp` and a project with no ID, and warns
+about a declared account no component uses. A fragment may declare accounts on the rule clusters
+follow. `draugr doctor` asks Google whether the credentials in the environment can read each one.
+
 ## `components`
 
 Each component is one logical part of the app. All surface lists are optional; provide
@@ -150,6 +182,9 @@ components:
     kubernetes:
       - cluster: prod-cluster                   # required, a name declared under clusters:
         namespaces: [team-a, team-a-jobs]       # optional, the namespaces this component owns
+    cloud:
+      - account: shop-prod                      # required, a name declared under accounts:
+        regions: [us-central1]                  # optional, the regions this component's resources are in
     controls:              # optional per-component overrides (same shape as config.controls)
       images:
         enabled: true

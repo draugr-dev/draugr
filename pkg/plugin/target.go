@@ -15,6 +15,7 @@ const (
 	TargetImage      TargetKind = "image"
 	TargetHost       TargetKind = "host"
 	TargetKubernetes TargetKind = "kubernetes"
+	TargetAccount    TargetKind = "account"
 )
 
 // Target is something a scanner can act on. Identity returns a stable string that uniquely
@@ -341,6 +342,36 @@ func (t KubernetesTarget) Identity() string {
 // through another context, or against another benchmark, is never answered with an earlier one.
 func (t KubernetesTarget) CacheDetail() string {
 	return "context=" + t.Context + ";benchmark=" + t.Benchmark + ";version=" + t.Version
+}
+
+// AccountTarget is a cloud account, as the descriptor's `accounts:` declares it.
+type AccountTarget struct {
+	// Account is the account's name in the descriptor.
+	Account string
+	// Provider is the cloud, "gcp", and ID the account's identifier there: a project ID on Google
+	// Cloud.
+	Provider, ID string
+	// Regions narrows the findings to resources in these regions. Empty means all of the account.
+	Regions []string
+}
+
+// Kind returns TargetAccount.
+func (AccountTarget) Kind() TargetKind { return TargetAccount }
+
+// Identity returns the provider, the account's ID and the regions, e.g.
+// "gcp/shop-prod-4821[us-central1]".
+//
+// The provider's ID rather than the descriptor's name: the ID is what a scan reads and what a
+// cached result was read from, and two descriptors naming one project differently are one account.
+// The regions belong in it for the reason a cluster's namespaces do.
+func (t AccountTarget) Identity() string {
+	id := t.Provider + "/" + t.ID
+	if len(t.Regions) == 0 {
+		return id
+	}
+	regions := slices.Clone(t.Regions)
+	slices.Sort(regions)
+	return id + "[" + strings.Join(regions, ",") + "]"
 }
 
 // CacheDetailer is an optional interface a Target implements when something other than its
