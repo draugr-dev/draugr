@@ -1,1 +1,0 @@
-- **A target no scanner could read is named once, under Errors**, with the components it leaves unscanned and the scanner's reason in a few words, rather than as the scanner's message under each control that tried. Every such component reads `ERROR`. Under `--allow-scan-errors` the verdict line carries `partial` and the number of targets not reached.

@@ -1,1 +1,0 @@
-- **An upgrade names one version to move to, even where its advisories disagree.** It is the lowest release that clears every finding the upgrade counts, ordered by the package's own ecosystem, such as Debian's revisions or PEP 440, so jquery 1.8.3, whose advisories name nine releases, gets one. JSON output and MCP carry it as `target`.
