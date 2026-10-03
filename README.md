@@ -103,6 +103,8 @@ draugr survey k8s images --namespace prod -o draugr.saga.yaml
 
 Full walkthrough: [quickstart](docs/getting-started/quickstart.md).
 
+**Setting it up on a real repository?** Reply to [the pinned discussion](https://github.com/draugr-dev/draugr/discussions/1370) with what the repository is and which scanners you run, and we'll write the descriptor with you, including the exposure and criticality that take judgment.
+
 ## What it checks
 
 Each control is backed by a tool Draugr executes rather than bundles, so every scanner stays under
