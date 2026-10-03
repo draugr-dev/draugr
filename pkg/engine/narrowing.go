@@ -20,6 +20,9 @@ type SkippedJob struct {
 	Component string
 	// Reason is a sentence a reader can act on, or decide not to.
 	Reason string
+
+	// target is what the job would have read, for the run's account of each target's outcome.
+	target plugin.Target
 }
 
 // dropUnnarrowable removes jobs whose scanner always describes a whole cluster from targets that
@@ -53,6 +56,7 @@ func dropUnnarrowable(reg *Registry, planned []PlannedJob) ([]PlannedJob, []Skip
 			Control:   pj.Control,
 			Scanner:   pj.Job.Scanner,
 			Component: pj.Component,
+			target:    pj.Job.Target,
 			Reason: fmt.Sprintf("audits the whole cluster and cannot be narrowed to %s",
 				namespaceList(infra.Namespaces)),
 		})

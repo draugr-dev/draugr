@@ -1,0 +1,1 @@
+- **What makes a run cover less without failing it is one Caveats block**, shown in every view: a declared surface no enabled control checks, a scanner that cannot honor a component's scope, and a dependency file no scanner read. It replaces the Not checked, Not measured and Unread sections.

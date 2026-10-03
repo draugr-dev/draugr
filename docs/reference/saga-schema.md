@@ -214,12 +214,12 @@ namespaces. `kube-bench` runs checks written as cluster-wide `kubectl` queries a
 reads a node's own filesystem, which has no namespace, so neither can honor a scope and neither is
 run against a component that sets `namespaces`. The alternative would be a report that
 looks scoped and lists somebody else's namespaces against this component, so the scan is not
-planned, and the report says so, under **Not measured**, naming the scanner and the component:
+planned, and the report says so under **Caveats**, naming the scanner and the component:
 
 ```
-NOT MEASURED
-  kubernetes  kube-bench-job on team-a · audits the whole cluster and cannot be narrowed to
-              namespace team-a
+CAVEATS  do not fail the run
+  Component  What            Caveat        Why
+  team-a     kube-bench-job  not measured  audits the whole cluster and cannot be narrowed to namespace team-a
 ```
 
 Nothing has to be turned off by hand. One component claims the cluster whole and gets the
@@ -1308,8 +1308,8 @@ files it builds from:
 paths: [services/web, go.mod, go.sum]
 ```
 
-A workspace member whose lockfile sits at the root and is not named appears under **Unread** with
-`no lockfile`, so a missing entry shows in the report. The scanners' configuration at the root is
+A workspace member whose lockfile sits at the root and is not named appears under **Caveats** as
+`unread` with `no lockfile`, so a missing entry shows in the report. The scanners' configuration at the root is
 kept for every component whatever `paths` says: `.trivyignore`, `.trivyignore.yaml`, `trivy.yaml`,
 `.semgrepignore`, `.gitleaks.toml`, `.gitleaksignore` and `.grype.yaml`.
 

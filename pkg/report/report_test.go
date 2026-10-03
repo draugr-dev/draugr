@@ -1739,7 +1739,7 @@ func TestConsoleNamesAScannerThatCouldNotAnswer(t *testing.T) {
 	out := buf.String()
 	// The scanner, the component it did not answer for, and why, an entry naming only the scanner
 	// leaves a reader unable to tell whether it mattered.
-	for _, want := range []string{"NOT MEASURED", "kube-bench-job", "team-a", "cannot be narrowed"} {
+	for _, want := range []string{"CAVEATS", "team-a     kube-bench-job  not measured  audits the whole cluster and cannot be narrowed"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q:\n%s", want, out)
 		}
@@ -1756,7 +1756,7 @@ func TestConsoleSaysNothingWhenEveryScannerCouldAnswer(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Render: %v", err)
 	}
-	if strings.Contains(buf.String(), "Not measured") {
+	if strings.Contains(buf.String(), "CAVEATS") {
 		t.Errorf("a complete run must not carry an empty caveat:\n%s", buf.String())
 	}
 }

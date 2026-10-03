@@ -2,6 +2,7 @@ package report
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -39,14 +40,18 @@ func renderWith(t *testing.T, r Reporter, d Data) string {
 	return b.String()
 }
 
+// Each unread file is a caveat row under its component, named once however many controls missed
+// it, and prefixed with its repository where the component draws on two.
 func TestConsoleNamesUnreadFilesOncePerComponent(t *testing.T) {
 	for name, d := range map[string]Data{"full": goldenGroupedData(), "compact": goldenCompactData()} {
 		d.Run.Inputs = unreadInputs()
 		out := renderWith(t, consoleReporter{}, d)
 		for _, want := range []string{
-			"UNREAD  " + unreadNote,
-			"internal-tool  acme/admin:package.json no lockfile (sca) · acme/web:package.json no lockfile",
-			"payments       app/pyproject.toml no lockfile (licenses, sca) · app/requirements-dev.txt no",
+			"CAVEATS  do not fail the run",
+			"internal-tool  acme/admin:package.json   unread  no lockfile (sca)",
+			"internal-tool  acme/web:package.json     unread  no lockfile (sca)",
+			"payments       app/pyproject.toml        unread  no lockfile (licenses, sca)",
+			"payments       app/requirements-dev.txt  unread  no packages read (licenses)",
 		} {
 			if !strings.Contains(out, want) {
 				t.Errorf("%s view is missing %q:\n%s", name, want, out)
@@ -61,7 +66,7 @@ func TestConsoleNamesUnreadFilesOncePerComponent(t *testing.T) {
 func TestConsoleSaysNothingWhenEveryFileWasRead(t *testing.T) {
 	d := goldenGroupedData()
 	d.Run.Inputs = []engine.InputCoverage{{Component: "payments", Control: "sca", Scanners: []string{"trivy-fs"}, Read: 3}}
-	if out := renderWith(t, consoleReporter{}, d); strings.Contains(out, "UNREAD") {
+	if out := renderWith(t, consoleReporter{}, d); strings.Contains(out, "CAVEATS") {
 		t.Errorf("a scan that read every file printed the section:\n%s", out)
 	}
 }
@@ -81,16 +86,17 @@ func TestUnreadCountsWhatItDoesNotName(t *testing.T) {
 // --top 0 asks for everything, and a list it leaves capped would be the one place it was ignored.
 func TestConsoleNamesEveryUnreadFileUnderTopZero(t *testing.T) {
 	var unread []engine.UnreadInput
-	for _, p := range []string{"a/go.mod", "b/go.mod", "c/go.mod", "d/go.mod"} {
-		unread = append(unread, engine.UnreadInput{Repository: "r", Path: p, Reason: "no packages read"})
+	for i := range errorRowsShown + 2 {
+		unread = append(unread, engine.UnreadInput{Repository: "r", Path: fmt.Sprintf("m%02d/go.mod", i), Reason: "no packages read"})
 	}
 	d := goldenGroupedData()
 	d.Run.Inputs = []engine.InputCoverage{{Component: "payments", Control: "sca", Unread: unread}}
-	if out := renderWith(t, consoleReporter{}, d); strings.Contains(out, "d/go.mod") || !strings.Contains(out, "+1") {
-		t.Errorf("the default view named the fourth file or left it uncounted:\n%s", out)
+	last := fmt.Sprintf("m%02d/go.mod", errorRowsShown+1)
+	if out := renderWith(t, consoleReporter{}, d); strings.Contains(out, last) || !strings.Contains(out, "… and 2 more · --top 0 lists every one") {
+		t.Errorf("the default view named the last file or left it uncounted:\n%s", out)
 	}
 	d.TopN = -1
-	if out := renderWith(t, consoleReporter{}, d); !strings.Contains(out, "d/go.mod") {
+	if out := renderWith(t, consoleReporter{}, d); !strings.Contains(out, last) || strings.Contains(out, "more · --top 0") {
 		t.Errorf("--top 0 left a file unnamed:\n%s", out)
 	}
 }

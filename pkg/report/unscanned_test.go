@@ -1,7 +1,6 @@
 package report
 
 import (
-	"bytes"
 	"strings"
 	"testing"
 
@@ -10,48 +9,62 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
+// imageTargets is the run's account of three images, every one failed for the same component.
+func imageTargets(component string, refs ...string) []engine.TargetOutcome {
+	out := make([]engine.TargetOutcome, 0, len(refs))
+	for _, r := range refs {
+		out = append(out, engine.TargetOutcome{Kind: "image", Target: r, Status: engine.TargetFailed,
+			Detail:     "trivy image " + r + ": GET https://" + r + ": MANIFEST_UNKNOWN: manifest unknown",
+			Components: []string{component}})
+	}
+	return out
+}
+
 // TestComponentWithNothingScannedDoesNotPass is the false negative this exists to remove.
 //
 // A component whose whole surface is three images, none of which could be pulled, was rendering
 // as `pass  no findings`. Nothing looked at it, so there were no findings to have, and a row
 // saying so beside the word "pass" is the report asserting something no scanner established.
 func TestComponentWithNothingScannedDoesNotPass(t *testing.T) {
+	refs := []string{"registry.example.com/a:1", "registry.example.com/b:1", "registry.example.com/c:1"}
 	d := Data{
 		Release: saga.Release{Version: "1.0"},
+		Run:     engine.Result{Targets: imageTargets("mesh", refs...)},
 		Verdict: norn.Result{Verdict: norn.Fail},
 		Components: []ComponentVerdict{{
 			Name:    "mesh",
 			Verdict: norn.Pass, // the policy saw no findings, because none were possible
 			Unscanned: []engine.Unscanned{
-				{Control: "images", Kind: "image", Target: "registry.example.com/a:1"},
-				{Control: "images", Kind: "image", Target: "registry.example.com/b:1"},
-				{Control: "images", Kind: "image", Target: "registry.example.com/c:1"},
+				{Control: "images", Kind: "image", Target: refs[0]},
+				{Control: "images", Kind: "image", Target: refs[1]},
+				{Control: "images", Kind: "image", Target: refs[2]},
 			},
 		}},
 	}
 
-	var buf bytes.Buffer
-	if err := (consoleReporter{}).Render(&buf, d); err != nil {
-		t.Fatal(err)
-	}
-	out := buf.String()
-
-	if strings.Contains(out, "no findings") {
-		t.Errorf("a component nothing was scanned for claimed no findings:\n%s", out)
-	}
-	if !strings.Contains(out, "3 images not scanned") {
-		t.Errorf("the row should say what went unexamined:\n%s", out)
-	}
-	if !strings.Contains(out, "ERROR") {
+	out := renderWith(t, consoleReporter{}, d)
+	if !strings.Contains(out, "mesh  ERROR") {
 		t.Errorf("a component nothing was scanned for is not a pass:\n%s", out)
+	}
+	// What went unexamined is said once, by target, with the component it leaves unscanned.
+	for _, want := range []string{
+		"ERRORS  3 of 3 targets not reached",
+		"image registry.example.com/a:1  mesh        manifest unknown",
+		"image registry.example.com/c:1  mesh        manifest unknown",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
 	}
 }
 
 // TestComponentWithFindingsAndAGapReportsBoth: a component that was partly scanned has findings
-// worth acting on *and* a gap, and dropping either reading is wrong.
+// worth acting on *and* a gap. The findings are not the whole picture, so the row is an error, and
+// the gap does not mean nothing was found, so the counts stay beside it.
 func TestComponentWithFindingsAndAGapReportsBoth(t *testing.T) {
 	d := Data{
 		Release: saga.Release{Version: "1.0"},
+		Run:     engine.Result{Targets: imageTargets("api", "r/a:1")},
 		Verdict: norn.Result{Verdict: norn.Fail},
 		Components: []ComponentVerdict{{
 			Name: "api", Verdict: norn.Fail, Findings: 4, Priorities: [4]int{2, 2, 0, 0},
@@ -59,16 +72,12 @@ func TestComponentWithFindingsAndAGapReportsBoth(t *testing.T) {
 			Unscanned: []engine.Unscanned{{Control: "images", Kind: "image", Target: "r/a:1"}},
 		}},
 	}
-	var buf bytes.Buffer
-	if err := (consoleReporter{}).Render(&buf, d); err != nil {
-		t.Fatal(err)
+	out := renderWith(t, consoleReporter{}, d)
+	if !strings.Contains(out, "api  ERROR  2 P1 2 P2") {
+		t.Errorf("the row should be an error and keep its findings:\n%s", out)
 	}
-	out := buf.String()
-	if !strings.Contains(out, "1 image not scanned") {
+	if !strings.Contains(out, "image r/a:1  api") {
 		t.Errorf("the gap is missing:\n%s", out)
-	}
-	if !strings.Contains(out, "2 P1") {
-		t.Errorf("the findings are missing:\n%s", out)
 	}
 }
 
@@ -78,6 +87,7 @@ func TestComponentWithFindingsAndAGapReportsBoth(t *testing.T) {
 func TestEveryFormatRefusesToPassAComponentNobodyScanned(t *testing.T) {
 	d := Data{
 		Release: saga.Release{Version: "1.0"},
+		Run:     engine.Result{Targets: imageTargets("mesh", "r/a:1")},
 		Verdict: norn.Result{Verdict: norn.Fail},
 		Components: []ComponentVerdict{{
 			Name: "mesh", Verdict: norn.Pass,
@@ -85,18 +95,18 @@ func TestEveryFormatRefusesToPassAComponentNobodyScanned(t *testing.T) {
 			Declared:  map[string]int{"image": 1},
 		}},
 	}
-	for _, r := range []Reporter{consoleReporter{}, markdownReporter{}, htmlReporter{}} {
+	for r, want := range map[Reporter]string{
+		consoleReporter{}:  "image r/a:1  mesh",
+		markdownReporter{}: "1/1 image not scanned",
+		htmlReporter{}:     "1/1 image not scanned",
+	} {
 		t.Run(r.Format(), func(t *testing.T) {
-			var buf bytes.Buffer
-			if err := r.Render(&buf, d); err != nil {
-				t.Fatal(err)
-			}
-			out := buf.String()
+			out := renderWith(t, r, d)
 			if !strings.Contains(out, "ERROR") {
 				t.Errorf("a component nothing was scanned for is not a pass:\n%s", out)
 			}
-			if !strings.Contains(out, "1/1 image not scanned") {
-				t.Errorf("the row does not say what went unexamined:\n%s", out)
+			if !strings.Contains(out, want) {
+				t.Errorf("the report does not say what went unexamined, want %q:\n%s", want, out)
 			}
 		})
 	}

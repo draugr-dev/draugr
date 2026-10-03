@@ -50,6 +50,10 @@ type jsonReport struct {
 	// incomplete, but a scanner that quietly did not run is indistinguishable, in the rest of this
 	// document, from one that ran and found nothing.
 	NotMeasured []notMeasuredReport `json:"notMeasured,omitempty"`
+	// Targets is what became of each distinct target the run planned, in doctor's identities:
+	// reached, failed or skipped, why, and the components that declared it. What lets a reader say
+	// "two repositories declared, one reached" without parsing a scanner's error.
+	Targets []engine.TargetOutcome `json:"targets,omitempty"`
 	// DependencyFiles is what the dependency scans read, per component and control, and the
 	// dependency files in the tree none of them read, with the reason. A manifest no scanner could
 	// read contributes no findings, which is the same thing a clean one contributes.
@@ -630,6 +634,7 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 			Control: sk.Control, Scanner: sk.Scanner, Component: sk.Component, Reason: sk.Reason,
 		})
 	}
+	doc.Targets = run.Targets
 
 	for _, cov := range run.Inputs {
 		files := dependencyFilesReport{

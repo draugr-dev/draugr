@@ -153,6 +153,9 @@ type Data struct {
 	// control produces. Reported alongside the component breakdown, because a breakdown
 	// that silently omits them makes the parts look like the whole.
 	UnattributedFindings int
+	// AcceptedErrors is a run whose scan errors --allow-scan-errors accepted, which passes covering
+	// less than it was asked to.
+	AcceptedErrors bool
 }
 
 // ToolBuild is the build of one external scanner, as this run found it.
@@ -182,11 +185,15 @@ type Gap struct {
 	Controls []string
 }
 
-// UncoveredColumns are the column names the "Not checked" block is headed with.
+// uncoveredColumns label the two vocabularies doctor's "Not checked" block puts side by side.
 //
-// Exported so `doctor` renders the same block as the scan report rather than a second one. The two
-// answer the same question and diverging would leave a reader comparing them with no way to tell
-// which is stale.
+// A surface is a word the reader wrote in their own descriptor and a control is a word from
+// Draugr's, and for `images`, `hosts` and `repositories` they are spelled the same. Unlabeled and
+// adjacent they read as one word repeated, and `api images … images` says nothing about which is
+// which.
+var uncoveredColumns = []string{"Component", "Surface", "Controls off"}
+
+// UncoveredColumns are the column names doctor's "Not checked" block is headed with.
 func UncoveredColumns() []string { return append([]string{}, uncoveredColumns...) }
 
 // Suggestion is something a reader may try, and the reason it is worth trying.

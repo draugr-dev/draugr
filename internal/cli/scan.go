@@ -452,6 +452,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		Incomplete:           incomplete,
 		Labels:               componentLabels(model),
 		UnattributedFindings: unattributed,
+		AcceptedErrors:       len(waived) > 0 && opts.allowScanErrors,
 		Exploitability:       feedProv,
 		Tools:                builds,
 		Repositories:         report.RepositoriesFrom(run),

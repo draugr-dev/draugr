@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"os/exec"
 	"runtime"
 	"slices"
 	"sort"
@@ -569,6 +570,10 @@ type Result struct {
 	// the question the target asked. Reported because a scanner that quietly does not run is
 	// indistinguishable, in the output, from one that ran and found nothing.
 	Skipped []SkippedJob
+	// Targets is what became of each distinct target the run planned: read, failed or skipped, and
+	// the components that declared it. A count of what was declared beside what was reached is the
+	// one thing a reader of the report cannot otherwise get without parsing scanner text.
+	Targets []TargetOutcome
 	// Inputs is what the dependency scans read, per component and control, with the dependency
 	// files in the tree that none of them read. Reported because a scan that could not read a
 	// manifest finds nothing in it, and that reads as a clean result.
@@ -684,6 +689,11 @@ type Stats struct {
 	// failed and not what went unexamined. A component whose every image failed to pull has had
 	// nothing looked at, and a report that cannot say so has to describe it as passing.
 	Unscanned []Unscanned
+	// Failures are the failed jobs behind each target no scanner reached, every one of them rather
+	// than one per target, leaving out a job whose tool was not installed. Each carries the error its control reports, so a renderer that names the
+	// target once can leave that error out of the control's own; a failure on a target another
+	// scanner read is not here, and stays the control's error alone.
+	Failures []Unscanned
 
 	// ToolWaits is time the run spent queueing for a tool's own cache rather than scanning,
 	// summed per tool. Reported because a run that took three times as long deserves a reason,
@@ -703,6 +713,13 @@ type Unscanned struct {
 	// they are what a reader needs to know what went unexamined.
 	Kind   string
 	Target string
+	// Detail is why the job produced nothing, in the scanner's words.
+	Detail string
+
+	// target is the planned target itself, for the run's account of each target's outcome.
+	target plugin.Target
+	// toolMissing is a job whose tool was not on the machine, so it never tried the target.
+	toolMissing bool
 }
 
 // scanOutcome is the raw result of obtaining a job's report (via cache or a fresh scan),
@@ -869,6 +886,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		// failed on and another read is not unexamined, and reporting it as such would be the
 		// mirror of the bug this exists to fix: a claim about coverage nothing established.
 		examined = map[string]bool{}
+		// reached is examined at the grain a run's account of its targets uses: a repository by its
+		// source and revision whatever paths a job read, a cluster by its name whatever namespaces.
+		reached = map[string]bool{}
 		// steps is per control/scanner state, keyed by name and seeded from the plan so a
 		// display can show work that has not started as well as work that has finished.
 		steps    = planSteps(planned)
@@ -1045,7 +1065,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				errs = append(errs, err)
 				ctlErrs[pj.Control] = append(ctlErrs[pj.Control], err.Error())
 				failed++
-				unscanned = append(unscanned, unscannedFor(pj))
+				unscanned = append(unscanned, unscannedFor(pj, err))
 				steps[stepKey(pj)].Failed++
 				mu.Unlock()
 				return
@@ -1134,7 +1154,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 					// the one line a reader scans to find out what broke.
 					ctlErrs[pj.Control] = append(ctlErrs[pj.Control], scanErr.Error())
 					failed++
-					unscanned = append(unscanned, unscannedFor(pj))
+					unscanned = append(unscanned, unscannedFor(pj, scanErr))
 					steps[stepKey(pj)].Failed++
 					mu.Unlock()
 				}
@@ -1143,6 +1163,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			res := out.(scanOutcome)
 			mu.Lock()
 			examined[targetKey(pj.Job.Target)] = true
+			reached[outcomeKey(pj.Job.Target)] = true
 			mu.Unlock()
 			span.SetAttributes(attribute.Bool("cache.hit", res.cached), attribute.Bool("dedup", shared))
 			jobTook := time.Since(jobStart)
@@ -1204,7 +1225,13 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	stats.Duration = time.Since(runStart)
 	stats.ToolWaits = waits.Totals()
 	stats.Unscanned = trulyUnscanned(unscanned, examined)
+	for _, u := range unscanned {
+		if u.target != nil && !u.toolMissing && !reached[outcomeKey(u.target)] {
+			stats.Failures = append(stats.Failures, u)
+		}
+	}
 	res := Result{
+		Targets:   targetOutcomes(planned, skipped, unscanned, reached),
 		Controls:  make(map[string]plugin.ControlResult),
 		Stats:     stats,
 		Scope:     e.scope,
@@ -1641,10 +1668,14 @@ func distinctScanners(planned []PlannedJob) []string {
 }
 
 // unscannedFor records what a failed job was going to examine.
-func unscannedFor(pj PlannedJob) Unscanned {
-	u := Unscanned{Control: pj.Control, Scanner: pj.Job.Scanner, Component: pj.Component}
+func unscannedFor(pj PlannedJob, err error) Unscanned {
+	u := Unscanned{Control: pj.Control, Scanner: pj.Job.Scanner, Component: pj.Component, target: pj.Job.Target}
 	if t := pj.Job.Target; t != nil {
 		u.Kind, u.Target = string(t.Kind()), t.Identity()
+	}
+	if err != nil {
+		u.Detail = strings.TrimSpace(err.Error())
+		u.toolMissing = errors.Is(err, exec.ErrNotFound)
 	}
 	return u
 }
