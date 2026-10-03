@@ -734,8 +734,7 @@ func TestKubeBenchUsesTheProvisionedConfigDir(t *testing.T) {
 	t.Cleanup(func() { provisionedKubeBenchCfg = orig })
 	provisionedKubeBenchCfg = func() string { return "/somewhere/data/kube-bench" }
 
-	plan, err := kubeBenchArgv(plugin.KubernetesTarget{},
-		plugin.Config{"benchmark": "cis-1.12"})
+	plan, err := kubeBenchArgv(plugin.KubernetesTarget{Benchmark: "cis-1.12"}, nil)
 	if err != nil {
 		t.Fatalf("kubeBenchArgv: %v", err)
 	}
@@ -751,7 +750,7 @@ func TestKubeBenchPrefersAnExplicitConfigDir(t *testing.T) {
 	t.Cleanup(func() { provisionedKubeBenchCfg = orig })
 	provisionedKubeBenchCfg = func() string { return "/provisioned" }
 
-	plan, err := kubeBenchArgv(plugin.KubernetesTarget{}, plugin.Config{"configDir": "/mine", "benchmark": "cis-1.12"})
+	plan, err := kubeBenchArgv(plugin.KubernetesTarget{Benchmark: "cis-1.12"}, plugin.Config{"configDir": "/mine"})
 	if err != nil {
 		t.Fatalf("kubeBenchArgv: %v", err)
 	}
@@ -769,8 +768,7 @@ func TestKubeBenchLeavesTheSearchAloneWhenNothingIsProvisioned(t *testing.T) {
 	t.Cleanup(func() { provisionedKubeBenchCfg = orig })
 	provisionedKubeBenchCfg = func() string { return "" }
 
-	plan, err := kubeBenchArgv(plugin.KubernetesTarget{},
-		plugin.Config{"benchmark": "cis-1.12"})
+	plan, err := kubeBenchArgv(plugin.KubernetesTarget{Benchmark: "cis-1.12"}, nil)
 	if err != nil {
 		t.Fatalf("kubeBenchArgv: %v", err)
 	}
