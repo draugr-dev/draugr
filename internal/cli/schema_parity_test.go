@@ -18,6 +18,7 @@ import (
 var parityExceptions = map[string]string{
 	`^fragments\.\d+\.path$`:                      "a file that has to exist, which a schema cannot know",
 	`^components\.\d+\.kubernetes\.\d+\.cluster$`: "a name the same descriptor declares under clusters:, which a schema cannot cross-reference",
+	`^components\.\d+\.cloud\.\d+\.account$`:      "a name the same descriptor declares under accounts:, which a schema cannot cross-reference",
 }
 
 // TestTheEditorAndDraugrAgreeOnEveryField holds the JSON Schema and `draugr validate` to the same

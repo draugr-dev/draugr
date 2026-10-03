@@ -90,6 +90,8 @@ func schemaCases() []schemaCase {
 		{"hostSpec", HostSpec{}},
 		{"cluster", Cluster{}},
 		{"clusterRef", ClusterRef{}},
+		{"account", Account{}},
+		{"accountRef", AccountRef{}},
 		{"fragmentRef", FragmentRef{}},
 		{"fragmentConfig", FragmentConfig{}},
 		{"reference", Reference{}},

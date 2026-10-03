@@ -38,6 +38,7 @@ executing on your machine, which is a question worth being able to answer withou
 | `headers` | HTTP security headers | component | ✅ | `draugr-headers` (native) | [doc](../../internal/controllers/headers.md) |
 | `dast` | Dynamic Application Security Testing | component | ✅ | `nuclei` | [doc](../../internal/controllers/dast.md) |
 | `kubernetes` | CIS Kubernetes Benchmark / cluster posture | component | ✅ | `draugr-k8s-policies` (default), `kube-bench` and `kube-bench-job` (opt-in) | [doc](../../internal/controllers/kubernetes.md) |
+| `cloud` | CIS cloud foundations benchmarks / cloud posture | component | ✅ | `prowler` | [doc](../../internal/controllers/cloud.md) |
 | `tls` | TLS/certificate assessment | component | ✅ | `draugr-tls` (native) | [doc](../../internal/controllers/tls.md) |
 | `licenses` | Dependency license compliance, in repositories and images | component | ✅ | `trivy-license` (default), `mend-licenses` (opt-in) | [doc](../../internal/controllers/licenses.md) |
 | `threats` | Threat intelligence | component | ✅ | `urlhaus` (default), `virustotal` (opt-in) | [doc](../../internal/controllers/threats.md) |
@@ -79,6 +80,7 @@ reference](saga-schema.md#sbom-generation).
 | `kube-bench` | kubernetes | Aqua kube-bench | Apache-2.0 | ✅ | [doc](../../internal/scanners/kube-bench.md) |
 | `kube-bench-job` | kubernetes | Aqua kube-bench (in-cluster Job) | Apache-2.0 | ✅ | [doc](../../internal/scanners/kube-bench-job.md) |
 | `draugr-k8s-policies` | kubernetes | native (no tool) | Apache-2.0 | ✅ | [doc](../../internal/scanners/draugr-k8s-policies.md) |
+| `prowler` | cloud | Prowler | Apache-2.0 | ✅ | [doc](../../internal/scanners/prowler.md) |
 | `draugr-headers` | headers | native (no tool) | Apache-2.0 | ✅ | [doc](../../internal/scanners/draugr-headers.md) |
 | `nuclei` | dast | ProjectDiscovery Nuclei | MIT | ✅ | [doc](../../internal/scanners/nuclei.md) |
 | `draugr-tls` | tls | native (no tool) | Apache-2.0 | ✅ | [doc](../../internal/scanners/draugr-tls.md) |

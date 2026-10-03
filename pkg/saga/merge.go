@@ -24,6 +24,7 @@ func unionComponent(a, b Component) Component {
 	a.Images = unionImages(a.Images, b.Images)
 	a.Hosts = unionHosts(a.Hosts, b.Hosts)
 	a.Kubernetes = unionClusters(a.Kubernetes, b.Kubernetes)
+	a.Cloud = unionAccounts(a.Cloud, b.Cloud)
 	a.VEX = unionVEX(a.VEX, b.VEX)
 	return a
 }

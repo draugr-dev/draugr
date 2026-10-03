@@ -1177,6 +1177,8 @@ network and credentials:
 | `paths` | reads the tree at that commit | every entry of the component's `paths` is committed there |
 | `image` | the local Docker daemon, then the registry's manifest, with the credential `docker login` stored | either one has the image |
 | `host` | opens a TCP connection, and completes the TLS handshake for `https` | the connection opens |
+| `cluster` | resolves the kubeconfig context the cluster names, or the current one, and asks its API server for its version | the API server answers |
+| `account` | asks Google Cloud whether the Application Default Credentials can read the project | they hold `resourcemanager.projects.get` on it |
 
 A target two components share is checked once. A certificate this machine does not trust still
 passes, with the reason in the row, because the scanners that probe an endpoint do not verify it.

@@ -58,7 +58,11 @@ type jsonReport struct {
 	// dependency files in the tree none of them read, with the reason. A manifest no scanner could
 	// read contributes no findings, which is the same thing a clean one contributes.
 	DependencyFiles []dependencyFilesReport `json:"dependencyFiles,omitempty"`
-	Priorities      *priorityCounts         `json:"priorities,omitempty"`
+	// UnreadChecks are the checks a scan could not evaluate, per component, control and service,
+	// with every check and the reason. A check whose read was denied can pass, fail or say nothing,
+	// so its absence from the findings is not a result.
+	UnreadChecks []unreadChecksReport `json:"unreadChecks,omitempty"`
+	Priorities   *priorityCounts      `json:"priorities,omitempty"`
 	// Suppressed are the findings a config.exclude rule set aside, in the bands they were ranked
 	// into. Counted apart from Priorities rather than folded in: an excused finding is not work,
 	// and a count that mixes them says neither how much there is to do nor how much was signed off.
@@ -431,6 +435,14 @@ type dependencyFilesReport struct {
 	Unread []unreadFileReport `json:"unread,omitempty"`
 }
 
+type unreadChecksReport struct {
+	Component string   `json:"component,omitempty"`
+	Control   string   `json:"control"`
+	Service   string   `json:"service"`
+	Checks    []string `json:"checks"`
+	Reason    string   `json:"reason"`
+}
+
 type unreadFileReport struct {
 	Repository string `json:"repository,omitempty"`
 	Path       string `json:"path"`
@@ -644,6 +656,12 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 			files.Unread = append(files.Unread, unreadFileReport{Repository: u.Repository, Path: u.Path, Reason: u.Reason})
 		}
 		doc.DependencyFiles = append(doc.DependencyFiles, files)
+	}
+
+	for _, g := range run.UnreadChecks {
+		doc.UnreadChecks = append(doc.UnreadChecks, unreadChecksReport{
+			Component: g.Component, Control: g.Control, Service: g.Group, Checks: g.Checks, Reason: g.Reason,
+		})
 	}
 
 	doc.Priorities, doc.Suppressed, doc.Findings = summarizePriorities(run, minPriority)

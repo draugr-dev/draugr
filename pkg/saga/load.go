@@ -139,6 +139,8 @@ var sections = map[string]string{
 	"hostspec":       "components[].hosts[].spec",
 	"clusterref":     "components[].kubernetes",
 	"cluster":        "clusters.<name>",
+	"accountref":     "components[].cloud",
+	"account":        "accounts.<name>",
 	"fragmentref":    "fragments",
 	"reference":      "references",
 	"fragment":       "the top level of a fragment",

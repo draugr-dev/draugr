@@ -141,6 +141,9 @@ func TestCaveatsGatherEveryShortfallThatDoesNotFail(t *testing.T) {
 				Reason: "audits the whole cluster and cannot be narrowed to namespace payments"}},
 			Inputs: []engine.InputCoverage{{Component: "api", Control: "sca", Unread: []engine.UnreadInput{
 				{Repository: "https://github.com/acme/api", Path: "go.mod", Reason: "no packages read"}}}},
+			UnreadChecks: []engine.UnreadChecks{{Component: "platform", Control: "cloud", Group: "compute",
+				Checks: []string{"compute_firewall_ssh_access_from_the_internet_allowed", "compute_instance_public_ip"},
+				Reason: "denied compute.instances.list"}},
 		},
 	}
 	out := renderWith(t, consoleReporter{}, d)
@@ -148,6 +151,7 @@ func TestCaveatsGatherEveryShortfallThatDoesNotFail(t *testing.T) {
 		"CAVEATS  do not fail the run",
 		"api        go.mod          unread        no packages read (sca)",
 		"payments   kube-bench-job  not measured  audits the whole cluster and cannot be narrowed to namespace payments",
+		"platform   compute         unread        2 checks · denied compute.instances.list",
 		"web        hosts           not checked   dast, headers, tls off",
 	} {
 		if !strings.Contains(out, want) {

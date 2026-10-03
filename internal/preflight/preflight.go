@@ -38,7 +38,7 @@ const (
 
 // Check is one target checked, and what came of it.
 type Check struct {
-	// Kind is what was checked: repository, paths, image, host or cluster.
+	// Kind is what was checked: repository, paths, image, host, cluster or account.
 	Kind string `json:"kind"`
 	// Target names it, without credentials.
 	Target string `json:"target"`
@@ -60,6 +60,9 @@ type Probes struct {
 	// Cluster resolves a kubeconfig context, "" for the current one, asks its API server for its
 	// version, and says what answered.
 	Cluster func(ctx context.Context, kubeContext string) (string, error)
+	// Account asks a cloud whether the credentials in the environment can read an account, and
+	// says what answered.
+	Account func(ctx context.Context, provider, id string) (string, error)
 }
 
 // Options shape a run.
@@ -138,6 +141,17 @@ func Run(ctx context.Context, targets []plugin.Target, opts Options) []Check {
 			name, kubeCtx := t.Cluster, t.Context
 			units = append(units, func(ctx context.Context) []Check {
 				return []Check{clusterCheck(ctx, p, name, kubeCtx, opts.Offline)}
+			})
+		case plugin.AccountTarget:
+			// Once per account, however many components name it or which regions they claim.
+			key := "account:" + t.Provider + "/" + t.ID
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			provider, id := t.Provider, t.ID
+			units = append(units, func(ctx context.Context) []Check {
+				return []Check{accountCheck(ctx, p, provider, id, opts.Offline)}
 			})
 		default:
 			id := string(t.Kind()) + ":" + t.Identity()
@@ -306,6 +320,21 @@ func clusterCheck(ctx context.Context, p Probes, name, kubeCtx string, offline b
 	return c
 }
 
+func accountCheck(ctx context.Context, p Probes, provider, id string, offline bool) Check {
+	c := Check{Kind: "account", Target: provider + "/" + id}
+	if offline {
+		c.Status, c.Detail = NotChecked, offlineReason
+		return c
+	}
+	detail, err := p.Account(ctx, provider, id)
+	if err != nil {
+		c.Status, c.Detail = Failed, err.Error()
+		return c
+	}
+	c.Status, c.Detail = Passed, detail
+	return c
+}
+
 // errNotChecked is an image probe declining to go to the network under --offline.
 var errNotChecked = errors.New("not checked")
 
@@ -327,6 +356,9 @@ func (p Probes) withDefaults() Probes {
 	}
 	if p.Cluster == nil {
 		p.Cluster = reachCluster
+	}
+	if p.Account == nil {
+		p.Account = reachAccount
 	}
 	return p
 }

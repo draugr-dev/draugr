@@ -999,3 +999,26 @@ func TestRenderJSONCarriesTargets(t *testing.T) {
 		t.Errorf("a run with no targets printed the key:\n%s", buf.String())
 	}
 }
+
+// A check the scan could not evaluate is named with its service and the reason, so a pipeline can
+// tell an unread check from a clean one.
+func TestRenderJSONCarriesUnreadChecks(t *testing.T) {
+	run := sampleRun()
+	run.UnreadChecks = []engine.UnreadChecks{{Component: "api", Control: "cloud", Group: "compute",
+		Checks: []string{"compute_instance_public_ip"}, Reason: "denied compute.instances.list"}}
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Version: "1"}, run, sampleVerdict(), ""); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		UnreadChecks []map[string]any `json:"unreadChecks"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	want := []map[string]any{{"component": "api", "control": "cloud", "service": "compute",
+		"checks": []any{"compute_instance_public_ip"}, "reason": "denied compute.instances.list"}}
+	if !reflect.DeepEqual(doc.UnreadChecks, want) {
+		t.Errorf("unreadChecks = %v, want %v", doc.UnreadChecks, want)
+	}
+}

@@ -56,6 +56,10 @@ func (m *Model) Validate() error {
 
 	errs = append(errs, validateComponents(m.Components)...)
 	errs = append(errs, validateClusters(m.Clusters, m.Components)...)
+	errs = append(errs, validateAccounts(m.Accounts, m.Components)...)
+	for _, conflict := range m.accountConflicts {
+		errs = append(errs, errors.New(conflict))
+	}
 	for _, conflict := range m.clusterConflicts {
 		errs = append(errs, errors.New(conflict))
 	}

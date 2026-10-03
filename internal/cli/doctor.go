@@ -885,6 +885,9 @@ func externalInstallHint(binary string) string {
 
 // externalTools names where to get a tool Draugr execs but never downloads.
 var externalTools = map[string]string{
+	"prowler": "Apache-2.0; install with `pip install prowler` (Python 3.10 to 3.13) or run the " +
+		"prowlercloud/prowler container image (Draugr does not distribute it). See " +
+		"internal/scanners/prowler.md",
 	"mend": "proprietary; install the Mend CLI from Mend's documentation (Draugr does not " +
 		"distribute it). See internal/scanners/mend-sca.md",
 }
