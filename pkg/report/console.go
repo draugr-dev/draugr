@@ -257,7 +257,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		// the ERROR row exists to prevent.
 		if len(errored) > 0 {
 			_, _ = fmt.Fprintln(w, col.Paint(cDim,
-				"No findings from the controls that ran. See the errors reported above."))
+				"No findings from the controls that ran. A control marked ERROR did not report."))
 		} else {
 			_, _ = fmt.Fprintln(w, col.Paint(cPass, "No findings. ✓"))
 		}

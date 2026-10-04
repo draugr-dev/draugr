@@ -249,3 +249,30 @@ func slicesCompact(in []string) []string {
 	}
 	return out
 }
+
+// pflag reads the first backticked word in a flag's usage as the name of its value, which is how
+// `--labels key=value` gets its placeholder. On a boolean, or around a phrase, it misprints: "where
+// `draugr diff` is the gate" shows as `--no-gate draugr diff` in --help, a switch apparently taking
+// two arguments, with the code span gone from the sentence.
+func TestFlagValueNamesAreValueNames(t *testing.T) {
+	var walk func(*cobra.Command)
+	walk = func(c *cobra.Command) {
+		visit := func(f *pflag.Flag) {
+			name, _ := pflag.UnquoteUsage(f)
+			switch {
+			case f.Value.Type() == "bool" && strings.Contains(f.Usage, "`"):
+				t.Errorf("%s --%s: a boolean with a backtick in its usage, which --help prints as a value: %q",
+					c.CommandPath(), f.Name, f.Usage)
+			case strings.Contains(name, " "):
+				t.Errorf("%s --%s: --help prints %q as the value name, from the first backticked span",
+					c.CommandPath(), f.Name, name)
+			}
+		}
+		c.Flags().VisitAll(visit)
+		c.PersistentFlags().VisitAll(visit)
+		for _, sub := range c.Commands() {
+			walk(sub)
+		}
+	}
+	walk(newRootCommand())
+}
