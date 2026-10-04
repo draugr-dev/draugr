@@ -1,0 +1,1 @@
+- **The `--top 0` hint under a cut list names how many were listed**, `not the first three` after `--top 3`, where it always said ten.

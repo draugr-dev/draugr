@@ -135,3 +135,11 @@ func TestThereIsOneRuleForPlurals(t *testing.T) {
 		}
 	}
 }
+
+func TestWordSpellsOutWhatProseSpellsOut(t *testing.T) {
+	for n, want := range map[int]string{0: "zero", 1: "one", 7: "seven", 12: "twelve", 13: "13", -1: "-1"} {
+		if got := Word(n); got != want {
+			t.Errorf("Word(%d) = %q, want %q", n, got, want)
+		}
+	}
+}
