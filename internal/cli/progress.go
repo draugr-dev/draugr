@@ -38,6 +38,10 @@ type progressLine struct {
 	// wondering whether anything is happening.
 	last  engine.ProgressEvent
 	start time.Time
+	// now is the clock a frame's figures are read against. A field so a test can hold time still,
+	// since a figure computed from the wall clock moves on between the line that sets it up and the
+	// one that checks it, by a whole second on a slow enough machine.
+	now func() time.Time
 	// stop ends the repaint loop. Buffered so done never blocks on a ticker that has already
 	// gone away.
 	stop chan struct{}
@@ -117,7 +121,7 @@ func newProgressLine(w io.Writer, opts scanOptions) *progressLine {
 // terminal. Separated from newProgressLine so a test can exercise the drawing without a terminal.
 func newProgressLineFor(w io.Writer) *progressLine {
 	p := &progressLine{
-		w: w, painter: tui.For(w), start: time.Now(), stop: make(chan struct{}, 1),
+		w: w, painter: tui.For(w), start: time.Now(), now: time.Now, stop: make(chan struct{}, 1),
 	}
 	p.columns = func() int { return tui.Columns(w) }
 	active.Store(p)
@@ -173,7 +177,13 @@ func (p *progressLine) update(ev engine.ProgressEvent) {
 // taking whatever the reader had on it. A line too long to fit is unreadable either way; this one
 // is also destructive, and only on a window narrow enough that whoever wrote it never sees it.
 func (p *progressLine) draw(ev engine.ProgressEvent) {
-	lines := progressFrame(ev, p.painter, time.Since(p.start))
+	// Read once, so the headline and every step describe the same moment. A renderer built without a
+	// clock reads the wall clock.
+	now := time.Now()
+	if p.now != nil {
+		now = p.now()
+	}
+	lines := progressFrame(ev, p.painter, now.Sub(p.start), now)
 	if len(lines) == 0 {
 		return
 	}
@@ -256,13 +266,16 @@ func (p *progressLine) done() {
 // the reader watches work disappear and cannot tell finished from not started.
 //
 // A row that stays, and changes state, answers all three.
-func progressFrame(ev engine.ProgressEvent, col tui.Painter, elapsed time.Duration) []string {
+//
+// elapsed is how long the run has been going, and now is the moment the frame describes, which each
+// step's own clock is read against.
+func progressFrame(ev engine.ProgressEvent, col tui.Painter, elapsed time.Duration, now time.Time) []string {
 	if ev.Total == 0 {
 		return nil
 	}
 	lines := []string{progressHeadline(ev, col, elapsed)}
 	for _, st := range ev.Steps {
-		lines = append(lines, progressStepLine(st, col))
+		lines = append(lines, progressStepLine(st, col, now))
 	}
 	return lines
 }
@@ -284,7 +297,7 @@ func progressHeadline(ev engine.ProgressEvent, col tui.Painter, elapsed time.Dur
 // The mark carries the state and the color reinforces it, rather than the color carrying it alone.
 // The same output goes to terminals with no color, and to people who cannot distinguish the ones
 // it uses.
-func progressStepLine(st engine.ProgressStep, col tui.Painter) string {
+func progressStepLine(st engine.ProgressStep, col tui.Painter, now time.Time) string {
 	mark, style := "·", tui.StyleMuted // planned, not started
 	switch {
 	case st.Failed > 0 && st.Done == st.Total:
@@ -308,7 +321,7 @@ func progressStepLine(st engine.ProgressStep, col tui.Painter) string {
 	// "0s" on its way past, and a figure that appears and disappears draws the eye to the steps
 	// that need it least.
 	if since := st.RunningSince; !since.IsZero() {
-		if elapsed := time.Since(since); elapsed >= slowEnoughToTime {
+		if elapsed := now.Sub(since); elapsed >= slowEnoughToTime {
 			detail += "  " + shortDuration(elapsed)
 		}
 	}

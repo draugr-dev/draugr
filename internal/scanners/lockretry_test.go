@@ -251,34 +251,55 @@ func TestRetryLockedCacheExplainsItselfAtDebug(t *testing.T) {
 
 // Registering the retry is not the same as reaching it. Every Trivy-backed scanner shares the
 // cache, so each one has to be wrapped, and a constructor that forgets is invisible until a
-// contended run in somebody's CI.
+// contended run in somebody's CI. The license scanner is two scanners behind one name, one per
+// target kind, and each is wrapped on its own.
 func TestEveryTrivyScannerRetriesALockedCache(t *testing.T) {
 	fastBackoff(t)
+	image := plugin.ImageTarget{Ref: "registry.example/app:1.0"}
+	inDir := func(t *testing.T, s plugin.Scanner) error {
+		t.Helper()
+		r, ok := s.(repoScanner)
+		if !ok {
+			t.Fatalf("%s is not a repoScanner", s.Info().Name)
+		}
+		_, err := r.run(t.Context(), t.TempDir(), []string{"trivy"})
+		return err
+	}
 	for _, tc := range []struct {
 		name string
-		make func() plugin.Scanner
+		// scan builds the scanner and runs it once. Built inside the subtest rather than in the
+		// table, so the constructor captures the substituted exec and what is exercised is the
+		// run function it actually installed.
+		scan func(t *testing.T) error
 	}{
-		{"trivy-fs", NewTrivyFS},
+		{"trivy-fs", func(t *testing.T) error { return inDir(t, NewTrivyFS()) }},
+		{"trivy-license on a repository", func(t *testing.T) error {
+			return inDir(t, NewTrivyLicense().(licenseScanner).repo)
+		}},
+		{"trivy", func(t *testing.T) error {
+			_, err := NewTrivy().Scan(t.Context(), image, nil)
+			return err
+		}},
+		{"trivy-license on an image", func(t *testing.T) error {
+			_, err := NewTrivyLicense().Scan(t.Context(), image, nil)
+			return err
+		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			// Substituted before the constructor runs, so what is exercised is the run function
-			// the constructor actually installed.
 			calls := 0
-			prior := execArgvInDir
-			t.Cleanup(func() { execArgvInDir = prior })
-			execArgvInDir = func(context.Context, string, []string) ([]byte, error) {
+			contended := func() ([]byte, error) {
 				calls++
 				if calls <= 2 {
 					return nil, errLocked
 				}
-				return nil, nil
+				return []byte(`{}`), nil
 			}
+			priorInDir, prior := execArgvInDir, execArgv
+			t.Cleanup(func() { execArgvInDir, execArgv = priorInDir, prior })
+			execArgvInDir = func(context.Context, string, []string) ([]byte, error) { return contended() }
+			execArgv = func(context.Context, []string) ([]byte, error) { return contended() }
 
-			s, ok := tc.make().(repoScanner)
-			if !ok {
-				t.Fatalf("%s is not a repoScanner", tc.name)
-			}
-			if _, err := s.run(t.Context(), t.TempDir(), []string{"trivy"}); err != nil {
+			if err := tc.scan(t); err != nil {
 				t.Fatal(err)
 			}
 			if calls != 3 {

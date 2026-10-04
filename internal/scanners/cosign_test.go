@@ -3,6 +3,8 @@ package scanners
 import (
 	"context"
 	"errors"
+	"io/fs"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -339,6 +341,32 @@ func TestCosignKeepsOtherExitOneFailuresAnError(t *testing.T) {
 	s, _ := stubCosign(t, said("Error: GET https://ghcr.io/token: DENIED: requested access to the resource is denied"))
 	if _, err := s.Scan(context.Background(), plugin.ImageTarget{Ref: "ghcr.io/acme/p:1.0"}, expecting()); err == nil {
 		t.Error("a registry that refused access was read as a finding")
+	}
+}
+
+// A cosign that could not be started has said nothing about the image. Its code has to be one no
+// outcome claims, or a missing binary reads as a pass or as an unsigned image depending on the
+// number it happened to carry. Driven through the real exec, at a path where nothing exists, on
+// both the verifying path and the observing one.
+func TestCosignThatCouldNotStartIsAnError(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "cosign")
+	_, _, code, err := runCosign(context.Background(), []string{missing, "verify"})
+	if code != -1 || !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("code = %d, err = %v, want -1 and the reason cosign did not start", code, err)
+	}
+
+	s, _ := NewCosign().(*cosignVerifier)
+	s.run = func(ctx context.Context, argv []string) ([]byte, []byte, int, error) {
+		return runCosign(ctx, append([]string{missing}, argv[1:]...))
+	}
+	for name, cfg := range map[string]plugin.Config{
+		"a declared signer":          expecting(),
+		"no signer, unmatched fails": {"unmatched": "fail"},
+	} {
+		rep, err := s.Scan(context.Background(), plugin.ImageTarget{Ref: "ghcr.io/acme/p:1.0"}, cfg)
+		if err == nil {
+			t.Errorf("%s: a cosign that never ran produced a verdict: %v", name, rep.Results)
+		}
 	}
 }
 

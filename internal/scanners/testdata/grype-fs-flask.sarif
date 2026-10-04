@@ -1,0 +1,203 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "grype",
+          "version": "0.118.0",
+          "informationUri": "https://github.com/anchore/grype",
+          "rules": [
+            {
+              "id": "CVE-2018-1000656-flask",
+              "name": "PythonMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "CVE-2018-1000656 high vulnerability for flask package"
+              },
+              "fullDescription": {
+                "text": "Flask is vulnerable to Denial of Service via incorrect encoding of JSON data"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-562c-5r94-xh97",
+              "help": {
+                "text": "Vulnerability CVE-2018-1000656\nSeverity: high\nPackage: flask\nVersion: 0.12.2\nFix Version: 0.12.3\nType: python\nLocation: /app/requirements.txt\nData Namespace: github:language:python\nLink: [CVE-2018-1000656](https://github.com/advisories/GHSA-562c-5r94-xh97)",
+                "markdown": "**Vulnerability CVE-2018-1000656**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | flask  | 0.12.2  | 0.12.3  | python  | /app/requirements.txt  | github:language:python  | [CVE-2018-1000656](https://github.com/advisories/GHSA-562c-5r94-xh97)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:pypi/flask@0.12.2"
+                ],
+                "security-severity": "8.7"
+              }
+            },
+            {
+              "id": "CVE-2019-1010083-flask",
+              "name": "PythonMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "CVE-2019-1010083 high vulnerability for flask package"
+              },
+              "fullDescription": {
+                "text": "Pallets Project Flask is vulnerable to Denial of Service via Unexpected memory usage"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-5wv5-4vpf-pj6m",
+              "help": {
+                "text": "Vulnerability CVE-2019-1010083\nSeverity: high\nPackage: flask\nVersion: 0.12.2\nFix Version: 1.0\nType: python\nLocation: /app/requirements.txt\nData Namespace: github:language:python\nLink: [CVE-2019-1010083](https://github.com/advisories/GHSA-5wv5-4vpf-pj6m)",
+                "markdown": "**Vulnerability CVE-2019-1010083**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | flask  | 0.12.2  | 1.0  | python  | /app/requirements.txt  | github:language:python  | [CVE-2019-1010083](https://github.com/advisories/GHSA-5wv5-4vpf-pj6m)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:pypi/flask@0.12.2"
+                ],
+                "security-severity": "8.7"
+              }
+            },
+            {
+              "id": "CVE-2023-30861-flask",
+              "name": "PythonMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "CVE-2023-30861 high vulnerability for flask package"
+              },
+              "fullDescription": {
+                "text": "Flask vulnerable to possible disclosure of permanent session cookie due to missing Vary: Cookie header"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-m2qf-hxjv-5gpq",
+              "help": {
+                "text": "Vulnerability CVE-2023-30861\nSeverity: high\nPackage: flask\nVersion: 0.12.2\nFix Version: 2.2.5\nType: python\nLocation: /app/requirements.txt\nData Namespace: github:language:python\nLink: [CVE-2023-30861](https://github.com/advisories/GHSA-m2qf-hxjv-5gpq)",
+                "markdown": "**Vulnerability CVE-2023-30861**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | flask  | 0.12.2  | 2.2.5  | python  | /app/requirements.txt  | github:language:python  | [CVE-2023-30861](https://github.com/advisories/GHSA-m2qf-hxjv-5gpq)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:pypi/flask@0.12.2"
+                ],
+                "security-severity": "8.7"
+              }
+            },
+            {
+              "id": "CVE-2026-27205-flask",
+              "name": "PythonMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "CVE-2026-27205 low vulnerability for flask package"
+              },
+              "fullDescription": {
+                "text": "Flask session does not add `Vary: Cookie` header when accessed in some ways"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-68rp-wp8r-4726",
+              "help": {
+                "text": "Vulnerability CVE-2026-27205\nSeverity: low\nPackage: flask\nVersion: 0.12.2\nFix Version: 3.1.3\nType: python\nLocation: /app/requirements.txt\nData Namespace: github:language:python\nLink: [CVE-2026-27205](https://github.com/advisories/GHSA-68rp-wp8r-4726)",
+                "markdown": "**Vulnerability CVE-2026-27205**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| low  | flask  | 0.12.2  | 3.1.3  | python  | /app/requirements.txt  | github:language:python  | [CVE-2026-27205](https://github.com/advisories/GHSA-68rp-wp8r-4726)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:pypi/flask@0.12.2"
+                ],
+                "security-severity": "2.3"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CVE-2018-1000656-flask",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in python package: flask, version 0.12.2 was found at: /app/requirements.txt"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/app/requirements.txt"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "3e9fbbed9e107627869071311903071d386fc576e725fcfc306e74c124caad16:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2019-1010083-flask",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in python package: flask, version 0.12.2 was found at: /app/requirements.txt"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/app/requirements.txt"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "3e9fbbed9e107627869071311903071d386fc576e725fcfc306e74c124caad16:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2023-30861-flask",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in python package: flask, version 0.12.2 was found at: /app/requirements.txt"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/app/requirements.txt"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "3e9fbbed9e107627869071311903071d386fc576e725fcfc306e74c124caad16:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-27205-flask",
+          "level": "note",
+          "message": {
+            "text": "A low vulnerability in python package: flask, version 0.12.2 was found at: /app/requirements.txt"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/app/requirements.txt"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "3e9fbbed9e107627869071311903071d386fc576e725fcfc306e74c124caad16:1"
+          }
+        }
+      ]
+    }
+  ]
+}
