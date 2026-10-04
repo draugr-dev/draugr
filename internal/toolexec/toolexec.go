@@ -141,7 +141,7 @@ func explain(tool string, err error) error {
 	// tool it cannot fetch is worse than saying nothing: the command runs, finds no such tool, and
 	// the reader concludes the fix does not work.
 	if errors.Is(err, exec.ErrNotFound) {
-		if _, ours := tools.Spec(tool); ours {
+		if tools.Provisionable(tool) {
 			return fmt.Errorf("%w. Run `draugr tools install %s`", err, tool)
 		}
 		return fmt.Errorf("%w. `draugr tools install` does not fetch %s; install it and put it on PATH "+
