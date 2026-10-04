@@ -454,14 +454,12 @@ func htmlComponents(d Data, s summary) []htmlComponent {
 		if row.Fail {
 			row.Verdict = "FAIL"
 		}
-		// A component nothing was able to look at has not passed. Its scans failed, so "no
-		// findings" is true only in the sense that none were possible, which is the reading this
-		// row must not invite.
+		// A component with a target no scanner read has not passed, whatever it found in the rest,
+		// which is the console's rule. With nothing found, "no findings" is true only in the sense
+		// that none were possible; with findings, they are not the whole picture.
 		if len(c.Unscanned) > 0 {
 			row.Unscanned = unscannedDetail(c.Unscanned, c.Declared)
-			if c.Findings == 0 {
-				row.Verdict, row.Errored, row.Fail = "ERROR", true, false
-			}
+			row.Verdict, row.Errored, row.Fail = "ERROR", true, false
 		}
 		out = append(out, row)
 	}

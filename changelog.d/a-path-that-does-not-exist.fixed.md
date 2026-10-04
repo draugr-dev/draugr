@@ -1,0 +1,1 @@
+- **`draugr scan` and `draugr classify` given a path that does not exist say so**, instead of suggesting `draugr validate` on the missing file.
