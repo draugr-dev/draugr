@@ -1,0 +1,1 @@
+- **A missing scanner that `draugr tools install` fetches is named with that command**, semgrep, retire and govulncheck included, where the error had said `draugr tools install` does not fetch them.
