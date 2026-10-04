@@ -3,6 +3,7 @@ package tools
 import (
 	"os/exec"
 	"path/filepath"
+	"slices"
 )
 
 // Level is how strongly Draugr can vouch for a binary, strongest first.
@@ -63,16 +64,10 @@ func DescribeFor(l Level, _ string) string {
 	return "not installed by Draugr"
 }
 
-// Provisionable reports whether `draugr tools install` can obtain this tool, by either method.
+// Provisionable reports whether `draugr tools install` can obtain this tool, by any of its methods:
+// a release download, a Python package, a Node package or a Go module.
 func Provisionable(tool string) bool {
-	if _, ok := Spec(tool); ok {
-		return true
-	}
-	if _, ok := PythonTool(tool); ok {
-		return true
-	}
-	_, ok := NodeTool(tool)
-	return ok
+	return slices.Contains(Installable(), tool)
 }
 
 // Vouched reports whether Draugr installed this binary at all, at any level.
