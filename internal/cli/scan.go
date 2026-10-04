@@ -131,7 +131,7 @@ func newScanCommand() *cobra.Command {
 			"fix without committing. The result is not reproducible and the report says so")
 	cmd.Flags().BoolVar(&opts.noGate, "no-gate", false,
 		"report the verdict but exit 0 on a fail, for producing a report to compare later, "+
-			"where `draugr diff` is the gate")
+			"where draugr diff is the gate")
 	cmd.Flags().StringVar(&opts.failOn, "fail-on", "",
 		"what fails the gate: a priority band (P1-P4, the default is P1) or a severity "+
 			"(critical, high, medium, low)")

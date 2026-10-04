@@ -1,0 +1,1 @@
+- **A run with no findings and a failed control names what did not report** by the ERROR mark on the control's row in the console, Markdown and HTML reports, instead of pointing at errors "above".

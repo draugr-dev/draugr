@@ -141,8 +141,8 @@ draugr tools install            # everything Draugr can provision, pinned + veri
 draugr tools list               # what's pinned, which controls it backs, and what's installed
 ```
 
-The narrow one first because it is the one to reach for. A small service needs three of the twelve
-Draugr can fetch, and the other nine are binaries to trust, patch and explain. Take everything when
+The narrow one first because it is the one to reach for. A small service needs a few of the tools
+Draugr can fetch, and every other one is a binary to trust, patch and explain. Take everything when
 you are preparing a machine for several projects rather than scanning one.
 
 Prefer your own install (Homebrew, package manager, an existing copy)? That works too. Then run
