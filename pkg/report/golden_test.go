@@ -599,10 +599,18 @@ func fencedConsole(doc string) bool {
 	return inFence && pastesARun(fence, placeholder)
 }
 
+// printedPlaceholders are angle-bracketed words the renderer itself prints, so a real run carries
+// them and they say nothing about whether a block is a schematic.
+var printedPlaceholders = []string{"draugr explain <rule>"}
+
 func pastesARun(fence []string, placeholder *regexp.Regexp) bool {
 	carries := false
 	for _, line := range fence {
-		if placeholder.MatchString(line) {
+		probe := line
+		for _, printed := range printedPlaceholders {
+			probe = strings.ReplaceAll(probe, printed, "")
+		}
+		if placeholder.MatchString(probe) {
 			return false
 		}
 		for _, shape := range consoleShapes {
