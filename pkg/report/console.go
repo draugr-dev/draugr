@@ -99,7 +99,9 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	}
 	_, _ = fmt.Fprint(w, "\n\n")
 
-	truncated := false
+	// listed is how many rows a list printed when it left the rest out, and zero when it printed
+	// everything.
+	listed := 0
 	if s.prioritized {
 		_, _ = fmt.Fprintln(w, bandChips(col, s))
 		// Beside the counts, because it is a caveat on every one of them and a caveat printed away
@@ -120,7 +122,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	// meeting a verdict for the first time: a list of fixes to apply, before the controls that
 	// produced them, reads as instructions from a tool the reader has not yet decided to trust.
 	if d.View == ViewActions && len(s.findings) > 0 {
-		truncated = writeActions(w, col, s, d, consoleFixFirstLimit(d.TopN))
+		listed = writeActions(w, col, s, d, consoleFixFirstLimit(d.TopN))
 	}
 
 	// Controls that errored are listed alongside the ones that ran. A control that produced no report
@@ -266,7 +268,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		// it is worth saying: an SBOM nobody is told about is one nobody uses, a scan that created
 		// something in a cluster owes a record of it whatever the verdict, and somebody asking what
 		// stands behind a pass is asking what somebody asking about a fail is asking.
-		writeTail(w, col, s, d, false)
+		writeTail(w, col, s, d, 0)
 		return nil
 	}
 
@@ -286,11 +288,11 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		if len(shown) < len(s.findings) {
 			_, _ = fmt.Fprintf(w, "\n… and %s not listed.\n",
 				english.Count(len(s.findings)-len(shown), "finding"))
-			truncated = true
+			listed = len(shown)
 		}
 		_, _ = fmt.Fprint(w, "\n")
 	}
-	writeTail(w, col, s, d, truncated)
+	writeTail(w, col, s, d, listed)
 	return nil
 }
 
@@ -1469,14 +1471,14 @@ func scopeNote(d Data) string {
 // spend an afternoon on is choosing between actions, and a list of findings makes them do the
 // grouping in their head, which for a library carrying a dozen CVEs is a dozen rows describing one
 // upgrade.
-func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) (truncated bool) {
+func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) (listed int) {
 	actions, external := groupActions(s.findings, d.Run.Stats.UnpinnedCacheHits)
 
 	if len(actions) == 0 {
 		// Everything found belongs to somebody else. Saying "no findings" would be false and
 		// saying nothing would be worse, so say exactly that.
 		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(cDim, externalLine(external)))
-		return false
+		return 0
 	}
 
 	shown := actions
@@ -1490,20 +1492,20 @@ func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) (t
 	if len(shown) < len(actions) {
 		_, _ = fmt.Fprintf(w, "\n… and %s not listed.\n",
 			english.Count(len(actions)-len(shown), "action"))
-		truncated = true
+		listed = len(shown)
 	}
 	if len(external) > 0 {
 		_, _ = fmt.Fprintln(w, col.Paint(cDim, externalLine(external)))
 	}
 	_, _ = fmt.Fprintln(w)
-	return truncated
+	return listed
 }
 
 // writeTail ends a report with what the run produced and what else it can be asked.
 //
 // Shared by both listings. A receipt that appears only in the view somebody is not using is one
 // nobody sees, which is what a duplicated tail drifts into.
-func writeTail(w io.Writer, col tui.Painter, s summary, d Data, truncated bool) {
+func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int) {
 	writeEffects(w, col, s, d)
 	// What stands behind the verdict, under the findings rather than over them.
 	//
@@ -1525,10 +1527,11 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, truncated bool) 
 	// have to be read whole to find out neither of them applies.
 	t := tui.NewTable(col).Indent("  ")
 	row := func(what, does string) { t.Row(tui.Styled(cDim, what), tui.Styled(cDim, does)) }
-	if truncated {
+	if listed > 0 {
 		// Only where something was left out. Offering to show everything below a list that is
-		// already everything is advice that reads as the product not knowing what it printed.
-		row("--top 0", "every one of them, not the first ten")
+		// already everything is advice that reads as the product not knowing what it printed. The
+		// number is the one printed, which --top sets.
+		row("--top 0", "every one of them, not the first "+english.Word(listed))
 	}
 	if d.View != ViewCompact {
 		row("--view compact", "one line each, to see how much there is")
