@@ -75,6 +75,59 @@ func TestRepositoryIdentitySeparatesAWorkingTreeFromItsCommit(t *testing.T) {
 	}
 }
 
+// A repository's scope decides what a scanner reads, so every part of it is part of the identity.
+// Two components on one repository that differ only in their paths, or only in what they ignore,
+// are two scans, and a shared identity lets one answer for the other from the cache and dedupes
+// them into a single run whose findings both receive.
+func TestRepositoryIdentityCarriesEachPartOfTheScope(t *testing.T) {
+	base := RepositoryTarget{URL: "https://git/mono", Revision: "v2"}
+	scoped := func(paths, ignore []string) RepositoryTarget {
+		r := base
+		r.Paths, r.Ignore = paths, ignore
+		return r
+	}
+	for name, pair := range map[string][2]RepositoryTarget{
+		"only the paths differ":        {scoped([]string{"services/web"}, nil), scoped([]string{"services/api"}, nil)},
+		"only the ignore lists differ": {scoped(nil, []string{"vendor/"}), scoped(nil, []string{"testdata/"})},
+		"paths against none":           {base, scoped([]string{"services/web"}, nil)},
+		"an ignore list against none":  {base, scoped(nil, []string{"vendor/"})},
+		"one entry, path or ignored":   {scoped([]string{"vendor"}, nil), scoped(nil, []string{"vendor"})},
+		"same paths, another ignore": {
+			scoped([]string{"services"}, []string{"services/web/"}),
+			scoped([]string{"services"}, []string{"services/api/"}),
+		},
+	} {
+		if a, b := pair[0].Identity(), pair[1].Identity(); a == b {
+			t.Errorf("%s: both identify as %q", name, a)
+		}
+	}
+}
+
+// An account's regions narrow what a scan reports, so two components claiming different regions
+// of one account are two scans, and a shared identity would hand one the other's findings. The
+// same regions in another order are the same question, so they share one identity.
+func TestAccountIdentityCarriesTheRegions(t *testing.T) {
+	whole := AccountTarget{Account: "prod", Provider: "gcp", ID: "shop-prod-4821"}
+	us := AccountTarget{Account: "prod", Provider: "gcp", ID: "shop-prod-4821", Regions: []string{"us-east1", "us-central1"}}
+	reordered := AccountTarget{Account: "prod", Provider: "gcp", ID: "shop-prod-4821", Regions: []string{"us-central1", "us-east1"}}
+	eu := AccountTarget{Account: "prod", Provider: "gcp", ID: "shop-prod-4821", Regions: []string{"europe-west1"}}
+
+	if got := us.Identity(); got != "gcp/shop-prod-4821[us-central1,us-east1]" {
+		t.Errorf("identity = %q, want the regions sorted after the ID", got)
+	}
+	if us.Identity() != reordered.Identity() {
+		t.Errorf("the same regions in another order gave another identity: %q, %q", us.Identity(), reordered.Identity())
+	}
+	for _, other := range []AccountTarget{whole, eu} {
+		if us.Identity() == other.Identity() {
+			t.Errorf("%v and %v share an identity", us.Regions, other.Regions)
+		}
+	}
+	if !slices.Equal(us.Regions, []string{"us-east1", "us-central1"}) {
+		t.Error("Identity reordered the target's own regions")
+	}
+}
+
 func TestImageTargetContentAddressed(t *testing.T) {
 	// The cache's correctness rests on this answer, and only a digest can give it. A tag is a
 	// name someone can repoint at different bytes.
