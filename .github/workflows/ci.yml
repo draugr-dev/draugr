@@ -46,14 +46,16 @@ jobs:
             # A push to main, or anything without a PR base: assume code and run everything.
             echo "code=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          # Anything that isn't documentation is treated as code. Erring this way means a new
-          # kind of file gets tested rather than silently skipped.
+          # Anything but the license is treated as code. Markdown counts: the Go tests read the
+          # documentation, the flags it names, the console runs it pastes and the plugin docs,
+          # so a change to a page can fail them. Erring this way means a new kind of file gets
+          # tested rather than silently skipped.
           if git diff --name-only "$base" HEAD \
-             | grep -qvE '^(docs/|LICENSE$|.*\.md$)'; then
+             | grep -qvE '^LICENSE$'; then
             echo "code=true" >> "$GITHUB_OUTPUT"
           else
             echo "code=false" >> "$GITHUB_OUTPUT"
-            echo "Only documentation changed, the Go jobs will report without running."
+            echo "Only the license changed, the Go jobs will report without running."
           fi
 
   build-test:
