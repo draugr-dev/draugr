@@ -137,6 +137,13 @@ func (s prowlerScanner) Scan(ctx context.Context, target plugin.Target, cfg plug
 	if err != nil {
 		return sarif.Report{}, err
 	}
+	// Prowler reports a passed check as a finding too, so a run with none decided nothing: an
+	// account with nothing at all to check still has an IAM policy and audit settings. A changed
+	// output name or a run that stopped early lands here, and must not read as a clean account.
+	if len(findings) == 0 && len(checks) > 0 {
+		return sarif.Report{}, fmt.Errorf("prowler: no result for any of the %d %s checks on project %s",
+			len(checks), compliance, account.ID)
+	}
 	// The log is the backstop: a read the preflight could not foresee, denied mid-scan.
 	logged, above := loggedDenials(filepath.Join(dir, "prowler.log"))
 	for service, reason := range logged {
@@ -227,8 +234,8 @@ type ocsfFinding struct {
 	} `json:"unmapped"`
 }
 
-// readOCSF reads Prowler's findings. No file is a run with nothing to report, which Prowler
-// signals by writing none.
+// readOCSF reads Prowler's findings. No file is no findings, which Scan judges against the checks
+// it asked for.
 func readOCSF(path string) ([]ocsfFinding, error) {
 	data, err := os.ReadFile(path) // #nosec G304 -- a file Prowler wrote into a directory this scan made
 	if errors.Is(err, os.ErrNotExist) {
