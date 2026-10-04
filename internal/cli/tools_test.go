@@ -352,8 +352,8 @@ func TestRunToolsInstallEmptySelectionInstallsNothing(t *testing.T) {
 	}
 }
 
-// --all asks for what no arguments already installs, so the one thing it must not do is change
-// the set. A flag that quietly narrowed or widened it would be worse than not having one.
+// --all asks for the whole catalog, so the one thing it must not do is change the set. A flag that
+// quietly narrowed or widened it would be worse than not having one.
 func TestInstallNamesAllSelectsEverything(t *testing.T) {
 	t.Parallel()
 
@@ -846,7 +846,7 @@ func TestARealDownloadStillAsks(t *testing.T) {
 	}
 }
 
-// `draugr tools install` with no arguments means "everything this host can have". A tool whose
+// `draugr tools install --all` means "everything this host can have". A tool whose
 // runtime is not on the machine is not something the command was asked for and failed to do, and
 // refusing the batch over it fails nine installs to report a tenth, usually a scanner the
 // descriptor never names.

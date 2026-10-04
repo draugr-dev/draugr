@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/draugr-dev/draugr/internal/observability"
+	"github.com/draugr-dev/draugr/internal/tools"
 )
 
 func TestRunReturnsStdout(t *testing.T) {
@@ -312,16 +313,27 @@ func TestExplainNamesTheFixForAMissingTool(t *testing.T) {
 	}
 }
 
-func TestExplainDoesNotOfferToInstallWhatWeDoNotShip(t *testing.T) {
+func TestExplainDoesNotOfferToInstallWhatToolsInstallCannotFetch(t *testing.T) {
 	// Suggesting `tools install` for a tool it cannot fetch is worse than saying nothing: the
 	// command runs, finds no such tool, and the reader concludes the fix is broken.
-	err := explain("semgrep", notFound())
+	err := explain("prowler", notFound())
 	if strings.Contains(err.Error(), "Run `draugr tools install") {
-		t.Errorf("semgrep is not one tools install fetches, so this must not suggest it: %v", err)
+		t.Errorf("prowler is not one tools install fetches, so this must not suggest it: %v", err)
 	}
-	for _, want := range []string{"`draugr tools install` does not fetch semgrep", "draugr doctor"} {
+	for _, want := range []string{"`draugr tools install` does not fetch prowler", "draugr doctor"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("want %q in: %v", want, err)
+		}
+	}
+}
+
+// tools install fetches by four methods, a release download, a Python package, a Node package and
+// a Go module, and the advice has to know all of them: telling somebody it cannot fetch semgrep
+// sends them to install by hand something one command would have provisioned.
+func TestExplainOffersToolsInstallForEveryToolItFetches(t *testing.T) {
+	for _, tool := range tools.Installable() {
+		if err := explain(tool, notFound()); !strings.Contains(err.Error(), "Run `draugr tools install "+tool+"`") {
+			t.Errorf("%s: %v", tool, err)
 		}
 	}
 }

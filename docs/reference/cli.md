@@ -1308,11 +1308,13 @@ from the upstream checksums files), and install them into `~/.draugr/bin`, which
 
 **Name a descriptor and the download is a fraction of the size.** `--saga` installs the tools that
 descriptor's scan will run and nothing else; the whole catalog is several hundred megabytes and
-most projects reach part of it. `--all`, or no arguments, installs everything this host can have.
+most projects reach part of it. With no arguments it installs what the descriptor in the current
+directory runs, and refuses, naming the alternatives, where there is none. `--all` installs
+everything this host can have.
 
-**Three of them are built from source, not downloaded.** `govulncheck` needs a Go toolchain,
-`retire` needs Node, and `semgrep` needs Python, because none publishes a release binary. With no
-arguments, a tool whose runtime is not on this machine is **skipped and named**, with the command
+**Some are built from source, not downloaded.** `govulncheck` needs a Go toolchain, `retire`
+needs Node, and `semgrep` needs Python, because none publishes a release binary. With `--all`, a
+tool whose runtime is not on this machine is **skipped and named**, with the command
 to run once it is there, and the rest install:
 
 ```
@@ -1324,7 +1326,7 @@ to run once it is there, and the rest install:
 
 **Naming a tool is different.** `draugr tools install govulncheck` on a host without Go is a
 failure and exits non-zero: asking for a tool and being told it worked is what a pipeline relies
-on. `draugr tools list` names the runtime each of the three needs.
+on. `draugr tools list` names the runtime each one needs.
 
 | Flag | Default | Description |
 |------|---------|-------------|

@@ -165,9 +165,10 @@ func newToolsInstallCommand() *cobra.Command {
 		Short: "Download pinned, checksum-verified tools into ~/.draugr/bin",
 		Long: "Download pinned scanner/utility binaries, verify each against a SHA-256 recorded in\n" +
 			"Draugr, and install them into ~/.draugr/bin (which Draugr adds to PATH automatically).\n" +
-			"With --saga, installs only the tools that descriptor's scan will run; with --all or no\n" +
-			"arguments, every tool Draugr can provision. Prints the plan first; when run\n" +
-			"interactively it asks for confirmation. Never downloads without being asked.",
+			"With no arguments, installs what the descriptor in this directory runs; with --saga,\n" +
+			"what that descriptor runs; with --all, every tool Draugr can provision. Prints the\n" +
+			"plan first; when run interactively it asks for confirmation. Never downloads without\n" +
+			"being asked.",
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dir, err := tools.BinDir()
@@ -486,7 +487,7 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, all bool, opts t
 	for _, name := range names {
 		res, err := install(name)
 		if err != nil {
-			// With no arguments the request was "everything this host can have", so a tool whose
+			// With --all the request was "everything this host can have", so a tool whose
 			// runtime is not here is not something this command was asked for and failed to do.
 			// Refusing the batch over it fails nine installs to report a tenth, and the tenth is
 			// usually a scanner the descriptor never names.
