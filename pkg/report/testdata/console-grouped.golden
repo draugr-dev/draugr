@@ -42,7 +42,7 @@ UNMATCHED
   VEX             CVE-2023-45803 · pkg:pypi/urllib3
 
 TRY
-  --top 0                every one of them, not the first ten
+  --top 0                every one of them, not the first five
   --view compact         one line each, to see how much there is
   --view findings        the findings themselves, one row each
   draugr explain <rule>  what a rule means and how to fix it

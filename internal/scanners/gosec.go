@@ -109,7 +109,13 @@ func gosecArgs(dir string, cfg plugin.Config) [][]string {
 // No output means no module was found, and the report says so rather than passing: a tree gosec
 // could not analyze must not read like one it analyzed and found clean.
 func parseGosec(out []byte, dir string, cfg plugin.Config) (sarif.Report, error) {
+	modules := goModuleDirs(dir)
 	if len(bytes.TrimSpace(out)) == 0 {
+		// Silence over a tree that holds modules is runs that wrote nothing, not a tree with none,
+		// and saying "no go.mod" there would describe a repository that is not this one.
+		if dir != "" && len(modules) > 0 {
+			return sarif.Report{}, fmt.Errorf("gosec wrote 0 reports for %d modules", len(modules))
+		}
 		return sarif.Report{
 			Tool: "gosec",
 			Provenance: []sarif.Provenance{{
@@ -118,7 +124,6 @@ func parseGosec(out []byte, dir string, cfg plugin.Config) (sarif.Report, error)
 			}},
 		}, nil
 	}
-	modules := goModuleDirs(dir)
 	selected := commaList(cfg, "include") != "" || commaList(cfg, "exclude") != ""
 	dec := json.NewDecoder(bytes.NewReader(out))
 	var reports []sarif.Report

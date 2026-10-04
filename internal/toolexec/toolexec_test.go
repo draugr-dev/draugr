@@ -374,6 +374,22 @@ func TestFirstLineKeepsWhatIdentifiesTheFailure(t *testing.T) {
 				"    sys.exit(prowler())\nPermissionError: [Errno 13] Permission denied: '/tmp/draugr-prowler-1/scan.ocsf.json'\n",
 			want: "PermissionError: [Errno 13] Permission denied: '/tmp/draugr-prowler-1/scan.ocsf.json'",
 		},
+		{
+			// A Go tool that faulted: the first line is an address, and the reason and the signal
+			// follow it, ahead of every goroutine's stack.
+			name: "a Go runtime fault",
+			raw: "unexpected fault address 0x7331bdbb4000\nfatal error: fault\n" +
+				"[signal SIGBUS: bus error code=0x2 addr=0x7331bdbb4000 pc=0x46e2f3]\n\n" +
+				"goroutine 1 gp=0xc000002380 m=0 mp=0x5b2a3e0 [running]:\nruntime.throw({0x3a1c,0x5})\n",
+			want: "crashed: fatal error: fault (SIGBUS: bus error)",
+		},
+		{
+			name: "a Go panic",
+			raw: "panic: runtime error: invalid memory address or nil pointer dereference\n" +
+				"[signal SIGSEGV: segmentation violation code=0x1 addr=0x0 pc=0x1234]\n\n" +
+				"goroutine 7 [running]:\nmain.scan(...)\n",
+			want: "crashed: panic: runtime error: invalid memory address or nil pointer dereference (SIGSEGV: segmentation violation)",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
