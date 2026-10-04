@@ -181,6 +181,9 @@ func firstLine(s string) string {
 	if strings.HasPrefix(lines[0], "Traceback (most recent call last)") {
 		return shorten(lines[len(lines)-1])
 	}
+	if reason, ok := goCrash(lines); ok {
+		return shorten(reason)
+	}
 	first, worst := 0, 0
 	for i, line := range lines {
 		if rank := severity(line); rank > worst {
@@ -188,6 +191,40 @@ func firstLine(s string) string {
 		}
 	}
 	return shorten(withCauses(message(lines[first]), lines[first+1:]))
+}
+
+// goCrash reads the report the Go runtime prints when a program crashes: the reason, the signal
+// where there was one, then every goroutine's stack.
+//
+// The first line names the reason only for a panic. A fault opens with `unexpected fault address
+// 0x7331bdbb4000`, which says nothing a reader can act on; `fatal error: fault` and the signal
+// after it say the tool crashed, which is the fact that decides whether to retry or report it.
+// Only a report with a goroutine stack is read this way, so a tool that merely logs the word
+// "panic" is left to the ordinary rules.
+func goCrash(lines []string) (string, bool) {
+	var reason, signal string
+	stack := false
+	for _, l := range lines {
+		switch {
+		case reason == "" && (strings.HasPrefix(l, "panic: ") || strings.HasPrefix(l, "fatal error: ")):
+			reason = l
+		case signal == "" && strings.HasPrefix(l, "[signal "):
+			signal = strings.TrimPrefix(l, "[signal ")
+			if i := strings.Index(signal, " code="); i > 0 {
+				signal = signal[:i]
+			}
+			signal = strings.TrimSuffix(signal, "]")
+		case strings.HasPrefix(l, "goroutine ") && strings.HasSuffix(l, "]:"):
+			stack = true
+		}
+	}
+	if !stack || reason == "" {
+		return "", false
+	}
+	if signal != "" {
+		return "crashed: " + reason + " (" + signal + ")", true
+	}
+	return "crashed: " + reason, true
 }
 
 // severity ranks a log line by the level in its preamble: 2 for FATAL or PANIC, 1 for ERROR, and 0

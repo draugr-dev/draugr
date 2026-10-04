@@ -276,12 +276,13 @@ func TestProwlerRefusesWhatItCannotCheck(t *testing.T) {
 	}
 }
 
-// A run that found nothing writes no findings file, and that is a clean run, not an error.
-func TestProwlerWithNoFindingsFileIsClean(t *testing.T) {
+// Prowler reports passed checks as findings, so a run with none decided nothing, and a missing or
+// renamed findings file must not read as an account with nothing wrong.
+func TestProwlerWithNoFindingsIsAnError(t *testing.T) {
 	f := &fakeProwler{checks: []string{"compute_instance_public_ip"}}
-	report, err := newTestProwler(f, &grantAll{}).Scan(context.Background(), shopProd, nil)
-	if err != nil || len(report.Results) != 0 {
-		t.Errorf("report = %+v, %v", report, err)
+	_, err := newTestProwler(f, &grantAll{}).Scan(context.Background(), shopProd, nil)
+	if err == nil || !strings.Contains(err.Error(), "no result for any of the 1 cis_5.0_gcp checks") {
+		t.Errorf("err = %v, want the undecided checks named", err)
 	}
 }
 

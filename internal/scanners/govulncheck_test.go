@@ -277,13 +277,17 @@ func TestParseGovulncheckRejectsUnreadableOutput(t *testing.T) {
 	}
 }
 
-func TestParseGovulncheckEmptyOutputIsACleanRun(t *testing.T) {
-	report, err := parseGovulncheck([]byte(""), "", plugin.Config{})
-	if err != nil {
-		t.Fatalf("empty output should not error: %v", err)
+// Silence over a tree that holds modules is runs that printed nothing, so it is refused rather than
+// reported as a tree with no go.mod, and a run missing for one module is refused rather than read
+// as that module being clean.
+func TestGovulncheckSilenceOverModulesIsAnError(t *testing.T) {
+	dir := twoGoModules(t)
+	if _, err := parseGovulncheck(nil, dir, plugin.Config{}); err == nil || !strings.Contains(err.Error(), "0 runs for 2 modules") {
+		t.Errorf("no output: err = %v, want the missing runs named", err)
 	}
-	if len(report.Results) != 0 {
-		t.Errorf("results = %d, want none", len(report.Results))
+	one := []byte(`{"config":{"protocol_version":"v1.0.0","scanner_name":"govulncheck"}}`)
+	if _, err := parseGovulncheck(one, dir, plugin.Config{}); err == nil || !strings.Contains(err.Error(), "1 runs for 2 modules") {
+		t.Errorf("one run: err = %v, want the missing run named", err)
 	}
 }
 

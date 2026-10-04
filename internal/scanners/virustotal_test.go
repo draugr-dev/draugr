@@ -200,6 +200,9 @@ func TestVirusTotalLookupHandlesEachAnswer(t *testing.T) {
 		{name: "rate limited", status: 429, wantErr: "4 requests a minute"},
 		{name: "auth failure", status: 401, body: `{"error":"bad key ` + key + `"}`, wantErr: "401"},
 		{name: "garbage", status: 200, body: `{not json`, wantErr: "decode"},
+		// A body with no engine verdicts is not a report, and read as one it is a known domain that
+		// nothing flagged.
+		{name: "no analysis", status: 200, body: `{}`, wantErr: "no analysis"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
