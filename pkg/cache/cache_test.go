@@ -325,3 +325,47 @@ func TestLocalPutReportsAnUnwritableDirectory(t *testing.T) {
 		t.Error("Put under a path that is a file returned no error")
 	}
 }
+
+// A finding's score survives the disk, so a cached run ranks a critical as critical. A score that
+// was absent stays absent, and one of zero stays a score.
+func TestLocalKeepsWhichResultsCarryAScore(t *testing.T) {
+	c := NewLocal(t.TempDir(), 0)
+	report := sarif.Report{Tool: "prowler", Results: []sarif.Result{
+		{RuleID: "critical", Level: sarif.LevelError, Score: 9.5, HasScore: true},
+		{RuleID: "unscored", Level: sarif.LevelWarning},
+		{RuleID: "zero", Level: sarif.LevelNote, Score: 0, HasScore: true},
+	}}
+	if err := c.Put("k", report); err != nil {
+		t.Fatal(err)
+	}
+	got, ok := c.Get("k")
+	if !ok {
+		t.Fatal("miss")
+	}
+	for i, want := range []bool{true, false, true} {
+		if got.Results[i].HasScore != want {
+			t.Errorf("%s: HasScore = %v, want %v", got.Results[i].RuleID, got.Results[i].HasScore, want)
+		}
+	}
+	if got.Results[0].Severity("") != sarif.SeverityCritical {
+		t.Errorf("a cached 9.5 is %s, want critical", got.Results[0].Severity(""))
+	}
+}
+
+// An entry written before scores were recorded takes a non-zero score as present.
+func TestLocalReadsAnEntryWrittenBeforeScoresWereRecorded(t *testing.T) {
+	e := entry{Report: sarif.Report{Results: []sarif.Result{
+		{RuleID: "scored", Score: 9.5},
+		{RuleID: "unscored"},
+	}}}
+	e.restoreScores()
+	if !e.Report.Results[0].HasScore || e.Report.Results[1].HasScore {
+		t.Errorf("results = %+v", e.Report.Results)
+	}
+	// An index past the results is ignored rather than trusted.
+	bad := entry{Report: sarif.Report{Results: []sarif.Result{{RuleID: "a"}}}, Scored: []int{5}}
+	bad.restoreScores()
+	if bad.Report.Results[0].HasScore {
+		t.Error("an index past the results marked a result")
+	}
+}
