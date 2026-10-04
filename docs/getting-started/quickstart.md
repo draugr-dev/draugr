@@ -21,6 +21,7 @@ the descriptor for you. If you haven't installed Draugr yet, start with
 No descriptor needed. Point Draugr at a repository:
 
 ```bash
+draugr tools install   # fetches the scanners a scan here runs
 draugr scan .          # scans the current repo with sca, secrets, sast, iac
 ```
 

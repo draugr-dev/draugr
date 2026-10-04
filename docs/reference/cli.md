@@ -1308,9 +1308,9 @@ from the upstream checksums files), and install them into `~/.draugr/bin`, which
 
 **Name a descriptor and the download is a fraction of the size.** `--saga` installs the tools that
 descriptor's scan will run and nothing else; the whole catalog is several hundred megabytes and
-most projects reach part of it. With no arguments it installs what the descriptor in the current
-directory runs, and refuses, naming the alternatives, where there is none. `--all` installs
-everything this host can have.
+most projects reach part of it. With no arguments it reads the current directory the way `draugr
+scan` does: it installs what the descriptor there runs, or with no descriptor, what a scan there
+runs without one. `--all` installs everything this host can have.
 
 **Some are built from source, not downloaded.** `govulncheck` needs a Go toolchain, `retire`
 needs Node, and `semgrep` needs Python, because none publishes a release binary. With `--all`, a

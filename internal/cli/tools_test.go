@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/tools"
 )
 
@@ -397,63 +398,63 @@ func TestInstallNamesReportsABadSaga(t *testing.T) {
 	}
 }
 
-// The set taken from a descriptor has to be what --saga would install, or the default promises a
-// coverage it does not deliver.
-func TestTheSetTakenFromADescriptor(t *testing.T) {
+// With no arguments the directory answers, as it does for `draugr scan`. A descriptor here installs
+// exactly what --saga would; a directory with none installs what a scan here synthesizes; two
+// descriptors are refused with both named, since picking one would prepare the machine for a guess.
+func TestInstallNamesReadsTheDirectoryAsScanDoes(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
 
-	if narrowerSetInWorkingDir() != nil {
-		t.Error("no descriptor here, so nothing to read")
+	var out bytes.Buffer
+	names, all, err := installNames(&out, nil, toolsInstallOptions{})
+	if err != nil || all {
+		t.Fatalf("no descriptor: names=%v all=%v err=%v", names, all, err)
+	}
+	want := provisionable(requiredTools(builtins.Registry(), syntheticSaga(".")))
+	if len(want) == 0 || !slices.Equal(names, want) {
+		t.Errorf("no descriptor: names = %v, want what a zero-config scan runs, %v", names, want)
+	}
+	if !strings.Contains(out.String(), "without one ("+ZeroConfigControls("")+")") {
+		t.Errorf("the zero-config install does not say which controls it is for:\n%s", out.String())
 	}
 
-	if err := os.WriteFile(filepath.Join(dir, "draugr.saga.yaml"), []byte(toolsSagaTwoControls), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	n := narrowerSetInWorkingDir()
-	if n == nil {
-		t.Fatal("a descriptor is right there and it read nothing")
-	}
-	// Two of the catalog, not three: git is needed but cannot be provisioned, and counting it
-	// would advertise a saving the install does not make.
-	if len(n.tools) != 2 {
-		t.Errorf("tools = %v, want the two that can actually be provisioned", n.tools)
-	}
-	if n.catalog != len(tools.Installable()) {
-		t.Errorf("catalog = %d, want %d", n.catalog, len(tools.Installable()))
-	}
-
-	// An unreadable descriptor is scan's problem to report. Here it means the directory says
-	// nothing, and the caller turns that into a message naming the ways forward.
-	if err := os.WriteFile(filepath.Join(dir, "draugr.saga.yaml"), []byte("{{not yaml"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if narrowerSetInWorkingDir() != nil {
-		t.Error("a broken descriptor should be left to scan and doctor")
-	}
-}
-
-// A scan finds any `*.saga.yaml`, so this has to as well. A project whose descriptor carries the
-// product's name rather than Draugr's is the one least likely to pass --saga by hand.
-func TestTheDescriptorCanBeCalledAnything(t *testing.T) {
-	dir := t.TempDir()
-	t.Chdir(dir)
+	// A descriptor called anything a scan would find, not only the name init writes.
 	if err := os.WriteFile(filepath.Join(dir, "acme.saga.yaml"), []byte(toolsSagaTwoControls), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	n := narrowerSetInWorkingDir()
-	if n == nil || n.descriptor != "acme.saga.yaml" {
-		t.Errorf("read %+v, want acme.saga.yaml", n)
+	out.Reset()
+	names, _, err = installNames(&out, nil, toolsInstallOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	viaSaga, _, err := installNames(&bytes.Buffer{}, nil, toolsInstallOptions{saga: "acme.saga.yaml"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(names, viaSaga) || !strings.Contains(out.String(), "Installing what acme.saga.yaml runs") {
+		t.Errorf("one descriptor: names = %v (%q), want --saga's %v, named", names, out.String(), viaSaga)
 	}
 
-	// With two beside each other there is no way to tell which one this host is being prepared
-	// for, and picking one would install against a guess. The caller says so and names the ways
-	// forward rather than choosing.
 	if err := os.WriteFile(filepath.Join(dir, "other.saga.yaml"), []byte(toolsSagaTwoControls), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if narrowerSetInWorkingDir() != nil {
-		t.Error("two descriptors leave nothing to choose between")
+	if _, _, err := installNames(&bytes.Buffer{}, nil, toolsInstallOptions{}); err == nil ||
+		!strings.Contains(err.Error(), "acme.saga.yaml, other.saga.yaml") {
+		t.Errorf("two descriptors: err = %v, want both named", err)
+	}
+}
+
+// A descriptor that does not load is reported as such, with the command that says why, rather than
+// read as a directory that says nothing.
+func TestInstallNamesReportsABrokenDescriptor(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	if err := os.WriteFile(filepath.Join(dir, "draugr.saga.yaml"), []byte("{{not yaml"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := installNames(&bytes.Buffer{}, nil, toolsInstallOptions{}); err == nil ||
+		!strings.Contains(err.Error(), "draugr validate") {
+		t.Errorf("err = %v, want the descriptor's own error", err)
 	}
 }
 
@@ -1029,30 +1030,6 @@ func TestTheWholeCatalogIsAskedFor(t *testing.T) {
 	}
 	if !all {
 		t.Error("--all did not ask for the whole catalog")
-	}
-}
-
-// TestNoDescriptorSaysWhatToDoRatherThanGuessing. The two wrong answers are a dozen silent
-// downloads and an empty success, and both look like the command worked.
-func TestNoDescriptorSaysWhatToDoRatherThanGuessing(t *testing.T) {
-	prior, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(t.TempDir()); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(prior) })
-
-	var out bytes.Buffer
-	_, _, err = installNames(&out, nil, toolsInstallOptions{})
-	if err == nil {
-		t.Fatal("a directory saying nothing about scanners was answered with a guess")
-	}
-	for _, want := range []string{"draugr init", "--all", "draugr tools install trivy"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("the error does not offer %q:\n%v", want, err)
-		}
 	}
 }
 
