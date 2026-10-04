@@ -3,6 +3,7 @@ package git
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -38,6 +39,9 @@ type Tree struct {
 // checks out revision. The returned cleanup removes the directory (call it even on error paths
 // that returned a dir).
 func Checkout(ctx context.Context, url, revision string, scope Scope) (tree Tree, cleanup func(), err error) {
+	if notRepository(ctx, url) {
+		return Tree{}, nil, errNotRepository
+	}
 	dir, err := os.MkdirTemp("", "draugr-repo-")
 	if err != nil {
 		return Tree{}, nil, err
@@ -233,6 +237,45 @@ func IsLocalPath(url string) bool {
 	return err == nil && info.IsDir()
 }
 
+// errNotRepository is the error for a local directory that no git repository holds.
+//
+// git's own words for it are `repository '<path>' does not exist`, about a directory that does,
+// which sends a reader to check the path rather than to create the repository.
+var errNotRepository = errors.New("not a git repository; `git init` and a commit make it one")
+
+// notRepository reports whether path is a local directory git says is in no repository.
+//
+// Only on git saying exactly that. A repository git refuses for another reason, such as one owned
+// by a different user, is still a repository, and the clone's own error says what is wrong with it.
+func notRepository(ctx context.Context, path string) bool {
+	if !IsLocalPath(path) {
+		return false
+	}
+	out, err := exec.CommandContext(ctx, "git", "-C", path, "rev-parse", "--git-dir").CombinedOutput() // #nosec G204 -- the descriptor's own repository path
+	return err != nil && strings.Contains(string(out), "not a git repository")
+}
+
+// Subdirectory returns the root of the work tree holding path, and where path sits in it as a
+// slash-separated path with no trailing slash. rel is empty when path is the root, and ok is false
+// when path is not a local directory in a work tree, which includes a bare repository.
+func Subdirectory(ctx context.Context, path string) (root, rel string, ok bool) {
+	if !IsLocalPath(path) {
+		return "", "", false
+	}
+	out, err := exec.CommandContext(ctx, "git", "-C", path, "rev-parse", "--show-toplevel", "--show-prefix").Output() // #nosec G204 -- the descriptor's own repository path
+	if err != nil {
+		return "", "", false
+	}
+	lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
+	if len(lines) == 0 || lines[0] == "" {
+		return "", "", false
+	}
+	if len(lines) > 1 {
+		rel = strings.TrimSuffix(lines[1], "/")
+	}
+	return lines[0], rel, true
+}
+
 // CheckoutWorkingTree copies a local checkout. Including uncommitted work, into a temporary
 // directory and scopes it exactly as Checkout does.
 //
@@ -247,6 +290,9 @@ func IsLocalPath(url string) bool {
 func CheckoutWorkingTree(ctx context.Context, path string, scope Scope) (Tree, func(), error) {
 	if !IsLocalPath(path) {
 		return Tree{}, nil, fmt.Errorf("%s is not a local path, so it has no working tree", path)
+	}
+	if notRepository(ctx, path) {
+		return Tree{}, nil, errNotRepository
 	}
 	dir, err := os.MkdirTemp("", "draugr-worktree-")
 	if err != nil {

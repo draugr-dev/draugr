@@ -329,6 +329,7 @@ func checkTargets(ctx context.Context, reg *engine.Registry, model *saga.Model, 
 	if err := run.scope.Validate(*model, controlNames(reg)); err != nil {
 		return nil, err
 	}
+	rootLocalRepositories(ctx, model)
 	eng := engine.New(reg,
 		engine.WithScope(run.scope.Resolve(*model)),
 		engine.WithAllowedEffects([]string{

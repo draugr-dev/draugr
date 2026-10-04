@@ -219,6 +219,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		_, _ = fmt.Fprintf(os.Stderr, "No *.saga.yaml here, scanning %s with controls: "+ZeroConfigControls("")+".\n"+
 			"(run `draugr init` to scaffold one you can customize)\n\n", model.Components[0].Repositories[0].URL)
 	}
+	rootLocalRepositories(ctx, model)
 	// Organization defaults are merged *underneath* the descriptor, so the engine sees one
 	// effective Saga and nothing downstream has to know there were two files. Merged after the
 	// descriptor has been validated on its own, so an error still names what the author wrote.

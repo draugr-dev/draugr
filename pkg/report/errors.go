@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"io"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -60,6 +61,12 @@ func notReached(d Data) []engine.TargetOutcome {
 // kindOrder is the order a component declares its targets in.
 var kindOrder = []string{"repository", "image", "host", "cluster", "account"}
 
+// bareFailure matches a clause that says something failed and not what.
+var bareFailure = regexp.MustCompile(`^(?i:fatal|error|exit status \d+)$`)
+
+// quotedSpan matches a single-quoted address or path inside a clause.
+var quotedSpan = regexp.MustCompile(`'[^']*'`)
+
 // shortReason is the part of a failure that says what went wrong, in the scanner's words: its last
 // clause, or the one before when the last only repeats the address. "git clone: exit status 128:
 // remote: Repository not found. fatal: repository 'https://…' not found" says "Repository not
@@ -69,9 +76,16 @@ func shortReason(detail string, width int) string {
 	parts := strings.Split(line, ": ")
 	reason := strings.TrimSpace(parts[len(parts)-1])
 	if (strings.Contains(reason, "://") || strings.Contains(reason, "'")) && len(parts) > 1 {
-		reason = strings.TrimSpace(parts[len(parts)-2])
-		if k := strings.Index(reason, ". "); k > 0 {
-			reason = reason[:k]
+		prev := strings.TrimSpace(parts[len(parts)-2])
+		if k := strings.Index(prev, ". "); k > 0 {
+			prev = prev[:k]
+		}
+		// The clause before can be git's `fatal` or an exit status, which say only that it failed.
+		// The last clause then carries the meaning, with the address taken out.
+		if bareFailure.MatchString(prev) {
+			reason = strings.Join(strings.Fields(quotedSpan.ReplaceAllString(reason, "")), " ")
+		} else {
+			reason = prev
 		}
 	}
 	return truncate(strings.TrimSuffix(reason, "."), width)
