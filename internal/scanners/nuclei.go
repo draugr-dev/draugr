@@ -244,7 +244,11 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, _ plugin.
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("run nuclei: %w", err)
 	}
-	report := sarif.Report{Tool: s.info.Name, Results: nucleiToResults(out)}
+	results, err := nucleiToResults(out)
+	if err != nil {
+		return sarif.Report{}, err
+	}
+	report := sarif.Report{Tool: s.info.Name, Results: results}
 	// Recorded so a reader can tell which of two very different scans produced this. An
 	// authenticated run reaches the application; an anonymous one reaches the login page, and
 	// their findings are not comparable.
@@ -297,17 +301,21 @@ type nucleiFinding struct {
 }
 
 // nucleiToResults converts Nuclei's JSONL output (one finding per line) into SARIF results.
-// Blank and unparseable lines are skipped (best-effort: a corrupt line shouldn't drop the run).
-func nucleiToResults(out []byte) []sarif.Result {
+//
+// A line that does not parse is an error, not a line to skip. With `-jsonl -silent` every line on
+// stdout is a finding, so one that cannot be read is a finding that would be dropped, and output
+// none of whose lines parse, from a changed flag or format, would otherwise read as an application
+// with nothing wrong.
+func nucleiToResults(out []byte) ([]sarif.Result, error) {
 	var results []sarif.Result
-	for _, line := range strings.Split(string(out), "\n") {
+	for n, line := range strings.Split(string(out), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
 		var f nucleiFinding
 		if err := json.Unmarshal([]byte(line), &f); err != nil {
-			continue
+			return nil, fmt.Errorf("nuclei: line %d of its output is not a finding: %s", n+1, truncateLine(line, 120))
 		}
 		level, score, hasScore := nucleiSeverity(f.Info.Severity)
 		uri := f.MatchedAt
@@ -324,7 +332,7 @@ func nucleiToResults(out []byte) []sarif.Result {
 			HasScore: hasScore,
 		})
 	}
-	return results
+	return results, nil
 }
 
 // nucleiMessage builds a finding message from the template name and description, appending any
@@ -462,3 +470,11 @@ func (w *nucleiTemplateWarmer) templatesErr() error { return w.err }
 // Combined output, not stdout: `nuclei -templates-version` prints its answer entirely to
 // stderr, so reading stdout alone reports no templates however many are installed.
 var sharedNucleiTemplates = &nucleiTemplateWarmer{run: execArgvCombined}
+
+// truncateLine keeps the first n runes of line, which is enough to recognize what printed it.
+func truncateLine(line string, n int) string {
+	if r := []rune(line); len(r) > n {
+		return string(r[:n]) + "…"
+	}
+	return line
+}

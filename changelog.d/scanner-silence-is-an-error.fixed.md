@@ -1,0 +1,1 @@
+- **A scanner answer with nothing readable in it is an error instead of a clean result**, whether a Nuclei output line that is not a finding, gosec or govulncheck printing nothing over a tree that holds Go modules, a Prowler run with no result for any check, or a VirusTotal response with no analysis.

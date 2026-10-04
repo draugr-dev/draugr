@@ -230,7 +230,15 @@ type govulncheckFrame struct {
 // already speaks: an advisory with three CVEs is three findings to every other scanner, and
 // emitting one would leave two of them with no reachability while looking like a complete answer.
 func parseGovulncheck(out []byte, dir string, _ plugin.Config) (sarif.Report, error) {
+	var modules []string
+	if dir != "" {
+		modules = goModuleDirs(dir)
+	}
 	if len(out) == 0 {
+		// Silence over a tree that holds modules is runs that wrote nothing, not a tree with none.
+		if len(modules) > 0 {
+			return sarif.Report{}, fmt.Errorf("govulncheck wrote 0 runs for %d modules", len(modules))
+		}
 		// No module was found, so nothing ran. Reported rather than returned as a clean result:
 		// a tree this analyzer could not answer for must not be indistinguishable from one where
 		// it looked and found everything unreachable. The findings keep no verdict, which is the
@@ -263,7 +271,13 @@ func parseGovulncheck(out []byte, dir string, _ plugin.Config) (sarif.Report, er
 	manifests := goModuleManifests(dir)
 	asOf := time.Now().UTC().Format("2006-01-02")
 	var results []sarif.Result
-	for _, run := range splitGovulncheckRuns(msgs) {
+	runs := splitGovulncheckRuns(msgs)
+	// One run per module, as govulncheckArgs ran them. Fewer means a module whose run printed
+	// nothing, and its findings would be absent from a report that looks complete.
+	if len(modules) > 0 && len(runs) != len(modules) {
+		return sarif.Report{}, fmt.Errorf("govulncheck wrote %d runs for %d modules", len(runs), len(modules))
+	}
+	for _, run := range runs {
 		results = append(results, govulncheckRunResults(run, manifests, asOf)...)
 	}
 	return sarif.Report{Tool: govulncheckScanner, Results: results, Provenance: []sarif.Provenance{{
