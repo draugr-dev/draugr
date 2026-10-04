@@ -67,7 +67,7 @@ A small Python service, with the descriptor `draugr init` wrote for it:
 
 ```console
 $ draugr scan --top 3
-DRAUGR  FAIL  shop  3.983s
+DRAUGR  FAIL  shop  3.959s
 
  6 P1 7 P2 0 P3 0 P4
  No component declares exposure or criticality, so every one is read as public and critical.
@@ -84,11 +84,11 @@ FIX FIRST  top 3 of 13, by priority
       scanner trivy · fix upgrade to 2.10.1
       requirements.txt:3
 
-  P1  high      CVE-2025-27516 · Jinja sandbox breakout through attr filter selecting format method
+  P1  high      CVE-2025-27516 · Jinja sandbox breakout through attr filter selecting format…
       scanner trivy · fix upgrade to 3.1.6
       requirements.txt:3
 
-  P1  high      CVE-2023-30861 · Possible disclosure of permanent session cookie due to missing…
+  P1  high      CVE-2023-30861 · Possible disclosure of permanent session cookie due to…
       scanner trivy · fix upgrade to 2.3.2 +1
       requirements.txt:1
 
