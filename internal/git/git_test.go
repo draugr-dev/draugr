@@ -2,6 +2,7 @@ package git
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -289,13 +290,11 @@ func TestCheckoutWorkingTreeSkipsWhatItCannotCopy(t *testing.T) {
 }
 
 func TestCheckoutWorkingTreeOnSomethingThatIsNotARepository(t *testing.T) {
-	// A path that exists but has no git in it. The error names the listing rather than leaving a
-	// bare exit status.
+	// A path that exists but has no git in it. The error says so rather than leaving a bare exit
+	// status.
 	dir := t.TempDir()
-	if _, _, err := CheckoutWorkingTree(context.Background(), dir, Scope{}); err == nil {
-		t.Fatal("expected an error for a directory that is not a repository")
-	} else if !strings.Contains(err.Error(), "working tree") {
-		t.Errorf("error should say what it was doing: %v", err)
+	if _, _, err := CheckoutWorkingTree(context.Background(), dir, Scope{}); !errors.Is(err, errNotRepository) {
+		t.Errorf("err = %v, want %v", err, errNotRepository)
 	}
 }
 
