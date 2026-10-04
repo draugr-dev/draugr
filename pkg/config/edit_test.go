@@ -3,6 +3,8 @@ package config
 import (
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestSetPreservesComments(t *testing.T) {
@@ -41,26 +43,29 @@ func TestSetCreatesNestedPaths(t *testing.T) {
 }
 
 func TestSetKeepsVersionsAsStrings(t *testing.T) {
-	// "0.69.3" is not a number, and a config that quietly turned `enabled: true` into the string
-	// "true" would be a different setting wearing the same name.
-	out, _ := Set(nil, "tools.trivy.version", "0.69.3")
-	if !strings.Contains(string(out), `"0.69.3"`) && !strings.Contains(string(out), "0.69.3") {
-		t.Errorf("version mangled:\n%s", out)
-	}
-	out, _ = Set(nil, "controllers.sast.gosec.enabled", "true")
-	if !strings.Contains(string(out), "enabled: true") {
-		t.Errorf("boolean written as a string:\n%s", out)
-	}
-	out, _ = Set(nil, "controllers.sca.trivyFs.timeout", "30")
-	if !strings.Contains(string(out), "timeout: 30") {
-		t.Errorf("integer written as a string:\n%s", out)
+	// A version stays a string where it reads as a number, because "1.10" written bare loads back as
+	// the float 1.1. A config that quietly turned `enabled: true` into the string "true" would be a
+	// different setting wearing the same name.
+	for _, tc := range []struct {
+		key, value string
+		want       any
+	}{
+		{"tools.trivy.version", "0.69.3", "0.69.3"},
+		{"tools.trivy.version", "1.10", "1.10"},
+		{"controllers.sast.gosec.enabled", "true", true},
+		{"controllers.sca.trivyFs.timeout", "30", 30},
+	} {
+		out := mustSet(t, nil, tc.key, tc.value)
+		if got := loaded(t, out, tc.key); got != tc.want {
+			t.Errorf("%s=%s loads back as %#v, want %#v:\n%s", tc.key, tc.value, got, tc.want, out)
+		}
 	}
 }
 
 func TestUnsetPrunesEmptyMappings(t *testing.T) {
 	// A `mend` block left behind with nothing in it is not the same file as one that never
 	// mentioned mend, and the difference surfaces later as a scanner configured with nothing.
-	doc, _ := Set(nil, "controllers.sca.mend.policy", "strict")
+	doc := mustSet(t, nil, "controllers.sca.mend.policy", "strict")
 	out, err := Unset(doc, "controllers.sca.mend.policy")
 	if err != nil {
 		t.Fatal(err)
@@ -74,9 +79,12 @@ func TestUnsetPrunesEmptyMappings(t *testing.T) {
 }
 
 func TestUnsetLeavesSiblings(t *testing.T) {
-	doc, _ := Set(nil, "tools.trivy.version", "1")
-	doc, _ = Set(doc, "tools.gitleaks.version", "2")
-	out, _ := Unset(doc, "tools.trivy.version")
+	doc := mustSet(t, nil, "tools.trivy.version", "1")
+	doc = mustSet(t, doc, "tools.gitleaks.version", "2")
+	out, err := Unset(doc, "tools.trivy.version")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if strings.Contains(string(out), "trivy") {
 		t.Errorf("trivy survived:\n%s", out)
 	}
@@ -103,8 +111,8 @@ func TestSetRefusesBrokenYAML(t *testing.T) {
 
 func TestSetProducesAParseableConfig(t *testing.T) {
 	// The guarantee that makes `set` a recovery tool: what it writes always loads.
-	doc, _ := Set(nil, "tools.trivy.version", "0.69.3")
-	doc, _ = Set(doc, "controllers.sca.mend.apiUrl", "https://mend.corp")
+	doc := mustSet(t, nil, "tools.trivy.version", "0.69.3")
+	doc = mustSet(t, doc, "controllers.sca.mend.apiUrl", "https://mend.corp")
 	f, err := Parse(doc, "generated")
 	if err != nil {
 		t.Fatalf("what Set wrote does not load: %v\n%s", err, doc)
@@ -112,4 +120,33 @@ func TestSetProducesAParseableConfig(t *testing.T) {
 	if f.Tools["trivy"].Version != "0.69.3" {
 		t.Errorf("parsed back wrong: %+v", f)
 	}
+}
+
+// mustSet is Set for a test whose subject is what comes after it. A Set that failed would hand
+// back nothing, and an assertion that a key is absent passes against nothing.
+func mustSet(t *testing.T, doc []byte, key, value string) []byte {
+	t.Helper()
+	out, err := Set(doc, key, value)
+	if err != nil {
+		t.Fatalf("Set(%q, %q): %v", key, value, err)
+	}
+	return out
+}
+
+// loaded is the value at a dotted key once the document is loaded as plain YAML, typed the way
+// any YAML reader would type it.
+func loaded(t *testing.T, doc []byte, key string) any {
+	t.Helper()
+	var v any
+	if err := yaml.Unmarshal(doc, &v); err != nil {
+		t.Fatalf("what Set wrote is not YAML: %v\n%s", err, doc)
+	}
+	for _, seg := range strings.Split(key, ".") {
+		m, ok := v.(map[string]any)
+		if !ok {
+			t.Fatalf("%s: no mapping at %q:\n%s", key, seg, doc)
+		}
+		v = m[seg]
+	}
+	return v
 }

@@ -406,14 +406,19 @@ func (s stubResults) Await(_ context.Context, o mendapi.AwaitOpts) ([]mendapi.Al
 }
 
 // repoAt makes dir a git repository so the checkout in Scan has something to clone.
+//
+// The developer's git configuration is shut out. A signing key, a hook or a template in it would
+// otherwise decide whether the fixture can be built, and the end-to-end tests built on it would
+// stop running on any machine where one is set.
 func repoAt(t *testing.T, dir string) {
 	t.Helper()
 	for _, args := range [][]string{{"init", "-q", "."}, {"add", "-A"},
-		{"-c", "user.email=e@e", "-c", "user.name=e", "commit", "-q", "-m", "i"}} {
+		{"-c", "user.email=e@e", "-c", "user.name=e", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "i"}} {
 		cmd := exec.Command("git", args...) // #nosec G204 -- fixed argv in a temp dir
 		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
 		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Skipf("git unavailable: %v %s", err, out)
+			t.Fatalf("git %v: %v\n%s", args, err, out)
 		}
 	}
 }

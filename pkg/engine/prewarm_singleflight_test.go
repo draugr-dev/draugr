@@ -5,7 +5,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -112,36 +111,60 @@ func TestSingleflightCollapsesIdenticalJobs(t *testing.T) {
 }
 
 func TestSingleflightGroupRunsOnce(t *testing.T) {
+	// Callers arriving while the first is still running wait for its result and do not run the work
+	// again. The first caller's work blocks until every other caller has started, so they arrive
+	// while it is in flight on any schedule.
+	const followers = 11
 	g := &sfGroup{}
-	var calls int32
-	start := make(chan struct{})
-	var wg sync.WaitGroup
-	shared := make([]bool, 12)
-	for i := 0; i < 12; i++ {
+	var calls atomic.Int32
+	inFlight := make(chan struct{})
+	release := make(chan struct{})
+	leader := make(chan bool)
+	go func() {
+		_, shared, _ := g.do("k", func() (any, error) {
+			calls.Add(1)
+			close(inFlight)
+			<-release
+			return "v", nil
+		})
+		leader <- shared
+	}()
+	<-inFlight
+
+	var started, wg sync.WaitGroup
+	var returned atomic.Int32
+	vals := make([]any, followers)
+	shared := make([]bool, followers)
+	for i := range followers {
+		started.Add(1)
 		wg.Add(1)
-		go func(i int) {
+		go func() {
 			defer wg.Done()
-			<-start
-			_, sh, _ := g.do("k", func() (any, error) {
-				atomic.AddInt32(&calls, 1)
-				time.Sleep(10 * time.Millisecond)
-				return "v", nil
+			started.Done()
+			vals[i], shared[i], _ = g.do("k", func() (any, error) {
+				calls.Add(1)
+				return "ran again", nil
 			})
-			shared[i] = sh
-		}(i)
+			returned.Add(1)
+		}()
 	}
-	close(start)
+	started.Wait()
+	// Nothing can have returned yet, because the only value to return is still being computed.
+	if n := returned.Load(); n != 0 {
+		t.Errorf("%d callers returned while the first was still running", n)
+	}
+	close(release)
 	wg.Wait()
-	if calls != 1 {
-		t.Errorf("fn ran %d times, want 1", calls)
+
+	if <-leader {
+		t.Error("the caller that ran the work reported it as shared")
 	}
-	leaders := 0
-	for _, s := range shared {
-		if !s {
-			leaders++
+	if n := calls.Load(); n != 1 {
+		t.Errorf("the work ran %d times, want 1", n)
+	}
+	for i := range followers {
+		if !shared[i] || vals[i] != "v" {
+			t.Errorf("caller %d: shared=%v value=%v, want the first caller's result", i, shared[i], vals[i])
 		}
-	}
-	if leaders != 1 {
-		t.Errorf("exactly one caller should be the leader, got %d", leaders)
 	}
 }
