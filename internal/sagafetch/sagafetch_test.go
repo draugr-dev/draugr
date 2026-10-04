@@ -12,6 +12,10 @@ import (
 )
 
 // repo makes a git repository holding one fragment, and returns its path and HEAD.
+//
+// The developer's git configuration is shut out. A signing key, a hook or a template in it would
+// otherwise decide whether the fixture can be built, and the fetch tests built on it would stop
+// running on any machine where one is set.
 func repo(t *testing.T) (string, string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -28,13 +32,14 @@ func repo(t *testing.T) (string, string) {
 		"components:\n  - name: api\n    repositories: [{ url: \".\" }]\n")
 	for _, args := range [][]string{
 		{"init", "-q", "."}, {"add", "-A"},
-		{"-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "fragment"},
-		{"tag", "v1.0.0"},
+		{"-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "fragment"},
+		{"-c", "tag.gpgsign=false", "tag", "v1.0.0"},
 	} {
 		cmd := exec.Command("git", args...) // #nosec G204 -- fixed argv, test-local repo
 		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
 		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Skipf("git unavailable: %v %s", err, out)
+			t.Fatalf("git %v: %v\n%s", args, err, out)
 		}
 	}
 	// #nosec G204 -- fixed argv against the temp dir this test just made

@@ -9,23 +9,81 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-// scanTo runs the built binary against a descriptor and returns the console output and the SARIF
-// path. A non-zero exit is expected wherever findings trip the gate.
-func scanTo(t *testing.T, dir, saga string) (string, string) {
+// scanTo runs the built binary against a descriptor and returns the directory it wrote its reports
+// into.
+//
+// The scan runs with --no-gate because these tests read the verdict from report.json. With the
+// gate's exit code taken out, a non-zero exit means the scan did not complete, including a control
+// that could not run, and that fails the test before anything reads a report the run did not finish.
+func scanTo(t *testing.T, dir, saga string) string {
 	t.Helper()
 	out := t.TempDir()
 	// #nosec G204 -- the binary under test, against a descriptor this test wrote into t.TempDir().
-	cmd := exec.Command(draugrBin(t), "scan", saga, "--output", out, "--log-level", "warn")
+	cmd := exec.Command(draugrBin(t), "scan", saga, "--output", out, "--no-gate", "--log-level", "warn")
 	cmd.Dir = dir
 	combined, err := cmd.CombinedOutput()
 	t.Logf("draugr scan %s exit=%v\n%s", saga, err, combined)
-	return string(combined), filepath.Join(out, "results.sarif")
+	if err != nil {
+		t.Fatalf("draugr scan %s did not complete: %v", saga, err)
+	}
+	return out
+}
+
+// requireControlRan fails the test unless report.json shows the control reached a verdict with no
+// scan errors, and the scanner among those that ran. The console prints the project name, which can
+// contain the control's name, and pads its columns to the widest row, so neither a substring nor
+// "<control>  ERROR" says anything about the run.
+func requireControlRan(t *testing.T, outDir, control, scanner string) {
+	t.Helper()
+	body, err := os.ReadFile(filepath.Join(outDir, "report.json")) // #nosec G304 -- a file the scan just wrote into t.TempDir()
+	if err != nil {
+		t.Fatalf("read report.json: %v", err)
+	}
+	var doc struct {
+		Scanners []struct {
+			Name string `json:"name"`
+		} `json:"scanners"`
+		Controls []struct {
+			Name       string   `json:"name"`
+			Verdict    string   `json:"verdict"`
+			ScanErrors []string `json:"scanErrors"`
+		} `json:"controls"`
+	}
+	if err := json.Unmarshal(body, &doc); err != nil {
+		t.Fatalf("parse report.json: %v", err)
+	}
+
+	var found bool
+	for _, c := range doc.Controls {
+		if c.Name != control {
+			continue
+		}
+		found = true
+		if len(c.ScanErrors) > 0 {
+			t.Errorf("%s could not run: %v", control, c.ScanErrors)
+		}
+		if c.Verdict != "pass" && c.Verdict != "fail" {
+			t.Errorf("%s has verdict %q, want pass or fail", control, c.Verdict)
+		}
+	}
+	if !found {
+		t.Errorf("report.json has no %s control, so it did not run:\n%s", control, body)
+	}
+
+	var ran []string
+	for _, s := range doc.Scanners {
+		ran = append(ran, s.Name)
+	}
+	if !slices.Contains(ran, scanner) {
+		t.Errorf("%s is not among the scanners that ran: %v", scanner, ran)
+	}
 }
 
 // toolsInSARIF returns the set of scanners that produced a finding, read from the report rather
@@ -88,8 +146,7 @@ components:
       - url: %s
 `, repo))
 
-	_, sarifPath := scanTo(t, dir, "draugr.saga.yaml")
-	tools := toolsInSARIF(t, sarifPath)
+	tools := toolsInSARIF(t, filepath.Join(scanTo(t, dir, "draugr.saga.yaml"), "results.sarif"))
 	// The report names the tool rather than the scanner, "trivy", not "trivy-fs". Because that is
 	// what a reader recognizes. Only sca is enabled here, so each can only be its repository scanner.
 	for _, want := range []string{"trivy", "grype"} {
@@ -99,8 +156,9 @@ components:
 	}
 }
 
-// TestLicensesControlRunsOverARepository covers the licenses control, which shipped with no
-// integration coverage. The fixture declares dependencies with known licenses.
+// TestLicensesControlRunsOverARepository runs the licenses control over a repository with a real
+// Trivy. Unit tests stub the tool runner, so only this shows the control's scanner starting and its
+// result reaching the report. The fixture declares dependencies with known licenses.
 func TestLicensesControlRunsOverARepository(t *testing.T) {
 	requireTool(t, "trivy", "trivy-license is the scanner under test")
 	requireTool(t, "git", "the scan checks the repository out before scanning it")
@@ -123,15 +181,9 @@ components:
       - url: %s
 `, repo))
 
-	console, _ := scanTo(t, dir, "draugr.saga.yaml")
-	// The control has to appear in the report. Whether this fixture's licenses are worth
-	// reporting is the scanner's judgement; that the control ran is Draugr's.
-	if !strings.Contains(console, "licenses") {
-		t.Errorf("the licenses control is absent from the report, so it did not run:\n%s", console)
-	}
-	if strings.Contains(console, "licenses  ERROR") {
-		t.Errorf("the licenses control could not run:\n%s", console)
-	}
+	// Whether this fixture's licenses are worth reporting is the scanner's judgement; that the
+	// control ran is Draugr's.
+	requireControlRan(t, scanTo(t, dir, "draugr.saga.yaml"), "licenses", "trivy-license")
 }
 
 // TestKubernetesControlAuditsTheCluster covers the kubernetes control against the kind
@@ -161,13 +213,7 @@ components:
       - cluster: kind
 `, currentKubeContext(t)))
 
-	console, _ := scanTo(t, dir, "draugr.saga.yaml")
-	if !strings.Contains(console, "kubernetes") {
-		t.Errorf("the kubernetes control is absent from the report:\n%s", console)
-	}
-	if strings.Contains(console, "kubernetes  ERROR") {
-		t.Errorf("the kubernetes control could not run against a real cluster:\n%s", console)
-	}
+	requireControlRan(t, scanTo(t, dir, "draugr.saga.yaml"), "kubernetes", "draugr-k8s-policies")
 }
 
 // TestDiffGatesOnNewFindingsOnly covers the command teams actually put in a pull-request gate, and
