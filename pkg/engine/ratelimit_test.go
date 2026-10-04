@@ -2,11 +2,15 @@ package engine
 
 import (
 	"context"
+	"fmt"
+	"runtime"
+	"slices"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
@@ -54,28 +58,46 @@ func TestRateGateSpacesCallsEvenly(t *testing.T) {
 func TestRateGateServesCallersInOrder(t *testing.T) {
 	// Each caller reserves its slot and releases the lock, so a later arrival cannot overtake an
 	// earlier one and no caller is starved while others keep arriving.
-	g := &rateGate{interval: 5 * time.Millisecond}
+	//
+	// The clock fixes the arrival order. The gate reads it once, under its lock, while reserving, so
+	// a caller blocked in the clock holds the lock and the next caller cannot reserve until it lets
+	// go. The clock stands still, so each reservation is exactly one interval after the previous one
+	// on any machine.
+	const callers = 5
+	g := &rateGate{interval: 20 * time.Millisecond}
+	base := time.Now()
+	reserving := make(chan struct{})
+	clock := func() time.Time {
+		reserving <- struct{}{}
+		return base
+	}
+
 	var mu sync.Mutex
 	var order []int
 	var wg sync.WaitGroup
-	for i := range 5 {
-		if err := func() error { return nil }(); err != nil {
-			t.Fatal(err)
-		}
+	for i := range callers {
 		wg.Add(1)
 		// Sequential reservation, concurrent waiting: this is how the engine uses it.
-		go func(i int) {
+		go func() {
 			defer wg.Done()
-			_ = g.wait(context.Background(), time.Now)
+			if err := g.wait(context.Background(), clock); err != nil {
+				t.Error(err)
+				return
+			}
 			mu.Lock()
 			order = append(order, i)
 			mu.Unlock()
-		}(i)
-		time.Sleep(time.Millisecond)
+		}()
+		<-reserving
 	}
 	wg.Wait()
-	if len(order) != 5 {
-		t.Fatalf("got %d callers through, want 5", len(order))
+
+	want := make([]int, callers)
+	for i := range want {
+		want[i] = i
+	}
+	if !slices.Equal(order, want) {
+		t.Errorf("callers were served in the order %v, want arrival order %v", order, want)
 	}
 }
 
@@ -146,32 +168,67 @@ func TestRateLimitInterval(t *testing.T) {
 	}
 }
 
-// slowRateScanner records how many scans are running at once.
-type slowRateScanner struct {
-	name    string
-	rate    plugin.Rate
-	mu      *sync.Mutex
-	running *int
-	peak    *int
+// hostedScanner stands in for a scanner calling a hosted API that publishes a limit.
+type hostedScanner struct {
+	rate plugin.Rate
+	mu   sync.Mutex
+	call int
 }
 
-func (s slowRateScanner) Info() plugin.ScannerInfo {
-	return plugin.ScannerInfo{Name: s.name, Controls: []string{"c"},
-		TargetKinds: []plugin.TargetKind{plugin.TargetHost}}
-}
-func (s slowRateScanner) RateLimit(plugin.Config) plugin.Rate { return s.rate }
-func (s slowRateScanner) Scan(context.Context, plugin.Target, plugin.Config) (sarif.Report, error) {
+func (s *hostedScanner) Info() plugin.ScannerInfo            { return plugin.ScannerInfo{Name: "hosted"} }
+func (s *hostedScanner) RateLimit(plugin.Config) plugin.Rate { return s.rate }
+func (s *hostedScanner) Scan(context.Context, plugin.Target, plugin.Config) (sarif.Report, error) {
 	s.mu.Lock()
-	*s.running++
-	if *s.running > *s.peak {
-		*s.peak = *s.running
-	}
-	s.mu.Unlock()
-	time.Sleep(5 * time.Millisecond)
-	s.mu.Lock()
-	*s.running--
+	s.call++
 	s.mu.Unlock()
 	return sarif.Report{}, nil
+}
+
+func (s *hostedScanner) calls() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.call
+}
+
+// poolScanner holds each call open until size of them are in flight at once, so it can only finish
+// on a pool with size slots free to it.
+type poolScanner struct {
+	name    string
+	size    int
+	full    chan struct{}
+	mu      sync.Mutex
+	running int
+	peak    int
+}
+
+func (s *poolScanner) Info() plugin.ScannerInfo { return plugin.ScannerInfo{Name: s.name} }
+func (s *poolScanner) Scan(ctx context.Context, _ plugin.Target, _ plugin.Config) (sarif.Report, error) {
+	s.mu.Lock()
+	s.running++
+	if s.running > s.peak {
+		s.peak = s.running
+		if s.peak == s.size {
+			close(s.full)
+		}
+	}
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		s.running--
+		s.mu.Unlock()
+	}()
+	select {
+	case <-s.full:
+		return sarif.Report{}, nil
+	case <-ctx.Done():
+		return sarif.Report{}, ctx.Err()
+	}
+}
+
+func (s *poolScanner) peakRunning() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.peak
 }
 
 func TestARateLimitedScannerDoesNotHoldConcurrencySlots(t *testing.T) {
@@ -180,40 +237,57 @@ func TestARateLimitedScannerDoesNotHoldConcurrencySlots(t *testing.T) {
 	// handful of such jobs would idle the pool and every unrelated control would queue behind a
 	// scanner it has nothing to do with.
 	//
-	// Asserted by watching how many rate-limited scans are ever in flight together: if the wait
-	// held a slot, the gate would still serialize them, but the slots would be gone. Here the
-	// slots stay free, so the *only* thing serializing them is the gate.
-	var mu sync.Mutex
-	running, peak := 0, 0
-	gates := newRateGates()
-	s := slowRateScanner{
-		name: "slow", rate: plugin.Rate{Requests: 1000, Per: time.Second},
-		mu: &mu, running: &running, peak: &peak,
+	// The test drives Run with more rate-limited jobs than the pool has slots. The gate lets the
+	// first call through and holds the rest for an hour. The unrelated scanner finishes only once it
+	// has every slot at the same moment, so a single waiter holding one is enough to stop it.
+	//
+	// On one processor, goroutines start in the order Run creates them. "hosted" sorts before
+	// "images", so its jobs are planned first and its waiters reach the pool before the unrelated
+	// jobs do. With several processors an unrelated job can get there first and fill the pool before
+	// any waiter arrives, which passes whichever order the engine used. The engine's own order passes
+	// on any schedule, so one processor removes only that false pass.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+	const components, pool = 4, 2
+	reg := NewRegistry()
+	reg.RegisterController(fakeController{name: "hosted", scope: plugin.ScopeComponent, scanner: "hosted"})
+	reg.RegisterController(fakeController{name: "images", scope: plugin.ScopeComponent, scanner: "s"})
+	hosted := &hostedScanner{rate: plugin.Rate{Requests: 1, Per: time.Hour}}
+	unrelated := &poolScanner{name: "s", size: pool, full: make(chan struct{})}
+	reg.RegisterScanner(hosted)
+	reg.RegisterScanner(unrelated)
+
+	m := saga.Model{
+		Release: saga.Release{Version: "1"},
+		Config: saga.Config{Controls: map[string]saga.ControllerSettings{
+			"hosted": {"enabled": true},
+			"images": {"enabled": true},
+		}},
+	}
+	for i := range components {
+		m.Components = append(m.Components, saga.Component{Name: fmt.Sprintf("c%d", i)})
 	}
 
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, 4)
-	for range 12 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			// Exactly the engine's ordering: wait for the rate, then take a slot.
-			if err := gates.wait(context.Background(), s, s.name, nil); err != nil {
-				return
-			}
-			sem <- struct{}{}
-			defer func() { <-sem }()
-			_, _ = s.Scan(context.Background(), plugin.HostTarget{URL: "https://x/"}, nil)
-		}()
-	}
-	wg.Wait()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	finished := make(chan struct{})
+	go func() {
+		defer close(finished)
+		_, _ = New(reg, WithConcurrency(pool)).Run(ctx, m)
+	}()
 
-	mu.Lock()
-	defer mu.Unlock()
-	if peak > 4 {
-		t.Errorf("the semaphore was exceeded: %d concurrent scans", peak)
+	select {
+	case <-unrelated.full:
+	case <-time.After(10 * time.Second):
+		t.Errorf("unrelated jobs reached %d of the pool's %d slots while the rate-limited ones waited: "+
+			"the waiters held the rest", unrelated.peakRunning(), pool)
 	}
-	if peak == 0 {
-		t.Error("nothing ran")
+	// Ends the hour-long waits, which are all that is left of the run.
+	cancel()
+	<-finished
+
+	// One call through and the rest held is the state the pool check depends on. A gate that never
+	// engaged would leave nothing waiting, and the unrelated jobs would finish regardless.
+	if got := hosted.calls(); got != 1 {
+		t.Errorf("the rate-limited scanner ran %d times, want 1: the gate did not hold the rest", got)
 	}
 }
