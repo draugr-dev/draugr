@@ -160,7 +160,11 @@ branch's commit.
 
 ## Several repositories
 
-A Saga's `url` takes a local path, so let the agent check them out:
+A Saga's `url` takes a local path, so let the agent check them out. With more than one
+`checkout`, Azure puts each repository in a directory named after it under
+`$(Build.SourcesDirectory)`, and steps run in `$(Build.SourcesDirectory)`. A relative `url`
+resolves against where Draugr runs, so each one names its checkout's directory. Here the pipeline's
+own repository is `storefront`:
 
 ```yaml
 # azure-pipelines.yml
@@ -170,17 +174,27 @@ resources:
       type: git
       name: integration/payments
 steps:
-  - checkout: self
-  - checkout: payments
+  - checkout: self                      # $(Build.SourcesDirectory)/storefront
+  - checkout: payments                  # $(Build.SourcesDirectory)/payments
+  - template: .azure/draugr.yml
+    parameters:
+      saga: storefront/draugr.saga.yaml
+      mode: scan
 ```
 
 ```yaml
-# draugr.saga.yaml
+# storefront/draugr.saga.yaml
 components:
+  - name: storefront
+    repositories:
+      - url: storefront
   - name: payments
     repositories:
-      - url: ../payments        # relative to the descriptor, not the working directory
+      - url: payments
 ```
+
+`mode: scan`, because the pull-request diff checks out the base branch in the working directory,
+which here is no repository.
 
 A remote `url:` also works, Draugr shells out to `git`, so it behaves exactly as `git clone` would
 on that agent. Letting `checkout:` do it is simpler and keeps Azure's credentials in play.

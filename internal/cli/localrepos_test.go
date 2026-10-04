@@ -159,3 +159,34 @@ func TestScanOfAMissingPathSaysItDoesNotExist(t *testing.T) {
 		t.Errorf("err = %v, want %q", err, missing+" does not exist")
 	}
 }
+
+// A relative url resolves against where Draugr runs, like every other path in a descriptor, not
+// against the descriptor's directory. A descriptor kept in a subdirectory and run from the root,
+// as this repository's own self-scan is, scans the root; read the other way, `url: .` would
+// narrow it to the subdirectory with nothing saying so.
+func TestARelativeURLResolvesWhereDraugrRuns(t *testing.T) {
+	root := gitRepo(t, ".draugr", "app")
+	rec := &targetRecorder{}
+	reg := engine.NewRegistry()
+	reg.RegisterController(rec)
+	reg.RegisterScanner(recorderScanner{rec})
+	descriptor := filepath.Join(root, ".draugr", "self.saga.yaml")
+	if err := os.WriteFile(descriptor, []byte(`
+project: self
+config:
+  controls:
+    secrets: {}
+components:
+  - name: self
+    repositories: [{url: "."}]
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+	if err := runScan(context.Background(), descriptor, scanOptions{format: "json", noGate: true}, reg, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(rec.targets) != 1 || rec.targets[0].URL != "." || len(rec.targets[0].Paths) != 0 {
+		t.Errorf("targets = %+v, want the working directory, unscoped", rec.targets)
+	}
+}
