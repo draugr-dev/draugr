@@ -246,7 +246,8 @@ func runDoctor(
 			_, _ = fmt.Fprintf(w, "\n%s\n", tui.For(w).Paint(tui.StyleMuted,
 				fmt.Sprintf("%d of these are not installed. Which you need depends on your "+
 					"descriptor. Run `draugr doctor <saga>` to check just those, or "+
-					"`draugr tools install` to fetch them all.", missing)))
+					"`draugr tools install` to fetch the ones Draugr distributes; the Notes column says where "+
+					"the rest come from.", missing)))
 		}
 		return nil
 	}
@@ -885,9 +886,6 @@ func externalInstallHint(binary string) string {
 
 // externalTools names where to get a tool Draugr execs but never downloads.
 var externalTools = map[string]string{
-	"prowler": "Apache-2.0; install with `pip install prowler` (Python 3.10 to 3.13) or run the " +
-		"prowlercloud/prowler container image (Draugr does not distribute it). See " +
-		"internal/scanners/prowler.md",
 	"mend": "proprietary; install the Mend CLI from Mend's documentation (Draugr does not " +
 		"distribute it). See internal/scanners/mend-sca.md",
 }

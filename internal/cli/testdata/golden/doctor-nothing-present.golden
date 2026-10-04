@@ -12,6 +12,7 @@ kube-bench   ✗ missing   -        install: https://github.com/aquasecurity/kub
 kubectl      ✗ missing   -        install: https://kubernetes.io/docs/tasks/tools/
 notation     ✗ missing   -        install: draugr tools install notation
 nuclei       ✗ missing   -        install: draugr tools install nuclei
+prowler      ✗ missing   -        install: Apache-2.0; install with `pip install prowler` (Python 3.10 to 3.13) or run the prowlercloud/prowler container image (Draugr does not distribute it). See internal/scanners/prowler.md
 retire       ✗ missing   -        install: npm install -g retire, retire.js publishes to npm only, so it needs a Node runtime
 semgrep      ✗ missing   -        install: draugr tools install semgrep
 syft         ✗ missing   -        install: draugr tools install syft
@@ -39,4 +40,4 @@ NETWORK  (besides its targets · --offline stops all of it)
     threats     urlhaus-api.abuse.ch       learns each host's name
                 www.virustotal.com         learns each host's domain
 
-13 of these are not installed. Which you need depends on your descriptor. Run `draugr doctor <saga>` to check just those, or `draugr tools install` to fetch them all.
+14 of these are not installed. Which you need depends on your descriptor. Run `draugr doctor <saga>` to check just those, or `draugr tools install` to fetch the ones Draugr distributes; the Notes column says where the rest come from.
