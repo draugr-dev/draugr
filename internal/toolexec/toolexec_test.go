@@ -308,18 +308,18 @@ func TestExplainNamesTheFixForAMissingTool(t *testing.T) {
 	// one is a test that stops running.
 	err := explain("gitleaks", notFound())
 	if !strings.Contains(err.Error(), "draugr tools install gitleaks") {
-		t.Errorf("a tool Draugr distributes should name the command that installs it: %v", err)
+		t.Errorf("a tool `draugr tools install` fetches should name that command: %v", err)
 	}
 }
 
 func TestExplainDoesNotOfferToInstallWhatWeDoNotShip(t *testing.T) {
-	// Suggesting `tools install` for a tool Draugr does not distribute is worse than saying
-	// nothing: the command runs, finds no such tool, and the reader concludes the fix is broken.
+	// Suggesting `tools install` for a tool it cannot fetch is worse than saying nothing: the
+	// command runs, finds no such tool, and the reader concludes the fix is broken.
 	err := explain("semgrep", notFound())
-	if strings.Contains(err.Error(), "tools install") {
-		t.Errorf("semgrep is not ours to install, so this must not suggest it: %v", err)
+	if strings.Contains(err.Error(), "Run `draugr tools install") {
+		t.Errorf("semgrep is not one tools install fetches, so this must not suggest it: %v", err)
 	}
-	for _, want := range []string{"does not distribute", "draugr doctor"} {
+	for _, want := range []string{"`draugr tools install` does not fetch semgrep", "draugr doctor"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("want %q in: %v", want, err)
 		}
@@ -333,7 +333,7 @@ func TestExplainLeavesOtherFailuresAlone(t *testing.T) {
 	if err == nil {
 		t.Fatal("want the non-zero exit as an error")
 	}
-	if strings.Contains(err.Error(), "tools install") || strings.Contains(err.Error(), "does not distribute") {
+	if strings.Contains(err.Error(), "tools install") {
 		t.Errorf("an exit failure is not a missing tool: %v", err)
 	}
 	if !strings.Contains(err.Error(), "bad flag") {

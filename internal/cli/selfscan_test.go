@@ -40,7 +40,7 @@ func TestSelfscanAsksTheActionToProvisionScanners(t *testing.T) {
 // TestSelfscanInstallsEveryScannerItsDescriptorEnables catches what `tools: true` cannot cover.
 //
 // `draugr tools install` provisions the tools Draugr has pinned and verified, and nothing else. A
-// control backed by a tool Draugr does not distribute, a proprietary one, or an environment
+// control backed by a tool `draugr tools install` does not fetch, a proprietary one, or an environment
 // prerequisite. Is enabled in the descriptor, valid, registered, and simply absent from the
 // runner. Nothing about it looks wrong beforehand.
 //

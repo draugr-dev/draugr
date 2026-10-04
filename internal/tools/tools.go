@@ -213,12 +213,12 @@ func Catalog() map[string]Tool {
 			},
 			DataHint: "run `draugr tools install kube-bench`, which fetches the binary and its cfg/ tree together",
 		},
-		// Not distributed: Draugr runs the prowler on PATH and never fetches it.
+		// Not one `draugr tools install` fetches: Draugr runs the prowler on PATH.
 		"prowler": {
 			Binary:      "prowler",
 			VersionArgs: []string{"--version"},
 			InstallHint: "Apache-2.0; install with `pip install prowler` (Python 3.10 to 3.13) or run the " +
-				"prowlercloud/prowler container image (Draugr does not distribute it). See " +
+				"prowlercloud/prowler container image, which `draugr tools install` does not fetch. See " +
 				"internal/scanners/prowler.md",
 			Category: CategoryScanner,
 			// `prowler --version` asks api.github.com for the newest release and has no flag to stop

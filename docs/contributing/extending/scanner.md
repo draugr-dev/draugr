@@ -103,7 +103,7 @@ have.
 serve. A controller that hardcodes one scanner will never select yours, whatever the descriptor
 says, and nothing will report that it did not.
 
-**`externalTools`** (`internal/cli/doctor.go`), only for a tool Draugr does **not** distribute. It
+**`externalTools`** (`internal/cli/doctor.go`), only for a tool `draugr tools install` does **not** fetch. It
 makes `doctor` name the tool's source instead of suggesting `draugr tools install`, which will never
 find it. Suggesting an install that runs, succeeds, and leaves the tool missing is worse advice than
 none. If Draugr *can* provision the tool, see [tool.md](tool.md) instead.

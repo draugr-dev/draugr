@@ -136,14 +136,15 @@ func explain(tool string, err error) error {
 	// first scan, after installing Draugr and before installing anything else, which is the likeliest
 	// state for somebody who has just arrived.
 	//
-	// Which advice depends on whether Draugr distributes the tool. Suggesting `tools install`
-	// for one it does not is worse than saying nothing: the command runs, finds no such tool,
-	// and the reader concludes the fix does not work.
+	// Which advice depends on whether `draugr tools install` fetches the tool. Draugr distributes
+	// none: that command downloads pinned upstream releases it has verified. Suggesting it for a
+	// tool it cannot fetch is worse than saying nothing: the command runs, finds no such tool, and
+	// the reader concludes the fix does not work.
 	if errors.Is(err, exec.ErrNotFound) {
 		if _, ours := tools.Spec(tool); ours {
 			return fmt.Errorf("%w. Run `draugr tools install %s`", err, tool)
 		}
-		return fmt.Errorf("%w, Draugr does not distribute %s; install it and put it on PATH "+
+		return fmt.Errorf("%w. `draugr tools install` does not fetch %s; install it and put it on PATH "+
 			"(`draugr doctor` names the source)", err, tool)
 	}
 	exit, ok := errors.AsType[*exec.ExitError](err)

@@ -60,7 +60,7 @@ such as function keys.
 
 ## Installation
 
-Draugr does not distribute Prowler. Install it with `pip install prowler` (Python 3.10 to 3.13), or
+`draugr tools install` does not fetch Prowler. Install it with `pip install prowler` (Python 3.10 to 3.13), or
 run the `prowlercloud/prowler` container image with `prowler` on `PATH`. `draugr doctor` names both.
 
 ## Permissions

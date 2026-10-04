@@ -50,7 +50,8 @@ type permissionTester interface {
 
 // prowlerScanner checks a live cloud account by running Prowler against it.
 //
-// Prowler is the operator's to install: Draugr runs the `prowler` on PATH and distributes none.
+// Prowler is the operator's to install: Draugr runs the `prowler` on PATH, and `draugr tools
+// install` does not fetch it.
 // Before it runs, the scanner asks the provider which of the permissions Prowler's checks read the
 // credentials hold, because a denied read is the one failure Prowler does not report. Depending
 // on the check it passes, fails or disappears. A check that reads a service the credentials cannot

@@ -353,7 +353,7 @@ func TestTheUnverifiedToolTipNamesWhatToInstall(t *testing.T) {
 	c.tools = []report.ToolBuild{{Name: "mend", Level: string(tools.LevelExternal)}}
 	for _, s := range scanSuggestions(c) {
 		if strings.HasPrefix(s.What, "draugr tools install") {
-			t.Errorf("offered %q for a tool Draugr does not distribute", s.What)
+			t.Errorf("offered %q for a tool `draugr tools install` does not fetch", s.What)
 		}
 	}
 
