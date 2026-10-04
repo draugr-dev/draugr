@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -155,6 +156,45 @@ func TestParseGovulncheckReachability(t *testing.T) {
 	}
 	if len(unreached.Symbols) == 0 {
 		t.Error("unreachable finding names no vulnerable symbols")
+	}
+}
+
+// A reachability verdict describes one revision of the code, so every verdict carries the day the
+// analysis ran, in UTC. A verdict with no date cannot be checked against the code it describes, and
+// one dated in the runner's own zone gives two runners on the same day two different dates.
+func TestParseGovulncheckDatesEveryVerdict(t *testing.T) {
+	out, err := os.ReadFile("testdata/govulncheck-reachable.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Evening west of Greenwich, when UTC has already reached the next day.
+	at := time.Date(2026, 3, 1, 22, 30, 0, 0, time.FixedZone("UTC-5", -5*60*60))
+	report, err := parseGovulncheckAt(out, "", at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Results) == 0 {
+		t.Fatal("no results, so nothing was dated")
+	}
+	for _, r := range report.Results {
+		if r.Reachability == nil {
+			t.Fatalf("%s: no reachability", r.RuleID)
+		}
+		if got := r.Reachability.AsOf; got != "2026-03-02" {
+			t.Errorf("%s: asOf = %q, want 2026-03-02, the UTC day of the analysis", r.RuleID, got)
+		}
+	}
+
+	// The parser the scanner registers dates by the wall clock. Read on either side of the call, so
+	// a run that crosses midnight still has a right answer.
+	before := time.Now().UTC().Format("2006-01-02")
+	live, err := parseGovulncheck(out, "", plugin.Config{})
+	after := time.Now().UTC().Format("2006-01-02")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := live.Results[0].Reachability.AsOf; got != before && got != after {
+		t.Errorf("asOf = %q, want today in UTC, %s", got, after)
 	}
 }
 

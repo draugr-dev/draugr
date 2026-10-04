@@ -3,6 +3,7 @@ package scanners
 import (
 	"context"
 	"errors"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -151,36 +152,66 @@ func TestGrypeEnvOnlyDisablesUpdatesOffline(t *testing.T) {
 	}
 }
 
-const grypeRepoSARIF = `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"grype"}},"results":[
-{"ruleId":"CVE-1-requests","level":"error","message":{"text":"vuln"},
- "locations":[{"physicalLocation":{"artifactLocation":{"uri":"/app/requirements.txt"}}}]}]}]}`
-
-// TestGrypeRepoPathsAreRepositoryRelative covers the one transformation this scanner exists to
-// apply. Grype roots directory paths at the directory it scanned, so they arrive looking absolute
-// and survive the checkout-relative rewrite untouched.
-func TestGrypeRepoPathsAreRepositoryRelative(t *testing.T) {
-	s := repoScanner{
-		info: plugin.ScannerInfo{Name: "grype-fs", Controls: []string{"sca"}},
-		args: grypeFSArgs,
-		checkout: func(_ context.Context, _, _ string, _ git.Scope) (git.Tree, func(), error) {
-			return git.Tree{Dir: "/tmp/checkout-1"}, func() {}, nil
-		},
-		parse: parseGrypeRepoSARIF,
-		run: func(context.Context, string, []string) ([]byte, error) {
-			return []byte(grypeRepoSARIF), nil
-		},
-	}
-	rep, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: "u"}, nil)
+// TestGrypeRepoFindingsAreRepositoryRelativeAndCarryThePackage drives the repository scanner as it
+// is constructed, over two repositories, with Grype's own SARIF.
+//
+// testdata/grype-fs-flask.sarif is what Grype 0.118.0, with a database built 2026-10-04, wrote for
+// `grype dir:<root> -q -o sarif --by-cve` over a tree holding app/requirements.txt with flask
+// pinned at 0.12.2. Grype roots directory paths at the directory it scanned, so they arrive looking
+// absolute and survive the checkout-relative rewrite untouched. It also states the package on the
+// rule rather than the result, so the results read on their own carry no package identity.
+func TestGrypeRepoFindingsAreRepositoryRelativeAndCarryThePackage(t *testing.T) {
+	out, err := os.ReadFile("testdata/grype-fs-flask.sarif")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rep.Results) != 1 {
-		t.Fatalf("results = %d", len(rep.Results))
+	prior := grypeRunInDir
+	t.Cleanup(func() { grypeRunInDir = prior })
+	grypeRunInDir = func(_ context.Context, _ string, argv []string) ([]byte, error) {
+		fakeGrypeOutputs(t, argv, grypeJSON())
+		return out, nil
 	}
-	if got := rep.Results[0].Location.URI; got != "app/requirements.txt" {
-		t.Errorf("location = %q, want a repository-relative path: a leading slash anchors the "+
-			"finding nowhere in code scanning and stops it matching the same package reported "+
-			"by another scanner", got)
+
+	// The fixing version differs per advisory, so each finding has to take the package from its own
+	// rule rather than from whichever rule was read first.
+	fixedBy := map[string]string{
+		"CVE-2018-1000656-flask": "0.12.3",
+		"CVE-2019-1010083-flask": "1.0",
+		"CVE-2023-30861-flask":   "2.2.5",
+		"CVE-2026-27205-flask":   "3.1.3",
+	}
+	for _, repo := range []string{"api", "worker"} {
+		dir := t.TempDir()
+		s := NewGrypeFS().(repoScanner)
+		s.checkout = func(context.Context, string, string, git.Scope) (git.Tree, func(), error) {
+			return git.Tree{Dir: dir}, func() {}, nil
+		}
+		rep, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: repo}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(rep.Results) != len(fixedBy) {
+			t.Fatalf("%s: results = %d, want one per advisory in Grype's output", repo, len(rep.Results))
+		}
+		for _, r := range rep.Results {
+			if got := r.Location.URI; got != "app/requirements.txt" {
+				t.Errorf("%s: %s location = %q, want a repository-relative path: a leading slash "+
+					"anchors the finding nowhere in code scanning and stops it matching the same "+
+					"package reported by another scanner", repo, r.RuleID, got)
+			}
+			p := r.Package
+			if p == nil {
+				t.Errorf("%s: %s carries no package, so no VEX statement or other scanner's finding "+
+					"can be matched to it", repo, r.RuleID)
+				continue
+			}
+			if p.PURL != "pkg:pypi/flask@0.12.2" || p.Name != "flask" || p.Version != "0.12.2" || p.Ecosystem != "python" {
+				t.Errorf("%s: %s package = %+v", repo, r.RuleID, *p)
+			}
+			if want, ok := fixedBy[r.RuleID]; !ok || p.FixedVersion != want {
+				t.Errorf("%s: %s fixed version = %q, want %q", repo, r.RuleID, p.FixedVersion, want)
+			}
+		}
 	}
 }
 

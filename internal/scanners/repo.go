@@ -484,13 +484,14 @@ func repoRelPath(dir, uri string) string {
 // execArgv and execArgvInDir are thin aliases for toolexec.Run, kept so scanner call sites read
 // the way they always have. The implementation moved to internal/toolexec when SBOM generation
 // needed the same "run it and say what you ran" behavior without being a scanner.
-func execArgv(ctx context.Context, argv []string) ([]byte, error) {
+//
+// Vars so a test can substitute the exec without arranging binaries on PATH. Which is what makes
+// it possible to check that a constructor wired the cache-lock retry, rather than only that the
+// retry itself works.
+var execArgv = func(ctx context.Context, argv []string) ([]byte, error) {
 	return toolexec.Run(ctx, "", argv)
 }
 
-// A var so a test can substitute the exec without arranging binaries on PATH. Which is what makes
-// it possible to check that a constructor wired the cache-lock retry, rather than only that the
-// retry itself works.
 var execArgvInDir = func(ctx context.Context, dir string, argv []string) ([]byte, error) {
 	return toolexec.Run(ctx, dir, argv)
 }

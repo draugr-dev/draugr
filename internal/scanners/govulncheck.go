@@ -230,6 +230,12 @@ type govulncheckFrame struct {
 // already speaks: an advisory with three CVEs is three findings to every other scanner, and
 // emitting one would leave two of them with no reachability while looking like a complete answer.
 func parseGovulncheck(out []byte, dir string, _ plugin.Config) (sarif.Report, error) {
+	return parseGovulncheckAt(out, dir, time.Now())
+}
+
+// parseGovulncheckAt is parseGovulncheck with the moment of the analysis passed in rather than read
+// from the wall clock, so a test can fix the day a verdict is dated.
+func parseGovulncheckAt(out []byte, dir string, now time.Time) (sarif.Report, error) {
 	var modules []string
 	if dir != "" {
 		modules = goModuleDirs(dir)
@@ -269,7 +275,7 @@ func parseGovulncheck(out []byte, dir string, _ plugin.Config) (sarif.Report, er
 	// one module calls says nothing about another, and a verdict reached over the union of two
 	// builds would lend one module's call path to the other's finding.
 	manifests := goModuleManifests(dir)
-	asOf := time.Now().UTC().Format("2006-01-02")
+	asOf := now.UTC().Format("2006-01-02")
 	var results []sarif.Result
 	runs := splitGovulncheckRuns(msgs)
 	// One run per module, as govulncheckArgs ran them. Fewer means a module whose run printed
