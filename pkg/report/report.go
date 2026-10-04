@@ -707,7 +707,10 @@ type summary struct {
 	// bands, and the control rows were the one place still answering in what a scanner called the
 	// flaw rather than in what Draugr decided about it.
 	controlBands map[string][4]int
-	findings     []finding // sorted most-urgent first
+	// controlFindings counts each control's findings, suppressed ones aside, whatever their band
+	// or severity, so a control with none says so rather than describing empty counts.
+	controlFindings map[string]int
+	findings        []finding // sorted most-urgent first
 	// bySignal is how many findings each dataset moved up a band, and floored how many a control's
 	// own rule raised. Counted over every finding, not only the ones shown: --top and
 	// --min-priority narrow the listing, and "nothing raised" has to mean nothing in the run
@@ -736,13 +739,14 @@ type summary struct {
 // summarize collects priority counts and a ranked finding list from a run.
 func summarize(d Data) summary {
 	s := summary{
-		verdict:    d.Verdict.Verdict,
-		bands:      map[string]sevCounts{},
-		scanErrors: d.Run.ScanErrors,
-		effects:    d.Run.Effects,
-		errored:    erroredControls(d),
-		suppressed: d.Run.Suppressed,
-		sboms:      len(d.Run.SBOMs),
+		verdict:         d.Verdict.Verdict,
+		bands:           map[string]sevCounts{},
+		scanErrors:      d.Run.ScanErrors,
+		controlFindings: map[string]int{},
+		effects:         d.Run.Effects,
+		errored:         erroredControls(d),
+		suppressed:      d.Run.Suppressed,
+		sboms:           len(d.Run.SBOMs),
 	}
 	if s.sboms > 0 {
 		s.sbomFormat = string(d.Run.SBOMs[0].Format)
@@ -799,6 +803,7 @@ func summarize(d Data) summary {
 				}
 				s.controlBands[name] = at
 			}
+			s.controlFindings[name]++
 			loc := locationOf(res)
 			sev := res.Severity("")
 			b := s.bands[name]

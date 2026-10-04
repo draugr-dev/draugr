@@ -1005,8 +1005,13 @@ func excludeMatchers(e saga.ExcludeRule) []matcher {
 // row answering in what the scanner called the flaw asked a reader to hold two vocabularies and
 // map between them, in the block that is supposed to be the summary.
 //
-// A run that ranked nothing has no bands to show, and falls back to what it does have.
+// A run that ranked nothing has no bands to show, and falls back to what it does have. A control
+// with no findings says that, where empty bands would read "no priorities set", as though
+// something had been left undone.
 func controlCounts(col tui.Painter, s summary, control string) string {
+	if s.controlFindings[control] == 0 {
+		return col.Paint(cDim, "no findings")
+	}
 	if !s.prioritized {
 		return bandsText(col, s.bands[control])
 	}
