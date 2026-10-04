@@ -119,7 +119,7 @@ func TestCommandGolden(t *testing.T) {
 func runDoctorForGolden(t *testing.T, w *bytes.Buffer, sagaPath string) {
 	t.Helper()
 	err := runDoctor(context.Background(), w, builtins.Registry(), sagaPath, doctorRun{},
-		detectTool, func(context.Context) (string, error) { return "v9.9.9", nil })
+		detectTool, func(context.Context) (string, error) { return "9.9.9", nil })
 	// doctor exits non-zero when something it needs is missing, which is one of the states being
 	// pinned. The output is the subject; the error is not.
 	_ = err

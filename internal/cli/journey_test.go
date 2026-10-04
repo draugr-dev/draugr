@@ -60,7 +60,7 @@ func TestTheFirstFiveMinutesWork(t *testing.T) {
 			stubDetect(t, allToolsPresent())
 			var doc bytes.Buffer
 			_ = runDoctor(context.Background(), &doc, builtins.Registry(), path, doctorRun{},
-				detectTool, func(context.Context) (string, error) { return "v9.9.9", nil })
+				detectTool, func(context.Context) (string, error) { return "9.9.9", nil })
 			if strings.Contains(doc.String(), "✗ invalid") {
 				t.Errorf("doctor refuses what init wrote:\n%s", doc.String())
 			}
