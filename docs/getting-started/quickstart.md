@@ -47,6 +47,15 @@ A control only runs when it is **enabled**, globally under `config.controls` or 
 [Write your first Saga](first-saga.md) builds one field by field; the
 [Saga schema](../reference/saga-schema.md) has every field.
 
+Then fetch the scanners that descriptor runs, pinned and checksum-verified, into `~/.draugr/bin`:
+
+```bash
+draugr tools install
+```
+
+With a descriptor in the directory it installs what that descriptor runs and nothing else.
+`draugr doctor draugr.saga.yaml` names anything the scan needs that `tools install` does not fetch.
+
 > **Turn on editor support first.** A Saga written with schema-backed completion is quicker and
 > harder to get wrong: your editor offers the valid control names, the `exposure` and `criticality`
 > values, and flags a typo as you type. Most editors need no setup. See
@@ -54,41 +63,53 @@ A control only runs when it is **enabled**, globally under `config.controls` or 
 
 ## 2. Scan
 
-```bash
-draugr scan draugr.saga.yaml
-```
+A small Python service, with the descriptor `draugr init` wrote for it:
 
-Draugr plans the work (controllers × components), runs the scanners concurrently, merges
-and deduplicates results as SARIF, judges them against a policy, and prints a **human console
-summary** by default (verdict, priority/severity counts, and the top findings to fix first):
+```console
+$ draugr scan --top 3
+DRAUGR  FAIL  shop  3.983s
 
-```text
-DRAUGR  PASS  my-app 1.0  1.104s
+ 6 P1 7 P2 0 P3 0 P4
+ No component declares exposure or criticality, so every one is read as public and critical.
+ These bands rank severity alone. `draugr classify` makes them describe this application.
 
 CONTROLS
-  images  pass   no findings
+  iac      pass   no findings
+  sast     pass   no findings
+  sca      FAIL   6 P1 7 P2
+  secrets  pass   no findings
 
-No findings. ✓
+FIX FIRST  top 3 of 13, by priority
+  P1  critical  CVE-2019-10906 · str.format_map allows sandbox escape
+      scanner trivy · fix upgrade to 2.10.1
+      requirements.txt:3
+
+  P1  high      CVE-2025-27516 · Jinja sandbox breakout through attr filter selecting format method
+      scanner trivy · fix upgrade to 3.1.6
+      requirements.txt:3
+
+  P1  high      CVE-2023-30861 · Possible disclosure of permanent session cookie due to missing…
+      scanner trivy · fix upgrade to 2.3.2 +1
+      requirements.txt:1
+
+… and 10 findings not listed.
+
+TRY
+  --top 0                every one of them, not the first three
+  --view compact         one line each, to see how much there is
+  --view actions         the same findings as a list of things to do
+  draugr explain <rule>  what a rule means and how to fix it
+draugr: policy verdict: fail
 ```
 
-For a machine-readable report use `--format json` (or write artifacts with `-o out/`):
-
-```json
-{
-  "release": { "name": "my-app", "version": "1.0" },
-  "verdict": "pass",
-  "controls": [
-    { "name": "images", "verdict": "pass", "highest": "none",
-      "threshold": "error", "errors": 0, "warnings": 0, "notes": 0, "total": 0 }
-  ],
-  "stats": { "jobs": 1, "concurrency": 8, "scans": 1, "cacheHits": 0, "deduped": 0 }
-}
-```
-
-The `verdict` and counts depend on what the scanners find, a real image like `alpine:3.19` will
-typically report several vulnerabilities, so you'll see `fail` unless you use a minimal image or
-raise `--fail-on`. The process **exits non-zero when the verdict is `fail`**, so it gates a pipeline
-directly.
+- **`DRAUGR FAIL`** is the verdict. It fails because at least one finding is P1, the default gate
+  (`--fail-on`), and the process **exits non-zero**, so it gates a pipeline directly.
+- **`6 P1 7 P2 0 P3 0 P4`** counts the findings by priority, P1 the most urgent. With no exposure
+  or criticality declared, every component is read as public and critical, so the bands follow
+  severity until [Focus](#focus-what-to-fix-first) classifies them.
+- **`CONTROLS`** has a row for each enabled control, saying whether it passed and what it found.
+- **`FIX FIRST`** lists findings most urgent first, each with its band and severity, the advisory
+  and its title, the scanner, the fix and the file.
 
 Useful flags:
 
@@ -98,10 +119,10 @@ draugr scan draugr.saga.yaml --fail-on P2      # widen the gate from the default
 draugr scan draugr.saga.yaml --fail-on medium  # or judge severity instead of the band
 draugr scan draugr.saga.yaml --cache-dir .draugr/cache   # skip re-scanning unchanged targets
 draugr scan draugr.saga.yaml --min-priority P2  # list only the findings worth acting on now
-draugr scan draugr.saga.yaml --fail-on P1      # the default: fail on any P1 finding
 ```
 
-See the [CLI reference](../reference/cli.md#draugr-scan-sagayaml--dir) for every flag.
+See the [CLI reference](../reference/cli.md#draugr-scan-sagayaml--dir) for every flag, and the
+[report schema](../reference/report-schema.md) for every field of `report.json`.
 
 ## Focus: what to fix first
 
