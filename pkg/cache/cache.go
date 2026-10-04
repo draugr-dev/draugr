@@ -60,6 +60,41 @@ type StampedGetter interface {
 type entry struct {
 	Report   sarif.Report `json:"report"`
 	StoredAt time.Time    `json:"storedAt"`
+	// Scored lists the results that carry a score, by index. A result's HasScore is not part of
+	// its JSON, so without this a cached finding read back with no score at all: its severity fell
+	// back to its SARIF level, and a critical scored 9.5 ranked as a high one. Kept here rather than
+	// on Result, whose JSON other outputs print.
+	Scored []int `json:"scored,omitempty"`
+}
+
+// newEntry records which of a report's results carry a score.
+func newEntry(report sarif.Report, at time.Time) entry {
+	e := entry{Report: report, StoredAt: at}
+	for i, r := range report.Results {
+		if r.HasScore {
+			e.Scored = append(e.Scored, i)
+		}
+	}
+	return e
+}
+
+// restoreScores marks the results that carried a score when stored. An entry written before
+// Scored existed lists none, and its non-zero scores are taken as present, which is the best
+// reading of a score of 9.5 there is.
+func (e *entry) restoreScores() {
+	if len(e.Scored) == 0 {
+		for i := range e.Report.Results {
+			if e.Report.Results[i].Score != 0 {
+				e.Report.Results[i].HasScore = true
+			}
+		}
+		return
+	}
+	for _, i := range e.Scored {
+		if i >= 0 && i < len(e.Report.Results) {
+			e.Report.Results[i].HasScore = true
+		}
+	}
 }
 
 // Noop is a cache that stores nothing and always misses.
@@ -231,6 +266,7 @@ func (l *Local) entryFor(key string) (entry, bool) {
 	if err := json.Unmarshal(data, &e); err != nil {
 		return entry{}, false
 	}
+	e.restoreScores()
 	if l.ttl > 0 && l.now().Sub(e.StoredAt) > l.ttl {
 		return entry{}, false
 	}
@@ -245,7 +281,7 @@ func (l *Local) Put(key string, report sarif.Report) error {
 	if err := os.MkdirAll(l.dir, 0o750); err != nil {
 		return err
 	}
-	data, err := json.Marshal(entry{Report: report, StoredAt: l.now()})
+	data, err := json.Marshal(newEntry(report, l.now()))
 	if err != nil {
 		return err
 	}
