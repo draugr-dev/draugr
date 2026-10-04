@@ -10,6 +10,7 @@ package english
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -37,6 +38,17 @@ func Noun(n int, word string) string {
 		return word[:len(word)-1] + "ies"
 	}
 	return word + "s"
+}
+
+// Word spells n out from zero through twelve, the numbers prose writes as words, and in digits
+// beyond.
+func Word(n int) string {
+	words := [...]string{"zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
+		"nine", "ten", "eleven", "twelve"}
+	if n >= 0 && n < len(words) {
+		return words[n]
+	}
+	return strconv.Itoa(n)
 }
 
 // Choose picks between two given forms by count: one for exactly one, many for anything else,

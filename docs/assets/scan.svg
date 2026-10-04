@@ -7,7 +7,7 @@
 <text x="82.4" y="72.0" fill="rgb(18,6,5)" xml:space="preserve"> FAIL </text>
 <text x="146.8" y="72.0" fill="#e6e8ea" font-weight="600" xml:space="preserve">draugr-demo 1.0</text>
 <text x="283.7" y="72.0" fill="rgb(232,184,75)" xml:space="preserve">(scope: sca, secrets)</text>
-<text x="468.8" y="72.0" fill="rgb(120,131,141)" xml:space="preserve">7.42s</text>
+<text x="468.8" y="72.0" fill="rgb(120,131,141)" xml:space="preserve">8.146s</text>
 <rect x="26.1" y="99.0" width="56.4" height="18.0" rx="3" fill="rgb(229,83,75)"/>
 <text x="26.1" y="112.0" fill="rgb(18,6,5)" xml:space="preserve"> 19 P1 </text>
 <rect x="90.5" y="99.0" width="56.4" height="18.0" rx="3" fill="rgb(232,184,75)"/>
@@ -30,7 +30,7 @@
 <text x="162.9" y="192.0" fill="rgb(18,6,5)" xml:space="preserve"> 1 P1 </text>
 <text x="18.0" y="232.0" fill="rgb(120,131,141)" xml:space="preserve">MEASURED AGAINST</text>
 <text x="18.0" y="252.0" fill="#e6e8ea" xml:space="preserve">  sca      </text>
-<text x="106.6" y="252.0" fill="rgb(120,131,141)" xml:space="preserve">govulncheck v1.8.0;db@2026-09-24 20:07:49 · database: local copy, fetched 2026-09-25</text>
+<text x="106.6" y="252.0" fill="rgb(120,131,141)" xml:space="preserve">govulncheck v1.8.0;db@2026-10-01 20:24:15 · database: local copy, fetched 2026-10-04</text>
 <text x="18.0" y="292.0" fill="rgb(120,131,141)" xml:space="preserve">COMPONENTS</text>
 <text x="18.0" y="312.0" fill="#e6e8ea" xml:space="preserve">  api         </text>
 <text x="130.7" y="312.0" fill="rgb(229,83,75)" font-weight="600" xml:space="preserve">FAIL </text>
@@ -175,7 +175,7 @@
 <text x="18.0" y="1212.0" fill="#e6e8ea" xml:space="preserve">… and 31 findings not listed.</text>
 <text x="18.0" y="1252.0" fill="rgb(120,131,141)" xml:space="preserve">TRY</text>
 <text x="34.1" y="1272.0" fill="rgb(120,131,141)" xml:space="preserve">--top 0</text>
-<text x="219.3" y="1272.0" fill="rgb(120,131,141)" xml:space="preserve">every one of them, not the first ten</text>
+<text x="219.3" y="1272.0" fill="rgb(120,131,141)" xml:space="preserve">every one of them, not the first seven</text>
 <text x="34.1" y="1292.0" fill="rgb(120,131,141)" xml:space="preserve">--view compact</text>
 <text x="219.3" y="1292.0" fill="rgb(120,131,141)" xml:space="preserve">one line each, to see how much there is</text>
 <text x="34.1" y="1312.0" fill="rgb(120,131,141)" xml:space="preserve">--view actions</text>
