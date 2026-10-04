@@ -62,9 +62,8 @@ func (RepositoryTarget) Kind() TargetKind { return TargetRepository }
 // Identity returns the URL, revision and scope, e.g. "https://git/x@1.0".
 //
 // The scope belongs in the identity because it changes what is scanned. Two components pointing
-// at different subtrees of one repository are two different scans; leaving the scope out gave
-// them the same identity, so they shared a cache entry and collapsed into a single run whose
-// findings both then received.
+// at different subtrees of one repository are two different scans. Without the scope they would
+// share an identity, and with it a cache entry and a single run whose findings both receive.
 func (t RepositoryTarget) Identity() string {
 	// Source rather than URL: credentials are how a repository is fetched, not which repository
 	// it is. Including them would give two people scanning one repository different identities,

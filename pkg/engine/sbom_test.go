@@ -152,7 +152,7 @@ func TestSBOMStopsOnContextCancellation(t *testing.T) {
 
 func TestSBOMTakesEachScopeOfASharedRepository(t *testing.T) {
 	// Two components on different paths of one repository are two inventories. Deduplicating by
-	// the repository alone filed one whole-repository document under whichever came first.
+	// the repository alone would file one whole-repository document under whichever came first.
 	f := &fakeSBOM{}
 	m := sbomModel()
 	m.Components = []saga.Component{
