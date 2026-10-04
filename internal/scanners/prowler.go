@@ -287,7 +287,7 @@ func loggedDenials(path string) (project map[string]string, above []string) {
 		if !denialRE.MatchString(line) {
 			continue
 		}
-		reason := "denied a read Prowler's log names"
+		reason := "denied a permission Prowler's log does not name"
 		if m := permissionRE.FindStringSubmatch(line); m != nil {
 			reason = "denied " + m[1]
 		}
