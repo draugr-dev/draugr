@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 
@@ -165,9 +164,10 @@ func newToolsInstallCommand() *cobra.Command {
 		Short: "Download pinned, checksum-verified tools into ~/.draugr/bin",
 		Long: "Download pinned scanner/utility binaries, verify each against a SHA-256 recorded in\n" +
 			"Draugr, and install them into ~/.draugr/bin (which Draugr adds to PATH automatically).\n" +
-			"With --saga, installs only the tools that descriptor's scan will run; with --all or no\n" +
-			"arguments, every tool Draugr can provision. Prints the plan first; when run\n" +
-			"interactively it asks for confirmation. Never downloads without being asked.",
+			"With no arguments, installs what a scan of this directory runs: its descriptor's\n" +
+			"scanners, or with no descriptor, the zero-config ones. With --saga, what that\n" +
+			"descriptor runs; with --all, every tool Draugr can provision. Prints the plan first;\n" +
+			"when run interactively it asks for confirmation. Never downloads without being asked.",
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dir, err := tools.BinDir()
@@ -243,22 +243,23 @@ func installNames(w io.Writer, args []string, opts toolsInstallOptions) ([]strin
 		return nil, true, nil
 	}
 	if opts.saga == "" {
-		if len(args) == 0 {
-			// A descriptor beside you is the answer to which scanners this machine needs, and
-			// taking it is the whole reason the file exists. Named out loud, because a command
-			// that reads a file nobody pointed it at has to say which one.
-			if n := narrowerSetInWorkingDir(); n != nil {
-				_, _ = fmt.Fprintf(w, "Installing what %s runs. `--all` for every tool Draugr provisions.\n\n",
-					n.descriptor)
-				return n.tools, false, nil
-			}
-			return nil, false, errors.New(
-				"nothing here says which scanners you need.\n" +
-					"  draugr init                 describe this project, then run this again\n" +
-					"  draugr tools install --all  every tool Draugr can provision\n" +
-					"  draugr tools install trivy  one by one")
+		if len(args) > 0 {
+			return args, false, nil
 		}
-		return args, false, nil
+		// The directory answers which scanners this machine needs, the same way `draugr scan` reads
+		// it: the descriptor here, or with none, the controls a scan here synthesizes. Named out
+		// loud, because a command that reads a file nobody pointed it at has to say which one.
+		path, found, err := resolveDescriptor(".", "tools install --saga")
+		if err != nil {
+			return nil, false, err
+		}
+		if !found {
+			_, _ = fmt.Fprintf(w, "No *.saga.yaml here, installing what `draugr scan` runs without one (%s). "+
+				"`--all` for every tool Draugr provisions.\n\n", ZeroConfigControls(""))
+			return provisionable(requiredTools(builtins.Registry(), syntheticSaga("."))), false, nil
+		}
+		_, _ = fmt.Fprintf(w, "Installing what %s runs. `--all` for every tool Draugr provisions.\n\n", path)
+		opts.saga = path
 	}
 	if len(args) > 0 {
 		return nil, false, fmt.Errorf(
@@ -272,16 +273,13 @@ func installNames(w io.Writer, args []string, opts toolsInstallOptions) ([]strin
 	}
 	required := requiredTools(builtins.Registry(), model)
 
-	var names, unprovisionable []string
-	installable := tools.Installable()
+	names := provisionable(required)
+	var unprovisionable []string
 	for _, t := range required {
-		if slices.Contains(installable, t.Binary) {
-			names = appendUnique(names, t.Binary)
-			continue
+		if !tools.Provisionable(t.Binary) {
+			unprovisionable = appendUnique(unprovisionable, t.Binary)
 		}
-		unprovisionable = appendUnique(unprovisionable, t.Binary)
 	}
-	sort.Strings(names)
 
 	// The gap is the interesting part. Installing three of five and reporting success leaves
 	// someone one failed scan away from discovering the other two.
@@ -297,48 +295,16 @@ func installNames(w io.Writer, args []string, opts toolsInstallOptions) ([]strin
 	return names, false, nil
 }
 
-// narrowing is the smaller install a descriptor in the working directory would ask for.
-type narrowing struct {
-	descriptor string   // the file it was read from, named in the question
-	tools      []string // what its scan actually runs, a subset of the catalog
-	catalog    int      // how many there are altogether, for the comparison
-}
-
-// narrowerSetInWorkingDir reports the smaller install a descriptor beside you would ask for, or
-// nothing where there is no single obvious descriptor and no saving to be had.
-func narrowerSetInWorkingDir() *narrowing {
-	// Every name a scan would find, not just the one `draugr init` writes. A project whose
-	// descriptor is called anything else got no note at all, which is the project least likely to
-	// know the flag exists.
-	//
-	// Exactly one, because the question names a path. With several beside each other there is no
-	// way to tell which one this host is being prepared for, and picking the first alphabetically
-	// would put a specific number against a guess.
-	found, err := descriptorsIn(".")
-	if err != nil || len(found) != 1 {
-		return nil
-	}
-	model, err := loadSaga(found[0])
-	if err != nil {
-		return nil // not our problem here; scan and doctor will say so properly
-	}
-	// Only what --saga would actually install. Counting tools Draugr cannot provision would
-	// promise a number the flag does not deliver.
-	installable := tools.Installable()
-	var needed []string
-	for _, t := range requiredTools(builtins.Registry(), model) {
-		if slices.Contains(installable, t.Binary) && !slices.Contains(needed, t.Binary) {
-			needed = append(needed, t.Binary)
+// provisionable is the tools in required that `draugr tools install` fetches, sorted, each once.
+func provisionable(required []tools.Tool) []string {
+	var names []string
+	for _, t := range required {
+		if tools.Provisionable(t.Binary) {
+			names = appendUnique(names, t.Binary)
 		}
 	}
-	// No saving is nothing worth saying. Not reachable through any descriptor today, because
-	// cosign and gosec are never *required* by a control: cosign verifies downloads and gosec is
-	// opt-in, so a Saga cannot demand the whole catalog.
-	if len(needed) == 0 || len(needed) >= len(installable) {
-		return nil
-	}
-	slices.Sort(needed)
-	return &narrowing{descriptor: found[0], tools: needed, catalog: len(installable)}
+	sort.Strings(names)
+	return names
 }
 
 func newToolsListCommand() *cobra.Command {
@@ -486,7 +452,7 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, all bool, opts t
 	for _, name := range names {
 		res, err := install(name)
 		if err != nil {
-			// With no arguments the request was "everything this host can have", so a tool whose
+			// With --all the request was "everything this host can have", so a tool whose
 			// runtime is not here is not something this command was asked for and failed to do.
 			// Refusing the batch over it fails nine installs to report a tenth, and the tenth is
 			// usually a scanner the descriptor never names.

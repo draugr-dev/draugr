@@ -1,0 +1,1 @@
+- **`draugr tools install` with no arguments and no descriptor installs what `draugr scan` runs there**, the zero-config scanners, where it had refused. With two descriptors in the directory it names both and the `--saga` that picks one.

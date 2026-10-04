@@ -41,7 +41,8 @@ no shell config.
 **Point it at your descriptor.** `--saga` installs the tools that descriptor's scan will run and
 leaves the rest. The whole catalog is several hundred megabytes, most of it scanners a given
 project never starts, and every binary on `PATH` is one more thing to trust and keep patched.
-`--all`, or no arguments, installs everything Draugr can provision.
+With no arguments it installs what the descriptor in the current directory runs, or with none, what
+`draugr scan` runs there without one. `--all` installs everything Draugr can provision.
 
 | Flag | Default | Description |
 |------|---------|-------------|
