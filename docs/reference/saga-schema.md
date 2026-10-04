@@ -1200,14 +1200,15 @@ anything git can clone is valid.
 repositories:
   - url: https://github.com/acme/web.git   # remote, cloned over the network
   - url: git@github.com:acme/web.git       # remote, uses your SSH agent
-  - url: ../web                            # local, relative to the descriptor's directory
+  - url: ../web                            # local, relative to where Draugr runs
   - url: /srv/checkouts/web                # local, absolute
 ```
 
-A relative path resolves against **the directory holding the Saga**, not the current working
-directory, so a descriptor committed beside its code means the same thing wherever it is run
-from. `draugr scan .` with no descriptor synthesizes one pointing at the directory you named, so
-the zero-config path lands here too.
+A relative path resolves against **where Draugr runs**, like every other path in a descriptor, so
+run it from the directory the descriptor's paths were written for. In CI that is the GitHub
+Action's `working-directory` input or a pipeline step's working directory. `draugr scan .` with no
+descriptor synthesizes one pointing at the directory you named, so the zero-config path lands here
+too.
 
 **A directory inside a checkout is scanned as part of that checkout.** Draugr clones whole
 repositories, so `url: services/payments`, or the `url: .` that `draugr init` writes in a
