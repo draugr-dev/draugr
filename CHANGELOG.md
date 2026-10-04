@@ -18,19 +18,21 @@ _Nothing yet._
 
 - **The `cloud` control checks a live Google Cloud project against the CIS benchmark**, through Prowler, which you install. Declare the account once under `accounts:`, with `provider: gcp` and its `project`, and name it from a component's `cloud:` entry, optionally narrowed to `regions`. A service the credentials cannot read is listed under Caveats with the denied permission, never as a pass.
 
-- **`draugr doctor` checks that the credentials in the environment can read each declared cloud account**, and `report.json` lists every check a scan could not evaluate under `unreadChecks[]`, by component and service, with the reason.
+- **`draugr doctor` checks that the credentials in the environment can read each declared cloud account.**
+
+- **`report.json` lists every check a scan could not evaluate** under `unreadChecks[]`, by component and service, with the reason.
 
 ### Fixed
 
-- **A scan answered from `--cache-dir` ranks each finding by its score**, as a fresh scan does. A cached finding had lost its score and fell back to its SARIF level, so a critical scored 9.5 read as high and its priority could drop a band.
+- **A scan answered from `--cache-dir` ranks each finding by its score**, as a fresh scan does. A cached finding had fallen back to its SARIF level, so a critical scored 9.5 read as high and could drop a priority band.
 
-- **`draugr doctor` reports the version of the `prowler` it found**, read with Prowler's update check unable to reach GitHub, and its inventory says `draugr tools install` fetches only the tools it can rather than all of them.
+- **`draugr doctor` reports the version of the `prowler` it found**, where its tools table had shown `-`.
 
 - **A scanner written in Python that crashes is reported by the exception that ended it**, such as `PermissionError: [Errno 13] Permission denied`, rather than by the first line of its traceback.
 
-- **A repository two components share, when it cannot be read, is named once under Errors** and no longer repeated under its control with a count of the jobs that tried.
+- **A repository that two components share and Draugr cannot read is named once under Errors**, and its control no longer repeats it with a count of the jobs that tried.
 
-- **A missing tool's error says whether `draugr tools install` fetches it**, rather than calling it a tool Draugr does not distribute. Draugr distributes no scanner; that command downloads pinned upstream releases it has verified.
+- **A missing tool's error and the closing line of `draugr doctor`'s inventory say whether `draugr tools install` fetches the tool**, where the error had called it one Draugr does not distribute and the inventory promised to fetch every missing tool.
 
 ## [0.144.0] - 2026-10-03
 
