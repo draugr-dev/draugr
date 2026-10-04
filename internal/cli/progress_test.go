@@ -11,6 +11,11 @@ import (
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
+// frameAt is the moment a test's frame describes. Fixed, so every figure a test checks comes from
+// times the test chose rather than from a wall clock that moves on between the line setting a
+// figure up and the line reading it.
+var frameAt = time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)
+
 // A shorter line must not leave the tail of a longer one behind, or the display reads as two
 // states at once, "scanning 9/11" followed by the debris of six scanner names.
 func TestProgressClearsWhatItNoLongerCovers(t *testing.T) {
@@ -124,7 +129,7 @@ func TestProgressFrameMarksEachStepsState(t *testing.T) {
 			{Control: "sca", Scanner: "trivy-fs", Total: 3},
 		},
 	}
-	got := progressFrame(ev, tui.Painter{}, 0)
+	got := progressFrame(ev, tui.Painter{}, 0, frameAt)
 
 	if len(got) != 4 {
 		t.Fatalf("want a headline and a row per step, got %d lines: %q", len(got), got)
@@ -160,7 +165,7 @@ func TestProgressStepMarksSurviveWithoutColor(t *testing.T) {
 		{"pending", "·", engine.ProgressStep{Control: "a", Scanner: "b", Total: 2}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			if got := progressStepLine(c.step, plain); !strings.Contains(got, c.want) {
+			if got := progressStepLine(c.step, plain, frameAt); !strings.Contains(got, c.want) {
 				t.Errorf("got %q, want the %s mark %q", got, c.name, c.want)
 			}
 		})
@@ -170,7 +175,7 @@ func TestProgressStepMarksSurviveWithoutColor(t *testing.T) {
 // TestProgressFrameIsEmptyBeforeAnythingIsPlanned keeps the display off the screen until there is
 // something to say about.
 func TestProgressFrameIsEmptyBeforeAnythingIsPlanned(t *testing.T) {
-	if got := progressFrame(engine.ProgressEvent{}, tui.Painter{}, 0); got != nil {
+	if got := progressFrame(engine.ProgressEvent{}, tui.Painter{}, 0, frameAt); got != nil {
 		t.Errorf("drew %q before the plan existed", got)
 	}
 }
@@ -186,11 +191,11 @@ func TestProgressShowsHowLongAStepHasBeenRunning(t *testing.T) {
 		Total: 2, Complete: 1,
 		Steps: []engine.ProgressStep{
 			{Control: "kubernetes", Scanner: "kube-bench-job", Total: 1, Running: 1,
-				RunningSince: time.Now().Add(-95 * time.Second)},
+				RunningSince: frameAt.Add(-95 * time.Second)},
 			{Control: "sast", Scanner: "semgrep", Total: 1, Done: 1},
 		},
 	}
-	got := progressFrame(ev, tui.Painter{}, 100*time.Second)
+	got := progressFrame(ev, tui.Painter{}, 100*time.Second, frameAt)
 
 	if !strings.Contains(got[1], "1m35s") {
 		t.Errorf("a running step should say how long it has been going: %q", got[1])
@@ -242,8 +247,8 @@ var elapsedFigure = regexp.MustCompile(`\b\d+(m\d{2})?s\b`)
 func TestProgressDoesNotTimeAJobThatJustStarted(t *testing.T) {
 	line := progressStepLine(engine.ProgressStep{
 		Control: "sca", Scanner: "trivy-fs", Total: 3, Running: 1,
-		RunningSince: time.Now(),
-	}, tui.Painter{})
+		RunningSince: frameAt,
+	}, tui.Painter{}, frameAt)
 	if elapsedFigure.MatchString(line) {
 		t.Errorf("a step that just started should not carry a clock: %q", line)
 	}
@@ -349,9 +354,9 @@ func TestAFrameReachesTheTerminalInOneWrite(t *testing.T) {
 // terminal costs a write and buys nothing.
 func TestARepaintWithNothingNewSaysNothing(t *testing.T) {
 	var w countingWriter
-	// Started just now, so the headline stays quiet and the frame carries no clock. A duration is
-	// legitimately part of a frame, and two repaints either side of a second really are different.
-	p := &progressLine{w: &w, start: time.Now()}
+	// The clock held still, so both repaints describe the same moment. A duration is legitimately
+	// part of a frame, and two repaints either side of a second really are different.
+	p := &progressLine{w: &w, start: frameAt, now: func() time.Time { return frameAt }}
 	t.Cleanup(func() { active.Store(nil) })
 
 	ev := engine.ProgressEvent{
@@ -363,6 +368,29 @@ func TestARepaintWithNothingNewSaysNothing(t *testing.T) {
 	p.update(ev)
 	if w.writes != first {
 		t.Errorf("an identical frame was written again (%d writes, want %d)", w.writes, first)
+	}
+}
+
+// The repaint is what keeps the clocks moving while a slow job reports nothing. Each one reads the
+// time afresh, so the same snapshot a second later is a new frame, with both the run's clock and
+// the step's moved on.
+func TestARepaintMovesTheClocksOn(t *testing.T) {
+	var buf bytes.Buffer
+	at := frameAt.Add(95 * time.Second)
+	p := &progressLine{w: &buf, start: frameAt, now: func() time.Time { return at }}
+	t.Cleanup(func() { active.Store(nil) })
+
+	p.update(engine.ProgressEvent{Total: 9, Complete: 1, Steps: []engine.ProgressStep{{
+		Control: "sca", Scanner: "trivy-fs", Total: 5, Running: 1, RunningSince: frameAt.Add(5 * time.Second),
+	}}})
+	if got := buf.String(); !strings.Contains(got, "1m35s") || !strings.Contains(got, "1m30s") {
+		t.Fatalf("want the run at 1m35s and the step at 1m30s: %q", got)
+	}
+	buf.Reset()
+	at = at.Add(time.Second)
+	p.repaint()
+	if got := buf.String(); !strings.Contains(got, "1m36s") || !strings.Contains(got, "1m31s") {
+		t.Errorf("a repaint a second later should move both clocks on: %q", got)
 	}
 }
 
