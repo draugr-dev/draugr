@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -46,6 +47,43 @@ func TestCloudPlanCarriesEachAccountsFacts(t *testing.T) {
 	}
 	if jobs[0].Config["compliance"] != "cis_4.0_gcp" {
 		t.Errorf("billing's config = %v", jobs[0].Config)
+	}
+}
+
+// Two components naming one account with different regions are planned as two targets, each
+// carrying its own component's regions. The account and its ID are the same, so a target that
+// dropped the regions would be one scan for both, and each component would receive findings from
+// regions it does not run in. A third claiming the first's regions in another order asks the same
+// question, and shares its target so the engine scans the account once for both.
+func TestCloudPlansOneTargetPerRegionClaimOnASharedAccount(t *testing.T) {
+	model := saga.Model{Accounts: map[string]saga.Account{
+		"prod": {Provider: saga.ProviderGCP, Project: "shop-prod-4821"},
+	}}
+	claims := map[string][]string{
+		"checkout": {"us-east1", "us-central1"},
+		"search":   {"europe-west1"},
+		"payments": {"us-central1", "us-east1"},
+	}
+	targets := map[string]plugin.AccountTarget{}
+	for name, regions := range claims {
+		comp := &saga.Component{Name: name, Cloud: []saga.AccountRef{{Account: "prod", Regions: regions}}}
+		jobs, err := Cloud{}.Plan(model, comp)
+		if err != nil || len(jobs) != 1 {
+			t.Fatalf("%s: %v, %v", name, jobs, err)
+		}
+		targets[name] = jobs[0].Target.(plugin.AccountTarget)
+	}
+
+	for name, regions := range claims {
+		if got := targets[name]; !slices.Equal(got.Regions, regions) || got.ID != "shop-prod-4821" {
+			t.Errorf("%s: target = %+v, want project shop-prod-4821 and regions %v", name, got, regions)
+		}
+	}
+	if a, b := targets["checkout"].Identity(), targets["search"].Identity(); a == b {
+		t.Errorf("checkout and search both identify as %q, so the engine runs one scan for both", a)
+	}
+	if a, b := targets["checkout"].Identity(), targets["payments"].Identity(); a != b {
+		t.Errorf("the same regions in another order gave two targets: %q, %q", a, b)
 	}
 }
 
