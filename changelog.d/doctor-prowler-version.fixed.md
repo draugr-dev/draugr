@@ -1,1 +1,0 @@
-- **`draugr doctor` reports the version of the `prowler` it found**, read with Prowler's update check unable to reach GitHub, and its inventory says `draugr tools install` fetches only the tools it can rather than all of them.
