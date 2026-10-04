@@ -2,6 +2,8 @@ package engine
 
 import (
 	"context"
+	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -108,6 +110,41 @@ func TestSingleflightCollapsesIdenticalJobs(t *testing.T) {
 	// One per component: the saving is in the scanning, not in the reporting.
 	if got := res.Controls["images"].Report.Counts().Warning; got != 2 {
 		t.Errorf("merged warnings = %d, want one per component", got)
+	}
+}
+
+// Two components on one repository that ignore different parts of it are two scans, each handed
+// its own component's ignore list. One scan shared between them reads a tree only one of them
+// declared, and reports a directory the other ignores as that component's finding.
+func TestComponentsIgnoringDifferentPartsOfOneRepositoryScanSeparately(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(repoController{scanner: "mod"})
+	sc := &moduleScanner{}
+	reg.RegisterScanner(sc)
+	m := saga.Model{
+		Release: saga.Release{Version: "1"},
+		Config:  saga.Config{Controls: map[string]saga.ControllerSettings{"sast": {"enabled": true}}},
+		Components: []saga.Component{
+			{Name: "web", Repositories: []saga.Repository{{URL: "https://git/mono", Revision: "v2", Ignore: []string{"services/api/"}}}},
+			{Name: "api", Repositories: []saga.Repository{{URL: "https://git/mono", Revision: "v2", Ignore: []string{"services/web/"}}}},
+		},
+	}
+
+	// No module resolver, so each job keeps the scope its component declared.
+	res, err := New(reg).Run(context.Background(), m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Stats.Scans != 2 || res.Stats.Deduped != 0 {
+		t.Errorf("stats = %+v, want Scans=2 Deduped=0", res.Stats)
+	}
+	var ignored []string
+	for _, target := range sc.targets {
+		ignored = append(ignored, strings.Join(target.Ignore, ","))
+	}
+	slices.Sort(ignored)
+	if want := []string{"services/api/", "services/web/"}; !slices.Equal(ignored, want) {
+		t.Errorf("the scanner was handed ignore lists %q, want %q", ignored, want)
 	}
 }
 
