@@ -12,6 +12,26 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.145.0] - 2026-10-04
+
+### Added
+
+- **The `cloud` control checks a live Google Cloud project against the CIS benchmark**, through Prowler, which you install. Declare the account once under `accounts:`, with `provider: gcp` and its `project`, and name it from a component's `cloud:` entry, optionally narrowed to `regions`. A service the credentials cannot read is listed under Caveats with the denied permission, never as a pass.
+
+- **`draugr doctor` checks that the credentials in the environment can read each declared cloud account**, and `report.json` lists every check a scan could not evaluate under `unreadChecks[]`, by component and service, with the reason.
+
+### Fixed
+
+- **A scan answered from `--cache-dir` ranks each finding by its score**, as a fresh scan does. A cached finding had lost its score and fell back to its SARIF level, so a critical scored 9.5 read as high and its priority could drop a band.
+
+- **`draugr doctor` reports the version of the `prowler` it found**, read with Prowler's update check unable to reach GitHub, and its inventory says `draugr tools install` fetches only the tools it can rather than all of them.
+
+- **A scanner written in Python that crashes is reported by the exception that ended it**, such as `PermissionError: [Errno 13] Permission denied`, rather than by the first line of its traceback.
+
+- **A repository two components share, when it cannot be read, is named once under Errors** and no longer repeated under its control with a count of the jobs that tried.
+
+- **A missing tool's error says whether `draugr tools install` fetches it**, rather than calling it a tool Draugr does not distribute. Draugr distributes no scanner; that command downloads pinned upstream releases it has verified.
+
 ## [0.144.0] - 2026-10-03
 
 ### Added
@@ -6191,7 +6211,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.144.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.145.0...HEAD
+[0.145.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.145.0
 [0.144.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.144.0
 [0.143.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.143.1
 [0.143.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.143.0

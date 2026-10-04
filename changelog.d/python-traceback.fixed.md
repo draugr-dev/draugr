@@ -1,1 +1,0 @@
-- **A scanner written in Python that crashes is reported by the exception that ended it**, such as `PermissionError: [Errno 13] Permission denied`, rather than by the first line of its traceback.

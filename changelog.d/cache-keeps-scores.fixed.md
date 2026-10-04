@@ -1,1 +1,0 @@
-- **A scan answered from `--cache-dir` ranks each finding by its score**, as a fresh scan does. A cached finding had lost its score and fell back to its SARIF level, so a critical scored 9.5 read as high and its priority could drop a band.
