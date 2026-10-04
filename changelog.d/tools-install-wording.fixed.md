@@ -1,0 +1,1 @@
+- **A missing tool's error says whether `draugr tools install` fetches it**, rather than calling it a tool Draugr does not distribute. Draugr distributes no scanner; that command downloads pinned upstream releases it has verified.

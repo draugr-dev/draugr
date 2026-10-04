@@ -124,7 +124,7 @@ func TestAttestFallsBackToTheRecordedVersion(t *testing.T) {
 func TestEverythingExternalSaysWhereItCameFrom(t *testing.T) {
 	t.Parallel()
 	for _, tool := range []string{
-		"trivy",   // Draugr distributes it, as a release archive.
+		"trivy",   // `draugr tools install` fetches it, as a release archive.
 		"semgrep", // And this one, as a Python package.
 		"mend",    // And not this one.
 	} {

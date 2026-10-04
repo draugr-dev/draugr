@@ -246,8 +246,8 @@ func runDoctor(
 			_, _ = fmt.Fprintf(w, "\n%s\n", tui.For(w).Paint(tui.StyleMuted,
 				fmt.Sprintf("%d of these are not installed. Which you need depends on your "+
 					"descriptor. Run `draugr doctor <saga>` to check just those, or "+
-					"`draugr tools install` to fetch the ones Draugr distributes; the Notes column says where "+
-					"the rest come from.", missing)))
+					"`draugr tools install` to fetch the ones it can; the Notes column says where the rest "+
+					"come from.", missing)))
 		}
 		return nil
 	}
@@ -817,7 +817,7 @@ func networkHeading() string {
 // missingToolsAdvice counts what is missing and suggests `tools install` only when it could
 // actually help.
 //
-// Some scanners are execed but never distributed, retire.js publishes to npm, the Mend CLI is
+// Some scanners are execed and never fetched, retire.js publishes to npm, the Mend CLI is
 // proprietary. And telling somebody to run a command that will not find their tool is worse
 // advice than none: they run it, it succeeds, and the thing is still missing.
 func missingToolsAdvice(statuses []tools.Status) string {
@@ -871,7 +871,7 @@ func isBareURL(hint string) bool {
 	return strings.HasPrefix(hint, "http") && !strings.ContainsAny(hint, " ,")
 }
 
-// externalInstallHint says where a tool Draugr does not distribute comes from.
+// externalInstallHint says where a tool `draugr tools install` does not fetch comes from.
 //
 // `draugr tools install` fetches pinned releases Draugr has verified, which it can only do for
 // tools it vouched for. For the rest, proprietary ones especially. Naming the source is the
@@ -886,6 +886,6 @@ func externalInstallHint(binary string) string {
 
 // externalTools names where to get a tool Draugr execs but never downloads.
 var externalTools = map[string]string{
-	"mend": "proprietary; install the Mend CLI from Mend's documentation (Draugr does not " +
-		"distribute it). See internal/scanners/mend-sca.md",
+	"mend": "proprietary; install the Mend CLI from Mend's documentation, which `draugr tools " +
+		"install` does not fetch. See internal/scanners/mend-sca.md",
 }

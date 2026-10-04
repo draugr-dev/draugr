@@ -23,8 +23,8 @@ For the last two, add an entry to `externalTools` in `internal/cli/doctor.go`:
 
 ```go
 var externalTools = map[string]string{
-	"mend": "proprietary; install the Mend CLI from Mend's documentation (Draugr does not " +
-		"distribute it). See internal/scanners/mend-sca.md",
+	"mend": "proprietary; install the Mend CLI from Mend's documentation, which `draugr tools " +
+		"install` does not fetch. See internal/scanners/mend-sca.md",
 }
 ```
 

@@ -199,7 +199,7 @@ func TestRunDoctorMissingFails(t *testing.T) {
 		t.Fatal("expected error when a required tool is missing")
 	}
 	s := out.String()
-	// The row names the command rather than trivy.dev: Draugr distributes trivy, and the pinned
+	// The row names the command rather than trivy.dev: `draugr tools install` fetches trivy, and the pinned
 	// archive with its checksum checked is a better answer than whatever the download page is
 	// serving today.
 	if !strings.Contains(s, "✗ missing") || !strings.Contains(s, "install: draugr tools install trivy") {
@@ -327,7 +327,7 @@ func TestTheInstallNoteNamesTheCommandWhereThereIsOne(t *testing.T) {
 	if got := installAdvice(tools.Tool{Binary: "notation", InstallHint: "https://notaryproject.dev/x"}); got != "draugr tools install notation" {
 		t.Errorf("advice = %q, want the command", got)
 	}
-	// And the upstream page for one Draugr does not distribute, where the command would succeed
+	// And the upstream page for one `draugr tools install` does not fetch, where the command would succeed
 	// and leave the tool missing.
 	hint := "proprietary; install from the vendor"
 	if got := installAdvice(tools.Tool{Binary: "mend", InstallHint: hint}); got != hint {
@@ -798,7 +798,7 @@ func TestDoctorJSONCarriesUncoveredSurface(t *testing.T) {
 // TestMissingToolsAdviceOnlyOffersWhatWouldWork covers the difference between help and a wild
 // goose chase.
 //
-// Some scanners are execed but never distributed. The Mend CLI is proprietary, so `draugr tools
+// Some scanners are execed and never fetched. The Mend CLI is proprietary, so `draugr tools
 // install` cannot fetch them. Suggesting it anyway is worse than saying nothing: the command runs,
 // succeeds, and the tool is still missing.
 func TestMissingToolsAdviceOnlyOffersWhatWouldWork(t *testing.T) {
