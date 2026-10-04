@@ -1209,6 +1209,13 @@ directory, so a descriptor committed beside its code means the same thing wherev
 from. `draugr scan .` with no descriptor synthesizes one pointing at the directory you named, so
 the zero-config path lands here too.
 
+**A directory inside a checkout is scanned as part of that checkout.** Draugr clones whole
+repositories, so `url: services/payments`, or the `url: .` that `draugr init` writes in a
+subdirectory, clones the checkout's root and scans the directory as though
+[`paths`](#scoping-a-repository) had named it. `paths` and `ignore` written beside such a `url` stay
+relative to the directory, but findings name files from the repository root. A directory that no
+repository holds fails as `not a git repository`, even with `--working-tree`.
+
 **Both kinds are cloned.** A local path is not read in place: Draugr clones it into a temporary
 directory the same way it clones a URL, applies [`paths` and `ignore`](#scoping-a-repository) as
 a sparse checkout, and runs the scanners over that. Three things follow, and they are the reason

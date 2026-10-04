@@ -2,7 +2,9 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -68,6 +70,11 @@ func resolveDescriptor(target, cmdName string) (path string, found bool, err err
 		target = "."
 	}
 	info, statErr := os.Stat(target)
+	if errors.Is(statErr, fs.ErrNotExist) {
+		// Said here rather than by the loader, whose message ends by suggesting `draugr validate`
+		// on the same missing file.
+		return "", false, fmt.Errorf("%s does not exist", target)
+	}
 	if statErr != nil || !info.IsDir() {
 		return target, true, nil
 	}
