@@ -49,7 +49,7 @@ func TestNucleiArgv(t *testing.T) {
 }
 
 func TestNucleiToResultsSeverities(t *testing.T) {
-	// One finding per severity, plus a blank line and a malformed line (both skipped).
+	// One finding per severity, plus a blank line, which is skipped.
 	jsonl := strings.Join([]string{
 		`{"template-id":"crit","matched-at":"https://x/a","info":{"name":"Crit","severity":"critical"}}`,
 		`{"template-id":"high","matched-at":"https://x/b","info":{"name":"High","severity":"high"}}`,
@@ -58,12 +58,14 @@ func TestNucleiToResultsSeverities(t *testing.T) {
 		`{"template-id":"info","matched-at":"https://x/e","info":{"name":"Info","severity":"info"}}`,
 		`{"template-id":"unknown","matched-at":"https://x/f","info":{"name":"Unknown","severity":"weird"}}`,
 		``,
-		`{not valid json`,
 	}, "\n")
 
-	results := nucleiToResults([]byte(jsonl))
+	results, err := nucleiToResults([]byte(jsonl))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(results) != 6 {
-		t.Fatalf("want 6 results (blank + malformed skipped), got %d", len(results))
+		t.Fatalf("want 6 results (blank skipped), got %d", len(results))
 	}
 
 	byRule := make(map[string]sarif.Result, len(results))
@@ -103,7 +105,10 @@ func TestNucleiToResultsSeverities(t *testing.T) {
 
 func TestNucleiToResultsMessageAndCWE(t *testing.T) {
 	jsonl := `{"template-id":"xss","matched-at":"https://x/q","info":{"name":"Reflected XSS","severity":"high","description":"input reflected","classification":{"cwe-id":["CWE-79","CWE-80"]}}}`
-	results := nucleiToResults([]byte(jsonl))
+	results, err := nucleiToResults([]byte(jsonl))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(results) != 1 {
 		t.Fatalf("want 1 result, got %d", len(results))
 	}
@@ -118,7 +123,10 @@ func TestNucleiToResultsMessageAndCWE(t *testing.T) {
 
 func TestNucleiToResultsMessageFallsBackToTemplateID(t *testing.T) {
 	jsonl := `{"template-id":"only-id","matched-at":"https://x/z","info":{"severity":"info"}}`
-	results := nucleiToResults([]byte(jsonl))
+	results, err := nucleiToResults([]byte(jsonl))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(results) != 1 || results[0].Message != "only-id" {
 		t.Fatalf("expected message to fall back to template-id, got %+v", results)
 	}
@@ -126,7 +134,10 @@ func TestNucleiToResultsMessageFallsBackToTemplateID(t *testing.T) {
 
 func TestNucleiToResultsURIFallbackToHost(t *testing.T) {
 	jsonl := `{"template-id":"t","host":"https://host.example.com","info":{"severity":"info"}}`
-	results := nucleiToResults([]byte(jsonl))
+	results, err := nucleiToResults([]byte(jsonl))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(results) != 1 {
 		t.Fatalf("want 1 result, got %d", len(results))
 	}
@@ -136,7 +147,7 @@ func TestNucleiToResultsURIFallbackToHost(t *testing.T) {
 }
 
 func TestNucleiToResultsEmpty(t *testing.T) {
-	if got := nucleiToResults(nil); got != nil {
+	if got, err := nucleiToResults(nil); got != nil || err != nil {
 		t.Errorf("empty input should yield no results, got %v", got)
 	}
 }
@@ -681,5 +692,22 @@ func TestNucleiPrewarmFallsBackWhenTheDownloadErrorsOverAnUnversionedSet(t *test
 	}}
 	if err := w.warm(context.Background()); err != nil {
 		t.Errorf("a failed download over a set on disk should scan with the set: %v", err)
+	}
+}
+
+// Output that is not findings is an error rather than an empty report: a line that cannot be read
+// is a finding that would be dropped, and output none of whose lines parse would read as an
+// application with nothing wrong.
+func TestNucleiOutputThatIsNotFindingsIsAnError(t *testing.T) {
+	for name, out := range map[string]string{
+		"nothing parses": "[INF] Current nuclei version: v3.11.1\n[INF] Templates loaded: 42",
+		"one line among findings": `{"template-id":"crit","matched-at":"https://x/a","info":{"severity":"critical"}}` +
+			"\n{truncated",
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := nucleiToResults([]byte(out)); err == nil {
+				t.Error("unreadable output was accepted")
+			}
+		})
 	}
 }

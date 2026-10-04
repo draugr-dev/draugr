@@ -3,6 +3,7 @@ package scanners
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -185,6 +186,12 @@ func virusTotalLookup(ctx context.Context, domain string) (virusTotalDomain, boo
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 8<<20)).Decode(&envelope); err != nil {
 		return virusTotalDomain{}, false, fmt.Errorf("decode response: %w", err)
+	}
+	// An analyzed domain carries a verdict from every engine VirusTotal ran, harmless and
+	// undetected included. A body with none is not a report, and reading it as one would be a
+	// known domain that no engine flagged.
+	if d := envelope.Data.Attributes; d.Stats == (virusTotalStats{}) && len(d.Results) == 0 {
+		return virusTotalDomain{}, false, errors.New("the response holds no analysis")
 	}
 	return envelope.Data.Attributes, true, nil
 }

@@ -103,6 +103,11 @@ func TestParseGosec(t *testing.T) {
 		t.Errorf("err = %v, want the missing report named", err)
 	}
 
+	// Nothing at all over a tree that holds modules is runs that wrote nothing, not a tree with none.
+	if _, err := parseGosec(nil, twoGoModules(t), nil); err == nil || !strings.Contains(err.Error(), "0 reports for 2 modules") {
+		t.Errorf("err = %v, want the missing reports named", err)
+	}
+
 	rep, err = parseGosec(nil, "", nil)
 	if err != nil {
 		t.Fatal(err)
