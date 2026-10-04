@@ -2,11 +2,13 @@ package report
 
 import (
 	"bytes"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/skald"
@@ -443,5 +445,19 @@ func TestACheckoutWithNoRemoteSaysSo(t *testing.T) {
 	}
 	if rows[1][0] != "github.com/acme/api" {
 		t.Errorf("row = %q, want the forge kept and the suffix dropped", rows[1][0])
+	}
+}
+
+// A control with no findings in a run that ranked others says so. Empty bands read "no priorities
+// set", as though something had been left undone, on the row a newcomer reads first.
+func TestAControlWithNoFindingsSaysSo(t *testing.T) {
+	d := goldenFullData()
+	d.Verdict.Controls = append(d.Verdict.Controls, norn.ControlOutcome{Control: "secrets", Verdict: norn.Pass})
+	out := renderWith(t, consoleReporter{}, d)
+	if !regexp.MustCompile(`secrets +pass +no findings`).MatchString(out) {
+		t.Errorf("the clean control does not say it has no findings:\n%s", out)
+	}
+	if strings.Contains(out, "no priorities set") {
+		t.Errorf("a control row described empty bands:\n%s", out)
 	}
 }
