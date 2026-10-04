@@ -112,6 +112,32 @@ func TestEveryFormatRefusesToPassAComponentNobodyScanned(t *testing.T) {
 	}
 }
 
+// A component that passed on what was read and has a target nobody read is one verdict in every
+// format. A copy that says PASS where the terminal says ERROR is the one that gets shared.
+func TestEveryFormatMarksAPartlyScannedComponentAnError(t *testing.T) {
+	d := Data{
+		Release: saga.Release{Version: "1.0"},
+		Run:     engine.Result{Targets: imageTargets("worker", "r/a:1")},
+		Verdict: norn.Result{Verdict: norn.Pass},
+		Components: []ComponentVerdict{{
+			Name: "worker", Verdict: norn.Pass, Findings: 2, Priorities: [4]int{0, 0, 1, 1},
+			Unscanned: []engine.Unscanned{{Control: "images", Kind: "image", Target: "r/a:1"}},
+			Declared:  map[string]int{"image": 3},
+		}},
+	}
+	for r, want := range map[Reporter]string{
+		consoleReporter{}:  "worker  ERROR",
+		markdownReporter{}: "| worker | - | **ERROR** |",
+		htmlReporter{}:     `<td><span class="err">ERROR</span></td>`,
+	} {
+		t.Run(r.Format(), func(t *testing.T) {
+			if out := renderWith(t, r, d); !strings.Contains(out, want) {
+				t.Errorf("want %q:\n%s", want, out)
+			}
+		})
+	}
+}
+
 // TestUnscannedDetailSaysHowMuchOfTheComponent covers the difference between a component nothing
 // looked at and a gap in one that was mostly covered. The bare count reads as the first either
 // way, and only one of them is a reason to stop and fix the scan.
