@@ -343,17 +343,15 @@ func writeComponentTable(w io.Writer, d Data) {
 		if c.Verdict == norn.Fail {
 			v = "**FAIL**"
 		}
-		// A component nothing was able to look at has not passed. Its scans failed, so a row of
-		// four zeros beside the word "pass" is the report asserting something no scanner
-		// established, and a table is where that reads most like a result.
+		// A component with a target no scanner read has not passed, whatever it found in the rest,
+		// which is the console's rule. A row of counts beside the word "pass" asserts something no
+		// scanner established, and a table is where that reads most like a result.
 		var notes []string
 		if len(c.Controls) > 0 {
 			notes = append(notes, strings.Join(c.Controls, ", "))
 		}
 		if len(c.Unscanned) > 0 {
-			if c.Findings == 0 {
-				v = "**ERROR**"
-			}
+			v = "**ERROR**"
 			notes = append(notes, unscannedDetail(c.Unscanned, c.Declared))
 		}
 		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %d | %d | %d | %d | %s |\n",

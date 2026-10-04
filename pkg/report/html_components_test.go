@@ -23,6 +23,11 @@ func componentData() Data {
 	d.Scope = &Scope{SkippedComponents: []string{"batch"}}
 	d.Components = []ComponentVerdict{
 		{
+			Name: "docs", Verdict: norn.Pass,
+			Exposure: "public", Criticality: "supporting",
+			Findings: 1, Priorities: [4]int{0, 0, 0, 1},
+		},
+		{
 			Name: "api", Verdict: norn.Fail,
 			Exposure: "public", Criticality: "critical",
 			Findings: 6, Priorities: [4]int{2, 3, 1, 0},
@@ -71,9 +76,14 @@ func TestTheReportSaysWhichComponentIsFailing(t *testing.T) {
 	if !strings.Contains(api, "FAIL") || strings.Contains(api, ">PASS<") {
 		t.Errorf("the failing component is not marked failing:\n%s", api)
 	}
+	docs := section(t, out, `<th scope="row">docs</th>`, `<th scope="row">api</th>`)
+	if !strings.Contains(docs, ">PASS<") {
+		t.Errorf("the passing component is not marked passing:\n%s", docs)
+	}
+	// Passed on what was read, with an image nobody read: not a pass, as the console says.
 	worker := section(t, out, `<th scope="row">worker</th>`, "</tbody>")
-	if !strings.Contains(worker, ">PASS<") {
-		t.Errorf("the passing component is not marked passing:\n%s", worker)
+	if !strings.Contains(worker, ">ERROR<") || strings.Contains(worker, ">PASS<") {
+		t.Errorf("the partly scanned component is not marked ERROR:\n%s", worker)
 	}
 }
 
@@ -236,7 +246,8 @@ func TestTheStripDescribesOneComponentOnly(t *testing.T) {
 	// Hidden until the menus name one. Shipping it visible would put two components' strips above
 	// an unfiltered list, each describing a part of it.
 	if strings.Count(out, `class="focus" data-m=`) != strings.Count(out, `class="focus" data-m="api" hidden`)+
-		strings.Count(out, `class="focus" data-m="worker" hidden`) {
+		strings.Count(out, `class="focus" data-m="worker" hidden`)+
+		strings.Count(out, `class="focus" data-m="docs" hidden`) {
 		t.Error("a strip renders visible rather than hidden")
 	}
 	if !strings.Contains(out, "m.length === 1") {
