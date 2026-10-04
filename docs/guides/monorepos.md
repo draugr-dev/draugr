@@ -122,11 +122,11 @@ DRAUGR  FAIL  draugr-demo 1.0  (scope: 1 of 3 components)  6.061s
  4 P1 4 P2 1 P3 0 P4
 
 CONTROLS
-  iac       pass   no priorities set
-  licenses  pass   no priorities set
-  sast      pass   no priorities set
+  iac       pass   no findings
+  licenses  pass   no findings
+  sast      pass   no findings
   sca       FAIL   4 P1 4 P2 1 P3
-  secrets   pass   no priorities set
+  secrets   pass   no findings
 
 COMPONENTS
   storefront  FAIL   4 P1 4 P2 1 P3
