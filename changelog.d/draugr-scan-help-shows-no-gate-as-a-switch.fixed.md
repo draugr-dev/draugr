@@ -1,0 +1,1 @@
+- **`draugr scan --help` shows `--no-gate` as a switch**, where it had printed `--no-gate draugr diff` as though the flag took a value.

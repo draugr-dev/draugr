@@ -1628,7 +1628,7 @@ about what they would have found. For everything the tool printed, re-run with
 </div>
 {{template "nomatch"}}
 {{else if .Errors}}
-<p>No findings from the controls that ran. See the errors reported above.</p>
+<p>No findings from the controls that ran. A control marked ERROR did not report.</p>
 {{else}}
 <p>No findings. ✓</p>
 {{end}}

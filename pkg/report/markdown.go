@@ -84,7 +84,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 
 	if len(s.findings) == 0 {
 		if len(s.scanErrors) > 0 {
-			_, _ = fmt.Fprintln(w, "No findings from the controls that ran. See the errors reported above.")
+			_, _ = fmt.Fprintln(w, "No findings from the controls that ran. A control marked ERROR did not report.")
 		} else {
 			_, _ = fmt.Fprintln(w, "No findings. ✓")
 		}
