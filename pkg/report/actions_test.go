@@ -971,8 +971,8 @@ func TestAnExportedActionNamesItsDependencyAndEachPlace(t *testing.T) {
 	if !reflect.DeepEqual(up.Locations, wantLocs) {
 		t.Errorf("locations = %+v\nwant %+v", up.Locations, wantLocs)
 	}
-	if len(up.Findings) != 3 || up.Findings[0].Fingerprint == "" {
-		t.Errorf("the action should carry each finding with the fingerprint results.sarif records: %+v", up.Findings)
+	if len(up.Fingerprints) != 3 || up.Fingerprints[0] == "" || up.Fingerprints[0] != up.Findings[0].Fingerprint {
+		t.Errorf("the action should name each finding by its fingerprint, in its own order: %q", up.Fingerprints)
 	}
 
 	if img := byPackage["libssl3|images"]; len(img.Locations) != 1 ||

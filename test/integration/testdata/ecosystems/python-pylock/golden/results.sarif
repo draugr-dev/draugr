@@ -49,6 +49,7 @@
           "properties": {
             "component": "python-pylock",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "pylock",
               "fixedVersion": "0.12.3",

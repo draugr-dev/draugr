@@ -5,17 +5,7 @@
       "component": "ruby-bundler",
       "control": "sca",
       "ecosystem": "bundler",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "Gemfile.lock:4",
-          "priority": "P1",
-          "repository": "./ruby-bundler",
-          "ruleId": "CVE-2022-30122",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "2.2.3.1"
       ],

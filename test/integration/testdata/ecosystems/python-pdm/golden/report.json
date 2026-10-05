@@ -5,17 +5,7 @@
       "component": "python-pdm",
       "control": "sca",
       "ecosystem": "python",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "pdm.lock:1",
-          "priority": "P1",
-          "repository": "./python-pdm",
-          "ruleId": "CVE-2018-1000656-flask",
-          "tool": "grype"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "0.12.3"
       ],

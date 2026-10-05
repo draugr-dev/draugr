@@ -176,6 +176,9 @@ type findingReport struct {
 	RuleID   string  `json:"ruleId,omitempty"`
 	Message  string  `json:"message,omitempty"`
 	Location string  `json:"location,omitempty"`
+	// Fingerprint is the finding's identity, the `fingerprint` property of its result in
+	// results.sarif and the value an action lists for the findings it clears.
+	Fingerprint string `json:"fingerprint,omitempty"`
 	// Escalation says why this finding's severity was raised, when exploitability data raised
 	// it. A consumer acting on the priority can then say what the priority rests on.
 	Escalation *sarif.Escalation `json:"escalation,omitempty"`
@@ -772,6 +775,7 @@ func toFinding(control string, res sarif.Result) findingReport {
 		RuleID:       res.RuleID,
 		Message:      res.Message,
 		Location:     loc,
+		Fingerprint:  res.Fingerprint(),
 		Escalation:   res.Escalation,
 		Reachability: res.Reachability,
 		Historical:   res.Historical,

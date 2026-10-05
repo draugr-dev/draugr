@@ -4,16 +4,7 @@
       "clears": 1,
       "component": "dast-openapi",
       "control": "dast",
-      "findings": [
-        {
-          "control": "dast",
-          "fingerprint": "<cleared>",
-          "location": "http://127.0.0.1:18080/items?q=all-sealed",
-          "priority": "P2",
-          "ruleId": "sealed-debug-exposure",
-          "tool": "nuclei"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "3b0bfbca65119cb9",
       "locations": [
         {

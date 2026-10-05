@@ -49,6 +49,7 @@
           "properties": {
             "component": "python-poetry",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "poetry",
               "fixedVersion": "0.12.3",

@@ -49,6 +49,7 @@
           "properties": {
             "component": "rust-cargo",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "cargo",
               "fixedVersion": "1.6.1",

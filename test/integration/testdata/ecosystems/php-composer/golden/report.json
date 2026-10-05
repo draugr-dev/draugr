@@ -5,17 +5,7 @@
       "component": "php-composer",
       "control": "sca",
       "ecosystem": "composer",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "composer.lock:9",
-          "priority": "P1",
-          "repository": "./php-composer",
-          "ruleId": "CVE-2022-29248",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "7.4.3"
       ],

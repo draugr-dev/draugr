@@ -3,26 +3,7 @@
     {
       "clears": 2,
       "control": "iac",
-      "findings": [
-        {
-          "control": "iac",
-          "fingerprint": "<cleared>",
-          "location": "acme/Dockerfile:1",
-          "priority": "P1",
-          "repository": "./options-trivy-config",
-          "ruleId": "DRAUGR-0002",
-          "tool": "Trivy"
-        },
-        {
-          "control": "iac",
-          "fingerprint": "<cleared>",
-          "location": "derived/Dockerfile:1",
-          "priority": "P1",
-          "repository": "./options-trivy-config",
-          "ruleId": "DRAUGR-0002",
-          "tool": "Trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "10782772787d659f",
       "locations": [
         {
@@ -51,26 +32,7 @@
     {
       "clears": 2,
       "control": "iac",
-      "findings": [
-        {
-          "control": "iac",
-          "fingerprint": "<cleared>",
-          "location": "derived/Dockerfile:1",
-          "priority": "P2",
-          "repository": "./options-trivy-config",
-          "ruleId": "DRAUGR-0001",
-          "tool": "Trivy"
-        },
-        {
-          "control": "iac",
-          "fingerprint": "<cleared>",
-          "location": "user/Dockerfile:1",
-          "priority": "P2",
-          "repository": "./options-trivy-config",
-          "ruleId": "DRAUGR-0001",
-          "tool": "Trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "2e8a7c8a456e3fe4",
       "locations": [
         {

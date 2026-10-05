@@ -5,16 +5,7 @@
       "component": "images-trivy-grype",
       "control": "images",
       "ecosystem": "python",
-      "findings": [
-        {
-          "control": "images",
-          "fingerprint": "<cleared>",
-          "location": "127.0.0.1:18080/images-trivy-grype:1.0",
-          "priority": "P1",
-          "ruleId": "CVE-2018-1000656-flask",
-          "tool": "grype"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "0.12.3"
       ],

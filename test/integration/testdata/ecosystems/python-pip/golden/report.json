@@ -5,17 +5,7 @@
       "component": "python-pip",
       "control": "sca",
       "ecosystem": "pip",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "requirements.txt:2",
-          "priority": "P1",
-          "repository": "./python-pip",
-          "ruleId": "CVE-2018-1000656",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "0.12.3"
       ],
@@ -44,17 +34,7 @@
       "clears": 1,
       "component": "python-pip",
       "control": "sast",
-      "findings": [
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "app.py:7",
-          "priority": "P1",
-          "repository": "./python-pip",
-          "ruleId": "draugr-fixture-os-popen",
-          "tool": "Semgrep OSS"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "c17d71e5e8c69d79",
       "locations": [
         {
@@ -78,17 +58,7 @@
       "clears": 1,
       "component": "python-pip",
       "control": "secrets",
-      "findings": [
-        {
-          "control": "secrets",
-          "fingerprint": "<cleared>",
-          "location": "deploy/aws.env:1",
-          "priority": "P1",
-          "repository": "./python-pip",
-          "ruleId": "aws-access-token",
-          "tool": "gitleaks"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "8a6b62c38ce5b2e9",
       "locations": [
         {

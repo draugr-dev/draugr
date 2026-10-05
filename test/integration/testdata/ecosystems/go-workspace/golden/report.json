@@ -5,17 +5,7 @@
       "component": "go-workspace",
       "control": "sca",
       "ecosystem": "gomod",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "a/go.mod:5",
-          "priority": "P1",
-          "repository": "./go-workspace",
-          "ruleId": "CVE-2020-36067",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "v1.6.6"
       ],

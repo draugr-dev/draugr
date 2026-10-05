@@ -5,17 +5,7 @@
       "component": "js-npm",
       "control": "sca",
       "ecosystem": "npm",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "package-lock.json:15",
-          "priority": "P1",
-          "repository": "./js-npm",
-          "ruleId": "CVE-2021-44906",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "1.2.6"
       ],
@@ -44,17 +34,7 @@
       "clears": 1,
       "component": "js-npm",
       "control": "secrets",
-      "findings": [
-        {
-          "control": "secrets",
-          "fingerprint": "<cleared>",
-          "location": "deploy/aws.env:1",
-          "priority": "P1",
-          "repository": "./js-npm",
-          "ruleId": "aws-access-token",
-          "tool": "gitleaks"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "8a6b62c38ce5b2e9",
       "locations": [
         {
@@ -78,17 +58,7 @@
       "clears": 1,
       "component": "js-npm",
       "control": "sast",
-      "findings": [
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "src/index.js:4",
-          "priority": "P1",
-          "repository": "./js-npm",
-          "ruleId": "draugr-fixture-eval",
-          "tool": "Semgrep OSS"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "126aeef45011b4a4",
       "locations": [
         {
@@ -113,17 +83,7 @@
       "component": "js-npm",
       "control": "sca",
       "ecosystem": "npm",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "static/jquery-1.8.3.min.js",
-          "priority": "P2",
-          "repository": "./js-npm",
-          "ruleId": "CVE-2012-6708",
-          "tool": "retirejs"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "1.9.0"
       ],

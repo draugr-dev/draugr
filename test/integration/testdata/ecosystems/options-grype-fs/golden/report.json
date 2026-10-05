@@ -5,17 +5,7 @@
       "component": "by-advisory",
       "control": "sca",
       "ecosystem": "python",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "by-advisory/requirements.txt:1",
-          "priority": "P1",
-          "repository": "./options-grype-fs",
-          "ruleId": "GHSA-8q59-q68h-6hv4-pyyaml",
-          "tool": "grype"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "5.4"
       ],
@@ -45,17 +35,7 @@
       "component": "default",
       "control": "sca",
       "ecosystem": "python",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "default/requirements.txt:1",
-          "priority": "P1",
-          "repository": "./options-grype-fs",
-          "ruleId": "CVE-2020-14343-pyyaml",
-          "tool": "grype"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "5.4"
       ],

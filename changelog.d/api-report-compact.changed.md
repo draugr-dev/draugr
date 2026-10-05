@@ -1,0 +1,1 @@
+- **The `draugr-api` publisher sends `report.json` as compact JSON**, a fifth smaller than the indented file a run writes to disk.

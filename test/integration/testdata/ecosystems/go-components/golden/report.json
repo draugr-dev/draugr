@@ -5,17 +5,7 @@
       "component": "api",
       "control": "sca",
       "ecosystem": "gomod",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "go.mod:5",
-          "priority": "P1",
-          "repository": "./go-components",
-          "ruleId": "CVE-2020-36067",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "v1.6.6"
       ],
@@ -45,17 +35,7 @@
       "component": "worker",
       "control": "sca",
       "ecosystem": "gomod",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "go.mod:5",
-          "priority": "P2",
-          "repository": "./go-components",
-          "ruleId": "CVE-2020-36067",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "v1.6.6"
       ],

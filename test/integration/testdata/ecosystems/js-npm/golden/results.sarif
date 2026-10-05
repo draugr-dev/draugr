@@ -81,6 +81,7 @@
           "properties": {
             "component": "js-npm",
             "control": "secrets",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./js-npm",
             "tool": "gitleaks"
@@ -111,6 +112,7 @@
           "properties": {
             "component": "js-npm",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "npm",
               "fixedVersion": "1.2.6",
@@ -148,6 +150,7 @@
           "properties": {
             "component": "js-npm",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./js-npm",
             "tool": "Semgrep OSS"
@@ -172,6 +175,7 @@
           "properties": {
             "component": "js-npm",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "npm",
               "fixedVersion": "1.9.0",

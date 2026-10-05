@@ -49,6 +49,7 @@
           "properties": {
             "component": "js-pnpm",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "pnpm",
               "fixedVersion": "1.2.6",

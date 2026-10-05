@@ -4,17 +4,7 @@
       "clears": 1,
       "component": "options-gitleaks",
       "control": "secrets",
-      "findings": [
-        {
-          "control": "secrets",
-          "fingerprint": "<cleared>",
-          "location": "old/aws.env:1",
-          "priority": "P1",
-          "repository": "./options-gitleaks",
-          "ruleId": "aws-access-token",
-          "tool": "gitleaks"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "8a6b62c38ce5b2e9",
       "locations": [
         {
@@ -38,17 +28,7 @@
       "clears": 1,
       "component": "options-gitleaks",
       "control": "secrets",
-      "findings": [
-        {
-          "control": "secrets",
-          "fingerprint": "<cleared>",
-          "location": "settings.py:3",
-          "priority": "P1",
-          "repository": "./options-gitleaks",
-          "ruleId": "draugr-fixture-token",
-          "tool": "gitleaks"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "88d665bcad073813",
       "locations": [
         {

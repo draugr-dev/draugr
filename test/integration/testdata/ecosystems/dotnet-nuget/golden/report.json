@@ -5,17 +5,7 @@
       "component": "dotnet-nuget",
       "control": "sca",
       "ecosystem": "nuget",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "packages.lock.json:5",
-          "priority": "P1",
-          "repository": "./dotnet-nuget",
-          "ruleId": "CVE-2024-21907",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "13.0.1"
       ],

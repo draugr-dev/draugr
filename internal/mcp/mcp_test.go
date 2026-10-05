@@ -1039,7 +1039,7 @@ func TestFixListGroupsWhatOneChangeClears(t *testing.T) {
 		t.Errorf("clears should total what the list resolves, got %d", out.Clears)
 	}
 	// What to do, without every finding under it; the counts answer the question.
-	if up := out.Actions[0]; up.Package != "jinja2" || up.From != "2.10" || up.ID == "" || len(up.Findings) != 0 {
+	if up := out.Actions[0]; up.Package != "jinja2" || up.From != "2.10" || up.ID == "" || len(up.Fingerprints) != 0 {
 		t.Errorf("the upgrade should name its dependency and carry no findings: %+v", up)
 	}
 }

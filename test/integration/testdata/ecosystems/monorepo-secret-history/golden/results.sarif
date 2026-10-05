@@ -49,6 +49,7 @@
           "properties": {
             "component": "api",
             "control": "secrets",
+            "fingerprint": "<cleared>",
             "historical": true,
             "priority": "P1",
             "repository": "./monorepo-secret-history",
@@ -80,6 +81,7 @@
           "properties": {
             "component": "web",
             "control": "secrets",
+            "fingerprint": "<cleared>",
             "historical": true,
             "priority": "P1",
             "repository": "./monorepo-secret-history",

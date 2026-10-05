@@ -5,17 +5,7 @@
       "component": "python-poetry",
       "control": "sca",
       "ecosystem": "poetry",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "poetry.lock:16",
-          "priority": "P1",
-          "repository": "./python-poetry",
-          "ruleId": "CVE-2018-1000656",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "0.12.3"
       ],

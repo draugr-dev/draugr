@@ -43,6 +43,7 @@
           "properties": {
             "component": "jvm-maven-repository",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "pom",
               "fixedVersion": "2.15.0",

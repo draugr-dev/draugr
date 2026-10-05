@@ -5,17 +5,7 @@
       "component": "jvm-gradle",
       "control": "sca",
       "ecosystem": "gradle",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "gradle.lockfile:5",
-          "priority": "P1",
-          "repository": "./jvm-gradle",
-          "ruleId": "CVE-2021-44228",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "2.15.0"
       ],

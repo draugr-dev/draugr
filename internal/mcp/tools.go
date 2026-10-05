@@ -1175,7 +1175,7 @@ func FixListTool(_ context.Context, _ *mcp.CallToolRequest, in FixListInput) (*m
 	// times the size of the list itself, and an assistant asking what to do is answered by the
 	// counts. report.json carries them for a reader that wants each one.
 	for i := range actions {
-		actions[i].Findings = nil
+		actions[i].Fingerprints = nil
 	}
 	out.Actions = actions
 	return nil, out, nil

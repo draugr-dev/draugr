@@ -37,6 +37,7 @@
           "properties": {
             "component": "dast-openapi",
             "control": "dast",
+            "fingerprint": "<cleared>",
             "priority": "P2",
             "security-severity": "5",
             "tool": "nuclei"

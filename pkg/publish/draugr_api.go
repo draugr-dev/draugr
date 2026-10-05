@@ -27,8 +27,8 @@ import (
 // over another. A publisher named after a product would have made the endpoint look like a
 // configuration detail of that product rather than an interface.
 //
-// Two documents, and they travel differently. `report.json` is the run. Small, always. And goes in
-// the request body. `results.sarif` is the evidence and never goes through the API at all: the
+// Two documents, and they travel differently. `report.json` is the run, bounded, and goes in the
+// request body. `results.sarif` is the evidence and never goes through the API at all: the
 // response returns a URL to put it to, and this uploads it directly.
 //
 // That is the only path rather than an optimization for large payloads. At roughly 2.5 KB of SARIF
@@ -111,6 +111,14 @@ func (p draugrAPIPublisher) Publish(ctx context.Context, artifacts []report.Arti
 	if evidence == nil {
 		return fmt.Errorf("draugr-api publisher requires a 'sarif' report")
 	}
+	// Compact, however the reporter wrote it. The document goes from one program to another, its
+	// indentation is a fifth of its size, and a server bounds what it accepts. The evidence is
+	// uploaded byte for byte, because its digest is sent ahead of it.
+	var packed bytes.Buffer
+	if err := json.Compact(&packed, runReport); err != nil {
+		return fmt.Errorf("draugr-api publisher: the json report is not JSON: %w", err)
+	}
+	runReport = packed.Bytes()
 
 	accepted, err := p.postRun(ctx, runReport, evidence)
 	if err != nil {

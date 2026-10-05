@@ -49,6 +49,7 @@
           "properties": {
             "component": "licenses-deny",
             "control": "licenses",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./options-trivy-license",
             "tool": "trivy-license"
@@ -79,6 +80,7 @@
           "properties": {
             "component": "trivy-license-deny",
             "control": "licenses",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./options-trivy-license",
             "tool": "trivy-license"
@@ -103,6 +105,7 @@
           "properties": {
             "component": "full",
             "control": "licenses",
+            "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-trivy-license",
             "tool": "trivy-license"
@@ -133,6 +136,7 @@
           "properties": {
             "component": "licenses-warn-isc",
             "control": "licenses",
+            "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-trivy-license",
             "tool": "trivy-license"
@@ -163,6 +167,7 @@
           "properties": {
             "component": "licenses-warn",
             "control": "licenses",
+            "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-trivy-license",
             "tool": "trivy-license"
@@ -193,6 +198,7 @@
           "properties": {
             "component": "trivy-license-warn",
             "control": "licenses",
+            "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-trivy-license",
             "tool": "trivy-license"
@@ -223,6 +229,7 @@
           "properties": {
             "component": "trivyignore",
             "control": "licenses",
+            "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-trivy-license",
             "tool": "trivy-license"

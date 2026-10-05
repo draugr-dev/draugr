@@ -80,6 +80,7 @@
           "properties": {
             "component": "go-submodule",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "gomod",
               "fixedVersion": "v1.6.6",
@@ -152,6 +153,7 @@
           "properties": {
             "component": "go-submodule",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./go-submodule",
             "tool": "gosec"
@@ -182,6 +184,7 @@
           "properties": {
             "component": "go-submodule",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./go-submodule",
             "tool": "gosec"

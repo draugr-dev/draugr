@@ -1,0 +1,1 @@
+- **MCP `fix_list` returns each action with its dependency, versions and locations**, the fields `report.json` carries, without the fingerprints of its findings.

@@ -5,26 +5,7 @@
       "component": "go-module",
       "control": "sca",
       "ecosystem": "gomod",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "go.mod:5",
-          "priority": "P1",
-          "repository": "./go-module",
-          "ruleId": "CVE-2021-38561",
-          "tool": "trivy"
-        },
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "go.mod:5",
-          "priority": "P2",
-          "repository": "./go-module",
-          "ruleId": "CVE-2022-32149",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "v0.3.7",
         "v0.3.8"
@@ -55,17 +36,7 @@
       "clears": 1,
       "component": "go-module",
       "control": "secrets",
-      "findings": [
-        {
-          "control": "secrets",
-          "fingerprint": "<cleared>",
-          "location": "deploy/aws.env:1",
-          "priority": "P1",
-          "repository": "./go-module",
-          "ruleId": "aws-access-token",
-          "tool": "gitleaks"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "8a6b62c38ce5b2e9",
       "locations": [
         {
@@ -89,17 +60,7 @@
       "clears": 1,
       "component": "go-module",
       "control": "sast",
-      "findings": [
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "main.go:26",
-          "priority": "P1",
-          "repository": "./go-module",
-          "ruleId": "G702",
-          "tool": "gosec"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "1bd635d5d6af5757",
       "locations": [
         {
@@ -122,17 +83,7 @@
       "clears": 1,
       "component": "go-module",
       "control": "sast",
-      "findings": [
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "main.go:26",
-          "priority": "P2",
-          "repository": "./go-module",
-          "ruleId": "G204",
-          "tool": "gosec"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "553d8004f951980d",
       "locations": [
         {

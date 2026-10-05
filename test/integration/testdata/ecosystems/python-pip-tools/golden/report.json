@@ -5,17 +5,7 @@
       "component": "python-pip-tools",
       "control": "sca",
       "ecosystem": "pip",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "requirements.txt:9",
-          "priority": "P1",
-          "repository": "./python-pip-tools",
-          "ruleId": "CVE-2018-1000656",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "0.12.3"
       ],

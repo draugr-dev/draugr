@@ -5,17 +5,7 @@
       "component": "rust-cargo",
       "control": "sca",
       "ecosystem": "cargo",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "Cargo.lock:12",
-          "priority": "P1",
-          "repository": "./rust-cargo",
-          "ruleId": "CVE-2021-25900",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "1.6.1"
       ],

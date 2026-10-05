@@ -5,17 +5,7 @@
       "component": "js-yarn-classic",
       "control": "sca",
       "ecosystem": "yarn",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "yarn.lock:5",
-          "priority": "P1",
-          "repository": "./js-yarn-classic",
-          "ruleId": "CVE-2021-44906",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "1.2.6"
       ],
