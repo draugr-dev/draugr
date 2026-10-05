@@ -1,6 +1,10 @@
 package scanners
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -68,5 +72,48 @@ func TestAScannerWithNoHistoryModeReadsTheTree(t *testing.T) {
 	}
 	if s.ReadsHistory(plugin.Config{"history": true}) {
 		t.Error("semgrep claims to read history")
+	}
+}
+
+// What a secret finding leaves behind, in the report and in a cache entry, holds neither the
+// secret nor who committed it. The fixture is Gitleaks 8.30.1's own SARIF for a token committed
+// and then removed, so found only in history, its rule list cut to the rule that fired; the token
+// is written into it at run time, so this file holds no credential for a scanner to report.
+//
+// Gitleaks puts the secret in the region's snippet and the commit's author name, email, date and
+// message in the partial fingerprints. A report, and a cache entry, which is the same report
+// serialized, would otherwise carry personal data and could carry the credential itself.
+func TestASecretFindingCarriesNeitherTheSecretNorItsAuthor(t *testing.T) {
+	fixture, err := os.ReadFile(filepath.Join("testdata", "gitleaks-history.sarif"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	token := "ghp_" + strings.Repeat("Dr4ugrFixtur3", 3)[:36]
+	out := []byte(strings.ReplaceAll(string(fixture), "__TOKEN__", token))
+
+	report, err := NewGitleaks().(repoScanner).decode(out, "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Results) != 1 {
+		t.Fatalf("results = %d, want the one finding", len(report.Results))
+	}
+	if got := report.Results[0].PartialFingerprints["commitSha"]; got != "4dd0b35ce7497770369b24c3e860be3954b27b3c" {
+		t.Errorf("commitSha = %q, want the commit kept", got)
+	}
+	asSARIF, err := report.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	asCacheEntry, err := json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, doc := range map[string][]byte{"results.sarif": asSARIF, "a cache entry": asCacheEntry} {
+		for _, leaked := range []string{token, "jane.doe@example.com", "Jane Doe", "temporary token for the release job", "2026-10-05T05:47:11Z"} {
+			if strings.Contains(string(doc), leaked) {
+				t.Errorf("%s carries %q", name, leaked)
+			}
+		}
 	}
 }

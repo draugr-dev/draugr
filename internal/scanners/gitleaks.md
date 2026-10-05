@@ -52,7 +52,8 @@ them.
 The tree pass is kept rather than replaced. `gitleaks git` reports the path a secret had in the
 commit that introduced it, so a file since renamed is reported under a directory that no longer
 exists. Findings from the history pass are marked `historical` in the report, and the tree pass is
-what names the path a live secret is at now.
+what names the path a live secret is at now. A history finding keeps the commit it was found at;
+the commit's author, email, date and message, which Gitleaks reports beside it, are left out.
 
 A secret still in the tree is found by both passes and reported once, as the tree finding. A
 history finding is the same secret as a tree finding when both have the same rule, the same path

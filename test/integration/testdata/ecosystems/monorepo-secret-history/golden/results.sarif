@@ -44,11 +44,7 @@
             "text": "aws-access-token has detected secret for file services/api/old.env at commit <commit>."
           },
           "partialFingerprints": {
-            "author": "Draugr fixture",
-            "commitMessage": "fixture",
-            "commitSha": "<commit>",
-            "date": "2026-01-01T00:00:00Z",
-            "email": "fixture@draugr.dev"
+            "commitSha": "<commit>"
           },
           "properties": {
             "component": "api",
@@ -79,11 +75,7 @@
             "text": "aws-access-token has detected secret for file services/web/old.env at commit <commit>."
           },
           "partialFingerprints": {
-            "author": "Draugr fixture",
-            "commitMessage": "fixture",
-            "commitSha": "<commit>",
-            "date": "2026-01-01T00:00:00Z",
-            "email": "fixture@draugr.dev"
+            "commitSha": "<commit>"
           },
           "properties": {
             "component": "web",
