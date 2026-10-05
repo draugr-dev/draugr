@@ -1,1 +1,0 @@
-- **A control with no findings says `no findings`** in the console, where a run that ranked other controls' findings had printed `no priorities set` beside it.

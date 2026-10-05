@@ -1,1 +1,0 @@
-- **The HTML and Markdown reports mark a component ERROR when one of its targets was not read**, as the console does, where a component that passed on the rest had read PASS.

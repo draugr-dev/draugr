@@ -1,1 +1,0 @@
-- **A local directory that no git repository holds is reported as `not a git repository`**, with `git init` and a commit as the fix, where the errors block had shown `fatal`.
