@@ -7,7 +7,7 @@
       "findings": [
         {
           "control": "iac",
-          "fingerprint": "8cb8faefac621da1499b875259c8c3e376df6ee3d5273d4aca3f761fb6930e97",
+          "fingerprint": "<cleared>",
           "location": "Dockerfile:1",
           "priority": "P1",
           "repository": "./iac",
@@ -40,7 +40,7 @@
       "findings": [
         {
           "control": "iac",
-          "fingerprint": "0a0938d871c5f1c9788ab0282e0975a2467d4530442c2d703923cef76d9fd4a9",
+          "fingerprint": "<cleared>",
           "location": "deploy/chart/templates/deployment.yaml:7",
           "priority": "P1",
           "repository": "./iac",
@@ -73,7 +73,7 @@
       "findings": [
         {
           "control": "iac",
-          "fingerprint": "571db75d35e9b21f4bd3cc00b995fc697944d6e9fc85c97d9ffeacc178f7d3b9",
+          "fingerprint": "<cleared>",
           "location": "deploy/k8s/deployment.yaml:24",
           "priority": "P1",
           "repository": "./iac",
@@ -106,7 +106,7 @@
       "findings": [
         {
           "control": "iac",
-          "fingerprint": "eb91b237b72fdcfb95e0f891837c51a326262e6afd36b5b25115d37a99c91213",
+          "fingerprint": "<cleared>",
           "location": "deploy/terraform/main.tf:10",
           "priority": "P1",
           "repository": "./iac",
@@ -139,7 +139,7 @@
       "findings": [
         {
           "control": "iac",
-          "fingerprint": "931e68a1dd249b9a5a23cdf8a8feea801566fd137d5ed6353b4ba5855669b654",
+          "fingerprint": "<cleared>",
           "location": "deploy/chart/templates/deployment.yaml:26",
           "priority": "P2",
           "repository": "./iac",
@@ -148,7 +148,7 @@
         },
         {
           "control": "iac",
-          "fingerprint": "898bba9337a94da898c38b64be16ea067259eca48b7a994b335703745a7b055f",
+          "fingerprint": "<cleared>",
           "location": "deploy/k8s/deployment.yaml:24",
           "priority": "P2",
           "repository": "./iac",
@@ -188,7 +188,7 @@
       "findings": [
         {
           "control": "iac",
-          "fingerprint": "eb197bd74cfe94c77fefa576046a322cf11de4bae0ede8708bfee98e2955734a",
+          "fingerprint": "<cleared>",
           "location": "Dockerfile:1",
           "priority": "P3",
           "repository": "./iac",

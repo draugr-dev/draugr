@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "e6b1e62c6706c8e018128f744502021683e736e93360fd7a13e57c567f227828",
+          "fingerprint": "<cleared>",
           "location": "package-lock.json:15",
           "priority": "P1",
           "repository": "./js-npm",
@@ -43,45 +43,11 @@
     {
       "clears": 1,
       "component": "js-npm",
-      "control": "sast",
-      "findings": [
-        {
-          "control": "sast",
-          "fingerprint": "26105e9d4c61929fb81815902ae3a15ecdf58874693001769ff39a74a34e2ce6",
-          "location": "src/index.js:4",
-          "priority": "P1",
-          "repository": "./js-npm",
-          "ruleId": "draugr-fixture-eval",
-          "tool": "Semgrep OSS"
-        }
-      ],
-      "id": "126aeef45011b4a4",
-      "locations": [
-        {
-          "kind": "file",
-          "line": 4,
-          "path": "src/index.js",
-          "repository": "./js-npm"
-        }
-      ],
-      "priority": "P1",
-      "ruleIds": [
-        "draugr-fixture-eval"
-      ],
-      "summary": "eval runs its argument as code",
-      "title": "Fix draugr-fixture-eval",
-      "where": [
-        "src/index.js:4"
-      ]
-    },
-    {
-      "clears": 1,
-      "component": "js-npm",
       "control": "secrets",
       "findings": [
         {
           "control": "secrets",
-          "fingerprint": "facbf46ef9c22970bed863bcfe0cf83dd6923ae3e39d572bc55888d748b310b5",
+          "fingerprint": "<cleared>",
           "location": "deploy/aws.env:1",
           "priority": "P1",
           "repository": "./js-npm",
@@ -111,12 +77,46 @@
     {
       "clears": 1,
       "component": "js-npm",
+      "control": "sast",
+      "findings": [
+        {
+          "control": "sast",
+          "fingerprint": "<cleared>",
+          "location": "src/index.js:4",
+          "priority": "P1",
+          "repository": "./js-npm",
+          "ruleId": "draugr-fixture-eval",
+          "tool": "Semgrep OSS"
+        }
+      ],
+      "id": "126aeef45011b4a4",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 4,
+          "path": "src/index.js",
+          "repository": "./js-npm"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "draugr-fixture-eval"
+      ],
+      "summary": "eval runs its argument as code",
+      "title": "Fix draugr-fixture-eval",
+      "where": [
+        "src/index.js:4"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "js-npm",
       "control": "sca",
       "ecosystem": "npm",
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "1074d2a46bb35d256f3987984c00f70d04b999856f7366b16a047221d0c98a99",
+          "fingerprint": "<cleared>",
           "location": "static/jquery-1.8.3.min.js",
           "priority": "P2",
           "repository": "./js-npm",

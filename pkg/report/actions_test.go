@@ -965,8 +965,8 @@ func TestAnExportedActionNamesItsDependencyAndEachPlace(t *testing.T) {
 	}
 	wantLocs := []ActionLocation{
 		{Repository: "https://github.com/acme/web", Path: "web/package-lock.json", Line: 12, Kind: "lockfile"},
-		{Repository: "https://github.com/acme/web", Path: "web/static/js/jquery.min.js", Kind: "vendored"},
 		{Repository: "https://github.com/acme/web", Path: "web/package.json", Line: 4, Kind: "manifest"},
+		{Repository: "https://github.com/acme/web", Path: "web/static/js/jquery.min.js", Kind: "vendored"},
 	}
 	if !reflect.DeepEqual(up.Locations, wantLocs) {
 		t.Errorf("locations = %+v\nwant %+v", up.Locations, wantLocs)
@@ -1011,5 +1011,18 @@ func TestAnActionIDIsStableAndSaysWhatItMovesTo(t *testing.T) {
 	}
 	if run("admin", "3.5.0") == first || run("web", "3.6.0") == first {
 		t.Error("another component or another target should be another id")
+	}
+}
+
+// TestFindingsThatRankAlikeKeepOneOrder: a scanner that reports concurrently writes its findings in
+// a different order on every run, and the list has to come out the same either way.
+func TestFindingsThatRankAlikeKeepOneOrder(t *testing.T) {
+	a := finding{control: "secrets", ruleID: "generic-api-key", priority: "P1", component: "api", location: "shared.env:1"}
+	b := finding{control: "secrets", ruleID: "generic-api-key", priority: "P1", component: "api", location: "api.env:1"}
+	one, two := []finding{a, b}, []finding{b, a}
+	sortFindings(one)
+	sortFindings(two)
+	if !reflect.DeepEqual(one, two) || one[0].location != "api.env:1" {
+		t.Errorf("findings that rank alike should sort by place: %+v, then %+v", one, two)
 	}
 }

@@ -6,7 +6,7 @@
       "findings": [
         {
           "control": "sast",
-          "fingerprint": "6cfdf2767470b843e619987bbf363af7f6bcb249989cbed6fc3fbb547bc608ac",
+          "fingerprint": "<cleared>",
           "location": "default/main.go:21",
           "priority": "P1",
           "repository": "./options-gosec",
@@ -15,7 +15,7 @@
         },
         {
           "control": "sast",
-          "fingerprint": "963c25c0f2204c12b16f5bde28c4d23c17837f04cf85356601dbfadafff64357",
+          "fingerprint": "<cleared>",
           "location": "exclude/main.go:22",
           "priority": "P1",
           "repository": "./options-gosec",
@@ -24,7 +24,7 @@
         },
         {
           "control": "sast",
-          "fingerprint": "627bb34c8d25784b51d71985968b1a302c69740cfcaaea1ff9bbe872621777ec",
+          "fingerprint": "<cleared>",
           "location": "tags/main.go:21",
           "priority": "P1",
           "repository": "./options-gosec",
@@ -70,7 +70,7 @@
       "findings": [
         {
           "control": "sast",
-          "fingerprint": "f007fbbf622a3362a7339014a926af29eae2491e751e6876ca780940e5624745",
+          "fingerprint": "<cleared>",
           "location": "default/main.go:18",
           "priority": "P2",
           "repository": "./options-gosec",
@@ -79,7 +79,7 @@
         },
         {
           "control": "sast",
-          "fingerprint": "0f32ee08c687fcf1207766a30e8e069c5dd7719adce706588ccac4c22f9a713f",
+          "fingerprint": "<cleared>",
           "location": "exclude/main.go:18",
           "priority": "P2",
           "repository": "./options-gosec",
@@ -88,7 +88,7 @@
         },
         {
           "control": "sast",
-          "fingerprint": "073d89ca264d8c4c24ac301a76c0a94746658ce73d5d3b55d6b4006c0b504b89",
+          "fingerprint": "<cleared>",
           "location": "tags/main.go:18",
           "priority": "P2",
           "repository": "./options-gosec",
@@ -134,7 +134,7 @@
       "findings": [
         {
           "control": "sast",
-          "fingerprint": "11be94dd424a1e96f205b74e9019b8fac5180e6370091b57c165e96fe6f431e0",
+          "fingerprint": "<cleared>",
           "location": "default/main.go:21",
           "priority": "P2",
           "repository": "./options-gosec",
@@ -143,7 +143,7 @@
         },
         {
           "control": "sast",
-          "fingerprint": "856248e18b62ee3e17a3da45f08024d0ef8e9f3c4f4439efae7f1fb98431f84e",
+          "fingerprint": "<cleared>",
           "location": "include/main.go:22",
           "priority": "P2",
           "repository": "./options-gosec",
@@ -152,7 +152,7 @@
         },
         {
           "control": "sast",
-          "fingerprint": "b99abed58205e320acf718ea0d4d4ec9cd70c4eb9dabf26e86c7302d924241c0",
+          "fingerprint": "<cleared>",
           "location": "tags/main.go:21",
           "priority": "P2",
           "repository": "./options-gosec",
@@ -198,7 +198,7 @@
       "findings": [
         {
           "control": "sast",
-          "fingerprint": "4bc3e2c6f1903cb71e71deb123302f96eaef1f4908d02c3b6466b9ef3bdd4322",
+          "fingerprint": "<cleared>",
           "location": "default/main.go:6",
           "priority": "P2",
           "repository": "./options-gosec",
@@ -207,7 +207,7 @@
         },
         {
           "control": "sast",
-          "fingerprint": "7d6bd4c9a3f6f3216a60b5acecd51324c26e5d2d95659f34de823890c91e23d0",
+          "fingerprint": "<cleared>",
           "location": "exclude/main.go:6",
           "priority": "P2",
           "repository": "./options-gosec",
@@ -216,7 +216,7 @@
         },
         {
           "control": "sast",
-          "fingerprint": "867254cdaca77f86fea7e050ab576bb2b5e8b1541e61d66c832795eef84a737d",
+          "fingerprint": "<cleared>",
           "location": "tags/main.go:6",
           "priority": "P2",
           "repository": "./options-gosec",
@@ -263,7 +263,7 @@
       "findings": [
         {
           "control": "sast",
-          "fingerprint": "f8704350be54787c4030c8584df3b49340836463895522b321764f1dbf8bcf09",
+          "fingerprint": "<cleared>",
           "location": "tags/tagged.go:10",
           "priority": "P2",
           "repository": "./options-gosec",

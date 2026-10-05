@@ -6,16 +6,7 @@
       "findings": [
         {
           "control": "secrets",
-          "fingerprint": "2ba350412acc22c13d83470937a3ad4950d9187c16a18252f699b7b4cf257dec",
-          "location": "shared.env:1",
-          "priority": "P1",
-          "repository": "./monorepo-root-files",
-          "ruleId": "aws-access-token",
-          "tool": "gitleaks"
-        },
-        {
-          "control": "secrets",
-          "fingerprint": "05c6b4f5e6fb1058f72797f20953cf31361dbf222eb11d3c57285d3b1bf34cbf",
+          "fingerprint": "<cleared>",
           "location": "api.env:1",
           "priority": "P1",
           "repository": "./monorepo-root-files",
@@ -24,7 +15,16 @@
         },
         {
           "control": "secrets",
-          "fingerprint": "5bc049eb857680109eaa1e09c301f03abb8d36a461d35cb120f08808f9fe4f58",
+          "fingerprint": "<cleared>",
+          "location": "shared.env:1",
+          "priority": "P1",
+          "repository": "./monorepo-root-files",
+          "ruleId": "aws-access-token",
+          "tool": "gitleaks"
+        },
+        {
+          "control": "secrets",
+          "fingerprint": "<cleared>",
           "location": "shared.env:1",
           "priority": "P1",
           "repository": "./monorepo-root-files",
@@ -37,13 +37,13 @@
         {
           "kind": "file",
           "line": 1,
-          "path": "shared.env",
+          "path": "api.env",
           "repository": "./monorepo-root-files"
         },
         {
           "kind": "file",
           "line": 1,
-          "path": "api.env",
+          "path": "shared.env",
           "repository": "./monorepo-root-files"
         }
       ],
@@ -54,8 +54,8 @@
       "summary": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms",
       "title": "Remove and rotate aws-access-token",
       "where": [
-        "shared.env:1",
-        "api.env:1"
+        "api.env:1",
+        "shared.env:1"
       ]
     },
     {
@@ -66,7 +66,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "5a3fd34271b4aa4125c72ba3edef02dc96b82c29bf3a5c23c6a1ec20e5b1389a",
+          "fingerprint": "<cleared>",
           "location": "requirements.txt:2",
           "priority": "P1",
           "repository": "./monorepo-root-files",
@@ -106,7 +106,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "eec2a7313d7ea1260f7d2d5fd756d48ad31d4c6dd45873b89d9dfb48e2096e88",
+          "fingerprint": "<cleared>",
           "location": "requirements.txt:2",
           "priority": "P1",
           "repository": "./monorepo-root-files",

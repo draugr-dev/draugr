@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "01351dc503dbeb27dbab24081cc1cbd3c99ec2e1309a9b888365a12f954a6f59",
+          "fingerprint": "<cleared>",
           "location": "poetry.lock:16",
           "priority": "P1",
           "repository": "./python-poetry",

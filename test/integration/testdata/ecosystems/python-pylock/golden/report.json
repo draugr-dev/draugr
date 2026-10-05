@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "87bbe73b3dc6c2b021bf39c4b9b7fa32a7b1a1506cef667592d83542c2be8aa2",
+          "fingerprint": "<cleared>",
           "location": "pylock.toml:16",
           "priority": "P1",
           "repository": "./python-pylock",

@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "790b5d030d94be19a2e3a9855bd17ed881baf521cafc6b4c0c756f9b3162ae84",
+          "fingerprint": "<cleared>",
           "location": "go.mod:5",
           "priority": "P1",
           "repository": "./go-module",
@@ -17,7 +17,7 @@
         },
         {
           "control": "sca",
-          "fingerprint": "4285ddb016eb11bc0c99d66a5a603aed31896f02602dd0ebefed94da05ab5584",
+          "fingerprint": "<cleared>",
           "location": "go.mod:5",
           "priority": "P2",
           "repository": "./go-module",
@@ -54,44 +54,11 @@
     {
       "clears": 1,
       "component": "go-module",
-      "control": "sast",
-      "findings": [
-        {
-          "control": "sast",
-          "fingerprint": "617748d6092812b26cd919b0d603862e7c4bcf550a5138699eebf75ddbb7a13b",
-          "location": "main.go:26",
-          "priority": "P1",
-          "repository": "./go-module",
-          "ruleId": "G702",
-          "tool": "gosec"
-        }
-      ],
-      "id": "1bd635d5d6af5757",
-      "locations": [
-        {
-          "kind": "file",
-          "line": 26,
-          "path": "main.go",
-          "repository": "./go-module"
-        }
-      ],
-      "priority": "P1",
-      "ruleIds": [
-        "G702"
-      ],
-      "title": "Fix G702 “Command injection via taint analysis”",
-      "where": [
-        "main.go:26"
-      ]
-    },
-    {
-      "clears": 1,
-      "component": "go-module",
       "control": "secrets",
       "findings": [
         {
           "control": "secrets",
-          "fingerprint": "a8d69322ff46f6245b865cc1198d2b95fa9585566d6720ae699f12cd28e76118",
+          "fingerprint": "<cleared>",
           "location": "deploy/aws.env:1",
           "priority": "P1",
           "repository": "./go-module",
@@ -125,7 +92,40 @@
       "findings": [
         {
           "control": "sast",
-          "fingerprint": "f9f148098cc068dc87c3af99cd82103d2c5ce5904c0c0d00ab6713b2e658d389",
+          "fingerprint": "<cleared>",
+          "location": "main.go:26",
+          "priority": "P1",
+          "repository": "./go-module",
+          "ruleId": "G702",
+          "tool": "gosec"
+        }
+      ],
+      "id": "1bd635d5d6af5757",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 26,
+          "path": "main.go",
+          "repository": "./go-module"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "G702"
+      ],
+      "title": "Fix G702 “Command injection via taint analysis”",
+      "where": [
+        "main.go:26"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "go-module",
+      "control": "sast",
+      "findings": [
+        {
+          "control": "sast",
+          "fingerprint": "<cleared>",
           "location": "main.go:26",
           "priority": "P2",
           "repository": "./go-module",

@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "63466fa5db4431681f2545ec29ade9a443ebd9c1d70de920fd9bdf2bcb1238ce",
+          "fingerprint": "<cleared>",
           "location": "go.mod:5",
           "priority": "P1",
           "repository": "./go-nested",

@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "images",
-          "fingerprint": "2afb1e0abd784eafd1e4d93aa5723ce7731b2762da43247342e971333ecdabea",
+          "fingerprint": "<cleared>",
           "location": "127.0.0.1:18080/images-trivy-grype:1.0",
           "priority": "P1",
           "ruleId": "CVE-2018-1000656-flask",

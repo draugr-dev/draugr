@@ -2,60 +2,11 @@
   "actions": [
     {
       "clears": 2,
-      "control": "sast",
-      "findings": [
-        {
-          "control": "sast",
-          "fingerprint": "87e60e3453efe191841017ce21fa8c14770c69babc5c9e0ceccf59ef40d328c1",
-          "location": "services/api/src/index.js:4",
-          "priority": "P1",
-          "repository": "./monorepo-paths",
-          "ruleId": "draugr-fixture-eval",
-          "tool": "Semgrep OSS"
-        },
-        {
-          "control": "sast",
-          "fingerprint": "f36ecdc8f90946e397316368679fa2a18f7ae5f3586b473f4deae984b3f77514",
-          "location": "services/web/src/index.js:4",
-          "priority": "P1",
-          "repository": "./monorepo-paths",
-          "ruleId": "draugr-fixture-eval",
-          "tool": "Semgrep OSS"
-        }
-      ],
-      "id": "126aeef45011b4a4",
-      "locations": [
-        {
-          "kind": "file",
-          "line": 4,
-          "path": "services/api/src/index.js",
-          "repository": "./monorepo-paths"
-        },
-        {
-          "kind": "file",
-          "line": 4,
-          "path": "services/web/src/index.js",
-          "repository": "./monorepo-paths"
-        }
-      ],
-      "priority": "P1",
-      "ruleIds": [
-        "draugr-fixture-eval"
-      ],
-      "summary": "eval runs its argument as code",
-      "title": "Fix draugr-fixture-eval",
-      "where": [
-        "services/api/src/index.js:4",
-        "services/web/src/index.js:4"
-      ]
-    },
-    {
-      "clears": 2,
       "control": "secrets",
       "findings": [
         {
           "control": "secrets",
-          "fingerprint": "4dea15bebbcc3635759bc3df8ac3b7b065d1839b41aac429de16127281681c39",
+          "fingerprint": "<cleared>",
           "location": "services/api/deploy/aws.env:1",
           "priority": "P1",
           "repository": "./monorepo-paths",
@@ -64,7 +15,7 @@
         },
         {
           "control": "secrets",
-          "fingerprint": "f952639254ed79e04a8ef7da8d2f8f7896d378c0d55f9909f0475d80f5f87ce3",
+          "fingerprint": "<cleared>",
           "location": "services/web/deploy/aws.env:1",
           "priority": "P1",
           "repository": "./monorepo-paths",
@@ -99,6 +50,55 @@
       ]
     },
     {
+      "clears": 2,
+      "control": "sast",
+      "findings": [
+        {
+          "control": "sast",
+          "fingerprint": "<cleared>",
+          "location": "services/api/src/index.js:4",
+          "priority": "P1",
+          "repository": "./monorepo-paths",
+          "ruleId": "draugr-fixture-eval",
+          "tool": "Semgrep OSS"
+        },
+        {
+          "control": "sast",
+          "fingerprint": "<cleared>",
+          "location": "services/web/src/index.js:4",
+          "priority": "P1",
+          "repository": "./monorepo-paths",
+          "ruleId": "draugr-fixture-eval",
+          "tool": "Semgrep OSS"
+        }
+      ],
+      "id": "126aeef45011b4a4",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 4,
+          "path": "services/api/src/index.js",
+          "repository": "./monorepo-paths"
+        },
+        {
+          "kind": "file",
+          "line": 4,
+          "path": "services/web/src/index.js",
+          "repository": "./monorepo-paths"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "draugr-fixture-eval"
+      ],
+      "summary": "eval runs its argument as code",
+      "title": "Fix draugr-fixture-eval",
+      "where": [
+        "services/api/src/index.js:4",
+        "services/web/src/index.js:4"
+      ]
+    },
+    {
       "clears": 1,
       "component": "api",
       "control": "sca",
@@ -106,7 +106,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "be54de088f941d8e2801fe6e0629264ad64e4201997418584bcbe7542a2a49a8",
+          "fingerprint": "<cleared>",
           "location": "services/api/package-lock.json:15",
           "priority": "P1",
           "repository": "./monorepo-paths",
@@ -146,7 +146,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "caf2fd3164a7a3d58e47b07b9f0f37156731134ea2fc07704555aefe569e7f2c",
+          "fingerprint": "<cleared>",
           "location": "services/web/package-lock.json:15",
           "priority": "P1",
           "repository": "./monorepo-paths",

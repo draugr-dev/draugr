@@ -2,53 +2,13 @@
   "actions": [
     {
       "clears": 1,
-      "component": "default",
-      "control": "sca",
-      "ecosystem": "python",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "e84bf785993cea474ab8eca453c293e866b532607fb11d084d908fe97ab50edc",
-          "location": "default/requirements.txt:1",
-          "priority": "P1",
-          "repository": "./options-grype-fs",
-          "ruleId": "CVE-2020-14343-pyyaml",
-          "tool": "grype"
-        }
-      ],
-      "fixedVersions": [
-        "5.4"
-      ],
-      "from": "5.3.1",
-      "id": "fbf7df69491260cb",
-      "locations": [
-        {
-          "kind": "manifest",
-          "line": 1,
-          "path": "default/requirements.txt",
-          "repository": "./options-grype-fs"
-        }
-      ],
-      "package": "pyyaml",
-      "priority": "P1",
-      "ruleIds": [
-        "CVE-2020-14343-pyyaml"
-      ],
-      "target": "5.4",
-      "title": "Upgrade pyyaml 5.3.1",
-      "where": [
-        "default/requirements.txt:1"
-      ]
-    },
-    {
-      "clears": 1,
       "component": "by-advisory",
       "control": "sca",
       "ecosystem": "python",
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "78a542b8b16ffc0bc0af8ae119ad40e0230423d09cb70a089ad5c1068a357e06",
+          "fingerprint": "<cleared>",
           "location": "by-advisory/requirements.txt:1",
           "priority": "P1",
           "repository": "./options-grype-fs",
@@ -78,6 +38,46 @@
       "title": "Upgrade pyyaml 5.3.1",
       "where": [
         "by-advisory/requirements.txt:1"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "default",
+      "control": "sca",
+      "ecosystem": "python",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "<cleared>",
+          "location": "default/requirements.txt:1",
+          "priority": "P1",
+          "repository": "./options-grype-fs",
+          "ruleId": "CVE-2020-14343-pyyaml",
+          "tool": "grype"
+        }
+      ],
+      "fixedVersions": [
+        "5.4"
+      ],
+      "from": "5.3.1",
+      "id": "fbf7df69491260cb",
+      "locations": [
+        {
+          "kind": "manifest",
+          "line": 1,
+          "path": "default/requirements.txt",
+          "repository": "./options-grype-fs"
+        }
+      ],
+      "package": "pyyaml",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2020-14343-pyyaml"
+      ],
+      "target": "5.4",
+      "title": "Upgrade pyyaml 5.3.1",
+      "where": [
+        "default/requirements.txt:1"
       ]
     }
   ],

@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "06411882ae0ee12bc5829fcfdf206733bca1aa61e3451d8de116b6112ae7779d",
+          "fingerprint": "<cleared>",
           "location": "pdm.lock:1",
           "priority": "P1",
           "repository": "./python-pdm",

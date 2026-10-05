@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "7973f43fd5db44c75210bea25654f48f4bacdb47fa6f6576a9dc65943fd2f862",
+          "fingerprint": "<cleared>",
           "location": "Pipfile.lock:27",
           "priority": "P1",
           "repository": "./python-pipenv",

@@ -903,7 +903,22 @@ func sortFindings(fs []finding) {
 		if a.score != b.score {
 			return a.score > b.score
 		}
-		return levelRank(a.level) > levelRank(b.level)
+		if la, lb := levelRank(a.level), levelRank(b.level); la != lb {
+			return la > lb
+		}
+		// Then by where, so two findings that rank alike keep one order whichever order the scanner
+		// wrote them in. A tool that reports concurrently writes them differently on every run, and
+		// a list that reorders between two runs of the same commit reads as a change.
+		if a.component != b.component {
+			return a.component < b.component
+		}
+		if a.repository != b.repository {
+			return a.repository < b.repository
+		}
+		if a.location != b.location {
+			return a.location < b.location
+		}
+		return a.ruleID < b.ruleID
 	})
 }
 

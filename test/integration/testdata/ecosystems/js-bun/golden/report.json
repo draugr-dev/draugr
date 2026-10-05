@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "905b67b9fbf7e32a9ed0b3a8420bb73db2c5c7280d70a4c186c3b4b1f978f9b1",
+          "fingerprint": "<cleared>",
           "location": "bun.lock:13",
           "priority": "P1",
           "repository": "./js-bun",

@@ -7,7 +7,7 @@
       "findings": [
         {
           "control": "dast",
-          "fingerprint": "66c7caa838392ee3c249b4d8e672dea1c30e4d4b2a23600bc324b985fb857178",
+          "fingerprint": "<cleared>",
           "location": "http://127.0.0.1:18080/items?q=all-sealed",
           "priority": "P2",
           "ruleId": "sealed-debug-exposure",

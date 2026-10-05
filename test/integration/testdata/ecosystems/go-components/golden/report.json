@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "98b5293bfcbe3e453b8e2ca6bb62bc1f07df38e60df8a7c43f30c1324570f182",
+          "fingerprint": "<cleared>",
           "location": "go.mod:5",
           "priority": "P1",
           "repository": "./go-components",
@@ -48,7 +48,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "76cba9355dbfcff96136a73a92e9a6b13862dbe086f2930b04fb9d7d72450c30",
+          "fingerprint": "<cleared>",
           "location": "go.mod:5",
           "priority": "P2",
           "repository": "./go-components",

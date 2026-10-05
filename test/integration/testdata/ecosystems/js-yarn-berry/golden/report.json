@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "23c403837fe18867459afeba95a3f5be2654f37dbea2d3b94889aad3a9f8b796",
+          "fingerprint": "<cleared>",
           "location": "yarn.lock:8",
           "priority": "P1",
           "repository": "./js-yarn-berry",

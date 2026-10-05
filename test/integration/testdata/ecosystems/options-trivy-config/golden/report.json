@@ -6,7 +6,7 @@
       "findings": [
         {
           "control": "iac",
-          "fingerprint": "7568494e1b025bf3fc50c56b13ab085bb9fb428d1964678fd6e5ba6f5b52475f",
+          "fingerprint": "<cleared>",
           "location": "acme/Dockerfile:1",
           "priority": "P1",
           "repository": "./options-trivy-config",
@@ -15,7 +15,7 @@
         },
         {
           "control": "iac",
-          "fingerprint": "5f256f123e0748e607ead2f55d1988075bbc9258512d7451677a6c6cab69abc7",
+          "fingerprint": "<cleared>",
           "location": "derived/Dockerfile:1",
           "priority": "P1",
           "repository": "./options-trivy-config",
@@ -54,8 +54,8 @@
       "findings": [
         {
           "control": "iac",
-          "fingerprint": "5735a05709308959440be392b17257e84f8fef983f1fa8885b3ed33c878281b4",
-          "location": "user/Dockerfile:1",
+          "fingerprint": "<cleared>",
+          "location": "derived/Dockerfile:1",
           "priority": "P2",
           "repository": "./options-trivy-config",
           "ruleId": "DRAUGR-0001",
@@ -63,8 +63,8 @@
         },
         {
           "control": "iac",
-          "fingerprint": "e221735f1679e2c0287c81b6fbb9fc81744625e35401b4b77bcd0f9fe55cb513",
-          "location": "derived/Dockerfile:1",
+          "fingerprint": "<cleared>",
+          "location": "user/Dockerfile:1",
           "priority": "P2",
           "repository": "./options-trivy-config",
           "ruleId": "DRAUGR-0001",
@@ -76,13 +76,13 @@
         {
           "kind": "file",
           "line": 1,
-          "path": "user/Dockerfile",
+          "path": "derived/Dockerfile",
           "repository": "./options-trivy-config"
         },
         {
           "kind": "file",
           "line": 1,
-          "path": "derived/Dockerfile",
+          "path": "user/Dockerfile",
           "repository": "./options-trivy-config"
         }
       ],
@@ -92,8 +92,8 @@
       ],
       "title": "Fix DRAUGR-0001 “Image names no maintainer”",
       "where": [
-        "user/Dockerfile:1",
-        "derived/Dockerfile:1"
+        "derived/Dockerfile:1",
+        "user/Dockerfile:1"
       ]
     }
   ],

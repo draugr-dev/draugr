@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "00b9db007c32d3cded80f1dca6b2df8c4214aa781027e7ffd1b58390b9868459",
+          "fingerprint": "<cleared>",
           "location": "services/api/poetry.lock:16",
           "priority": "P1",
           "repository": "./monorepo-python",
@@ -48,7 +48,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "757ca68076f66e9de7c9d7602083ed57ea314b9e020f31b714f13f6aaba05838",
+          "fingerprint": "<cleared>",
           "location": "services/tools/requirements.txt:2",
           "priority": "P1",
           "repository": "./monorepo-python",
@@ -87,7 +87,7 @@
       "findings": [
         {
           "control": "sast",
-          "fingerprint": "53c2b09cc182738f735cf063f4f44e8551fde5001ee7012cb9c88fec5f598146",
+          "fingerprint": "<cleared>",
           "location": "services/legacy/app.py:7",
           "priority": "P1",
           "repository": "./monorepo-python",

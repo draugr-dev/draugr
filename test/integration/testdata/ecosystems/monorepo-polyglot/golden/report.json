@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "9b3d3086e348b5c5f7f39dac83f595c44a2fdeedc6610c493f0c04550a9e5617",
+          "fingerprint": "<cleared>",
           "location": "services/api/requirements.txt:2",
           "priority": "P1",
           "repository": "./monorepo-polyglot",
@@ -48,7 +48,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "795bcefde2702ac577bda408ea6919dd5f12e40a3c840e02eba69855c343ce68",
+          "fingerprint": "<cleared>",
           "location": "services/web/package-lock.json:15",
           "priority": "P1",
           "repository": "./monorepo-polyglot",
@@ -88,7 +88,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "2dcc9ae225c714060ff27e1a4ca4e61d247246f6a08b635707ffe871c0eaad86",
+          "fingerprint": "<cleared>",
           "location": "services/worker/go.mod:5",
           "priority": "P1",
           "repository": "./monorepo-polyglot",
@@ -127,7 +127,7 @@
       "findings": [
         {
           "control": "sast",
-          "fingerprint": "6521cab0ff4f65cc4a087b0b679e2f2ded2d78166b65800790c70ed6f80050ef",
+          "fingerprint": "<cleared>",
           "location": "services/api/app.py:7",
           "priority": "P1",
           "repository": "./monorepo-polyglot",
@@ -161,7 +161,7 @@
       "findings": [
         {
           "control": "sast",
-          "fingerprint": "dbf1f444eaaa9ddb51f064399925c6a9100723594bb1648093f45f86f11ca254",
+          "fingerprint": "<cleared>",
           "location": "services/web/src/index.js:4",
           "priority": "P1",
           "repository": "./monorepo-polyglot",
@@ -195,7 +195,7 @@
       "findings": [
         {
           "control": "secrets",
-          "fingerprint": "5fcd1ae6174bc184b56efeb403a9e8a1404e9a7f1a18c2b3a909210d8f0fa8f7",
+          "fingerprint": "<cleared>",
           "location": "services/worker/deploy/aws.env:1",
           "priority": "P1",
           "repository": "./monorepo-polyglot",

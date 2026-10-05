@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "e5a66cd8f5d70eee9bdd3c12e5df3891867633799348a3670f947453921faf7c",
+          "fingerprint": "<cleared>",
           "location": "requirements.txt:9",
           "priority": "P1",
           "repository": "./python-pip-tools",

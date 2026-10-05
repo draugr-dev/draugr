@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "ab6e05c32f1c267f8e33de4791a7fcac6341863499e2800c477076b17def0e51",
+          "fingerprint": "<cleared>",
           "location": "requirements.txt:2",
           "priority": "P1",
           "repository": "./python-pip",
@@ -47,7 +47,7 @@
       "findings": [
         {
           "control": "sast",
-          "fingerprint": "803b40544e6c53f4e17f20049fc5077a7b889109ee6a483364a41f2bcdaaa38e",
+          "fingerprint": "<cleared>",
           "location": "app.py:7",
           "priority": "P1",
           "repository": "./python-pip",
@@ -81,7 +81,7 @@
       "findings": [
         {
           "control": "secrets",
-          "fingerprint": "455f9f841a422858d920ada64b28b761d47233266506e1d1f636e9f99ccbe623",
+          "fingerprint": "<cleared>",
           "location": "deploy/aws.env:1",
           "priority": "P1",
           "repository": "./python-pip",

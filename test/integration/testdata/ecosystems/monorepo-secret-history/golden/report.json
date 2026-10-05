@@ -6,7 +6,7 @@
       "findings": [
         {
           "control": "secrets",
-          "fingerprint": "0ed59857993be159fd37d21fd5f1b90b4222c64b28f824365212a58b003d04d4",
+          "fingerprint": "<cleared>",
           "location": "services/api/old.env:1",
           "priority": "P1",
           "repository": "./monorepo-secret-history",
@@ -15,7 +15,7 @@
         },
         {
           "control": "secrets",
-          "fingerprint": "5b5f2dac3fd9aaf700c2e0804e60467887fae8aa7d7b28324c6ff505ab4b6d46",
+          "fingerprint": "<cleared>",
           "location": "services/web/old.env:1",
           "priority": "P1",
           "repository": "./monorepo-secret-history",

@@ -34,6 +34,9 @@ type Normalizer struct {
 	// AllowMissing accepts a Clear path that matches nothing. For a run where a control failed to
 	// start, which leaves no scanner version and no finding for that control to clear.
 	AllowMissing bool
+	// ClearPresent are paths cleared where they exist and passed over where they do not, for a field
+	// only a run with findings writes.
+	ClearPresent [][]string
 }
 
 // SARIFNormalizer is the normalizer for Draugr's results.sarif.
@@ -72,8 +75,11 @@ func ReportNormalizer(replace map[string]string) Normalizer {
 			{"stats", "byControlMs"},
 			{"stats", "concurrency"},
 		},
-		Sort:    [][]string{{"scanners"}},
-		Replace: replace,
+		// A hash over the finding's message, which for a secret names a commit or a value the
+		// fixture generated for the run. Only a run with findings has an action to carry one.
+		ClearPresent: [][]string{{"actions", "*", "findings", "*", "fingerprint"}},
+		Sort:         [][]string{{"scanners"}},
+		Replace:      replace,
 	}
 }
 
@@ -88,6 +94,9 @@ func (n Normalizer) Apply(raw []byte) ([]byte, error) {
 		if hits := visit(doc, path, func(parent map[string]any, key string) { parent[key] = Cleared }); hits == 0 && !n.AllowMissing {
 			return nil, fmt.Errorf("normalize: nothing at %s; the field moved, so update the normalizer", strings.Join(path, "."))
 		}
+	}
+	for _, path := range n.ClearPresent {
+		visit(doc, path, func(parent map[string]any, key string) { parent[key] = Cleared })
 	}
 	for _, path := range n.Sort {
 		visit(doc, path, func(parent map[string]any, key string) {

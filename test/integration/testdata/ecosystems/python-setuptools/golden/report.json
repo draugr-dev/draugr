@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "e1d748b7e095df70744d18d5cc4553e447a51286d054d0074692f008bed4e9e7",
+          "fingerprint": "<cleared>",
           "location": "setup.py:1",
           "priority": "P1",
           "repository": "./python-setuptools",

@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "4cb5223949ef60318def405c54fc1347633fe3d21c3d67754d79f1838890c3f2",
+          "fingerprint": "<cleared>",
           "location": "default/requirements.txt:1",
           "priority": "P1",
           "repository": "./options-trivy-fs",

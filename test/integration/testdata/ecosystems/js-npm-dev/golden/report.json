@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "ac7bc286ec203f643bedfbd641a2c2098d0ba9654442f93756009c37cd743645",
+          "fingerprint": "<cleared>",
           "location": "package-lock.json:15",
           "priority": "P1",
           "repository": "./js-npm-dev",

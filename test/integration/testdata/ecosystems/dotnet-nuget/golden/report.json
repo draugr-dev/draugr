@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "20ac7e5ad0ecf53e854e80326fd87bcded24e85c62cbd46c6922d85f0e039d2c",
+          "fingerprint": "<cleared>",
           "location": "packages.lock.json:5",
           "priority": "P1",
           "repository": "./dotnet-nuget",

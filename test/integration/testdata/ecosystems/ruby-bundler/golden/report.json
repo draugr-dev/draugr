@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "b84d01e8d4c1a1cff6ba8c6be59598de2a9837df044ecbe5586fd377d1a5d2a3",
+          "fingerprint": "<cleared>",
           "location": "Gemfile.lock:4",
           "priority": "P1",
           "repository": "./ruby-bundler",

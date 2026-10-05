@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "99487f0d6a4ef7166bfe7b740af9c9a4954b8c7cbe175ebeb62e23ea50e00e0f",
+          "fingerprint": "<cleared>",
           "location": "requirements.txt:1",
           "priority": "P1",
           "repository": "./polyglot-unlocked",

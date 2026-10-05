@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "ca3dc8ed17335dad7cc0e306fa121b706f965e98fc65d557cfc795c48615a46e",
+          "fingerprint": "<cleared>",
           "location": "Cargo.lock:12",
           "priority": "P1",
           "repository": "./rust-cargo",

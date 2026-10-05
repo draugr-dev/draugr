@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "1ca32a6272de730e815e96ba15fcb5f59483209c815e9131cb592223737b67ab",
+          "fingerprint": "<cleared>",
           "location": "gradle.lockfile:5",
           "priority": "P1",
           "repository": "./jvm-gradle",

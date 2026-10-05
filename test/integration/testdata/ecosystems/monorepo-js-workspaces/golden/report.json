@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "60f32de1e13761df74175ed45aacf24aa682d39fac4c0731dd0f1eb67aaa8386",
+          "fingerprint": "<cleared>",
           "location": "npm/package-lock.json:23",
           "priority": "P1",
           "repository": "./monorepo-js-workspaces",
@@ -48,7 +48,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "a09ad538587d696b537e13f622d35d62cfb0642431f9f206ceeaa601a8dc64f0",
+          "fingerprint": "<cleared>",
           "location": "pnpm/pnpm-lock.yaml:179",
           "priority": "P1",
           "repository": "./monorepo-js-workspaces",
@@ -88,7 +88,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "b1c8c337826b7b55799b34b99553a8080dae971b58d21c431b630954dd12d48b",
+          "fingerprint": "<cleared>",
           "location": "yarn/yarn.lock:22",
           "priority": "P1",
           "repository": "./monorepo-js-workspaces",

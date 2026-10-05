@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "3ee97971f4bf9cf7c12eedc30f648c137826fac1c5186c9f976eebd6034e32a8",
+          "fingerprint": "<cleared>",
           "location": "services/api/go.mod:5",
           "priority": "P1",
           "repository": "./monorepo-go-reachability",
@@ -48,7 +48,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "73822dda52a56b8415faf5deeb5bae031cf52e5c58d4ca977139fbff4ca5fb8d",
+          "fingerprint": "<cleared>",
           "location": "services/worker/go.mod:5",
           "priority": "P2",
           "repository": "./monorepo-go-reachability",

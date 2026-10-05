@@ -8,7 +8,7 @@
       "findings": [
         {
           "control": "sca",
-          "fingerprint": "3909be8dac622ee5f236542c312fc2bf2234f9a79c854c3d52aad8faf6111b6b",
+          "fingerprint": "<cleared>",
           "location": "service/go.mod:5",
           "priority": "P1",
           "repository": "./go-submodule",
@@ -47,7 +47,7 @@
       "findings": [
         {
           "control": "sast",
-          "fingerprint": "6ab4ce0ee8b5dc88f63e872e71f5cf8080511cd0e7dbfad30fe82413f9346a81",
+          "fingerprint": "<cleared>",
           "location": "service/main.go:20",
           "priority": "P1",
           "repository": "./go-submodule",
@@ -80,7 +80,7 @@
       "findings": [
         {
           "control": "sast",
-          "fingerprint": "465eecfac4b7baf60299abd91fbe1cfc7ddd62f02b3a6d708780b687d8e75fe9",
+          "fingerprint": "<cleared>",
           "location": "service/main.go:20",
           "priority": "P2",
           "repository": "./go-submodule",
