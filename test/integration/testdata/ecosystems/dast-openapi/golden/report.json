@@ -1,4 +1,37 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "dast-openapi",
+      "control": "dast",
+      "findings": [
+        {
+          "control": "dast",
+          "fingerprint": "66c7caa838392ee3c249b4d8e672dea1c30e4d4b2a23600bc324b985fb857178",
+          "location": "http://127.0.0.1:18080/items?q=all-sealed",
+          "priority": "P2",
+          "ruleId": "sealed-debug-exposure",
+          "tool": "nuclei"
+        }
+      ],
+      "id": "3b0bfbca65119cb9",
+      "locations": [
+        {
+          "kind": "file",
+          "path": "http://127.0.0.1:18080/items?q=all-sealed"
+        }
+      ],
+      "priority": "P2",
+      "ruleIds": [
+        "sealed-debug-exposure"
+      ],
+      "summary": "Sealed fixture debug field in an API response: The response carries the debug marker the sealed fixture plants",
+      "title": "Fix sealed-debug-exposure",
+      "where": [
+        "http://127.0.0.1:18080/items?q=all-sealed"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 0,

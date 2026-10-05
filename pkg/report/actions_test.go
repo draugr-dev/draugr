@@ -926,3 +926,90 @@ func TestClipDirsKeepsTheFileName(t *testing.T) {
 		}
 	}
 }
+
+// TestAnExportedActionNamesItsDependencyAndEachPlace: report.json and MCP carry what a reader
+// needs to act without parsing a title, and every place the action applies, with what kind of edit
+// each one is.
+func TestAnExportedActionNamesItsDependencyAndEachPlace(t *testing.T) {
+	jq := func(fixed string) *sarif.Package {
+		return &sarif.Package{Name: "jquery", Version: "1.8.3", FixedVersion: fixed, Ecosystem: "npm"}
+	}
+	got := ActionsFor(map[string]sarif.Report{
+		"sca": {Results: []sarif.Result{
+			{RuleID: "CVE-1", Priority: "P1", Component: "web", Repository: "https://github.com/acme/web",
+				Location: sarif.Location{URI: "web/package-lock.json", StartLine: 12}, Package: jq("3.5.0")},
+			{RuleID: "CVE-2", Priority: "P2", Component: "web", Repository: "https://github.com/acme/web",
+				Location: sarif.Location{URI: "web/static/js/jquery.min.js"}, Package: jq("1.9.0")},
+			{RuleID: "CVE-3", Priority: "P2", Component: "web", Repository: "https://github.com/acme/web",
+				Location: sarif.Location{URI: "web/package.json", StartLine: 4}, Package: jq("3.5.0")},
+		}},
+		"sast": {Results: []sarif.Result{
+			{RuleID: "python.exec", Priority: "P3", Component: "web", Location: sarif.Location{URI: "setup.py", StartLine: 3}},
+		}},
+		"licenses": {Results: []sarif.Result{
+			{RuleID: "license/0BSD/tslib", Priority: "P4", Component: "web", Location: sarif.Location{URI: "yarn.lock"}},
+		}},
+		"images": {Results: []sarif.Result{
+			{RuleID: "CVE-4", Priority: "P2", Component: "web", Location: sarif.Location{URI: "redis:7"},
+				Package: &sarif.Package{Name: "libssl3", Version: "3.0.1", FixedVersion: "3.0.2", Ecosystem: "debian"}},
+		}},
+	})
+	byPackage := map[string]Action{}
+	for _, a := range got {
+		byPackage[a.Package+"|"+a.Control] = a
+	}
+
+	up := byPackage["jquery|sca"]
+	if up.Ecosystem != "npm" || up.From != "1.8.3" || up.Target != "3.5.0" || up.Component != "web" {
+		t.Errorf("the upgrade should name its dependency and both versions: %+v", up)
+	}
+	wantLocs := []ActionLocation{
+		{Repository: "https://github.com/acme/web", Path: "web/package-lock.json", Line: 12, Kind: "lockfile"},
+		{Repository: "https://github.com/acme/web", Path: "web/static/js/jquery.min.js", Kind: "vendored"},
+		{Repository: "https://github.com/acme/web", Path: "web/package.json", Line: 4, Kind: "manifest"},
+	}
+	if !reflect.DeepEqual(up.Locations, wantLocs) {
+		t.Errorf("locations = %+v\nwant %+v", up.Locations, wantLocs)
+	}
+	if len(up.Findings) != 3 || up.Findings[0].Fingerprint == "" {
+		t.Errorf("the action should carry each finding with the fingerprint results.sarif records: %+v", up.Findings)
+	}
+
+	if img := byPackage["libssl3|images"]; len(img.Locations) != 1 ||
+		img.Locations[0] != (ActionLocation{Path: "redis:7", Kind: "image"}) {
+		t.Errorf("an image reference is one place of kind image, its tag left whole: %+v", img.Locations)
+	}
+	for _, a := range got {
+		switch a.Control {
+		case "sast":
+			if a.Package != "" || a.Locations[0].Kind != "file" {
+				t.Errorf("a SAST finding in setup.py is about the code, not a dependency: %+v", a)
+			}
+		case "licenses":
+			if a.Locations[0].Kind != "lockfile" {
+				t.Errorf("a package's license read from yarn.lock is in a lockfile: %+v", a.Locations)
+			}
+		}
+	}
+}
+
+// TestAnActionIDIsStableAndSaysWhatItMovesTo: the same findings give the same ID on the next run,
+// and a different component or target is a different action.
+func TestAnActionIDIsStableAndSaysWhatItMovesTo(t *testing.T) {
+	run := func(component, fixed string) string {
+		return ActionsFor(map[string]sarif.Report{"sca": {Results: []sarif.Result{
+			{RuleID: "CVE-1", Priority: "P1", Component: component, Location: sarif.Location{URI: "package-lock.json"},
+				Package: &sarif.Package{Name: "jquery", Version: "1.8.3", FixedVersion: fixed, Ecosystem: "npm"}},
+		}}})[0].ID
+	}
+	first := run("web", "3.5.0")
+	if len(first) != 16 {
+		t.Errorf("id = %q, want sixteen hex characters", first)
+	}
+	if again := run("web", "3.5.0"); again != first {
+		t.Errorf("the same action should keep its id: %q, then %q", first, again)
+	}
+	if run("admin", "3.5.0") == first || run("web", "3.6.0") == first {
+		t.Error("another component or another target should be another id")
+	}
+}

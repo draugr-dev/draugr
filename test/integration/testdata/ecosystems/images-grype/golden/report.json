@@ -1,4 +1,43 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "images-grype",
+      "control": "images",
+      "ecosystem": "python",
+      "findings": [
+        {
+          "control": "images",
+          "fingerprint": "0f868b168bac7f4361c957544027ca5555e79e2f50dc702c57a8cd22f1e79c68",
+          "location": "127.0.0.1:18080/images-grype:1.0",
+          "priority": "P1",
+          "ruleId": "CVE-2018-1000656-flask",
+          "tool": "grype"
+        }
+      ],
+      "fixedVersions": [
+        "0.12.3"
+      ],
+      "from": "0.12.2",
+      "id": "56cb7ff29cd7979a",
+      "locations": [
+        {
+          "kind": "image",
+          "path": "127.0.0.1:18080/images-grype:1.0"
+        }
+      ],
+      "package": "flask",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2018-1000656-flask"
+      ],
+      "target": "0.12.3",
+      "title": "Upgrade flask 0.12.2",
+      "where": [
+        "images-grype:1.0"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

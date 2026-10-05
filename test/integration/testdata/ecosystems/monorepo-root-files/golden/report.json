@@ -1,4 +1,144 @@
 {
+  "actions": [
+    {
+      "clears": 3,
+      "control": "secrets",
+      "findings": [
+        {
+          "control": "secrets",
+          "fingerprint": "2ba350412acc22c13d83470937a3ad4950d9187c16a18252f699b7b4cf257dec",
+          "location": "shared.env:1",
+          "priority": "P1",
+          "repository": "./monorepo-root-files",
+          "ruleId": "aws-access-token",
+          "tool": "gitleaks"
+        },
+        {
+          "control": "secrets",
+          "fingerprint": "05c6b4f5e6fb1058f72797f20953cf31361dbf222eb11d3c57285d3b1bf34cbf",
+          "location": "api.env:1",
+          "priority": "P1",
+          "repository": "./monorepo-root-files",
+          "ruleId": "aws-access-token",
+          "tool": "gitleaks"
+        },
+        {
+          "control": "secrets",
+          "fingerprint": "5bc049eb857680109eaa1e09c301f03abb8d36a461d35cb120f08808f9fe4f58",
+          "location": "shared.env:1",
+          "priority": "P1",
+          "repository": "./monorepo-root-files",
+          "ruleId": "aws-access-token",
+          "tool": "gitleaks"
+        }
+      ],
+      "id": "8a6b62c38ce5b2e9",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 1,
+          "path": "shared.env",
+          "repository": "./monorepo-root-files"
+        },
+        {
+          "kind": "file",
+          "line": 1,
+          "path": "api.env",
+          "repository": "./monorepo-root-files"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "aws-access-token"
+      ],
+      "summary": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms",
+      "title": "Remove and rotate aws-access-token",
+      "where": [
+        "shared.env:1",
+        "api.env:1"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "api",
+      "control": "sca",
+      "ecosystem": "pip",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "5a3fd34271b4aa4125c72ba3edef02dc96b82c29bf3a5c23c6a1ec20e5b1389a",
+          "location": "requirements.txt:2",
+          "priority": "P1",
+          "repository": "./monorepo-root-files",
+          "ruleId": "CVE-2018-1000656",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "0.12.3"
+      ],
+      "from": "0.12.2",
+      "id": "807dec59b2412731",
+      "locations": [
+        {
+          "kind": "manifest",
+          "line": 2,
+          "path": "requirements.txt",
+          "repository": "./monorepo-root-files"
+        }
+      ],
+      "package": "Flask",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2018-1000656"
+      ],
+      "target": "0.12.3",
+      "title": "Upgrade Flask 0.12.2",
+      "where": [
+        "requirements.txt:2"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "web",
+      "control": "sca",
+      "ecosystem": "pip",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "eec2a7313d7ea1260f7d2d5fd756d48ad31d4c6dd45873b89d9dfb48e2096e88",
+          "location": "requirements.txt:2",
+          "priority": "P1",
+          "repository": "./monorepo-root-files",
+          "ruleId": "CVE-2018-1000656",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "0.12.3"
+      ],
+      "from": "0.12.2",
+      "id": "ddedab91ea005b3f",
+      "locations": [
+        {
+          "kind": "manifest",
+          "line": 2,
+          "path": "requirements.txt",
+          "repository": "./monorepo-root-files"
+        }
+      ],
+      "package": "Flask",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2018-1000656"
+      ],
+      "target": "0.12.3",
+      "title": "Upgrade Flask 0.12.2",
+      "where": [
+        "requirements.txt:2"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 2,

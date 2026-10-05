@@ -1,4 +1,74 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "options-gitleaks",
+      "control": "secrets",
+      "findings": [
+        {
+          "control": "secrets",
+          "fingerprint": "c18aa97d231656d6f3a371c69bdf30622ceae56bb8c1ea712a17e117eea29bf2",
+          "location": "settings.py:3",
+          "priority": "P1",
+          "repository": "./options-gitleaks",
+          "ruleId": "draugr-fixture-token",
+          "tool": "gitleaks"
+        }
+      ],
+      "id": "88d665bcad073813",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 3,
+          "path": "settings.py",
+          "repository": "./options-gitleaks"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "draugr-fixture-token"
+      ],
+      "summary": "Sealed-tier fixture token",
+      "title": "Remove and rotate draugr-fixture-token",
+      "where": [
+        "settings.py:3"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "options-gitleaks",
+      "control": "secrets",
+      "findings": [
+        {
+          "control": "secrets",
+          "fingerprint": "4d9df6e6299221be237a7815152e256b113ef31ba8ac81eb69306ab3c3423f10",
+          "location": "old/aws.env:1",
+          "priority": "P1",
+          "repository": "./options-gitleaks",
+          "ruleId": "aws-access-token",
+          "tool": "gitleaks"
+        }
+      ],
+      "id": "8a6b62c38ce5b2e9",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 1,
+          "path": "old/aws.env",
+          "repository": "./options-gitleaks"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "aws-access-token"
+      ],
+      "summary": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms",
+      "title": "Remove and rotate aws-access-token",
+      "where": [
+        "old/aws.env:1"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 2,

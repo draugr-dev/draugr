@@ -1,4 +1,120 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "api",
+      "control": "sca",
+      "ecosystem": "poetry",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "00b9db007c32d3cded80f1dca6b2df8c4214aa781027e7ffd1b58390b9868459",
+          "location": "services/api/poetry.lock:16",
+          "priority": "P1",
+          "repository": "./monorepo-python",
+          "ruleId": "CVE-2018-1000656",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "0.12.3"
+      ],
+      "from": "0.12.2",
+      "id": "e18f8d99804259c9",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 16,
+          "path": "services/api/poetry.lock",
+          "repository": "./monorepo-python"
+        }
+      ],
+      "package": "flask",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2018-1000656"
+      ],
+      "target": "0.12.3",
+      "title": "Upgrade flask 0.12.2",
+      "where": [
+        "services/api/poetry.lock:16"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "tools",
+      "control": "sca",
+      "ecosystem": "pip",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "757ca68076f66e9de7c9d7602083ed57ea314b9e020f31b714f13f6aaba05838",
+          "location": "services/tools/requirements.txt:2",
+          "priority": "P1",
+          "repository": "./monorepo-python",
+          "ruleId": "CVE-2018-1000656",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "0.12.3"
+      ],
+      "from": "0.12.2",
+      "id": "eb54249e15430a68",
+      "locations": [
+        {
+          "kind": "manifest",
+          "line": 2,
+          "path": "services/tools/requirements.txt",
+          "repository": "./monorepo-python"
+        }
+      ],
+      "package": "Flask",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2018-1000656"
+      ],
+      "target": "0.12.3",
+      "title": "Upgrade Flask 0.12.2",
+      "where": [
+        "services/tools/requirements.txt:2"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "legacy",
+      "control": "sast",
+      "findings": [
+        {
+          "control": "sast",
+          "fingerprint": "53c2b09cc182738f735cf063f4f44e8551fde5001ee7012cb9c88fec5f598146",
+          "location": "services/legacy/app.py:7",
+          "priority": "P1",
+          "repository": "./monorepo-python",
+          "ruleId": "draugr-fixture-os-popen",
+          "tool": "Semgrep OSS"
+        }
+      ],
+      "id": "c17d71e5e8c69d79",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 7,
+          "path": "services/legacy/app.py",
+          "repository": "./monorepo-python"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "draugr-fixture-os-popen"
+      ],
+      "summary": "os.popen runs its argument through a shell",
+      "title": "Fix draugr-fixture-os-popen",
+      "where": [
+        "services/legacy/app.py:7"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

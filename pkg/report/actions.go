@@ -1,14 +1,18 @@
 package report
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 
 	"github.com/draugr-dev/draugr/internal/manifests"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/skald"
 )
 
 // action is one thing a reader can do, and every finding it resolves.
@@ -102,11 +106,85 @@ var lineSuffix = regexp.MustCompile(`:\d+$`)
 
 // vendored reports whether a dependency finding sits in a copy of the library rather than in a
 // manifest or lockfile that declares it. A retire.js finding on a minified file is the common one.
-func vendored(f finding) bool {
-	if f.pkg == nil || f.pkg.Name == "" || f.control == "images" || f.location == "" {
+func vendored(f finding) bool { return f.location != "" && locationKind(f) == skald.LocationVendored }
+
+// locationKind is what kind of place a finding is in: an image, a dependency's manifest, lockfile
+// or vendored copy, or any other file.
+func locationKind(f finding) string {
+	if f.control == "images" || f.image != "" {
+		// A file read inside an image, a license Trivy found in one, is in the image rather than in
+		// the tree, so it is never a copy somebody committed.
+		if f.image == "" || f.location == f.image {
+			return skald.LocationImage
+		}
+		return skald.LocationFile
+	}
+	if !aboutDependency(f) {
+		return skald.LocationFile
+	}
+	path := lineSuffix.ReplaceAllString(f.location, "")
+	switch {
+	case manifests.IsLockfile(path):
+		return skald.LocationLockfile
+	case manifests.FormatOf(path) != "":
+		return skald.LocationManifest
+	}
+	return skald.LocationVendored
+}
+
+// aboutDependency reports whether a finding is about one package: a vulnerability in it, or the
+// license it carries. Only then can the file it is in be a manifest, a lockfile or a copy; a SAST
+// finding in setup.py is about the code in setup.py.
+func aboutDependency(f finding) bool {
+	if f.pkg != nil && f.pkg.Name != "" {
+		return true
+	}
+	rest, ok := strings.CutPrefix(f.ruleID, "license/")
+	if !ok || f.control != "licenses" {
 		return false
 	}
-	return manifests.FormatOf(lineSuffix.ReplaceAllString(f.location, "")) == ""
+	_, pkg, _ := strings.Cut(rest, "/")
+	return pkg != ""
+}
+
+// locations are every distinct place the action's findings are, in the order first seen.
+func (a action) locations() []ActionLocation {
+	seen := map[string]bool{}
+	var out []ActionLocation
+	for _, f := range a.findings {
+		k := locationKey(f)
+		if f.location == "" || seen[k] {
+			continue
+		}
+		seen[k] = true
+		l := ActionLocation{Repository: f.repository, Path: f.location, Kind: locationKind(f)}
+		// Not for an image: `redis:7` ends in what looks like a line.
+		if m := lineSuffix.FindString(f.location); m != "" && l.Kind != skald.LocationImage {
+			l.Path = strings.TrimSuffix(f.location, m)
+			l.Line, _ = strconv.Atoi(m[1:])
+		}
+		out = append(out, l)
+	}
+	return out
+}
+
+// id identifies the action across runs: its grouping key and the version it moves to.
+func (a action) id() string {
+	sum := sha256.Sum256([]byte(a.key + "\x00" + a.target()))
+	return hex.EncodeToString(sum[:])[:16]
+}
+
+// dependency is the package an upgrade or a replacement is about, or nil for any other action.
+func (a action) dependency() *sarif.Package {
+	if !strings.HasPrefix(a.key, "upgrade\x00") && !strings.HasPrefix(a.key, "nofix\x00") {
+		return nil
+	}
+	for _, f := range a.findings {
+		if f.pkg != nil {
+			return f.pkg
+		}
+	}
+	return nil
 }
 
 // displayLocation shortens a location that is an image reference.
@@ -555,79 +633,15 @@ func (a action) exemplar() (finding, bool) {
 	return a.findings[0], true
 }
 
-// Action is one thing to do and what doing it clears, for a consumer outside this package.
-//
-// Exported so the MCP server answers "what should I do" with the same grouping the console prints.
-// The keying is the subtle part. Which findings are one fix and which only look alike, and a
-// second implementation of it would drift from this one silently, leaving an assistant and a
-// terminal describing the same report differently.
-type Action struct {
-	// Title is what to do, in the imperative.
-	Title string `json:"title"`
-	// Summary is the scanner's one-line description of what is wrong, for an action whose title
-	// names a rule rather than saying what it found. Empty where the title says it already.
-	Summary string `json:"summary,omitempty"`
-	// Component every finding belongs to. A dependency action is always one component's; an action
-	// grouped on a rule or an image can span several, and then this is empty.
-	Component string `json:"component,omitempty"`
-	// Control the findings came from, and the worst priority among them.
-	Control  string `json:"control,omitempty"`
-	Priority string `json:"priority,omitempty"`
-	// Clears is how many findings this one action resolves.
-	Clears int `json:"clears"`
-	// Upstream marks an action whose unit of work is something somebody else publishes: the fix
-	// is to take a newer one, not to change anything inside it.
-	Upstream bool `json:"upstream,omitempty"`
-	// Where lists the distinct places this applies, capped.
-	Where []string `json:"where,omitempty"`
-	// RuleIDs are the rules this action resolves, capped, so a caller can look any of them up.
-	RuleIDs []string `json:"ruleIds,omitempty"`
-	// Key is what these findings grouped under: the identity that makes two of them one action.
-	//
-	// Opaque, and deliberately. Its shape is this package's business and changes when the grouping
-	// does. What it is for is membership: a caller holding the findings can ask this
-	// package which action each one belongs to and match on this, instead of inferring it from a
-	// title. Title is written for a reader and is not an identity, an action fed by two controls
-	// takes one of their names, and matching on that silently drops the other's findings.
-	//
-	// Not serialized. It is an identity for a caller holding this package's own output in memory,
-	// and it contains a separator that has no business in a JSON document an assistant reads.
-	Key string `json:"-"`
-	// FixedVersions are the releases the advisories name as fixing these findings, in the order
-	// first seen, each advisory's own answer.
-	FixedVersions []string `json:"fixedVersions,omitempty"`
-	// Target is the one version to move to. For an upgrade it is the lowest release that clears
-	// every finding, by the package's own ecosystem's order. Empty when no one release can be named,
-	// for an ecosystem Draugr cannot order or for an image whose findings are in many packages.
-	Target string `json:"target,omitempty"`
-	// Findings are every finding this action clears, most urgent first, uncapped where Where and
-	// RuleIDs are capped. Not serialized: an assistant asking what to do is answered by the counts,
-	// and a publisher that lists the findings reads them here.
-	Findings []ActionFinding `json:"-"`
-	// OneChange marks an action that one change resolves: an upgrade, a newer image, a license
-	// review. Its findings are what the change clears. An action for a rule has each finding at a
-	// place that needs its own edit.
-	OneChange bool `json:"-"`
-}
+// Action is one thing to do and what doing it clears, for a consumer outside this package. The
+// shape is skald's, so report.json can carry it; ActionsFor is what fills it.
+type Action = skald.Action
 
 // ActionFinding is one finding an action clears.
-type ActionFinding struct {
-	Control    string
-	RuleID     string
-	Tool       string
-	Priority   string
-	Severity   sarif.Severity
-	Message    string
-	Component  string
-	Repository string
-	// Location is the file and line, or the image for a finding inside one.
-	Location    string
-	HelpURI     string
-	Fingerprint string
-	// Upgrade is the dependency and the version that clears it, `jinja2 2.10 → 2.10.1`, or its
-	// "no fix available". Empty for a finding that is not about a dependency.
-	Upgrade string
-}
+type ActionFinding = skald.ActionFinding
+
+// ActionLocation is one place an action applies to.
+type ActionLocation = skald.ActionLocation
 
 // ActionsFor groups a run's findings into the fix list, most urgent first.
 //
@@ -692,7 +706,8 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 			}
 			rules = append(rules, f.ruleID)
 		}
-		out = append(out, Action{
+		act := Action{
+			ID:            a.id(),
 			Title:         a.title,
 			Summary:       a.summary,
 			Component:     a.component,
@@ -705,9 +720,14 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 			Key:           a.key,
 			FixedVersions: a.fixedVersions(),
 			Target:        a.target(),
+			Locations:     a.locations(),
 			Findings:      actionFindings(a.findings),
 			OneChange:     !a.byRule,
-		})
+		}
+		if p := a.dependency(); p != nil {
+			act.Ecosystem, act.Package, act.From = p.Ecosystem, p.Name, p.Version
+		}
+		out = append(out, act)
 	}
 	return out
 }

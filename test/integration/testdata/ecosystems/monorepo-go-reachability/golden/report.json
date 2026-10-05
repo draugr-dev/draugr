@@ -1,4 +1,86 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "api",
+      "control": "sca",
+      "ecosystem": "gomod",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "3ee97971f4bf9cf7c12eedc30f648c137826fac1c5186c9f976eebd6034e32a8",
+          "location": "services/api/go.mod:5",
+          "priority": "P1",
+          "repository": "./monorepo-go-reachability",
+          "ruleId": "CVE-2020-36067",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "v1.6.6"
+      ],
+      "from": "v1.6.5",
+      "id": "232dc28b3b34d94e",
+      "locations": [
+        {
+          "kind": "manifest",
+          "line": 5,
+          "path": "services/api/go.mod",
+          "repository": "./monorepo-go-reachability"
+        }
+      ],
+      "package": "github.com/tidwall/gjson",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2020-36067"
+      ],
+      "target": "v1.6.6",
+      "title": "Upgrade github.com/tidwall/gjson v1.6.5",
+      "where": [
+        "services/api/go.mod:5"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "worker",
+      "control": "sca",
+      "ecosystem": "gomod",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "73822dda52a56b8415faf5deeb5bae031cf52e5c58d4ca977139fbff4ca5fb8d",
+          "location": "services/worker/go.mod:5",
+          "priority": "P2",
+          "repository": "./monorepo-go-reachability",
+          "ruleId": "CVE-2020-36067",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "v1.6.6"
+      ],
+      "from": "v1.6.5",
+      "id": "692dac84c8445d93",
+      "locations": [
+        {
+          "kind": "manifest",
+          "line": 5,
+          "path": "services/worker/go.mod",
+          "repository": "./monorepo-go-reachability"
+        }
+      ],
+      "package": "github.com/tidwall/gjson",
+      "priority": "P2",
+      "ruleIds": [
+        "CVE-2020-36067"
+      ],
+      "target": "v1.6.6",
+      "title": "Upgrade github.com/tidwall/gjson v1.6.5",
+      "where": [
+        "services/worker/go.mod:5"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 2,

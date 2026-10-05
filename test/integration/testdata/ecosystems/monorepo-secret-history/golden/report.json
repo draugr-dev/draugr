@@ -1,4 +1,55 @@
 {
+  "actions": [
+    {
+      "clears": 2,
+      "control": "secrets",
+      "findings": [
+        {
+          "control": "secrets",
+          "fingerprint": "0ed59857993be159fd37d21fd5f1b90b4222c64b28f824365212a58b003d04d4",
+          "location": "services/api/old.env:1",
+          "priority": "P1",
+          "repository": "./monorepo-secret-history",
+          "ruleId": "aws-access-token",
+          "tool": "gitleaks"
+        },
+        {
+          "control": "secrets",
+          "fingerprint": "5b5f2dac3fd9aaf700c2e0804e60467887fae8aa7d7b28324c6ff505ab4b6d46",
+          "location": "services/web/old.env:1",
+          "priority": "P1",
+          "repository": "./monorepo-secret-history",
+          "ruleId": "aws-access-token",
+          "tool": "gitleaks"
+        }
+      ],
+      "id": "8a6b62c38ce5b2e9",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 1,
+          "path": "services/api/old.env",
+          "repository": "./monorepo-secret-history"
+        },
+        {
+          "kind": "file",
+          "line": 1,
+          "path": "services/web/old.env",
+          "repository": "./monorepo-secret-history"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "aws-access-token"
+      ],
+      "summary": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms",
+      "title": "Remove and rotate aws-access-token",
+      "where": [
+        "services/api/old.env:1",
+        "services/web/old.env:1"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 2,

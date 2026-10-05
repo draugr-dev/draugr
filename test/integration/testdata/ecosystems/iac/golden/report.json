@@ -1,4 +1,220 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "iac",
+      "control": "iac",
+      "findings": [
+        {
+          "control": "iac",
+          "fingerprint": "8cb8faefac621da1499b875259c8c3e376df6ee3d5273d4aca3f761fb6930e97",
+          "location": "Dockerfile:1",
+          "priority": "P1",
+          "repository": "./iac",
+          "ruleId": "DS-0002",
+          "tool": "Trivy"
+        }
+      ],
+      "id": "5e34096b9ae1f7ff",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 1,
+          "path": "Dockerfile",
+          "repository": "./iac"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "DS-0002"
+      ],
+      "title": "Fix DS-0002 “Image user should not be 'root'”",
+      "where": [
+        "Dockerfile:1"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "iac",
+      "control": "iac",
+      "findings": [
+        {
+          "control": "iac",
+          "fingerprint": "0a0938d871c5f1c9788ab0282e0975a2467d4530442c2d703923cef76d9fd4a9",
+          "location": "deploy/chart/templates/deployment.yaml:7",
+          "priority": "P1",
+          "repository": "./iac",
+          "ruleId": "KSV-0009",
+          "tool": "Trivy"
+        }
+      ],
+      "id": "47551b084382262a",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 7,
+          "path": "deploy/chart/templates/deployment.yaml",
+          "repository": "./iac"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "KSV-0009"
+      ],
+      "title": "Fix KSV-0009 “Access to host network”",
+      "where": [
+        "deploy/chart/templates/deployment.yaml:7"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "iac",
+      "control": "iac",
+      "findings": [
+        {
+          "control": "iac",
+          "fingerprint": "571db75d35e9b21f4bd3cc00b995fc697944d6e9fc85c97d9ffeacc178f7d3b9",
+          "location": "deploy/k8s/deployment.yaml:24",
+          "priority": "P1",
+          "repository": "./iac",
+          "ruleId": "KSV-0017",
+          "tool": "Trivy"
+        }
+      ],
+      "id": "ce4821349db9e107",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 24,
+          "path": "deploy/k8s/deployment.yaml",
+          "repository": "./iac"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "KSV-0017"
+      ],
+      "title": "Fix KSV-0017 “Privileged”",
+      "where": [
+        "deploy/k8s/deployment.yaml:24"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "iac",
+      "control": "iac",
+      "findings": [
+        {
+          "control": "iac",
+          "fingerprint": "eb91b237b72fdcfb95e0f891837c51a326262e6afd36b5b25115d37a99c91213",
+          "location": "deploy/terraform/main.tf:10",
+          "priority": "P1",
+          "repository": "./iac",
+          "ruleId": "AWS-0107",
+          "tool": "Trivy"
+        }
+      ],
+      "id": "a5182d83d55aba38",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 10,
+          "path": "deploy/terraform/main.tf",
+          "repository": "./iac"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "AWS-0107"
+      ],
+      "title": "Fix AWS-0107 “Security groups should not allow unrestricted ingress to…",
+      "where": [
+        "deploy/terraform/main.tf:10"
+      ]
+    },
+    {
+      "clears": 2,
+      "component": "iac",
+      "control": "iac",
+      "findings": [
+        {
+          "control": "iac",
+          "fingerprint": "931e68a1dd249b9a5a23cdf8a8feea801566fd137d5ed6353b4ba5855669b654",
+          "location": "deploy/chart/templates/deployment.yaml:26",
+          "priority": "P2",
+          "repository": "./iac",
+          "ruleId": "KSV-0125",
+          "tool": "Trivy"
+        },
+        {
+          "control": "iac",
+          "fingerprint": "898bba9337a94da898c38b64be16ea067259eca48b7a994b335703745a7b055f",
+          "location": "deploy/k8s/deployment.yaml:24",
+          "priority": "P2",
+          "repository": "./iac",
+          "ruleId": "KSV-0125",
+          "tool": "Trivy"
+        }
+      ],
+      "id": "161bacf04b155939",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 26,
+          "path": "deploy/chart/templates/deployment.yaml",
+          "repository": "./iac"
+        },
+        {
+          "kind": "file",
+          "line": 24,
+          "path": "deploy/k8s/deployment.yaml",
+          "repository": "./iac"
+        }
+      ],
+      "priority": "P2",
+      "ruleIds": [
+        "KSV-0125"
+      ],
+      "title": "Fix KSV-0125 “Restrict container images to trusted registries”",
+      "where": [
+        "deploy/chart/templates/deployment.yaml:26",
+        "deploy/k8s/deployment.yaml:24"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "iac",
+      "control": "iac",
+      "findings": [
+        {
+          "control": "iac",
+          "fingerprint": "eb197bd74cfe94c77fefa576046a322cf11de4bae0ede8708bfee98e2955734a",
+          "location": "Dockerfile:1",
+          "priority": "P3",
+          "repository": "./iac",
+          "ruleId": "DS-0026",
+          "tool": "Trivy"
+        }
+      ],
+      "id": "17f8923b3f454dbc",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 1,
+          "path": "Dockerfile",
+          "repository": "./iac"
+        }
+      ],
+      "priority": "P3",
+      "ruleIds": [
+        "DS-0026"
+      ],
+      "title": "Fix DS-0026 “No HEALTHCHECK defined”",
+      "where": [
+        "Dockerfile:1"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 4,

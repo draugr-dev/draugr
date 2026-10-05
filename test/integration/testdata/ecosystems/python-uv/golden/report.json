@@ -1,4 +1,46 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "python-uv",
+      "control": "sca",
+      "ecosystem": "uv",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "86774673ce425961ea1096013d25f6c04efb2c94350044a70fd2cdddd62c0320",
+          "location": "uv.lock:15",
+          "priority": "P1",
+          "repository": "./python-uv",
+          "ruleId": "CVE-2018-1000656",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "0.12.3"
+      ],
+      "from": "0.12.2",
+      "id": "cab56c6ca1191478",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 15,
+          "path": "uv.lock",
+          "repository": "./python-uv"
+        }
+      ],
+      "package": "flask",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2018-1000656"
+      ],
+      "target": "0.12.3",
+      "title": "Upgrade flask 0.12.2",
+      "where": [
+        "uv.lock:15"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

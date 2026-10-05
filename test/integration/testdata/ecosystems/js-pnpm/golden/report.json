@@ -1,4 +1,46 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "js-pnpm",
+      "control": "sca",
+      "ecosystem": "pnpm",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "47aa3b42ae828544fe487490ed7fbddfd4bb854d94bc2d03ce6a2b91bacf72f5",
+          "location": "pnpm-lock.yaml:175",
+          "priority": "P1",
+          "repository": "./js-pnpm",
+          "ruleId": "CVE-2021-44906",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "1.2.6"
+      ],
+      "from": "1.2.5",
+      "id": "79912a0943ffe23b",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 175,
+          "path": "pnpm-lock.yaml",
+          "repository": "./js-pnpm"
+        }
+      ],
+      "package": "minimist",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2021-44906"
+      ],
+      "target": "1.2.6",
+      "title": "Upgrade minimist 1.2.5",
+      "where": [
+        "pnpm-lock.yaml:175"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

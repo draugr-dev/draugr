@@ -1,4 +1,46 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "python-pylock",
+      "control": "sca",
+      "ecosystem": "pylock",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "87bbe73b3dc6c2b021bf39c4b9b7fa32a7b1a1506cef667592d83542c2be8aa2",
+          "location": "pylock.toml:16",
+          "priority": "P1",
+          "repository": "./python-pylock",
+          "ruleId": "CVE-2018-1000656",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "0.12.3"
+      ],
+      "from": "0.12.2",
+      "id": "91ecd6b1beed6f86",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 16,
+          "path": "pylock.toml",
+          "repository": "./python-pylock"
+        }
+      ],
+      "package": "flask",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2018-1000656"
+      ],
+      "target": "0.12.3",
+      "title": "Upgrade flask 0.12.2",
+      "where": [
+        "pylock.toml:16"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

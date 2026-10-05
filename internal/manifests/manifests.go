@@ -123,6 +123,18 @@ func Formats() []Format {
 	return out
 }
 
+// lockfiles are the formats a package manager writes from a manifest: every dependency resolved and
+// pinned. A change to a dependency is made in the manifest and the lockfile follows.
+var lockfiles = map[string]bool{
+	"Pipfile.lock": true, "poetry.lock": true, "pdm.lock": true, "uv.lock": true, "pylock.toml": true,
+	"package-lock.json": true, "npm-shrinkwrap.json": true, "yarn.lock": true, "pnpm-lock.yaml": true,
+	"bun.lock": true, "bun.lockb": true, "gradle.lockfile": true, "packages.lock.json": true,
+	"Gemfile.lock": true, "gems.locked": true, "Cargo.lock": true, "composer.lock": true,
+}
+
+// IsLockfile reports whether a path is a lockfile, by the format FormatOf names for it.
+func IsLockfile(rel string) bool { return lockfiles[FormatOf(rel)] }
+
 // FormatOf names the format a path is, as Formats lists it, or "" for a path no rule recognizes.
 // A member of a family named by one entry, requirements-dev.txt or pylock.dev.toml, is that entry.
 // Content is not read, so a file that declares nothing still has a format.

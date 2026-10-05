@@ -1,4 +1,46 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "php-composer",
+      "control": "sca",
+      "ecosystem": "composer",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "8ca6d44cfcfd7d7f242442bae71c156756b717c7b37a22dccf10b71bfa4c3652",
+          "location": "composer.lock:9",
+          "priority": "P1",
+          "repository": "./php-composer",
+          "ruleId": "CVE-2022-29248",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "7.4.3"
+      ],
+      "from": "7.4.0",
+      "id": "70a8457e68a673d9",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 9,
+          "path": "composer.lock",
+          "repository": "./php-composer"
+        }
+      ],
+      "package": "guzzlehttp/guzzle",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2022-29248"
+      ],
+      "target": "7.4.3",
+      "title": "Upgrade guzzlehttp/guzzle 7.4.0",
+      "where": [
+        "composer.lock:9"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

@@ -1,4 +1,46 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "python-pip-ranges",
+      "control": "sca",
+      "ecosystem": "pip",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "ccf879ed4144c2dbf2c4a1f64732e0514142086294f0029cdbb7338281d10d4e",
+          "location": "requirements.txt:1",
+          "priority": "P1",
+          "repository": "./python-pip-ranges",
+          "ruleId": "CVE-2018-1000656",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "0.12.3"
+      ],
+      "from": "0.12",
+      "id": "01c8acc74ada28f3",
+      "locations": [
+        {
+          "kind": "manifest",
+          "line": 1,
+          "path": "requirements.txt",
+          "repository": "./python-pip-ranges"
+        }
+      ],
+      "package": "flask",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2018-1000656"
+      ],
+      "target": "0.12.3",
+      "title": "Upgrade flask 0.12",
+      "where": [
+        "requirements.txt:1"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

@@ -1,4 +1,46 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "python-setuptools",
+      "control": "sca",
+      "ecosystem": "python",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "e1d748b7e095df70744d18d5cc4553e447a51286d054d0074692f008bed4e9e7",
+          "location": "setup.py:1",
+          "priority": "P1",
+          "repository": "./python-setuptools",
+          "ruleId": "CVE-2018-1000656-flask",
+          "tool": "grype"
+        }
+      ],
+      "fixedVersions": [
+        "0.12.3"
+      ],
+      "from": "0.12.2",
+      "id": "3bcb570baa36365b",
+      "locations": [
+        {
+          "kind": "manifest",
+          "line": 1,
+          "path": "setup.py",
+          "repository": "./python-setuptools"
+        }
+      ],
+      "package": "flask",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2018-1000656-flask"
+      ],
+      "target": "0.12.3",
+      "title": "Upgrade flask 0.12.2",
+      "where": [
+        "setup.py:1"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

@@ -458,6 +458,11 @@ func (jsonReporter) Render(w io.Writer, d Data) error {
 // know which Draugr produced the run.
 func (d Data) JSONProvenance() skald.Provenance {
 	p := skald.Provenance{Descriptor: d.Descriptor, CI: d.CI, Gate: d.Gate.skald()}
+	reports := make(map[string]sarif.Report, len(d.Run.Controls))
+	for name, cr := range d.Run.Controls {
+		reports[name] = cr.Report
+	}
+	p.Actions = ActionsFor(reports)
 	if d.Version != "" || d.Commit != "" {
 		p.Build = &skald.Build{Version: d.Version, Commit: d.Commit}
 	}

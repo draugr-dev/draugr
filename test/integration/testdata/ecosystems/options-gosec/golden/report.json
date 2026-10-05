@@ -1,4 +1,295 @@
 {
+  "actions": [
+    {
+      "clears": 3,
+      "control": "sast",
+      "findings": [
+        {
+          "control": "sast",
+          "fingerprint": "6cfdf2767470b843e619987bbf363af7f6bcb249989cbed6fc3fbb547bc608ac",
+          "location": "default/main.go:21",
+          "priority": "P1",
+          "repository": "./options-gosec",
+          "ruleId": "G702",
+          "tool": "gosec"
+        },
+        {
+          "control": "sast",
+          "fingerprint": "963c25c0f2204c12b16f5bde28c4d23c17837f04cf85356601dbfadafff64357",
+          "location": "exclude/main.go:22",
+          "priority": "P1",
+          "repository": "./options-gosec",
+          "ruleId": "G702",
+          "tool": "gosec"
+        },
+        {
+          "control": "sast",
+          "fingerprint": "627bb34c8d25784b51d71985968b1a302c69740cfcaaea1ff9bbe872621777ec",
+          "location": "tags/main.go:21",
+          "priority": "P1",
+          "repository": "./options-gosec",
+          "ruleId": "G702",
+          "tool": "gosec"
+        }
+      ],
+      "id": "1bd635d5d6af5757",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 21,
+          "path": "default/main.go",
+          "repository": "./options-gosec"
+        },
+        {
+          "kind": "file",
+          "line": 22,
+          "path": "exclude/main.go",
+          "repository": "./options-gosec"
+        },
+        {
+          "kind": "file",
+          "line": 21,
+          "path": "tags/main.go",
+          "repository": "./options-gosec"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "G702"
+      ],
+      "title": "Fix G702 “Command injection via taint analysis”",
+      "where": [
+        "default/main.go:21",
+        "exclude/main.go:22",
+        "tags/main.go:21"
+      ]
+    },
+    {
+      "clears": 3,
+      "control": "sast",
+      "findings": [
+        {
+          "control": "sast",
+          "fingerprint": "f007fbbf622a3362a7339014a926af29eae2491e751e6876ca780940e5624745",
+          "location": "default/main.go:18",
+          "priority": "P2",
+          "repository": "./options-gosec",
+          "ruleId": "G401",
+          "tool": "gosec"
+        },
+        {
+          "control": "sast",
+          "fingerprint": "0f32ee08c687fcf1207766a30e8e069c5dd7719adce706588ccac4c22f9a713f",
+          "location": "exclude/main.go:18",
+          "priority": "P2",
+          "repository": "./options-gosec",
+          "ruleId": "G401",
+          "tool": "gosec"
+        },
+        {
+          "control": "sast",
+          "fingerprint": "073d89ca264d8c4c24ac301a76c0a94746658ce73d5d3b55d6b4006c0b504b89",
+          "location": "tags/main.go:18",
+          "priority": "P2",
+          "repository": "./options-gosec",
+          "ruleId": "G401",
+          "tool": "gosec"
+        }
+      ],
+      "id": "fd0d92a1967a690b",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 18,
+          "path": "default/main.go",
+          "repository": "./options-gosec"
+        },
+        {
+          "kind": "file",
+          "line": 18,
+          "path": "exclude/main.go",
+          "repository": "./options-gosec"
+        },
+        {
+          "kind": "file",
+          "line": 18,
+          "path": "tags/main.go",
+          "repository": "./options-gosec"
+        }
+      ],
+      "priority": "P2",
+      "ruleIds": [
+        "G401"
+      ],
+      "title": "Fix G401 “Use of weak cryptographic primitive”",
+      "where": [
+        "default/main.go:18",
+        "exclude/main.go:18",
+        "tags/main.go:18"
+      ]
+    },
+    {
+      "clears": 3,
+      "control": "sast",
+      "findings": [
+        {
+          "control": "sast",
+          "fingerprint": "11be94dd424a1e96f205b74e9019b8fac5180e6370091b57c165e96fe6f431e0",
+          "location": "default/main.go:21",
+          "priority": "P2",
+          "repository": "./options-gosec",
+          "ruleId": "G204",
+          "tool": "gosec"
+        },
+        {
+          "control": "sast",
+          "fingerprint": "856248e18b62ee3e17a3da45f08024d0ef8e9f3c4f4439efae7f1fb98431f84e",
+          "location": "include/main.go:22",
+          "priority": "P2",
+          "repository": "./options-gosec",
+          "ruleId": "G204",
+          "tool": "gosec"
+        },
+        {
+          "control": "sast",
+          "fingerprint": "b99abed58205e320acf718ea0d4d4ec9cd70c4eb9dabf26e86c7302d924241c0",
+          "location": "tags/main.go:21",
+          "priority": "P2",
+          "repository": "./options-gosec",
+          "ruleId": "G204",
+          "tool": "gosec"
+        }
+      ],
+      "id": "553d8004f951980d",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 21,
+          "path": "default/main.go",
+          "repository": "./options-gosec"
+        },
+        {
+          "kind": "file",
+          "line": 22,
+          "path": "include/main.go",
+          "repository": "./options-gosec"
+        },
+        {
+          "kind": "file",
+          "line": 21,
+          "path": "tags/main.go",
+          "repository": "./options-gosec"
+        }
+      ],
+      "priority": "P2",
+      "ruleIds": [
+        "G204"
+      ],
+      "title": "Fix G204 “Subprocess launched with a potential tainted input or cmd arg…",
+      "where": [
+        "default/main.go:21",
+        "include/main.go:22",
+        "tags/main.go:21"
+      ]
+    },
+    {
+      "clears": 3,
+      "control": "sast",
+      "findings": [
+        {
+          "control": "sast",
+          "fingerprint": "4bc3e2c6f1903cb71e71deb123302f96eaef1f4908d02c3b6466b9ef3bdd4322",
+          "location": "default/main.go:6",
+          "priority": "P2",
+          "repository": "./options-gosec",
+          "ruleId": "G501",
+          "tool": "gosec"
+        },
+        {
+          "control": "sast",
+          "fingerprint": "7d6bd4c9a3f6f3216a60b5acecd51324c26e5d2d95659f34de823890c91e23d0",
+          "location": "exclude/main.go:6",
+          "priority": "P2",
+          "repository": "./options-gosec",
+          "ruleId": "G501",
+          "tool": "gosec"
+        },
+        {
+          "control": "sast",
+          "fingerprint": "867254cdaca77f86fea7e050ab576bb2b5e8b1541e61d66c832795eef84a737d",
+          "location": "tags/main.go:6",
+          "priority": "P2",
+          "repository": "./options-gosec",
+          "ruleId": "G501",
+          "tool": "gosec"
+        }
+      ],
+      "id": "6c5e46855260b857",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 6,
+          "path": "default/main.go",
+          "repository": "./options-gosec"
+        },
+        {
+          "kind": "file",
+          "line": 6,
+          "path": "exclude/main.go",
+          "repository": "./options-gosec"
+        },
+        {
+          "kind": "file",
+          "line": 6,
+          "path": "tags/main.go",
+          "repository": "./options-gosec"
+        }
+      ],
+      "priority": "P2",
+      "ruleIds": [
+        "G501"
+      ],
+      "title": "Fix G501 “Blocklisted import crypto/md5: weak cryptographic primitive”",
+      "where": [
+        "default/main.go:6",
+        "exclude/main.go:6",
+        "tags/main.go:6"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "tags",
+      "control": "sast",
+      "findings": [
+        {
+          "control": "sast",
+          "fingerprint": "f8704350be54787c4030c8584df3b49340836463895522b321764f1dbf8bcf09",
+          "location": "tags/tagged.go:10",
+          "priority": "P2",
+          "repository": "./options-gosec",
+          "ruleId": "G306",
+          "tool": "gosec"
+        }
+      ],
+      "id": "059611ff52e7287c",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 10,
+          "path": "tags/tagged.go",
+          "repository": "./options-gosec"
+        }
+      ],
+      "priority": "P2",
+      "ruleIds": [
+        "G306"
+      ],
+      "title": "Fix G306 “Expect WriteFile permissions to be 0600 or less”",
+      "where": [
+        "tags/tagged.go:10"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 3,
