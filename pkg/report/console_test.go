@@ -461,3 +461,29 @@ func TestAControlWithNoFindingsSaysSo(t *testing.T) {
 		t.Errorf("a control row described empty bands:\n%s", out)
 	}
 }
+
+// A coverage note names the component whose tree it describes, once a run has more than one. The
+// note that web's paths hold no Go module is not the control's, and unnamed it contradicts the
+// findings the same control lists for the other components.
+func TestACoverageNoteNamesItsComponent(t *testing.T) {
+	d := goldenFullData()
+	if len(d.Components) < 2 {
+		t.Fatalf("the fixture has %d components, want several", len(d.Components))
+	}
+	sast := d.Run.Controls["sast"]
+	sast.Report.Provenance = append(sast.Report.Provenance, sarif.Provenance{Tool: "gosec", Version: "2.29.0",
+		Component: "web", Fields: []sarif.Field{{Key: "coverage", Value: "no go.mod found, so gosec analyzed nothing here"}}})
+	d.Run.Controls["sast"] = sast
+
+	out := renderWith(t, consoleReporter{}, d)
+	if !strings.Contains(out, "coverage: web: no go.mod found") {
+		t.Errorf("the coverage note does not name its component:\n%s", out)
+	}
+
+	// With one component there is nothing to tell apart, and the note reads as it always did.
+	d.Components = d.Components[:1]
+	out = renderWith(t, consoleReporter{}, d)
+	if !strings.Contains(out, "coverage: no go.mod found") {
+		t.Errorf("a one-component run named the component anyway:\n%s", out)
+	}
+}

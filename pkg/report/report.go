@@ -963,6 +963,7 @@ func provenanceLines(d Data) []provenanceLine {
 	var out []provenanceLine
 	for _, name := range names {
 		for _, p := range d.Run.Controls[name].Report.Provenance {
+			p.Fields = coverageNamed(d, p)
 			if analyzers[p.Tool] {
 				p.Fields = withoutField(p.Fields, "coverage")
 			}
@@ -987,6 +988,24 @@ func provenanceLines(d Data) []provenanceLine {
 	return out
 }
 
+// coverageNamed is p's fields with its coverage note naming the component it is about, in a run
+// with more than one component. One component's tree holding no Go module says nothing about
+// another's, and unnamed, the note reads as the control's beside findings it made elsewhere. With
+// one component there is nothing to tell apart.
+func coverageNamed(d Data, p sarif.Provenance) []sarif.Field {
+	if p.Component == "" || len(d.Components) < 2 {
+		return p.Fields
+	}
+	out := make([]sarif.Field, len(p.Fields))
+	copy(out, p.Fields)
+	for i := range out {
+		if out[i].Key == "coverage" {
+			out[i].Value = p.Component + ": " + out[i].Value
+		}
+	}
+	return out
+}
+
 // withoutField drops every field with the given key, leaving the rest in order.
 func withoutField(fields []sarif.Field, key string) []sarif.Field {
 	out := make([]sarif.Field, 0, len(fields))
@@ -1006,7 +1025,7 @@ func analyzerCoverage(d Data, analyzer string) string {
 			if p.Tool != analyzer {
 				continue
 			}
-			for _, f := range p.Fields {
+			for _, f := range coverageNamed(d, p) {
 				if f.Key == "coverage" {
 					said = append(said, f.Value)
 				}
