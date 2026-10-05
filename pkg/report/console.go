@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/ci"
@@ -1917,6 +1918,7 @@ func renderActions(w io.Writer, col tui.Painter, actions []action, compact bool)
 	if width <= 0 {
 		width = messageWidth + 6
 	}
+	nameComponents := actionsNameComponents(actions)
 	for _, a := range actions {
 		band := a.priority
 		if band == "" {
@@ -1950,6 +1952,9 @@ func renderActions(w io.Writer, col tui.Painter, actions []action, compact bool)
 			col.Paint(cDim, "control") + " " + a.control,
 			col.Paint(tui.StyleFixed, english.Count(a.count(), "finding")),
 		}
+		if nameComponents && a.component != "" {
+			meta = append([]string{col.Paint(cDim, "component") + " " + a.component}, meta...)
+		}
 		if a.upstream {
 			meta = append(meta, col.Paint(cDim, "upstream"))
 		}
@@ -1959,17 +1964,8 @@ func renderActions(w io.Writer, col tui.Painter, actions []action, compact bool)
 		// Budgeted against the whole line rather than against the detail alone. The control and the
 		// count sit in front of it now, and measuring only the tail is how a 75-finding action came
 		// to draw 137 columns.
-		room := width - 6 - metaWidth(a, len(meta))
-		named := namedLocations
-		if len(actionDetail(tui.Plain(), a, named)) > room {
-			named = 1
-		}
-		if detail := actionDetail(col, a, named); detail != "" {
-			if plain := actionDetail(tui.Plain(), a, named); len(plain) > room {
-				// One location, still too long: the path itself is the width. Cut it rather than
-				// the rule reference after it, which is the way into the findings.
-				detail = col.Paint(cDim, elide(plain, max(room, minTitleWidth)))
-			}
+		room := width - 6 - metaWidth(a, len(meta), nameComponents)
+		if detail := fitDetail(col, a, room, namedLocations); detail != "" {
 			meta = append(meta, col.Paint(cDim, detail))
 		}
 		_, _ = fmt.Fprintf(w, "      %s\n", strings.Join(meta, col.Paint(cDim, " · ")))
@@ -1978,15 +1974,18 @@ func renderActions(w io.Writer, col tui.Painter, actions []action, compact bool)
 
 // metaWidth is what an action's labeled facts occupy before the detail is added, so the detail
 // can be budgeted against what is left rather than against the whole line.
-func metaWidth(a action, parts int) int {
+func metaWidth(a action, parts int, named bool) int {
 	n := len("control ") + len(a.control) + len(english.Count(a.count(), "finding"))
+	if named && a.component != "" {
+		n += len("component ") + len(a.component)
+	}
 	if a.upstream {
 		n += len("upstream")
 	}
 	if a.cached {
 		n += len("from cache")
 	}
-	return n + parts*len(" · ")
+	return n + parts*utf8.RuneCountInString(" · ")
 }
 
 // actionDetail is the line under an action: where it applies, and a way into the findings.
@@ -2001,14 +2000,104 @@ func actionDetail(col tui.Painter, a action, locations int) string {
 	if !a.upstream {
 		parts = a.where(locations)
 	}
-	if f, ok := a.exemplar(); ok && f.ruleID != "" {
-		ref := col.Link(f.helpURI, shortRuleID(f.ruleID))
-		if more := a.count() - 1; more > 0 {
-			ref += fmt.Sprintf(" +%d", more)
-		}
+	if ref := actionRef(col, a); ref != "" {
 		parts = append(parts, ref)
 	}
 	return strings.Join(parts, " · ")
+}
+
+// actionRef is the rule an action names, linked, and how many more findings it clears.
+func actionRef(col tui.Painter, a action) string {
+	f, ok := a.exemplar()
+	if !ok || f.ruleID == "" {
+		return ""
+	}
+	ref := col.Link(f.helpURI, shortRuleID(f.ruleID))
+	if more := a.count() - 1; more > 0 {
+		ref += fmt.Sprintf(" +%d", more)
+	}
+	return ref
+}
+
+// fitDetail is an action's detail fitted into room, naming up to named locations.
+//
+// What gives way, in order: the locations past the first, which `where` then counts; the
+// directories in front of the first; and the rule reference. The file name and the count of what
+// is not named survive longest, because they say what to edit and that there is more than one place
+// to edit it.
+func fitDetail(col tui.Painter, a action, room, named int) string {
+	width := utf8.RuneCountInString
+	if width(actionDetail(tui.Plain(), a, named)) <= room {
+		return actionDetail(col, a, named)
+	}
+	var places []string
+	if !a.upstream {
+		places = a.where(1)
+	}
+	join := func(ps []string, ref string) string {
+		if ref != "" {
+			ps = append(append([]string{}, ps...), ref)
+		}
+		return strings.Join(ps, " · ")
+	}
+	for _, ref := range []struct{ plain, painted string }{
+		{actionRef(tui.Plain(), a), actionRef(col, a)},
+		{},
+	} {
+		plain := join(places, ref.plain)
+		if width(plain) <= room {
+			return join(places, ref.painted)
+		}
+		if len(places) == 0 {
+			continue
+		}
+		if first, ok := clipDirs(places[0], room-(width(plain)-width(places[0]))); ok {
+			return join(append([]string{first}, places[1:]...), ref.painted)
+		}
+	}
+	// Narrower than a file name: whole parts while they fit, and the first cut where none does.
+	parts := append(append([]string{}, places...), actionRef(tui.Plain(), a))
+	var kept []string
+	for _, p := range parts {
+		if p == "" || width(join(append(kept, p), "")) > room {
+			break
+		}
+		kept = append(kept, p)
+	}
+	if len(kept) == 0 {
+		return elide(parts[0], max(room, minTitleWidth))
+	}
+	return join(kept, "")
+}
+
+// clipDirs shortens a location to width by dropping its leading directories, whole, and keeps the
+// file name. It reports false where even "…/" and the file name do not fit, or there is no
+// directory to drop.
+func clipDirs(place string, width int) (string, bool) {
+	segs := strings.Split(place, "/")
+	for i := 1; i < len(segs); i++ {
+		if out := "…/" + strings.Join(segs[i:], "/"); utf8.RuneCountInString(out) <= width {
+			return out, true
+		}
+	}
+	return "", false
+}
+
+// actionsNameComponents reports whether the list spans more than one component, which is when an
+// action has to say whose it is. With one component every row would say the same name.
+func actionsNameComponents(actions []action) bool {
+	first := ""
+	for _, a := range actions {
+		if a.component == "" {
+			continue
+		}
+		if first == "" {
+			first = a.component
+		} else if a.component != first {
+			return true
+		}
+	}
+	return false
 }
 
 // elide shortens the last line of a wrapped message, at a word boundary where there is one.

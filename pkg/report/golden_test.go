@@ -135,7 +135,7 @@ func goldenFullData() Data {
 		{RuleID: "CVE-2018-1000656", Level: sarif.LevelWarning, Score: 7.5, HasScore: true, Priority: "P2",
 			Tool: "trivy", Component: "internal-tool", Location: sarif.Location{URI: "app/requirements.txt", StartLine: 2},
 			Message: "python-flask: Denial of Service via crafted JSON file"},
-		{RuleID: "CVE-2020-28493", Level: sarif.LevelNote, Priority: "P4", Tool: "trivy",
+		{RuleID: "CVE-2020-28493", Level: sarif.LevelNote, Priority: "P4", Tool: "trivy", Component: "payments",
 			Location: sarif.Location{URI: "app/requirements.txt", StartLine: 5}, Message: "jinja2: ReDoS",
 			// The same library as the P1 above, with a different fix. Two advisories, one upgrade, so the
 			// golden pins that they fold into one row, and that the row keeps the worse of the two bands
