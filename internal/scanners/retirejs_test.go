@@ -322,3 +322,37 @@ func TestTheWarmOfflineNeedsACopyToPointAt(t *testing.T) {
 		t.Errorf("warm err = %v, want one naming what is missing", err)
 	}
 }
+
+// retire.js reports a failed advisory download in the `errors` array of the JSON it prints on
+// stdout, exits 1 and writes nothing to stderr: its real output against a repository it cannot
+// reach. A message built from stderr alone is `exit status 1`, which names neither the URL nor the
+// cause, at scan time or at prewarm.
+func TestRetireJSFailureNamesWhatRetireSaid(t *testing.T) {
+	const out = `{"version":"5.7.0","start":"2026-10-05T03:27:34.350Z","data":[],"messages":[],` +
+		`"errors":["Error downloading: https://127.0.0.1:9/jsrepository.json: Error: connect ECONNREFUSED 127.0.0.1:9"],` +
+		`"time":0.005,"vulnerabilityRepositories":["https://127.0.0.1:9/jsrepository.json"]}`
+	failing := []string{"sh", "-c", "printf '%s' '" + out + "'; exit 1"}
+
+	for name, run := range map[string]func(context.Context, string, []string) ([]byte, error){
+		"scan":    NewRetireJS().(repoScanner).run,
+		"prewarm": sharedRetireJSRepo.run,
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := run(context.Background(), "", failing)
+			if err == nil {
+				t.Fatal("a failed run was accepted")
+			}
+			for _, want := range []string{"https://127.0.0.1:9/jsrepository.json", "ECONNREFUSED", "exit status 1"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("want %q in: %v", want, err)
+				}
+			}
+		})
+	}
+
+	// A failure with nothing in `errors` keeps the error it had.
+	if _, err := retireRun(execArgvInDir)(context.Background(), "", []string{"sh", "-c", "exit 1"}); err == nil ||
+		err.Error() != "exit status 1" {
+		t.Errorf("err = %v, want the run's own error", err)
+	}
+}
