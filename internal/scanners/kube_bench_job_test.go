@@ -298,7 +298,7 @@ func TestKubeBenchJobHonorsNamespace(t *testing.T) {
 	var sawNamespace string
 	s.logs = func(_ context.Context, _ kubernetes.Interface, ns, _ string) ([]byte, error) {
 		sawNamespace = ns
-		return []byte(`{"Controls":[]}`), nil
+		return []byte(`{"Controls":[{"id":"4","version":"cis-1.8","text":"Worker Node","tests":[]}]}`), nil
 	}
 	if _, err := s.Scan(context.Background(), plugin.KubernetesTarget{},
 		plugin.Config{"namespace": "security"}); err != nil {
