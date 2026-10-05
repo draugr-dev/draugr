@@ -216,8 +216,7 @@ components:
 	requireControlRan(t, scanTo(t, dir, "draugr.saga.yaml"), "kubernetes", "draugr-k8s-policies")
 }
 
-// TestDiffGatesOnNewFindingsOnly covers the command teams actually put in a pull-request gate, and
-// which had no end-to-end coverage at all.
+// TestDiffGatesOnNewFindingsOnly covers the command teams actually put in a pull-request gate.
 //
 // The property that matters is the one the command exists for: an unchanged repository introduces
 // nothing, so the gate passes even though the findings are still there. Inheriting a backlog must
