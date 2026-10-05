@@ -52,6 +52,7 @@ var notOurs = map[string]string{
 	"--skip-check-update": "Trivy's, for the air-gapped guide",
 	"--ignorefile":        "Trivy's",
 	"--no-cache":          "Trivy's",
+	"--scan-cache":        "Trivy's, emptying its cache in the guide to handling scan artifacts",
 	"--token":             "Trivy server's, named in a comment about its environment variable",
 	"--config":            "a scanner's own, several of them",
 	"--exitwith":          "a scanner's own exit-code flag, in the extending guide",
