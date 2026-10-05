@@ -12,6 +12,30 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.147.0] - 2026-10-05
+
+### Added
+
+- **`report.json` carries the fix list as `actions[]`**, each with a stable `id`, its control, priority, count and component, every location marked `manifest`, `lockfile`, `vendored`, `image` or `file`, and the fingerprints of the findings it clears. Each result in `results.sarif` carries its `fingerprint` to join on. A dependency action adds its ecosystem, package, installed version and target.
+
+- **MCP `fix_list` returns each action with its dependency, versions and locations**, the fields `report.json` carries, without the fingerprints of its findings.
+
+- **`config.fixes.upgrade` caps the version step an upgrade action proposes** at `patch`, `minor` or `major`, per project or per component. Findings only a larger step clears get an action of their own, labeled `major · beyond policy minor` and ranked beside the first. The gate still counts every finding.
+
+### Changed
+
+- **Each dependency gets one fix-list row per component and installed version.** A row names its component when the list spans several, marks a library copied into the tree as `vendored`, and names the repository of each location when the row spans several. With `children: actions`, dependency child issues are replaced once, one per component and version.
+
+- **The `draugr-api` publisher sends `report.json` as compact JSON**, a fifth smaller than the indented file a run writes to disk.
+
+### Fixed
+
+- **A coverage note under Measured against names the component it is about** when a run has more than one, such as `coverage: web: no go.mod found`, and `report.json` carries it as the provenance entry's `component`.
+
+- **A secret found in history no longer carries the commit's author name, email, date or message** into `results.sarif` or a cache entry. The finding keeps the commit it was found at.
+
+- **A failed retire.js run is reported by retire.js's own error**, such as a failed advisory download with its URL and cause, at scan time and at prewarm, where the message had been `exit status 1` alone.
+
 ## [0.146.0] - 2026-10-05
 
 ### Changed
@@ -6247,7 +6271,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.146.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.147.0...HEAD
+[0.147.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.147.0
 [0.146.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.146.0
 [0.145.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.145.0
 [0.144.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.144.0
