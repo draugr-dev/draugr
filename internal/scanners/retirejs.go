@@ -45,7 +45,29 @@ func NewRetireJS() plugin.Scanner {
 	)
 	s.cacheVersion = sharedRetireJSVersion.version
 	s.prewarm = sharedRetireJSRepo.warm
+	s.run = retireRun(execArgvInDir)
 	return s
+}
+
+// retireRun runs retire.js and, when it fails, says what retire.js said.
+//
+// retire.js reports a failure in the `errors` array of the JSON it prints on stdout, exits 1, and
+// writes nothing to stderr, so the message built from stderr is Go's `exit status 1` alone. A
+// download that failed and a crash read the same, and neither names the URL or the cause.
+func retireRun(run func(ctx context.Context, dir string, argv []string) ([]byte, error)) func(context.Context, string, []string) ([]byte, error) {
+	return func(ctx context.Context, dir string, argv []string) ([]byte, error) {
+		out, err := run(ctx, dir, argv)
+		if err == nil {
+			return out, nil
+		}
+		var report struct {
+			Errors []string `json:"errors"`
+		}
+		if json.Unmarshal(out, &report) != nil || len(report.Errors) == 0 {
+			return out, err
+		}
+		return out, fmt.Errorf("%s (%w)", strings.Join(report.Errors, "; "), err)
+	}
 }
 
 // retireJSRepoWarmer fetches the advisory database once, before the jobs fan out.
@@ -69,7 +91,7 @@ type retireJSRepoWarmer struct {
 	cacheDir func() string
 }
 
-var sharedRetireJSRepo = &retireJSRepoWarmer{run: execArgvInDir, cacheDir: retireCacheDir}
+var sharedRetireJSRepo = &retireJSRepoWarmer{run: retireRun(execArgvInDir), cacheDir: retireCacheDir}
 
 func (w *retireJSRepoWarmer) warm(ctx context.Context) error {
 	w.once.Do(func() {
