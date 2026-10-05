@@ -76,11 +76,6 @@
             "text": "aws-access-token has detected secret for file deploy/aws.env."
           },
           "partialFingerprints": {
-            "author": "",
-            "commitMessage": "",
-            "commitSha": "",
-            "date": "",
-            "email": "",
             "primaryLocationLineHash/v1": "<cleared>"
           },
           "properties": {

@@ -1,0 +1,1 @@
+- **A secret found in history no longer carries the commit's author name, email, date or message** into `results.sarif` or a cache entry. The finding keeps the commit it was found at.

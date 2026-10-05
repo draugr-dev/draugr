@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 // gitleaksConfigSchema is the JSON Schema for Gitleaks' Saga config
@@ -47,7 +48,34 @@ func NewGitleaks() plugin.Scanner {
 	s.historyArgs = gitleaksHistoryArgs
 	s.secrets = gitleaksSecrets
 	s.run = gitleaksRun(s.run, sharedGitleaksVersion.version)
+	s.parse = parseGitleaks
 	return s
+}
+
+// parseGitleaks reads Gitleaks' SARIF, keeping of each finding's partial fingerprints only the
+// commit.
+//
+// A history finding's fingerprints carry the commit's author name, author email, date and message:
+// who committed a credential, and in what words. That is personal data a finding does not need,
+// and it would travel into results.sarif, every cache entry and whatever a publisher uploads. The
+// commit identifies the finding, and the secret itself never leaves the region's snippet, which
+// the report does not carry.
+func parseGitleaks(out []byte, _ string, _ plugin.Config) (sarif.Report, error) {
+	report, err := sarif.FromSARIF(out)
+	if err != nil {
+		return sarif.Report{}, err
+	}
+	for i := range report.Results {
+		kept := map[string]string{}
+		if sha := report.Results[i].PartialFingerprints["commitSha"]; sha != "" {
+			kept["commitSha"] = sha
+		}
+		report.Results[i].PartialFingerprints = nil
+		if len(kept) > 0 {
+			report.Results[i].PartialFingerprints = kept
+		}
+	}
+	return report, nil
 }
 
 // gitleaksSecrets returns the secret each result in a Gitleaks SARIF report matched, in report
