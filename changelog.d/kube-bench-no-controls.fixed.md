@@ -1,1 +1,0 @@
-- **A kube-bench run that reports no controls is an error** instead of a clean cluster with no benchmark named.

@@ -12,6 +12,40 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.146.0] - 2026-10-05
+
+### Changed
+
+- **`draugr tools install` with no arguments and no descriptor installs what `draugr scan` runs there**, the zero-config scanners, where it had refused. With two descriptors in the directory it names both and the `--saga` that picks one.
+
+### Fixed
+
+- **`draugr scan` and `draugr classify` given a path that does not exist say so**, instead of suggesting `draugr validate` on the missing file.
+
+- **A control with no findings says `no findings`** in the console, where a run that ranked other controls' findings had printed `no priorities set` beside it.
+
+- **A repository `url` naming a directory inside a checkout is scanned** as the checkout, scoped to that directory, which covers `draugr scan services/payments`, `url: services/payments` and the `url: .` that `draugr init` writes in a subdirectory.
+
+- **`draugr scan --help` shows `--no-gate` as a switch**, where it had printed `--no-gate draugr diff` as though the flag took a value.
+
+- **A scanner written in Go that crashes is reported by the reason and signal the runtime printed**, such as `crashed: fatal error: fault (SIGBUS: bus error)`, rather than by the fault address on the first line.
+
+- **A kube-bench run that reports no controls is an error** instead of a clean cluster with no benchmark named.
+
+- **A missing scanner that `draugr tools install` fetches is named with that command**, semgrep, retire and govulncheck included, where the error had said `draugr tools install` does not fetch them.
+
+- **A run with no findings and a failed control names what did not report** by the ERROR mark on the control's row in the console, Markdown and HTML reports, instead of pointing at errors "above".
+
+- **A local directory that no git repository holds is reported as `not a git repository`**, with `git init` and a commit as the fix, where the errors block had shown `fatal`.
+
+- **The HTML and Markdown reports mark a component ERROR when one of its targets was not read**, as the console does, where a component that passed on the rest had read PASS.
+
+- **A cloud service whose denial Prowler's log does not attribute to a permission reads `denied a permission Prowler's log does not name`** under Caveats, where the reason had read as a broken sentence.
+
+- **A scanner answer with nothing readable in it is an error instead of a clean result**, whether a Nuclei output line that is not a finding, gosec or govulncheck printing nothing over a tree that holds Go modules, a Prowler run with no result for any check, or a VirusTotal response with no analysis.
+
+- **The `--top 0` hint under a cut list names how many were listed**, `not the first three` after `--top 3`, where it always said ten.
+
 ## [0.145.0] - 2026-10-04
 
 ### Added
@@ -6213,7 +6247,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.145.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.146.0...HEAD
+[0.146.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.146.0
 [0.145.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.145.0
 [0.144.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.144.0
 [0.143.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.143.1

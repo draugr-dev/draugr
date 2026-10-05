@@ -1,1 +1,0 @@
-- **A repository `url` naming a directory inside a checkout is scanned** as the checkout, scoped to that directory, which covers `draugr scan services/payments`, `url: services/payments` and the `url: .` that `draugr init` writes in a subdirectory.

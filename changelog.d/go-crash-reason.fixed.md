@@ -1,1 +1,0 @@
-- **A scanner written in Go that crashes is reported by the reason and signal the runtime printed**, such as `crashed: fatal error: fault (SIGBUS: bus error)`, rather than by the fault address on the first line.
