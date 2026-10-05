@@ -1,0 +1,1 @@
+- **`config.fixes.upgrade` caps the version step an upgrade action proposes** at `patch`, `minor` or `major`, per project or per component. Findings only a larger step clears get an action of their own, labeled `major · beyond policy minor` and ranked beside the first. The gate still counts every finding.

@@ -1191,6 +1191,55 @@ The report says which gate produced a verdict, so a narrowed one is visible to w
 [the verdict and the gate](../concepts/verdict-and-gating.md).
 
 
+## `config.fixes`
+
+```yaml
+config:
+  fixes:
+    upgrade: minor          # patch, minor, or major (the default)
+
+components:
+  - name: billing
+    fixes:
+      upgrade: patch        # overrides config.fixes for this component's findings
+```
+
+`upgrade` is the largest version step the [fix list](../concepts/what-to-fix-first.md) proposes for
+a dependency. An upgrade the policy covers stays one action. Where some of a package's findings
+need a larger step, the package gets two actions: the upgrade within the policy, banded by the
+findings it clears, and the step past it, banded by the findings only it clears and labeled with
+its size and the policy. On draugr-demo with `upgrade: minor`:
+
+```
+  P2  Upgrade jquery 1.8.3 → 1.12.0
+      component api · control sca · 3 findings · app/static/js/jquery.min.js vendored · CVE-2012-6708 +2
+  P1  Upgrade jquery 1.12.0 → 3.5.0  major · beyond policy minor
+      component api · control sca · 4 findings · app/static/js/jquery.min.js vendored · CVE-2020-11023 +3
+```
+
+A package's two actions are listed together, ranked by the worse band of the two.
+
+| Value | The largest step proposed |
+|---|---|
+| `patch` | keeps the major and minor version, `1.4.2` to `1.4.9` |
+| `minor` | keeps the major version, `1.4.2` to `1.9.0`. Below `1.0`, a minor step counts as major, as npm's and Cargo's caret ranges treat it, so `0.3.0` to `0.4.0` is past `minor` |
+| `major` | any, the lowest release that clears every finding |
+
+The policy changes what is recommended, never the verdict: the gate counts every finding whichever
+action it lands in.
+
+It applies where versions are semantic. A distribution's packages (Debian, Alpine, Red Hat), a
+calendar version, and a Maven version with a qualifier such as `31.1-jre` are not split, and
+`report.json` marks their actions `policyApplies: false`. The fix list counts them once, under its
+heading, by ecosystem. On `python:3.8-slim` scanned as an image the team builds:
+
+```
+  policy minor · not applied to 4 actions · debian 4
+```
+
+A component's `fixes` replaces the project's, and `fixes` has no effect on an action that is not
+an upgrade.
+
 ## Where a repository comes from: URLs and paths
 
 `url` accepts either a **remote URL** or a **local path**. The field is named for the common case;

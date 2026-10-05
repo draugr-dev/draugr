@@ -38,6 +38,17 @@ type Action struct {
 	// every finding, by the package's own ecosystem's order. Empty when no one release can be named,
 	// for an ecosystem Draugr cannot order or for an image whose findings are in many packages.
 	Target string `json:"target,omitempty"`
+	// Policy is the component's fixes.upgrade, patch or minor, for an upgrade it applies to. Absent
+	// where the component left the default of major.
+	Policy string `json:"policy,omitempty"`
+	// WithinPolicy says whether this step stays within Policy. A step past it carries the findings
+	// only it clears, and After names the step within the policy it follows.
+	WithinPolicy *bool `json:"withinPolicy,omitempty"`
+	// PolicyApplies is false where Policy could not be applied because the versions are not
+	// semantic, a distribution's packages among them, so the action was not split.
+	PolicyApplies *bool `json:"policyApplies,omitempty"`
+	// After is the ID of the action this one presumes has been taken.
+	After string `json:"after,omitempty"`
 	// FixedVersions are the releases the advisories name as fixing these findings, in the order
 	// first seen, each advisory's own answer.
 	FixedVersions []string `json:"fixedVersions,omitempty"`

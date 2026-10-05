@@ -160,6 +160,7 @@ hides work you could have done; the reverse costs a row you skip.
 | the control | which control the findings came from |
 | the count | how many findings this action clears |
 | `upstream` | present only where the component is somebody else's to fix |
+| `major · beyond policy minor` | the size of an upgrade step and the component's [`fixes.upgrade`](../reference/saga-schema.md#configfixes) it exceeds |
 | the locations | the files its findings are in, up to two named and the rest counted as `and N more`; `--view findings` lists every one |
 
 An upgrade names its target version after an arrow. The target is the lowest release that clears
@@ -168,6 +169,13 @@ releases of one library become one release to move to. Where the ecosystem is no
 appears only when every advisory names the same release. `5.10` is above `5.9` in most schemes and
 below it as a string, and naming the wrong release as sufficient reads as *do this and you are done*
 while leaving findings behind.
+
+A component can cap the step an upgrade proposes with
+[`fixes.upgrade`](../reference/saga-schema.md#configfixes). A package whose findings need more than
+the cap allows gets a second action for the step past it, carrying the findings only that step
+clears, listed with the first and ranked by the worse band of the two. Where versions are not
+semantic, as a distribution's are, the action stays whole, and a line under the heading counts
+those actions by ecosystem.
 
 Each row names one rule identifier, linked to whatever the scanner published about it, and counts
 the rest. To read what a check means and how to fix it:

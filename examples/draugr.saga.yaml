@@ -47,6 +47,13 @@ config:
       # The same vocabulary as `failOn` above, for the same reason. A severity here under a band
       # gate is refused rather than quietly compared against something it does not measure.
 
+  # The largest version step the fix list proposes for a dependency. A package whose findings
+  # need more gets a second action for the step past it, labeled with its size and this policy,
+  # so a team that only takes minor upgrades between releases sees which findings wait for a
+  # major one. The advice changes and the gate does not: every finding is still counted.
+  fixes:
+    upgrade: minor           # patch | minor | major (the default)
+
   # An inventory of what you ship, rendered alongside the findings.
   sbom:
     enabled: true            # one document per repository and image
@@ -221,6 +228,8 @@ components:
   - name: api
     exposure: internal
     criticality: important
+    fixes:
+      upgrade: patch         # this component's own policy, replacing config.fixes
     repositories:
       - url: https://github.com/acme/api.git
       - url: https://github.com/acme/api-client.git

@@ -123,6 +123,11 @@ type Result struct {
 	// values.
 	Exposure    string `json:"exposure,omitempty"`
 	Criticality string `json:"criticality,omitempty"`
+	// UpgradePolicy is the largest version step the fix list may propose for this finding's
+	// package, `patch` or `minor`, from the component's fixes.upgrade. Empty means major, the
+	// default. Carried for the reason Exposure is: a report read back without the descriptor gives
+	// the same advice.
+	UpgradePolicy string `json:"upgradePolicy,omitempty"`
 	// Labels are the component's own metadata, carried so a consumer holding many components can
 	// narrow to the ones somebody is answerable for.
 	//
