@@ -15,6 +15,15 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "api",
+            "fields": {
+              "coverage": "no go.mod found, so nothing here carries a verdict"
+            },
+            "tool": "govulncheck",
+            "version": "<cleared>"
+          },
+          {
+            "component": "web",
             "fields": {
               "coverage": "no go.mod found, so nothing here carries a verdict"
             },

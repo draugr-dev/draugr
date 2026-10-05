@@ -117,7 +117,7 @@ own property bag:
 
 | Property | What it says |
 |---|---|
-| `draugr/provenance` | What each scanner said about its own run, the standard applied, the scope, how much of it could be decided |
+| `draugr/provenance` | What each scanner said about its own run, the standard applied, the scope, how much of it could be decided. An entry stating `coverage` carries `component`, the component whose tree it describes |
 | `decided` | The classifications this run settled, whether or not a finding resulted |
 | `consulted` | The exploitability datasets the run had loaded: the signal, the day the copy was obtained, whether it was older than the run's `maxAge`, how many records it held, the EPSS threshold, and what set it |
 

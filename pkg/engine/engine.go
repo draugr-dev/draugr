@@ -1385,6 +1385,11 @@ func appendJobs(dst []PlannedJob, control string, comp *saga.Component, jobs []p
 	return dst
 }
 
+// statesCoverage reports whether a provenance entry says how much of its target a scanner covered.
+func statesCoverage(p sarif.Provenance) bool {
+	return slices.ContainsFunc(p.Fields, func(f sarif.Field) bool { return f.Key == "coverage" })
+}
+
 // stampJobFields returns a copy of report with the per-run facts about the job that produced it:
 // which component it belongs to, who publishes what was scanned, and the priority band its
 // classification earns.
@@ -1403,6 +1408,19 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 			inputs[i].Component = pj.Component
 		}
 		report.Inputs = inputs
+	}
+	// A coverage note is about the tree this job read, so it carries the component the tree belongs
+	// to. Merged per control without it, a note that one component's paths hold no Go code reads as
+	// true of every component the control scanned, beside the findings it made in the others.
+	if slices.ContainsFunc(report.Provenance, statesCoverage) {
+		provenance := make([]sarif.Provenance, len(report.Provenance))
+		copy(provenance, report.Provenance)
+		for i := range provenance {
+			if statesCoverage(provenance[i]) {
+				provenance[i].Component = pj.Component
+			}
+		}
+		report.Provenance = provenance
 	}
 	if len(report.Unchecked) > 0 {
 		unchecked := make([]sarif.Unchecked, len(report.Unchecked))

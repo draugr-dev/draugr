@@ -71,9 +71,11 @@ type sarifRunProperties struct {
 // sarifProvenance mirrors Provenance in the property bag. Written as an object per tool rather
 // than flattened, for the same reason the type is a slice: two scanners have two answers.
 type sarifProvenance struct {
-	Tool    string            `json:"tool"`
-	Version string            `json:"version,omitempty"`
-	Fields  map[string]string `json:"fields,omitempty"`
+	Tool    string `json:"tool"`
+	Version string `json:"version,omitempty"`
+	// Component is the component a coverage statement is about; see Provenance.Component.
+	Component string            `json:"component,omitempty"`
+	Fields    map[string]string `json:"fields,omitempty"`
 	// Detail is what the scanner recorded per item, kept apart from the run's own summary so a
 	// consumer reading one is not reading a list as long as the inventory.
 	Detail map[string]string `json:"detail,omitempty"`
@@ -90,7 +92,7 @@ func runProperties(entries []Provenance, decided []Taxon, consulted []Consulted)
 	}
 	out := make([]sarifProvenance, 0, len(entries))
 	for _, p := range entries {
-		sp := sarifProvenance{Tool: p.Tool, Version: p.Version}
+		sp := sarifProvenance{Tool: p.Tool, Version: p.Version, Component: p.Component}
 		if len(p.Fields) > 0 {
 			sp.Fields = make(map[string]string, len(p.Fields))
 			for _, f := range p.Fields {
@@ -938,7 +940,7 @@ func provenanceFrom(props *sarifRunProperties) []Provenance {
 	}
 	out := make([]Provenance, 0, len(props.Provenance))
 	for _, sp := range props.Provenance {
-		p := Provenance{Tool: sp.Tool, Version: sp.Version}
+		p := Provenance{Tool: sp.Tool, Version: sp.Version, Component: sp.Component}
 		// Sorted, because the bag is a JSON object and object key order is not something a
 		// consumer may rely on. Reading it back in map order would make two loads of one file
 		// differ, which is the opposite of what an artifact offered as evidence is for.

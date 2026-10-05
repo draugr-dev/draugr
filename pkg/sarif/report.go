@@ -771,6 +771,12 @@ type Provenance struct {
 	// And this package is the finding currency for every scanner Draugr will ever have. It should not
 	// learn what a CIS benchmark is to carry the fact that one was applied.
 	Fields []Field `json:"fields,omitempty"`
+	// Component is the component whose target this account describes, where it describes one
+	// target rather than the tool. Set by the engine on an entry that states coverage, which is
+	// true of the tree one job read: a statement that one component's tree holds no Go module says
+	// nothing about another's. Empty for what is true of the tool wherever it ran, its version or
+	// its database.
+	Component string `json:"component,omitempty"`
 	// Detail is what the scanner recorded per item, for a consumer rather than for a terminal.
 	//
 	// Describe() joins Fields onto one line, and the block that reads it gives a control three of
@@ -1048,7 +1054,7 @@ func (r *Report) addProvenance(entries []Provenance) {
 		}
 		if slices.ContainsFunc(r.Provenance, func(existing Provenance) bool {
 			return existing.Tool == p.Tool && existing.Version == p.Version &&
-				slices.Equal(existing.Fields, p.Fields)
+				existing.Component == p.Component && slices.Equal(existing.Fields, p.Fields)
 		}) {
 			continue
 		}
