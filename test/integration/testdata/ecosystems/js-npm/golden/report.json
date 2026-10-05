@@ -26,6 +26,7 @@
       ],
       "target": "1.2.6",
       "title": "Upgrade minimist 1.2.5",
+      "versioning": "npm",
       "where": [
         "package-lock.json:15"
       ]
@@ -103,6 +104,7 @@
       ],
       "target": "1.9.0",
       "title": "Upgrade jquery 1.8.3",
+      "versioning": "npm",
       "where": [
         "static/jquery-1.8.3.min.js vendored"
       ]

@@ -26,6 +26,7 @@
       ],
       "target": "7.4.3",
       "title": "Upgrade guzzlehttp/guzzle 7.4.0",
+      "versioning": "packagist",
       "where": [
         "composer.lock:9"
       ]

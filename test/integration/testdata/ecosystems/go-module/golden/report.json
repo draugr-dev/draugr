@@ -28,6 +28,7 @@
       ],
       "target": "v0.3.8",
       "title": "Upgrade golang.org/x/text v0.3.6",
+      "versioning": "go",
       "where": [
         "go.mod:5"
       ]

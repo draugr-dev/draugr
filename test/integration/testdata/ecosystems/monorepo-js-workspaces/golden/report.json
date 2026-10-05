@@ -26,6 +26,7 @@
       ],
       "target": "1.2.6",
       "title": "Upgrade minimist 1.2.5",
+      "versioning": "npm",
       "where": [
         "npm/package-lock.json:23"
       ]
@@ -56,6 +57,7 @@
       ],
       "target": "1.2.6",
       "title": "Upgrade minimist 1.2.5",
+      "versioning": "npm",
       "where": [
         "pnpm/pnpm-lock.yaml:179"
       ]
@@ -86,6 +88,7 @@
       ],
       "target": "1.2.6",
       "title": "Upgrade minimist 1.2.5",
+      "versioning": "npm",
       "where": [
         "yarn/yarn.lock:22"
       ]

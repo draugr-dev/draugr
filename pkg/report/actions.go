@@ -783,6 +783,7 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 		}
 		if p := a.dependency(); p != nil {
 			act.Ecosystem, act.Package, act.From = p.Ecosystem, p.Name, p.Version
+			act.Versioning = ecosystemName(a)
 		}
 		if s := a.step; s != nil {
 			act.Policy = string(s.policy)
@@ -790,6 +791,7 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 				within := s.beyond == ""
 				act.WithinPolicy = &within
 				act.After = s.after
+				act.Beyond = string(s.beyond)
 			} else {
 				applies := false
 				act.PolicyApplies = &applies

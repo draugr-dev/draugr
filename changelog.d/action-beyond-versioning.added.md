@@ -1,0 +1,1 @@
+- **`report.json` actions say how far past the policy a step goes**, as `beyond`, and which ecosystem's rules order the package's versions, as `versioning`.

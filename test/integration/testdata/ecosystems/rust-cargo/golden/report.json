@@ -26,6 +26,7 @@
       ],
       "target": "1.6.1",
       "title": "Upgrade smallvec 1.6.0",
+      "versioning": "crates.io",
       "where": [
         "Cargo.lock:12"
       ]
