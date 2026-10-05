@@ -65,6 +65,7 @@
           "properties": {
             "component": "api",
             "control": "secrets",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-paths",
             "tool": "gitleaks"
@@ -95,6 +96,7 @@
           "properties": {
             "component": "api",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "npm",
               "fixedVersion": "1.2.6",
@@ -132,6 +134,7 @@
           "properties": {
             "component": "api",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-paths",
             "tool": "Semgrep OSS"
@@ -162,6 +165,7 @@
           "properties": {
             "component": "web",
             "control": "secrets",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-paths",
             "tool": "gitleaks"
@@ -192,6 +196,7 @@
           "properties": {
             "component": "web",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "npm",
               "fixedVersion": "1.2.6",
@@ -229,6 +234,7 @@
           "properties": {
             "component": "web",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-paths",
             "tool": "Semgrep OSS"

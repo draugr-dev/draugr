@@ -721,6 +721,7 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 			FixedVersions: a.fixedVersions(),
 			Target:        a.target(),
 			Locations:     a.locations(),
+			Fingerprints:  fingerprintsOf(a.findings),
 			Findings:      actionFindings(a.findings),
 			OneChange:     !a.byRule,
 		}
@@ -728,6 +729,15 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 			act.Ecosystem, act.Package, act.From = p.Ecosystem, p.Name, p.Version
 		}
 		out = append(out, act)
+	}
+	return out
+}
+
+// fingerprintsOf is each finding's fingerprint, in the order the action holds them.
+func fingerprintsOf(fs []finding) []string {
+	out := make([]string, 0, len(fs))
+	for _, f := range fs {
+		out = append(out, f.fingerprint)
 	}
 	return out
 }

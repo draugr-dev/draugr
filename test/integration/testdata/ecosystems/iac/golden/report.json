@@ -4,17 +4,7 @@
       "clears": 1,
       "component": "iac",
       "control": "iac",
-      "findings": [
-        {
-          "control": "iac",
-          "fingerprint": "<cleared>",
-          "location": "Dockerfile:1",
-          "priority": "P1",
-          "repository": "./iac",
-          "ruleId": "DS-0002",
-          "tool": "Trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "5e34096b9ae1f7ff",
       "locations": [
         {
@@ -37,17 +27,7 @@
       "clears": 1,
       "component": "iac",
       "control": "iac",
-      "findings": [
-        {
-          "control": "iac",
-          "fingerprint": "<cleared>",
-          "location": "deploy/chart/templates/deployment.yaml:7",
-          "priority": "P1",
-          "repository": "./iac",
-          "ruleId": "KSV-0009",
-          "tool": "Trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "47551b084382262a",
       "locations": [
         {
@@ -70,17 +50,7 @@
       "clears": 1,
       "component": "iac",
       "control": "iac",
-      "findings": [
-        {
-          "control": "iac",
-          "fingerprint": "<cleared>",
-          "location": "deploy/k8s/deployment.yaml:24",
-          "priority": "P1",
-          "repository": "./iac",
-          "ruleId": "KSV-0017",
-          "tool": "Trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "ce4821349db9e107",
       "locations": [
         {
@@ -103,17 +73,7 @@
       "clears": 1,
       "component": "iac",
       "control": "iac",
-      "findings": [
-        {
-          "control": "iac",
-          "fingerprint": "<cleared>",
-          "location": "deploy/terraform/main.tf:10",
-          "priority": "P1",
-          "repository": "./iac",
-          "ruleId": "AWS-0107",
-          "tool": "Trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "a5182d83d55aba38",
       "locations": [
         {
@@ -136,26 +96,7 @@
       "clears": 2,
       "component": "iac",
       "control": "iac",
-      "findings": [
-        {
-          "control": "iac",
-          "fingerprint": "<cleared>",
-          "location": "deploy/chart/templates/deployment.yaml:26",
-          "priority": "P2",
-          "repository": "./iac",
-          "ruleId": "KSV-0125",
-          "tool": "Trivy"
-        },
-        {
-          "control": "iac",
-          "fingerprint": "<cleared>",
-          "location": "deploy/k8s/deployment.yaml:24",
-          "priority": "P2",
-          "repository": "./iac",
-          "ruleId": "KSV-0125",
-          "tool": "Trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "161bacf04b155939",
       "locations": [
         {
@@ -185,17 +126,7 @@
       "clears": 1,
       "component": "iac",
       "control": "iac",
-      "findings": [
-        {
-          "control": "iac",
-          "fingerprint": "<cleared>",
-          "location": "Dockerfile:1",
-          "priority": "P3",
-          "repository": "./iac",
-          "ruleId": "DS-0026",
-          "tool": "Trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "17f8923b3f454dbc",
       "locations": [
         {

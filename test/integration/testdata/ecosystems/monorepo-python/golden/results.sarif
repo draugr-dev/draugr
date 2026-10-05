@@ -57,6 +57,7 @@
           "properties": {
             "component": "api",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "poetry",
               "fixedVersion": "0.12.3",
@@ -94,6 +95,7 @@
           "properties": {
             "component": "legacy",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-python",
             "tool": "Semgrep OSS"
@@ -124,6 +126,7 @@
           "properties": {
             "component": "tools",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "pip",
               "fixedVersion": "0.12.3",

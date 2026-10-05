@@ -47,9 +47,16 @@ type Action struct {
 	Where []string `json:"where,omitempty"`
 	// RuleIDs are the rules this action resolves, capped, so a caller can look any of them up.
 	RuleIDs []string `json:"ruleIds,omitempty"`
+	// Fingerprints identify every finding this action clears, most urgent first. Each is the
+	// `fingerprint` property of a result in results.sarif, which holds the rest of the finding.
+	//
+	// Identities rather than copies, so the document stays bounded however many findings a run has:
+	// a destination holding results.sarif already has every finding once.
+	Fingerprints []string `json:"findings,omitempty"`
 	// Findings are every finding this action clears, most urgent first, uncapped where Where and
-	// RuleIDs are capped.
-	Findings []ActionFinding `json:"findings,omitempty"`
+	// RuleIDs are capped. Not serialized: a publisher that lists the findings reads them here, and
+	// the document carries Fingerprints.
+	Findings []ActionFinding `json:"-"`
 	// Key is what these findings grouped under: the identity that makes two of them one action.
 	//
 	// Opaque, and deliberately. Its shape is report's business and changes when the grouping
@@ -96,23 +103,20 @@ type ActionLocation struct {
 }
 
 // ActionFinding is one finding an action clears.
-//
-// The document carries what identifies the finding and ranks it. The fingerprint is the one
-// results.sarif records for the same finding, which is where the rest of it is.
 type ActionFinding struct {
-	Control    string         `json:"control,omitempty"`
-	RuleID     string         `json:"ruleId,omitempty"`
-	Tool       string         `json:"tool,omitempty"`
-	Priority   string         `json:"priority,omitempty"`
-	Severity   sarif.Severity `json:"-"`
-	Message    string         `json:"-"`
-	Component  string         `json:"-"`
-	Repository string         `json:"repository,omitempty"`
+	Control    string
+	RuleID     string
+	Tool       string
+	Priority   string
+	Severity   sarif.Severity
+	Message    string
+	Component  string
+	Repository string
 	// Location is the file and line, or the image for a finding inside one.
-	Location    string `json:"location,omitempty"`
-	HelpURI     string `json:"-"`
-	Fingerprint string `json:"fingerprint,omitempty"`
+	Location    string
+	HelpURI     string
+	Fingerprint string
 	// Upgrade is the dependency and the version that clears it, `jinja2 2.10 → 2.10.1`, or its
 	// "no fix available". Empty for a finding that is not about a dependency.
-	Upgrade string `json:"-"`
+	Upgrade string
 }

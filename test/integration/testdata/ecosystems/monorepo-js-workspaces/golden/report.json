@@ -5,17 +5,7 @@
       "component": "npm",
       "control": "sca",
       "ecosystem": "npm",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "npm/package-lock.json:23",
-          "priority": "P1",
-          "repository": "./monorepo-js-workspaces",
-          "ruleId": "CVE-2021-44906",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "1.2.6"
       ],
@@ -45,17 +35,7 @@
       "component": "pnpm",
       "control": "sca",
       "ecosystem": "pnpm",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "pnpm/pnpm-lock.yaml:179",
-          "priority": "P1",
-          "repository": "./monorepo-js-workspaces",
-          "ruleId": "CVE-2021-44906",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "1.2.6"
       ],
@@ -85,17 +65,7 @@
       "component": "yarn",
       "control": "sca",
       "ecosystem": "yarn",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "yarn/yarn.lock:22",
-          "priority": "P1",
-          "repository": "./monorepo-js-workspaces",
-          "ruleId": "CVE-2021-44906",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "1.2.6"
       ],

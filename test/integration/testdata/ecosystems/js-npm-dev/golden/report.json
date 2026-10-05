@@ -5,17 +5,7 @@
       "component": "js-npm-dev",
       "control": "sca",
       "ecosystem": "npm",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "package-lock.json:15",
-          "priority": "P1",
-          "repository": "./js-npm-dev",
-          "ruleId": "CVE-2021-44906",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "1.2.6"
       ],

@@ -5,17 +5,7 @@
       "component": "js-yarn-berry",
       "control": "sca",
       "ecosystem": "yarn",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "yarn.lock:8",
-          "priority": "P1",
-          "repository": "./js-yarn-berry",
-          "ruleId": "CVE-2021-44906",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "1.2.6"
       ],

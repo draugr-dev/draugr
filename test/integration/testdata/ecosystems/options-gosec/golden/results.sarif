@@ -49,6 +49,7 @@
           "properties": {
             "component": "default",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./options-gosec",
             "tool": "gosec"
@@ -79,6 +80,7 @@
           "properties": {
             "component": "exclude",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./options-gosec",
             "tool": "gosec"
@@ -109,6 +111,7 @@
           "properties": {
             "component": "tags",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./options-gosec",
             "tool": "gosec"
@@ -139,6 +142,7 @@
           "properties": {
             "component": "default",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-gosec",
             "tool": "gosec"
@@ -169,6 +173,7 @@
           "properties": {
             "component": "default",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-gosec",
             "tool": "gosec"
@@ -199,6 +204,7 @@
           "properties": {
             "component": "default",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-gosec",
             "tool": "gosec"
@@ -229,6 +235,7 @@
           "properties": {
             "component": "exclude",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-gosec",
             "tool": "gosec"
@@ -259,6 +266,7 @@
           "properties": {
             "component": "exclude",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-gosec",
             "tool": "gosec"
@@ -289,6 +297,7 @@
           "properties": {
             "component": "include",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-gosec",
             "tool": "gosec"
@@ -319,6 +328,7 @@
           "properties": {
             "component": "tags",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-gosec",
             "tool": "gosec"
@@ -349,6 +359,7 @@
           "properties": {
             "component": "tags",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-gosec",
             "tool": "gosec"
@@ -379,6 +390,7 @@
           "properties": {
             "component": "tags",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-gosec",
             "tool": "gosec"
@@ -409,6 +421,7 @@
           "properties": {
             "component": "tags",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-gosec",
             "tool": "gosec"

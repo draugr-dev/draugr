@@ -5,17 +5,7 @@
       "component": "jvm-maven",
       "control": "sca",
       "ecosystem": "pom",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "pom.xml:8",
-          "priority": "P1",
-          "repository": "./jvm-maven",
-          "ruleId": "CVE-2021-44228",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "2.15.0"
       ],

@@ -49,6 +49,7 @@
           "properties": {
             "component": "php-composer",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "composer",
               "fixedVersion": "7.4.3",

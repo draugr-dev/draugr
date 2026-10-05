@@ -5,17 +5,7 @@
       "component": "python-pylock",
       "control": "sca",
       "ecosystem": "pylock",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "pylock.toml:16",
-          "priority": "P1",
-          "repository": "./python-pylock",
-          "ruleId": "CVE-2018-1000656",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "0.12.3"
       ],

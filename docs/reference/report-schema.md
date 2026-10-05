@@ -52,6 +52,7 @@ Draugr reports as one SARIF tool, so every finding keeps its own attribution in 
 | `escalation` | Why the band is higher than the severity: the dataset, the fact, and the day it was fetched |
 | `reachability` | Whether your code can reach the vulnerable code, which analyzer decided, and how |
 | `historical` | `true` on a finding from a commit in the repository's history. Absent on a finding from the current tree. The location is the path the file had in that commit |
+| `fingerprint` | The finding's identity, a hash of its tool, rule, level, message, location, component and repository. `report.json` names findings by it in `actions[].findings[]`, and in `findings[].fingerprint` when `--min-priority` lists them |
 
 `control` and `tool` answer different questions, and both matter to anything grouping findings:
 one rule id reported by two controls is two separate things to do.
@@ -97,13 +98,14 @@ that change clears.
 | `fixedVersions` | the release each advisory names as its fix, in its own words |
 | `locations[]` | every place the findings are: `repository`, `path`, `line` and `kind`. `kind` is `manifest`, `lockfile`, `vendored` for a copy of the dependency committed to the tree, `image`, or `file` |
 | `where`, `ruleIds` | the first five locations as text, then `and N more`, and the first five rule identifiers |
-| `findings[]` | each finding the action clears: `control`, `ruleId`, `tool`, `priority`, `repository`, `location` and `fingerprint`. The fingerprint is the one `results.sarif` records for the same finding |
+| `findings[]` | the fingerprint of each finding the action clears, most urgent first. Each matches the `fingerprint` property of one result in `results.sarif` |
 
 The MCP server's `fix_list` returns the same objects without `findings[]`.
 
 ```bash
 jq -r '.actions[] | select(.package) | "\(.component) \(.package) \(.from) → \(.target // "no single release")"' out/report.json
 jq -r '.actions[].locations[] | select(.kind == "vendored") | .path' out/report.json   # copies a manifest bump leaves as they were
+jq -s '.[0].actions[0].findings as $ids | .[1].runs[].results[] | select(.properties.fingerprint | IN($ids[])) | .ruleId' out/report.json out/results.sarif   # what the first action clears
 ```
 
 ## What the cache contributed

@@ -3,26 +3,7 @@
     {
       "clears": 2,
       "control": "secrets",
-      "findings": [
-        {
-          "control": "secrets",
-          "fingerprint": "<cleared>",
-          "location": "services/api/old.env:1",
-          "priority": "P1",
-          "repository": "./monorepo-secret-history",
-          "ruleId": "aws-access-token",
-          "tool": "gitleaks"
-        },
-        {
-          "control": "secrets",
-          "fingerprint": "<cleared>",
-          "location": "services/web/old.env:1",
-          "priority": "P1",
-          "repository": "./monorepo-secret-history",
-          "ruleId": "aws-access-token",
-          "tool": "gitleaks"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "8a6b62c38ce5b2e9",
       "locations": [
         {

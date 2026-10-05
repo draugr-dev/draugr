@@ -5,17 +5,7 @@
       "component": "js-bun",
       "control": "sca",
       "ecosystem": "bun",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "bun.lock:13",
-          "priority": "P1",
-          "repository": "./js-bun",
-          "ruleId": "CVE-2021-44906",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "1.2.6"
       ],

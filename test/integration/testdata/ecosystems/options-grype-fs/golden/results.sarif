@@ -50,6 +50,7 @@
           "properties": {
             "component": "by-advisory",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "python",
               "fixedVersion": "5.4",
@@ -89,6 +90,7 @@
           "properties": {
             "component": "default",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "python",
               "fixedVersion": "5.4",
@@ -127,6 +129,7 @@
           "properties": {
             "component": "grype-yaml",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "python",
               "fixedVersion": "0.12.3",

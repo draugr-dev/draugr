@@ -3,26 +3,7 @@
     {
       "clears": 2,
       "control": "licenses",
-      "findings": [
-        {
-          "control": "licenses",
-          "fingerprint": "<cleared>",
-          "location": "licenses-deny/package-lock.json:15",
-          "priority": "P1",
-          "repository": "./options-trivy-license",
-          "ruleId": "license/ISC/inherits",
-          "tool": "trivy-license"
-        },
-        {
-          "control": "licenses",
-          "fingerprint": "<cleared>",
-          "location": "licenses-warn-isc/package-lock.json:15",
-          "priority": "P2",
-          "repository": "./options-trivy-license",
-          "ruleId": "license/ISC/inherits",
-          "tool": "trivy-license"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "0b6e14dc9fcf5fb4",
       "locations": [
         {
@@ -52,17 +33,7 @@
       "clears": 1,
       "component": "trivy-license-deny",
       "control": "licenses",
-      "findings": [
-        {
-          "control": "licenses",
-          "fingerprint": "<cleared>",
-          "location": "trivy-license-deny/package-lock.json:15",
-          "priority": "P1",
-          "repository": "./options-trivy-license",
-          "ruleId": "license/MIT/ms",
-          "tool": "trivy-license"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "147a0e4a9dcf3443",
       "locations": [
         {
@@ -85,17 +56,7 @@
       "clears": 1,
       "component": "full",
       "control": "licenses",
-      "findings": [
-        {
-          "control": "licenses",
-          "fingerprint": "<cleared>",
-          "location": "full/LICENSE",
-          "priority": "P2",
-          "repository": "./options-trivy-license",
-          "ruleId": "license/LGPL-3.0",
-          "tool": "trivy-license"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "fa79e8e0b7691ded",
       "locations": [
         {
@@ -117,17 +78,7 @@
       "clears": 1,
       "component": "licenses-warn",
       "control": "licenses",
-      "findings": [
-        {
-          "control": "licenses",
-          "fingerprint": "<cleared>",
-          "location": "licenses-warn/package-lock.json:15",
-          "priority": "P2",
-          "repository": "./options-trivy-license",
-          "ruleId": "license/0BSD/tslib",
-          "tool": "trivy-license"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "ee252c3ea408da17",
       "locations": [
         {
@@ -150,17 +101,7 @@
       "clears": 1,
       "component": "trivy-license-warn",
       "control": "licenses",
-      "findings": [
-        {
-          "control": "licenses",
-          "fingerprint": "<cleared>",
-          "location": "trivy-license-warn/package-lock.json:15",
-          "priority": "P2",
-          "repository": "./options-trivy-license",
-          "ruleId": "license/BSD-3-Clause/sprintf-js",
-          "tool": "trivy-license"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "eba6ccd9a3216bd0",
       "locations": [
         {

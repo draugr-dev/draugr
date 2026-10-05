@@ -127,9 +127,10 @@ func TestActionsTravelInTheDocument(t *testing.T) {
 	doc := renderWith(t, Provenance{Actions: []Action{{
 		ID: "0d5ae5732348af86", Title: "Upgrade jquery 1.8.3", Component: "web", Clears: 1,
 		Ecosystem: "npm", Package: "jquery", From: "1.8.3", Target: "3.5.0",
-		Locations: []ActionLocation{{Path: "web/static/js/jquery.min.js", Kind: LocationVendored}},
-		Findings:  []ActionFinding{{RuleID: "CVE-1", Priority: "P1", Message: "kept out", Fingerprint: "ab"}},
-		Key:       "upgrade\x00web",
+		Locations:    []ActionLocation{{Path: "web/static/js/jquery.min.js", Kind: LocationVendored}},
+		Fingerprints: []string{"ab"},
+		Findings:     []ActionFinding{{RuleID: "CVE-1", Priority: "P1", Message: "kept out", Fingerprint: "ab"}},
+		Key:          "upgrade\x00web",
 	}}})
 	acts, ok := doc["actions"].([]any)
 	if !ok || len(acts) != 1 {
@@ -148,8 +149,9 @@ func TestActionsTravelInTheDocument(t *testing.T) {
 	if loc["kind"] != "vendored" {
 		t.Errorf("location = %#v", loc)
 	}
-	f := a["findings"].([]any)[0].(map[string]any)
-	if f["fingerprint"] != "ab" || f["message"] != nil {
-		t.Errorf("a finding should carry its identity and rank, not its text: %#v", f)
+	// Identities, not copies: results.sarif holds each finding once, and the document stays bounded
+	// however many findings a run has.
+	if f := a["findings"].([]any); len(f) != 1 || f[0] != "ab" {
+		t.Errorf("findings should be the fingerprints of what the action clears: %#v", a["findings"])
 	}
 }

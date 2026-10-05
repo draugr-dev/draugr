@@ -50,6 +50,9 @@ func SARIFNormalizer(replace map[string]string) Normalizer {
 			// generated for the run.
 			{"runs", "*", "results", "*", "partialFingerprints", "primaryLocationLineHash/v1"},
 		},
+		// The finding's identity, a hash over its message for the same reason. Written on every
+		// result that has a property bag, which a run with no findings has none of.
+		ClearPresent: [][]string{{"runs", "*", "results", "*", "properties", "fingerprint"}},
 		Sort: [][]string{
 			{"runs", "*", "results"},
 			{"runs", "*", "tool", "driver", "rules"},
@@ -75,9 +78,10 @@ func ReportNormalizer(replace map[string]string) Normalizer {
 			{"stats", "byControlMs"},
 			{"stats", "concurrency"},
 		},
-		// A hash over the finding's message, which for a secret names a commit or a value the
-		// fixture generated for the run. Only a run with findings has an action to carry one.
-		ClearPresent: [][]string{{"actions", "*", "findings", "*", "fingerprint"}},
+		// Hashes over the finding's message, which for a secret names a commit or a value the
+		// fixture generated for the run. Only a run with findings has an action to carry them, and
+		// only a run with --min-priority lists findings.
+		ClearPresent: [][]string{{"actions", "*", "findings"}, {"findings", "*", "fingerprint"}},
 		Sort:         [][]string{{"scanners"}},
 		Replace:      replace,
 	}

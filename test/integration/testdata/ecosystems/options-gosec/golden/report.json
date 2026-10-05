@@ -3,35 +3,7 @@
     {
       "clears": 3,
       "control": "sast",
-      "findings": [
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "default/main.go:21",
-          "priority": "P1",
-          "repository": "./options-gosec",
-          "ruleId": "G702",
-          "tool": "gosec"
-        },
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "exclude/main.go:22",
-          "priority": "P1",
-          "repository": "./options-gosec",
-          "ruleId": "G702",
-          "tool": "gosec"
-        },
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "tags/main.go:21",
-          "priority": "P1",
-          "repository": "./options-gosec",
-          "ruleId": "G702",
-          "tool": "gosec"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "1bd635d5d6af5757",
       "locations": [
         {
@@ -67,35 +39,7 @@
     {
       "clears": 3,
       "control": "sast",
-      "findings": [
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "default/main.go:18",
-          "priority": "P2",
-          "repository": "./options-gosec",
-          "ruleId": "G401",
-          "tool": "gosec"
-        },
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "exclude/main.go:18",
-          "priority": "P2",
-          "repository": "./options-gosec",
-          "ruleId": "G401",
-          "tool": "gosec"
-        },
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "tags/main.go:18",
-          "priority": "P2",
-          "repository": "./options-gosec",
-          "ruleId": "G401",
-          "tool": "gosec"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "fd0d92a1967a690b",
       "locations": [
         {
@@ -131,35 +75,7 @@
     {
       "clears": 3,
       "control": "sast",
-      "findings": [
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "default/main.go:21",
-          "priority": "P2",
-          "repository": "./options-gosec",
-          "ruleId": "G204",
-          "tool": "gosec"
-        },
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "include/main.go:22",
-          "priority": "P2",
-          "repository": "./options-gosec",
-          "ruleId": "G204",
-          "tool": "gosec"
-        },
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "tags/main.go:21",
-          "priority": "P2",
-          "repository": "./options-gosec",
-          "ruleId": "G204",
-          "tool": "gosec"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "553d8004f951980d",
       "locations": [
         {
@@ -195,35 +111,7 @@
     {
       "clears": 3,
       "control": "sast",
-      "findings": [
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "default/main.go:6",
-          "priority": "P2",
-          "repository": "./options-gosec",
-          "ruleId": "G501",
-          "tool": "gosec"
-        },
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "exclude/main.go:6",
-          "priority": "P2",
-          "repository": "./options-gosec",
-          "ruleId": "G501",
-          "tool": "gosec"
-        },
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "tags/main.go:6",
-          "priority": "P2",
-          "repository": "./options-gosec",
-          "ruleId": "G501",
-          "tool": "gosec"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "6c5e46855260b857",
       "locations": [
         {
@@ -260,17 +148,7 @@
       "clears": 1,
       "component": "tags",
       "control": "sast",
-      "findings": [
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "tags/tagged.go:10",
-          "priority": "P2",
-          "repository": "./options-gosec",
-          "ruleId": "G306",
-          "tool": "gosec"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "059611ff52e7287c",
       "locations": [
         {

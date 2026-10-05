@@ -3,26 +3,7 @@
     {
       "clears": 2,
       "control": "secrets",
-      "findings": [
-        {
-          "control": "secrets",
-          "fingerprint": "<cleared>",
-          "location": "services/api/deploy/aws.env:1",
-          "priority": "P1",
-          "repository": "./monorepo-paths",
-          "ruleId": "aws-access-token",
-          "tool": "gitleaks"
-        },
-        {
-          "control": "secrets",
-          "fingerprint": "<cleared>",
-          "location": "services/web/deploy/aws.env:1",
-          "priority": "P1",
-          "repository": "./monorepo-paths",
-          "ruleId": "aws-access-token",
-          "tool": "gitleaks"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "8a6b62c38ce5b2e9",
       "locations": [
         {
@@ -52,26 +33,7 @@
     {
       "clears": 2,
       "control": "sast",
-      "findings": [
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "services/api/src/index.js:4",
-          "priority": "P1",
-          "repository": "./monorepo-paths",
-          "ruleId": "draugr-fixture-eval",
-          "tool": "Semgrep OSS"
-        },
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "services/web/src/index.js:4",
-          "priority": "P1",
-          "repository": "./monorepo-paths",
-          "ruleId": "draugr-fixture-eval",
-          "tool": "Semgrep OSS"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "126aeef45011b4a4",
       "locations": [
         {
@@ -103,17 +65,7 @@
       "component": "api",
       "control": "sca",
       "ecosystem": "npm",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "services/api/package-lock.json:15",
-          "priority": "P1",
-          "repository": "./monorepo-paths",
-          "ruleId": "CVE-2021-44906",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "1.2.6"
       ],
@@ -143,17 +95,7 @@
       "component": "web",
       "control": "sca",
       "ecosystem": "npm",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "services/web/package-lock.json:15",
-          "priority": "P1",
-          "repository": "./monorepo-paths",
-          "ruleId": "CVE-2021-44906",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "1.2.6"
       ],

@@ -5,17 +5,7 @@
       "component": "js-pnpm",
       "control": "sca",
       "ecosystem": "pnpm",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "pnpm-lock.yaml:175",
-          "priority": "P1",
-          "repository": "./js-pnpm",
-          "ruleId": "CVE-2021-44906",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "1.2.6"
       ],

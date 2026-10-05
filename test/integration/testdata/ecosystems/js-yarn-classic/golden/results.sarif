@@ -49,6 +49,7 @@
           "properties": {
             "component": "js-yarn-classic",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "yarn",
               "fixedVersion": "1.2.6",

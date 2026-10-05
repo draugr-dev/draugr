@@ -5,17 +5,7 @@
       "component": "go-submodule",
       "control": "sca",
       "ecosystem": "gomod",
-      "findings": [
-        {
-          "control": "sca",
-          "fingerprint": "<cleared>",
-          "location": "service/go.mod:5",
-          "priority": "P1",
-          "repository": "./go-submodule",
-          "ruleId": "CVE-2020-36067",
-          "tool": "trivy"
-        }
-      ],
+      "findings": "<cleared>",
       "fixedVersions": [
         "v1.6.6"
       ],
@@ -44,17 +34,7 @@
       "clears": 1,
       "component": "go-submodule",
       "control": "sast",
-      "findings": [
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "service/main.go:20",
-          "priority": "P1",
-          "repository": "./go-submodule",
-          "ruleId": "G702",
-          "tool": "gosec"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "1bd635d5d6af5757",
       "locations": [
         {
@@ -77,17 +57,7 @@
       "clears": 1,
       "component": "go-submodule",
       "control": "sast",
-      "findings": [
-        {
-          "control": "sast",
-          "fingerprint": "<cleared>",
-          "location": "service/main.go:20",
-          "priority": "P2",
-          "repository": "./go-submodule",
-          "ruleId": "G204",
-          "tool": "gosec"
-        }
-      ],
+      "findings": "<cleared>",
       "id": "553d8004f951980d",
       "locations": [
         {
