@@ -1,0 +1,1 @@
+- **A failed retire.js run is reported by retire.js's own error**, such as a failed advisory download with its URL and cause, at scan time and at prewarm, where the message had been `exit status 1` alone.
