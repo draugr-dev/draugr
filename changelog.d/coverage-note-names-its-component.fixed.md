@@ -1,1 +1,0 @@
-- **A coverage note under Measured against names the component it is about** when a run has more than one, such as `coverage: web: no go.mod found`, and `report.json` carries it as the provenance entry's `component`.
