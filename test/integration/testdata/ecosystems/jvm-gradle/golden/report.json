@@ -1,4 +1,46 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "jvm-gradle",
+      "control": "sca",
+      "ecosystem": "gradle",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "<cleared>",
+          "location": "gradle.lockfile:5",
+          "priority": "P1",
+          "repository": "./jvm-gradle",
+          "ruleId": "CVE-2021-44228",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "2.15.0"
+      ],
+      "from": "2.14.1",
+      "id": "fac80cb6beb660aa",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 5,
+          "path": "gradle.lockfile",
+          "repository": "./jvm-gradle"
+        }
+      ],
+      "package": "org.apache.logging.log4j:log4j-core",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2021-44228"
+      ],
+      "target": "2.15.0",
+      "title": "Upgrade org.apache.logging.log4j:log4j-core 2.14.1",
+      "where": [
+        "gradle.lockfile:5"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

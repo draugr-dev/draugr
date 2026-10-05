@@ -1,4 +1,46 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "ruby-bundler",
+      "control": "sca",
+      "ecosystem": "bundler",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "<cleared>",
+          "location": "Gemfile.lock:4",
+          "priority": "P1",
+          "repository": "./ruby-bundler",
+          "ruleId": "CVE-2022-30122",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "2.2.3.1"
+      ],
+      "from": "2.2.3",
+      "id": "de416c749de25eb2",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 4,
+          "path": "Gemfile.lock",
+          "repository": "./ruby-bundler"
+        }
+      ],
+      "package": "rack",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2022-30122"
+      ],
+      "target": "2.2.3.1",
+      "title": "Upgrade rack 2.2.3",
+      "where": [
+        "Gemfile.lock:4"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

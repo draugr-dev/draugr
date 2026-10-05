@@ -1171,6 +1171,12 @@ func FixListTool(_ context.Context, _ *mcp.CallToolRequest, in FixListInput) (*m
 			"showing the %d most urgent of %d actions; raise limit to see more", limit, len(actions))
 		actions = actions[:limit]
 	}
+	// Without their findings. The most urgent actions of a real project carry hundreds of them, many
+	// times the size of the list itself, and an assistant asking what to do is answered by the
+	// counts. report.json carries them for a reader that wants each one.
+	for i := range actions {
+		actions[i].Findings = nil
+	}
 	out.Actions = actions
 	return nil, out, nil
 }

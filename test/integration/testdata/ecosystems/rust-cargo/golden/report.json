@@ -1,4 +1,46 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "rust-cargo",
+      "control": "sca",
+      "ecosystem": "cargo",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "<cleared>",
+          "location": "Cargo.lock:12",
+          "priority": "P1",
+          "repository": "./rust-cargo",
+          "ruleId": "CVE-2021-25900",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "1.6.1"
+      ],
+      "from": "1.6.0",
+      "id": "f07915ee6268af33",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 12,
+          "path": "Cargo.lock",
+          "repository": "./rust-cargo"
+        }
+      ],
+      "package": "smallvec",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2021-25900"
+      ],
+      "target": "1.6.1",
+      "title": "Upgrade smallvec 1.6.0",
+      "where": [
+        "Cargo.lock:12"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

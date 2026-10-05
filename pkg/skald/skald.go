@@ -85,7 +85,10 @@ type jsonReport struct {
 	Descriptor *DescriptorRef `json:"descriptor,omitempty"`
 	// CI is the job this scan ran in. Absent outside CI, and absent rather than guessed on a
 	// platform Draugr does not recognize.
-	CI       *ci.Context     `json:"ci,omitempty"`
+	CI *ci.Context `json:"ci,omitempty"`
+	// Actions are the fix list: each thing to do, the findings it clears and where, most urgent
+	// first. The grouping the console's `--view actions` prints, from the same function.
+	Actions  []Action        `json:"actions,omitempty"`
 	Findings []findingReport `json:"findings,omitempty"`
 	Stats    statsInfo       `json:"stats"`
 }
@@ -215,6 +218,9 @@ type Provenance struct {
 	// Build is the Draugr that produced the run, and the commit it was built from. Known only to
 	// the command that ran, and gone when the process exits.
 	Build *Build
+	// Actions are the run's findings grouped into things to do. Grouped by the caller, because the
+	// grouping is report's and report renders through this package.
+	Actions []Action
 }
 
 // Build identifies the Draugr that produced a report.
@@ -596,6 +602,7 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 		Verdict:    string(verdict.Verdict),
 		Scope:      scopeOf(run),
 		Gate:       describeGate(prov.Gate),
+		Actions:    prov.Actions,
 		Stats: statsInfo{
 			Jobs:        run.Stats.Jobs,
 			Scans:       run.Stats.Scans,

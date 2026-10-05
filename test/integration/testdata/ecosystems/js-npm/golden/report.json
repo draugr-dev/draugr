@@ -1,4 +1,153 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "js-npm",
+      "control": "sca",
+      "ecosystem": "npm",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "<cleared>",
+          "location": "package-lock.json:15",
+          "priority": "P1",
+          "repository": "./js-npm",
+          "ruleId": "CVE-2021-44906",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "1.2.6"
+      ],
+      "from": "1.2.5",
+      "id": "b453bc49ddb8b269",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 15,
+          "path": "package-lock.json",
+          "repository": "./js-npm"
+        }
+      ],
+      "package": "minimist",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2021-44906"
+      ],
+      "target": "1.2.6",
+      "title": "Upgrade minimist 1.2.5",
+      "where": [
+        "package-lock.json:15"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "js-npm",
+      "control": "secrets",
+      "findings": [
+        {
+          "control": "secrets",
+          "fingerprint": "<cleared>",
+          "location": "deploy/aws.env:1",
+          "priority": "P1",
+          "repository": "./js-npm",
+          "ruleId": "aws-access-token",
+          "tool": "gitleaks"
+        }
+      ],
+      "id": "8a6b62c38ce5b2e9",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 1,
+          "path": "deploy/aws.env",
+          "repository": "./js-npm"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "aws-access-token"
+      ],
+      "summary": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms",
+      "title": "Remove and rotate aws-access-token",
+      "where": [
+        "deploy/aws.env:1"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "js-npm",
+      "control": "sast",
+      "findings": [
+        {
+          "control": "sast",
+          "fingerprint": "<cleared>",
+          "location": "src/index.js:4",
+          "priority": "P1",
+          "repository": "./js-npm",
+          "ruleId": "draugr-fixture-eval",
+          "tool": "Semgrep OSS"
+        }
+      ],
+      "id": "126aeef45011b4a4",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 4,
+          "path": "src/index.js",
+          "repository": "./js-npm"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "draugr-fixture-eval"
+      ],
+      "summary": "eval runs its argument as code",
+      "title": "Fix draugr-fixture-eval",
+      "where": [
+        "src/index.js:4"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "js-npm",
+      "control": "sca",
+      "ecosystem": "npm",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "<cleared>",
+          "location": "static/jquery-1.8.3.min.js",
+          "priority": "P2",
+          "repository": "./js-npm",
+          "ruleId": "CVE-2012-6708",
+          "tool": "retirejs"
+        }
+      ],
+      "fixedVersions": [
+        "1.9.0"
+      ],
+      "from": "1.8.3",
+      "id": "e5adb11b801d7695",
+      "locations": [
+        {
+          "kind": "vendored",
+          "path": "static/jquery-1.8.3.min.js",
+          "repository": "./js-npm"
+        }
+      ],
+      "package": "jquery",
+      "priority": "P2",
+      "ruleIds": [
+        "CVE-2012-6708"
+      ],
+      "target": "1.9.0",
+      "title": "Upgrade jquery 1.8.3",
+      "where": [
+        "static/jquery-1.8.3.min.js vendored"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 0,

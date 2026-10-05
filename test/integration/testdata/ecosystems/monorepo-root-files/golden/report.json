@@ -1,4 +1,144 @@
 {
+  "actions": [
+    {
+      "clears": 3,
+      "control": "secrets",
+      "findings": [
+        {
+          "control": "secrets",
+          "fingerprint": "<cleared>",
+          "location": "api.env:1",
+          "priority": "P1",
+          "repository": "./monorepo-root-files",
+          "ruleId": "aws-access-token",
+          "tool": "gitleaks"
+        },
+        {
+          "control": "secrets",
+          "fingerprint": "<cleared>",
+          "location": "shared.env:1",
+          "priority": "P1",
+          "repository": "./monorepo-root-files",
+          "ruleId": "aws-access-token",
+          "tool": "gitleaks"
+        },
+        {
+          "control": "secrets",
+          "fingerprint": "<cleared>",
+          "location": "shared.env:1",
+          "priority": "P1",
+          "repository": "./monorepo-root-files",
+          "ruleId": "aws-access-token",
+          "tool": "gitleaks"
+        }
+      ],
+      "id": "8a6b62c38ce5b2e9",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 1,
+          "path": "api.env",
+          "repository": "./monorepo-root-files"
+        },
+        {
+          "kind": "file",
+          "line": 1,
+          "path": "shared.env",
+          "repository": "./monorepo-root-files"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "aws-access-token"
+      ],
+      "summary": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms",
+      "title": "Remove and rotate aws-access-token",
+      "where": [
+        "api.env:1",
+        "shared.env:1"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "api",
+      "control": "sca",
+      "ecosystem": "pip",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "<cleared>",
+          "location": "requirements.txt:2",
+          "priority": "P1",
+          "repository": "./monorepo-root-files",
+          "ruleId": "CVE-2018-1000656",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "0.12.3"
+      ],
+      "from": "0.12.2",
+      "id": "807dec59b2412731",
+      "locations": [
+        {
+          "kind": "manifest",
+          "line": 2,
+          "path": "requirements.txt",
+          "repository": "./monorepo-root-files"
+        }
+      ],
+      "package": "Flask",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2018-1000656"
+      ],
+      "target": "0.12.3",
+      "title": "Upgrade Flask 0.12.2",
+      "where": [
+        "requirements.txt:2"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "web",
+      "control": "sca",
+      "ecosystem": "pip",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "<cleared>",
+          "location": "requirements.txt:2",
+          "priority": "P1",
+          "repository": "./monorepo-root-files",
+          "ruleId": "CVE-2018-1000656",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "0.12.3"
+      ],
+      "from": "0.12.2",
+      "id": "ddedab91ea005b3f",
+      "locations": [
+        {
+          "kind": "manifest",
+          "line": 2,
+          "path": "requirements.txt",
+          "repository": "./monorepo-root-files"
+        }
+      ],
+      "package": "Flask",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2018-1000656"
+      ],
+      "target": "0.12.3",
+      "title": "Upgrade Flask 0.12.2",
+      "where": [
+        "requirements.txt:2"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 2,

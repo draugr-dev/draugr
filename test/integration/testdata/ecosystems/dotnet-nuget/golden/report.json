@@ -1,4 +1,46 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "dotnet-nuget",
+      "control": "sca",
+      "ecosystem": "nuget",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "<cleared>",
+          "location": "packages.lock.json:5",
+          "priority": "P1",
+          "repository": "./dotnet-nuget",
+          "ruleId": "CVE-2024-21907",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "13.0.1"
+      ],
+      "from": "12.0.1",
+      "id": "3a3ac21e175d5ecb",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 5,
+          "path": "packages.lock.json",
+          "repository": "./dotnet-nuget"
+        }
+      ],
+      "package": "Newtonsoft.Json",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2024-21907"
+      ],
+      "target": "13.0.1",
+      "title": "Upgrade Newtonsoft.Json 12.0.1",
+      "where": [
+        "packages.lock.json:5"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

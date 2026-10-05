@@ -78,6 +78,34 @@ historical finding needs rotating like a tree one. A secret present in both the 
 is reported once, as the tree finding. Each entry in `report.json`'s `findings` carries the same
 `historical` field.
 
+## What each action carries
+
+`report.json` carries the [fix list](../concepts/what-to-fix-first.md) as `actions[]`, most urgent
+first, grouped as `draugr scan --view actions` groups it. An action is one change and every finding
+that change clears.
+
+| Field | Meaning |
+|---|---|
+| `id` | identifies the action across runs. It changes when what the action groups on, or its target, changes; a dependency action groups on its component, package and installed version |
+| `title`, `summary` | what to do, and the scanner's description of the rule where the action is for a rule |
+| `component` | the component every finding belongs to. Absent where the findings span several, which only an action for a rule or an image can |
+| `control`, `priority` | the control the findings came from, and the highest band among them |
+| `clears` | how many findings the action resolves |
+| `upstream` | `true` where the unit of work is something somebody else publishes, such as an image |
+| `ecosystem`, `package`, `from` | the package's ecosystem, its name and the version installed, for an action that upgrades or replaces a dependency |
+| `target` | the lowest release that clears every finding, by the ecosystem's own version order. Absent where no one release can be named |
+| `fixedVersions` | the release each advisory names as its fix, in its own words |
+| `locations[]` | every place the findings are: `repository`, `path`, `line` and `kind`. `kind` is `manifest`, `lockfile`, `vendored` for a copy of the dependency committed to the tree, `image`, or `file` |
+| `where`, `ruleIds` | the first five locations as text, then `and N more`, and the first five rule identifiers |
+| `findings[]` | each finding the action clears: `control`, `ruleId`, `tool`, `priority`, `repository`, `location` and `fingerprint`. The fingerprint is the one `results.sarif` records for the same finding |
+
+The MCP server's `fix_list` returns the same objects without `findings[]`.
+
+```bash
+jq -r '.actions[] | select(.package) | "\(.component) \(.package) \(.from) → \(.target // "no single release")"' out/report.json
+jq -r '.actions[].locations[] | select(.kind == "vendored") | .path' out/report.json   # copies a manifest bump leaves as they were
+```
+
 ## What the cache contributed
 
 A finding can come from a cache rather than from a scan, and `stats.cache` says what that rests on.

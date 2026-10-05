@@ -1,0 +1,1 @@
+- **`report.json` carries the fix list as `actions[]`**, each with a stable `id`, its control, priority and count, its component where there is one, and every location marked `manifest`, `lockfile`, `vendored`, `image` or `file`. A dependency action adds its ecosystem, package, installed version and target. MCP `fix_list` returns the same objects without their findings.

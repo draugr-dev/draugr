@@ -1,4 +1,126 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "npm",
+      "control": "sca",
+      "ecosystem": "npm",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "<cleared>",
+          "location": "npm/package-lock.json:23",
+          "priority": "P1",
+          "repository": "./monorepo-js-workspaces",
+          "ruleId": "CVE-2021-44906",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "1.2.6"
+      ],
+      "from": "1.2.5",
+      "id": "e1bcccb9baf7e44b",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 23,
+          "path": "npm/package-lock.json",
+          "repository": "./monorepo-js-workspaces"
+        }
+      ],
+      "package": "minimist",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2021-44906"
+      ],
+      "target": "1.2.6",
+      "title": "Upgrade minimist 1.2.5",
+      "where": [
+        "npm/package-lock.json:23"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "pnpm",
+      "control": "sca",
+      "ecosystem": "pnpm",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "<cleared>",
+          "location": "pnpm/pnpm-lock.yaml:179",
+          "priority": "P1",
+          "repository": "./monorepo-js-workspaces",
+          "ruleId": "CVE-2021-44906",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "1.2.6"
+      ],
+      "from": "1.2.5",
+      "id": "db141047222a6279",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 179,
+          "path": "pnpm/pnpm-lock.yaml",
+          "repository": "./monorepo-js-workspaces"
+        }
+      ],
+      "package": "minimist",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2021-44906"
+      ],
+      "target": "1.2.6",
+      "title": "Upgrade minimist 1.2.5",
+      "where": [
+        "pnpm/pnpm-lock.yaml:179"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "yarn",
+      "control": "sca",
+      "ecosystem": "yarn",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "<cleared>",
+          "location": "yarn/yarn.lock:22",
+          "priority": "P1",
+          "repository": "./monorepo-js-workspaces",
+          "ruleId": "CVE-2021-44906",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "1.2.6"
+      ],
+      "from": "1.2.5",
+      "id": "9880a9c849d83ee8",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 22,
+          "path": "yarn/yarn.lock",
+          "repository": "./monorepo-js-workspaces"
+        }
+      ],
+      "package": "minimist",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2021-44906"
+      ],
+      "target": "1.2.6",
+      "title": "Upgrade minimist 1.2.5",
+      "where": [
+        "yarn/yarn.lock:22"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 3,

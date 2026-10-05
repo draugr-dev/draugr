@@ -1,4 +1,46 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "python-pdm",
+      "control": "sca",
+      "ecosystem": "python",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "<cleared>",
+          "location": "pdm.lock:1",
+          "priority": "P1",
+          "repository": "./python-pdm",
+          "ruleId": "CVE-2018-1000656-flask",
+          "tool": "grype"
+        }
+      ],
+      "fixedVersions": [
+        "0.12.3"
+      ],
+      "from": "0.12.2",
+      "id": "b16cfad8fcbdd065",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 1,
+          "path": "pdm.lock",
+          "repository": "./python-pdm"
+        }
+      ],
+      "package": "flask",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2018-1000656-flask"
+      ],
+      "target": "0.12.3",
+      "title": "Upgrade flask 0.12.2",
+      "where": [
+        "pdm.lock:1"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

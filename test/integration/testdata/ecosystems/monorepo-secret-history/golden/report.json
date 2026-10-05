@@ -1,4 +1,55 @@
 {
+  "actions": [
+    {
+      "clears": 2,
+      "control": "secrets",
+      "findings": [
+        {
+          "control": "secrets",
+          "fingerprint": "<cleared>",
+          "location": "services/api/old.env:1",
+          "priority": "P1",
+          "repository": "./monorepo-secret-history",
+          "ruleId": "aws-access-token",
+          "tool": "gitleaks"
+        },
+        {
+          "control": "secrets",
+          "fingerprint": "<cleared>",
+          "location": "services/web/old.env:1",
+          "priority": "P1",
+          "repository": "./monorepo-secret-history",
+          "ruleId": "aws-access-token",
+          "tool": "gitleaks"
+        }
+      ],
+      "id": "8a6b62c38ce5b2e9",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 1,
+          "path": "services/api/old.env",
+          "repository": "./monorepo-secret-history"
+        },
+        {
+          "kind": "file",
+          "line": 1,
+          "path": "services/web/old.env",
+          "repository": "./monorepo-secret-history"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "aws-access-token"
+      ],
+      "summary": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms",
+      "title": "Remove and rotate aws-access-token",
+      "where": [
+        "services/api/old.env:1",
+        "services/web/old.env:1"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 2,

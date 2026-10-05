@@ -1,4 +1,46 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "api",
+      "control": "sca",
+      "ecosystem": "pip",
+      "findings": [
+        {
+          "control": "sca",
+          "fingerprint": "<cleared>",
+          "location": "services/api/requirements.txt:2",
+          "priority": "P1",
+          "repository": "./negative-mistyped-path",
+          "ruleId": "CVE-2018-1000656",
+          "tool": "trivy"
+        }
+      ],
+      "fixedVersions": [
+        "0.12.3"
+      ],
+      "from": "0.12.2",
+      "id": "807dec59b2412731",
+      "locations": [
+        {
+          "kind": "manifest",
+          "line": 2,
+          "path": "services/api/requirements.txt",
+          "repository": "./negative-mistyped-path"
+        }
+      ],
+      "package": "Flask",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2018-1000656"
+      ],
+      "target": "0.12.3",
+      "title": "Upgrade Flask 0.12.2",
+      "where": [
+        "services/api/requirements.txt:2"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,
