@@ -16,35 +16,35 @@ _Nothing yet._
 
 ### Changed
 
-- **`draugr tools install` with no arguments and no descriptor installs what `draugr scan` runs there**, the zero-config scanners, where it had refused. With two descriptors in the directory it names both and the `--saga` that picks one.
+- **With no descriptor in the directory, `draugr tools install` installs the zero-config scanners `draugr scan` runs there**, where it had refused. With several descriptors it names them and the `--saga` that picks one.
 
 ### Fixed
 
-- **`draugr scan` and `draugr classify` given a path that does not exist say so**, instead of suggesting `draugr validate` on the missing file.
+- **`draugr scan` and `draugr classify` given a path that does not exist say so.**
 
-- **A control with no findings says `no findings`** in the console, where a run that ranked other controls' findings had printed `no priorities set` beside it.
+- **A control with no findings shows `no findings`** in the console's CONTROLS block, where it could read `no priorities set`.
 
 - **A repository `url` naming a directory inside a checkout is scanned** as the checkout, scoped to that directory, which covers `draugr scan services/payments`, `url: services/payments` and the `url: .` that `draugr init` writes in a subdirectory.
 
 - **`draugr scan --help` shows `--no-gate` as a switch**, where it had printed `--no-gate draugr diff` as though the flag took a value.
 
-- **A scanner written in Go that crashes is reported by the reason and signal the runtime printed**, such as `crashed: fatal error: fault (SIGBUS: bus error)`, rather than by the fault address on the first line.
+- **A Go scanner that crashes is reported by its reason and signal**, such as `crashed: fatal error: fault (SIGBUS: bus error)`, rather than by a memory address.
 
-- **A kube-bench run that reports no controls is an error** instead of a clean cluster with no benchmark named.
+- **A kube-bench run that reports no controls fails the kubernetes control with an error**, where it had passed with nothing checked.
 
-- **A missing scanner that `draugr tools install` fetches is named with that command**, semgrep, retire and govulncheck included, where the error had said `draugr tools install` does not fetch them.
+- **The error for a missing semgrep, retire or govulncheck suggests `draugr tools install`, which fetches all three**, where it had said the command does not fetch them.
 
-- **A run with no findings and a failed control names what did not report** by the ERROR mark on the control's row in the console, Markdown and HTML reports, instead of pointing at errors "above".
+- **When a run has no findings and a control failed, the report points at that control's ERROR row** in the console, Markdown and HTML, instead of at errors "above".
 
 - **A local directory that no git repository holds is reported as `not a git repository`**, with `git init` and a commit as the fix, where the errors block had shown `fatal`.
 
 - **The HTML and Markdown reports mark a component ERROR when one of its targets was not read**, as the console does, where a component that passed on the rest had read PASS.
 
-- **A cloud service whose denial Prowler's log does not attribute to a permission reads `denied a permission Prowler's log does not name`** under Caveats, where the reason had read as a broken sentence.
+- **When Prowler's log names no permission for a denial, the Caveats reason reads `denied a permission Prowler's log does not name`**, where it had been a broken sentence.
 
-- **A scanner answer with nothing readable in it is an error instead of a clean result**, whether a Nuclei output line that is not a finding, gosec or govulncheck printing nothing over a tree that holds Go modules, a Prowler run with no result for any check, or a VirusTotal response with no analysis.
+- **A scanner answer with nothing readable in it is an error, not a clean result.** That covers a Nuclei line that is not a finding, gosec or govulncheck printing nothing over Go modules, a Prowler run with no result for any check, and a VirusTotal response with no analysis.
 
-- **The `--top 0` hint under a cut list names how many were listed**, `not the first three` after `--top 3`, where it always said ten.
+- **The `--top 0` hint under a cut list says how many were listed**, `not the first three` after `--top 3`, where it always said ten.
 
 ## [0.145.0] - 2026-10-04
 
