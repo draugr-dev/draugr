@@ -669,6 +669,9 @@ type finding struct {
 	// operatingSystem is the release an image finding came from, for the same reason: moving off
 	// a release past end of service life is one action for everything in that layer.
 	operatingSystem string
+	// upgradePolicy is the component's fixes.upgrade, patch or minor, which the fix list splits this
+	// finding's upgrade by. Empty for the default, major.
+	upgradePolicy string
 	// image is the container image a finding was found in, for the controls that scan one. The
 	// location is not always the image: a license Trivy read from a file is located at the file.
 	image string
@@ -825,6 +828,7 @@ func summarize(d Data) summary {
 			}
 			s.findings = append(s.findings, finding{
 				control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
+				fingerprint:   res.Fingerprint(),
 				escalation:    res.Escalation,
 				reachability:  res.Reachability,
 				alsoFoundBy:   alsoFoundBy(res),
@@ -840,6 +844,7 @@ func summarize(d Data) summary {
 				builtUpstream:   res.BuiltUpstream,
 				pkg:             res.Package,
 				operatingSystem: res.OperatingSystem,
+				upgradePolicy:   res.UpgradePolicy,
 				image:           res.Image,
 				ruleSummary:     rep.Rules[res.RuleID].ShortDescription,
 			})

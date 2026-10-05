@@ -1493,6 +1493,11 @@ func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) (l
 	}
 	_, _ = fmt.Fprintf(w, "%s  %s\n", heading(col, "What to do"), col.Paint(cDim, fmt.Sprintf(
 		"%s %s %s", english.Count(len(shown), "action"), clears(shown), english.Count(cleared(shown), "finding"))))
+	// Counted over the rows listed, as the heading is, so the note never speaks for rows it does
+	// not show.
+	for _, note := range policyNotes(shown) {
+		_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim, note))
+	}
 	renderActions(w, col, shown, d.View == ViewCompact)
 
 	if len(shown) < len(actions) {
@@ -1933,9 +1938,16 @@ func renderActions(w io.Writer, col tui.Painter, actions []action, compact bool)
 		// The title has the line to itself. It is the sentence saying what to do, it is the longest
 		// thing here, and it was sharing the line with a control and a count that pushed it into an
 		// ellipsis on every action whose instruction ran past half the terminal.
-		_, _ = fmt.Fprintf(w, "  %s  %s\n",
+		// A step past the component's fixes.upgrade says so beside the instruction it qualifies.
+		label := a.step.label()
+		titleRoom := width - 6
+		if label != "" {
+			titleRoom -= len(label) + 2
+			label = "  " + col.Paint(cDim, label)
+		}
+		_, _ = fmt.Fprintf(w, "  %s  %s%s\n",
 			col.Paint(priorityColor(a.priority), fmt.Sprintf("%-2s", band)),
-			elide(title, max(width-6, minTitleWidth)))
+			elide(title, max(titleRoom, minTitleWidth)), label)
 		if compact {
 			continue
 		}

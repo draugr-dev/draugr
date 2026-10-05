@@ -121,6 +121,7 @@ var sections = map[string]string{
 	"reachabilityconfig":     "config.reachability",
 	"dependencyhealthconfig": "config.dependencyHealth",
 	"ciconfig":               "config.ci",
+	"fixesconfig":            "config.fixes or components[].fixes",
 	"sbomconfig":             "config.sbom",
 	"reportconfig":           "config.reports",
 	"publisherconfig":        "config.publishers",

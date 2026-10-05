@@ -46,6 +46,9 @@ type action struct {
 	// upstream marks an action whose unit of work is an image somebody else publishes. The image
 	// names itself in the title, so the row has nothing to add below it.
 	upstream bool
+	// step is where an upgrade stands against its component's fixes.upgrade, nil where the
+	// component left the default or the action is not an upgrade.
+	step *policyStep
 	// cached marks an action whose findings all came from a cache entry keyed on something that
 	// can be rebuilt under the same name. The row is still worth acting on; it may describe an
 	// earlier build of the thing it names, and that belongs beside the row rather than in a
@@ -286,8 +289,47 @@ func groupActions(findings []finding, unpinned []string) (actions []action, exte
 		}
 		actions = append(actions, a)
 	}
-	sort.SliceStable(actions, func(i, j int) bool { return moreUrgent(actions[i], actions[j]) })
-	return actions, external
+	actions = splitByPolicy(actions)
+	ranks := packageRanks(actions)
+	sort.SliceStable(ranks, func(i, j int) bool { return moreUrgent(ranks[i], ranks[j]) })
+	sorted := make([]action, len(ranks))
+	for i, r := range ranks {
+		sorted[i] = *r.action
+	}
+	return sorted, external
+}
+
+// rankedAction is an action and what it is ranked by: its own band and count, or for one step of
+// an upgrade the policy split, the package's.
+type rankedAction struct {
+	*action
+	priority string
+	count    int
+	group    string
+	beyond   bool
+}
+
+// packageRanks pairs each action with what it is ranked by. The steps of one package's upgrade
+// rank together, by the worst band either clears and the findings both clear, so the major step
+// that clears the urgent findings is read beside the minor step it follows.
+func packageRanks(actions []action) []rankedAction {
+	worst := map[string]string{}
+	total := map[string]int{}
+	group := func(a action) string { return strings.TrimSuffix(a.key, "\x00beyond") }
+	for _, a := range actions {
+		g := group(a)
+		if w, ok := worst[g]; !ok || moreUrgentBand(a.priority, w) {
+			worst[g] = a.priority
+		}
+		total[g] += a.count()
+	}
+	out := make([]rankedAction, len(actions))
+	for i := range actions {
+		g := group(actions[i])
+		out[i] = rankedAction{action: &actions[i], priority: worst[g], count: total[g], group: g,
+			beyond: actions[i].key != g}
+	}
+	return out
 }
 
 // commonComponent is the component every finding belongs to, or "" where they differ.
@@ -309,19 +351,29 @@ func commonComponent(fs []finding) string {
 // Priority first, always. An action clearing one P1 outranks one clearing forty P4s, because a P1
 // is not something to trade away for volume. Sorting by count first would bury the urgent work
 // under the plentiful kind.
-func moreUrgent(a, b action) bool {
+func moreUrgent(a, b rankedAction) bool {
 	if a.priority != b.priority {
-		// An unprioritized finding has no band to compare, and sorts last rather than first:
-		// "" is lexically below "P1" and would otherwise lead the list.
-		switch {
-		case a.priority == "":
-			return false
-		case b.priority == "":
-			return true
-		}
-		return a.priority < b.priority
+		return moreUrgentBand(a.priority, b.priority)
 	}
-	return a.count() > b.count()
+	if a.count != b.count {
+		return a.count > b.count
+	}
+	// Two steps of one upgrade: the one within the policy first, because the other presumes it.
+	return a.group == b.group && !a.beyond && b.beyond
+}
+
+// moreUrgentBand reports whether band a outranks band b. An unprioritized finding has no band to
+// compare, and sorts last rather than first: "" is lexically below "P1" and would otherwise lead.
+func moreUrgentBand(a, b string) bool {
+	switch {
+	case a == b:
+		return false
+	case a == "":
+		return false
+	case b == "":
+		return true
+	}
+	return a < b
 }
 
 // actionFor returns the key two findings share when one fix clears both, and how to say it.
@@ -615,6 +667,9 @@ func (a action) fixedVersions() []string {
 // order. For any other action, the release only when every advisory in it names the same one: an
 // image's findings are in many packages, and no one package's release is the image's fix.
 func (a action) target() string {
+	if a.step != nil && a.step.target != "" {
+		return a.step.target
+	}
 	if strings.HasPrefix(a.key, "upgrade\x00") {
 		return upgradeTarget(a.findings)
 	}
@@ -684,6 +739,7 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 				builtUpstream:   res.BuiltUpstream,
 				pkg:             res.Package,
 				operatingSystem: res.OperatingSystem,
+				upgradePolicy:   res.UpgradePolicy,
 				image:           res.Image,
 				ruleSummary:     rep.Rules[res.RuleID].ShortDescription,
 			})
@@ -727,6 +783,17 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 		}
 		if p := a.dependency(); p != nil {
 			act.Ecosystem, act.Package, act.From = p.Ecosystem, p.Name, p.Version
+		}
+		if s := a.step; s != nil {
+			act.Policy = string(s.policy)
+			if s.applies {
+				within := s.beyond == ""
+				act.WithinPolicy = &within
+				act.After = s.after
+			} else {
+				applies := false
+				act.PolicyApplies = &applies
+			}
 		}
 		out = append(out, act)
 	}

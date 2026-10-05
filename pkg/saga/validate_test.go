@@ -51,6 +51,16 @@ func TestValidateErrors(t *testing.T) {
 			yaml: "release:\n  version: '1'\ncomponents:\n  - name: a\n    criticality: bc9\n",
 			want: "invalid criticality \"bc9\"",
 		},
+		{
+			name: "invalid upgrade policy",
+			yaml: "release:\n  version: '1'\nconfig:\n  fixes:\n    upgrade: minors\ncomponents:\n  - name: a\n",
+			want: "config.fixes.upgrade \"minors\" is not patch, minor or major",
+		},
+		{
+			name: "invalid component upgrade policy",
+			yaml: "release:\n  version: '1'\ncomponents:\n  - name: a\n    fixes:\n      upgrade: semver\n",
+			want: "fixes.upgrade \"semver\" is not patch, minor or major",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -840,6 +850,26 @@ func TestOrListReadsAsAChoice(t *testing.T) {
 	} {
 		if got := OrList(values); got != want {
 			t.Errorf("OrList(%v) = %q, want %q", values, got, want)
+		}
+	}
+}
+
+// TestAComponentsUpgradePolicyOverridesTheProjects: the component's own, else the project's, else
+// major, which is what leaves the fix list as it was until a team sets one.
+func TestAComponentsUpgradePolicyOverridesTheProjects(t *testing.T) {
+	minor := Config{Fixes: &FixesConfig{Upgrade: UpgradeMinor}}
+	for _, c := range []struct {
+		comp Component
+		cfg  Config
+		want UpgradeStep
+	}{
+		{Component{}, Config{}, UpgradeMajor},
+		{Component{}, minor, UpgradeMinor},
+		{Component{Fixes: &FixesConfig{Upgrade: UpgradePatch}}, minor, UpgradePatch},
+		{Component{Fixes: &FixesConfig{}}, minor, UpgradeMinor},
+	} {
+		if got := c.comp.UpgradePolicy(c.cfg); got != c.want {
+			t.Errorf("UpgradePolicy(%+v, %+v) = %q, want %q", c.comp.Fixes, c.cfg.Fixes, got, c.want)
 		}
 	}
 }

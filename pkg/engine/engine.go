@@ -359,6 +359,9 @@ type PlannedJob struct {
 	Criticality saga.Criticality
 	// Labels are what the component declares about itself, carried onto every finding it produces.
 	Labels map[string]string
+	// UpgradePolicy is the largest version step the fix list may propose for this component's
+	// dependency findings, empty where it is the default of major.
+	UpgradePolicy saga.UpgradeStep
 	// owner decides which of a module-wide analysis's findings are this job's, for a job widened
 	// to the modules its paths belong to. Nil for every other job. See widenToModules.
 	owner *moduleOwner
@@ -386,7 +389,7 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 			}
 			jobs, verrs := e.validateConfigs(name, jobs, permitted)
 			errs = append(errs, verrs...)
-			planned = appendJobs(planned, name, nil, e.resolveRemotes(e.markWorkingTree(jobs)))
+			planned = appendJobs(planned, name, nil, "", e.resolveRemotes(e.markWorkingTree(jobs)))
 		case plugin.ScopeComponent:
 			if !e.scope.includesControl(name) {
 				continue
@@ -403,7 +406,7 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 				}
 				jobs, verrs := e.validateConfigs(name+"/"+comp.Name, jobs, permitted)
 				errs = append(errs, verrs...)
-				planned = appendJobs(planned, name, comp, e.resolveRemotes(e.markWorkingTree(jobs)))
+				planned = appendJobs(planned, name, comp, comp.UpgradePolicy(model.Config), e.resolveRemotes(e.markWorkingTree(jobs)))
 			}
 		}
 	}
@@ -1368,13 +1371,16 @@ func (e *Engine) markWorkingTree(jobs []plugin.ScanJob) []plugin.ScanJob {
 // it is about without the descriptor in hand.
 //
 // comp is nil for a project-scoped control, which belongs to no component and therefore carries no
-// classification and no labels.
-func appendJobs(dst []PlannedJob, control string, comp *saga.Component, jobs []plugin.ScanJob) []PlannedJob {
+// classification, no labels and no upgrade policy.
+func appendJobs(dst []PlannedJob, control string, comp *saga.Component, policy saga.UpgradeStep, jobs []plugin.ScanJob) []PlannedJob {
 	var p PlannedJob
 	if comp != nil {
 		p = PlannedJob{
 			Component: comp.Name, Exposure: comp.Exposure,
 			Criticality: comp.Criticality, Labels: comp.Labels,
+		}
+		if policy != saga.UpgradeMajor {
+			p.UpgradePolicy = policy
 		}
 	}
 	p.Control = control
@@ -1458,6 +1464,12 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 		out.Results[i].Exposure = string(pj.Exposure)
 		out.Results[i].Criticality = string(pj.Criticality)
 		out.Results[i].Labels = pj.Labels
+		// The policy the fix list splits this finding's upgrade by, recorded on the finding so a
+		// report read back without the descriptor, by `fix_list` or `draugr diff`, gives the same
+		// advice. Only on a finding about a package, which is the only kind an upgrade is for.
+		if pj.UpgradePolicy != "" && out.Results[i].Package != nil {
+			out.Results[i].UpgradePolicy = string(pj.UpgradePolicy)
+		}
 		if e.prioritize != nil {
 			p := e.prioritize(pj.Control, pj.Exposure, pj.Criticality, out.Results[i])
 			out.Results[i].Priority = p.Band

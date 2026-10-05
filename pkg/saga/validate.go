@@ -78,6 +78,9 @@ func (m *Model) Validate() error {
 		}
 		errs = append(errs, p.validateIssueFields(i)...)
 	}
+	if f := m.Config.Fixes; f != nil && f.Upgrade != "" && !f.Upgrade.Valid() {
+		errs = append(errs, fmt.Errorf("config.fixes.upgrade %q is not %s", f.Upgrade, orList(UpgradeSteps)))
+	}
 	if g := m.Config.Gate; g != nil {
 		if g.FailOnPriority != "" && !slices.Contains(Priorities, g.FailOnPriority) {
 			errs = append(errs, fmt.Errorf("config.gate.failOnPriority is %q, but a priority band is %s",
@@ -287,6 +290,9 @@ func validateComponents(comps []Component) []error {
 		}
 		if c.Criticality != "" && !c.Criticality.Valid() {
 			errs = append(errs, fmt.Errorf("%s: invalid criticality %q (want %s)", where, c.Criticality, orList(Criticalities)))
+		}
+		if c.Fixes != nil && c.Fixes.Upgrade != "" && !c.Fixes.Upgrade.Valid() {
+			errs = append(errs, fmt.Errorf("%s: fixes.upgrade %q is not %s", where, c.Fixes.Upgrade, orList(UpgradeSteps)))
 		}
 		if c.BuiltBy != "" && !c.BuiltBy.Valid() {
 			errs = append(errs, fmt.Errorf("%s: builtBy %q is not %s", where, c.BuiltBy, orList(BuiltByValues)))
