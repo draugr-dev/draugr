@@ -336,7 +336,7 @@ Written down so the endpoint is an interface rather than a private arrangement. 
 implements these receives Draugr runs from any pipeline, with no change to the descriptor beyond
 its URL.
 
-**1. `POST /v1/runs`** with `report.json` as the body:
+**1. `POST /v1/runs`** with `report.json` as the body, compact JSON whatever the run wrote to disk:
 
 ```
 Authorization: Bearer <token>
