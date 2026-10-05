@@ -26,6 +26,7 @@
       ],
       "target": "2.15.0",
       "title": "Upgrade org.apache.logging.log4j:log4j-core 2.14.1",
+      "versioning": "maven",
       "where": [
         "gradle.lockfile:5"
       ]

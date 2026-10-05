@@ -94,10 +94,12 @@ that change clears.
 | `clears` | how many findings the action resolves |
 | `upstream` | `true` where the unit of work is something somebody else publishes, such as an image |
 | `ecosystem`, `package`, `from` | the package's ecosystem, its name and the version installed, for an action that upgrades or replaces a dependency |
+| `versioning` | the ecosystem whose rules order the package's versions, in lower case, such as `debian`, `red hat`, `maven`, `pypi` or `npm`. `ecosystem` is the scanner's own name, which can differ, as `pip` does from `pypi` |
 | `target` | the lowest release that clears every finding, by the ecosystem's own version order. Absent where no one release can be named |
 | `policy` | the component's [`fixes.upgrade`](saga-schema.md#configfixes), `patch` or `minor`, on an upgrade it applies to. Absent for the default, `major` |
 | `withinPolicy` | `true` for an upgrade within `policy`, `false` for the step past it, which carries only the findings it alone clears |
 | `after` | on the step past the policy, the `id` of the step within it, which this one presumes has been taken |
+| `beyond` | on a step past the policy, its size, `minor` or `major`, measured from the release the `after` step reaches, or from the installed version when there is no `after`. With `policy` it makes the label `major · beyond policy minor` |
 | `policyApplies` | `false` where the versions are not semantic, such as a distribution's packages, so the action was not split. Absent wherever `withinPolicy` is present |
 | `fixedVersions` | the release each advisory names as its fix, in its own words |
 | `locations[]` | every place the findings are: `repository`, `path`, `line` and `kind`. `kind` is `manifest`, `lockfile`, `vendored` for a copy of the dependency committed to the tree, `image`, or `file` |

@@ -34,6 +34,11 @@ type Action struct {
 	Ecosystem string `json:"ecosystem,omitempty"`
 	Package   string `json:"package,omitempty"`
 	From      string `json:"from,omitempty"`
+	// Versioning is the ecosystem whose rules order the dependency's versions, in lower case:
+	// debian, red hat, maven, pypi, npm. Ecosystem is what the scanner reported, and several
+	// reported names share one set of rules. The note counting actions a policy could not split
+	// groups them by this.
+	Versioning string `json:"versioning,omitempty"`
 	// Target is the one version to move to. For an upgrade it is the lowest release that clears
 	// every finding, by the package's own ecosystem's order. Empty when no one release can be named,
 	// for an ecosystem Draugr cannot order or for an image whose findings are in many packages.
@@ -49,6 +54,10 @@ type Action struct {
 	PolicyApplies *bool `json:"policyApplies,omitempty"`
 	// After is the ID of the action this one presumes has been taken.
 	After string `json:"after,omitempty"`
+	// Beyond is the size of a step past Policy, minor or major, measured from the release the After
+	// step reaches, or from the installed version where there is none. The label
+	// `major · beyond policy minor` is Beyond and Policy.
+	Beyond string `json:"beyond,omitempty"`
 	// FixedVersions are the releases the advisories name as fixing these findings, in the order
 	// first seen, each advisory's own answer.
 	FixedVersions []string `json:"fixedVersions,omitempty"`

@@ -163,8 +163,13 @@ func TestTheExportedActionStatesItsPolicy(t *testing.T) {
 	if within.Policy != "minor" || within.WithinPolicy == nil || !*within.WithinPolicy || within.After != "" {
 		t.Errorf("within = %+v", within)
 	}
-	if beyond.WithinPolicy == nil || *beyond.WithinPolicy || beyond.After != within.ID || beyond.Target != "3.5.0" {
+	if beyond.WithinPolicy == nil || *beyond.WithinPolicy || beyond.After != within.ID || beyond.Target != "3.5.0" ||
+		beyond.Beyond != "major" || within.Beyond != "" {
 		t.Errorf("beyond = %+v", beyond)
+	}
+	// The name the note groups by, so a reader of report.json spells it as the console does.
+	if within.Versioning != "npm" || deb.Versioning != "debian" {
+		t.Errorf("versioning = %q and %q", within.Versioning, deb.Versioning)
 	}
 	if deb.Policy != "minor" || deb.PolicyApplies == nil || *deb.PolicyApplies || deb.WithinPolicy != nil {
 		t.Errorf("a distribution package should say the policy did not apply: %+v", deb)

@@ -26,6 +26,7 @@
       ],
       "target": "0.12.3",
       "title": "Upgrade flask 0.12.2",
+      "versioning": "pypi",
       "where": [
         "services/api/poetry.lock:16"
       ]
@@ -56,6 +57,7 @@
       ],
       "target": "0.12.3",
       "title": "Upgrade Flask 0.12.2",
+      "versioning": "pypi",
       "where": [
         "services/tools/requirements.txt:2"
       ]

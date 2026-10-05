@@ -26,6 +26,7 @@
       ],
       "target": "5.4",
       "title": "Upgrade pyyaml 5.3.1",
+      "versioning": "pypi",
       "where": [
         "by-advisory/requirements.txt:1"
       ]
@@ -56,6 +57,7 @@
       ],
       "target": "5.4",
       "title": "Upgrade pyyaml 5.3.1",
+      "versioning": "pypi",
       "where": [
         "default/requirements.txt:1"
       ]

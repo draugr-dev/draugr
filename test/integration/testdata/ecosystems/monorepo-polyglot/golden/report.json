@@ -26,6 +26,7 @@
       ],
       "target": "0.12.3",
       "title": "Upgrade Flask 0.12.2",
+      "versioning": "pypi",
       "where": [
         "services/api/requirements.txt:2"
       ]
@@ -56,6 +57,7 @@
       ],
       "target": "1.2.6",
       "title": "Upgrade minimist 1.2.5",
+      "versioning": "npm",
       "where": [
         "services/web/package-lock.json:15"
       ]
@@ -86,6 +88,7 @@
       ],
       "target": "v1.6.6",
       "title": "Upgrade github.com/tidwall/gjson v1.6.5",
+      "versioning": "go",
       "where": [
         "services/worker/go.mod:5"
       ]

@@ -26,6 +26,7 @@
       ],
       "target": "1.2.6",
       "title": "Upgrade minimist 1.2.5",
+      "versioning": "npm",
       "where": [
         "package-lock.json:15"
       ]
