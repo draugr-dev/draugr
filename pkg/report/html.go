@@ -398,8 +398,13 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	// answers to one question.
 	grouped, external := groupActions(s.findings, d.Run.Stats.UnpinnedCacheHits)
 	view.External = len(external)
+	nameComponents := actionsNameComponents(grouped)
 	for _, a := range grouped {
-		view.Actions = append(view.Actions, toHTMLAction(a))
+		ha := toHTMLAction(a)
+		if !nameComponents {
+			ha.Component = ""
+		}
+		view.Actions = append(view.Actions, ha)
 	}
 	view.Signals = htmlSignals(d, s)
 	for _, dec := range decisions(d) {
@@ -624,11 +629,13 @@ type htmlAction struct {
 	Title    string
 	Summary  string
 	Priority string
-	Control  string
-	Clears   int
-	Upstream bool
-	Cached   bool
-	Where    string
+	// Component the action belongs to, set only where the list spans more than one.
+	Component string
+	Control   string
+	Clears    int
+	Upstream  bool
+	Cached    bool
+	Where     string
 }
 
 // toHTMLAction renders an action the way the console renders one, so the two agree line for line.
@@ -640,7 +647,8 @@ func toHTMLAction(a action) htmlAction {
 		title += " → " + v
 	}
 	out := htmlAction{
-		Key: a.key, Title: title, Summary: a.summary, Priority: a.priority, Control: a.control,
+		Key: a.key, Title: title, Summary: a.summary, Priority: a.priority,
+		Component: a.component, Control: a.control,
 		Clears: a.count(), Upstream: a.upstream, Cached: a.cached,
 	}
 	if out.Priority == "" {
@@ -1596,7 +1604,7 @@ about what they would have found. For everything the tool printed, re-run with
     <div class="what">
       <div class="rule"><span class="name">{{.Title}}</span></div>
       {{if .Summary}}<div class="sub">{{.Summary}}</div>{{end}}
-      <div class="sub"><span class="lbl">control</span> {{.Control}}<span class="faint"> · </span><button type="button" class="act-clears" data-a="{{.Key}}" data-title="{{.Title}}">{{plural .Clears "finding"}}</button>{{if .Upstream}}<span class="faint"> · </span>upstream{{end}}{{if .Cached}}<span class="faint"> · </span>from cache{{end}}{{if .Where}}<span class="faint"> · </span>{{.Where}}{{end}}</div>
+      <div class="sub">{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}<span class="lbl">control</span> {{.Control}}<span class="faint"> · </span><button type="button" class="act-clears" data-a="{{.Key}}" data-title="{{.Title}}">{{plural .Clears "finding"}}</button>{{if .Upstream}}<span class="faint"> · </span>upstream{{end}}{{if .Cached}}<span class="faint"> · </span>from cache{{end}}{{if .Where}}<span class="faint"> · </span>{{.Where}}{{end}}</div>
     </div>
   </div>{{end}}
   {{template "paging"}}

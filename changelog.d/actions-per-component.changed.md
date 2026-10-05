@@ -1,0 +1,1 @@
+- **Each dependency gets one fix-list row per component and installed version.** A row names its component when the list spans several, marks a library copied into the tree as `vendored`, and names the repository of each location when the row spans several. With `children: actions`, dependency child issues are replaced once, one per component and version.
