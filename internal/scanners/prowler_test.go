@@ -212,7 +212,7 @@ func TestProwlerReadsDenialsFromItsLog(t *testing.T) {
 	}
 	slices.Sort(groups)
 	want := []string{
-		"cloudsql:cloudsql_instance_public_ip:denied a read Prowler's log names",
+		"cloudsql:cloudsql_instance_public_ip:denied a permission Prowler's log does not name",
 		"compute:compute_instance_public_ip:denied compute.zones.list",
 	}
 	if !slices.Equal(groups, want) {
