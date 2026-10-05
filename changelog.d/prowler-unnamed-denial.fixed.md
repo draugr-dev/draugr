@@ -1,0 +1,1 @@
+- **A cloud service whose denial Prowler's log does not attribute to a permission reads `denied a permission Prowler's log does not name`** under Caveats, where the reason had read as a broken sentence.
