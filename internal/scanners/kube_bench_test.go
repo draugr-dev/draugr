@@ -582,6 +582,17 @@ func TestVerifyBenchmark(t *testing.T) {
 	}
 }
 
+// kube-bench reports passed checks as results, so a document with no controls checked nothing, and
+// rendered it would be a cluster with nothing wrong and no benchmark named.
+func TestKubeBenchWithNoControlsIsAnError(t *testing.T) {
+	t.Parallel()
+	for _, out := range []string{`{}`, `{"Controls":[]}`} {
+		if _, err := parseKubeBench([]byte(out), "kube-bench", "cluster"); err == nil {
+			t.Errorf("%s was read as a clean cluster", out)
+		}
+	}
+}
+
 // An empty document is a decode that found nothing, not a benchmark mismatch. Reporting it as
 // the wrong standard would send the reader after the wrong problem.
 func TestVerifyBenchmarkIgnoresAnEmptyDocument(t *testing.T) {

@@ -3,6 +3,7 @@ package scanners
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -606,10 +607,17 @@ func parseKubeBenchOperated(
 // decodeKubeBench reads the tool's JSON. Separate from rendering so a caller that has an
 // expectation about the benchmark can check it before turning the output into findings, a report
 // built from the wrong benchmark is worth nothing, so it should never be built.
+//
+// A document with no controls is an error. kube-bench reports a passed check as a result too, so
+// a run that emitted no control checked nothing, and rendered it would be a cluster with nothing
+// wrong and no benchmark named.
 func decodeKubeBench(out []byte) (kubeBenchDoc, error) {
 	var doc kubeBenchDoc
 	if err := json.Unmarshal(out, &doc); err != nil {
 		return kubeBenchDoc{}, fmt.Errorf("decode kube-bench json: %w", err)
+	}
+	if len(doc.Controls) == 0 {
+		return kubeBenchDoc{}, errors.New("kube-bench reported no controls, so it checked nothing")
 	}
 	return doc, nil
 }
