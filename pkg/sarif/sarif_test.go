@@ -1354,3 +1354,23 @@ func TestFromSARIFAcceptsAnEmptyLog(t *testing.T) {
 		}
 	}
 }
+
+// A coverage note's component survives the property bag, so two components' notes stay two
+// statements, each about its own tree, in a reloaded report as in the run that wrote it.
+func TestProvenanceComponentSurvivesASARIFRoundTrip(t *testing.T) {
+	in := Report{Tool: "gosec", Provenance: []Provenance{
+		{Tool: "gosec", Component: "web", Fields: []Field{{Key: "coverage", Value: "no go.mod found"}}},
+		{Tool: "gosec", Component: "docs", Fields: []Field{{Key: "coverage", Value: "no go.mod found"}}},
+	}}
+	b, err := in.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := FromSARIF(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Provenance) != 2 || out.Provenance[0].Component != "web" || out.Provenance[1].Component != "docs" {
+		t.Errorf("provenance = %+v, want both notes with their components", out.Provenance)
+	}
+}
