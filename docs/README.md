@@ -31,6 +31,7 @@ not published. They live here for readers browsing the repo.
 - [Reports & publishers](guides/reports-and-publishers.md), render many formats, deliver anywhere.
 - [Configure Draugr for a machine or an organization](guides/configuration.md). `draugr.config.yaml`, what belongs there rather than in a Saga, and fleet-wide defaults.
 - [Caching & performance](guides/caching-and-performance.md), content-hash cache and parallelism.
+- [Handle scan artifacts that hold sensitive data](guides/handling-scan-artifacts.md), what each report, cache entry and publisher carries, and what never leaves the machine.
 - [Classify components](guides/classify-components.md). Set `exposure` and `criticality`.
 
 ## Reference
