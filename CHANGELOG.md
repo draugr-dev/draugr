@@ -16,15 +16,15 @@ _Nothing yet._
 
 ### Added
 
-- **`report.json` carries the fix list as `actions[]`**, each with a stable `id`, its control, priority, count and component, every location marked `manifest`, `lockfile`, `vendored`, `image` or `file`, and the fingerprints of the findings it clears. Each result in `results.sarif` carries its `fingerprint` to join on. A dependency action adds its ecosystem, package, installed version and target.
+- **`report.json` carries the fix list as `actions[]`**, each with a stable `id`, its control, priority, count and component, every location marked `manifest`, `lockfile`, `vendored`, `image` or `file`, and the fingerprints of the findings it clears. Each result in `results.sarif` carries the same `fingerprint`. A dependency action adds its ecosystem, package, installed version and target.
 
 - **MCP `fix_list` returns each action with its dependency, versions and locations**, the fields `report.json` carries, without the fingerprints of its findings.
 
-- **`config.fixes.upgrade` caps the version step an upgrade action proposes** at `patch`, `minor` or `major`, per project or per component. Findings only a larger step clears get an action of their own, labeled `major · beyond policy minor` and ranked beside the first. The gate still counts every finding.
+- **`config.fixes.upgrade` caps the version step an upgrade action proposes** at `patch`, `minor` or `major`, per project or per component. Findings that only a larger step clears get a second action, labeled `major · beyond policy minor` and listed beside the first. The gate still counts every finding.
 
 ### Changed
 
-- **Each dependency gets one fix-list row per component and installed version.** A row names its component when the list spans several, marks a library copied into the tree as `vendored`, and names the repository of each location when the row spans several. With `children: actions`, dependency child issues are replaced once, one per component and version.
+- **Each dependency gets one fix-list row per component and installed version.** A row names its component when the list spans several, marks a library copied into the tree as `vendored`, and names each location's repository when there are several. With `children: actions`, the first run on this release replaces each dependency's child issue with one per component and version.
 
 - **The `draugr-api` publisher sends `report.json` as compact JSON**, a fifth smaller than the indented file a run writes to disk.
 
