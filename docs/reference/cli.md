@@ -450,6 +450,7 @@ Grouped the way `draugr scan --help` groups them.
 | `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU); reported as `stats.concurrency` |
 | `--allow-effects` |, | Accept scanner effects for this run (`mutate`, `privilege`). `config.allowEffects` is the reviewed equivalent. See [below](#scanners-that-do-more-than-read) |
 | `--no-publish` | `false` | Skip the Saga's configured publishers (still writes `-o` artifacts and stdout) |
+| `--policy` | `false` | Require the [organization's policy](#the-organizations-policy) check. A descriptor publishing to no `draugr-api` server, a missing token, an unreachable server or `--offline` is then an error rather than `not checked`. With `--no-publish`, the check runs only under this flag |
 
 The four `--cache-*` flags also live in [`draugr.config.yaml`](#draugr-config) under `cache:`,
 which is usually the better home: a cache directory describes a runner image, not an application,
@@ -723,6 +724,35 @@ So the flag is for reading, a terminal, or an agent asking for the short list. O
 30.1 KB) because the rules the omitted findings referenced leave with them.
 
 ---
+
+### The organization's policy
+
+A descriptor that publishes to a [`draugr-api`](saga-schema.md#configpublishers) server is checked
+against the organization's policy before any scanner starts, with the endpoint and token publishing
+uses. The server judges the descriptor and words each verdict; Draugr shows what it says and acts on
+it:
+
+| A broken setting that | Does |
+|---|---|
+| refuses, and is in force | stops the run before any scanner starts, and the command exits non-zero |
+| fails the gate, and is in force | runs the scan, then fails the gate naming the rule, whatever the findings say |
+| observes, or is not in force yet | is shown, and changes nothing |
+
+The scan lists each broken rule under CONTROLS, one item per line, then the profile that set it and
+what it does:
+
+```console
+POLICY  version 7 · https://draugr.example
+  threshold  failOn: P1 · required: P2 or stricter        PCI scope · fails the gate, since 2026-10-01
+  scanners   sca scanners: trivy-fs · required: grype-fs  Default · observed
+```
+
+A run that could not ask says `POLICY  not checked` and why: no endpoint or token, `--offline`, or a
+server that judges no policy. `--policy` makes that an error. A rule the server judges from the run's
+findings rather than from the descriptor is decided when the run is published, and the publisher
+fails the build if the policy fails the published run. `report.json` records the server, the policy
+version and every verdict as [`policy`](report-schema.md#telling-a-partial-run-from-a-clean-one). A scan with
+`--no-publish` is published nowhere, so it asks nothing unless `--policy` is passed.
 
 ## `draugr explain <rule-id>`
 
@@ -1129,7 +1159,8 @@ mid-scan. Given a Saga, it first **validates the descriptor**, then checks only 
 enabled controls need (`trivy`, `gitleaks`, `semgrep`, plus `git` for repo scans, and `gosec` only
 when a component opts into it), then checks that each [target](#targets) the scan would read is
 reachable from this machine. **Exits non-zero when the descriptor is invalid, a required tool is
-missing or a target check fails**, so it gates CI: `draugr doctor saga.yaml && draugr scan saga.yaml`.
+missing, a target check fails, or the organization's [policy](#policy) would refuse or fail the
+scan**, so it gates CI: `draugr doctor saga.yaml && draugr scan saga.yaml`.
 
 **Without a Saga it is an inventory, not a verdict.** It lists every tool Draugr can use and which
 are present, and exits zero. Nothing has been selected, so nothing is required. Several entries are
@@ -1199,6 +1230,27 @@ The scope flags `draugr scan` takes narrow the checks to the targets of the comp
 they select. `--offline` skips every check that needs the network and marks each `not checked`; a
 local repository and the local Docker daemon are still checked.
 
+### Policy
+
+Given a descriptor that publishes to a `draugr-api` server, doctor asks that server what the
+organization's policy makes of it, as [`draugr scan`](#the-organizations-policy) does, and lists
+every rule that reaches the project, passing and broken, with what its setting does to a run that
+breaks it:
+
+```console
+$ draugr doctor draugr.saga.yaml
+POLICY  payments · version 7 · https://draugr.example
+Rule       Profile    Result                                                If broken
+threshold  PCI scope  ✗ failOn: P1 · required: P2 or stricter               fails the gate, since 2026-10-01
+upgrade    Default    ✓ fixes.upgrade: minor · required: minor or stricter  fails the gate, since 2026-10-01
+licenses   Default    – judged at publish                                   observed
+```
+
+A rule marked `–` is one the server judges from the run's findings rather than from the descriptor,
+or one that asks nothing of this project. Doctor exits non-zero where a scan of the descriptor would be refused or would fail
+its gate. With neither an endpoint nor a token it prints `POLICY  not checked` and the reason, and
+`--policy` makes that an error. The token is the project's ingest token, which belongs in CI.
+
 ### Network
 
 Doctor lists every host a scan contacts besides its targets, per control: the reference data each
@@ -1246,6 +1298,7 @@ only narrows it.
 | `--json` | `false` | Emit the report as JSON instead of a table (uncovered surfaces come too, as `uncoveredSurfaces`, and target checks as `targets`) |
 | `--fail-on-uncovered` | `false` | Exit non-zero when the descriptor declares a surface no enabled control looks at |
 | `--strict` | `false` | Exit non-zero when a tool is not the version Draugr tests, as well as when one is missing |
+| `--policy` | `false` | Exit non-zero when the organization's policy could not be checked, as well as when a scan would be refused or fail by it |
 | `--offline` | `false` | Skip the check for a newer draugr release and every target check that needs the network (`DRAUGR_NO_UPDATE_CHECK=1` skips only the release check) |
 | `--components` | all | Check only the targets of these components |
 | `--controls` | all enabled | Check only the targets these controls would read |

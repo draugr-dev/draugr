@@ -34,6 +34,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/skald"
+	"github.com/draugr-dev/draugr/pkg/tui"
 
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/scanpolicy"
@@ -69,6 +70,7 @@ type scanOptions struct {
 	template        string
 	templateFile    string
 	noPublish       bool
+	requirePolicy   bool
 	top             int
 	noTips          bool
 	components      []string
@@ -99,7 +101,7 @@ var scanFlagGroups = []flagGroup{
 		"min-priority", "artifact-min-priority", "template", "template-file", "no-tips",
 	}},
 	{"Caching", []string{"cache-dir", "cache-ttl", "cache-read-only", "cache-require-digest"}},
-	{"Running the scan", []string{"jobs", "allow-effects", "no-publish"}},
+	{"Running the scan", []string{"jobs", "allow-effects", "no-publish", "policy"}},
 }
 
 func newScanCommand() *cobra.Command {
@@ -175,6 +177,9 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.template, "template", "", "inline Go text/template (with --format template)")
 	cmd.Flags().StringVar(&opts.templateFile, "template-file", "", "Go text/template file (with --format template)")
 	cmd.Flags().BoolVar(&opts.noPublish, "no-publish", false, "skip the Saga's configured publishers (still writes -o artifacts and stdout)")
+	cmd.Flags().BoolVar(&opts.requirePolicy, "policy", false,
+		"require the organization's policy check against the draugr-api server the descriptor publishes to; "+
+			"not being able to check it is then an error")
 	cmd.Flags().IntVar(&opts.top, "top", 10, "console: max findings to list in the ranked table (0 = all)")
 	cmd.Flags().BoolVar(&opts.noTips, "no-tips", false, "suppress the console's contextual tips (also DRAUGR_NO_TIPS)")
 	cmd.Flags().StringSliceVar(&opts.components, "components", nil,
@@ -278,6 +283,32 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if !opts.noPublish {
 		if err := checkReportNames(model); err != nil {
 			return err
+		}
+	}
+	// The organization's policy, before any tool runs, so a refused run costs nothing. Asked where
+	// the run will be published, or where --policy demands it: a scan with --no-publish, the diff
+	// workflow's two sides among them, is judged nowhere and would spend the token's allowance for
+	// nothing.
+	var orgPolicy *skald.PolicyCheck
+	if !opts.noPublish || opts.requirePolicy {
+		orgPolicy, err = checkOrgPolicy(ctx, model, resolved.Effective(), netpolicy.Offline())
+		if err != nil {
+			return err
+		}
+		if opts.requirePolicy {
+			if err := requirePolicy(orgPolicy); err != nil {
+				return err
+			}
+		}
+		if orgPolicy != nil && orgPolicy.Outcome == skald.PolicyRefuse {
+			// Where a person reads it. A machine format on stdout stays one parseable document, and
+			// the error below is what a pipeline acts on.
+			out := w
+			if opts.format != "" && opts.format != "console" {
+				out = os.Stderr
+			}
+			report.WritePolicyRefused(out, tui.For(out), model.ProjectName(), model.Release.Version, orgPolicy)
+			return fmt.Errorf("the organization's policy refuses this run: %s", refusedRules(orgPolicy))
 		}
 	}
 	enrichment, err := enrich.Load(ctx, exploitSettings(opts, model.Config.Exploitability),
@@ -400,6 +431,10 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if incomplete {
 		verdict.Verdict = norn.Fail
 	}
+	// A setting in force that the descriptor breaks fails the gate, whatever the findings say.
+	if orgPolicy != nil && orgPolicy.Outcome == skald.PolicyFail {
+		verdict.Verdict = norn.Fail
+	}
 
 	format := opts.format
 	if format == "" {
@@ -462,6 +497,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		// gone when the process exits: a platform reading the report can see which controls ran
 		// and not what enabled them, and can see a repository and not which pipeline scanned it.
 		Descriptor: skald.DescriptorFrom(resolved),
+		Policy:     orgPolicy,
 		CI:         detectedCI(model.Config.CI),
 		// Stamped so a rendered report can say when it ran and what produced it. A report
 		// offered as evidence has to answer both, and only the CLI knows either.

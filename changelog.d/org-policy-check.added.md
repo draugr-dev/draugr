@@ -1,0 +1,1 @@
+- **`draugr scan` and `draugr doctor` check a descriptor against the organization's policy** on the `draugr-api` server it publishes to, before any scanner starts. A broken rule in force refuses the run or fails its gate, `doctor` lists every rule that applies, and `--policy` makes a check that could not run an error.

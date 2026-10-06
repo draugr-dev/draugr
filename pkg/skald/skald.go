@@ -86,6 +86,10 @@ type jsonReport struct {
 	// CI is the job this scan ran in. Absent outside CI, and absent rather than guessed on a
 	// platform Draugr does not recognize.
 	CI *ci.Context `json:"ci,omitempty"`
+	// Policy is what the run's pre-flight learned of the organization's policy: the server, the
+	// version judged against, and each verdict. Absent where the descriptor publishes to no
+	// draugr-api server.
+	Policy *PolicyCheck `json:"policy,omitempty"`
 	// Actions are the fix list: each thing to do, the findings it clears and where, most urgent
 	// first. The grouping the console's `--view actions` prints, from the same function.
 	Actions  []Action        `json:"actions,omitempty"`
@@ -224,6 +228,9 @@ type Provenance struct {
 	// Actions are the run's findings grouped into things to do. Grouped by the caller, because the
 	// grouping is report's and report renders through this package.
 	Actions []Action
+	// Policy is the pre-flight's check against the organization's policy, nil where none was asked
+	// for.
+	Policy *PolicyCheck
 }
 
 // Build identifies the Draugr that produced a report.
@@ -606,6 +613,7 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 		Scope:      scopeOf(run),
 		Gate:       describeGate(prov.Gate),
 		Actions:    prov.Actions,
+		Policy:     prov.Policy,
 		Stats: statsInfo{
 			Jobs:        run.Stats.Jobs,
 			Scans:       run.Stats.Scans,
