@@ -43,7 +43,7 @@ the workspace builds it, which is the build `go build` in that directory produce
 **Components carved out of one module** are each analyzed from their own code. The checkout holds
 the whole module, as [Scoping a repository](../../docs/reference/saga-schema.md#scoping-a-repository)
 describes, and govulncheck starts from the packages the component's `paths` hold: `./cmd/api/...`
-for `paths: [go.mod, cmd/api]`. A vulnerable function only another component calls is
+for `paths: [go.mod, cmd/api]`. A vulnerable function that only another component calls is
 `unreachable` for this one.
 
 A component whose `paths` hold no Go package of the module, only its `go.mod`, is analyzed from the
@@ -149,8 +149,8 @@ call graph and a framework heuristic are both called reachability and are not th
 ## Data
 
 The **vulnerability database**, from `vuln.go.dev`. Without a local copy, govulncheck fetches it on
-**every** invocation, and there is one invocation per Go module in the checkout, per component for
-components carved out of one module.
+**every** invocation, and there is one invocation per Go module in the checkout, and one per
+component where several are carved out of one module.
 
 `draugr feeds update govulndb` downloads `https://vuln.go.dev/vulndb.zip` into
 `~/.draugr/feeds/govulndb`. A scan passes that copy to govulncheck as `-db file://…` when it passes
