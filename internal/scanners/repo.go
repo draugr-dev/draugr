@@ -29,8 +29,9 @@ type repoScanner struct {
 	// For a tool that answers per module rather than per repository. A repository can hold more than
 	// one, and running once at the root reports on whichever the root happens to be. Or fails, when
 	// the root is not a module at all. Returning no commands means the tool has nothing to answer for
-	// here, which is different from failing and is reported as such.
-	argsList func(dir string, cfg plugin.Config) [][]string
+	// here, which is different from failing and is reported as such. entry is the target's Entry,
+	// where a call-graph analysis starts, and empty for a target that names none.
+	argsList func(dir string, entry []string, cfg plugin.Config) [][]string
 	checkout func(ctx context.Context, url, revision string, scope git.Scope) (git.Tree, func(), error)
 	// parse decodes the tool's output. Nil means the tool emits SARIF.
 	parse func(out []byte, dir string, cfg plugin.Config) (sarif.Report, error)
@@ -272,7 +273,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	var out []byte
 	var inputs []sarif.Input
 	if s.argsList != nil {
-		for _, argv := range s.argsList(dir, cfg) {
+		for _, argv := range s.argsList(dir, repo.Entry, cfg) {
 			part, err := s.runReporting(ctx, dir, argv)
 			if err != nil {
 				return sarif.Report{}, fmt.Errorf("run %s: %w", s.info.Name, err)
@@ -507,7 +508,7 @@ func execArgvCombined(ctx context.Context, argv []string) ([]byte, error) {
 // concatenated before parse sees them.
 func newRepoScannerPerModule(
 	info plugin.ScannerInfo,
-	argsList func(dir string, cfg plugin.Config) [][]string,
+	argsList func(dir string, entry []string, cfg plugin.Config) [][]string,
 	parse func(out []byte, dir string, cfg plugin.Config) (sarif.Report, error),
 ) repoScanner {
 	s := repoScanner{info: info, checkout: git.Checkout, run: execArgvInDir}

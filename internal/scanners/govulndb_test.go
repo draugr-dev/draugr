@@ -76,7 +76,7 @@ func dbArg(argv []string) string {
 
 func TestGovulncheckReadsACheckedLocalCopy(t *testing.T) {
 	useGoVulnDB(t, localCopy)
-	for _, argv := range govulncheckArgs(goModule(t), plugin.Config{}) {
+	for _, argv := range govulncheckArgs(goModule(t), nil, plugin.Config{}) {
 		if got := dbArg(argv); got != "file:///cache/govulndb" {
 			t.Errorf("argv = %v, want -db file:///cache/govulndb", argv)
 		}
@@ -100,7 +100,7 @@ func TestGovulncheckReadsTheLocalCopyOffline(t *testing.T) {
 	if err := govulncheckPreflight(context.Background()); err != nil {
 		t.Fatalf("offline with a usable copy: %v", err)
 	}
-	if got := dbArg(govulncheckArgs(goModule(t), plugin.Config{})[0]); got == "" {
+	if got := dbArg(govulncheckArgs(goModule(t), nil, plugin.Config{})[0]); got == "" {
 		t.Error("offline with a usable copy, and govulncheck was not pointed at it")
 	}
 }
@@ -109,7 +109,7 @@ func TestGovulncheckReadsTheLocalCopyOffline(t *testing.T) {
 // that fails its checks must never reach -db, online or off.
 func TestGovulncheckNeverReadsARefusedCopy(t *testing.T) {
 	useGoVulnDB(t, refusedCopy)
-	for _, argv := range govulncheckArgs(goModule(t), plugin.Config{}) {
+	for _, argv := range govulncheckArgs(goModule(t), nil, plugin.Config{}) {
 		if got := dbArg(argv); got != "" {
 			t.Errorf("a refused copy was passed to govulncheck: %v", argv)
 		}
@@ -149,7 +149,7 @@ func TestGovulncheckRefusesToRunOfflineWithoutAUsableCopy(t *testing.T) {
 
 func TestGovulncheckWithNoCopyUsesTheDefaultDatabase(t *testing.T) {
 	useGoVulnDB(t, noCopy)
-	if got := dbArg(govulncheckArgs(goModule(t), plugin.Config{})[0]); got != "" {
+	if got := dbArg(govulncheckArgs(goModule(t), nil, plugin.Config{})[0]); got != "" {
 		t.Errorf("-db %q with no local copy", got)
 	}
 	if got := resolveGovulnDB().describe(); got != "vuln.go.dev" {

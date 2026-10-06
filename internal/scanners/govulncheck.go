@@ -8,12 +8,15 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -78,8 +81,8 @@ func localGovulncheckVersion(url string) *toolVersionProbe {
 	return p
 }
 
-// govulncheckArgs builds one `govulncheck -C <module> -format json ./...` per Go module in the
-// checkout.
+// govulncheckArgs builds one `govulncheck -C <module> -format json <patterns>` per Go module in the
+// checkout, the patterns being `./...` unless entry narrows them (govulncheckPatterns).
 //
 // Per module rather than once at the root, because a repository is not required to be one. A
 // polyglot repository keeps its Go service in a subdirectory, a monorepo keeps several, and
@@ -101,17 +104,121 @@ func localGovulncheckVersion(url string) *toolVersionProbe {
 // never populated, or one that went stale, would read as a clean result; the checks are what make
 // a local copy safe to pass. Without one, govulncheck queries vuln.go.dev, and a machine with no
 // route to it is refused before anything runs.
-func govulncheckArgs(dir string, _ plugin.Config) [][]string {
+func govulncheckArgs(dir string, entry []string, _ plugin.Config) [][]string {
 	db := resolveGovulnDB().url
+	mods := goModuleDirs(dir)
 	var out [][]string
-	for _, mod := range goModuleDirs(dir) {
+	for _, mod := range mods {
 		argv := []string{"govulncheck", "-C", mod}
 		if db != "" {
 			argv = append(argv, "-db", db)
 		}
-		out = append(out, append(argv, "-format", "json", "./..."))
+		argv = append(argv, "-format", "json")
+		out = append(out, append(argv, govulncheckPatterns(dir, mod, mods, entry)...))
 	}
 	return out
+}
+
+// govulncheckPatterns are the packages one module's run starts from: the ones entry holds, or the
+// whole module when entry holds none of them.
+//
+// Components carved out of one module share its checkout, because a package does not type-check
+// without the packages it imports, and each is analyzed from its own code. Run over the whole
+// module, govulncheck reports one call path per vulnerable function, so a component whose code
+// never makes the call could only be told unknown. Run from the component's own packages, the
+// same silence is a sound unreachable, and a call only another component makes is not evidence
+// about this one.
+//
+// entry is repository-relative, as the descriptor writes paths. A path in a nested module belongs
+// to that module's run, a directory with no Go package in it starts nothing, and a file starts
+// the package it is in. A path holding the whole module, or none of it, leaves `./...`.
+func govulncheckPatterns(root, mod string, mods, entry []string) []string {
+	whole := []string{"./..."}
+	modRel, ok := relSlash(root, mod)
+	if !ok || len(entry) == 0 {
+		return whole
+	}
+	var modules []string
+	for _, m := range mods {
+		if rel, ok := relSlash(root, m); ok {
+			modules = append(modules, rel)
+		}
+	}
+	var patterns []string
+	for _, e := range entry {
+		p := path.Clean(strings.TrimPrefix(filepath.ToSlash(e), "./"))
+		if p == "." || p == modRel || (modRel != "." && strings.HasPrefix(modRel, p+"/")) {
+			return whole
+		}
+		if m, ok := git.InnermostModule(p, modules); !ok || m != modRel {
+			continue
+		}
+		inMod := p
+		if modRel != "." {
+			inMod = strings.TrimPrefix(p, modRel+"/")
+		}
+		info, err := os.Stat(filepath.Join(root, filepath.FromSlash(p)))
+		switch {
+		case err != nil:
+			continue
+		case info.IsDir():
+			if holdsGoPackage(filepath.Join(root, filepath.FromSlash(p))) {
+				patterns = append(patterns, "./"+inMod+"/...")
+			}
+		case strings.HasSuffix(p, ".go") && !strings.HasSuffix(p, "_test.go"):
+			pkg := path.Dir(inMod)
+			if pkg != "." {
+				pkg = "./" + pkg
+			}
+			patterns = append(patterns, pkg)
+		}
+	}
+	if len(patterns) == 0 {
+		return whole
+	}
+	slices.Sort(patterns)
+	return slices.Compact(patterns)
+}
+
+// relSlash is target relative to root, slash-separated, "." for root itself.
+func relSlash(root, target string) (string, bool) {
+	rel, err := filepath.Rel(root, target)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, "../") {
+		return "", false
+	}
+	return filepath.ToSlash(rel), true
+}
+
+// holdsGoPackage reports whether dir, or a directory under it in the same module, holds a Go file
+// that is part of a build. A pattern matching no package fails the run, so a directory of
+// templates or a frontend is no place to start from.
+func holdsGoPackage(dir string) bool {
+	found := false
+	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		switch {
+		case err != nil:
+			return filepath.SkipDir
+		case d.IsDir():
+			switch d.Name() {
+			case "vendor", "testdata", ".git":
+				return filepath.SkipDir
+			}
+			if p != dir {
+				if _, err := os.Stat(filepath.Join(p, "go.mod")); err == nil {
+					return filepath.SkipDir
+				}
+			}
+			return nil
+		}
+		name := d.Name()
+		if strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, "_test.go") &&
+			!strings.HasPrefix(name, "_") && !strings.HasPrefix(name, ".") {
+			found = true
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	return found
 }
 
 // goModuleDirs lists the directories under root holding a go.mod, outermost first.
@@ -168,7 +275,7 @@ type govulncheckConfig struct {
 // never analyzed, whatever the reason. And "we did not look" must not be reported as "nothing
 // reaches it".
 type govulncheckSBOM struct {
-	// Roots are the packages the run's ./... matched. The module holding them is how a run is
+	// Roots are the packages the run's patterns matched. The module holding them is how a run is
 	// matched to the go.mod it came from.
 	Roots   []string `json:"roots"`
 	Modules []struct {

@@ -1,0 +1,22 @@
+project: go-carved-module
+release:
+  version: "1.0"
+config:
+  reachability:
+    analyzers: [govulncheck]
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: api
+    exposure: public
+    criticality: critical
+    repositories:
+      - url: ./go-carved-module
+        paths: [go.mod, go.sum, cmd/api]
+  - name: admin
+    exposure: restricted
+    criticality: supporting
+    repositories:
+      - url: ./go-carved-module
+        paths: [go.mod, go.sum, cmd/admin]

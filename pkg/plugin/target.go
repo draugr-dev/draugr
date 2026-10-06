@@ -54,10 +54,29 @@ type RepositoryTarget struct {
 	// otherwise needs a commit per iteration. The result is deliberately not reproducible, and says
 	// so in the report.
 	WorkingTree bool
+	// Entry is where a call-graph analysis of a widened target starts: the paths the component
+	// itself declares, inside the modules Paths was widened to. Empty for a target nobody widened.
+	//
+	// Not part of the identity, which says what is checked out. Components carved out of one
+	// module share that checkout, and each is analyzed from its own code, so Entry is part of the
+	// cache and dedupe key instead (see CacheDetail).
+	Entry []string
 }
 
 // Kind returns TargetRepository.
 func (RepositoryTarget) Kind() TargetKind { return TargetRepository }
+
+// CacheDetail is where a call-graph analysis starts, for a target that names one. Two components
+// sharing a widened checkout are two analyses, and the one that calls a function must not answer
+// for the one that does not. Empty for every other target, so their keys are the ones they had.
+func (t RepositoryTarget) CacheDetail() string {
+	if len(t.Entry) == 0 {
+		return ""
+	}
+	entry := slices.Clone(t.Entry)
+	slices.Sort(entry)
+	return "entry=" + strings.Join(entry, ",")
+}
 
 // Identity returns the URL, revision and scope, e.g. "https://git/x@1.0".
 //
