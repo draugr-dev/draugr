@@ -1,1 +1,0 @@
-- **The `summarize_report` MCP tool describes `report.json` as it is**, the verdict and the fix list with each finding named by its fingerprint, where it had said the file holds no findings.
