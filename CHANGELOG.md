@@ -16,7 +16,7 @@ _Nothing yet._
 
 ### Fixed
 
-- **Components carved out of one Go module each get govulncheck's verdict for their own code.** A vulnerable function that only another component calls is `unreachable` for this one, where it read `reachable` or `unknown` and could rank a public component by a call only a restricted one makes.
+- **When several components share one Go module, each gets govulncheck's verdict for its own code.** A vulnerable function that only a restricted component calls now reads `unreachable` on a public one, instead of `reachable` or `unknown`, which ranked the public component by a call it never makes.
 
 ## [0.149.0] - 2026-10-06
 
