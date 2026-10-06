@@ -14,8 +14,9 @@
     <text x="214" y="96" text-anchor="middle" font-size="10.5" fill="#9AA4AE" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">behind a login</text>
     <text x="214" y="130" text-anchor="middle" font-size="13.5" font-weight="700" fill="#E6E8EA" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">internal</text>
     <text x="214" y="144" text-anchor="middle" font-size="10.5" fill="#9AA4AE" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">your network or VPN</text>
-    <text x="214" y="220" text-anchor="middle" font-size="13.5" font-weight="700" fill="#E6E8EA" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">restricted</text>
-    <text x="214" y="235" text-anchor="middle" font-size="10.5" fill="#9AA4AE" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">locked down</text>
+    <text x="214" y="214" text-anchor="middle" font-size="13.5" font-weight="700" fill="#E6E8EA" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">restricted</text>
+    <text x="214" y="229" text-anchor="middle" font-size="10.5" fill="#9AA4AE" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">locked down</text>
+    <text x="214" y="243" text-anchor="middle" font-size="10.5" fill="#9AA4AE" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">further</text>
     <text x="440" y="-1" font-size="10.5" letter-spacing="1.2" fill="#7CA6B8" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">CRITICALITY · WHAT HAPPENS WHEN IT FAILS</text>
     <rect x="440" y="52" width="64" height="64" rx="14" fill="#E8B84B" stroke="#E8B84B"/>
     <g transform="translate(452 64) scale(0.833)" fill="none" stroke="#0B0E11" color="#0B0E11" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M24 8v14"/><path d="M15 13a14 14 0 1 0 18 0"/></g>
