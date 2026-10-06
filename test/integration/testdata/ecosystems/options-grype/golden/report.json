@@ -1,4 +1,64 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "by-advisory",
+      "control": "images",
+      "ecosystem": "python",
+      "findings": "<cleared>",
+      "fixedVersions": [
+        "5.4"
+      ],
+      "from": "5.3.1",
+      "id": "59a67d734239c5a2",
+      "locations": [
+        {
+          "kind": "image",
+          "path": "127.0.0.1:18080/options-grype:1.0"
+        }
+      ],
+      "package": "pyyaml",
+      "priority": "P1",
+      "ruleIds": [
+        "GHSA-8q59-q68h-6hv4-pyyaml"
+      ],
+      "target": "5.4",
+      "title": "Upgrade pyyaml 5.3.1",
+      "versioning": "pypi",
+      "where": [
+        "options-grype:1.0"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "default",
+      "control": "images",
+      "ecosystem": "python",
+      "findings": "<cleared>",
+      "fixedVersions": [
+        "5.4"
+      ],
+      "from": "5.3.1",
+      "id": "fbf7df69491260cb",
+      "locations": [
+        {
+          "kind": "image",
+          "path": "127.0.0.1:18080/options-grype:1.0"
+        }
+      ],
+      "package": "pyyaml",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2020-14343-pyyaml"
+      ],
+      "target": "5.4",
+      "title": "Upgrade pyyaml 5.3.1",
+      "versioning": "pypi",
+      "where": [
+        "options-grype:1.0"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 2,

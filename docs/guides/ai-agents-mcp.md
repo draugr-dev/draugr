@@ -304,7 +304,9 @@ gone. A saved SARIF file is something your assistant can point you at, or read b
 change usually clears many, and each row names the release to move to. Eight vulnerabilities in one
 library are one upgrade, and every vulnerable package inside an image somebody else publishes is one
 newer image. It uses the same grouping `draugr scan --view actions` prints, so an assistant and a
-terminal cannot describe the same report differently.
+terminal cannot describe the same report differently. Each row is an
+[action as `report.json` carries it](../reference/report-schema.md#what-each-action-carries), without
+the list of findings under it.
 
 `explain_rule` answers "what does this mean and what do I change?". The remediation the scanner
 published is already in the report, so an assistant should read it rather than fetch a rule's help

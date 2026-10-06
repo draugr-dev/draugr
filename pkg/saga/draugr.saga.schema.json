@@ -186,6 +186,10 @@
         "exposure": {
           "$ref": "#/$defs/exposure"
         },
+        "fixes": {
+          "$ref": "#/$defs/fixesConfig",
+          "description": "Overrides config.fixes for this component's findings."
+        },
         "hosts": {
           "description": "Running endpoints — probed by headers, tls, and dast.",
           "items": {
@@ -299,6 +303,10 @@
         },
         "exploitability": {
           "$ref": "#/$defs/exploitabilityConfig"
+        },
+        "fixes": {
+          "$ref": "#/$defs/fixesConfig",
+          "description": "What the fix list may recommend: how large a version step an upgrade proposes."
         },
         "gate": {
           "$ref": "#/$defs/gateConfig"
@@ -1332,6 +1340,31 @@
       "description": "How reachable this component is — the likelihood axis of risk prioritization.",
       "type": "string"
     },
+    "fixesConfig": {
+      "additionalProperties": false,
+      "description": "What the fix list may recommend. It changes the advice and never the gate, which counts every finding either way.",
+      "properties": {
+        "upgrade": {
+          "anyOf": [
+            {
+              "const": "patch",
+              "description": "Propose only upgrades that keep the major and minor version, 1.4.2 to 1.4.9."
+            },
+            {
+              "const": "minor",
+              "description": "Propose upgrades that keep the major version, 1.4.2 to 1.9.0. Below 1.0 a minor step counts as major, so 0.3.0 gets patch upgrades only."
+            },
+            {
+              "const": "major",
+              "description": "Propose the lowest release that clears every finding, whatever it changes. The default."
+            }
+          ],
+          "description": "The largest version step an upgrade action proposes. Findings only a larger step clears get an action of their own, marked beyond the policy. Versions that are not semantic, such as distribution packages, are not split.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "fragmentComponent": {
       "additionalProperties": false,
       "description": "One logical part of the app. All surface lists are optional — declare what applies.",
@@ -1363,6 +1396,10 @@
         },
         "exposure": {
           "$ref": "#/$defs/exposure"
+        },
+        "fixes": {
+          "$ref": "#/$defs/fixesConfig",
+          "description": "Overrides config.fixes for this component's findings."
         },
         "hosts": {
           "description": "Running endpoints — probed by headers, tls, and dast.",

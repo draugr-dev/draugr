@@ -1,4 +1,85 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "python-pip",
+      "control": "sca",
+      "ecosystem": "pip",
+      "findings": "<cleared>",
+      "fixedVersions": [
+        "0.12.3"
+      ],
+      "from": "0.12.2",
+      "id": "6373cb539beabdad",
+      "locations": [
+        {
+          "kind": "manifest",
+          "line": 2,
+          "path": "requirements.txt",
+          "repository": "./python-pip"
+        }
+      ],
+      "package": "Flask",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2018-1000656"
+      ],
+      "target": "0.12.3",
+      "title": "Upgrade Flask 0.12.2",
+      "versioning": "pypi",
+      "where": [
+        "requirements.txt:2"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "python-pip",
+      "control": "sast",
+      "findings": "<cleared>",
+      "id": "c17d71e5e8c69d79",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 7,
+          "path": "app.py",
+          "repository": "./python-pip"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "draugr-fixture-os-popen"
+      ],
+      "summary": "os.popen runs its argument through a shell",
+      "title": "Fix draugr-fixture-os-popen",
+      "where": [
+        "app.py:7"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "python-pip",
+      "control": "secrets",
+      "findings": "<cleared>",
+      "id": "8a6b62c38ce5b2e9",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 1,
+          "path": "deploy/aws.env",
+          "repository": "./python-pip"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "aws-access-token"
+      ],
+      "summary": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms",
+      "title": "Remove and rotate aws-access-token",
+      "where": [
+        "deploy/aws.env:1"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

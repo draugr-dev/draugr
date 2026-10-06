@@ -75,6 +75,9 @@ type Data struct {
 	//
 	// Nil for a scan with no descriptor, which is a real case and not an error.
 	Descriptor *skald.DescriptorRef
+	// Policy is what the run's pre-flight learned of the organization's policy, nil where the
+	// descriptor publishes to no draugr-api server or the run did not ask.
+	Policy *skald.PolicyCheck
 	// CI is the job the scan ran in, and nil outside one.
 	//
 	// It exists once, in the process doing the work, and is gone when that process exits. A
@@ -457,7 +460,12 @@ func (jsonReporter) Render(w io.Writer, d Data) error {
 // where it was sent. A platform receiving the document by publisher reads the build from it to
 // know which Draugr produced the run.
 func (d Data) JSONProvenance() skald.Provenance {
-	p := skald.Provenance{Descriptor: d.Descriptor, CI: d.CI, Gate: d.Gate.skald()}
+	p := skald.Provenance{Descriptor: d.Descriptor, CI: d.CI, Gate: d.Gate.skald(), Policy: d.Policy}
+	reports := make(map[string]sarif.Report, len(d.Run.Controls))
+	for name, cr := range d.Run.Controls {
+		reports[name] = cr.Report
+	}
+	p.Actions = ActionsFor(reports)
 	if d.Version != "" || d.Commit != "" {
 		p.Build = &skald.Build{Version: d.Version, Commit: d.Commit}
 	}
@@ -664,6 +672,9 @@ type finding struct {
 	// operatingSystem is the release an image finding came from, for the same reason: moving off
 	// a release past end of service life is one action for everything in that layer.
 	operatingSystem string
+	// upgradePolicy is the component's fixes.upgrade, patch or minor, which the fix list splits this
+	// finding's upgrade by. Empty for the default, major.
+	upgradePolicy string
 	// image is the container image a finding was found in, for the controls that scan one. The
 	// location is not always the image: a license Trivy read from a file is located at the file.
 	image string
@@ -820,6 +831,7 @@ func summarize(d Data) summary {
 			}
 			s.findings = append(s.findings, finding{
 				control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
+				fingerprint:   res.Fingerprint(),
 				escalation:    res.Escalation,
 				reachability:  res.Reachability,
 				alsoFoundBy:   alsoFoundBy(res),
@@ -835,6 +847,7 @@ func summarize(d Data) summary {
 				builtUpstream:   res.BuiltUpstream,
 				pkg:             res.Package,
 				operatingSystem: res.OperatingSystem,
+				upgradePolicy:   res.UpgradePolicy,
 				image:           res.Image,
 				ruleSummary:     rep.Rules[res.RuleID].ShortDescription,
 			})
@@ -898,7 +911,22 @@ func sortFindings(fs []finding) {
 		if a.score != b.score {
 			return a.score > b.score
 		}
-		return levelRank(a.level) > levelRank(b.level)
+		if la, lb := levelRank(a.level), levelRank(b.level); la != lb {
+			return la > lb
+		}
+		// Then by where, so two findings that rank alike keep one order whichever order the scanner
+		// wrote them in. A tool that reports concurrently writes them differently on every run, and
+		// a list that reorders between two runs of the same commit reads as a change.
+		if a.component != b.component {
+			return a.component < b.component
+		}
+		if a.repository != b.repository {
+			return a.repository < b.repository
+		}
+		if a.location != b.location {
+			return a.location < b.location
+		}
+		return a.ruleID < b.ruleID
 	})
 }
 

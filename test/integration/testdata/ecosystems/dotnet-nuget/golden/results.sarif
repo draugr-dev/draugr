@@ -49,6 +49,7 @@
           "properties": {
             "component": "dotnet-nuget",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "nuget",
               "fixedVersion": "13.0.1",

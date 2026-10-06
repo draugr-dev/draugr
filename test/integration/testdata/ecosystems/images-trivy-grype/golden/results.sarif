@@ -47,6 +47,7 @@
                 }
               ]
             },
+            "fingerprint": "<cleared>",
             "image": "127.0.0.1:18080/images-trivy-grype:1.0",
             "package": {
               "ecosystem": "python",
@@ -81,6 +82,7 @@
             "correlation": {
               "countedUnder": "grype"
             },
+            "fingerprint": "<cleared>",
             "image": "127.0.0.1:18080/images-trivy-grype:1.0",
             "layer": {
               "diffId": "sha256:99345b80fb767e0f621f72161fbdd1a5420bd78126727e0c0f4637b29b78900a",

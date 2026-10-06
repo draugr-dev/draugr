@@ -17,18 +17,19 @@ import (
 	"github.com/draugr-dev/draugr/pkg/ci"
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
+	"github.com/draugr-dev/draugr/pkg/skald"
 )
 
 // draugrAPIPublisher posts a run to anything implementing Draugr's run-ingest API.
 //
 // Named for the protocol rather than for one server, because the protocol is the interesting part.
-// Draugr Server implements it, hosted and on-premise; so can anybody else. The three calls are
+// Draugr Server implements it, hosted and on-premise; so can anybody else. The calls are
 // documented in the reports-and-publishers guide, and nothing here privileges one implementation
 // over another. A publisher named after a product would have made the endpoint look like a
 // configuration detail of that product rather than an interface.
 //
-// Two documents, and they travel differently. `report.json` is the run. Small, always. And goes in
-// the request body. `results.sarif` is the evidence and never goes through the API at all: the
+// Two documents, and they travel differently. `report.json` is the run, bounded, and goes in the
+// request body. `results.sarif` is the evidence and never goes through the API at all: the
 // response returns a URL to put it to, and this uploads it directly.
 //
 // That is the only path rather than an optimization for large payloads. At roughly 2.5 KB of SARIF
@@ -55,39 +56,60 @@ const (
 	apiTokenEnv = "DRAUGR_API_TOKEN"
 )
 
-func newDraugrAPIPublisher(cfg saga.PublisherConfig) (Publisher, error) {
+// APIDestination is the server a draugr-api publisher sends a run to, and the token it sends.
+type APIDestination struct {
+	Endpoint string
+	Token    string
+}
+
+// ResolveAPI finds where a draugr-api publisher would send a run, the way the publisher does.
+//
+// Neither an endpoint nor a token is somebody running the descriptor locally, which is not a
+// mistake: skip says why there is nowhere to send. One without the other is a mistake, and an
+// error.
+func ResolveAPI(cfg saga.PublisherConfig) (dest APIDestination, skip string, err error) {
 	tokenEnv := firstNonEmpty(cfg.TokenEnv, apiTokenEnv)
-	p := draugrAPIPublisher{
+	dest = APIDestination{
 		// Explicit, then ambient-immediate, then the organization's default. Documented in the
 		// Saga reference under the draugr-api publisher.
-		endpoint: strings.TrimRight(firstNonEmpty(cfg.URL, os.Getenv(apiURLEnv), cfg.DefaultURL), "/"),
-		token:    os.Getenv(tokenEnv),
-		jobID:    ci.Detect().JobID(),
-		client:   newRetryingClient(http.DefaultClient),
+		Endpoint: strings.TrimRight(firstNonEmpty(cfg.URL, os.Getenv(apiURLEnv), cfg.DefaultURL), "/"),
+		Token:    os.Getenv(tokenEnv),
 	}
-
 	// Both or neither. A descriptor naming this publisher on a machine with no endpoint configured is
 	// somebody running the same Saga locally, and failing their scan over it would make the
 	// descriptor unusable outside CI. Which is the opposite of the point.
-	if p.endpoint == "" && p.token == "" {
-		return skipPublisher{
-			kind:   "draugr-api",
-			reason: "no $" + apiURLEnv + " or $" + tokenEnv,
-		}, nil
+	if dest.Endpoint == "" && dest.Token == "" {
+		return APIDestination{}, "no $" + apiURLEnv + " or $" + tokenEnv, nil
 	}
 	var missing []string
-	if p.endpoint == "" {
+	if dest.Endpoint == "" {
 		missing = append(missing, "url (or $"+apiURLEnv+")")
 	}
-	if p.token == "" {
+	if dest.Token == "" {
 		missing = append(missing, "$"+tokenEnv)
 	}
 	if len(missing) > 0 {
 		// Half-configured is a mistake rather than an intention, and a scan that silently did not
 		// publish is one somebody believes was published.
-		return nil, fmt.Errorf("draugr-api publisher: %s", strings.Join(missing, ", "))
+		return APIDestination{}, "", fmt.Errorf("draugr-api publisher: %s", strings.Join(missing, ", "))
 	}
-	return p, nil
+	return dest, "", nil
+}
+
+func newDraugrAPIPublisher(cfg saga.PublisherConfig) (Publisher, error) {
+	dest, skip, err := ResolveAPI(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if skip != "" {
+		return skipPublisher{kind: "draugr-api", reason: skip}, nil
+	}
+	return draugrAPIPublisher{
+		endpoint: dest.Endpoint,
+		token:    dest.Token,
+		jobID:    ci.Detect().JobID(),
+		client:   newRetryingClient(http.DefaultClient),
+	}, nil
 }
 
 // Kind is the publisher's config selector.
@@ -111,19 +133,30 @@ func (p draugrAPIPublisher) Publish(ctx context.Context, artifacts []report.Arti
 	if evidence == nil {
 		return fmt.Errorf("draugr-api publisher requires a 'sarif' report")
 	}
+	// Compact, however the reporter wrote it. The document goes from one program to another, its
+	// indentation is a fifth of its size, and a server bounds what it accepts. The evidence is
+	// uploaded byte for byte, because its digest is sent ahead of it.
+	var packed bytes.Buffer
+	if err := json.Compact(&packed, runReport); err != nil {
+		return fmt.Errorf("draugr-api publisher: the json report is not JSON: %w", err)
+	}
+	runReport = packed.Bytes()
 
 	accepted, err := p.postRun(ctx, runReport, evidence)
 	if err != nil {
 		return err
 	}
+	// The organization's verdict on the run, known now and returned once the run is fully recorded,
+	// so a failing policy fails the build without leaving the run half published.
+	policyErr := policyFailure(accepted.Run, accepted.Policy)
 	if accepted.Duplicate {
 		// A retried job. The run exists; there is nothing to upload and nothing to complete.
 		slog.Info("run already recorded", "run", accepted.Run, "project", accepted.Project)
-		return nil
+		return policyErr
 	}
 	if accepted.Evidence.Held {
 		slog.Info("evidence already held", "run", accepted.Run, "project", accepted.Project)
-		return nil
+		return policyErr
 	}
 	if accepted.Evidence.Error != "" {
 		// The server took the run and cannot take its evidence. Reported rather than swallowed: a
@@ -143,7 +176,29 @@ func (p draugrAPIPublisher) Publish(ctx context.Context, artifacts []report.Arti
 	}
 	slog.Info("run published", "run", accepted.Run, "project", accepted.Project,
 		"verdict", accepted.Verdict)
-	return nil
+	return policyErr
+}
+
+// policyFailure is the error a run's policy outcome makes, nil where the policy passes it or the
+// server said nothing about policy.
+//
+// A verdict the server decides once the evidence is expanded is said here, because the build has
+// passed by the time it is decided, and the run page is where a failure would then appear.
+func policyFailure(run string, policy *skald.PolicyOutcome) error {
+	if policy == nil {
+		return nil
+	}
+	for _, v := range policy.Verdicts {
+		if v.Pending {
+			slog.Info("policy decided after publish", "run", run, "rule", v.Rule, "profile", v.Profile,
+				"term", v.Term())
+		}
+	}
+	if policy.Outcome != skald.PolicyFail {
+		return nil
+	}
+	return fmt.Errorf("draugr-api publisher: run %s recorded, and the organization's policy fails it: %s",
+		run, policy.Summary(skald.PolicyFail))
 }
 
 // acceptedRun is what the server answers.
@@ -152,7 +207,9 @@ type acceptedRun struct {
 	Project   string `json:"project"`
 	Verdict   string `json:"verdict"`
 	Duplicate bool   `json:"duplicate"`
-	Evidence  struct {
+	// Policy is the organization's verdict on the run, absent from a server that judges none.
+	Policy   *skald.PolicyOutcome `json:"policy,omitempty"`
+	Evidence struct {
 		Held   bool   `json:"held"`
 		Upload string `json:"upload"`
 		Error  string `json:"error"`
@@ -182,6 +239,10 @@ func (p draugrAPIPublisher) postRun(ctx context.Context, runReport, evidence []b
 
 	if resp.StatusCode >= 300 {
 		refused := readRefusal(resp)
+		if refused.Code == "policy_refused" && refused.Policy != nil {
+			return acceptedRun{}, fmt.Errorf("draugr-api publisher: the organization's policy refused the run: %s",
+				refused.Policy.Summary(skald.PolicyRefuse))
+		}
 		if refused.Code == "draugr_too_old" && refused.Minimum != "" {
 			return acceptedRun{}, fmt.Errorf("draugr-api publisher: %s reads runs from Draugr v%s or "+
 				"later, and this run used %s. Update with 'draugr self-update', or raise the version the "+
@@ -254,12 +315,15 @@ type refusal struct {
 	Code    string `json:"error"`
 	Detail  string `json:"detail"`
 	Minimum string `json:"minimum"`
+	// Policy is the outcome a `policy_refused` refusal carries.
+	Policy *skald.PolicyOutcome `json:"policy"`
 }
 
-// readRefusal reads a failure's body, leaving it empty when the body is not one.
+// readRefusal reads a failure's body, leaving it empty when the body is not one. Read to a megabyte,
+// because a policy refusal carries every verdict.
 func readRefusal(resp *http.Response) refusal {
 	var r refusal
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 8<<10)).Decode(&r); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&r); err != nil {
 		return refusal{}
 	}
 	return r

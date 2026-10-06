@@ -49,6 +49,7 @@
           "properties": {
             "component": "python-uv",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "uv",
               "fixedVersion": "0.12.3",

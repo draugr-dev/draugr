@@ -49,6 +49,7 @@
           "properties": {
             "component": "npm",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "npm",
               "fixedVersion": "1.2.6",
@@ -86,6 +87,7 @@
           "properties": {
             "component": "pnpm",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "pnpm",
               "fixedVersion": "1.2.6",
@@ -123,6 +125,7 @@
           "properties": {
             "component": "yarn",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "yarn",
               "fixedVersion": "1.2.6",

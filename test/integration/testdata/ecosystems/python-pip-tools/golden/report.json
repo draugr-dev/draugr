@@ -1,4 +1,37 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "python-pip-tools",
+      "control": "sca",
+      "ecosystem": "pip",
+      "findings": "<cleared>",
+      "fixedVersions": [
+        "0.12.3"
+      ],
+      "from": "0.12.2",
+      "id": "3645d35f21293f23",
+      "locations": [
+        {
+          "kind": "manifest",
+          "line": 9,
+          "path": "requirements.txt",
+          "repository": "./python-pip-tools"
+        }
+      ],
+      "package": "flask",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2018-1000656"
+      ],
+      "target": "0.12.3",
+      "title": "Upgrade flask 0.12.2",
+      "versioning": "pypi",
+      "where": [
+        "requirements.txt:9"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

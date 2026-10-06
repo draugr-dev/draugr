@@ -89,6 +89,7 @@
                 }
               ]
             },
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "gomod",
               "fixedVersion": "v1.6.6",
@@ -164,6 +165,7 @@
             "correlation": {
               "countedUnder": "trivy"
             },
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "gomod",
               "fixedVersion": "v1.6.6",

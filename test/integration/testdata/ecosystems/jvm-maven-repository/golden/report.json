@@ -1,4 +1,36 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "jvm-maven-repository",
+      "control": "sca",
+      "ecosystem": "pom",
+      "findings": "<cleared>",
+      "fixedVersions": [
+        "2.15.0"
+      ],
+      "from": "2.14.1",
+      "id": "72f9f50d1c819123",
+      "locations": [
+        {
+          "kind": "manifest",
+          "path": "pom.xml",
+          "repository": "./jvm-maven-repository"
+        }
+      ],
+      "package": "org.apache.logging.log4j:log4j-core",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2021-44228"
+      ],
+      "target": "2.15.0",
+      "title": "Upgrade org.apache.logging.log4j:log4j-core 2.14.1",
+      "versioning": "maven",
+      "where": [
+        "pom.xml"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

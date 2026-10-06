@@ -150,7 +150,9 @@ func TestAnActionIsARowThatOpensItsFindings(t *testing.T) {
 	acts := section(t, page, `id="acts"`, `</section>`)
 	for _, want := range []string{`<div class="act" data-a="`, `<span class="lbl">control</span>`, `class="act-clears"`,
 		// What a rule found, under a title that only names the rule, as the console prints it.
-		`<div class="sub">Detected user input flowing into a raw SQL string</div>`} {
+		`<div class="sub">Detected user input flowing into a raw SQL string</div>`,
+		// The list spans components, so each row says whose it is.
+		`<span class="lbl">component</span> payments`} {
 		if !strings.Contains(acts, want) {
 			t.Errorf("the action rows are missing %q", want)
 		}

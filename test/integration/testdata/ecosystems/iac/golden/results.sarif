@@ -49,6 +49,7 @@
           "properties": {
             "component": "iac",
             "control": "iac",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./iac",
             "security-severity": "8",
@@ -80,6 +81,7 @@
           "properties": {
             "component": "iac",
             "control": "iac",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./iac",
             "security-severity": "8",
@@ -111,6 +113,7 @@
           "properties": {
             "component": "iac",
             "control": "iac",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./iac",
             "security-severity": "8",
@@ -142,6 +145,7 @@
           "properties": {
             "component": "iac",
             "control": "iac",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./iac",
             "security-severity": "8",
@@ -173,6 +177,7 @@
           "properties": {
             "component": "iac",
             "control": "iac",
+            "fingerprint": "<cleared>",
             "priority": "P3",
             "repository": "./iac",
             "security-severity": "2",
@@ -204,6 +209,7 @@
           "properties": {
             "component": "iac",
             "control": "iac",
+            "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./iac",
             "security-severity": "5.5",
@@ -235,6 +241,7 @@
           "properties": {
             "component": "iac",
             "control": "iac",
+            "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./iac",
             "security-severity": "5.5",

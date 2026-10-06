@@ -49,6 +49,7 @@
           "properties": {
             "component": "js-bun",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "bun",
               "fixedVersion": "1.2.6",

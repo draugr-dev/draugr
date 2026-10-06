@@ -1,4 +1,37 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "rust-cargo",
+      "control": "sca",
+      "ecosystem": "cargo",
+      "findings": "<cleared>",
+      "fixedVersions": [
+        "1.6.1"
+      ],
+      "from": "1.6.0",
+      "id": "f07915ee6268af33",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 12,
+          "path": "Cargo.lock",
+          "repository": "./rust-cargo"
+        }
+      ],
+      "package": "smallvec",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2021-25900"
+      ],
+      "target": "1.6.1",
+      "title": "Upgrade smallvec 1.6.0",
+      "versioning": "crates.io",
+      "where": [
+        "Cargo.lock:12"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

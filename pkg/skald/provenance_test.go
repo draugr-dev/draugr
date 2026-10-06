@@ -117,3 +117,41 @@ func TestTheOlderRenderersStillWork(t *testing.T) {
 		t.Error("RenderJSON emitted a descriptor block it was never given")
 	}
 }
+
+// The fix list travels in the document when the caller grouped one, and is absent otherwise, so a
+// run with nothing to do adds no key.
+func TestActionsTravelInTheDocument(t *testing.T) {
+	if _, ok := renderWith(t, Provenance{})["actions"]; ok {
+		t.Error("actions are present in a report that has none")
+	}
+	doc := renderWith(t, Provenance{Actions: []Action{{
+		ID: "0d5ae5732348af86", Title: "Upgrade jquery 1.8.3", Component: "web", Clears: 1,
+		Ecosystem: "npm", Package: "jquery", From: "1.8.3", Target: "3.5.0",
+		Locations:    []ActionLocation{{Path: "web/static/js/jquery.min.js", Kind: LocationVendored}},
+		Fingerprints: []string{"ab"},
+		Findings:     []ActionFinding{{RuleID: "CVE-1", Priority: "P1", Message: "kept out", Fingerprint: "ab"}},
+		Key:          "upgrade\x00web",
+	}}})
+	acts, ok := doc["actions"].([]any)
+	if !ok || len(acts) != 1 {
+		t.Fatalf("actions missing or wrong shape: %#v", doc["actions"])
+	}
+	a := acts[0].(map[string]any)
+	for key, want := range map[string]any{"id": "0d5ae5732348af86", "package": "jquery", "from": "1.8.3", "target": "3.5.0"} {
+		if a[key] != want {
+			t.Errorf("%s = %v, want %v", key, a[key], want)
+		}
+	}
+	if _, ok := a["key"]; ok {
+		t.Error("the in-memory grouping key should not be serialized")
+	}
+	loc := a["locations"].([]any)[0].(map[string]any)
+	if loc["kind"] != "vendored" {
+		t.Errorf("location = %#v", loc)
+	}
+	// Identities, not copies: results.sarif holds each finding once, and the document stays bounded
+	// however many findings a run has.
+	if f := a["findings"].([]any); len(f) != 1 || f[0] != "ab" {
+		t.Errorf("findings should be the fingerprints of what the action clears: %#v", a["findings"])
+	}
+}

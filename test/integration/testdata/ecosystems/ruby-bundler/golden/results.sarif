@@ -49,6 +49,7 @@
           "properties": {
             "component": "ruby-bundler",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "bundler",
               "fixedVersion": "2.2.3.1",

@@ -49,6 +49,7 @@
           "properties": {
             "component": "python-pipenv",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "pipenv",
               "fixedVersion": "0.12.3",

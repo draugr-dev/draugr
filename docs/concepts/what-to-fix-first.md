@@ -17,8 +17,9 @@ Draugr's fix list answers a different question: **what should I do, and what wil
 WHAT TO DO  <n> actions clear <m> findings
   <band>  <the action>
           <the scanner's description of the rule, when the action names one>
-          control <control> · <n> findings · <upstream, when not yours> ·
-          <where it applies> · <the rule it names, and how many more it clears>
+          component <component, when there are several> · control <control> · <n> findings ·
+          <upstream, when not yours> · <where it applies> ·
+          <the rule it names, and how many more it clears>
 ```
 
 A schematic rather than a scan, because the shape is what this page is about and a pasted run
@@ -33,8 +34,8 @@ three rows makes the repetitive work crowd out everything else.
 
 | Control | Grouped by | The action |
 |---|---|---|
-| `sca` | package | upgrade this dependency |
-| `images`, when you build it | package | upgrade it in your image |
+| `sca` | component, package and installed version | upgrade this dependency |
+| `images`, when you build it | component, package and installed version | upgrade it in your image |
 | `images`, when somebody else builds it | image | take a newer image |
 | `images`, OS layer past end of life | operating system release | move the base |
 | `secrets` | rule | remove the credential and rotate it |
@@ -45,6 +46,12 @@ three rows makes the repetitive work crowd out everything else.
 
 Only where the fix genuinely is one fix. Twelve benchmark checks against one cluster are twelve
 things to change, and folding them together because they share a prefix would hide eleven of them.
+
+A dependency action belongs to one component and one installed version. Two components carrying
+the same library are two owners, and a second copy at another version needs its own target, so
+each is its own row. The row lists the manifests, lockfiles and copies its findings were in, each
+named with its repository when there is more than one. A copy of the library committed to the tree
+is marked `vendored`, because bumping the lockfile leaves that file as it was.
 
 **Grouping is opt-in for now.** `draugr scan --view actions` turns it on; the default lists one
 finding per row.
@@ -149,10 +156,12 @@ hides work you could have done; the reverse costs a row you skip.
 | the band | the highest band among the findings this one action clears |
 | the action | what to do, naming the thing and the version in hand |
 | the summary | the scanner's description of the rule, under an action that names a rule |
+| the component | which component the action belongs to, named when the list spans more than one |
 | the control | which control the findings came from |
 | the count | how many findings this action clears |
 | `upstream` | present only where the component is somebody else's to fix |
-| the second line | the releases that carry the fix, or why none is named |
+| `major · beyond policy minor` | the size of an upgrade step and the component's [`fixes.upgrade`](../reference/saga-schema.md#configfixes) it exceeds |
+| the locations | the files its findings are in, up to two named and the rest counted as `and N more`; `--view findings` lists every one |
 
 An upgrade names its target version after an arrow. The target is the lowest release that clears
 every finding the row counts, ordered by the package's own ecosystem, so advisories naming several
@@ -160,6 +169,13 @@ releases of one library become one release to move to. Where the ecosystem is no
 appears only when every advisory names the same release. `5.10` is above `5.9` in most schemes and
 below it as a string, and naming the wrong release as sufficient reads as *do this and you are done*
 while leaving findings behind.
+
+A component can cap the step an upgrade proposes with
+[`fixes.upgrade`](../reference/saga-schema.md#configfixes). A package whose findings need more than
+the cap allows gets a second action for the step past it, carrying the findings only that step
+clears, listed with the first and ranked by the worse band of the two. Where versions are not
+semantic, as a distribution's are, the action stays whole, and a line under the heading counts
+those actions by ecosystem.
 
 Each row names one rule identifier, linked to whatever the scanner published about it, and counts
 the rest. To read what a check means and how to fix it:

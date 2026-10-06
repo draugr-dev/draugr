@@ -49,6 +49,7 @@
           "properties": {
             "component": "jvm-gradle",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "gradle",
               "fixedVersion": "2.15.0",

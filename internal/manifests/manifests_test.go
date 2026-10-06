@@ -258,3 +258,29 @@ func TestEveryFormatIsOneFormatOfReturns(t *testing.T) {
 		}
 	}
 }
+
+// TestEveryLockfileIsAFormat: a lockfile name no rule recognizes would never match, and the path
+// carrying it would be called a manifest.
+func TestEveryLockfileIsAFormat(t *testing.T) {
+	known := map[string]bool{}
+	for _, f := range Formats() {
+		known[f.Name] = true
+	}
+	for name := range lockfiles {
+		if !known[name] {
+			t.Errorf("lockfile %q is not a format any rule recognizes", name)
+		}
+	}
+}
+
+func TestIsLockfile(t *testing.T) {
+	for rel, want := range map[string]bool{
+		"web/package-lock.json": true, "pylock.dev.toml": true, "src/App/packages.lock.json": true,
+		"package.json": false, "requirements.txt": false, "go.mod": false, "packages.config": false,
+		"static/js/jquery.min.js": false,
+	} {
+		if got := IsLockfile(rel); got != want {
+			t.Errorf("IsLockfile(%q) = %v, want %v", rel, got, want)
+		}
+	}
+}

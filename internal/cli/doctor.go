@@ -27,6 +27,8 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 
 	"github.com/draugr-dev/draugr/internal/english"
+	"github.com/draugr-dev/draugr/pkg/report"
+	"github.com/draugr-dev/draugr/pkg/skald"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
@@ -39,6 +41,8 @@ type doctorOptions struct {
 	failOnUncovered bool
 	// strict does the same for a tool that is not the version Draugr tests.
 	strict bool
+	// requirePolicy is --policy: the organization's policy has to be checked.
+	requirePolicy bool
 	// The scope a scan takes, so a preflight checks the targets that scan would read.
 	components, controls, labels, exposure, criticality []string
 }
@@ -61,8 +65,10 @@ type doctorRun struct {
 	// offline skips the reachability checks that need the network, and reports each as not
 	// checked.
 	offline bool
-	scope   engine.Scope
-	probes  preflight.Probes
+	// requirePolicy makes an organization policy that could not be checked a failure.
+	requirePolicy bool
+	scope         engine.Scope
+	probes        preflight.Probes
 }
 
 func newDoctorCommand() *cobra.Command {
@@ -97,7 +103,7 @@ func newDoctorCommand() *cobra.Command {
 			}
 			run := doctorRun{
 				json: opts.json, failOnUncovered: opts.failOnUncovered, strict: opts.strict,
-				reach: true, offline: opts.offline || netpolicy.Offline(),
+				reach: true, offline: opts.offline || netpolicy.Offline(), requirePolicy: opts.requirePolicy,
 				scope: engine.Scope{
 					Components: opts.components, Controls: opts.controls, Labels: opts.labels,
 					Exposure: exposures(opts.exposure), Criticality: criticalities(opts.criticality),
@@ -117,6 +123,9 @@ func newDoctorCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.offline, "offline", false,
 		"skip the check for a newer draugr release and every target check that needs the network "+
 			"(also set by the root --offline flag)")
+	cmd.Flags().BoolVar(&opts.requirePolicy, "policy", false,
+		"require the organization's policy check against the draugr-api server the descriptor publishes to; "+
+			"not being able to check it is then an error")
 	cmd.Flags().StringSliceVar(&opts.components, "components", nil,
 		"check only the targets of these components")
 	cmd.Flags().StringSliceVar(&opts.labels, "labels", nil,
@@ -160,7 +169,7 @@ func runDoctor(
 		loaded, err := doctorLoad(ctx, sagaPath, run.reach, run.offline)
 		if err != nil {
 			if run.json {
-				_ = writeDoctorJSON(w, dv, &descriptorReport{Path: sagaPath, Valid: false, Error: err.Error()}, nil, nil, nil)
+				_ = writeDoctorJSON(w, dv, &descriptorReport{Path: sagaPath, Valid: false, Error: err.Error()}, nil, nil, nil, nil)
 			} else {
 				col := tui.For(w)
 				// The reason is carried by the error, which the CLI prints. Written here too it
@@ -198,6 +207,20 @@ func runDoctor(
 		}
 	}
 
+	// The organization's policy, from the server the descriptor publishes to. Judged on the
+	// descriptor as the scan would send it, with the machine's configured defaults merged under it.
+	var orgPolicy *skald.PolicyCheck
+	if model != nil {
+		if _, err := applyConfigDefaults(ctx, model); err != nil {
+			return err
+		}
+		var err error
+		orgPolicy, err = checkOrgPolicy(ctx, model, (&saga.Resolved{Model: model}).Effective(), run.offline)
+		if err != nil {
+			return err
+		}
+	}
+
 	statuses := make([]tools.Status, 0, len(required))
 	missing := 0
 	for _, t := range required {
@@ -219,7 +242,7 @@ func runDoctor(
 		if sagaPath != "" {
 			desc = &descriptorReport{Path: sagaPath, Valid: true}
 		}
-		if err := writeDoctorJSON(w, dv, desc, statuses, uncovered, checks); err != nil {
+		if err := writeDoctorJSON(w, dv, desc, statuses, uncovered, checks, orgPolicy); err != nil {
 			return err
 		}
 	} else {
@@ -231,6 +254,10 @@ func runDoctor(
 		writeDoctorTable(w, statuses)
 		if len(checks) > 0 {
 			writeTargetChecks(w, checks)
+		}
+		if orgPolicy != nil {
+			_, _ = fmt.Fprintln(w)
+			report.WritePolicyTable(w, tui.For(w), orgPolicy, model.ProjectName())
 		}
 		writeNetworkCalls(w, reg, model)
 		if model != nil {
@@ -274,6 +301,21 @@ func runDoctor(
 	// reach fails the scan the way a missing tool does, where an uncovered surface only narrows it.
 	if n := preflight.FailedCount(checks); n > 0 {
 		return fmt.Errorf("%s failed", english.Count(n, "target check"))
+	}
+	// A scan of this descriptor would be refused or would fail its gate, which is the answer doctor
+	// exists to give before the scan. --policy adds that not knowing is also a failure.
+	if run.requirePolicy {
+		if err := requirePolicy(orgPolicy); err != nil {
+			return err
+		}
+	}
+	if orgPolicy != nil {
+		switch orgPolicy.Outcome {
+		case skald.PolicyRefuse:
+			return fmt.Errorf("the organization's policy would refuse a scan of this descriptor: %s", refusedRules(orgPolicy))
+		case skald.PolicyFail:
+			return fmt.Errorf("the organization's policy would fail a scan of this descriptor: %s", failingRules(orgPolicy))
+		}
 	}
 	// After the missing-tool checks, because a tool that is absent stops the scan outright while
 	// an uncovered surface only narrows it, and the more serious answer should be the one given.
@@ -637,7 +679,7 @@ type toolReport struct {
 
 func writeDoctorJSON(
 	w io.Writer, dv draugrReport, desc *descriptorReport, statuses []tools.Status, uncovered []string,
-	checks []preflight.Check,
+	checks []preflight.Check, policy *skald.PolicyCheck,
 ) error {
 	report := struct {
 		Draugr     draugrReport      `json:"draugr"`
@@ -650,9 +692,12 @@ func writeDoctorJSON(
 		UncoveredSurfaces []string `json:"uncoveredSurfaces,omitempty"`
 		// Targets are the reachability checks, one per distinct target the scan would read.
 		Targets []preflight.Check `json:"targets,omitempty"`
+		// Policy is the organization's policy check, absent where the descriptor publishes to no
+		// draugr-api server.
+		Policy *skald.PolicyCheck `json:"policy,omitempty"`
 	}{
 		Draugr: dv, Descriptor: desc, Tools: make([]toolReport, 0, len(statuses)),
-		UncoveredSurfaces: uncovered, Targets: checks,
+		UncoveredSurfaces: uncovered, Targets: checks, Policy: policy,
 	}
 
 	for _, st := range statuses {

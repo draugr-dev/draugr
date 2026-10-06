@@ -22,6 +22,7 @@ pipeline should do about it. One is broken infrastructure, the other is work.
 | `controls[].scanErrors` | what stopped that control, in the scanner's own words. Its counts then describe what the scanners that *did* run found, which is not the same as what is there. A control that produced nothing at all is still listed, with `"verdict": "fail"` and no counts. |
 | `targets[]` | each distinct target the run planned, named as `draugr doctor` names it: `kind` (`repository`, `image`, `host` or `cluster`), `target` (a repository's source and revision, an image's pinned reference, a host's URL, `kubernetes/<cluster>`), `status` and `components`, the components that declare it. `status` is `reached` when any scanner read the target, `failed` when every scanner that tried failed, and `skipped` when no scanner was run for it, because none could honor its scope or the tool was not installed, with `detail` saying why in the scanner's words or the skip's reason. A `failed` target, and one skipped for a missing tool, is a scan error, and `controls[].scanErrors` carries the same message. |
 | `unreadChecks[]` | per component, control and service, the checks a scan could not evaluate because a read they need was denied: `component`, `control`, `service`, `checks[]` and `reason`, such as `denied compute.instances.list`. A check listed here is not among the findings whatever the tool reported for it. Omitted when every check could be evaluated. |
+| `policy` | the organization's policy, checked before the scan against the `draugr-api` server the descriptor publishes to: `server`; `checked`, and where it could not ask, `reason`; the `version` judged against; the `outcome`, `none`, `fail` or `refuse`; and `verdicts[]`, each with `rule`, `profile`, `state`, `items[]` of `field`, `found`, `constraint` and `expected`, and the setting's `mode`, `enforceFrom`, `response` and `acts`. Absent where the descriptor publishes to no `draugr-api` server |
 | `notMeasured[]` | a scanner that was planned and then not run because it could not answer the question its target asked, the control, scanner, component and reason. Not an error: nothing went wrong, and no `scanErrors` are recorded for it. |
 | `dependencyFiles[]` | per component and control, the dependency files the scanners that list their inputs read packages from (`read`, a count) and the ones none of them did (`unread[]`: `repository`, `path` and `reason`). A reason is `no lockfile`, `no pinned versions` or `no packages read`. The packages such a file declares were not checked. An `iac` entry lists the Terraform files calling a module Trivy could not load, with `read` at 0 and a reason such as `module "vpc" not loaded`; the resources that module defines were not checked. |
 
@@ -52,6 +53,7 @@ Draugr reports as one SARIF tool, so every finding keeps its own attribution in 
 | `escalation` | Why the band is higher than the severity: the dataset, the fact, and the day it was fetched |
 | `reachability` | Whether your code can reach the vulnerable code, which analyzer decided, and how |
 | `historical` | `true` on a finding from a commit in the repository's history. Absent on a finding from the current tree. The location is the path the file had in that commit |
+| `fingerprint` | The finding's identity, a hash of its tool, rule, level, message, location, component and repository. `report.json` names findings by it in `actions[].findings[]`, and in `findings[].fingerprint` when `--min-priority` lists them |
 
 `control` and `tool` answer different questions, and both matter to anything grouping findings:
 one rule id reported by two controls is two separate things to do.
@@ -77,6 +79,41 @@ no longer has. The credential is still readable by anyone who can clone the repo
 historical finding needs rotating like a tree one. A secret present in both the tree and the history
 is reported once, as the tree finding. Each entry in `report.json`'s `findings` carries the same
 `historical` field.
+
+## What each action carries
+
+`report.json` carries the [fix list](../concepts/what-to-fix-first.md) as `actions[]`, most urgent
+first, grouped as `draugr scan --view actions` groups it. An action is one change and every finding
+that change clears.
+
+| Field | Meaning |
+|---|---|
+| `id` | identifies the action across runs. It changes when what the action groups on, or its target, changes; a dependency action groups on its component, package and installed version |
+| `title`, `summary` | what to do, and the scanner's description of the rule where the action is for a rule |
+| `component` | the component every finding belongs to. Absent where the findings span several, which only an action for a rule or an image can |
+| `control`, `priority` | the control the findings came from, and the highest band among them |
+| `clears` | how many findings the action resolves |
+| `upstream` | `true` where the unit of work is something somebody else publishes, such as an image |
+| `ecosystem`, `package`, `from` | the package's ecosystem, its name and the version installed, for an action that upgrades or replaces a dependency |
+| `versioning` | the ecosystem whose rules order the package's versions, in lower case, such as `debian`, `red hat`, `maven`, `pypi` or `npm`. `ecosystem` is the scanner's own name, which can differ, as `pip` does from `pypi` |
+| `target` | the lowest release that clears every finding, by the ecosystem's own version order. Absent where no one release can be named |
+| `policy` | the component's [`fixes.upgrade`](saga-schema.md#configfixes), `patch` or `minor`, on an upgrade it applies to. Absent for the default, `major` |
+| `withinPolicy` | `true` for an upgrade within `policy`, `false` for the step past it, which carries only the findings it alone clears |
+| `after` | on the step past the policy, the `id` of the step within it, which this one presumes has been taken |
+| `beyond` | on a step past the policy, its size, `minor` or `major`, measured from the release the `after` step reaches, or from the installed version when there is no `after`. With `policy` it makes the label `major · beyond policy minor` |
+| `policyApplies` | `false` where the versions are not semantic, such as a distribution's packages, so the action was not split. Absent wherever `withinPolicy` is present |
+| `fixedVersions` | the release each advisory names as its fix, in its own words |
+| `locations[]` | every place the findings are: `repository`, `path`, `line` and `kind`. `kind` is `manifest`, `lockfile`, `vendored` for a copy of the dependency committed to the tree, `image`, or `file` |
+| `where`, `ruleIds` | the first five locations as text, then `and N more`, and the first five rule identifiers |
+| `findings[]` | the fingerprint of each finding the action clears, most urgent first. Each matches the `fingerprint` property of one result in `results.sarif` |
+
+The MCP server's `fix_list` returns the same objects without `findings[]`.
+
+```bash
+jq -r '.actions[] | select(.package) | "\(.component) \(.package) \(.from) → \(.target // "no single release")"' out/report.json
+jq -r '.actions[].locations[] | select(.kind == "vendored") | .path' out/report.json   # copies a manifest bump leaves as they were
+jq -s '.[0].actions[0].findings as $ids | .[1].runs[].results[] | select(.properties.fingerprint | IN($ids[])) | .ruleId' out/report.json out/results.sarif   # what the first action clears
+```
 
 ## What the cache contributed
 

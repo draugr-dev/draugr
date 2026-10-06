@@ -1,4 +1,37 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "python-poetry",
+      "control": "sca",
+      "ecosystem": "poetry",
+      "findings": "<cleared>",
+      "fixedVersions": [
+        "0.12.3"
+      ],
+      "from": "0.12.2",
+      "id": "3be467bfd766b2ba",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 16,
+          "path": "poetry.lock",
+          "repository": "./python-poetry"
+        }
+      ],
+      "package": "flask",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2018-1000656"
+      ],
+      "target": "0.12.3",
+      "title": "Upgrade flask 0.12.2",
+      "versioning": "pypi",
+      "where": [
+        "poetry.lock:16"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

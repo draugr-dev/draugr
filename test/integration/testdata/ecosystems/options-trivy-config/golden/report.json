@@ -1,4 +1,64 @@
 {
+  "actions": [
+    {
+      "clears": 2,
+      "control": "iac",
+      "findings": "<cleared>",
+      "id": "10782772787d659f",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 1,
+          "path": "acme/Dockerfile",
+          "repository": "./options-trivy-config"
+        },
+        {
+          "kind": "file",
+          "line": 1,
+          "path": "derived/Dockerfile",
+          "repository": "./options-trivy-config"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "DRAUGR-0002"
+      ],
+      "title": "Fix DRAUGR-0002 “Base image from an untrusted registry”",
+      "where": [
+        "acme/Dockerfile:1",
+        "derived/Dockerfile:1"
+      ]
+    },
+    {
+      "clears": 2,
+      "control": "iac",
+      "findings": "<cleared>",
+      "id": "2e8a7c8a456e3fe4",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 1,
+          "path": "derived/Dockerfile",
+          "repository": "./options-trivy-config"
+        },
+        {
+          "kind": "file",
+          "line": 1,
+          "path": "user/Dockerfile",
+          "repository": "./options-trivy-config"
+        }
+      ],
+      "priority": "P2",
+      "ruleIds": [
+        "DRAUGR-0001"
+      ],
+      "title": "Fix DRAUGR-0001 “Image names no maintainer”",
+      "where": [
+        "derived/Dockerfile:1",
+        "user/Dockerfile:1"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 2,

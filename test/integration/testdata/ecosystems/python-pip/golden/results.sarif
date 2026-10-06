@@ -65,6 +65,7 @@
           "properties": {
             "component": "python-pip",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./python-pip",
             "tool": "Semgrep OSS"
@@ -95,6 +96,7 @@
           "properties": {
             "component": "python-pip",
             "control": "secrets",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./python-pip",
             "tool": "gitleaks"
@@ -125,6 +127,7 @@
           "properties": {
             "component": "python-pip",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "pip",
               "fixedVersion": "0.12.3",
