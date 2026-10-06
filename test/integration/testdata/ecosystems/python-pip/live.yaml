@@ -10,6 +10,10 @@ packages:
       version: 0.12.2
       in: requirements.txt
       foundBy: [sca/trivy]
+    - name: Werkzeug
+      version: 3.1.8
+      in: requirements.txt
+      foundBy: [sca/trivy]
 files:
   - file: app.py
     foundBy: [sast/Semgrep OSS]
