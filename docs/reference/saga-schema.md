@@ -273,6 +273,8 @@ prioritization: exposure is how reachable the component is (likelihood), critica
 impact if it fails. Both are fixed ladders whose meaning an organization can redefine (the levels
 stay stable). They feed finding prioritization; a component may be left unclassified.
 
+![Exposure drawn as four rings from the edge to the center; public, anyone on the internet, no sign-in; authenticated, on the internet, behind a login; internal, only from inside your network or VPN; restricted, inside your network and locked down further. Criticality drawn as three levels; critical, an outage or data loss for the business; important, degraded service, but no outage; supporting, limited impact, easily worked around](../assets/exposure-criticality.svg)
+
 | `exposure` | meaning | | `criticality` | meaning |
 |------------|---------|-|---------------|---------|
 | `public` | anyone on the internet, no sign-in | | `critical` | an outage or data loss for the business |

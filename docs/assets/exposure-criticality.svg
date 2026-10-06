@@ -1,0 +1,36 @@
+<svg viewBox="-16 -26 912 482" width="912" height="482" role="img" aria-label="Exposure drawn as rings, from public on the open internet at the edge to restricted at the center, and criticality as three levels shown by what happens when the component fails." xmlns="http://www.w3.org/2000/svg">
+  <rect x="-16" y="-26" width="912" height="482" rx="12" fill="#0B0E11"/>
+  <title>The two facts a component declares</title>
+  <desc>Exposure is how reachable a component is: public, anyone on the internet, no sign-in; authenticated, on the internet, behind a login; internal, only from inside your network or VPN; restricted, inside your network and locked down further. The rings are brightest at the edge, where reach is widest. Criticality is how much the business depends on it: critical, an outage or data loss for the business; important, degraded service, but no outage; supporting, limited impact, easily worked around.</desc>
+  <g font-family="'Space Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+    <text x="10" y="-1" font-size="10.5" letter-spacing="1.2" fill="#7CA6B8" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">EXPOSURE · HOW REACHABLE IT IS</text>
+    <circle cx="214" cy="222" r="206" style="fill:#685529;stroke:#E8B84B;stroke-width:2;stroke-dasharray:7 6"/>
+    <circle cx="214" cy="222" r="160" style="fill:#37301D;stroke:#E8B84B;stroke-width:2"/>
+    <circle cx="214" cy="222" r="112" style="fill:#1B2328;stroke:#7CA6B8;stroke-width:2"/>
+    <circle cx="214" cy="222" r="62" style="fill:#0B0E11;stroke:#7CA6B8;stroke-width:5"/>
+    <text x="214" y="36" text-anchor="middle" font-size="13.5" font-weight="700" fill="#E6E8EA" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">public</text>
+    <text x="214" y="50" text-anchor="middle" font-size="10.5" fill="#9AA4AE" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">the internet, no sign-in</text>
+    <text x="214" y="82" text-anchor="middle" font-size="13.5" font-weight="700" fill="#E6E8EA" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">authenticated</text>
+    <text x="214" y="96" text-anchor="middle" font-size="10.5" fill="#9AA4AE" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">behind a login</text>
+    <text x="214" y="130" text-anchor="middle" font-size="13.5" font-weight="700" fill="#E6E8EA" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">internal</text>
+    <text x="214" y="144" text-anchor="middle" font-size="10.5" fill="#9AA4AE" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">your network or VPN</text>
+    <text x="214" y="220" text-anchor="middle" font-size="13.5" font-weight="700" fill="#E6E8EA" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">restricted</text>
+    <text x="214" y="235" text-anchor="middle" font-size="10.5" fill="#9AA4AE" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">locked down</text>
+    <text x="440" y="-1" font-size="10.5" letter-spacing="1.2" fill="#7CA6B8" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">CRITICALITY · WHAT HAPPENS WHEN IT FAILS</text>
+    <rect x="440" y="52" width="64" height="64" rx="14" fill="#E8B84B" stroke="#E8B84B"/>
+    <g transform="translate(452 64) scale(0.833)" fill="none" stroke="#0B0E11" color="#0B0E11" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M24 8v14"/><path d="M15 13a14 14 0 1 0 18 0"/></g>
+    <text x="528" y="74" font-size="15" font-weight="700" fill="#E6E8EA" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">critical</text>
+    <text x="528" y="96" font-size="13.5" fill="#E6E8EA">an outage or data loss for the business</text>
+    <text x="528" y="114" font-size="12" fill="#9AA4AE">for example, checkout or sign-in</text>
+    <rect x="440" y="164" width="64" height="64" rx="14" fill="none" stroke="#E8B84B" stroke-width="2"/>
+    <g transform="translate(452 176) scale(0.833)" fill="none" stroke="#E8B84B" color="#E8B84B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 32a16 16 0 0 1 32 0"/><path d="M24 32l-6-9"/><circle cx="24" cy="32" r="2.2" fill="currentColor"/></g>
+    <text x="528" y="186" font-size="15" font-weight="700" fill="#E6E8EA" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">important</text>
+    <text x="528" y="208" font-size="13.5" fill="#E6E8EA">degraded service, but no outage</text>
+    <text x="528" y="226" font-size="12" fill="#9AA4AE">for example, search or notifications</text>
+    <rect x="440" y="276" width="64" height="64" rx="14" fill="none" stroke="#2F3841" stroke-width="1.5"/>
+    <g transform="translate(452 288) scale(0.833)" fill="none" stroke="#9AA4AE" color="#9AA4AE" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 34h10a8 8 0 0 0 8-8v-4a8 8 0 0 1 8-8h6"/><path d="M36 9l5 5-5 5"/></g>
+    <text x="528" y="298" font-size="15" font-weight="700" fill="#E6E8EA" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">supporting</text>
+    <text x="528" y="320" font-size="13.5" fill="#E6E8EA">limited impact, easily worked around</text>
+    <text x="528" y="338" font-size="12" fill="#9AA4AE">for example, an internal wiki</text>
+  </g>
+</svg>
