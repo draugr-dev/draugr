@@ -1,7 +1,10 @@
 package plugin
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -313,5 +316,37 @@ func TestAClustersFactsSeparateCacheEntriesButNotIdentities(t *testing.T) {
 		if base.Identity() != other.Identity() {
 			t.Errorf("%s changed the identity", name)
 		}
+	}
+}
+
+// Components carved out of one module share a checkout and are analyzed from their own code. The
+// checkout is named by the identity, so Entry stays out of it, and the analysis by the cache key,
+// so Entry is in it. A target with no Entry keys exactly as it did before there was one.
+func TestRepositoryEntryKeysTheAnalysisNotTheCheckout(t *testing.T) {
+	widened := RepositoryTarget{URL: "https://git/mono", Revision: "v2", Paths: []string{"."}}
+	api, admin := widened, widened
+	api.Entry = []string{"go.mod", "cmd/api"}
+	admin.Entry = []string{"cmd/admin", "go.mod"}
+
+	if api.Identity() != widened.Identity() || admin.Identity() != widened.Identity() {
+		t.Errorf("identities %q and %q, want both %q: one checkout serves both", api.Identity(), admin.Identity(), widened.Identity())
+	}
+	key := func(t Target) CacheKey { return ComputeCacheKey("govulncheck", "1", t, nil) }
+	if key(api) == key(admin) {
+		t.Error("api and admin share a cache key, so one component's call graph would answer for the other")
+	}
+	reordered := api
+	reordered.Entry = []string{"cmd/api", "go.mod"}
+	if key(api) != key(reordered) {
+		t.Error("the same entry paths in another order key differently")
+	}
+	if widened.CacheDetail() != "" {
+		t.Errorf("CacheDetail() = %q with no Entry, want empty", widened.CacheDetail())
+	}
+	// The key a target with no Entry had before Entry existed: the parts ComputeCacheKey joins,
+	// with no detail among them.
+	sum := sha256.Sum256([]byte(strings.Join([]string{"govulncheck", "1", string(TargetRepository), widened.Identity()}, "\x00")))
+	if got, want := key(widened), CacheKey(hex.EncodeToString(sum[:])); got != want {
+		t.Errorf("key = %s, want %s: an empty detail must not move every repository's cache entry", got, want)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 
@@ -132,6 +133,74 @@ func TestWidenToModulesSharesOneAnalysis(t *testing.T) {
 		if !slices.Equal(got[comp], files) {
 			t.Errorf("%s findings = %q, want %q", comp, got[comp], files)
 		}
+	}
+}
+
+// reachScanner is a call-graph analyzer of whole Go modules: it answers from where its target's
+// Entry starts, reachable from cmd/admin and unreachable from anywhere else.
+type reachScanner struct{ moduleScanner }
+
+func (s *reachScanner) Info() plugin.ScannerInfo {
+	return plugin.ScannerInfo{Name: "reach", ModuleManifest: "go.mod", Reachability: true}
+}
+
+func (s *reachScanner) Scan(_ context.Context, target plugin.Target, _ plugin.Config) (sarif.Report, error) {
+	repo := target.(plugin.RepositoryTarget)
+	s.mu.Lock()
+	s.targets = append(s.targets, repo)
+	s.mu.Unlock()
+	reach := &sarif.Reachability{State: sarif.ReachabilityUnreachable, Analyzer: "reach"}
+	if slices.Contains(repo.Entry, "cmd/admin") {
+		reach = &sarif.Reachability{State: sarif.ReachabilityReachable, Analyzer: "reach",
+			Paths: []sarif.CallPath{callPath("cmd/admin/main.go")}}
+	}
+	return sarif.Report{Tool: "reach", Results: []sarif.Result{{
+		RuleID: "GO-1", Level: sarif.LevelWarning, Location: sarif.Location{URI: "go.mod"}, Reachability: reach,
+	}}}, nil
+}
+
+func TestWidenToModulesStartsAReachabilityAnalysisFromEachComponent(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(repoController{scanner: "reach"})
+	sc := &reachScanner{}
+	reg.RegisterScanner(sc)
+	asked := 0
+
+	model := splitModel()
+	model.Components[1].Repositories[0].Paths = []string{"cmd/admin", "go.mod"}
+	res, err := New(reg, WithModuleResolver(staticModules([]string{"."}, nil, &asked))).Run(context.Background(), model)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// One checkout, two analyses: each component's job keeps the module root as its scope and its
+	// own paths as where the analysis starts.
+	if len(sc.targets) != 2 {
+		t.Fatalf("scans = %d, want one per component", len(sc.targets))
+	}
+	entries := map[string]bool{}
+	for _, got := range sc.targets {
+		if !slices.Equal(got.Paths, []string{"."}) || got.Ignore != nil {
+			t.Errorf("target = %+v, want the module root and no ignore list", got)
+		}
+		if got.Identity() != sc.targets[0].Identity() {
+			t.Errorf("identities differ (%q, %q), so the components would not share a checkout", got.Identity(), sc.targets[0].Identity())
+		}
+		entries[strings.Join(got.Entry, ",")] = true
+	}
+	if !entries["cmd/api,internal/api,go.mod"] || !entries["cmd/admin,go.mod"] {
+		t.Errorf("entries = %v, want each component's own paths", entries)
+	}
+	if res.Stats.Deduped != 0 {
+		t.Errorf("deduped = %d, want 0: two starting points are two analyses", res.Stats.Deduped)
+	}
+
+	verdicts := map[string]sarif.ReachabilityState{}
+	for _, r := range res.Controls["sast"].Report.Results {
+		verdicts[r.Component] = r.Reachability.State
+	}
+	if verdicts["api"] != sarif.ReachabilityUnreachable || verdicts["admin"] != sarif.ReachabilityReachable {
+		t.Errorf("verdicts = %v, want api unreachable and admin reachable", verdicts)
 	}
 }
 

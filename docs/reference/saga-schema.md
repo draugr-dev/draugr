@@ -1431,7 +1431,9 @@ analyze whole Go modules.** Both type-check packages, and a package does not typ
 packages it imports, so a component whose `paths` hold part of a module is analyzed with all of it.
 The modules analyzed are the ones holding a `.go` file `paths` selects and the ones whose `go.mod`
 it names. A path with no Go code in it, a frontend directory, adds none. Components carved out of
-one module share one analysis, and each finding goes to:
+one module share one checkout. gosec analyzes it once; govulncheck analyzes it once per component,
+starting from the packages that component's `paths` hold, so its verdict describes calls from that
+component's own code. Each finding goes to:
 
 - the component whose `paths` hold the finding's file;
 - when no component's `paths` hold it, every component whose `paths` name the module's `go.mod`.
