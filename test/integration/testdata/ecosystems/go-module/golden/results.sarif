@@ -88,6 +88,7 @@
           "properties": {
             "component": "go-module",
             "control": "secrets",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./go-module",
             "tool": "gitleaks"
@@ -118,6 +119,7 @@
           "properties": {
             "component": "go-module",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "gomod",
               "fixedVersion": "v0.3.7",
@@ -186,6 +188,7 @@
           "properties": {
             "component": "go-module",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "gomod",
               "fixedVersion": "v0.3.8",
@@ -233,6 +236,7 @@
           "properties": {
             "component": "go-module",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./go-module",
             "tool": "gosec"
@@ -263,6 +267,7 @@
           "properties": {
             "component": "go-module",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./go-module",
             "tool": "gosec"

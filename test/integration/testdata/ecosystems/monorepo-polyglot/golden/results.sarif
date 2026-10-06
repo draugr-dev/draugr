@@ -96,6 +96,7 @@
           "properties": {
             "component": "api",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-polyglot",
             "tool": "Semgrep OSS"
@@ -126,6 +127,7 @@
           "properties": {
             "component": "api",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "pip",
               "fixedVersion": "0.12.3",
@@ -163,6 +165,7 @@
           "properties": {
             "component": "web",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "npm",
               "fixedVersion": "1.2.6",
@@ -200,6 +203,7 @@
           "properties": {
             "component": "web",
             "control": "sast",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-polyglot",
             "tool": "Semgrep OSS"
@@ -230,6 +234,7 @@
           "properties": {
             "component": "worker",
             "control": "secrets",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-polyglot",
             "tool": "gitleaks"
@@ -260,6 +265,7 @@
           "properties": {
             "component": "worker",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "gomod",
               "fixedVersion": "v1.6.6",

@@ -34,6 +34,7 @@
           "properties": {
             "component": "images-grype",
             "control": "images",
+            "fingerprint": "<cleared>",
             "image": "127.0.0.1:18080/images-grype:1.0",
             "package": {
               "ecosystem": "python",

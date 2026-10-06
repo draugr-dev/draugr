@@ -1,4 +1,37 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "js-yarn-berry",
+      "control": "sca",
+      "ecosystem": "yarn",
+      "findings": "<cleared>",
+      "fixedVersions": [
+        "1.2.6"
+      ],
+      "from": "1.2.5",
+      "id": "7c7da0db972128ea",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 8,
+          "path": "yarn.lock",
+          "repository": "./js-yarn-berry"
+        }
+      ],
+      "package": "minimist",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2021-44906"
+      ],
+      "target": "1.2.6",
+      "title": "Upgrade minimist 1.2.5",
+      "versioning": "npm",
+      "where": [
+        "yarn.lock:8"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

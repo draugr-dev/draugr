@@ -1,4 +1,126 @@
 {
+  "actions": [
+    {
+      "clears": 2,
+      "control": "licenses",
+      "findings": "<cleared>",
+      "id": "0b6e14dc9fcf5fb4",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 15,
+          "path": "licenses-deny/package-lock.json",
+          "repository": "./options-trivy-license"
+        },
+        {
+          "kind": "lockfile",
+          "line": 15,
+          "path": "licenses-warn-isc/package-lock.json",
+          "repository": "./options-trivy-license"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "license/ISC/inherits"
+      ],
+      "title": "Replace or accept inherits, licensed ISC",
+      "where": [
+        "licenses-deny/package-lock.json:15",
+        "licenses-warn-isc/package-lock.json:15"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "trivy-license-deny",
+      "control": "licenses",
+      "findings": "<cleared>",
+      "id": "147a0e4a9dcf3443",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 15,
+          "path": "trivy-license-deny/package-lock.json",
+          "repository": "./options-trivy-license"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "license/MIT/ms"
+      ],
+      "title": "Replace or accept ms, licensed MIT",
+      "where": [
+        "trivy-license-deny/package-lock.json:15"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "full",
+      "control": "licenses",
+      "findings": "<cleared>",
+      "id": "fa79e8e0b7691ded",
+      "locations": [
+        {
+          "kind": "file",
+          "path": "full/LICENSE",
+          "repository": "./options-trivy-license"
+        }
+      ],
+      "priority": "P2",
+      "ruleIds": [
+        "license/LGPL-3.0"
+      ],
+      "title": "Review the files licensed LGPL-3.0",
+      "where": [
+        "full/LICENSE"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "licenses-warn",
+      "control": "licenses",
+      "findings": "<cleared>",
+      "id": "ee252c3ea408da17",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 15,
+          "path": "licenses-warn/package-lock.json",
+          "repository": "./options-trivy-license"
+        }
+      ],
+      "priority": "P2",
+      "ruleIds": [
+        "license/0BSD/tslib"
+      ],
+      "title": "Replace or accept tslib, licensed 0BSD",
+      "where": [
+        "licenses-warn/package-lock.json:15"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "trivy-license-warn",
+      "control": "licenses",
+      "findings": "<cleared>",
+      "id": "eba6ccd9a3216bd0",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 15,
+          "path": "trivy-license-warn/package-lock.json",
+          "repository": "./options-trivy-license"
+        }
+      ],
+      "priority": "P2",
+      "ruleIds": [
+        "license/BSD-3-Clause/sprintf-js"
+      ],
+      "title": "Replace or accept sprintf-js, licensed BSD-3-Clause",
+      "where": [
+        "trivy-license-warn/package-lock.json:15"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 2,

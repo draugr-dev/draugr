@@ -49,6 +49,7 @@
           "properties": {
             "component": "options-gitleaks",
             "control": "secrets",
+            "fingerprint": "<cleared>",
             "historical": true,
             "priority": "P1",
             "repository": "./options-gitleaks",
@@ -80,6 +81,7 @@
           "properties": {
             "component": "options-gitleaks",
             "control": "secrets",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./options-gitleaks",
             "tool": "gitleaks"
@@ -110,6 +112,7 @@
           "properties": {
             "component": "options-gitleaks",
             "control": "secrets",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./options-gitleaks",
             "tool": "gitleaks"

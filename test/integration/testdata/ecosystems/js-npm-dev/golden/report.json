@@ -1,4 +1,37 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "js-npm-dev",
+      "control": "sca",
+      "ecosystem": "npm",
+      "findings": "<cleared>",
+      "fixedVersions": [
+        "1.2.6"
+      ],
+      "from": "1.2.5",
+      "id": "3a69bb3723153b37",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 15,
+          "path": "package-lock.json",
+          "repository": "./js-npm-dev"
+        }
+      ],
+      "package": "minimist",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2021-44906"
+      ],
+      "target": "1.2.6",
+      "title": "Upgrade minimist 1.2.5",
+      "versioning": "npm",
+      "where": [
+        "package-lock.json:15"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

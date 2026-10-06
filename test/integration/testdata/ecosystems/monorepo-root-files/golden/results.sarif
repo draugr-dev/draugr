@@ -57,6 +57,7 @@
           "properties": {
             "component": "api",
             "control": "secrets",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-root-files",
             "tool": "gitleaks"
@@ -87,6 +88,7 @@
           "properties": {
             "component": "api",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "pip",
               "fixedVersion": "0.12.3",
@@ -124,6 +126,7 @@
           "properties": {
             "component": "web",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "pip",
               "fixedVersion": "0.12.3",
@@ -161,6 +164,7 @@
           "properties": {
             "component": "api",
             "control": "secrets",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-root-files",
             "tool": "gitleaks"
@@ -191,6 +195,7 @@
           "properties": {
             "component": "web",
             "control": "secrets",
+            "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-root-files",
             "tool": "gitleaks"

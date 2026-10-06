@@ -36,6 +36,8 @@ type server struct {
 	body   string
 	// duplicate answers a retried post.
 	duplicate bool
+	// policy, when set, is the organization's verdict the server answers with.
+	policy map[string]any
 }
 
 type planeRequest struct {
@@ -73,10 +75,14 @@ func (p *server) server(t *testing.T) *httptest.Server {
 			evidence["upload"] = upload
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		answer := map[string]any{
 			"run": "run-1", "project": "payments", "verdict": "pass",
 			"duplicate": p.duplicate, "evidence": evidence,
-		})
+		}
+		if p.policy != nil {
+			answer["policy"] = p.policy
+		}
+		_ = json.NewEncoder(w).Encode(answer)
 	})
 	mux.HandleFunc("PUT /evidence", func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
@@ -133,15 +139,17 @@ func TestItPostsTheRunThenUploadsTheEvidence(t *testing.T) {
 	pub := publisherFor(t, srv.URL)
 
 	sarif := `{"version":"2.1.0","runs":[]}`
-	if err := pub.Publish(context.Background(), artifacts(`{"verdict":"pass"}`, sarif)); err != nil {
+	if err := pub.Publish(context.Background(), artifacts("{\n  \"verdict\": \"pass\"\n}\n", sarif)); err != nil {
 		t.Fatal(err)
 	}
 
 	if len(p.runs) != 1 || len(p.uploads) != 1 || len(p.completed) != 1 {
 		t.Fatalf("runs=%d uploads=%d completed=%d, want 1 each", len(p.runs), len(p.uploads), len(p.completed))
 	}
+	// Compact whatever the reporter wrote: a server bounds what it accepts, and indentation is
+	// size nobody reads.
 	if string(p.runs[0].body) != `{"verdict":"pass"}` {
-		t.Errorf("body = %s, want the report unchanged", p.runs[0].body)
+		t.Errorf("body = %q, want the report compacted", p.runs[0].body)
 	}
 	if string(p.uploads[0]) != sarif {
 		t.Errorf("uploaded %s, want the SARIF unchanged", p.uploads[0])
@@ -556,5 +564,15 @@ func TestThePostedRunSaysWhichDraugrProducedIt(t *testing.T) {
 	}
 	if posted.Draugr == nil || posted.Draugr.Version != "0.143.0" || posted.Draugr.Commit != "19b01f2" {
 		t.Errorf("draugr block = %+v, want version 0.143.0 and commit 19b01f2:\n%s", posted.Draugr, p.runs[0].body)
+	}
+}
+
+// A json report that is not JSON is said plainly rather than sent for the server to refuse.
+func TestAReportThatIsNotJSONIsRefusedBeforeItIsSent(t *testing.T) {
+	p := &server{}
+	srv := p.server(t)
+	err := publisherFor(t, srv.URL).Publish(context.Background(), artifacts(`{"verdict":`, `{"runs":[]}`))
+	if err == nil || !strings.Contains(err.Error(), "not JSON") || len(p.runs) != 0 {
+		t.Errorf("err = %v, posted %d runs", err, len(p.runs))
 	}
 }

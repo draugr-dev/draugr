@@ -49,6 +49,7 @@
           "properties": {
             "component": "default",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "pip",
               "fixedVersion": "0.12.3",

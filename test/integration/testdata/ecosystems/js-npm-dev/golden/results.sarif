@@ -49,6 +49,7 @@
           "properties": {
             "component": "js-npm-dev",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "npm",
               "fixedVersion": "1.2.6",

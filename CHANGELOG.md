@@ -12,6 +12,46 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.149.0] - 2026-10-06
+
+### Added
+
+- **`draugr scan` and `draugr doctor` check a descriptor against the organization's policy** on the `draugr-api` server it publishes to, before any scanner starts. A broken rule in force refuses the run or fails its gate. `doctor` lists every rule that applies, and `--policy` makes a check that could not run an error.
+
+### Fixed
+
+- **The `summarize_report` MCP tool no longer says `report.json` holds no findings**; it describes the file as the verdict and the fix list, with each finding named by its fingerprint.
+
+## [0.148.0] - 2026-10-05
+
+### Added
+
+- **`report.json` actions say how far past the policy a step goes**, as `beyond`, and which ecosystem's rules order the package's versions, as `versioning`.
+
+## [0.147.0] - 2026-10-05
+
+### Added
+
+- **`report.json` carries the fix list as `actions[]`**, each with a stable `id`, its control, priority, count and component, every location marked `manifest`, `lockfile`, `vendored`, `image` or `file`, and the fingerprints of the findings it clears. Each result in `results.sarif` carries the same `fingerprint`. A dependency action adds its ecosystem, package, installed version and target.
+
+- **MCP `fix_list` returns each action with its dependency, versions and locations**, the fields `report.json` carries, without the fingerprints of its findings.
+
+- **`config.fixes.upgrade` caps the version step an upgrade action proposes** at `patch`, `minor` or `major`, per project or per component. Findings that only a larger step clears get a second action, labeled `major · beyond policy minor` and listed beside the first. The gate still counts every finding.
+
+### Changed
+
+- **Each dependency gets one fix-list row per component and installed version.** A row names its component when the list spans several, marks a library copied into the tree as `vendored`, and names each location's repository when there are several. With `children: actions`, the first run on this release replaces each dependency's child issue with one per component and version.
+
+- **The `draugr-api` publisher sends `report.json` as compact JSON**, a fifth smaller than the indented file a run writes to disk.
+
+### Fixed
+
+- **A coverage note under Measured against names the component it is about** when a run has more than one, such as `coverage: web: no go.mod found`, and `report.json` carries it as the provenance entry's `component`.
+
+- **A secret found in history no longer carries the commit's author name, email, date or message** into `results.sarif` or a cache entry. The finding keeps the commit it was found at.
+
+- **A failed retire.js run is reported by retire.js's own error**, such as a failed advisory download with its URL and cause, at scan time and at prewarm, where the message had been `exit status 1` alone.
+
 ## [0.146.0] - 2026-10-05
 
 ### Changed
@@ -6247,7 +6287,10 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.146.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.149.0...HEAD
+[0.149.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.149.0
+[0.148.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.148.0
+[0.147.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.147.0
 [0.146.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.146.0
 [0.145.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.145.0
 [0.144.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.144.0

@@ -273,6 +273,8 @@ prioritization: exposure is how reachable the component is (likelihood), critica
 impact if it fails. Both are fixed ladders whose meaning an organization can redefine (the levels
 stay stable). They feed finding prioritization; a component may be left unclassified.
 
+![Exposure drawn as four rings from the edge to the center; public, anyone on the internet, no sign-in; authenticated, on the internet, behind a login; internal, only from inside your network or VPN; restricted, inside your network and locked down further. Criticality drawn as three levels; critical, an outage or data loss for the business; important, degraded service, but no outage; supporting, limited impact, easily worked around](../assets/exposure-criticality.svg)
+
 | `exposure` | meaning | | `criticality` | meaning |
 |------------|---------|-|---------------|---------|
 | `public` | anyone on the internet, no sign-in | | `critical` | an outage or data loss for the business |
@@ -901,8 +903,8 @@ When an entry sets `select`, `draugr doctor` lists the components no issue entry
 
 The **`draugr-api`** publisher posts the run to any server implementing Draugr's run-ingest API.
 [Draugr Server](https://draugr.dev) is one, hosted, or installed where you want it, the same
-artifact either way, and the three calls are documented in [reports &
-publishers](../guides/reports-and-publishers.md#the-three-calls) so anything else can be another.
+artifact either way, and the calls are documented in [reports &
+publishers](../guides/reports-and-publishers.md#the-calls) so anything else can be another.
 
 ```yaml
 config:
@@ -913,6 +915,10 @@ config:
 
 It renders the run report and its evidence for itself. The token comes from `$DRAUGR_API_TOKEN` (or
 `tokenEnv`) and never from the descriptor, which is a file people commit.
+
+A server that judges an organization's policy is also asked about the descriptor before the scan
+starts, with the same endpoint and token, and its verdict can refuse the run or fail its gate. See
+[the organization's policy](cli.md#the-organizations-policy).
 
 **Where a setting comes from, least specific first:**
 
@@ -931,13 +937,13 @@ pipeline point somewhere else with the environment variable, and write `url:` in
 when that project genuinely belongs somewhere the others do not.
 
 `report.json` travels in the request; **`results.sarif` does not travel through the API at all**.
-The plane answers with a URL and the publisher uploads the evidence directly to storage. At roughly
+The server answers with a URL and the publisher uploads the evidence directly to storage. At roughly
 2.5 KB of SARIF per finding, a descriptor covering twenty images is around 20 MB before anything
 unusual happens, and a request body is the wrong place for it.
 
 Two things follow that are worth knowing when reading a build log:
 
-- **A re-run that produced the same findings uploads nothing.** The plane addresses evidence by its
+- **A re-run that produced the same findings uploads nothing.** The server addresses evidence by its
   content, so it can say it already holds it.
 - **A retried job does not become a second run.** The run is keyed on the CI job id where the
   platform provides one, GitHub Actions, GitLab CI, Azure Pipelines, CircleCI and Buildkite, and
@@ -1190,6 +1196,55 @@ order is per-control setting → `--fail-on` → `high`.
 The report says which gate produced a verdict, so a narrowed one is visible to whoever reads it. See
 [the verdict and the gate](../concepts/verdict-and-gating.md).
 
+
+## `config.fixes`
+
+```yaml
+config:
+  fixes:
+    upgrade: minor          # patch, minor, or major (the default)
+
+components:
+  - name: billing
+    fixes:
+      upgrade: patch        # overrides config.fixes for this component's findings
+```
+
+`upgrade` is the largest version step the [fix list](../concepts/what-to-fix-first.md) proposes for
+a dependency. An upgrade the policy covers stays one action. Where some of a package's findings
+need a larger step, the package gets two actions: the upgrade within the policy, banded by the
+findings it clears, and the step past it, banded by the findings only it clears and labeled with
+its size and the policy. On draugr-demo with `upgrade: minor`:
+
+```
+  P2  Upgrade jquery 1.8.3 → 1.12.0
+      component api · control sca · 3 findings · app/static/js/jquery.min.js vendored · CVE-2012-6708 +2
+  P1  Upgrade jquery 1.12.0 → 3.5.0  major · beyond policy minor
+      component api · control sca · 4 findings · app/static/js/jquery.min.js vendored · CVE-2020-11023 +3
+```
+
+A package's two actions are listed together, ranked by the worse band of the two.
+
+| Value | The largest step proposed |
+|---|---|
+| `patch` | keeps the major and minor version, `1.4.2` to `1.4.9` |
+| `minor` | keeps the major version, `1.4.2` to `1.9.0`. Below `1.0`, a minor step counts as major, as npm's and Cargo's caret ranges treat it, so `0.3.0` to `0.4.0` is past `minor` |
+| `major` | any, the lowest release that clears every finding |
+
+The policy changes what is recommended, never the verdict: the gate counts every finding whichever
+action it lands in.
+
+It applies where versions are semantic. A distribution's packages (Debian, Alpine, Red Hat), a
+calendar version, and a Maven version with a qualifier such as `31.1-jre` are not split, and
+`report.json` marks their actions `policyApplies: false`. The fix list counts them once, under its
+heading, by ecosystem. On `python:3.8-slim` scanned as an image the team builds:
+
+```
+  policy minor · not applied to 4 actions · debian 4
+```
+
+A component's `fixes` replaces the project's, and `fixes` has no effect on an action that is not
+an upgrade.
 
 ## Where a repository comes from: URLs and paths
 

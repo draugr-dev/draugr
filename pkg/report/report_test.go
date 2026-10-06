@@ -2023,6 +2023,25 @@ func TestTheExclusionBreakdownStopsNamingFilesAndCountsThem(t *testing.T) {
 	}
 }
 
+// Every path that writes the JSON document carries the fix list, grouped as the console groups it.
+func TestTheJSONReportCarriesTheFixList(t *testing.T) {
+	d := Data{Run: engine.Result{Controls: map[string]plugin.ControlResult{
+		"sca": {Report: sarif.Report{Results: []sarif.Result{
+			{RuleID: "CVE-1", Priority: "P1", Component: "web", Location: sarif.Location{URI: "package-lock.json"},
+				Package: &sarif.Package{Name: "jquery", Version: "1.8.3", FixedVersion: "3.5.0", Ecosystem: "npm"}},
+			{RuleID: "CVE-2", Priority: "P2", Component: "web", Location: sarif.Location{URI: "package-lock.json"},
+				Package: &sarif.Package{Name: "jquery", Version: "1.8.3", FixedVersion: "3.5.0", Ecosystem: "npm"}},
+		}}},
+	}}}
+	acts := d.JSONProvenance().Actions
+	if len(acts) != 1 || acts[0].Control != "sca" || acts[0].Clears != 2 {
+		t.Errorf("the document should carry one upgrade clearing both findings: %+v", acts)
+	}
+	if got := (Data{}).JSONProvenance().Actions; len(got) != 0 {
+		t.Errorf("a run with no findings has nothing to do: %+v", got)
+	}
+}
+
 // Every path that writes the JSON document records the build, not only the -o artifact: the
 // reporter behind --format json and every publisher builds through JSONProvenance.
 func TestTheJSONReportSaysWhichDraugrProducedIt(t *testing.T) {

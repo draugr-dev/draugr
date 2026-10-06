@@ -234,6 +234,13 @@ type sarifProperties struct {
 	// necessarily the one that produced this finding.
 	Exposure    string `json:"exposure,omitempty"`
 	Criticality string `json:"criticality,omitempty"`
+	// Fingerprint is the finding's identity, Result.Fingerprint, written so a reader joining
+	// report.json's actions to the findings they clear needs no copy of how it is computed. Derived
+	// from the result's own fields, so it is not read back.
+	Fingerprint string `json:"fingerprint,omitempty"`
+	// UpgradePolicy is the component's fixes.upgrade, which the fix list splits this finding's
+	// upgrade by. Absent for the default, major.
+	UpgradePolicy string `json:"upgradePolicy,omitempty"`
 	// Labels are the component's own metadata, so a consumer holding many components can narrow to
 	// the ones somebody is answerable for. The organization's vocabulary rather than Draugr's, and
 	// no key here is privileged or read.
@@ -494,6 +501,8 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 			sr.Properties = &sarifProperties{
 				Tool: tool, Control: res.Control, Priority: res.Priority, Component: res.Component,
 				Exposure: res.Exposure, Criticality: res.Criticality, Labels: res.Labels,
+				Fingerprint:   res.Fingerprint(),
+				UpgradePolicy: res.UpgradePolicy,
 				Escalation:    res.Escalation,
 				PriorityFloor: res.PriorityFloor,
 				Repository:    res.Repository, Package: res.Package,
@@ -777,6 +786,7 @@ func FromSARIF(data []byte) (Report, error) {
 				res.Component = sr.Properties.Component
 				res.Exposure = sr.Properties.Exposure
 				res.Criticality = sr.Properties.Criticality
+				res.UpgradePolicy = sr.Properties.UpgradePolicy
 				res.Labels = sr.Properties.Labels
 				res.Repository = sr.Properties.Repository
 				res.Image = sr.Properties.Image

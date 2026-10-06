@@ -58,6 +58,7 @@
           "properties": {
             "component": "python-pdm",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "python",
               "fixedVersion": "0.12.3",

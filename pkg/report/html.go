@@ -55,8 +55,11 @@ type htmlView struct {
 	// filtered either, and these two have to agree: a work list that shrank because somebody
 	// ticked P1 reads as "less to do" rather than "less shown", and it disagrees with the counts
 	// two lines above it with nothing on screen to say why.
-	Actions  []htmlAction
-	External int
+	Actions []htmlAction
+	// PolicyNotes say where fixes.upgrade could not apply, counted over every action. The page's
+	// script recounts them over what a narrowing leaves.
+	PolicyNotes []string
+	External    int
 
 	// Scanned is Repositories as a reader meets them. A report travels, so a repository has to be
 	// named by something that means the same thing wherever it is opened.
@@ -398,8 +401,29 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	// answers to one question.
 	grouped, external := groupActions(s.findings, d.Run.Stats.UnpinnedCacheHits)
 	view.External = len(external)
+	// A finding's action is the one the grouping put it in. An upgrade split by fixes.upgrade puts
+	// findings of one package in two actions, which the finding's own key cannot tell apart.
+	keyOf := map[string]string{}
 	for _, a := range grouped {
-		view.Actions = append(view.Actions, toHTMLAction(a))
+		for _, f := range a.findings {
+			if f.fingerprint != "" {
+				keyOf[f.fingerprint] = a.key
+			}
+		}
+	}
+	for i, f := range s.findings {
+		if k, ok := keyOf[f.fingerprint]; ok && f.fingerprint != "" {
+			view.Findings[i].ActionKey = k
+		}
+	}
+	view.PolicyNotes = policyNotes(grouped)
+	nameComponents := actionsNameComponents(grouped)
+	for _, a := range grouped {
+		ha := toHTMLAction(a)
+		if !nameComponents {
+			ha.Component = ""
+		}
+		view.Actions = append(view.Actions, ha)
 	}
 	view.Signals = htmlSignals(d, s)
 	for _, dec := range decisions(d) {
@@ -624,11 +648,19 @@ type htmlAction struct {
 	Title    string
 	Summary  string
 	Priority string
-	Control  string
-	Clears   int
-	Upstream bool
-	Cached   bool
-	Where    string
+	// Component the action belongs to, set only where the list spans more than one.
+	Component string
+	// Policy marks a step past the component's fixes.upgrade, "major · beyond policy minor".
+	Policy string
+	// NotApplied is the policy that could not apply to this action, and Ecosystem the ecosystem it
+	// is in, for the note counting such actions. Both empty for every other action.
+	NotApplied string
+	Ecosystem  string
+	Control    string
+	Clears     int
+	Upstream   bool
+	Cached     bool
+	Where      string
 }
 
 // toHTMLAction renders an action the way the console renders one, so the two agree line for line.
@@ -640,7 +672,8 @@ func toHTMLAction(a action) htmlAction {
 		title += " → " + v
 	}
 	out := htmlAction{
-		Key: a.key, Title: title, Summary: a.summary, Priority: a.priority, Control: a.control,
+		Key: a.key, Title: title, Summary: a.summary, Priority: a.priority,
+		Component: a.component, Control: a.control, Policy: a.step.label(),
 		Clears: a.count(), Upstream: a.upstream, Cached: a.cached,
 	}
 	if out.Priority == "" {
@@ -649,6 +682,9 @@ func toHTMLAction(a action) htmlAction {
 	// Not for an image action: the image is the title, and repeating it underneath says nothing.
 	if !a.upstream {
 		out.Where = strings.Join(a.where(2), " · ")
+	}
+	if a.step != nil && !a.step.applies {
+		out.NotApplied, out.Ecosystem = string(a.step.policy), ecosystemName(a)
 	}
 	return out
 }
@@ -1590,13 +1626,14 @@ about what they would have found. For everything the tool printed, re-run with
   <h3 class="sub js-off">What to do</h3>
   <p class="note">One row per thing to do rather than per finding.</p>
   {{template "listbar"}}
+  <div class="note" id="policy-na"{{if not .PolicyNotes}} hidden{{end}}>{{range .PolicyNotes}}<div>{{.}}</div>{{end}}</div>
   <div class="rows" id="acts">
-  {{range .Actions}}<div class="act" data-a="{{.Key}}" data-title="{{.Title}}">
+  {{range .Actions}}<div class="act" data-a="{{.Key}}" data-title="{{.Title}}"{{if .NotApplied}} data-na="{{.NotApplied}}" data-eco="{{.Ecosystem}}"{{end}}>
     <span class="chips"><span class="pri {{.Priority}}">{{.Priority}}</span></span>
     <div class="what">
-      <div class="rule"><span class="name">{{.Title}}</span></div>
+      <div class="rule"><span class="name">{{.Title}}</span>{{if .Policy}} <span class="faint">{{.Policy}}</span>{{end}}</div>
       {{if .Summary}}<div class="sub">{{.Summary}}</div>{{end}}
-      <div class="sub"><span class="lbl">control</span> {{.Control}}<span class="faint"> · </span><button type="button" class="act-clears" data-a="{{.Key}}" data-title="{{.Title}}">{{plural .Clears "finding"}}</button>{{if .Upstream}}<span class="faint"> · </span>upstream{{end}}{{if .Cached}}<span class="faint"> · </span>from cache{{end}}{{if .Where}}<span class="faint"> · </span>{{.Where}}{{end}}</div>
+      <div class="sub">{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}<span class="lbl">control</span> {{.Control}}<span class="faint"> · </span><button type="button" class="act-clears" data-a="{{.Key}}" data-title="{{.Title}}">{{plural .Clears "finding"}}</button>{{if .Upstream}}<span class="faint"> · </span>upstream{{end}}{{if .Cached}}<span class="faint"> · </span>from cache{{end}}{{if .Where}}<span class="faint"> · </span>{{.Where}}{{end}}</div>
     </div>
   </div>{{end}}
   {{template "paging"}}
@@ -2144,6 +2181,31 @@ about what they would have found. For everything the tool printed, re-run with
     tokenBox.appendChild(t);
   }
 
+  // Where fixes.upgrade could not apply, counted over the actions a narrowing leaves, as the list's
+  // own count is, and gone when it leaves none.
+  var naNote = document.getElementById("policy-na");
+  function policyNote() {
+    if (!naNote) return;
+    var by = {};
+    acts.forEach(function (a) {
+      var p = a.el.dataset.na;
+      if (!a.ok || !p) return;
+      by[p] = by[p] || {};
+      by[p][a.el.dataset.eco] = (by[p][a.el.dataset.eco] || 0) + 1;
+    });
+    while (naNote.firstChild) naNote.removeChild(naNote.firstChild);
+    ["patch", "minor", "major"].forEach(function (p) {
+      if (!by[p]) return;
+      var names = Object.keys(by[p]).sort(function (x, y) { return by[p][y] - by[p][x] || (x < y ? -1 : 1); });
+      var n = names.reduce(function (sum, e) { return sum + by[p][e]; }, 0);
+      var line = document.createElement("div");
+      line.textContent = ["policy " + p, "not applied to " + counted(n, "action")]
+        .concat(names.map(function (e) { return e + " " + by[p][e]; })).join(" · ");
+      naNote.appendChild(line);
+    });
+    naNote.hidden = !naNote.firstChild;
+  }
+
   function render() {
     rows.forEach(function (r) { r.ok = passes(r) && searched(r) && inAction(r); });
     // Under a narrowing each action says how many of its findings are left, and one with none
@@ -2155,6 +2217,7 @@ about what they would have found. For everything the tool printed, re-run with
       a.count.textContent = (n === a.total ? "" : n + " of ") + counted(a.total, "finding");
     });
     panels.forEach(paint);
+    policyNote();
 
     var folded = 0;
     dims.forEach(function (d) {

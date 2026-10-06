@@ -109,3 +109,38 @@ func TestStampingNeverClearsWhatAScannerAlreadyKnew(t *testing.T) {
 		t.Error("a scanner's own answer was overwritten by a target that does not declare one")
 	}
 }
+
+// A dependency finding carries its component's upgrade policy, so a report read back without the
+// descriptor splits the same upgrades. Two components, because the policy is per component, and a
+// finding about no package carries none, since nothing about it is upgraded.
+func TestDependencyFindingsCarryTheirComponentsUpgradePolicy(t *testing.T) {
+	e := &Engine{}
+	pkg := &sarif.Package{Name: "jquery", Version: "1.8.3", FixedVersion: "3.5.0"}
+	report := sarif.Report{Results: []sarif.Result{{RuleID: "CVE-1", Package: pkg}, {RuleID: "KSV-0014"}}}
+	for _, c := range []struct {
+		pj   PlannedJob
+		want string
+	}{
+		{PlannedJob{Component: "web", UpgradePolicy: saga.UpgradeMinor}, "minor"},
+		{PlannedJob{Component: "admin"}, ""},
+	} {
+		got := e.stampJobFields(report, c.pj)
+		if got.Results[0].UpgradePolicy != c.want || got.Results[1].UpgradePolicy != "" {
+			t.Errorf("%s: carried %q and %q, want %q on the dependency finding only",
+				c.pj.Component, got.Results[0].UpgradePolicy, got.Results[1].UpgradePolicy, c.want)
+		}
+	}
+	// Planned from the descriptor: the component's own policy, else the project's, and none for
+	// the default.
+	var planned []PlannedJob
+	model := saga.Model{Config: saga.Config{Fixes: &saga.FixesConfig{Upgrade: saga.UpgradeMinor}}}
+	web := saga.Component{Name: "web", Fixes: &saga.FixesConfig{Upgrade: saga.UpgradePatch}}
+	api := saga.Component{Name: "api"}
+	legacy := saga.Component{Name: "legacy", Fixes: &saga.FixesConfig{Upgrade: saga.UpgradeMajor}}
+	for _, comp := range []*saga.Component{&web, &api, &legacy} {
+		planned = appendJobs(planned, "sca", comp, comp.UpgradePolicy(model.Config), []plugin.ScanJob{{}})
+	}
+	if planned[0].UpgradePolicy != saga.UpgradePatch || planned[1].UpgradePolicy != saga.UpgradeMinor || planned[2].UpgradePolicy != "" {
+		t.Errorf("planned policies = %q, %q, %q", planned[0].UpgradePolicy, planned[1].UpgradePolicy, planned[2].UpgradePolicy)
+	}
+}

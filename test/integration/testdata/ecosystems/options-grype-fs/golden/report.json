@@ -1,4 +1,68 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "by-advisory",
+      "control": "sca",
+      "ecosystem": "python",
+      "findings": "<cleared>",
+      "fixedVersions": [
+        "5.4"
+      ],
+      "from": "5.3.1",
+      "id": "59a67d734239c5a2",
+      "locations": [
+        {
+          "kind": "manifest",
+          "line": 1,
+          "path": "by-advisory/requirements.txt",
+          "repository": "./options-grype-fs"
+        }
+      ],
+      "package": "pyyaml",
+      "priority": "P1",
+      "ruleIds": [
+        "GHSA-8q59-q68h-6hv4-pyyaml"
+      ],
+      "target": "5.4",
+      "title": "Upgrade pyyaml 5.3.1",
+      "versioning": "pypi",
+      "where": [
+        "by-advisory/requirements.txt:1"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "default",
+      "control": "sca",
+      "ecosystem": "python",
+      "findings": "<cleared>",
+      "fixedVersions": [
+        "5.4"
+      ],
+      "from": "5.3.1",
+      "id": "fbf7df69491260cb",
+      "locations": [
+        {
+          "kind": "manifest",
+          "line": 1,
+          "path": "default/requirements.txt",
+          "repository": "./options-grype-fs"
+        }
+      ],
+      "package": "pyyaml",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2020-14343-pyyaml"
+      ],
+      "target": "5.4",
+      "title": "Upgrade pyyaml 5.3.1",
+      "versioning": "pypi",
+      "where": [
+        "default/requirements.txt:1"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 2,

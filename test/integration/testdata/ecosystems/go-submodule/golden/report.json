@@ -1,4 +1,83 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "go-submodule",
+      "control": "sca",
+      "ecosystem": "gomod",
+      "findings": "<cleared>",
+      "fixedVersions": [
+        "v1.6.6"
+      ],
+      "from": "v1.6.5",
+      "id": "9488d49b143eee0c",
+      "locations": [
+        {
+          "kind": "manifest",
+          "line": 5,
+          "path": "service/go.mod",
+          "repository": "./go-submodule"
+        }
+      ],
+      "package": "github.com/tidwall/gjson",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2020-36067"
+      ],
+      "target": "v1.6.6",
+      "title": "Upgrade github.com/tidwall/gjson v1.6.5",
+      "versioning": "go",
+      "where": [
+        "service/go.mod:5"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "go-submodule",
+      "control": "sast",
+      "findings": "<cleared>",
+      "id": "1bd635d5d6af5757",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 20,
+          "path": "service/main.go",
+          "repository": "./go-submodule"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "G702"
+      ],
+      "title": "Fix G702 “Command injection via taint analysis”",
+      "where": [
+        "service/main.go:20"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "go-submodule",
+      "control": "sast",
+      "findings": "<cleared>",
+      "id": "553d8004f951980d",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 20,
+          "path": "service/main.go",
+          "repository": "./go-submodule"
+        }
+      ],
+      "priority": "P2",
+      "ruleIds": [
+        "G204"
+      ],
+      "title": "Fix G204 “Subprocess launched with a potential tainted input or cmd arg…",
+      "where": [
+        "service/main.go:20"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

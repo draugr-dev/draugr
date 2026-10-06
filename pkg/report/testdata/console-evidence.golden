@@ -4,13 +4,13 @@ DRAUGR  FAIL  draugr-demo 0.0.0  34.5s
 
 WHAT TO DO  5 actions clear 6 findings
   P1  Upgrade jinja2 2.10 → 2.11.3
-      control sca · 2 findings · app/requirements.txt:5 · CVE-2019-10906 +1
+      component payments · control sca · 2 findings · app/requirements.txt:5 · CVE-2019-10906 +1
   P1  Fix CVE-2019-20477 “PyYAML: command execution through python/object/app…
-      control sca · 1 finding · app/requirements.txt:4 · CVE-2019-20477
+      component payments · control sca · 1 finding · app/requirements.txt:4 · CVE-2019-20477
   P1  Fix DS-0002 “Image user should not be 'root'”
-      control iac · 1 finding · app/Dockerfile:1 · DS-0002
+      component payments · control iac · 1 finding · app/Dockerfile:1 · DS-0002
   P2  Fix CVE-2018-1000656 “python-flask: Denial of Service via crafted JSON…
-      control sca · 1 finding · app/requirements.txt:2 · CVE-2018-1000656
+      component internal-tool · control sca · 1 finding · app/requirements.txt:2 · CVE-2018-1000656
   P2  Fix tainted-sql-string
       Detected user input flowing into a raw SQL string
       control sast · 1 finding · app/main.py:42 · …tainted-sql-string.tainted-sql-string

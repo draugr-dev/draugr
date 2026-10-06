@@ -57,6 +57,7 @@
           "properties": {
             "component": "polyglot-unlocked",
             "control": "sca",
+            "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "pip",
               "fixedVersion": "0.12.3",

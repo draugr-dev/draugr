@@ -34,6 +34,7 @@
           "properties": {
             "component": "by-advisory",
             "control": "images",
+            "fingerprint": "<cleared>",
             "image": "127.0.0.1:18080/options-grype:1.0",
             "package": {
               "ecosystem": "python",
@@ -68,6 +69,7 @@
           "properties": {
             "component": "default",
             "control": "images",
+            "fingerprint": "<cleared>",
             "image": "127.0.0.1:18080/options-grype:1.0",
             "package": {
               "ecosystem": "python",

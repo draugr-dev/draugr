@@ -127,6 +127,9 @@ type Config struct {
 	DependencyHealth *DependencyHealthConfig `yaml:"dependencyHealth,omitempty"`
 	// CI sets what a run records about the continuous-integration job it ran in.
 	CI *CIConfig `yaml:"ci,omitempty"`
+	// Fixes shapes what the fix list recommends: how large a version step an upgrade action may
+	// propose. It changes the advice and never the gate, which counts every finding either way.
+	Fixes *FixesConfig `yaml:"fixes,omitempty"`
 	// AllowEffects acknowledges scanner effects that would otherwise stop a run, the kinds a scanner
 	// declares when it does more to a target than read it ("mutate", "privilege").
 	//
@@ -783,7 +786,9 @@ type Component struct {
 	// Here as well as on each target because a component that is entirely somebody else's software, a
 	// vendor console, an open-source service you run from source. Otherwise needs the field written
 	// on every repository and every image, and a target added later silently defaults back to `self`.
-	BuiltBy      BuiltBy      `yaml:"builtBy,omitempty"`
+	BuiltBy BuiltBy `yaml:"builtBy,omitempty"`
+	// Fixes overrides config.fixes for this component's findings.
+	Fixes        *FixesConfig `yaml:"fixes,omitempty"`
 	Repositories []Repository `yaml:"repositories,omitempty"`
 	Images       []Image      `yaml:"images,omitempty"`
 	Hosts        []Host       `yaml:"hosts,omitempty"`
@@ -978,6 +983,41 @@ const (
 
 // Valid reports whether the value is one Draugr defines.
 func (b BuiltBy) Valid() bool { return b == BuiltBySelf || b == BuiltByUpstream }
+
+// FixesConfig is what the fix list may recommend.
+type FixesConfig struct {
+	// Upgrade is the largest version step an upgrade action proposes: patch, minor or major.
+	// Findings only a larger step clears get an action of their own, marked beyond the policy.
+	Upgrade UpgradeStep `yaml:"upgrade,omitempty"`
+}
+
+// UpgradeStep is a size of version change, by which number of a semantic version moves.
+type UpgradeStep string
+
+// Upgrade steps, smallest first.
+const (
+	UpgradePatch UpgradeStep = "patch"
+	UpgradeMinor UpgradeStep = "minor"
+	UpgradeMajor UpgradeStep = "major"
+)
+
+// UpgradeSteps are the values fixes.upgrade accepts, smallest first.
+var UpgradeSteps = []UpgradeStep{UpgradePatch, UpgradeMinor, UpgradeMajor}
+
+// Valid reports whether u is a known upgrade step. Empty is not valid here; it means unset.
+func (u UpgradeStep) Valid() bool { return slices.Contains(UpgradeSteps, u) }
+
+// UpgradePolicy is the largest version step the fix list may propose for this component's
+// findings: the component's own fixes.upgrade, else the project's, else major.
+func (comp Component) UpgradePolicy(cfg Config) UpgradeStep {
+	if comp.Fixes != nil && comp.Fixes.Upgrade != "" {
+		return comp.Fixes.Upgrade
+	}
+	if cfg.Fixes != nil && cfg.Fixes.Upgrade != "" {
+		return cfg.Fixes.Upgrade
+	}
+	return UpgradeMajor
+}
 
 // BuiltByValues are the values builtBy accepts.
 var BuiltByValues = []BuiltBy{BuiltBySelf, BuiltByUpstream}

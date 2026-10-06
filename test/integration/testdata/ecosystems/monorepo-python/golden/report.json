@@ -1,4 +1,92 @@
 {
+  "actions": [
+    {
+      "clears": 1,
+      "component": "api",
+      "control": "sca",
+      "ecosystem": "poetry",
+      "findings": "<cleared>",
+      "fixedVersions": [
+        "0.12.3"
+      ],
+      "from": "0.12.2",
+      "id": "e18f8d99804259c9",
+      "locations": [
+        {
+          "kind": "lockfile",
+          "line": 16,
+          "path": "services/api/poetry.lock",
+          "repository": "./monorepo-python"
+        }
+      ],
+      "package": "flask",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2018-1000656"
+      ],
+      "target": "0.12.3",
+      "title": "Upgrade flask 0.12.2",
+      "versioning": "pypi",
+      "where": [
+        "services/api/poetry.lock:16"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "tools",
+      "control": "sca",
+      "ecosystem": "pip",
+      "findings": "<cleared>",
+      "fixedVersions": [
+        "0.12.3"
+      ],
+      "from": "0.12.2",
+      "id": "eb54249e15430a68",
+      "locations": [
+        {
+          "kind": "manifest",
+          "line": 2,
+          "path": "services/tools/requirements.txt",
+          "repository": "./monorepo-python"
+        }
+      ],
+      "package": "Flask",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2018-1000656"
+      ],
+      "target": "0.12.3",
+      "title": "Upgrade Flask 0.12.2",
+      "versioning": "pypi",
+      "where": [
+        "services/tools/requirements.txt:2"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "legacy",
+      "control": "sast",
+      "findings": "<cleared>",
+      "id": "c17d71e5e8c69d79",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 7,
+          "path": "services/legacy/app.py",
+          "repository": "./monorepo-python"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "draugr-fixture-os-popen"
+      ],
+      "summary": "os.popen runs its argument through a shell",
+      "title": "Fix draugr-fixture-os-popen",
+      "where": [
+        "services/legacy/app.py:7"
+      ]
+    }
+  ],
   "controls": [
     {
       "errors": 1,

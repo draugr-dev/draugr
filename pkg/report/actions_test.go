@@ -729,7 +729,7 @@ func TestAnActionCarriesEveryFindingItClears(t *testing.T) {
 			Tool: "trivy", Component: "api", Location: sarif.Location{URI: fmt.Sprintf("svc%d/requirements.txt", i), StartLine: 3},
 			Package: &sarif.Package{Name: "flask", Ecosystem: "pypi", Version: "0.12.2", FixedVersion: "2.3.2"}})
 	}
-	images := sarif.Result{RuleID: "CVE-9", Priority: "P1", Level: sarif.LevelError, Tool: "grype", Component: "web",
+	images := sarif.Result{RuleID: "CVE-9", Priority: "P1", Level: sarif.LevelError, Tool: "grype", Component: "api",
 		Location: sarif.Location{URI: "requirements.txt"},
 		Package:  &sarif.Package{Name: "flask", Ecosystem: "pypi", Version: "0.12.2", FixedVersion: "2.3.2"}}
 	rule := func(loc string) sarif.Result {
@@ -754,7 +754,7 @@ func TestAnActionCarriesEveryFindingItClears(t *testing.T) {
 	}
 	first := upgrade.Findings[0]
 	want := ActionFinding{Control: "images", RuleID: "CVE-9", Tool: "grype", Priority: "P1",
-		Severity: sarif.SeverityHigh, Component: "web", Location: "requirements.txt",
+		Severity: sarif.SeverityHigh, Component: "api", Location: "requirements.txt",
 		HelpURI:     "https://nvd.nist.gov/vuln/detail/CVE-9",
 		Fingerprint: images.Fingerprint(), Upgrade: "flask 0.12.2 → 2.3.2"}
 	if first != want {
@@ -765,5 +765,264 @@ func TestAnActionCarriesEveryFindingItClears(t *testing.T) {
 	}
 	if len(byRule.Findings) != 2 || byRule.Findings[0].Control != "iac" {
 		t.Errorf("rule findings = %+v", byRule.Findings)
+	}
+}
+
+// TestADependencyIsOneActionPerComponent: two components carrying the same library are two owners,
+// and a row naming both could be handed to neither.
+func TestADependencyIsOneActionPerComponent(t *testing.T) {
+	web := pkgFinding("sca", "CVE-1", "P1", "web/package-lock.json:12", "jquery", "1.8.3", "1.12.2")
+	web.component = "web"
+	admin := pkgFinding("sca", "CVE-1", "P2", "admin/package-lock.json:30", "jquery", "1.8.3", "1.12.2")
+	admin.component = "admin"
+	got, _ := groupActions([]finding{web, admin}, nil)
+	if len(got) != 2 {
+		t.Fatalf("one library in two components is two actions, got %d: %+v", len(got), got)
+	}
+	if got[0].component != "web" || got[1].component != "admin" {
+		t.Errorf("each action should belong to one component, most urgent first: %q, %q",
+			got[0].component, got[1].component)
+	}
+	exported := ActionsFor(map[string]sarif.Report{"sca": {Results: []sarif.Result{
+		{RuleID: "CVE-1", Priority: "P1", Component: "web", Location: sarif.Location{URI: "web/package-lock.json"},
+			Package: &sarif.Package{Name: "jquery", Version: "1.8.3", FixedVersion: "1.12.2"}},
+		{RuleID: "CVE-1", Priority: "P2", Component: "admin", Location: sarif.Location{URI: "admin/package-lock.json"},
+			Package: &sarif.Package{Name: "jquery", Version: "1.8.3", FixedVersion: "1.12.2"}},
+	}}})
+	if len(exported) != 2 || exported[0].Component != "web" || exported[1].Component != "admin" {
+		t.Errorf("the exported actions should carry their component: %+v", exported)
+	}
+}
+
+// TestTwoInstalledVersionsAreTwoActions: a title names the version in hand, so a row folding a
+// second copy at another version is wrong about that copy.
+func TestTwoInstalledVersionsAreTwoActions(t *testing.T) {
+	got, _ := groupActions([]finding{
+		pkgFinding("sca", "CVE-1", "P1", "package-lock.json:12", "jquery", "1.8.3", "1.12.2"),
+		pkgFinding("sca", "CVE-2", "P2", "static/jquery-3.4.0.min.js", "jquery", "3.4.0", "3.5.0"),
+	}, nil)
+	if len(got) != 2 {
+		t.Fatalf("two installed versions are two actions, got %d: %+v", len(got), got)
+	}
+	titles := []string{got[0].title + " → " + got[0].target(), got[1].title + " → " + got[1].target()}
+	want := []string{"Upgrade jquery 1.8.3 → 1.12.2", "Upgrade jquery 3.4.0 → 3.5.0"}
+	if !reflect.DeepEqual(titles, want) {
+		t.Errorf("titles = %q, want %q", titles, want)
+	}
+}
+
+// TestTheSamePathInTwoRepositoriesIsTwoPlaces: paths are repository-relative, so two
+// repositories' lockfiles share a path and are still two files to edit.
+func TestTheSamePathInTwoRepositoriesIsTwoPlaces(t *testing.T) {
+	a := pkgFinding("sca", "CVE-1", "P1", "package-lock.json:12", "jquery", "1.8.3", "1.12.2")
+	a.component, a.repository = "web", "https://github.com/acme/web-ui"
+	b := pkgFinding("sca", "CVE-1", "P1", "package-lock.json:12", "jquery", "1.8.3", "1.12.2")
+	b.component, b.repository = "web", "https://github.com/acme/web-legacy"
+	got, _ := groupActions([]finding{a, b}, nil)
+	if len(got) != 1 {
+		t.Fatalf("one component, one version, one upgrade: got %d", len(got))
+	}
+	where := got[0].where(5)
+	want := []string{"acme/web-ui package-lock.json:12", "acme/web-legacy package-lock.json:12"}
+	if !reflect.DeepEqual(where, want) {
+		t.Errorf("where = %q, want %q", where, want)
+	}
+	if n := countDistinct(got[0].findings); n != 2 {
+		t.Errorf("two repositories are two places, counted %d", n)
+	}
+
+	// One repository names none: every location would carry the same prefix.
+	got, _ = groupActions([]finding{a}, nil)
+	if where := got[0].where(5); !reflect.DeepEqual(where, []string{"package-lock.json:12"}) {
+		t.Errorf("a single repository should not prefix its locations: %q", where)
+	}
+}
+
+// TestAVendoredCopyIsMarked: bumping a lockfile leaves a copy of the library beside it untouched,
+// so the row says which locations are copies.
+func TestAVendoredCopyIsMarked(t *testing.T) {
+	got, _ := groupActions([]finding{
+		pkgFinding("sca", "CVE-1", "P1", "package-lock.json:12", "jquery", "1.8.3", "1.12.2"),
+		pkgFinding("sca", "CVE-2", "P1", "static/js/jquery.min.js", "jquery", "1.8.3", "1.12.2"),
+		pkgFinding("images", "CVE-3", "P1", "acme/api:1.0", "libssl3", "3.0.1", "3.0.2"),
+	}, nil)
+	var where []string
+	for _, a := range got {
+		where = append(where, a.where(5)...)
+	}
+	want := []string{"package-lock.json:12", "static/js/jquery.min.js vendored", "acme/api:1.0"}
+	if !reflect.DeepEqual(where, want) {
+		t.Errorf("where = %q, want %q", where, want)
+	}
+}
+
+// TestComponentsAreNamedOnlyWhenTheyDiffer: one component on every row says nothing a reader can
+// use, so the label appears once the list spans two.
+func TestComponentsAreNamedOnlyWhenTheyDiffer(t *testing.T) {
+	one := []action{{component: "web"}, {component: "web"}, {}}
+	if actionsNameComponents(one) {
+		t.Error("a list with one component should not name it")
+	}
+	two := []action{{component: "web"}, {}, {component: "admin"}}
+	if !actionsNameComponents(two) {
+		t.Error("a list spanning two components should name them")
+	}
+}
+
+// TestALongDetailGivesWayInOrder: where a detail does not fit, the second location goes first, then
+// the directories in front of the first, then the rule reference. The file name and the count of
+// what is not named stay, because they say what to edit and that there is more than one place.
+func TestALongDetailGivesWayInOrder(t *testing.T) {
+	one := action{findings: []finding{{ruleID: "CVE-2018-1000656", location: "services/payments/app/requirements.txt:2"}}}
+	two := action{findings: append(append([]finding{}, one.findings...),
+		finding{ruleID: "CVE-2018-1000656", location: "worker/requirements.txt:2"})}
+	for _, c := range []struct {
+		name string
+		a    action
+		room int
+		want string
+	}{
+		{"everything fits", two, 120,
+			"services/payments/app/requirements.txt:2 · worker/requirements.txt:2 · CVE-2018-1000656 +1"},
+		{"the second location is counted", two, 80,
+			"services/payments/app/requirements.txt:2 · and 1 more · CVE-2018-1000656 +1"},
+		{"directories go before the rule", two, 55,
+			"…/requirements.txt:2 · and 1 more · CVE-2018-1000656 +1"},
+		{"directories go whole", one, 45,
+			"…/app/requirements.txt:2 · CVE-2018-1000656"},
+		{"the rule goes before the file name", two, 36,
+			"…/requirements.txt:2 · and 1 more"},
+		{"narrower than a file name cuts the first part", two, 12,
+			elide("services/payments/app/requirements.txt:2", minTitleWidth)},
+		{"whole parts while they fit", action{findings: []finding{
+			{ruleID: "CVE-1", location: "requirements.txt:2"}, {ruleID: "CVE-1", location: "setup.cfg:9"},
+		}}, 20, "requirements.txt:2"},
+	} {
+		if got := fitDetail(tui.Plain(), c.a, c.room, 2); got != c.want {
+			t.Errorf("%s: fitDetail(room %d) = %q, want %q", c.name, c.room, got, c.want)
+		}
+		if strings.HasSuffix(fitDetail(tui.Plain(), c.a, c.room, 2), "·…") {
+			t.Errorf("%s: a detail should never end on a cut separator", c.name)
+		}
+	}
+}
+
+func TestClipDirsKeepsTheFileName(t *testing.T) {
+	for _, c := range []struct {
+		in    string
+		width int
+		want  string
+		ok    bool
+	}{
+		{"a/b/c/requirements.txt:2", 20, "…/requirements.txt:2", true},
+		{"a/b/c/requirements.txt:2", 22, "…/c/requirements.txt:2", true},
+		{"app/static/js/jquery.min.js vendored", 30, "…/js/jquery.min.js vendored", true},
+		{"a/requirements.txt:2", 10, "", false},
+		{"requirements.txt:2", 10, "", false},
+	} {
+		got, ok := clipDirs(c.in, c.width)
+		if got != c.want || ok != c.ok {
+			t.Errorf("clipDirs(%q, %d) = %q, %v, want %q, %v", c.in, c.width, got, ok, c.want, c.ok)
+		}
+	}
+}
+
+// TestAnExportedActionNamesItsDependencyAndEachPlace: report.json and MCP carry what a reader
+// needs to act without parsing a title, and every place the action applies, with what kind of edit
+// each one is.
+func TestAnExportedActionNamesItsDependencyAndEachPlace(t *testing.T) {
+	jq := func(fixed string) *sarif.Package {
+		return &sarif.Package{Name: "jquery", Version: "1.8.3", FixedVersion: fixed, Ecosystem: "npm"}
+	}
+	got := ActionsFor(map[string]sarif.Report{
+		"sca": {Results: []sarif.Result{
+			{RuleID: "CVE-1", Priority: "P1", Component: "web", Repository: "https://github.com/acme/web",
+				Location: sarif.Location{URI: "web/package-lock.json", StartLine: 12}, Package: jq("3.5.0")},
+			{RuleID: "CVE-2", Priority: "P2", Component: "web", Repository: "https://github.com/acme/web",
+				Location: sarif.Location{URI: "web/static/js/jquery.min.js"}, Package: jq("1.9.0")},
+			{RuleID: "CVE-3", Priority: "P2", Component: "web", Repository: "https://github.com/acme/web",
+				Location: sarif.Location{URI: "web/package.json", StartLine: 4}, Package: jq("3.5.0")},
+		}},
+		"sast": {Results: []sarif.Result{
+			{RuleID: "python.exec", Priority: "P3", Component: "web", Location: sarif.Location{URI: "setup.py", StartLine: 3}},
+		}},
+		"licenses": {Results: []sarif.Result{
+			{RuleID: "license/0BSD/tslib", Priority: "P4", Component: "web", Location: sarif.Location{URI: "yarn.lock"}},
+		}},
+		"images": {Results: []sarif.Result{
+			{RuleID: "CVE-4", Priority: "P2", Component: "web", Location: sarif.Location{URI: "redis:7"},
+				Package: &sarif.Package{Name: "libssl3", Version: "3.0.1", FixedVersion: "3.0.2", Ecosystem: "debian"}},
+		}},
+	})
+	byPackage := map[string]Action{}
+	for _, a := range got {
+		byPackage[a.Package+"|"+a.Control] = a
+	}
+
+	up := byPackage["jquery|sca"]
+	if up.Ecosystem != "npm" || up.From != "1.8.3" || up.Target != "3.5.0" || up.Component != "web" {
+		t.Errorf("the upgrade should name its dependency and both versions: %+v", up)
+	}
+	wantLocs := []ActionLocation{
+		{Repository: "https://github.com/acme/web", Path: "web/package-lock.json", Line: 12, Kind: "lockfile"},
+		{Repository: "https://github.com/acme/web", Path: "web/package.json", Line: 4, Kind: "manifest"},
+		{Repository: "https://github.com/acme/web", Path: "web/static/js/jquery.min.js", Kind: "vendored"},
+	}
+	if !reflect.DeepEqual(up.Locations, wantLocs) {
+		t.Errorf("locations = %+v\nwant %+v", up.Locations, wantLocs)
+	}
+	if len(up.Fingerprints) != 3 || up.Fingerprints[0] == "" || up.Fingerprints[0] != up.Findings[0].Fingerprint {
+		t.Errorf("the action should name each finding by its fingerprint, in its own order: %q", up.Fingerprints)
+	}
+
+	if img := byPackage["libssl3|images"]; len(img.Locations) != 1 ||
+		img.Locations[0] != (ActionLocation{Path: "redis:7", Kind: "image"}) {
+		t.Errorf("an image reference is one place of kind image, its tag left whole: %+v", img.Locations)
+	}
+	for _, a := range got {
+		switch a.Control {
+		case "sast":
+			if a.Package != "" || a.Locations[0].Kind != "file" {
+				t.Errorf("a SAST finding in setup.py is about the code, not a dependency: %+v", a)
+			}
+		case "licenses":
+			if a.Locations[0].Kind != "lockfile" {
+				t.Errorf("a package's license read from yarn.lock is in a lockfile: %+v", a.Locations)
+			}
+		}
+	}
+}
+
+// TestAnActionIDIsStableAndSaysWhatItMovesTo: the same findings give the same ID on the next run,
+// and a different component or target is a different action.
+func TestAnActionIDIsStableAndSaysWhatItMovesTo(t *testing.T) {
+	run := func(component, fixed string) string {
+		return ActionsFor(map[string]sarif.Report{"sca": {Results: []sarif.Result{
+			{RuleID: "CVE-1", Priority: "P1", Component: component, Location: sarif.Location{URI: "package-lock.json"},
+				Package: &sarif.Package{Name: "jquery", Version: "1.8.3", FixedVersion: fixed, Ecosystem: "npm"}},
+		}}})[0].ID
+	}
+	first := run("web", "3.5.0")
+	if len(first) != 16 {
+		t.Errorf("id = %q, want sixteen hex characters", first)
+	}
+	if again := run("web", "3.5.0"); again != first {
+		t.Errorf("the same action should keep its id: %q, then %q", first, again)
+	}
+	if run("admin", "3.5.0") == first || run("web", "3.6.0") == first {
+		t.Error("another component or another target should be another id")
+	}
+}
+
+// TestFindingsThatRankAlikeKeepOneOrder: a scanner that reports concurrently writes its findings in
+// a different order on every run, and the list has to come out the same either way.
+func TestFindingsThatRankAlikeKeepOneOrder(t *testing.T) {
+	a := finding{control: "secrets", ruleID: "generic-api-key", priority: "P1", component: "api", location: "shared.env:1"}
+	b := finding{control: "secrets", ruleID: "generic-api-key", priority: "P1", component: "api", location: "api.env:1"}
+	one, two := []finding{a, b}, []finding{b, a}
+	sortFindings(one)
+	sortFindings(two)
+	if !reflect.DeepEqual(one, two) || one[0].location != "api.env:1" {
+		t.Errorf("findings that rank alike should sort by place: %+v, then %+v", one, two)
 	}
 }
