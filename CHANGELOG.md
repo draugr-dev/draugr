@@ -16,11 +16,11 @@ _Nothing yet._
 
 ### Added
 
-- **`draugr scan` and `draugr doctor` check a descriptor against the organization's policy** on the `draugr-api` server it publishes to, before any scanner starts. A broken rule in force refuses the run or fails its gate, `doctor` lists every rule that applies, and `--policy` makes a check that could not run an error.
+- **`draugr scan` and `draugr doctor` check a descriptor against the organization's policy** on the `draugr-api` server it publishes to, before any scanner starts. A broken rule in force refuses the run or fails its gate. `doctor` lists every rule that applies, and `--policy` makes a check that could not run an error.
 
 ### Fixed
 
-- **The `summarize_report` MCP tool describes `report.json` as it is**, the verdict and the fix list with each finding named by its fingerprint, where it had said the file holds no findings.
+- **The `summarize_report` MCP tool no longer says `report.json` holds no findings**; it describes the file as the verdict and the fix list, with each finding named by its fingerprint.
 
 ## [0.148.0] - 2026-10-05
 
