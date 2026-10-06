@@ -3,6 +3,7 @@ package scanners
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -40,7 +41,7 @@ func TestGovulncheckArgsRunsOncePerModule(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	got := govulncheckArgs(root, plugin.Config{})
+	got := govulncheckArgs(root, nil, plugin.Config{})
 	if len(got) != 2 {
 		t.Fatalf("got %d commands, want one per real module: %v", len(got), got)
 	}
@@ -57,8 +58,69 @@ func TestGovulncheckArgsRunsOncePerModule(t *testing.T) {
 	}
 }
 
+// Components carved out of one module are each analyzed from their own packages, so the silence of
+// a run from cmd/api is a verdict about cmd/api. A path that starts no package leaves the module
+// analyzed whole, as it was before a component could name where to start.
+func TestGovulncheckPatternsStartFromTheComponentsOwnPackages(t *testing.T) {
+	root := t.TempDir()
+	for _, f := range []string{
+		"go.mod", "main.go", "cmd/api/main.go", "cmd/admin/main.go", "internal/store/store.go",
+		"cmd/testsonly/x_test.go", "web/index.html", "tools/go.mod", "tools/gen/main.go",
+		"services/api/go.mod", "services/api/main.go",
+	} {
+		path := filepath.Join(root, filepath.FromSlash(f))
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("package x\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mods := goModuleDirs(root)
+	in := func(mod string) string { return filepath.Join(root, filepath.FromSlash(mod)) }
+	for _, c := range []struct {
+		name, mod string
+		entry     []string
+		want      []string
+	}{
+		{"no entry", ".", nil, []string{"./..."}},
+		{"a command and the manifest", ".", []string{"go.mod", "cmd/api"}, []string{"./cmd/api/..."}},
+		{"written with a dot and a slash", ".", []string{"./cmd/api/"}, []string{"./cmd/api/..."}},
+		{"a file starts its package", ".", []string{"cmd/api/main.go"}, []string{"./cmd/api"}},
+		{"a file at the module root", ".", []string{"main.go"}, []string{"."}},
+		{"a parent of several packages", ".", []string{"cmd"}, []string{"./cmd/..."}},
+		{"sorted, once each", ".", []string{"cmd/api", "internal/store", "cmd/api/main.go", "cmd/api"}, []string{"./cmd/api", "./cmd/api/...", "./internal/store/..."}},
+		{"no Go package", ".", []string{"web"}, []string{"./..."}},
+		{"no Go package beside one", ".", []string{"web", "cmd/admin"}, []string{"./cmd/admin/..."}},
+		{"tests only", ".", []string{"cmd/testsonly"}, []string{"./..."}},
+		{"absent", ".", []string{"cmd/gone"}, []string{"./..."}},
+		{"the whole repository", ".", []string{"."}, []string{"./..."}},
+		{"a nested module's path is not the outer's", ".", []string{"tools/gen"}, []string{"./..."}},
+		{"inside the nested module", "tools", []string{"tools/gen"}, []string{"./gen/..."}},
+		{"the nested module itself", "tools", []string{"tools"}, []string{"./..."}},
+		{"a parent of the module", "services/api", []string{"services"}, []string{"./..."}},
+	} {
+		if got := govulncheckPatterns(root, in(c.mod), mods, c.entry); !slices.Equal(got, c.want) {
+			t.Errorf("%s: patterns = %q, want %q", c.name, got, c.want)
+		}
+	}
+
+	// The args carry them, one command per module still.
+	got := govulncheckArgs(root, []string{"go.mod", "cmd/api", "tools/gen"}, plugin.Config{})
+	if len(got) != 3 {
+		t.Fatalf("got %d commands, want one per module: %v", len(got), got)
+	}
+	for _, argv := range got {
+		mod, _ := relSlash(root, argv[2])
+		want := map[string]string{".": "./cmd/api/...", "tools": "./gen/...", "services/api": "./..."}[mod]
+		if argv[len(argv)-1] != want {
+			t.Errorf("module %s: argv = %v, want %s as the pattern", mod, argv, want)
+		}
+	}
+}
+
 func TestGovulncheckArgsIsEmptyWithoutAGoModule(t *testing.T) {
-	if got := govulncheckArgs(t.TempDir(), plugin.Config{}); len(got) != 0 {
+	if got := govulncheckArgs(t.TempDir(), nil, plugin.Config{}); len(got) != 0 {
 		t.Fatalf("args = %v, want none for a repository with no Go module", got)
 	}
 }

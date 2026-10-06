@@ -40,13 +40,17 @@ only requires it is not lent that call path. Two components sharing a repository
 `paths:` or `ignore:`, each get the verdict for their own code. A module inside a `go.work` workspace is analyzed as
 the workspace builds it, which is the build `go build` in that directory produces.
 
-**Components carved out of one module** share one analysis of the whole module, as [Scoping a
-repository](../../docs/reference/saga-schema.md#scoping-a-repository) describes, and each keeps the
-call paths that start in its own files. govulncheck reports one call path per vulnerable function,
-so a component with none of its own is `unknown`: the path reported shows that another component
-calls the function and says nothing about whether this one does. The verdict stays with the
-component whose `paths` name the module's `go.mod`, and goes to any other component only with a call
-path from its files.
+**Components carved out of one module** are each analyzed from their own code. The checkout holds
+the whole module, as [Scoping a repository](../../docs/reference/saga-schema.md#scoping-a-repository)
+describes, and govulncheck starts from the packages the component's `paths` hold: `./cmd/api/...`
+for `paths: [go.mod, cmd/api]`. A vulnerable function that only another component calls is
+`unreachable` for this one.
+
+A component whose `paths` hold no Go package of the module, only its `go.mod`, is analyzed from the
+whole module and keeps the call paths that start in its own files. govulncheck reports one call
+path per vulnerable function, so with none of its own the verdict is `unknown`. The verdict stays
+with the component whose `paths` name the module's `go.mod`, and goes to any other component only
+with a call path from its files.
 
 ## The three verdicts, and why there are three
 
@@ -145,7 +149,8 @@ call graph and a framework heuristic are both called reachability and are not th
 ## Data
 
 The **vulnerability database**, from `vuln.go.dev`. Without a local copy, govulncheck fetches it on
-**every** invocation, and there is one invocation per Go module in the checkout.
+**every** invocation, and there is one invocation per Go module in the checkout, and one per
+component where several are carved out of one module.
 
 `draugr feeds update govulndb` downloads `https://vuln.go.dev/vulndb.zip` into
 `~/.draugr/feeds/govulndb`. A scan passes that copy to govulncheck as `-db file://…` when it passes

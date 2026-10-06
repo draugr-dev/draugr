@@ -58,7 +58,9 @@ func NewGosec() plugin.Scanner {
 			ConfigSchema:   json.RawMessage(gosecConfigSchema),
 			ModuleManifest: "go.mod",
 		},
-		gosecArgs,
+		// gosec reads every file of the module, so where an analysis starts (the target's Entry)
+		// changes nothing it reports.
+		func(dir string, _ []string, cfg plugin.Config) [][]string { return gosecArgs(dir, cfg) },
 		parseGosec,
 	)
 	s.cacheVersion = sharedGosecVersion.version

@@ -21,8 +21,11 @@ type CacheKey string
 // and independent of config map ordering.
 func ComputeCacheKey(scanner, version string, t Target, cfg Config) CacheKey {
 	parts := []string{scanner, version, string(t.Kind()), t.Identity()}
+	// An empty detail adds nothing, so a target with no detail to give keys as it always did.
 	if d, ok := t.(CacheDetailer); ok {
-		parts = append(parts, d.CacheDetail())
+		if detail := d.CacheDetail(); detail != "" {
+			parts = append(parts, detail)
+		}
 	}
 
 	keys := make([]string, 0, len(cfg))

@@ -189,8 +189,10 @@ type ScannerInfo struct {
 	//
 	// Such an analyzer type-checks packages, and a package needs every package it imports, so a
 	// checkout narrowed to one component's `paths` can leave nothing that compiles. Set, the engine
-	// widens a scoped job to the modules its paths belong to, analyzes each module once however
-	// many components share it, and gives each finding to the component whose paths hold its file.
+	// widens a scoped job to the modules its paths belong to and gives each finding to the
+	// component whose paths hold its file. A file-by-file analyzer reads each module once however
+	// many components share it; a Reachability analyzer is run once per component, starting from
+	// the component's own paths (RepositoryTarget.Entry).
 	ModuleManifest string
 	// ConfigSchema is a JSON Schema for Config; it drives validation and the config wizard.
 	ConfigSchema json.RawMessage

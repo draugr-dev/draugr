@@ -32,6 +32,12 @@ type ModuleResolver func(ctx context.Context, url, revision string, workingTree 
 //
 // The widened checkout keeps no `ignore`. An ignored directory can hold code the rest of the
 // module imports, and the attribution honors the component's ignore list instead.
+//
+// A reachability analyzer is the exception to sharing. Its answer depends on where the call graph
+// starts, and run over the whole module it reports one path per vulnerable function, so a
+// component whose own code never makes the call could only be told unknown. Its widened target
+// keeps the component's paths as Entry, which keys each component's analysis apart while the
+// checkout stays shared, and the analyzer starts from them.
 func (e *Engine) widenToModules(ctx context.Context, planned []PlannedJob, model saga.Model) []PlannedJob {
 	if e.resolveModules == nil {
 		return planned
@@ -67,6 +73,9 @@ func (e *Engine) widenToModules(ctx context.Context, planned []PlannedJob, model
 		}
 		widened := repo
 		widened.Paths, widened.Ignore = a.roots, nil
+		if sc.Info().Reachability {
+			widened.Entry = repo.Paths
+		}
 		pj.Job.Target = widened
 		pj.owner = &moduleOwner{
 			manifest: manifest,

@@ -1,0 +1,32 @@
+# Two components carved out of one Go module by paths:, each naming the module's go.mod and its own
+# command, both importing a shared internal/store that neither names. store.Name calls gjson's
+# vulnerable Get and only cmd/admin calls store.Name; cmd/api calls only store.Valid. Analyzed from
+# the whole module, govulncheck enters the call at store.Name, shared code, and the verdict cannot
+# tell the two components apart. Each component's finding here carries the verdict for the
+# analysis started from its own command.
+initScan:
+  skip: the components and their paths are the subject, and init proposes one component for the repository
+
+init:
+  controls: [iac, sast, sca, secrets]
+  scanners: [sast.gosec]
+  reachability: [govulncheck]
+  components:
+    - name: go-carved-module
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: trivy
+    rule: CVE-2020-36067
+    location: go.mod:5
+    package: gomod github.com/tidwall/gjson v1.6.5
+    component: api
+    reachability: unreachable
+  - control: sca
+    tool: trivy
+    rule: CVE-2020-36067
+    location: go.mod:5
+    package: gomod github.com/tidwall/gjson v1.6.5
+    component: admin
+    reachability: reachable
