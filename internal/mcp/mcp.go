@@ -232,7 +232,8 @@ func NewServer(opts Options) (*mcp.Server, error) {
 			"a decision and do not propose fixing it. It covers the controls " +
 			"that scan ran and nothing else, so treat it as a floor to build on rather than a " +
 			"complete account of a codebase's security. Given a report.json, read the " +
-			"results.sarif in the same directory, since report.json holds the verdict and no findings.",
+			"results.sarif in the same directory, since report.json holds the verdict and the fix list " +
+			"and names each finding only by its fingerprint.",
 	}, SummarizeReportTool)
 
 	if opts.Scan != ScanOff {
