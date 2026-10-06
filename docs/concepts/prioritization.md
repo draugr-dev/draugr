@@ -46,12 +46,12 @@ pinning before reading the tables.
 
 | | describes | values |
 | --- | --- | --- |
-| `criticality` | the **component**, how much the organization depends on it | `critical` · `important` · `supporting` |
+| `criticality` | the **component**, the business impact if it fails | `critical` · `important` · `supporting` |
 | `severity` | the **flaw**. How much harm it could cause if exploited | `critical` · `high` · `medium` · `low` |
 
-`criticality: critical` says the organization depends on this component. `severity: critical`
-says this flaw could cause serious harm if it were exploited. Neither implies the other: a
-component the organization depends on carries low-severity findings like anything else, and a
+`criticality: critical` says a failure of this component is an outage or data loss for the
+business. `severity: critical` says this flaw could cause serious harm if it were exploited. Neither
+implies the other: a critical component carries low-severity findings like anything else, and a
 supporting one can carry a critical flaw.
 
 The two meet in step 2, a critical component with a critical finding is P1, and the same critical
@@ -199,13 +199,12 @@ appears in the report either way; it is not evidence that this particular flaw i
 ### Four findings, worked through
 
 **A P1.** `CVE-2021-44228` scores 10.0, so its **severity** is `critical`. The component declares
-`exposure: public` and `criticality: critical`. It is one the organization depends on, so its tier
-is **C1**. C1 crossed with a critical severity = **P1**. Both `critical`s are in play here, and they
-are answering different questions.
+`exposure: public` and `criticality: critical`, so its tier is **C1**. C1 crossed with a critical
+severity = **P1**. Both `critical`s are in play here, and they are answering different questions.
 
 **Another P1, from a lower score.** A CVE scoring 7.5 is `high`, not critical. On the same public,
 business-critical component the tier is still C1, and C1 × high = **P1**. A high on something
-public and depended on outranks a critical on something nobody can reach.
+public and business-critical outranks a critical on something nobody can reach.
 
 **The same 10.0, two bands lower.** Put `CVE-2021-44228` on a component declaring
 `exposure: internal` and `criticality: important`. The tier is **C3**, and C3 × critical = **P2**.
