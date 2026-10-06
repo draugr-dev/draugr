@@ -12,6 +12,12 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.149.1] - 2026-10-06
+
+### Fixed
+
+- **When several components share one Go module, each gets govulncheck's verdict for its own code.** A vulnerable function that only a restricted component calls now reads `unreachable` on a public one, instead of `reachable` or `unknown`, which ranked the public component by a call it never makes.
+
 ## [0.149.0] - 2026-10-06
 
 ### Added
@@ -6287,7 +6293,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.149.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.149.1...HEAD
+[0.149.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.149.1
 [0.149.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.149.0
 [0.148.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.148.0
 [0.147.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.147.0
