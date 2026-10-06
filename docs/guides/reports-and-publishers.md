@@ -323,14 +323,14 @@ export DRAUGR_API_TOKEN=drgr_ci_…      # write-only, scoped to one project
 
 **Named for the protocol, not for a product.** [Draugr Server](https://draugr.dev) implements it,
 hosted and as an install you run yourself, the same artifact either way, so `url` points at either
-and nothing else changes. Anything else that implements the three calls below works identically. The
+and nothing else changes. Anything else that implements the calls below works identically. The
 publisher does not know or care which it is talking to.
 
 With neither variable set it skips, so the descriptor a pipeline uses still runs on a laptop.
 Setting one without the other fails the scan, because a publish that silently did not happen is one
 somebody believes did.
 
-#### The three calls
+#### The calls
 
 Written down so the endpoint is an interface rather than a private arrangement. A server that
 implements these receives Draugr runs from any pipeline, with no change to the descriptor beyond
@@ -382,10 +382,29 @@ your own `detail`.
  "detail": "this server reads runs from Draugr v0.122.0 or later, and this run came from Draugr v0.121.1. Upgrade Draugr and run the scan again"}
 ```
 
-Two lines worth recognizing in a build log:
+**An organization's policy, where the server judges one.** Before the scan, Draugr sends
+`POST /v1/ingest/policy/check` with the same token and the descriptor as YAML, `{"descriptor":
+{"effective": "…"}}`. Answer with the outcome below, or `404` where the server judges no policy,
+which Draugr reports as not checked rather than passed. The answer to `POST /v1/runs` carries the
+same outcome as `policy`, and a run the policy refuses is answered `422 policy_refused` with it.
+
+```json
+{"schema": 1, "project": "payments", "policyVersion": 7, "outcome": "fail", "passed": false,
+ "verdicts": [{"rule": "threshold", "profile": "PCI scope", "state": "violates",
+   "items": [{"field": "failOn", "found": "P1", "constraint": "required", "expected": "P2 or stricter", "breaks": true}],
+   "mode": "enforce", "enforceFrom": "2026-10-01", "response": "fail", "inForce": true, "acts": "fail"}]}
+```
+
+`outcome` is the strongest `acts` among the verdicts, `refuse` over `fail` over `none`. Draugr stops
+a scan the pre-flight refuses, fails the gate of one it fails, and fails the publish of a run whose
+`policy.outcome` is `fail`. Each item reads as `<field>: <found> · <constraint>: <expected>`, and a
+verdict marked `"pending": true` is decided after the answer, which Draugr notes in the log.
+
+Lines worth recognizing in a build log:
 
 - `evidence already held`. A re-run produced the same findings, so there was nothing to upload.
 - `run already recorded`, a retried job, recognized as the same run rather than counted twice.
+- `policy decided after publish`, a rule the server judges once the evidence is expanded.
 
 ### Azure DevOps
 

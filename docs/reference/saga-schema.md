@@ -903,8 +903,8 @@ When an entry sets `select`, `draugr doctor` lists the components no issue entry
 
 The **`draugr-api`** publisher posts the run to any server implementing Draugr's run-ingest API.
 [Draugr Server](https://draugr.dev) is one, hosted, or installed where you want it, the same
-artifact either way, and the three calls are documented in [reports &
-publishers](../guides/reports-and-publishers.md#the-three-calls) so anything else can be another.
+artifact either way, and the calls are documented in [reports &
+publishers](../guides/reports-and-publishers.md#the-calls) so anything else can be another.
 
 ```yaml
 config:
@@ -915,6 +915,10 @@ config:
 
 It renders the run report and its evidence for itself. The token comes from `$DRAUGR_API_TOKEN` (or
 `tokenEnv`) and never from the descriptor, which is a file people commit.
+
+A server that judges an organization's policy is also asked about the descriptor before the scan
+starts, with the same endpoint and token, and its verdict can refuse the run or fail its gate. See
+[the organization's policy](cli.md#the-organizations-policy).
 
 **Where a setting comes from, least specific first:**
 
@@ -933,13 +937,13 @@ pipeline point somewhere else with the environment variable, and write `url:` in
 when that project genuinely belongs somewhere the others do not.
 
 `report.json` travels in the request; **`results.sarif` does not travel through the API at all**.
-The plane answers with a URL and the publisher uploads the evidence directly to storage. At roughly
+The server answers with a URL and the publisher uploads the evidence directly to storage. At roughly
 2.5 KB of SARIF per finding, a descriptor covering twenty images is around 20 MB before anything
 unusual happens, and a request body is the wrong place for it.
 
 Two things follow that are worth knowing when reading a build log:
 
-- **A re-run that produced the same findings uploads nothing.** The plane addresses evidence by its
+- **A re-run that produced the same findings uploads nothing.** The server addresses evidence by its
   content, so it can say it already holds it.
 - **A retried job does not become a second run.** The run is keyed on the CI job id where the
   platform provides one, GitHub Actions, GitLab CI, Azure Pipelines, CircleCI and Buildkite, and

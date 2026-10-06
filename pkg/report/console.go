@@ -212,6 +212,8 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		// it was not allowed to send, a benchmark that could decide 20 of 34 checks, and a partial scan
 		// reading as a complete one is the failure this whole block exists to prevent. The tool builds,
 		// job counts and scanned revision are the provenance, and those travel with the evidence.
+		// In every view: a policy verdict is a reason the run fails, not context about it.
+		writePolicy(w, col, d.Policy)
 		if !dense(d) {
 			writeMeasuredAgainst(w, col, d, width)
 		}

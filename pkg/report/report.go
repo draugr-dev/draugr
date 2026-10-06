@@ -75,6 +75,9 @@ type Data struct {
 	//
 	// Nil for a scan with no descriptor, which is a real case and not an error.
 	Descriptor *skald.DescriptorRef
+	// Policy is what the run's pre-flight learned of the organization's policy, nil where the
+	// descriptor publishes to no draugr-api server or the run did not ask.
+	Policy *skald.PolicyCheck
 	// CI is the job the scan ran in, and nil outside one.
 	//
 	// It exists once, in the process doing the work, and is gone when that process exits. A
@@ -457,7 +460,7 @@ func (jsonReporter) Render(w io.Writer, d Data) error {
 // where it was sent. A platform receiving the document by publisher reads the build from it to
 // know which Draugr produced the run.
 func (d Data) JSONProvenance() skald.Provenance {
-	p := skald.Provenance{Descriptor: d.Descriptor, CI: d.CI, Gate: d.Gate.skald()}
+	p := skald.Provenance{Descriptor: d.Descriptor, CI: d.CI, Gate: d.Gate.skald(), Policy: d.Policy}
 	reports := make(map[string]sarif.Report, len(d.Run.Controls))
 	for name, cr := range d.Run.Controls {
 		reports[name] = cr.Report

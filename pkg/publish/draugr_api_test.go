@@ -36,6 +36,8 @@ type server struct {
 	body   string
 	// duplicate answers a retried post.
 	duplicate bool
+	// policy, when set, is the organization's verdict the server answers with.
+	policy map[string]any
 }
 
 type planeRequest struct {
@@ -73,10 +75,14 @@ func (p *server) server(t *testing.T) *httptest.Server {
 			evidence["upload"] = upload
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		answer := map[string]any{
 			"run": "run-1", "project": "payments", "verdict": "pass",
 			"duplicate": p.duplicate, "evidence": evidence,
-		})
+		}
+		if p.policy != nil {
+			answer["policy"] = p.policy
+		}
+		_ = json.NewEncoder(w).Encode(answer)
 	})
 	mux.HandleFunc("PUT /evidence", func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
