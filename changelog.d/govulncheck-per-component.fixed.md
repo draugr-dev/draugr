@@ -1,1 +1,0 @@
-- **Components carved out of one Go module each get govulncheck's verdict for their own code.** A vulnerable function that only another component calls is `unreachable` for this one, where it read `reachable` or `unknown` and could rank a public component by a call only a restricted one makes.
