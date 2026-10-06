@@ -12,6 +12,16 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.149.0] - 2026-10-06
+
+### Added
+
+- **`draugr scan` and `draugr doctor` check a descriptor against the organization's policy** on the `draugr-api` server it publishes to, before any scanner starts. A broken rule in force refuses the run or fails its gate. `doctor` lists every rule that applies, and `--policy` makes a check that could not run an error.
+
+### Fixed
+
+- **The `summarize_report` MCP tool no longer says `report.json` holds no findings**; it describes the file as the verdict and the fix list, with each finding named by its fingerprint.
+
 ## [0.148.0] - 2026-10-05
 
 ### Added
@@ -6277,7 +6287,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.148.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.149.0...HEAD
+[0.149.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.149.0
 [0.148.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.148.0
 [0.147.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.147.0
 [0.146.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.146.0
