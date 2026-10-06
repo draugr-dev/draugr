@@ -50,13 +50,13 @@ Both are fixed ladders (an organization can redefine the meaning; the levels sta
 
 | `exposure` | meaning | | `criticality` | meaning |
 |------------|---------|-|---------------|---------|
-| `public` | internet-facing, no auth | | `critical` | failure causes outage / data loss |
-| `authenticated` | internet-facing, behind auth | | `important` | degraded, no immediate outage |
-| `internal` | reachable within the environment | | `supporting` | limited operational impact |
-| `restricted` | namespace- / network-policy-scoped | | | |
+| `public` | anyone on the internet, no sign-in | | `critical` | an outage or data loss for the business |
+| `authenticated` | on the internet, behind a login | | `important` | degraded service, but no outage |
+| `internal` | only from inside your network or VPN | | `supporting` | limited impact, easily worked around |
+| `restricted` | inside your network and locked down further, an allowlist, a private link, its own segment | | | |
 
-**`criticality: critical` is not `severity: critical`.** This ladder describes the *component*, how
-much the organization depends on it. Severity describes a *flaw*, and a scanner assigns it: how
+**`criticality: critical` is not `severity: critical`.** This ladder describes the *component*, the
+business impact if it fails. Severity describes a *flaw*, and a scanner assigns it: how
 much harm it could cause if it were exploited. A component you mark `critical` will still carry
 low-severity findings, and both words appear on the same finding. See
 [prioritization](../concepts/prioritization.md) for the tables where the two meet.
