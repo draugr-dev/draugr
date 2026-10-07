@@ -11,6 +11,8 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/saga"
+	"github.com/draugr-dev/draugr/pkg/skald"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
@@ -102,32 +104,66 @@ func targetError(d Data, control, msg string) bool {
 	return false
 }
 
-// caveat is one shortfall that does not fail the run.
-type caveat struct{ component, what, kind, detail string }
+// caveat is one shortfall in what the run covered. It fails the run only when the gate lists its
+// key in failOnCaveats.
+type caveat struct {
+	component, what, kind, detail string
+	// key is the kind as gate.failOnCaveats names it. kind is the word the report prints, which is
+	// one word for both kinds of unread: the What column already says whether it is a file or a
+	// cloud service.
+	key saga.CaveatKind
+}
 
 // caveats gathers what was declared and not checked, what could not be measured, and the files and
 // checks that were not read, by component.
 func caveats(d Data) []caveat {
 	var out []caveat
 	for _, g := range d.Uncovered {
-		out = append(out, caveat{g.Component, g.Surface, "not checked", strings.Join(g.Controls, ", ") + " off"})
+		out = append(out, caveat{g.Component, g.Surface, "not checked", strings.Join(g.Controls, ", ") + " off",
+			saga.CaveatNotChecked})
 	}
 	for _, sk := range d.Run.Skipped {
-		out = append(out, caveat{sk.Component, sk.Scanner, "not measured", sk.Reason})
+		out = append(out, caveat{sk.Component, sk.Scanner, "not measured", sk.Reason, saga.CaveatNotMeasured})
 	}
 	// A service's checks the scan could not evaluate, one row per service, because one granted
 	// permission clears all of them. The control is not named: the service says which one it is.
 	for _, g := range d.Run.UnreadChecks {
 		out = append(out, caveat{g.Component, g.Group, "unread",
-			english.Count(len(g.Checks), "check") + " · " + g.Reason})
+			english.Count(len(g.Checks), "check") + " · " + g.Reason, saga.CaveatUnreadChecks})
 	}
 	for _, g := range unreadByComponent(d.Run.Inputs) {
 		for _, f := range g.files {
 			out = append(out, caveat{g.component, f.label, "unread",
-				fmt.Sprintf("%s (%s)", f.reason, strings.Join(f.controls, ", "))})
+				fmt.Sprintf("%s (%s)", f.reason, strings.Join(f.controls, ", ")), saga.CaveatUnreadFiles})
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].component < out[j].component })
+	return out
+}
+
+// splitCaveats divides the run's caveats into the ones the gate fails on and the rest.
+func splitCaveats(d Data) (failing, rest []caveat) {
+	for _, c := range caveats(d) {
+		if slices.Contains(d.FailOnCaveats, c.key) {
+			failing = append(failing, c)
+		} else {
+			rest = append(rest, c)
+		}
+	}
+	return failing, rest
+}
+
+// FailedCaveat is a caveat whose kind the gate lists in failOnCaveats. Declared in skald, which
+// writes it into report.json.
+type FailedCaveat = skald.FailedCaveat
+
+// FailedCaveats returns the run's caveats of the kinds d.FailOnCaveats lists, by component.
+func FailedCaveats(d Data) []FailedCaveat {
+	failing, _ := splitCaveats(d)
+	out := make([]FailedCaveat, 0, len(failing))
+	for _, c := range failing {
+		out = append(out, FailedCaveat{Component: c.component, What: c.what, Kind: c.key, Detail: c.detail})
+	}
 	return out
 }
 
@@ -162,18 +198,49 @@ func writeErrors(w io.Writer, col tui.Painter, d Data) {
 	_, _ = fmt.Fprintln(w)
 }
 
-// writeCaveats draws a row per shortfall that does not fail the run.
+// writeCaveats draws a row per shortfall in what the run covered.
+//
+// One block for every caveat, the ones the gate fails on among them, each marked where it sits.
+// Moving those into the errors would put two kinds of row under one heading, a target no scanner
+// read beside a file no scanner read, and split a component's caveats across two blocks. The
+// heading says how many fail the run and which setting made them, so a reader can find the line to
+// change.
 func writeCaveats(w io.Writer, col tui.Painter, d Data) {
 	cs := caveats(d)
 	if len(cs) == 0 {
 		return
 	}
-	_, _ = fmt.Fprintf(w, "%s  %s\n", heading(col, "Caveats"), col.Paint(cDim, "do not fail the run"))
+	failing, _ := splitCaveats(d)
+	note := col.Paint(cDim, "do not fail the run")
+	if len(failing) > 0 {
+		setting := fmt.Sprintf("%s: %s", cmp.Or(d.FailOnCaveatsFrom, "config.gate.failOnCaveats"),
+			strings.Join(namesOfKinds(d.FailOnCaveats), ", "))
+		verb := "fail"
+		if len(failing) == 1 {
+			verb = "fails"
+		}
+		note = col.Paint(cFail, fmt.Sprintf("%d %s the run · %s", len(failing), verb, setting))
+		// Accepted, they are reported as an error accepted, which is what the verdict's own note
+		// says beside PASS.
+		if d.AcceptedErrors {
+			note = col.Paint(cAccent, fmt.Sprintf("%d accepted by --allow-scan-errors · %s", len(failing), setting))
+		}
+	}
+	_, _ = fmt.Fprintf(w, "%s  %s\n", heading(col, "Caveats"), note)
 	t := tui.NewTable(col, "Component", "What", "Caveat", "Why").Indent("  ")
 	n, capped := shownRows(d, len(cs))
 	for _, c := range cs[:n] {
+		kind := tui.Styled(cAccent, c.kind)
+		// The mark only where something is marked, so a run with nothing failing reads as it always
+		// did, and the kinds stay aligned under one another when something is.
+		if len(failing) > 0 {
+			kind = tui.Styled(cAccent, "  "+c.kind)
+			if slices.Contains(d.FailOnCaveats, c.key) {
+				kind = tui.Styled(cFail, "✗ "+c.kind)
+			}
+		}
 		t.Row(tui.Styled(tui.StyleStrong, c.component), tui.Styled(tui.StyleStrong, c.what),
-			tui.Styled(cAccent, c.kind), tui.Styled(cDim, truncate(c.detail, whyWidth)))
+			kind, tui.Styled(cDim, truncate(c.detail, whyWidth)))
 	}
 	t.Render(w)
 	if capped {
@@ -181,4 +248,34 @@ func writeCaveats(w io.Writer, col tui.Painter, d Data) {
 			fmt.Sprintf("… and %d more · --top 0 lists every one", len(cs)-n)))
 	}
 	_, _ = fmt.Fprintln(w)
+}
+
+// failedCaveatNote is what a component's row says about its caveats the gate fails on: each one's
+// kind and what it names, the words a reader would search the caveats for.
+func failedCaveatNote(cs []FailedCaveat) string {
+	parts := make([]string, 0, len(cs))
+	for _, c := range cs {
+		parts = append(parts, string(c.Kind)+" "+c.What)
+	}
+	return strings.Join(parts, ", ")
+}
+
+// joinNotes puts two notes on one row, either of which may be empty.
+func joinNotes(a, b string) string {
+	switch {
+	case a == "":
+		return b
+	case b == "":
+		return a
+	}
+	return a + " · " + b
+}
+
+// namesOfKinds spells kinds of caveat as the setting writes them.
+func namesOfKinds(kinds []saga.CaveatKind) []string {
+	out := make([]string, len(kinds))
+	for i, k := range kinds {
+		out[i] = string(k)
+	}
+	return out
 }

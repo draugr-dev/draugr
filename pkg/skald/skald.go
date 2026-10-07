@@ -90,6 +90,10 @@ type jsonReport struct {
 	// version judged against, and each verdict. Absent where the descriptor publishes to no
 	// draugr-api server.
 	Policy *PolicyCheck `json:"policy,omitempty"`
+	// FailedCaveats are the caveats of a kind gate.failOnCaveats lists: what the run did not cover
+	// that the gate counts as an error. The rest of the caveats are in notMeasured,
+	// dependencyFiles and unreadChecks.
+	FailedCaveats []FailedCaveat `json:"failedCaveats,omitempty"`
 	// Actions are the fix list: each thing to do, the findings it clears and where, most urgent
 	// first. The grouping the console's `--view actions` prints, from the same function.
 	Actions  []Action        `json:"actions,omitempty"`
@@ -231,6 +235,22 @@ type Provenance struct {
 	// Policy is the pre-flight's check against the organization's policy, nil where none was asked
 	// for.
 	Policy *PolicyCheck
+	// FailedCaveats are the run's caveats of a kind the gate fails on. Decided by the caller,
+	// because a caveat is read off the report's own data.
+	FailedCaveats []FailedCaveat
+}
+
+// FailedCaveat is a caveat whose kind the gate lists in failOnCaveats, so it failed the run as an
+// error does, or was accepted as one under --allow-scan-errors.
+type FailedCaveat struct {
+	// Component is the component it is about.
+	Component string `json:"component"`
+	// What is the surface, scanner, file or cloud service it names.
+	What string `json:"what"`
+	// Kind is its kind, as gate.failOnCaveats names it.
+	Kind saga.CaveatKind `json:"kind"`
+	// Detail is why, in the words the report prints.
+	Detail string `json:"detail"`
 }
 
 // Build identifies the Draugr that produced a report.
@@ -252,6 +272,8 @@ type Gate struct {
 	Policy norn.Policy
 	// Disabled is --no-gate: the verdict is reported and the command still exits 0.
 	Disabled bool
+	// FailOnCaveats are the kinds of caveat that fail the run as an error does.
+	FailOnCaveats []saga.CaveatKind
 }
 
 // gateReport is the gate as the JSON document states it.
@@ -272,6 +294,9 @@ type gateReport struct {
 	// Disabled says the verdict did not decide the exit code, so anything reading that code was
 	// told the opposite of what this document says.
 	Disabled bool `json:"disabled,omitempty"`
+	// FailOnCaveats are the kinds of caveat that fail the run as an error does, as
+	// gate.failOnCaveats or --fail-on-caveats named them. Absent when it fails on none.
+	FailOnCaveats []saga.CaveatKind `json:"failOnCaveats,omitempty"`
 }
 
 // describeGate renders the gate, filling in the default threshold rather than emitting an empty
@@ -286,7 +311,7 @@ func describeGate(g *Gate) *gateReport {
 	// claiming a severity gate that was not in force beside the band that was. The console said
 	// `Gate: fails on P1.` and the document said `{"threshold":"high","failOnPriority":"P1"}`,
 	// which is the contradiction one field exists to prevent, reintroduced one layer down.
-	out := &gateReport{Disabled: g.Disabled}
+	out := &gateReport{Disabled: g.Disabled, FailOnCaveats: g.FailOnCaveats}
 	if g.Policy.GatesOnSeverity() {
 		out.Threshold = string(g.Policy.FailOn)
 	} else {
@@ -603,17 +628,18 @@ func RenderJSONWithFeeds(w io.Writer, release saga.Release, run engine.Result, v
 // outside this repository and say what they leave out.
 func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine.Result, verdict norn.Result, minPriority string, feeds []FeedProvenance, opts sarif.MarshalOptions, prov Provenance) error {
 	doc := jsonReport{
-		Draugr:     prov.Build,
-		Scanners:   scannersOf(run),
-		Descriptor: prov.Descriptor,
-		CI:         prov.CI,
-		Project:    project,
-		Release:    releaseInfo{Version: release.Version},
-		Verdict:    string(verdict.Verdict),
-		Scope:      scopeOf(run),
-		Gate:       describeGate(prov.Gate),
-		Actions:    prov.Actions,
-		Policy:     prov.Policy,
+		Draugr:        prov.Build,
+		Scanners:      scannersOf(run),
+		Descriptor:    prov.Descriptor,
+		CI:            prov.CI,
+		Project:       project,
+		Release:       releaseInfo{Version: release.Version},
+		Verdict:       string(verdict.Verdict),
+		Scope:         scopeOf(run),
+		Gate:          describeGate(prov.Gate),
+		Actions:       prov.Actions,
+		Policy:        prov.Policy,
+		FailedCaveats: prov.FailedCaveats,
 		Stats: statsInfo{
 			Jobs:        run.Stats.Jobs,
 			Scans:       run.Stats.Scans,

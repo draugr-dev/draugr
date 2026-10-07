@@ -187,7 +187,48 @@ type GateConfig struct {
 	// This is the default gate. A descriptor that names nothing fails on P1, because the ranking
 	// this product computes is the one it should be judged by.
 	FailOnPriority string `yaml:"failOnPriority,omitempty"`
+
+	// FailOnCaveats lists the kinds of caveat that fail the run as an error does. A caveat of a
+	// listed kind is reported with the errors, its component reads ERROR, and
+	// --allow-scan-errors accepts it as it accepts any other error. Empty, the default, fails on
+	// none.
+	//
+	// Off by default, because a caveat often follows from a choice somebody made: a descriptor
+	// narrowed on purpose declares surfaces no enabled control looks at, and failing the run for
+	// that teaches a reader to stop reading caveats. Per kind, because the kinds mean different
+	// things. An unread check usually means the scan's identity is missing a grant, the strongest
+	// case for failing a run meant to read everything; an unread file is a hygiene rule some
+	// teams enforce; a scope a scanner cannot honor follows from the descriptor itself.
+	//
+	// In the descriptor for the reason the rest of this block is: it is policy, reviewed with the
+	// rest of the gate. --fail-on-caveats overrides it for one run.
+	FailOnCaveats []CaveatKind `yaml:"failOnCaveats,omitempty"`
 }
+
+// CaveatKind is a kind of caveat: a shortfall in what a run covered that does not, unless
+// gate.failOnCaveats lists its kind, fail the run.
+type CaveatKind string
+
+// The kinds of caveat, in the order the report names them.
+const (
+	// CaveatNotChecked is a surface a component declares that no enabled control looks at.
+	CaveatNotChecked CaveatKind = "not-checked"
+	// CaveatNotMeasured is a scanner that cannot honor a component's scope, so it did not run
+	// for that component.
+	CaveatNotMeasured CaveatKind = "not-measured"
+	// CaveatUnreadFiles is a dependency file or Terraform module, in a repository that was read,
+	// that no scanner read.
+	CaveatUnreadFiles CaveatKind = "unread-files"
+	// CaveatUnreadChecks is a cloud check the scan could not evaluate, because a read it needs
+	// was denied.
+	CaveatUnreadChecks CaveatKind = "unread-checks"
+)
+
+// CaveatKinds are the values gate.failOnCaveats accepts, in the order the report names them.
+var CaveatKinds = []CaveatKind{CaveatNotChecked, CaveatNotMeasured, CaveatUnreadFiles, CaveatUnreadChecks}
+
+// Valid reports whether k is a known kind of caveat.
+func (k CaveatKind) Valid() bool { return slices.Contains(CaveatKinds, k) }
 
 // GateThresholds lists the severity bands a gate may be set to, most to least severe.
 //

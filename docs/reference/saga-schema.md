@@ -1196,6 +1196,30 @@ order is per-control setting → `--fail-on` → `high`.
 The report says which gate produced a verdict, so a narrowed one is visible to whoever reads it. See
 [the verdict and the gate](../concepts/verdict-and-gating.md).
 
+`failOnCaveats` lists the kinds of caveat that fail the run as an error does. A caveat is a shortfall
+in what the run covered, listed under **Caveats** in the report:
+
+| kind | means |
+|---|---|
+| `not-checked` | a surface a component declares that no enabled control looks at |
+| `not-measured` | a scanner that cannot honor a component's scope, so it did not run for that component |
+| `unread-files` | a dependency file or Terraform module, in a repository that was read, that no scanner read |
+| `unread-checks` | a cloud check the scan could not evaluate, because a read it needs was denied |
+
+```yaml
+config:
+  gate:
+    failOnCaveats: [unread-checks]   # a denied cloud read fails the run
+```
+
+A caveat of a listed kind stays under **Caveats**, marked `✗`, and the heading says how many fail the
+run and under which setting. Its component reads `ERROR`, the scan exits non-zero as an incomplete
+one does, and `--allow-scan-errors` accepts it. Empty, the default, fails on none, because a caveat
+often follows from a choice: a descriptor narrowed on purpose declares surfaces no control looks at.
+[`--fail-on-caveats`](cli.md#draugr-scan-sagayaml--dir) overrides the list for one run, and
+[`draugr doctor`](cli.md#draugr-doctor-sagayaml) fails before the scan when the list names
+`not-checked`.
+
 
 ## `config.fixes`
 

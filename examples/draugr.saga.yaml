@@ -46,6 +46,11 @@ config:
       #
       # The same vocabulary as `failOn` above, for the same reason. A severity here under a band
       # gate is refused rather than quietly compared against something it does not measure.
+    # Kinds of caveat that fail the run as an error does. This descriptor scans a cloud account
+    # below, and a check whose read the scan's identity was denied can neither pass nor fail, so
+    # the run fails until the grant is fixed. The other kinds: not-checked, not-measured,
+    # unread-files. Empty, the default, fails on none.
+    failOnCaveats: [unread-checks]
 
   # The largest version step the fix list proposes for a dependency. A package whose findings
   # need more gets a second action for the step past it, labeled with its size and this policy,

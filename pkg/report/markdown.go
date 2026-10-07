@@ -354,6 +354,10 @@ func writeComponentTable(w io.Writer, d Data) {
 			v = "**ERROR**"
 			notes = append(notes, unscannedDetail(c.Unscanned, c.Declared))
 		}
+		if len(c.FailedCaveats) > 0 {
+			v = "**ERROR**"
+			notes = append(notes, failedCaveatNote(c.FailedCaveats))
+		}
 		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %d | %d | %d | %d | %s |\n",
 			c.Name, dash(classification(c.Exposure, c.Criticality)), v,
 			c.Priorities[0], c.Priorities[1], c.Priorities[2], c.Priorities[3],

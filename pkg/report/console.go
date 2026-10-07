@@ -925,7 +925,7 @@ func writeComponents(w io.Writer, col tui.Painter, d Data) {
 		// A component with a target no scanner read has not passed, whatever it found in the rest.
 		// With nothing found, "no findings" is true only in the sense that none were possible; with
 		// findings, they are not the whole picture. Which target, and why, the errors block says once.
-		if len(c.Unscanned) > 0 {
+		if c.Errored() {
 			verdict, style = "ERROR", cFail
 		}
 		detail := col.Paint(cDim, "no findings")

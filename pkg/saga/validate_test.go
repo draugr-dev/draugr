@@ -873,3 +873,25 @@ func TestAComponentsUpgradePolicyOverridesTheProjects(t *testing.T) {
 		}
 	}
 }
+
+// A kind of caveat this build does not report would be a rule in a reviewed descriptor that never
+// fires, so it is refused, as is a kind listed twice.
+func TestValidateGateFailOnCaveats(t *testing.T) {
+	with := func(kinds ...CaveatKind) error {
+		return (&Model{Release: Release{Version: "1"}, Config: Config{Gate: &GateConfig{FailOnCaveats: kinds}}}).Validate()
+	}
+	if err := with(CaveatKinds...); err != nil {
+		t.Errorf("every kind should be accepted: %v", err)
+	}
+	err := with("unread")
+	if err == nil || !strings.Contains(err.Error(), `config.gate.failOnCaveats[0] is "unread"`) ||
+		!strings.Contains(err.Error(), "unread-files or unread-checks") {
+		t.Errorf("err = %v, want the bad kind refused, naming every kind", err)
+	}
+	if err := with(CaveatUnreadFiles, CaveatUnreadFiles); err == nil || !strings.Contains(err.Error(), "twice") {
+		t.Errorf("err = %v, want a kind listed twice refused", err)
+	}
+	if CaveatKind("").Valid() {
+		t.Error("an empty kind is not a kind")
+	}
+}

@@ -113,7 +113,7 @@ thing to have: scanning a repository you do not own for committed secrets and no
 real use, and a tool that failed the run would be failing a decision somebody made on purpose. A
 gate that objects to intent is one people learn to work around.
 
-So it is reported rather than enforced. Every scan says what it did not look at, under
+So by default it is reported rather than enforced. Every scan says what it did not look at, under
 **Caveats**:
 
 ```
@@ -130,6 +130,19 @@ failure for a descriptor that is meant to be complete:
 ```bash
 draugr doctor draugr.saga.yaml --fail-on-uncovered && draugr scan draugr.saga.yaml
 ```
+
+A descriptor that is meant to be complete can say so itself, for this and for the other kinds of
+caveat, with [`config.gate.failOnCaveats`](../reference/saga-schema.md#configgate). A caveat of a
+listed kind fails the run as an error does, and is marked where it sits:
+
+```
+CAVEATS  2 fail the run · config.gate.failOnCaveats: not-checked
+  Component  What    Caveat         Why
+  api        hosts   ✗ not checked  dast, headers, tls off
+  api        images  ✗ not checked  images off
+```
+
+`draugr doctor` reads the same list, so the preflight fails where the scan would.
 
 The answer comes from one place, so the scan, doctor and the
 [MCP server](../guides/ai-agents-mcp.md) cannot tell you different things about the same

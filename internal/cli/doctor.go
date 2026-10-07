@@ -319,11 +319,18 @@ func runDoctor(
 	}
 	// After the missing-tool checks, because a tool that is absent stops the scan outright while
 	// an uncovered surface only narrows it, and the more serious answer should be the one given.
-	if len(uncovered) > 0 && run.failOnUncovered {
+	//
+	// The descriptor's gate.failOnCaveats is read as well, so the preflight and the scan cannot
+	// disagree: a descriptor whose scan would fail on not-checked fails here, before any scanner
+	// runs, without anybody remembering the flag.
+	if len(uncovered) > 0 && (run.failOnUncovered || failsOnNotChecked(model)) {
+		why := "--fail-on-uncovered was set"
+		if !run.failOnUncovered {
+			why = "config.gate.failOnCaveats lists not-checked"
+		}
 		if !run.json {
 			_, _ = fmt.Fprintf(w, "\n%s\n", tui.For(w).Paint(tui.StyleFail,
-				fmt.Sprintf("%d declared surface(s) no enabled control looks at, and "+
-					"--fail-on-uncovered was set.", len(uncovered))))
+				fmt.Sprintf("%d declared surface(s) no enabled control looks at, and %s.", len(uncovered), why)))
 		}
 		return fmt.Errorf("%d declared surface(s) not covered by an enabled control", len(uncovered))
 	}
@@ -934,4 +941,11 @@ func externalInstallHint(binary string) string {
 var externalTools = map[string]string{
 	"mend": "proprietary; install the Mend CLI from Mend's documentation, which `draugr tools " +
 		"install` does not fetch. See internal/scanners/mend-sca.md",
+}
+
+// failsOnNotChecked reports whether the descriptor's gate fails a scan on a declared surface no
+// enabled control looks at.
+func failsOnNotChecked(model *saga.Model) bool {
+	return model != nil && model.Config.Gate != nil &&
+		slices.Contains(model.Config.Gate.FailOnCaveats, saga.CaveatNotChecked)
 }

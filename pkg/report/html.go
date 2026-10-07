@@ -485,6 +485,11 @@ func htmlComponents(d Data, s summary) []htmlComponent {
 			row.Unscanned = unscannedDetail(c.Unscanned, c.Declared)
 			row.Verdict, row.Errored, row.Fail = "ERROR", true, false
 		}
+		// A caveat the gate fails on is the same rule, arrived at from what the run did not cover.
+		if len(c.FailedCaveats) > 0 {
+			row.Unscanned = joinNotes(row.Unscanned, failedCaveatNote(c.FailedCaveats))
+			row.Verdict, row.Errored, row.Fail = "ERROR", true, false
+		}
 		out = append(out, row)
 	}
 	if d.Scope != nil {
