@@ -8,6 +8,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
@@ -186,5 +187,114 @@ func TestATargetTwoComponentsShareIsNotRepeatedUnderItsControl(t *testing.T) {
 	out := renderWith(t, consoleReporter{}, d)
 	if strings.Contains(out, "(2 jobs)") || strings.Count(out, "acme/lib") != 1 {
 		t.Errorf("the shared repository is repeated:\n%s", out)
+	}
+}
+
+// failingCaveatData is the run TestCaveatsGatherEveryShortfallThatDoesNotFail reads, with a gate
+// that fails on both kinds of unread.
+func failingCaveatData() Data {
+	return Data{
+		FailOnCaveats:     []saga.CaveatKind{saga.CaveatUnreadChecks, saga.CaveatUnreadFiles},
+		FailOnCaveatsFrom: "config.gate.failOnCaveats",
+		Uncovered:         []Gap{{Component: "web", Surface: "hosts", Controls: []string{"dast", "headers", "tls"}}},
+		Run: engine.Result{
+			Skipped: []engine.SkippedJob{{Control: "kubernetes", Scanner: "kube-bench-job", Component: "payments",
+				Reason: "audits the whole cluster and cannot be narrowed to namespace payments"}},
+			Inputs: []engine.InputCoverage{{Component: "api", Control: "sca", Unread: []engine.UnreadInput{
+				{Repository: "https://github.com/acme/api", Path: "go.mod", Reason: "no packages read"}}}},
+			UnreadChecks: []engine.UnreadChecks{{Component: "platform", Control: "cloud", Group: "compute",
+				Checks: []string{"compute_instance_public_ip"}, Reason: "denied compute.instances.list"}},
+		},
+	}
+}
+
+// The caveats the gate fails on stay in the one block, marked where they sit, and the heading says
+// how many and under which setting. The others line up under them unmarked.
+func TestCaveatsTheGateFailsOnAreMarkedWhereTheySit(t *testing.T) {
+	out := renderWith(t, consoleReporter{}, failingCaveatData())
+	for _, want := range []string{
+		"CAVEATS  2 fail the run · config.gate.failOnCaveats: unread-checks, unread-files",
+		"api        go.mod          ✗ unread        no packages read (sca)",
+		"payments   kube-bench-job    not measured  audits the whole cluster",
+		"platform   compute         ✗ unread        1 check · denied compute.instances.list",
+		"web        hosts             not checked   dast, headers, tls off",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "ERRORS") {
+		t.Errorf("a caveat moved into the errors:\n%s", out)
+	}
+
+	one := failingCaveatData()
+	one.FailOnCaveats, one.FailOnCaveatsFrom = []saga.CaveatKind{saga.CaveatNotChecked}, "--fail-on-caveats"
+	if out := renderWith(t, consoleReporter{}, one); !strings.Contains(out, "CAVEATS  1 fails the run · --fail-on-caveats: not-checked") {
+		t.Errorf("one failing caveat, named by the flag:\n%s", out)
+	}
+
+	accepted := failingCaveatData()
+	accepted.AcceptedErrors = true
+	if out := renderWith(t, consoleReporter{}, accepted); !strings.Contains(out, "CAVEATS  2 accepted by --allow-scan-errors · config.gate.failOnCaveats") {
+		t.Errorf("accepted caveats:\n%s", out)
+	}
+
+	// A gate listing a kind the run has none of reads as a run with nothing failing.
+	none := failingCaveatData()
+	none.FailOnCaveats = []saga.CaveatKind{saga.CaveatNotMeasured}
+	none.Run.Skipped = nil
+	if out := renderWith(t, consoleReporter{}, none); !strings.Contains(out, "CAVEATS  do not fail the run") || strings.Contains(out, "✗") {
+		t.Errorf("nothing failing should read as it always did:\n%s", out)
+	}
+}
+
+func TestFailedCaveatsAreTheKindsTheGateLists(t *testing.T) {
+	got := FailedCaveats(failingCaveatData())
+	if len(got) != 2 || got[0].Component != "api" || got[0].Kind != saga.CaveatUnreadFiles ||
+		got[1].Component != "platform" || got[1].Kind != saga.CaveatUnreadChecks {
+		t.Errorf("FailedCaveats = %+v, want api's file and platform's checks", got)
+	}
+	if got := FailedCaveats(Data{Uncovered: failingCaveatData().Uncovered}); len(got) != 0 {
+		t.Errorf("with no setting, FailedCaveats = %+v, want none", got)
+	}
+}
+
+// A component with a caveat the gate fails on reads ERROR in every format, and says which.
+func TestAComponentWithAFailingCaveatReadsError(t *testing.T) {
+	d := failingCaveatData()
+	d.Components = []ComponentVerdict{
+		{Name: "api", FailedCaveats: FailedCaveats(d)[:1]},
+		{Name: "web"},
+	}
+	console := renderWith(t, consoleReporter{}, d)
+	if !strings.Contains(console, "api  ERROR") || !strings.Contains(console, "web  pass") {
+		t.Errorf("console:\n%s", console)
+	}
+	md := renderWith(t, markdownReporter{}, d)
+	if !strings.Contains(md, "**ERROR**") || !strings.Contains(md, "unread-files go.mod") {
+		t.Errorf("markdown:\n%s", md)
+	}
+	html := renderWith(t, htmlReporter{}, d)
+	if !strings.Contains(html, "unread-files go.mod") {
+		t.Errorf("html does not name the caveat")
+	}
+	if got := joinNotes("", "b"); got != "b" {
+		t.Errorf("joinNotes = %q", got)
+	}
+	if got := joinNotes("a", ""); got != "a" {
+		t.Errorf("joinNotes = %q", got)
+	}
+	if got := joinNotes("a", "b"); got != "a · b" {
+		t.Errorf("joinNotes = %q", got)
+	}
+}
+
+// report.json carries the setting on the gate and the caveats it failed.
+func TestReportJSONCarriesFailedCaveats(t *testing.T) {
+	out := renderWith(t, jsonReporter{}, failingCaveatData())
+	for _, want := range []string{`"failOnCaveats": [`, `"unread-checks"`, `"failedCaveats": [`, `"what": "go.mod"`, `"kind": "unread-files"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %s in report.json:\n%s", want, out)
+		}
 	}
 }

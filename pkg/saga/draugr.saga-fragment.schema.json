@@ -1705,6 +1705,32 @@
           "description": "What fails the build, in either vocabulary. A priority band (P1-P4) asks what band a finding landed in for the component it was found in, folding in the exposure and criticality declared below. A severity (critical, high, medium, low) asks what the scanner called the flaw on its own terms. Empty is the default, which is P1.",
           "type": "string"
         },
+        "failOnCaveats": {
+          "description": "Kinds of caveat that fail the run as an error does: reported with the errors, the component reads ERROR, and --allow-scan-errors accepts it. Empty fails on none.",
+          "items": {
+            "anyOf": [
+              {
+                "const": "not-checked",
+                "description": "A surface a component declares that no enabled control looks at."
+              },
+              {
+                "const": "not-measured",
+                "description": "A scanner that cannot honor a component's scope, so it did not run for that component."
+              },
+              {
+                "const": "unread-files",
+                "description": "A dependency file or Terraform module, in a repository that was read, that no scanner read."
+              },
+              {
+                "const": "unread-checks",
+                "description": "A cloud check the scan could not evaluate, because a read it needs was denied."
+              }
+            ],
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
         "failOnPriority": {
           "description": "Deprecated: write the band in failOn, which takes either vocabulary. Still read, so a descriptor that predates the merge keeps working, and refused alongside failOn.",
           "enum": [

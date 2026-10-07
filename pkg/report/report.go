@@ -109,6 +109,12 @@ type Data struct {
 	View View
 	// Uncovered is what this descriptor declares and no enabled control examines.
 	Uncovered []Gap
+	// FailOnCaveats is the kinds of caveat the gate fails the run on, as gate.failOnCaveats or
+	// --fail-on-caveats set them. A caveat of a listed kind is reported with the errors.
+	FailOnCaveats []saga.CaveatKind
+	// FailOnCaveatsFrom names the setting that listed them, config.gate.failOnCaveats or
+	// --fail-on-caveats, so the caveats block can say where to change it.
+	FailOnCaveatsFrom string
 	// Suggestions are the things this particular run makes worth trying, decided by the caller
 	// because they depend on how it was invoked rather than on what it found.
 	Suggestions []Suggestion
@@ -304,7 +310,15 @@ type ComponentVerdict struct {
 	// established. The same reasoning already keeps a component the scope excluded out of the pass
 	// list; a component the scan could not reach is the same situation arrived at later.
 	Unscanned []engine.Unscanned
+	// FailedCaveats are this component's caveats of a kind gate.failOnCaveats lists. Like a target
+	// no scanner read, each leaves the component short of what the gate requires, so the component
+	// reads ERROR rather than pass.
+	FailedCaveats []FailedCaveat
 }
+
+// Errored reports whether something kept this component from a verdict the gate accepts: a target
+// no scanner read, or a caveat of a kind the gate fails on.
+func (c ComponentVerdict) Errored() bool { return len(c.Unscanned) > 0 || len(c.FailedCaveats) > 0 }
 
 // Reporter renders Data in one format.
 type Reporter interface {
@@ -460,7 +474,9 @@ func (jsonReporter) Render(w io.Writer, d Data) error {
 // where it was sent. A platform receiving the document by publisher reads the build from it to
 // know which Draugr produced the run.
 func (d Data) JSONProvenance() skald.Provenance {
-	p := skald.Provenance{Descriptor: d.Descriptor, CI: d.CI, Gate: d.Gate.skald(), Policy: d.Policy}
+	gate := d.Gate.skald()
+	gate.FailOnCaveats = d.FailOnCaveats
+	p := skald.Provenance{Descriptor: d.Descriptor, CI: d.CI, Gate: gate, Policy: d.Policy, FailedCaveats: FailedCaveats(d)}
 	reports := make(map[string]sarif.Report, len(d.Run.Controls))
 	for name, cr := range d.Run.Controls {
 		reports[name] = cr.Report

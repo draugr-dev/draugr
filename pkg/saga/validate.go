@@ -99,6 +99,7 @@ func (m *Model) Validate() error {
 					"decision. Write the band in failOn: it takes a band (%s) or a severity (%s)",
 				strings.Join(Priorities, ", "), strings.Join(gateSeverityWords(), ", ")))
 		}
+		errs = append(errs, validateCaveatKinds(g.FailOnCaveats, "config.gate.failOnCaveats")...)
 		// The same vocabulary throughout, because the run asks one question. A band under a
 		// severity gate, or a severity under a band gate, is a second question asked of one
 		// control and puts the reader back where two keys left them.
@@ -818,4 +819,22 @@ func sortedFieldNames(m map[string]string) []string {
 	}
 	slices.Sort(out)
 	return out
+}
+
+// validateCaveatKinds refuses a kind of caveat this build does not report, and one listed twice.
+// A misspelled kind would otherwise be a rule in a reviewed descriptor that never fires, which is a
+// gate somebody believes is stricter than it is.
+func validateCaveatKinds(kinds []CaveatKind, field string) []error {
+	var errs []error
+	seen := map[CaveatKind]bool{}
+	for i, k := range kinds {
+		switch {
+		case !k.Valid():
+			errs = append(errs, fmt.Errorf("%s[%d] is %q, but a kind of caveat is %s", field, i, k, orList(CaveatKinds)))
+		case seen[k]:
+			errs = append(errs, fmt.Errorf("%s lists %q twice", field, k))
+		}
+		seen[k] = true
+	}
+	return errs
 }

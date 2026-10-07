@@ -405,6 +405,7 @@ Grouped the way `draugr scan --help` groups them.
 |------|---------|-------------|
 | `--fail-on` | `P1` | What fails the gate, in either vocabulary: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`) |
 | `--fail-on-priority` | | Deprecated: write the band in `--fail-on` |
+| `--fail-on-caveats` | none | Kinds of caveat that fail the run as an error does: `not-checked`, `not-measured`, `unread-files`, `unread-checks`, or `none`. Overrides [`config.gate.failOnCaveats`](saga-schema.md#configgate) |
 | `--no-gate` | `false` | Report the verdict but exit 0 on a fail, for producing a report to compare later, where [`draugr diff`](#draugr-diff-basesarif-headsarif) is the gate |
 | `--allow-scan-errors` | `false` | Treat a control that couldn't run as a warning rather than a failure. By default an incomplete scan fails the run, because an empty report from a scanner that never ran isn't evidence of anything. The verdict line then carries `partial`, with the number of targets not reached |
 
@@ -1296,7 +1297,7 @@ only narrows it.
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--json` | `false` | Emit the report as JSON instead of a table (uncovered surfaces come too, as `uncoveredSurfaces`, and target checks as `targets`) |
-| `--fail-on-uncovered` | `false` | Exit non-zero when the descriptor declares a surface no enabled control looks at |
+| `--fail-on-uncovered` | `false` | Exit non-zero when the descriptor declares a surface no enabled control looks at. Also the behavior when [`config.gate.failOnCaveats`](saga-schema.md#configgate) lists `not-checked` |
 | `--strict` | `false` | Exit non-zero when a tool is not the version Draugr tests, as well as when one is missing |
 | `--policy` | `false` | Exit non-zero when the organization's policy could not be checked, as well as when a scan would be refused or fail by it |
 | `--offline` | `false` | Skip the check for a newer draugr release and every target check that needs the network (`DRAUGR_NO_UPDATE_CHECK=1` skips only the release check) |

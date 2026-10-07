@@ -79,7 +79,9 @@ type scanOptions struct {
 	criticality     []string
 	controls        []string
 	allowScanErrors bool
-	view            string
+	// failOnCaveats is --fail-on-caveats as typed, read only when setFlags says it was passed.
+	failOnCaveats []string
+	view          string
 	// group and compact are the two flags --view replaces, kept so a pipeline written against
 	// them keeps working while it says so.
 	group   string
@@ -94,7 +96,7 @@ type scanOptions struct {
 // made in.
 var scanFlagGroups = []flagGroup{
 	{"What is scanned", []string{"components", "labels", "exposure", "criticality", "controls", "working-tree"}},
-	{"What fails the build", []string{"fail-on", "fail-on-priority", "no-gate", "allow-scan-errors"}},
+	{"What fails the build", []string{"fail-on", "fail-on-priority", "fail-on-caveats", "no-gate", "allow-scan-errors"}},
 	{"Exploitability data", []string{"kev", "epss", "epss-threshold"}},
 	{"Output", []string{
 		"format", "output", "report", "view", "group", "compact", "evidence", "top",
@@ -140,6 +142,9 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.failOnPriority, "fail-on-priority", "",
 		"deprecated: write the band in --fail-on, which takes either vocabulary")
 	_ = cmd.Flags().MarkDeprecated("fail-on-priority", "use --fail-on, which takes a band or a severity")
+	cmd.Flags().StringSliceVar(&opts.failOnCaveats, "fail-on-caveats", nil,
+		"kinds of caveat that fail the run as an error does: not-checked, not-measured, "+
+			"unread-files, unread-checks, or none; overrides config.gate.failOnCaveats")
 	cmd.Flags().BoolVar(&opts.evidence, "evidence", false,
 		"also print what stands behind the verdict: tool provenance, what each control measured "+
 			"against, the scanned revision, and what the run cost")
@@ -258,6 +263,10 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// Before the scan, not after. A typo discovered once the scanners have finished is a wasted
 	// pipeline minute for a mistake that was visible on the command line.
 	failOn, failOnPriority, err := resolveGate(opts.failOn, opts.failOnPriority, model.Config.Gate)
+	if err != nil {
+		return err
+	}
+	failOnCaveats, caveatSetting, err := resolveFailOnCaveats(opts.failOnCaveats, opts.setFlags["fail-on-caveats"], model.Config.Gate)
 	if err != nil {
 		return err
 	}
@@ -505,6 +514,22 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		Version:   reportVersion(),
 		Commit:    buildCommit(),
 	}
+	// A caveat of a kind the gate lists fails the run as an error does, and is accepted the way an
+	// error is. Decided once the report data exists, because a caveat is read off the same data the
+	// report prints, so the two cannot disagree about which ones there were.
+	data.FailOnCaveats, data.FailOnCaveatsFrom = failOnCaveats, caveatSetting
+	failedCaveats := report.FailedCaveats(data)
+	if len(failedCaveats) > 0 {
+		markCaveatComponents(data.Components, failedCaveats)
+		if opts.allowScanErrors {
+			data.AcceptedErrors = true
+		} else {
+			incomplete = true
+			data.Incomplete = true
+			verdict.Verdict = norn.Fail
+			data.Verdict = verdict
+		}
+	}
 	if format == "template" {
 		art, err := report.Build(saga.ReportConfig{
 			Format: "template", Template: opts.template, TemplateFile: opts.templateFile,
@@ -543,6 +568,12 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	}
 
 	if incomplete {
+		if len(unwaived) == 0 && (len(waived) == 0 || opts.allowScanErrors) {
+			// Nothing failed to run; the gate fails on what the run did not cover.
+			return alsoPublish(fmt.Errorf("scan incomplete: %s under %s "+
+				"(use --allow-scan-errors to accept partial results)",
+				caveatClause(failedCaveats), caveatSetting), publishErr)
+		}
 		// Distinct from a policy failure: nothing was necessarily found, the scan just didn't
 		// finish. Saying so is the difference between a bug report and a shrug.
 		//
@@ -554,9 +585,13 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 				"--allow-scan-errors does not apply: it accepts a failed scanner, and no scanner ran",
 				strings.Join(unwaived, ", ")), publishErr)
 		}
-		return alsoPublish(fmt.Errorf("scan incomplete: %s could not run "+
+		also := ""
+		if len(failedCaveats) > 0 {
+			also = fmt.Sprintf(", and %s under %s", caveatClause(failedCaveats), caveatSetting)
+		}
+		return alsoPublish(fmt.Errorf("scan incomplete: %s could not run%s "+
 			"(use --allow-scan-errors to accept partial results)",
-			strings.Join(waived, ", ")), publishErr)
+			strings.Join(waived, ", "), also), publishErr)
 	}
 	// --no-gate suppresses the *verdict's* exit code only. A scan that could not run still fails,
 	// above: the flag says "I am producing a report to compare later, and the comparison is the
@@ -1198,4 +1233,21 @@ func componentLabels(model *saga.Model) map[string]map[string]string {
 		out[model.Components[i].Name] = model.Components[i].Labels
 	}
 	return out
+}
+
+// caveatClause says how many caveats fail the run, for the exit message.
+func caveatClause(failed []report.FailedCaveat) string {
+	return english.Count(len(failed), "caveat") + " " + map[bool]string{true: "fails", false: "fail"}[len(failed) == 1] + " it"
+}
+
+// markCaveatComponents records, on each component's row, the caveats of its that fail the run, so
+// the row reads ERROR as it does for a target no scanner read.
+func markCaveatComponents(components []report.ComponentVerdict, failed []report.FailedCaveat) {
+	for i := range components {
+		for _, c := range failed {
+			if c.Component == components[i].Name {
+				components[i].FailedCaveats = append(components[i].FailedCaveats, c)
+			}
+		}
+	}
 }

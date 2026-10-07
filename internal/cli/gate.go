@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/english"
@@ -139,3 +140,30 @@ var errBothDiffGates = errors.New(
 	"--fail-on-new and --fail-on-new-priority are two spellings of one decision and a run has " +
 		"one gate. --fail-on-new now takes either vocabulary: a band (P1-P4) or a severity " +
 		"(critical, high, medium, low)")
+
+// resolveFailOnCaveats is the kinds of caveat that fail this run, and the setting that named them
+// for the exit message: --fail-on-caveats when it was passed, the descriptor's
+// gate.failOnCaveats otherwise. "none" on the command line fails on none for one run.
+func resolveFailOnCaveats(flag []string, set bool, gate *saga.GateConfig) ([]saga.CaveatKind, string, error) {
+	if !set {
+		if gate == nil {
+			return nil, "", nil
+		}
+		return gate.FailOnCaveats, "config.gate.failOnCaveats", nil
+	}
+	if len(flag) == 1 && flag[0] == "none" {
+		return nil, "--fail-on-caveats", nil
+	}
+	kinds := make([]saga.CaveatKind, 0, len(flag))
+	for _, f := range flag {
+		k := saga.CaveatKind(strings.TrimSpace(f))
+		if !k.Valid() {
+			return nil, "", fmt.Errorf("--fail-on-caveats: %q is not a kind of caveat; write %s, or none",
+				f, strings.Join(namesOf(saga.CaveatKinds), ", "))
+		}
+		if !slices.Contains(kinds, k) {
+			kinds = append(kinds, k)
+		}
+	}
+	return kinds, "--fail-on-caveats", nil
+}
