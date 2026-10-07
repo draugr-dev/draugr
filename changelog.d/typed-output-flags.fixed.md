@@ -1,0 +1,1 @@
+- **A flag typed on `draugr scan` now overrides `draugr.config.yaml`.** `--view`, `--top` and `--evidence` lost to a value set under `output:`, so `view: compact` there won over `--view actions` on the command line.

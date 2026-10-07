@@ -103,3 +103,29 @@ func TestResolveViewRefusesWhatItCannotRender(t *testing.T) {
 		t.Errorf("error = %v, want it to point at --view", err)
 	}
 }
+
+// A flag typed on the command line beats draugr.config.yaml, whichever flag it is. The record of
+// what was typed comes from the command itself here, as it does in a real run, rather than being
+// written by hand.
+func TestATypedOutputFlagBeatsTheConfiguration(t *testing.T) {
+	cmd := newScanCommand()
+	if err := cmd.ParseFlags([]string{"--view", "actions", "--top", "0", "--evidence=false"}); err != nil {
+		t.Fatal(err)
+	}
+	opts := scanOptions{view: "actions", setFlags: changedFlags(cmd)}
+	outputOptionsFrom(&opts, config.OutputSettings{View: "compact", Top: 20, Evidence: true})
+	if opts.view != "actions" || opts.top != 0 || opts.evidence {
+		t.Errorf("view %q, top %d, evidence %v: the configuration overrode what was typed", opts.view, opts.top, opts.evidence)
+	}
+
+	// Nothing typed, and the configuration applies.
+	untyped := newScanCommand()
+	if err := untyped.ParseFlags(nil); err != nil {
+		t.Fatal(err)
+	}
+	opts = scanOptions{view: "findings", setFlags: changedFlags(untyped)}
+	outputOptionsFrom(&opts, config.OutputSettings{View: "compact", Top: 20, Evidence: true})
+	if opts.view != "compact" || opts.top != 20 || !opts.evidence {
+		t.Errorf("view %q, top %d, evidence %v: the configuration was not applied", opts.view, opts.top, opts.evidence)
+	}
+}
