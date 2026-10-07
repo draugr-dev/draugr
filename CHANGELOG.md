@@ -16,7 +16,7 @@ _Nothing yet._
 
 ### Added
 
-- **A descriptor can make chosen kinds of caveat fail the run**, with `config.gate.failOnCaveats` listing any of `not-checked`, `not-measured`, `unread-files` and `unread-checks`. A listed caveat stays under **Caveats**, marked `✗`, its component reads `ERROR`, and `--allow-scan-errors` accepts it. `--fail-on-caveats` overrides the list for one run, and `draugr doctor` reads it for `not-checked`.
+- **A descriptor can make chosen kinds of caveat fail the run**, by listing them in `config.gate.failOnCaveats`. A listed caveat is marked `✗` under **Caveats** and its component reads `ERROR`, as for a target no scanner reached, so `--allow-scan-errors` accepts it. `--fail-on-caveats` sets the list for one run, and `draugr doctor` fails on `not-checked` when the list names it.
 
 ### Fixed
 
