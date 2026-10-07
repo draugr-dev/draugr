@@ -9,7 +9,7 @@
     <circle cx="214" cy="222" r="112" style="fill:#1B2328;stroke:#7CA6B8;stroke-width:2"/>
     <circle cx="214" cy="222" r="62" style="fill:#0B0E11;stroke:#7CA6B8;stroke-width:5"/>
     <text x="214" y="36" text-anchor="middle" font-size="13.5" font-weight="700" fill="#E6E8EA" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">public</text>
-    <text x="214" y="50" text-anchor="middle" font-size="10.5" fill="#9AA4AE" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">the internet, no sign-in</text>
+    <text x="214" y="50" text-anchor="middle" font-size="10.5" fill="#D4D9DE" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">the internet, no sign-in</text>
     <text x="214" y="82" text-anchor="middle" font-size="13.5" font-weight="700" fill="#E6E8EA" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">authenticated</text>
     <text x="214" y="96" text-anchor="middle" font-size="10.5" fill="#9AA4AE" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">behind a login</text>
     <text x="214" y="130" text-anchor="middle" font-size="13.5" font-weight="700" fill="#E6E8EA" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">internal</text>
