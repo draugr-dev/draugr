@@ -12,6 +12,16 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.150.0] - 2026-10-07
+
+### Added
+
+- **A descriptor can make chosen kinds of caveat fail the run**, with `config.gate.failOnCaveats` listing any of `not-checked`, `not-measured`, `unread-files` and `unread-checks`. A listed caveat stays under **Caveats**, marked `✗`, its component reads `ERROR`, and `--allow-scan-errors` accepts it. `--fail-on-caveats` overrides the list for one run, and `draugr doctor` reads it for `not-checked`.
+
+### Fixed
+
+- **A flag typed on `draugr scan` now overrides `draugr.config.yaml`.** `--view`, `--top` and `--evidence` lost to a value set under `output:`, so `view: compact` there won over `--view actions` on the command line.
+
 ## [0.149.1] - 2026-10-06
 
 ### Fixed
@@ -6293,7 +6303,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.149.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.150.0...HEAD
+[0.150.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.150.0
 [0.149.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.149.1
 [0.149.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.149.0
 [0.148.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.148.0
