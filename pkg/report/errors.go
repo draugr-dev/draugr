@@ -11,6 +11,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/skald"
 	"github.com/draugr-dev/draugr/pkg/tui"
@@ -61,7 +62,7 @@ func notReached(d Data) []engine.TargetOutcome {
 }
 
 // kindOrder is the order a component declares its targets in.
-var kindOrder = []string{"repository", "image", "host", "cluster", "account"}
+var kindOrder = []string{"repository", "image", "host", "cluster", "account", "file"}
 
 // bareFailure matches a clause that says something failed and not what.
 var bareFailure = regexp.MustCompile(`^(?i:fatal|error|exit status \d+)$`)
@@ -130,6 +131,12 @@ func caveats(d Data) []caveat {
 	for _, g := range d.Run.UnreadChecks {
 		out = append(out, caveat{g.Component, g.Group, "unread",
 			english.Count(len(g.Checks), "check") + " · " + g.Reason, saga.CaveatUnreadChecks})
+	}
+	// An imported file that names no revision: read, but nothing shows it describes the code this
+	// run scanned.
+	for _, u := range unboundImports(d) {
+		out = append(out, caveat{u.component, u.file, "unbound", "the file states no commit; read as written",
+			saga.CaveatUnboundImports})
 	}
 	for _, g := range unreadByComponent(d.Run.Inputs) {
 		for _, f := range g.files {
@@ -276,6 +283,40 @@ func namesOfKinds(kinds []saga.CaveatKind) []string {
 	out := make([]string, len(kinds))
 	for i, k := range kinds {
 		out[i] = string(k)
+	}
+	return out
+}
+
+// unboundImport is an imported SARIF file that stated no commit.
+type unboundImport struct{ component, file string }
+
+// unboundImports reads them off the import scanner's provenance, which records the commit each
+// file was checked against or that it named none.
+func unboundImports(d Data) []unboundImport {
+	var out []unboundImport
+	seen := map[unboundImport]bool{}
+	for _, name := range sortedControlNames(d) {
+		for _, p := range d.Run.Controls[name].Report.Provenance {
+			if p.Tool != plugin.ImportScanner {
+				continue
+			}
+			var u unboundImport
+			bound := true
+			for _, f := range p.Fields {
+				switch f.Key {
+				case "component":
+					u.component = f.Value
+				case "file":
+					u.file = f.Value
+				case "commit":
+					bound = f.Value != "not stated"
+				}
+			}
+			if !bound && !seen[u] {
+				seen[u] = true
+				out = append(out, u)
+			}
+		}
 	}
 	return out
 }

@@ -885,7 +885,7 @@ func TestValidateGateFailOnCaveats(t *testing.T) {
 	}
 	err := with("unread")
 	if err == nil || !strings.Contains(err.Error(), `config.gate.failOnCaveats[0] is "unread"`) ||
-		!strings.Contains(err.Error(), "unread-files or unread-checks") {
+		!strings.Contains(err.Error(), "unread-checks or unbound-imports") {
 		t.Errorf("err = %v, want the bad kind refused, naming every kind", err)
 	}
 	if err := with(CaveatUnreadFiles, CaveatUnreadFiles); err == nil || !strings.Contains(err.Error(), "twice") {
@@ -893,5 +893,28 @@ func TestValidateGateFailOnCaveats(t *testing.T) {
 	}
 	if CaveatKind("").Valid() {
 		t.Error("an empty kind is not a kind")
+	}
+}
+
+// An import needs a control and a file, and one file imported twice into a control would count
+// every finding twice.
+func TestValidateImports(t *testing.T) {
+	with := func(imps ...Import) error {
+		return (&Model{Release: Release{Version: "1"}, Components: []Component{{Name: "api", Imports: imps}}}).Validate()
+	}
+	if err := with(Import{Control: "sast", File: "a.sarif"}, Import{Control: "sca", File: "a.sarif"}); err != nil {
+		t.Errorf("one file into two controls should be accepted: %v", err)
+	}
+	for _, c := range []struct {
+		imps []Import
+		want string
+	}{
+		{[]Import{{File: "a.sarif"}}, "control is required"},
+		{[]Import{{Control: "sast"}}, "file is required"},
+		{[]Import{{Control: "sast", File: "a.sarif"}, {Control: "sast", File: "a.sarif"}}, "a.sarif is imported into sast twice"},
+	} {
+		if err := with(c.imps...); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("err = %v, want %q", err, c.want)
+		}
 	}
 }

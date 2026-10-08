@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -397,5 +399,33 @@ func TestResolveContext(t *testing.T) {
 	}
 	if _, err := resolveContext(many, "z"); err == nil || !strings.Contains(err.Error(), "and 2 more") {
 		t.Errorf("a long list is not capped: %v", err)
+	}
+}
+
+// doctor says before the scan whether an imported file is there and is SARIF 2.1.0, because the
+// scan stops on either.
+func TestDoctorChecksAnImportedFile(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	for _, c := range []struct {
+		path   string
+		status Status
+		detail string
+	}{
+		{write("ok.sarif", `{"version":"2.1.0","runs":[{},{}]}`), Passed, "SARIF 2.1.0, 2 runs"},
+		{write("old.sarif", `{"version":"2.0.0","runs":[]}`), Failed, `states SARIF version "2.0.0"`},
+		{write("junk.sarif", `junk`), Failed, "not a SARIF file"},
+		{filepath.Join(dir, "absent.sarif"), Failed, "no such file"},
+	} {
+		got := Run(context.Background(), []plugin.Target{plugin.FileTarget{Path: c.path}, plugin.FileTarget{Path: c.path}}, Options{Offline: true})
+		if len(got) != 1 || got[0].Status != c.status || !strings.Contains(got[0].Detail, c.detail) || got[0].Kind != "file" {
+			t.Errorf("%s: %+v, want %v %q, checked once", filepath.Base(c.path), got, c.status, c.detail)
+		}
 	}
 }

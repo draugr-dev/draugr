@@ -6,10 +6,13 @@ package engine
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
+	"os"
 	"os/exec"
 	"runtime"
 	"slices"
@@ -410,6 +413,9 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 			}
 		}
 	}
+	imported, ierrs := e.planImports(model)
+	planned = append(planned, imported...)
+	errs = append(errs, ierrs...)
 	slog.Debug("planned scan jobs", "jobs", len(planned), "controls", len(e.reg.controllers))
 	for _, pj := range planned {
 		// Identity, not the struct. A repository's URL and its resolved remote both carry whatever
@@ -2400,4 +2406,51 @@ func (e *Engine) applyDependencyHealth(ctx context.Context, controls map[string]
 		}
 		controls[name] = cr
 	}
+}
+
+// planImports plans a job for each SARIF file a component imports, under the control the
+// descriptor names.
+//
+// Planned here rather than by a controller, because an import is no controller's decision: the
+// descriptor said which control the findings belong to, and the control's own planning would only
+// repeat it. The control's results gather the import's report with its scanners', so the findings
+// are ranked and gated with everything else the control found.
+func (e *Engine) planImports(model saga.Model) ([]PlannedJob, []error) {
+	var planned []PlannedJob
+	var errs []error
+	for i := range model.Components {
+		comp := &model.Components[i]
+		if !e.scope.IncludesComponent(comp.Name) {
+			continue
+		}
+		for _, imp := range comp.Imports {
+			if !e.scope.includesControl(imp.Control) {
+				continue
+			}
+			if _, ok := e.reg.controllers[imp.Control]; !ok {
+				errs = append(errs, fmt.Errorf("plan import %s for %s: %q is not a control this build provides",
+					imp.File, comp.Name, imp.Control))
+				continue
+			}
+			target := plugin.FileTarget{Path: imp.File, Component: comp.Name, Digest: fileDigest(imp.File)}
+			for _, r := range comp.Repositories {
+				target.Repositories = append(target.Repositories,
+					plugin.RepositoryTarget{URL: r.URL, Revision: r.Revision, WorkingTree: e.workingTree})
+			}
+			planned = appendJobs(planned, imp.Control, comp, comp.UpgradePolicy(model.Config),
+				[]plugin.ScanJob{{Scanner: plugin.ImportScanner, Target: target}})
+		}
+	}
+	return planned, errs
+}
+
+// fileDigest is the SHA-256 of a file, or empty when it cannot be read. The scan that reads it
+// reports why; the digest only has to keep two different files from sharing a cache entry.
+func fileDigest(path string) string {
+	data, err := os.ReadFile(path) // #nosec G304 -- a file the descriptor names for import
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
 }

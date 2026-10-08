@@ -92,6 +92,7 @@ var openStrings = map[string]string{
 	"$defs.host.properties.url":                                    "the endpoint's address",
 	"$defs.image.properties.image":                                 "an image reference",
 	"$defs.vexSource.properties.path":                              "a path to a VEX document",
+	"$defs.import.properties.file":                                 "a path to the SARIF file another tool wrote",
 	"$defs.vexSource.properties.url":                               "a URL to a VEX document",
 	"$defs.vexRepository.properties.url":                           "a repository holding VEX documents",
 	"$defs.vexRepository.properties.path":                          "a path within it",

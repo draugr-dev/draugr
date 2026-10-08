@@ -1,0 +1,1 @@
+- **A component can import a SARIF file another tool wrote**, with `components[].imports` naming the control and the file. Its findings are ranked by the component's exposure and criticality and judged by the same gate. A file written for another commit stops the run, and one that states no commit is listed as an `unbound` caveat.

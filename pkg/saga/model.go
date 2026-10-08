@@ -222,10 +222,13 @@ const (
 	// CaveatUnreadChecks is a cloud check the scan could not evaluate, because a read it needs
 	// was denied.
 	CaveatUnreadChecks CaveatKind = "unread-checks"
+	// CaveatUnboundImports is an imported SARIF file that states no revision, so nothing shows it
+	// describes the code being scanned.
+	CaveatUnboundImports CaveatKind = "unbound-imports"
 )
 
 // CaveatKinds are the values gate.failOnCaveats accepts, in the order the report names them.
-var CaveatKinds = []CaveatKind{CaveatNotChecked, CaveatNotMeasured, CaveatUnreadFiles, CaveatUnreadChecks}
+var CaveatKinds = []CaveatKind{CaveatNotChecked, CaveatNotMeasured, CaveatUnreadFiles, CaveatUnreadChecks, CaveatUnboundImports}
 
 // Valid reports whether k is a known kind of caveat.
 func (k CaveatKind) Valid() bool { return slices.Contains(CaveatKinds, k) }
@@ -856,6 +859,24 @@ type Component struct {
 	// Draugr **writes** about your product, this lists documents Draugr **reads** about a supplier's.
 	// A component does not author claims about itself.
 	VEX []VEXSource `yaml:"vex,omitempty"`
+	// Imports are SARIF files another tool wrote about this component, each read into one of
+	// Draugr's controls as though one of its scanners had produced it, so the findings are ranked by
+	// this component's exposure and criticality and judged by the same gate.
+	//
+	// On the component rather than the control, because a finding's priority depends on whose it
+	// is, and a file declared here belongs to this component and no other.
+	Imports []Import `yaml:"imports,omitempty"`
+}
+
+// Import is one SARIF file read into a control.
+type Import struct {
+	// Control is the control the file's findings belong to, such as sast or sca. Named rather than
+	// inferred from the tool's rules: a guess that put findings under the wrong control would leave
+	// nothing to show it.
+	Control string `yaml:"control"`
+	// File is the SARIF 2.1.0 file, resolved relative to where Draugr runs, as every path in a
+	// descriptor is.
+	File string `yaml:"file"`
 }
 
 // VEXSource is where one supplier's VEX document comes from.

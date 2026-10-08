@@ -16,7 +16,7 @@ tls         draugr-tls                                               Check the c
 
 PUBLISHERS  (who each scanner comes from)
   Origin               Scanners
-  draugr               draugr-headers, draugr-k8s-policies, draugr-tls
+  draugr               draugr-headers, draugr-k8s-policies, draugr-tls, sarif-import
   Go team              govulncheck
   RetireJS             retirejs
   VirusTotal (Google)  virustotal

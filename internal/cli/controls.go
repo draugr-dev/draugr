@@ -174,7 +174,9 @@ func writeScannerOptions(w io.Writer, col tui.Painter, reg *engine.Registry, onl
 	sort.Slice(scanners, func(i, j int) bool { return scanners[i].Info().Name < scanners[j].Info().Name })
 	for _, s := range scanners {
 		info := s.Info()
-		if !serves(info) {
+		// A scanner no control lists has no block to configure: the import scanner is reached through
+		// components[].imports, and listing it here would offer a block validation refuses.
+		if !serves(info) || len(info.Controls) == 0 {
 			continue
 		}
 		opts := plugin.Options(info.ConfigSchema)

@@ -16,6 +16,7 @@ const (
 	TargetHost       TargetKind = "host"
 	TargetKubernetes TargetKind = "kubernetes"
 	TargetAccount    TargetKind = "account"
+	TargetFile       TargetKind = "file"
 )
 
 // Target is something a scanner can act on. Identity returns a stable string that uniquely
@@ -397,3 +398,33 @@ func (t AccountTarget) Identity() string {
 type CacheDetailer interface {
 	CacheDetail() string
 }
+
+// ImportScanner is the scanner that reads a file another tool wrote, the one every import is
+// planned for.
+const ImportScanner = "sarif-import"
+
+// FileTarget is a file another tool wrote, read in place of running a scanner: a SARIF file a
+// component imports.
+type FileTarget struct {
+	// Path is the file, relative to where Draugr runs.
+	Path string
+	// Component is the component that imports it, which a caveat about the file names.
+	Component string
+	// Digest is the SHA-256 of the file when the run was planned, empty when it could not be read.
+	// Part of the cache key, so a file rewritten under the same name is read again rather than
+	// answered with what the old one said.
+	Digest string
+	// Repositories are the component's repositories, which the file has to describe: one that
+	// states the revision it scanned is held to the revision this run reads.
+	Repositories []RepositoryTarget
+}
+
+// Kind returns TargetFile.
+func (FileTarget) Kind() TargetKind { return TargetFile }
+
+// Identity returns the path, e.g. "file:reports/checkmarx.sarif".
+func (t FileTarget) Identity() string { return "file:" + t.Path }
+
+// CacheDetail is the file's content, so the same path holding different findings is a different
+// scan.
+func (t FileTarget) CacheDetail() string { return "sha256=" + t.Digest }

@@ -80,6 +80,7 @@ reference](saga-schema.md#sbom-generation).
 | `kube-bench` | kubernetes | Aqua kube-bench | Apache-2.0 | ✅ | [doc](../../internal/scanners/kube-bench.md) |
 | `kube-bench-job` | kubernetes | Aqua kube-bench (in-cluster Job) | Apache-2.0 | ✅ | [doc](../../internal/scanners/kube-bench-job.md) |
 | `draugr-k8s-policies` | kubernetes | native (no tool) | Apache-2.0 | ✅ | [doc](../../internal/scanners/draugr-k8s-policies.md) |
+| `sarif-import` | named in `components[].imports` | native (reads a SARIF file another tool wrote) | Apache-2.0 | ✅ | [doc](../../internal/scanners/sarif-import.md) |
 | `prowler` | cloud | Prowler | Apache-2.0 | ✅ | [doc](../../internal/scanners/prowler.md) |
 | `draugr-headers` | headers | native (no tool) | Apache-2.0 | ✅ | [doc](../../internal/scanners/draugr-headers.md) |
 | `nuclei` | dast | ProjectDiscovery Nuclei | MIT | ✅ | [doc](../../internal/scanners/nuclei.md) |
