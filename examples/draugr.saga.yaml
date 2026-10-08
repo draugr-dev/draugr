@@ -224,6 +224,13 @@ components:
       - name: web-ui
         url: https://app.example.com
         type: browser
+    # A SARIF file another tool wrote, read into one of Draugr's controls. Its findings take this
+    # component's exposure and criticality into their priority and count toward the gate. A file
+    # that names the commit it scanned has to match the one this run reads; one that names none is
+    # listed under Caveats as unbound.
+    imports:
+      - control: sast
+        file: reports/codeql.sarif
 
   # An internal API: no image here, and its endpoint is typed `api` so browser-only
   # header checks don't fire.

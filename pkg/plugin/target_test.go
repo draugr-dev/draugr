@@ -350,3 +350,16 @@ func TestRepositoryEntryKeysTheAnalysisNotTheCheckout(t *testing.T) {
 		t.Errorf("key = %s, want %s: an empty detail must not move every repository's cache entry", got, want)
 	}
 }
+
+// A file is identified by its path and keyed by its content, so the same path holding different
+// findings is never answered from the cache.
+func TestFileTargetKeysOnItsContent(t *testing.T) {
+	a := FileTarget{Path: "reports/x.sarif", Digest: "aaa"}
+	b := FileTarget{Path: "reports/x.sarif", Digest: "bbb"}
+	if a.Kind() != TargetFile || a.Identity() != "file:reports/x.sarif" || a.Identity() != b.Identity() {
+		t.Errorf("identity %q kind %q", a.Identity(), a.Kind())
+	}
+	if ComputeCacheKey(ImportScanner, "1", a, nil) == ComputeCacheKey(ImportScanner, "1", b, nil) {
+		t.Error("two contents share a cache key")
+	}
+}

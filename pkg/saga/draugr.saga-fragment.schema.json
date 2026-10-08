@@ -204,6 +204,13 @@
           },
           "type": "array"
         },
+        "imports": {
+          "description": "SARIF files another tool wrote about this component, each read into a control and ranked and gated like the rest.",
+          "items": {
+            "$ref": "#/$defs/import"
+          },
+          "type": "array"
+        },
         "kubernetes": {
           "description": "The clusters this component runs on, by name from clusters: — checked by the kubernetes control.",
           "items": {
@@ -1415,6 +1422,13 @@
           },
           "type": "array"
         },
+        "imports": {
+          "description": "SARIF files another tool wrote about this component, each read into a control and ranked and gated like the rest.",
+          "items": {
+            "$ref": "#/$defs/import"
+          },
+          "type": "array"
+        },
         "kubernetes": {
           "description": "The clusters this component runs on, by name from clusters: — checked by the kubernetes control.",
           "items": {
@@ -1724,6 +1738,10 @@
               {
                 "const": "unread-checks",
                 "description": "A cloud check the scan could not evaluate, because a read it needs was denied."
+              },
+              {
+                "const": "unbound-imports",
+                "description": "An imported SARIF file that states no revision, so nothing shows it describes the code being scanned."
               }
             ],
             "type": "string"
@@ -1897,6 +1915,30 @@
       },
       "required": [
         "image"
+      ],
+      "type": "object"
+    },
+    "import": {
+      "additionalProperties": false,
+      "description": "A SARIF file another tool wrote about this component, read into one of Draugr's controls.",
+      "properties": {
+        "control": {
+          "$ref": "#/$defs/controlName",
+          "description": "The control the file's findings belong to, such as sast or sca."
+        },
+        "file": {
+          "description": "The SARIF 2.1.0 file, relative to where Draugr runs.",
+          "minLength": 1,
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        }
+      },
+      "required": [
+        "control",
+        "file"
       ],
       "type": "object"
     },

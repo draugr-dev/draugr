@@ -250,6 +250,11 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 			report(where, name)
 			reportScanners(where, name, c.Controls[name])
 		}
+		// An import names the control its findings go to; a misspelled one would read the file into
+		// nothing and the run would pass without it.
+		for j, imp := range c.Imports {
+			report(fmt.Sprintf("components[%q].imports[%d].control", c.Name, j), imp.Control)
+		}
 	}
 
 	if len(problems) == 0 {

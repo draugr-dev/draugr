@@ -9,10 +9,12 @@ package preflight
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"os/exec"
 	"regexp"
 	"slices"
@@ -20,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/registry"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -153,6 +156,14 @@ func Run(ctx context.Context, targets []plugin.Target, opts Options) []Check {
 			units = append(units, func(ctx context.Context) []Check {
 				return []Check{accountCheck(ctx, p, provider, id, opts.Offline)}
 			})
+		case plugin.FileTarget:
+			// A file read in place: present and readable is the question, and it needs no network.
+			if seen["file:"+t.Path] {
+				continue
+			}
+			seen["file:"+t.Path] = true
+			path := t.Path
+			units = append(units, func(context.Context) []Check { return []Check{fileCheck(path)} })
 		default:
 			id := string(t.Kind()) + ":" + t.Identity()
 			if seen[id] {
@@ -464,4 +475,29 @@ func reason(err error, rawURL string) string {
 	}
 	line, _, _ := strings.Cut(strings.TrimSpace(msg), "\n")
 	return strings.TrimPrefix(line, "fatal: ")
+}
+
+// fileCheck is whether an imported file is there to read, and whether it is SARIF 2.1.0: the scan
+// stops on either, so the preflight says so first.
+func fileCheck(path string) Check {
+	c := Check{Kind: string(plugin.TargetFile), Target: path}
+	data, err := os.ReadFile(path) // #nosec G304 -- a file the descriptor names for import
+	if err != nil {
+		c.Status, c.Detail = Failed, err.Error()
+		return c
+	}
+	var log struct {
+		Version string            `json:"version"`
+		Runs    []json.RawMessage `json:"runs"`
+	}
+	if err := json.Unmarshal(data, &log); err != nil {
+		c.Status, c.Detail = Failed, "not a SARIF file: "+err.Error()
+		return c
+	}
+	if log.Version != "2.1.0" {
+		c.Status, c.Detail = Failed, fmt.Sprintf("states SARIF version %q, and Draugr reads 2.1.0", log.Version)
+		return c
+	}
+	c.Status, c.Detail = Passed, "SARIF 2.1.0, "+english.Count(len(log.Runs), "run")
+	return c
 }

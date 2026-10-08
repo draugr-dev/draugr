@@ -185,6 +185,9 @@ components:
     cloud:
       - account: shop-prod                      # required, a name declared under accounts:
         regions: [us-central1]                  # optional, the regions this component's resources are in
+    imports:
+      - control: sast                           # required, the control its findings belong to
+        file: reports/checkmarx.sarif           # required, a SARIF 2.1.0 file another tool wrote
     controls:              # optional per-component overrides (same shape as config.controls)
       images:
         enabled: true
@@ -309,6 +312,39 @@ fleet of many components can be narrowed to the ones somebody is answerable for.
 They are deliberately absent from the console, the Markdown report and a pull-request comment.
 Those answer what to fix, for a reader who already knows the work is theirs; filtering is a
 question asked where there is a fleet.
+
+### `components[].imports`
+
+`imports` reads a SARIF 2.1.0 file another tool wrote into one of Draugr's controls, as though one of
+that control's scanners had produced it. Its findings take this component's exposure and
+criticality into their priority, count toward the gate, and appear in the fix list beside everything
+Draugr found.
+
+```yaml
+components:
+  - name: api
+    exposure: public
+    criticality: critical
+    imports:
+      - control: sast
+        file: reports/checkmarx.sarif   # relative to where Draugr runs
+```
+
+| field | meaning |
+|---|---|
+| `control` | the control the file's findings belong to, such as `sast` or `sca` |
+| `file` | the SARIF 2.1.0 file, relative to where Draugr runs |
+
+Every finding in the file belongs to this component. Severity comes from each result's numeric
+`security-severity` and otherwise from its SARIF `level`, and the report says which. The report
+also names the tool and version the file states, when it was written, and its SHA-256, under
+**Measured against**.
+
+A file that states the commit it scanned is held to the commit this run reads, and a different
+commit stops the run. A file that states none is read and listed under **Caveats** as `unbound`,
+which [`config.gate.failOnCaveats`](#configgate) can make fail the run. A missing, unreadable or
+invalid file stops the run as a scanner that could not run does. The
+[`sarif-import`](../../internal/scanners/sarif-import.md) page has the details.
 
 ## `config.controls`
 
@@ -1205,6 +1241,7 @@ in what the run covered, listed under **Caveats** in the report:
 | `not-measured` | a scanner that cannot honor a component's scope, so it did not run for that component |
 | `unread-files` | a dependency file or Terraform module, in a repository that was read, that no scanner read |
 | `unread-checks` | a cloud check the scan could not evaluate, because a read it needs was denied |
+| `unbound-imports` | an imported SARIF file that states no commit, so nothing shows it describes the code being scanned |
 
 ```yaml
 config:

@@ -298,3 +298,31 @@ func TestReportJSONCarriesFailedCaveats(t *testing.T) {
 		}
 	}
 }
+
+// An imported file that states no commit is a caveat, once however many controls read it; a bound
+// file and another scanner's provenance are not.
+func TestAnUnboundImportIsACaveat(t *testing.T) {
+	imported := func(file, commit string) sarif.Provenance {
+		return sarif.Provenance{Tool: plugin.ImportScanner, Fields: []sarif.Field{
+			{Key: "file", Value: file}, {Key: "commit", Value: commit}, {Key: "component", Value: "web"}}}
+	}
+	unbound := imported("reports/codeql.sarif", "not stated")
+	d := Data{
+		FailOnCaveats:     []saga.CaveatKind{saga.CaveatUnboundImports},
+		FailOnCaveatsFrom: "config.gate.failOnCaveats",
+		Run: engine.Result{Controls: map[string]plugin.ControlResult{
+			"sast": {Report: sarif.Report{Provenance: []sarif.Provenance{
+				unbound, imported("reports/semgrep.sarif", "0123456789ab"),
+				{Tool: "gosec", Fields: []sarif.Field{{Key: "commit", Value: "not stated"}}}}}},
+			"sca": {Report: sarif.Report{Provenance: []sarif.Provenance{unbound}}},
+		}},
+	}
+	got := FailedCaveats(d)
+	if len(got) != 1 || got[0].Component != "web" || got[0].Kind != saga.CaveatUnboundImports {
+		t.Fatalf("FailedCaveats = %+v, want web's one unbound import", got)
+	}
+	out := renderWith(t, consoleReporter{}, d)
+	if !strings.Contains(out, "reports/codeql.sarif") || strings.Contains(out, "reports/semgrep.sarif") {
+		t.Errorf("want the unbound file listed and the bound one not:\n%s", out)
+	}
+}

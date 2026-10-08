@@ -298,6 +298,7 @@ func validateComponents(comps []Component) []error {
 		if c.BuiltBy != "" && !c.BuiltBy.Valid() {
 			errs = append(errs, fmt.Errorf("%s: builtBy %q is not %s", where, c.BuiltBy, orList(BuiltByValues)))
 		}
+		errs = append(errs, validateImports(c.Imports, where)...)
 
 		for j, r := range c.Repositories {
 			if r.URL == "" {
@@ -835,6 +836,29 @@ func validateCaveatKinds(kinds []CaveatKind, field string) []error {
 			errs = append(errs, fmt.Errorf("%s lists %q twice", field, k))
 		}
 		seen[k] = true
+	}
+	return errs
+}
+
+// validateImports refuses an import without a control or a file, and one file imported twice into
+// the same control, which would count every finding in it twice. Whether the control exists is a
+// question for the registry, asked where control names are checked.
+func validateImports(imports []Import, where string) []error {
+	var errs []error
+	seen := map[[2]string]bool{}
+	for i, imp := range imports {
+		at := fmt.Sprintf("%s: imports[%d]", where, i)
+		if imp.Control == "" {
+			errs = append(errs, fmt.Errorf("%s: control is required, the control its findings belong to", at))
+		}
+		if imp.File == "" {
+			errs = append(errs, fmt.Errorf("%s: file is required, the SARIF file to read", at))
+		}
+		key := [2]string{imp.Control, imp.File}
+		if imp.Control != "" && imp.File != "" && seen[key] {
+			errs = append(errs, fmt.Errorf("%s: %s is imported into %s twice", at, imp.File, imp.Control))
+		}
+		seen[key] = true
 	}
 	return errs
 }

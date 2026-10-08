@@ -97,6 +97,7 @@ func schemaCases() []schemaCase {
 		{"reference", Reference{}},
 		{"excludeRule", ExcludeRule{}},
 		{"gateConfig", GateConfig{}},
+		{"import", Import{}},
 		{"fixesConfig", FixesConfig{}},
 		{"sbomConfig", SBOMConfig{}},
 		{"vexConfig", VEXConfig{}},
