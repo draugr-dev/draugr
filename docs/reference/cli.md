@@ -1581,7 +1581,7 @@ signals mean and how to choose a threshold.
 
 Machine and organization settings, kept apart from the Saga.
 
-A Saga describes an application: its repositories, how exposed a component is, which controls must
+A Saga describes an application: its repositories, how reachable each component is, which controls must
 pass. Those are facts about the software and belong in its repository. **Which build of a scanner
 runs, and what a control defaults to, are facts about a machine or an organization**. They want to
 be the same everywhere, which is exactly why they do not belong in a per-application descriptor. A
