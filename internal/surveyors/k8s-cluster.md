@@ -61,7 +61,7 @@ another.
 ## What it does not write
 
 **`exposure` and `criticality`.** Neither is a property of a cluster. They are judgements about how
-reachable it is and what its failure costs, and no manifest holds them. [`draugr
+reachable the component is and the business impact if it fails, and no manifest holds them. [`draugr
 classify`](../../docs/reference/cli.md#draugr-classify-sagayaml--directory) asks a human. Until both
 are set, [prioritization](../../docs/concepts/prioritization.md) has half its input.
 
