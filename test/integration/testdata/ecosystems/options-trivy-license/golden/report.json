@@ -5,6 +5,7 @@
       "control": "licenses",
       "findings": "<cleared>",
       "id": "0b6e14dc9fcf5fb4",
+      "kind": "decide",
       "locations": [
         {
           "kind": "lockfile",
@@ -35,6 +36,7 @@
       "control": "licenses",
       "findings": "<cleared>",
       "id": "147a0e4a9dcf3443",
+      "kind": "decide",
       "locations": [
         {
           "kind": "lockfile",
@@ -58,6 +60,7 @@
       "control": "licenses",
       "findings": "<cleared>",
       "id": "fa79e8e0b7691ded",
+      "kind": "decide",
       "locations": [
         {
           "kind": "file",
@@ -80,6 +83,7 @@
       "control": "licenses",
       "findings": "<cleared>",
       "id": "ee252c3ea408da17",
+      "kind": "decide",
       "locations": [
         {
           "kind": "lockfile",
@@ -103,6 +107,7 @@
       "control": "licenses",
       "findings": "<cleared>",
       "id": "eba6ccd9a3216bd0",
+      "kind": "decide",
       "locations": [
         {
           "kind": "lockfile",

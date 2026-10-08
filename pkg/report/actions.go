@@ -28,6 +28,8 @@ type action struct {
 	key string
 	// title is what to do, in the imperative.
 	title string
+	// kind is who does the work and how: bump, code, infrastructure, credential, wait or decide.
+	kind skald.ActionKind
 	// summary is the scanner's own one-line description of what is wrong, for an action titled by a
 	// rule's name. Empty where the title already says it, and where the findings describe
 	// themselves differently: one of several descriptions, printed as though it were all of them,
@@ -257,10 +259,10 @@ func groupActions(findings []finding, unpinned []string) (actions []action, exte
 			external = append(external, f)
 			continue
 		}
-		key, title, byRule := actionFor(f)
+		key, title, kind, byRule := actionFor(f)
 		a, seen := byKey[key]
 		if !seen {
-			a = &action{key: key, title: title, control: f.control, priority: f.priority, byRule: byRule}
+			a = &action{key: key, title: title, kind: kind, control: f.control, priority: f.priority, byRule: byRule}
 			byKey[key] = a
 			order = append(order, key)
 		}
@@ -376,10 +378,13 @@ func moreUrgentBand(a, b string) bool {
 	return a < b
 }
 
-// actionFor returns the key two findings share when one fix clears both, and how to say it.
-// byRule reports an action titled by the name of the rule it groups on, which is the one kind of
-// title that does not say what is wrong.
-func actionFor(f finding) (key, title string, byRule bool) {
+// actionFor returns the key two findings share when one fix clears both, how to say it, and the
+// kind of work it is. byRule reports an action titled by the name of the rule it groups on, which is
+// the one kind of title that does not say what is wrong.
+//
+// The kind is decided here, by the same case that decides the title, so the two cannot disagree
+// about what an action is.
+func actionFor(f finding) (key, title string, kind skald.ActionKind, byRule bool) {
 	switch {
 	// The licenses in an image or a repository somebody else publishes are one review. Nobody running
 	// the scan can swap a package inside it, so what is left is to read what it carries and decide
@@ -388,12 +393,12 @@ func actionFor(f finding) (key, title string, byRule bool) {
 	// Before the upstream cases below, which would title this "Update" and send the reader for a
 	// newer version carrying the same licenses.
 	case f.control == "licenses" && f.builtUpstream && licenseUnit(f) != "":
-		return "licenses\x00" + licenseUnit(f), "Review the licenses in " + licenseUnit(f), false
+		return "licenses\x00" + licenseUnit(f), "Review the licenses in " + licenseUnit(f), skald.KindDecide, false
 
 	// A license in the reader's own dependencies is a decision about one package: replace it, or
 	// accept the terms it comes with. No version is named, because no version changes a license.
 	case f.control == "licenses":
-		return f.control + "\x00" + f.ruleID, licenseTitle(f), false
+		return f.control + "\x00" + f.ruleID, licenseTitle(f), skald.KindDecide, false
 
 	// An image somebody else publishes is one action however many packages are wrong inside it,
 	// and the action is the image. Nobody running the scan can upgrade a library they do not
@@ -406,7 +411,7 @@ func actionFor(f finding) (key, title string, byRule bool) {
 	case f.builtUpstream && f.control == "images" && f.location != "":
 		// The image is the title, so the row does not repeat it below, and the reason it is the
 		// unit of work goes in the meta as one word rather than a clause on every line.
-		return "image\x00" + f.location, "Update " + displayLocation(f), false
+		return "image\x00" + f.location, "Update " + displayLocation(f), skald.KindWait, false
 
 	// The same argument one level up, for a repository somebody else publishes. The unit of work is
 	// their software, not a file inside it: keying on the location here would title the action
@@ -416,7 +421,7 @@ func actionFor(f finding) (key, title string, byRule bool) {
 	// Falls back to the component when the repository is a local path, which is what a scan of a
 	// checkout reports. "Update ." names nothing.
 	case f.builtUpstream && upstreamUnit(f) != "":
-		return "upstream\x00" + upstreamUnit(f), "Update " + upstreamUnit(f), false
+		return "upstream\x00" + upstreamUnit(f), "Update " + upstreamUnit(f), skald.KindWait, false
 
 	// An upgrade is one action however many vulnerabilities it resolves, which is the case that
 	// pays off most: a library a year out of date carries a dozen findings and one fix.
@@ -430,7 +435,7 @@ func actionFor(f finding) (key, title string, byRule bool) {
 	// one version over a second copy at another is wrong about the second.
 	case f.pkg != nil && f.pkg.Name != "" && f.pkg.FixedVersion != "":
 		return "upgrade\x00" + packageUnit(f),
-			fmt.Sprintf("Upgrade %s %s", f.pkg.Name, f.pkg.Version), false
+			fmt.Sprintf("Upgrade %s %s", f.pkg.Name, f.pkg.Version), skald.KindBump, false
 
 	// A dependency nobody has fixed yet. Still one decision per package rather than one per
 	// advisory, and still an action: there is no version to move to, so the choice is to replace
@@ -440,20 +445,36 @@ func actionFor(f finding) (key, title string, byRule bool) {
 	// advisory's description of the flaw, which describes what is wrong and never says what to do.
 	case f.pkg != nil && f.pkg.Name != "" && f.remediation != sarif.RemediationUpstream:
 		return "nofix\x00" + packageUnit(f),
-			fmt.Sprintf("Replace or accept %s %s, no fix available", f.pkg.Name, f.pkg.Version), false
+			fmt.Sprintf("Replace or accept %s %s, no fix available", f.pkg.Name, f.pkg.Version), skald.KindWait, false
 
 	// Nothing fixes these where they are, and the release underneath is the fix, one move for every
 	// finding in that layer, and usually the largest single reduction available.
 	case f.remediation == sarif.RemediationUpstream && f.operatingSystem != "":
 		return "os\x00" + f.operatingSystem,
 			fmt.Sprintf("Move off %s, past end of service life, so no fix is coming",
-				f.operatingSystem), false
+				f.operatingSystem), skald.KindDecide, false
 
 	// The same rule in several places is one thing to understand and apply, whether that is a
 	// missing directive in three Dockerfiles or a credential committed to four files.
 	default:
-		return f.control + "\x00" + f.ruleID, titleFor(f), true
+		return f.control + "\x00" + f.ruleID, titleFor(f), ruleKind(f), true
 	}
+}
+
+// ruleKind is the kind of work an action grouped on a rule is, from the control that found it and
+// the verb its title takes. A control that could be either code or infrastructure counts as code.
+func ruleKind(f finding) skald.ActionKind {
+	switch {
+	case f.control == "secrets":
+		return skald.KindCredential
+	case f.control == "threats":
+		return skald.KindCode
+	case f.hasScore && f.score < informationalBelow:
+		return skald.KindDecide
+	case f.control == "iac" || f.control == "kubernetes" || f.control == "cloud":
+		return skald.KindInfrastructure
+	}
+	return skald.KindCode
 }
 
 // titleFor writes the imperative for a finding that is its own action: a verb, then the rule.
@@ -765,6 +786,7 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 		act := Action{
 			ID:            a.id(),
 			Title:         a.title,
+			Kind:          a.kind,
 			Summary:       a.summary,
 			Component:     a.component,
 			Control:       a.control,

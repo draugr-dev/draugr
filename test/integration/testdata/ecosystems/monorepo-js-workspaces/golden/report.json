@@ -11,6 +11,7 @@
       ],
       "from": "1.2.5",
       "id": "e1bcccb9baf7e44b",
+      "kind": "bump",
       "locations": [
         {
           "kind": "lockfile",
@@ -42,6 +43,7 @@
       ],
       "from": "1.2.5",
       "id": "db141047222a6279",
+      "kind": "bump",
       "locations": [
         {
           "kind": "lockfile",
@@ -73,6 +75,7 @@
       ],
       "from": "1.2.5",
       "id": "9880a9c849d83ee8",
+      "kind": "bump",
       "locations": [
         {
           "kind": "lockfile",

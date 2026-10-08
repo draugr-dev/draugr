@@ -11,6 +11,7 @@
       ],
       "from": "0.12.2",
       "id": "2e78585c7be12008",
+      "kind": "bump",
       "locations": [
         {
           "kind": "image",

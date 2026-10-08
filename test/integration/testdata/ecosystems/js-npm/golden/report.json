@@ -11,6 +11,7 @@
       ],
       "from": "1.2.5",
       "id": "b453bc49ddb8b269",
+      "kind": "bump",
       "locations": [
         {
           "kind": "lockfile",
@@ -37,6 +38,7 @@
       "control": "secrets",
       "findings": "<cleared>",
       "id": "8a6b62c38ce5b2e9",
+      "kind": "credential",
       "locations": [
         {
           "kind": "file",
@@ -61,6 +63,7 @@
       "control": "sast",
       "findings": "<cleared>",
       "id": "126aeef45011b4a4",
+      "kind": "code",
       "locations": [
         {
           "kind": "file",
@@ -90,6 +93,7 @@
       ],
       "from": "1.8.3",
       "id": "e5adb11b801d7695",
+      "kind": "bump",
       "locations": [
         {
           "kind": "vendored",

@@ -11,6 +11,7 @@
       ],
       "from": "0.12.2",
       "id": "3645d35f21293f23",
+      "kind": "bump",
       "locations": [
         {
           "kind": "manifest",
