@@ -28,8 +28,8 @@ A descriptor moves that decision out of the pipeline and into a file that lives 
 - **Checks follow the surface.** Declare an image and image scanning applies; declare a host and
   the HTTP header and TLS controls do. There's no second list of which scanner runs where to
   keep in step with the first.
-- **Context a scanner cannot compute.** How exposed a component is, and what its failure costs,
-  are not in the code. Declaring them is what lets Draugr turn a pile of "criticals" into an
+- **Context a scanner cannot compute.** How reachable a component is, and the business impact if it
+  fails, are not in the code. Declaring them is what lets Draugr turn a pile of "criticals" into an
   ordered list.
 - **The evidence knows what it covered.** A run's report is anchored to the descriptor, so the
   auditor's question. What was in scope, has an answer that isn't "whatever CI happened to do
@@ -48,8 +48,8 @@ config:                       # optional, controls, thresholds, reports, publish
 
 components:                   # the app's parts
   - name: web
-    exposure: public          # how reachable it is
-    criticality: critical     # what its failure costs
+    exposure: public          # how reachable the component is
+    criticality: critical     # the business impact if it fails
     repositories:
       - url: https://github.com/acme/web.git
     images:
@@ -81,8 +81,8 @@ applies to, so adding an image to a component is what makes image scanning run a
 ### `exposure` and `criticality`
 
 The two axes of [prioritization](prioritization.md), and the clearest reason a descriptor beats a
-pipeline flag. **Exposure** is how reachable a component is, likelihood. **Criticality** is what its
-failure costs, impact. Neither is in the source code, so no scanner can infer them, and without them
+pipeline flag. **Exposure** is how reachable the component is (likelihood). **Criticality** is the business
+impact if it fails (impact). Neither is in the source code, so no scanner can infer them, and without them
 a scanner can only ever tell you severity in the abstract.
 
 The same CVE is act-now on a public, business-critical gateway and backlog on a restricted
