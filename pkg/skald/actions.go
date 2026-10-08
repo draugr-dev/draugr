@@ -15,6 +15,9 @@ type Action struct {
 	ID string `json:"id"`
 	// Title is what to do, in the imperative.
 	Title string `json:"title"`
+	// Kind is who does the work and how much it takes, so a list of actions can be split into the
+	// lists people work from.
+	Kind ActionKind `json:"kind"`
 	// Summary is the scanner's one-line description of what is wrong, for an action whose title
 	// names a rule rather than saying what it found. Empty where the title says it already.
 	Summary string `json:"summary,omitempty"`
@@ -140,3 +143,25 @@ type ActionFinding struct {
 	// "no fix available". Empty for a finding that is not about a dependency.
 	Upgrade string
 }
+
+// ActionKind is the kind of work an action is: who does it, and how much it takes.
+type ActionKind string
+
+// The kinds of action.
+const (
+	// KindBump is an upgrade of a dependency to the release that clears its findings.
+	KindBump ActionKind = "bump"
+	// KindCode is a change to the application's code or configuration, and an investigation of
+	// what it talks to.
+	KindCode ActionKind = "code"
+	// KindInfrastructure is a change to infrastructure: IaC, a cluster, a cloud account.
+	KindInfrastructure ActionKind = "infrastructure"
+	// KindCredential is a committed credential to remove and rotate.
+	KindCredential ActionKind = "credential"
+	// KindWait is a fix that has to come from somebody else's release: a newer image, an upstream
+	// repository, a package with no fixed version yet.
+	KindWait ActionKind = "wait"
+	// KindDecide is a decision rather than a change: a license, an operating system past its end of
+	// life, a finding that reports a fact.
+	KindDecide ActionKind = "decide"
+)

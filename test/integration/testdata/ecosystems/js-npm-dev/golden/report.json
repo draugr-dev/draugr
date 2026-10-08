@@ -11,6 +11,7 @@
       ],
       "from": "1.2.5",
       "id": "3a69bb3723153b37",
+      "kind": "bump",
       "locations": [
         {
           "kind": "lockfile",

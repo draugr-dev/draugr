@@ -11,6 +11,7 @@
       ],
       "from": "0.12.2",
       "id": "807dec59b2412731",
+      "kind": "bump",
       "locations": [
         {
           "kind": "manifest",
@@ -42,6 +43,7 @@
       ],
       "from": "1.2.5",
       "id": "e09d61a37363c152",
+      "kind": "bump",
       "locations": [
         {
           "kind": "lockfile",
@@ -73,6 +75,7 @@
       ],
       "from": "v1.6.5",
       "id": "692dac84c8445d93",
+      "kind": "bump",
       "locations": [
         {
           "kind": "manifest",
@@ -99,6 +102,7 @@
       "control": "sast",
       "findings": "<cleared>",
       "id": "c17d71e5e8c69d79",
+      "kind": "code",
       "locations": [
         {
           "kind": "file",
@@ -123,6 +127,7 @@
       "control": "sast",
       "findings": "<cleared>",
       "id": "126aeef45011b4a4",
+      "kind": "code",
       "locations": [
         {
           "kind": "file",
@@ -147,6 +152,7 @@
       "control": "secrets",
       "findings": "<cleared>",
       "id": "8a6b62c38ce5b2e9",
+      "kind": "credential",
       "locations": [
         {
           "kind": "file",

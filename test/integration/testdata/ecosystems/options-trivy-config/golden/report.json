@@ -5,6 +5,7 @@
       "control": "iac",
       "findings": "<cleared>",
       "id": "10782772787d659f",
+      "kind": "infrastructure",
       "locations": [
         {
           "kind": "file",
@@ -34,6 +35,7 @@
       "control": "iac",
       "findings": "<cleared>",
       "id": "2e8a7c8a456e3fe4",
+      "kind": "infrastructure",
       "locations": [
         {
           "kind": "file",

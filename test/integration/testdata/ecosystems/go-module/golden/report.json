@@ -12,6 +12,7 @@
       ],
       "from": "v0.3.6",
       "id": "16c6cf1125276237",
+      "kind": "bump",
       "locations": [
         {
           "kind": "manifest",
@@ -39,6 +40,7 @@
       "control": "secrets",
       "findings": "<cleared>",
       "id": "8a6b62c38ce5b2e9",
+      "kind": "credential",
       "locations": [
         {
           "kind": "file",
@@ -63,6 +65,7 @@
       "control": "sast",
       "findings": "<cleared>",
       "id": "1bd635d5d6af5757",
+      "kind": "code",
       "locations": [
         {
           "kind": "file",
@@ -86,6 +89,7 @@
       "control": "sast",
       "findings": "<cleared>",
       "id": "553d8004f951980d",
+      "kind": "code",
       "locations": [
         {
           "kind": "file",
