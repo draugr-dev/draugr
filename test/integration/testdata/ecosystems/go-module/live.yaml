@@ -10,6 +10,10 @@ packages:
       version: v0.3.6
       in: go.mod
       foundBy: [sca/trivy]
+    - name: stdlib
+      version: v1.26.6
+      in: go.mod
+      foundBy: [sca/govulncheck]
 files:
   - file: deploy/aws.env
     foundBy: [secrets/gitleaks]

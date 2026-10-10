@@ -10,6 +10,10 @@ packages:
       version: v1.6.5
       in: service/go.mod
       foundBy: [sca/govulncheck, sca/trivy]
+    - name: stdlib
+      version: v1.26.6
+      in: service/go.mod
+      foundBy: [sca/govulncheck]
 files:
   - file: service/main.go
     foundBy: [sast/gosec]
