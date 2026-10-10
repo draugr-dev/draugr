@@ -14,3 +14,11 @@ packages:
       version: v1.6.5
       in: services/worker/go.mod
       foundBy: [sca/govulncheck, sca/trivy]
+    - name: stdlib
+      version: v1.26.6
+      in: services/api/go.mod
+      foundBy: [sca/govulncheck]
+    - name: stdlib
+      version: v1.26.6
+      in: services/worker/go.mod
+      foundBy: [sca/govulncheck]

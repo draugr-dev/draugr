@@ -10,6 +10,10 @@ packages:
       version: v0.3.0
       in: checkout/go.mod
       foundBy: [sca/trivy]
+    - name: stdlib
+      version: v1.26.6
+      in: checkout/go.mod
+      foundBy: [sca/govulncheck]
   npm:
     - name: jquery
       version: 1.8.3

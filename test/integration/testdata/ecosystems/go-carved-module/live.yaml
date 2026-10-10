@@ -10,3 +10,7 @@ packages:
       version: v1.6.5
       in: go.mod
       foundBy: [sca/govulncheck, sca/trivy]
+    - name: stdlib
+      version: v1.26.6
+      in: go.mod
+      foundBy: [sca/govulncheck]
