@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/skald"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
@@ -1024,5 +1025,48 @@ func TestFindingsThatRankAlikeKeepOneOrder(t *testing.T) {
 	sortFindings(two)
 	if !reflect.DeepEqual(one, two) || one[0].location != "api.env:1" {
 		t.Errorf("findings that rank alike should sort by place: %+v, then %+v", one, two)
+	}
+}
+
+// Each kind of action the grouping decides carries the kind of work it is, from the same case that
+// titles it: who does it and how much it takes. The mapping is the organization console's list,
+// so the CLI's report and the console sort an action into the same list.
+func TestEveryActionCarriesItsKindOfWork(t *testing.T) {
+	pkg := func(name, fixed string) *sarif.Package {
+		return &sarif.Package{Name: name, Version: "1.0.0", FixedVersion: fixed}
+	}
+	for _, c := range []struct {
+		name string
+		f    finding
+		want skald.ActionKind
+	}{
+		{"licenses in an upstream image", finding{control: "licenses", builtUpstream: true, image: "redis:7", ruleID: "license/AGPL-3.0/x"}, skald.KindDecide},
+		{"a license in your own dependencies", finding{control: "licenses", ruleID: "license/GPL-3.0/left-pad"}, skald.KindDecide},
+		{"an upstream image", finding{control: "images", builtUpstream: true, location: "redis:7", pkg: pkg("openssl", "3.0.18")}, skald.KindWait},
+		{"an upstream repository", finding{control: "sca", builtUpstream: true, repository: "https://github.com/acme/lib", pkg: pkg("x", "2")}, skald.KindWait},
+		{"an upgrade", finding{control: "sca", pkg: pkg("lodash", "4.17.21")}, skald.KindBump},
+		{"no fix available", finding{control: "sca", pkg: pkg("lodash", "")}, skald.KindWait},
+		{"an OS past end of life", finding{control: "images", remediation: sarif.RemediationUpstream, operatingSystem: "debian 10"}, skald.KindDecide},
+		{"a committed credential", finding{control: "secrets", ruleID: "aws-access-token"}, skald.KindCredential},
+		{"a host on a threat feed", finding{control: "threats", ruleID: "threat/urlhaus"}, skald.KindCode},
+		{"a fact, scored below low", finding{control: "headers", ruleID: "tech-detect", score: 1, hasScore: true}, skald.KindDecide},
+		{"an IaC misconfiguration", finding{control: "iac", ruleID: "AVD-KSV-0017"}, skald.KindInfrastructure},
+		{"a cluster check", finding{control: "kubernetes", ruleID: "1.2.1"}, skald.KindInfrastructure},
+		{"a cloud check", finding{control: "cloud", ruleID: "iam_admin"}, skald.KindInfrastructure},
+		{"a code finding", finding{control: "sast", ruleID: "python.lang.security.audit"}, skald.KindCode},
+		{"a header, code or infrastructure, counts as code", finding{control: "headers", ruleID: "headers/csp-missing", score: 5, hasScore: true}, skald.KindCode},
+	} {
+		if _, _, got, _ := actionFor(c.f); got != c.want {
+			t.Errorf("%s: kind = %q, want %q", c.name, got, c.want)
+		}
+	}
+
+	// And the kind reaches report.json.
+	acts := ActionsFor(map[string]sarif.Report{"sca": {Results: []sarif.Result{{
+		RuleID: "CVE-1", Level: sarif.LevelError, Location: sarif.Location{URI: "go.mod"},
+		Package: &sarif.Package{Name: "x", Version: "1", FixedVersion: "2", Ecosystem: "gomod"},
+	}}}})
+	if len(acts) != 1 || acts[0].Kind != skald.KindBump {
+		t.Fatalf("actions = %+v, want one bump", acts)
 	}
 }

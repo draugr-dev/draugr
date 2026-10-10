@@ -6,6 +6,7 @@
       "control": "secrets",
       "findings": "<cleared>",
       "id": "8a6b62c38ce5b2e9",
+      "kind": "credential",
       "locations": [
         {
           "kind": "file",
@@ -30,6 +31,7 @@
       "control": "secrets",
       "findings": "<cleared>",
       "id": "88d665bcad073813",
+      "kind": "credential",
       "locations": [
         {
           "kind": "file",

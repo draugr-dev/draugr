@@ -11,6 +11,7 @@
       ],
       "from": "5.3.1",
       "id": "59a67d734239c5a2",
+      "kind": "bump",
       "locations": [
         {
           "kind": "image",
@@ -40,6 +41,7 @@
       ],
       "from": "5.3.1",
       "id": "fbf7df69491260cb",
+      "kind": "bump",
       "locations": [
         {
           "kind": "image",

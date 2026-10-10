@@ -11,6 +11,7 @@
       ],
       "from": "0.12.2",
       "id": "e18f8d99804259c9",
+      "kind": "bump",
       "locations": [
         {
           "kind": "lockfile",
@@ -42,6 +43,7 @@
       ],
       "from": "0.12.2",
       "id": "eb54249e15430a68",
+      "kind": "bump",
       "locations": [
         {
           "kind": "manifest",
@@ -68,6 +70,7 @@
       "control": "sast",
       "findings": "<cleared>",
       "id": "c17d71e5e8c69d79",
+      "kind": "code",
       "locations": [
         {
           "kind": "file",

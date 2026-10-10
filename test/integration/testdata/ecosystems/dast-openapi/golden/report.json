@@ -6,6 +6,7 @@
       "control": "dast",
       "findings": "<cleared>",
       "id": "3b0bfbca65119cb9",
+      "kind": "code",
       "locations": [
         {
           "kind": "file",

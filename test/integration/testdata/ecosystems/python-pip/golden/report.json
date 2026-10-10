@@ -11,6 +11,7 @@
       ],
       "from": "0.12.2",
       "id": "6373cb539beabdad",
+      "kind": "bump",
       "locations": [
         {
           "kind": "manifest",
@@ -37,6 +38,7 @@
       "control": "sast",
       "findings": "<cleared>",
       "id": "c17d71e5e8c69d79",
+      "kind": "code",
       "locations": [
         {
           "kind": "file",
@@ -61,6 +63,7 @@
       "control": "secrets",
       "findings": "<cleared>",
       "id": "8a6b62c38ce5b2e9",
+      "kind": "credential",
       "locations": [
         {
           "kind": "file",

@@ -643,7 +643,7 @@ func actionKeyFor(f finding) string {
 	if f.remediation == sarif.RemediationExternal {
 		return ""
 	}
-	key, _, _ := actionFor(f)
+	key, _, _, _ := actionFor(f)
 	return key
 }
 

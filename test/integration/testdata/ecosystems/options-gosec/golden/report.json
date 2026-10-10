@@ -5,6 +5,7 @@
       "control": "sast",
       "findings": "<cleared>",
       "id": "1bd635d5d6af5757",
+      "kind": "code",
       "locations": [
         {
           "kind": "file",
@@ -41,6 +42,7 @@
       "control": "sast",
       "findings": "<cleared>",
       "id": "fd0d92a1967a690b",
+      "kind": "code",
       "locations": [
         {
           "kind": "file",
@@ -77,6 +79,7 @@
       "control": "sast",
       "findings": "<cleared>",
       "id": "553d8004f951980d",
+      "kind": "code",
       "locations": [
         {
           "kind": "file",
@@ -113,6 +116,7 @@
       "control": "sast",
       "findings": "<cleared>",
       "id": "6c5e46855260b857",
+      "kind": "code",
       "locations": [
         {
           "kind": "file",
@@ -150,6 +154,7 @@
       "control": "sast",
       "findings": "<cleared>",
       "id": "059611ff52e7287c",
+      "kind": "code",
       "locations": [
         {
           "kind": "file",

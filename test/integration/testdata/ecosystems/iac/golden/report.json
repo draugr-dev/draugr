@@ -6,6 +6,7 @@
       "control": "iac",
       "findings": "<cleared>",
       "id": "5e34096b9ae1f7ff",
+      "kind": "infrastructure",
       "locations": [
         {
           "kind": "file",
@@ -29,6 +30,7 @@
       "control": "iac",
       "findings": "<cleared>",
       "id": "47551b084382262a",
+      "kind": "infrastructure",
       "locations": [
         {
           "kind": "file",
@@ -52,6 +54,7 @@
       "control": "iac",
       "findings": "<cleared>",
       "id": "ce4821349db9e107",
+      "kind": "infrastructure",
       "locations": [
         {
           "kind": "file",
@@ -75,6 +78,7 @@
       "control": "iac",
       "findings": "<cleared>",
       "id": "a5182d83d55aba38",
+      "kind": "infrastructure",
       "locations": [
         {
           "kind": "file",
@@ -98,6 +102,7 @@
       "control": "iac",
       "findings": "<cleared>",
       "id": "161bacf04b155939",
+      "kind": "infrastructure",
       "locations": [
         {
           "kind": "file",
@@ -128,6 +133,7 @@
       "control": "iac",
       "findings": "<cleared>",
       "id": "17f8923b3f454dbc",
+      "kind": "infrastructure",
       "locations": [
         {
           "kind": "file",

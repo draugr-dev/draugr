@@ -5,6 +5,7 @@
       "control": "secrets",
       "findings": "<cleared>",
       "id": "8a6b62c38ce5b2e9",
+      "kind": "credential",
       "locations": [
         {
           "kind": "file",
@@ -41,6 +42,7 @@
       ],
       "from": "0.12.2",
       "id": "807dec59b2412731",
+      "kind": "bump",
       "locations": [
         {
           "kind": "manifest",
@@ -72,6 +74,7 @@
       ],
       "from": "0.12.2",
       "id": "ddedab91ea005b3f",
+      "kind": "bump",
       "locations": [
         {
           "kind": "manifest",

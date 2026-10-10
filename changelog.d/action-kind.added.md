@@ -1,0 +1,1 @@
+- **Each action in `report.json` carries a `kind`**, the kind of work it is: `bump`, `code`, `infrastructure`, `credential`, `wait` or `decide`. A pipeline or a dashboard can split the fix list into the lists people work from.

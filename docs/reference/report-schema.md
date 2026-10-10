@@ -91,6 +91,7 @@ that change clears.
 |---|---|
 | `id` | identifies the action across runs. It changes when what the action groups on, or its target, changes; a dependency action groups on its component, package and installed version |
 | `title`, `summary` | what to do, and the scanner's description of the rule where the action is for a rule |
+| `kind` | the kind of work: `bump` (upgrade a dependency), `code` (change the code or its configuration, or investigate what it talks to), `infrastructure` (IaC, a cluster or a cloud account), `credential` (remove and rotate a committed secret), `wait` (a fix that has to come from somebody else's release, or no fixed version yet) or `decide` (a license, an operating system past its end of life, a finding that reports a fact). A control that could be code or infrastructure counts as `code` |
 | `component` | the component every finding belongs to. Absent where the findings span several, which only an action for a rule or an image can |
 | `control`, `priority` | the control the findings came from, and the highest band among them |
 | `clears` | how many findings the action resolves |
