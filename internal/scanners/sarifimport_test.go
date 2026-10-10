@@ -124,7 +124,10 @@ func TestSARIFImportSaysWhereSeveritiesCameFrom(t *testing.T) {
 // A file that names the revision it scanned is held to the one this run reads: the same commit
 // binds it, another commit is refused, and a repository the component does not declare is refused.
 func TestSARIFImportHoldsAFileToTheRevisionScanned(t *testing.T) {
-	const head = "0123456789abcdef0123456789abcdef01234567"
+	const (
+		head  = "0123456789abcdef0123456789abcdef01234567"
+		other = "fedcba9876543210" // a commit this run does not read
+	)
 	scanner := sarifImport{resolve: func(_ context.Context, url, _ string) (string, error) {
 		if url == "./broken" {
 			return "", errors.New("no such repository")
@@ -146,7 +149,7 @@ func TestSARIFImportHoldsAFileToTheRevisionScanned(t *testing.T) {
 	}{
 		{"the same commit", one, vcp("https://github.com/acme/api", head), "0123456789ab", false},
 		{"an abbreviated commit", one, vcp("https://github.com/acme/api", head[:10]), "0123456789ab", false},
-		{"another commit", one, vcp("https://github.com/acme/api", "fedcba9876543210"), "was written for commit fedcba987654, and this run reads 0123456789ab", true},
+		{"another commit", one, vcp("https://github.com/acme/api", other), "was written for commit fedcba987654, and this run reads 0123456789ab", true},
 		{"one of two repositories, by name", two, vcp("git@github.com:acme/web.git", head), "0123456789ab", false},
 		{"a repository the component does not declare", two, vcp("https://github.com/acme/other", head), "states repository https://github.com/acme/other", true},
 		{"a revision that cannot be resolved", []plugin.RepositoryTarget{{URL: "./broken"}}, vcp("x", head), "could not be resolved", true},
