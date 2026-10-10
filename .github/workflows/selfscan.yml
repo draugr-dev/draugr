@@ -37,7 +37,7 @@ env:
   # Pinned to an exact patch for the reason ci.yml gives: govulncheck reports stdlib
   # vulnerabilities fixed in a patch release, and a floating minor resolves to whatever
   # setup-go's manifest has today. Keep this in step with ci.yml.
-  GO_VERSION: "1.26.6"
+  GO_VERSION: "1.26.9"
 
 jobs:
   # Mirrors ci.yml: one cheap job decides whether there is anything to scan, and the scan job

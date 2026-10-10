@@ -50,7 +50,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GO_VERSION: "1.26.6"
+  GO_VERSION: "1.26.9"
   # Pinned so a score moves because the plugin or the model changed, never because the harness did.
   CLAUDE_CODE_VERSION: "2.1.283"
   EVAL_MODEL: claude-sonnet-5
