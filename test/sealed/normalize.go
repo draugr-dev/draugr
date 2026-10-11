@@ -81,9 +81,15 @@ func ReportNormalizer(replace map[string]string) Normalizer {
 		// Hashes over the finding's message, which for a secret names a commit or a value the
 		// fixture generated for the run. Only a run with findings has an action to carry them, and
 		// only a run with --min-priority lists findings.
-		ClearPresent: [][]string{{"actions", "*", "findings"}, {"findings", "*", "fingerprint"}},
-		Sort:         [][]string{{"scanners"}},
-		Replace:      replace,
+		//
+		// A data refresh's time is the network's, and the scanners that refreshed are the run's: the
+		// time is cleared and the list is kept.
+		ClearPresent: [][]string{
+			{"actions", "*", "findings"}, {"findings", "*", "fingerprint"},
+			{"stats", "dataRefresh", "*", "ms"},
+		},
+		Sort:    [][]string{{"scanners"}},
+		Replace: replace,
 	}
 }
 

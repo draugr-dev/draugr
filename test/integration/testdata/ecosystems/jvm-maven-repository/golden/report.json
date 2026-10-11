@@ -100,6 +100,15 @@
     },
     "cacheHits": 0,
     "concurrency": "<cleared>",
+    "dataRefresh": [
+      {
+        "data": [
+          "vulnerability database"
+        ],
+        "ms": "<cleared>",
+        "scanner": "trivy-fs"
+      }
+    ],
     "deduped": 0,
     "durationMs": "<cleared>",
     "jobs": 1,
