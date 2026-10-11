@@ -1719,6 +1719,10 @@ That one is the `paths` glob rule above, met in the wild: `tests*` stops at the 
 matches a file called `testsuite.go` and nothing inside `tests/`. `tests/` is the spelling that
 excludes the directory.
 
+Run without `--controls` or `--components` to check which rules match nothing. A narrowed run lists
+no exclusion rule under **Unmatched**, because a rule matches by rule id and path and can apply to a
+control or a component the run left out.
+
 The report counts three kinds of acceptance separately, because they have different people at the
 end of them and one total could only support the weakest:
 

@@ -46,7 +46,7 @@ func TestASuppliersClaimSuppressesAndSaysWhose(t *testing.T) {
 		"api": {resolved("Acme Ltd", "CVE-1", "pkg:pypi/flask@0.12.2", "not_affected", "vendor/acme.json")},
 	}}
 
-	n, docs, unmatched := applyVEX(controls, set)
+	n, docs, unmatched := applyVEX(controls, set, all)
 	if n != 1 {
 		t.Fatalf("imported = %d, want 1", n)
 	}
@@ -85,7 +85,7 @@ func TestOneSuppliersClaimDoesNotReachAnotherComponent(t *testing.T) {
 		"api": {resolved("Acme Ltd", "CVE-1", "pkg:pypi/flask@0.12.2", "not_affected", "vendor/acme.json")},
 	}}
 
-	n, _, _ := applyVEX(controls, set)
+	n, _, _ := applyVEX(controls, set, all)
 	if n != 1 {
 		t.Fatalf("imported = %d, want 1, only the component that declared the source", n)
 	}
@@ -113,7 +113,7 @@ func TestAProjectWideClaimReachesEveryComponent(t *testing.T) {
 		resolved("Platform Team", "CVE-1", "pkg:pypi/flask@0.12.2", "not_affected", "platform.json"),
 	}}
 
-	n, _, _ := applyVEX(controls, set)
+	n, _, _ := applyVEX(controls, set, all)
 	if n != 2 {
 		t.Fatalf("imported = %d, want 2, a project-wide document applies to every component", n)
 	}
@@ -127,7 +127,7 @@ func TestAnAffectedClaimChangesNothingAndIsNotReportedUnmatched(t *testing.T) {
 		"api": {resolved("Acme Ltd", "CVE-1", "pkg:pypi/flask@0.12.2", "affected", "vendor/acme.json")},
 	}}
 
-	n, _, unmatched := applyVEX(controls, set)
+	n, _, unmatched := applyVEX(controls, set, all)
 	if n != 0 {
 		t.Errorf("imported = %d, want 0, affected concedes exposure", n)
 	}
@@ -151,7 +151,7 @@ func TestALocalDecisionIsNotOverwrittenByASupplier(t *testing.T) {
 		"api": {resolved("Acme Ltd", "CVE-1", "pkg:pypi/flask@0.12.2", "not_affected", "vendor/acme.json")},
 	}}
 
-	n, _, _ := applyVEX(controls, set)
+	n, _, _ := applyVEX(controls, set, all)
 	if n != 0 {
 		t.Errorf("imported = %d, want 0, the local decision already covered it", n)
 	}
@@ -168,7 +168,7 @@ func TestAClaimThatMatchesNothingIsReported(t *testing.T) {
 		"api": {resolved("Acme Ltd", "CVE-999", "pkg:pypi/other@1.0", "not_affected", "vendor/acme.json")},
 	}}
 
-	n, docs, unmatched := applyVEX(controls, set)
+	n, docs, unmatched := applyVEX(controls, set, all)
 	if n != 0 {
 		t.Fatalf("imported = %d, want 0", n)
 	}
@@ -184,11 +184,57 @@ func TestAClaimThatMatchesNothingIsReported(t *testing.T) {
 
 func TestNoSourcesChangesNothing(t *testing.T) {
 	controls := controlsWith(finding("api", "CVE-1", "pkg:pypi/flask@0.12.2"))
-	n, docs, unmatched := applyVEX(controls, vex.Set{})
+	n, docs, unmatched := applyVEX(controls, vex.Set{}, all)
 	if n != 0 || docs != nil || unmatched != nil {
 		t.Errorf("applyVEX with no sources = (%d, %+v, %+v), want it inert", n, docs, unmatched)
 	}
 	if controls["sca"].Report.Results[0].Suppressed() {
 		t.Error("nothing was configured and nothing should be suppressed")
+	}
+}
+
+// all is a run that covered everything, so every claim it did not match is reported.
+func all(string) bool { return true }
+
+// A claim is unmatched only where everything it could have matched ran. A component the run left
+// out, or a run narrowed by control, says nothing about whether the claim still applies.
+func TestAClaimIsUnmatchedOnlyWhereTheRunLooked(t *testing.T) {
+	set := vex.Set{ByComponent: map[string][]vex.Resolved{
+		"api": {resolved("Base Images", "CVE-1", "pkg:deb/debian/apt@2.6.1", "affected", "vendor/base.json")},
+		"web": {resolved("Base Images", "CVE-2", "pkg:deb/debian/zlib@1.2", "affected", "vendor/web.json")},
+	}}
+	onlyWeb := func(c string) bool { return c == "web" }
+	_, _, unmatched := applyVEX(controlsWith(), set, onlyWeb)
+	if len(unmatched) != 1 || unmatched[0].Vulnerability != "CVE-2" {
+		t.Errorf("unmatched = %+v, want web's claim only; api did not run", unmatched)
+	}
+	if _, _, unmatched := applyVEX(controlsWith(), set, func(string) bool { return false }); len(unmatched) != 0 {
+		t.Errorf("a run narrowed by control reported %+v as unmatched", unmatched)
+	}
+}
+
+// A project document applies to every component, so its claim is unmatched only when no component's
+// findings matched it, and only when every component ran.
+func TestAProjectClaimIsUnmatchedOnlyWhenNoComponentMatchedIt(t *testing.T) {
+	set := vex.Set{
+		Project: []vex.Resolved{
+			resolved("Acme Ltd", "CVE-1", "pkg:pypi/flask@0.12.2", "not_affected", "vendor/project.json"),
+			resolved("Acme Ltd", "CVE-9", "pkg:pypi/gone@1.0", "not_affected", "vendor/stale.json"),
+		},
+		ByComponent: map[string][]vex.Resolved{"web": {resolved("Web Ltd", "CVE-5", "pkg:npm/x@1", "affected", "vendor/web.json")}},
+	}
+	controls := controlsWith(finding("api", "CVE-1", "pkg:pypi/flask@0.12.2"), finding("web", "CVE-5", "pkg:npm/x@1"))
+
+	n, _, unmatched := applyVEX(controls, set, all)
+	if n != 1 {
+		t.Fatalf("imported = %d, want api's finding", n)
+	}
+	if len(unmatched) != 1 || unmatched[0].Vulnerability != "CVE-9" {
+		t.Errorf("unmatched = %+v, want only the claim no component matched; CVE-1 matched in api", unmatched)
+	}
+
+	controls = controlsWith(finding("api", "CVE-1", "pkg:pypi/flask@0.12.2"), finding("web", "CVE-5", "pkg:npm/x@1"))
+	if _, _, unmatched := applyVEX(controls, set, func(c string) bool { return c != "" }); len(unmatched) != 0 {
+		t.Errorf("with a component left out, a project claim was reported as unmatched: %+v", unmatched)
 	}
 }

@@ -269,6 +269,12 @@ UNMATCHED
   VEX  CVE-2023-45803 · pkg:pypi/urllib3
 ```
 
+Run without `--controls` or `--components` to check every statement. **Unmatched** lists a
+statement only when everything it could match was scanned:
+
+- a statement from a component's own source: that component, with every control it enables
+- a statement from `config.vexSources`: every component
+
 ### What you are accepting
 
 Naming a source is the opt-in. There is no separate trust setting, because pointing at a document is

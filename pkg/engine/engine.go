@@ -1289,10 +1289,17 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// marked.
 	res.Suppressed, res.LapsedExclusions, res.UnmatchedExclusions =
 		applyExclusions(res.Controls, model.Config.Exclude, time.Now())
+	covered := e.scope.Resolve(model).covers(model)
+	if !covered("") {
+		// A rule names findings by rule id and path, whichever control produced them, so in a run
+		// that left a control or a component out nothing says its finding was not in the part that
+		// did not run. "Matched nothing" would be a claim this run cannot make.
+		res.UnmatchedExclusions = nil
+	}
 	// After the descriptor's own rules, so a finding this project already decided about keeps the
 	// reason this project gave. A supplier's claim is additional evidence, not an override: where
 	// both have something to say, the local decision is the one whose author can be asked about it.
-	res.Imported, res.VEX, res.UnmatchedClaims = applyVEX(res.Controls, e.vex)
+	res.Imported, res.VEX, res.UnmatchedClaims = applyVEX(res.Controls, e.vex, covered)
 	// Last, so exclusions and supplier claims match exactly what they matched before a second
 	// scanner was added, and a decision about a flaw reaches every scanner's copy of it.
 	correlated, alsoSuppressed := applyCorrelation(res.Controls)
@@ -1803,7 +1810,12 @@ func trulyUnscanned(unscanned []Unscanned, examined map[string]bool) []Unscanned
 //
 // Only a claim that excuses exposure suppresses. A supplier saying `affected` is telling you
 // something worth reporting and must never be the reason a finding stops counting.
-func applyVEX(controls map[string]plugin.ControlResult, set vex.Set) (imported int, docs []vex.Resolved, unmatched []vex.Claim) {
+//
+// covered says whether a component's whole surface ran, "" asking it of the project. A claim is
+// reported as unmatched only where everything it could have matched ran: in a run that left out a
+// component or a control, a supplier's statement about a package in an image the run never scanned
+// matched nothing because nothing was looked at, which is not the same as matching nothing.
+func applyVEX(controls map[string]plugin.ControlResult, set vex.Set, covered func(component string) bool) (imported int, docs []vex.Resolved, unmatched []vex.Claim) {
 	if set.Empty() {
 		return 0, nil, nil
 	}
@@ -1885,8 +1897,28 @@ func applyVEX(controls map[string]plugin.ControlResult, set vex.Set) (imported i
 	for component := range set.ByComponent {
 		indexFor(component)
 	}
+	// A project document's claims are in every component's index, so one is unmatched only when no
+	// component's findings matched it. Asking each index on its own would report a claim that did its
+	// job in one component as unmatched by every other.
+	project := map[string]bool{}
+	for _, r := range set.Project {
+		project[r.Provenance.Location] = true
+	}
+	missedBy := map[vex.Claim]int{}
 	for component, ix := range indexes {
-		unmatched = append(unmatched, ix.Unmatched(used[component])...)
+		for _, c := range ix.Unmatched(used[component]) {
+			switch {
+			case project[c.Source]:
+				missedBy[c]++
+			case covered(component):
+				unmatched = append(unmatched, c)
+			}
+		}
+	}
+	for c, n := range missedBy {
+		if n == len(indexes) && covered("") {
+			unmatched = append(unmatched, c)
+		}
 	}
 	sort.Slice(unmatched, func(i, j int) bool {
 		if unmatched[i].Vulnerability != unmatched[j].Vulnerability {

@@ -151,6 +151,30 @@ func (s Scope) IncludesComponent(name string) bool {
 	return len(s.Components) == 0 || slices.Contains(s.Components, name)
 }
 
+// covers returns whether a run in this scope covered a component's whole surface, every control it
+// enables, with "" asking it of every component in the descriptor. A decision about findings, an
+// exclusion or a supplier's claim, can be called unmatched only where everything that could have
+// produced its finding ran.
+//
+// Narrowing by control is never whole: a scope names controls to leave the others out, and which
+// control a rule's finding comes from is not something the rule says.
+func (s Scope) covers(model saga.Model) func(component string) bool {
+	return func(component string) bool {
+		if len(s.Controls) > 0 {
+			return false
+		}
+		if component != "" {
+			return s.IncludesComponent(component)
+		}
+		for i := range model.Components {
+			if !s.IncludesComponent(model.Components[i].Name) {
+				return false
+			}
+		}
+		return true
+	}
+}
+
 // includesControl reports whether a control is in scope.
 func (s Scope) includesControl(name string) bool {
 	return len(s.Controls) == 0 || slices.Contains(s.Controls, name)
