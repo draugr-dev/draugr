@@ -1,1 +1,0 @@
-- **The Caveats block names each caveat by the kind `config.gate.failOnCaveats` takes**, such as `unread-files` or `not-checked`, and its heading says that setting lists the kinds that fail the run. A caveat can be made to fail by copying its kind from the row into the setting.

@@ -1,1 +1,0 @@
-- **A run narrowed with `--controls` or `--components` no longer lists accept decisions whose findings were in the part that did not run.** Exclusion rules are not listed in a narrowed run, and a VEX statement is listed only when everything it could match was scanned. Run without those flags to check all of them.
