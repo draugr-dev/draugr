@@ -47,11 +47,11 @@ func TestConsoleNamesUnreadFilesOncePerComponent(t *testing.T) {
 		d.Run.Inputs = unreadInputs()
 		out := renderWith(t, consoleReporter{}, d)
 		for _, want := range []string{
-			"CAVEATS  do not fail the run",
-			"internal-tool  acme/admin:package.json   unread  no lockfile (sca)",
-			"internal-tool  acme/web:package.json     unread  no lockfile (sca)",
-			"payments       app/pyproject.toml        unread  no lockfile (licenses, sca)",
-			"payments       app/requirements-dev.txt  unread  no packages read (licenses)",
+			"CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do",
+			"internal-tool  acme/admin:package.json   unread-files  no lockfile (sca)",
+			"internal-tool  acme/web:package.json     unread-files  no lockfile (sca)",
+			"payments       app/pyproject.toml        unread-files  no lockfile (licenses, sca)",
+			"payments       app/requirements-dev.txt  unread-files  no packages read (licenses)",
 		} {
 			if !strings.Contains(out, want) {
 				t.Errorf("%s view is missing %q:\n%s", name, want, out)

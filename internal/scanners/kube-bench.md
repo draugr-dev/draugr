@@ -181,7 +181,7 @@ written into them, `--all-namespaces`, with no flag to change it, so a component
 
 So it is not planned for such a component. The alternative is worse than a missing feature: the
 report would look scoped, the rule ids would look scoped, and the findings would be somebody
-else's. The report names the skip under **Caveats** as `not measured`, because a scanner that
+else's. The report names the skip under **Caveats** as `not-measured`, because a scanner that
 quietly does not run reads exactly like one that ran and found nothing.
 
 Nothing needs disabling by hand. Declare the cluster twice, once narrowed to the namespaces a

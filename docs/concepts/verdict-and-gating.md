@@ -117,10 +117,10 @@ So by default it is reported rather than enforced. Every scan says what it did n
 **Caveats**:
 
 ```
-CAVEATS  do not fail the run
+CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
   Component  What    Caveat       Why
-  api        hosts   not checked  dast, headers, tls off
-  api        images  not checked  images off
+  api        hosts   not-checked  dast, headers, tls off
+  api        images  not-checked  images off
 ```
 
 [`draugr doctor`](../reference/cli.md#draugr-doctor-sagayaml) says the same thing **before** the
@@ -138,8 +138,8 @@ listed kind fails the run as an error does, and is marked where it sits:
 ```
 CAVEATS  2 fail the run · config.gate.failOnCaveats: not-checked
   Component  What    Caveat         Why
-  api        hosts   ✗ not checked  dast, headers, tls off
-  api        images  ✗ not checked  images off
+  api        hosts   ✗ not-checked  dast, headers, tls off
+  api        images  ✗ not-checked  images off
 ```
 
 `draugr doctor` reads the same list, so the preflight fails where the scan would.

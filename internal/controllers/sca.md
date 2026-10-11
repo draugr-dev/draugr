@@ -17,7 +17,7 @@ result with a severity summary.
 ## Unread
 
 A dependency file is **unread** when no scanner serving the control took packages from it. The
-packages it declares were not checked, and the report lists it under **Caveats** as `unread`, with
+packages it declares were not checked, and the report lists it under **Caveats** as `unread-files`, with
 a reason:
 
 | Reason | What the file is | Fix |

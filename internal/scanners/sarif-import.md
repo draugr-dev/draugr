@@ -53,7 +53,7 @@ scanned, in `runs[].versionControlProvenance`, Draugr holds it to the commit thi
 - **The same commit:** the file is read, and `commit` names it.
 - **A different commit:** the run stops with an error naming both. Run the tool again on this
   commit, or remove the import.
-- **No commit named:** the file is read and listed under **Caveats** as `unbound`, because nothing
+- **No commit named:** the file is read and listed under **Caveats** as `unbound-imports`, because nothing
   ties its findings to this code.
   [`config.gate.failOnCaveats: [unbound-imports]`](../../docs/reference/saga-schema.md#configgate)
   makes that fail the run.

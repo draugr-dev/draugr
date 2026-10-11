@@ -157,11 +157,11 @@ func TestCaveatsGatherEveryShortfallThatDoesNotFail(t *testing.T) {
 	}
 	out := renderWith(t, consoleReporter{}, d)
 	for _, want := range []string{
-		"CAVEATS  do not fail the run",
-		"api        go.mod          unread        no packages read (sca)",
-		"payments   kube-bench-job  not measured  audits the whole cluster and cannot be narrowed to namespace payments",
-		"platform   compute         unread        2 checks · denied compute.instances.list",
-		"web        hosts           not checked   dast, headers, tls off",
+		"CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do",
+		"api        go.mod          unread-files   no packages read (sca)",
+		"payments   kube-bench-job  not-measured   audits the whole cluster and cannot be narrowed to namespace payments",
+		"platform   compute         unread-checks  2 checks · denied compute.instances.list",
+		"web        hosts           not-checked    dast, headers, tls off",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q:\n%s", want, out)
@@ -219,10 +219,10 @@ func TestCaveatsTheGateFailsOnAreMarkedWhereTheySit(t *testing.T) {
 	out := renderWith(t, consoleReporter{}, failingCaveatData())
 	for _, want := range []string{
 		"CAVEATS  2 fail the run · config.gate.failOnCaveats: unread-checks, unread-files",
-		"api        go.mod          ✗ unread        no packages read (sca)",
-		"payments   kube-bench-job    not measured  audits the whole cluster",
-		"platform   compute         ✗ unread        1 check · denied compute.instances.list",
-		"web        hosts             not checked   dast, headers, tls off",
+		"api        go.mod          ✗ unread-files   no packages read (sca)",
+		"payments   kube-bench-job    not-measured   audits the whole cluster",
+		"platform   compute         ✗ unread-checks  1 check · denied compute.instances.list",
+		"web        hosts             not-checked    dast, headers, tls off",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q:\n%s", want, out)

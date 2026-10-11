@@ -79,7 +79,7 @@ func TestACaveatTheGateListsFailsTheRun(t *testing.T) {
 	out := console.String()
 	for _, want := range []string{
 		"CAVEATS  1 fails the run · config.gate.failOnCaveats: not-checked",
-		"✗ not checked",
+		"✗ not-checked",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q:\n%s", want, out)

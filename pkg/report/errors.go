@@ -37,7 +37,7 @@ const whyWidth = 80
 
 // notReached is the run's targets every scanner tried and failed to read, by kind in the order a
 // descriptor declares them and then by address, so twenty images from one registry that is down
-// sit together. A target no scanner was run for is a caveat, under "not measured", because nothing
+// sit together. A target no scanner was run for is a caveat, under `not-measured`, because nothing
 // failed.
 func notReached(d Data) []engine.TargetOutcome {
 	var out []engine.TargetOutcome
@@ -108,10 +108,9 @@ func targetError(d Data, control, msg string) bool {
 // caveat is one shortfall in what the run covered. It fails the run only when the gate lists its
 // key in failOnCaveats.
 type caveat struct {
-	component, what, kind, detail string
-	// key is the kind as gate.failOnCaveats names it. kind is the word the report prints, which is
-	// one word for both kinds of unread: the What column already says whether it is a file or a
-	// cloud service.
+	component, what, detail string
+	// key is the kind as gate.failOnCaveats names it, and the word the Caveat column prints, so a
+	// reader who wants a kind to fail the run copies it from the row into the setting.
 	key saga.CaveatKind
 }
 
@@ -120,27 +119,27 @@ type caveat struct {
 func caveats(d Data) []caveat {
 	var out []caveat
 	for _, g := range d.Uncovered {
-		out = append(out, caveat{g.Component, g.Surface, "not checked", strings.Join(g.Controls, ", ") + " off",
+		out = append(out, caveat{g.Component, g.Surface, strings.Join(g.Controls, ", ") + " off",
 			saga.CaveatNotChecked})
 	}
 	for _, sk := range d.Run.Skipped {
-		out = append(out, caveat{sk.Component, sk.Scanner, "not measured", sk.Reason, saga.CaveatNotMeasured})
+		out = append(out, caveat{sk.Component, sk.Scanner, sk.Reason, saga.CaveatNotMeasured})
 	}
 	// A service's checks the scan could not evaluate, one row per service, because one granted
 	// permission clears all of them. The control is not named: the service says which one it is.
 	for _, g := range d.Run.UnreadChecks {
-		out = append(out, caveat{g.Component, g.Group, "unread",
+		out = append(out, caveat{g.Component, g.Group,
 			english.Count(len(g.Checks), "check") + " · " + g.Reason, saga.CaveatUnreadChecks})
 	}
 	// An imported file that names no revision: read, but nothing shows it describes the code this
 	// run scanned.
 	for _, u := range unboundImports(d) {
-		out = append(out, caveat{u.component, u.file, "unbound", "names no commit, so nothing ties its findings to this code",
+		out = append(out, caveat{u.component, u.file, "names no commit, so nothing ties its findings to this code",
 			saga.CaveatUnboundImports})
 	}
 	for _, g := range unreadByComponent(d.Run.Inputs) {
 		for _, f := range g.files {
-			out = append(out, caveat{g.component, f.label, "unread",
+			out = append(out, caveat{g.component, f.label,
 				fmt.Sprintf("%s (%s)", f.reason, strings.Join(f.controls, ", ")), saga.CaveatUnreadFiles})
 		}
 	}
@@ -218,7 +217,7 @@ func writeCaveats(w io.Writer, col tui.Painter, d Data) {
 		return
 	}
 	failing, _ := splitCaveats(d)
-	note := col.Paint(cDim, "do not fail the run")
+	note := col.Paint(cDim, "do not fail the run · config.gate.failOnCaveats lists the kinds that do")
 	if len(failing) > 0 {
 		setting := fmt.Sprintf("%s: %s", cmp.Or(d.FailOnCaveatsFrom, "config.gate.failOnCaveats"),
 			strings.Join(namesOfKinds(d.FailOnCaveats), ", "))
@@ -237,13 +236,13 @@ func writeCaveats(w io.Writer, col tui.Painter, d Data) {
 	t := tui.NewTable(col, "Component", "What", "Caveat", "Why").Indent("  ")
 	n, capped := shownRows(d, len(cs))
 	for _, c := range cs[:n] {
-		kind := tui.Styled(cAccent, c.kind)
+		kind := tui.Styled(cAccent, string(c.key))
 		// The mark only where something is marked, so a run with nothing failing reads as it always
 		// did, and the kinds stay aligned under one another when something is.
 		if len(failing) > 0 {
-			kind = tui.Styled(cAccent, "  "+c.kind)
+			kind = tui.Styled(cAccent, "  "+string(c.key))
 			if slices.Contains(d.FailOnCaveats, c.key) {
-				kind = tui.Styled(cFail, "✗ "+c.kind)
+				kind = tui.Styled(cFail, "✗ "+string(c.key))
 			}
 		}
 		t.Row(tui.Styled(tui.StyleStrong, c.component), tui.Styled(tui.StyleStrong, c.what),

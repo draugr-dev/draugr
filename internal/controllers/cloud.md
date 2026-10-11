@@ -54,9 +54,9 @@ credentials hold. Each service missing one is a row under **Caveats**, with the 
 that read it and the permission that was missing:
 
 ```
-CAVEATS  do not fail the run
-  Component  What     Caveat  Why
-  api        compute  unread  16 checks · denied compute.instances.list
+CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
+  Component  What     Caveat         Why
+  api        compute  unread-checks  16 checks · denied compute.instances.list
 ```
 
 Prowler's result for an unread check is discarded, whatever it was. Prowler does not separate a check

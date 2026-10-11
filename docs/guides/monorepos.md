@@ -99,7 +99,7 @@ names the files it builds from:
 
 Two components that both name `package-lock.json` both scan it, which is right when both ship what
 it pins. A member whose lockfile sits at the root and is not named appears under **Caveats** as
-`unread` with `no lockfile`, so the missing entry shows in the report.
+`unread-files` with `no lockfile`, so the missing entry shows in the report.
 
 The scanners' configuration at the root, `.trivyignore`, `.semgrepignore`, `.gitleaks.toml` and the
 rest listed in [scoping a repository](../reference/saga-schema.md#scoping-a-repository), is kept for
