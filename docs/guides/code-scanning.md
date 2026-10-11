@@ -91,6 +91,24 @@ A narrowed SARIF records the band it was narrowed to, so nothing reading it late
 [`draugr diff`](pr-diff.md), which reads a missing finding as a fixed one, mistakes it for a
 complete scan.
 
+### Accepted findings
+
+A finding accepted in Draugr, by `config.exclude`, an inline `#nosec` or a VEX statement, is
+dismissed in code scanning as **won't fix**, with the reason and who accepted it as the comment.
+Code scanning does not read the SARIF `suppressions` the report carries, so the publisher sets each
+alert itself once GitHub has processed the upload.
+
+- An alert Draugr dismissed is reopened when its finding is no longer accepted, such as when an
+  exclusion expires.
+- An alert a person dismissed stays as they left it.
+- The publish waits up to five minutes for GitHub to process the upload. Past that, or when GitHub
+  refuses a dismissal, the publish fails and names what was not updated. Re-run it once the token
+  has `security-events: write` or GitHub has finished processing.
+
+The token needs no permission beyond the `security-events: write` the upload already uses. An upload
+made with `github/codeql-action/upload-sarif` instead of the publisher leaves accepted findings
+open.
+
 ### Two products in one repository
 
 The category an upload belongs to is what separates one analysis of a commit from another, and

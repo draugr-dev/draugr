@@ -288,7 +288,7 @@ or keep one
 | Kind | Needs | Distinguishes | Delivers to | Config |
 |------|-------|---------------|-------------|--------|
 | `file` | any | `dir` | a local directory (one file per report format) | `dir` |
-| `github` | `sarif` | `repo` | GitHub code scanning (uploads the `sarif` report to the Security tab) | `repo`, `commit`, `ref` (default from the GitHub Actions env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
+| `github` | `sarif` | `repo` | GitHub code scanning (uploads the `sarif` report; dismisses the alerts of accepted findings) | `repo`, `commit`, `ref` (default from the GitHub Actions env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
 | `github-pr-comment` | `markdown` | `marker` | a sticky pull-request comment (posts the `markdown` report) | `repo`, `pr` (default from the env); token from `$GITHUB_TOKEN` (or `tokenEnv`) |
 | `azure-pr-comment` | `markdown` | `marker` | a sticky Azure DevOps pull-request comment (posts the `markdown` report) | `org`, `project`, `repo`, `pr` (default from the Azure Pipelines env); token from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`) |
 | `gitlab-mr-comment` | `markdown` | `marker` | a sticky GitLab merge-request comment (posts the `markdown` report) | `repo`, `pr` (default from the GitLab CI env); token from `$GITLAB_TOKEN` (or `tokenEnv`) |

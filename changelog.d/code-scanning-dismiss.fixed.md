@@ -1,0 +1,1 @@
+- **The `github` publisher dismisses the code scanning alert of every finding accepted in Draugr**, as won't fix with the reason and who accepted it as the comment. Code scanning ignores SARIF suppressions, so these alerts stayed open. An alert Draugr dismissed reopens when its finding is no longer accepted, and one a person dismissed is left alone.
