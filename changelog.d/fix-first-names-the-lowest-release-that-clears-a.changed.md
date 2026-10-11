@@ -1,0 +1,1 @@
+- **Fix First names the lowest release that clears a finding** when the advisory lists one fix per release line, so `flask 2.0.1 → 2.3.2 +1` reads `flask 2.0.1 → 2.2.5`. The compact view and the HTML report name the same release.

@@ -165,3 +165,30 @@ func TestOnlyAnUpgradeIsOrdered(t *testing.T) {
 		t.Errorf("an upgrade named %q", got)
 	}
 }
+
+// A row names one release to move to. Where the scanner lists one per release line, the first it
+// lists is not necessarily the lowest, and a count beside it reads as part of the version.
+func TestFixedReleaseIsTheLowestThatClearsTheFinding(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		f    finding
+		want string
+	}{
+		{"the lowest of two lines, listed second", versioned("pkg:pypi/flask@2.0.1", "", "2.0.1", "2.3.2, 2.2.5"), "2.2.5"},
+		{"the line the installed version is on", versioned("pkg:golang/x@1.25.2", "", "1.25.2", "1.24.13, 1.25.7, 1.26.0-rc.3"), "1.25.7"},
+		{"one release", versioned("pkg:pypi/jinja2@2.10", "", "2.10", "2.10.1"), "2.10.1"},
+		{"a bound", versioned("pkg:npm/jquery@1.8.3", "", "1.8.3", ">=3.5.0"), "3.5.0"},
+		{"no order known: the first listed", versioned("", "", "1.0", "2.0, 1.5"), "2.0"},
+	} {
+		if got := fixedRelease(tc.f); got != tc.want {
+			t.Errorf("%s: fixedRelease = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+	name, fixed := packageFix(versioned("pkg:pypi/flask@2.0.1", "", "2.0.1", "2.3.2, 2.2.5"), true)
+	if name != "p 2.0.1" || fixed != "2.2.5" {
+		t.Errorf("packageFix = %q, %q; want the lowest release and no count", name, fixed)
+	}
+	if got := fixPhrase(versioned("pkg:pypi/flask@2.0.1", "", "2.0.1", "2.3.2, 2.2.5")); got != "upgrade to 2.2.5" {
+		t.Errorf("fixPhrase = %q", got)
+	}
+}

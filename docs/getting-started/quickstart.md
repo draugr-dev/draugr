@@ -67,7 +67,7 @@ A small Python service, with the descriptor `draugr init` wrote for it:
 
 ```console
 $ draugr scan --top 3
-DRAUGR  FAIL  shop  3.834s
+DRAUGR  FAIL  shop  3.654s
 
  5 P1 6 P2 0 P3 0 P4
  No component declares exposure or criticality, so every one is read as public and critical.
@@ -89,7 +89,7 @@ FIX FIRST  top 3 of 11, by priority
       requirements.txt:3
 
   P1  high      CVE-2023-30861 · Possible disclosure of permanent session cookie due to…
-      scanner trivy · flask 2.0.1 → 2.3.2 +1
+      scanner trivy · flask 2.0.1 → 2.2.5
       requirements.txt:1
 
 … and 8 findings not listed.

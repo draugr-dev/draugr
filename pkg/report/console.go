@@ -524,7 +524,8 @@ func renderFixFirst(w io.Writer, col tui.Painter, fs []finding, compact bool, bl
 }
 
 // packageFix is the package a finding is about and the release that clears it: the name, with the
-// installed version where asked for, and the first fixed version. Both empty for a finding that is
+// installed version where asked for, and the lowest release that clears it
+// (fixedRelease). Both empty for a finding that is
 // not about a package; fixed is empty where no release clears it.
 func packageFix(f finding, installed bool) (name, fixed string) {
 	if f.pkg == nil || f.pkg.Name == "" {
@@ -535,7 +536,7 @@ func packageFix(f finding, installed bool) (name, fixed string) {
 		name += " " + f.pkg.Version
 	}
 	if f.pkg.FixedVersion != "" {
-		fixed = firstFixedVersion(f.pkg.FixedVersion)
+		fixed = fixedRelease(f)
 	}
 	return name, fixed
 }

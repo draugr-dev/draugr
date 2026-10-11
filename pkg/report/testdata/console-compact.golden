@@ -16,7 +16,7 @@ UNMATCHED
 
 FIX FIRST  top 5 of 8, by priority
   Priority  Rule                                    Location                Fix                  Summary
-  P1        CVE-2019-10906                          app/requirements.txt:5  jinja2 → 2.10.1 +2   python-jinja2: str.format_map allows sandbox escape
+  P1        CVE-2019-10906                          app/requirements.txt:5  jinja2 → 2.10.1      python-jinja2: str.format_map allows sandbox escape
   P1        CVE-2019-20477                          app/requirements.txt:4  no package reported  PyYAML: command execution through python/object/apply constructor in FullLoader
   P1        DS-0002                                 app/Dockerfile:1        change the code      Image user should not be 'root'
   P2        CVE-2018-1000656                        app/requirements.txt:2  no package reported  python-flask: Denial of Service via crafted JSON file
