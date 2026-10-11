@@ -13,6 +13,9 @@ order: 90
 - **Effects:** none
 - **Status:** ✅ implemented
 
+[Import another scanner's SARIF](../../docs/guides/importing-sarif.md) walks through a pipeline that
+writes the file, binds it to its commit, and scans.
+
 ## What it does
 
 Reads a SARIF file a component imports and adds its findings to the control the descriptor names,

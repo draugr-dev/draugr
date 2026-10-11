@@ -344,7 +344,8 @@ A file that states the commit it scanned is held to the commit this run reads, a
 commit stops the run. A file that states none is read and listed under **Caveats** as `unbound`,
 which [`config.gate.failOnCaveats`](#configgate) can make fail the run. A missing, unreadable or
 invalid file stops the run as a scanner that could not run does. The
-[`sarif-import`](../../internal/scanners/sarif-import.md) page has the details.
+[`sarif-import`](../../internal/scanners/sarif-import.md) page has the details, and [Import another
+scanner's SARIF](../guides/importing-sarif.md) walks through a pipeline.
 
 ## `config.controls`
 

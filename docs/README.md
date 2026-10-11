@@ -25,6 +25,7 @@ not published. They live here for readers browsing the repo.
 - [Use in CI with Azure Pipelines](guides/azure-pipelines.md), the pipeline, the Tests tab, and a sticky PR comment.
 - [Use in CI with GitLab](guides/gitlab-ci.md), the template, a sticky MR comment, and GitLab's own reports.
 - [Publish to GitHub code scanning](guides/code-scanning.md), the native `github` publisher.
+- [Import another scanner's SARIF](guides/importing-sarif.md), CodeQL, Checkmarx, Bandit or any SARIF 2.1.0 file, ranked and gated with the rest.
 - [Gate PRs on new findings](guides/pr-diff.md), `draugr diff` and sticky PR comments.
 - [See findings in your editor](guides/findings-in-your-editor.md), SARIF as inline diagnostics in VS Code and JetBrains.
 - [Use Draugr from an AI coding assistant](guides/ai-agents-mcp.md), the MCP server, and why it beats letting an assistant improvise.
