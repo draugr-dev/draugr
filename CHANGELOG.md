@@ -22,23 +22,23 @@ _Nothing yet._
 
 ### Changed
 
-- **The Caveats block names each caveat by the kind `config.gate.failOnCaveats` takes**, such as `unread-files` or `not-checked`, and its heading says that setting lists the kinds that fail the run. A caveat can be made to fail by copying its kind from the row into the setting.
+- **The Caveats block names each caveat by the kind `config.gate.failOnCaveats` takes**, such as `unread-files` or `not-checked`, and its heading names that setting, so a kind copied from a row into it makes that caveat fail the run.
 
-- **Fix First names the lowest release that clears a finding** when the advisory lists one fix per release line, so `flask 2.0.1 → 2.3.2 +1` reads `flask 2.0.1 → 2.2.5`. The compact view and the HTML report name the same release.
+- **Fix First names the lowest release that fixes a finding** when the advisory lists one fix per release line. `flask 2.0.1 → 2.3.2 +1`, where `+1` counted a second fixed release, now reads `flask 2.0.1 → 2.2.5`, and the compact view and the HTML report name the same release.
 
-- **Fix First names the package on every dependency finding.** A row reads `libssl3 3.0.14-1~deb12u2 → 3.0.18-1~deb12u2` where it read `fix upgrade to 3.0.18-1~deb12u2`, or `openssl 3.0.14 · fix no upgrade published` where no release exists, and `--view compact` reads `libssl3 → 3.0.18-1~deb12u2`. The same CVE in two packages of an image prints as two rows that name different packages.
+- **Fix First names the package on every dependency finding.** A row that read `fix upgrade to 3.0.18-1~deb12u2` now reads `libssl3 3.0.14-1~deb12u2 → 3.0.18-1~deb12u2`, and one with no release reads `openssl 3.0.14 · fix no upgrade published`. `--view compact` reads `libssl3 → 3.0.18-1~deb12u2`, and the same CVE in two packages of an image prints as two rows that name different packages.
 
-- **`draugr validate` refuses a publisher field its kind does not read**, such as `dir` on `github`, a report format the kind would drop, such as `html` on `github`, and a `file` publisher with no `dir`. A descriptor that carries one now fails `draugr validate`. The descriptor reference lists the fields each kind reads, under **Publisher fields**.
+- **Breaking: `draugr validate` refuses a publisher field its kind does not read.** It refuses `dir` on `github`, a report format the kind does not deliver, such as `html` on `github`, and a `file` publisher with no `dir`. Remove the field or add the `dir`; the descriptor reference lists the fields each kind reads under **Publisher fields**.
 
 ### Fixed
 
-- **The `github` publisher dismisses the code scanning alert of every finding accepted in Draugr**, as won't fix with the reason and who accepted it as the comment. Code scanning ignores SARIF suppressions, so these alerts stayed open. An alert Draugr dismissed reopens when its finding is no longer accepted, and one a person dismissed is left alone.
+- **The `github` publisher dismisses the code scanning alert of every finding accepted in Draugr.** It dismisses the alert as won't fix, with the reason and who accepted it in the comment, because code scanning ignores SARIF suppressions and these alerts stayed open. An alert Draugr dismissed reopens when its finding is no longer accepted, and one a person dismissed is left alone.
 
 - **`draugr scan --help` and the CLI reference list `unbound-imports`** among the kinds of caveat `--fail-on-caveats` takes.
 
-- **An editor using the Saga schema accepts the publisher values `draugr validate` accepts**: a numeric GitLab project id in `repo`, and numbers in `commit`, `project` and a host's `auth.header`. It refuses a field on a kind that does not read it, as `draugr validate` does.
+- **An editor using the Saga schema accepts the publisher values `draugr validate` accepts**: a numeric GitLab project id in `repo`, and numbers in `commit`, `project` and a host's `auth.header`. It flags a field on a kind that does not read it, the same field `draugr validate` refuses.
 
-- **A run narrowed with `--controls` or `--components` no longer lists accept decisions whose findings were in the part that did not run.** Exclusion rules are not listed in a narrowed run, and a VEX statement is listed only when everything it could match was scanned. Run without those flags to check all of them.
+- **A run narrowed with `--controls` or `--components` no longer lists an exclusion or a VEX statement as unmatched when its findings were in the part that did not run.** A narrowed run checks no exclusion rule, and checks a VEX statement only when everything it could match was scanned. Run without those flags to check all of them.
 
 - **A statement from `config.vexSources` that matched a finding in one component is no longer listed as unmatched under the other components.**
 
