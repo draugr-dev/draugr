@@ -58,6 +58,9 @@ func PrioritizerWith(expl *exploit.Source, health *dephealth.Source) engine.Prio
 		// flaw can fire in this codebase, so a proof that nothing reaches it still stands.
 		if res.Package != nil && res.Package.PURL != "" {
 			base := res.Severity(controllers.SeverityFloor(control))
+			// hesc is the escalation health.Explain found, not an error, so reading hsev beside it is
+			// the point rather than a value used after a failure.
+			// nosemgrep: trailofbits.go.invalid-usage-of-modified-variable.invalid-usage-of-modified-variable
 			if hsev, hesc := health.Explain(base, res.Package.PURL); hesc != nil {
 				stands := OverrulesUnreachable[hesc.Signal]
 				// A signal that does not stand against an unreachable verdict is not applied to a

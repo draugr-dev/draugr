@@ -1347,6 +1347,9 @@ func SurveyTool(reg *surveyor.Registry) mcp.ToolHandlerFor[SurveyInput, SurveyOu
 			})
 		}
 		out := SurveyOutput{}
+		// Reading frag after err is the contract, as the comment under the call says, and what the
+		// rule below would otherwise flag.
+		// nosemgrep: trailofbits.go.invalid-usage-of-modified-variable.invalid-usage-of-modified-variable
 		frag, err := reg.Run(ctx, requests)
 		if err != nil {
 			// Run returns what it did gather alongside the error, so a survey that lost one source is still

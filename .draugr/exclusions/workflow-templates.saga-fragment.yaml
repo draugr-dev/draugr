@@ -1,0 +1,19 @@
+# Workflows written for somebody else to copy.
+config:
+  exclude:
+    - paths:
+        - "contrib/starter-workflow/draugr.yml"
+        - "examples/github-actions-code-scanning.yml"
+      rules:
+        - "yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag"
+      reason: >-
+        Both files are templates a reader copies into their own repository, and each tag the rule
+        flags is a choice the file states. The starter workflow follows the contribution rules of
+        actions/starter-workflows, which keep actions from the actions and github organizations on
+        major-version tags and pin everything else to a SHA, as contrib/starter-workflow/README.md
+        records. The example uses draugr-dev/draugr@v0 so a reader who copies it receives fixes,
+        and its comment tells them to pin a release for reproducible CI.
+
+        Scoped to these two files and this rule. Draugr's own workflows under .github/ pin every
+        action to a SHA, so the rule still fails the gate there.
+      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
