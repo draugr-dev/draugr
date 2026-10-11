@@ -1,0 +1,16 @@
+# The Claude Code install the evals job pins, which is not part of anything Draugr ships.
+config:
+  exclude:
+    - paths:
+        - ".github/evals-harness/"
+      rules:
+        - "license/SEE LICENSE IN *"
+      reason: >-
+        The lockfile pins the Claude Code CLI that the evals workflow installs to run the plugin's
+        evals in CI. Its packages carry Anthropic's own terms, which the licenses control reports as
+        SEE LICENSE IN because they name no SPDX identifier. Nothing under .github/evals-harness/ is
+        built into, linked by or distributed with Draugr; it runs only inside that CI job.
+
+        The exclusion covers only this directory and the license rule. A vulnerability in the same
+        packages is still reported, and so is an unclassified license anywhere else in the tree.
+      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
