@@ -1197,6 +1197,42 @@ func exploitabilityLine(feeds []FeedProvenance) string {
 	return strings.Join(parts, " · ")
 }
 
+// scannerDataLine is the state of each data source the run's scanners read, "trivy vulnerability
+// database published 2026-10-10, downloaded 2026-10-11", or "" when no scanner reports one.
+func scannerDataLine(ds []engine.ScannerData) string {
+	parts := make([]string, 0, len(ds))
+	for _, d := range ds {
+		if p := DataSourceState(d); p != "" {
+			parts = append(parts, p)
+		}
+	}
+	return strings.Join(parts, " · ")
+}
+
+// DataSourceState is one data source as the tool reports it: the tool and the data, when its
+// publisher built it and when this machine downloaded it, each where the tool says, and "refused as
+// too old" where the tool will not use the copy. Not "stale", which a feed uses for a copy past its
+// maxAge and still read. "" for a source with none of these, which says nothing a reader could
+// act on.
+//
+// Dates rather than ages, so a saved report reads the same on any later day.
+func DataSourceState(d engine.ScannerData) string {
+	var when []string
+	if !d.Published.IsZero() {
+		when = append(when, "published "+d.Published.UTC().Format(time.DateOnly))
+	}
+	if !d.Downloaded.IsZero() {
+		when = append(when, "downloaded "+d.Downloaded.UTC().Format(time.DateOnly))
+	}
+	if d.TooOld != "" {
+		when = append(when, "refused as too old")
+	}
+	if len(when) == 0 {
+		return ""
+	}
+	return d.Tool + " " + d.Name + " " + strings.Join(when, ", ")
+}
+
 // unpinnedCacheLine names the images whose findings came from a cache entry that could not be
 // content-addressed, or "" when none did.
 //
@@ -2275,6 +2311,7 @@ func writeEvidence(w io.Writer, col tui.Painter, d Data, indent string) {
 	// them, and one artifact naming itself there reads as the important one.
 	add("sbom", sbomLine(d.Run.SBOMs))
 	add("feeds", exploitabilityLine(d.Exploitability))
+	add("data", scannerDataLine(d.Run.Stats.Data))
 	add("descriptor", descriptorLine(d.Descriptor))
 	add("ci", ciLine(d.CI))
 	// Last, because a verdict is the thing everything above stands behind, and the gate is what

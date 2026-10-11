@@ -140,6 +140,15 @@
       "url": "./monorepo-go-reachability"
     }
   ],
+  "scannerData": [
+    {
+      "data": "vulnerability database",
+      "downloaded": "<cleared>",
+      "published": "<cleared>",
+      "tool": "trivy",
+      "version": "<cleared>"
+    }
+  ],
   "scanners": [
     {
       "name": "govulncheck",

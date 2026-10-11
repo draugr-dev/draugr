@@ -135,6 +135,15 @@
       "url": "./options-grype-fs"
     }
   ],
+  "scannerData": [
+    {
+      "data": "vulnerability database",
+      "downloaded": "<cleared>",
+      "published": "<cleared>",
+      "tool": "grype",
+      "version": "<cleared>"
+    }
+  ],
   "scanners": [
     {
       "name": "grype-fs",

@@ -88,6 +88,22 @@
       "url": "./python-setuptools"
     }
   ],
+  "scannerData": [
+    {
+      "data": "vulnerability database",
+      "downloaded": "<cleared>",
+      "published": "<cleared>",
+      "tool": "trivy",
+      "version": "<cleared>"
+    },
+    {
+      "data": "vulnerability database",
+      "downloaded": "<cleared>",
+      "published": "<cleared>",
+      "tool": "grype",
+      "version": "<cleared>"
+    }
+  ],
   "scanners": [
     {
       "name": "grype-fs",

@@ -576,6 +576,33 @@ be identified from its install record; one you brought cannot, so Draugr asks it
 the report name the build behind a finding rather than only disclaiming responsibility for it. A
 tool that will not say gets no version, and that too is recorded rather than guessed.
 
+### How current each scanner's data is
+
+Under `--evidence`, the `data` row lists each data source the run's scanners read, with the date
+this machine downloaded it and, where the tool records one, the date its publisher built it:
+
+```
+data        trivy checks bundle downloaded 2026-10-17 · trivy vulnerability database published
+            2026-10-16, downloaded 2026-10-17 · retire advisory database downloaded 2026-10-17
+```
+
+Dates are UTC. `refused as too old` marks a copy the tool will not use, which fails that tool's
+scans. By default Grype refuses a database built more than five days ago, and
+`GRYPE_DB_MAX_ALLOWED_BUILT_AGE` changes the limit. Refresh the copy with the tool's own update
+command; on a runner without a network, copy a newer cache in, as
+[running air-gapped](../guides/air-gapped.md) describes.
+
+`report.json` carries the same entries under `scannerData`:
+
+| Key | Holds |
+|---|---|
+| `tool`, `data` | the tool and the data source, as the row names them |
+| `version` | the schema version of a Trivy or Grype database, the first twelve characters of the Trivy checks bundle's digest, or the Nuclei template release |
+| `published`, `downloaded` | each an RFC 3339 time in UTC, absent where the tool records none |
+| `tooOld` | the tool's own reason, for a copy it refuses |
+
+[`draugr doctor`](#data) lists the same sources before a scan.
+
 ### `DESCRIPTOR`, under `--evidence`
 
 A descriptor assembled from more than one file gets a section naming each, so the evidence row
@@ -1274,6 +1301,24 @@ NETWORK  (besides its targets · --offline stops all of it)
 `before the scan` data is fetched once per run and can be put on the machine in advance; `every
 scan` data is fetched by the tool on each invocation. [Running air-gapped](../guides/air-gapped.md)
 covers both.
+
+### Data
+
+Doctor lists the data each scanner reads as it stands on this machine, as a scan's
+[`--evidence`](#how-current-each-scanners-data-is) does. Given a Saga, it lists the scanners that
+scan runs; without one, every scanner:
+
+```console
+$ draugr doctor draugr.saga.yaml
+DATA
+  retire advisory database downloaded 2026-10-17
+  trivy vulnerability database published 2026-10-16, downloaded 2026-10-17
+  trivy checks bundle downloaded 2026-10-17
+```
+
+Doctor reads what the tools left on disk and downloads nothing. `--json` carries the entries under
+`data`, in `report.json`'s `scannerData` form. A tool that reports nothing about its data has no
+line, and neither does one that is not installed, which `TOOLS` already reports as missing.
 
 ### What nothing is looking at
 

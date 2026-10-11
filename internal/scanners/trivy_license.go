@@ -153,6 +153,11 @@ func (s licenseScanner) CacheVersion(ctx context.Context) string {
 // is unharmed by it, and asking the question twice is what a thundering herd is made of.
 func (s licenseScanner) Prewarm(ctx context.Context) error { return sharedTrivyDB.warm(ctx) }
 
+// DataState reports the vulnerability database's state (implements plugin.DataStater).
+func (s licenseScanner) DataState(ctx context.Context) []plugin.DataState {
+	return sharedTrivyData.database(ctx)
+}
+
 // trivyLicenseArgs builds `trivy fs --quiet --scanners license --format json <dir>`.
 //
 // JSON rather than SARIF because Trivy's SARIF output contains no license findings at all. They

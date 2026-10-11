@@ -723,6 +723,18 @@ type Stats struct {
 	// downloaded a database it is most of the difference from the run before, so a reader asking
 	// why this one took longer gets the answer rather than a slower total.
 	DataRefresh []DataRefresh
+
+	// Data is the state of each data source the run's scanners read, as the tools report it after
+	// the warm-up: its version, when it was published and when this machine downloaded it. One
+	// entry per tool and data source, so the database four Trivy scanners share appears once.
+	Data []ScannerData
+}
+
+// ScannerData is one data source a run read, and the tool that reads it.
+type ScannerData struct {
+	// Tool is the executable that reads the data, or the scanner's name for one Draugr runs itself.
+	Tool string
+	plugin.DataState
 }
 
 // DataRefresh is one scanner's warm-up: the data it refreshes and how long that took.
@@ -1282,6 +1294,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	stats.Duration = time.Since(runStart)
 	stats.ToolWaits = waits.Totals()
 	stats.DataRefresh = refreshed
+	stats.Data = dataStates(ctx, e.reg, planned)
 	stats.Unscanned = trulyUnscanned(unscanned, examined)
 	for _, u := range unscanned {
 		if u.target != nil && !u.toolMissing && !reached[outcomeKey(u.target)] {
@@ -2553,4 +2566,54 @@ func refreshLabel(scanner string, data []string) string {
 		return scanner + " data"
 	}
 	return scanner + " " + english.And(data)
+}
+
+// dataStates asks each distinct scanner the run planned for the state of its data.
+//
+// Asked whether or not the warm-up ran. An offline run reads whatever is on disk, and how old that
+// is matters most then.
+func dataStates(ctx context.Context, reg *Registry, planned []PlannedJob) []ScannerData {
+	asked := map[string]bool{}
+	var scanners []plugin.Scanner
+	for _, pj := range planned {
+		name := pj.Job.Scanner
+		if asked[name] {
+			continue
+		}
+		asked[name] = true
+		if sc, ok := reg.Scanner(name); ok {
+			scanners = append(scanners, sc)
+		}
+	}
+	return DataStates(ctx, scanners)
+}
+
+// DataStates asks each scanner that reports its data (plugin.DataStater) for that data's state, in
+// the order given, and keeps one entry per tool and data source: the database four Trivy scanners
+// share appears once.
+func DataStates(ctx context.Context, scanners []plugin.Scanner) []ScannerData {
+	seen := map[string]bool{}
+	var out []ScannerData
+	for _, sc := range scanners {
+		if ctx.Err() != nil {
+			break
+		}
+		ds, ok := sc.(plugin.DataStater)
+		if !ok {
+			continue
+		}
+		tool := sc.Info().Binary
+		if tool == "" {
+			tool = sc.Info().Name
+		}
+		for _, st := range ds.DataState(ctx) {
+			key := tool + "\x00" + st.Name
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			out = append(out, ScannerData{Tool: tool, DataState: st})
+		}
+	}
+	return out
 }

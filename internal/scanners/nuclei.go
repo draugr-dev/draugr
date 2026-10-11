@@ -81,6 +81,12 @@ func (s nucleiScanner) CacheVersion(ctx context.Context) string {
 // failure is non-fatal (a real problem resurfaces at scan time).
 func (s nucleiScanner) Prewarm(ctx context.Context) error { return s.templates.warm(ctx) }
 
+// DataState reports the template set's release and when it was downloaded (implements
+// plugin.DataStater).
+func (s nucleiScanner) DataState(ctx context.Context) []plugin.DataState {
+	return sharedNucleiData.templates(ctx)
+}
+
 // authHeader renders the header line an auth block asks for, resolving the credential from the
 // environment at the moment of the scan.
 //

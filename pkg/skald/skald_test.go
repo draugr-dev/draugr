@@ -1054,3 +1054,36 @@ func TestDataRefreshReachesTheDocument(t *testing.T) {
 		t.Error("a run that refreshed nothing wrote a dataRefresh key")
 	}
 }
+
+// Each data source reaches the document with the dates its tool reported, in UTC, and none it did
+// not; a run whose scanners report nothing writes no key.
+func TestScannerDataReachesTheDocument(t *testing.T) {
+	render := func(ds []engine.ScannerData) map[string]any {
+		t.Helper()
+		run := engine.Result{Stats: engine.Stats{Data: ds}}
+		var buf bytes.Buffer
+		if err := RenderJSON(&buf, saga.Release{Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
+			t.Fatal(err)
+		}
+		var doc map[string]any
+		if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+			t.Fatal(err)
+		}
+		return doc
+	}
+	cdt := time.FixedZone("CDT", -5*3600)
+	doc := render([]engine.ScannerData{
+		{Tool: "trivy", DataState: plugin.DataState{Name: "vulnerability database", Version: "schema 2",
+			Published: time.Date(2026, 10, 10, 13, 59, 50, 0, cdt), Downloaded: time.Date(2026, 10, 11, 0, 2, 0, 0, time.UTC)}},
+		{Tool: "grype", DataState: plugin.DataState{Name: "vulnerability database", TooOld: "the database is too old"}},
+	})
+	got, _ := json.Marshal(doc["scannerData"])
+	want := `[{"data":"vulnerability database","downloaded":"2026-10-11T00:02:00Z","published":"2026-10-10T18:59:50Z","tool":"trivy","version":"schema 2"},` +
+		`{"data":"vulnerability database","tooOld":"the database is too old","tool":"grype"}]`
+	if string(got) != want {
+		t.Errorf("scannerData = %s\nwant %s", got, want)
+	}
+	if _, present := render(nil)["scannerData"]; present {
+		t.Error("a run whose scanners report nothing wrote a scannerData key")
+	}
+}

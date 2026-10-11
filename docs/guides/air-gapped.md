@@ -68,6 +68,15 @@ retire --path /tmp/empty --cachedir ~/.draugr/data/retirejs   # retire.js adviso
 `TRIVY_CACHE_DIR`, `GRYPE_DB_CACHE_DIR` and `NUCLEI_TEMPLATES_DIR`. retire.js is the exception:
 Draugr already points it under `~/.draugr/data`, and passes `--jsrepo` at that copy when offline.
 
+`draugr doctor` on the runner lists each copy with the date it was downloaded and, where the tool
+records it, the date its publisher built it. A copy the tool will not use, such as a Grype database
+past its age limit, is marked `refused as too old`. A scan's `--evidence` records the same dates,
+and `report.json` keeps them under `scannerData`.
+
+Trivy records its download date inside the cache. Grype, Nuclei and retire.js do not, so their
+download date is the files' modification time, and a copy made without `cp -p` or `rsync -a` reads
+as downloaded on the day it was copied.
+
 **The `iac` control needs nothing copied.** Offline, Draugr passes `--skip-check-update` and Trivy
 evaluates the misconfiguration checks built into the pinned release instead of fetching the checks
 bundle.

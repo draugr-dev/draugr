@@ -51,6 +51,9 @@ type Config struct {
 	// Prewarm, when set, warms shared tool state once before a run's fan-out (see
 	// plugin.Prewarmer). Optional.
 	Prewarm func(ctx context.Context) error
+	// DataState, when set, reports the state of the data the tool reads (see plugin.DataStater).
+	// Optional.
+	DataState func(ctx context.Context) []plugin.DataState
 	// Refine, when set, adjusts the parsed report before it is returned. Tools describe a
 	// finding's location in their own terms, which aren't always meaningful outside the tool;
 	// this is where a scanner restates them in the target's terms. Optional.
@@ -101,6 +104,15 @@ func (a *Adapter) Prewarm(ctx context.Context) error {
 		return nil
 	}
 	return a.cfg.Prewarm(ctx)
+}
+
+// DataState reports the state of the tool's data, when the adapter was configured with a reader
+// (implements plugin.DataStater). Nil otherwise.
+func (a *Adapter) DataState(ctx context.Context) []plugin.DataState {
+	if a.cfg.DataState == nil {
+		return nil
+	}
+	return a.cfg.DataState(ctx)
 }
 
 // Scan builds and runs the command for target, then decodes its output. The tool name is

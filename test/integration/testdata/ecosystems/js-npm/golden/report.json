@@ -208,6 +208,20 @@
       "url": "./js-npm"
     }
   ],
+  "scannerData": [
+    {
+      "data": "vulnerability database",
+      "downloaded": "<cleared>",
+      "published": "<cleared>",
+      "tool": "trivy",
+      "version": "<cleared>"
+    },
+    {
+      "data": "advisory database",
+      "downloaded": "<cleared>",
+      "tool": "retire"
+    }
+  ],
   "scanners": [
     {
       "name": "gitleaks",

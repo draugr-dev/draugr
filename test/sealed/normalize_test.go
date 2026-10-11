@@ -68,9 +68,16 @@ func TestTheNormalizersMatchADraugrReport(t *testing.T) {
 	}
 	report := `{"draugr":{"version":"dev","commit":"abc1234"},"scanners":[{"name":"b","version":"1"},{"name":"a","version":"2"}],
 	  "repositories":[{"revision":"abc"}],"descriptor":{"digest":"d","effective":"e"},
+	  "scannerData":[{"tool":"trivy","data":"vulnerability database","version":"schema 2","published":"2026-10-10T18:59:50Z","downloaded":"2026-10-11T00:02:00Z"}],
 	  "stats":{"durationMs":1,"byControlMs":{"sca":1},"concurrency":8}}`
-	if _, err := ReportNormalizer(nil).Apply([]byte(report)); err != nil {
-		t.Error(err)
+	got, err = ReportNormalizer(nil).Apply([]byte(report))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Which tool read which source is kept; the machine's dates and version are not.
+	if strings.Contains(string(got), "2026-10-1") || strings.Contains(string(got), "schema 2") ||
+		!strings.Contains(string(got), `"data": "vulnerability database"`) {
+		t.Errorf("scannerData not normalized:\n%s", got)
 	}
 }
 

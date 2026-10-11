@@ -125,6 +125,29 @@ type Prewarmer interface {
 	Prewarm(ctx context.Context) error
 }
 
+// DataState is what a scanner can say about one data source as it stands on this machine.
+type DataState struct {
+	// Name is the data source's name, as ScannerInfo.Data gives it.
+	Name string
+	// Version is the tool's identifier for this copy: a schema version, a template-set release, a
+	// bundle digest. Empty where the tool gives none.
+	Version string
+	// Published is when the data's publisher built it, and Downloaded when this machine fetched it.
+	// Either is zero where the tool does not say.
+	Published  time.Time
+	Downloaded time.Time
+	// TooOld is the tool's own verdict that this copy is past the age it accepts, in its words.
+	// Empty where the tool accepts it or has no such rule.
+	TooOld string
+}
+
+// DataStater is an optional interface a Scanner may implement to report the state of the data it
+// reads: its version, when it was published and when it was downloaded. The engine asks once per
+// distinct scanner after the warm-up, so the state describes the data the run used.
+type DataStater interface {
+	DataState(ctx context.Context) []DataState
+}
+
 // OriginDraugr marks a scanner whose detection logic is Draugr's own rather than an external
 // tool's. It is the value the registry stamps on every built-in native scanner.
 const OriginDraugr = "draugr"
