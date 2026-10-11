@@ -135,7 +135,7 @@ func caveats(d Data) []caveat {
 	// An imported file that names no revision: read, but nothing shows it describes the code this
 	// run scanned.
 	for _, u := range unboundImports(d) {
-		out = append(out, caveat{u.component, u.file, "unbound", "the file states no commit; read as written",
+		out = append(out, caveat{u.component, u.file, "unbound", "names no commit, so nothing ties its findings to this code",
 			saga.CaveatUnboundImports})
 	}
 	for _, g := range unreadByComponent(d.Run.Inputs) {
