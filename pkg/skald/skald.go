@@ -520,6 +520,18 @@ type statsInfo struct {
 	DurationMs  int64            `json:"durationMs,omitempty"`
 	ByControlMs map[string]int64 `json:"byControlMs,omitempty"`
 	ToolWaitsMs map[string]int64 `json:"toolWaitsMs,omitempty"`
+	// DataRefresh is each scanner's data refresh before the jobs started, in milliseconds. Part of
+	// durationMs, and on a run that downloaded a database usually most of what it took beyond the
+	// run before.
+	DataRefresh []dataRefresh `json:"dataRefresh,omitempty"`
+}
+
+// dataRefresh is one scanner's data refresh: the data, how long it took, and whether it failed.
+type dataRefresh struct {
+	Scanner string   `json:"scanner"`
+	Data    []string `json:"data,omitempty"`
+	Ms      int64    `json:"ms"`
+	Failed  bool     `json:"failed,omitempty"`
 }
 
 // cacheInfo describes the cache a run was given and what it took from it.
@@ -650,6 +662,7 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 			DurationMs:  millis(run.Stats.Duration),
 			ByControlMs: millisBy(run.Stats.ByControl),
 			ToolWaitsMs: millisBy(run.Stats.ToolWaits),
+			DataRefresh: dataRefreshFrom(run.Stats.DataRefresh),
 		},
 	}
 	seen := make(map[string]bool, len(verdict.Controls))
@@ -1066,4 +1079,16 @@ func suppressionOf(res sarif.Result) *suppressionNote {
 		Justification: res.Suppression.Justification,
 		AcceptedBy:    res.Suppression.AcceptedBy,
 	}
+}
+
+// dataRefreshFrom carries the engine's data refreshes into the document.
+func dataRefreshFrom(rs []engine.DataRefresh) []dataRefresh {
+	out := make([]dataRefresh, 0, len(rs))
+	for _, r := range rs {
+		out = append(out, dataRefresh{Scanner: r.Scanner, Data: r.Data, Ms: r.Took.Milliseconds(), Failed: r.Failed})
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }

@@ -237,6 +237,10 @@ type ProgressEvent struct {
 	// stop and fix, and learning that only from the report means waiting out a run that was
 	// never going to cover them.
 	Failed int
+	// Refreshing names the scanner data being refreshed before the jobs start, such as "trivy
+	// vulnerability database", and is empty once the jobs have begun. On a first run that refresh
+	// can be most of the wait, and a display showing no job moving cannot say why without it.
+	Refreshing string
 }
 
 // ProgressStep is one control/scanner pair and how its jobs are going.
@@ -713,6 +717,24 @@ type Stats struct {
 	// and because these waits are Draugr's own doing: it plans concurrent jobs that share one
 	// tool cache, so the contention is a cost of the scheduling rather than a fault of the tool.
 	ToolWaits map[string]time.Duration
+
+	// DataRefresh is how long each scanner took to refresh its data before the jobs started, in
+	// the order the scanners were warmed. The run's duration includes it, and on a run that
+	// downloaded a database it is most of the difference from the run before, so a reader asking
+	// why this one took longer gets the answer rather than a slower total.
+	DataRefresh []DataRefresh
+}
+
+// DataRefresh is one scanner's warm-up: the data it refreshes and how long that took.
+type DataRefresh struct {
+	// Scanner is the scanner's name, and Data the names its ScannerInfo gives what it refreshes,
+	// such as "vulnerability database". Data is empty for a scanner that declares none.
+	Scanner string
+	Data    []string
+	Took    time.Duration
+	// Failed is true where the refresh returned an error. The run continues with whatever is on
+	// disk, as it always has, and the time spent trying is still time the run took.
+	Failed bool
 }
 
 // Unscanned is one job that did not produce a report, and the target it was for.
@@ -943,6 +965,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// Warm shared scanner state (e.g. Trivy's vuln DB) once per distinct scanner, before the
 	// concurrent fan-out, so parallel scans don't each cold-start it. Best-effort.
 	warmed := make(map[string]bool)
+	var refreshed []DataRefresh
 	toWarm := planned
 	if e.skipPrewarm {
 		// Said once, up front, rather than left for each scanner to hint at later. Whatever is
@@ -965,7 +988,28 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		warmed[name] = true
 		if sc, ok := e.reg.Scanner(name); ok {
 			if pw, ok := sc.(plugin.Prewarmer); ok {
-				if err := pw.Prewarm(ctx); err != nil {
+				began := time.Now()
+				// Named on the progress display only once it has taken a second. Most refreshes find
+				// the data current and return at once, and naming each would flash a line per
+				// scanner that says nothing about the wait.
+				done := make(chan error, 1)
+				go func() { done <- pw.Prewarm(ctx) }()
+				var err error
+				select {
+				case err = <-done:
+				case <-time.After(refreshShownAfter):
+					if e.progress != nil {
+						e.progress(ProgressEvent{
+							Total: len(planned), Steps: stepSnapshot(steps),
+							Refreshing: refreshLabel(name, dataNames(sc.Info().Data)),
+						})
+					}
+					err = <-done
+				}
+				refreshed = append(refreshed, DataRefresh{
+					Scanner: name, Data: dataNames(sc.Info().Data), Took: time.Since(began), Failed: err != nil,
+				})
+				if err != nil {
 					// A span event is for someone already reading traces because they suspect
 					// this. Anyone else gets whatever the scanner says later about a symptom of
 					// it, which is how a template set that never downloaded surfaced as a
@@ -1237,6 +1281,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 
 	stats.Duration = time.Since(runStart)
 	stats.ToolWaits = waits.Totals()
+	stats.DataRefresh = refreshed
 	stats.Unscanned = trulyUnscanned(unscanned, examined)
 	for _, u := range unscanned {
 		if u.target != nil && !u.toolMissing && !reached[outcomeKey(u.target)] {
@@ -2485,4 +2530,27 @@ func fileDigest(path string) string {
 	}
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
+}
+
+// dataNames lists the names a scanner gives the data it reads, once each.
+func dataNames(data []plugin.DataSource) []string {
+	var out []string
+	for _, d := range data {
+		if d.Name != "" && !slices.Contains(out, d.Name) {
+			out = append(out, d.Name)
+		}
+	}
+	return out
+}
+
+// refreshShownAfter is how long a data refresh runs before the progress display names it.
+var refreshShownAfter = time.Second
+
+// refreshLabel names one scanner's data refresh for a reader: the scanner, then what it
+// refreshes, "trivy vulnerability database". A scanner that declares no data is named alone.
+func refreshLabel(scanner string, data []string) string {
+	if len(data) == 0 {
+		return scanner + " data"
+	}
+	return scanner + " " + english.And(data)
 }

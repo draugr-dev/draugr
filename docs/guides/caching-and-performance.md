@@ -315,6 +315,12 @@ Read it in this order:
 5. **`cache.oldestHit` is how stale the oldest reused answer is.** Twelve results reused is a
    different statement an hour old and a day old. An instant rather than an age, because a report
    is read later than it is written; the console prints the age, because it is read now.
+6. **`dataRefresh` is the time each scanner spent refreshing its data, such as a vulnerability
+   database or a checks bundle, before the jobs started**, in milliseconds. It is included in
+   `durationMs`. A cold run of draugr-demo spent 10,450 ms of 22,436 on Trivy's vulnerability
+   database, and the next run spent 32 ms on it. A refresh that is long on every run means the
+   tool's cache is not kept between runs; see
+   [cache the scanner's data first](#cache-the-scanners-data-first).
 
 The timings are absent rather than zero when a run recorded none, so a consumer charting them
 can tell "not measured" from "took no time".

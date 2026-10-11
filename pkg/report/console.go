@@ -96,7 +96,13 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	// which is the flag for "can I trust this" rather than for "how long did that take", so the
 	// one question every reader has was the one answered furthest from the top.
 	if t := d.Run.Stats.Duration; t > 0 {
-		_, _ = fmt.Fprintf(w, "  %s", col.Paint(cDim, t.Round(time.Millisecond).String()))
+		dur := t.Round(time.Millisecond).String()
+		// Only when refreshing scanner data is why this run was slow. A run that finds its data
+		// current refreshes in well under a second, and its header stays as it was.
+		if r := refreshShare(d.Run.Stats); r != "" {
+			dur += " · " + r
+		}
+		_, _ = fmt.Fprintf(w, "  %s", col.Paint(cDim, dur))
 	}
 	_, _ = fmt.Fprint(w, "\n\n")
 
@@ -1273,6 +1279,9 @@ func runLine(st engine.Stats) string {
 	if w := waitSummary(st.ToolWaits); w != "" {
 		line += " · " + w
 	}
+	if r := refreshSummary(st.DataRefresh); r != "" {
+		line += " · " + r
+	}
 	// No full stop. It is a row in a label column now, not a sentence, and it was the only one of
 	// the seven that ended in one.
 	return line
@@ -1333,6 +1342,59 @@ func waitSummary(waits map[string]time.Duration) string {
 			waits[tool].Round(time.Second), tool))
 	}
 	return strings.Join(parts, ", ")
+}
+
+// refreshWorthSaying is the shortest data refresh a report mentions. A refresh that checked a
+// database was current and fetched nothing takes a fraction of a second, and listing it explains
+// nothing about a run's duration.
+const refreshWorthSaying = time.Second
+
+// refreshed is the run's data refreshes long enough to mention, and their total.
+func refreshed(rs []engine.DataRefresh) ([]engine.DataRefresh, time.Duration) {
+	var out []engine.DataRefresh
+	var total time.Duration
+	for _, r := range rs {
+		if r.Took >= refreshWorthSaying {
+			out = append(out, r)
+			total += r.Took
+		}
+	}
+	return out, total
+}
+
+// refreshShare is what the header says about refreshing scanner data, or "" when it does not
+// explain the run's duration: under five seconds, or under a quarter of the run.
+//
+// One fixed phrase and a total, never a list. The header is the line every reader takes away, and
+// which scanner's data it was belongs under --evidence.
+func refreshShare(st engine.Stats) string {
+	_, total := refreshed(st.DataRefresh)
+	if total < 5*time.Second || total*4 < st.Duration {
+		return ""
+	}
+	return total.Round(100*time.Millisecond).String() + " refreshing scanner data"
+}
+
+// refreshSummary is the --evidence account of the data refreshes worth mentioning: the total, then
+// each scanner's data and how long it took.
+func refreshSummary(rs []engine.DataRefresh) string {
+	list, total := refreshed(rs)
+	if len(list) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(list))
+	for _, r := range list {
+		part := r.Scanner
+		if len(r.Data) > 0 {
+			part += " " + english.And(r.Data)
+		}
+		part += " " + r.Took.Round(time.Millisecond).String()
+		if r.Failed {
+			part += ", failed"
+		}
+		parts = append(parts, part)
+	}
+	return fmt.Sprintf("%s refreshing scanner data: %s", total.Round(100*time.Millisecond), strings.Join(parts, ", "))
 }
 
 // toolBuildLines reports which build of each external scanner ran, and flags the ones Draugr

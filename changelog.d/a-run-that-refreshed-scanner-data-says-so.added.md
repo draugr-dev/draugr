@@ -1,0 +1,1 @@
+- **A run that refreshed scanner data says so.** When the refresh took five seconds or more and at least a quarter of the run, the header reads `15.988s · 6.2s refreshing scanner data`. `--evidence` names each refresh and how long it took, the progress display names one running past a second, and `report.json` records every refresh under `stats.dataRefresh`.

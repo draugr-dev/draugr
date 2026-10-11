@@ -283,6 +283,11 @@ func progressFrame(ev engine.ProgressEvent, col tui.Painter, elapsed time.Durati
 // progressHeadline is the count, and the failures if there are any.
 func progressHeadline(ev engine.ProgressEvent, col tui.Painter, elapsed time.Duration) string {
 	line := fmt.Sprintf("Scanning %d/%d", ev.Complete, ev.Total)
+	// Before any job starts, the run may be waiting on a scanner's data. Named, so a first run that
+	// spends its first minute downloading a database does not read as a run that is stuck at 0.
+	if ev.Refreshing != "" {
+		line = "Refreshing " + ev.Refreshing
+	}
 	if elapsed >= time.Second {
 		line += "  " + col.Paint(tui.StyleMuted, shortDuration(elapsed))
 	}

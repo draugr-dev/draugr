@@ -1022,3 +1022,35 @@ func TestRenderJSONCarriesUnreadChecks(t *testing.T) {
 		t.Errorf("unreadChecks = %v, want %v", doc.UnreadChecks, want)
 	}
 }
+
+// Each data refresh reaches the document, so the copy CI keeps can say what a slow run was waiting
+// on; a run that refreshed nothing writes no key.
+func TestDataRefreshReachesTheDocument(t *testing.T) {
+	render := func(rs []engine.DataRefresh) map[string]any {
+		t.Helper()
+		run := engine.Result{Stats: engine.Stats{Duration: 16 * time.Second, DataRefresh: rs}}
+		var buf bytes.Buffer
+		if err := RenderJSON(&buf, saga.Release{Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
+			t.Fatal(err)
+		}
+		var doc struct {
+			Stats map[string]any `json:"stats"`
+		}
+		if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+			t.Fatal(err)
+		}
+		return doc.Stats
+	}
+	stats := render([]engine.DataRefresh{
+		{Scanner: "trivy", Data: []string{"vulnerability database"}, Took: 4340 * time.Millisecond},
+		{Scanner: "grype", Took: 2 * time.Second, Failed: true},
+	})
+	got, _ := json.Marshal(stats["dataRefresh"])
+	want := `[{"data":["vulnerability database"],"ms":4340,"scanner":"trivy"},{"failed":true,"ms":2000,"scanner":"grype"}]`
+	if string(got) != want {
+		t.Errorf("dataRefresh = %s\nwant %s", got, want)
+	}
+	if _, present := render(nil)["dataRefresh"]; present {
+		t.Error("a run that refreshed nothing wrote a dataRefresh key")
+	}
+}

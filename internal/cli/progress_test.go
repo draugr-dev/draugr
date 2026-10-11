@@ -436,3 +436,12 @@ func TestAShorterFrameClearsTheRowsItGaveUp(t *testing.T) {
 		t.Errorf("the rows it gave up were not cleared: %q", out)
 	}
 }
+
+// Before any job starts, the headline names the data being refreshed, so a first run that spends
+// its first minute on a download does not read as one stuck at 0.
+func TestProgressHeadlineNamesARefresh(t *testing.T) {
+	got := progressHeadline(engine.ProgressEvent{Total: 42, Refreshing: "trivy vulnerability database"}, tui.Painter{}, 4*time.Second)
+	if !strings.HasPrefix(got, "Refreshing trivy vulnerability database") || strings.Contains(got, "Scanning") {
+		t.Errorf("headline = %q", got)
+	}
+}

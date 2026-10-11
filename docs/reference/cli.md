@@ -496,7 +496,10 @@ control's job time, summed across its jobs) and `toolWaitsMs` (time spent queuei
 cache rather than scanning). The first two are different numbers and neither substitutes for the
 other. Jobs run concurrently, so the per-control times add up to more than the wall-clock. Use the
 sum to find the control worth looking at, and `toolWaitsMs` to tell a slow tool from a contended
-one. They are absent, not zero, when a run recorded no timings.
+one. They are absent, not zero, when a run recorded no timings. `dataRefresh` lists each scanner's
+data refresh before the jobs started, in milliseconds. The console puts the total beside the
+duration when it is five seconds or more and at least a quarter of the run, and `--evidence` names
+each refresh of a second or more.
 
 **One scale, and it is the one you can see.** The console reports **severity bands** (critical /
 high / medium / low), derived from a finding's CVSS score where the scanner supplies one, and
