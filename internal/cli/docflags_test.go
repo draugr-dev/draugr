@@ -71,6 +71,8 @@ var notOurs = map[string]string{
 	"--repo":                        "gh release download's, in the install guide",
 
 	// Tooling a guide tells somebody to run.
+	"--exit-zero":        "Bandit's, in the guide to importing another scanner's SARIF",
+	"--arg":              "jq's, binding an imported SARIF file to its commit",
 	"--exclude-standard": "git ls-files'",
 	"--no-tags":          "git clone's",
 	"--detach":           "git checkout's",
