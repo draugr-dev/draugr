@@ -1241,7 +1241,7 @@ in what the run covered, listed under **Caveats** in the report:
 | `not-measured` | a scanner that cannot honor a component's scope, so it did not run for that component |
 | `unread-files` | a dependency file or Terraform module, in a repository that was read, that no scanner read |
 | `unread-checks` | a cloud check the scan could not evaluate, because a read it needs was denied |
-| `unbound-imports` | an imported SARIF file that states no commit, so nothing shows it describes the code being scanned |
+| `unbound-imports` | an imported SARIF file that names no commit, so nothing ties its findings to the code being scanned |
 
 ```yaml
 config:
