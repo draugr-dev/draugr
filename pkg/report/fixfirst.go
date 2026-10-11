@@ -101,10 +101,22 @@ func writeBlockFacts(w io.Writer, col tui.Painter, f finding, width int, withCom
 		// Draugr runs it as, and one scanner under two spellings reads as two scanners.
 		parts = append(parts, label("scanner", strings.ToLower(f.tool)))
 	}
-	// Always, and as a phrase. A version is the answer for a vulnerable dependency and there is no
-	// version to give for a misconfiguration, a hardcoded secret, or a flaw in the code itself,
-	// which between them are most of what a scan finds.
-	parts = append(parts, col.Paint(cDim, "fix")+" "+col.Paint(tui.StyleFixed, fixPhrase(f)))
+	// The package, on every finding about one. One CVE in two packages is two findings with the same
+	// rule, severity and location, and without the name a reader sees a duplicate.
+	//
+	// With a release to move to, the arrow is the fix and says it in fewer words than a phrase.
+	// Without one, the phrase still says why there is nothing to upgrade to. A version is the answer
+	// for a vulnerable dependency and there is none to give for a misconfiguration, a hardcoded
+	// secret, or a flaw in the code itself, which keep the phrase alone. A package with no release
+	// to move to keeps its name and takes the phrase that says why.
+	if name, fixed := packageFix(f, true); fixed != "" {
+		parts = append(parts, name+" "+col.Paint(tui.StyleFixed, "→ "+fixed))
+	} else {
+		if name != "" {
+			parts = append(parts, name)
+		}
+		parts = append(parts, col.Paint(cDim, "fix")+" "+col.Paint(tui.StyleFixed, fixPhrase(f)))
+	}
 
 	_, _ = fmt.Fprintln(w, blockLine(col, parts, width))
 }

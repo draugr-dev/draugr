@@ -297,7 +297,9 @@ type htmlFinding struct {
 	//
 	// Always set. A column carrying "jinja2 2.10 → 2.10.1" is empty for every finding that is not
 	// about a package, which is most of iac, sast and secrets, and a reader learns to skip it. A
-	// phrase answers for all of them, and says so in the words the plane already uses.
+	// phrase answers for all of them, and says so in the words the plane already uses. The console
+	// differs on purpose: its Fix First rows name the package and the release, because there the
+	// row has to tell one CVE in two packages apart, and Upgrade does that job here.
 	Fix string
 	// MovedGlyph and MovedLabel name what argued with this finding's band, in the words the console
 	// uses. MovedDir is "up" or "down" where the band moved, and empty for a mark that moved nothing,

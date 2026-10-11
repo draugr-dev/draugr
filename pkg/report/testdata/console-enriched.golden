@@ -11,15 +11,15 @@ SIGNALS
 
 FIX FIRST  all 3, by priority
   P1  critical  CVE-2024-3094 · xz: malicious code in the upstream tarballs
-      ↑ KEV · scanner trivy · fix upgrade to 0.5.12
+      ↑ KEV · scanner trivy · github.com/ulikunitz/xz 0.5.11 → 0.5.12
       go.mod:12
 
   P1  high      CVE-2019-20477 · PyYAML: command execution through python/object/apply constructor
-      ↑ EPSS 0.87 · scanner trivy · fix upgrade to 5.2
+      ↑ EPSS 0.87 · scanner trivy · PyYAML 3.13 → 5.2
       app/requirements.txt:4
 
   P2  high      CVE-2018-1000656 · python-flask: Denial of Service via crafted JSON file
-      scanner trivy · fix upgrade to 0.12.3
+      scanner trivy · flask 0.12.2 → 0.12.3
       app/requirements.txt:2
 
 TRY

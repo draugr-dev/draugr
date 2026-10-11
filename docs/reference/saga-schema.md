@@ -610,7 +610,7 @@ In the report, beside the other signals:
 
 ```console
 P1  critical  NSWG-ECO-328 · Cross-Site Scripting (XSS)
-    ↑ deprecated · component web · scanner trivy · fix upgrade to >=3.0.0
+    ↑ deprecated · component web · scanner trivy · jquery 1.8.3 → >=3.0.0
     web/package-lock.json:10
 ```
 

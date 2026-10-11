@@ -7,13 +7,13 @@
 <text x="82.4" y="72.0" fill="rgb(18,6,5)" xml:space="preserve"> FAIL </text>
 <text x="146.8" y="72.0" fill="#e6e8ea" font-weight="600" xml:space="preserve">draugr-demo 1.0</text>
 <text x="283.7" y="72.0" fill="rgb(232,184,75)" xml:space="preserve">(scope: sca, secrets)</text>
-<text x="468.8" y="72.0" fill="rgb(120,131,141)" xml:space="preserve">8.146s</text>
+<text x="468.8" y="72.0" fill="rgb(120,131,141)" xml:space="preserve">7.308s</text>
 <rect x="26.1" y="99.0" width="56.4" height="18.0" rx="3" fill="rgb(229,83,75)"/>
 <text x="26.1" y="112.0" fill="rgb(18,6,5)" xml:space="preserve"> 19 P1 </text>
 <rect x="90.5" y="99.0" width="56.4" height="18.0" rx="3" fill="rgb(232,184,75)"/>
 <text x="90.5" y="112.0" fill="rgb(22,17,10)" xml:space="preserve"> 17 P2 </text>
 <rect x="154.9" y="99.0" width="48.3" height="18.0" rx="3" fill="rgb(124,166,184)"/>
-<text x="154.9" y="112.0" fill="rgb(10,17,22)" xml:space="preserve"> 2 P3 </text>
+<text x="154.9" y="112.0" fill="rgb(10,17,22)" xml:space="preserve"> 3 P3 </text>
 <text x="211.2" y="112.0" fill="rgb(120,131,141)" xml:space="preserve">0 P4</text>
 <text x="18.0" y="152.0" fill="rgb(120,131,141)" xml:space="preserve">CONTROLS</text>
 <text x="18.0" y="172.0" fill="#e6e8ea" xml:space="preserve">  sca      </text>
@@ -23,14 +23,14 @@
 <rect x="227.3" y="159.0" width="56.4" height="18.0" rx="3" fill="rgb(232,184,75)"/>
 <text x="227.3" y="172.0" fill="rgb(22,17,10)" xml:space="preserve"> 17 P2 </text>
 <rect x="291.7" y="159.0" width="48.3" height="18.0" rx="3" fill="rgb(124,166,184)"/>
-<text x="291.7" y="172.0" fill="rgb(10,17,22)" xml:space="preserve"> 2 P3 </text>
+<text x="291.7" y="172.0" fill="rgb(10,17,22)" xml:space="preserve"> 3 P3 </text>
 <text x="18.0" y="192.0" fill="#e6e8ea" xml:space="preserve">  secrets  </text>
 <text x="106.6" y="192.0" fill="rgb(229,83,75)" font-weight="600" xml:space="preserve">FAIL </text>
 <rect x="162.9" y="179.0" width="48.3" height="18.0" rx="3" fill="rgb(229,83,75)"/>
 <text x="162.9" y="192.0" fill="rgb(18,6,5)" xml:space="preserve"> 1 P1 </text>
 <text x="18.0" y="232.0" fill="rgb(120,131,141)" xml:space="preserve">MEASURED AGAINST</text>
 <text x="18.0" y="252.0" fill="#e6e8ea" xml:space="preserve">  sca      </text>
-<text x="106.6" y="252.0" fill="rgb(120,131,141)" xml:space="preserve">govulncheck v1.8.0;db@2026-10-01 20:24:15 · database: local copy, fetched 2026-10-04</text>
+<text x="106.6" y="252.0" fill="rgb(120,131,141)" xml:space="preserve">govulncheck v1.8.0;db@2026-10-08 22:31:09 · database: local copy, fetched 2026-10-11</text>
 <text x="18.0" y="292.0" fill="rgb(120,131,141)" xml:space="preserve">COMPONENTS</text>
 <text x="18.0" y="312.0" fill="#e6e8ea" xml:space="preserve">  api         </text>
 <text x="130.7" y="312.0" fill="rgb(229,83,75)" font-weight="600" xml:space="preserve">FAIL </text>
@@ -39,7 +39,7 @@
 <rect x="251.5" y="299.0" width="56.4" height="18.0" rx="3" fill="rgb(232,184,75)"/>
 <text x="251.5" y="312.0" fill="rgb(22,17,10)" xml:space="preserve"> 13 P2 </text>
 <rect x="315.9" y="299.0" width="48.3" height="18.0" rx="3" fill="rgb(124,166,184)"/>
-<text x="315.9" y="312.0" fill="rgb(10,17,22)" xml:space="preserve"> 1 P3 </text>
+<text x="315.9" y="312.0" fill="rgb(10,17,22)" xml:space="preserve"> 2 P3 </text>
 <text x="18.0" y="332.0" fill="#e6e8ea" xml:space="preserve">  storefront  </text>
 <text x="130.7" y="332.0" fill="rgb(229,83,75)" font-weight="600" xml:space="preserve">FAIL </text>
 <rect x="187.1" y="319.0" width="48.3" height="18.0" rx="3" fill="rgb(229,83,75)"/>
@@ -57,7 +57,7 @@
 <text x="34.1" y="432.0" fill="#e6e8ea" font-weight="600" xml:space="preserve">EPSS</text>
 <text x="146.8" y="432.0" fill="rgb(120,131,141)" xml:space="preserve">2 findings raised</text>
 <text x="34.1" y="452.0" fill="#e6e8ea" font-weight="600" xml:space="preserve">reachability</text>
-<text x="146.8" y="452.0" fill="rgb(120,131,141)" xml:space="preserve">govulncheck · 2 reachable, 2 unreachable</text>
+<text x="146.8" y="452.0" fill="rgb(120,131,141)" xml:space="preserve">govulncheck · 2 reachable, 3 unreachable</text>
 <text x="18.0" y="492.0" fill="rgb(120,131,141)" xml:space="preserve">ACCEPTED</text>
 <text x="34.1" y="512.0" fill="#e6e8ea" font-weight="600" xml:space="preserve">config.exclude</text>
 <text x="162.9" y="512.0" fill="rgb(120,131,141)" xml:space="preserve">1 finding suppressed</text>
@@ -67,7 +67,7 @@
 <text x="34.1" y="592.0" fill="#e6e8ea" font-weight="600" xml:space="preserve">VEX</text>
 <text x="74.4" y="592.0" fill="rgb(232,184,75)" xml:space="preserve">CVE-2016-2781 · pkg:deb/debian/coreutils@9.1-1</text>
 <text x="18.0" y="632.0" fill="rgb(120,131,141)" xml:space="preserve">FIX FIRST</text>
-<text x="106.6" y="632.0" fill="rgb(120,131,141)" xml:space="preserve">top 7 of 38, by priority</text>
+<text x="106.6" y="632.0" fill="rgb(120,131,141)" xml:space="preserve">top 7 of 39, by priority</text>
 <text x="34.1" y="652.0" fill="rgb(229,83,75)" font-weight="600" xml:space="preserve">P1</text>
 <text x="66.3" y="652.0" fill="rgb(229,83,75)" font-weight="600" xml:space="preserve">critical</text>
 <text x="130.7" y="652.0" fill="#e6e8ea" xml:space="preserve">  CVE-2019-20477</text>
@@ -79,8 +79,8 @@
 <text x="195.1" y="672.0" fill="rgb(120,131,141)" xml:space="preserve">scanner</text>
 <text x="251.5" y="672.0" fill="#e6e8ea" xml:space="preserve"> trivy</text>
 <text x="299.8" y="672.0" fill="rgb(120,131,141)" xml:space="preserve"> · </text>
-<text x="323.9" y="672.0" fill="rgb(120,131,141)" xml:space="preserve">fix</text>
-<text x="356.1" y="672.0" fill="rgb(87,171,90)" font-weight="600" xml:space="preserve">upgrade to 5.2</text>
+<text x="323.9" y="672.0" fill="#e6e8ea" xml:space="preserve">PyYAML 5.1 </text>
+<text x="412.5" y="672.0" fill="rgb(87,171,90)" font-weight="600" xml:space="preserve">→ 5.2</text>
 <text x="66.3" y="692.0" fill="rgb(120,131,141)" xml:space="preserve">app/requirements.txt:4</text>
 <text x="34.1" y="732.0" fill="rgb(229,83,75)" font-weight="600" xml:space="preserve">P1</text>
 <text x="66.3" y="732.0" fill="rgb(229,83,75)" font-weight="600" xml:space="preserve">critical</text>
@@ -93,8 +93,8 @@
 <text x="195.1" y="752.0" fill="rgb(120,131,141)" xml:space="preserve">scanner</text>
 <text x="251.5" y="752.0" fill="#e6e8ea" xml:space="preserve"> trivy</text>
 <text x="299.8" y="752.0" fill="rgb(120,131,141)" xml:space="preserve"> · </text>
-<text x="323.9" y="752.0" fill="rgb(120,131,141)" xml:space="preserve">fix</text>
-<text x="356.1" y="752.0" fill="rgb(87,171,90)" font-weight="600" xml:space="preserve">upgrade to 5.4</text>
+<text x="323.9" y="752.0" fill="#e6e8ea" xml:space="preserve">PyYAML 5.1 </text>
+<text x="412.5" y="752.0" fill="rgb(87,171,90)" font-weight="600" xml:space="preserve">→ 5.4</text>
 <text x="66.3" y="772.0" fill="rgb(120,131,141)" xml:space="preserve">app/requirements.txt:4</text>
 <text x="34.1" y="812.0" fill="rgb(229,83,75)" font-weight="600" xml:space="preserve">P1</text>
 <text x="66.3" y="812.0" fill="rgb(229,83,75)" font-weight="600" xml:space="preserve">critical</text>
@@ -107,8 +107,8 @@
 <text x="195.1" y="832.0" fill="rgb(120,131,141)" xml:space="preserve">scanner</text>
 <text x="251.5" y="832.0" fill="#e6e8ea" xml:space="preserve"> trivy</text>
 <text x="299.8" y="832.0" fill="rgb(120,131,141)" xml:space="preserve"> · </text>
-<text x="323.9" y="832.0" fill="rgb(120,131,141)" xml:space="preserve">fix</text>
-<text x="356.1" y="832.0" fill="rgb(87,171,90)" font-weight="600" xml:space="preserve">upgrade to 5.3.1</text>
+<text x="323.9" y="832.0" fill="#e6e8ea" xml:space="preserve">PyYAML 5.1 </text>
+<text x="412.5" y="832.0" fill="rgb(87,171,90)" font-weight="600" xml:space="preserve">→ 5.3.1</text>
 <text x="66.3" y="852.0" fill="rgb(120,131,141)" xml:space="preserve">app/requirements.txt:4</text>
 <text x="34.1" y="892.0" fill="rgb(229,83,75)" font-weight="600" xml:space="preserve">P1</text>
 <text x="66.3" y="892.0" fill="rgb(229,83,75)" font-weight="600" xml:space="preserve">critical</text>
@@ -121,8 +121,8 @@
 <text x="195.1" y="912.0" fill="rgb(120,131,141)" xml:space="preserve">scanner</text>
 <text x="251.5" y="912.0" fill="#e6e8ea" xml:space="preserve"> trivy</text>
 <text x="299.8" y="912.0" fill="rgb(120,131,141)" xml:space="preserve"> · </text>
-<text x="323.9" y="912.0" fill="rgb(120,131,141)" xml:space="preserve">fix</text>
-<text x="356.1" y="912.0" fill="rgb(87,171,90)" font-weight="600" xml:space="preserve">upgrade to 2.10.1</text>
+<text x="323.9" y="912.0" fill="#e6e8ea" xml:space="preserve">Jinja2 2.10 </text>
+<text x="420.5" y="912.0" fill="rgb(87,171,90)" font-weight="600" xml:space="preserve">→ 2.10.1</text>
 <text x="66.3" y="932.0" fill="rgb(120,131,141)" xml:space="preserve">app/requirements.txt:5</text>
 <text x="34.1" y="972.0" fill="rgb(229,83,75)" font-weight="600" xml:space="preserve">P1</text>
 <text x="66.3" y="972.0" fill="rgb(229,83,75)" font-weight="600" xml:space="preserve">critical</text>
@@ -137,8 +137,8 @@
 <text x="315.9" y="992.0" fill="rgb(120,131,141)" xml:space="preserve">scanner</text>
 <text x="372.2" y="992.0" fill="#e6e8ea" xml:space="preserve"> trivy</text>
 <text x="420.5" y="992.0" fill="rgb(120,131,141)" xml:space="preserve"> · </text>
-<text x="444.7" y="992.0" fill="rgb(120,131,141)" xml:space="preserve">fix</text>
-<text x="476.9" y="992.0" fill="rgb(87,171,90)" font-weight="600" xml:space="preserve">upgrade to 3.5.0</text>
+<text x="444.7" y="992.0" fill="#e6e8ea" xml:space="preserve">jquery 1.8.3 </text>
+<text x="549.3" y="992.0" fill="rgb(87,171,90)" font-weight="600" xml:space="preserve">→ 3.5.0</text>
 <text x="66.3" y="1012.0" fill="rgb(120,131,141)" xml:space="preserve">web/package-lock.json:12</text>
 <text x="259.5" y="1012.0" fill="rgb(120,131,141)" xml:space="preserve"> · </text>
 <text x="283.7" y="1012.0" fill="rgb(120,131,141)" xml:space="preserve">also found by retirejs</text>
@@ -155,8 +155,8 @@
 <text x="259.5" y="1072.0" fill="rgb(120,131,141)" xml:space="preserve">scanner</text>
 <text x="315.9" y="1072.0" fill="#e6e8ea" xml:space="preserve"> retirejs</text>
 <text x="388.3" y="1072.0" fill="rgb(120,131,141)" xml:space="preserve"> · </text>
-<text x="412.5" y="1072.0" fill="rgb(120,131,141)" xml:space="preserve">fix</text>
-<text x="444.7" y="1072.0" fill="rgb(87,171,90)" font-weight="600" xml:space="preserve">upgrade to 3.5.0</text>
+<text x="412.5" y="1072.0" fill="#e6e8ea" xml:space="preserve">jquery 1.8.3 </text>
+<text x="517.1" y="1072.0" fill="rgb(87,171,90)" font-weight="600" xml:space="preserve">→ 3.5.0</text>
 <text x="66.3" y="1092.0" fill="rgb(120,131,141)" xml:space="preserve">app/static/js/jquery.min.js</text>
 <text x="34.1" y="1132.0" fill="rgb(229,83,75)" font-weight="600" xml:space="preserve">P1</text>
 <text x="66.3" y="1132.0" fill="rgb(229,83,75)" xml:space="preserve">high</text>
@@ -169,10 +169,10 @@
 <text x="195.1" y="1152.0" fill="rgb(120,131,141)" xml:space="preserve">scanner</text>
 <text x="251.5" y="1152.0" fill="#e6e8ea" xml:space="preserve"> trivy</text>
 <text x="299.8" y="1152.0" fill="rgb(120,131,141)" xml:space="preserve"> · </text>
-<text x="323.9" y="1152.0" fill="rgb(120,131,141)" xml:space="preserve">fix</text>
-<text x="356.1" y="1152.0" fill="rgb(87,171,90)" font-weight="600" xml:space="preserve">upgrade to 3.1.6</text>
+<text x="323.9" y="1152.0" fill="#e6e8ea" xml:space="preserve">Jinja2 2.10 </text>
+<text x="420.5" y="1152.0" fill="rgb(87,171,90)" font-weight="600" xml:space="preserve">→ 3.1.6</text>
 <text x="66.3" y="1172.0" fill="rgb(120,131,141)" xml:space="preserve">app/requirements.txt:5</text>
-<text x="18.0" y="1212.0" fill="#e6e8ea" xml:space="preserve">… and 31 findings not listed.</text>
+<text x="18.0" y="1212.0" fill="#e6e8ea" xml:space="preserve">… and 32 findings not listed.</text>
 <text x="18.0" y="1252.0" fill="rgb(120,131,141)" xml:space="preserve">TRY</text>
 <text x="34.1" y="1272.0" fill="rgb(120,131,141)" xml:space="preserve">--top 0</text>
 <text x="219.3" y="1272.0" fill="rgb(120,131,141)" xml:space="preserve">every one of them, not the first seven</text>

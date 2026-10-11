@@ -67,32 +67,32 @@ A small Python service, with the descriptor `draugr init` wrote for it:
 
 ```console
 $ draugr scan --top 3
-DRAUGR  FAIL  shop  3.959s
+DRAUGR  FAIL  shop  3.834s
 
- 6 P1 7 P2 0 P3 0 P4
+ 5 P1 6 P2 0 P3 0 P4
  No component declares exposure or criticality, so every one is read as public and critical.
  These bands rank severity alone. `draugr classify` makes them describe this application.
 
 CONTROLS
   iac      pass   no findings
   sast     pass   no findings
-  sca      FAIL   6 P1 7 P2
+  sca      FAIL   5 P1 6 P2
   secrets  pass   no findings
 
-FIX FIRST  top 3 of 13, by priority
+FIX FIRST  top 3 of 11, by priority
   P1  critical  CVE-2019-10906 · str.format_map allows sandbox escape
-      scanner trivy · fix upgrade to 2.10.1
+      scanner trivy · jinja2 2.10 → 2.10.1
       requirements.txt:3
 
   P1  high      CVE-2025-27516 · Jinja sandbox breakout through attr filter selecting format…
-      scanner trivy · fix upgrade to 3.1.6
+      scanner trivy · jinja2 2.10 → 3.1.6
       requirements.txt:3
 
   P1  high      CVE-2023-30861 · Possible disclosure of permanent session cookie due to…
-      scanner trivy · fix upgrade to 2.3.2 +1
+      scanner trivy · flask 2.0.1 → 2.3.2 +1
       requirements.txt:1
 
-… and 10 findings not listed.
+… and 8 findings not listed.
 
 TRY
   --top 0                every one of them, not the first three
@@ -104,12 +104,13 @@ draugr: policy verdict: fail
 
 - **`DRAUGR FAIL`** is the verdict. It fails because at least one finding is P1, the default gate
   (`--fail-on`), and the process **exits non-zero**, so it gates a pipeline directly.
-- **`6 P1 7 P2 0 P3 0 P4`** counts the findings by priority, P1 the most urgent. With no exposure
+- **`5 P1 6 P2 0 P3 0 P4`** counts the findings by priority, P1 the most urgent. With no exposure
   or criticality declared, every component is read as public and critical, so the bands follow
   severity until [Focus](#focus-what-to-fix-first) classifies them.
 - **`CONTROLS`** has a row for each enabled control, saying whether it passed and what it found.
 - **`FIX FIRST`** lists findings most urgent first, each with its band and severity, the advisory
-  and its title, the scanner, the fix and the file.
+  and its title, the scanner, the fix and the file. For a dependency the fix is the package, the
+  installed version and, after `→`, the release to upgrade to.
 
 Useful flags:
 

@@ -512,10 +512,7 @@ func renderFixFirst(w io.Writer, col tui.Painter, fs []finding, compact bool, bl
 			// The same shortening the actions view has always used: one image carrying a
 			// 71-character digest would otherwise set a width every other row pays for.
 			tui.Cell{Text: dash(displayLocation(f)), URL: blobs.forFinding(f)},
-			// The phrase rather than the version diff, which is what the other two views say and
-			// is a fixed short width. `jinja2 2.10 → 2.10.1` is as long as the names in it, and it
-			// was the column that clipped first.
-			tui.Styled(tui.StyleFixed, fixPhrase(f)))
+			tui.Styled(tui.StyleFixed, compactFix(f)))
 		if has("Summary") {
 			// The explanation on the row rather than under it. That is what this view buys: one
 			// line per finding, so a reader can see how much there is without scrolling.
@@ -524,6 +521,41 @@ func renderFixFirst(w io.Writer, col tui.Painter, fs []finding, compact bool, bl
 		t.Row(cells...)
 	}
 	t.Render(w)
+}
+
+// packageFix is the package a finding is about and the release that clears it: the name, with the
+// installed version where asked for, and the first fixed version. Both empty for a finding that is
+// not about a package; fixed is empty where no release clears it.
+func packageFix(f finding, installed bool) (name, fixed string) {
+	if f.pkg == nil || f.pkg.Name == "" {
+		return "", ""
+	}
+	name = f.pkg.Name
+	if installed && f.pkg.Version != "" {
+		name += " " + f.pkg.Version
+	}
+	if f.pkg.FixedVersion != "" {
+		fixed = firstFixedVersion(f.pkg.FixedVersion)
+	}
+	return name, fixed
+}
+
+// compactFix is the Fix cell of the compact listing: the package and the release to move to, the
+// package and why there is none, or the phrase for a finding that is not about a package.
+//
+// The package is named even here, where width is scarcest, because one CVE in two packages is
+// otherwise two identical rows. The installed version is what gives way: the row says what to
+// move to, and the default view says what is there now. Fit shortens the Summary after it first,
+// so a long name costs the summary rather than the fix.
+func compactFix(f finding) string {
+	name, fixed := packageFix(f, false)
+	switch {
+	case fixed != "":
+		return name + " → " + fixed
+	case name != "":
+		return name + " · " + fixPhrase(f)
+	}
+	return fixPhrase(f)
 }
 
 // upgradeLabel is the dependency this finding is about and what to do with it, or "" for a

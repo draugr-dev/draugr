@@ -170,55 +170,62 @@ terminal (verdict, priorities, severities) and honors `NO_COLOR`.
 A worked example:
 
 ```text
-DRAUGR  FAIL  draugr-demo 1.0  6.232s
+DRAUGR  FAIL  draugr-demo 1.0  11s
 
- 205 P1 638 P2 225 P3 18 P4
+ 224 P1 659 P2 237 P3 18 P4
 
 CONTROLS
-  iac       FAIL   4 P1 5 P2 15 P3 16 P4
-  images    FAIL   175 P1 255 P2 32 P3
-  licenses  FAIL   353 P2 176 P3
-  sast      FAIL   7 P1 8 P2 2 P4
-  sca       FAIL   18 P1 17 P2 2 P3
-  secrets   FAIL   1 P1
+  iac         FAIL   4 P1 5 P2 15 P3 16 P4
+  images      FAIL   194 P1 276 P2 41 P3
+  licenses    FAIL   353 P2 178 P3
+  provenance  pass   no findings
+  sast        FAIL   7 P1 8 P2 2 P4
+  sca         FAIL   18 P1 17 P2 3 P3
+  secrets     FAIL   1 P1
+
+MEASURED AGAINST
+  provenance  cosign · coverage: 1 of 2 images checked, 1 unsigned · scope: 1 signer ·
+              pinning: none, all by tag
+  sca         govulncheck v1.8.0;db@2026-10-08 22:31:09 · database: local copy, fetched
+              2026-10-11
 
 COMPONENTS
-  api         FAIL   201 P1 634 P2 221 P3
+  api         FAIL   220 P1 655 P2 233 P3
   storefront  FAIL   4 P1 4 P2 1 P3
   platform    pass   3 P3 18 P4
 
 SIGNALS
   KEV           2 findings raised
   EPSS          3 findings raised
-  reachability  govulncheck · 2 reachable, 2 unreachable
+  reachability  govulncheck · 2 reachable, 3 unreachable
 
 ACCEPTED
   config.exclude  1 finding suppressed
   VEX             1 finding excused
 
-FIX FIRST  top 10 of 1091, by priority
-  P1  critical  CVE-2026-42010 · gnutls: Authentication Bypass via NUL Character in Username
-      scanner trivy · fix upgrade to 3.7.9-2+deb12u7
-      python:3.8-slim
-
-  P1  critical  CVE-2025-6965 · sqlite: Integer Truncation in SQLite
-      scanner trivy · fix upgrade to 3.40.1-2+deb12u2
-      python:3.8-slim
-
-  P1  critical  CVE-2026-31789 · OpenSSL: Heap buffer overflow on 32-bit systems from large…
-      scanner trivy · fix upgrade to 3.0.19-1~deb12u2
-      python:3.8-slim
-
+FIX FIRST  top 10 of 1138, by priority
   P1  critical  CVE-2025-15467 · OpenSSL: Remote code execution or Denial of Service via…
-      scanner trivy · fix upgrade to 3.0.18-1~deb12u2
-      python:3.8-slim
-
-  P1  critical  CVE-2026-31789 · Heap buffer overflow on 32-bit systems from large X.509…
-      scanner trivy · fix upgrade to 3.0.19-1~deb12u2
+      scanner trivy · libssl3 3.0.14-1~deb12u2 → 3.0.18-1~deb12u2
       python:3.8-slim
 
   P1  critical  CVE-2025-15467 · Remote code execution or Denial of Service via oversized…
-      scanner trivy · fix upgrade to 3.0.18-1~deb12u2
+      scanner trivy · openssl 3.0.14-1~deb12u2 → 3.0.18-1~deb12u2
+      python:3.8-slim
+
+  P1  critical  CVE-2025-6965 · sqlite: Integer Truncation in SQLite
+      scanner trivy · libsqlite3-0 3.40.1-2 → 3.40.1-2+deb12u2
+      python:3.8-slim
+
+  P1  critical  CVE-2026-31789 · OpenSSL: Heap buffer overflow on 32-bit systems from large…
+      scanner trivy · libssl3 3.0.14-1~deb12u2 → 3.0.19-1~deb12u2
+      python:3.8-slim
+
+  P1  critical  CVE-2026-31789 · Heap buffer overflow on 32-bit systems from large X.509…
+      scanner trivy · openssl 3.0.14-1~deb12u2 → 3.0.19-1~deb12u2
+      python:3.8-slim
+
+  P1  critical  CVE-2026-42010 · gnutls: Authentication Bypass via NUL Character in Username
+      scanner trivy · libgnutls30 3.7.9-2+deb12u3 → 3.7.9-2+deb12u7
       python:3.8-slim
 ```
 
