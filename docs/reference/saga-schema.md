@@ -341,7 +341,7 @@ also names the tool and version the file states, when it was written, and its SH
 **Measured against**.
 
 A file that states the commit it scanned is held to the commit this run reads, and a different
-commit stops the run. A file that states none is read and listed under **Caveats** as `unbound`,
+commit stops the run. A file that states none is read and listed under **Caveats** as `unbound-imports`,
 which [`config.gate.failOnCaveats`](#configgate) can make fail the run. A missing, unreadable or
 invalid file stops the run as a scanner that could not run does. The
 [`sarif-import`](../../internal/scanners/sarif-import.md) page has the details, and [Import another

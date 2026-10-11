@@ -17,14 +17,14 @@ to the commit it scanned. The same steps fit any tool that writes SARIF 2.1.0.
 
 ## 1. Write the SARIF file
 
-Run the tool in a step before the scan. Bandit exits non-zero when it finds something, and
-`--exit-zero` leaves the verdict to Draugr's gate:
+Run the tool in a step before the scan. Bandit writes SARIF only with its `sarif` extra installed,
+and `--exit-zero` leaves the verdict to Draugr's gate, since Bandit otherwise exits non-zero when it
+finds something:
 
 ```bash
+pipx install 'bandit[sarif]'
 bandit -r app -f sarif -o bandit.sarif --exit-zero
 ```
-
-Bandit's SARIF output needs its `sarif` extra: `pipx install 'bandit[sarif]'`.
 
 ## 2. Name the commit the file describes
 
@@ -51,6 +51,11 @@ jq --arg uri "$(git remote get-url origin)" --arg rev "$(git rev-parse HEAD)" \
   bandit.sarif > reports/bandit.sarif
 ```
 
+`git remote get-url origin` prints the address as the remote holds it. Where that address carries a
+credential, as `https://user:token@host/…` does, pass the address without it, since the SARIF file is
+often kept as a pipeline artifact. A checkout with no remote has no address to print; pass the
+repository's address as Draugr's descriptor names it.
+
 A component with one repository is held to it whatever address the file gives. With several, the
 address has to name one of them.
 
@@ -60,13 +65,13 @@ address has to name one of them.
 components:
   - name: api
     exposure: public
-    criticality: critical
+    criticality: important
     imports:
       - control: sast
         file: reports/bandit.sarif   # relative to where Draugr runs
 ```
 
-`control` is the control the findings join, such as `sast` or `sca`. Every finding in the file
+`control` names the control that reports the findings, such as `sast` or `sca`. Every finding in the file
 belongs to the component that imports it. A component can import several files, one entry each.
 
 ## 4. Scan
@@ -110,11 +115,11 @@ FIX FIRST  top 3 of 21, by priority
 … and 18 findings not listed.
 ```
 
-Run in a copy of [`draugr-demo`](https://github.com/draugr-dev/draugr-demo) with the import above
-added to its `api` component, which is public and important, so Bandit's high-severity findings rank
-P1. **Measured against** records what Draugr knows
-about the file: the tool and version it states, when it was written, where severities came from,
-the commit it was checked against, and its SHA-256.
+This run used a copy of [`draugr-demo`](https://github.com/draugr-dev/draugr-demo) with the step 3
+import added to its `api` component, which is `exposure: public` and `criticality: important`, so
+Bandit's high-severity findings rank P1. Draugr did not run Bandit, so **Measured against** states
+what the file says about itself: the tool and version, when it was written, where severities came
+from, the commit it was checked against, and its SHA-256.
 
 ## 5. Require the commit
 
@@ -126,8 +131,8 @@ config:
     failOnCaveats: [unbound-imports]
 ```
 
-The caveat is then marked `✗`, its component reads `ERROR`, and the scan exits non-zero as an
-incomplete one does. `--fail-on-caveats unbound-imports` sets the same for one run.
+The run then fails with the caveat marked `✗` and its component marked `ERROR`, and
+`--allow-scan-errors` accepts it. `--fail-on-caveats unbound-imports` sets the same for one run.
 
 ## In GitHub Actions
 
