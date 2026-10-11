@@ -58,8 +58,9 @@ scanned, in `runs[].versionControlProvenance`, Draugr holds it to the commit thi
   makes that fail the run.
 
 A component with one repository is held to it whatever address the file gives, because a tool
-records the remote it saw and the descriptor may name the same repository by a local path. With
-several, the address has to name one of them.
+records the remote it saw and the descriptor may name the same repository by a local path. Entries
+that list one repository at one revision, a subtree each, count as one. With several distinct
+repositories, the address has to name one of them.
 
 ## Errors
 

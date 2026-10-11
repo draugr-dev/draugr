@@ -356,7 +356,7 @@ func TestRepositoryEntryKeysTheAnalysisNotTheCheckout(t *testing.T) {
 func TestFileTargetKeysOnItsContent(t *testing.T) {
 	a := FileTarget{Path: "reports/x.sarif", Digest: "aaa"}
 	b := FileTarget{Path: "reports/x.sarif", Digest: "bbb"}
-	if a.Kind() != TargetFile || a.Identity() != "file:reports/x.sarif" || a.Identity() != b.Identity() {
+	if a.Kind() != TargetFile || a.Identity() != "reports/x.sarif" || a.Identity() != b.Identity() {
 		t.Errorf("identity %q kind %q", a.Identity(), a.Kind())
 	}
 	if ComputeCacheKey(ImportScanner, "1", a, nil) == ComputeCacheKey(ImportScanner, "1", b, nil) {

@@ -140,6 +140,8 @@ func TestSARIFImportHoldsAFileToTheRevisionScanned(t *testing.T) {
 	}
 	one := []plugin.RepositoryTarget{{URL: "."}}
 	two := []plugin.RepositoryTarget{{URL: "https://github.com/acme/api"}, {URL: "https://github.com/acme/web"}}
+	// One repository listed once per subtree, which a file's address cannot choose between.
+	subtrees := []plugin.RepositoryTarget{{URL: ".", Paths: []string{"app"}}, {URL: ".", Paths: []string{"deploy"}}}
 	for _, c := range []struct {
 		name  string
 		repos []plugin.RepositoryTarget
@@ -149,9 +151,10 @@ func TestSARIFImportHoldsAFileToTheRevisionScanned(t *testing.T) {
 	}{
 		{"the same commit", one, vcp("https://github.com/acme/api", head), "0123456789ab", false},
 		{"an abbreviated commit", one, vcp("https://github.com/acme/api", head[:10]), "0123456789ab", false},
-		{"another commit", one, vcp("https://github.com/acme/api", other), "was written for commit fedcba987654, and this run reads 0123456789ab", true},
+		{"another commit", one, vcp("https://github.com/acme/api", other), "written for commit fedcba987654, and this run reads 0123456789ab", true},
 		{"one of two repositories, by name", two, vcp("git@github.com:acme/web.git", head), "0123456789ab", false},
-		{"a repository the component does not declare", two, vcp("https://github.com/acme/other", head), "states repository https://github.com/acme/other", true},
+		{"one repository listed per subtree", subtrees, vcp("https://github.com/acme/demo", head), "0123456789ab", false},
+		{"a repository the component does not declare", two, vcp("https://github.com/acme/other", head), "names repository other, which component api does not declare", true},
 		{"a revision that cannot be resolved", []plugin.RepositoryTarget{{URL: "./broken"}}, vcp("x", head), "could not be resolved", true},
 	} {
 		ft := plugin.FileTarget{Path: writeFile(t, exampleLog(scoredResult, c.extra)), Component: "api", Repositories: c.repos}
