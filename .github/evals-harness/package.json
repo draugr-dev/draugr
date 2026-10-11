@@ -1,0 +1,9 @@
+{
+  "name": "draugr-evals-harness",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The Claude Code release the plugin evals run under, pinned by hash in package-lock.json so a score moves because the plugin or the model changed, never because the harness did.",
+  "dependencies": {
+    "@anthropic-ai/claude-code": "2.1.283"
+  }
+}

@@ -51,8 +51,6 @@ concurrency:
 
 env:
   GO_VERSION: "1.26.9"
-  # Pinned so a score moves because the plugin or the model changed, never because the harness did.
-  CLAUDE_CODE_VERSION: "2.1.283"
   EVAL_MODEL: claude-sonnet-5
   JUDGE_MODEL: claude-haiku-4-5
 
@@ -83,8 +81,13 @@ jobs:
           echo "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
           echo "$HOME/.draugr/bin" >> "$GITHUB_PATH"
 
+      # The release is pinned by hash in .github/evals-harness/package-lock.json, so a score moves
+      # because the plugin or the model changed, never because the harness did.
       - name: Install Claude Code
-        run: npm install -g "@anthropic-ai/claude-code@$CLAUDE_CODE_VERSION"
+        run: |
+          set -euo pipefail
+          npm ci --prefix .github/evals-harness --no-audit --no-fund
+          echo "$GITHUB_WORKSPACE/.github/evals-harness/node_modules/.bin" >> "$GITHUB_PATH"
 
       # --ablation none runs the plugin arm only: the gate is whether the plugin does its job, and a
       # no-plugin baseline would double the cost to report a delta the exit code ignores.
