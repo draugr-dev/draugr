@@ -422,8 +422,9 @@ type FileTarget struct {
 // Kind returns TargetFile.
 func (FileTarget) Kind() TargetKind { return TargetFile }
 
-// Identity returns the path, e.g. "file:reports/checkmarx.sarif".
-func (t FileTarget) Identity() string { return "file:" + t.Path }
+// Identity returns the path, e.g. "reports/checkmarx.sarif". The kind is beside it wherever the
+// two are shown or keyed together, as for every other target.
+func (t FileTarget) Identity() string { return t.Path }
 
 // CacheDetail is the file's content, so the same path holding different findings is a different
 // scan.

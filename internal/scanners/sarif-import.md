@@ -53,13 +53,15 @@ scanned, in `runs[].versionControlProvenance`, Draugr holds it to the commit thi
 - **The same commit:** the file is read, and `commit` names it.
 - **A different commit:** the run stops with an error naming both. Run the tool again on this
   commit, or remove the import.
-- **No commit stated:** the file is read and listed under **Caveats** as `unbound`.
+- **No commit named:** the file is read and listed under **Caveats** as `unbound`, because nothing
+  ties its findings to this code.
   [`config.gate.failOnCaveats: [unbound-imports]`](../../docs/reference/saga-schema.md#configgate)
   makes that fail the run.
 
 A component with one repository is held to it whatever address the file gives, because a tool
-records the remote it saw and the descriptor may name the same repository by a local path. With
-several, the address has to name one of them.
+records the remote it saw and the descriptor may name the same repository by a local path. Entries
+that list one repository at one revision, a subtree each, count as one. With several distinct
+repositories, the address has to name one of them.
 
 ## Errors
 

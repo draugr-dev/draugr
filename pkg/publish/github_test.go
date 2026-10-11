@@ -28,11 +28,15 @@ func ghEnv(t *testing.T, apiURL string) {
 func TestGithubPublisherUploadsSARIF(t *testing.T) {
 	var gotAuth, gotPath string
 	var gotBody map[string]string
+	fake := &fakeCodeScanning{t: t}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotAuth = r.Header.Get("Authorization")
-		gotPath = r.URL.Path
-		_ = json.NewDecoder(r.Body).Decode(&gotBody)
-		w.WriteHeader(http.StatusAccepted)
+		if r.Method == http.MethodPost {
+			gotAuth = r.Header.Get("Authorization")
+			gotPath = r.URL.Path
+			_ = json.NewDecoder(r.Body).Decode(&gotBody)
+			r.Body = http.NoBody
+		}
+		fake.ServeHTTP(w, r)
 	}))
 	defer srv.Close()
 	ghEnv(t, srv.URL)
@@ -72,9 +76,12 @@ func TestGithubPublisherUploadsSARIF(t *testing.T) {
 
 func TestGithubPublisherConfigOverridesEnv(t *testing.T) {
 	var gotPath, gotAuth string
+	fake := &fakeCodeScanning{t: t}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotPath, gotAuth = r.URL.Path, r.Header.Get("Authorization")
-		w.WriteHeader(http.StatusAccepted)
+		if r.Method == http.MethodPost {
+			gotPath, gotAuth = r.URL.Path, r.Header.Get("Authorization")
+		}
+		fake.ServeHTTP(w, r)
 	}))
 	defer srv.Close()
 	t.Setenv("GITHUB_API_URL", srv.URL)

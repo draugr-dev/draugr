@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -22,9 +23,15 @@ import (
 // (never the Saga) so no secret is stored in the descriptor or logged.
 //
 // Code scanning is free for public repos; private repos require GitHub Advanced Security.
+//
+// After the upload it dismisses the alerts of suppressed findings, which code scanning does not do
+// for itself; see github_dismiss.go.
 type githubPublisher struct {
 	repo, commit, ref, token, apiURL string
 	client                           *http.Client
+	// processingWait is how long to wait for GitHub to process an upload before its alerts can be
+	// dismissed, and processingPoll how often to ask.
+	processingWait, processingPoll time.Duration
 }
 
 func newGithubPublisher(cfg saga.PublisherConfig) (Publisher, error) {
@@ -36,6 +43,10 @@ func newGithubPublisher(cfg saga.PublisherConfig) (Publisher, error) {
 		token:  os.Getenv(tokenEnv),
 		apiURL: firstNonEmpty(os.Getenv("GITHUB_API_URL"), "https://api.github.com"),
 		client: newRetryingClient(http.DefaultClient),
+		// Processing usually takes seconds. The bound is generous because a run that gives up
+		// leaves the tab disagreeing with the report, and says so.
+		processingWait: 5 * time.Minute,
+		processingPoll: 5 * time.Second,
 	}
 	// The github publisher targets a CI code-scanning upload. When a Saga carries it but the scan
 	// runs outside GitHub Actions with no GitHub context resolvable (e.g. a developer running the
@@ -109,7 +120,13 @@ func (g githubPublisher) Publish(ctx context.Context, artifacts []report.Artifac
 		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
 		return fmt.Errorf("github code-scanning upload failed: %s: %s", resp.Status, strings.TrimSpace(string(msg)))
 	}
-	return nil
+	var accepted struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<16)).Decode(&accepted); err != nil || accepted.ID == "" {
+		return fmt.Errorf("github code scanning accepted the upload and returned no upload id, so no accepted finding's alert was dismissed. Re-run the publish")
+	}
+	return g.syncSuppressions(ctx, accepted.ID, sarif)
 }
 
 // gzipBase64 gzip-compresses then base64-encodes data, as required by the code-scanning

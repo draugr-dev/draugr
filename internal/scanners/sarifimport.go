@@ -139,8 +139,10 @@ func (s sarifImport) bind(ctx context.Context, ft plugin.FileTarget, meta import
 			}
 			repo, ok := matchRepository(vcp.RepositoryURI, ft.Repositories)
 			if !ok {
-				return "", fmt.Errorf("%s states repository %s, which component %s does not declare",
-					ft.Path, vcp.RepositoryURI, ft.Component)
+				// The repository by name, not by address: the report's errors block keeps the last
+				// clause of an error and cannot show one that is mostly a URL.
+				return "", fmt.Errorf("%s: names repository %s, which component %s does not declare",
+					ft.Path, repoName(vcp.RepositoryURI), ft.Component)
 			}
 			revision := repo.Revision
 			if repo.WorkingTree {
@@ -148,12 +150,12 @@ func (s sarifImport) bind(ctx context.Context, ft plugin.FileTarget, meta import
 			}
 			commit, err := s.resolve(ctx, repo.URL, revision)
 			if err != nil {
-				return "", fmt.Errorf("%s states commit %s, and the commit this run reads could not be resolved: %w",
-					ft.Path, vcp.RevisionID, err)
+				return "", fmt.Errorf("%s: names commit %s, and the commit this run reads could not be resolved: %w",
+					ft.Path, short(vcp.RevisionID), err)
 			}
 			if !sameCommit(commit, vcp.RevisionID) {
-				return "", fmt.Errorf("%s was written for commit %s, and this run reads %s: run the tool "+
-					"again on this commit, or remove the import", ft.Path, short(vcp.RevisionID), short(commit))
+				return "", fmt.Errorf("%s: written for commit %s, and this run reads %s",
+					ft.Path, short(vcp.RevisionID), short(commit))
 			}
 			stated = append(stated, short(commit))
 		}
@@ -169,8 +171,20 @@ func (s sarifImport) bind(ctx context.Context, ft plugin.FileTarget, meta import
 // one repository is the file's whichever address it gives, because a tool records the remote it saw
 // and the descriptor may name the same repository by a local path. With several, the address has to
 // name one of them.
+//
+// Entries naming one repository at one revision are one repository. A component may list a
+// repository more than once, a subtree each, and the address in the file cannot pick between
+// entries that are the same checkout.
 func matchRepository(uri string, repos []plugin.RepositoryTarget) (plugin.RepositoryTarget, bool) {
-	if len(repos) == 1 {
+	type checkout struct {
+		url, revision string
+		workingTree   bool
+	}
+	distinct := map[checkout]bool{}
+	for _, r := range repos {
+		distinct[checkout{r.URL, r.Revision, r.WorkingTree}] = true
+	}
+	if len(distinct) == 1 {
 		return repos[0], true
 	}
 	want := repoName(uri)

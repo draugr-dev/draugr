@@ -465,7 +465,8 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		}
 		// A suppressed finding is still emitted, marked. Deleting it would leave no trace that
 		// anything was excluded; this way the evidence survives and only the verdict changes.
-		// GitHub code scanning reads this and files the alert as closed-as-suppressed.
+		// GitHub code scanning does not read it, so the github publisher dismisses the alert
+		// itself after the upload.
 		if s := res.Suppression; s != nil {
 			sup := sarifSuppression{Kind: s.Kind, Justification: s.Justification}
 			if s.AcceptedBy != "" || s.Expires != "" || s.Origin != "" || s.Author != "" ||

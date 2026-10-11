@@ -25,6 +25,11 @@ func TestShortReasonKeepsWhatWentWrong(t *testing.T) {
 		{"gitleaks: git clone: exit status 128: fatal: repository '/home/u/shop/app' does not exist",
 			"repository does not exist"},
 		{"draugr-k8s-policies: " + strings.Repeat("x", 120), strings.Repeat("x", whyWidth-1) + "…"},
+		// An imported SARIF file that cannot be read for this run says why, the file being the target.
+		{"sarif-import: reports/bandit.sarif: written for commit 4f2a9c1e7b3d, and this run reads 123509aace3d",
+			"written for commit 4f2a9c1e7b3d, and this run reads 123509aace3d"},
+		{"sarif-import: reports/bandit.sarif: names repository draugr-demo, which component api does not declare",
+			"names repository draugr-demo, which component api does not declare"},
 	} {
 		if got := shortReason(c.detail, whyWidth); got != c.want {
 			t.Errorf("shortReason(%q) = %q, want %q", c.detail, got, c.want)
