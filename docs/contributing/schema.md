@@ -20,9 +20,22 @@ These come from the live plugin registry and **any edit to them is lost**:
 - `controllers.properties`
 - `config.allowEffects`
 - `reportConfig.properties.format`
+- the rules in `publisherConfig.allOf` marked `"$comment": "generated from pkg/publish"`, one per
+  publisher kind, from what `pkg/publish` declares each kind reads, requires and delivers
 
 Generated rather than guarded, because `pkg/saga` cannot import the registry without a cycle, so no
 test is in a position to compare the two.
+
+The publisher rules come from the declarations `draugr validate` reads (`reads`, `requires` and
+`accepts` in `pkg/publish/fields.go`), so the schema and `draugr validate` refuse the same fields on
+each kind. A field added to `PublisherConfig` is refused on every kind until it is named there.
+
+## Held to the loader
+
+The parity tests change every field of every document under `examples/` and
+`internal/cli/testdata/parity/` and require the schema and `draugr validate` to agree. A new field
+has to be written as a live key in one of those documents; when no example should carry it, write
+it in `internal/cli/testdata/parity/fields.saga.yaml`.
 
 ## After changing a descriptor struct
 

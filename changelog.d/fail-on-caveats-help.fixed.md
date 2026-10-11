@@ -1,0 +1,1 @@
+- **`draugr scan --help` and the CLI reference list `unbound-imports`** among the kinds of caveat `--fail-on-caveats` takes.

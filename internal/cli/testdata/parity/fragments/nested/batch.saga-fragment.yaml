@@ -1,0 +1,5 @@
+# Collected by team.saga-fragment.yaml, so a fragment's own fragments list has something to name.
+components:
+  - name: batch
+    images:
+      - image: alpine:3.19

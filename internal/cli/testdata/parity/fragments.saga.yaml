@@ -1,0 +1,5 @@
+# Collects the fragment beside it, so the parity test can change a fragment's fields and load it
+# the way draugr does: through the descriptor that names it.
+project: parity-fragments
+fragments:
+  - path: fragments/*.saga-fragment.yaml

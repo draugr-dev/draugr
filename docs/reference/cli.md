@@ -405,7 +405,7 @@ Grouped the way `draugr scan --help` groups them.
 |------|---------|-------------|
 | `--fail-on` | `P1` | What fails the gate, in either vocabulary: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`) |
 | `--fail-on-priority` | | Deprecated: write the band in `--fail-on` |
-| `--fail-on-caveats` | none | Kinds of caveat that fail the run as an error does: `not-checked`, `not-measured`, `unread-files`, `unread-checks`, or `none`. Overrides [`config.gate.failOnCaveats`](saga-schema.md#configgate) |
+| `--fail-on-caveats` | none | Kinds of caveat that fail the run as an error does: `not-checked`, `not-measured`, `unread-files`, `unread-checks`, `unbound-imports`, or `none`. Overrides [`config.gate.failOnCaveats`](saga-schema.md#configgate) |
 | `--no-gate` | `false` | Report the verdict but exit 0 on a fail, for producing a report to compare later, where [`draugr diff`](#draugr-diff-basesarif-headsarif) is the gate |
 | `--allow-scan-errors` | `false` | Treat a control that couldn't run as a warning rather than a failure. By default an incomplete scan fails the run, because an empty report from a scanner that never ran isn't evidence of anything. The verdict line then carries `partial`, with the number of targets not reached |
 

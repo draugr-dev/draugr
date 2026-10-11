@@ -707,16 +707,18 @@ config:
       enabled: true
   publishers:
       # Named correctly and unusable, so it survives the checks a descriptor is held to and fails
-      # where a publisher fails: at delivery, with the scan already done. A file publisher cannot
-      # work without a dir, and validation does not read it.
-    - kind: file
-      reports:
-        - format: sarif
+      # where a publisher fails: at delivery, with the scan already done. Outside GitHub Actions,
+      # a repository and no token is a publisher half configured.
+    - kind: github
+      repo: acme/web
 components:
   - name: c
     images:
       - image: repo/x:1
 `
+	for _, k := range []string{"GITHUB_ACTIONS", "GITHUB_TOKEN", "GITHUB_SHA", "GITHUB_REF", "GITHUB_REPOSITORY"} {
+		t.Setenv(k, "")
+	}
 	err := runScan(context.Background(), writeSaga(t, saga),
 		scanOptions{failOn: "error", format: "console"}, fakeRegistry(sarif.LevelError), &bytes.Buffer{})
 	if err == nil {
@@ -725,7 +727,7 @@ components:
 	if !strings.Contains(err.Error(), "policy verdict: fail") {
 		t.Errorf("the verdict must lead the message, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "requires a 'dir'") {
+	if !strings.Contains(err.Error(), "github publisher missing") {
 		t.Errorf("the publishing failure must survive in the message, got %v", err)
 	}
 }

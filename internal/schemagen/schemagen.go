@@ -11,11 +11,14 @@
 package schemagen
 
 import (
+	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/controllers"
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/publish"
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
 
@@ -314,6 +317,79 @@ func reportFormatDef() map[string]any {
 	}
 }
 
+// publisherRuleMark identifies the publisherConfig rules this package writes, so a regenerate
+// replaces them and keeps the ones written by hand beside them.
+const publisherRuleMark = "generated from pkg/publish"
+
+// publisherRules builds one rule per publisher kind from what pkg/publish declares it reads,
+// requires and delivers: a field the kind does not read is refused, a field it cannot run without
+// is required, and a report it would drop is refused.
+//
+// Generated for the reason the control list is. PublisherConfig is one struct for every kind, so
+// nothing in its type says which fields belong to which, and the schema's copy of that knowledge
+// drifted from the publishers' a field at a time. `draugr validate` reads the same declarations,
+// so the editor and the loader cannot disagree about which kind reads what.
+func publisherRules() []any {
+	fields := []string{}
+	t := reflect.TypeOf(saga.PublisherConfig{})
+	for i := range t.NumField() {
+		key, _, _ := strings.Cut(t.Field(i).Tag.Get("yaml"), ",")
+		if key != "" && key != "-" && key != "kind" {
+			fields = append(fields, key)
+		}
+	}
+	rules := make([]any, 0, len(publish.Kinds()))
+	for _, kind := range publish.Kinds() {
+		reads := publish.Reads(kind)
+		props := map[string]any{}
+		for _, f := range fields {
+			if !slices.Contains(reads, f) {
+				props[f] = false
+			}
+		}
+		if formats, deliversOnly := publish.Accepts(kind); deliversOnly && slices.Contains(reads, "reports") {
+			variants := make([]any, len(formats))
+			for i, f := range formats {
+				variants[i] = map[string]any{"const": f, "description": report.Summary(f)}
+			}
+			props["reports"] = map[string]any{
+				"items": map[string]any{"properties": map[string]any{"format": map[string]any{"anyOf": variants}}},
+			}
+		}
+		then := map[string]any{"properties": props}
+		if req := publish.Requires(kind); len(req) > 0 {
+			then["required"] = req
+		}
+		rules = append(rules, map[string]any{
+			"$comment": publisherRuleMark,
+			"if": map[string]any{
+				"properties": map[string]any{"kind": map[string]any{"const": kind}},
+				"required":   []any{"kind"},
+			},
+			"then": then,
+		})
+	}
+	return rules
+}
+
+// applyPublisherRules replaces the generated rules in publisherConfig's allOf and keeps the rest.
+func applyPublisherRules(defs map[string]any) error {
+	pc, ok := defs["publisherConfig"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("schema has no publisherConfig definition")
+	}
+	existing, _ := pc["allOf"].([]any)
+	kept := make([]any, 0, len(existing))
+	for _, r := range existing {
+		if m, ok := r.(map[string]any); ok && m["$comment"] == publisherRuleMark {
+			continue
+		}
+		kept = append(kept, r)
+	}
+	pc["allOf"] = append(kept, publisherRules()...)
+	return nil
+}
+
 // Apply rewrites the generated parts of the schema document in place and returns the encoded
 // result, formatted the way the checked-in file is.
 func Apply(schemaJSON []byte, reg *engine.Registry) ([]byte, error) {
@@ -372,6 +448,9 @@ func Apply(schemaJSON []byte, reg *engine.Registry) ([]byte, error) {
 		return nil, fmt.Errorf("reportConfig has no properties")
 	}
 	rcProps["format"] = reportFormatDef()
+	if err := applyPublisherRules(defs); err != nil {
+		return nil, err
+	}
 
 	fc, ok := defs["fragmentConfig"].(map[string]any)
 	if !ok {

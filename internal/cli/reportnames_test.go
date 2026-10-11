@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -54,17 +55,31 @@ func TestValidateAcceptsWhatThisBuildActuallyHas(t *testing.T) {
 	for _, f := range append(reportFormatsForTest(), "template") {
 		reports = append(reports, saga.ReportConfig{Format: f})
 	}
-	// Every kind, each carrying every format, and each distinguished from the next so the
-	// duplicate check does not fire on a list whose point is coverage.
+	// Every kind, each carrying every format it delivers, file all of them, and each distinguished
+	// from the next so the duplicate check does not fire on a list whose point is coverage.
 	var publishers []saga.PublisherConfig
 	for i, k := range publisherKindsForTest() {
-		p := saga.PublisherConfig{
-			Kind: k, Dir: fmt.Sprintf("./out-%d", i), Repo: fmt.Sprintf("acme/r%d", i),
-			Marker: fmt.Sprintf("<!-- %d -->", i), URL: fmt.Sprintf("https://h%d.example", i),
-			Reports: reports,
-		}
-		if publish.IssueKind(k) {
-			p.Reports = nil // an issue body is built from the run, so it takes no format
+		p := saga.PublisherConfig{Kind: k}
+		for _, f := range publish.Reads(k) {
+			switch f {
+			case "dir":
+				p.Dir = fmt.Sprintf("./out-%d", i)
+			case "repo":
+				p.Repo = fmt.Sprintf("acme/r%d", i)
+			case "marker":
+				p.Marker = fmt.Sprintf("<!-- %d -->", i)
+			case "url":
+				p.URL = fmt.Sprintf("https://h%d.example", i)
+			case "project":
+				p.Project = fmt.Sprintf("p%d", i)
+			case "reports":
+				formats, deliversOnly := publish.Accepts(k)
+				for _, r := range reports {
+					if !deliversOnly || slices.Contains(formats, r.Format) {
+						p.Reports = append(p.Reports, r)
+					}
+				}
+			}
 		}
 		publishers = append(publishers, p)
 	}

@@ -735,6 +735,23 @@ config:
 `reports` narrows those, and is required for `file`, which has no format of its own. Each distinct
 report is rendered once, however many destinations ask for it.
 
+### Publisher fields
+
+A field not listed for a publisher is refused, by `draugr validate` and by the schema. `reports` may
+name only the formats in the last column.
+
+| publisher | fields | reports |
+|---|---|---|
+| `azure-pr-comment` | `org`, `project`, `repo`, `pr`, `marker`, `tokenEnv` | `markdown`, `template` |
+| `azure-work-item` | `org`, `project`, `tokenEnv`, `label`, `branches`, `select`, `split`, `minPriority`, `children`, `maxChildren`, `labelBy`, `item` | none |
+| `draugr-api` | `url`, `tokenEnv` | `json`, `sarif` |
+| `file` | `dir` (required) | any format, one or more required |
+| `github` | `repo`, `commit`, `ref`, `tokenEnv` | `sarif` |
+| `github-issue` | `repo`, `tokenEnv`, `label`, `branches`, `select`, `split`, `minPriority`, `children`, `maxChildren`, `labelBy`, `item` | none |
+| `github-pr-comment` | `repo`, `pr`, `marker`, `tokenEnv` | `markdown`, `template` |
+| `gitlab-issue` | `repo`, `tokenEnv`, `label`, `branches`, `select`, `split`, `minPriority`, `children`, `maxChildren`, `labelBy`, `item` | none |
+| `gitlab-mr-comment` | `repo`, `pr`, `marker`, `tokenEnv` | `markdown`, `template` |
+
 For local artifacts and no destination at all, `-o <dir>` writes `report.json` and `results.sarif`,
 and `--report <format>` adds to them.
 

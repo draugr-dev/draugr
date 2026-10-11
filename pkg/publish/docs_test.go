@@ -3,6 +3,7 @@ package publish
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -78,6 +79,47 @@ func TestTheDocumentedPublishersAllExist(t *testing.T) {
 		if !registered[kind] {
 			t.Errorf("the catalog documents publisher %q, which is not registered. "+
 				"A reader configuring it gets an error listing every kind except that one.", kind)
+		}
+	}
+}
+
+// fieldRow is the row docs/reference/saga-schema.md gives kind in its table of the fields each
+// publisher reads, built from the declarations the schema and draugr validate use.
+func fieldRow(kind string) string {
+	var fields []string
+	for _, f := range reads[kind] {
+		if f == "reports" {
+			continue
+		}
+		if slices.Contains(requires[kind], f) {
+			fields = append(fields, "`"+f+"` (required)")
+		} else {
+			fields = append(fields, "`"+f+"`")
+		}
+	}
+	formats := "none"
+	switch accepted, deliversOnly := accepts[kind], accepts[kind] != nil; {
+	case !deliversOnly:
+		formats = "any format"
+	case len(accepted) > 0:
+		formats = "`" + strings.Join(accepted, "`, `") + "`"
+	}
+	if slices.Contains(requires[kind], "reports") {
+		formats += ", one or more required"
+	}
+	return "| `" + kind + "` | " + strings.Join(fields, ", ") + " | " + formats + " |"
+}
+
+// The reference's table of fields is written out, and a row that disagrees with the declarations
+// tells a reader a field works where the editor and draugr validate both refuse it.
+func TestTheReferenceListsWhatEachPublisherReads(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join(repoRoot, "docs/reference/saga-schema.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, kind := range Kinds() {
+		if row := fieldRow(kind); !strings.Contains(string(raw), row+"\n") {
+			t.Errorf("docs/reference/saga-schema.md is missing this row, or has a different one:\n%s", row)
 		}
 	}
 }

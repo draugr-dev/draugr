@@ -1,0 +1,30 @@
+# The fragment fields no example writes as a live key.
+components:
+  - name: worker
+    exposure: internal
+    criticality: supporting
+    kubernetes:
+      - cluster: shared
+        namespaces: [jobs]
+    cloud:
+      - account: team-prod
+clusters:
+  shared:
+    context: shared
+    version: "1.30"
+accounts:
+  team-prod:
+    provider: gcp
+    project: acme-team-prod
+config:
+  controls:
+    provenance:
+      signers:
+        - name: team-ci
+          images: ["ghcr.io/acme/worker*"]
+          github:
+            repository: acme/worker
+            workflow: .github/workflows/release.yml
+            ref: refs/heads/main
+fragments:
+  - path: nested/batch.saga-fragment.yaml

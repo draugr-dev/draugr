@@ -1,0 +1,1 @@
+- **An editor using the Saga schema accepts the publisher values `draugr validate` accepts**: a numeric GitLab project id in `repo`, and numbers in `commit`, `project` and a host's `auth.header`. It refuses a field on a kind that does not read it, as `draugr validate` does.

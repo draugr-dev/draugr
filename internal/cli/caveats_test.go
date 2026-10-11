@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -186,5 +187,36 @@ func TestDoctorFailsWhereTheScanWouldOnNotChecked(t *testing.T) {
 	}
 	if failsOnNotChecked(nil) {
 		t.Error("no descriptor fails on nothing")
+	}
+}
+
+// The reference lists the kinds of caveat twice, beside the flag and under config.gate, both by
+// hand. A kind missing from either is one a reader looking there does not know they can fail on.
+func TestEveryCaveatKindIsDocumented(t *testing.T) {
+	for _, doc := range []struct{ path, line string }{
+		{"../../docs/reference/cli.md", "| `--fail-on-caveats` |"},
+		{"../../docs/reference/saga-schema.md", ""},
+	} {
+		raw, err := os.ReadFile(doc.path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := string(raw)
+		if doc.line != "" {
+			i := strings.Index(text, doc.line)
+			if i < 0 {
+				t.Fatalf("%s has no %s row", doc.path, doc.line)
+			}
+			text, _, _ = strings.Cut(text[i:], "\n")
+		}
+		for _, k := range saga.CaveatKinds {
+			mark := "`" + string(k) + "`"
+			if doc.line == "" {
+				mark = "| `" + string(k) + "` |"
+			}
+			if !strings.Contains(text, mark) {
+				t.Errorf("%s does not list the caveat kind %s", doc.path, k)
+			}
+		}
 	}
 }

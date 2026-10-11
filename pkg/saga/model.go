@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"path"
+	"reflect"
 	"slices"
 	"strings"
 	"time"
@@ -658,6 +659,38 @@ type PublisherConfig struct {
 	MaxChildren *int             `yaml:"maxChildren,omitempty"`
 	LabelBy     LabelBy          `yaml:"labelBy,omitempty"`
 	Item        *IssueItem       `yaml:"item,omitempty"`
+}
+
+// Keys returns every yaml key a publisher entry can write, in the order the struct declares them.
+func (PublisherConfig) Keys() []string {
+	t := reflect.TypeOf(PublisherConfig{})
+	out := make([]string, 0, t.NumField())
+	for i := range t.NumField() {
+		if key, _, _ := strings.Cut(t.Field(i).Tag.Get("yaml"), ","); key != "" && key != "-" {
+			out = append(out, key)
+		}
+	}
+	return out
+}
+
+// Written returns the yaml keys of the fields p sets, in the order the struct declares them.
+//
+// Read off the struct rather than listed, so a field added to PublisherConfig is held to the kinds
+// that read it (publish.Unread) without anybody remembering to add it here. A field is written when
+// it is not its zero value; an empty `labelBy: []` is written, which is the one place an empty
+// list means something.
+func (p PublisherConfig) Written() []string {
+	v := reflect.ValueOf(p)
+	t := v.Type()
+	var out []string
+	for i := range t.NumField() {
+		key, _, _ := strings.Cut(t.Field(i).Tag.Get("yaml"), ",")
+		if key == "" || key == "-" || v.Field(i).IsZero() {
+			continue
+		}
+		out = append(out, key)
+	}
+	return out
 }
 
 // ChildLimit is the most children each parent may have open: maxChildren, or MaxChildrenLimit

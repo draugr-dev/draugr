@@ -1,0 +1,55 @@
+# The fields no example writes as a live key, each written once so the parity test changes it.
+#
+# Not an example: the values are placeholders, and several override what a CI environment would
+# supply. TestEveryFieldIsHeldToBothReaders requires every descriptor field to appear live in the
+# examples or here, because TestTheEditorAndDraugrAgreeOnEveryField can only change a field some
+# document writes.
+project: parity
+components:
+  - name: web
+    exposure: public
+    criticality: critical
+    labels:
+      team: payments
+    images:
+      - image: ghcr.io/acme/web:1.0
+        signedBy: our-ci
+    hosts:
+      - name: api
+        type: api
+        url: https://api.example.com
+        auth:
+          type: header
+          header: X-API-Key
+          tokenEnv: API_KEY
+config:
+  controls:
+    provenance:
+      signers:
+        - name: our-ci
+          images: ["ghcr.io/acme/*"]
+          github:
+            repository: acme/web
+            workflow: .github/workflows/release.yml
+            ref: refs/heads/main
+  publishers:
+    - kind: github
+      repo: acme/web
+      commit: 0123456789abcdef0123456789abcdef01234567
+      ref: refs/heads/main
+      tokenEnv: CI_GITHUB_TOKEN
+    - kind: azure-pr-comment
+      org: https://dev.azure.com/acme/
+      project: shop
+      repo: web
+      pr: 12
+      marker: "<!-- draugr report -->"
+    - kind: gitlab-mr-comment
+      repo: 4242
+    - kind: draugr-api
+      url: https://draugr.acme.example
+    - kind: github-issue
+      branches: [main]
+      select:
+        components: [web]
+        labels: { team: payments }

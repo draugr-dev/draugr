@@ -1,0 +1,1 @@
+- **`draugr validate` refuses a publisher field its kind does not read**, such as `dir` on `github`, a report format the kind would drop, such as `html` on `github`, and a `file` publisher with no `dir`. A descriptor that carries one now fails `draugr validate`. The descriptor reference lists the fields each kind reads, under **Publisher fields**.

@@ -62,13 +62,14 @@ var builders = map[string]func(saga.PublisherConfig) (Publisher, error){
 	"draugr-api":        newDraugrAPIPublisher,
 }
 
-// For resolves a configured publisher, validating its kind and required fields.
+// For resolves a configured publisher, validating its kind and required fields. The constructor
+// is given only the fields its kind reads (see reads).
 func For(cfg saga.PublisherConfig) (Publisher, error) {
 	build, ok := builders[cfg.Kind]
 	if !ok {
 		return nil, fmt.Errorf("unknown publisher kind %q (available: %v)", cfg.Kind, Kinds())
 	}
-	return build(cfg)
+	return build(only(cfg))
 }
 
 // rendered names the report formats a publisher produces for itself.

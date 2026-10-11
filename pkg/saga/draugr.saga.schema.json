@@ -1813,7 +1813,11 @@
       "properties": {
         "header": {
           "description": "Header name, required with type \"header\" (e.g. X-API-Key).",
-          "type": "string"
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
         },
         "tokenEnv": {
           "description": "Environment variable holding the credential. There is deliberately no field for the credential itself: a descriptor is committed, so a token written into one is a leaked token.",
@@ -2195,6 +2199,368 @@
               }
             }
           }
+        },
+        {
+          "$comment": "generated from pkg/publish",
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "azure-pr-comment"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "branches": false,
+              "children": false,
+              "commit": false,
+              "dir": false,
+              "item": false,
+              "label": false,
+              "labelBy": false,
+              "maxChildren": false,
+              "minPriority": false,
+              "ref": false,
+              "reports": {
+                "items": {
+                  "properties": {
+                    "format": {
+                      "anyOf": [
+                        {
+                          "const": "markdown",
+                          "description": "The report as prose and tables, for a merge request comment or a wiki."
+                        },
+                        {
+                          "const": "template",
+                          "description": "Your own layout, from --template or --template-file."
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "select": false,
+              "split": false,
+              "url": false
+            }
+          }
+        },
+        {
+          "$comment": "generated from pkg/publish",
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "azure-work-item"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "commit": false,
+              "dir": false,
+              "marker": false,
+              "pr": false,
+              "ref": false,
+              "repo": false,
+              "reports": false,
+              "url": false
+            }
+          }
+        },
+        {
+          "$comment": "generated from pkg/publish",
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "draugr-api"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "branches": false,
+              "children": false,
+              "commit": false,
+              "dir": false,
+              "item": false,
+              "label": false,
+              "labelBy": false,
+              "marker": false,
+              "maxChildren": false,
+              "minPriority": false,
+              "org": false,
+              "pr": false,
+              "project": false,
+              "ref": false,
+              "repo": false,
+              "reports": {
+                "items": {
+                  "properties": {
+                    "format": {
+                      "anyOf": [
+                        {
+                          "const": "json",
+                          "description": "The whole run as one document, for a platform or a script."
+                        },
+                        {
+                          "const": "sarif",
+                          "description": "SARIF 2.1.0, which code scanning and editors read."
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "select": false,
+              "split": false
+            }
+          }
+        },
+        {
+          "$comment": "generated from pkg/publish",
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "file"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "branches": false,
+              "children": false,
+              "commit": false,
+              "item": false,
+              "label": false,
+              "labelBy": false,
+              "marker": false,
+              "maxChildren": false,
+              "minPriority": false,
+              "org": false,
+              "pr": false,
+              "project": false,
+              "ref": false,
+              "repo": false,
+              "select": false,
+              "split": false,
+              "tokenEnv": false,
+              "url": false
+            },
+            "required": [
+              "dir",
+              "reports"
+            ]
+          }
+        },
+        {
+          "$comment": "generated from pkg/publish",
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "github"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "branches": false,
+              "children": false,
+              "dir": false,
+              "item": false,
+              "label": false,
+              "labelBy": false,
+              "marker": false,
+              "maxChildren": false,
+              "minPriority": false,
+              "org": false,
+              "pr": false,
+              "project": false,
+              "reports": {
+                "items": {
+                  "properties": {
+                    "format": {
+                      "anyOf": [
+                        {
+                          "const": "sarif",
+                          "description": "SARIF 2.1.0, which code scanning and editors read."
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "select": false,
+              "split": false,
+              "url": false
+            }
+          }
+        },
+        {
+          "$comment": "generated from pkg/publish",
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "github-issue"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "commit": false,
+              "dir": false,
+              "marker": false,
+              "org": false,
+              "pr": false,
+              "project": false,
+              "ref": false,
+              "reports": false,
+              "url": false
+            }
+          }
+        },
+        {
+          "$comment": "generated from pkg/publish",
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "github-pr-comment"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "branches": false,
+              "children": false,
+              "commit": false,
+              "dir": false,
+              "item": false,
+              "label": false,
+              "labelBy": false,
+              "maxChildren": false,
+              "minPriority": false,
+              "org": false,
+              "project": false,
+              "ref": false,
+              "reports": {
+                "items": {
+                  "properties": {
+                    "format": {
+                      "anyOf": [
+                        {
+                          "const": "markdown",
+                          "description": "The report as prose and tables, for a merge request comment or a wiki."
+                        },
+                        {
+                          "const": "template",
+                          "description": "Your own layout, from --template or --template-file."
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "select": false,
+              "split": false,
+              "url": false
+            }
+          }
+        },
+        {
+          "$comment": "generated from pkg/publish",
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "gitlab-issue"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "commit": false,
+              "dir": false,
+              "marker": false,
+              "org": false,
+              "pr": false,
+              "project": false,
+              "ref": false,
+              "reports": false,
+              "url": false
+            }
+          }
+        },
+        {
+          "$comment": "generated from pkg/publish",
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "gitlab-mr-comment"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "branches": false,
+              "children": false,
+              "commit": false,
+              "dir": false,
+              "item": false,
+              "label": false,
+              "labelBy": false,
+              "maxChildren": false,
+              "minPriority": false,
+              "org": false,
+              "project": false,
+              "ref": false,
+              "reports": {
+                "items": {
+                  "properties": {
+                    "format": {
+                      "anyOf": [
+                        {
+                          "const": "markdown",
+                          "description": "The report as prose and tables, for a merge request comment or a wiki."
+                        },
+                        {
+                          "const": "template",
+                          "description": "Your own layout, from --template or --template-file."
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "select": false,
+              "split": false,
+              "url": false
+            }
+          }
         }
       ],
       "properties": {
@@ -2230,7 +2596,11 @@
         },
         "commit": {
           "description": "github: commit SHA. Defaults to $GITHUB_SHA.",
-          "type": "string"
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
         },
         "dir": {
           "description": "file: output directory.",
@@ -2327,7 +2697,11 @@
         },
         "marker": {
           "description": "github-pr-comment / azure-pr-comment / gitlab-mr-comment: hidden marker identifying the sticky comment to update.",
-          "type": "string"
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
         },
         "maxChildren": {
           "description": "github-issue, gitlab-issue, azure-work-item: the most children each parent has open, with children: actions or controls. Defaults to 100.",
@@ -2359,23 +2733,40 @@
         },
         "org": {
           "description": "azure-pr-comment, azure-work-item: collection URI. Defaults to $SYSTEM_TEAMFOUNDATIONCOLLECTIONURI.",
-          "type": "string"
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
         },
         "pr": {
           "description": "github-pr-comment / azure-pr-comment: pull-request number; gitlab-mr-comment: merge-request IID. Defaults to the CI environment.",
+          "minimum": 0,
           "type": "integer"
         },
         "project": {
           "description": "azure-pr-comment, azure-work-item: team project. Defaults to $SYSTEM_TEAMPROJECT.",
-          "type": "string"
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
         },
         "ref": {
           "description": "github: git ref. Defaults to $GITHUB_REF.",
-          "type": "string"
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
         },
         "repo": {
-          "description": "github: owner/name (default $GITHUB_REPOSITORY). azure-pr-comment: repository name (default $BUILD_REPOSITORY_NAME). gitlab-mr-comment: project id or full path (default $CI_PROJECT_ID).",
-          "type": "string"
+          "description": "github, github-pr-comment, github-issue: owner/name (default $GITHUB_REPOSITORY). azure-pr-comment: repository name (default $BUILD_REPOSITORY_NAME). gitlab-mr-comment, gitlab-issue: numeric project id or full path (default $CI_PROJECT_ID).",
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
         },
         "reports": {
           "description": "What this destination delivers. A publisher that can deliver only one format renders it for itself and needs none; `file` has no format of its own, so it needs these.",
@@ -2407,11 +2798,18 @@
           "type": "string"
         },
         "tokenEnv": {
-          "description": "Environment variable holding the token (default GITHUB_TOKEN; SYSTEM_ACCESSTOKEN for azure-pr-comment and azure-work-item; GITLAB_TOKEN for gitlab-mr-comment). The token itself is never stored in the Saga.",
-          "type": "string"
+          "description": "Environment variable holding the token. Defaults: GITHUB_TOKEN (github, github-pr-comment, github-issue), SYSTEM_ACCESSTOKEN (azure-pr-comment, azure-work-item), GITLAB_TOKEN (gitlab-mr-comment, gitlab-issue), DRAUGR_API_TOKEN (draugr-api). The token itself is never stored in the Saga.",
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
         },
         "url": {
           "description": "draugr-api: where the server is reached. Defaults to $DRAUGR_API_URL. The token comes from $DRAUGR_API_TOKEN (or tokenEnv) and never from this file.",
+          "format": "uri",
+          "minLength": 1,
+          "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|https?://.+)$",
           "type": "string"
         }
       },

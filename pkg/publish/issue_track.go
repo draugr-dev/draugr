@@ -24,8 +24,8 @@ var issueKinds = map[string]bool{
 	"azure-work-item": true,
 }
 
-// IssueKind reports whether kind keeps a tracking item, and so reads `label`, `branches`,
-// `select`, `split`, `minPriority`, `children`, `maxChildren` and `item`.
+// IssueKind reports whether kind keeps a tracking item, and so reads the issue fields (see
+// issueFields).
 func IssueKind(kind string) bool { return issueKinds[kind] }
 
 // trackedItem is an open item carrying the tracking label.

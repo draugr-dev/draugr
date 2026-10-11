@@ -68,6 +68,7 @@ func checkReportNames(model *saga.Model) error {
 			seen[id] = i
 		}
 
+		problems = append(problems, checkPublisherFields(i, p)...)
 		problems = append(problems, checkIssueFields(model, i, p)...)
 		if publish.IssueKind(p.Kind) {
 			continue
@@ -110,46 +111,60 @@ func checkReportNames(model *saga.Model) error {
 		"\npublishers: " + strings.Join(publish.Kinds(), ", "))
 }
 
-// checkIssueFields holds a publisher's issue fields to the kind that reads them.
+// checkPublisherFields holds an entry's fields to what its kind reads, requires and delivers, as
+// pkg/publish declares them. The schema is generated from the same declarations, so the editor and
+// this check give one answer.
 //
-// An issue field on any other kind is ignored, so a descriptor carrying one claims a narrowing or
-// a label that nothing applies. An issue publisher builds its body from the run, so `reports` on
-// one names formats nothing renders.
-func checkIssueFields(model *saga.Model, i int, p saga.PublisherConfig) []string {
-	var set []string
-	for _, f := range []struct {
-		name string
-		set  bool
-	}{
-		{"label", p.Label != ""},
-		{"branches", len(p.Branches) > 0},
-		{"select", p.Select != nil},
-		{"split", p.Split != ""},
-		{"minPriority", p.MinPriority != ""},
-		{"children", p.Children != ""},
-		{"maxChildren", p.MaxChildren != nil},
-		{"labelBy", p.LabelBy != nil},
-		{"item", p.Item != nil},
-	} {
-		if f.set {
-			set = append(set, f.name)
-		}
-	}
-	if !publish.IssueKind(p.Kind) {
-		if len(set) == 0 {
-			return nil
-		}
-		return []string{fmt.Sprintf(
-			"config.publishers[%d]: the %s publisher does not read %s, which only an issue publisher reads",
-			i, p.Kind, list(set))}
-	}
-
+// A field the kind does not read is ignored by the publisher, so a descriptor carrying one claims a
+// destination, a narrowing or a label that nothing applies. A format the kind does not deliver is
+// rendered and dropped.
+func checkPublisherFields(i int, p saga.PublisherConfig) []string {
 	var problems []string
-	if len(p.Reports) > 0 {
+	unread := publish.Unread(p)
+	if publish.IssueKind(p.Kind) && slices.Contains(unread, "reports") {
 		problems = append(problems, fmt.Sprintf(
 			"config.publishers[%d].reports: the %s publisher builds its body from the run and renders no report; remove reports",
 			i, p.Kind))
+		unread = slices.DeleteFunc(unread, func(f string) bool { return f == "reports" })
 	}
+	if len(unread) > 0 {
+		problems = append(problems, fmt.Sprintf(
+			"config.publishers[%d]: the %s publisher does not read %s; remove %s",
+			i, p.Kind, list(unread), english.Choose(len(unread), "it", "them")))
+	}
+	written := p.Written()
+	for _, f := range publish.Requires(p.Kind) {
+		// A missing reports list has its own message, which says what to write.
+		if f != "reports" && !slices.Contains(written, f) {
+			problems = append(problems, fmt.Sprintf("config.publishers[%d]: the %s publisher needs %s", i, p.Kind, f))
+		}
+	}
+	if formats, deliversOnly := publish.Accepts(p.Kind); deliversOnly && !publish.IssueKind(p.Kind) {
+		for j, r := range p.Reports {
+			if r.Format != "" && !slices.Contains(formats, r.Format) {
+				problems = append(problems, fmt.Sprintf(
+					"config.publishers[%d].reports[%d].format: the %s publisher delivers only %s; name %s or remove this report",
+					i, j, p.Kind, list(formats), list(formats)))
+			}
+		}
+	}
+	if p.PR < 0 {
+		problems = append(problems, fmt.Sprintf(
+			"config.publishers[%d].pr: %d is not valid; write the pull-request number, or omit pr to read it from CI", i, p.PR))
+	}
+	if p.URL != "" && !strings.HasPrefix(p.URL, "https://") && !strings.HasPrefix(p.URL, "http://") {
+		problems = append(problems, fmt.Sprintf(
+			"config.publishers[%d].url: %q must start with https:// or http://", i, p.URL))
+	}
+	return problems
+}
+
+// checkIssueFields holds what an issue publisher's fields say to the descriptor around them.
+func checkIssueFields(model *saga.Model, i int, p saga.PublisherConfig) []string {
+	if !publish.IssueKind(p.Kind) {
+		return nil
+	}
+	var problems []string
 	if model.ProjectName() == "" {
 		problems = append(problems, fmt.Sprintf(
 			"config.publishers[%d]: the %s publisher finds its issues by project, and the descriptor names none; set project",

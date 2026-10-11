@@ -142,9 +142,11 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.failOnPriority, "fail-on-priority", "",
 		"deprecated: write the band in --fail-on, which takes either vocabulary")
 	_ = cmd.Flags().MarkDeprecated("fail-on-priority", "use --fail-on, which takes a band or a severity")
+	// The kinds come from saga.CaveatKinds, the list the flag is checked against, so a new kind is
+	// offered here the moment the descriptor accepts it.
 	cmd.Flags().StringSliceVar(&opts.failOnCaveats, "fail-on-caveats", nil,
-		"kinds of caveat that fail the run as an error does: not-checked, not-measured, "+
-			"unread-files, unread-checks, or none; overrides config.gate.failOnCaveats")
+		"kinds of caveat that fail the run as an error does: "+strings.Join(namesOf(saga.CaveatKinds), ", ")+
+			", or none; overrides config.gate.failOnCaveats")
 	cmd.Flags().BoolVar(&opts.evidence, "evidence", false,
 		"also print what stands behind the verdict: tool provenance, what each control measured "+
 			"against, the scanned revision, and what the run cost")
