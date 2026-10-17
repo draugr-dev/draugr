@@ -53,8 +53,9 @@ CI runs the same checks, so a local failure is a CI failure you caught early. Tw
 
 - Lint with a **fresh** `GOLANGCI_LINT_CACHE`. A warm cache produces false passes that then fail
   in CI: `GOLANGCI_LINT_CACHE=$(mktemp -d) golangci-lint run ./...`
-- Keep your Go toolchain on the **latest 1.26.x patch**. `govulncheck` reports stdlib
-  vulnerabilities fixed in patch releases, and CI always resolves the newest one.
+- Keep your Go toolchain on the patch CI pins, `GO_VERSION` in `.github/workflows/ci.yml`.
+  `govulncheck` reports standard-library vulnerabilities fixed in patch releases, so a different
+  patch gives a different verdict.
 
 ## Design principles
 
@@ -110,8 +111,8 @@ A user-facing change isn't finished until, **in the same pull request**:
    in [`docs/reference/catalog.md`](docs/reference/catalog.md) linking to it. This is enforced by
    `TestEveryPluginHasColocatedDocs`, which walks the real registry, so registering a plugin is
    what triggers the requirement.
-3. **`CHANGELOG.md`** has an entry under `## [Unreleased]`, written **user-first**: what you can
-   now do and what changed for you, not which functions moved.
+3. **A changelog entry** in `changelog.d/`, written with `./scripts/changelog.sh add <section>` and
+   **user-first**: what you can now do and what changed for you, not which functions moved.
 4. **Tests** cover the new behavior. The bar is **≥90% on changed packages**; pure glue and
    unreachable OS-error branches are exempt, and coverage theater helps nobody.
 

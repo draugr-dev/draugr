@@ -12,10 +12,10 @@
 #     landed.
 #
 #   ./scripts/changelog.sh check              structure + released sections unchanged
-#   ./scripts/changelog.sh show [version]     print what a tag would publish (default: Unreleased)
+#   ./scripts/changelog.sh show [version]     print what a tag would publish (default: what is waiting)
 #   ./scripts/changelog.sh summary 0.59.0     one line describing that section, for a tag message
-#   ./scripts/changelog.sh add fixed          read an entry from stdin into [Unreleased]
-#   ./scripts/changelog.sh promote 0.59.0     [Unreleased] -> a dated section, links updated
+#   ./scripts/changelog.sh add <section> [name]  write the entry on stdin as a fragment in changelog.d/
+#   ./scripts/changelog.sh promote 0.59.0     assemble the fragments into a dated section, links updated
 #
 # `check` runs in `make gate` and in CI. `show` is worth running before you tag: it prints exactly
 # what the release workflow will extract, which is the last chance to notice something missing.
@@ -25,10 +25,10 @@ FILE="${CHANGELOG_FILE:-CHANGELOG.md}"
 
 # Where an unreleased entry actually lives: one file per change, assembled at release.
 #
-# Entries used to be appended straight into [Unreleased], which meant every open pull request
-# edited the same few lines of the same file. Two of them is a conflict, and the conflict is worse
-# than it looks: resolving it by hand is how a section ends up in the wrong order, or how somebody
-# drops the other change while fixing their own. A file per change cannot collide with anything.
+# Entries written into [Unreleased] would have every open pull request editing the same few lines
+# of the same file. Two of them is a conflict, and resolving it by hand is how a section ends up in
+# the wrong order, or how somebody drops the other change while fixing their own. A file per change
+# cannot collide with anything.
 FRAGMENTS="${CHANGELOG_FRAGMENTS:-changelog.d}"
 
 # The headings Keep a Changelog defines, in the order they should appear. Anything else is a typo

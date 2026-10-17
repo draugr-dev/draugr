@@ -31,25 +31,25 @@ make gate    # full local gate: fmt, vet, golangci-lint, race tests + coverage, 
 
 Please run `make gate` before opening a pull request. CI runs the same checks.
 
-### Editing the CHANGELOG
+### Editing the changelog
 
-New entries go under `## [Unreleased]`. Released sections are a record of what shipped. Once a
-version is tagged, editing its notes rewrites history that release notes and the published site
-already quote.
-
-You can edit the file by hand. It is Markdown, and nothing here is mandatory. There is a helper for
-the parts that are easy to get quietly wrong:
+Each change gets its own file under `changelog.d/`, and the release assembles them into
+`CHANGELOG.md`. Write one with the helper rather than by hand:
 
 ```bash
+printf -- '- **What you can now do.** And why it matters.\n' | ./scripts/changelog.sh add added
 make changelog                      # check it (also part of `make gate` and CI)
-make changelog-show                 # print what a tag would publish
-echo "- **What you can now do.**" | ./scripts/changelog.sh add fixed
+make changelog-show                 # print what the next release would publish
 ```
 
-`add` puts the entry under the right heading in `[Unreleased]`, creating the heading in
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) order and clearing `_Nothing yet._`. The
-sections it accepts are Added, Changed, Deprecated, Removed, Fixed and Security; `### Fix` reads
-fine and lands nowhere the release notes look.
+`add` takes the section as its argument, one of `added`, `changed`, `deprecated`, `removed`,
+`fixed` or `security`, and writes `changelog.d/<slug>.<section>.md`. A third argument sets the
+file name, without the `.<section>.md` suffix. [`changelog.d/README.md`](changelog.d/README.md)
+has the rules a fragment is held to, among them a user-first bullet of at most sixty words, not
+counting link URLs.
+
+**Do not edit `CHANGELOG.md`.** `make changelog` rejects an entry written into `[Unreleased]`, and
+a released section is a record that release notes and the published site already quote.
 
 **What `make changelog` catches**. It runs in `make gate` and in CI, so a heading nobody recognizes
 never reaches `main`. Every one of these produces a file that looks right:
@@ -57,6 +57,9 @@ never reaches `main`. Every one of these produces a file that looks right:
 - **Two `### Fixed` blocks under one version.** The published notes contain whichever the
   extractor reaches first, and there is no way to tell from the release page that half is missing.
 - **A heading that is not one of the six.** Entries under it are simply not published.
+- **A fragment whose name ends in no section**, such as `fix.md` for `fixed.md`. It sits in
+  `changelog.d/` looking queued and ships in no release.
+- **An entry over sixty words.** The reasoning belongs in the pull request.
 - **A released version with no link reference**, which renders as a bare `[0.58.0]`.
 - **A released section that has changed since its tag**. The original guard, still run as part of
   this. The failure it exists for is aim rather than malice: an entry meant for `[Unreleased]`
@@ -67,11 +70,9 @@ never reaches `main`. Every one of these produces a file that looks right:
 Heading checks apply to `[Unreleased]` only. Released sections are held to what their tag said, and
 the earliest history predates this convention. A check that can never pass is a check nobody reads.
 
-**Releasing.** `./scripts/changelog.sh promote X.Y.Z` moves `[Unreleased]` into a dated section
-and updates the compare links, then prints what the tag will publish. Read that output. It
-**refuses to promote an empty `[Unreleased]`**, which is the case worth refusing: an entry that
-was written but never landed produces a release nobody can describe, and the only moment that is
-cheap to fix is before the tag exists.
+**Releasing.** `./scripts/changelog.sh promote X.Y.Z`, which the `Release prepare` workflow runs,
+assembles every fragment into a dated section, clears `changelog.d/` and updates the compare links,
+then prints what the tag will publish. It **refuses to promote when there is nothing to release**.
 
 #### On the file's size
 

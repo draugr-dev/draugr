@@ -123,9 +123,9 @@ And before you open it:
 make gate    # fmt, vet, lint, race tests + coverage, govulncheck
 ```
 
-Lint with a **fresh** `GOLANGCI_LINT_CACHE`. A warm cache produces passes that then fail in CI,
-and keep your Go toolchain on the latest 1.26.x patch, because `govulncheck` reports stdlib
-vulnerabilities fixed in patch releases and CI always resolves the newest.
+Lint with a **fresh** `GOLANGCI_LINT_CACHE`. A warm cache produces passes that then fail in CI.
+Keep your Go toolchain on the patch CI pins, `GO_VERSION` in `.github/workflows/ci.yml`, because
+`govulncheck` reports stdlib vulnerabilities fixed in patch releases.
 
 ## Where things live
 
