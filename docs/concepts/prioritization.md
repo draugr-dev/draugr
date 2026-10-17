@@ -421,13 +421,13 @@ incomparable.
 
 ### A worked example
 
-A dependency carries a CVE scored CVSS 6.1 → **medium**, on a component classified `public` /
-`important`.
+A dependency carries a CVE scored CVSS 3.7 → **low**, on a component classified `internal` /
+`critical`, context tier C2.
 
 | Run | Severity | Priority |
 |-----|----------|----------|
-| no enrichment | medium | P3 |
-| `--epss epss.csv`, score 0.62 ≥ 0.5 | high (one band up) | P2 |
+| no enrichment | low | P3 |
+| `--epss epss.csv`, score 0.62 ≥ 0.5 | medium (one band up) | P2 |
 | `--kev kev.json`, and it's listed | critical | P1 |
 
 Same finding, same component, three different answers about when to fix it, and the last is the one
