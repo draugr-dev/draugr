@@ -356,3 +356,51 @@ func TestRetireJSFailureNamesWhatRetireSaid(t *testing.T) {
 		t.Errorf("err = %v, want the run's own error", err)
 	}
 }
+
+// A filesystem failure arrives as Node's error object rather than a sentence, and still reaches the
+// reader as the code, the call and the path. Output from retire.js 5.7.0 with a --cachedir whose
+// parent does not exist.
+func TestRetireJSFailureNamesAnErrorObject(t *testing.T) {
+	const out = `{"version":"5.7.0","start":"2026-10-17T04:10:22.633Z","data":[],"messages":[],` +
+		`"errors":[{"errno":-2,"code":"ENOENT","syscall":"mkdir","path":"/home/u/.draugr/data/retirejs"}],` +
+		`"time":0.001,"vulnerabilityRepositories":["https://raw.githubusercontent.com/RetireJS/retire.js/master/repository/jsrepository-v5.json"]}`
+	_, err := retireRun(execArgvInDir)(context.Background(), "", []string{"sh", "-c", "printf '%s' '" + out + "'; exit 1"})
+	if err == nil || !strings.Contains(err.Error(), "ENOENT mkdir /home/u/.draugr/data/retirejs (exit status 1)") {
+		t.Errorf("err = %v", err)
+	}
+	for raw, want := range map[string]string{
+		`{"message":"socket hang up","code":"ECONNRESET"}`: "socket hang up",
+		`42`: "42",
+	} {
+		if got := retireError([]byte(raw)); got != want {
+			t.Errorf("retireError(%s) = %q, want %q", raw, got, want)
+		}
+	}
+}
+
+// The cache directory exists before retire.js runs, parents included, because retire.js creates
+// only the last one and a fresh machine has none of them.
+func TestRetireCacheIsCreatedWithItsParents(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	dir := retireCache()
+	if want := filepath.Join(home, ".draugr", "data", "retirejs"); dir != want {
+		t.Fatalf("retireCache = %q, want %q", dir, want)
+	}
+	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
+		t.Errorf("not created: %v", err)
+	}
+	if args := strings.Join(retireJSArgs("/src", plugin.Config{}), " "); !strings.Contains(args, "--cachedir "+dir) {
+		t.Errorf("args = %s", args)
+	}
+
+	// Where the directory cannot be made, retire.js keeps its own default.
+	blocked := t.TempDir()
+	t.Setenv("HOME", blocked)
+	if err := os.WriteFile(filepath.Join(blocked, ".draugr"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := retireCache(); got != "" {
+		t.Errorf("retireCache under a file = %q, want none", got)
+	}
+}

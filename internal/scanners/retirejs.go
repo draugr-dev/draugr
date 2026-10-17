@@ -62,13 +62,40 @@ func retireRun(run func(ctx context.Context, dir string, argv []string) ([]byte,
 			return out, nil
 		}
 		var report struct {
-			Errors []string `json:"errors"`
+			Errors []json.RawMessage `json:"errors"`
 		}
 		if json.Unmarshal(out, &report) != nil || len(report.Errors) == 0 {
 			return out, err
 		}
-		return out, fmt.Errorf("%s (%w)", strings.Join(report.Errors, "; "), err)
+		said := make([]string, 0, len(report.Errors))
+		for _, e := range report.Errors {
+			said = append(said, retireError(e))
+		}
+		return out, fmt.Errorf("%s (%w)", strings.Join(said, "; "), err)
 	}
+}
+
+// retireError renders one entry of retire.js's `errors` array. A failed download is a sentence,
+// and a filesystem error is Node's error object, `{"code":"ENOENT","syscall":"mkdir","path":…}`,
+// which reads as its code, the call and the path.
+func retireError(raw json.RawMessage) string {
+	var text string
+	if json.Unmarshal(raw, &text) == nil {
+		return text
+	}
+	var obj struct {
+		Message string `json:"message"`
+		Code    string `json:"code"`
+		Syscall string `json:"syscall"`
+		Path    string `json:"path"`
+	}
+	if json.Unmarshal(raw, &obj) != nil {
+		return string(raw)
+	}
+	if obj.Message != "" {
+		return obj.Message
+	}
+	return strings.TrimSpace(strings.Join([]string{obj.Code, obj.Syscall, obj.Path}, " "))
 }
 
 // retireJSRepoWarmer fetches the advisory database once, before the jobs fan out.
@@ -92,7 +119,7 @@ type retireJSRepoWarmer struct {
 	cacheDir func() string
 }
 
-var sharedRetireJSRepo = &retireJSRepoWarmer{run: retireRun(execArgvInDir), cacheDir: retireCacheDir}
+var sharedRetireJSRepo = &retireJSRepoWarmer{run: retireRun(execArgvInDir), cacheDir: retireCache}
 
 func (w *retireJSRepoWarmer) warm(ctx context.Context) error {
 	w.once.Do(func() {
@@ -196,7 +223,7 @@ func pruneRetireCache(cache string) {
 // copy across.
 func retireJSArgs(dir string, _ plugin.Config) []string {
 	argv := []string{"retire", "--path", dir, "--outputformat", "json", "--exitwith", "0"}
-	cache := retireCacheDir()
+	cache := retireCache()
 	if cache == "" {
 		return argv
 	}
@@ -221,6 +248,18 @@ func retireCacheDir() string {
 		return ""
 	}
 	return filepath.Join(root, "retirejs")
+}
+
+// retireCache is retireCacheDir, created. retire.js makes the last directory of --cachedir and not
+// its parents, so on a machine where nothing has written under ~/.draugr/data yet every run fails
+// with ENOENT before it reads a file. "" where the directory cannot be made, so retire.js falls back
+// to its own default rather than failing over where it keeps a cache.
+func retireCache() string {
+	dir := retireCacheDir()
+	if dir == "" || os.MkdirAll(dir, 0o750) != nil {
+		return ""
+	}
+	return dir
 }
 
 // retireReport is the part of retire.js's JSON output Draugr reads.
