@@ -60,8 +60,7 @@ func TestPlanUninstallListsEachToolsFilesAndCachesApart(t *testing.T) {
 			Caches: []RemovedPath{{KindCache, filepath.Join(home, ".cache", "trivy"), 14}}},
 		"semgrep": {Name: "semgrep", Version: "1.177.0",
 			Files: []RemovedPath{{KindBinary, filepath.Join(bin, "semgrep"), 9},
-				{KindPythonEnv, filepath.Join(draugr, "venv", "semgrep"), 4}},
-			Caches: []RemovedPath{{KindCache, filepath.Join(home, ".semgrep"), 5}}},
+				{KindPythonEnv, filepath.Join(draugr, "venv", "semgrep"), 4}}},
 		"retire": {Name: "retire", Version: "5.7.0",
 			Files: []RemovedPath{{KindBinary, filepath.Join(bin, "retire"), 9},
 				{KindNodeEnv, filepath.Join(draugr, "node", "retire"), 4},
@@ -76,8 +75,8 @@ func TestPlanUninstallListsEachToolsFilesAndCachesApart(t *testing.T) {
 			t.Errorf("%s:\n got %+v\nwant %+v", name, got, want)
 		}
 	}
-	if r := cases["semgrep"]; r.Size() != 13 || r.CacheSize() != 5 {
-		t.Errorf("semgrep sizes: %d files, %d caches", r.Size(), r.CacheSize())
+	if r := cases["trivy"]; r.Size() != 12 || r.CacheSize() != 14 {
+		t.Errorf("trivy sizes: %d files, %d caches", r.Size(), r.CacheSize())
 	}
 }
 
@@ -221,8 +220,8 @@ func TestCacheDirsAreEachToolsDefault(t *testing.T) {
 		"grype":    {"/elsewhere/grype"},
 		"syft":     {filepath.Join(cache, "syft")},
 		"notation": {filepath.Join(cache, "notation")},
-		"nuclei":   {filepath.Join(home, "nuclei-templates"), filepath.Join(home, ".config", "nuclei")},
-		"semgrep":  {filepath.Join(home, ".semgrep")},
+		"nuclei":   {filepath.Join(home, "nuclei-templates")},
+		"semgrep":  nil,
 		"cosign":   {filepath.Join(home, ".sigstore")},
 		"gitleaks": nil,
 	}
@@ -244,5 +243,33 @@ func TestUninstallWithNoRecordLeavesTheOthers(t *testing.T) {
 	}
 	if len(loadManifest(bin)) != 3 {
 		t.Errorf("install record changed: %v", loadManifest(bin))
+	}
+}
+
+// A tool's settings are not its cache: --caches leaves nuclei's configuration and Semgrep's
+// login where they are.
+func TestCachesLeaveEachToolsSettings(t *testing.T) {
+	home, bin := fakeHome(t)
+	threeInstalled(t, home, bin)
+	writeFile(t, filepath.Join(bin, "nuclei"), "nuclei binary")
+	writeFile(t, filepath.Join(home, "nuclei-templates", "http", "a.yaml"), "template")
+	settings := []string{
+		filepath.Join(home, ".config", "nuclei", "config.yaml"),
+		filepath.Join(home, ".semgrep", "settings.yml"),
+	}
+	writeFile(t, settings[0], "rate-limit: 10")
+	for _, tool := range []string{"nuclei", "semgrep"} {
+		r, _ := PlanUninstall(bin, tool)
+		if err := Uninstall(bin, r, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if pathExists(filepath.Join(home, "nuclei-templates")) {
+		t.Error("nuclei's templates stayed with --caches")
+	}
+	for _, s := range settings {
+		if !pathExists(s) {
+			t.Errorf("--caches removed %s", s)
+		}
 	}
 }

@@ -75,6 +75,9 @@ func ScanDataDir(tool string) string {
 // cacheDirs are where each tool keeps what it downloads for itself, outside ~/.draugr, at the
 // tool's own default or where the environment variable it reads moves it. Another install of the
 // same tool reads the same place, which is why removing them is asked for separately.
+//
+// Downloaded data only. A tool's settings are somebody's configuration and can hold a login, so
+// ~/.config/nuclei and ~/.semgrep are not here, though both sit beside what the tools download.
 func cacheDirs(tool string) []string {
 	cache, _ := os.UserCacheDir()
 	home, _ := os.UserHomeDir()
@@ -100,9 +103,7 @@ func cacheDirs(tool string) []string {
 	case "notation":
 		return []string{in(cache, "notation")}
 	case "nuclei":
-		return []string{in(home, "nuclei-templates"), in(home, ".config", "nuclei")}
-	case "semgrep":
-		return []string{in(home, ".semgrep")}
+		return []string{in(home, "nuclei-templates")}
 	case "cosign":
 		return []string{in(home, ".sigstore")}
 	}

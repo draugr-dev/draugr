@@ -1547,8 +1547,9 @@ or Node environment beside it, and the data Draugr keeps for the tool under `~/.
 copy installed any other way is left where it is, and the line for it says where it was found.
 
 Each tool's own cache stays unless `--caches` is given: Trivy's and Grype's vulnerability
-databases, Nuclei's templates, and the smaller ones Syft, Notation, Semgrep and cosign keep. They
-sit at the tool's default location, or where `TRIVY_CACHE_DIR` or `GRYPE_DB_CACHE_DIR` moves it,
+databases, Nuclei's templates, and the smaller ones Syft, Notation and cosign keep. A tool's settings
+are not a cache and stay either way, such as `~/.config/nuclei` and Semgrep's login in `~/.semgrep`.
+The caches sit at the tool's default location, or where `TRIVY_CACHE_DIR` or `GRYPE_DB_CACHE_DIR` moves it,
 so removing them also empties the cache of any other install of the same tool. `~/.draugr/feeds` is not a tool's, and
 [`draugr feeds`](#draugr-feeds) manages it.
 
@@ -1574,7 +1575,7 @@ PLAN
   trivy    0.74.0   161M
 
 3 tools to remove from /home/you/.draugr, 518M.
-The tools' own caches stay (semgrep 94B, trivy 2.9G). `--caches` removes them too.
+The tools' own caches stay (trivy 2.9G). `--caches` removes them too.
 
 (dry run, nothing removed)
 ```
