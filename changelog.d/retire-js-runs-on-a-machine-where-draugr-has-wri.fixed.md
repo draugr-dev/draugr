@@ -1,1 +1,0 @@
-- **retire.js runs on a machine where Draugr has written no data yet.** The `sca` control could fail there with `run retirejs: exit status 1`, because retire.js does not create the parents of its cache directory. Draugr creates the directory first, and a retire.js failure now names its cause, such as `ENOENT mkdir <path>`.

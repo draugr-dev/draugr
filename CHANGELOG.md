@@ -12,6 +12,14 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.152.1] - 2026-10-17
+
+### Fixed
+
+- **retire.js runs on a machine where Draugr has written no data yet.** The `sca` control could fail there with `run retirejs: exit status 1`, because retire.js does not create the parents of its cache directory. Draugr creates the directory first, and a retire.js failure now names its cause, such as `ENOENT mkdir <path>`.
+
+- **The pull request that adds a repository's first descriptor is gated like any other.** `draugr diff` takes the head report alone and treats every finding in it as new. The GitHub Action and the GitLab and Azure DevOps templates use it when the base commit has no descriptor, where the diff used to stop with no base report to open.
+
 ## [0.152.0] - 2026-10-17
 
 ### Added
@@ -6341,7 +6349,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.152.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.152.1...HEAD
+[0.152.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.152.1
 [0.152.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.152.0
 [0.151.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.151.0
 [0.150.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.150.0
