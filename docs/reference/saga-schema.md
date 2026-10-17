@@ -753,8 +753,8 @@ name only the formats in the last column.
 | `gitlab-issue` | `repo`, `tokenEnv`, `label`, `branches`, `select`, `split`, `minPriority`, `children`, `maxChildren`, `labelBy`, `item` | none |
 | `gitlab-mr-comment` | `repo`, `pr`, `marker`, `tokenEnv` | `markdown`, `template` |
 
-For local artifacts and no destination at all, `-o <dir>` writes `report.json` and `results.sarif`,
-and `--report <format>` adds to them.
+For local artifacts and no destination at all, `-o <dir>` writes `report.json` and `results.sarif`.
+`--report <format>` writes the formats it names instead of those two.
 
 The **`template`** format renders a [Go `text/template`](https://pkg.go.dev/text/template) against a
 stable view of the scan, `.Release`, `.Verdict`, `.Pass`, `.Priorities.{P1..P4}`, `.Controls`, and
