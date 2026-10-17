@@ -13,9 +13,9 @@ All commands accept these **global flags**:
 |------|---------|-------------|
 | `--log-level` | `info` | `trace`, `debug`, `info`, `warn`, `error` |
 | `--log-format` | `console` | `console` (human-readable, colorized on a terminal), `json`, or `text` |
-| `--log-file` |, | also append every record to this file, at `trace` level and unclamped |
+| `--log-file` | - | also append every record to this file, at `trace` level and unclamped |
 | `--offline` | `false` | make no network calls (also `DRAUGR_OFFLINE=1`) |
-| `--config` |, | machine/organization settings file, used instead of the discovered ones (also `DRAUGR_CONFIG`) |
+| `--config` | - | machine/organization settings file, used instead of the discovered ones (also `DRAUGR_CONFIG`) |
 
 **`--offline`** says once that this machine has no network, and every place Draugr would reach out
 honors it. Optional fetches are skipped with a line saying so; a command whose whole purpose is to
@@ -392,11 +392,11 @@ Grouped the way `draugr scan --help` groups them.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--components` |, | Scan only these components; the verdict says what it covered |
-| `--labels` |, | Scan only components carrying these `key=value` labels; repeat for more, one key twice means either value |
-| `--exposure` |, | Scan only components declaring one of these exposures |
-| `--criticality` |, | Scan only components declaring one of these criticalities |
-| `--controls` |. | Run only these controls; the verdict says what it covered |
+| `--components` | - | Scan only these components; the verdict says what it covered |
+| `--labels` | - | Scan only components carrying these `key=value` labels; repeat for more, one key twice means either value |
+| `--exposure` | - | Scan only components declaring one of these exposures |
+| `--criticality` | - | Scan only components declaring one of these criticalities |
+| `--controls` | - | Run only these controls; the verdict says what it covered |
 | `--working-tree` | `false` | Scan the checkout as it is on disk, uncommitted work included, for iterating on a fix without committing |
 
 **What fails the build**
@@ -404,7 +404,7 @@ Grouped the way `draugr scan --help` groups them.
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--fail-on` | `P1` | What fails the gate, in either vocabulary: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`) |
-| `--fail-on-priority` | | Deprecated: write the band in `--fail-on` |
+| `--fail-on-priority` | - | Deprecated: write the band in `--fail-on` |
 | `--fail-on-caveats` | none | Kinds of caveat that fail the run as an error does: `not-checked`, `not-measured`, `unread-files`, `unread-checks`, `unbound-imports`, or `none`. Overrides [`config.gate.failOnCaveats`](saga-schema.md#configgate) |
 | `--no-gate` | `false` | Report the verdict but exit 0 on a fail, for producing a report to compare later, where [`draugr diff`](#draugr-diff-basesarif-headsarif) is the gate |
 | `--allow-scan-errors` | `false` | Treat a control that couldn't run as a warning rather than a failure. By default an incomplete scan fails the run, because an empty report from a scanner that never ran isn't evidence of anything. The verdict line then carries `partial`, with the number of targets not reached |
@@ -413,8 +413,8 @@ Grouped the way `draugr scan --help` groups them.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--kev` |, | CISA KEV catalog: a file path, or `cache`/`auto` to read `~/.draugr/feeds`. A CVE on it is escalated to critical. Overrides `config.exploitability.kev` |
-| `--epss` |, | FIRST EPSS scores: a file path, or `cache`/`auto` to read `~/.draugr/feeds`. A CVE at/above `--epss-threshold` is bumped one band. Overrides `config.exploitability.epss` |
+| `--kev` | - | CISA KEV catalog: a file path, or `cache`/`auto` to read `~/.draugr/feeds`. A CVE on it is escalated to critical. Overrides `config.exploitability.kev` |
+| `--epss` | - | FIRST EPSS scores: a file path, or `cache`/`auto` to read `~/.draugr/feeds`. A CVE at/above `--epss-threshold` is bumped one band. Overrides `config.exploitability.epss` |
 | `--epss-threshold` | `0.5` | EPSS probability (0–1) that triggers a severity bump. Overrides `config.exploitability.epssThreshold` |
 
 **Output**
@@ -422,24 +422,24 @@ Grouped the way `draugr scan --help` groups them.
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--format` | `console` | **what to print**: `console`, `markdown`, `json`, `sarif`, `vex`, `template` |
-| `-o, --output` |, | Directory to write `report.json`, `results.sarif`, and any SBOMs |
+| `-o, --output` | - | Directory to write `report.json`, `results.sarif`, and any SBOMs |
 | `--report` | `json,sarif` | Formats to write into `-o`: `console`, `html`, `json`, `junit`, `markdown`, `sarif`, `vex`, `evidence`, and the `gitlab-*` reports. `--format` prints, `--report` writes. See [below](#--format-prints---report-writes) |
 | `--view` | `findings` | What the report shows. `findings` gives a row each with what argued with the band underneath; `actions` gives a row per thing to do, saying how many findings it clears; `compact` gives one line each, and in `json`/`sarif` output strips indentation and rule documentation for a consumer that parses rather than reads. A view is a rendering: the report files always carry every finding separately. See [what to fix first](../concepts/what-to-fix-first.md) and [machine-readable output](../guides/reports-and-publishers.md#compact-output-for-tools-and-agents) |
-| `--group` | | Deprecated. `--group action` is `--view actions`, `--group none` is `--view findings` |
+| `--group` | - | Deprecated. `--group action` is `--view actions`, `--group none` is `--view findings` |
 | `--evidence` | `false` | Console: also print what stands behind the verdict, tool provenance, what each control measured against, the scanned revision, and what the run cost. `--report evidence` writes the same content to a file |
 | `--top` | `10` | Console: max findings to list in the ranked table (`0` = all). The heading says whether you are looking at a shortlist or every finding. `0` also lists every row under **Errors** and **Caveats**, where the default is ten each |
-| `--min-priority` |, | List findings at or above this priority band (`P1`–`P4`). Narrows what is **printed**; artifacts and publishers keep the full set. See [below](#what---min-priority-narrows) |
-| `--artifact-min-priority` |, | Also narrow the `-o` artifacts to this band, and record the band inside them. The deliberate opposite of `--min-priority`, and safe for the same reason it is declared. See [below](#what---min-priority-narrows) |
+| `--min-priority` | - | List findings at or above this priority band (`P1`–`P4`). Narrows what is **printed**; artifacts and publishers keep the full set. See [below](#what---min-priority-narrows) |
+| `--artifact-min-priority` | - | Also narrow the `-o` artifacts to this band, and record the band inside them. The deliberate opposite of `--min-priority`, and safe for the same reason it is declared. See [below](#what---min-priority-narrows) |
 | `--compact` | `false` | Deprecated. Use `--view compact` |
-| `--template` |, | inline Go `text/template` (with `--format template`) |
-| `--template-file` |, | Go `text/template` file (with `--format template`) |
+| `--template` | - | inline Go `text/template` (with `--format template`) |
+| `--template-file` | - | Go `text/template` file (with `--format template`) |
 | `--no-tips` | `false` | Suppress the console's contextual tips (also `DRAUGR_NO_TIPS`) |
 
 **Caching**
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--cache-dir` |, | Enable content-hash caching in this directory |
+| `--cache-dir` | - | Enable content-hash caching in this directory |
 | `--cache-ttl` | `24h` | Cache entry lifetime (`0` = no expiry) |
 | `--cache-read-only` | `false` | Read the cache, never write it. For a run whose results should not be trusted by the next one |
 | `--cache-require-digest` | `false` | Do not cache an image identified only by a tag. Left off, such a result is still reused and the report names it. See [what a hit does and does not promise](../guides/caching-and-performance.md#what-a-hit-does-and-does-not-promise) |
@@ -449,7 +449,7 @@ Grouped the way `draugr scan --help` groups them.
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU); reported as `stats.concurrency` |
-| `--allow-effects` |, | Accept scanner effects for this run (`mutate`, `privilege`). `config.allowEffects` is the reviewed equivalent. See [below](#scanners-that-do-more-than-read) |
+| `--allow-effects` | - | Accept scanner effects for this run (`mutate`, `privilege`). `config.allowEffects` is the reviewed equivalent. See [below](#scanners-that-do-more-than-read) |
 | `--no-publish` | `false` | Skip the Saga's configured publishers (still writes `-o` artifacts and stdout) |
 | `--policy` | `false` | Require the [organization's policy](#the-organizations-policy) check. A descriptor publishing to no `draugr-api` server, a missing token, an unreachable server or `--offline` is then an error rather than `not checked`. With `--no-publish`, the check runs only under this flag |
 
@@ -816,7 +816,7 @@ form in front of a PDF.
 
 | Flag | Default | Description |
 | --- | --- | --- |
-| `-r, --report` |, | The `results.sarif` to read. Defaults to `.draugr/out/results.sarif`, then `results.sarif`, then the older `draugr-out/` |
+| `-r, --report` | - | The `results.sarif` to read. Defaults to `.draugr/out/results.sarif`, then `results.sarif`, then the older `draugr-out/` |
 
 The id can be given in full or by the part that is unambiguous, `4.3.1` finds
 `kube-bench/cis/4.3.1`. An abbreviation matching more than one rule lists them rather than choosing,
@@ -856,10 +856,10 @@ not drawn. Fixed has none, because a fixed finding is not in `head`.
 | `--format` | `console` | output format: `console`, `json`, `markdown`, `sarif`. `sarif` emits the **new** findings only, for code scanning on a pull request |
 | `--view` | `findings` | console: how much of each row to show. `findings` adds the finding's own sentence under the row, `compact` is one line each, `actions` groups by the thing to do |
 | `--top` | `0` | console: how many findings to list, `0` being all of them. Caps the moved findings whose priority changed the same way. Zero by default because a diff is already only what one change did; the flag is for a dependency bump that introduces forty |
-| `--min-priority` |, | report only **new** findings at or above this priority band (`P1`–`P4`); fixed and unchanged are unaffected. Narrows the diff, never the scans it was computed from |
-| `--repository` |. | keep only **new** findings from this repository, plus those belonging to none (an image, a host). For a code-scanning upload, whose paths anchor to one checkout |
-| `--fail-on-new` |. | fail if a **new** finding is at or above this: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`) |
-| `--fail-on-new-priority` |. | Deprecated: write the band in `--fail-on-new` |
+| `--min-priority` | - | report only **new** findings at or above this priority band (`P1`–`P4`); fixed and unchanged are unaffected. Narrows the diff, never the scans it was computed from |
+| `--repository` | - | keep only **new** findings from this repository, plus those belonging to none (an image, a host). For a code-scanning upload, whose paths anchor to one checkout |
+| `--fail-on-new` | - | fail if a **new** finding is at or above this: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`) |
+| `--fail-on-new-priority` | - | Deprecated: write the band in `--fail-on-new` |
 | `--publish` | `false` | post the diff as a sticky pull-request comment. Picks `github-pr-comment`, `azure-pr-comment` or `gitlab-mr-comment` from the CI environment; no-ops off a PR |
 
 The gate reads **new** only. An accepted finding does not trip it, which is the point of accepting
@@ -1438,11 +1438,11 @@ on. `draugr tools list` names the runtime each one needs.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-y, --yes` |, | Skip the confirmation prompt |
-| `--dry-run` |, | Print the install plan and exit |
+| `-y, --yes` | `false` | Skip the confirmation prompt |
+| `--dry-run` | `false` | Print the install plan and exit |
 | `--force` | `false` | Reinstall even when the pinned build is already present |
-| `--version` |, | Install this version instead of the one Draugr ships (one tool at a time) |
-| `--saga` |, | Install only the tools that descriptor's scan will run |
+| `--version` | - | Install this version instead of the one Draugr ships (one tool at a time) |
+| `--saga` | - | Install only the tools that descriptor's scan will run |
 | `--all` | `false` | Install every tool Draugr can provision |
 
 ```bash
@@ -1790,7 +1790,7 @@ draugr controls sast --options     # just one control
 
 | Flag | Default | What it does |
 |---|---|---|
-| `[control]` |, | Narrow everything below to one control. A name that is not a control says so and lists the ones that are. |
+| `[control]` | - | Narrow everything below to one control. A name that is not a control says so and lists the ones that are. |
 | `--options` | off | List the Saga options each scanner accepts, read from the schemas the gate enforces. A scanner shown with no options is configured by choosing it, anything else under its block is an error, not a setting that quietly does nothing. |
 
 Enable a control in your Saga under `config.controls.<name>` (or per component). A control's
@@ -1846,8 +1846,8 @@ running, so you are never left with a second copy or an older one earlier on you
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--version` | latest | Target release to install (e.g. `0.16.0`) |
-| `--check` |, | Report current vs latest available; make no changes |
-| `-y, --yes` |, | Skip the confirmation prompt |
+| `--check` | `false` | Report current vs latest available; make no changes |
+| `-y, --yes` | `false` | Skip the confirmation prompt |
 
 ```bash
 draugr self-update            # confirm, then update to the latest release
@@ -1883,7 +1883,7 @@ Print the Saga JSON Schema **this build enforces** (it's embedded in the binary)
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-o, --output` |, | Write to this file instead of stdout |
+| `-o, --output` | stdout | Write to this file instead of stdout |
 | `--fragment` | `false` | Print the [Saga fragment](../guides/saga-fragments.md) schema instead |
 
 ```bash
