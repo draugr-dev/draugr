@@ -137,7 +137,7 @@ Draugr fetch pinned, verified copies into `~/.draugr/bin` (added to your `PATH` 
 
 ```bash
 draugr tools install --saga draugr.saga.yaml   # only what this descriptor's scan will run
-draugr tools install            # everything Draugr can provision, pinned + verified
+draugr tools install --all      # everything Draugr can provision, pinned + verified
 draugr tools list               # what's pinned, which controls it backs, and what's installed
 draugr tools uninstall --all    # remove what install added; --caches also removes tool databases
 ```

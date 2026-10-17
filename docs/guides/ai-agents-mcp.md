@@ -202,7 +202,7 @@ The other commands with no tool follow the same line:
 
 | Command | Why it has no tool |
 | --- | --- |
-| `draugr tools install`, `draugr self-update` | Replace binaries on your machine |
+| `draugr tools install`, `draugr tools uninstall`, `draugr self-update` | Add, replace or remove binaries on your machine |
 | `draugr feeds update` | Downloads datasets and writes them to your cache for every project on the machine |
 | `draugr config` | Holds settings and credentials shared by every project on the machine, not the one the assistant is working in |
 | `draugr classify` | Records a component's exposure and criticality, which come from how your organization runs it and cannot be read from the code |

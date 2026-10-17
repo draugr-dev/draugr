@@ -1443,7 +1443,7 @@ on. `draugr tools list` names the runtime each one needs.
 | `--force` | `false` | Reinstall even when the pinned build is already present |
 | `--version` |, | Install this version instead of the one Draugr ships (one tool at a time) |
 | `--saga` |, | Install only the tools that descriptor's scan will run |
-| `--all` | `false` | Install every tool Draugr can provision, which is what no arguments does |
+| `--all` | `false` | Install every tool Draugr can provision |
 
 ```bash
 draugr tools install --saga draugr.saga.yaml   # only what this project's scan runs

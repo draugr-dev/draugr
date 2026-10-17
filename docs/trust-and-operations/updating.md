@@ -47,7 +47,7 @@ With no arguments it installs what the descriptor in the current directory runs,
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--saga` |, | Install only the tools that descriptor's scan will run |
-| `--all` | `false` | Install every tool Draugr can provision, which is what no arguments does |
+| `--all` | `false` | Install every tool Draugr can provision |
 | `-y, --yes` |, | Skip the confirmation prompt |
 | `--dry-run` |, | Print the install plan and exit |
 
@@ -60,8 +60,8 @@ draugr tools install --dry-run  # preview the plan, change nothing
 draugr tools install -y         # non-interactive
 ```
 
-With no arguments it reads the descriptor beside you and says which one it read. A directory with
-no descriptor is an error naming the three ways forward rather than a silent dozen downloads.
+With no arguments it reads the descriptor beside you and says which one it read. In a directory
+with no descriptor it installs what `draugr scan` runs there without one, and says so.
 
 It first prints the plan (tool, version, category, verification, destination). Run interactively
 it asks for confirmation; non-interactively (CI, pipes) it proceeds. Pass `-y` to be explicit or
@@ -87,3 +87,18 @@ verification story, see [verifying releases](verifying-releases.md).
 Run `draugr tools list` to see every tool Draugr knows about, its category, the controls it backs,
 its pinned version, and whether it's currently found. See the [CLI
 reference](../reference/cli.md#draugr-tools) for more.
+
+## Remove scanner tools
+
+`draugr tools uninstall` removes what `tools install` put under `~/.draugr`: each tool's binary,
+its Python or Node environment, and its data. It leaves a copy installed any other way, and each
+tool's own cache unless `--caches` is given. Like `install`, it prints the plan first.
+
+```bash
+draugr tools uninstall trivy             # one tool
+draugr tools uninstall --all --dry-run   # what removing everything would free
+draugr tools uninstall --all --caches    # every tool, and Trivy's and Grype's databases with them
+```
+
+The [CLI reference](../reference/cli.md#draugr-tools-uninstall-tool) lists which caches each tool
+keeps.

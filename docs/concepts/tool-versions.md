@@ -78,8 +78,8 @@ See [configuration](../guides/configuration.md#what-it-can-hold).
 source with the Go toolchain, npm and Python respectively. Two things follow.
 
 **The runtime has to be on the machine.** `draugr tools list` names which one each needs, and
-`draugr tools install` with no arguments skips the ones it cannot build, tells you which, and
-installs the rest. Asking for one of them by name on a host without its runtime is an error rather
+`draugr tools install --all` skips the ones it cannot build, tells you which, and installs the
+rest. Asking for one of them by name on a host without its runtime is an error rather
 than a skip.
 
 **The pin is a resolved tree, not one file.** Semgrep is pinned by the digest PyPI publishes for
