@@ -18,8 +18,8 @@ All commands accept these **global flags**:
 | `--config` | - | machine/organization settings file, used instead of the discovered ones (also `DRAUGR_CONFIG`) |
 
 **`--offline`** says once that this machine has no network, and every place Draugr would reach out
-honors it. Optional fetches are skipped with a line saying so; a command whose whole purpose is to
-download, `feeds update`, `tools install`, `self-update`, refuses and names what it would have
+honors it. Optional fetches are skipped with a line saying so. A command whose whole purpose is to
+download (`feeds update`, `tools install`, `self-update`) refuses and names what it would have
 fetched. A scan runs against whatever each tool already has on disk, and a tool with nothing on disk
 reports an error rather than a clean result.
 
@@ -32,10 +32,12 @@ be prepared from that list rather than one failure at a time. See
 cache hits, findings per control, and aggregation.
 
 ```console
-$ draugr scan . --log-level debug
-DEBUG planned job control=sca scanner=trivy-fs target_kind=repository
-DEBUG ran scanner tool tool=trivy argv="trivy fs --quiet --scanners vuln --format sarif /tmp/…" duration=43ms
-DEBUG scan complete control=sca scanner=trivy-fs findings=0 duration=50ms
+$ draugr scan . --controls iac --log-level debug
+18:16:05 DEBUG  planned job control=iac scanner=trivy-config target=https://github.com/draugr-dev/draugr@ target_kind=repository
+18:16:06 DEBUG  scanning control=iac scanner=trivy-config target_kind=repository
+18:16:06 DEBUG  ran external tool tool=trivy argv="trivy fs --scanners misconfig --format json … /tmp/draugr-repo-964636929" duration=757ms stdout_bytes=105881 dir=/tmp/draugr-repo-964636929
+18:16:06 DEBUG  ran external tool tool=trivy argv="trivy convert --quiet --format sarif /tmp/draugr-trivy-config-431477641.json" duration=48ms stdout_bytes=37967 dir=/tmp/draugr-repo-964636929
+18:16:06 DEBUG  scan complete control=iac scanner=trivy-config findings=14 duration=903ms
 ```
 
 **When a control fails.** A control whose scanner exits badly is reported as an error rather than
@@ -67,7 +69,7 @@ tool wrote it:
   └
 ```
 
-Verbose by design, reach for it when the summarized line hasn't answered the question. Logs go to
+Trace is verbose, and is for when the summarized line has not answered the question. Logs go to
 stderr, so `2>trace.log` keeps them out of a report on stdout.
 
 **`--log-file` is usually the better way to get it.** The terminal keeps whatever `--log-level`
@@ -79,28 +81,21 @@ draugr scan .                       # nothing on screen but the report
 draugr scan . --log-file draugr.log # …and the whole run in a file
 ```
 
-One `--log-level` cannot serve both. A terminal wants a stream it can read, so a relayed stream is
-clamped there and says how much was left out. A file is what you attach to a bug report, where the
-answer is disproportionately in the part a terminal had no room for, so it is clamped at nothing. On
-the same scan of a findings-rich repository, the terminal shows about 5 KB with a truncation notice
-and the file holds 80 KB with none.
+On the terminal a relayed stream is clamped, with a note saying how much was left out; in the
+file it is kept whole.
 
-The file is **appended**, not truncated, because the second run is usually the one that
-reproduces the problem. It is written `0600` and never colored. A `--log-file` that cannot be
-opened **fails the run** rather than being skipped: a log silently not written leaves the run
-looking normal and the evidence you asked for missing.
+The file is **appended**, not truncated, so a second run that reproduces a problem adds to the
+first. It is written `0600` and never colored. A `--log-file` that cannot be opened **fails the
+run** rather than being skipped.
 
 **Reading a dense log.** The `console` format gives each part of a record its own weight, so the
 shape of a line is legible before its content: the **message** strongest, because it is what you
-scan for; the level colored; timestamps and attribute keys dimmed; values plain. An `error` or a
-non-zero `exit_code` is colored too, in a few hundred debug lines that is nearly always the one
-worth finding.
+scan for; the level colored; timestamps and attribute keys dimmed; values plain. An `error`
+attribute and a non-zero `exit_code` are colored as well.
 
 Color changes the rendering and never the text, so records stay greppable. `NO_COLOR=1`, a pipe
 or a redirect give the same output without the escapes, and `--log-format json` is unaffected by
 all of it.
-
-Logs go to **stderr**, so they never pollute a machine-readable report on stdout.
 
 Telemetry is opt-in and a no-op until an endpoint is set. Draugr exports OpenTelemetry traces and
 metrics over OTLP and reads the standard variables, so anything that already collects OTLP needs
@@ -112,8 +107,8 @@ no Draugr-specific configuration:
 | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | traces alone, where they go somewhere else |
 | `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | metrics alone |
 
-Setting none of them disables both exporters. The rest of the specification's variables, headers,
-TLS, sampling, are read by the SDK and behave as they do everywhere else. Span attributes never
+Setting none of them disables both exporters. The rest of the specification's variables (headers,
+TLS, sampling) are read by the SDK and behave as they do everywhere else. Span attributes never
 carry secrets.
 
 ---
@@ -138,15 +133,25 @@ a span attribute or a cache key.
 
 | | Used by |
 |---|---|
-| `GITHUB_TOKEN` | `draugr survey github repos`, and the `github` publisher |
-| `GITLAB_TOKEN` | `draugr survey gitlab projects` |
-| `AZURE_DEVOPS_EXT_PAT` | `draugr survey azure repos` |
+| `GITHUB_TOKEN` | `draugr survey github repos`; the `github`, `github-pr-comment` and `github-issue` publishers; `draugr tools outdated`, against GitHub's rate limit |
+| `GITLAB_TOKEN` | `draugr survey gitlab projects`; the `gitlab-mr-comment` and `gitlab-issue` publishers |
+| `AZURE_DEVOPS_EXT_PAT`, else `AZURE_DEVOPS_TOKEN` | `draugr survey azure repos` |
+| `SYSTEM_ACCESSTOKEN` | the `azure-pr-comment` and `azure-work-item` publishers |
 | `URLHAUS_AUTH_KEY` | the `urlhaus` scanner, the `threats` default. Free from <https://auth.abuse.ch/> |
 | `VIRUSTOTAL_API_KEY` | the `virustotal` scanner, opt-in under `threats` |
 | `DRAUGR_API_TOKEN`, `DRAUGR_API_URL` | the `draugr-api` publisher |
 
-A descriptor names the variable holding a credential and never the credential: `tokenEnv` on a
-host, for instance. A descriptor is committed, so a token in one is a leaked token.
+A publisher's `tokenEnv` names a different variable in place of its default. A descriptor names the
+variable holding a credential and never the credential, because a descriptor is committed and a
+token in one is a leaked token.
+
+**Self-hosted forges**
+
+| | |
+|---|---|
+| `GITHUB_API_URL` | GitHub Enterprise Server's API, including `/api/v3`, for `survey github repos` and the GitHub publishers |
+| `GITLAB_URL` | a self-managed GitLab, for `survey gitlab projects` |
+| `AZURE_DEVOPS_URL` | Azure DevOps Server, for `survey azure repos` |
 
 **Observability**
 
@@ -189,7 +194,7 @@ lockfile of its own, or a dependency file of another ecosystem, is still a part.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-o, --output` | `draugr.saga.yaml` | Path to write (`-` for stdout) |
+| `-o, --output` | `draugr.saga.yaml` | Path to write, relative to the working directory rather than `[dir]` (`-` for stdout). With `--fragment`, the default is `[dir]/draugr.saga-fragment.yaml` |
 | `-f, --force` | `false` | Overwrite an existing file |
 | `--per-directory` | `false` | Write a component for each directory that holds its own dependency file |
 | `--fragment` | `false` | Write a Saga fragment: one component, no release and no policy |
@@ -213,19 +218,17 @@ human-readable **console** summary to stdout by default (`--format` for other fo
 uses the descriptor there if one exists. Everything that file declares applies: the controls chosen,
 the components, and the exposure and criticality that drive prioritization.
 
-Any of these names counts, which are the ones the editor integration already validates:
+A descriptor is any file in that directory, not below it, whose name ends in `.saga.yaml` or
+`.saga.yml`:
 
 ```
 draugr.saga.yaml    web.saga.yaml    .saga.yaml    api.saga.yml
 ```
 
-If the descriptor cannot be read, the scan **fails**. It does not fall back to zero-config: the
-reason a descriptor was skipped has to be reported, or a broken file produces a green scan.
+If the descriptor cannot be read, the scan **fails** rather than falling back to zero-config.
 
-**More than one descriptor stops the scan.** Two are two different accounts of what the project is,
-different components, different controls, different exposure driving different priorities, so Draugr
-does not pick. On a terminal it asks which one; anywhere else it lists them and stops, because a
-prompt in CI would hang the pipeline. Name the file to skip the question:
+**More than one descriptor stops the scan.** On a terminal it asks which one to use; anywhere else
+it lists them and exits non-zero. Name the file to skip the question:
 
 ```bash
 draugr scan ./web.saga.yaml
@@ -236,63 +239,72 @@ the same policy as the run, so the parts cannot disagree with the whole. Compone
 against them are listed as passing, and findings from project-wide controls (which belong to no
 component) are counted separately.
 
-**A surface with no control enabled is called out.** If a component declares repositories, images,
-hosts or infrastructure and nothing is enabled to check them, the scan says so. That combination
-reads as a clean pass over something nobody looked at. A note rather than a failure, since the
-choice may be deliberate; `--no-tips` or `DRAUGR_NO_TIPS=1` silences it.
+**A surface with no control enabled is called out.** A component that declares repositories,
+images, hosts, clusters or cloud accounts with every control for that surface off gets a
+`not-checked` row under `CAVEATS`, naming the controls that are off:
 
-When the component declares hosts, the note also says why `dast` is not among the controls it
-names: `dast` sends attack traffic at a live service, so it is never suggested on the strength of
-a descriptor mentioning a URL. Enable it yourself, having decided.
+```
+CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
+  Component  What   Caveat       Why
+  worker     hosts  not-checked  dast, headers, tls off
+```
 
-**Contextual tips.** After a console scan, up to two one-line hints may follow the report. Each
-is gated on the run it is about, and none of them affects the verdict:
+A caveat fails the run only when `--fail-on-caveats` or
+[`config.gate.failOnCaveats`](saga-schema.md#configgate) lists its kind.
+
+**Contextual tips.** After a console scan, up to two rows that depend on the run may be added to
+`TRY`, in this order of precedence. None of them affects the verdict:
 
 | Tip | Shown when |
 |---|---|
-| Priority gating | The run passed, carries P1 or P2 findings, and the gate is on severity instead |
-| Where the report went | `CI` is set in the environment, with no `-o` and no `config.publishers` |
-| Risk classification | There are findings and no component sets `exposure` or `criticality` |
-| Caching | The run took over a minute and `--cache-dir` is unset |
+| `--fail-on P2` | The gate is on severity, the run passed, and it carries P1 or P2 findings |
+| `builtBy: upstream` | The `images` control has findings and no component or image declares `builtBy` |
+| `--cache-dir <dir>` | The run took a minute or more and `--cache-dir` is unset |
+| `draugr controls` | A declared surface has no enabled control |
+| `draugr tools install <tool>` | A scanner that ran is on `PATH`, was not installed by Draugr, and is one Draugr can install |
 
-At most two per run, highest-consequence first. A block of five is one nobody reads. `--no-tips` or
-`DRAUGR_NO_TIPS=1` silences them, as it does the surface note.
+`--no-tips` or `DRAUGR_NO_TIPS=1` turns them off.
 
 ### While a scan is running
 
-A scan plans one job per repository, image, host and cluster and runs them concurrently, and the
-slow ones are the interesting ones, an image being pulled, a benchmark Job waiting for a node. On a
-terminal it says what it is doing, on one line that redraws:
+A scan plans one job per repository, image, host and cluster and runs them concurrently. On a
+terminal it redraws a progress display: how many jobs have finished, then a row per control and
+scanner with its finished and total jobs.
 
 ```
-scanning 3/11 · images/trivy ×2, sca/trivy-fs
+Scanning 1/2
+  ▸ secrets/gitleaks                   1/2
 ```
 
-How many jobs have finished, then what is in flight; several jobs of the same kind collapse into a
-count. The line is erased before the report, so nothing of it survives in what you read afterwards.
+A row's mark is `·` before its jobs start, `▸` while one runs, `✓` when all have finished and `✗`
+when they have finished and one failed. A row whose oldest running job has taken two seconds or more
+shows how long, and the first line adds the run's elapsed time and the count of failed jobs. While a
+scanner refreshes its data before the jobs start, the first line reads `Refreshing` and names the
+data. The display is erased before the report.
 
-Drawn **only when stderr is a terminal**. A report on stdout stays parseable when piped, and a CI
-log keeps one line per event rather than a frame per update. `--no-tips` and `DRAUGR_NO_TIPS=1`
-turn it off along with the tips.
+It is drawn **only when stderr is a terminal**, so a report on stdout stays parseable when piped and
+a CI log carries no frames. `--no-tips` and `DRAUGR_NO_TIPS=1` turn it off along with the tips.
 
 ### What the run cost
 
-Under the scanner builds, the run accounts for itself:
+Under `--evidence`, the `run` row accounts for the run:
 
-```
-run         11 jobs in 34.5s · 4 from cache, 1 shared with an identical job
+```console
+$ draugr scan . --controls secrets --cache-dir .draugr/cache --evidence
+…
+  run         1 job in 16ms · secrets took the most scanner time, 15ms · 1 from cache, oldest 9m0s
 ```
 
-Wall-clock, not the sum of the jobs: they run concurrently, and their sum is a number matching
-nothing you waited for. **From cache** is what makes [`--cache-dir`](#using-the-cache-in-a-scan)
-checkable. A second run being faster is not evidence that the cache did it. **Shared with an
-identical job** counts jobs answered by another job's scan in the same run, which is what two
-components pointing at one repository produce.
+The row holds, in order, the job count and the run's wall-clock time; the concurrency limit, where
+the run had more jobs than it; the control with the most scanner time, summed across its jobs;
+how many jobs were answered from [the cache](#using-the-cache-in-a-scan) and the age of the oldest
+entry used; time spent waiting for a tool's own cache; and scanner data refreshes of a second or
+more.
 
 ### Scoping a run
 
-`--components` and `--controls` narrow a run without touching the descriptor, for iterating on one
-failing component, or debugging one control, without waiting for the rest:
+`--components` and `--controls` narrow a run to the named components and controls without
+touching the descriptor:
 
 ```bash
 draugr scan --components app,frontend
@@ -300,10 +312,8 @@ draugr scan --controls sca
 draugr scan --components app --controls sca --log-level debug
 ```
 
-**`--labels`, `--exposure` and `--criticality` select components by what they are** rather than by
-name, which is what a repository holding many of them needs. A team knows the label it files under;
-it does not know which of two hundred component names carry that label this week, and a list
-written out by hand goes stale the first time somebody adds one.
+**`--labels`, `--exposure` and `--criticality` select components by what they declare** rather
+than by name, so the selection follows the descriptor as components are added.
 
 ```bash
 draugr scan --labels team=web                  # what the web team owns
@@ -322,9 +332,8 @@ not one of them is refused by name:
 draugr: --exposure: no such exposure "pubic" (want one of: public, authenticated, internal, restricted)
 ```
 
-**A selector that matches nothing is an error**, not an empty run. A typo, or a label somebody has
-since moved, would otherwise scan nothing and pass. The error offers the values that key does have,
-which is where the mistyped word usually is:
+**A selector that matches nothing is an error**, not an empty run. The error offers the values
+that key does have:
 
 ```
 draugr: --labels team=nope matches no component (this descriptor uses team=platform, team=web)
@@ -332,53 +341,51 @@ draugr: --labels squad=web matches no component (no component declares label "sq
 ```
 
 The selector is resolved to component names before the run starts, so the verdict line, the
-component list and the SARIF analysis category all describe what was actually covered.
-`results.sarif` records the selector itself beside them, because "everything labeled `team=web`"
-and "the component storefront" are different requests even on a day they cover the same thing.
+component list and the SARIF analysis category all describe what was covered. `results.sarif` also
+records the selector itself.
 
-They are a **view over one run**, not a decision. `config.controls` records that a project does
-not need `dast`; editing it to debug is how a temporary change gets committed.
+The scope flags apply to one run and change nothing in the descriptor.
 
-**A scoped run still gates**, because answering "is my fix good?" with "no verdict" would send you
-back to a full scan and make the flags useless for the loop they exist for. What it never does is
-look like an unscoped run:
+**A scoped run still gates**, and its verdict line names the scope:
 
-```
-DRAUGR  FAIL  draugr-demo 1.0  (scope: 1 of 3 components; sca)  6.243s
+```console
+$ draugr scan --components web --controls secrets
+DRAUGR  FAIL  storefront 1.0  (scope: 1 of 3 components; secrets)  567ms
 
- 4 P1 4 P2 1 P3 0 P4
+ 5 P1 0 P2 0 P3 0 P4
 
 CONTROLS
-  sca  FAIL   4 P1 4 P2 1 P3
-
+  secrets  FAIL   5 P1
+…
 COMPONENTS
-  storefront  FAIL   4 P1 4 P2 1 P3
-  api         not scanned
-  platform    not scanned
+  web     FAIL   5 P1
+  api     not scanned
+  worker  not scanned
 ```
 
-Skipped components are **listed, not omitted**, a component absent from the breakdown renders
-identically to one that passed.
+Components outside the scope are **listed as `not scanned`**, so the breakdown never shows a
+skipped component as one that passed.
 
-The scope travels into the artifacts too, so a consumer that never saw the command can still tell
-a partial answer from a whole one. `report.json` gains a `scope` object, and the SARIF carries it
-as run provenance. Both are absent on an unscoped run, so their presence is the signal.
+The scope travels into the artifacts too: `report.json` gains a `scope` object, and the SARIF
+carries it as run provenance. Both are absent on an unscoped run.
 
-**[`draugr diff`](#draugr-diff-basesarif-headsarif) refuses reports of different scope.** Every
-finding in the base and absent from the head is reported as *fixed*, correct when both scans looked
-at the same things, and confidently wrong when one was scoped. Two runs of the same scope compare
+**[`draugr diff`](#draugr-diff-basesarif-headsarif) refuses reports of different scope**, because
+a finding outside the narrower scan would be reported as fixed. Two runs of the same scope compare
 normally.
 
-A name that matches nothing is an **error**, not an empty scan: `--components frontnd` scanning
-nothing and passing is the same "we did not look" verdict in miniature. The message lists what the
-descriptor actually declares.
+A component or control name that matches nothing is an **error** listing what the descriptor
+declares:
 
-These change **what runs**. [`--min-priority`](#what---min-priority-narrows) changes what is
-*printed* from a full run. The two read alike and only one of them changes the verdict.
+```
+draugr: --components: this descriptor declares no component "frontnd" (it has: api, web, worker)
+```
 
-**Zero-config.** A directory with no descriptor is scanned with `sca`, `secrets`, `sast` and `iac`,
-no Saga required. A one-line note is printed to stderr so machine formats on stdout stay clean. A
-Saga **file** argument runs exactly as before.
+The scope flags change **what runs**, and so the verdict.
+[`--min-priority`](#what---min-priority-narrows) changes only what is *printed* from a full run.
+
+**Zero-config.** A directory with no descriptor is scanned as one component with `sca`,
+`secrets`, `sast` and `iac`. A note saying so is printed to stderr, so machine formats on stdout
+stay clean.
 
 ```bash
 draugr scan            # zero-config: scan the current repo
@@ -394,20 +401,20 @@ Grouped the way `draugr scan --help` groups them.
 |------|---------|-------------|
 | `--components` | - | Scan only these components; the verdict says what it covered |
 | `--labels` | - | Scan only components carrying these `key=value` labels; repeat for more, one key twice means either value |
-| `--exposure` | - | Scan only components declaring one of these exposures |
-| `--criticality` | - | Scan only components declaring one of these criticalities |
+| `--exposure` | - | Scan only components declaring one of these exposures: `public`, `authenticated`, `internal`, `restricted` |
+| `--criticality` | - | Scan only components declaring one of these criticalities: `critical`, `important`, `supporting` |
 | `--controls` | - | Run only these controls; the verdict says what it covered |
-| `--working-tree` | `false` | Scan the checkout as it is on disk, uncommitted work included, for iterating on a fix without committing |
+| `--working-tree` | `false` | Scan local repositories as they are on disk, uncommitted work included. See [below](#--working-tree-for-the-loop-of-fixing-something) |
 
 **What fails the build**
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--fail-on` | `P1` | What fails the gate, in either vocabulary: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`) |
-| `--fail-on-priority` | - | Deprecated: write the band in `--fail-on` |
-| `--fail-on-caveats` | none | Kinds of caveat that fail the run as an error does: `not-checked`, `not-measured`, `unread-files`, `unread-checks`, `unbound-imports`, or `none`. Overrides [`config.gate.failOnCaveats`](saga-schema.md#configgate) |
+| `--fail-on` | `P1` | What fails the gate, in either vocabulary: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`). Overrides [`config.gate`](saga-schema.md#configgate); `P1` applies when neither sets one |
+| `--fail-on-priority` | - | Deprecated: write the band in `--fail-on`. Refused together with `--fail-on` |
+| `--fail-on-caveats` | - | Kinds of caveat that fail the run as an error does: `not-checked`, `not-measured`, `unread-files`, `unread-checks`, `unbound-imports`, or `none`. Overrides [`config.gate.failOnCaveats`](saga-schema.md#configgate) |
 | `--no-gate` | `false` | Report the verdict but exit 0 on a fail, for producing a report to compare later, where [`draugr diff`](#draugr-diff-basesarif-headsarif) is the gate |
-| `--allow-scan-errors` | `false` | Treat a control that couldn't run as a warning rather than a failure. By default an incomplete scan fails the run, because an empty report from a scanner that never ran isn't evidence of anything. The verdict line then carries `partial`, with the number of targets not reached |
+| `--allow-scan-errors` | `false` | Treat a control whose scanner could not run as a warning rather than a failure. The verdict line then carries `partial`, with the number of targets not reached. A run that planned no jobs at all still fails |
 
 **Exploitability data**
 
@@ -422,14 +429,14 @@ Grouped the way `draugr scan --help` groups them.
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--format` | `console` | **what to print**: `console`, `markdown`, `json`, `sarif`, `vex`, `template` |
-| `-o, --output` | - | Directory to write `report.json`, `results.sarif`, and any SBOMs |
-| `--report` | `json,sarif` | Formats to write into `-o`: `console`, `html`, `json`, `junit`, `markdown`, `sarif`, `vex`, `evidence`, and the `gitlab-*` reports. `--format` prints, `--report` writes. See [below](#--format-prints---report-writes) |
-| `--view` | `findings` | What the report shows. `findings` gives a row each with what argued with the band underneath; `actions` gives a row per thing to do, saying how many findings it clears; `compact` gives one line each, and in `json`/`sarif` output strips indentation and rule documentation for a consumer that parses rather than reads. A view is a rendering: the report files always carry every finding separately. See [what to fix first](../concepts/what-to-fix-first.md) and [machine-readable output](../guides/reports-and-publishers.md#compact-output-for-tools-and-agents) |
+| `-o, --output` | - | Directory to write reports into: `report.json` and `results.sarif` unless `--report` says otherwise, and one SBOM per target when [`config.sbom`](saga-schema.md#sbom-generation) is set |
+| `--report` | `json,sarif` | Formats to write into `-o`: `console`, `evidence`, `html`, `json`, `junit`, `markdown`, `sarif`, `vex`, and the `gitlab-*` reports. Replaces the default rather than adding to it. See [below](#--format-prints---report-writes) |
+| `--view` | `findings` | What the report shows. `findings` gives a block per finding: what it is, what is known about it, and where; `actions` gives a row per thing to do, saying how many findings it clears; `compact` gives one line each, and in `json`/`sarif` output strips indentation and rule documentation. The `-o` report files carry every finding whatever the view. See [what to fix first](../concepts/what-to-fix-first.md) and [machine-readable output](../guides/reports-and-publishers.md#compact-output-for-tools-and-agents) |
 | `--group` | - | Deprecated. `--group action` is `--view actions`, `--group none` is `--view findings` |
-| `--evidence` | `false` | Console: also print what stands behind the verdict, tool provenance, what each control measured against, the scanned revision, and what the run cost. `--report evidence` writes the same content to a file |
-| `--top` | `10` | Console: max findings to list in the ranked table (`0` = all). The heading says whether you are looking at a shortlist or every finding. `0` also lists every row under **Errors** and **Caveats**, where the default is ten each |
-| `--min-priority` | - | List findings at or above this priority band (`P1`–`P4`). Narrows what is **printed**; artifacts and publishers keep the full set. See [below](#what---min-priority-narrows) |
-| `--artifact-min-priority` | - | Also narrow the `-o` artifacts to this band, and record the band inside them. The deliberate opposite of `--min-priority`, and safe for the same reason it is declared. See [below](#what---min-priority-narrows) |
+| `--evidence` | `false` | Console: also print what stands behind the verdict: tool provenance, what each control measured against, the scanned revision, and what the run cost. `--report evidence` writes the same content to a file |
+| `--top` | `10` | Console: max findings to list in the ranked table (`0` = all). The heading says whether the table is a shortlist or every finding. `0` also lists every row under **Errors** and **Caveats**, where the default is ten each |
+| `--min-priority` | - | List findings at or above this priority band (`P1`–`P4`). Narrows what is **printed**; `results.sarif` and publishers keep the full set. See [below](#what---min-priority-narrows) |
+| `--artifact-min-priority` | - | Also narrow the `-o` artifacts to this band, and record the band inside them. See [below](#what---min-priority-narrows) |
 | `--compact` | `false` | Deprecated. Use `--view compact` |
 | `--template` | - | inline Go `text/template` (with `--format template`) |
 | `--template-file` | - | Go `text/template` file (with `--format template`) |
@@ -441,7 +448,7 @@ Grouped the way `draugr scan --help` groups them.
 |------|---------|-------------|
 | `--cache-dir` | - | Enable content-hash caching in this directory |
 | `--cache-ttl` | `24h` | Cache entry lifetime (`0` = no expiry) |
-| `--cache-read-only` | `false` | Read the cache, never write it. For a run whose results should not be trusted by the next one |
+| `--cache-read-only` | `false` | Read the cache but never write it, for a run whose results the next run should not reuse |
 | `--cache-require-digest` | `false` | Do not cache an image identified only by a tag. Left off, such a result is still reused and the report names it. See [what a hit does and does not promise](../guides/caching-and-performance.md#what-a-hit-does-and-does-not-promise) |
 
 **Running the scan**
@@ -453,9 +460,9 @@ Grouped the way `draugr scan --help` groups them.
 | `--no-publish` | `false` | Skip the Saga's configured publishers (still writes `-o` artifacts and stdout) |
 | `--policy` | `false` | Require the [organization's policy](#the-organizations-policy) check. A descriptor publishing to no `draugr-api` server, a missing token, an unreachable server or `--offline` is then an error rather than `not checked`. With `--no-publish`, the check runs only under this flag |
 
-The four `--cache-*` flags also live in [`draugr.config.yaml`](#draugr-config) under `cache:`,
-which is usually the better home: a cache directory describes a runner image, not an application,
-and every pipeline on that runner wants the same one.
+The `--cache-*` flags have counterparts in [`draugr.config.yaml`](#draugr-config) under `cache:`
+(`dir`, `ttl`, `readOnly`, `requireDigest`), and `--view`, `--evidence` and `--top` under
+`output:`. A flag on the command line wins over the file.
 
 ```bash
 draugr scan draugr.saga.yaml
@@ -473,108 +480,106 @@ draugr scan draugr.saga.yaml --format template --template '{{.Verdict}}: P1={{.P
 ```
 
 **Output formats (`--format`).** stdout defaults to a human **console** summary (verdict,
-priority/severity counts, "fix first"). `markdown` produces a portable report for MR comments or
-wikis; `html` is a self-contained, browser-viewable report you can publish as a build artifact;
-`junit` emits JUnit XML so CI systems (GitLab, Jenkins, Azure DevOps…) surface findings in their
-test-results panel; `json` and `sarif` are the machine formats; `template` renders your own Go
-`text/template` (see [`config.publishers`](saga-schema.md#configpublishers) for the
-available fields). Regardless of `--format`, `--output <dir>` always writes both `report.json` and
-`results.sarif` for CI/code-scanning, plus one SBOM per target when the Saga sets
-[`config.sbom`](saga-schema.md#sbom-generation). To render **multiple** formats and deliver them
-somewhere in one run, declare [
-`config.publishers`](saga-schema.md#configpublishers) in the Saga.
+priority/severity counts, "fix first"). `markdown` is a portable report for MR comments or wikis;
+`json` and `sarif` are the machine formats; `vex` is an OpenVEX document; `template` renders your
+own Go `text/template` (see [`config.publishers`](saga-schema.md#configpublishers) for the
+available fields). `html`, `junit` and the GitLab formats are files, written with `--report` into
+`-o`. To render several formats and deliver them somewhere in one run, declare
+[`config.publishers`](saga-schema.md#configpublishers) in the Saga.
 
-**Tuning parallelism (`-j`/`--jobs`).** By default Draugr runs up to one scan job per CPU. But
-scanners like Trivy and Semgrep are themselves multi-threaded, so on a busy or small machine that
-default can oversubscribe the box and *slow the run down*, dial it down with `-j`. On a big CI
-runner you can dial it up. `-j 1` runs serially (deterministic output; handy for debugging). The
-run's JSON `stats` reports the effective `concurrency` alongside `jobs` (total jobs), `scans`,
-`cacheHits`, and `deduped`, so you can see the effect and tune from evidence.
+**Tuning parallelism (`-j`/`--jobs`).** By default Draugr runs up to one scan job per CPU. Trivy and
+Semgrep are multi-threaded themselves, so on a small or busy machine a lower `-j` can finish
+sooner; `-j 1` runs serially. The run's JSON `stats` reports the effective `concurrency` alongside
+`jobs` (total jobs), `scans`, `cacheHits` and `deduped`.
 
 It also reports where the time went, in milliseconds: `durationMs` (wall-clock), `byControlMs` (each
 control's job time, summed across its jobs) and `toolWaitsMs` (time spent queueing for a tool's own
-cache rather than scanning). The first two are different numbers and neither substitutes for the
-other. Jobs run concurrently, so the per-control times add up to more than the wall-clock. Use the
-sum to find the control worth looking at, and `toolWaitsMs` to tell a slow tool from a contended
-one. They are absent, not zero, when a run recorded no timings. `dataRefresh` lists each scanner's
-data refresh before the jobs started, in milliseconds. The console puts the total beside the
-duration when it is five seconds or more and at least a quarter of the run, and `--evidence` names
-each refresh of a second or more.
+cache rather than scanning). Jobs run concurrently, so the per-control times add up to more than
+the wall-clock. They are absent, not zero, when a run recorded no timings. `dataRefresh` lists
+each scanner's data refresh before the jobs started, in milliseconds. The console puts the total
+beside the duration when it is five seconds or more and at least a quarter of the run, and
+`--evidence` names each refresh of a second or more.
 
-**One scale, and it is the one you can see.** The console reports **severity bands** (critical /
-high / medium / low), derived from a finding's CVSS score where the scanner supplies one, and
-`--fail-on` takes the same words:
+**Severity bands.** The console reports each finding's severity band (critical, high, medium or
+low), derived from its CVSS score where the scanner supplies one, and `--fail-on` takes the same
+words:
 
-| Severity band | From CVSS | `--fail-on critical` | `--fail-on high` | `--fail-on medium` |
-|---------------|-----------|:--------------------:|:----------------:|:------------------:|
-| critical | 9.0–10.0 | fails | fails | fails |
-| high | 7.0–8.9 |. | fails | fails |
-| medium | 4.0–6.9 |. |, | fails |
-| low | 0.1–3.9 |, |, |, |
+| Severity band | From CVSS | `--fail-on critical` | `--fail-on high` | `--fail-on medium` | `--fail-on low` |
+|---------------|-----------|:--------------------:|:----------------:|:------------------:|:---------------:|
+| critical | 9.0–10.0 | fails | fails | fails | fails |
+| high | 7.0–8.9 | passes | fails | fails | fails |
+| medium | 4.0–6.9 | passes | passes | fails | fails |
+| low | 0.1–3.9 | passes | passes | passes | fails |
 
-The SARIF levels a gate used to take. `error`, `warning`, `note`, are still accepted and mean
-`high`, `medium` and `low`, so a pipeline written against them keeps working. A word that is neither
-is **rejected** rather than defaulted: an unrecognized threshold ranks below every finding, so
-accepting one would widen the gate to *everything* while reading like a narrowing.
+The SARIF levels `error`, `warning` and `note` are still accepted and mean `high`, `medium` and
+`low`. A word that is neither a band nor a severity is **rejected**:
 
-The band is what gates because it is what the report shows. A finding's SARIF level and its band are
-not the same ladder. A scanner can emit a CVSS 7.8 as `warning`, so judging the level let a finding
-the report called `high` pass a gate the reader believed was set to catch it.
+```
+draugr: --fail-on: "severe" is neither a priority band (P1, P2, P3, P4) nor a severity (critical, high, medium, low)
+```
 
-A finding with no CVSS score takes its band from the level its scanner assigned; a control may also
-apply a **floor** (a leaked secret is never reported as low, however the scanner scored it). To gate
-on business risk instead of raw severity, `--fail-on` takes a band. It accounts for the component's
-exposure and criticality, which a bare severity cannot.
+A finding's band, not its SARIF level, is what a severity gate judges, so a CVSS 7.8 a scanner
+emits as `warning` is `high` for the gate as it is in the report. A finding with no CVSS score
+takes its band from the level its scanner assigned; a control may also apply a **floor** (a leaked
+secret is never reported as low, however the scanner scored it).
 
-**Priority** requires components to declare `exposure`/`criticality` (see the
-[Saga reference](saga-schema.md)); Draugr ranks each finding P1–P4 from its severity and
-the component's risk. See [concepts](../concepts/prioritization.md).
+**Priority** (P1–P4) is ranked from a finding's severity and the component's declared `exposure`
+and `criticality` (see the [Saga reference](saga-schema.md)). A component that declares neither is
+ranked as public and critical, so its bands follow severity alone; when no component declares
+either, the console says so. See [prioritization](../concepts/prioritization.md).
 
-**Exploitability (`--kev`/`--epss`)** raises a finding's severity by real-world signals, a CVE on
+**Exploitability (`--kev`/`--epss`)** raises a finding's severity by real-world signals. A CVE on
 CISA's [KEV catalog](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) (confirmed
-exploited) becomes critical; a CVE at/above the [EPSS](https://www.first.org/epss/) threshold
-(predicted likely) is bumped one band. Both are optional, offline (bring your own downloaded file),
-and only affect findings whose rule id is a CVE.
+exploited) becomes critical; a CVE at or above the [EPSS](https://www.first.org/epss/) threshold
+(predicted likely) is bumped one band. Both are optional and only affect findings whose rule id is
+a CVE. [Using the cache in a scan](#using-the-cache-in-a-scan) says where the data comes from.
 
 ### Scanners that do more than read
 
 Most scanners read an artifact and nothing else. A few send traffic to a target, tell a third party
 about it, change something, or need elevated access, and each of those is declared as an **effect**
-that Draugr shows before a scan and records afterwards. Two of the four do not run until a
-descriptor accepts them.
+that Draugr shows before a scan and records afterwards. A scanner with the `mutate` or `privilege`
+effect does not run until a descriptor accepts it, or `--allow-effects` does for one run.
 
-See [what a scan does](../trust-and-operations/what-a-scan-does.md) for the four effects, which
-are gated, and how to accept one.
+See [what a scan does](../trust-and-operations/what-a-scan-does.md) for each effect and how to
+accept one.
 
 ### Which build of each scanner ran
 
-A scan runs whatever is on `PATH`. That is deliberate. An operator may have an experimental build, a
-fork, or a distribution package with a vendor suffix, and refusing them would be Draugr mistaking
-*"I cannot verify this"* for *"this is wrong"*.
-
-But a report that cannot say which build produced its findings cannot be reproduced, so it says:
+A scan runs whatever is on `PATH`, and the `scanners` row under `--evidence` records which build
+of each tool that was:
 
 ```
 scanners    gitleaks 8.30.1, trivy 0.69.3
 unverified  semgrep 1.173.0 · not installed by Draugr
 ```
 
-Where Draugr could have installed it, `TRY` says so with the command, because that is where a scan
-puts the things to run next:
+The first line lists, together, the builds at `pinned` or `signed`: in `~/.draugr/bin`, in the
+install record, and still hashing to what was recorded. Every other build gets its own line with
+the reason. The version of a tool Draugr installed comes from its install record; a tool brought
+some other way is asked, and one that does not answer is listed without a version.
+
+Where Draugr can install a tool the scan ran from elsewhere on `PATH`, `TRY` offers the command:
 
 ```
 TRY
   draugr tools install semgrep   scan on builds Draugr fetched and checked
 ```
 
-The first line lists the builds Draugr fetched **and checked**: each sits in `~/.draugr/bin`, the
-install record has it, and the file still hashes to what was recorded. The hash is what makes that
-a claim about a file rather than about a path.
+Each build is recorded at one of these levels:
 
-The version is on both lines, and on the second it is the whole point. A tool Draugr installed can
-be identified from its install record; one you brought cannot, so Draugr asks it, which is what lets
-the report name the build behind a finding rather than only disclaiming responsibility for it. A
-tool that will not say gets no version, and that too is recorded rather than guessed.
+| Level | What it means |
+|---|---|
+| `pinned` | Installed at the version Draugr ships, matching a checksum recorded in this build |
+| `signed` | Installed at another version, matching checksums signed by the upstream's Sigstore identity |
+| `checksum` | Installed, matching an unsigned checksums file fetched from the upstream |
+| `unverified` | Installed, with nothing published to check it against |
+| `external` | Not installed by Draugr, found on `PATH` |
+
+An unsigned checksums file over HTTPS shows the download was not corrupted or truncated, without
+showing the upstream published it, which is why `checksum` and `unverified` are separate levels.
+
+None of this affects the verdict.
 
 ### How current each scanner's data is
 
@@ -605,83 +610,36 @@ command; on a runner without a network, copy a newer cache in, as
 
 ### `DESCRIPTOR`, under `--evidence`
 
-A descriptor assembled from more than one file gets a section naming each, so the evidence row
-above it can stay a summary:
+A descriptor assembled from more than one file gets a `DESCRIPTOR` section naming each file, and
+the `descriptor` evidence row summarizes it:
 
-```
+```console
+$ draugr scan draugr.saga.yaml --evidence
+…
 DESCRIPTOR
-  draugr.saga.yaml                    root · 3b0afb46b138
-  security/exclusions.saga-fragment.yaml  051d25d1f323
-  platform/shared.saga-fragment.yaml  github.com/acme/platform@v2.4.0 · d6a7fb0a3f4b
+  draugr.saga.yaml                        root · digest b2e3b3ae8794
+  security/exclusions.saga-fragment.yaml  digest 8ba02e9af9a5
+…
+  descriptor  draugr.saga.yaml + 1 fragment · merged digest 186eb88ac44b
 ```
 
-A file beside the descriptor carries its own digest, which answers *is this the text somebody
-reviewed*. A fragment from another repository carries that repository, the revision it was pinned
-at, and the commit that turned out to be, because a tag moves and only the commit makes the run
-reproducible. A descriptor that is a single file gets no section: the row above already named it.
-
-Everything else gets its own line with the reason, because that is the one you have to decide
-about. What Draugr can say about a binary has five levels:
-
-| Level | What it means |
-|---|---|
-| `pinned` | Installed at the version Draugr ships, matching a checksum recorded in this build |
-| `signed` | Installed at another version, matching checksums signed by the upstream's Sigstore identity |
-| `checksum` | Installed, matching an unsigned checksums file fetched from the upstream |
-| `unverified` | Installed, with nothing published to check it against |
-| `external` | Not installed by Draugr, found on `PATH` |
-
-`checksum` is kept distinct from `unverified` deliberately: an unsigned checksums file over HTTPS
-proves the download was not corrupted or truncated, without proving the upstream published it.
-That is weaker than a signature and much stronger than nothing.
-
-None of this affects the verdict. It is a fact about the run, not a finding about your software.
+A local file carries the digest of its content. A fragment from another repository carries
+`<repository>@<revision>` and, where the revision is not itself a commit, `commit <sha>` for the
+commit it resolved to. A descriptor that is a single file gets no section.
 
 ### `--format` prints; `--report` writes
 
-Two different questions, which is why they are two flags.
+`--format` chooses what a run prints to stdout, and `--report` chooses which files it writes into
+`-o`.
 
-**`--format` is what appears on screen.** It accepts only formats a person or a pipe can sensibly
-receive: `console`, `markdown`, `json`, `sarif`, `vex`, `template`. `--format html` is rejected,
+**`--format`** accepts the formats a person or a pipe reads: `console`, `markdown`, `json`,
+`sarif`, `vex`, `template`. A document format is refused with the flag that writes it:
 
 ```
 draugr: html is a document, not something to print: use `--report html` with `-o <dir>`
 ```
 
-An HTML report is a styled document with its CSS inlined; a JUnit file is read by a CI runner from
-a path, never by a person. Printing either because a plausible-looking flag was typed is not
-behavior worth defending, so neither is offered here.
-
-### `--working-tree`, for the loop of fixing something
-
-A scan reads the committed revision, so the loop of fixing a finding. Edit, scan, check, needs a
-commit per iteration. `--working-tree` reads the checkout as it is instead:
-
-```bash
-draugr scan draugr.saga.yaml --working-tree
-```
-
-```
-Scanned: . working tree at 3f9a1c2b+ (7 uncommitted files, not reproducible)
-```
-
-The `+` is git's own convention for a tree that has moved past its commit, and **not reproducible**
-is the point: nobody else can check out what you just scanned, so the report says so rather than
-implying a revision it does not describe. For the same reason these scans are **never cached**. Two
-runs at one revision read different bytes, and a cache keyed on the revision would answer the second
-with the first's findings.
-
-It reads a **copy**, not your checkout. Scanners cannot write into your files, and `paths` /
-`ignore` scoping prunes the copy, against a real checkout, pruning would be deleting your work. The
-file list is `git ls-files -co --exclude-standard`: tracked files plus untracked ones that are not
-ignored, so a `node_modules` or a local `.env` is left out for the same reason a commit would leave
-it out.
-
-A remote repository is **refused**, naming it. There is no working tree to read, and falling back
-to the committed revision would answer a different question while looking like it answered this
-one.
-
-**`--report` is what gets written**, into the directory `-o` names:
+**`--report`** names the files written into the directory `-o` names:
 
 ```bash
 draugr scan draugr.saga.yaml -o out/                          # report.json + results.sarif
@@ -691,23 +649,51 @@ draugr scan draugr.saga.yaml -o out/ --report html --format console
 draugr scan draugr.saga.yaml -o out/ --report gitlab-codequality
 ```
 
-`evidence` is `--report` only for the same reason, and is a companion rather than a replacement:
-it answers whether a run can be trusted, not what it found, and the findings are already in the
-report beside it.
-
-The GitLab formats, `gitlab-sast`, `gitlab-dependency-scanning`, `gitlab-secret-detection`,
-`gitlab-container-scanning`, `gitlab-codequality`, are `--report` only, for the same reason `junit`
-is: a GitLab runner reads them from a path named in `artifacts: reports:`, and nobody reads one. See
+`html`, `junit`, `evidence` and the GitLab formats (`gitlab-sast`, `gitlab-dependency-scanning`,
+`gitlab-secret-detection`, `gitlab-container-scanning`, `gitlab-codequality`, `gitlab-cyclonedx`)
+are `--report` only. `evidence` is a companion to a report rather than a replacement for one: it
+holds what stands behind the verdict and none of the findings. A GitLab runner reads its formats
+from the paths named in `artifacts: reports:`; see
 [reports & publishers](../guides/reports-and-publishers.md#gitlabs-own-report-formats) for which
 GitLab surface each one feeds, and on which tier.
 
-`-o` on its own still writes `report.json` and `results.sarif`, which is what pipelines already
-depend on. `--report` replaces that default rather than adding to it, so what you ask for is what
-you get.
+`-o` on its own writes `report.json` and `results.sarif`. `--report` replaces that default rather
+than adding to it.
 
-This mirrors the descriptor, which has always kept the two apart:
-[`config.publishers`](saga-schema.md#configpublishers) is *where results go* and
-`config.publishers` is *where to send it*.
+A publisher in [`config.publishers`](saga-schema.md#configpublishers) keeps the same split: its
+`reports:` names what to render and its `kind` names where to send it.
+
+### `--working-tree`, for the loop of fixing something
+
+`--working-tree` scans each local repository as it is on disk, uncommitted work included, so
+fixing a finding needs no commit between scans:
+
+```bash
+draugr scan draugr.saga.yaml --working-tree
+```
+
+Under `--evidence`, the `scanned` row marks the revision with `+` and counts the uncommitted files:
+
+```console
+$ draugr scan . --controls secrets --working-tree --evidence
+…
+  scanned     github.com/draugr-dev/draugr commit 6acefbc6+ · working tree · 1 uncommitted file, not
+              reproducible
+```
+
+The result is **not reproducible**: nobody else can check out what was scanned. These scans are
+**never cached**, because two runs at one revision can read different files.
+
+It reads a **copy**, not your checkout, so scanners cannot write into your files and `paths` /
+`ignore` scoping prunes the copy. The copy holds `git ls-files -co --exclude-standard`: tracked
+files plus untracked ones that are not ignored, so a `node_modules` or a local `.env` is left out as
+a commit would leave it out.
+
+A remote repository is **refused**, naming it:
+
+```
+draugr: --working-tree needs a local checkout, and https://github.com/acme/api.git is a remote: scan without the flag, or point the descriptor at a path
+```
 
 ### What `--min-priority` narrows
 
@@ -715,44 +701,34 @@ This mirrors the descriptor, which has always kept the two apart:
 
 | Output | Narrowed by `--min-priority`? |
 |---|---|
-| Console, markdown, HTML, JUnit | **Yes**, with a note saying how many were hidden |
+| Console, markdown, HTML, JUnit, whether printed or written with `--report` | **Yes**, with a note saying how many were hidden |
 | `--format json` / `--format sarif` on **stdout** | **Yes** |
-| `-o <dir>/report.json` | Its **findings list** only. The priority counts always describe the whole run, so you can still see the backlog you chose not to read |
+| `-o <dir>/report.json` | Its **findings list** only. The priority counts still describe the whole run |
 | `-o <dir>/results.sarif` | **No**, always complete |
 | Configured publishers, including `github` code scanning | **No**. Always complete, and the run logs that it ignored the flag |
 
-The split exists because of one asymmetry: **GitHub code scanning resolves any alert missing
-from an upload as fixed.** A filtered report published there would quietly close real findings,
-in the one place the filtering is invisible.
+The files stay complete because **GitHub code scanning resolves any alert missing from an upload
+as fixed**, and [`draugr diff`](#draugr-diff-basesarif-headsarif) reports any finding missing from
+the head as fixed. A narrowed `results.sarif` would close real alerts and make the next diff wrong.
 
 #### Narrowing on purpose
 
-That asymmetry is an argument against narrowing a file *by accident*, which is what
-`--min-priority` would be doing. Narrowing one on purpose is a different act, and there are two
-ways to say it:
+These narrow a file deliberately:
 
 - **`--artifact-min-priority P1`**, or **`minPriority: P1`** on a report in
-  [`config.publishers`](saga-schema.md#configpublishers), narrows the written
-  SARIF and JSON.
-- **`draugr diff --format sarif`**, emits only the findings a change introduced, which is the
-  version of this a pull request actually wants.
+  [`config.publishers`](saga-schema.md#configpublishers), narrows the written SARIF and JSON.
+- **`draugr diff --format sarif`** emits only the findings a change introduced.
 
 Both **record what they left out**: a narrowed SARIF carries a `draugr/min-priority` provenance
-entry naming the band, exactly as a scoped run records its scope. That is what keeps the consequence
-visible rather than surprising, an alert closing because you asked for P1 only is a decision; one
-closing because a flag leaked into a file is a bug.
+entry naming the band, as a scoped run records its scope.
 
-The alert lifecycle still applies, and it is worth saying precisely: an upload narrowed to `P1`
-resolves the P2–P4 alerts **for the ref and category it was uploaded against**. A pull-request run
-uploads against the pull request's own ref, so it never touches your default branch's alerts, which
-is what makes narrowing safe there, and why a push, which does upload against the default branch, is
-never narrowed. The same reasoning protects `results.sarif`: it feeds [`draugr
-diff`](#draugr-diff-basesarif-headsarif) and the [GitHub Action's](../guides/github-action.md) SARIF
-upload, and a baseline missing findings makes the next scan's delta wrong.
+An upload narrowed to `P1` resolves the P2–P4 alerts **for the ref and category it was uploaded
+against**. A pull-request run uploads against the pull request's own ref and leaves the default
+branch's alerts alone, while a narrowed upload from a push to the default branch resolves the
+omitted alerts there.
 
-So the flag is for reading, a terminal, or an agent asking for the short list. On `draugr-demo`,
-`--format sarif --view compact --min-priority p1` is 61% smaller than the full report (11.7 KB against
-30.1 KB) because the rules the omitted findings referenced leave with them.
+`--min-priority` alone is for reading: a terminal, or an agent asking for the short list. With
+`--format sarif` it also drops the rules that only the omitted findings referenced.
 
 ---
 
@@ -769,8 +745,8 @@ it:
 | fails the gate, and is in force | runs the scan, then fails the gate naming the rule, whatever the findings say |
 | observes, or is not in force yet | is shown, and changes nothing |
 
-The scan lists each broken rule under CONTROLS, one item per line, then the profile that set it and
-what it does:
+The scan lists each broken rule under `CONTROLS`, one item per line, then the profile that set it
+and what it does:
 
 ```console
 POLICY  version 7 · https://draugr.example
@@ -787,7 +763,8 @@ version and every verdict as [`policy`](report-schema.md#telling-a-partial-run-f
 
 ## `draugr explain <rule-id>`
 
-Print what a finding means and how to fix it, from a scan's own report.
+Print what a scan's own report holds about one rule: its description, the detail its scanner
+published, where the scan found it (up to five locations), and its reference link.
 
 ```bash
 draugr scan draugr.saga.yaml -o out/
@@ -796,7 +773,7 @@ draugr explain kube-bench/cis/4.3.1 -r out/results.sarif
 
 ```
 kube-bench/cis/4.3.1
-Ensure that the kube-proxy metrics service is bound to localhost (Automated)
+Ensure that the kube-proxy metrics service is bound to localhost
 
 DETAIL
   Modify or remove any values which bind the metrics service to a non-localhost address.
@@ -809,64 +786,73 @@ REFERENCE
   https://www.cisecurity.org/benchmark/kubernetes
 ```
 
-A rule id and a truncated line are enough to rank a finding and not enough to decide anything.
-Scanners publish remediation text and Draugr records it, so the answer is already in the report.
-This is somewhere to read it, instead of searching for the identifier and landing on a registration
-form in front of a PDF.
+`DETAIL` is left out when the scanner published nothing beyond the description.
 
 | Flag | Default | Description |
 | --- | --- | --- |
-| `-r, --report` | - | The `results.sarif` to read. Defaults to `.draugr/out/results.sarif`, then `results.sarif`, then the older `draugr-out/` |
+| `-r, --report` | - | The `results.sarif` to read. Without it, the first that exists of `.draugr/out/results.sarif`, `results.sarif`, `draugr-out/results.sarif` and `.draugr-out/results.sarif` |
 
-The id can be given in full or by the part that is unambiguous, `4.3.1` finds
-`kube-bench/cis/4.3.1`. An abbreviation matching more than one rule lists them rather than choosing,
-since explaining a rule you did not ask about is worse than asking again.
+The id can be given in full, or by its trailing `/`-separated segments: `4.3.1` and `cis/4.3.1`
+both find `kube-bench/cis/4.3.1`, and `4.3` finds nothing. A whole id also matches regardless of
+case. An abbreviation matching more than one rule lists them rather than choosing one.
 
-Only rules the scan reported are in its report, which is what makes the remediation specific to
-what was found rather than a catalog.
+A report holds only the rules its scan reported, so a rule the scan did not find is not there.
 
 ## `draugr diff [base.sarif] <head.sarif>`
 
 Compare two scans and classify every finding as **new**, **unaccepted**, **accepted**, **fixed**,
-**moved** or **unchanged**, the security delta of a change, typically a PR's head vs its base branch. Inputs are
-the `results.sarif` files that [`draugr scan -o`](#draugr-scan-sagayaml--dir) writes, which are
-always complete regardless of `--min-priority`.
+**moved** or **unchanged**: the security delta of a change, typically a pull request's head against
+its base branch. Inputs are the `results.sarif` files that
+[`draugr scan -o`](#draugr-scan-sagayaml--dir) writes, which are always complete regardless of
+`--min-priority`. Two reports of different [scope](#scoping-a-run) are refused.
 
-**Accepted** is a finding somebody excused rather than fixed, an exclusion added, or a finding that
+**Accepted** is a finding somebody excused rather than fixed: an exclusion added, or a finding that
 arrived already covered by one. **Unaccepted** is a finding whose exclusion was removed or reached
-its `expires` date, so it counts again. Nobody introduced it and nothing about it was ever fixed,
-which is why it is not called reopened. **Still accepted** is a finding suppressed in `base` and
-still suppressed in `head`. It counts toward the unchanged total and is never listed as a change.
-**Moved** is a finding with the same tool, rule, file, repository and suppression, reported under a
-different component, as splitting or renaming a component reports every finding it held. Moves are
-listed one row per pair of components, then a row for each finding whose priority changed with its
-component.
+its `expires` date, so it counts again. **Still accepted** is a finding suppressed in `base` and
+still suppressed in `head`; it counts toward the unchanged total and is never listed as a change.
+Accepted findings are counted apart from fixed ones.
 
-Accepting a risk is not fixing it, and the two are counted apart for that reason: the first is a
-decision worth a reviewer's attention and the second is work somebody did.
+**Moved** is a finding reported under a different component in `head`, with the same tool, rule,
+file, repository and suppression, and the same content hash or message. Splitting or renaming a
+component moves every finding it held. Moves are listed in a `MOVED` table, one row per pair of
+components, then a `PRIORITY CHANGED` table with a row for each finding whose priority changed with
+its component.
 
-Everything the change touched is one table, ranked by priority, with what happened to each finding
-in its own column. Within a band, what needs somebody comes before what does not. Above it, one
-strip per state counts the findings in `head` by band: new, unaccepted, accepted, moved, unchanged
-and still accepted. Each finding in `head` is in exactly one strip, and a strip with nothing in it is
-not drawn. Fixed has none, because a fixed finding is not in `head`.
+New, unaccepted, accepted and fixed findings are listed in one `CHANGED` table, ranked by priority,
+with what happened to each finding in its own column. Within a band, what needs somebody comes
+before what does not. `--view actions` lists the changes as things to do instead. Above the table,
+one strip per state counts the prioritized findings in `head` by band: new, unaccepted, accepted,
+moved, unchanged and still accepted. A strip with nothing in it is not drawn, and fixed has none,
+because a fixed finding is not in `head`.
+
+```console
+$ draugr diff head/results.sarif
+DRAUGR DIFF  4 new
+
+ new  3 P1 1 P2 0 P3 0 P4
+
+Base: none, so every finding is new.
+
+CHANGED  4, by priority
+  Change  Priority  Severity  Rule                 Scanner      Location                    Upgrade
+  + new   P1        high      CVE-2021-44906       trivy        package-lock.json:15        minimist 1.2.5 → 1.2.6
+          Fixture: prototype pollution in minimist
+…
+```
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--format` | `console` | output format: `console`, `json`, `markdown`, `sarif`. `sarif` emits the **new** findings only, for code scanning on a pull request |
 | `--view` | `findings` | console: how much of each row to show. `findings` adds the finding's own sentence under the row, `compact` is one line each, `actions` groups by the thing to do |
-| `--top` | `0` | console: how many findings to list, `0` being all of them. Caps the moved findings whose priority changed the same way. Zero by default because a diff is already only what one change did; the flag is for a dependency bump that introduces forty |
-| `--min-priority` | - | report only **new** findings at or above this priority band (`P1`–`P4`); fixed and unchanged are unaffected. Narrows the diff, never the scans it was computed from |
+| `--top` | `0` | console: how many changed findings to list (`0` = all), or how many actions under `--view actions`. Also caps the moved findings whose priority changed |
+| `--min-priority` | - | report only **new** findings at or above this priority band (`P1`–`P4`), plus new findings with no priority; fixed and unchanged are unaffected. Narrows the diff, never the scans it was computed from |
 | `--repository` | - | keep only **new** findings from this repository, plus those belonging to none (an image, a host). For a code-scanning upload, whose paths anchor to one checkout |
-| `--fail-on-new` | - | fail if a **new** finding is at or above this: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`) |
-| `--fail-on-new-priority` | - | Deprecated: write the band in `--fail-on-new` |
+| `--fail-on-new` | - | fail if a **new** finding is at or above this: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`). Without it, the diff exits 0 |
+| `--fail-on-new-priority` | - | Deprecated: write the band in `--fail-on-new`. Refused together with `--fail-on-new` |
 | `--publish` | `false` | post the diff as a sticky pull-request comment. Picks `github-pr-comment`, `azure-pr-comment` or `gitlab-mr-comment` from the CI environment; no-ops off a PR |
 
-The gate reads **new** only. An accepted finding does not trip it, which is the point of accepting
-it, and an unaccepted one does not either: the gate exists to stop a change introducing something,
-and an acceptance ending is a decision to make again rather than a regression. Both are reported
-regardless, which is where somebody should see them. A moved finding does not trip it either,
-because it was in `base`.
+The gate reads **new** only. Accepted, unaccepted and moved findings do not trip it, and each is
+reported.
 
 **The head alone.** The pull request that adds a repository's first descriptor has nothing at its
 base to scan. `draugr diff head/results.sarif`, with no base report, compares the head against no
@@ -875,8 +861,7 @@ was no base. A base path that names no file is still an error. The GitHub Action
 Azure DevOps templates diff the head alone when the base commit lacks the descriptor, so the first
 pull request that turns Draugr on is gated like any other.
 
-Where no gate is asked for, the report states no verdict. `draugr diff` without `--fail-on-new`
-compares and exits 0, and a verdict nobody asked for would be inventing one.
+Where no gate is asked for, the report states no verdict, and `draugr diff` exits 0.
 
 ```bash
 draugr diff base/results.sarif head/results.sarif                     # console delta
@@ -885,21 +870,23 @@ draugr diff base/results.sarif head/results.sarif --fail-on-new P1
 draugr diff base/results.sarif head/results.sarif --publish           # sticky PR comment (in CI)
 ```
 
-**Differential gating.** `--fail-on-new` fails a PR only for findings it
-*introduces*, not the pre-existing backlog, so a gate stays adoptable where a whole-backlog gate
-would block every PR. The command exits non-zero when the gate trips. A typical CI setup scans
-`main` on push and stores `results.sarif` as an artifact, scans the PR, then diffs the two.
+**Differential gating.** `--fail-on-new` fails a pull request only for findings it
+*introduces*, not for the backlog already on the base branch, and the command exits non-zero when
+the gate trips. A typical CI setup scans `main` on push and stores `results.sarif` as an artifact,
+scans the pull request, then diffs the two.
 
-**Both sides are committed revisions.** A repository is cloned before it is scanned, whether it was
-given as a URL or a local path, so each SARIF file describes a commit rather than a working tree. In
-CI that is the intent. Locally it means scanning, editing and re-scanning produces two identical
-files and an empty diff, commit between the two scans, or point `revision` at each revision in turn.
-See [URLs and paths](saga-schema.md#where-a-repository-comes-from-urls-and-paths).
+**Both sides are committed revisions** unless a scan used
+[`--working-tree`](#--working-tree-for-the-loop-of-fixing-something). A repository is cloned before
+it is scanned, whether it was given as a URL or a local path, so scanning, editing and re-scanning
+locally produces two identical files and an empty diff. Commit between the two scans, or point
+`revision` at each revision in turn. See
+[URLs and paths](saga-schema.md#where-a-repository-comes-from-urls-and-paths).
 
-**Finding identity.** A finding in both reports is matched by a hash of the lines around it where
-it has one, and otherwise by tool, rule, file, message, component and repository. The line number
-and the severity are never part of it, so a finding that moved or was re-scored is unchanged rather
-than fixed and new. The [diff guide](../guides/pr-diff.md#what-counts-as-the-same-finding) has the
+**Finding identity.** A finding in both reports is matched first by a hash of the lines around it,
+then by tool, rule, file, message, component and repository, and then by each of those again
+without the component, which is how a moved finding is found. The line number and the severity are
+never part of it, so a finding that moved within a file or was re-scored is unchanged rather than
+fixed and new. The [diff guide](../guides/pr-diff.md#what-counts-as-the-same-finding) has the
 detail.
 
 ---
@@ -920,19 +907,28 @@ belong to:
 | `draugr survey azure repos` | Git repositories in an Azure DevOps organization or project | `--org`, `--project` |
 | `draugr survey provenance` | who signs the images the descriptor already declares | `--trust-root` |
 
-Shared by all of them: `-o, --output` (default stdout), `--replace`, `--fragment`, `--name`,
-`--version`. The `k8s` group also takes `--context`, which selects the cluster for both of its
-surveyors.
+Shared by all of them:
 
-`provenance` is the one that reads `--output` as well as writing it. The images it asks about are
-the ones the descriptor already declares, so there is no system to point it at instead, and a
-descriptor that does not exist yet is an error rather than an empty result.
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-o, --output` | stdout | Write the Saga here, adding to the descriptor already at that path |
+| `--replace` | `false` | Overwrite the Saga at `--output` instead of adding to it |
+| `--fragment` | `false` | Write a [Saga fragment](#writing-a-fragment-instead-of-a-descriptor) |
+| `--name` | - | Project name for a newly created Saga |
+| `--version` | - | Release version for a newly created Saga, omitted when empty |
+
+The `k8s` group also takes `--context`, the kubeconfig context to survey for both of its
+surveyors (default the current one).
+
+`provenance` reads `--output` as well as writing it: the images it asks about are the ones that
+descriptor already declares. A descriptor that does not exist yet, `--replace`, or a descriptor that
+declares no images is an error.
 
 ### Discovering who signs your images
 
-Writing `signers:` by hand means already knowing the identity a build signs with. A job calling a
-reusable workflow is signed as that workflow's repository rather than as the caller, so the obvious
-value is the wrong one, and it fails later as a mismatch rather than as a syntax error.
+`survey provenance` writes `signers:` from the identities that sign the descriptor's images
+today. A job calling a reusable workflow is signed as that workflow's repository rather than as
+the caller, which is the identity this reads.
 
 ```bash
 draugr survey provenance -o draugr.saga.yaml
@@ -941,57 +937,52 @@ draugr survey provenance -o draugr.saga.yaml
 It writes the exact identity and the exact image, never a pattern, and groups images sharing an
 identity under one signer. An unsigned image produces no signer and is not an error.
 
-**Read what it proposes.** A signer is a statement about who is trusted to sign, and one derived
-from what signs an image today cannot fail the check it was derived from. That is what makes it
-useful, because it is a tripwire for the signature changing rather than proof that today's is
-right, and it is worth what the first observation was worth. The command names each identity it adopted and
-the image it came from, and writes the same note beside the value in the descriptor.
+**Read what it proposes.** A signer derived from what signs an image today passes the check by
+construction, so it catches the signature changing and does not show that today's signer is the
+right one. The command names each identity it adopted and the image it came from, and writes the
+same note beside the value in the descriptor.
 
 An organization running its own Sigstore passes `--trust-root`, naming the same file
 `config.controls.provenance.trustRoot` does.
 
 ### Writing a fragment instead of a descriptor
 
-`--fragment` writes a [Saga fragment](../guides/saga-fragments.md), components and nothing else, for
-a descriptor to include:
+`--fragment` writes a [Saga fragment](../guides/saga-fragments.md) for a descriptor to include. It
+holds components, and from `survey provenance` the `provenance.signers` a fragment may carry.
 
 ```bash
 draugr survey k8s images --namespace team-a --fragment -o team-a.saga-fragment.yaml
 ```
 
-A fragment is part of a descriptor rather than a thing to release, so it carries no `release:`, and
-`--name` and `--version` are refused alongside it. It enables no controls either: `config` in a
-fragment cannot express them, and the descriptor that includes it decides what to run. That is the
-point of the option, a team owns a namespace and hands its surface to a descriptor somebody else
-maintains.
+A fragment carries no `release:`, so `--name` and `--version` are refused alongside it. It enables
+no controls either; the descriptor that includes it decides what runs.
 
-The output name matters. `draugr validate` and a `fragments:` reference both decide what a file is
-from its suffix, so `--fragment` requires `-o` to end in `.saga-fragment.yaml` (or `.yml`) and says
-so before it connects to anything.
+`draugr validate` and a `fragments:` reference both decide what a file is from its suffix, so with
+`--fragment` an `-o` path must end in `.saga-fragment.yaml` (or `.yml`). The check runs before the
+survey connects to anything. Without `-o`, the fragment goes to stdout.
 
 ### Not proposing an exposure
 
-`--no-exposure` leaves `exposure` unset rather than guessing it from cluster topology:
+`--no-exposure` leaves `exposure` unset rather than proposing it from cluster topology:
 
 ```bash
 draugr survey k8s images --no-exposure -o draugr.saga.yaml
 ```
 
-The lookups are skipped rather than made and discarded. They need permissions a namespace-scoped
-credential may not have, and spending them to produce warnings about a value nobody asked for helps
-no one. Use it when `draugr classify` is where exposure gets decided, or when the credential cannot
-read Ingresses, Services and NetworkPolicies.
+The topology lookups are then not made, so a credential that cannot read Ingresses, Services and
+NetworkPolicies produces no warnings about them. Use it when `draugr classify` is where exposure
+gets decided.
 
-Auth: each forge surveyor reads a token from the environment (or from scope config); the Kubernetes
-surveyors use your ambient kubeconfig (`KUBECONFIG` / `~/.kube/config` / in-cluster).
+Auth: each forge surveyor reads a token from the environment; the Kubernetes surveyors use your
+ambient kubeconfig (`KUBECONFIG` / `~/.kube/config` / in-cluster).
 
-**Without a token, every forge answers with the public repositories only**, the survey warns,
-because the descriptor that results looks complete and is missing every private one.
+**Without a token, every forge answers with the public repositories only**, and the survey warns
+that the descriptor is missing every private one.
 
 | Forge | Token | Self-hosted instance |
 |---|---|---|
-| GitHub | `GITHUB_TOKEN` | `GITHUB_API_URL`, including the `/api/v3` path Enterprise Server serves under, the same variable the publisher reads, and one Actions already sets on a GHES runner |
-| GitLab | `GITLAB_TOKEN` | `GITLAB_URL`, or the `CI_API_V4_URL` a runner already sets |
+| GitHub | `GITHUB_TOKEN` | `GITHUB_API_URL`, including Enterprise Server's `/api/v3`. GitHub Actions sets it on a GHES runner |
+| GitLab | `GITLAB_TOKEN` | `CI_API_V4_URL`, which a runner sets, then `GITLAB_URL`, then `CI_SERVER_URL` |
 | Azure DevOps | `AZURE_DEVOPS_EXT_PAT`, else `AZURE_DEVOPS_TOKEN`. Needs the **Code (read)** scope | `AZURE_DEVOPS_URL`, including its collection |
 
 ```bash
@@ -1001,9 +992,8 @@ draugr survey azure repos --org my-org -o draugr.saga.yaml
 draugr survey k8s images --namespace prod -o draugr.saga.yaml
 ```
 
-**`draugr survey azure repos` takes `--project` or leaves it out**, and the two answer different
-questions: one project is a team's surface, the whole organization is the estate. Azure DevOps
-makes the project optional for that reason, so Draugr passes the choice through.
+**`draugr survey azure repos` takes `--project` or leaves it out**: with it, the survey covers that
+project's repositories; without it, the whole organization's.
 
 ```bash
 draugr survey azure repos --org my-org --project Platform -o draugr.saga.yaml
@@ -1017,13 +1007,9 @@ draugr survey k8s images --namespace payments --namespace checkout -o draugr.sag
 draugr survey k8s images --namespace payments,checkout -o draugr.saga.yaml   # equivalent
 ```
 
-Naming no namespace describes every namespace the same way, a component each, with its own images
-and its own proposed exposure. `--namespace` narrows *which* namespaces are described, not whether
-they are kept apart: a namespace is what a team owns, so it is what a finding has to be attributed
-to, and exposure is a property of one namespace's topology rather than a cluster's.
-
-On a large cluster that is a lot of components, a managed cluster with two hundred namespaces
-produces two hundred. Name the ones you own.
+Naming no namespace describes every namespace the same way: a component each, with its own images
+and its own proposed exposure. `--namespace` narrows *which* namespaces are described; each named
+namespace is still its own component. On a large cluster, name the ones you own.
 
 **It says what it wrote.** A survey that writes a file reports the path and what is now in it, on
 stderr so a descriptor sent to stdout stays a descriptor:
@@ -1032,31 +1018,24 @@ stderr so a descriptor sent to stdout stays a descriptor:
 wrote draugr.saga.yaml · 12 components, 12 repositories
 ```
 
-A run that added to an existing descriptor says what it contributed, and a survey that discovered
-nothing says so. A descriptor describing nothing is almost always a scope or credentials problem,
-and the count alone would read as success.
+A survey that added to an existing descriptor says `merged into <path>` and what it contributed,
+and one that discovered nothing says the descriptor scans nothing. The line is printed only with
+`-o`.
 
-**The output is scannable as written.** Discovery enables the controls the surface it found can be
-checked with, repositories imply `sca`, `secrets`, `sast` and `iac`; images imply `images`; hosts
-imply `headers` and `tls`; clusters imply `kubernetes`. A descriptor that describes an
-application but enables nothing would report `PASS` on its first scan having checked nothing, which
-is not what "the descriptor writes itself" should mean.
+**The output is scannable as written.** Discovery enables the controls for the surfaces it found:
+repositories enable `sca`, `secrets`, `sast` and `iac`; images enable `images`; hosts enable
+`headers` and `tls`; clusters enable `kubernetes`. `dast` is never enabled this way, because it
+sends attack traffic at a live service.
 
-`dast` is deliberately never enabled this way: the other host controls read a response, while
-`dast` sends attack traffic at a live service, and that is not a decision discovery makes on your
-behalf.
+**A control already configured is never touched**, including one set to `enabled: false`.
 
-**A control you have already configured is never touched**, including one set to `enabled: false`. A
-survey runs against a descriptor people edit, and one that switched something back on would be worse
-than the problem it solves.
+**Several surveys can write one descriptor**: each folds into the Saga already at `--output`, which
+is also how discovery is added to a descriptor maintained by hand.
 
-**Run several against one descriptor**, each survey folds into the Saga already at `--output`, which
-is also how discovery is added to a descriptor you maintain by hand.
-
-When scoped to a specific namespace, `k8s images` also **proposes each component's `exposure`**
-from topology (Ingress/external Service → `public`, NetworkPolicy → `restricted`, else
-`internal`). Each proposal is named on the way out, with the value chosen, because in the file it
-is indistinguishable from a decision:
+Unless `--no-exposure` is given, `k8s images` **proposes each component's `exposure`** from its
+namespace's topology: an Ingress or a `LoadBalancer` or `NodePort` Service → `public`, a
+NetworkPolicy → `restricted`, otherwise `internal`. Where none of them can be read, nothing is
+proposed. Each proposal is listed on stderr with the value chosen:
 
 ```
 exposure proposed from cluster topology, not confirmed. Run `draugr classify` to set it:
@@ -1068,16 +1047,13 @@ A component that already carries an exposure keeps it and is not listed. Confirm
 
 ### Why subcommands
 
-The previous `--k8s-images` / `--k8s-namespace` / `--github-org` flags were related to each other
-in ways nothing expressed. `--k8s-namespace` meant something only alongside `--k8s-images`, so
+Each surveyor's options live on its own command, where an option that belongs to another surveyor is
+rejected rather than ignored. The flat flags `--k8s-images`, `--k8s-namespace` and `--github-org`
+are no longer accepted:
 
-```bash
-draugr survey --github-org acme --k8s-namespace prod   # namespace applied to nothing
 ```
-
-was accepted in silence. Each surveyor's options now live on its own command, where an option that
-does not belong is rejected rather than ignored. The old flat flags. `--k8s-images`,
-`--k8s-namespace`, `--github-org`, are no longer accepted; use the subcommands above.
+draugr: unknown flag: --k8s-namespace
+```
 
 ---
 
@@ -1085,21 +1061,21 @@ does not belong is rejected rather than ignored. The old flat flags. `--k8s-imag
 
 A guided wizard that sets each component's **`exposure`** and **`criticality`**, the two inputs to
 finding prioritization, and writes them back into the Saga (preserving comments and formatting). It
-asks a few questions per component and derives the labels; by default it only asks about
-unclassified components.
+asks a few questions per component and derives the values. By default it asks only about components
+missing either one.
 
 Finds the descriptor the same way [`draugr scan`](#draugr-scan-sagayaml--dir) does: with no
-argument, or with a directory, it uses the `*.saga.yaml` there. A directory holding more than one is
-an error naming them, and one holding none says so. Unlike a scan, there is nothing to synthesize,
-because exposure and criticality are judgements that have to be recorded somewhere.
+argument, or with a directory, it uses the `*.saga.yaml` or `*.saga.yml` there. With more than one,
+it asks which on a terminal and otherwise exits naming them. A directory holding none is an error,
+because there is no descriptor to write the answers into.
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--all` | `false` | Re-classify every component, not just unclassified ones |
 | `--components` | *(all)* | Only these components, by name. Naming one re-asks about it even if it is already classified |
 
-A name that matches no component is an error listing the ones that exist. A silent skip would report
-"all components are already classified", which answers a question nobody asked.
+A name that matches no component is an error, suggesting the closest name where one is close and
+otherwise listing the components that exist.
 
 ```bash
 draugr classify                              # the descriptor in this directory
@@ -1111,17 +1087,17 @@ draugr classify --components gateway,api     # redo two, leave the rest alone
 
 ## `draugr validate [saga.yaml | glob ...]`
 
-Parse each Saga, resolve `${{ VAR }}` references, and check it against the schema, without running
-any scanners. Fast and dependency-free, so it suits a pre-commit hook, a CI lint step, or an editor.
-**Exits non-zero if any file is invalid.**
+Parse each Saga, resolve `${{ VAR }}` references, and check it against the schema and the
+controls and report formats this build provides, without running any scanners. It needs no scanner
+installed, so it suits a pre-commit hook, a CI lint step, or an editor; a fragment from another
+repository is fetched with `git`. **Exits non-zero if any file is invalid.**
 
 Accepts paths and globs, and with no arguments discovers every `*.saga.yaml` and
 `*.saga-fragment.yaml` (and their `.yml` forms) beneath the current directory, useful in a repo
 holding one Saga per service. `.git`, `node_modules`, `vendor` and `dist` are skipped.
 
-**A fragment is checked as a fragment.** Held to a Saga's rules it would fail on a missing
-`release:`, which every valid fragment lacks, and one that only validates after merging is one
-nobody can check before merging it.
+**A fragment is checked as a fragment**, against the fragment schema, so its missing `release:`
+is not an error.
 
 ```bash
 draugr validate                          # every Saga in the repo
@@ -1130,32 +1106,35 @@ draugr validate 'services/*/*.saga.yaml' # a glob (quote it, so the shell doesn'
 draugr validate azure.saga.yaml --resolved  # print the descriptor with every fragment merged
 ```
 
-Each file is reported on its own line, so one failure doesn't hide the rest:
+With more than one file, each is reported on its own line, then a count:
 
-```
+```console
+$ draugr validate
 ✓ draugr.saga.yaml is valid
 ✗ svc-a/api.saga.yaml
-    unknown field "componnets" in the top level. Check the spelling, or see …
+    parse saga: unknown field "componnets" in the top level. Check the spelling, or see https://draugr.dev/docs/latest/reference/saga-schema/
 ✗ svc-b/web.saga.yaml
-    unknown field "failOnn" in config.gate. Check the spelling, or see …
-```
-
-The section named is the path you write, so it is also the heading to look for in the
-[Saga schema](saga-schema.md). A key that used to parse is told apart from one that never did:
-
-```
+    parse saga: unknown field "failOnn" in config.gate. Check the spelling, or see https://draugr.dev/docs/latest/reference/saga-schema/
 ✗ svc-c/worker.saga.yaml
-    release.name was removed: it named the project, which is what the top-level `project` names…
+    parse saga: release.name was removed: it named the project, which is what the top-level `project` names. Move the value there, `project: payments-api`, and a release keeps only its version
+draugr: 3 of 4 Saga file(s) invalid
 ```
 
-A pattern that matches nothing is an error rather than a silent success. Otherwise a typo'd pattern
-would make a CI lint step quietly pass.
+The section named is the path you write, which is also the heading to look for in the
+[Saga schema](saga-schema.md). A key that was removed says so and where its value belongs. A single
+file's error is printed on its own, as `draugr: parse saga: …`. A valid file can carry warnings,
+marked `!`, and notes, marked `·`, on the lines under it.
+
+A pattern that matches nothing is an error:
+
+```
+draugr: no files match "nothing/*.saga.yaml"
+```
 
 ### `--resolved`
 
 Print the descriptor with every [fragment](../guides/saga-fragments.md) merged in, each source
-named. Once a descriptor is assembled from several files, opening one of them no longer tells you
-what is in force.
+named in a comment at the top. A descriptor with no fragments says so there.
 
 ```bash
 draugr validate azure.saga.yaml --resolved
@@ -1170,8 +1149,7 @@ draugr validate azure.saga.yaml --resolved
 # fragment: https://github.com/acme/platform.git@v2.4.0 (40d23df24acc) components/api/draugr.saga-fragment.yaml
 ```
 
-Provenance is carried in comments, so the output is **also a valid descriptor**, which is what makes
-it worth piping:
+Provenance is carried in comments, so the output is **also a valid descriptor**:
 
 - **Flatten it to cross an air gap.** Resolve where there is network, scan the result where there
   is none. See [running air-gapped](../guides/air-gapped.md).
@@ -1181,58 +1159,58 @@ it worth piping:
   `fragments:` change is reviewed by its effect rather than its cause.
 - **Query it.** `draugr validate azure.saga.yaml --resolved | yq '.components[].name'`
 
-The spent `fragments:` block is dropped from the output: everything it named is already merged in,
-and leaving it would make the flattened copy resolve again on the next scan.
-
-Takes one descriptor at a time, because the output is itself a descriptor and several
-concatenated would not be.
-
+The `fragments:` block is dropped from the output, since everything it named is already merged
+in. `--resolved` takes one descriptor at a time.
 
 ## `draugr doctor [saga.yaml]`
 
 Preflight the environment: report which external scanner tools are **present, missing, or out of
-date**, with an install hint for each, so a missing tool is caught up front instead of failing
-mid-scan. Given a Saga, it first **validates the descriptor**, then checks only the tools its
-enabled controls need (`trivy`, `gitleaks`, `semgrep`, plus `git` for repo scans, and `gosec` only
-when a component opts into it), then checks that each [target](#targets) the scan would read is
-reachable from this machine. **Exits non-zero when the descriptor is invalid, a required tool is
-missing, a target check fails, or the organization's [policy](#policy) would refuse or fail the
-scan**, so it gates CI: `draugr doctor saga.yaml && draugr scan saga.yaml`.
+date**, with an install hint for each. Given a Saga, it first loads the descriptor and reports a
+parse or schema error, then checks only the tools needed by the scanners its enabled controls
+select (plus `git` for repository targets and `syft` when `config.sbom` is enabled), then checks
+that each [target](#targets) the scan would read is reachable from this machine. It does not check
+control names or report formats; [`draugr validate`](#draugr-validate-sagayaml--glob-) does.
 
-**Without a Saga it is an inventory, not a verdict.** It lists every tool Draugr can use and which
-are present, and exits zero. Nothing has been selected, so nothing is required. Several entries are
+With a Saga, it **exits non-zero** when:
+
+- the descriptor cannot be loaded, or a required tool is missing or has no data;
+- a target check fails;
+- the organization's [policy](#policy) would refuse or fail the scan, or a `draugr-api` publisher
+  has an endpoint without a token or a token without an endpoint;
+- `--strict`, `--policy` or `--fail-on-uncovered` applies, as their rows below say.
+
+So it gates CI: `draugr doctor saga.yaml && draugr scan saga.yaml`.
+
+**Without a Saga it is an inventory.** It lists every tool Draugr can use and which are present, and
+exits zero when tools are missing, because nothing has been selected. Several entries are
 alternatives nobody needs by default: the `kubernetes` control's default scanner reads the
-Kubernetes API directly and needs no binary, so `kube-bench` being absent is not a problem to solve.
-Pass a descriptor to ask the question that has an answer.
+Kubernetes API directly and needs no binary.
 
-A tool is also reported as unusable when it is installed but its supporting data is not,
-`kube-bench` without its `cfg/` benchmarks, `nuclei` without its templates. Being on PATH is not the
-same as being able to run.
+A tool is also reported as unusable (`✗ no data`) when it is installed but its supporting data is
+not: `kube-bench` without its `cfg/` benchmarks, `nuclei` without its templates.
 
 ### A tool that is not the version Draugr tested
 
 Draugr pins a version of each tool it can install, and its own suite runs against that build. A
-tool on `PATH` from a distribution package, or installed with `--version`, is very likely fine and
-is not the one anything exercised. The row says which version was tested and one line counts them:
+tool on `PATH` at another version, from a distribution package or installed with `--version`, has
+its row say which version was tested, and one line under the table counts them:
 
 ```console
-$ draugr doctor
-trivy  ✓ found  0.69.3  /home/you/.draugr/bin/trivy · tested against 0.74.0
-
-1 tool is not the version Draugr tests. `draugr tools install --force` installs the tested build.
+$ draugr doctor --offline
+…
+TOOLS
+Tool         Status     Version  Notes
+…
+trivy        ✓ found    0.69.3   /usr/bin/trivy · tested against 0.74.0
+4 tools are not the version Draugr tests. `draugr tools install --force` installs the tested build.
 ```
 
-**A note rather than a failure.** Refusing to run would be Draugr mistaking *I have not tested
-this* for *this is wrong*. It is said out loud because an older scanner finds **fewer** things, and
-a scan that quietly finds fewer things is the failure a security tool must not have.
+The line is a note, not a failure. An older scanner can find fewer things than the tested build.
 
 | | |
 |---|---|
-| `--strict` | fails the command as well, for a pipeline that would rather stop than scan with a build nothing has exercised |
+| `--strict` | fails the command as well. Given no Saga, it applies only when no tool is missing |
 | `--json` | carries `testedVersion` on a tool that is not running its pin, and omits it on one that is |
-
-The count and the remedy, rather than a mark on every row: a machine that has not reinstalled in a
-while has most of them, and a mark on every row is not a mark.
 
 ### Targets
 
@@ -1247,10 +1225,10 @@ network and credentials:
 | `host` | opens a TCP connection, and completes the TLS handshake for `https` | the connection opens |
 | `cluster` | resolves the kubeconfig context the cluster names, or the current one, and asks its API server for its version | the API server answers |
 | `account` | asks Google Cloud whether the Application Default Credentials can read the project | they hold `resourcemanager.projects.get` on it |
+| `file` | reads each file in `components[].imports` | it opens and is SARIF 2.1.0 |
 
 A target two components share is checked once. A certificate this machine does not trust still
 passes, with the reason in the row, because the scanners that probe an endpoint do not verify it.
-Other target kinds show `not checked`, which neither passes nor fails.
 
 ```console
 $ draugr doctor draugr.saga.yaml
@@ -1263,9 +1241,12 @@ image       python:3.8-slim                                     ✓ in the local
 image       ghcr.io/acme/api:2.1                                ✗ 403 forbidden, no credential for ghcr.io
 ```
 
-The scope flags `draugr scan` takes narrow the checks to the targets of the components and controls
-they select. `--offline` skips every check that needs the network and marks each `not checked`; a
-local repository and the local Docker daemon are still checked.
+The scope flags `draugr scan` takes narrow the target checks to the components and controls they
+select; the tool, network and data lists still cover the whole descriptor, and without a Saga the
+flags do nothing. `--offline` skips every check that needs the network and marks each
+`not checked: --offline`, while a local repository and the local Docker daemon are still checked.
+It also skips the [policy](#policy) check, and a descriptor with a fragment from another
+repository cannot be loaded under it.
 
 ### Policy
 
@@ -1284,16 +1265,18 @@ licenses   Default    – judged at publish                                   ob
 ```
 
 A rule marked `–` is one the server judges from the run's findings rather than from the descriptor,
-or one that asks nothing of this project. Doctor exits non-zero where a scan of the descriptor would be refused or would fail
-its gate. With neither an endpoint nor a token it prints `POLICY  not checked` and the reason, and
-`--policy` makes that an error. The token is the project's ingest token, which belongs in CI.
+or one that asks nothing of this project. Doctor exits non-zero where a scan of the descriptor would
+be refused or would fail its gate. With neither an endpoint nor a token it prints
+`POLICY  not checked · no $DRAUGR_API_URL or $DRAUGR_API_TOKEN`, and `--policy` makes that an
+error; with only one of the two it is an error either way. The token is the project's ingest token,
+which belongs in CI.
 
 ### Network
 
 Doctor lists every host a scan contacts besides its targets, per control: the reference data each
-scanner fetches, and the third party a disclosing scanner tells about a target. Given a Saga, the list
-holds only the scanners that scan runs, which makes it the egress allowlist for that runner. Without
-one, it holds every control.
+scanner fetches, and the third party a disclosing scanner tells about a target. Given a Saga, the
+list holds only the scanners that scan runs, which makes it the egress allowlist for that runner.
+Without one, it holds every control.
 
 ```console
 $ draugr doctor draugr.saga.yaml
@@ -1328,12 +1311,8 @@ line, and neither does one that is not installed, which `TOOLS` already reports 
 
 ### What nothing is looking at
 
-Every tool being present is only half of "will this scan tell me what I think it will". The other
-half is whether anything examines what the descriptor declares, and a component that declares images
-while the `images` control is off scans clean having never looked at them.
-
-Doctor reports that too, from the same place [`draugr scan`](#draugr-scan-sagayaml--dir)
-does, so the two cannot give different answers:
+Doctor lists each surface a component declares with every control for it off, from the same
+check that gives [`draugr scan`](#draugr-scan-sagayaml--dir) its `not-checked` caveats:
 
 ```
 NOT CHECKED
@@ -1342,26 +1321,24 @@ NOT CHECKED
   api        images   images
 ```
 
-**Reported, not failed**. A deliberately narrow descriptor is a legitimate thing to have, and a
-preflight that fails on a choice you made is one you learn to ignore. Pass `--fail-on-uncovered`
-when you would rather it were enforced, which is usually in CI on a descriptor that is meant to be
-complete. A missing tool still outranks it: that stops the scan outright, while an uncovered surface
-only narrows it.
+The list is **reported, not failed**, unless `--fail-on-uncovered` is passed or
+`config.gate.failOnCaveats` lists `not-checked`. A missing tool is reported first. After it, an
+`UNTRACKED` block names any component no issue publisher selects.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--json` | `false` | Emit the report as JSON instead of a table (uncovered surfaces come too, as `uncoveredSurfaces`, and target checks as `targets`) |
+| `--json` | `false` | Emit the report as JSON instead of tables: `draugr`, `descriptor`, `tools`, `missing`, `targets`, `policy`, `data` and `uncoveredSurfaces` |
 | `--fail-on-uncovered` | `false` | Exit non-zero when the descriptor declares a surface no enabled control looks at. Also the behavior when [`config.gate.failOnCaveats`](saga-schema.md#configgate) lists `not-checked` |
 | `--strict` | `false` | Exit non-zero when a tool is not the version Draugr tests, as well as when one is missing |
 | `--policy` | `false` | Exit non-zero when the organization's policy could not be checked, as well as when a scan would be refused or fail by it |
-| `--offline` | `false` | Skip the check for a newer draugr release and every target check that needs the network (`DRAUGR_NO_UPDATE_CHECK=1` skips only the release check) |
+| `--offline` | `false` | Skip the check for a newer draugr release, the policy check, and every target check that needs the network (`DRAUGR_NO_UPDATE_CHECK=1` skips only the release check) |
 | `--components` | all | Check only the targets of these components |
 | `--controls` | all enabled | Check only the targets these controls would read |
 | `--labels`, `--exposure`, `--criticality` | none | Select components as [`draugr scan`](#draugr-scan-sagayaml--dir) does |
 
 ```bash
 draugr doctor                       # inventory: what Draugr can use, and what you have
-draugr doctor draugr.saga.yaml      # check only what this Saga needs (+ validate it)
+draugr doctor draugr.saga.yaml      # check only what this Saga needs
 draugr doctor --json draugr.saga.yaml
 draugr doctor --fail-on-uncovered draugr.saga.yaml   # and fail if something is unexamined
 draugr doctor --components web draugr.saga.yaml     # only web's targets
@@ -1371,77 +1348,84 @@ draugr doctor --offline             # no network: skip the update check and remo
 Doctor also reports the running Draugr version and, best-effort (unless `--offline` /
 `DRAUGR_NO_UPDATE_CHECK`), whether a newer release is available, nudging [`draugr
 self-update`](#draugr-self-update). The check has a short timeout and never blocks or fails the
-command. Provisioning missing scanner tools (pinned + verified) is handled by [`draugr tools
-install`](#draugr-tools-install-tool); doctor only reports and hints. It never installs anything,
-and the only repository data it fetches is the commit and trees a `paths` check reads.
+command. Doctor never installs anything; [`draugr tools install`](#draugr-tools-install-tool)
+provisions missing tools. The repository data it fetches is the commits and trees its target checks
+read, and any fragment from another repository the descriptor names.
 
 ---
 
 ## `draugr tools`
 
 Provision and inspect the external scanners Draugr runs. Installs are **opt-in and
-checksum-verified**. Nothing is ever downloaded during a scan.
+verified**, and a scan never installs a tool.
 
 ### `draugr tools outdated`
 
 Asks each tool's upstream what it publishes now and reports it beside the version this Draugr
-installs. Nothing is downloaded and nothing on disk changes.
+installs. Nothing is downloaded and nothing on disk changes. Refused under `--offline`.
 
-```
+```console
+$ draugr tools outdated
 Tool         Pinned   Upstream
+cosign       3.1.3    3.1.3     current
 gitleaks     8.30.1   8.30.1    current
-trivy        0.69.3   0.74.0    draugr tools install trivy
-semgrep      1.177.0  ?         could not ask: https://pypi.org/pypi/semgrep/json answered 503 Service Unavailable
+…
+trivy        0.74.0   0.76.0    draugr tools install trivy
+
+6 of 12 behind the version their upstream publishes.
 ```
+
+A tool whose upstream could not be asked shows `?` and `could not ask:` with the reason, and the
+last line adds how many could not be asked. `draugr tools install <tool>` installs the pinned
+version; `--version` installs another.
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--json` | `false` | Write the comparison as JSON, for a pipeline proposing a bump |
 
-**Being behind is not a fault.** A pin is the build Draugr checksum-verified and ran a scan with,
-so it moves when a bump has been tested rather than when one appears. Exits non-zero only where a
-tool could not be asked, in both output modes, because a network that refused is a different answer
-from "current" and reporting the second for the first is how a checker comes to report everything
-current while reaching nothing.
+A pin is the build Draugr verified and ran a scan with, so being behind is not a failure. The
+command exits non-zero only where a tool could not be asked, in both output modes.
 
-**Reading the JSON**, a tool that could not be asked carries `error` and has `behind: false`, which
-is the same value a current tool has. Check `error` rather than `behind` alone, or treat the exit
-code as the answer.
+In the JSON, each tool has `tool`, `pinned`, `latest` and `behind`. A tool that could not be asked
+carries `error` and has `behind: false`, the same value a current tool has, so check `error` or the
+exit code rather than `behind` alone.
 
 ### `draugr tools install [tool...]`
 
-Download **pinned** tool binaries, verify each against a **SHA-256 recorded in Draugr** (sourced
-from the upstream checksums files), and install them into `~/.draugr/bin`, which Draugr **adds to
-`PATH` automatically**, so `scan`/`doctor` use them with no shell config.
+Download **pinned** tool builds, verify each against a digest **recorded in Draugr** (a SHA-256
+taken from the upstream checksums files for a release binary), and install them into
+`~/.draugr/bin`, which Draugr **adds to `PATH` automatically**, so `scan` and `doctor` use them with
+no shell config. Refused under `--offline`, naming the tools it would fetch.
 
-**Name a descriptor and the download is a fraction of the size.** `--saga` installs the tools that
-descriptor's scan will run and nothing else; the whole catalog is several hundred megabytes and
-most projects reach part of it. With no arguments it reads the current directory the way `draugr
-scan` does: it installs what the descriptor there runs, or with no descriptor, what a scan there
-runs without one. `--all` installs everything this host can have.
+**What gets installed.** `--saga` installs the tools that descriptor's scan will run and nothing
+else. With no arguments it reads the current directory the way `draugr scan` does: it installs what
+the descriptor there runs, or, with no descriptor, what a zero-config scan runs, and says which on
+its first line. With more than one descriptor it asks which on a terminal and otherwise exits
+naming them. `--all` installs everything this host can have. `--all`, `--saga` and a tool list are
+refused in combination.
 
-**Some are built from source, not downloaded.** `govulncheck` needs a Go toolchain, `retire`
-needs Node, and `semgrep` needs Python, because none publishes a release binary. With `--all`, a
-tool whose runtime is not on this machine is **skipped and named**, with the command
-to run once it is there, and the rest install:
+**Some are built from a package, not downloaded as a binary.** `govulncheck` needs Go 1.21 or newer,
+`retire` needs Node 18 or newer, and `semgrep` needs Python 3.10 or newer, because none publishes a
+release binary. With `--all`, a tool whose Go or Python is missing or too old, or whose `npm` is
+missing, is **skipped and named** with the command to run once it is there, and the rest install:
 
 ```
 – govulncheck: govulncheck is distributed as a Go package and no `go` is on PATH, install Go 1.21
-  or newer from https://go.dev/dl/, or install it yourself with `go install …`
+  or newer from https://go.dev/dl/, or install it yourself with `go install golang.org/x/vuln/cmd/govulncheck@v1.8.0`
 3 tools skipped, this host has no runtime to build them with. Install one and run
 `draugr tools install govulncheck retire semgrep`.
 ```
 
-**Naming a tool is different.** `draugr tools install govulncheck` on a host without Go is a
-failure and exits non-zero: asking for a tool and being told it worked is what a pipeline relies
-on. `draugr tools list` names the runtime each one needs.
+Each skipped tool gets its own `–` line. A Node older than 18 is a failure rather than a skip.
+Naming a tool whose runtime is missing, as in `draugr tools install govulncheck` on a host without
+Go, fails and exits non-zero. `draugr tools list` names the runtime each one needs.
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-y, --yes` | `false` | Skip the confirmation prompt |
 | `--dry-run` | `false` | Print the install plan and exit |
-| `--force` | `false` | Reinstall even when the pinned build is already present |
-| `--version` | - | Install this version instead of the one Draugr ships (one tool at a time) |
+| `--force` | `false` | Reinstall even when the pinned build is already present, which also repairs a modified binary |
+| `--version` | - | Install this version instead of the one Draugr ships. Takes exactly one named tool |
 | `--saga` | - | Install only the tools that descriptor's scan will run |
 | `--all` | `false` | Install every tool Draugr can provision |
 
@@ -1454,9 +1438,6 @@ draugr tools install -y         # non-interactive
 draugr tools install trivy --version 0.68.0    # a version other than the one Draugr ships
 ```
 
-`--all`, `--saga` and a tool list each answer the same question differently, so passing two is an
-error rather than a precedence rule to remember.
-
 **Pinning a version.** A team wanting every pipeline to scan with the same Trivy writes it once,
 where it gets reviewed:
 
@@ -1467,78 +1448,64 @@ tools:
   gitleaks: { version: "8.30.1" }
 ```
 
-`--version` overrides that for a single invocation, and takes one tool because it takes one value.
+`--version` overrides that for a single invocation.
 
-Draugr **does not refuse a version it cannot vouch for.** Someone asking for one has a reason Draugr
-does not know about, a fork, a release candidate, a build newer than this release, and refusing
-would be blocking them over a gap in Draugr's knowledge. It installs what was asked for and records
-how well it could check it, and that record travels into every report the tool goes on to produce.
+Draugr **installs a version it cannot vouch for**, such as a fork, a release candidate or a build
+newer than this release, and records how well it could check it. That record travels into every
+report the tool goes on to produce, as its [level](#which-build-of-each-scanner-ran). It **refuses**
+a download that does not match a checksum the upstream published.
 
-What it does refuse is a **contradiction**: a checksum the upstream published that the download
-does not match. Nothing published is *unknown*; a published checksum that disagrees says the
-download was corrupted or substituted, and installing past that would be ignoring evidence rather
-than lacking it.
+The plan's `Verify` column says which you are getting before anything is downloaded:
 
-The install plan says which of these you are getting before anything is downloaded. The `Verify`
-column reads `sha256`, `sha256 + cosign`, `upstream cosign`, `upstream sha256` or `unverified`.
+| Verify | Meaning |
+|---|---|
+| `sha256` | the pinned build, against a SHA-256 recorded in Draugr |
+| `sha256 + cosign` | the same, and the upstream's cosign signature over its checksums file |
+| `upstream cosign`, `upstream sha256` | another version, against what the upstream signed or published |
+| `unverified` | another version, with nothing published to check it against |
+| `sha256 (+deps)`, `sha512 (+deps)`, `checksum db (+deps)` | `semgrep`, `retire` and `govulncheck`, with every dependency checked too |
+| `-` | nothing to install: the tool is already current, or Draugr cannot provision it |
 
 **`--saga` installs what a descriptor needs**, resolved the same way
 [`draugr doctor`](#draugr-doctor-sagayaml) decides what to check: the enabled controls, and the
-scanners those controls will actually select. The two cannot disagree, because they share the
-resolution.
+scanners those controls will select. Where a descriptor needs something Draugr cannot provision
+(`kubectl`, `git`, `prowler`) the plan **names it** before the table.
 
-On a security tool the smaller set is the defensible one. Every binary on `PATH` is one more thing
-to trust, keep patched and explain. Where a descriptor needs something Draugr cannot provision
-(`kubectl`, `git`) the plan **names it** rather than installing the rest and reporting success.
-
-The descriptor is not inferred from the working directory, even though `scan` does so. A CI job
-running `tools install -y` in a repo that happens to contain one would suddenly provision less,
-and may then be handed a different Saga to scan; installing less than before, silently, surfaces
-as a mystery failure elsewhere. Instead, when a descriptor is sitting there, the plan says so:
+**Tools already current are not downloaded again.** The plan marks a tool `already at <version>`
+when the copy on `PATH` reports the pinned version, and when every planned tool is current the
+command prints `Everything is already current.` and stops without asking. Otherwise each tool's
+result is printed, and a release binary in `~/.draugr/bin` whose checksum still matches the
+install record is left alone and counted:
 
 ```
-Note: `--saga draugr.saga.yaml` would install 2 of these 6 tools, the ones that
-descriptor's scan runs.
-```
-
-**Already-installed tools are skipped.** Re-running is cheap: a tool already present at the pinned
-build is left alone instead of being downloaded and verified again, which matters in CI, where
-provisioning runs on every job. The plan names them; afterwards they are counted, so the output
-describes what changed:
-
-```
-✓ syft 1.49.0 → ~/.draugr/bin/syft (sha256 verified)
+✓ syft 1.51.1 → /home/you/.draugr/bin/syft (sha256 verified)
 7 tools unchanged.
 ```
 
-"Already present" means the exact bytes Draugr installed: it compares the binary's checksum against
-what it recorded, so a **modified binary is replaced**, not accepted, and a replacement gets its own
-line. A changed pin also reinstalls. Use `--force` to reinstall unconditionally.
+A binary in `~/.draugr/bin` that no longer matches its record is replaced, and a changed pin also
+reinstalls. `semgrep`, `retire` and `govulncheck` are rebuilt whenever the command installs
+anything. `--force` reinstalls unconditionally.
 
-**Plan + confirmation.** It first prints the plan (tool, version, **category**, verification,
-destination). When run **interactively** it asks for confirmation; **non-interactively** (CI, pipes)
-it proceeds. Pass `-y` to be explicit or `--dry-run` to only preview.
+**Plan and confirmation.** It first prints the plan (tool, version, category, verification,
+destination). On a terminal it asks for confirmation; without one (CI, pipes) it proceeds. `-y`
+skips the question and `--dry-run` only previews.
 
-**Why cosign is in the toolbox.** cosign is a utility Draugr *uses* to verify the provenance of
-other tools (and its own releases, via `self-update`), but users often don't have it installed, so
-signature verification silently falls back to SHA-256-only. Making cosign installable (`draugr tools
-install cosign`) closes that loop: install it once and signature verification "just works"
-everywhere. It's a **utility** (not a scanner for a control), pinned by SHA-256 (using cosign to
-verify itself would be circular), and it's **optional**, `doctor` reports it but never fails because
-it's absent.
+**cosign** is a utility Draugr uses to verify the signatures of other tools and of its own releases
+in `self-update`. Without it, signature verification is skipped and the install says so.
+`draugr tools install cosign` installs it, pinned by SHA-256. `doctor` reports it without failing
+when it is absent, unless the descriptor's `provenance` control needs it.
 
-**Provenance.** The SHA-256 pin is the mandatory integrity floor. On top of it, for upstreams that
-publish a keyless **cosign** signature over their checksums file (e.g. Trivy), Draugr also verifies
-that signature, checking the signing certificate identity and OIDC issuer, then confirming the
-archive is listed in the signed checksums, when the `cosign` CLI is installed. Without `cosign`, or
-for tools the upstream doesn't sign (e.g. gitleaks), it degrades to SHA-256-only and says so. Each
-line reports what was verified (`sha256 + cosign verified` / `sha256 verified`). If `cosign` is
-present but verification fails, the install aborts.
+**Provenance.** The SHA-256 pin is the integrity floor for every release binary. Trivy also
+publishes a keyless **cosign** signature over its checksums file; with the `cosign` CLI installed,
+Draugr verifies that signature, checking the signing certificate identity and OIDC issuer, and
+confirms the archive is listed in the signed checksums. Each line reports what was verified:
+`sha256 + cosign verified`, `sha256 verified`, or `sha256 verified;` followed by why the signature
+was not checked. If `cosign` is present and verification fails, that tool's install fails.
 
 Semgrep publishes no release binary, so it is installed from PyPI into a virtual environment Draugr
 owns (`~/.draugr/venv/semgrep`), with every artifact in the resolved tree matched against a digest
-recorded in this build, dependencies included. It needs **Python 3.10 or newer**; `doctor` says so
-when it is missing. `git` is expected from your system.
+recorded in this build, dependencies included. When it is missing, `doctor` suggests
+`draugr tools install semgrep`. `git` is expected from your system.
 
 ### `draugr tools uninstall [tool...]`
 
@@ -1549,9 +1516,11 @@ copy installed any other way is left where it is, and the line for it says where
 Each tool's own cache stays unless `--caches` is given: Trivy's and Grype's vulnerability
 databases, Nuclei's templates, and the smaller ones Syft, Notation and cosign keep. A tool's settings
 are not a cache and stay either way, such as `~/.config/nuclei` and Semgrep's login in `~/.semgrep`.
-The caches sit at the tool's default location, or where `TRIVY_CACHE_DIR` or `GRYPE_DB_CACHE_DIR` moves it,
-so removing them also empties the cache of any other install of the same tool. `~/.draugr/feeds` is not a tool's, and
-[`draugr feeds`](#draugr-feeds) manages it.
+The caches sit at the tool's default location, or where `TRIVY_CACHE_DIR` or `GRYPE_DB_CACHE_DIR`
+moves it, so removing them also empties the cache of any other install of the same tool.
+`~/.draugr/feeds` belongs to no tool, and [`draugr feeds`](#draugr-feeds) manages it.
+
+Name the tools to remove, or pass `--all`; with neither, the command is an error.
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -1586,9 +1555,11 @@ retries that tool. A removed cache refills on the tool's next run.
 
 ### `draugr tools list`
 
-Show every tool Draugr knows about: its **category** (scanner/utility), the **controls** it
-backs, its pinned version, how it's obtained (managed install / system), and whether
-it's currently found (with path + version).
+Show every tool Draugr knows about: its **category** (scanner or utility), the **controls** it
+backs, its pinned version, its source (`draugr tools install`, with the runtime it needs, or
+`system PATH`), and its status: `✓` with the version and path when found, `~` when the version
+found is not the pin, `✗ not found` otherwise. A version shown as `?` is one the tool did not
+report.
 
 ```bash
 draugr tools list
@@ -1598,9 +1569,8 @@ draugr tools list
 
 ## `draugr feeds`
 
-Fetch and inspect the datasets a scan reads from `~/.draugr/feeds`. Fetching is explicit: a scan
-reads the cache and never reaches the network on its own, so a gated run stays reproducible and
-works on an air-gapped runner.
+Fetch and inspect the datasets a scan reads from `~/.draugr/feeds`. A scan reads the cache and
+fetches a feed only when `--kev` or `--epss` (or `config.exploitability`) says `auto`.
 
 | Feed | Dataset | Read by |
 |------|---------|---------|
@@ -1610,15 +1580,19 @@ works on an air-gapped runner.
 
 ### `draugr feeds update [kev|epss|govulndb]`
 
-Download the feeds into `~/.draugr/feeds`. With no arguments, fetches all three. A copy less than a
-day old is left alone unless `--force` is given.
+Download the feeds into `~/.draugr/feeds`, every feed when none is named. A copy less than a day
+old is left alone unless `--force` is given. Refused under `--offline`.
+
+Each feed gets a line saying it is `current (<age> old)`, or `fetching <url>…` followed by the path
+and size written. A fetch that fails with a copy already cached keeps that copy, says so and exits 0;
+with nothing cached, the command stops at that feed and exits non-zero.
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--force` | `false` | fetch even if the cached copy is current |
 
 ```bash
-draugr feeds update            # all three
+draugr feeds update            # every feed
 draugr feeds update epss       # just the daily one
 draugr feeds update --force    # refetch regardless of age
 ```
@@ -1629,46 +1603,54 @@ can read directly. The Go vulnerability database is published as a zip and unpac
 empty or unreadable is refused and the previous copy kept. Each write is atomic. An interrupted
 fetch cannot leave half a catalog behind for the next scan to read as though it were complete.
 
-**In CI, run this as its own step.** A feed outage then fails where it happened rather than
-producing a scan that ranked everything as though nothing were exploited.
+**In CI, run this as its own step**, so a feed outage shows in that step rather than inside the
+scan.
 
 ### `draugr feeds status`
 
-What is cached, how old it is, where it came from, and the digest of each copy.
+What is cached, how old it is, the digest of each copy, and where each feed comes from.
 
 ```
 FEED       FETCHED                AGE            SIZE       DIGEST
 kev        2026-09-23 22:05Z      6 hours        1.7 MiB    sha256:e4988831e6d3
 epss       2026-09-21 04:05Z      3 days (stale) 11.0 MiB   sha256:38015ed64ff2
 govulndb   2026-09-24 02:05Z      2 hours        3.2 MiB    sha256:f0645ee8b56c
+
+SOURCES  (cached in /home/you/.draugr/feeds)
+  kev        CISA Known Exploited Vulnerabilities catalog · https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
+  epss       FIRST EPSS scores · https://epss.empiricalsecurity.com/epss_scores-current.csv.gz
+  govulndb   Go vulnerability database · https://vuln.go.dev/vulndb.zip
+
+epss older than 24 hours. A scan uses it and marks the report stale. Refresh with `draugr feeds update`.
 ```
 
-Age is the column that matters. A stale KEV or EPSS copy does not fail: it ranks a finding on older
-data, and a scan reading one warns and names the age. A stale `govulndb` copy is not read at all;
-govulncheck queries `vuln.go.dev` instead, and with `--offline` the control reports an error.
-`config.exploitability.maxAge` sets the limit for both.
+A copy is `(stale)` here when it is more than a day old. A stale KEV or EPSS copy does not fail a
+scan: it ranks findings on older data, and the report names the age. A stale `govulndb` copy is not
+read at all; govulncheck queries `vuln.go.dev` instead, and with `--offline` the control reports an
+error. In a scan, `config.exploitability.maxAge` sets the limit for both, while `feeds status` and
+`feeds update` always use a day.
 
 ### Using the cache in a scan
 
 Set it once in the descriptor under
 [`config.exploitability`](saga-schema.md#configexploitability), or pass it per run. `--kev` and
-`--epss` accept a path, or one of two keywords:
+`--epss` accept a path or a keyword:
 
 | Value | Behavior |
 |-------|-----------|
 | a path | read that file; never touches the cache or the network, the air-gapped route |
 | `cache` | read `~/.draugr/feeds`; **never** fetches. Errors if nothing is cached |
-| `auto` | read the cache, fetching when it is missing or over a day old |
+| `auto` | read the cache, fetching when it is missing or older than `config.exploitability.maxAge` (default a day) |
 
-With `auto`, a failed fetch falls back to a cached copy and says so. A feed outage should not break
-a gate that has a usable answer on disk. With nothing cached, it is an error.
+With `auto`, a failed fetch falls back to a cached copy and says so. With nothing cached, it is an
+error.
 
-`DRAUGR_OFFLINE=1` stops `auto` fetching: it reads the cache, or says clearly there is nothing
-to read.
+`DRAUGR_OFFLINE=1` or `--offline` stops `auto` fetching: it reads the cache, or reports that there
+is nothing to read.
 
 **A flag overrides the descriptor only when you type it.** `--epss-threshold 0.5` beats a
-descriptor saying `0.1`, even though 0.5 is also the flag's default; leaving it off leaves the
-descriptor's value alone.
+descriptor saying `0.1`, although 0.5 is also the flag's default; leaving it off keeps the
+descriptor's value.
 
 See [prioritization](../concepts/prioritization.md#exploitability-kev-and-epss) for what the
 signals mean and how to choose a threshold.
@@ -1679,12 +1661,10 @@ signals mean and how to choose a threshold.
 
 Machine and organization settings, kept apart from the Saga.
 
-A Saga describes an application: its repositories, how reachable each component is, which controls must
-pass. Those are facts about the software and belong in its repository. **Which build of a scanner
-runs, and what a control defaults to, are facts about a machine or an organization**. They want to
-be the same everywhere, which is exactly why they do not belong in a per-application descriptor. A
-descriptor that could pin its own scanner version is one that could downgrade a scanner until a
-finding disappears.
+A Saga describes an application: its repositories, how reachable each component is, which
+controls must pass. **Which build of a scanner runs, what a control defaults to, and where results
+go are facts about a machine or an organization**, and they live in `draugr.config.yaml`. A Saga
+cannot pin its own scanner version.
 
 ```yaml
 # draugr.config.yaml
@@ -1699,30 +1679,30 @@ controllers:            # merged *underneath* the Saga, so a project overrides o
       config: p/owasp-top-ten
 ```
 
-`cache.*` mirrors the `--cache-*` flags, and a flag you type always wins, including `--cache-ttl 0`
-for no expiry, which is a deliberate instruction rather than an absent one. A cache directory is a
-fact about a runner, not about an application, which is why it belongs here and not in a Saga: one
-project on two runners should not carry a path that exists on only one of them. See [caching &
-performance](../guides/caching-and-performance.md).
+| Key | Holds |
+|---|---|
+| `tools.<name>.version` | the build [`tools install`](#draugr-tools-install-tool) provisions |
+| `controllers.<control>.<scanner>` | control defaults, merged underneath the Saga's `config.controls` |
+| `cache.dir`, `cache.ttl`, `cache.readOnly`, `cache.requireDigest` | the `--cache-*` flags. A `ttl` of `0` means the built-in default; `--cache-ttl 0` on the command line means no expiry |
+| `output.view`, `output.evidence`, `output.top` | the `--view`, `--evidence` and `--top` flags. A `top` of `0` means the built-in default |
+| `publish.apiUrl` | where the `draugr-api` publisher posts, below `$DRAUGR_API_URL` and a `url:` in the Saga |
 
-`tools.<name>.version` is what [`tools install`](#draugr-tools-install-tool) provisions, so every
-runner that shares the config scans with the same build, and two runners cannot produce different
-findings from identical code.
+A flag typed on the command line always wins over the file. See [caching &
+performance](../guides/caching-and-performance.md) for the cache settings.
 
 ### Where it comes from
 
 | | |
 |---|---|
-| `--config <path>` or `DRAUGR_CONFIG` | that file **alone**. Explicit means explicit |
+| `--config <path>` or `DRAUGR_CONFIG` | that file **alone** |
 | `./draugr.config.yaml` | this project |
 | `~/.draugr/config.yaml` | this machine |
 
-Discovered files are layered, project over home. An explicit one replaces both: a runner image
-that names a config expects that config, not that one laid over whatever is in the working
-directory.
+Discovered files are layered, project over home. An explicit one replaces both.
 
-For behavior, the full order is **component → Saga → config → built-in**, deep-merged, so an
-override replaces only the keys it names.
+For `draugr scan`, `doctor` and `tools install`, the full order is **component → Saga → config →
+built-in**, deep-merged, so an override replaces only the keys it names. A scan started through
+[`draugr mcp`](#draugr-mcp) does not read the config file.
 
 ### Commands
 
@@ -1730,10 +1710,13 @@ override replaces only the keys it names.
 |---|---|
 | `draugr config show` | what is in effect, and **which file each value came from** |
 | `draugr config get <key>` | one resolved value |
-| `draugr config set <key> <value>` | write a value; `--global` for `~/.draugr/config.yaml` |
+| `draugr config set <key> <value>` | write a value |
 | `draugr config unset <key>` | remove one, pruning anything it empties |
-| `draugr config init` | a commented starter; `--force` resets a broken file |
-| `draugr config validate` | check the files load |
+| `draugr config init` | write a commented starter; `--force` replaces an existing file |
+| `draugr config validate [path...]` | check the discovered files load, or the files named |
+
+`set`, `unset` and `init` write `./draugr.config.yaml`, or `~/.draugr/config.yaml` with `--global`.
+They do not follow `--config` or `DRAUGR_CONFIG`.
 
 ```
 $ draugr config show
@@ -1747,40 +1730,37 @@ In effect:
   tools.trivy.version              0.69.3           ~/.draugr/config.yaml
 ```
 
-`show` is the one worth knowing about. A layered configuration is undebuggable without it. *"why is
-Trivy 0.68?"* has one useful answer, and it is a filename.
+`show` names the file each value came from, which is the answer to *"why is Trivy 0.68?"* in a
+layered configuration.
 
 ### If the file breaks
 
-**Draugr refuses to run rather than falling back.** A broken Saga must fail because nobody else
-knows what your application is; a broken *config* looks like it has a safe fallback, but taking it
-silently is how a pinned toolchain becomes a different one. Somebody pinned that version for a
-reason.
-
-Recovery is one command:
+**A command that reads the config refuses to run rather than falling back to the defaults**, so a
+pinned toolchain never silently becomes a different one.
 
 ```bash
 draugr config validate          # what is wrong, and where
 draugr config init --force      # start again from the built-in defaults
 ```
 
-`set` and `unset` cannot break a file: they edit the document rather than rewriting it, **so
-comments survive**, and parse the result before saving, so nothing is written that Draugr would then
-refuse. Draugr will not silently repair a file it cannot parse, because rewriting somebody's
-settings on a guess is worse than refusing them.
+`set` and `unset` cannot break a file: they edit the parsed document, **so comments survive**, and
+parse the result before saving. The document is re-indented as it is written. Draugr does not
+repair a file it cannot parse.
 
 ### What does not go here
 
-Secrets. Use `${{ ENV_VAR }}` as a Saga does, so the file stays safe to commit.
+Secrets. The file is read as written, with no `${{ ENV_VAR }}` substitution, and is meant to be
+committed. Credentials belong in the environment variables under [Environment](#environment).
 
 ---
 
 ## `draugr controls`
 
-List the security controls Draugr can run, what each checks, its scope, and which scanner(s)
-implement it (default, plus any opt-in alternatives marked `*`). The companion to `tools list`:
-`controls` maps **control → scanners** ("what runs this check"), while `tools list` maps **tool →
-controls** ("why this tool matters").
+List the security controls Draugr can run, the scanners behind each, and what each checks.
+Default scanners are listed first; `*` marks an opt-in scanner and `†` a reachability analyzer, each
+explained under the table. `PUBLISHERS` names who publishes each scanner, and `EFFECTS` lists the
+scanners that do more than read. [`tools list`](#draugr-tools-list) maps the other way, from each
+tool to its controls.
 
 ```bash
 draugr controls
@@ -1791,12 +1771,12 @@ draugr controls sast --options     # just one control
 | Flag | Default | What it does |
 |---|---|---|
 | `[control]` | - | Narrow everything below to one control. A name that is not a control says so and lists the ones that are. |
-| `--options` | off | List the Saga options each scanner accepts, read from the schemas the gate enforces. A scanner shown with no options is configured by choosing it, anything else under its block is an error, not a setting that quietly does nothing. |
+| `--options` | `false` | List the Saga options each scanner accepts, read from the schemas the gate enforces. A scanner shown with no options is configured by choosing it, and any other key under its block is an error. |
 
 Enable a control in your Saga under `config.controls.<name>` (or per component). A control's
-scanners are configured under their own keys, `controllers.<name>.<scanner>`, each with an optional
-`enabled` flag plus that scanner's options (e.g. `sast: { gosec: { enabled: true } }`). See
-[per-scanner config](saga-schema.md#per-scanner-config).
+scanners are configured under their own keys, `config.controls.<name>.<scanner>`, each with an
+optional `enabled` flag plus that scanner's options (e.g. `sast: { gosec: { enabled: true } }`).
+See [per-scanner config](saga-schema.md#per-scanner-config).
 
 ---
 
@@ -1812,8 +1792,10 @@ draugr mcp --scan=always   # scan never asks
 draugr mcp --scan=off      # read-only tools; scan is not offered
 ```
 
-Every `*.saga.yaml` found within three directories of the working directory is also exposed as
-an MCP **resource**, so a client can read the descriptor without a tool call.
+Each `*.saga.yaml` in the working directory and up to three levels below it is also exposed as an
+MCP **resource**, so a client can read the descriptor without a tool call. Discovery runs once at
+startup and takes at most 50 files. It skips `node_modules`, `vendor`, `dist`, `build`, `target`
+and `__pycache__`, and every hidden directory except `.draugr`.
 
 | Tool | Purpose |
 |---|---|
@@ -1823,16 +1805,22 @@ an MCP **resource**, so a client can read the descriptor without a tool call.
 | `propose_saga` | Return the descriptor `draugr init` would write for `path`, a directory under the working directory, with `perDirectory` for `--per-directory`; writes nothing and names any descriptor already there |
 | `check_tools` | Report which scanners are installed and what to run if any are missing |
 | `feeds_status` | Report whether each feed is cached, with its fetch date, age, size, digest and staleness, and the `draugr feeds update` command to run if any is missing or stale |
+| `explain_rule` | What a finding means and how to fix it, from the scan's own report |
+| `fix_list` | A report as the things to do about it, most urgent first, each saying how many findings it clears |
+| `list_surveyors` | The surveyors this build has and what each discovers |
+| `survey` | Discover what an application is made of and return a Saga descriptor for it; writes nothing |
+| `diff_reports` | Compare two scans, with `failOnNew` to learn whether a pull-request gate would fail |
 | `summarize_report` | Rank an existing `results.sarif` by priority, with accepted findings and their decisions listed apart |
 | `scan` | Run a scan and return the verdict, the scope it covered, and where the descriptor's publishers delivered it (not offered with `--scan=off`) |
 
 | Flag | Default | Description |
 |---|---|---|
-| `--scan` | `effects` | Whether the assistant may start scans, and when you approve one first. `effects` asks before a scan in which a planned scanner declares an [effect](saga-schema.md#configalloweffects) or a publisher other than `file` delivers the report; `ask` asks before every scan; `always` never asks, for sandboxes and CI; `off` doesn't offer the tool. Asking needs a client supporting MCP elicitation: a client that can't prompt is refused and given the `draugr scan` command instead. |
+| `--scan` | `effects` | Whether the assistant may start scans, and when you approve one first. `effects` asks before a scan in which a planned scanner declares an [effect](saga-schema.md#configalloweffects), `config.dependencyHealth` is enabled, or a publisher other than `file` delivers the report; `ask` asks before every scan; `always` never asks, for sandboxes and CI; `off` doesn't offer the tool. Asking needs a client supporting MCP elicitation: a client that can't prompt is refused and given the `draugr scan` command instead. |
 
-The server speaks MCP, not text. Run by hand in a terminal it will look like it has hung, because
-it's waiting for a client. See [use Draugr from an AI coding assistant](../guides/ai-agents-mcp.md)
-for client setup and why routing through Draugr beats letting the assistant run scanners itself.
+The server speaks MCP on stdin and stdout, so run by hand in a terminal it waits for a client and
+prints nothing. A scan started through the server does not read
+[`draugr.config.yaml`](#draugr-config). See
+[use Draugr from an AI coding assistant](../guides/ai-agents-mcp.md) for client setup.
 
 ---
 
@@ -1840,17 +1828,18 @@ for client setup and why routing through Draugr beats letting the assistant run 
 
 Update the running `draugr` binary in place to the latest published release (or a specific
 `--version`), verified against the release's **SHA-256 checksums** (mandatory) and its keyless
-**cosign** signature (when the `cosign` CLI is present). It replaces the binary you are actually
-running, so you are never left with a second copy or an older one earlier on your `PATH`.
+**cosign** signature (when the `cosign` CLI is present). It replaces the binary that is running,
+wherever it is on `PATH`. On a terminal it asks for confirmation first; without one it proceeds.
+Refused under `--offline`, `--check` included.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--version` | latest | Target release to install (e.g. `0.16.0`) |
+| `--version` | latest | Target release to install (e.g. `0.16.0` or `v0.16.0`) |
 | `--check` | `false` | Report current vs latest available; make no changes |
 | `-y, --yes` | `false` | Skip the confirmation prompt |
 
 ```bash
-draugr self-update            # confirm, then update to the latest release
+draugr self-update            # update to the latest release, asking first on a terminal
 draugr self-update --check    # just report current vs latest
 draugr self-update --version 0.15.0 -y
 ```
@@ -1863,19 +1852,16 @@ Print the version, commit, build date, and Go version.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--json` | `false` | Emit the same fields as JSON, for scripts and CI |
+| `--json` | `false` | Emit the same fields as JSON (`version`, `commit`, `built`, `go`), for scripts and CI |
 
 ```bash
-draugr version            # draugr 0.31.1 (commit 30862ef, built …, go1.26.5)
-draugr --version          # the same bytes, under the spelling every other CLI uses
-draugr version --json     # {"version":"0.31.1","commit":"30862ef","built":"…","go":"go1.26.5"}
+draugr version            # draugr <version> (commit <sha>, built <date>, go<version>)
+draugr --version          # the same bytes; -v is the short form
+draugr version --json     # an indented JSON object
 ```
 
 Output goes to stdout in both forms, so `v=$(draugr version --json | jq -r .version)` works.
-
-**`--version` prints exactly what `version` prints**, so a script parsing one parses the other.
-It exists because container smoke tests, tool caches and version probes reach for the flag rather
-than the subcommand, and an unknown-flag error reads as a broken binary.
+**`draugr --version` and `draugr -v` print exactly what `draugr version` prints.**
 
 ## `draugr schema`
 
@@ -1883,7 +1869,7 @@ Print the Saga JSON Schema **this build enforces** (it's embedded in the binary)
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-o, --output` | stdout | Write to this file instead of stdout |
+| `-o, --output` | stdout | Write to this file instead, and print the modeline that references it |
 | `--fragment` | `false` | Print the [Saga fragment](../guides/saga-fragments.md) schema instead |
 
 ```bash
@@ -1892,14 +1878,13 @@ draugr schema -o .saga.schema.json # pin editor validation to this exact build
 draugr schema --fragment           # the schema for *.saga-fragment.yaml
 ```
 
-A fragment is a different shape, no `release:`, and no policy, so it has a schema of its own. A
-fragment checked against the Saga's schema reports a missing `release` on every valid file, which is
-why the two file types are distinguishable by name.
+A fragment has no `release:` and no policy, so it has a schema of its own, and the two file types
+are told apart by name.
 
 Editors normally fetch the schema from draugr.dev, which needs network access and follows a
-published version. A local copy pins validation to the Draugr you actually have, and works offline.
-See [editor support](../guides/editor-support.md).
+published version. A local copy pins validation to the installed Draugr and works offline. See
+[editor support](../guides/editor-support.md).
 
 ## `draugr completion <shell>`
 
-Generate a shell completion script (bash, zsh, fish, powershell).
+Generate a shell completion script for `bash`, `zsh`, `fish` or `powershell`.
