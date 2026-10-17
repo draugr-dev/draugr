@@ -12,6 +12,12 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.153.0] - 2026-10-17
+
+### Added
+
+- **Remove the tools Draugr installed.** `draugr tools uninstall` takes the tools you name, or `--all`, and removes each binary from `~/.draugr/bin` with its Python or Node environment and its data, after showing a plan with the space each takes. A copy installed any other way stays. `--caches` also removes the tools' own caches, such as Trivy's and Grype's databases.
+
 ## [0.152.1] - 2026-10-17
 
 ### Fixed
@@ -6349,7 +6355,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.152.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.153.0...HEAD
+[0.153.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.153.0
 [0.152.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.152.1
 [0.152.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.152.0
 [0.151.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.151.0
