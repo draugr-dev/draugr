@@ -18,7 +18,7 @@ _Nothing yet._
 
 - **retire.js runs on a machine where Draugr has written no data yet.** The `sca` control could fail there with `run retirejs: exit status 1`, because retire.js does not create the parents of its cache directory. Draugr creates the directory first, and a retire.js failure now names its cause, such as `ENOENT mkdir <path>`.
 
-- **The pull request that adds a repository's first descriptor is gated like any other.** `draugr diff` takes the head report alone and treats every finding in it as new. The GitHub Action and the GitLab and Azure DevOps templates use it when the base commit has no descriptor, where the diff used to stop with no base report to open.
+- **The pull request that adds a repository's first descriptor is gated like any other.** `draugr diff` accepts the head report alone and treats every finding in it as new. When the base commit has no descriptor, the GitHub Action and the GitLab and Azure DevOps templates pass only the head report, where the diff used to fail for lack of a base report. With a pinned Draugr older than this release, they warn instead.
 
 ## [0.152.0] - 2026-10-17
 
