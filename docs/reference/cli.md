@@ -825,7 +825,7 @@ since explaining a rule you did not ask about is worse than asking again.
 Only rules the scan reported are in its report, which is what makes the remediation specific to
 what was found rather than a catalog.
 
-## `draugr diff <base.sarif> <head.sarif>`
+## `draugr diff [base.sarif] <head.sarif>`
 
 Compare two scans and classify every finding as **new**, **unaccepted**, **accepted**, **fixed**,
 **moved** or **unchanged**, the security delta of a change, typically a PR's head vs its base branch. Inputs are
@@ -860,7 +860,6 @@ not drawn. Fixed has none, because a fixed finding is not in `head`.
 | `--repository` |. | keep only **new** findings from this repository, plus those belonging to none (an image, a host). For a code-scanning upload, whose paths anchor to one checkout |
 | `--fail-on-new` |. | fail if a **new** finding is at or above this: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`) |
 | `--fail-on-new-priority` |. | Deprecated: write the band in `--fail-on-new` |
-
 | `--publish` | `false` | post the diff as a sticky pull-request comment. Picks `github-pr-comment`, `azure-pr-comment` or `gitlab-mr-comment` from the CI environment; no-ops off a PR |
 
 The gate reads **new** only. An accepted finding does not trip it, which is the point of accepting
@@ -868,6 +867,13 @@ it, and an unaccepted one does not either: the gate exists to stop a change intr
 and an acceptance ending is a decision to make again rather than a regression. Both are reported
 regardless, which is where somebody should see them. A moved finding does not trip it either,
 because it was in `base`.
+
+**The head alone.** The pull request that adds a repository's first descriptor has nothing at its
+base to scan. `draugr diff head/results.sarif`, with no base report, compares the head against no
+findings, so every finding in it is new and `--fail-on-new` gates on them, and the report says there
+was no base. A base path that names no file is still an error. The GitHub Action and the GitLab and
+Azure DevOps templates diff the head alone when the base commit lacks the descriptor, so the first
+pull request that turns Draugr on is gated like any other.
 
 Where no gate is asked for, the report states no verdict. `draugr diff` without `--fail-on-new`
 compares and exits 0, and a verdict nobody asked for would be inventing one.

@@ -33,6 +33,9 @@ steps:
 That installs Draugr, provisions the scanners, scans, gates a pull request on what it introduced,
 and publishes findings to the Tests tab.
 
+A pull request that adds the repository's first descriptor has none on the target branch, and is
+compared against no findings instead: every finding is new and the gate applies to them.
+
 | Parameter | Default | |
 |---|---|---|
 | `saga` | `draugr.saga.yaml` | the descriptor to scan |

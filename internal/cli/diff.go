@@ -33,7 +33,7 @@ type diffOptions struct {
 func newDiffCommand() *cobra.Command {
 	opts := &diffOptions{}
 	cmd := &cobra.Command{
-		Use:   "diff <base.sarif> <head.sarif>",
+		Use:   "diff [base.sarif] <head.sarif>",
 		Short: "Compare two scans and classify findings as new, unaccepted, accepted, fixed or unchanged",
 		Long: "Compare two Draugr SARIF results (the results.sarif that `draugr scan -o` writes)\n" +
 			"and classify every finding as new / unaccepted / accepted / fixed / unchanged, the\n" +
@@ -41,10 +41,17 @@ func newDiffCommand() *cobra.Command {
 			"Accepted is a finding somebody excused rather than fixed. Unaccepted is one whose\n" +
 			"exclusion was removed or reached its expiry date, so it counts again; nobody\n" +
 			"introduced it and nothing about it was ever fixed.\n\n" +
+			"With the head report alone every finding is new, because there is no base to compare\n" +
+			"against. It is the form for the pull request that adds a repository's first descriptor.\n\n" +
 			"--fail-on-new gates on findings the change introduces, not on the existing backlog,\n" +
 			"and takes a priority band or a severity. Exits non-zero when that gate trips.",
-		Args: cobra.ExactArgs(2),
+		// One report is a head with no base to compare against: the pull request that adds the
+		// descriptor has nothing at its base to scan.
+		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 1 {
+				return runDiff(cmd.Context(), "", args[0], *opts, cmd.OutOrStdout())
+			}
 			return runDiff(cmd.Context(), args[0], args[1], *opts, cmd.OutOrStdout())
 		},
 	}
@@ -87,22 +94,33 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 		return err
 	}
 
-	base, err := loadSARIF(basePath)
-	if err != nil {
-		return fmt.Errorf("base report: %w", err)
+	// No base path is a head with nothing to compare against. A base path that names nothing is
+	// still an error: leaving the base out is a choice, and a missing file is a mistake.
+	noBase := basePath == ""
+	var base sarif.Report
+	if !noBase {
+		if base, err = loadSARIF(basePath); err != nil {
+			return fmt.Errorf("base report: %w", err)
+		}
 	}
 	head, err := loadSARIF(headPath)
 	if err != nil {
 		return fmt.Errorf("head report: %w", err)
 	}
-
-	if err := comparableScopes(basePath, base, headPath, head); err != nil {
-		return err
+	// With no base there is no scope to compare and nothing for a head finding to match.
+	var compared diff.Result
+	if noBase {
+		compared = diff.CompareWithoutBase(head)
+	} else {
+		if err := comparableScopes(basePath, base, headPath, head); err != nil {
+			return err
+		}
+		compared = diff.Compare(base, head)
 	}
 
 	// Narrowed after the comparison, never before it: a diff computed from filtered inputs reads
 	// every finding the filter removed as fixed.
-	result := diff.Compare(base, head).NarrowNew(opts.minPriority).OnlyRepository(opts.repository)
+	result := compared.NarrowNew(opts.minPriority).OnlyRepository(opts.repository)
 
 	// The gate travels with the result so every rendering states what the verdict was measured
 	// against, and so the verdict itself is computed once rather than in each format.

@@ -64,6 +64,11 @@ doctor saga.yaml --fail-on-uncovered` makes that a failing step instead of a not
 | `scan` | push / schedule | full scan; the Saga's publishers deliver results (e.g. `github` → code scanning) | `security-events: write` |
 | `diff` | pull request | scan base + head, post one sticky new/fixed comment (publishers suppressed) | `pull-requests: write`, `fetch-depth: 0` |
 
+A pull request that adds the repository's first descriptor has none at its base. Diff mode then
+compares the head against no findings, so every finding is new and `fail-on-new` gates on them. A
+pull request with no descriptor at the head fails with a message saying so, because there is nothing
+to scan.
+
 Prefer the single **`auto`** workflow above. It keeps code-scanning uploads off PRs, which is what
 avoids a second, overlapping PR comment. See [gate PRs on new findings](pr-diff.md) and [code
 scanning](code-scanning.md) for each mode in depth.

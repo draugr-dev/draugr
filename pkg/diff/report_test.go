@@ -762,3 +762,55 @@ func TestTheTerminalStatesTheGateAboveTheList(t *testing.T) {
 		t.Errorf("a diff with no gate states one:\n%s", b.String())
 	}
 }
+
+// With no base scan every finding active at the head is new, and each rendering says why rather
+// than leaving a reader to think the change introduced them.
+func TestNoBaseMakesEveryFindingNew(t *testing.T) {
+	head := sarif.Report{Results: []sarif.Result{
+		{RuleID: "aws-access-token", Level: sarif.LevelError, Priority: "P1", Tool: "gitleaks",
+			Location: sarif.Location{URI: "services/api/deploy/aws.env", StartLine: 1}},
+		{RuleID: "draugr-fixture-eval", Level: sarif.LevelError, Priority: "P3", Tool: "semgrep",
+			Location: sarif.Location{URI: "services/web/src/index.js", StartLine: 4}},
+		{RuleID: "excused", Level: sarif.LevelError, Priority: "P2", Tool: "semgrep",
+			Suppression: &sarif.Suppression{}, Location: sarif.Location{URI: "x.js", StartLine: 1}},
+	}}
+	r := CompareWithoutBase(head)
+	if !r.NoBase || len(r.New) != 2 || len(r.Fixed) != 0 || len(r.Unchanged) != 0 {
+		t.Fatalf("new %d, fixed %d, unchanged %d, flag %v; want the two active findings new",
+			len(r.New), len(r.Fixed), len(r.Unchanged), r.NoBase)
+	}
+	for _, format := range []string{"console", "markdown"} {
+		var b bytes.Buffer
+		if err := Render(&b, format, r, Options{}); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(b.String(), noBaseNote) {
+			t.Errorf("%s does not say the base had no descriptor:\n%s", format, b.String())
+		}
+	}
+	var b bytes.Buffer
+	if err := Render(&b, "json", r, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(b.String(), `"noBase": true`) {
+		t.Errorf("json does not carry the flag:\n%s", b.String())
+	}
+
+	// With no base nothing is unchanged, so the headline does not count it, and an empty head still
+	// has a headline.
+	if got := headline(r, false); slices.Contains(got, "0 unchanged") {
+		t.Errorf("headline = %v, counts unchanged with no base", got)
+	}
+	if got := headline(CompareWithoutBase(sarif.Report{}), false); len(got) != 1 || got[0] != "0 new" {
+		t.Errorf("headline of an empty head = %v", got)
+	}
+
+	// An ordinary comparison says none of it.
+	b.Reset()
+	if err := Render(&b, "markdown", Compare(head, head), Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(b.String(), noBaseNote) {
+		t.Errorf("an ordinary diff carries the note:\n%s", b.String())
+	}
+}

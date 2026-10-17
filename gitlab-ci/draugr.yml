@@ -120,8 +120,24 @@ draugr:
       # `url: .` resolves against the working directory, so naming the base's descriptor while
       # standing in the head checkout scans the head twice — and a diff of a tree against itself
       # reports no change and passes every gate. -o is absolute for the same reason.
-      ( cd "${DRAUGR_BASE_WORKTREE}" && draugr scan "${DRAUGR_SAGA}" \
-          -o "${CI_PROJECT_DIR}/draugr-base-out" --no-publish --no-gate )
+      #
+      # A merge request that adds the descriptor has none at the base, and is compared against no
+      # findings instead, so the first merge request that turns Draugr on is gated like any other.
+      base_report="${CI_PROJECT_DIR}/draugr-base-out/results.sarif"
+      no_base=""
+      if [ ! -e "${DRAUGR_BASE_WORKTREE}/${DRAUGR_SAGA}" ]; then
+        if draugr help diff 2>&1 | grep -qF '[base.sarif]'; then
+          echo "The merge base has no ${DRAUGR_SAGA}, so every finding at the head is new."
+          no_base=1
+          base_report=""
+        else
+          echo "The merge base has no ${DRAUGR_SAGA}. Comparing against no base needs a Draugr release whose diff takes the head report alone."
+        fi
+      fi
+      if [ -z "${no_base}" ]; then
+        ( cd "${DRAUGR_BASE_WORKTREE}" && draugr scan "${DRAUGR_SAGA}" \
+            -o "${CI_PROJECT_DIR}/draugr-base-out" --no-publish --no-gate )
+      fi
 
       gate=""
       if [ -n "${DRAUGR_FAIL_ON_NEW_PRIORITY:-}" ]; then
@@ -140,7 +156,7 @@ draugr:
       fi
       # --publish selects gitlab-mr-comment from the runner's own environment, and no-ops with an
       # explanation rather than an error when GITLAB_TOKEN is not set.
-      draugr diff "${CI_PROJECT_DIR}/draugr-base-out/results.sarif" draugr-out/results.sarif --publish ${gate} ${view}
+      draugr diff ${base_report} draugr-out/results.sarif --publish ${gate} ${view}
   artifacts:
     # A blocked merge request is exactly when a reviewer needs to see why, and reports produced
     # only on success are reports nobody reads.

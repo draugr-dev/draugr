@@ -129,6 +129,13 @@ func headline(r Result, emoji bool) []string {
 		}
 		parts = append(parts, part)
 	}
+	// With no base nothing can be unchanged, and a zero there would read as a measurement.
+	if r.NoBase {
+		if len(parts) == 0 {
+			parts = append(parts, "0 new")
+		}
+		return parts
+	}
 	return append(parts, fmt.Sprintf("%d unchanged", len(r.Unchanged)))
 }
 
@@ -248,6 +255,9 @@ func renderConsole(w io.Writer, r Result, opts Options) error {
 
 	writeBandRows(w, col, r)
 	writeGate(w, col, r)
+	if r.NoBase {
+		_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(tui.StyleMuted, noBaseNote+"."))
+	}
 
 	entries := r.Changed()
 	switch {
@@ -585,7 +595,13 @@ func writeMarkdownVerdict(w io.Writer, r Result) {
 	if r.Gate.Stated() {
 		_, _ = fmt.Fprintf(w, "_Gate: %s._\n\n", r.Gate.Sentence())
 	}
+	if r.NoBase {
+		_, _ = fmt.Fprintf(w, "_%s._\n\n", noBaseNote)
+	}
 }
+
+// noBaseNote says why every finding is new when there is no base scan.
+const noBaseNote = "Base: none, so every finding is new"
 
 // writeMarkdownBands is the terminal's band strips as lines of a comment, each only where it
 // has something in it. A bold count stands in for the terminal's filled chip.
@@ -689,6 +705,8 @@ type jsonDiff struct {
 	New     []sarif.Result `json:"new"`
 	Fixed   []sarif.Result `json:"fixed"`
 	Moved   []jsonMove     `json:"moved"`
+	// NoBase is present, and true, when there was no base scan to compare against.
+	NoBase bool `json:"noBase,omitempty"`
 }
 
 // jsonMove is a finding as head has it, with the component and band it had in base.
@@ -717,9 +735,10 @@ func renderJSON(w io.Writer, r Result) error {
 			NewBySeverity: countSeverities(r.New), FixedBySeverity: countSeverities(r.Fixed),
 			NewByPriority: countPriorities(r.New), FixedByPriority: countPriorities(r.Fixed),
 		},
-		New:   r.New,
-		Fixed: r.Fixed,
-		Moved: make([]jsonMove, 0, len(r.Moved)),
+		New:    r.New,
+		Fixed:  r.Fixed,
+		Moved:  make([]jsonMove, 0, len(r.Moved)),
+		NoBase: r.NoBase,
 	}
 	for _, m := range r.Moved {
 		doc.Moved = append(doc.Moved, jsonMove{Finding: m.Result, FromComponent: m.Was.Component, FromPriority: m.Was.Priority})

@@ -75,6 +75,9 @@ the backlog it inherited, so a project with two hundred existing findings is not
 merge request. `DRAUGR_DIFF_VIEW` decides what the comment says. See [gate PRs on new
 findings](pr-diff.md) for what the states mean and how findings are matched across two scans.
 
+A merge request that adds the project's first descriptor has none at the merge base, and is compared
+against no findings instead: every finding is new and the gate applies to them.
+
 **On the default branch** it scans the whole descriptor and applies the descriptor's own gate.
 
 Both publish GitLab's own reports as artifacts.

@@ -111,7 +111,23 @@ steps:
           # gate. Without it the base scan's FAIL — which any repository with a backlog
           # produces — takes the step down before the comparison runs.
           git checkout -q --detach "origin/$target"
-          draugr scan "${{ parameters.saga }}" --no-gate --report sarif -o "$(Pipeline.Workspace)/draugr-base"
+          # A pull request that adds the descriptor has none at the base, and is compared against
+          # no findings instead, so the first pull request that turns Draugr on is gated like any
+          # other.
+          base_report="$(Pipeline.Workspace)/draugr-base/results.sarif"
+          no_base=""
+          if [ ! -e "${{ parameters.saga }}" ]; then
+            if draugr help diff 2>&1 | grep -qF '[base.sarif]'; then
+              echo "The target branch has no ${{ parameters.saga }}, so every finding at the head is new."
+              no_base=1
+              base_report=""
+            else
+              echo "##vso[task.logissue type=warning]The target branch has no ${{ parameters.saga }}. Comparing against no base needs a Draugr release whose diff takes the head report alone."
+            fi
+          fi
+          if [ -z "$no_base" ]; then
+            draugr scan "${{ parameters.saga }}" --no-gate --report sarif -o "$(Pipeline.Workspace)/draugr-base"
+          fi
 
           # A pull-request build checks out refs/pull/N/merge, which is on no branch, so
           # `git checkout -` cannot find its way home.
@@ -133,8 +149,8 @@ steps:
               echo "##vso[task.logissue type=warning]diffView needs a Draugr release with 'diff --view'; this one is older, so the comment lists findings."
             fi
           fi
-          # shellcheck disable=SC2086 # gate and view are deliberate word-splits, empty when unset
-          draugr diff "$(Pipeline.Workspace)/draugr-base/results.sarif" \
+          # shellcheck disable=SC2086 # base_report, gate and view are deliberate word-splits, empty when unset
+          draugr diff $base_report \
                       "$(Pipeline.Workspace)/draugr-head/results.sarif" \
                       --publish $gate $view
         displayName: Gate on new findings
