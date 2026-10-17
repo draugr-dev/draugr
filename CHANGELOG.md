@@ -16,9 +16,9 @@ _Nothing yet._
 
 ### Added
 
-- **A run that refreshed scanner data says so.** When the refresh took five seconds or more and at least a quarter of the run, the header reads `15.988s · 6.2s refreshing scanner data`. `--evidence` names each refresh and how long it took, the progress display names one running past a second, and `report.json` records every refresh under `stats.dataRefresh`.
+- **See how much of a run went to refreshing scanner data.** When refreshing takes five seconds or more and at least a quarter of the run, the header reads `15.988s · 6.2s refreshing scanner data`. `--evidence` lists each refresh of a second or more, the progress line names a refresh once it has run a second, and `report.json` records every refresh under `stats.dataRefresh`.
 
-- **See how current each scanner's data is.** `draugr scan --evidence` and `draugr doctor` list the date each Trivy, Grype, Nuclei and retire.js data source was downloaded to this machine and, where the tool records it, the date its publisher built it. A copy the tool will not use is marked `refused as too old`. `report.json` carries the same under `scannerData`.
+- **See how current each scanner's data is.** `draugr scan --evidence` and `draugr doctor` list when each Trivy, Grype, Nuclei and retire.js data source was downloaded and, where the tool records it, published. A copy the tool will not use is marked `refused as too old`. `report.json` carries the same under `scannerData`.
 
 ## [0.151.0] - 2026-10-11
 
