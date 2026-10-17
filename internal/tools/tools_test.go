@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -321,5 +322,23 @@ func TestNucleiTemplatesAsksTheDirectory(t *testing.T) {
 				t.Errorf("NucleiTemplatesOK = (%v, %q), want (%v, %q)", ok, describe, c.present, c.describe)
 			}
 		})
+	}
+}
+
+// The mark classifies an error without changing its text, and the cause stays reachable.
+func TestRuntimeMissingKeepsTheMessageAndTheCause(t *testing.T) {
+	cause := os.ErrNotExist
+	err := RuntimeMissing(fmt.Errorf("no `go` is on PATH: %w", cause))
+	if err.Error() != "no `go` is on PATH: file does not exist" {
+		t.Errorf("message changed: %q", err)
+	}
+	if !errors.Is(err, ErrRuntimeMissing) {
+		t.Error("not classified as a missing runtime")
+	}
+	if !errors.Is(err, cause) {
+		t.Error("the cause is no longer reachable")
+	}
+	if errors.Is(fmt.Errorf("no `go` is on PATH: %w", cause), ErrRuntimeMissing) {
+		t.Error("an unmarked error classified as a missing runtime")
 	}
 }
