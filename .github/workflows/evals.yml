@@ -51,8 +51,8 @@ concurrency:
 
 env:
   GO_VERSION: "1.26.9"
-  EVAL_MODEL: claude-sonnet-5
-  JUDGE_MODEL: claude-haiku-4-5
+  EVAL_MODEL: claude-sonnet-5-5
+  JUDGE_MODEL: claude-haiku-5-5
 
 jobs:
   evals:

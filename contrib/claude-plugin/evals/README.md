@@ -32,7 +32,7 @@ export ANTHROPIC_API_KEY=...
 PATH="$(git rev-parse --show-toplevel)/bin:$HOME/.draugr/bin:$PATH" claude plugin eval . \
   --trust-plugin --scaffold --mocks off \
   --allow-tools "mcp__plugin_draugr_draugr__*" Write \
-  --ablation none --model claude-sonnet-5 --judge-model claude-haiku-4-5 \
+  --ablation none --model claude-sonnet-5-5 --judge-model claude-haiku-5-5 \
   --threshold 0.8 --runs 1 --max-cost-usd 2 --no-publish
 ```
 
