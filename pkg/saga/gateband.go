@@ -77,9 +77,8 @@ func gateSeverityWords() []string {
 // Resolved is the gate this block asks for, from whichever spelling it was written in.
 //
 // One accessor, because reading the older field is the whole point of keeping it and every caller
-// doing it themselves is a caller that will forget the new one. That has already happened once:
-// a reader of `failOnPriority` alone reported no gate at all for a descriptor that had written the
-// band in `failOn`.
+// doing it themselves is a caller that will forget the new one: a reader of `failOnPriority` alone
+// would report no gate at all for a descriptor that writes the band in `failOn`.
 //
 // Validation refuses both together, so precedence here only decides what a descriptor that never
 // reaches validation gets, and the current spelling wins.

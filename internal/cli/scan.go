@@ -1087,7 +1087,7 @@ func toolBuilds(ctx context.Context, run engine.Result) []report.ToolBuild {
 	for _, name := range run.Scanners {
 		// The registry is the only thing that maps a scanner to its executable. A finding's Tool is the
 		// SARIF driver name the tool gives itself, "Trivy" for trivy-fs, so matching on it finds
-		// nothing, which is exactly what the first version of this did.
+		// no binary and the report would name no build at all.
 		if sc, ok := builtins.Registry().Scanner(name); ok {
 			if b := sc.Info().Binary; b != "" {
 				binaries[b] = true
