@@ -1,0 +1,1 @@
+- **Remove the tools Draugr installed.** `draugr tools uninstall` takes the tools you name, or `--all`, and removes each binary from `~/.draugr/bin` with its Python or Node environment and its data, after showing a plan with the space each takes. A copy installed any other way stays. `--caches` also removes the tools' own caches, such as Trivy's and Grype's databases.

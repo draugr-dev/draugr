@@ -1540,6 +1540,49 @@ owns (`~/.draugr/venv/semgrep`), with every artifact in the resolved tree matche
 recorded in this build, dependencies included. It needs **Python 3.10 or newer**; `doctor` says so
 when it is missing. `git` is expected from your system.
 
+### `draugr tools uninstall [tool...]`
+
+Remove tools `draugr tools install` put on this machine: the binary in `~/.draugr/bin`, the Python
+or Node environment beside it, and the data Draugr keeps for the tool under `~/.draugr/data`. A
+copy installed any other way is left where it is, and the line for it says where it was found.
+
+Each tool's own cache stays unless `--caches` is given: Trivy's and Grype's vulnerability
+databases, Nuclei's templates, and the smaller ones Syft, Notation, Semgrep and cosign keep. They
+sit at the tool's default location, or where `TRIVY_CACHE_DIR` or `GRYPE_DB_CACHE_DIR` moves it,
+so removing them also empties the cache of any other install of the same tool. `~/.draugr/feeds` is not a tool's, and
+[`draugr feeds`](#draugr-feeds) manages it.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--all` | `false` | Remove every tool Draugr installed |
+| `--caches` | `false` | Also remove each tool's own cache |
+| `-y, --yes` | `false` | Skip the confirmation prompt |
+| `--dry-run` | `false` | Print the plan and exit |
+
+```bash
+draugr tools uninstall trivy             # one tool
+draugr tools uninstall --all --dry-run   # what removing everything would free
+draugr tools uninstall --all --caches    # every tool and its cache
+```
+
+```console
+$ draugr tools uninstall retire semgrep trivy --dry-run
+PLAN
+  Tool     Version  Size  Also removes
+  retire   5.7.0    10M   node env, data 431K
+  semgrep  1.177.0  347M  python env
+  trivy    0.74.0   161M
+
+3 tools to remove from /home/you/.draugr, 518M.
+The tools' own caches stay (semgrep 94B, trivy 2.9G). `--caches` removes them too.
+
+(dry run, nothing removed)
+```
+
+It asks for confirmation when run interactively, proceeds without asking otherwise, and `--yes`
+skips the prompt. It exits non-zero when any named tool was not removed, and running it again
+retries that tool. A removed cache refills on the tool's next run.
+
 ### `draugr tools list`
 
 Show every tool Draugr knows about: its **category** (scanner/utility), the **controls** it

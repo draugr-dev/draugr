@@ -243,11 +243,7 @@ func retireJSArgs(dir string, _ plugin.Config) []string {
 // directory, in which case retire.js uses its own default rather than the scan failing over a
 // cache location.
 func retireCacheDir() string {
-	root, err := tools.DataRoot()
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(root, "retirejs")
+	return tools.ScanDataDir("retire")
 }
 
 // retireCache is retireCacheDir, created. retire.js makes the last directory of --cachedir and not

@@ -31,6 +31,7 @@ func newToolsCommand() *cobra.Command {
 			"Installs are opt-in and checksum-verified. A scan never downloads anything.",
 	}
 	cmd.AddCommand(newToolsInstallCommand())
+	cmd.AddCommand(newToolsUninstallCommand())
 	cmd.AddCommand(newToolsListCommand())
 	cmd.AddCommand(newToolsOutdatedCommand())
 	return cmd

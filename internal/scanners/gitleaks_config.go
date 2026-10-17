@@ -73,11 +73,11 @@ func gitleaksConfigFor(userConfig string) (string, error) {
 
 // gitleaksConfigDir is where the composed ruleset lives.
 func gitleaksConfigDir() (string, error) {
-	root, err := tools.DataRoot()
-	if err != nil {
-		return "", fmt.Errorf("gitleaks config dir: %w", err)
+	dir := tools.ScanDataDir("gitleaks")
+	if dir == "" {
+		return "", fmt.Errorf("gitleaks config dir: no home directory")
 	}
-	return filepath.Join(root, "gitleaks"), nil
+	return dir, nil
 }
 
 // configFingerprint names a composed configuration by its content.
