@@ -1,0 +1,1 @@
+- **The pull request that adds a repository's first descriptor is gated like any other.** `draugr diff` takes the head report alone and treats every finding in it as new. The GitHub Action and the GitLab and Azure DevOps templates use it when the base commit has no descriptor, where the diff used to stop with no base report to open.

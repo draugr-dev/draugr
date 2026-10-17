@@ -61,6 +61,18 @@ type Result struct {
 	// Tripped is the new findings that met the gate. Empty where none did, and where no gate was
 	// asked for at all, which are different states the Gate itself tells apart.
 	Tripped []sarif.Result
+	// NoBase marks a comparison with no base scan, as for the pull request that adds the
+	// descriptor. Every finding at the head is then new, which a reader would otherwise take for a
+	// change that introduced all of them.
+	NoBase bool
+}
+
+// CompareWithoutBase is the comparison with no base scan: nothing at the base, so every finding
+// active in head is new.
+func CompareWithoutBase(head sarif.Report) Result {
+	r := Compare(sarif.Report{}, head)
+	r.NoBase = true
+	return r
 }
 
 // Move is a finding in a different component in the head from the one it had in the base: the

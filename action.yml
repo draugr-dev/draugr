@@ -386,6 +386,14 @@ runs:
         # Head = current checkout (this step's working-directory).
         draugr scan "$INPUT_SAGA" -o "$head_out" "${scan_common[@]}" || true
 
+        # No descriptor at the head leaves no head report, from a pull request that deletes it or
+        # from a saga input naming the wrong path. Said here, before the base is scanned, rather
+        # than left to the diff failing to open a file that does not exist.
+        if [ ! -e "$head_out/results.sarif" ] && [ ! -e "$INPUT_SAGA" ]; then
+          echo "::error::${INPUT_SAGA} is missing at the head, so there is nothing to scan or diff. If this pull request deletes it, remove the Draugr step in the same change; otherwise check the saga and working-directory inputs."
+          exit 1
+        fi
+
         # Base = the PR target commit, scanned in a detached worktree.
         git fetch --no-tags --depth 1 origin "$BASE_SHA" 2>/dev/null || true
         # A runner that keeps its checkout between jobs keeps the worktree registration too, while
@@ -394,10 +402,28 @@ runs:
         # path is free whatever the last job on this machine did.
         git worktree prune
         git worktree add --detach "$worktree" "$BASE_SHA"
-        ( cd "$worktree/$wd" && draugr scan "$INPUT_SAGA" -o "$base_out" "${scan_common[@]}" ) || true
+        # The base as `draugr diff` reads it: a scan, or, for the pull request that adds the
+        # descriptor, nothing to scan. Without the second, the first pull request that turns Draugr
+        # on is the one place the gate cannot run, because there is no base report to open.
+        base_report=("$base_out/results.sarif")
+        no_base=""
+        if [ ! -e "$worktree/$wd/$INPUT_SAGA" ]; then
+          # Asked for rather than assumed, like the flags below: the binary may predate a diff of the
+          # head alone.
+          if draugr help diff 2>&1 | grep -qF '[base.sarif]'; then
+            echo "::notice::The base commit has no ${INPUT_SAGA}, so every finding at the head is new."
+            no_base=1
+            base_report=()
+          else
+            echo "::warning::The base commit has no ${INPUT_SAGA}. Comparing against no base needs a Draugr release whose diff takes the head report alone; this one is older, so the diff has no base report to read."
+          fi
+        fi
+        if [ -z "$no_base" ]; then
+          ( cd "$worktree/$wd" && draugr scan "$INPUT_SAGA" -o "$base_out" "${scan_common[@]}" ) || true
+        fi
         git worktree remove --force "$worktree" 2>/dev/null || true
 
-        diff_args=("$base_out/results.sarif" "$head_out/results.sarif" --publish)
+        diff_args=("${base_report[@]}" "$head_out/results.sarif" --publish)
         [ -n "$INPUT_FAIL_ON_NEW" ]          && diff_args+=(--fail-on-new "$INPUT_FAIL_ON_NEW")
         [ -n "$INPUT_FAIL_ON_NEW_PRIORITY" ] && diff_args+=(--fail-on-new-priority "$INPUT_FAIL_ON_NEW_PRIORITY")
         # Asked for rather than assumed, the same way --format sarif is below: `version` lets a
@@ -428,7 +454,7 @@ runs:
             # The band narrows the diff, never the scans it was computed from. A diff taken from
             # filtered inputs reads every finding the filter removed as fixed, so the two scans
             # above deliberately run complete whatever this is set to.
-            new_args=("$base_out/results.sarif" "$head_out/results.sarif" --format sarif)
+            new_args=("${base_report[@]}" "$head_out/results.sarif" --format sarif)
             [ -n "$INPUT_CODE_SCANNING_MIN_PRIORITY" ] && new_args+=(--min-priority "$INPUT_CODE_SCANNING_MIN_PRIORITY")
             # Only what this repository's checkout can anchor. A Saga may describe several
             # repositories, its own components, or ones a `fragments:` entry contributes from

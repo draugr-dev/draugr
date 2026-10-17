@@ -248,6 +248,39 @@ The three templates gate a merge request on new findings with nothing to set up,
 by default. Scanning both sides by hand is where to start anywhere else. What to do about the second scan is
 the next section, because the answer is usually not the artifact.
 
+### When the base has no descriptor
+
+The pull request that adds a repository's first descriptor has nothing at its base to scan. Given
+the head report alone, `draugr diff` compares it against no findings, so every finding is new and
+the gate applies to them:
+
+```console
+$ draugr diff head/results.sarif --fail-on-new P1 --view compact
+DRAUGR DIFF  FAIL  4 new
+
+ new  3 P1 0 P2 1 P3 0 P4
+
+Gate: fails on any P1 this change introduces.
+
+Base: none, so every finding is new.
+
+CHANGED  4, by priority
+  Change  Priority  Severity  Rule                 Scanner      Component  Location
+  + new   P1        high      aws-access-token     gitleaks     api        services/api/deploy/aws.env:1
+  + new   P1        high      aws-access-token     gitleaks     web        services/web/deploy/aws.env:1
+  + new   P1        high      draugr-fixture-eval  Semgrep OSS  api        services/api/src/index.js:4
+  + new   P3        high      draugr-fixture-eval  Semgrep OSS  web        services/web/src/index.js:4
+
+TRY
+  --view actions     the same findings as a list of things to do
+  --format markdown  the comment a pull request gets
+```
+
+The three templates diff the head alone when the base commit has no descriptor. A pull request with
+no descriptor at the head fails, because there is nothing to scan: the GitHub Action with a message
+naming the missing descriptor, and the GitLab and Azure DevOps templates with the scan's own error,
+`draugr.saga.yaml does not exist`.
+
 ## Do not pay for the base scan twice
 
 Scanning the base on every pull request is the honest way to get a comparable pair, and it is also

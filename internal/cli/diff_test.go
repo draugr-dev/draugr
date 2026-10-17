@@ -331,3 +331,40 @@ func TestDiffTakesEitherVocabulary(t *testing.T) {
 		t.Error("a word in neither vocabulary was accepted")
 	}
 }
+
+// The head alone is a diff with no base: every finding in it is new, and the gate applies to them
+// as it would to any change. A base path that names nothing is still an error.
+func TestDiffWithTheHeadAloneGatesEveryFinding(t *testing.T) {
+	head := writeFile(t, "head.sarif", sarifDoc("CVE-2", "error", "img", "P1"))
+	var out bytes.Buffer
+	opts := diffOptions{format: "markdown", failOnNew: "P1"}
+	err := runDiff(context.Background(), "", head, opts, &out)
+	if err == nil || !strings.Contains(err.Error(), "1 new finding") {
+		t.Errorf("err = %v, want the gate tripped on the head's P1", err)
+	}
+	if !strings.Contains(out.String(), "Base: none") {
+		t.Errorf("the comment does not say why everything is new:\n%s", out.String())
+	}
+
+	out.Reset()
+	cmd := newDiffCommand()
+	cmd.SetArgs([]string{head})
+	cmd.SetOut(&out)
+	if err := cmd.Execute(); err != nil || !strings.Contains(out.String(), "1 new") {
+		t.Errorf("err = %v, out:\n%s", err, out.String())
+	}
+	cmd = newDiffCommand()
+	cmd.SetArgs([]string{filepath.Join(t.TempDir(), "gone.sarif"), head})
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "base report") {
+		t.Errorf("a base path that names nothing: err = %v", err)
+	}
+	cmd = newDiffCommand()
+	cmd.SetArgs([]string{})
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	if err := cmd.Execute(); err == nil {
+		t.Error("no reports at all was accepted")
+	}
+}
