@@ -62,6 +62,13 @@
   "release": {
     "version": "1.0"
   },
+  "scannerData": [
+    {
+      "data": "template set",
+      "downloaded": "<cleared>",
+      "tool": "nuclei"
+    }
+  ],
   "scanners": [
     {
       "name": "nuclei"

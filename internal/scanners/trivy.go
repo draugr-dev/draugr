@@ -94,6 +94,7 @@ func NewTrivy() plugin.Scanner {
 		Parse:        parseTrivyImage,
 		CacheVersion: sharedTrivyVersion.cacheVersion,
 		Prewarm:      sharedTrivyDB.warm,
+		DataState:    sharedTrivyData.database,
 		Refine:       imageRefLocations,
 	})
 }
@@ -117,6 +118,7 @@ func NewTrivyFS() plugin.Scanner {
 	)
 	s.cacheVersion = sharedTrivyVersion.cacheVersion
 	s.prewarm = sharedTrivyDB.warm
+	s.dataState = sharedTrivyData.database
 	s.run = retryingRunInDir("trivy", s.run)
 	s.accounts = true
 	return s

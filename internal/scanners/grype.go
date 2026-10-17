@@ -57,6 +57,7 @@ func NewGrype() plugin.Scanner {
 		Parse:        parseGrypeImageSARIF,
 		CacheVersion: sharedGrypeVersion.cacheVersion,
 		Prewarm:      sharedGrypeDB.warm,
+		DataState:    sharedGrypeData.database,
 		Refine:       imageRefLocations,
 	})
 }
@@ -79,6 +80,7 @@ func NewGrypeFS() plugin.Scanner {
 	)
 	s.cacheVersion = sharedGrypeVersion.cacheVersion
 	s.prewarm = sharedGrypeDB.warm
+	s.dataState = sharedGrypeData.database
 	s.run = func(ctx context.Context, dir string, argv []string) ([]byte, error) {
 		return runGrypeRecordingExclusions(func(a []string) ([]byte, error) { return grypeRunInDir(ctx, dir, a) }, dir, argv)
 	}

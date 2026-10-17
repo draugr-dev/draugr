@@ -45,6 +45,7 @@ func NewRetireJS() plugin.Scanner {
 	)
 	s.cacheVersion = sharedRetireJSVersion.version
 	s.prewarm = sharedRetireJSRepo.warm
+	s.dataState = retireData
 	s.run = retireRun(execArgvInDir)
 	return s
 }

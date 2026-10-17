@@ -99,6 +99,15 @@
   "release": {
     "version": "1.0"
   },
+  "scannerData": [
+    {
+      "data": "vulnerability database",
+      "downloaded": "<cleared>",
+      "published": "<cleared>",
+      "tool": "grype",
+      "version": "<cleared>"
+    }
+  ],
   "scanners": [
     {
       "name": "grype",

@@ -213,3 +213,14 @@ func TestAdapterDefaultRunReportsAFailingTool(t *testing.T) {
 		t.Errorf("the error should name the tool, got: %v", err)
 	}
 }
+
+func TestAdapterDataState(t *testing.T) {
+	if got := New(Config{Name: "trivy", Argv: imageArgv}).DataState(context.Background()); got != nil {
+		t.Errorf("unset DataState should report nothing, got %+v", got)
+	}
+	want := []plugin.DataState{{Name: "vulnerability database", Version: "schema 2"}}
+	a := New(Config{Name: "trivy", Argv: imageArgv, DataState: func(context.Context) []plugin.DataState { return want }})
+	if got := a.DataState(context.Background()); len(got) != 1 || got[0] != want[0] {
+		t.Errorf("DataState = %+v, want %+v", got, want)
+	}
+}

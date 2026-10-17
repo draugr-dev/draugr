@@ -103,6 +103,15 @@
       "url": "./negative-mistyped-path"
     }
   ],
+  "scannerData": [
+    {
+      "data": "vulnerability database",
+      "downloaded": "<cleared>",
+      "published": "<cleared>",
+      "tool": "trivy",
+      "version": "<cleared>"
+    }
+  ],
   "scanners": [
     {
       "name": "gitleaks",

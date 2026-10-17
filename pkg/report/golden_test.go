@@ -334,6 +334,13 @@ func goldenEvidenceData() Data {
 		{Name: "semgrep", Version: "1.169.0", Level: "external",
 			Reason: "found on PATH; Draugr can install a pinned build"},
 	}
+	d.Run.Stats.Data = []engine.ScannerData{
+		{Tool: "trivy", DataState: plugin.DataState{Name: "vulnerability database", Version: "schema 2",
+			Published:  time.Date(2026, 10, 10, 18, 59, 50, 0, time.UTC),
+			Downloaded: time.Date(2026, 10, 11, 0, 2, 0, 0, time.UTC)}},
+		{Tool: "retire", DataState: plugin.DataState{Name: "advisory database",
+			Downloaded: time.Date(2026, 10, 11, 15, 38, 29, 0, time.UTC)}},
+	}
 	return d
 }
 

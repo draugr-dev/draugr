@@ -46,6 +46,8 @@ type repoScanner struct {
 	// prewarm, when set, warms shared tool state before a run (see plugin.Prewarmer). Nil for
 	// scanners with nothing to warm.
 	prewarm func(ctx context.Context) error
+	// dataState reports the state of the data the tool reads, when one is wired.
+	dataState func(ctx context.Context) []plugin.DataState
 	// preflight, when set, runs before the checkout and refuses the scan with its error. For a
 	// scanner that can tell before running that it has nothing trustworthy to read, which is better
 	// reported as "could not run" than discovered in its output. It receives the job's config, for a
@@ -192,6 +194,15 @@ func (s repoScanner) Prewarm(ctx context.Context) error {
 		return nil
 	}
 	return s.prewarm(ctx)
+}
+
+// DataState reports the state of the tool's data, when a reader is wired (implements
+// plugin.DataStater). Nil otherwise.
+func (s repoScanner) DataState(ctx context.Context) []plugin.DataState {
+	if s.dataState == nil {
+		return nil
+	}
+	return s.dataState(ctx)
 }
 
 func newRepoScanner(info plugin.ScannerInfo, args func(string, plugin.Config) []string) repoScanner {

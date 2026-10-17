@@ -69,6 +69,9 @@ type doctorRun struct {
 	requirePolicy bool
 	scope         engine.Scope
 	probes        preflight.Probes
+	// data reads the state of the scanners' data. Set by the command; nil reads none, so a test
+	// asks no tool on the machine running it.
+	data func(context.Context, *engine.Registry, *saga.Model) []engine.ScannerData
 }
 
 func newDoctorCommand() *cobra.Command {
@@ -104,6 +107,7 @@ func newDoctorCommand() *cobra.Command {
 			run := doctorRun{
 				json: opts.json, failOnUncovered: opts.failOnUncovered, strict: opts.strict,
 				reach: true, offline: opts.offline || netpolicy.Offline(), requirePolicy: opts.requirePolicy,
+				data: doctorData,
 				scope: engine.Scope{
 					Components: opts.components, Controls: opts.controls, Labels: opts.labels,
 					Exposure: exposures(opts.exposure), Criticality: criticalities(opts.criticality),
@@ -169,7 +173,7 @@ func runDoctor(
 		loaded, err := doctorLoad(ctx, sagaPath, run.reach, run.offline)
 		if err != nil {
 			if run.json {
-				_ = writeDoctorJSON(w, dv, &descriptorReport{Path: sagaPath, Valid: false, Error: err.Error()}, nil, nil, nil, nil)
+				_ = writeDoctorJSON(w, dv, &descriptorReport{Path: sagaPath, Valid: false, Error: err.Error()}, nil, nil, nil, nil, nil)
 			} else {
 				col := tui.For(w)
 				// The reason is carried by the error, which the CLI prints. Written here too it
@@ -237,12 +241,17 @@ func runDoctor(
 		}
 	}
 
+	var data []engine.ScannerData
+	if run.data != nil {
+		data = run.data(ctx, reg, model)
+	}
+
 	if run.json {
 		var desc *descriptorReport
 		if sagaPath != "" {
 			desc = &descriptorReport{Path: sagaPath, Valid: true}
 		}
-		if err := writeDoctorJSON(w, dv, desc, statuses, uncovered, checks, orgPolicy); err != nil {
+		if err := writeDoctorJSON(w, dv, desc, statuses, uncovered, checks, orgPolicy, data); err != nil {
 			return err
 		}
 	} else {
@@ -252,6 +261,7 @@ func runDoctor(
 				col.Paint(tui.StylePass, "✓ valid"), col.Paint(tui.StyleMuted, "("+sagaPath+")"))
 		}
 		writeDoctorTable(w, statuses)
+		writeDoctorData(w, data)
 		if len(checks) > 0 {
 			writeTargetChecks(w, checks)
 		}
@@ -621,6 +631,43 @@ func untestedVersion(st tools.Status) string {
 	return pin
 }
 
+// doctorData is the state of the data each scanner in use reads, or every registered scanner's
+// with no descriptor, as the tools report it from what is on disk. Nothing is downloaded.
+func doctorData(ctx context.Context, reg *engine.Registry, model *saga.Model) []engine.ScannerData {
+	if reg == nil {
+		return nil
+	}
+	scanners := reg.Scanners()
+	if model != nil {
+		scanners = scanners[:0:0]
+		for _, info := range scannersInUse(reg, model) {
+			if sc, ok := reg.Scanner(info.Name); ok {
+				scanners = append(scanners, sc)
+			}
+		}
+	}
+	return engine.DataStates(ctx, scanners)
+}
+
+// writeDoctorData lists each data source in the words the scan's evidence block uses, so the two
+// answers read alike. Nothing when no scanner reports one.
+func writeDoctorData(w io.Writer, data []engine.ScannerData) {
+	var lines []string
+	for _, d := range data {
+		if l := report.DataSourceState(d); l != "" {
+			lines = append(lines, l)
+		}
+	}
+	if len(lines) == 0 {
+		return
+	}
+	col := tui.For(w)
+	_, _ = fmt.Fprintf(w, "\n%s\n", doctorHeading(col, "Data"))
+	for _, l := range lines {
+		_, _ = fmt.Fprintf(w, "  %s\n", l)
+	}
+}
+
 type descriptorReport struct {
 	Path  string `json:"path"`
 	Valid bool   `json:"valid"`
@@ -686,7 +733,7 @@ type toolReport struct {
 
 func writeDoctorJSON(
 	w io.Writer, dv draugrReport, desc *descriptorReport, statuses []tools.Status, uncovered []string,
-	checks []preflight.Check, policy *skald.PolicyCheck,
+	checks []preflight.Check, policy *skald.PolicyCheck, data []engine.ScannerData,
 ) error {
 	report := struct {
 		Draugr     draugrReport      `json:"draugr"`
@@ -702,9 +749,12 @@ func writeDoctorJSON(
 		// Policy is the organization's policy check, absent where the descriptor publishes to no
 		// draugr-api server.
 		Policy *skald.PolicyCheck `json:"policy,omitempty"`
+		// Data is the state of each data source the scanners read, in report.json's scannerData
+		// form.
+		Data []skald.ScannerData `json:"data,omitempty"`
 	}{
 		Draugr: dv, Descriptor: desc, Tools: make([]toolReport, 0, len(statuses)),
-		UncoveredSurfaces: uncovered, Targets: checks, Policy: policy,
+		UncoveredSurfaces: uncovered, Targets: checks, Policy: policy, Data: skald.ScannerDataFrom(data),
 	}
 
 	for _, st := range statuses {

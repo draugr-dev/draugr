@@ -71,6 +71,11 @@ type jsonReport struct {
 	// Exploitability names the datasets that enriched this run's severities, so a report can
 	// be checked against the data it was computed from. Absent when no enrichment ran.
 	Exploitability []FeedProvenance `json:"exploitability,omitempty"`
+	// ScannerData is the state of each data source the run's scanners read: the tool, the data,
+	// its version, when its publisher built it and when this machine downloaded it, as the tools
+	// report them. Beside Exploitability because both answer how current the data behind a finding
+	// was. Absent when no scanner reports its data.
+	ScannerData []ScannerData `json:"scannerData,omitempty"`
 	// Reachability summarizes what reachability analysis concluded, so a consumer can see the
 	// analysis ran and how much of it landed. Absent when none ran.
 	Reachability *reachabilityInfo `json:"reachability,omitempty"`
@@ -652,6 +657,7 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 		Actions:       prov.Actions,
 		Policy:        prov.Policy,
 		FailedCaveats: prov.FailedCaveats,
+		ScannerData:   ScannerDataFrom(run.Stats.Data),
 		Stats: statsInfo{
 			Jobs:        run.Stats.Jobs,
 			Scans:       run.Stats.Scans,
@@ -1089,6 +1095,39 @@ func dataRefreshFrom(rs []engine.DataRefresh) []dataRefresh {
 	}
 	if len(out) == 0 {
 		return nil
+	}
+	return out
+}
+
+// ScannerData is one data source a run read, as report.json and `draugr doctor --json` write it. A
+// time a tool does not report is absent rather than written as some other time.
+type ScannerData struct {
+	Tool       string     `json:"tool"`
+	Data       string     `json:"data"`
+	Version    string     `json:"version,omitempty"`
+	Published  *time.Time `json:"published,omitempty"`
+	Downloaded *time.Time `json:"downloaded,omitempty"`
+	TooOld     string     `json:"tooOld,omitempty"`
+}
+
+// ScannerDataFrom is the written form of each data source, nil for none.
+func ScannerDataFrom(ds []engine.ScannerData) []ScannerData {
+	if len(ds) == 0 {
+		return nil
+	}
+	at := func(t time.Time) *time.Time {
+		if t.IsZero() {
+			return nil
+		}
+		t = t.UTC()
+		return &t
+	}
+	out := make([]ScannerData, 0, len(ds))
+	for _, d := range ds {
+		out = append(out, ScannerData{
+			Tool: d.Tool, Data: d.Name, Version: d.Version,
+			Published: at(d.Published), Downloaded: at(d.Downloaded), TooOld: d.TooOld,
+		})
 	}
 	return out
 }

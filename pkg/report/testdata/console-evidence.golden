@@ -53,6 +53,8 @@ EVIDENCE
   unverified  semgrep 1.169.0 · found on PATH; Draugr can install a pinned build
   run         11 jobs in 34.5s, 8 at a time · 4 from cache
   sbom        2 documents (spdx-json)
+  data        trivy vulnerability database published 2026-10-10, downloaded 2026-10-11 · retire advisory
+              database downloaded 2026-10-11
   gate        fails on P1
 
 TRY

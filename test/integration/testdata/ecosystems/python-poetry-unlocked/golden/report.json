@@ -53,6 +53,15 @@
       "url": "./python-poetry-unlocked"
     }
   ],
+  "scannerData": [
+    {
+      "data": "vulnerability database",
+      "downloaded": "<cleared>",
+      "published": "<cleared>",
+      "tool": "trivy",
+      "version": "<cleared>"
+    }
+  ],
   "scanners": [
     {
       "name": "trivy-fs",

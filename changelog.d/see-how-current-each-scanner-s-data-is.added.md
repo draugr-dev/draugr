@@ -1,0 +1,1 @@
+- **See how current each scanner's data is.** `draugr scan --evidence` and `draugr doctor` list the date each Trivy, Grype, Nuclei and retire.js data source was downloaded to this machine and, where the tool records it, the date its publisher built it. A copy the tool will not use is marked `refused as too old`. `report.json` carries the same under `scannerData`.

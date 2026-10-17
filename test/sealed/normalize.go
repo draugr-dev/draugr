@@ -83,10 +83,13 @@ func ReportNormalizer(replace map[string]string) Normalizer {
 		// only a run with --min-priority lists findings.
 		//
 		// A data refresh's time is the network's, and the scanners that refreshed are the run's: the
-		// time is cleared and the list is kept.
+		// time is cleared and the list is kept. So with the data the scanners read: which tool read
+		// which source is the run's, and each source's version and dates are the machine's.
 		ClearPresent: [][]string{
 			{"actions", "*", "findings"}, {"findings", "*", "fingerprint"},
 			{"stats", "dataRefresh", "*", "ms"},
+			{"scannerData", "*", "version"}, {"scannerData", "*", "published"},
+			{"scannerData", "*", "downloaded"}, {"scannerData", "*", "tooOld"},
 		},
 		Sort:    [][]string{{"scanners"}},
 		Replace: replace,

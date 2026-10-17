@@ -53,6 +53,7 @@ func NewTrivyConfig() plugin.Scanner {
 	// The checks bundle and nothing else: misconfiguration scanning never reads the vulnerability
 	// database, so warming it here would download one for a run that may not use it.
 	s.prewarm = func(ctx context.Context) error { return sharedTrivyChecks.warm(ctx) }
+	s.dataState = sharedTrivyData.checks
 	s.runLogged = trivyConfigRun(trivyConfigExec)
 	return s
 }
