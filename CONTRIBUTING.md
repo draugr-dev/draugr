@@ -141,8 +141,8 @@ so merging the release pull request is what publishes a new plugin version. Leav
 release; a version set by hand publishes the folder as it stands on `main`, with no release behind
 it.
 
-Run the plugin's [eval suite](contrib/claude-plugin/evals/README.md) before merging a change to the
-folder.
+A change that could alter what a tool returns or how a model uses it runs the affected cases of the
+plugin's [eval suite](contrib/claude-plugin/evals/README.md) before it merges.
 
 ### Why the OpenSSF Scorecard says `SAST: 0`
 

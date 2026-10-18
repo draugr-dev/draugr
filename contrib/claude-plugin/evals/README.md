@@ -2,14 +2,11 @@
 
 Prompts a user would type, answered by a model with the plugin loaded and this checkout's
 `draugr mcp` behind it. Each case is graded on the tools the model called and on what it told the
-user. The `Evals` workflow runs the suite by hand, at a named commit:
+user.
 
-```bash
-gh workflow run Evals -f ref=<commit>
-```
-
-Run it on any change to `internal/mcp/`, `internal/cli/mcp.go` or this plugin, since a reworded tool
-description can change what the model does while every Go test still passes.
+Run the cases a change affects when it could change what a tool returns or how a model uses it: a
+change to `internal/mcp/`, `internal/cli/mcp.go`, this plugin, or the report output those tools
+read. A reworded tool description can change what the model does while every Go test still passes.
 
 Each case directory holds:
 
@@ -22,15 +19,18 @@ Each case directory holds:
 
 ## Running it
 
-It needs `claude` (Claude Code), `gitleaks`, `semgrep`, `gosec` and `syft` on `PATH`, and an
-Anthropic API key. The cases scan with gitleaks and semgrep; `check_tools` lists the other two as
-required for the cases' descriptor, and a model told a tool is missing stops before it scans. Every
-run is billed to that key.
+It needs `claude` (Claude Code), `gitleaks`, `semgrep`, `gosec` and `syft` on `PATH`. The cases
+scan with gitleaks and semgrep; `check_tools` lists the other two as required for the cases'
+descriptor, and a model told a tool is missing stops before it scans.
+
+Each case runs as a Claude Code session on whatever `claude` is signed in with. With a claude.ai
+login and no `ANTHROPIC_API_KEY` set, the sessions use that login's plan; with a key, they are
+billed to it. Run it from a plain shell rather than from inside a Claude Code session, or unset
+`CLAUDECODE` and the `CLAUDE_CODE_*` variables first.
 
 ```bash
 make build
 cd contrib/claude-plugin
-export ANTHROPIC_API_KEY=...
 KUBECONFIG=/nonexistent/kubeconfig \
 PATH="$(git rev-parse --show-toplevel)/bin:$HOME/.draugr/bin:$PATH" claude plugin eval . \
   --trust-plugin --scaffold --mocks off \
@@ -39,8 +39,10 @@ PATH="$(git rev-parse --show-toplevel)/bin:$HOME/.draugr/bin:$PATH" claude plugi
   --threshold 0.8 --runs 1 --max-cost-usd 3 --no-publish
 ```
 
-`--case <name>` runs one case. One run per case costs about US$2.10 for the suite; `--runs 3`, the
-default, about US$6.30. `KUBECONFIG` names a file that does not exist, so survey-no-cluster finds
+`--case <name>` runs one case, which is the usual way to check a change. On an API key, one run per
+case costs about US$2.10 for the suite and `--runs 3`, the default, about US$6.30. The `Evals`
+workflow runs the same suite on GitHub with the repository's key, dispatched by hand:
+`gh workflow run Evals --ref <branch> -f ref=<commit>`. `KUBECONFIG` names a file that does not exist, so survey-no-cluster finds
 no cluster whatever this machine is configured for. Results go to `evals/results/`, which is
 ignored.
 
