@@ -19,7 +19,7 @@ name: Evals
 #
 # - Dispatch only. A run executes the named commit's code with the key, so for a pull request from a
 #   fork, name the head commit you read, and a later push cannot ride on the review.
-# - Three runs per case by default, about US$3.20 for the suite; one run is about US$0.65.
+# - Three runs per case by default, about US$5.40 for the suite; one run is about US$1.80.
 # - A fixed suite. The case count, each case's turn limit and the cost ceiling below are all in this
 #   repository, so nothing in a pull request's description or title changes what a run spends.
 # - One run per commit. A second dispatch for the same commit cancels the run in flight.
@@ -37,7 +37,7 @@ on:
         required: true
         type: string
       runs:
-        description: Runs per case. The cost ceiling is US$2 per run per case.
+        description: Runs per case. The cost ceiling is US$3 for each run of the suite.
         required: false
         type: number
         default: 3
@@ -104,6 +104,8 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           RUNS: ${{ inputs.runs }}
+          # survey-no-cluster asks for a namespace's images with no cluster to read them from.
+          KUBECONFIG: /nonexistent/kubeconfig
         run: |
           set -euo pipefail
           if [ -z "$ANTHROPIC_API_KEY" ]; then
@@ -120,7 +122,7 @@ jobs:
             --judge-model "$JUDGE_MODEL" \
             --threshold 0.8 \
             --runs "$RUNS" \
-            --max-cost-usd "$((RUNS * 2))" \
+            --max-cost-usd "$((RUNS * 3))" \
             --no-publish \
             --keep-temp \
             --json "$RUNNER_TEMP/results.json" \

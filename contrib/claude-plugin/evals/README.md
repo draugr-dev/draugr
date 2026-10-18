@@ -31,15 +31,18 @@ run is billed to that key.
 make build
 cd contrib/claude-plugin
 export ANTHROPIC_API_KEY=...
+KUBECONFIG=/nonexistent/kubeconfig \
 PATH="$(git rev-parse --show-toplevel)/bin:$HOME/.draugr/bin:$PATH" claude plugin eval . \
   --trust-plugin --scaffold --mocks off \
   --allow-tools "mcp__plugin_draugr_draugr__*" Write \
   --ablation none --model claude-sonnet-5-5 --judge-model claude-haiku-5-5 \
-  --threshold 0.8 --runs 1 --max-cost-usd 2 --no-publish
+  --threshold 0.8 --runs 1 --max-cost-usd 3 --no-publish
 ```
 
-`--case <name>` runs one case. One run per case costs about US$0.65 for the suite; `--runs 3`, the
-default, about US$3.20. Results go to `evals/results/`, which is ignored.
+`--case <name>` runs one case. One run per case costs about US$1.80 for the suite; `--runs 3`, the
+default, about US$5.40. `KUBECONFIG` names a file that does not exist, so survey-no-cluster finds
+no cluster whatever this machine is configured for. Results go to `evals/results/`, which is
+ignored.
 
 An `llm` grader is read by a smaller model than the one being graded. State what a PASS contains as
 conditions it can check one by one; a criterion written as a double negative is the one that judge
