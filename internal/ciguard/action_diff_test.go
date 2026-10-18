@@ -12,7 +12,8 @@ import (
 
 // stubDraugr stands in for the binary the Action downloads. It records each diff it is asked for,
 // refuses to scan a descriptor that is not there, as the real one does, and advertises a diff of the
-// head alone unless STUB_OLD is set.
+// head alone unless STUB_OLD is set. Its help runs past a pipe buffer, so a feature check that
+// closes the pipe early fails here every time rather than now and then.
 const stubDraugr = `#!/usr/bin/env bash
 case "$1" in
   version) echo "draugr stub" ;;
@@ -20,7 +21,10 @@ case "$1" in
     if [ -n "$STUB_OLD" ]; then echo "  draugr diff <base.sarif> <head.sarif> [flags]"
     else echo "  draugr diff [base.sarif] <head.sarif> [flags]"; fi
     echo "  --format string   console, markdown, json, sarif"
-    echo "  --repository string" ;;
+    echo "  --repository string"
+    # As long as the real help, and longer: a reader that stops at the first match closes the pipe
+    # while this is still writing, which is what a check under pipefail has to survive.
+    for i in $(seq 1 4000); do echo "  --flag-$i string   padding the help past a pipe buffer"; done ;;
   scan)
     saga="$2"; shift 2; out=""
     while [ $# -gt 0 ]; do [ "$1" = "-o" ] && out="$2"; shift; done
@@ -212,6 +216,26 @@ func TestEveryPipelineDiffsTheChangeThatAddsTheDescriptor(t *testing.T) {
 		}
 		if strings.Contains(string(body), "draugr diff") && !strings.Contains(string(body), "[base.sarif]") {
 			t.Errorf("%s runs draugr diff and never compares against a base with no descriptor", path)
+		}
+	}
+}
+
+// A feature check reads `draugr help diff` through a pipe. `grep -q` exits at the first match and
+// leaves the writer to die of SIGPIPE, and under pipefail the test then reads as false on a binary
+// that has the feature, so the pipeline takes the path meant for an older release.
+func TestNoTemplateEndsAPipeInGrepQ(t *testing.T) {
+	t.Parallel()
+	for _, path := range []string{"action.yml", "azure-pipelines/draugr.yml", "gitlab-ci/draugr.yml"} {
+		// #nosec G304 -- path comes from the hardcoded list above, inside this repository.
+		body, err := os.ReadFile(filepath.Join("../..", path))
+		if err != nil {
+			t.Errorf("%s: %v", path, err)
+			continue
+		}
+		for i, line := range strings.Split(string(body), "\n") {
+			if strings.Contains(line, "| grep -q") {
+				t.Errorf("%s:%d ends a pipe in grep -q; use grep ... >/dev/null: %s", path, i+1, strings.TrimSpace(line))
+			}
 		}
 	}
 }
