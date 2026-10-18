@@ -1,5 +1,5 @@
 ---
-description: report.json lists no findings by default; the findings are in results.sarif beside it
+description: report.json names each finding by fingerprint; the file and line are in its actions and in results.sarif
 max_turns: 15
 timeout_seconds: 600
 allowed_tools: [Read, Glob, Grep]

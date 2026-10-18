@@ -22,8 +22,10 @@ Each case directory holds:
 
 ## Running it
 
-It needs `claude` (Claude Code), `gitleaks` and `semgrep` on `PATH`, and an Anthropic API key.
-Every run is billed to that key.
+It needs `claude` (Claude Code), `gitleaks`, `semgrep`, `gosec` and `syft` on `PATH`, and an
+Anthropic API key. The cases scan with gitleaks and semgrep; `check_tools` lists the other two as
+required for the cases' descriptor, and a model told a tool is missing stops before it scans. Every
+run is billed to that key.
 
 ```bash
 make build

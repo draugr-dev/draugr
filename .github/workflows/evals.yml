@@ -73,11 +73,16 @@ jobs:
       # The server the plugin starts is the draugr first on PATH, so it is this commit's build rather
       # than a release. Each run gets a temporary home, which hides ~/.draugr/bin from Draugr's own
       # lookup, so the scanners go on PATH too.
+      #
+      # The cases scan with gitleaks and semgrep. Given their descriptor, check_tools also lists
+      # gosec, which can serve sast, and syft as required, and reports the machine not ready
+      # without them, which stops a model before it scans. Both are installed so that a score
+      # measures the model and the plugin.
       - name: Build draugr and provision the scanners the cases use
         run: |
           set -euo pipefail
           make build
-          ./bin/draugr tools install -y gitleaks semgrep
+          ./bin/draugr tools install -y gitleaks semgrep gosec syft
           echo "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
           echo "$HOME/.draugr/bin" >> "$GITHUB_PATH"
 
@@ -91,6 +96,9 @@ jobs:
 
       # --ablation none runs the plugin arm only: the gate is whether the plugin does its job, and a
       # no-plugin baseline would double the cost to report a delta the exit code ignores.
+      #
+      # --keep-temp leaves each run's sandbox in place, so each run's trace.jsonl, the session the
+      # graders read, is uploaded with the results. The transcript shows why a run failed.
       - name: Run the suite
         working-directory: contrib/claude-plugin
         env:
@@ -114,6 +122,7 @@ jobs:
             --runs "$RUNS" \
             --max-cost-usd "$((RUNS * 2))" \
             --no-publish \
+            --keep-temp \
             --json "$RUNNER_TEMP/results.json" \
             -j 4
 
@@ -124,4 +133,5 @@ jobs:
           path: |
             ${{ runner.temp }}/results.json
             contrib/claude-plugin/evals/results/
+            /tmp/claude-eval-*/out/trace.jsonl
           if-no-files-found: ignore
