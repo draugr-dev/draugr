@@ -1,1 +1,0 @@
-- **The GitHub Action and the Azure DevOps template no longer mistake a current Draugr for an old one.** Their checks for `diff` features could read as false on a release that has them, so the pull request adding a first descriptor failed and `diff-view` fell back to the findings list with a warning about an older release.

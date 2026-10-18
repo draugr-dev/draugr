@@ -1,1 +1,0 @@
-- **A scan on a terminal offers to install the scanners it is missing.** It names them and the controls they would leave unrun, and asks `Install them now with draugr tools install semgrep trivy? [Y/n/never]`. `never` writes `output.offerInstall: false` to `~/.draugr/config.yaml`, or to the file `--config` names. Pipelines, assistants and `--offline` runs are never asked.

@@ -12,6 +12,22 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.154.0] - 2026-10-18
+
+### Added
+
+- **A scan on a terminal offers to install the scanners it is missing.** It names them and the controls they would leave unrun, and asks `Install them now with draugr tools install semgrep trivy? [Y/n/never]`. `never` writes `output.offerInstall: false` to `~/.draugr/config.yaml`, or to the file `--config` names. Pipelines, assistants and `--offline` runs are never asked.
+
+### Changed
+
+- **A scan with a scanner missing says which one and how to install it, once.** Each control it blocks reads `trivy not installed`, and one `draugr tools install` command under the last control installs every missing tool. The Go exec error and the warm-up warnings are gone from the console; `--log-level debug` still has them.
+
+### Fixed
+
+- **`draugr config set`, `unset` and `init` write the file a scan reads.** With `--config` or `DRAUGR_CONFIG` set they edit that file, and `--global` beside either is refused. `config get` also recognizes boolean, number and duration keys it reported as unknown, such as `output.top`.
+
+- **The GitHub Action and the Azure DevOps template no longer mistake a current Draugr for an old one.** Their checks for `diff` features could read as false on a release that has them, so the pull request adding a first descriptor failed and `diff-view` fell back to the findings list with a warning about an older release.
+
 ## [0.153.0] - 2026-10-17
 
 ### Added
@@ -6355,7 +6371,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.153.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.154.0...HEAD
+[0.154.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.154.0
 [0.153.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.153.0
 [0.152.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.152.1
 [0.152.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.152.0

@@ -1,1 +1,0 @@
-- **A scan with a scanner missing says which one and how to install it, once.** Each control it blocks reads `trivy not installed`, and one `draugr tools install` command under the last control installs every missing tool. The Go exec error and the warm-up warnings are gone from the console; `--log-level debug` still has them.
