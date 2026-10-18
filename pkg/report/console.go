@@ -2038,13 +2038,13 @@ func clears(actions []action) string {
 	return "clear"
 }
 
-// cleared totals the findings a set of actions resolves.
+// cleared is how many findings a set of actions resolves between them, each counted once.
 func cleared(actions []action) int {
-	n := 0
-	for _, a := range actions {
-		n += a.count()
+	groups := make([][]string, len(actions))
+	for i, a := range actions {
+		groups[i] = fingerprintsOf(a.findings)
 	}
-	return n
+	return distinctFindings(groups)
 }
 
 // externalLine reports what was found on a surface somebody else operates.

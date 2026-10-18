@@ -1130,10 +1130,17 @@ type FixListInput struct {
 }
 
 // FixListOutput is the work a report implies, rather than the findings in it.
+//
+// The counts mean what the console's "What to do" heading means: Clears is what the actions
+// returned clear, each finding counted once, and the totals say what the limit left out.
 type FixListOutput struct {
 	Actions []report.Action `json:"actions" jsonschema:"things to do, most urgent first; each says how many findings it clears"`
-	Clears  int             `json:"clears" jsonschema:"findings these actions resolve between them"`
-	Note    string          `json:"note,omitempty"`
+	Clears  int             `json:"clears" jsonschema:"findings the returned actions clear between them, each counted once"`
+	// TotalActions and TotalClears are the whole list, so a reply can say how much the actions
+	// returned leave.
+	TotalActions int    `json:"totalActions" jsonschema:"actions the report implies, returned or not"`
+	TotalClears  int    `json:"totalClears" jsonschema:"findings every action clears between them, each counted once"`
+	Note         string `json:"note,omitempty"`
 }
 
 // FixListTool answers "what should I do" with actions rather than findings.
@@ -1141,7 +1148,8 @@ type FixListOutput struct {
 // One remediation usually clears many findings: eight vulnerabilities in one library are one
 // upgrade, and every package inside an image somebody else publishes is one newer image. An
 // assistant handed the findings has to work that out for itself, and will do it differently each
-// time, so this uses the same grouping the terminal prints, and the two cannot disagree.
+// time, so this is report.ActionsFor, the grouping the terminal prints and report.json records.
+// Each result in results.sarif names the control that found it, which the grouping keys on.
 func FixListTool(_ context.Context, _ *mcp.CallToolRequest, in FixListInput) (*mcp.CallToolResult, FixListOutput, error) {
 	if in.Path == "" {
 		return nil, FixListOutput{}, fmt.Errorf("path is required")
@@ -1159,18 +1167,14 @@ func FixListTool(_ context.Context, _ *mcp.CallToolRequest, in FixListInput) (*m
 	if limit <= 0 {
 		limit = defaultLimit
 	}
-	// A merged report has already lost which control each finding came from, so the grouping falls
-	// back to the rule id. See ActionsFor.
 	actions := report.ActionsFor(map[string]sarif.Report{"": rep})
-	out := FixListOutput{}
-	for _, a := range actions {
-		out.Clears += a.Clears
-	}
+	out := FixListOutput{TotalActions: len(actions), TotalClears: report.Cleared(actions)}
 	if len(actions) > limit {
 		out.Note = fmt.Sprintf(
 			"showing the %d most urgent of %d actions; raise limit to see more", limit, len(actions))
 		actions = actions[:limit]
 	}
+	out.Clears = report.Cleared(actions)
 	// Without their findings. The most urgent actions of a real project carry hundreds of them, many
 	// times the size of the list itself, and an assistant asking what to do is answered by the
 	// counts. report.json names them by fingerprint, and results.sarif holds each one.

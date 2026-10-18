@@ -721,14 +721,19 @@ type ActionLocation = skald.ActionLocation
 
 // ActionsFor groups a run's findings into the fix list, most urgent first.
 //
+// The one implementation of the fix list. The console's "What to do", the HTML report,
+// report.json's actions and the MCP server's fix_list all come from groupActions over findings
+// built by findingOf, so a scan describes the same actions, grouped the same way and clearing the
+// same counts, wherever it is read.
+//
 // Suppressed findings are left out for the same reason the console leaves them out: an excluded
 // finding is a decision somebody recorded, and proposing it as work is proposing to undo that
 // decision without the reason they gave.
 //
 // Keyed by control, as a run holds them, because the grouping keys on it: two controls reporting
-// the same rule id are two things to do. A caller holding only a merged results.sarif has no
-// control to give and can pass a single entry under "", grouping then falls back to the rule id,
-// which is the right answer for a file that has already lost the distinction.
+// the same rule id are two things to do, and an image's packages and its licenses are two actions.
+// A caller holding a merged results.sarif passes it as one entry under any name, and each result's
+// own control, which the file carries, is used instead.
 func ActionsFor(reports map[string]sarif.Report) []Action {
 	const most = 5
 
@@ -748,22 +753,7 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 			if res.Suppressed() || res.Correlated() {
 				continue
 			}
-			findings = append(findings, finding{
-				control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
-				fingerprint: res.Fingerprint(),
-				component:   res.Component, repository: res.Repository,
-				location: locationOf(res), message: res.Message,
-				level: res.Level, severity: res.Severity(""),
-				helpURI: rep.HelpURI(res.RuleID),
-				score:   res.Score, hasScore: res.HasScore,
-				remediation:     res.Remediation(),
-				builtUpstream:   res.BuiltUpstream,
-				pkg:             res.Package,
-				operatingSystem: res.OperatingSystem,
-				upgradePolicy:   res.UpgradePolicy,
-				image:           res.Image,
-				ruleSummary:     rep.Rules[res.RuleID].ShortDescription,
-			})
+			findings = append(findings, findingOf(name, rep, res))
 		}
 	}
 	sortFindings(findings)
@@ -822,6 +812,32 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 		out = append(out, act)
 	}
 	return out
+}
+
+// Cleared is how many findings a set of actions resolves between them, each counted once: the
+// figure the console's "What to do" heading gives for the rows it lists.
+//
+// Counted by identity rather than summed, so the figure cannot exceed the findings it describes
+// whatever the grouping does. Each finding is in exactly one action, which makes the two equal; a
+// grouping that put one finding in two actions would otherwise count it twice. Read from each
+// action's Fingerprints, which ActionsFor fills.
+func Cleared(actions []Action) int {
+	groups := make([][]string, len(actions))
+	for i, a := range actions {
+		groups[i] = a.Fingerprints
+	}
+	return distinctFindings(groups)
+}
+
+// distinctFindings counts the distinct fingerprints across groups.
+func distinctFindings(groups [][]string) int {
+	seen := map[string]bool{}
+	for _, g := range groups {
+		for _, fp := range g {
+			seen[fp] = true
+		}
+	}
+	return len(seen)
 }
 
 // fingerprintsOf is each finding's fingerprint, in the order the action holds them.

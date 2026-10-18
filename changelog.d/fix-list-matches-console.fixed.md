@@ -1,0 +1,1 @@
+- **The MCP `fix_list` tool returns the actions `draugr scan --view actions` prints.** It gives one action per upstream image, a review of the licenses inside it, and a committed credential to remove and rotate, where it gave one action per component and a code fix. `clears` counts the returned actions, as the console heading does.

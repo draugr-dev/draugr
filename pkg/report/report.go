@@ -831,10 +831,8 @@ func summarize(d Data) summary {
 				s.controlBands[name] = at
 			}
 			s.controlFindings[name]++
-			loc := locationOf(res)
-			sev := res.Severity("")
 			b := s.bands[name]
-			b.add(sev)
+			b.add(res.Severity(""))
 			s.bands[name] = b
 			if res.Escalation != nil {
 				if s.bySignal == nil {
@@ -845,28 +843,7 @@ func summarize(d Data) summary {
 			if res.PriorityFloor != "" {
 				s.floored++
 			}
-			s.findings = append(s.findings, finding{
-				control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
-				fingerprint:   res.Fingerprint(),
-				escalation:    res.Escalation,
-				reachability:  res.Reachability,
-				alsoFoundBy:   alsoFoundBy(res),
-				priorityFloor: res.PriorityFloor,
-				historical:    res.Historical,
-				component:     res.Component,
-				repository:    res.Repository,
-				location:      loc, message: res.Message,
-				level: res.Level, severity: sev,
-				helpURI: rep.HelpURI(res.RuleID),
-				score:   res.Score, hasScore: res.HasScore,
-				remediation:     res.Remediation(),
-				builtUpstream:   res.BuiltUpstream,
-				pkg:             res.Package,
-				operatingSystem: res.OperatingSystem,
-				upgradePolicy:   res.UpgradePolicy,
-				image:           res.Image,
-				ruleSummary:     rep.Rules[res.RuleID].ShortDescription,
-			})
+			s.findings = append(s.findings, findingOf(name, rep, res))
 		}
 	}
 	sortFindings(s.findings)
@@ -884,6 +861,43 @@ func summarize(d Data) summary {
 		s.findings = kept
 	}
 	return s
+}
+
+// findingOf is one result as the human reporters and the fix list hold it.
+//
+// One constructor for the console, the HTML report, report.json's actions and the MCP server's
+// fix list. The grouping keys on these fields, so two copies of this conversion are two answers
+// to "what does this change clear" for the same scan.
+//
+// The control is the one the result names where it names one, and otherwise the report it was
+// filed under. A run files results by control and leaves the field empty; a merged results.sarif
+// has one report and every result carries its own, stamped when the run's reports were merged.
+func findingOf(control string, rep sarif.Report, res sarif.Result) finding {
+	if res.Control != "" {
+		control = res.Control
+	}
+	return finding{
+		control: control, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
+		fingerprint:   res.Fingerprint(),
+		escalation:    res.Escalation,
+		reachability:  res.Reachability,
+		alsoFoundBy:   alsoFoundBy(res),
+		priorityFloor: res.PriorityFloor,
+		historical:    res.Historical,
+		component:     res.Component,
+		repository:    res.Repository,
+		location:      locationOf(res), message: res.Message,
+		level: res.Level, severity: res.Severity(""),
+		helpURI: rep.HelpURI(res.RuleID),
+		score:   res.Score, hasScore: res.HasScore,
+		remediation:     res.Remediation(),
+		builtUpstream:   res.BuiltUpstream,
+		pkg:             res.Package,
+		operatingSystem: res.OperatingSystem,
+		upgradePolicy:   res.UpgradePolicy,
+		image:           res.Image,
+		ruleSummary:     rep.Rules[res.RuleID].ShortDescription,
+	}
 }
 
 // atOrAbove reports whether a finding's priority is at least the requested band. An unprioritized

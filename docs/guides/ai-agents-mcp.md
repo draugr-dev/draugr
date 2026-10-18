@@ -306,7 +306,14 @@ library are one upgrade, and every vulnerable package inside an image somebody e
 newer image. It uses the same grouping `draugr scan --view actions` prints, so an assistant and a
 terminal cannot describe the same report differently. Each row is an
 [action as `report.json` carries it](../reference/report-schema.md#what-each-action-carries), without
-the list of findings under it.
+the list of findings under it. `clears` is the figure the console's heading gives for the rows it
+lists.
+
+| Field | What it counts |
+|---|---|
+| `clears` | findings the rows returned clear between them, each counted once |
+| `totalActions` | actions the report holds, returned or not |
+| `totalClears` | findings every action clears between them, each counted once |
 
 `explain_rule` answers "what does this mean and what do I change?". The remediation the scanner
 published is already in the report, so an assistant should read it rather than fetch a rule's help

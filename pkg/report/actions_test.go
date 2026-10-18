@@ -325,9 +325,9 @@ func TestActionsForGroupsByControl(t *testing.T) {
 	}
 }
 
-// TestActionsForWithoutAControlFallsBackToTheRule. A merged results.sarif has already lost which
-// control each finding came from, and grouping everything together would be worse than grouping
-// by the rule it still has.
+// TestActionsForWithoutAControlFallsBackToTheRule. A SARIF file another tool wrote names no control
+// on its results, and grouping everything together would be worse than grouping by the rule it
+// still has.
 func TestActionsForWithoutAControlFallsBackToTheRule(t *testing.T) {
 	got := ActionsFor(map[string]sarif.Report{"": {Results: []sarif.Result{
 		{RuleID: "rule-a", Priority: "P2", Level: sarif.LevelWarning, Location: sarif.Location{URI: "a"}},
@@ -343,6 +343,71 @@ func TestActionsForWithoutAControlFallsBackToTheRule(t *testing.T) {
 	// Two distinct places, both named, so a caller knows where to apply it.
 	if len(got[0].Where) != 2 {
 		t.Errorf("both locations should be named: %+v", got[0].Where)
+	}
+}
+
+// TestActionsForReadsEachResultsControl: a merged results.sarif is one report, and each result in
+// it names the control that found it. Grouped by that control, the file gives the actions the run
+// gave: an upstream image's packages and its licenses are two actions, and a key is a credential.
+func TestActionsForReadsEachResultsControl(t *testing.T) {
+	results := []sarif.Result{
+		{RuleID: "CVE-1", Priority: "P1", Level: sarif.LevelError, Component: "api",
+			Image: "python:3.8-slim", BuiltUpstream: true, Location: sarif.Location{URI: "python:3.8-slim"},
+			Package: &sarif.Package{Name: "openssl", Version: "1", FixedVersion: "2"}},
+		{RuleID: "license/GPL-2.0/bash", Priority: "P2", Level: sarif.LevelWarning, Component: "api",
+			Image: "python:3.8-slim", BuiltUpstream: true, Location: sarif.Location{URI: "python:3.8-slim"}},
+		{RuleID: "aws-access-token", Priority: "P1", Level: sarif.LevelError, Component: "api",
+			Location: sarif.Location{URI: "deploy/aws.env", StartLine: 1}},
+	}
+	controls := []string{"images", "licenses", "secrets"}
+	perControl := map[string]sarif.Report{}
+	merged := sarif.Report{}
+	for i, res := range results {
+		perControl[controls[i]] = sarif.Report{Results: []sarif.Result{res}}
+		res.Control = controls[i]
+		merged.Results = append(merged.Results, res)
+	}
+
+	fromRun, fromFile := ActionsFor(perControl), ActionsFor(map[string]sarif.Report{"": merged})
+	titles := func(acts []Action) []string {
+		var out []string
+		for _, a := range acts {
+			out = append(out, fmt.Sprintf("%s|%s|%s|%d", a.Title, a.Control, a.Kind, a.Clears))
+		}
+		return out
+	}
+	want := []string{
+		"Update python:3.8-slim|images|wait|1",
+		"Remove and rotate aws-access-token|secrets|credential|1",
+		"Review the licenses in python:3.8-slim|licenses|decide|1",
+	}
+	if got := titles(fromRun); !reflect.DeepEqual(got, want) {
+		t.Errorf("from the run:\n got %q\nwant %q", got, want)
+	}
+	if got := titles(fromFile); !reflect.DeepEqual(got, want) {
+		t.Errorf("from the merged file:\n got %q\nwant %q", got, want)
+	}
+}
+
+// TestClearedCountsEachFindingOnce: a heading saying what a set of actions clears is a number of
+// findings, so one finding in two actions is one finding.
+func TestClearedCountsEachFindingOnce(t *testing.T) {
+	acts := []Action{
+		{Clears: 2, Fingerprints: []string{"a", "b"}},
+		{Clears: 2, Fingerprints: []string{"b", "c"}},
+	}
+	if got := Cleared(acts); got != 3 {
+		t.Errorf("Cleared = %d, want 3", got)
+	}
+	if got := Cleared(nil); got != 0 {
+		t.Errorf("Cleared(nil) = %d", got)
+	}
+	in := []action{
+		{findings: []finding{{fingerprint: "a"}, {fingerprint: "b"}}},
+		{findings: []finding{{fingerprint: "b"}}},
+	}
+	if got := cleared(in); got != 2 {
+		t.Errorf("cleared = %d, want 2", got)
 	}
 }
 
