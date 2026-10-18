@@ -117,7 +117,10 @@ steps:
           base_report="$(Pipeline.Workspace)/draugr-base/results.sarif"
           no_base=""
           if [ ! -e "${{ parameters.saga }}" ]; then
-            if draugr help diff 2>&1 | grep -qF '[base.sarif]'; then
+            # `grep >/dev/null`, never `grep -q`, after a pipe: -q exits at the first match, the writer
+            # then gets SIGPIPE, and under pipefail the test reads as false on a binary that has the
+            # feature. TestNoTemplateEndsAPipeInGrepQ holds this.
+            if draugr help diff 2>&1 | grep -F '[base.sarif]' >/dev/null; then
               echo "The target branch has no ${{ parameters.saga }}, so every finding at the head is new."
               no_base=1
               base_report=""
@@ -143,7 +146,7 @@ steps:
           # is what it always was, and the step carries on rather than dying under set -e.
           view=""
           if [ -n "${DIFF_VIEW:-}" ] && [ "${DIFF_VIEW}" != "findings" ]; then
-            if draugr help diff 2>&1 | grep -q -- '--view'; then
+            if draugr help diff 2>&1 | grep -- '--view' >/dev/null; then
               view="--view ${DIFF_VIEW}"
             else
               echo "##vso[task.logissue type=warning]diffView needs a Draugr release with 'diff --view'; this one is older, so the comment lists findings."
