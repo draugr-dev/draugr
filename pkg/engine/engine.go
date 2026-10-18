@@ -14,6 +14,7 @@ import (
 	"maps"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"sort"
@@ -27,6 +28,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/draugr-dev/draugr/internal/english"
+	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/cache"
 	"github.com/draugr-dev/draugr/pkg/dephealth"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -614,6 +616,10 @@ type Result struct {
 	// was asked to, so its absence of findings is not evidence of absence, and callers that treat an
 	// empty report as "clean" would be wrong.
 	ScanErrors map[string][]string
+	// MissingTools names the scan errors that are a tool absent from this machine, one entry per
+	// control and tool, sorted. Each entry's Message is the ScanErrors entry it explains, word for
+	// word, so a renderer can say it more briefly without losing the rest.
+	MissingTools []MissingTool
 	// Reachability summarizes what a reachability analyzer concluded about this run's dependency
 	// findings, and is zero when none ran.
 	Reachability ReachabilitySummary
@@ -769,6 +775,48 @@ type Unscanned struct {
 	toolMissing bool
 }
 
+// MissingTool is a control that could not run a scanner because its executable is not installed.
+type MissingTool struct {
+	Control string
+	// Tool is the executable as it was looked up, "trivy".
+	Tool string
+	// Provisionable is whether `draugr tools install` fetches it.
+	Provisionable bool
+	// Message is the control's ScanErrors entry for this failure.
+	Message string
+}
+
+// missingTool is the executable a scan error says was not found, or "" for any other failure.
+func missingTool(err error) string {
+	var e *exec.Error
+	if errors.As(err, &e) && errors.Is(e.Err, exec.ErrNotFound) {
+		return filepath.Base(e.Name)
+	}
+	return ""
+}
+
+// missingTools pairs each control's missing-tool failures with the message recorded for them.
+func missingTools(found []MissingTool) []MissingTool {
+	seen := map[string]bool{}
+	var out []MissingTool
+	for _, m := range found {
+		key := m.Control + "\x00" + m.Tool + "\x00" + m.Message
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		m.Provisionable = tools.Provisionable(m.Tool)
+		out = append(out, m)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Control != out[j].Control {
+			return out[i].Control < out[j].Control
+		}
+		return out[i].Tool < out[j].Tool
+	})
+	return out
+}
+
 // scanOutcome is the raw result of obtaining a job's report (via cache or a fresh scan),
 // shared across identical jobs by the in-run singleflight before per-job priority stamping.
 type scanOutcome struct {
@@ -915,6 +963,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		// runs over the same inputs would write different files.
 		reports = make([]*sarif.Report, len(planned))
 		ctlErrs = make(map[string][]string)
+		missing []MissingTool
 		errs    []error
 		stats   = Stats{Jobs: len(planned), Concurrency: e.concurrency, ByControl: map[string]time.Duration{}}
 		// A set, because a component's image can be reached by more than one scanner and the
@@ -1026,8 +1075,14 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 					// this. Anyone else gets whatever the scanner says later about a symptom of
 					// it, which is how a template set that never downloaded surfaced as a
 					// complaint about the descriptor.
-					slog.WarnContext(ctx, "scanner prewarm failed",
-						"scanner", name, "error", err.Error())
+					// A tool that is not installed is said once, by the control that needed it,
+					// with the command that installs it. A warning here would say it again, above
+					// the report, in a log line's register.
+					logAt := slog.LevelWarn
+					if missingTool(err) != "" {
+						logAt = slog.LevelDebug
+					}
+					slog.Log(ctx, logAt, "scanner prewarm failed", "scanner", name, "error", err.Error())
 					runSpan.AddEvent("prewarm failed", trace.WithAttributes(
 						attribute.String("scanner", name), attribute.String("error", err.Error())))
 				}
@@ -1222,6 +1277,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 					// failure ("run nuclei: …"), and adding it again reads as a stutter in
 					// the one line a reader scans to find out what broke.
 					ctlErrs[pj.Control] = append(ctlErrs[pj.Control], scanErr.Error())
+					if tool := missingTool(scanErr); tool != "" {
+						missing = append(missing, MissingTool{Control: pj.Control, Tool: tool, Message: scanErr.Error()})
+					}
 					failed++
 					unscanned = append(unscanned, unscannedFor(pj, scanErr))
 					steps[stepKey(pj)].Failed++
@@ -1317,6 +1375,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	if len(ctlErrs) > 0 {
 		res.ScanErrors = ctlErrs
 	}
+	res.MissingTools = missingTools(missing)
 	for _, control := range sortedReportKeys(byCtl) {
 		ctrl, ok := e.reg.Controller(control)
 		if !ok {

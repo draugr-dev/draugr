@@ -365,3 +365,24 @@ func TestTheUnverifiedToolTipNamesWhatToInstall(t *testing.T) {
 		}
 	}
 }
+
+// While a tool Draugr installs is missing, the controls block already ends in the command that
+// installs it, so the tip offering a second install command stays quiet. A tool Draugr cannot
+// install gets no install line, and the tip is still offered.
+func TestTheUnverifiedToolTipWaitsForMissingToolsToBeInstalled(t *testing.T) {
+	tip := tipByName(t, "unverified-tool")
+	external := []report.ToolBuild{{Name: "gitleaks", Version: "8.30.1", Level: string(tools.LevelExternal)}}
+	for name, tc := range map[string]struct {
+		missing []engine.MissingTool
+		want    bool
+	}{
+		"nothing missing":         {nil, true},
+		"an installable tool":     {[]engine.MissingTool{{Control: "sca", Tool: "trivy", Provisionable: true}}, false},
+		"a tool Draugr can't get": {[]engine.MissingTool{{Control: "cloud", Tool: "prowler"}}, true},
+	} {
+		c := tipContext{run: engine.Result{MissingTools: tc.missing}, tools: external}
+		if got := tip.when(c); got != tc.want {
+			t.Errorf("%s: offered = %v, want %v", name, got, tc.want)
+		}
+	}
+}

@@ -161,12 +161,22 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		// sits against whichever control happens to be listed last and reads as that one's
 		// problem. Nothing in the sentence contradicts the misreading, which is what makes it
 		// worth the extra pass rather than a footnote.
-		why := func(control string) {
+		missing := installableMissing(d.Run.MissingTools)
+		why := func(control string, rowSaid bool) {
 			// A failure to reach a target is said once, by target, in the errors block. Under each
 			// control that tried, one missing repository is a line per control. Set aside before the
 			// count of jobs is added, which would make a message two components share match nothing.
+			//
+			// A tool `draugr tools install` fetches is named instead of quoted: the exec error is
+			// plumbing, and the command that fixes it is said once, under the last row.
 			var own []string
 			for _, msg := range errored[control] {
+				if tool, ok := missing.tool(control, msg); ok {
+					if !rowSaid {
+						own = append(own, tool+" not installed")
+					}
+					continue
+				}
 				if !targetError(d, control, msg) {
 					own = append(own, msg)
 				}
@@ -201,17 +211,29 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 				fmt.Sprintf("%-*s", width, c.Control),
 				col.Paint(vc, fmt.Sprintf("%-5s", v)),
 				controlCounts(col, s, c.Control))
-			why(c.Control)
+			why(c.Control, false)
 		}
 		// Controls that produced nothing at all have no verdict entry, so they're listed here.
 		// Between them these two loops cover every key in errored, so no failure loses its
 		// explanation by having no row to sit under.
 		for _, name := range s.errored {
+			// "trivy not installed" in place of "did not run" when that is the whole of it: the
+			// reason is shorter than the symptom and says what to do.
+			text, rowSaid := "did not run", false
+			if tools := missing.only(name, errored[name]); len(tools) > 0 {
+				text, rowSaid = english.And(tools)+" not installed", true
+			}
 			_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
 				fmt.Sprintf("%-*s", width, name),
 				col.Paint(cFail, fmt.Sprintf("%-5s", "ERROR")),
-				col.Paint(cDim, "did not run"))
-			why(name)
+				col.Paint(cDim, text))
+			why(name, rowSaid)
+		}
+		// One command for every tool the rows above are missing, at the column the control names
+		// start in, in the accent a reader's eye goes to for the thing to do.
+		if cmd, controls := missing.install(); cmd != "" {
+			_, _ = fmt.Fprintf(w, "  %s  %s\n", col.Paint(cAccent, cmd), col.Paint(cDim,
+				"installs what "+english.And(controls)+" "+english.Choose(len(controls), "needs", "need")))
 		}
 		// Both stay in the default view. They are coverage rather than provenance: what a control was
 		// measured against carries what it did *not* cover, a spec-driven scan that skipped the methods
@@ -2582,4 +2604,68 @@ func kindNoun(kind string) string {
 		return "cluster"
 	}
 	return kind
+}
+
+// missingSet is the scan errors a run reported as tools `draugr tools install` fetches.
+type missingSet []engine.MissingTool
+
+// installableMissing keeps the missing tools Draugr can install. A tool it cannot is left to its
+// own message, which says where to get it.
+func installableMissing(all []engine.MissingTool) missingSet {
+	var out missingSet
+	for _, m := range all {
+		if m.Provisionable {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+// tool reports which missing tool a control's error message is about.
+func (s missingSet) tool(control, msg string) (string, bool) {
+	for _, m := range s {
+		if m.Control == control && m.Message == msg {
+			return m.Tool, true
+		}
+	}
+	return "", false
+}
+
+// only is the tools a control was missing when that accounts for every error it reported, sorted,
+// and nil otherwise.
+func (s missingSet) only(control string, msgs []string) []string {
+	var tools []string
+	for _, msg := range msgs {
+		tool, ok := s.tool(control, msg)
+		if !ok {
+			return nil
+		}
+		tools = appendOnce(tools, tool)
+	}
+	sort.Strings(tools)
+	return tools
+}
+
+// install is the one command that installs every missing tool, and the controls it unblocks.
+func (s missingSet) install() (string, []string) {
+	var tools, controls []string
+	for _, m := range s {
+		tools = appendOnce(tools, m.Tool)
+		controls = appendOnce(controls, m.Control)
+	}
+	if len(tools) == 0 {
+		return "", nil
+	}
+	sort.Strings(tools)
+	sort.Strings(controls)
+	return "draugr tools install " + strings.Join(tools, " "), controls
+}
+
+func appendOnce(list []string, v string) []string {
+	for _, x := range list {
+		if x == v {
+			return list
+		}
+	}
+	return append(list, v)
 }

@@ -136,7 +136,11 @@ var scanTips = []scanTip{
 		// are. Gated on Draugr being able to provision it, so nobody is sent to a command that
 		// cannot help them.
 		name: "unverified-tool",
-		when: func(c tipContext) bool { return len(provisionableExternals(c.tools)) > 0 },
+		// Not while a tool is missing: the controls block already ends in the command that installs
+		// it, and a second install command here reads as a different instruction.
+		when: func(c tipContext) bool {
+			return len(provisionableExternals(c.tools)) > 0 && !missingInstallable(c.run)
+		},
 		what: func(c tipContext) string {
 			return "draugr tools install " + strings.Join(provisionableExternals(c.tools), " ")
 		},
@@ -144,6 +148,16 @@ var scanTips = []scanTip{
 		// currently wrong. The row above each of these says what to type and this says why.
 		why: func(tipContext) string { return "scan on builds Draugr fetched and checked" },
 	},
+}
+
+// missingInstallable reports whether a control failed for a tool `draugr tools install` fetches.
+func missingInstallable(run engine.Result) bool {
+	for _, m := range run.MissingTools {
+		if m.Provisionable {
+			return true
+		}
+	}
+	return false
 }
 
 // provisionableExternals names the scanners this run used that Draugr did not install and could

@@ -70,12 +70,20 @@ than it was asked to**, so an empty report from it isn't evidence of anything. D
 and says which control it was:
 
 ```
+$ draugr scan . --controls sca
+…
 CONTROLS
-  sca  ERROR  did not run
-       trivy-fs: exec: "trivy": executable file not found in $PATH
+  sca  ERROR  trivy not installed
+  draugr tools install trivy  installs what sca needs
+
+No findings from the controls that ran. A control marked ERROR did not report.
 
 draugr: scan incomplete: sca could not run (use --allow-scan-errors to accept partial results)
 ```
+
+A missing tool that `draugr tools install` fetches is named on its control's row, and one command
+installs all of them. A tool it does not fetch keeps its full error, which ends by pointing to
+`draugr doctor` for where to get it.
 
 This matters most in CI, where a scanner failing to provision is the common failure and a
 warning in the log goes unread. A green build from a check that never ran is the one outcome a

@@ -196,8 +196,10 @@ findings in your editor](../guides/findings-in-your-editor.md).
   complete.
 - **No findings / control didn't run**. Ensure the control is `enabled` and the component
   has the relevant resources (e.g. `images` for the images control).
-- **`executable file not found`**, the scanner for a control isn't on `PATH`; run
-  `draugr doctor` to see exactly which tool is missing and how to install it.
+- **`<tool> not installed`**, the scanner for a control isn't on `PATH`. Run the
+  `draugr tools install` command printed under the CONTROLS block. A tool it cannot fetch shows
+  `executable file not found` instead, and `draugr doctor` says where to get it and lists every
+  tool the descriptor needs.
 - **Descriptor errors**. Run `draugr validate draugr.saga.yaml` to check the Saga against the
   schema without running any scanners (good in a pre-commit hook or CI lint step).
 - **Verbose output**. Add `--log-level debug` (optionally `--log-format text`).
