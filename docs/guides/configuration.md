@@ -74,10 +74,12 @@ pipeline built on those keeps working.
 
 | Source | Use |
 |---|---|
-| `$DRAUGR_CONFIG` | An explicit path. The organization-wide lever: set it in a runner image and every pipeline picks up the same defaults with no per-repository change |
-| `draugr.config.yaml` beside the descriptor | This project, on this machine |
+| `--config <path>` or `$DRAUGR_CONFIG` | That file **alone**. The organization-wide lever: set it in a runner image and every pipeline reads the same defaults with no per-repository change |
+| `./draugr.config.yaml`, in the directory the command runs from | This project |
+| `~/.draugr/config.yaml` | This machine |
 
-Later sources win per key, and only per key: a project that sets one thing inherits the rest.
+The two discovered files are layered, the project's over the machine's, and only per key: a project
+that sets one thing inherits the rest. An explicit file replaces both.
 
 Controller settings are merged **underneath** the descriptor's, so a project that has an opinion
 keeps it and nothing set here can override a committed Saga.

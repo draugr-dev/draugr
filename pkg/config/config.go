@@ -81,7 +81,8 @@ type PublishSettings struct {
 	APIURL string `yaml:"apiUrl,omitempty"`
 }
 
-// OutputSettings configures how the console renders a run. Each has a `--flag` that overrides it.
+// OutputSettings configures how the console renders a run. Each has a `--flag` that overrides it,
+// except OfferInstall, which answers a question only a terminal is asked.
 type OutputSettings struct {
 	// View is what a console report shows: "findings" (a row each, with what argued with the band
 	// under it), "actions" (a row per thing to do) or "compact" (one line each).
@@ -92,7 +93,13 @@ type OutputSettings struct {
 	// Top caps how many rows the fix list shows. Zero means the built-in default rather than
 	// "show none": a file that omits a field is not asking for an empty list.
 	Top int `yaml:"top,omitempty"`
+	// OfferInstall is whether `draugr scan` on a terminal offers to install the scanners it is
+	// missing before it runs. Unset means it offers; answering "never" writes false.
+	OfferInstall *bool `yaml:"offerInstall,omitempty"`
 }
+
+// Offers reports whether a scan on a terminal may offer to install missing scanners.
+func (o OutputSettings) Offers() bool { return o.OfferInstall == nil || *o.OfferInstall }
 
 // CacheSettings configures result caching.
 type CacheSettings struct {
@@ -100,9 +107,9 @@ type CacheSettings struct {
 	// a cache is a promise that an unchanged input has an unchanged answer, and that is a promise
 	// somebody should opt into.
 	Dir string `yaml:"dir,omitempty"`
-	// TTL is how long an entry stays usable. Zero means the built-in default rather than "no
-	// expiry", a config file that omits a field is not asking for entries that never expire. Set
-	// `ttl: 0s` explicitly for that.
+	// TTL is how long an entry stays usable. Zero means the built-in default, because a file that
+	// omits the key reads as zero and is not asking for entries that never expire. No expiry is
+	// `--cache-ttl 0` on the command line; a file cannot ask for it.
 	TTL time.Duration `yaml:"ttl,omitempty"`
 	// ReadOnly serves entries without writing them, for a run whose results the next run should
 	// not trust.
@@ -140,9 +147,7 @@ type Resolved struct {
 // overridden by a repository that has an opinion. Missing files are not an error; a machine with
 // no configuration is the normal case.
 func Load(explicit, workDir string) (Resolved, error) {
-	if explicit == "" {
-		explicit = os.Getenv(EnvVar)
-	}
+	explicit = Explicit(explicit)
 	if explicit != "" {
 		f, err := loadFile(explicit)
 		if err != nil {
@@ -164,6 +169,16 @@ func Load(explicit, workDir string) (Resolved, error) {
 		out.File = merge(out.File, f)
 	}
 	return out, nil
+}
+
+// Explicit is the file named by `--config`, or by DRAUGR_CONFIG when the flag is empty, or "" when
+// neither names one. Reading and editing both resolve it here, so `config set` writes the file a
+// scan reads.
+func Explicit(flag string) string {
+	if flag != "" {
+		return flag
+	}
+	return os.Getenv(EnvVar)
 }
 
 // discover lists the candidate files, least specific first.
@@ -259,6 +274,9 @@ func merge(a, b File) File {
 	}
 	if b.Output.Top != 0 {
 		out.Output.Top = b.Output.Top
+	}
+	if b.Output.OfferInstall != nil {
+		out.Output.OfferInstall = b.Output.OfferInstall
 	}
 
 	if len(out.Tools) == 0 {

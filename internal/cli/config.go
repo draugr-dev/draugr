@@ -26,12 +26,12 @@ const starterConfig = `# draugr.config.yaml, machine and organization settings, 
 # scanner to run, and what a control should default to before any project says otherwise. Those
 # want to be the same everywhere, which is exactly why they do not belong in a per-app descriptor.
 #
-# Nothing secret goes here. Use ${{ ENV_VAR }} for anything that is, as a Saga does, so this file
-# stays safe to commit.
+# Nothing secret goes here: the file is read as written, with no ${{ ENV_VAR }} substitution.
+# Credentials go in environment variables.
 #
 # Precedence, least specific first:
 #   ~/.draugr/config.yaml  ->  ./draugr.config.yaml
-# and --config / DRAUGR_CONFIG replaces both. See ` + "`draugr config show`" + ` for what is in
+# and --config / DRAUGR_CONFIG replaces both, for reading and for draugr config set. See ` + "`draugr config show`" + ` for what is in
 # effect and where each value came from.
 
 # Default settings for a control, merged *underneath* the Saga's, so a project overrides only the
@@ -50,6 +50,9 @@ publish: {}
   # apiUrl: https://draugr.acme.example
 `
 
+// configKeysURL is where every key of draugr.config.yaml is documented.
+const configKeysURL = "https://draugr.dev/docs/latest/reference/cli/#draugr-config"
+
 func newConfigCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
@@ -63,8 +66,20 @@ func newConfigCommand() *cobra.Command {
 	return cmd
 }
 
-// configPath resolves which file an edit writes to.
+// configPath resolves which file an edit writes to: the one a scan would read.
+//
+// `--config` and DRAUGR_CONFIG name a file that is read alone, so an edit goes there. --global with
+// either is refused rather than obeyed, because ~/.draugr/config.yaml is not read while they are set
+// and a write to it would be a setting that does nothing.
 func configPath(global bool) (string, error) {
+	if explicit := config.Explicit(rootConfigPath); explicit != "" {
+		if global {
+			return "", fmt.Errorf("--global edits ~/.draugr/config.yaml, which is not read while "+
+				"%s is set to %s. Drop --global to edit %s, or drop %s to edit the global file",
+				explicitSource(), explicit, explicit, explicitSource())
+		}
+		return explicit, nil
+	}
 	if !global {
 		wd, err := os.Getwd()
 		if err != nil {
@@ -77,6 +92,14 @@ func configPath(global bool) (string, error) {
 		return "", err
 	}
 	return filepath.Join(home, ".draugr", "config.yaml"), nil
+}
+
+// explicitSource names what set the explicit config path, for a message about it.
+func explicitSource() string {
+	if rootConfigPath != "" {
+		return "--config"
+	}
+	return config.EnvVar
 }
 
 // globalFlag adds --global to an editing command.
@@ -200,6 +223,9 @@ func flatten(f config.File) []kv {
 		if o.Top != 0 {
 			out = append(out, kv{"output.top", strconv.Itoa(o.Top)})
 		}
+		if o.OfferInstall != nil {
+			out = append(out, kv{"output.offerInstall", strconv.FormatBool(*o.OfferInstall)})
+		}
 	}
 	for control, settings := range f.Controllers {
 		out = append(out, flattenAny("controllers."+control, settings)...)
@@ -253,8 +279,7 @@ func newConfigGetCommand() *cobra.Command {
 			// somebody who has just mistyped a setting is the reader least able to tell.
 			if !isSetting(args[0]) {
 				return fmt.Errorf("%q is not a setting Draugr has. `draugr config show` lists "+
-					"what is set, and `draugr config init` writes a file with every key in it",
-					args[0])
+					"what is set; every key is listed at %s", args[0], configKeysURL)
 			}
 			return fmt.Errorf("%q is not set (see `draugr config show`)", args[0])
 		},
@@ -307,6 +332,17 @@ func editConfig(w io.Writer, global bool, apply func([]byte) ([]byte, error)) er
 	if err != nil {
 		return err
 	}
+	if err := editConfigAt(path, apply); err != nil {
+		return err
+	}
+	// Which file, always. With two possible destinations, a silent success is a guess.
+	_, _ = fmt.Fprintf(w, "wrote %s\n", shortHome(path))
+	return nil
+}
+
+// editConfigAt applies an edit to the file at path and writes it back, refusing to save anything
+// Draugr cannot load.
+func editConfigAt(path string, apply func([]byte) ([]byte, error)) error {
 	doc, err := os.ReadFile(path) // #nosec G304 -- a path this command owns
 	if err != nil && !os.IsNotExist(err) {
 		return err
@@ -324,12 +360,7 @@ func editConfig(w io.Writer, global bool, apply func([]byte) ([]byte, error)) er
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return err
 	}
-	if err := os.WriteFile(path, out, 0o600); err != nil {
-		return err
-	}
-	// Which file, always. With two possible destinations, a silent success is a guess.
-	_, _ = fmt.Fprintf(w, "wrote %s\n", shortHome(path))
-	return nil
+	return os.WriteFile(path, out, 0o600)
 }
 
 func newConfigInitCommand() *cobra.Command {
@@ -412,13 +443,20 @@ func newConfigValidateCommand() *cobra.Command {
 // Asked by writing it into an empty document and parsing the result, which is the same check
 // `config set` already makes, so the two cannot disagree about what a setting is. A second list of
 // valid keys kept by hand is the one that goes stale the first time somebody adds a field.
+//
+// Probed with a value of each scalar kind, because a key whose field is a boolean or a number
+// refuses a string, and a probe of one kind only reports those keys as settings Draugr does not have.
 func isSetting(key string) bool {
-	doc, err := config.Set(nil, key, "probe")
-	if err != nil {
-		return false
+	for _, probe := range []string{"probe", "true", "1"} {
+		doc, err := config.Set(nil, key, probe)
+		if err != nil {
+			return false
+		}
+		if _, err := config.Parse(doc, ""); err == nil {
+			return true
+		}
 	}
-	_, err = config.Parse(doc, "")
-	return err == nil
+	return false
 }
 
 // settingProblem turns a parse failure into something a reader can act on.
@@ -431,8 +469,8 @@ func settingProblem(err error) string {
 	if i := strings.Index(msg, "field "); i >= 0 {
 		if j := strings.Index(msg[i:], " not found in type"); j >= 0 {
 			field := msg[i+len("field ") : i+j]
-			return fmt.Sprintf("%q is not a setting Draugr has. `draugr config init` writes a "+
-				"file with every key in it", field)
+			return fmt.Sprintf("%q is not a setting Draugr has; every key is listed at %s",
+				field, configKeysURL)
 		}
 	}
 	return msg

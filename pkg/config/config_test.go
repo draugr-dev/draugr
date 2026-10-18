@@ -212,6 +212,11 @@ func fill(t *testing.T, v reflect.Value) {
 			fill(t, val)
 		}
 		v.SetMapIndex(key, val)
+	case reflect.Pointer:
+		// A pointer is how a field tells "set to false" from "not set", so it is filled with a
+		// value of its own rather than left nil, which would read as a field merge dropped.
+		v.Set(reflect.New(v.Type().Elem()))
+		fill(t, v.Elem())
 	case reflect.Struct:
 		for i := range v.NumField() {
 			if v.Field(i).CanSet() {
@@ -235,5 +240,33 @@ func assertEveryFieldSet(t *testing.T, v reflect.Value, what string) {
 			t.Errorf("%s dropped %s. Add it to merge(), or every config file that sets it is "+
 				"silently ignored", what, name)
 		}
+	}
+}
+
+// Unset offers, an explicit false declines, and an explicit true offers: a pointer, because a file
+// that says false has to be told apart from one that says nothing.
+func TestOffersReadsAnUnsetKeyAsYes(t *testing.T) {
+	no, yes := false, true
+	for name, tc := range map[string]struct {
+		v    *bool
+		want bool
+	}{"unset": {nil, true}, "false": {&no, false}, "true": {&yes, true}} {
+		if got := (OutputSettings{OfferInstall: tc.v}).Offers(); got != tc.want {
+			t.Errorf("%s: Offers() = %v, want %v", name, got, tc.want)
+		}
+	}
+}
+
+func TestExplicitPrefersTheFlagToTheEnvironment(t *testing.T) {
+	t.Setenv(EnvVar, "/from/env.yaml")
+	if got := Explicit("/from/flag.yaml"); got != "/from/flag.yaml" {
+		t.Errorf("Explicit = %q, want the flag", got)
+	}
+	if got := Explicit(""); got != "/from/env.yaml" {
+		t.Errorf("Explicit = %q, want the environment", got)
+	}
+	t.Setenv(EnvVar, "")
+	if got := Explicit(""); got != "" {
+		t.Errorf("Explicit = %q, want none", got)
 	}
 }

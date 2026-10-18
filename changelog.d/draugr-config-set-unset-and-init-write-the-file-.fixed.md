@@ -1,0 +1,1 @@
+- **`draugr config set`, `unset` and `init` write the file a scan reads.** With `--config` or `DRAUGR_CONFIG` set they edit that file, and `--global` beside either is refused. `config get` also recognizes boolean, number and duration keys it reported as unknown, such as `output.top`.

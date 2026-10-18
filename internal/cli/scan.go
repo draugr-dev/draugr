@@ -214,6 +214,9 @@ func newScanCommand() *cobra.Command {
 
 // runScan executes the full pipeline: describe → plan → scan → aggregate → judge → report.
 // target is a Saga file, a directory to scan zero-config, or "" for the current directory.
+// scanInstallOffer is the offer a scan makes before it runs. A variable so tests can answer it.
+var scanInstallOffer = defaultInstallOffer()
+
 func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.Registry, w io.Writer) error {
 	resolved, synthesized, err := scanResolved(target)
 	if err != nil {
@@ -257,6 +260,9 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// not what was declared. The request is kept too, for what is keyed on it.
 	requested := scope
 	scope = scope.Resolve(*model)
+	// Before the checks below and the scanners, so a person at a terminal who is missing a scanner
+	// can install it and get the scan they asked for rather than one with controls marked ERROR.
+	scanInstallOffer.run(ctx, reg, model, scope, cfg)
 
 	minPriority, err := validatePriority("--min-priority", opts.minPriority)
 	if err != nil {

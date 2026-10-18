@@ -262,6 +262,27 @@ A caveat fails the run only when `--fail-on-caveats` or
 
 `--no-tips` or `DRAUGR_NO_TIPS=1` turns them off.
 
+### Installing a missing scanner
+
+On a terminal, a scan that needs a scanner `draugr tools install` fetches and cannot find asks
+before it starts:
+
+```
+semgrep and trivy are not installed, so iac, sast and sca would not run.
+Install them now with draugr tools install semgrep trivy? [Y/n/never]
+```
+
+| Answer | Does |
+|---|---|
+| Enter, `y` or `yes` | installs them, at the version the config pins if it pins one, then scans |
+| `n`, or anything else | scans without them; the affected controls read `<tool> not installed` |
+| `never` | scans without them and writes `output.offerInstall: false` to `~/.draugr/config.yaml`, or to the file `--config` or `DRAUGR_CONFIG` names |
+
+It asks only when stdin, stdout and stderr are all terminals, and never with `--offline`, so a
+pipeline, an assistant and a redirected report scan as before. The tools a scan needs are the ones
+[`draugr doctor`](#draugr-doctor-sagayaml) checks, narrowed by `--controls`. A tool Draugr does not
+fetch is not offered.
+
 ### While a scan is running
 
 A scan plans one job per repository, image, host and cluster and runs them concurrently. On a
@@ -1696,6 +1717,7 @@ controllers:            # merged *underneath* the descriptor's own settings
 | `controllers.<control>.<scanner>` | control defaults, merged underneath the descriptor's `config.controls` |
 | `cache.dir`, `cache.ttl`, `cache.readOnly`, `cache.requireDigest` | the `--cache-*` flags. A `ttl` of `0` means the built-in default; `--cache-ttl 0` on the command line means no expiry |
 | `output.view`, `output.evidence`, `output.top` | the `--view`, `--evidence` and `--top` flags. A `top` of `0` means the built-in default |
+| `output.offerInstall` | whether a scan on a terminal [offers to install](#installing-a-missing-scanner) a missing scanner; unset means it does |
 | `publish.apiUrl` | where the `draugr-api` publisher posts, below `$DRAUGR_API_URL` and a `url:` in the descriptor |
 
 A flag typed on the command line always wins over the file. See [caching &
@@ -1726,8 +1748,10 @@ For `draugr scan`, `doctor` and `tools install`, the full order is **component â
 | `draugr config init` | write a commented starter; `--force` replaces an existing file |
 | `draugr config validate [path...]` | check the discovered files load, or the files named |
 
-`set`, `unset` and `init` write `./draugr.config.yaml`, or `~/.draugr/config.yaml` with `--global`.
-They do not follow `--config` or `DRAUGR_CONFIG`.
+`set`, `unset` and `init` write the file a scan reads: the one `--config` or `DRAUGR_CONFIG` names,
+or else `./draugr.config.yaml`, or `~/.draugr/config.yaml` with `--global`. `--global` together
+with `--config` or `DRAUGR_CONFIG` is refused, because the global file is not read while either is
+set.
 
 ```
 $ draugr config show

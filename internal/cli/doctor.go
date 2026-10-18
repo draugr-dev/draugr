@@ -485,6 +485,23 @@ func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
 // scannersInUse returns the scanners a scan of model would run: each one serving a control the
 // model enables, and among several serving one control, only those the control selects.
 func scannersInUse(reg *engine.Registry, model *saga.Model) []plugin.ScannerInfo {
+	uses := scannerUses(reg, model)
+	out := make([]plugin.ScannerInfo, len(uses))
+	for i, u := range uses {
+		out[i] = u.info
+	}
+	return out
+}
+
+// scannerUse is a scanner a scan would run and the enabled controls it would run for.
+type scannerUse struct {
+	info     plugin.ScannerInfo
+	controls []string
+}
+
+// scannerUses is scannersInUse with the controls each scanner serves, which is what a message
+// naming the controls a missing tool blocks needs.
+func scannerUses(reg *engine.Registry, model *saga.Model) []scannerUse {
 	enabled := func(control string) bool {
 		if model.Config.ControllerEnabled(control) {
 			return true
@@ -521,10 +538,10 @@ func scannersInUse(reg *engine.Registry, model *saga.Model) []plugin.ScannerInfo
 		}
 	}
 
-	var out []plugin.ScannerInfo
+	var out []scannerUse
 	for _, s := range reg.Scanners() {
 		info := s.Info()
-		serves := false
+		var controls []string
 		for _, c := range info.Controls {
 			if !enabled(c) {
 				continue
@@ -533,17 +550,16 @@ func scannersInUse(reg *engine.Registry, model *saga.Model) []plugin.ScannerInfo
 			// inside the enabled check: config.reachability is project-wide, and an analyzer whose
 			// control is switched off is a tool this scan will never reach for.
 			if analyzer[info.Name] {
-				serves = true
-				break
+				controls = append(controls, c)
+				continue
 			}
 			if set, selectable := selected[c]; selectable && !set[info.Name] {
 				continue // a scanner this control will not run for this model
 			}
-			serves = true
-			break
+			controls = append(controls, c)
 		}
-		if serves {
-			out = append(out, info)
+		if len(controls) > 0 {
+			out = append(out, scannerUse{info: info, controls: controls})
 		}
 	}
 	return out
