@@ -19,7 +19,7 @@ name: Evals
 #
 # - Dispatch only. A run executes the named commit's code with the key, so for a pull request from a
 #   fork, name the head commit you read, and a later push cannot ride on the review.
-# - Three runs per case by default, about US$5.40 for the suite; one run is about US$1.80.
+# - Three runs per case by default, about US$6.30 for the suite; one run is about US$2.10.
 # - A fixed suite. The case count, each case's turn limit and the cost ceiling below are all in this
 #   repository, so nothing in a pull request's description or title changes what a run spends.
 # - One run per commit. A second dispatch for the same commit cancels the run in flight.

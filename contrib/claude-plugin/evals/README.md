@@ -39,8 +39,8 @@ PATH="$(git rev-parse --show-toplevel)/bin:$HOME/.draugr/bin:$PATH" claude plugi
   --threshold 0.8 --runs 1 --max-cost-usd 3 --no-publish
 ```
 
-`--case <name>` runs one case. One run per case costs about US$1.80 for the suite; `--runs 3`, the
-default, about US$5.40. `KUBECONFIG` names a file that does not exist, so survey-no-cluster finds
+`--case <name>` runs one case. One run per case costs about US$2.10 for the suite; `--runs 3`, the
+default, about US$6.30. `KUBECONFIG` names a file that does not exist, so survey-no-cluster finds
 no cluster whatever this machine is configured for. Results go to `evals/results/`, which is
 ignored.
 
