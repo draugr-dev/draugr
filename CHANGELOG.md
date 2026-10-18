@@ -12,6 +12,12 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.154.1] - 2026-10-18
+
+### Fixed
+
+- **The MCP `fix_list` tool returns the actions `draugr scan --view actions` prints.** It gives one action per upstream image, a review of the licenses inside it, and a committed credential to remove and rotate, where it gave one action per component and a code fix. `clears` counts the returned actions, as the console heading does.
+
 ## [0.154.0] - 2026-10-18
 
 ### Added
@@ -6371,7 +6377,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.154.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.154.1...HEAD
+[0.154.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.154.1
 [0.154.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.154.0
 [0.153.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.153.0
 [0.152.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.152.1
