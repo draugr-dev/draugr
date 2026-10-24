@@ -228,7 +228,7 @@ jobs:
         # always(), not the code filter: the evidence is most wanted when the gate failed, and
         # a step skipped on failure uploads nothing exactly then.
         if: always() && needs.changes.outputs.code == 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: draugr-selfscan
           path: draugr-out/
