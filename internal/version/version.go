@@ -3,7 +3,10 @@ package version
 
 import (
 	"fmt"
+	"regexp"
 	"runtime"
+	"runtime/debug"
+	"strings"
 )
 
 // These are overridden at build time (see Makefile).
@@ -12,6 +15,39 @@ var (
 	Commit  = "none"
 	Date    = "unknown"
 )
+
+func init() {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		Version, Commit, Date = fromBuildInfo(info, Version, Commit, Date)
+	}
+}
+
+// releaseTag matches a module version that names a release tag. A pseudo-version
+// (v0.154.2-0.20261018…-abcdef) or "(devel)" names no release, so neither does.
+var releaseTag = regexp.MustCompile(`^v\d+\.\d+\.\d+$`)
+
+// shortCommit is the length of the commit a release binary is stamped with.
+const shortCommit = 8
+
+// fromBuildInfo fills whatever the linker left at its default from what the Go toolchain recorded.
+//
+// `go install …@v0.154.1` sets no -ldflags, so without this the binary calls itself "dev". The
+// module version arrives with a leading "v", which is trimmed to match what the release stamps.
+// The VCS settings are present only when the build ran inside a checkout.
+func fromBuildInfo(info *debug.BuildInfo, version, commit, date string) (string, string, string) {
+	if version == "dev" && releaseTag.MatchString(info.Main.Version) {
+		version = strings.TrimPrefix(info.Main.Version, "v")
+	}
+	for _, s := range info.Settings {
+		switch {
+		case s.Key == "vcs.revision" && commit == "none" && s.Value != "":
+			commit = s.Value[:min(len(s.Value), shortCommit)]
+		case s.Key == "vcs.time" && date == "unknown" && s.Value != "":
+			date = s.Value
+		}
+	}
+	return version, commit, date
+}
 
 // String returns a human-readable version line.
 func String() string {

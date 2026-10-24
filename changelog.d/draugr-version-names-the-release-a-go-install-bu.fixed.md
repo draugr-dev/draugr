@@ -1,0 +1,1 @@
+- **`draugr version` names the release a `go install` built.** A binary installed with `go install github.com/draugr-dev/draugr/cmd/draugr@v0.154.1` reported `dev`. It now reports the module version it was built from, and a build from a checkout reports its commit and commit time.

@@ -50,7 +50,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GO_VERSION: "1.26.9"
+  GO_VERSION: "1.26.10"
   EVAL_MODEL: claude-sonnet-5-5
   JUDGE_MODEL: claude-haiku-5-5
 

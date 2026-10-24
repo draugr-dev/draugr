@@ -1,0 +1,1 @@
+- **Release binaries are built with Go 1.26.10**, which fixes [GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809): `crypto/x509` trusted certificates chaining to intermediates since found to be compromised. Draugr verifies certificates whenever it fetches a tool, a feed or a scanned endpoint over TLS.

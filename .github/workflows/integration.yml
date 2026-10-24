@@ -65,7 +65,7 @@ env:
   # patch release, and setup-go's version manifest lags go.dev by a day or two, so the floating
   # minor resolves to yesterday's patch and every pull request goes red for something no pull
   # request did. Bump this when govulncheck names a newer one.
-  GO_VERSION: "1.26.9"
+  GO_VERSION: "1.26.10"
   # The kube-bench release whose benchmark definitions the CIS catalog is checked against.
   # Keep in sync with defaultKubeBenchImage in internal/scanners/kube_bench_job.go, so that
   # bumping the image is when a benchmark revision is discovered rather than later.
