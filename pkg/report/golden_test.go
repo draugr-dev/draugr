@@ -338,6 +338,8 @@ func goldenGroupedData() Data {
 func goldenCompactData() Data {
 	d := goldenGroupedData()
 	d.View = ViewCompact
+	// The findings cut, not the grouped view's per-list one.
+	d.TopN = goldenFullData().TopN
 	return d
 }
 
