@@ -55,7 +55,9 @@ that made it.
 
 notation exits **1 for everything**: a missing signature, a wrong certificate and a registry it
 could not reach share one code. So the outcomes that mean something are recognized by what it
-said, observed against notation 1.3.2:
+said, observed against notation 1.3.2. Draugr runs it with `--verbose`, because the reason a
+signature was refused appears only in that log; without it, every refusal reads `signature
+verification failed for all the signatures`.
 
 | What notation says | Finding |
 |---|---|
