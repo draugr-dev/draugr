@@ -1,0 +1,200 @@
+{
+ "version": "2.1.0",
+ "runs": [
+  {
+   "invocations": [
+    {
+     "executionSuccessful": true,
+     "toolExecutionNotifications": []
+    }
+   ],
+   "results": [
+    {
+     "fingerprints": {
+      "matchBasedId/v1": "requires login"
+     },
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "corpus4/app.py",
+         "uriBaseId": "%SRCROOT%"
+        },
+        "region": {
+         "endColumn": 40,
+         "endLine": 11,
+         "snippet": {
+          "text": "    return os.popen(\"ping -c1 \" + host).read()"
+         },
+         "startColumn": 12,
+         "startLine": 11
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "Found user-controlled data used in a system call. This could allow a malicious actor to execute commands. Use the 'subprocess' module instead, which is easier to use without accidentally exposing a command injection vulnerability."
+     },
+     "properties": {},
+     "ruleId": "python.lang.security.dangerous-system-call.dangerous-system-call"
+    },
+    {
+     "fingerprints": {
+      "matchBasedId/v1": "requires login"
+     },
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "corpus4/app.py",
+         "uriBaseId": "%SRCROOT%"
+        },
+        "region": {
+         "endColumn": 40,
+         "endLine": 11,
+         "snippet": {
+          "text": "    return os.popen(\"ping -c1 \" + host).read()"
+         },
+         "startColumn": 12,
+         "startLine": 11
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "os.popen runs its argument through a shell"
+     },
+     "properties": {},
+     "ruleId": "rules.no-os-popen"
+    },
+    {
+     "fingerprints": {
+      "matchBasedId/v1": "requires login"
+     },
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "corpus4/app.py",
+         "uriBaseId": "%SRCROOT%"
+        },
+        "region": {
+         "endColumn": 42,
+         "endLine": 17,
+         "snippet": {
+          "text": "    return os.popen(\"traceroute \" + host).read()  # nosemgrep"
+         },
+         "startColumn": 12,
+         "startLine": 17
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "Found user-controlled data used in a system call. This could allow a malicious actor to execute commands. Use the 'subprocess' module instead, which is easier to use without accidentally exposing a command injection vulnerability."
+     },
+     "properties": {},
+     "ruleId": "python.lang.security.dangerous-system-call.dangerous-system-call",
+     "suppressions": [
+      {
+       "kind": "inSource"
+      }
+     ]
+    },
+    {
+     "fingerprints": {
+      "matchBasedId/v1": "requires login"
+     },
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "corpus4/app.py",
+         "uriBaseId": "%SRCROOT%"
+        },
+        "region": {
+         "endColumn": 42,
+         "endLine": 17,
+         "snippet": {
+          "text": "    return os.popen(\"traceroute \" + host).read()  # nosemgrep"
+         },
+         "startColumn": 12,
+         "startLine": 17
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "os.popen runs its argument through a shell"
+     },
+     "properties": {},
+     "ruleId": "rules.no-os-popen",
+     "suppressions": [
+      {
+       "kind": "inSource"
+      }
+     ]
+    }
+   ],
+   "tool": {
+    "driver": {
+     "name": "Semgrep OSS",
+     "rules": [
+      {
+       "defaultConfiguration": {
+        "level": "error"
+       },
+       "fullDescription": {
+        "text": "Found user-controlled data used in a system call. This could allow a malicious actor to execute commands. Use the 'subprocess' module instead, which is easier to use without accidentally exposing a command injection vulnerability."
+       },
+       "help": {
+        "markdown": "Found user-controlled data used in a system call. This could allow a malicious actor to execute commands. Use the 'subprocess' module instead, which is easier to use without accidentally exposing a command injection vulnerability.\n\n#### \ud83d\udc8e Enable cross-file analysis and Pro rules for free at <a href='https://sg.run/pro'>sg.run/pro</a>\n\n<b>References:</b>\n - [Semgrep Rule](https://semgrep.dev/r/python.lang.security.dangerous-system-call.dangerous-system-call)\n - [https://semgrep.dev/docs/cheat-sheets/python-command-injection/](https://semgrep.dev/docs/cheat-sheets/python-command-injection/)\n",
+        "text": "Found user-controlled data used in a system call. This could allow a malicious actor to execute commands. Use the 'subprocess' module instead, which is easier to use without accidentally exposing a command injection vulnerability.\n\ud83d\udc8e Enable cross-file analysis and Pro rules for free at sg.run/pro"
+       },
+       "helpUri": "https://semgrep.dev/r/python.lang.security.dangerous-system-call.dangerous-system-call",
+       "id": "python.lang.security.dangerous-system-call.dangerous-system-call",
+       "name": "python.lang.security.dangerous-system-call.dangerous-system-call",
+       "properties": {
+        "precision": "very-high",
+        "tags": [
+         "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')",
+         "MEDIUM CONFIDENCE",
+         "OWASP-A01:2017 - Injection",
+         "OWASP-A03:2021 - Injection",
+         "OWASP-A05:2025 - Injection",
+         "security"
+        ]
+       },
+       "shortDescription": {
+        "text": "Semgrep Finding: python.lang.security.dangerous-system-call.dangerous-system-call"
+       }
+      },
+      {
+       "defaultConfiguration": {
+        "level": "error"
+       },
+       "fullDescription": {
+        "text": "os.popen runs its argument through a shell"
+       },
+       "help": {
+        "markdown": "os.popen runs its argument through a shell\n\n#### \ud83d\udc8e Enable cross-file analysis and Pro rules for free at <a href='https://sg.run/pro'>sg.run/pro</a>",
+        "text": "os.popen runs its argument through a shell\n\ud83d\udc8e Enable cross-file analysis and Pro rules for free at sg.run/pro"
+       },
+       "id": "rules.no-os-popen",
+       "name": "rules.no-os-popen",
+       "properties": {
+        "precision": "very-high",
+        "tags": []
+       },
+       "shortDescription": {
+        "text": "Semgrep Finding: rules.no-os-popen"
+       }
+      }
+     ],
+     "semanticVersion": "1.182.1"
+    }
+   }
+  }
+ ],
+ "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json"
+}

@@ -26,6 +26,7 @@ func TestSemgrepArgs(t *testing.T) {
 	want := []string{
 		"semgrep", "scan",
 		"--sarif",
+		"--json-output", semgrepJSONPath,
 		"--quiet",
 		"--no-error",
 		"--metrics=off",

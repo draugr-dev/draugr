@@ -1,0 +1,896 @@
+{
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Bandit",
+          "organization": "PyCQA",
+          "rules": [
+            {
+              "id": "B403",
+              "name": "blacklist",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-502"
+                ],
+                "precision": "high"
+              },
+              "helpUri": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b403-import-pickle"
+            },
+            {
+              "id": "B404",
+              "name": "blacklist",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-78"
+                ],
+                "precision": "high"
+              },
+              "helpUri": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b404-import-subprocess"
+            },
+            {
+              "id": "B105",
+              "name": "hardcoded_password_string",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-259"
+                ],
+                "precision": "medium"
+              },
+              "helpUri": "https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html"
+            },
+            {
+              "id": "B608",
+              "name": "hardcoded_sql_expressions",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-89"
+                ],
+                "precision": "medium"
+              },
+              "helpUri": "https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html"
+            },
+            {
+              "id": "B301",
+              "name": "blacklist",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-502"
+                ],
+                "precision": "high"
+              },
+              "helpUri": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b301-pickle"
+            },
+            {
+              "id": "B506",
+              "name": "yaml_load",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-20"
+                ],
+                "precision": "high"
+              },
+              "helpUri": "https://bandit.readthedocs.io/en/1.9.4/plugins/b506_yaml_load.html"
+            },
+            {
+              "id": "B324",
+              "name": "hashlib",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-327"
+                ],
+                "precision": "high"
+              },
+              "helpUri": "https://bandit.readthedocs.io/en/1.9.4/plugins/b324_hashlib.html"
+            },
+            {
+              "id": "B311",
+              "name": "blacklist",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-330"
+                ],
+                "precision": "high"
+              },
+              "helpUri": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random"
+            },
+            {
+              "id": "B501",
+              "name": "request_with_no_cert_validation",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-295"
+                ],
+                "precision": "high"
+              },
+              "helpUri": "https://bandit.readthedocs.io/en/1.9.4/plugins/b501_request_with_no_cert_validation.html"
+            },
+            {
+              "id": "B113",
+              "name": "request_without_timeout",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-400"
+                ],
+                "precision": "low"
+              },
+              "helpUri": "https://bandit.readthedocs.io/en/1.9.4/plugins/b113_request_without_timeout.html"
+            },
+            {
+              "id": "B108",
+              "name": "hardcoded_tmp_directory",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-377"
+                ],
+                "precision": "medium"
+              },
+              "helpUri": "https://bandit.readthedocs.io/en/1.9.4/plugins/b108_hardcoded_tmp_directory.html"
+            },
+            {
+              "id": "B607",
+              "name": "start_process_with_partial_path",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-78"
+                ],
+                "precision": "high"
+              },
+              "helpUri": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html"
+            },
+            {
+              "id": "B603",
+              "name": "subprocess_without_shell_equals_true",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-78"
+                ],
+                "precision": "high"
+              },
+              "helpUri": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html"
+            },
+            {
+              "id": "B110",
+              "name": "try_except_pass",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-703"
+                ],
+                "precision": "high"
+              },
+              "helpUri": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html"
+            },
+            {
+              "id": "B202",
+              "name": "tarfile_unsafe_members",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-22"
+                ],
+                "precision": "low"
+              },
+              "helpUri": "https://bandit.readthedocs.io/en/1.9.4/plugins/b202_tarfile_unsafe_members.html"
+            },
+            {
+              "id": "B701",
+              "name": "jinja2_autoescape_false",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-94"
+                ],
+                "precision": "medium"
+              },
+              "helpUri": "https://bandit.readthedocs.io/en/1.9.4/plugins/b701_jinja2_autoescape_false.html"
+            },
+            {
+              "id": "B604",
+              "name": "any_other_function_with_shell_equals_true",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-78"
+                ],
+                "precision": "low"
+              },
+              "helpUri": "https://bandit.readthedocs.io/en/1.9.4/plugins/b604_any_other_function_with_shell_equals_true.html"
+            }
+          ],
+          "version": "1.9.4",
+          "semanticVersion": "1.9.4"
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "endTimeUtc": "2026-10-25T21:56:40Z"
+        }
+      ],
+      "properties": {
+        "metrics": {
+          "_totals": {
+            "loc": 49,
+            "nosec": 0,
+            "skipped_tests": 0,
+            "SEVERITY.UNDEFINED": 0,
+            "CONFIDENCE.UNDEFINED": 0,
+            "SEVERITY.LOW": 8,
+            "CONFIDENCE.LOW": 3,
+            "SEVERITY.MEDIUM": 6,
+            "CONFIDENCE.MEDIUM": 4,
+            "SEVERITY.HIGH": 3,
+            "CONFIDENCE.HIGH": 10
+          },
+          "corpus/extra.py": {
+            "loc": 36,
+            "nosec": 0,
+            "skipped_tests": 0,
+            "SEVERITY.UNDEFINED": 0,
+            "SEVERITY.LOW": 7,
+            "SEVERITY.MEDIUM": 5,
+            "SEVERITY.HIGH": 2,
+            "CONFIDENCE.UNDEFINED": 0,
+            "CONFIDENCE.LOW": 1,
+            "CONFIDENCE.MEDIUM": 3,
+            "CONFIDENCE.HIGH": 10
+          },
+          "corpus3/more.py": {
+            "loc": 13,
+            "nosec": 0,
+            "skipped_tests": 0,
+            "SEVERITY.UNDEFINED": 0,
+            "SEVERITY.LOW": 1,
+            "SEVERITY.MEDIUM": 1,
+            "SEVERITY.HIGH": 1,
+            "CONFIDENCE.UNDEFINED": 0,
+            "CONFIDENCE.LOW": 2,
+            "CONFIDENCE.MEDIUM": 1,
+            "CONFIDENCE.HIGH": 0
+          }
+        }
+      },
+      "results": [
+        {
+          "message": {
+            "text": "Consider possible security implications associated with pickle module."
+          },
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "import pickle\n"
+                  },
+                  "endColumn": 14,
+                  "endLine": 2,
+                  "startColumn": 1,
+                  "startLine": 2
+                },
+                "artifactLocation": {
+                  "uri": "corpus/extra.py"
+                },
+                "contextRegion": {
+                  "snippet": {
+                    "text": "import hashlib\nimport pickle\nimport random\n"
+                  },
+                  "endLine": 3,
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "properties": {
+            "issue_confidence": "HIGH",
+            "issue_severity": "LOW"
+          },
+          "ruleId": "B403",
+          "ruleIndex": 0
+        },
+        {
+          "message": {
+            "text": "Consider possible security implications associated with the subprocess module."
+          },
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "import subprocess\n"
+                  },
+                  "endColumn": 18,
+                  "endLine": 5,
+                  "startColumn": 1,
+                  "startLine": 5
+                },
+                "artifactLocation": {
+                  "uri": "corpus/extra.py"
+                },
+                "contextRegion": {
+                  "snippet": {
+                    "text": "import sqlite3\nimport subprocess\n\n"
+                  },
+                  "endLine": 6,
+                  "startLine": 4
+                }
+              }
+            }
+          ],
+          "properties": {
+            "issue_confidence": "HIGH",
+            "issue_severity": "LOW"
+          },
+          "ruleId": "B404",
+          "ruleIndex": 1
+        },
+        {
+          "message": {
+            "text": "Possible hardcoded password: 'hunter2'"
+          },
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "password = \"hunter2\"\n"
+                  },
+                  "endColumn": 21,
+                  "endLine": 12,
+                  "startColumn": 12,
+                  "startLine": 12
+                },
+                "artifactLocation": {
+                  "uri": "corpus/extra.py"
+                },
+                "contextRegion": {
+                  "snippet": {
+                    "text": "app = Flask(__name__)\npassword = \"hunter2\"\n\n"
+                  },
+                  "endLine": 13,
+                  "startLine": 11
+                }
+              }
+            }
+          ],
+          "properties": {
+            "issue_confidence": "MEDIUM",
+            "issue_severity": "LOW"
+          },
+          "ruleId": "B105",
+          "ruleIndex": 2
+        },
+        {
+          "message": {
+            "text": "Possible SQL injection vector through string-based query construction."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "    return str(conn.execute(\"SELECT * FROM users WHERE name = '%s'\" % name).fetchall())\n"
+                  },
+                  "endColumn": 68,
+                  "endLine": 19,
+                  "startColumn": 29,
+                  "startLine": 19
+                },
+                "artifactLocation": {
+                  "uri": "corpus/extra.py"
+                },
+                "contextRegion": {
+                  "snippet": {
+                    "text": "    name = request.args.get(\"name\")\n    return str(conn.execute(\"SELECT * FROM users WHERE name = '%s'\" % name).fetchall())\n\n"
+                  },
+                  "endLine": 20,
+                  "startLine": 18
+                }
+              }
+            }
+          ],
+          "properties": {
+            "issue_confidence": "MEDIUM",
+            "issue_severity": "MEDIUM"
+          },
+          "ruleId": "B608",
+          "ruleIndex": 3
+        },
+        {
+          "message": {
+            "text": "Pickle and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "    return pickle.loads(data)\n"
+                  },
+                  "endColumn": 30,
+                  "endLine": 28,
+                  "startColumn": 12,
+                  "startLine": 28
+                },
+                "artifactLocation": {
+                  "uri": "corpus/extra.py"
+                },
+                "contextRegion": {
+                  "snippet": {
+                    "text": "def load(data):\n    return pickle.loads(data)\n\n"
+                  },
+                  "endLine": 29,
+                  "startLine": 27
+                }
+              }
+            }
+          ],
+          "properties": {
+            "issue_confidence": "HIGH",
+            "issue_severity": "MEDIUM"
+          },
+          "ruleId": "B301",
+          "ruleIndex": 4
+        },
+        {
+          "message": {
+            "text": "Use of unsafe yaml load. Allows instantiation of arbitrary objects. Consider yaml.safe_load()."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "        return yaml.load(f)\n"
+                  },
+                  "endColumn": 28,
+                  "endLine": 33,
+                  "startColumn": 16,
+                  "startLine": 33
+                },
+                "artifactLocation": {
+                  "uri": "corpus/extra.py"
+                },
+                "contextRegion": {
+                  "snippet": {
+                    "text": "    with open(path) as f:\n        return yaml.load(f)\n\n"
+                  },
+                  "endLine": 34,
+                  "startLine": 32
+                }
+              }
+            }
+          ],
+          "properties": {
+            "issue_confidence": "HIGH",
+            "issue_severity": "MEDIUM"
+          },
+          "ruleId": "B506",
+          "ruleIndex": 5
+        },
+        {
+          "message": {
+            "text": "Use of weak MD5 hash for security. Consider usedforsecurity=False"
+          },
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "    return hashlib.md5(b).hexdigest()\n"
+                  },
+                  "endColumn": 26,
+                  "endLine": 37,
+                  "startColumn": 12,
+                  "startLine": 37
+                },
+                "artifactLocation": {
+                  "uri": "corpus/extra.py"
+                },
+                "contextRegion": {
+                  "snippet": {
+                    "text": "def digest(b):\n    return hashlib.md5(b).hexdigest()\n\n"
+                  },
+                  "endLine": 38,
+                  "startLine": 36
+                }
+              }
+            }
+          ],
+          "properties": {
+            "issue_confidence": "HIGH",
+            "issue_severity": "HIGH"
+          },
+          "ruleId": "B324",
+          "ruleIndex": 6
+        },
+        {
+          "message": {
+            "text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes."
+          },
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "    return random.random()\n"
+                  },
+                  "endColumn": 27,
+                  "endLine": 41,
+                  "startColumn": 12,
+                  "startLine": 41
+                },
+                "artifactLocation": {
+                  "uri": "corpus/extra.py"
+                },
+                "contextRegion": {
+                  "snippet": {
+                    "text": "def token():\n    return random.random()\n\n"
+                  },
+                  "endLine": 42,
+                  "startLine": 40
+                }
+              }
+            }
+          ],
+          "properties": {
+            "issue_confidence": "HIGH",
+            "issue_severity": "LOW"
+          },
+          "ruleId": "B311",
+          "ruleIndex": 7
+        },
+        {
+          "message": {
+            "text": "Call to requests with verify=False disabling SSL certificate checks, security issue."
+          },
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "    return requests.get(url, verify=False)\n"
+                  },
+                  "endColumn": 43,
+                  "endLine": 45,
+                  "startColumn": 12,
+                  "startLine": 45
+                },
+                "artifactLocation": {
+                  "uri": "corpus/extra.py"
+                },
+                "contextRegion": {
+                  "snippet": {
+                    "text": "def fetch(url):\n    return requests.get(url, verify=False)\n\n"
+                  },
+                  "endLine": 46,
+                  "startLine": 44
+                }
+              }
+            }
+          ],
+          "properties": {
+            "issue_confidence": "HIGH",
+            "issue_severity": "HIGH"
+          },
+          "ruleId": "B501",
+          "ruleIndex": 8
+        },
+        {
+          "message": {
+            "text": "Call to requests without timeout"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "    return requests.get(url, verify=False)\n"
+                  },
+                  "endColumn": 43,
+                  "endLine": 45,
+                  "startColumn": 12,
+                  "startLine": 45
+                },
+                "artifactLocation": {
+                  "uri": "corpus/extra.py"
+                },
+                "contextRegion": {
+                  "snippet": {
+                    "text": "def fetch(url):\n    return requests.get(url, verify=False)\n\n"
+                  },
+                  "endLine": 46,
+                  "startLine": 44
+                }
+              }
+            }
+          ],
+          "properties": {
+            "issue_confidence": "LOW",
+            "issue_severity": "MEDIUM"
+          },
+          "ruleId": "B113",
+          "ruleIndex": 9
+        },
+        {
+          "message": {
+            "text": "Probable insecure usage of temp file/directory."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "    return open(\"/tmp/draugr-example\", \"w\")\n"
+                  },
+                  "endColumn": 38,
+                  "endLine": 49,
+                  "startColumn": 17,
+                  "startLine": 49
+                },
+                "artifactLocation": {
+                  "uri": "corpus/extra.py"
+                },
+                "contextRegion": {
+                  "snippet": {
+                    "text": "def tmp():\n    return open(\"/tmp/draugr-example\", \"w\")\n\n"
+                  },
+                  "endLine": 50,
+                  "startLine": 48
+                }
+              }
+            }
+          ],
+          "properties": {
+            "issue_confidence": "MEDIUM",
+            "issue_severity": "MEDIUM"
+          },
+          "ruleId": "B108",
+          "ruleIndex": 10
+        },
+        {
+          "message": {
+            "text": "Starting a process with a partial executable path"
+          },
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "        subprocess.call([\"ls\"])\n"
+                  },
+                  "endColumn": 32,
+                  "endLine": 54,
+                  "startColumn": 9,
+                  "startLine": 54
+                },
+                "artifactLocation": {
+                  "uri": "corpus/extra.py"
+                },
+                "contextRegion": {
+                  "snippet": {
+                    "text": "    try:\n        subprocess.call([\"ls\"])\n    except Exception:\n"
+                  },
+                  "endLine": 55,
+                  "startLine": 53
+                }
+              }
+            }
+          ],
+          "properties": {
+            "issue_confidence": "HIGH",
+            "issue_severity": "LOW"
+          },
+          "ruleId": "B607",
+          "ruleIndex": 11
+        },
+        {
+          "message": {
+            "text": "subprocess call - check for execution of untrusted input."
+          },
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "        subprocess.call([\"ls\"])\n"
+                  },
+                  "endColumn": 32,
+                  "endLine": 54,
+                  "startColumn": 9,
+                  "startLine": 54
+                },
+                "artifactLocation": {
+                  "uri": "corpus/extra.py"
+                },
+                "contextRegion": {
+                  "snippet": {
+                    "text": "    try:\n        subprocess.call([\"ls\"])\n    except Exception:\n"
+                  },
+                  "endLine": 55,
+                  "startLine": 53
+                }
+              }
+            }
+          ],
+          "properties": {
+            "issue_confidence": "HIGH",
+            "issue_severity": "LOW"
+          },
+          "ruleId": "B603",
+          "ruleIndex": 12
+        },
+        {
+          "message": {
+            "text": "Try, Except, Pass detected."
+          },
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "    except Exception:\n"
+                  },
+                  "endColumn": 13,
+                  "endLine": 56,
+                  "startColumn": 5,
+                  "startLine": 55
+                },
+                "artifactLocation": {
+                  "uri": "corpus/extra.py"
+                },
+                "contextRegion": {
+                  "snippet": {
+                    "text": "        subprocess.call([\"ls\"])\n    except Exception:\n        pass\n"
+                  },
+                  "endLine": 56,
+                  "startLine": 54
+                }
+              }
+            }
+          ],
+          "properties": {
+            "issue_confidence": "HIGH",
+            "issue_severity": "LOW"
+          },
+          "ruleId": "B110",
+          "ruleIndex": 13
+        },
+        {
+          "message": {
+            "text": "Usage of tarfile.extractall(members=function(tarfile)). Make sure your function properly discards dangerous members {'Function': 'safe_members'})."
+          },
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "        archive.extractall(members=safe_members(archive))\n"
+                  },
+                  "endColumn": 58,
+                  "endLine": 13,
+                  "startColumn": 9,
+                  "startLine": 13
+                },
+                "artifactLocation": {
+                  "uri": "corpus3/more.py"
+                },
+                "contextRegion": {
+                  "snippet": {
+                    "text": "    with tarfile.open(path) as archive:\n        archive.extractall(members=safe_members(archive))\n    return jinja2.Environment(autoescape=autoescape)\n"
+                  },
+                  "endLine": 14,
+                  "startLine": 12
+                }
+              }
+            }
+          ],
+          "properties": {
+            "issue_confidence": "LOW",
+            "issue_severity": "LOW"
+          },
+          "ruleId": "B202",
+          "ruleIndex": 14
+        },
+        {
+          "message": {
+            "text": "Using jinja2 templates with autoescape=False is dangerous and can lead to XSS. Ensure autoescape=True or use the select_autoescape function to mitigate XSS vulnerabilities."
+          },
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "    return jinja2.Environment(autoescape=autoescape)\n"
+                  },
+                  "endColumn": 53,
+                  "endLine": 14,
+                  "startColumn": 12,
+                  "startLine": 14
+                },
+                "artifactLocation": {
+                  "uri": "corpus3/more.py"
+                },
+                "contextRegion": {
+                  "snippet": {
+                    "text": "        archive.extractall(members=safe_members(archive))\n    return jinja2.Environment(autoescape=autoescape)\n\n"
+                  },
+                  "endLine": 15,
+                  "startLine": 13
+                }
+              }
+            }
+          ],
+          "properties": {
+            "issue_confidence": "MEDIUM",
+            "issue_severity": "HIGH"
+          },
+          "ruleId": "B701",
+          "ruleIndex": 15
+        },
+        {
+          "message": {
+            "text": "Function call with shell=True parameter identified, possible security issue."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "    return run(cmd, shell=True)\n"
+                  },
+                  "endColumn": 32,
+                  "endLine": 22,
+                  "startColumn": 12,
+                  "startLine": 22
+                },
+                "artifactLocation": {
+                  "uri": "corpus3/more.py"
+                },
+                "contextRegion": {
+                  "snippet": {
+                    "text": "def shell(cmd, run):\n    return run(cmd, shell=True)\n"
+                  },
+                  "endLine": 22,
+                  "startLine": 21
+                }
+              }
+            }
+          ],
+          "properties": {
+            "issue_confidence": "LOW",
+            "issue_severity": "MEDIUM"
+          },
+          "ruleId": "B604",
+          "ruleIndex": 16
+        }
+      ]
+    }
+  ],
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json"
+}

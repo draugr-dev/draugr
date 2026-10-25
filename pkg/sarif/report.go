@@ -215,6 +215,9 @@ type Result struct {
 	// reported but not counted: it does not reach Counts, the verdict, or the fix-first list.
 	// Nil for an active finding.
 	Suppression *Suppression `json:"suppression,omitempty"`
+	// Rating is set when the scanner published its own rating of this finding beside the SARIF
+	// level, and that rating decided the severity. Nil where the level or a numeric score did.
+	Rating *Rating `json:"rating,omitempty"`
 	// Escalation is set when exploitability enrichment raised this finding's severity, and says
 	// which signal did it. Nil when nothing moved it.
 	//
@@ -349,6 +352,28 @@ type Escalation struct {
 	// counting how often a dataset reached a finding reads EPSS as having done less than it did, by
 	// an amount nothing in the record reveals.
 	AlsoMatched []Match `json:"alsoMatched,omitempty"`
+}
+
+// Rating is a scanner's own rating of a finding, finer than the SARIF level it also wrote, and the
+// severity a table written for that scanner gives it.
+//
+// A SARIF level has three rungs and gives no reason for the one it picks. Semgrep publishes each
+// rule's impact and likelihood, and Bandit each result's severity and confidence, and both still
+// write `error` for a confirmed injection and for a pattern flagged only for review, which a level
+// reads as the same severity.
+//
+// The scanner's words are kept beside the conclusion, the way Escalation keeps From beside To: the
+// level stays what the scanner wrote, and a reader can check the severity against the fields it was
+// read from. Deliberately not part of Fingerprint, for the reason Escalation is not.
+type Rating struct {
+	// Severity is the band the scanner's table gives the rating.
+	Severity Severity `json:"severity"`
+	// Detail is the part of the rating that decided Severity, as the report prints it:
+	// "impact high · likelihood high".
+	Detail string `json:"detail"`
+	// Fields are the rating fields the scanner published, under the scanner's own names and
+	// with the scanner's own values: "impact": "HIGH".
+	Fields map[string]string `json:"fields,omitempty"`
 }
 
 // Match is a dataset that applied to a finding.

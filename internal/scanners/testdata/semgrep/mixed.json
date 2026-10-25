@@ -1,0 +1,167 @@
+{
+ "version": "1.182.1",
+ "results": [
+  {
+   "check_id": "python.lang.security.dangerous-system-call.dangerous-system-call",
+   "path": "corpus4/app.py",
+   "start": {
+    "line": 11,
+    "col": 12,
+    "offset": 152
+   },
+   "end": {
+    "line": 11,
+    "col": 40,
+    "offset": 180
+   },
+   "extra": {
+    "message": "Found user-controlled data used in a system call. This could allow a malicious actor to execute commands. Use the 'subprocess' module instead, which is easier to use without accidentally exposing a command injection vulnerability.",
+    "metadata": {
+     "source-rule-url": "https://bandit.readthedocs.io/en/latest/plugins/b605_start_process_with_a_shell.html",
+     "cwe": [
+      "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+     ],
+     "owasp": [
+      "A01:2017 - Injection",
+      "A03:2021 - Injection",
+      "A05:2025 - Injection"
+     ],
+     "references": [
+      "https://semgrep.dev/docs/cheat-sheets/python-command-injection/"
+     ],
+     "asvs": {
+      "control_id": "5.2.4 Dyanmic Code Execution Features",
+      "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x13-V5-Validation-Sanitization-Encoding.md#v52-sanitization-and-sandboxing-requirements",
+      "section": "V5: Validation, Sanitization and Encoding Verification Requirements",
+      "version": "4"
+     },
+     "category": "security",
+     "technology": [
+      "python"
+     ],
+     "confidence": "MEDIUM",
+     "cwe2022-top25": true,
+     "cwe2021-top25": true,
+     "subcategory": [
+      "vuln"
+     ],
+     "likelihood": "HIGH",
+     "impact": "HIGH",
+     "license": "Semgrep Rules License v1.0. For more details, visit semgrep.dev/legal/rules-license",
+     "vulnerability_class": [
+      "Command Injection"
+     ],
+     "source": "https://semgrep.dev/r/python.lang.security.dangerous-system-call.dangerous-system-call",
+     "shortlink": "https://sg.run/k0W7"
+    },
+    "severity": "ERROR",
+    "fingerprint": "requires login",
+    "lines": "requires login",
+    "validation_state": "NO_VALIDATOR",
+    "engine_kind": "OSS"
+   }
+  },
+  {
+   "check_id": "rules.no-os-popen",
+   "path": "corpus4/app.py",
+   "start": {
+    "line": 11,
+    "col": 12,
+    "offset": 152
+   },
+   "end": {
+    "line": 11,
+    "col": 40,
+    "offset": 180
+   },
+   "extra": {
+    "message": "os.popen runs its argument through a shell",
+    "metadata": {},
+    "severity": "ERROR",
+    "fingerprint": "requires login",
+    "lines": "requires login",
+    "validation_state": "NO_VALIDATOR",
+    "engine_kind": "OSS"
+   }
+  }
+ ],
+ "errors": [],
+ "paths": {
+  "scanned": [
+   "corpus4/app.py"
+  ]
+ },
+ "time": {
+  "rules": [],
+  "rules_parse_time": 0.17908382415771484,
+  "profiling_times": {
+   "config_time": 0.6487891674041748,
+   "core_time": 0.40972256660461426,
+   "ignores_time": 0.0015134811401367188,
+   "total_time": 1.063894271850586
+  },
+  "parsing_time": {
+   "total_time": 0.004169940948486328,
+   "per_file_time": {
+    "mean": 0.00026062130928039556,
+    "std_dev": 1.0183550207543137e-06
+   },
+   "very_slow_stats": {
+    "time_ratio": 0.0,
+    "count_ratio": 0.0
+   },
+   "very_slow_files": []
+  },
+  "scanning_time": {
+   "total_time": 0.012543916702270508,
+   "per_file_time": {
+    "mean": 0.004181305567423503,
+    "std_dev": 3.309567430025911e-05
+   },
+   "very_slow_stats": {
+    "time_ratio": 0.0,
+    "count_ratio": 0.0
+   },
+   "very_slow_files": []
+  },
+  "matching_time": {
+   "total_time": 0.005166053771972656,
+   "per_file_and_rule_time": {
+    "mean": 0.000322878360748291,
+    "std_dev": 2.3991048081484223e-07
+   },
+   "very_slow_stats": {
+    "time_ratio": 0.0,
+    "count_ratio": 0.0
+   },
+   "very_slow_rules_on_files": []
+  },
+  "tainting_time": {
+   "total_time": 0.0005164146423339844,
+   "per_def_and_rule_time": {
+    "mean": 1.9126468234592015e-05,
+    "std_dev": 3.371165623747525e-11
+   },
+   "very_slow_stats": {
+    "time_ratio": 0.0,
+    "count_ratio": 0.0
+   },
+   "very_slow_rules_on_defs": []
+  },
+  "fixpoint_timeouts": [],
+  "prefiltering": {
+   "project_level_time": 0.0,
+   "file_level_time": 0.0,
+   "rules_with_project_prefilters_ratio": 0.0,
+   "rules_with_file_prefilters_ratio": 0.9896907216494846,
+   "rules_selected_ratio": 0.054982817869415807,
+   "rules_matched_ratio": 0.054982817869415807
+  },
+  "targets": [],
+  "total_bytes": 0,
+  "max_memory_bytes": 779330624
+ },
+ "engine_requested": "OSS",
+ "skipped_rules": [],
+ "profiling_results": []
+}

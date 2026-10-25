@@ -51,6 +51,7 @@ Draugr reports as one SARIF tool, so every finding keeps its own attribution in 
 | `priority` | The band Draugr computed from that component's exposure and criticality |
 | `exposure`, `criticality` | That component's declared classification, the two inputs to the band that do not come from the scanner |
 | `security-severity` | The numeric score, where the scanner gave one |
+| `draugr/rating` | The scanner's own rating, set where it decided the severity: `severity`, `detail` (the line the report prints) and `fields` (the scanner's own names and values). Set for Semgrep (`impact`, `likelihood`, `confidence`, `subcategory`) and for an imported Bandit file (`issue_severity`, `issue_confidence`). The result's `level` stays the scanner's, and each entry in `report.json`'s `findings` carries the same object as `rating` |
 | `escalation` | Why the band is higher than the severity: the dataset, the fact, and the day it was fetched |
 | `reachability` | Whether your code can reach the vulnerable code, which analyzer decided, and how |
 | `historical` | `true` on a finding from a commit in the repository's history. Absent on a finding from the current tree. The location is the path the file had in that commit |

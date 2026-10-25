@@ -1,12 +1,15 @@
 package scanners
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/netpolicy"
@@ -51,7 +54,7 @@ func NewSemgrep() plugin.Scanner {
 	// The scan asks semgrep.dev whether a newer Semgrep exists, separately from --metrics=off and
 	// separately from the rule pack it fetches. A version check is not part of scanning, and a run
 	// that has said it has no network should not make one.
-	s.run = runSemgrepInDir
+	s.run = withSemgrepJSON(runSemgrepInDir)
 	s.parse = parseSemgrep
 	s.preflight = semgrepPreflight
 	return s
@@ -131,8 +134,63 @@ func semgrepRegistryHost() string {
 	return "semgrep.dev"
 }
 
-// parseSemgrep reads Semgrep's SARIF and reports each rule from a local config under the id its
-// rules file declares.
+// semgrepReports is what one Semgrep run writes: the SARIF it prints, which the findings are read
+// from, and the JSON report it writes beside it, which keeps each rule's metadata.
+//
+// Bytes rather than raw JSON, so output that is not JSON reaches the SARIF parser as Semgrep wrote
+// it and fails there with the error every SARIF scanner gives.
+type semgrepReports struct {
+	SARIF []byte `json:"sarif"`
+	JSON  []byte `json:"json"`
+}
+
+// semgrepJSONPath marks the argv slot for the file Semgrep writes its JSON report to, which
+// withSemgrepJSON creates for each run.
+const semgrepJSONPath = "{{draugr:semgrep-json-path}}"
+
+// withSemgrepJSON runs Semgrep through run, and returns both reports the run writes as one
+// semgrepReports document.
+//
+// One run in two formats. The SARIF is what the findings, their locations, fingerprints and
+// suppressions are read from, and it drops every rule's metadata except a confidence tag. The JSON
+// keeps the metadata, and is read for nothing else.
+func withSemgrepJSON(run func(ctx context.Context, dir string, argv []string) ([]byte, error)) func(context.Context, string, []string) ([]byte, error) {
+	return func(ctx context.Context, dir string, argv []string) ([]byte, error) {
+		slot := slices.Index(argv, semgrepJSONPath)
+		if slot < 0 {
+			return nil, errors.New("the semgrep command has no slot for its JSON report")
+		}
+		f, err := os.CreateTemp("", "draugr-semgrep-*.json")
+		if err != nil {
+			return nil, err
+		}
+		path := f.Name()
+		if err := f.Close(); err != nil {
+			return nil, err
+		}
+		defer func() { _ = os.Remove(path) }()
+
+		argv = slices.Clone(argv)
+		argv[slot] = path
+		out, err := run(ctx, dir, argv)
+		if err != nil {
+			return nil, err
+		}
+		doc, err := os.ReadFile(path) // #nosec G304 -- a path this function just created
+		if err != nil {
+			return nil, err
+		}
+		// A run that printed its findings and wrote no metadata would rank every one of them on its
+		// level, and the report would not say so.
+		if len(bytes.TrimSpace(doc)) == 0 {
+			return nil, errors.New("semgrep wrote no JSON report beside its SARIF, so its rules' ratings cannot be read")
+		}
+		return json.Marshal(semgrepReports{SARIF: out, JSON: doc})
+	}
+}
+
+// parseSemgrep reads the reports one Semgrep run wrote, rates each result from its rule's
+// metadata, and reports each rule from a local config under the id its rules file declares.
 //
 // Semgrep prefixes the id of a rule loaded from disk with the directory of the file it came from,
 // as written in --config, dots for slashes: `/home/alice/rules/x.yaml` declaring `no-eval` reports
@@ -142,8 +200,16 @@ func semgrepRegistryHost() string {
 // a configured directory, the part that comes from a subdirectory inside it is kept, which keeps
 // two rules declaring one id in different subdirectories apart.
 func parseSemgrep(out []byte, _ string, cfg plugin.Config) (sarif.Report, error) {
-	report, err := sarif.FromSARIF(out)
+	var reports semgrepReports
+	if err := json.Unmarshal(out, &reports); err != nil {
+		return sarif.Report{}, fmt.Errorf("read Semgrep's reports: %w", err)
+	}
+	report, err := sarif.FromSARIF(reports.SARIF)
 	if err != nil {
+		return sarif.Report{}, err
+	}
+	// Before the ids are shortened: the JSON names each rule by the id Semgrep reported.
+	if err := rateSemgrep(&report, reports.JSON); err != nil {
 		return sarif.Report{}, err
 	}
 	for _, prefix := range semgrepRulePrefixes(semgrepConfig(cfg)) {
@@ -257,8 +323,10 @@ func semgrepConfig(cfg plugin.Config) string {
 	return config
 }
 
-// semgrepArgs builds `semgrep scan --sarif ... <dir>`.
+// semgrepArgs builds `semgrep scan --sarif --json-output <file> ... <dir>`.
 //
+//   - --json-output writes the same results as JSON to a file beside the SARIF, for the rule
+//     metadata the SARIF leaves out (see withSemgrepJSON).
 //   - --no-error keeps the process successful when findings exist (findings live in the
 //     SARIF report, not the exit code; the controller judges severity).
 //   - --metrics=off avoids sending scan telemetry to the Semgrep registry.
@@ -270,6 +338,7 @@ func semgrepArgs(dir string, cfg plugin.Config) []string {
 	return []string{
 		"semgrep", "scan",
 		"--sarif",
+		"--json-output", semgrepJSONPath,
 		"--quiet",
 		"--no-error",
 		"--metrics=off",

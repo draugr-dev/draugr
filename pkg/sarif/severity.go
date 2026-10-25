@@ -105,13 +105,17 @@ func severityFromLevel(l Level) Severity {
 // design prescribes:
 //
 //  1. the finding's numeric score (CVSS / SARIF security-severity), if present;
-//  2. otherwise its SARIF level;
-//  3. then raised to floor if floor is more severe (a control-default floor, e.g. a leaked
+//  2. otherwise the scanner's own rating, where one decided it (see Rating);
+//  3. otherwise its SARIF level;
+//  4. then raised to floor if floor is more severe (a control-default floor, e.g. a leaked
 //     secret is never "low"). Pass an empty floor for no floor.
 func (r Result) Severity(floor Severity) Severity {
 	base := severityFromLevel(r.Level)
-	if r.HasScore {
+	switch {
+	case r.HasScore:
 		base = severityFromScore(r.Score)
+	case r.Rating != nil && r.Rating.Severity.Rank() > 0:
+		base = r.Rating.Severity
 	}
 	if floor.Rank() > base.Rank() {
 		return floor

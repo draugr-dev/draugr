@@ -26,9 +26,10 @@ every report beside the findings Draugr's own scanners made.
 The file is read as SARIF 2.1.0:
 
 - **Severity** comes from each result's numeric `security-severity` property, the convention GitHub
-  code scanning reads, inherited from its rule where the result has none. A result without one
-  falls back to its `level`, mapped as every other SARIF level is: `error` to high, `warning` to
-  medium, `note` to low.
+  code scanning reads, inherited from its rule where the result has none. A result without one,
+  in a file Bandit wrote, is rated from its `issue_severity` and `issue_confidence` (see
+  [Bandit](#bandit)). Any other result falls back to its `level`, mapped as every other SARIF level
+  is: `error` to high, `warning` to medium, `note` to low.
 - **Package and fix** come through only where the file carries them in the properties Draugr reads.
   Without them a finding becomes a "Fix <rule>" action rather than an upgrade.
 - **The tool** is the file's own `tool.driver`, so a finding says which product found it.
@@ -43,10 +44,33 @@ Draugr did not run the tool, so the report states what it knows about the file i
 | `tool` | the tool's name and version, as the file states them |
 | `file` | the path the descriptor gave |
 | `written` | when the file says its run ended (`invocations[].endTimeUtc`), or else the file's modification time |
-| `severity` | where severities came from: `security-severity`, `SARIF level`, or a count of each |
+| `severity` | where severities came from: `security-severity`, `issue_severity and issue_confidence`, `SARIF level`, or a count of each |
 | `commit` | the commit the file was checked against, or `not stated` |
 | `component` | the component that imports it |
 | `sha256` | the file's content, so a run can be checked against the file it read |
+
+## Bandit
+
+A result in a run whose `tool.driver.name` is `Bandit` is rated from the two result properties
+Bandit writes, `issue_severity` and `issue_confidence`, each `LOW`, `MEDIUM` or `HIGH`, by the table
+below.
+
+| `issue_severity` | severity | with `issue_confidence` `LOW` |
+|---|---|---|
+| `HIGH` | high | medium |
+| `MEDIUM` | medium | low |
+| `LOW` | low | low |
+
+Bandit already writes the level from `issue_severity`, so the rating differs from the level only for
+a result Bandit rates `LOW` confidence, which is one band lower. Bandit has no rung above `HIGH`, so
+nothing it reports is critical. A result with an `issue_severity` outside the three, such as
+`UNDEFINED`, keeps its level, and a result carrying a `security-severity` keeps that.
+
+The report prints the rating on the finding's evidence line in Bandit's own terms,
+`issue_severity medium`, with `issue_confidence low` added where Bandit rated the confidence `LOW`.
+`results.sarif` keeps Bandit's level and adds the result property `draugr/rating`, which holds the
+severity, that line, and both properties with Bandit's value. A file another tool wrote is not rated this way, whatever its
+properties are called.
 
 ## Commit
 

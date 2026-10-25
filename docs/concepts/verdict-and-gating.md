@@ -167,7 +167,7 @@ A finding is described on **three related axes**. Knowing which is which removes
 | Axis | Values | What it is | Where it shows |
 |------|--------|------------|----------------|
 | **Priority** | P1 · P2 · P3 · P4 | Draugr's headline ranking: **severity × the component's exposure & criticality**. "What to fix first." | the band counts under the verdict, and the order of "fix first" |
-| **Severity** | critical · high · medium · low | Normalized impact. From the **CVSS score** when a scanner provides one (`security-severity`), else derived from the finding's level (error→high, warning→medium, note→low). | the per-control counts and the "fix first" severity column |
+| **Severity** | critical · high · medium · low | Normalized impact, from the first of: the **CVSS score** (`security-severity`); the scanner's own **rating** (Semgrep's impact and likelihood, Bandit's severity and confidence); the finding's level (error→high, warning→medium, note→low). | the per-control counts and the "fix first" severity column |
 | **Level** | error · warning · note | The raw **SARIF** value each scanner maps into, the lowest common denominator. | the machine formats (`--format json`/`sarif`) and the gate (`--fail-on`) |
 
 So the same CVE can be **critical** severity but **P3** priority on an internal tool, or **P1** on a

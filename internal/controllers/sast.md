@@ -21,7 +21,8 @@ Semgrep at your own ruleset with `config.controls.sast.semgrep.config` (a regist
 defaults to `p/default`).
 
 The SAST scanners report per-rule severity, so findings are counted as reported (unlike
-`secrets`, which escalates everything to error).
+`secrets`, which escalates everything to error). Semgrep's severity comes from each rule's impact
+and likelihood, by the table in [`semgrep.md`](../scanners/semgrep.md#severity).
 
 ## Links
 
