@@ -241,6 +241,13 @@ jobs:
           # themselves and the job reports success for having run nothing, which is the failure
           # Draugr exists to catch, in Draugr's own pipeline.
           DRAUGR_INTEGRATION_STRICT: "1"
+          # A fixture whose advisory data no longer shows the difference a test measures fails on
+          # main and on the nightly run, where a red suite raises an issue, and skips everywhere
+          # else. The data moves with no change to the tree, so it gates no pull request, no
+          # release and no proposed scanner bump.
+          DRAUGR_INTEGRATION_DRIFT_FAILS: >-
+            ${{ inputs.suite != 'pull-request' && (github.event_name == 'schedule' ||
+            (github.event_name == 'push' && github.ref == 'refs/heads/main')) && '1' || '' }}
         # internal/scanners carries the CIS catalog drift check, which needs the definitions
         # fetched above. It is listed explicitly because ./test/integration/... would not reach it,
         # and a drift guard that never runs is the failure it was written to prevent.

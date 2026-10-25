@@ -70,15 +70,21 @@ func requireRegistry(t *testing.T, why string) string {
 //
 // Some of these tests compare two answers and need the fixture to rank, match or be reported a
 // particular way, and that is decided by advisory and package data that moves with nothing in this
-// tree changing. On a laptop the result is a skip that gives the reason, as requireTool gives one.
-// In a job that declared itself strict it is a failure, because the comparison left would be
-// between two answers that cannot differ, and a skip would report success on every run until
-// somebody chose a new fixture, with nothing to tell them to.
+// tree changing. So it is a skip that gives the reason, as requireTool gives one, everywhere but a
+// run that sets driftEnv: there it is a failure, because a skip would report success on every run
+// until somebody chose a new fixture, with nothing to tell them to.
+//
+// Not strictEnv, which every pull request sets. Drift is not something a change caused, and a
+// verdict that moves without a change gates no pull request and no release. The workflow sets
+// driftEnv on main and on the nightly run, where a red suite raises an issue.
 func fixtureDrifted(t *testing.T, why string) {
 	t.Helper()
-	if os.Getenv(strictEnv) != "" {
+	if os.Getenv(driftEnv) != "" {
 		t.Fatalf("%s, and %s is set. The fixture has to change until it shows the difference again; "+
-			"skipping here would report success for a test that compared nothing", why, strictEnv)
+			"skipping here would report success for a test that compared nothing", why, driftEnv)
 	}
-	t.Skipf("%s. Set %s to make this a failure instead", why, strictEnv)
+	t.Skipf("%s. Set %s to make this a failure instead", why, driftEnv)
 }
+
+// driftEnv makes fixtureDrifted a failure rather than a skip.
+const driftEnv = "DRAUGR_INTEGRATION_DRIFT_FAILS"
