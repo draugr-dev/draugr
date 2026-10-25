@@ -7,9 +7,9 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
-// rated is a dependency finding with a severity, and with the exploitation signal that raised it
+// ratedDep is a dependency finding with a severity, and with the exploitation signal that raised it
 // when signal is not empty.
-func rated(rule, name string, sev sarif.Severity, signal string) finding {
+func ratedDep(rule, name string, sev sarif.Severity, signal string) finding {
 	f := pkgFinding("sca", rule, "P1", "go.mod", name, "1.0", "1.1")
 	f.severity = sev
 	if signal != "" {
@@ -34,18 +34,18 @@ func packages(as []action) []string {
 func TestActionsRankInsideABandByEvidenceThenSeverityThenCount(t *testing.T) {
 	in := []finding{
 		// Many critical findings, no exploitation evidence.
-		rated("CVE-1", "plentiful", sarif.SeverityCritical, ""),
-		rated("CVE-2", "plentiful", sarif.SeverityCritical, ""),
-		rated("CVE-3", "plentiful", sarif.SeverityCritical, ""),
+		ratedDep("CVE-1", "plentiful", sarif.SeverityCritical, ""),
+		ratedDep("CVE-2", "plentiful", sarif.SeverityCritical, ""),
+		ratedDep("CVE-3", "plentiful", sarif.SeverityCritical, ""),
 		// One high finding EPSS raised.
-		rated("CVE-4", "estimated", sarif.SeverityHigh, "epss"),
+		ratedDep("CVE-4", "estimated", sarif.SeverityHigh, "epss"),
 		// One medium finding on KEV.
-		rated("CVE-5", "exploited", sarif.SeverityMedium, "kev"),
+		ratedDep("CVE-5", "exploited", sarif.SeverityMedium, "kev"),
 		// One critical finding, no evidence: above "plentiful" on nothing, below it on count.
-		rated("CVE-6", "single", sarif.SeverityCritical, ""),
+		ratedDep("CVE-6", "single", sarif.SeverityCritical, ""),
 		// Two high findings, no evidence: below every critical.
-		rated("CVE-7", "lesser", sarif.SeverityHigh, ""),
-		rated("CVE-8", "lesser", sarif.SeverityHigh, ""),
+		ratedDep("CVE-7", "lesser", sarif.SeverityHigh, ""),
+		ratedDep("CVE-8", "lesser", sarif.SeverityHigh, ""),
 	}
 	got, _ := groupActions(in, nil)
 	want := []string{"exploited", "estimated", "plentiful", "single", "lesser"}
@@ -58,9 +58,9 @@ func TestActionsRankInsideABandByEvidenceThenSeverityThenCount(t *testing.T) {
 // lowered severity ranks as that severity, so the order inside a band continues the reasoning
 // that set the band rather than going back to what the scanner said.
 func TestActionsRankBySeverityTheBandCameFrom(t *testing.T) {
-	lowered := rated("CVE-1", "lowered", sarif.SeverityCritical, "")
+	lowered := ratedDep("CVE-1", "lowered", sarif.SeverityCritical, "")
 	lowered.reachability = &sarif.Reachability{State: sarif.ReachabilityUnreachable, RankedAs: sarif.SeverityMedium}
-	in := []finding{lowered, rated("CVE-2", "high", sarif.SeverityHigh, "")}
+	in := []finding{lowered, ratedDep("CVE-2", "high", sarif.SeverityHigh, "")}
 	got, _ := groupActions(in, nil)
 	if order := packages(got); !reflect.DeepEqual(order, []string{"high", "lowered"}) {
 		t.Errorf("order = %v, want the high finding ahead of the one lowered to medium", order)
@@ -70,9 +70,9 @@ func TestActionsRankBySeverityTheBandCameFrom(t *testing.T) {
 // TestPriorityStillLeadsTheEvidence: a KEV finding in a lower band does not outrank a higher band.
 // The band already folds the evidence in, and the keys below it decide only inside one.
 func TestPriorityStillLeadsTheEvidence(t *testing.T) {
-	kev := rated("CVE-1", "exploited", sarif.SeverityMedium, "kev")
+	kev := ratedDep("CVE-1", "exploited", sarif.SeverityMedium, "kev")
 	kev.priority = "P2"
-	in := []finding{kev, rated("CVE-2", "urgent", sarif.SeverityLow, "")}
+	in := []finding{kev, ratedDep("CVE-2", "urgent", sarif.SeverityLow, "")}
 	got, _ := groupActions(in, nil)
 	if order := packages(got); !reflect.DeepEqual(order, []string{"urgent", "exploited"}) {
 		t.Errorf("order = %v, want the P1 ahead of the P2 on KEV", order)
@@ -88,9 +88,9 @@ func TestBothStepsOfAnUpgradeRankByWhatEitherClears(t *testing.T) {
 	beyond.severity = sarif.SeverityHigh
 	beyond.escalation = &sarif.Escalation{From: sarif.SeverityHigh, To: sarif.SeverityCritical, Signal: "kev"}
 	in := []finding{
-		rated("CVE-3", "plentiful", sarif.SeverityCritical, ""),
-		rated("CVE-4", "plentiful", sarif.SeverityCritical, ""),
-		rated("CVE-5", "plentiful", sarif.SeverityCritical, ""),
+		ratedDep("CVE-3", "plentiful", sarif.SeverityCritical, ""),
+		ratedDep("CVE-4", "plentiful", sarif.SeverityCritical, ""),
+		ratedDep("CVE-5", "plentiful", sarif.SeverityCritical, ""),
 		within, beyond,
 	}
 	got, _ := groupActions(in, nil)
