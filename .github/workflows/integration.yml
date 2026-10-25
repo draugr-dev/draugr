@@ -192,6 +192,28 @@ jobs:
           ./bin/draugr tools install -y --all
           echo "$HOME/.draugr/bin" >> "$GITHUB_PATH"
 
+      # A registry the Notary Project test can push a signature to. No public image carries one
+      # from a certificate the test can trust, so it signs an image of its own here.
+      #
+      # On a loopback port Docker picks and under a name carrying the run, so two jobs on one
+      # machine cannot collide, and as localhost because notation speaks plain HTTP only to that
+      # name. The image is pinned, because how a registry stores a signature decides where notation
+      # looks for it.
+      - name: Start a registry for the signing test
+        if: steps.needed.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          name="draugr-registry-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          docker run --detach --rm --name "$name" --publish 127.0.0.1::5000 registry:2.8.3
+          echo "REGISTRY_CONTAINER=$name" >> "$GITHUB_ENV"
+          port=$(docker port "$name" 5000/tcp | head -n 1 | cut -d: -f2)
+          for _ in $(seq 30); do
+            curl --silent --fail "http://localhost:$port/v2/" >/dev/null && break
+            sleep 1
+          done
+          curl --silent --fail "http://localhost:$port/v2/" >/dev/null
+          echo "DRAUGR_INTEGRATION_REGISTRY=localhost:$port" >> "$GITHUB_ENV"
+
       - name: Run integration tests
         if: steps.needed.outputs.run == 'true'
         env:
@@ -210,6 +232,15 @@ jobs:
         run: >-
           go test -tags integration -v -timeout 15m -skip '^TestSealedScenarios$'
           ./test/integration/... ./internal/scanners/...
+
+      # Removed whether or not the tests passed, because a registry left running on a reused runner
+      # holds its port and its signatures into the next job.
+      - name: Remove the registry
+        if: always() && steps.needed.outputs.run == 'true'
+        run: |
+          if [ -n "${REGISTRY_CONTAINER:-}" ]; then
+            docker rm --force "$REGISTRY_CONTAINER"
+          fi
 
   # The sealed scenarios, beside the kind job rather than inside it. They need no cluster, and they
   # are CPU-bound: each one builds Go and runs the scanners in a container of its own, so running

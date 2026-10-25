@@ -328,7 +328,7 @@ components:
 	bySeverity, severityFailed := run("--fail-on", "high")
 
 	if !strings.Contains(byBand, "P2") {
-		t.Skip("this fixture's dependencies no longer rank P2 here; the case cannot discriminate")
+		fixtureDrifted(t, "this fixture's dependencies no longer rank P2 here; the case cannot discriminate")
 	}
 	if bandFailed == severityFailed {
 		t.Errorf("both gates gave the same verdict, so this proves nothing about which is the "+
@@ -418,10 +418,10 @@ config:
 	alone, aloneResults := counts(false)
 	both, bothResults := counts(true)
 	if alone == 0 {
-		t.Skip("this fixture's dependencies no longer produce a P1; the case cannot discriminate")
+		fixtureDrifted(t, "this fixture's dependencies no longer produce a P1; the case cannot discriminate")
 	}
 	if bothResults <= aloneResults {
-		t.Skip("the second matcher found nothing the first did not report; nothing to correlate")
+		fixtureDrifted(t, "the second matcher found nothing the first did not report; nothing to correlate")
 	}
 	// The point. More results in the document, the same count of work.
 	if both != alone {

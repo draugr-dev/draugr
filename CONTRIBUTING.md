@@ -278,6 +278,18 @@ make build
 DRAUGR_BIN="$PWD/bin/draugr" go test -tags integration ./test/integration/...
 ```
 
+A test that cannot run skips and names what it was missing: a tool, a registry, or a fixture
+whose advisories no longer show the difference the test measures. The workflow sets
+`DRAUGR_INTEGRATION_STRICT=1`, which makes each of those a failure.
+
+The Notary Project signing test pushes to a registry on a loopback port, which the workflow starts.
+To run it locally, start one and name it:
+
+```bash
+docker run -d --rm --name draugr-registry -p 127.0.0.1::5000 registry:2.8.3
+export DRAUGR_INTEGRATION_REGISTRY="localhost:$(docker port draugr-registry 5000/tcp | cut -d: -f2)"
+```
+
 In CI they run in the dedicated **Integration** workflow, on every pull request, on `main`, nightly,
 on demand, and against a release tag. It is a required check, so expect a pull request to spend
 several minutes on a kind cluster before it can merge, unless its diff is nothing but prose,

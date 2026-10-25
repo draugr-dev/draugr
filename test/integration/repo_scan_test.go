@@ -100,17 +100,21 @@ const fakePrivateKey = "-----BEGIN RSA PRIVATE KEY-----\n" +
 
 func newVulnRepo(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	write := func(name, body string) {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	write("requirements.txt", "Flask==0.12.2\nrequests==2.19.1\n")
-	write("app.py", "import os\n\n\ndef run(cmd):\n    return os.popen('ping ' + cmd).read()\n")
-	write("Dockerfile", "FROM python:3.8\nCOPY . /app\n")
-	write("id_rsa", fakePrivateKey)
+	return newRepo(t, map[string]string{
+		"requirements.txt": "Flask==0.12.2\nrequests==2.19.1\n",
+		"app.py":           "import os\n\n\ndef run(cmd):\n    return os.popen('ping ' + cmd).read()\n",
+		"Dockerfile":       "FROM python:3.8\nCOPY . /app\n",
+		"id_rsa":           fakePrivateKey,
+	})
+}
 
+// newRepo commits files into a fresh git repository, in one commit, and returns its path.
+func newRepo(t *testing.T, files map[string]string) string {
+	t.Helper()
+	dir := t.TempDir()
+	for name, body := range files {
+		writeFile(t, dir, name, body)
+	}
 	for _, args := range [][]string{
 		{"init", "--quiet"},
 		{"config", "user.email", "test@draugr.dev"},
