@@ -24,16 +24,24 @@ import (
 // that could not run, and that fails the test before anything reads a report the run did not finish.
 func scanTo(t *testing.T, dir, saga string) string {
 	t.Helper()
-	out := t.TempDir()
+	out, _ := scanWith(t, dir, saga)
+	return out
+}
+
+// scanWith is scanTo with further flags, and returns what the run printed beside the directory.
+func scanWith(t *testing.T, dir, saga string, flags ...string) (out, console string) {
+	t.Helper()
+	out = t.TempDir()
+	args := append([]string{"scan", saga, "--output", out, "--no-gate", "--log-level", "warn"}, flags...)
 	// #nosec G204 -- the binary under test, against a descriptor this test wrote into t.TempDir().
-	cmd := exec.Command(draugrBin(t), "scan", saga, "--output", out, "--no-gate", "--log-level", "warn")
+	cmd := exec.Command(draugrBin(t), args...)
 	cmd.Dir = dir
 	combined, err := cmd.CombinedOutput()
 	t.Logf("draugr scan %s exit=%v\n%s", saga, err, combined)
 	if err != nil {
 		t.Fatalf("draugr scan %s did not complete: %v", saga, err)
 	}
-	return out
+	return out, string(combined)
 }
 
 // requireControlRan fails the test unless report.json shows the control reached a verdict with no

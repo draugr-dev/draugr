@@ -16,7 +16,7 @@ import (
 // notationScannerName is the scanner's name in the registry and in a descriptor.
 const notationScannerName = "notation"
 
-// What notation says when verification fails, observed against notation 1.3.2.
+// What notation says when verification fails, observed against notation 1.3.2 run with --verbose.
 //
 // Matched on the message rather than the exit code, because notation exits 1 for everything: a
 // missing signature, a wrong certificate and a registry it could not reach are one code. So the
@@ -128,7 +128,11 @@ func (s *notationVerifier) Scan(ctx context.Context, target plugin.Target, cfg p
 		Fields: cosignFields(expectation{Signer: signer, Identity: subject, Issuer: trustStore}, byDigest, img.Ref, ""),
 	}}
 
-	out, runErr := s.run(ctx, []string{"notation", "verify", ref}, []string{"NOTATION_CONFIG=" + dir})
+	// --verbose because notation states why a signature failed only in its log. Without it, a
+	// certificate with the wrong subject and one from an untrusted root both read "signature
+	// verification failed for all the signatures", and the sentence the classification below
+	// matches on is never printed.
+	out, runErr := s.run(ctx, []string{"notation", "verify", "--verbose", ref}, []string{"NOTATION_CONFIG=" + dir})
 	if runErr == nil {
 		return report, nil
 	}

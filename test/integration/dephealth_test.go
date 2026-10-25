@@ -121,7 +121,7 @@ func TestABackwardsRecommendationNeverReachesAReader(t *testing.T) {
 		}
 	}
 	if reason == "" {
-		t.Skip("no longer reported as deprecated upstream; nothing to check")
+		fixtureDrifted(t, backwardsPurl+" is no longer reported as deprecated upstream; nothing to check")
 	}
 	if !strings.Contains(reason, "google.golang.org/protobuf") {
 		t.Logf("the deprecation reason has changed upstream: %q", reason)

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -63,6 +64,11 @@ func TestNotationVerifiedProducesNoFinding(t *testing.T) {
 	if got := strings.Join(*argv, " "); !strings.Contains(got, "acme.azurecr.io/payments@sha256:abc") {
 		t.Errorf("argv = %v, want the digest", *argv)
 	}
+	// The reason a signature failed is printed only in notation's log, and the classification
+	// reads it from there.
+	if !slices.Contains(*argv, "--verbose") {
+		t.Errorf("argv = %v, want --verbose", *argv)
+	}
 	if len(*env) != 1 || !strings.HasPrefix((*env)[0], "NOTATION_CONFIG=") {
 		t.Errorf("env = %v, want the generated config directory", *env)
 	}
@@ -80,8 +86,10 @@ func TestNotationClassifiesWhatItWasTold(t *testing.T) {
 		{"unsigned",
 			`Error: signature verification failed: no signature is associated with "acme.azurecr.io/payments@sha256:abc", make sure the artifact was signed successfully`,
 			"provenance-unsigned", ""},
+		// The reason is in the log --verbose turns on; the error line alone does not say it.
 		{"a certificate we do not trust",
-			"Error: signature verification failed: signing certificate from the digital signature does not match the X.509 trusted identities [map[CN:Acme]] defined in the trust policy",
+			`level=warning msg=Signature sha256:b1c55ca46a2ed2721b753e1599337fe5dda61df5607e459402e30f85bdeeedff failed verification with error: signing certificate from the digital signature does not match the X.509 trusted identities [map["C":"US" "CN":"Acme" "O":"Acme" "ST":"WA"]] defined in the trust policy "acme-pki"` + "\n" +
+				"Error: signature verification failed for all the signatures associated with acme.azurecr.io/payments@sha256:abc",
 			"provenance-unexpected-identity", ""},
 		// Draugr writes the policy itself, scoped to the image in front of it, so this says the
 		// scope did not match the reference it was built from. That is a fault here, not a
