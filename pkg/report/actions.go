@@ -301,14 +301,18 @@ func groupActions(findings []finding, unpinned []string) (actions []action, exte
 	return sorted, external
 }
 
-// rankedAction is an action and what it is ranked by: its own band and count, or for one step of
-// an upgrade the policy split, the package's.
+// rankedAction is an action and what it is ranked by: its own band, severity, exploitation signal
+// and count, or for one step of an upgrade the policy split, the package's.
 type rankedAction struct {
 	*action
 	priority string
-	count    int
-	group    string
-	beyond   bool
+	// severity is the rank of the worst severity it clears, as the band was computed from it.
+	severity int
+	// signal is the strongest exploitation evidence among what it clears: 2 for KEV, 1 for EPSS.
+	signal int
+	count  int
+	group  string
+	beyond bool
 }
 
 // packageRanks pairs each action with what it is ranked by. The steps of one package's upgrade
@@ -316,6 +320,8 @@ type rankedAction struct {
 // that clears the urgent findings is read beside the minor step it follows.
 func packageRanks(actions []action) []rankedAction {
 	worst := map[string]string{}
+	severity := map[string]int{}
+	signal := map[string]int{}
 	total := map[string]int{}
 	group := func(a action) string { return strings.TrimSuffix(a.key, "\x00beyond") }
 	for _, a := range actions {
@@ -323,15 +329,35 @@ func packageRanks(actions []action) []rankedAction {
 		if w, ok := worst[g]; !ok || moreUrgentBand(a.priority, w) {
 			worst[g] = a.priority
 		}
+		for _, f := range a.findings {
+			severity[g] = max(severity[g], rankedSeverity(f).Rank())
+			signal[g] = max(signal[g], exploitationSignal(f))
+		}
 		total[g] += a.count()
 	}
 	out := make([]rankedAction, len(actions))
 	for i := range actions {
 		g := group(actions[i])
-		out[i] = rankedAction{action: &actions[i], priority: worst[g], count: total[g], group: g,
-			beyond: actions[i].key != g}
+		out[i] = rankedAction{action: &actions[i], priority: worst[g], severity: severity[g],
+			signal: signal[g], count: total[g], group: g, beyond: actions[i].key != g}
 	}
 	return out
+}
+
+// exploitationSignal ranks the evidence that a finding's flaw is exploited: 2 when it is on KEV, 1
+// when EPSS raised it, 0 otherwise. KEV outranks EPSS wherever both fire, so the signal that set
+// the rating is the strongest one.
+func exploitationSignal(f finding) int {
+	if f.escalation == nil {
+		return 0
+	}
+	switch f.escalation.Signal {
+	case "kev":
+		return 2
+	case "epss":
+		return 1
+	}
+	return 0
 }
 
 // commonComponent is the component every finding belongs to, or "" where they differ.
@@ -348,14 +374,24 @@ func commonComponent(fs []finding) string {
 	return c
 }
 
-// moreUrgent orders actions by the worst priority they clear, then by how many findings that is.
+// moreUrgent orders actions by the worst priority they clear, then by the evidence that what they
+// clear is exploited, then by its worst severity, then by how many findings that is.
 //
 // Priority first, always. An action clearing one P1 outranks one clearing forty P4s, because a P1
-// is not something to trade away for volume. Sorting by count first would bury the urgent work
-// under the plentiful kind.
+// is not something to trade away for volume. Inside a band, exploitation evidence comes next: a
+// flaw on KEV has been used against somebody, and EPSS estimates that it will be, which no rating
+// of how bad a flaw would be can say. Then severity, the rating the band was computed from. Count
+// decides only between actions alike in all three, because a scanner that reports one finding per
+// package per advisory makes volume a measure of how it splits its output more than of urgency.
 func moreUrgent(a, b rankedAction) bool {
 	if a.priority != b.priority {
 		return moreUrgentBand(a.priority, b.priority)
+	}
+	if a.signal != b.signal {
+		return a.signal > b.signal
+	}
+	if a.severity != b.severity {
+		return a.severity > b.severity
 	}
 	if a.count != b.count {
 		return a.count > b.count

@@ -81,12 +81,38 @@ the fix is yours to apply. Deciding that a finding is acceptable is what
 So `operatedBy` and `builtBy` change what is *recommended* and in what order, never what a finding
 is worth.
 
-## Ranking is by the worst thing an action clears
+## How the list is ordered
 
-Actions are ordered by the highest priority among their findings, and only then by how many they
-clear. An action clearing one P1 outranks one clearing forty P4s.
+Each key decides only between actions alike in every key above it, so a reader can check any two
+rows against the list.
 
-Volume never promotes: a P1 is not something to trade away for a bigger number.
+1. **Priority.** The highest band among the findings the action clears. An action clearing one P1
+   outranks one clearing forty P4s.
+2. **Exploitation.** An action clearing a finding on CISA's Known Exploited Vulnerabilities catalog
+   comes first in its band, then one clearing a finding EPSS raised. KEV records a flaw already
+   used in an attack, and EPSS estimates how likely one is in the next 30 days. A rating of how bad
+   a flaw would be says neither.
+3. **Severity.** The worst severity among its findings, the one the band was computed from. That is
+   the severity KEV or EPSS raised it to, or the one reachability analysis lowered it to when the
+   vulnerable code is never called, and otherwise the scanner's own rating.
+4. **Count.** How many findings it clears.
+5. **The step within the policy.** Of the two steps of one package's upgrade, the one within the
+   component's [`fixes.upgrade`](../reference/saga-schema.md#configfixes) comes first, because the
+   other presumes it. Both steps rank together, by what either clears.
+
+Actions alike in all five keep the report's order, so the same findings produce the same list on
+every run.
+
+**Count comes last.** How many findings an action clears depends on how the scanner splits what it
+reports. Trivy reports one finding per advisory per package, so a base image with an old OpenSSL
+counts every advisory in every package built from it. Count is the right way to choose between two
+actions alike in everything else, and the wrong way to choose between a flaw on KEV and a larger
+number nobody is known to exploit.
+
+**Nothing in the order is inferred.** Every key is a value the report carries. The band, the
+escalation naming KEV or EPSS with the date its data was fetched, the severity with where it came
+from, and the findings an action counts are all in `report.json` and `results.sarif`. A row's
+position can be explained from what the report says about it.
 
 ## Two descriptor fields change what is recommended
 
