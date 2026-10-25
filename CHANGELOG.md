@@ -16,11 +16,11 @@ _Nothing yet._
 
 ### Fixed
 
-- **`draugr version` names the release a `go install` built.** A binary installed with `go install github.com/draugr-dev/draugr/cmd/draugr@v0.154.1` reported `dev`. It now reports the module version it was built from, and a build from a checkout reports its commit and commit time.
+- **`draugr version` reports the release a `go install` build came from.** A binary installed with `go install github.com/draugr-dev/draugr/cmd/draugr@v0.154.2` prints `draugr 0.154.2`, where earlier releases installed this way printed `draugr dev`. A `go build` inside a checkout still prints `dev`, now with the commit and its date filled in.
 
 ### Security
 
-- **Release binaries are built with Go 1.26.10**, which fixes [GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809): `crypto/x509` trusted certificates chaining to intermediates since found to be compromised. Draugr verifies certificates whenever it fetches a tool, a feed or a scanned endpoint over TLS.
+- **Release binaries are built with Go 1.26.10**, which fixes [GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809). With it, `crypto/x509` no longer trusts a certificate that chains to a compromised intermediate, and Draugr relies on that check for tool downloads, vulnerability feeds and scanned HTTPS endpoints. A binary from `go install` is built with your own toolchain, so build it with Go 1.26.10 or later.
 
 ## [0.154.1] - 2026-10-18
 
