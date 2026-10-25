@@ -504,7 +504,8 @@ func TestTheBodyEndsWithHowToAccept(t *testing.T) {
 	}
 }
 
-// manyActions is a run with one rule action per priority band, each with several findings.
+// manyActions is a run with one rule action per priority band, each with several findings: a
+// control that groups on the rule, because a code finding is an action per line.
 func manyActions() report.Data {
 	var findings []sarif.Result
 	for i, band := range []string{"P1", "P2", "P3", "P4"} {
@@ -512,7 +513,7 @@ func manyActions() report.Data {
 			findings = append(findings, codeFinding("api", "rule-"+band, band, fmt.Sprintf("f%d%d.go", i, j)))
 		}
 	}
-	d := runOver(map[string][]sarif.Result{"sast": findings})
+	d := runOver(map[string][]sarif.Result{"iac": findings})
 	d.CI = &ci.Context{RunID: "7", URL: "https://ci.test/runs/7"}
 	return d
 }

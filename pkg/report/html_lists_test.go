@@ -150,7 +150,10 @@ func TestAnActionIsARowThatOpensItsFindings(t *testing.T) {
 	acts := section(t, page, `id="acts"`, `</section>`)
 	for _, want := range []string{`<div class="act" data-a="`, `<span class="lbl">control</span>`, `class="act-clears"`,
 		// What a rule found, under a title that only names the rule, as the console prints it.
-		`<div class="sub">Detected user input flowing into a raw SQL string</div>`,
+		`<div class="sub">Identified a Private Key, which may compromise cryptographic security</div>`,
+		// A line of code is titled by what is wrong with it, and lists every rule that flags it.
+		`<span class="name">Fix “Detected user input flowing into a raw SQL string”</span>`,
+		`<div class="sub"><span class="lbl">semgrep</span> tainted-sql-string<span class="faint"> · </span><span class="lbl">bandit</span> B608</div>`,
 		// The list spans components, so each row says whose it is.
 		`<span class="lbl">component</span> payments`} {
 		if !strings.Contains(acts, want) {

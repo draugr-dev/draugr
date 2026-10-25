@@ -9,8 +9,10 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/draugr-dev/draugr/internal/manifests"
+	"github.com/draugr-dev/draugr/pkg/prioritization"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/skald"
 )
@@ -43,6 +45,10 @@ type action struct {
 	component string
 	// byRule marks an action grouped on a rule rather than on one change that clears it.
 	byRule bool
+	// nameRepository marks an action for one line of code in a list whose findings span more than
+	// one repository. Its location then names the repository, because the same path in another
+	// repository is another action with the same title, and the two rows would read alike.
+	nameRepository bool
 	// findings are every finding this action resolves, most urgent first.
 	findings []finding
 	// upstream marks an action whose unit of work is an image somebody else publishes. The image
@@ -69,7 +75,7 @@ func (a action) count() int { return len(a.findings) }
 // manifest, and a reader who bumps the lockfile has not touched the file beside it.
 func (a action) where(limit int) []string {
 	seen := map[string]bool{}
-	spans := len(a.repositories()) > 1
+	spans := len(a.repositories()) > 1 || a.nameRepository
 	out := make([]string, 0, limit)
 	for _, f := range a.findings {
 		k := locationKey(f)
@@ -253,11 +259,18 @@ func groupActions(findings []finding, unpinned []string) (actions []action, exte
 	}
 	order := []string{}
 	byKey := map[string]*action{}
+	homes := componentRepositories(findings)
 
 	for _, f := range findings {
 		if f.remediation == sarif.RemediationExternal {
 			external = append(external, f)
 			continue
+		}
+		// A SARIF file another tool wrote names paths and no repository, so its finding at a line
+		// is placed in the repository the rest of its component was scanned in. Left unplaced, Bandit's
+		// finding on a line would be one row and Semgrep's three on the same line another.
+		if onALine(f) && f.repository == "" {
+			f.repository = homes[f.component]
 		}
 		key, title, kind, byRule := actionFor(f)
 		a, seen := byKey[key]
@@ -271,6 +284,11 @@ func groupActions(findings []finding, unpinned []string) (actions []action, exte
 		a.findings = append(a.findings, f)
 	}
 
+	var listed []finding
+	for _, key := range order {
+		listed = append(listed, byKey[key].findings...)
+	}
+	spansRepositories := manyRepositories(listed)
 	for _, key := range order {
 		a := *byKey[key]
 		if f, ok := a.exemplar(); ok {
@@ -278,6 +296,10 @@ func groupActions(findings []finding, unpinned []string) (actions []action, exte
 		}
 		if a.byRule {
 			a.summary = summaryFor(a)
+		}
+		if a.atOneLine() {
+			a.title = lineTitle(a.findings)
+			a.nameRepository = spansRepositories
 		}
 		a.component = commonComponent(a.findings)
 		// Every finding, not any: an action grouping one stale row with three fresh ones is not
@@ -490,6 +512,20 @@ func actionFor(f finding) (key, title string, kind skald.ActionKind, byRule bool
 			fmt.Sprintf("Move off %s, past end of service life, so no fix is coming",
 				f.operatingSystem), skald.KindDecide, false
 
+	// A flaw in the code is one edit at one line, however many rules recognize it. SAST rules
+	// overlap: a shell command built from request input is Bandit's B602 and three Semgrep rules,
+	// and a row per rule shows one bug as four chores, each ranked as though it cleared one finding.
+	// A rule that flags many lines is as many actions, because each line is its own edit.
+	//
+	// One per component and repository, as a dependency is. Paths are repository-relative, so two
+	// repositories' main.go:12 are two files, and two components are two owners.
+	//
+	// The title is provisional. It describes the whole line, so groupActions writes it once every
+	// finding on the line is known.
+	case onALine(f):
+		return lineKey + f.component + "\x00" + f.repository + "\x00" + f.location,
+			lineTitle([]finding{f}), ruleKind(f), false
+
 	// The same rule in several places is one thing to understand and apply, whether that is a
 	// missing directive in three Dockerfiles or a credential committed to four files.
 	default:
@@ -511,6 +547,136 @@ func ruleKind(f finding) skald.ActionKind {
 		return skald.KindInfrastructure
 	}
 	return skald.KindCode
+}
+
+// lineKey opens the key of an action for one line of code.
+const lineKey = "line\x00"
+
+// onALine reports whether a finding is a flaw at one line of code, which is one edit however many
+// rules recognize it. A SAST finding without a line is about a whole file or none, and keeps the
+// grouping on its rule.
+func onALine(f finding) bool {
+	return f.control == "sast" && lineSuffix.MatchString(f.location)
+}
+
+// atOneLine reports whether the action is every finding at one line of code.
+func (a action) atOneLine() bool { return strings.HasPrefix(a.key, lineKey) }
+
+// componentRepositories maps each component whose findings all name one repository to that
+// repository. A component whose findings name two has no entry, because then a path alone does not
+// say which repository's file it is.
+func componentRepositories(fs []finding) map[string]string {
+	out := map[string]string{}
+	many := map[string]bool{}
+	for _, f := range fs {
+		if f.repository == "" || many[f.component] {
+			continue
+		}
+		if r, ok := out[f.component]; ok && r != f.repository {
+			delete(out, f.component)
+			many[f.component] = true
+			continue
+		}
+		out[f.component] = f.repository
+	}
+	return out
+}
+
+// lineTitle is what to do about one line of code: the verb, then the scanner's own one-line
+// description of the flaw, quoted, because it is the scanner's wording and often not a sentence of
+// its own. titleFinding says which finding's description it is.
+func lineTitle(fs []finding) string {
+	f := titleFinding(fs)
+	if d := describe(f); d != "" {
+		return truncate(actionVerb(f)+" “"+d+"”", actionTitleWidth)
+	}
+	if t := titleFor(f); t != "" {
+		return t
+	}
+	return truncate(actionVerb(f)+" "+f.location, actionTitleWidth)
+}
+
+// titleFinding is the finding whose description titles an action for one line.
+//
+// Several rules on one line describe it differently, and the choice is made by rule rather than by
+// whichever scanner finished first, so a line is titled the same on every run:
+//
+//   - the worst band, then the highest severity, then the highest score, so the title describes
+//     what the row is ranked for;
+//   - among findings that rank alike, a description that fits the title whole, because one cut
+//     short loses the end of the sentence, which is where it says what is wrong;
+//   - then the longest description, the most specific in practice: a rule that sees request input
+//     reach a call says so, and one that matches the call alone has less to say;
+//   - then the rule id, which only two equally long descriptions reach.
+func titleFinding(fs []finding) finding {
+	best := fs[0]
+	for _, f := range fs[1:] {
+		if titlesBetter(f, best) {
+			best = f
+		}
+	}
+	return best
+}
+
+// titlesBetter reports whether a's description is the better title for a line than b's.
+func titlesBetter(a, b finding) bool {
+	if ra, rb := prioritization.Priority(a.priority).Rank(), prioritization.Priority(b.priority).Rank(); ra != rb {
+		return ra > rb
+	}
+	if sa, sb := severityRank(rankedSeverity(a)), severityRank(rankedSeverity(b)); sa != sb {
+		return sa > sb
+	}
+	if a.score != b.score {
+		return a.score > b.score
+	}
+	da, db := describe(a), describe(b)
+	if fa, fb := fitsTitle(a, da), fitsTitle(b, db); fa != fb {
+		return fa
+	}
+	if la, lb := utf8.RuneCountInString(da), utf8.RuneCountInString(db); la != lb {
+		return la > lb
+	}
+	return a.ruleID < b.ruleID
+}
+
+// fitsTitle reports whether a finding's description fits a line action's title without being cut.
+func fitsTitle(f finding, description string) bool {
+	return utf8.RuneCountInString(actionVerb(f)+" “"+description+"”") <= actionTitleWidth
+}
+
+// toolRules is one scanner's rules among an action's findings.
+type toolRules struct {
+	// tool is the scanner, lowercased as a finding's facts line prints it.
+	tool string
+	// rules holds one finding per distinct rule, for its id and the link to its documentation.
+	rules []finding
+}
+
+// rulesByTool lists the distinct rules an action's findings carry, grouped by the scanner that
+// reported them. The rule the title quotes comes first, so the line under a title opens with its
+// source, and the rest follow in the order the findings rank.
+func (a action) rulesByTool() []toolRules {
+	if len(a.findings) == 0 {
+		return nil
+	}
+	var out []toolRules
+	index := map[string]int{}
+	seen := map[string]bool{}
+	for _, f := range append([]finding{titleFinding(a.findings)}, a.findings...) {
+		tool := strings.ToLower(f.tool)
+		if f.ruleID == "" || seen[tool+"\x00"+f.ruleID] {
+			continue
+		}
+		seen[tool+"\x00"+f.ruleID] = true
+		i, ok := index[tool]
+		if !ok {
+			i = len(out)
+			index[tool] = i
+			out = append(out, toolRules{tool: tool})
+		}
+		out[i].rules = append(out[i].rules, f)
+	}
+	return out
 }
 
 // titleFor writes the imperative for a finding that is its own action: a verb, then the rule.
@@ -623,6 +789,19 @@ func licenseTitle(f finding) string {
 //
 // Empty when the finding has no rule, which leaves the title to the message.
 func ruleName(id, message string) string {
+	name := shortRuleName(id)
+	if name == "" || hasLower(name) {
+		return name
+	}
+	if summary := firstSentence(message); summary != "" && summary != id {
+		return name + " “" + summary + "”"
+	}
+	return name
+}
+
+// shortRuleName is the part of a rule id that names the rule: the last segment of a namespaced
+// path, and the id itself for a slug or a catalog number.
+func shortRuleName(id string) string {
 	name := id
 	if i := strings.LastIndexByte(name, '/'); i >= 0 && i < len(name)-1 {
 		name = name[i+1:]
@@ -631,12 +810,6 @@ func ruleName(id, message string) string {
 	// its last segment is a number, not a name.
 	if i := strings.LastIndexByte(name, '.'); i >= 0 && hasLower(name[i+1:]) {
 		name = name[i+1:]
-	}
-	if name == "" || hasLower(name) {
-		return name
-	}
-	if summary := firstSentence(message); summary != "" && summary != id {
-		return name + " “" + summary + "”"
 	}
 	return name
 }

@@ -2128,6 +2128,14 @@ func renderActions(w io.Writer, col tui.Painter, actions []action, compact bool)
 		if a.summary != "" {
 			_, _ = fmt.Fprintf(w, "      %s\n", col.Paint(cDim, elide(a.summary, max(width-6, minTitleWidth))))
 		}
+		// Every rule a line of code is flagged by, under a title quoting one of them. Each rule is
+		// one more scanner agreeing the line is wrong, and the reader following a link chooses
+		// which account to read.
+		if a.atOneLine() {
+			if rules := ruleLine(col, a, max(width-6, minTitleWidth)); rules != "" {
+				_, _ = fmt.Fprintf(w, "      %s\n", rules)
+			}
+		}
 
 		// Labeled and lit the way a finding's facts line is, so the two listings read alike. The
 		// count carries the accent: it is what ranks one action above another, and a line of one
@@ -2190,10 +2198,11 @@ func actionDetail(col tui.Painter, a action, locations int) string {
 	return strings.Join(parts, " · ")
 }
 
-// actionRef is the rule an action names, linked, and how many more findings it clears.
+// actionRef is the rule an action names, linked, and how many more findings it clears. None for an
+// action on one line of code, whose rules have a line of their own.
 func actionRef(col tui.Painter, a action) string {
 	f, ok := a.exemplar()
-	if !ok || f.ruleID == "" {
+	if !ok || f.ruleID == "" || a.atOneLine() {
 		return ""
 	}
 	ref := col.Link(f.helpURI, shortRuleID(f.ruleID))
@@ -2201,6 +2210,59 @@ func actionRef(col tui.Painter, a action) string {
 		ref += fmt.Sprintf(" +%d", more)
 	}
 	return ref
+}
+
+// ruleLine is the line under the title of an action for one line of code: each scanner, then the
+// rules of its that flag the line, each linked to what the scanner published about it. Fitted into
+// room by naming fewer rules and counting the rest, the way a row counts the locations it does not
+// name. Narrower than one rule and the count, the first rule alone, and the count of findings on
+// the line below still says there are more.
+func ruleLine(col tui.Painter, a action, room int) string {
+	groups := a.rulesByTool()
+	total := 0
+	for _, g := range groups {
+		total += len(g.rules)
+	}
+	for shown := total; shown > 0; shown-- {
+		if utf8.RuneCountInString(namedRules(tui.Plain(), groups, shown, total)) <= room {
+			return namedRules(col, groups, shown, total)
+		}
+	}
+	if total == 0 {
+		return ""
+	}
+	if first := namedRules(tui.Plain(), groups, 1, 1); utf8.RuneCountInString(first) <= room {
+		return namedRules(col, groups, 1, 1)
+	}
+	return col.Paint(cDim, elide(namedRules(tui.Plain(), groups, 1, 1), room))
+}
+
+// namedRules writes the first shown of total rules, by scanner, and counts the rest.
+func namedRules(col tui.Painter, groups []toolRules, shown, total int) string {
+	parts := make([]string, 0, len(groups)+1)
+	named := 0
+	for _, g := range groups {
+		if named == shown {
+			break
+		}
+		names := make([]string, 0, len(g.rules))
+		for _, f := range g.rules {
+			if named == shown {
+				break
+			}
+			names = append(names, col.Link(f.helpURI, shortRuleName(f.ruleID)))
+			named++
+		}
+		part := strings.Join(names, ", ")
+		if g.tool != "" {
+			part = col.Paint(cDim, g.tool) + " " + part
+		}
+		parts = append(parts, part)
+	}
+	if rest := total - shown; rest > 0 {
+		parts = append(parts, col.Paint(cDim, fmt.Sprintf("and %d more", rest)))
+	}
+	return strings.Join(parts, col.Paint(cDim, " · "))
 }
 
 // fitDetail is an action's detail fitted into room, naming up to named locations.

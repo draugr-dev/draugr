@@ -1,12 +1,13 @@
 DRAUGR  FAIL  draugr-demo 0.0.0  34.5s
 
- 3 P1 2 P2 2 P3 1 P4
+ 3 P1 3 P2 3 P3 1 P4
 
 CONTROLS
   iac       FAIL   1 P1 1 P3
   licenses  pass   1 P3
-  sast      FAIL   1 P2
+  sast      FAIL   1 P2 1 P3
   sca       FAIL   2 P1 1 P2 1 P4
+  secrets   FAIL   1 P2
   dast      ERROR  did not run
             nuclei: executable file not found in $PATH
 
@@ -14,9 +15,9 @@ MEASURED AGAINST
   licenses  trivy-license 0.69.3 · policy: deny copyleft
 
 COMPONENTS
-  payments       FAIL   3 P1 2 P2 1 P3
+  payments       FAIL   3 P1 3 P2 1 P3
   internal-tool  pass   no findings
-  2 findings not tied to a component (project-wide controls)
+  3 findings not tied to a component (project-wide controls)
 
 ACCEPTED
   config.exclude  2 findings suppressed · 1 expired and no longer suppressing
@@ -26,7 +27,7 @@ UNMATCHED
   config.exclude  paths tests* · test files that are not deployed
   VEX             CVE-2023-45803 · pkg:pypi/urllib3
 
-FIX FIRST  top 5 of 8, by priority
+FIX FIRST  top 6 of 10, by priority
   P1  high      CVE-2019-10906 · python-jinja2: str.format_map allows sandbox escape
       component payments · scanner trivy · jinja2 2.10 → 2.10.1
       app/requirements.txt:5
@@ -47,10 +48,14 @@ FIX FIRST  top 5 of 8, by priority
       scanner semgrep · fix change the code
       app/main.py:42
 
-… and 3 findings not listed.
+  P2  high      private-key · private-key has detected secret for file app/config.pem.
+      component payments · scanner gitleaks · fix rotate the credential
+      app/config.pem:1
+
+… and 4 findings not listed.
 
 TRY
-  --top 0                every one of them, not the first five
+  --top 0                every one of them, not the first six
   --view compact         one line each, to see how much there is
   --view actions         the same findings as a list of things to do
   draugr explain <rule>  what a rule means and how to fix it

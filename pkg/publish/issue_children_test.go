@@ -189,7 +189,8 @@ func track(t *testing.T, m *memTracker, data report.Data, cfg saga.PublisherConf
 	}
 }
 
-// threeRules is a run whose sast control fails with a rule action at each of P1, P2 and P3.
+// threeRules is a run whose sast control fails with an action for one line of code at each of P1, P2
+// and P3.
 func threeRules() report.Data {
 	return onMain(map[string][]sarif.Result{"sast": {
 		codeFinding("api", "r1", "P1", "a.go"),
@@ -210,7 +211,7 @@ func TestEachActionGetsAChildAndTheParentListsNone(t *testing.T) {
 	}
 	p := parents[0]
 	kids := m.kidsOf(p.Number)
-	want := []string{"P1 · Fix r1", "P2 · Fix r2", "P3 · Fix r3"}
+	want := []string{"P1 · Fix “flaw in a.go”", "P2 · Fix “flaw in b.go”", "P3 · Fix “flaw in c.go”"}
 	if got := m.titles(kids); !slices.Equal(got, want) {
 		t.Fatalf("children = %q, want %q", got, want)
 	}
@@ -286,21 +287,21 @@ func TestMaxChildrenLeavesTheRestInTheParent(t *testing.T) {
 	track(t, m, threeRules(), cfg)
 
 	p := m.parents()[0]
-	if got := m.titles(m.kidsOf(p.Number)); !slices.Equal(got, []string{"P1 · Fix r1", "P2 · Fix r2"}) {
+	if got := m.titles(m.kidsOf(p.Number)); !slices.Equal(got, []string{"P1 · Fix “flaw in a.go”", "P2 · Fix “flaw in b.go”"}) {
 		t.Fatalf("children = %q", got)
 	}
 	lead := "2 of 3 actions have an item. The other is listed below and gets an item as open items close, since `maxChildren` is 2."
-	if !strings.Contains(p.Body, lead) || !strings.Contains(p.Body, "Fix r3") || strings.Contains(p.Body, "Fix r1") {
+	if !strings.Contains(p.Body, lead) || !strings.Contains(p.Body, "Fix “flaw in c.go”") || strings.Contains(p.Body, "Fix “flaw in a.go”") {
 		t.Errorf("parent body\n%s", p.Body)
 	}
 
 	// The first child closes by hand; the next run gives the waiting action its child.
 	m.item(2).Open = false
 	track(t, m, threeRules(), cfg)
-	if got := m.titles(m.kidsOf(p.Number)); !slices.Equal(got, []string{"P2 · Fix r2", "P1 · Fix r1"}) {
+	if got := m.titles(m.kidsOf(p.Number)); !slices.Equal(got, []string{"P2 · Fix “flaw in b.go”", "P1 · Fix “flaw in a.go”"}) {
 		t.Errorf("children after one closed by hand = %q", got)
 	}
-	if strings.Contains(p.Body, "Fix r1") || !strings.Contains(p.Body, "Fix r3") {
+	if strings.Contains(p.Body, "Fix “flaw in a.go”") || !strings.Contains(p.Body, "Fix “flaw in c.go”") {
 		t.Errorf("parent body after the recreate\n%s", p.Body)
 	}
 }
@@ -345,7 +346,7 @@ func TestAChangedPriorityRetitlesAChildAndKeepsARenameOtherwise(t *testing.T) {
 	if got := m.item(3).Title; got != "renamed by somebody" {
 		t.Errorf("a child whose priority held was retitled %q", got)
 	}
-	if got := m.item(4).Title; got != "P1 · Fix r3" {
+	if got := m.item(4).Title; got != "P1 · Fix “flaw in c.go”" {
 		t.Errorf("a child whose priority changed is titled %q", got)
 	}
 	if !strings.Contains(m.item(4).Body, "<!-- draugr:priority P1 -->") {
@@ -368,7 +369,7 @@ func TestMinPriorityLimitsTheChildren(t *testing.T) {
 	cfg := perAction
 	cfg.MinPriority = "P2"
 	track(t, m, threeRules(), cfg)
-	if got := m.titles(m.kidsOf(1)); !slices.Equal(got, []string{"P1 · Fix r1", "P2 · Fix r2"}) {
+	if got := m.titles(m.kidsOf(1)); !slices.Equal(got, []string{"P1 · Fix “flaw in a.go”", "P2 · Fix “flaw in b.go”"}) {
 		t.Errorf("children = %q", got)
 	}
 }
@@ -426,7 +427,7 @@ func TestSwitchingTheKindOfChildClosesTheOldOnes(t *testing.T) {
 	if got := m.titles(kids); !slices.Equal(got, []string{"P1 · sast"}) {
 		t.Fatalf("children = %q", got)
 	}
-	for _, line := range []string{"**P1** · `sast` · 3 findings · gate P1", "Fix r2", "an action for this control."} {
+	for _, line := range []string{"**P1** · `sast` · 3 findings · gate P1", "Fix “flaw in b.go”", "an action for this control."} {
 		if !strings.Contains(kids[0].Body, line) {
 			t.Errorf("control child lacks %q\n%s", line, kids[0].Body)
 		}
@@ -436,7 +437,7 @@ func TestSwitchingTheKindOfChildClosesTheOldOnes(t *testing.T) {
 	if it := kids[0]; it.Open || it.Comments[0] != "The publisher's `children` is now `none`." {
 		t.Errorf("control child: open %v, comments %q", it.Open, it.Comments)
 	}
-	if p := m.item(1); !p.Open || !strings.Contains(p.Body, "Fix r1") {
+	if p := m.item(1); !p.Open || !strings.Contains(p.Body, "Fix “flaw in a.go”") {
 		t.Errorf("parent after children: none\n%s", p.Body)
 	}
 }
@@ -586,11 +587,13 @@ func TestChildLeadVariants(t *testing.T) {
 }
 
 func TestAnActionChildCutsItsFindingsToFit(t *testing.T) {
+	// One rule in forty files, under a control that groups on the rule, so one action clears all of
+	// them. A code finding is an action per line.
 	var rs []sarif.Result
 	for i := range 40 {
 		rs = append(rs, codeFinding("api", "r1", "P1", fmt.Sprintf("file%02d.go", i)))
 	}
-	data := onMain(map[string][]sarif.Result{"sast": rs})
+	data := onMain(map[string][]sarif.Result{"iac": rs})
 	entry := issueEntry{Children: childrenActions, MaxChildren: 100}
 	part := onlyPart(t, data, entry)
 	s := &tracking{t: newMemTracker(), data: data, entry: entry, project: "demo", scope: "all"}
@@ -600,7 +603,7 @@ func TestAnActionChildCutsItsFindingsToFit(t *testing.T) {
 	b := newIssueBody(data, "all", entry, part)
 	b.Marker = childMarker(b.Marker, u.Field)
 	b.Controls, b.Actions = nil, u.Actions
-	b.Child = &childHead{Priority: "P1", Control: "sast", Clears: 40, Gate: "P1", Action: &u.Actions[0]}
+	b.Child = &childHead{Priority: "P1", Control: "iac", Clears: 40, Gate: "P1", Action: &u.Actions[0]}
 	budget := len([]rune(full)) - 200
 	got := b.render(markdownFormat{}, budget)
 	if n := len([]rune(got)); n > budget {

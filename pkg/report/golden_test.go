@@ -155,6 +155,18 @@ func goldenFullData() Data {
 			Level: sarif.LevelError, Priority: "P2", Tool: "semgrep",
 			Location: sarif.Location{URI: "app/main.py", StartLine: 42},
 			Message:  "Detected user input flowing into a raw SQL string"},
+		// A second scanner on the same line, imported as Bandit's file, so the line is one action
+		// listing both scanners' rules under a title quoting one of them.
+		{RuleID: "B608", Level: sarif.LevelWarning, Priority: "P3", Tool: "bandit",
+			Location: sarif.Location{URI: "app/main.py", StartLine: 42},
+			Message:  "Possible SQL injection vector through string-based query construction."},
+	}
+	// A rule whose title names it and nothing more, so the scanner's description of the rule is
+	// the line under it.
+	secrets := []sarif.Result{
+		{RuleID: "private-key", Level: sarif.LevelError, Priority: "P2", Tool: "gitleaks", Component: "payments",
+			Location: sarif.Location{URI: "app/config.pem", StartLine: 1},
+			Message:  "private-key has detected secret for file app/config.pem."},
 	}
 	licenses := []sarif.Result{
 		{RuleID: "license/GPL-3.0-only/some-lib", Level: sarif.LevelWarning, Priority: "P3",
@@ -167,6 +179,9 @@ func goldenFullData() Data {
 			"iac": {Control: "iac", Report: sarif.Report{Tool: "trivy", Results: iac,
 				Provenance: []sarif.Provenance{{Tool: "trivy", Version: "0.69.3"}}}},
 			"sast": {Control: "sast", Report: sarif.Report{Tool: "semgrep", Results: sast}},
+			"secrets": {Control: "secrets", Report: sarif.Report{Tool: "gitleaks", Results: secrets,
+				Rules: map[string]sarif.Rule{"private-key": {
+					ShortDescription: "Identified a Private Key, which may compromise cryptographic security."}}}},
 			"licenses": {Control: "licenses", Report: sarif.Report{Tool: "trivy-license", Results: suppressedLicenses(licenses),
 				Provenance: []sarif.Provenance{{Tool: "trivy-license", Version: "0.69.3",
 					Fields: []sarif.Field{{Key: "policy", Value: "deny copyleft"}}}}}},
@@ -202,24 +217,25 @@ func goldenFullData() Data {
 	verdict := norn.Result{Verdict: norn.Fail, Controls: []norn.ControlOutcome{
 		{Control: "iac", Verdict: norn.Fail, Counts: sarif.Counts{Error: 1, Warning: 1}},
 		{Control: "licenses", Verdict: norn.Pass, Counts: sarif.Counts{Warning: 1}},
-		{Control: "sast", Verdict: norn.Fail, Counts: sarif.Counts{Error: 1}},
+		{Control: "sast", Verdict: norn.Fail, Counts: sarif.Counts{Error: 1, Warning: 1}},
 		{Control: "sca", Verdict: norn.Fail, Counts: sarif.Counts{Error: 2, Warning: 1, Note: 1}},
+		{Control: "secrets", Verdict: norn.Fail, Counts: sarif.Counts{Error: 1}},
 	}}
 	return Data{
 		Project: "draugr-demo",
 		Release: saga.Release{Version: "0.0.0"},
 		Run:     run,
 		Verdict: verdict,
-		TopN:    5, // fewer than the findings above, so the truncation line is pinned too
+		TopN:    6, // fewer than the findings above, so the truncation line is pinned too
 		// A failing component, a clean one, and findings belonging to neither, the three states the
 		// breakdown has to render, including the clean row, which is the one a reader takes back to their
 		// team.
 		Components: []ComponentVerdict{
 			{Name: "payments", Verdict: norn.Fail, Controls: []string{"sca", "secrets"},
-				Priorities: [4]int{3, 2, 1, 0}, Findings: 6},
+				Priorities: [4]int{3, 3, 1, 0}, Findings: 7},
 			{Name: "internal-tool", Verdict: norn.Pass},
 		},
-		UnattributedFindings: 2,
+		UnattributedFindings: 3,
 	}
 }
 

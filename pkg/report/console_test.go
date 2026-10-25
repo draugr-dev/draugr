@@ -452,9 +452,9 @@ func TestACheckoutWithNoRemoteSaysSo(t *testing.T) {
 // set", as though something had been left undone, on the row a newcomer reads first.
 func TestAControlWithNoFindingsSaysSo(t *testing.T) {
 	d := goldenFullData()
-	d.Verdict.Controls = append(d.Verdict.Controls, norn.ControlOutcome{Control: "secrets", Verdict: norn.Pass})
+	d.Verdict.Controls = append(d.Verdict.Controls, norn.ControlOutcome{Control: "tls", Verdict: norn.Pass})
 	out := renderWith(t, consoleReporter{}, d)
-	if !regexp.MustCompile(`secrets +pass +no findings`).MatchString(out) {
+	if !regexp.MustCompile(`tls +pass +no findings`).MatchString(out) {
 		t.Errorf("the clean control does not say it has no findings:\n%s", out)
 	}
 	if strings.Contains(out, "no priorities set") {

@@ -667,14 +667,14 @@ func TestTheFirstSentenceRunsPastAnAbbreviation(t *testing.T) {
 // action covering three hosts is wrong about two of them.
 func TestARuleActionCarriesTheScannersSummary(t *testing.T) {
 	rule := func(loc, msg string) finding {
-		return finding{control: "sast", ruleID: "python.lang.eval-detected.eval-detected", location: loc,
+		return finding{control: "iac", ruleID: "dockerfile.security.missing-user.missing-user", location: loc,
 			message: msg, priority: "P2"}
 	}
 	got, _ := groupActions([]finding{
-		rule("a.py:1", "Detected the use of eval(). It is dangerous."),
-		rule("b.py:1", "Detected the use of eval(). It is dangerous."),
+		rule("a/Dockerfile:1", "By not specifying a USER, a program may run as root. More."),
+		rule("b/Dockerfile:1", "By not specifying a USER, a program may run as root. More."),
 	}, nil)
-	if len(got) != 1 || got[0].summary != "Detected the use of eval()" {
+	if len(got) != 1 || got[0].summary != "By not specifying a USER, a program may run as root" {
 		t.Errorf("actions = %+v, want one with the message's first sentence as its summary", got)
 	}
 
@@ -700,7 +700,7 @@ func TestARuleActionCarriesTheScannersSummary(t *testing.T) {
 	}
 
 	// A description that only names the rule describes nothing, and the message does better.
-	got, _ = groupActions([]finding{{control: "sast", ruleID: "x.y.missing-user", location: "Dockerfile:1",
+	got, _ = groupActions([]finding{{control: "iac", ruleID: "x.y.missing-user", location: "Dockerfile:1",
 		priority: "P2", message: "By not specifying a USER, a program may run as root. More.",
 		ruleSummary: "Semgrep Finding: x.y.missing-user"}}, nil)
 	if want := "By not specifying a USER, a program may run as root"; got[0].summary != want {
@@ -711,7 +711,7 @@ func TestARuleActionCarriesTheScannersSummary(t *testing.T) {
 		// The title quotes it already.
 		{control: "iac", ruleID: "KSV-0017", location: "pod.yaml", message: "Privileged", priority: "P1"},
 		// The title is the message.
-		{control: "sast", location: "main.py:1", message: "Something is wrong here.", priority: "P1"},
+		{control: "iac", location: "main.tf", message: "Something is wrong here.", priority: "P1"},
 		// An upgrade says what to do and needs no description of the advisory.
 		{control: "sca", ruleID: "CVE-1", location: "go.mod", message: "A flaw.", priority: "P1",
 			pkg: &sarif.Package{Name: "x", Version: "1", FixedVersion: "2"}},

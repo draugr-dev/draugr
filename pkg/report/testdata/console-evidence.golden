@@ -1,27 +1,31 @@
 DRAUGR  FAIL  draugr-demo 0.0.0  34.5s
 
- 3 P1 2 P2 2 P3 1 P4
+ 3 P1 3 P2 3 P3 1 P4
 
-WHAT TO DO  5 actions clear 6 findings
+WHAT TO DO  6 actions clear 8 findings
   P1  Fix CVE-2019-20477 “PyYAML: command execution through python/object/app…
       component payments · control sca · 1 finding · app/requirements.txt:4 · CVE-2019-20477
   P1  Upgrade jinja2 2.10 → 2.11.3
       component payments · control sca · 2 findings · app/requirements.txt:5 · CVE-2019-10906 +1
   P1  Fix DS-0002 “Image user should not be 'root'”
       component payments · control iac · 1 finding · app/Dockerfile:1 · DS-0002
+  P2  Fix “Detected user input flowing into a raw SQL string”
+      semgrep tainted-sql-string · bandit B608
+      control sast · 2 findings · app/main.py:42
   P2  Fix CVE-2018-1000656 “python-flask: Denial of Service via crafted JSON…
       component internal-tool · control sca · 1 finding · app/requirements.txt:2 · CVE-2018-1000656
-  P2  Fix tainted-sql-string
-      Detected user input flowing into a raw SQL string
-      control sast · 1 finding · app/main.py:42 · …tainted-sql-string.tainted-sql-string
+  P2  Remove and rotate private-key
+      Identified a Private Key, which may compromise cryptographic security
+      component payments · control secrets · 1 finding · app/config.pem:1 · private-key
 
 … and 2 actions not listed.
 
 CONTROLS
   iac       FAIL   1 P1 1 P3
   licenses  pass   1 P3
-  sast      FAIL   1 P2
+  sast      FAIL   1 P2 1 P3
   sca       FAIL   2 P1 1 P2 1 P4
+  secrets   FAIL   1 P2
   dast      ERROR  did not run
             nuclei: executable file not found in $PATH
 
@@ -29,9 +33,9 @@ MEASURED AGAINST
   licenses  trivy-license 0.69.3 · policy: deny copyleft
 
 COMPONENTS
-  payments       FAIL   3 P1 2 P2 1 P3
+  payments       FAIL   3 P1 3 P2 1 P3
   internal-tool  pass   no findings
-  2 findings not tied to a component (project-wide controls)
+  3 findings not tied to a component (project-wide controls)
 
 ACCEPTED
   config.exclude  2 findings suppressed · 1 expired and no longer suppressing
@@ -58,7 +62,7 @@ EVIDENCE
   gate        fails on P1
 
 TRY
-  --top 0                every one of them, not the first five
+  --top 0                every one of them, not the first six
   --view compact         one line each, to see how much there is
   --view findings        the findings themselves, one row each
   draugr explain <rule>  what a rule means and how to fix it

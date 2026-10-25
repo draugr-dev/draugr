@@ -670,6 +670,15 @@ type htmlAction struct {
 	Upstream   bool
 	Cached     bool
 	Where      string
+	// Rules are the rules an action for one line of code clears, by the scanner that reported them,
+	// as the console lists them under the title.
+	Rules []htmlToolRules
+}
+
+// htmlToolRules is one scanner's rules under an action for one line of code.
+type htmlToolRules struct {
+	Tool  string
+	Rules []string
 }
 
 // toHTMLAction renders an action the way the console renders one, so the two agree line for line.
@@ -694,6 +703,15 @@ func toHTMLAction(a action) htmlAction {
 	}
 	if a.step != nil && !a.step.applies {
 		out.NotApplied, out.Ecosystem = string(a.step.policy), ecosystemName(a)
+	}
+	if a.atOneLine() {
+		for _, g := range a.rulesByTool() {
+			names := make([]string, 0, len(g.rules))
+			for _, f := range g.rules {
+				names = append(names, shortRuleName(f.ruleID))
+			}
+			out.Rules = append(out.Rules, htmlToolRules{Tool: g.tool, Rules: names})
+		}
 	}
 	return out
 }
@@ -1642,6 +1660,7 @@ about what they would have found. For everything the tool printed, re-run with
     <div class="what">
       <div class="rule"><span class="name">{{.Title}}</span>{{if .Policy}} <span class="faint">{{.Policy}}</span>{{end}}</div>
       {{if .Summary}}<div class="sub">{{.Summary}}</div>{{end}}
+      {{if .Rules}}<div class="sub">{{range $i, $g := .Rules}}{{if $i}}<span class="faint"> · </span>{{end}}{{if $g.Tool}}<span class="lbl">{{$g.Tool}}</span> {{end}}{{join $g.Rules}}{{end}}</div>{{end}}
       <div class="sub">{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}<span class="lbl">control</span> {{.Control}}<span class="faint"> · </span><button type="button" class="act-clears" data-a="{{.Key}}" data-title="{{.Title}}">{{plural .Clears "finding"}}</button>{{if .Upstream}}<span class="faint"> · </span>upstream{{end}}{{if .Cached}}<span class="faint"> · </span>from cache{{end}}{{if .Where}}<span class="faint"> · </span>{{.Where}}{{end}}</div>
     </div>
   </div>{{end}}
