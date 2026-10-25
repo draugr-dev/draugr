@@ -240,10 +240,10 @@ descriptor said nothing.
 
 ## Notes
 
-- Integration mode: **exec**. `kube-bench` and `kubectl` must both be on `PATH`, and the
-  kubeconfig must reach the cluster. Both are declared, so `draugr doctor` reports either as
-  missing before a scan rather than after. Neither is fetched by `draugr tools install`, so both
-  are yours to provide.
+- Integration mode: **exec**. `draugr tools install kube-bench` fetches kube-bench and its
+  benchmark definitions. `kubectl` is not fetched, and has to be on `PATH` with a kubeconfig that
+  reaches the cluster. Both are declared, so `draugr doctor` reports either as missing before a
+  scan rather than after.
 - **The kubectl requirement is kube-bench's, not Draugr's.** Its section 5 checks are shell
   scripts that invoke kubectl; exec'ing the tool means exec'ing kubectl.
   [`draugr-k8s-policies`](draugr-k8s-policies.md) reads the API directly and needs neither.
