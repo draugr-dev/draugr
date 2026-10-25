@@ -58,6 +58,13 @@ on:
         required: false
         default: ""
         type: string
+      label:
+        description: >-
+          Appended to the name of anything this run uploads, so several calls in one run, each
+          proving something different, do not collide on one artifact name.
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -258,6 +265,29 @@ jobs:
           DRAUGR_BIN: ${{ github.workspace }}/bin/draugr
           DRAUGR_INTEGRATION_STRICT: "1"
         run: go test -tags integration -v -timeout 15m -run '^TestSealedScenarios$' ./test/integration/
+
+      # What moved, when something did. The log names the golden that differs and not how, and
+      # whether a changed report is a scanner release's intended change or a regression is decided
+      # by reading the difference. Rewritten here and uploaded, never committed: accepting it is a
+      # person's call, made by running -update-sealed on a branch.
+      - name: Write what the scenarios now report, beside the goldens
+        if: failure() && steps.needed.outputs.run == 'true'
+        env:
+          DRAUGR_BIN: ${{ github.workspace }}/bin/draugr
+          DRAUGR_INTEGRATION_STRICT: "1"
+        run: |
+          go test -tags integration -timeout 15m -run '^TestSealedScenarios$' ./test/integration/ -update-sealed > /dev/null || true
+          git diff -- test/integration/testdata > "$RUNNER_TEMP/sealed-golden.diff"
+          git diff --stat -- test/integration/testdata
+
+      - name: Upload what the scenarios now report
+        if: failure() && steps.needed.outputs.run == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sealed-golden-diff${{ inputs.label && format('-{0}', inputs.label) || '' }}
+          path: ${{ runner.temp }}/sealed-golden.diff
+          retention-days: 14
+          if-no-files-found: ignore
 
   # The sealed scenarios and draugr-demo against today's advisory databases and real registries.
   #

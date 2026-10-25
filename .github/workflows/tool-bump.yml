@@ -411,6 +411,7 @@ jobs:
     with:
       ref: tool-bump/proof/${{ matrix.tool }}-${{ github.run_id }}
       suite: pull-request
+      label: ${{ matrix.tool }}
     # What any job in the called workflow asks for, whether or not it runs: a called workflow that
     # asks for more than its caller grants fails at startup with no job and no message.
     permissions:
@@ -617,7 +618,9 @@ jobs:
                   gh issue create --label "$label" --title "$title" --body "$(cat <<BODY
           The weekly scanner bump for \`$name\` failed: [run]($RUN_URL).
 
-          Either the new release did not pass the proof (\`make gate\`, three cold scans of the demo, no control newly erroring, no control dropping to zero), or the job itself broke before it reached the proof. The run's log says which.
+          Either the new release did not pass the proof (\`make gate\`, three cold scans of the demo, no control newly erroring, no control dropping to zero, then the integration suite with its pin alone), or the job itself broke before it reached the proof. The run's log says which.
+
+          Where the sealed scenarios failed, the run's \`sealed-golden-diff-$name\` artifact holds what the new release reports beside the goldens. Accepting it is running \`-update-sealed\` on a branch, once the difference reads as the release's intended change rather than a regression.
 
           This issue closes itself when a scheduled run proves \`$name\` again.
           BODY
