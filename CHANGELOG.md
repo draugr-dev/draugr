@@ -12,6 +12,16 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.154.2] - 2026-10-25
+
+### Fixed
+
+- **`draugr version` names the release a `go install` built.** A binary installed with `go install github.com/draugr-dev/draugr/cmd/draugr@v0.154.1` reported `dev`. It now reports the module version it was built from, and a build from a checkout reports its commit and commit time.
+
+### Security
+
+- **Release binaries are built with Go 1.26.10**, which fixes [GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809): `crypto/x509` trusted certificates chaining to intermediates since found to be compromised. Draugr verifies certificates whenever it fetches a tool, a feed or a scanned endpoint over TLS.
+
 ## [0.154.1] - 2026-10-18
 
 ### Fixed
@@ -6377,7 +6387,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.154.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.154.2...HEAD
+[0.154.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.154.2
 [0.154.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.154.1
 [0.154.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.154.0
 [0.153.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.153.0
