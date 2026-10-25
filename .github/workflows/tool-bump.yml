@@ -321,10 +321,20 @@ jobs:
               echo "tested the new build. This pull request's integration suite is what does."
             fi
             echo
-            echo "Findings by control, before and after:"
-            echo
-            cat /tmp/shape.md
-            echo
+            # Only the rows that moved. Every tool in a batch scanned the same demo, so the full
+            # table repeats for each one, and the rows that did not move hide the ones that did.
+            if [ "$EXERCISED" = "true" ]; then
+              changed=$(awk -F' *[|] *' 'NR > 2 && $3 != $4' /tmp/shape.md)
+              if [ -n "$changed" ]; then
+                echo "Findings that changed, by control:"
+                echo
+                head -n 2 /tmp/shape.md
+                echo "$changed"
+              else
+                echo "No control's finding count changed."
+              fi
+              echo
+            fi
             echo "Controls that could not run:"
             echo
             cat /tmp/errors.md
