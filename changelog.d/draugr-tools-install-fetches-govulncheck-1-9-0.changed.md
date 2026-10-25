@@ -1,0 +1,1 @@
+- **`draugr tools install` fetches govulncheck 1.9.0**, which was pinned at 1.8.0.

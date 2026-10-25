@@ -39,7 +39,7 @@ import (
 // Bumping it means regenerating the pins:
 //
 //	python3 internal/tools/pythonpins/generate.py semgrep <version>
-const semgrepVersion = "1.177.0"
+const semgrepVersion = "1.182.1"
 
 // Download/extract size caps guard against a malicious or corrupt server (decompression
 // bombs, endless bodies). Scanner archives are tens of MB; 512 MiB is comfortably above that.
@@ -114,69 +114,69 @@ type InstallSpec struct {
 var installable = map[string]InstallSpec{
 	"trivy": {
 		Binary:  "trivy",
-		Version: "0.74.0",
+		Version: "0.76.1",
 		// Trivy signs its checksums file with keyless cosign (new Sigstore bundle format).
 		Cosign: &CosignSpec{
-			ChecksumsURL:         "https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_checksums.txt",
+			ChecksumsURL:         "https://github.com/aquasecurity/trivy/releases/download/v0.76.1/trivy_0.76.1_checksums.txt",
 			ChecksumsURLTemplate: "https://github.com/aquasecurity/trivy/releases/download/v{version}/trivy_{version}_checksums.txt",
-			BundleURL:            "https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_checksums.txt.sigstore.json",
+			BundleURL:            "https://github.com/aquasecurity/trivy/releases/download/v0.76.1/trivy_0.76.1_checksums.txt.sigstore.json",
 			BundleURLTemplate:    "https://github.com/aquasecurity/trivy/releases/download/v{version}/trivy_{version}_checksums.txt.sigstore.json",
 			IdentityRegexp:       `^https://github\.com/aquasecurity/trivy/\.github/workflows/.*@refs/tags/v.*$`,
 			OIDCIssuer:           "https://token.actions.githubusercontent.com",
 		},
 		Assets: map[string]Asset{
 			"linux/amd64": {
-				URL:             "https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-64bit.tar.gz",
+				URL:             "https://github.com/aquasecurity/trivy/releases/download/v0.76.1/trivy_0.76.1_Linux-64bit.tar.gz",
 				URLTemplate:     "https://github.com/aquasecurity/trivy/releases/download/v{version}/trivy_{version}_Linux-64bit.tar.gz",
-				SHA256:          "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a",
+				SHA256:          "c7cbe3137fb8a48a17574bede3dd6beb16742d1e9772929940fc90082c39d9c0",
 				BinaryInArchive: "trivy",
 			},
 			"linux/arm64": {
-				URL:             "https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-ARM64.tar.gz",
+				URL:             "https://github.com/aquasecurity/trivy/releases/download/v0.76.1/trivy_0.76.1_Linux-ARM64.tar.gz",
 				URLTemplate:     "https://github.com/aquasecurity/trivy/releases/download/v{version}/trivy_{version}_Linux-ARM64.tar.gz",
-				SHA256:          "b94ce1976bbf3c15b514b605ee88be7c6d94a29be2302847ff01cb794d47aad5",
+				SHA256:          "e174dff2a6dba5e3ae41f8d0537a6324405bd08132497340304c6b20e0f16a1f",
 				BinaryInArchive: "trivy",
 			},
 			"darwin/amd64": {
-				URL:             "https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_macOS-64bit.tar.gz",
+				URL:             "https://github.com/aquasecurity/trivy/releases/download/v0.76.1/trivy_0.76.1_macOS-64bit.tar.gz",
 				URLTemplate:     "https://github.com/aquasecurity/trivy/releases/download/v{version}/trivy_{version}_macOS-64bit.tar.gz",
-				SHA256:          "472816f6888dda689d075c30254d4210b4d1035acf365aa72332f584c2f60485",
+				SHA256:          "7aa762eacd582052d053b62dcf972a1ab058abe39a57ccae234ed8894945b6b7",
 				BinaryInArchive: "trivy",
 			},
 			"darwin/arm64": {
-				URL:             "https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_macOS-ARM64.tar.gz",
+				URL:             "https://github.com/aquasecurity/trivy/releases/download/v0.76.1/trivy_0.76.1_macOS-ARM64.tar.gz",
 				URLTemplate:     "https://github.com/aquasecurity/trivy/releases/download/v{version}/trivy_{version}_macOS-ARM64.tar.gz",
-				SHA256:          "1caada5e0e2091909357c7525d3aa76f4b660b13821bc143b190c7483e31cc11",
+				SHA256:          "11a9b6cd2752011b54f01ea4bd0dbfa9f0c41dc6538d5a3f9d23955f471bf4e5",
 				BinaryInArchive: "trivy",
 			},
 		},
 	},
 	"cosign": {
 		Binary:  "cosign",
-		Version: "3.1.3",
+		Version: "3.1.4",
 		// cosign ships bare release binaries (no archive), so BinaryInArchive is empty. It is the tool
 		// Draugr uses to verify other tools, so it is pinned by SHA-256 (the mandatory floor), using
 		// cosign to verify itself would be circular.
 		Assets: map[string]Asset{
 			"linux/amd64": {
-				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.3/cosign-linux-amd64",
+				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.4/cosign-linux-amd64",
 				URLTemplate: "https://github.com/sigstore/cosign/releases/download/v{version}/cosign-linux-amd64",
-				SHA256:      "4629c757b7618056f8ddd7e2625ae9fdd94c0372a65049520bc7d9df9efc7f71",
+				SHA256:      "424e2c97d0b45fd7a6b608a87f090f35633f4c23ece5f092d48bba11aaf4bbfa",
 			},
 			"linux/arm64": {
-				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.3/cosign-linux-arm64",
+				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.4/cosign-linux-arm64",
 				URLTemplate: "https://github.com/sigstore/cosign/releases/download/v{version}/cosign-linux-arm64",
-				SHA256:      "c5d324e091826b0d7a78eb16fef316450b4eb9aaec045611c08ba06f5e73220a",
+				SHA256:      "ade83b7aac62e131cacfe96d958948b2150cc9efec46a570a2649b8e27dedad2",
 			},
 			"darwin/amd64": {
-				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.3/cosign-darwin-amd64",
+				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.4/cosign-darwin-amd64",
 				URLTemplate: "https://github.com/sigstore/cosign/releases/download/v{version}/cosign-darwin-amd64",
-				SHA256:      "2347488e5d5b25336644024dfeca5601b190e91197a71a917bda44744aff106c",
+				SHA256:      "9d1e4abe2b6be279ed0d2ff706fde1ccd738747c834e3e6d44039c238867334f",
 			},
 			"darwin/arm64": {
-				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.3/cosign-darwin-arm64",
+				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.4/cosign-darwin-arm64",
 				URLTemplate: "https://github.com/sigstore/cosign/releases/download/v{version}/cosign-darwin-arm64",
-				SHA256:      "5cf948c2f4dfe59687bdd0b8523709067383e03982cc543475c8a7dc70e92a76",
+				SHA256:      "9f9b8cd557cf2e5b3df3373a00baa005a86b02391e3e06dd0ce37b3a1533d3a4",
 			},
 		},
 	},
@@ -309,7 +309,7 @@ var installable = map[string]InstallSpec{
 	},
 	"syft": {
 		Binary:  "syft",
-		Version: "1.51.1",
+		Version: "1.55.0",
 		// SHA-256 only, though Syft does sign. It publishes the older cosign cert+signature pair
 		// (checksums.txt.pem / .sig) rather than a Sigstore bundle, and CosignSpec models the bundle
 		// format, so install-time verification cannot be expressed here yet.
@@ -319,27 +319,27 @@ var installable = map[string]InstallSpec{
 		// these hashes come from a file provably signed by Syft's release workflow.
 		Assets: map[string]Asset{
 			"linux/amd64": {
-				URL:             "https://github.com/anchore/syft/releases/download/v1.51.1/syft_1.51.1_linux_amd64.tar.gz",
+				URL:             "https://github.com/anchore/syft/releases/download/v1.55.0/syft_1.55.0_linux_amd64.tar.gz",
 				URLTemplate:     "https://github.com/anchore/syft/releases/download/v{version}/syft_{version}_linux_amd64.tar.gz",
-				SHA256:          "8fcb33017a0dc1058298c923c436d19dfa68ae93968e0b423248542e3afb9fc3",
+				SHA256:          "bb65249542db5fedeeb4d3f9b018b75e7264dbfbbb10486f044581a92f90490d",
 				BinaryInArchive: "syft",
 			},
 			"linux/arm64": {
-				URL:             "https://github.com/anchore/syft/releases/download/v1.51.1/syft_1.51.1_linux_arm64.tar.gz",
+				URL:             "https://github.com/anchore/syft/releases/download/v1.55.0/syft_1.55.0_linux_arm64.tar.gz",
 				URLTemplate:     "https://github.com/anchore/syft/releases/download/v{version}/syft_{version}_linux_arm64.tar.gz",
-				SHA256:          "a7fd2b784e6664acd44719270574f6cd8c6864fc2b1700bf9099bd1cccda7d7f",
+				SHA256:          "929bd163db2d7cd2255d3bcb8967208079813d7b46b0c952f7b794d8e2c7d304",
 				BinaryInArchive: "syft",
 			},
 			"darwin/amd64": {
-				URL:             "https://github.com/anchore/syft/releases/download/v1.51.1/syft_1.51.1_darwin_amd64.tar.gz",
+				URL:             "https://github.com/anchore/syft/releases/download/v1.55.0/syft_1.55.0_darwin_amd64.tar.gz",
 				URLTemplate:     "https://github.com/anchore/syft/releases/download/v{version}/syft_{version}_darwin_amd64.tar.gz",
-				SHA256:          "0e186ce1d4351ec276126851ca3ff258ed070e93e73574ed64858d4fc2339867",
+				SHA256:          "e2e5831cbabaec9a36fe65c34755c1113982c842a685edce3ce0b54a0ded8003",
 				BinaryInArchive: "syft",
 			},
 			"darwin/arm64": {
-				URL:             "https://github.com/anchore/syft/releases/download/v1.51.1/syft_1.51.1_darwin_arm64.tar.gz",
+				URL:             "https://github.com/anchore/syft/releases/download/v1.55.0/syft_1.55.0_darwin_arm64.tar.gz",
 				URLTemplate:     "https://github.com/anchore/syft/releases/download/v{version}/syft_{version}_darwin_arm64.tar.gz",
-				SHA256:          "ac063af3b9874769deb7ea1e6d76841e68f9e3bb50cd654226fc977de65532c1",
+				SHA256:          "1217c258bd5eb91ef3189cf22a82e02f9cac07e4ce934350f428e93aff674625",
 				BinaryInArchive: "syft",
 			},
 		},
