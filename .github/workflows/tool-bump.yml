@@ -174,7 +174,7 @@ jobs:
           # The entry belongs to the change, so it is written with it. A bump that reaches a
           # release with nothing in the notes is one users find by reading a diff.
           ./scripts/changelog.sh add changed <<EOF
-          $TOOL moves to $version.
+          - **\`draugr tools install\` fetches $TOOL $version**, which was pinned at $from.
           EOF
 
       - name: Unit tests and the repository's own gate
@@ -396,11 +396,12 @@ jobs:
           for meta in /tmp/proof/*/meta.json; do
             tool=$(jq -r .tool "$meta")
             to=$(jq -r .to "$meta")
+            from=$(jq -r .from "$meta")
             # The version the proof ran, named, so an upstream that published again in the
             # meantime cannot put an unproven build in this pull request.
             go run ./internal/tools/cmd/pinbump "$tool" "$to" | tee -a /tmp/bump.txt
             ./scripts/changelog.sh add changed <<EOF
-          $tool moves to $to.
+          - **\`draugr tools install\` fetches $tool $to**, which was pinned at $from.
           EOF
           done
           go test ./internal/cli -run TestCommandGolden -update >/dev/null
