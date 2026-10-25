@@ -165,3 +165,29 @@ const (
 	// life, a finding that reports a fact.
 	KindDecide ActionKind = "decide"
 )
+
+// WorkOrder is the order the fix list presents its lists in, one per kind of work.
+//
+// A list per kind because the kinds are different people's work. A change to the application's
+// code and a newer base image do not compete for one engineer's next hour, and one sequence ranks
+// each against the other by numbers that say nothing about which to do first.
+var WorkOrder = []ActionKind{KindBump, KindCode, KindInfrastructure, KindCredential, KindWait, KindDecide}
+
+// ListName is the name of the list an action of this kind is in, or "" for a kind with none.
+func (k ActionKind) ListName() string {
+	switch k {
+	case KindBump:
+		return "Bump a dependency"
+	case KindCode:
+		return "Change the code"
+	case KindInfrastructure:
+		return "Change the infrastructure"
+	case KindCredential:
+		return "Rotate a credential"
+	case KindWait:
+		return "Wait for a release"
+	case KindDecide:
+		return "Decide"
+	}
+	return ""
+}

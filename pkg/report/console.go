@@ -46,6 +46,20 @@ func consoleFixFirstLimit(topN int) int {
 	}
 }
 
+// consoleActionsPerList is how many actions each of the fix list's lists shows, from Data.TopN:
+// 0 → the default (consoleActionsPerListN), a negative value → all (-1), a positive value → n.
+//
+// Per list rather than in all, because a cut across the lists would spend its rows on whichever
+// kind of work comes first and leave the others with none.
+func consoleActionsPerList(topN int) int {
+	if topN == 0 {
+		return consoleActionsPerListN
+	}
+	return consoleFixFirstLimit(topN)
+}
+
+const consoleActionsPerListN = 3
+
 // The report's vocabulary maps onto the shared palette, so a "critical" here looks like a
 // "critical" everywhere else Draugr writes.
 const (
@@ -129,7 +143,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	// meeting a verdict for the first time: a list of fixes to apply, before the controls that
 	// produced them, reads as instructions from a tool the reader has not yet decided to trust.
 	if d.View == ViewActions && len(s.findings) > 0 {
-		listed = writeActions(w, col, s, d, consoleFixFirstLimit(d.TopN))
+		listed = writeActions(w, col, s, d, consoleActionsPerList(d.TopN))
 	}
 
 	// Controls that errored are listed alongside the ones that ran. A control that produced no report
@@ -1659,23 +1673,34 @@ func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) (l
 		return 0
 	}
 
-	shown := actions
-	if limit >= 0 && len(shown) > limit {
-		shown = shown[:limit]
-	}
+	// Every action and every finding, across the lists. Each list says what it holds and how much of
+	// it is not shown, so the heading speaks for the whole and the lists account for the rest.
 	_, _ = fmt.Fprintf(w, "%s  %s\n", heading(col, "What to do"), col.Paint(cDim, fmt.Sprintf(
-		"%s %s %s", english.Count(len(shown), "action"), clears(shown), english.Count(cleared(shown), "finding"))))
-	// Counted over the rows listed, as the heading is, so the note never speaks for rows it does
-	// not show.
-	for _, note := range policyNotes(shown) {
-		_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim, note))
-	}
-	renderActions(w, col, shown, d.View == ViewCompact)
+		"%s %s %s", english.Count(len(actions), "action"), clears(actions), english.Count(cleared(actions), "finding"))))
 
-	if len(shown) < len(actions) {
-		_, _ = fmt.Fprintf(w, "\n… and %s not listed.\n",
-			english.Count(len(actions)-len(shown), "action"))
-		listed = len(shown)
+	// One list per kind of work, in WorkOrder. Grouped after ranking, so each list keeps the order
+	// the ranking gave its actions.
+	byKind := map[skald.ActionKind][]action{}
+	for _, a := range actions {
+		byKind[a.kind] = append(byKind[a.kind], a)
+	}
+	for _, kind := range listKinds(byKind) {
+		as := byKind[kind]
+		shown := as
+		if limit >= 0 && len(shown) > limit {
+			shown = shown[:limit]
+		}
+		_, _ = fmt.Fprintf(w, "\n%s  %s\n", listName(kind), col.Paint(cDim, fmt.Sprintf("%s %s %s",
+			english.Count(len(as), "action"), clears(as), english.Count(cleared(as), "finding"))))
+		// Counted over the rows listed, so the note never speaks for rows it does not show.
+		for _, note := range policyNotes(shown) {
+			_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim, note))
+		}
+		renderActions(w, col, shown, d.View == ViewCompact)
+		if len(shown) < len(as) {
+			_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim, fmt.Sprintf("… and %d more", len(as)-len(shown))))
+			listed = limit
+		}
 	}
 	if len(external) > 0 {
 		_, _ = fmt.Fprintln(w, col.Paint(cDim, externalLine(external)))
@@ -2761,4 +2786,37 @@ func appendOnce(list []string, v string) []string {
 		}
 	}
 	return append(list, v)
+}
+
+// listKinds is the kinds of work the actions hold, in WorkOrder, then any kind WorkOrder does not
+// name in the order its first action appears. Never dropped: an action with a kind no list names
+// is still work, and leaving it out would make the list say there is less to do than there is.
+func listKinds(byKind map[skald.ActionKind][]action) []skald.ActionKind {
+	var out []skald.ActionKind
+	named := map[skald.ActionKind]bool{}
+	for _, k := range skald.WorkOrder {
+		named[k] = true
+		if len(byKind[k]) > 0 {
+			out = append(out, k)
+		}
+	}
+	var rest []skald.ActionKind
+	for k := range byKind {
+		if !named[k] {
+			rest = append(rest, k)
+		}
+	}
+	slices.Sort(rest)
+	return append(out, rest...)
+}
+
+// listName is what a list is called: its kind's name, or for a kind without one, the kind itself.
+func listName(k skald.ActionKind) string {
+	if n := k.ListName(); n != "" {
+		return n
+	}
+	if k == "" {
+		return "Other"
+	}
+	return string(k)
 }
