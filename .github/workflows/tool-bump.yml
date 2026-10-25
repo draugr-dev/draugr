@@ -171,7 +171,11 @@ jobs:
 
       - name: Unit tests and the repository's own gate
         if: steps.bump.outputs.moved == 'true'
-        run: make gate
+        # The spelling check fails rather than skips without misspell, so it is installed the way
+        # ci.yml installs it.
+        run: |
+          go install github.com/client9/misspell/cmd/misspell@v0.3.4
+          MISSPELL="$(go env GOPATH)/bin/misspell" make gate
 
       # The half a hash cannot tell you. Every tool installed for real at the new pin, then a full
       # scan of every control, three times against a cold cache.
