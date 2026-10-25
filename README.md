@@ -172,6 +172,8 @@ claude mcp add draugr -- draugr mcp
 
 See [use Draugr from an AI coding assistant](docs/guides/ai-agents-mcp.md).
 
+[![Glama score for the Draugr MCP server](https://glama.ai/mcp/servers/draugr-dev/draugr/badges/score.svg)](https://glama.ai/mcp/servers/draugr-dev/draugr)
+
 ## Documentation
 
 **[Documentation index →](docs/README.md)**
