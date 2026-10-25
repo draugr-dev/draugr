@@ -280,7 +280,10 @@ DRAUGR_BIN="$PWD/bin/draugr" go test -tags integration ./test/integration/...
 
 A test that cannot run skips and names what it was missing: a tool, a registry, or a fixture
 whose advisories no longer show the difference the test measures. The workflow sets
-`DRAUGR_INTEGRATION_STRICT=1`, which makes each of those a failure.
+`DRAUGR_INTEGRATION_STRICT=1`, which makes a missing tool or registry a failure on every run.
+`DRAUGR_INTEGRATION_DRIFT_FAILS=1` does the same for a drifted fixture, and the workflow sets it
+only on `main` and the nightly run, where a red suite raises an issue. Advisory data moves with no
+change to the tree, so drift gates no pull request and no release.
 
 The Notary Project signing test pushes to a registry on a loopback port, which the workflow starts.
 To run it locally, start one and name it:
