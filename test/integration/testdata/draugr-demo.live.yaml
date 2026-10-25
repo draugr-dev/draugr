@@ -44,7 +44,7 @@ files:
   - file: app/Dockerfile
     foundBy: [iac/Trivy, sast/Semgrep OSS]
   - file: app/app.py
-    foundBy: [sast/Semgrep OSS]
+    foundBy: [sast/Bandit, sast/Semgrep OSS]
   - file: app/config.example.pem
     foundBy: [sast/Semgrep OSS, secrets/gitleaks]
   - file: cgr.dev/chainguard/static:latest
