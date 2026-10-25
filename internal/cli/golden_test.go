@@ -50,13 +50,14 @@ func TestCommandGolden(t *testing.T) {
 			}
 		}},
 		{"tools-list", func(t *testing.T, w *bytes.Buffer) {
-			stubDetect(t, map[string]string{"trivy": "0.74.0", "git": "2.55.0", "gosec": "2.28.0"})
+			// trivy at its pin and gosec behind it, so the golden holds both states whatever the pins are.
+			stubDetect(t, map[string]string{"trivy": tools.PinnedVersion("trivy"), "git": "2.55.0", "gosec": "2.28.0"})
 			if err := runToolsList(context.Background(), w); err != nil {
 				t.Fatal(err)
 			}
 		}},
 		{"tools-install-plan", func(t *testing.T, w *bytes.Buffer) {
-			stubDetect(t, map[string]string{"trivy": "0.74.0"})
+			stubDetect(t, map[string]string{"trivy": tools.PinnedVersion("trivy")})
 			names := []string{"trivy", "gitleaks"}
 			writeInstallPlan(w, names, false,
 				present(context.Background(), names, toolsInstallOptions{}), toolsInstallOptions{})

@@ -106,6 +106,14 @@ jobs:
         with:
           repository: draugr-dev/draugr-demo
           path: demo
+          # Read-only and public, and moved below, so there is nothing for the post step to clean.
+          persist-credentials: false
+
+      # Out of the working tree before anything else runs. Left inside it, the demo's markdown is
+      # read by the repository's own tests, which check every pasted console block they find, and
+      # `make gate` fails on a document that is not this repository's.
+      - name: Move the demo out of the tree
+        run: mv demo "$RUNNER_TEMP/demo"
 
       # What the current pins report, before anything moves. A bump that changes what a scanner
       # finds is the failure worth catching: a tool that silently stops reporting passes every
@@ -120,7 +128,7 @@ jobs:
           # From inside the demo, so its descriptor decides what is installed. At the repository
           # root `tools install` finds no descriptor and installs the zero-config set, and a bumped
           # tool outside that set would never run in either scan.
-          cd demo
+          cd "$RUNNER_TEMP/demo"
           /tmp/draugr-before tools install -y
           /tmp/draugr-before feeds update
           # `-o` names a directory of reports, so the JSON is taken from stdout. `--no-gate`
@@ -140,6 +148,9 @@ jobs:
         run: |
           set -euo pipefail
           go run ./internal/tools/cmd/pinbump "$TOOL" | tee /tmp/bump.txt
+          # The command goldens print the pins, so they move with one. Regenerated here, and the
+          # pull request's diff shows exactly which rows changed.
+          go test ./internal/cli -run TestCommandGolden -update >/dev/null
           version=$(go run ./cmd/draugr tools outdated --json \
             | jq -r --arg t "$TOOL" '.[] | select(.tool == $t) | .pinned')
           echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -175,7 +186,7 @@ jobs:
         run: |
           set -euo pipefail
           go build -o /tmp/draugr-after ./cmd/draugr
-          cd demo
+          cd "$RUNNER_TEMP/demo"
           /tmp/draugr-after tools install -y --force
           /tmp/draugr-after feeds update
           for run in 1 2 3; do
@@ -239,7 +250,7 @@ jobs:
           git config user.name "Wilson Santos"
           git config user.email "wilson@draugr.dev"
           git checkout -b "$branch"
-          git add internal/tools changelog.d
+          git add internal/tools internal/cli/testdata/golden changelog.d
           git commit -m "Pin $TOOL at $VERSION" -m "$(cat /tmp/bump.txt)"
           git push -u origin "$branch"
           {
