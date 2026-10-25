@@ -101,8 +101,15 @@ A scanner reporting a CVSS score is banded on the standard v3 ranges:
 | 4.0 – 6.9 | `medium` |
 | below 4.0 | `low` |
 
-A finding with no score, a secret, a static-analysis rule, an IaC check, is banded from the SARIF
-level instead: `error` is high, `warning` is medium, `note` and `none` are low.
+A Semgrep finding is banded from its rule's impact and likelihood, and an imported Bandit finding
+from its severity and confidence, by the tables in
+[`semgrep`](../../internal/scanners/semgrep.md#severity) and
+[`sarif-import`](../../internal/scanners/sarif-import.md#bandit). The report prints the rating on
+the finding, `impact high · likelihood high`.
+
+A finding with neither a score nor a rating, a secret, an IaC check, a rule written without a
+rating, is banded from the SARIF level instead: `error` is high, `warning` is medium, `note` and
+`none` are low.
 
 ### What moves a finding along the severity axis
 

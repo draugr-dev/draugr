@@ -1,0 +1,1 @@
+- **`draugr tools install` fetches trivy 0.76.1**, which was pinned at 0.74.0.

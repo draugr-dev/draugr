@@ -18,10 +18,13 @@ order: 150
 ## What it does
 
 Checks out the component's repository, then runs
-`semgrep scan --sarif --quiet --no-error --metrics=off --config p/default <dir>` to analyze
-the project's **own source code** for security bugs (injection, unsafe APIs, etc.). See the
-[SAST glossary entry](../../docs/reference/glossary.md#sast-static-application-security-testing).
+`semgrep scan --sarif --json-output <file> --quiet --no-error --metrics=off --config p/default <dir>`
+to analyze the project's **own source code** for security bugs (injection, unsafe APIs, etc.). See
+the [SAST glossary entry](../../docs/reference/glossary.md#sast-static-application-security-testing).
 
+- `--json-output` writes the same results as JSON to a temporary file, which Draugr reads for the
+  rule metadata the SARIF leaves out (see [Severity](#severity)) and then removes. It needs
+  Semgrep 1.70.0 or later; an earlier Semgrep refuses the option and the scan reports the error.
 - `--no-error` keeps the process successful when findings exist (findings live in the SARIF
   report, not the exit code; the [`sast`](../controllers/sast.md) controller judges severity).
 - `--metrics=off` avoids sending scan telemetry to the Semgrep registry.
@@ -36,9 +39,10 @@ the project's **own source code** for security bugs (injection, unsafe APIs, etc
 ## Notes
 
 - Integration mode: **exec** over a local checkout; Semgrep + `git` must be on `PATH`.
-- Semgrep's SARIF puts each finding's severity in the **rule's** `defaultConfiguration.level`
+- Semgrep's SARIF puts each finding's level in the **rule's** `defaultConfiguration.level`
   (not on the result). Draugr's SARIF parser resolves a result's level from its rule, so
-  ERROR/WARNING/INFO map through to error/warning/note correctly.
+  ERROR/WARNING/INFO map through to error/warning/note correctly. The severity comes from the
+  rule's rating where it states one (see [Severity](#severity)).
 - **A `config` path on disk resolves against the directory Draugr runs in** and reaches Semgrep as
   an absolute path, so it names the same file for every repository, including one scoped by
   `paths`.
@@ -48,6 +52,41 @@ the project's **own source code** for security bugs (injection, unsafe APIs, etc
   part that comes from the configured path, and the rule is `no-eval` on every machine. A rule in a
   subdirectory of a configured directory keeps the subdirectory (`nested.no-eval`). Exclusions and
   `draugr diff` match on this id.
+
+## Severity
+
+A result's severity comes from its rule's `impact` and `likelihood`, each `LOW`, `MEDIUM` or
+`HIGH`, by the table below. Semgrep publishes both in the rule's metadata, with a `confidence` and a
+`subcategory` of `vuln`, `audit` or `secure default`. Its SARIF keeps only the confidence, as a tag,
+and gives most of the default pack the level `error` or `warning` whatever the rule finds, so Draugr
+reads the metadata from the JSON report the same run writes.
+
+| impact \ likelihood | `LOW` | `MEDIUM` | `HIGH` |
+|---|---|---|---|
+| `HIGH` | medium | high | critical |
+| `MEDIUM` | low | medium | high |
+| `LOW` | low | low | medium |
+
+- **One band lower**, never below low, for a rule with confidence `LOW` or subcategory `audit`, and
+  one band where it is both. Semgrep defines a `LOW` confidence rule as one that expects a fair
+  amount of false positives, and an audit rule as one for code auditors.
+- **No change** for confidence `MEDIUM` or `HIGH`, or subcategory `vuln` or `secure default`.
+- **The level** for a rule that does not state both impact and likelihood, which a rule written by
+  hand usually does not, with `error` as high, `warning` as medium and `note` as low.
+
+The cells are the overall-severity table of the
+[OWASP Risk Rating Methodology](https://community.owasp.org/OWASP_Risk_Rating_Methodology), with
+its lowest cell, Note, read as low. Semgrep says a registry rule's severity is assigned from its
+likelihood and impact, and publishes no table for the combination.
+
+The report prints the rating on the finding's evidence line, `impact high · likelihood high`, with
+`confidence low` or `subcategory audit` added where either applies, so a line without them is the
+table's cell. `results.sarif` keeps the level Semgrep wrote and adds the result property
+`draugr/rating`, which holds the severity, that line, and each of the four fields the rule states,
+with Semgrep's value.
+
+A result a `nosemgrep` comment suppressed has no entry in the JSON report, so it takes the rating of
+another result of the same rule, and keeps its level where there is none.
 
 ## Data
 

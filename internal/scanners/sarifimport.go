@@ -102,6 +102,9 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 		return sarif.Report{}, fmt.Errorf("%s: %s holds no runs, so it says nothing about what was scanned",
 			plugin.ImportScanner, ft.Path)
 	}
+	if err := rateBandit(&rep, data); err != nil {
+		return sarif.Report{}, fmt.Errorf("%s: %s: %w", plugin.ImportScanner, ft.Path, err)
+	}
 	revision, err := s.bind(ctx, ft, meta)
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", plugin.ImportScanner, err)
@@ -254,22 +257,40 @@ func writtenAt(file string, meta importLog) string {
 }
 
 // severitySource says where the findings' severities came from: the numeric security-severity a
-// tool scores them with, or the SARIF level, which a tool may use for something other than how bad
-// a flaw is. A priority resting on a level should say so.
+// tool scores them with, Bandit's own rating, or the SARIF level, which a tool may use for
+// something other than how bad a flaw is. A priority resting on a level should say so.
 func severitySource(rep sarif.Report) string {
-	scored := 0
+	if len(rep.Results) == 0 {
+		return "no findings"
+	}
+	var scored, rated int
 	for _, r := range rep.Results {
-		if r.HasScore {
+		switch {
+		case r.HasScore:
 			scored++
+		case r.Rating != nil:
+			rated++
 		}
 	}
-	switch {
-	case len(rep.Results) == 0:
-		return "no findings"
-	case scored == len(rep.Results):
-		return "security-severity"
-	case scored == 0:
-		return "SARIF level"
+	sources := []struct {
+		name  string
+		count int
+	}{
+		{"security-severity", scored},
+		{banditSource, rated},
+		{"SARIF level", len(rep.Results) - scored - rated},
 	}
-	return fmt.Sprintf("security-severity for %d, SARIF level for %d", scored, len(rep.Results)-scored)
+	var parts []string
+	for _, s := range sources {
+		if s.count == len(rep.Results) {
+			return s.name
+		}
+		if s.count > 0 {
+			parts = append(parts, fmt.Sprintf("%s for %d", s.name, s.count))
+		}
+	}
+	return strings.Join(parts, ", ")
 }
+
+// banditSource names the rating a Bandit file's severities came from.
+const banditSource = "issue_severity and issue_confidence"

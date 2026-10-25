@@ -3,6 +3,6 @@
   "version": "0.0.0",
   "private": true,
   "dependencies": {
-    "retire": "5.7.0"
+    "retire": "6.1.0"
   }
 }

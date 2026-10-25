@@ -306,6 +306,14 @@ type sarifProperties struct {
 	// SARIF has `suppressions` for the excused case and nothing for this one, so it goes in the
 	// property bag beside `priority` and the rest.
 	Correlation *Correlation `json:"correlation,omitempty"`
+	// Rating is the scanner's own rating of the finding, where it decided the severity: the fields as
+	// the scanner wrote them and the severity Draugr's table gives them. The level beside it stays
+	// the scanner's, so a consumer reading both can see what each said.
+	//
+	// Namespaced, unlike its neighbors, because this bag is also read from files other tools wrote,
+	// and a key as plain as "rating" is one a tool may well use for something else. A string where
+	// this expects an object would fail the whole file.
+	Rating *Rating `json:"draugr/rating,omitempty"`
 	// PriorityFloor is why a band did not fall as far as the component's classification alone would
 	// have taken it, the control that said this finding is not bounded by where it sits.
 	//
@@ -495,7 +503,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		// Image and OperatingSystem are in the condition because they are the whole content of a
 		// container-scanning finding: writing the block only for a tool, a score or a priority
 		// would drop them for any finding carrying nothing else.
-		if tool != "" || res.Control != "" || res.Escalation != nil || res.PriorityFloor != "" || res.HasScore ||
+		if tool != "" || res.Control != "" || res.Escalation != nil || res.Rating != nil || res.PriorityFloor != "" || res.HasScore ||
 			res.Priority != "" || res.Image != "" || res.Correlation != nil ||
 			res.OperatingSystem != "" || res.Layer != nil || res.OSEndOfLife ||
 			res.ProviderOperated || res.BuiltUpstream || res.Historical || len(res.Labels) > 0 {
@@ -505,6 +513,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 				Fingerprint:   res.Fingerprint(),
 				UpgradePolicy: res.UpgradePolicy,
 				Escalation:    res.Escalation,
+				Rating:        res.Rating,
 				PriorityFloor: res.PriorityFloor,
 				Repository:    res.Repository, Package: res.Package,
 				Image: res.Image, OperatingSystem: res.OperatingSystem, Layer: res.Layer,
@@ -801,6 +810,7 @@ func FromSARIF(data []byte) (Report, error) {
 				res.Reachability = sr.Properties.Reachability
 				res.Correlation = sr.Properties.Correlation
 				res.Escalation = sr.Properties.Escalation
+				res.Rating = sr.Properties.Rating
 				res.PriorityFloor = sr.Properties.PriorityFloor
 			}
 			res.Suppression = readSuppression(sr.Suppressions)

@@ -665,6 +665,9 @@ type finding struct {
 	justification string
 	// escalation is why this finding's severity was raised, if it was.
 	escalation *sarif.Escalation
+	// rating is the scanner's own rating where it decided the severity, so the severity column can
+	// be checked against what the scanner said.
+	rating *sarif.Rating
 	// reachability is what analysis concluded about this finding, when an analyzer covered it.
 	reachability *sarif.Reachability
 	// alsoFoundBy is what the other scanners said about this same flaw, when more than one did.
@@ -880,6 +883,7 @@ func findingOf(control string, rep sarif.Report, res sarif.Result) finding {
 		control: control, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
 		fingerprint:   res.Fingerprint(),
 		escalation:    res.Escalation,
+		rating:        res.Rating,
 		reachability:  res.Reachability,
 		alsoFoundBy:   alsoFoundBy(res),
 		priorityFloor: res.PriorityFloor,

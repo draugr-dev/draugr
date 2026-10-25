@@ -86,7 +86,8 @@ func TestParseSemgrepReportsDeclaredRuleIDs(t *testing.T) {
 	t.Chdir(dir)
 	// Semgrep receives the absolute path, and prefixes with it.
 	out := strings.ReplaceAll(semgrepLocalSARIF, "rules.", dottedPrefix(filepath.Join(dir, "rules")))
-	report, err := parseSemgrep([]byte(out), t.TempDir(), plugin.Config{"config": "rules"})
+	report, err := parseSemgrep(semgrepReportsOf(t, []byte(out), []byte(noSemgrepResults)), t.TempDir(),
+		plugin.Config{"config": "rules"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,14 +114,15 @@ func TestParseSemgrepReportsDeclaredRuleIDs(t *testing.T) {
 }
 
 func TestParseSemgrepLeavesRegistryIDsAlone(t *testing.T) {
-	report, err := parseSemgrep([]byte(semgrepLocalSARIF), t.TempDir(), plugin.Config{})
+	report, err := parseSemgrep(semgrepReportsOf(t, []byte(semgrepLocalSARIF), []byte(noSemgrepResults)), t.TempDir(),
+		plugin.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if report.Results[0].RuleID != "rules.no-eval" {
 		t.Errorf("an id from the default pack was rewritten: %s", report.Results[0].RuleID)
 	}
-	if _, err := parseSemgrep([]byte("{"), t.TempDir(), plugin.Config{}); err == nil {
+	if _, err := parseSemgrep(semgrepReportsOf(t, []byte("{"), []byte(noSemgrepResults)), t.TempDir(), plugin.Config{}); err == nil {
 		t.Error("unreadable SARIF was accepted")
 	}
 }

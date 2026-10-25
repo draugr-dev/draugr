@@ -199,6 +199,10 @@ type findingReport struct {
 	// the call path when it can. Same reason as Escalation, in the other direction: a consumer
 	// acting on a band that reachability lowered can say what lowered it.
 	Reachability *sarif.Reachability `json:"reachability,omitempty"`
+	// Rating is the scanner's own rating where it decided the severity, the fields as the scanner
+	// wrote them beside the severity they gave. `level` stays the scanner's word, and without this
+	// a consumer holding a P1 on a `warning` has nothing to account for it.
+	Rating *sarif.Rating `json:"rating,omitempty"`
 	// Historical says the finding comes from a commit rather than the current tree, so its
 	// location is the path the file had in that commit. A consumer without the mark reads a
 	// location the checkout lacks as a finding already fixed, when a credential in history is still
@@ -831,6 +835,7 @@ func toFinding(control string, res sarif.Result) findingReport {
 		Fingerprint:  res.Fingerprint(),
 		Escalation:   res.Escalation,
 		Reachability: res.Reachability,
+		Rating:       res.Rating,
 		Historical:   res.Historical,
 	}
 }

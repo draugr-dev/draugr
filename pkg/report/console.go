@@ -689,12 +689,16 @@ func findingTitle(f finding) string {
 	return findingSummary(msg)
 }
 
-// reasoning is what stands behind a band beyond the mark that opens the line: the route that keeps
-// a finding where it is, who lowered one, what a second scanner said, and the floor a control
-// insisted on.
+// reasoning is what stands behind a band beyond the mark that opens the line: the scanner's own
+// rating where it set the severity, the route that keeps a finding where it is, who lowered one,
+// what a second scanner said, and the floor a control insisted on.
+//
+// The rating leads because it is the first input to the band, and the only one the severity column
+// rests on directly.
 func reasoning(col tui.Painter, f finding) []notePart {
 	var parts []notePart
 	for _, note := range []string{
+		ratingNote(f.rating),
 		reachabilityPath(f.reachability),
 		unreachableCredit(f.reachability),
 		unreachableStanding(f.reachability),
@@ -707,6 +711,19 @@ func reasoning(col tui.Painter, f finding) []notePart {
 		}
 	}
 	return parts
+}
+
+// ratingNote is the scanner's rating a finding's severity was read from, "impact high · likelihood
+// high", or "" where the level or a score set it.
+//
+// Printed because the severity column alone cannot be checked: Semgrep writes `error` for most of
+// its rules, and a reader seeing "critical" beside a rule that said `error` needs the words that
+// made the difference.
+func ratingNote(r *sarif.Rating) string {
+	if r == nil {
+		return ""
+	}
+	return r.Detail
 }
 
 // signalColor is the dataset's own color: the pair the dashboard reserves for exploitability,

@@ -14,14 +14,14 @@ func semgrepOver(t *testing.T) (repoScanner, *[]string) {
 	s := NewSemgrep().(repoScanner)
 	s.checkout = fakeCheckout
 	var ran []string
-	s.run = func(_ context.Context, _ string, argv []string) ([]byte, error) {
-		for i, a := range argv {
-			if a == "--config" && i+1 < len(argv) {
-				ran = append(ran, argv[i+1])
+	s.run = fakeSemgrep(`{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"semgrep"}},"results":[]}]}`,
+		noSemgrepResults, func(argv []string) {
+			for i, a := range argv {
+				if a == "--config" && i+1 < len(argv) {
+					ran = append(ran, argv[i+1])
+				}
 			}
-		}
-		return []byte(`{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"semgrep"}},"results":[]}]}`), nil
-	}
+		})
 	return s, &ran
 }
 
