@@ -66,10 +66,10 @@ worse than listing a fact, so the annotations come first and the default follows
 auditor reading `results.sarif` sees one record per finding whichever way the console was asked to
 show them.
 
-## Findings you can act on come first within their band
+## In the findings list, what you can act on comes first
 
-Priority decides the order. Where two findings share a band, the one somebody can act on is listed
-first, a package with a fix, then a release that can be moved, then one with no published fix, and
+This is the order of `--view findings`, one finding per row. Priority decides it. Where two
+findings share a band, the one somebody can act on is listed first, a package with a fix, then a release that can be moved, then one with no published fix, and
 last the ones that belong to a provider.
 
 **This does not change the priority itself.** Priority feeds the gate, so demoting a finding because
@@ -83,36 +83,36 @@ is worth.
 
 ## How the list is ordered
 
-Each key decides only between actions alike in every key above it, so a reader can check any two
-rows against the list.
+To order two rows, compare them key by key from the top. The first key where they differ decides.
 
 1. **Priority.** The highest band among the findings the action clears. An action clearing one P1
-   outranks one clearing forty P4s.
-2. **Exploitation.** An action clearing a finding on CISA's Known Exploited Vulnerabilities catalog
-   comes first in its band, then one clearing a finding EPSS raised. KEV records a flaw already
-   used in an attack, and EPSS estimates how likely one is in the next 30 days. A rating of how bad
-   a flaw would be says neither.
-3. **Severity.** The worst severity among its findings, the one the band was computed from. That is
-   the severity KEV or EPSS raised it to, or the one reachability analysis lowered it to when the
-   vulnerable code is never called, and otherwise the scanner's own rating.
+   outranks one clearing forty P4s, and an action with no band comes after every action with one.
+2. **Exploitation.** An action clearing a finding on CISA's Known Exploited Vulnerabilities (KEV)
+   catalog comes first in its band, then one clearing a finding that EPSS, a daily estimate of how
+   likely a flaw is to be exploited in the next 30 days, raised past its threshold. Both apply only
+   where [`config.exploitability`](prioritization.md#exploitability-kev-and-epss) turns them on.
+3. **Severity.** The highest severity among its findings, after adjustment:
+   - the severity KEV or EPSS raised it to, where one did;
+   - else the severity reachability analysis lowered it to, where the vulnerable code is never
+     called;
+   - else the scanner's own rating.
 4. **Count.** How many findings it clears.
 5. **The step within the policy.** Of the two steps of one package's upgrade, the one within the
    component's [`fixes.upgrade`](../reference/saga-schema.md#configfixes) comes first, because the
-   other presumes it. Both steps rank together, by what either clears.
+   other presumes it. Both steps rank together, by what either clears, so they sit side by side.
 
-Actions alike in all five keep the report's order, so the same findings produce the same list on
-every run.
+Where two rows match on all five, the one whose most urgent finding comes first in
+`--view findings` comes first, and that list ends on component, repository, location and rule. The
+same findings therefore produce the same list on every run.
 
-**Count comes last.** How many findings an action clears depends on how the scanner splits what it
-reports. Trivy reports one finding per advisory per package, so a base image with an old OpenSSL
-counts every advisory in every package built from it. Count is the right way to choose between two
-actions alike in everything else, and the wrong way to choose between a flaw on KEV and a larger
-number nobody is known to exploit.
+**Count breaks ties only.** It depends on how a scanner splits what it reports. One that reports a
+finding per advisory per package counts an old base image in hundreds, and ranked on volume that
+image would outrank a single flaw on KEV.
 
-**Nothing in the order is inferred.** Every key is a value the report carries. The band, the
-escalation naming KEV or EPSS with the date its data was fetched, the severity with where it came
-from, and the findings an action counts are all in `report.json` and `results.sarif`. A row's
-position can be explained from what the report says about it.
+**Where each key comes from.** The band, the escalation naming `kev` or `epss` with the date its data
+was fetched, and the severity with what adjusted it are on each finding in `report.json` and
+`results.sarif`. `fixes.upgrade` is in the descriptor. To check why one row sits above another,
+compare those values on the findings each row clears.
 
 ## Two descriptor fields change what is recommended
 
