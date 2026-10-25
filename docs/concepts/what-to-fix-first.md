@@ -15,17 +15,43 @@ Draugr's fix list answers a different question: **what should I do, and what wil
 
 ```
 WHAT TO DO  <n> actions clear <m> findings
+
+<the list>  <n> actions clear <m> findings
   <band>  <the action>
           <the scanner's description of the rule, when the action names one>
           <each scanner and the rules it flags the line with, for a line of code>
           component <component, when there are several> · control <control> · <n> findings ·
           <upstream, when not yours> · <where it applies> ·
           <the rule it names, and how many more it clears>
+  … and <n> more
 ```
 
 A schematic rather than a scan, because the shape is what this page is about and a pasted run
 carries package names and counts that go stale without anything noticing. `draugr scan .` prints
 the real thing.
+
+## One list for each kind of work
+
+The actions are split by who does the work, in this order:
+
+| List | What empties it |
+|---|---|
+| **Bump a dependency** | move to the release that fixes it |
+| **Change the code** | change the code, or the server's configuration |
+| **Change the infrastructure** | change the infrastructure code, or the live configuration |
+| **Rotate a credential** | remove it from the code, then rotate it |
+| **Wait for a release** | take the fix once its publisher releases one |
+| **Decide** | accept it, or replace what the policy ruled on |
+
+Each list is ordered the way [the whole list is](#how-the-list-is-ordered), so the first row of
+**Change the code** is the most urgent change to the code, whatever the dependency upgrades clear.
+One sequence ranked a fix to the application's own code against a base image clearing hundreds of
+findings, by numbers that say nothing about which a developer should change first.
+
+`WHAT TO DO` counts every action and every finding across the lists. Each list shows its first
+three and counts the rest as `… and N more`. `--top N` shows the first `N` of each, and `--top 0`
+every action. A list with nothing in it is left out. The MCP `fix_list` tool takes the same kinds
+as `kind`, to answer for one list.
 
 ## Rows are actions, not findings
 

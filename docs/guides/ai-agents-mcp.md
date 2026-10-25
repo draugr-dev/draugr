@@ -309,6 +309,10 @@ terminal cannot describe the same report differently. Each row is an
 the list of findings under it. `clears` is the figure the console's heading gives for the rows it
 lists.
 
+`kind` narrows the answer to one of the console's lists: `bump`, `code`, `infrastructure`,
+`credential`, `wait` or `decide`. Asked what a developer should change first, `kind: code` returns
+the code list in its own order, and the totals count that list.
+
 | Field | What it counts |
 |---|---|
 | `clears` | findings the rows returned clear between them, each counted once |

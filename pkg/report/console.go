@@ -1680,6 +1680,10 @@ func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) (l
 
 	// One list per kind of work, in WorkOrder. Grouped after ranking, so each list keeps the order
 	// the ranking gave its actions.
+	// Decided over every action, not per list: a list whose rows share one component would
+	// otherwise drop the name its neighbors print, and the same component would read as named in
+	// one list and missing from the next.
+	nameComponents := actionsNameComponents(actions)
 	byKind := map[skald.ActionKind][]action{}
 	for _, a := range actions {
 		byKind[a.kind] = append(byKind[a.kind], a)
@@ -1696,7 +1700,7 @@ func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) (l
 		for _, note := range policyNotes(shown) {
 			_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim, note))
 		}
-		renderActions(w, col, shown, d.View == ViewCompact)
+		renderActionRows(w, col, shown, d.View == ViewCompact, nameComponents)
 		if len(shown) < len(as) {
 			_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim, fmt.Sprintf("… and %d more", len(as)-len(shown))))
 			listed = limit
@@ -1739,7 +1743,11 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int) {
 		// Only where something was left out. Offering to show everything below a list that is
 		// already everything is advice that reads as the product not knowing what it printed. The
 		// number is the one printed, which --top sets.
-		row("--top 0", "every one of them, not the first "+english.Word(listed))
+		if d.View == ViewActions {
+			row("--top 0", "every action, not the first "+english.Word(listed)+" in each list")
+		} else {
+			row("--top 0", "every one of them, not the first "+english.Word(listed))
+		}
 	}
 	if d.View != ViewCompact {
 		row("--view compact", "one line each, to see how much there is")
@@ -2112,6 +2120,12 @@ func externalLine(external []finding) string {
 
 // renderActions draws the action rows.
 func renderActions(w io.Writer, col tui.Painter, actions []action, compact bool) {
+	renderActionRows(w, col, actions, compact, actionsNameComponents(actions))
+}
+
+// renderActionRows is renderActions with whether to name components decided by the caller, which
+// draws several lists of one set of actions and decides it once for all of them.
+func renderActionRows(w io.Writer, col tui.Painter, actions []action, compact, nameComponents bool) {
 	const namedLocations = 2
 	// Two named locations is a count, and two long paths are 160 characters. The cap has to be a
 	// width as well: `where` already counts whatever it does not name, so naming one instead of two
@@ -2120,7 +2134,6 @@ func renderActions(w io.Writer, col tui.Painter, actions []action, compact bool)
 	if width <= 0 {
 		width = messageWidth + 6
 	}
-	nameComponents := actionsNameComponents(actions)
 	for _, a := range actions {
 		band := a.priority
 		if band == "" {

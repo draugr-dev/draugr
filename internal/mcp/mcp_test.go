@@ -23,6 +23,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/skald"
 	"github.com/draugr-dev/draugr/pkg/surveyor"
 )
 
@@ -1477,5 +1478,51 @@ func TestInstructionsDescribeEffectsMode(t *testing.T) {
 	}
 	if strings.Contains(got, "not enabled") {
 		t.Errorf("effects mode has a scan tool:\n%s", got)
+	}
+}
+
+// TestFixListNarrowsToOneKindOfWork: asked for the code list, fix_list returns only what changes
+// the code, with totals counted over that list, so an assistant answering "what should a developer
+// change first" is not handed an upgrade that outranks every code fix on volume.
+func TestFixListNarrowsToOneKindOfWork(t *testing.T) {
+	pkg := &sarif.Package{Name: "jinja2", Version: "2.10", FixedVersion: "3.1.6", Ecosystem: "pip"}
+	rep := sarif.Report{Results: []sarif.Result{
+		{RuleID: "CVE-1", Priority: "P1", Level: sarif.LevelError, Package: pkg, Control: "sca",
+			Location: sarif.Location{URI: "app/requirements.txt"}},
+		{RuleID: "CVE-2", Priority: "P1", Level: sarif.LevelError, Package: pkg, Control: "sca",
+			Location: sarif.Location{URI: "app/requirements.txt"}},
+		{RuleID: "B602", Priority: "P1", Level: sarif.LevelError, Control: "sast",
+			Location: sarif.Location{URI: "app/app.py", StartLine: 23}},
+		{RuleID: "DS-0002", Priority: "P2", Level: sarif.LevelError, Control: "iac",
+			Location: sarif.Location{URI: "app/Dockerfile", StartLine: 1}},
+	}}
+	path := writeSARIF(t, rep)
+
+	_, all, err := FixListTool(context.Background(), nil, FixListInput{Path: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, code, err := FixListTool(context.Background(), nil, FixListInput{Path: path, Kind: "code"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(code.Actions) != 1 || code.Actions[0].Kind != skald.KindCode {
+		t.Fatalf("want the one code action, got %+v", code.Actions)
+	}
+	if code.TotalActions != 1 || code.TotalClears != 1 {
+		t.Errorf("totals should count the list asked for, got %d actions clearing %d", code.TotalActions, code.TotalClears)
+	}
+	if all.TotalActions != 3 {
+		t.Errorf("without a kind every action is returned, got %d", all.TotalActions)
+	}
+}
+
+// TestFixListRefusesAKindItHasNoListFor: a misspelled kind is an error naming the ones that exist,
+// rather than an empty list that reads as nothing to do.
+func TestFixListRefusesAKindItHasNoListFor(t *testing.T) {
+	path := writeSARIF(t, sarif.Report{})
+	_, _, err := FixListTool(context.Background(), nil, FixListInput{Path: path, Kind: "codes"})
+	if err == nil || !strings.Contains(err.Error(), "bump, code, infrastructure, credential, wait, decide") {
+		t.Fatalf("want an error naming every kind, got %v", err)
 	}
 }

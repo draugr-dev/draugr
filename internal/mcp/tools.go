@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -26,6 +27,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/skald"
 	"github.com/draugr-dev/draugr/pkg/surveyor"
 )
 
@@ -1127,6 +1129,10 @@ func locationsOf(rep sarif.Report, id string) []string {
 type FixListInput struct {
 	Path  string `json:"path" jsonschema:"path to a results.sarif produced by draugr scan"`
 	Limit int    `json:"limit,omitempty" jsonschema:"maximum actions to return; defaults to 20"`
+	// Kind narrows the answer to one list, the way the console shows a list per kind of work. Asked
+	// what a developer should change first, the code list answers it; the full list mixes in base
+	// images and upgrades that rank on numbers that say nothing about code.
+	Kind string `json:"kind,omitempty" jsonschema:"only the actions of one kind of work: bump (upgrade a dependency), code (change the code or the server's configuration), infrastructure, credential (rotate it), wait (for somebody else's release) or decide. Omit for every kind"`
 }
 
 // FixListOutput is the work a report implies, rather than the findings in it.
@@ -1168,6 +1174,13 @@ func FixListTool(_ context.Context, _ *mcp.CallToolRequest, in FixListInput) (*m
 		limit = defaultLimit
 	}
 	actions := report.ActionsFor(map[string]sarif.Report{"": rep})
+	if in.Kind != "" {
+		kind := skald.ActionKind(in.Kind)
+		if kind.ListName() == "" {
+			return nil, FixListOutput{}, fmt.Errorf("kind %q is not one of %s", in.Kind, kindNames())
+		}
+		actions = slices.DeleteFunc(actions, func(a skald.Action) bool { return a.Kind != kind })
+	}
 	out := FixListOutput{TotalActions: len(actions), TotalClears: report.Cleared(actions)}
 	if len(actions) > limit {
 		out.Note = fmt.Sprintf(
@@ -1430,4 +1443,13 @@ func ListSurveyorsTool(reg *surveyor.Registry) mcp.ToolHandlerFor[struct{}, List
 		}
 		return nil, out, nil
 	}
+}
+
+// kindNames lists the kinds fix_list accepts, in the order the console shows its lists.
+func kindNames() string {
+	names := make([]string, len(skald.WorkOrder))
+	for i, k := range skald.WorkOrder {
+		names[i] = string(k)
+	}
+	return strings.Join(names, ", ")
 }

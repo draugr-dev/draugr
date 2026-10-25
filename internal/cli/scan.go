@@ -64,14 +64,16 @@ type scanOptions struct {
 	// setFlags names the flags the user actually typed. Needed because the descriptor supplies
 	// defaults for the same settings, and a flag with a non-zero default. --epss-threshold is
 	// 0.5, cannot be told apart from an unset one by its value.
-	setFlags        map[string]bool
-	jobs            int
-	format          string
-	template        string
-	templateFile    string
-	noPublish       bool
-	requirePolicy   bool
-	top             int
+	setFlags      map[string]bool
+	jobs          int
+	format        string
+	template      string
+	templateFile  string
+	noPublish     bool
+	requirePolicy bool
+	top           int
+	// topConfigured is output.top having set top, which chooses a number as --top does.
+	topConfigured   bool
 	noTips          bool
 	components      []string
 	labels          []string
@@ -479,7 +481,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		Run:         run,
 		Verdict:     verdict,
 		MinPriority: minPriority,
-		TopN:        fixFirstLimit(opts.top),
+		TopN:        topN(&opts),
 		Evidence:    opts.evidence,
 		// Built from the same policy the verdict came from, so the report cannot describe a gate
 		// the run did not use.
@@ -652,6 +654,18 @@ func resolveView(opts *scanOptions) error {
 		return fmt.Errorf("--view %q is not %s, %s or %s", opts.view,
 			report.ViewFindings, report.ViewActions, report.ViewCompact)
 	}
+}
+
+// topChosen reports whether --top or output.top chose how many rows to list.
+func (o *scanOptions) topChosen() bool { return o.setFlags["top"] || o.topConfigured }
+
+// topN is report.Data.TopN for this run: 0 where neither --top nor the configuration chose a
+// number, so each view applies its own default, ten findings or three actions per list.
+func topN(opts *scanOptions) int {
+	if !opts.topChosen() {
+		return 0
+	}
+	return fixFirstLimit(opts.top)
 }
 
 // fixFirstLimit maps the --top flag to report.Data.TopN: 0 (show all) becomes -1, and any
@@ -1054,6 +1068,7 @@ func outputOptionsFrom(opts *scanOptions, cfg config.OutputSettings) {
 	}
 	if cfg.Top != 0 && !opts.setFlags["top"] {
 		opts.top = cfg.Top
+		opts.topConfigured = true
 	}
 }
 

@@ -161,34 +161,62 @@ func TestFixListAgreesWithTheConsoleAndReportJSON(t *testing.T) {
 		}
 	}
 
-	// The console, limited so the heading counts a shortlist and says what it left out.
-	const shown = 3
+	// The console, cut short so each list says what it left out. Its heading counts every action,
+	// and each list counts its own, which fix_list answers for the whole and for one kind.
+	const shown = 1
 	console, err := report.Build(saga.ReportConfig{Format: "console"},
 		report.Data{Run: run, View: report.ViewActions, TopN: shown})
 	if err != nil {
 		t.Fatal(err)
 	}
 	heading := regexp.MustCompile(`WHAT TO DO\s+(\d+) actions clear (\d+) findings`).FindSubmatch(console.Bytes)
-	rest := regexp.MustCompile(`… and (\d+) actions not listed`).FindSubmatch(console.Bytes)
-	if heading == nil || rest == nil {
-		t.Fatalf("no actions heading or remainder in the console:\n%s", console.Bytes)
+	if heading == nil {
+		t.Fatalf("no actions heading in the console:\n%s", console.Bytes)
 	}
-	listed, _ := strconv.Atoi(string(heading[1]))
+	total, _ := strconv.Atoi(string(heading[1]))
 	clears, _ := strconv.Atoi(string(heading[2]))
-	unlisted, _ := strconv.Atoi(string(rest[1]))
+	if all.TotalActions != total || all.TotalClears != clears {
+		t.Errorf("console says %d actions clear %d; fix_list says %d clear %d",
+			total, clears, all.TotalActions, all.TotalClears)
+	}
 
+	lists := 0
+	for _, kind := range skald.WorkOrder {
+		_, one, err := FixListTool(context.Background(), nil,
+			FixListInput{Path: writeRunSARIF(t, run), Limit: shown, Kind: string(kind)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		line := regexp.MustCompile(regexp.QuoteMeta(kind.ListName()) +
+			`\s+(\d+) actions? clears? (\d+) findings?`).FindSubmatch(console.Bytes)
+		if one.TotalActions == 0 {
+			if line != nil {
+				t.Errorf("the console lists %q, which fix_list says is empty", kind.ListName())
+			}
+			continue
+		}
+		lists++
+		if line == nil {
+			t.Fatalf("no %q list in the console:\n%s", kind.ListName(), console.Bytes)
+		}
+		n, _ := strconv.Atoi(string(line[1]))
+		m, _ := strconv.Atoi(string(line[2]))
+		if one.TotalActions != n || one.TotalClears != m {
+			t.Errorf("%s: console says %d actions clear %d; fix_list says %d clear %d",
+				kind, n, m, one.TotalActions, one.TotalClears)
+		}
+		for i, a := range one.Actions {
+			if !bytes.Contains(console.Bytes, []byte(a.Title)) {
+				t.Errorf("%s: fix_list's action %d, %q, is not a console row", kind, i+1, a.Title)
+			}
+		}
+	}
+	if lists < 2 {
+		t.Fatalf("the fixture should span at least two kinds of work, got %d", lists)
+	}
 	_, top, err := FixListTool(context.Background(), nil, FixListInput{Path: writeRunSARIF(t, run), Limit: shown})
 	if err != nil {
 		t.Fatal(err)
-	}
-	if len(top.Actions) != listed || top.Clears != clears || top.TotalActions != listed+unlisted {
-		t.Errorf("console says %d actions clear %d, and %d more; fix_list says %d actions clear %d, of %d",
-			listed, clears, unlisted, len(top.Actions), top.Clears, top.TotalActions)
-	}
-	for i, a := range top.Actions {
-		if !bytes.Contains(console.Bytes, []byte(a.Title)) {
-			t.Errorf("fix_list's action %d, %q, is not a console row", i+1, a.Title)
-		}
 	}
 	if top.Note != fmt.Sprintf("showing the %d most urgent of %d actions; raise limit to see more", shown, len(want)) {
 		t.Errorf("the note should say what the limit left out: %q", top.Note)

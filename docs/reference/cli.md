@@ -452,7 +452,7 @@ The flag tables below follow the groups in `draugr scan --help`.
 | `--view` | `findings` | What the report shows: `findings`, `actions` or `compact` |
 | `--group` | - | Deprecated. `--group action` is `--view actions`, `--group none` is `--view findings` |
 | `--evidence` | `false` | Console: also print what stands behind the verdict: tool provenance, what each control measured against, the scanned revision, and what the run cost. `--report evidence` writes the same content to a file |
-| `--top` | `10` | Console: max findings to list in the ranked table (`0` = all) |
+| `--top` | `10`, or `3` per list under `--view actions` | Console: max findings to list in the ranked table, or under `--view actions` how many actions each list shows (`0` = all) |
 | `--min-priority` | - | List findings at or above this priority band (`P1`–`P4`). Narrows what is printed; `results.sarif` and publishers keep the full set. See [below](#what---min-priority-narrows) |
 | `--artifact-min-priority` | - | Also narrow the `-o` artifacts to this band, and record the band inside them. See [below](#what---min-priority-narrows) |
 | `--compact` | `false` | Deprecated. Use `--view compact` |

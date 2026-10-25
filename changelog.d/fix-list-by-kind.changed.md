@@ -1,0 +1,1 @@
+- **The fix list groups its actions by who does the work.** `--view actions` shows a list each for dependency bumps, code changes, infrastructure, credentials, releases to wait for, and decisions, three actions each by default (`--top N` per list, `--top 0` for all). The MCP `fix_list` tool takes `kind` to return one list.
