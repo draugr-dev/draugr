@@ -1,18 +1,19 @@
 DRAUGR  FAIL  draugr-demo 0.0.0  34.5s
 
- 3 P1 2 P2 2 P3 1 P4
+ 3 P1 3 P2 3 P3 1 P4
 
-WHAT TO DO  7 actions clear 8 findings
+WHAT TO DO  8 actions clear 10 findings
 
 Bump a dependency  1 action clears 2 findings
   P1  Upgrade jinja2 2.10 → 2.11.3
       component payments · control sca · 2 findings · app/requirements.txt:5 · CVE-2019-10906 +1
 
-Change the code  3 actions clear 3 findings
-  P1  Fix CVE-2019-20477 “PyYAML: command execution through python/object/app…
+Change the code  3 actions clear 4 findings
+  P1  Fix CVE-2019-20477 “PyYAML: command execution through python/object/ap…”
       component payments · control sca · 1 finding · app/requirements.txt:4 · CVE-2019-20477
-  P2  Fix CVE-2018-1000656 “python-flask: Denial of Service via crafted JSON…
-      component internal-tool · control sca · 1 finding · app/requirements.txt:2 · CVE-2018-1000656
+  P2  Fix “Detected user input flowing into a raw SQL string”
+      Semgrep: tainted-sql-string · Bandit: B608
+      control sast · 2 findings · app/main.py:42
   … and 1 more
 
 Change the infrastructure  2 actions clear 2 findings
@@ -21,6 +22,11 @@ Change the infrastructure  2 actions clear 2 findings
   P3  Fix KSV-0014 “Root file system is not read-only”
       control iac · 1 finding · deploy/pod.yaml:8 · KSV-0014
 
+Rotate a credential  1 action clears 1 finding
+  P2  Remove and rotate private-key
+      Identified a Private Key, which may compromise cryptographic security
+      component payments · control secrets · 1 finding · app/config.pem:1 · private-key
+
 Decide  1 action clears 1 finding
   P3  Replace or accept some-lib, licensed GPL-3.0-only
       control licenses · 1 finding · go.mod:17 · license/GPL-3.0-only/some-lib
@@ -28,8 +34,9 @@ Decide  1 action clears 1 finding
 CONTROLS
   iac       FAIL   1 P1 1 P3
   licenses  pass   1 P3
-  sast      FAIL   1 P2
+  sast      FAIL   1 P2 1 P3
   sca       FAIL   2 P1 1 P2 1 P4
+  secrets   FAIL   1 P2
   dast      ERROR  did not run
             nuclei: executable file not found in $PATH
 
@@ -37,9 +44,9 @@ MEASURED AGAINST
   licenses  trivy-license 0.69.3 · policy: deny copyleft
 
 COMPONENTS
-  payments       FAIL   3 P1 2 P2 1 P3
+  payments       FAIL   3 P1 3 P2 1 P3
   internal-tool  pass   no findings
-  2 findings not tied to a component (project-wide controls)
+  3 findings not tied to a component (project-wide controls)
 
 ACCEPTED
   config.exclude  2 findings suppressed · 1 expired and no longer suppressing
