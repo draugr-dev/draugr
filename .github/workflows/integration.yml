@@ -50,6 +50,14 @@ on:
         required: false
         default: ""
         type: string
+      suite:
+        description: >-
+          `pull-request` runs only the two jobs every pull request runs, the kind cluster and the
+          sealed scenarios, which is what a caller proving one change against them needs. Empty
+          runs whatever the caller's event selects.
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -57,7 +65,9 @@ permissions:
 # The event is part of the group so that a push to main cancels an earlier push rather than the
 # nightly run, which carries the only live and air-gapped verdicts of the day.
 concurrency:
-  group: integration-${{ github.event_name }}-${{ github.ref }}
+  # And the ref a caller asked for, so several calls from one run, each proving its own branch, do
+  # not cancel each other.
+  group: integration-${{ github.event_name }}-${{ github.ref }}-${{ inputs.ref }}
   cancel-in-progress: true
 
 env:
@@ -263,8 +273,9 @@ jobs:
   live:
     name: Live tier (latest databases, real registries)
     if: >-
+      inputs.suite != 'pull-request' && (
       github.event_name == 'schedule' ||
-      (github.event_name == 'workflow_dispatch' && !inputs.ref && !startsWith(github.ref, 'refs/tags/'))
+      (github.event_name == 'workflow_dispatch' && !inputs.ref && !startsWith(github.ref, 'refs/tags/')))
     runs-on: ubuntu-latest
     timeout-minutes: 90
     # Read only. The scans execute third-party scanners over fixture repositories, so no credential
@@ -433,9 +444,10 @@ jobs:
   airgapped:
     name: Air-gapped (the fixture corpus, offline)
     if: >-
+      inputs.suite != 'pull-request' && (
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
-      startsWith(github.ref, 'refs/tags/')
+      startsWith(github.ref, 'refs/tags/'))
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
@@ -484,8 +496,9 @@ jobs:
   cloud:
     name: Live cloud (Google Cloud)
     if: >-
+      inputs.suite != 'pull-request' && (
       github.event_name == 'schedule' ||
-      (github.event_name == 'workflow_dispatch' && !inputs.ref && !startsWith(github.ref, 'refs/tags/'))
+      (github.event_name == 'workflow_dispatch' && !inputs.ref && !startsWith(github.ref, 'refs/tags/')))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     # One run at a time: Prowler scans the whole project, and two runs' resources in it would each
@@ -625,8 +638,9 @@ jobs:
   forges:
     name: Forges (issue publishers against real repositories)
     if: >-
+      inputs.suite != 'pull-request' && (
       github.event_name == 'schedule' ||
-      (github.event_name == 'workflow_dispatch' && !inputs.ref && !startsWith(github.ref, 'refs/tags/'))
+      (github.event_name == 'workflow_dispatch' && !inputs.ref && !startsWith(github.ref, 'refs/tags/')))
     runs-on: ubuntu-latest
     timeout-minutes: 35
     permissions:
@@ -702,7 +716,9 @@ jobs:
     needs: [integration, sealed, live, live-propose, airgapped, forges, cloud]
     # Not on pull requests: the author is looking at the failing check already, and an issue would
     # be telling them what their own screen says.
-    if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: >-
+      always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' &&
+      inputs.suite != 'pull-request'
     runs-on: ubuntu-latest
     permissions:
       contents: read

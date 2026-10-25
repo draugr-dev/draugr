@@ -305,6 +305,10 @@ jobs:
           set -euo pipefail
           dir="/tmp/proof/$TOOL"
           mkdir -p "$dir"
+          # The pin alone, for `stage` to put on a branch the integration suite can check out. It
+          # applies cleanly there because it is the only change on that branch.
+          git add internal/tools internal/cli/testdata/golden changelog.d
+          git diff --cached --binary > "$dir/pin.patch"
           jq -n --arg tool "$TOOL" --arg from "$FROM" --arg to "$VERSION" --arg exercised "$EXERCISED" \
             '{tool: $tool, from: $from, to: $to, exercised: ($exercised == "true")}' > "$dir/meta.json"
           {
@@ -335,16 +339,86 @@ jobs:
           path: /tmp/proof/${{ matrix.tool }}
           retention-days: 7
 
-  # One pull request for every tool that passed its proof. Each was proven alone above, so a
-  # failure still names its tool; together here, so the integration suite on the pull request
-  # installs every new pin at once and catches two releases that do not work beside each other,
-  # which a pull request per tool never tests. A tool that failed is left out and has its issue.
-  assemble:
-    name: One pull request for every proven bump
+  # A branch per proven tool, holding that tool's pin and nothing else, for the integration suite
+  # to check out. One job rather than a matrix, so its output is the list of tools that have one.
+  #
+  # Pushed with GITHUB_TOKEN, which starts no workflow, so the branches cost nothing until
+  # `integrate` asks for them, and `assemble` deletes them.
+  stage:
+    name: A branch for each proven pin
     needs: [behind, propose]
     if: always() && needs.behind.outputs.any == 'true'
     runs-on: ubuntu-latest
     permissions:
+      contents: write
+    outputs:
+      tools: ${{ steps.push.outputs.tools }}
+      any: ${{ steps.push.outputs.any }}
+    steps:
+      - name: Collect the proofs
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: proof-*
+          path: /tmp/proof
+        continue-on-error: true
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Push one branch per proof
+        id: push
+        run: |
+          set -euo pipefail
+          git config user.name "Wilson Santos"
+          git config user.email "wilson@draugr.dev"
+          base=$(git rev-parse HEAD)
+          staged=()
+          for meta in /tmp/proof/*/meta.json; do
+            [ -f "$meta" ] || continue
+            tool=$(jq -r .tool "$meta")
+            to=$(jq -r .to "$meta")
+            git checkout --quiet --detach "$base"
+            git apply --index "$(dirname "$meta")/pin.patch"
+            git commit --quiet -m "Proof: $tool at $to"
+            git push --quiet origin "HEAD:refs/heads/tool-bump/proof/$tool-$GITHUB_RUN_ID"
+            staged+=("$tool")
+          done
+          list=$(printf '%s\n' "${staged[@]}" | jq -R . | jq -cs 'map(select(. != ""))')
+          echo "tools=$list" >> "$GITHUB_OUTPUT"
+          echo "any=$(jq -r 'length > 0' <<<"$list")" >> "$GITHUB_OUTPUT"
+          echo "staged: $list"
+
+  # The integration suite against each tool's branch, the two jobs every pull request runs. A tool
+  # that fails here is left out of the pull request like one that failed its proof, rather than
+  # turning the whole batch red, and the demo cannot stand in for this: its descriptor does not run
+  # every tool, and this suite runs each one.
+  integrate:
+    name: integrate ${{ matrix.tool }}
+    needs: stage
+    if: always() && needs.stage.outputs.any == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: ${{ fromJSON(needs.stage.outputs.tools) }}
+    uses: ./.github/workflows/integration.yml
+    with:
+      ref: tool-bump/proof/${{ matrix.tool }}-${{ github.run_id }}
+      suite: pull-request
+    # What any job in the called workflow asks for, whether or not it runs: a called workflow that
+    # asks for more than its caller grants fails at startup with no job and no message.
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+
+  # One pull request for every tool that passed its proof and its integration run. Each was
+  # proven alone above, so a failure still names its tool; together here, so the integration suite
+  # on the pull request installs every new pin at once and catches two releases that do not work
+  # beside each other. A tool that failed is left out and has its issue.
+  assemble:
+    name: One pull request for every proven bump
+    needs: [behind, propose, stage, integrate]
+    if: always() && needs.behind.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
       contents: write
       pull-requests: write
     steps:
@@ -355,16 +429,44 @@ jobs:
           path: /tmp/proof
         continue-on-error: true
 
-      - name: Anything to propose
+      # A tool counts only when both of its integration jobs passed. Read from the run's jobs,
+      # because a matrix of called workflows reports one result for all of them.
+      - name: Keep the tools the integration suite passed
         id: any
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
+          gh api --paginate "repos/$GH_REPO/actions/runs/$RUN_ID/jobs" --jq '.jobs[] | "\(.name)\t\(.conclusion)"' > /tmp/jobs.tsv
+          for meta in /tmp/proof/*/meta.json; do
+            [ -f "$meta" ] || continue
+            tool=$(jq -r .tool "$meta")
+            passed=$(awk -F'\t' -v t="integrate $tool / " 'index($1, t) == 1 && $2 == "success"' /tmp/jobs.tsv | wc -l)
+            if [ "$passed" -ne 2 ]; then
+              echo "::warning::$tool passed its proof and not the integration suite, so it is left out"
+              echo "$tool" >> /tmp/left-out.txt
+              rm -rf "$(dirname "$meta")"
+            fi
+          done
           if compgen -G "/tmp/proof/*/meta.json" > /dev/null; then
             echo "any=true" >> "$GITHUB_OUTPUT"
           else
             echo "any=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::no tool passed its proof, so there is nothing to propose"
+            echo "::notice::no tool passed its proof and the integration suite, so there is nothing to propose"
           fi
+
+      - name: Delete the proof branches
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          for ref in $(gh api "repos/$GH_REPO/git/matching-refs/heads/tool-bump/proof/" --jq '.[].ref' | grep -- "-$RUN_ID\$" || true); do
+            gh api -X DELETE "repos/$GH_REPO/git/$ref" && echo "deleted $ref"
+          done
 
       # Not GITHUB_TOKEN: GitHub raises no workflow-starting event for anything it did, so a pull
       # request opened with it would sit with no checks having run on it, the integration suite
@@ -433,12 +535,13 @@ jobs:
             echo "Moves each pinned tool below to the release its upstream publishes. Every hash is of"
             echo "the bytes at the URL beside it."
             echo
-            echo "Each tool was proven on its own first, in [this run]($RUN_URL): \`make gate\` with its"
-            echo "pin alone, then three scans of the demo against a cold cache. This pull request's"
-            echo "checks run the integration suite with every new pin installed together."
-            if [ "$FAILED" != "success" ]; then
+            echo "Each tool was proven on its own first, in [this run]($RUN_URL), with its pin alone:"
+            echo "\`make gate\`, three scans of the demo against a cold cache, and the integration suite"
+            echo "(the kind cluster and the sealed scenarios). This pull request's checks run that suite"
+            echo "again with every new pin installed together."
+            if [ "$FAILED" != "success" ] || grep -q . /tmp/left-out.txt 2>/dev/null; then
               echo
-              echo "At least one tool failed its proof and is not here. Each has an issue labeled"
+              echo "At least one tool failed its proof or the integration suite and is not here. Each has an issue labeled"
               echo "\`tool-bump\` on a scheduled run, and the run's log says why."
             fi
             echo
@@ -458,7 +561,7 @@ jobs:
   # a scanner release Draugr cannot take yet, and that is worth knowing as much as a broken job.
   notify:
     name: A failed proposal raises an issue
-    needs: [behind, propose, assemble]
+    needs: [behind, propose, stage, integrate, assemble]
     if: always() && github.event_name == 'schedule'
     runs-on: ubuntu-latest
     permissions:
@@ -481,7 +584,15 @@ jobs:
           # The job names are the matrix values, which are the tool names, plus the one that asks
           # what is behind. A failure there means no tool was tried at all, so it is a tool of its own.
           jobs=$(gh api --paginate "repos/$GH_REPO/actions/runs/$RUN_ID/jobs" \
-            --jq '.jobs[] | select(.name != "A failed proposal raises an issue") | "\(.name)\t\(.conclusion)"')
+            --jq '.jobs[] | select(.name != "A failed proposal raises an issue") | "\(.name)\t\(.conclusion)"' \
+            | awk -F'\t' '
+                # A tool'"'"'s integration jobs are named "integrate <tool> / <job>", and they count
+                # toward that tool'"'"'s issue: one failure in any of its jobs is a failure.
+                { n = $1; sub(/^integrate /, "", n); sub(/ \/ .*$/, "", n)
+                  if ($2 == "failure") c[n] = "failure"
+                  else if ($2 == "success" && c[n] != "failure") c[n] = "success"
+                  else if (!(n in c)) c[n] = $2 }
+                END { for (n in c) print n "\t" c[n] }')
 
           while IFS=$'\t' read -r name conclusion; do
             [ -n "$name" ] || continue
