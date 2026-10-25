@@ -4,8 +4,10 @@
 # ran a scan with, so it moves when a bump has been tested rather than when one appears. Everything
 # below exists to make "has been tested" mean something more than "the hashes matched".
 #
-# The shape is one pull request per tool. A single branch carrying ten bumps that fails tells
-# nobody which tool broke, and reverting it takes the nine that were fine with it.
+# Proven one tool at a time, proposed together. Each tool gets a job of its own, so a release
+# that breaks something is named by the job that failed and left out, and every tool that passed
+# goes into one pull request. Its checks then run the integration suite with every new pin
+# installed at once, which a pull request per tool never would.
 #
 # Nothing here merges anything. A scanner writing to somebody's machine at a new version is a
 # decision a person makes.
@@ -73,28 +75,19 @@ jobs:
     needs: behind
     if: needs.behind.outputs.any == 'true'
     runs-on: ubuntu-latest
+    # Proves one tool and pushes nothing. What it proved goes to `assemble` as an artifact, so this
+    # job holds no write access to the repository it is running a new third-party build in.
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 4
       matrix:
         tool: ${{ fromJSON(needs.behind.outputs.tools) }}
     steps:
-      # Not GITHUB_TOKEN: GitHub raises no workflow-starting event for anything it did, so a pull
-      # request opened with it would sit with no checks having run on it, which is the opposite of
-      # what this workflow is for.
-      - name: Mint an installation token
-        id: app
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
-        with:
-          app-id: ${{ secrets.RELEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          token: ${{ steps.app.outputs.token }}
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GO_VERSION }}
@@ -122,13 +115,22 @@ jobs:
         id: before
         env:
           BASE: ${{ github.workspace }}
+          TOOL: ${{ matrix.tool }}
         run: |
           set -euo pipefail
           go build -o /tmp/draugr-before ./cmd/draugr
           # From inside the demo, so its descriptor decides what is installed. At the repository
-          # root `tools install` finds no descriptor and installs the zero-config set, and a bumped
-          # tool outside that set would never run in either scan.
+          # root `tools install` finds no descriptor and installs the zero-config set.
           cd "$RUNNER_TEMP/demo"
+          # Whether the demo runs the tool at all. A tool its descriptor never reaches is not
+          # tested by any scan below, and the pull request has to say so rather than imply it was.
+          /tmp/draugr-before tools install --dry-run > /tmp/plan.txt
+          if grep -E "^  $TOOL +" /tmp/plan.txt > /dev/null; then
+            echo "exercised=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exercised=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::the demo's descriptor does not run $TOOL, so no scan here tests the new build"
+          fi
           /tmp/draugr-before tools install -y
           /tmp/draugr-before feeds update
           # `-o` names a directory of reports, so the JSON is taken from stdout. `--no-gate`
@@ -136,17 +138,23 @@ jobs:
           /tmp/draugr-before scan --format json --no-gate --allow-scan-errors --no-publish > /tmp/before.json
           jq -S '[.controls[] | {control: .name, n: .total}] | sort_by(.control)' \
             /tmp/before.json > /tmp/before-shape.json
-          jq -S '[.controls[] | select((.scanErrors // []) | length > 0) | .name]' \
+          # Every control that could not run, with its reasons, so the after-scans can be held to
+          # more than "the same controls erred".
+          jq -S '[.controls[] | select((.scanErrors // []) | length > 0) | {control: .name, errors: .scanErrors}]' \
             /tmp/before.json > /tmp/before-errors.json
-          cat /tmp/before-shape.json
+          cat /tmp/before-shape.json /tmp/before-errors.json
 
       - name: Move the pin
         id: bump
         env:
           TOOL: ${{ matrix.tool }}
-          GH_TOKEN: ${{ steps.app.outputs.token }}
+          # For the release listings `tools outdated` reads, as in `behind`.
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          from=$(go run ./cmd/draugr tools outdated --json \
+            | jq -r --arg t "$TOOL" '.[] | select(.tool == $t) | .pinned')
+          echo "from=$from" >> "$GITHUB_OUTPUT"
           go run ./internal/tools/cmd/pinbump "$TOOL" | tee /tmp/bump.txt
           # The command goldens print the pins, so they move with one. Regenerated here, and the
           # pull request's diff shows exactly which rows changed.
@@ -187,6 +195,10 @@ jobs:
       - name: Install the new pin and scan, three times, cold
         if: steps.bump.outputs.moved == 'true'
         id: after
+        env:
+          TOOL: ${{ matrix.tool }}
+          VERSION: ${{ steps.bump.outputs.version }}
+          EXERCISED: ${{ steps.before.outputs.exercised }}
         run: |
           set -euo pipefail
           go build -o /tmp/draugr-after ./cmd/draugr
@@ -196,23 +208,61 @@ jobs:
           for run in 1 2 3; do
             rm -rf "$HOME/.cache/trivy" "$HOME/.cache/grype" "$HOME/nuclei-templates"
             echo "::group::cold run $run"
-            /tmp/draugr-after scan --format json --no-gate --allow-scan-errors --no-publish > "/tmp/after-$run.json"
+            out="/tmp/after-$run.json"
+            /tmp/draugr-after scan --format json --no-gate --allow-scan-errors --no-publish > "$out"
             # A control that could not run has found nothing, and a bump that leaves one erroring
             # is not a bump to propose however clean the rest of the report is. Measured against
             # the pinned run, because some of the demo's controls cannot run on a hosted runner at
             # any version, and those say nothing about the bump.
-            new=$(jq -c --slurpfile before /tmp/before-errors.json \
-              '[.controls[] | select((.scanErrors // []) | length > 0) | .name] - $before[0]' "/tmp/after-$run.json")
+            new=$(jq -c --slurpfile b /tmp/before-errors.json \
+              '[.controls[] | select((.scanErrors // []) | length > 0) | .name] - [$b[0][].control]' "$out")
             if [ "$new" != "[]" ]; then
               echo "::error::a control errored on cold run $run with the new pin and not before it: $new"
               jq -r --argjson new "$new" '.controls[] | select(.name as $n | $new | index($n))
-                | "\(.name): \(.scanErrors | join("; "))"' "/tmp/after-$run.json"
+                | "\(.name): \(.scanErrors | join("; "))"' "$out"
               exit 1
+            fi
+            # A control that already erred for another reason must not hide the new build breaking
+            # it too, so an error naming the bumped tool fails the run unless that control's errors
+            # named it before the bump as well.
+            named=$(jq -c --arg t "$TOOL" --slurpfile b /tmp/before-errors.json '
+              ($b[0] | map({(.control): (.errors | any(test($t; "i")))}) | add // {}) as $was
+              | [.controls[] | select(((.scanErrors // []) | any(test($t; "i"))) and (($was[.name] // false) | not)) | .name]' "$out")
+            if [ "$named" != "[]" ]; then
+              echo "::error::cold run $run: an error names $TOOL on a control where none did before: $named"
+              jq -r --argjson n "$named" '.controls[] | select(.name as $c | $n | index($c))
+                | "\(.name): \(.scanErrors | join("; "))"' "$out"
+              exit 1
+            fi
+            # Where the report states a version for the tool, it has to be the new one. Otherwise
+            # the scans ran some other build and the comparison below is between two old ones.
+            if [ "$EXERCISED" = "true" ]; then
+              stale=$(jq -c --arg t "$TOOL" --arg v "$VERSION" '[.scanners[]
+                | select((.name | startswith($t)) or ((.version // "") | contains($t + "@")))
+                | select(.version != null and (.version | contains($v) | not))
+                | "\(.name) \(.version)"]' "$out")
+              if [ "$stale" != "[]" ]; then
+                echo "::error::cold run $run did not run $TOOL $VERSION: $stale"
+                exit 1
+              fi
             fi
             echo "::endgroup::"
           done
           jq -S '[.controls[] | {control: .name, n: .total}] | sort_by(.control)' \
             /tmp/after-1.json > /tmp/after-shape.json
+          # What could not run, before and after, for the pull request to state rather than claim
+          # that nothing erred.
+          jq -r -s '
+            def cell: (. // "ran") | gsub("\n"; " ") | gsub("\\|"; "\\|") | .[0:140];
+            (.[0] | map({(.control): .errors[0]}) | add // {}) as $b
+            | ([.[1].controls[] | select((.scanErrors // []) | length > 0) | {(.name): .scanErrors[0]}] | add // {}) as $a
+            | (($b | keys) + ($a | keys) | unique) as $k
+            | if ($k | length) == 0 then "Every control ran, before the bump and in each cold scan after it."
+              else ("| control | before | after |", "|---|---|---|",
+                    ($k[] | "| \(.) | \($b[.] | cell) | \($a[.] | cell) |"))
+              end
+          ' /tmp/before-errors.json /tmp/after-1.json > /tmp/errors.md
+          cat /tmp/errors.md
 
       # A tool that finds nothing where it used to find plenty has broken in the way that looks
       # like success. Reported rather than enforced: a scanner release genuinely changes what it
@@ -242,40 +292,164 @@ jobs:
             exit 1
           fi
 
-      - name: Open the pull request
+      # The proof, handed on. `assemble` re-applies the version named here rather than this job's
+      # diff, because every bump regenerates the same goldens and two such diffs do not stack.
+      - name: Hand the proof to the assembly
         if: steps.bump.outputs.moved == 'true'
         env:
           TOOL: ${{ matrix.tool }}
+          FROM: ${{ steps.bump.outputs.from }}
           VERSION: ${{ steps.bump.outputs.version }}
-          GH_TOKEN: ${{ steps.app.outputs.token }}
+          EXERCISED: ${{ steps.before.outputs.exercised }}
         run: |
           set -euo pipefail
-          branch="bump/$TOOL-$VERSION"
+          dir="/tmp/proof/$TOOL"
+          mkdir -p "$dir"
+          jq -n --arg tool "$TOOL" --arg from "$FROM" --arg to "$VERSION" --arg exercised "$EXERCISED" \
+            '{tool: $tool, from: $from, to: $to, exercised: ($exercised == "true")}' > "$dir/meta.json"
+          {
+            echo "### \`$TOOL\` $FROM → $VERSION"
+            echo
+            if [ "$EXERCISED" = "true" ]; then
+              echo "The demo's descriptor runs \`$TOOL\`, and three cold scans ran it at $VERSION."
+            else
+              echo "**Not run by the demo.** Its descriptor does not use \`$TOOL\`, so no scan here"
+              echo "tested the new build. This pull request's integration suite is what does."
+            fi
+            echo
+            echo "Findings by control, before and after:"
+            echo
+            cat /tmp/shape.md
+            echo
+            echo "Controls that could not run:"
+            echo
+            cat /tmp/errors.md
+          } > "$dir/section.md"
+          cat "$dir/section.md"
+
+      - name: Upload the proof
+        if: steps.bump.outputs.moved == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: proof-${{ matrix.tool }}
+          path: /tmp/proof/${{ matrix.tool }}
+          retention-days: 7
+
+  # One pull request for every tool that passed its proof. Each was proven alone above, so a
+  # failure still names its tool; together here, so the integration suite on the pull request
+  # installs every new pin at once and catches two releases that do not work beside each other,
+  # which a pull request per tool never tests. A tool that failed is left out and has its issue.
+  assemble:
+    name: One pull request for every proven bump
+    needs: [behind, propose]
+    if: always() && needs.behind.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Collect the proofs
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: proof-*
+          path: /tmp/proof
+        continue-on-error: true
+
+      - name: Anything to propose
+        id: any
+        run: |
+          set -euo pipefail
+          if compgen -G "/tmp/proof/*/meta.json" > /dev/null; then
+            echo "any=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "any=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::no tool passed its proof, so there is nothing to propose"
+          fi
+
+      # Not GITHUB_TOKEN: GitHub raises no workflow-starting event for anything it did, so a pull
+      # request opened with it would sit with no checks having run on it, the integration suite
+      # included, which is the half of the proof this pull request exists to get.
+      - name: Mint an installation token
+        if: steps.any.outputs.any == 'true'
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.any.outputs.any == 'true'
+        with:
+          token: ${{ steps.app.outputs.token }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: steps.any.outputs.any == 'true'
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Move every proven pin
+        if: steps.any.outputs.any == 'true'
+        id: pins
+        run: |
+          set -euo pipefail
+          : > /tmp/bump.txt
+          for meta in /tmp/proof/*/meta.json; do
+            tool=$(jq -r .tool "$meta")
+            to=$(jq -r .to "$meta")
+            # The version the proof ran, named, so an upstream that published again in the
+            # meantime cannot put an unproven build in this pull request.
+            go run ./internal/tools/cmd/pinbump "$tool" "$to" | tee -a /tmp/bump.txt
+            ./scripts/changelog.sh add changed <<EOF
+          $tool moves to $to.
+          EOF
+          done
+          go test ./internal/cli -run TestCommandGolden -update >/dev/null
+          echo "tools=$(jq -r -s 'map("\(.tool) \(.to)") | join(", ")' /tmp/proof/*/meta.json)" >> "$GITHUB_OUTPUT"
+
+      - name: The repository's own gate, with every pin moved
+        if: steps.any.outputs.any == 'true'
+        run: |
+          go install github.com/client9/misspell/cmd/misspell@v0.3.4
+          MISSPELL="$(go env GOPATH)/bin/misspell" make gate
+
+      - name: Open the pull request
+        if: steps.any.outputs.any == 'true'
+        env:
+          TOOLS: ${{ steps.pins.outputs.tools }}
+          FAILED: ${{ needs.propose.result }}
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          branch="bump/scanners-$(date -u +%Y-%m-%d)-${GITHUB_RUN_ID}"
           git config user.name "Wilson Santos"
           git config user.email "wilson@draugr.dev"
           git checkout -b "$branch"
           git add internal/tools internal/cli/testdata/golden changelog.d
-          git commit -m "Pin $TOOL at $VERSION" -m "$(cat /tmp/bump.txt)"
+          git commit -m "Move scanner pins: $TOOLS" -m "$(cat /tmp/bump.txt)"
           git push -u origin "$branch"
           {
-            echo "\`$TOOL\` moves to **$VERSION**. Every hash is of the bytes at the URL beside it."
+            echo "Moves each pinned tool below to the release its upstream publishes. Every hash is of"
+            echo "the bytes at the URL beside it."
             echo
-            echo "## What was run against it"
+            echo "Each tool was proven on its own first, in [this run]($RUN_URL): \`make gate\` with its"
+            echo "pin alone, then three scans of the demo against a cold cache. This pull request's"
+            echo "checks run the integration suite with every new pin installed together."
+            if [ "$FAILED" != "success" ]; then
+              echo
+              echo "At least one tool failed its proof and is not here. Each has an issue labeled"
+              echo "\`tool-bump\` on a scheduled run, and the run's log says why."
+            fi
             echo
-            echo "- \`make gate\`"
-            echo "- every tool installed for real at the new pin and checksum-verified"
-            echo "- a full scan of the demo, **three times against a cold cache**, with no control erroring"
-            echo
-            echo "## What it changed about the findings"
-            echo
-            cat /tmp/shape.md
-            echo
-            echo "A difference here is not automatically wrong: a scanner release changes what it"
-            echo "reports. A control dropping to zero is, and fails this job rather than reaching here."
-            echo
-            echo "Only linux/amd64 was exercised. The other three platforms are pinned by hash and unrun."
+            echo "A difference in the findings is not automatically wrong, since a scanner release changes"
+            echo "what it reports. A control dropping to zero is, and fails the proof rather than reaching here."
+            echo "Only linux/amd64 was exercised. The other platforms are pinned by hash and unrun."
+            for section in /tmp/proof/*/section.md; do
+              echo
+              cat "$section"
+            done
           } > /tmp/body.md
-          gh pr create --title "Pin $TOOL at $VERSION" --body-file /tmp/body.md
+          gh pr create --title "Move scanner pins: $TOOLS" --body-file /tmp/body.md
 
   # A scheduled run that fails tells nobody: the workflow belongs to no pull request, and a red
   # row in the Actions tab is read by whoever happens to open it. So a failure raises an issue,
@@ -283,7 +457,7 @@ jobs:
   # a scanner release Draugr cannot take yet, and that is worth knowing as much as a broken job.
   notify:
     name: A failed proposal raises an issue
-    needs: [behind, propose]
+    needs: [behind, propose, assemble]
     if: always() && github.event_name == 'schedule'
     runs-on: ubuntu-latest
     permissions:
