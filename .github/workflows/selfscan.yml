@@ -317,8 +317,8 @@ jobs:
               "",
               "| Control | Verdict | Highest | Open |",
               "|---|---|---|---|",
-              (.controls[] | select(.verdict == "fail")
-                | "| `\(.name)` | \(.verdict) | \(.highestPriority // .highest) | \(.total) |")
+              (.controls[] | select(.verdict == "fail" or ((.scanErrors // []) | length > 0))
+                | "| `\(.name)` | \(if ((.scanErrors // []) | length > 0) then "error" else .verdict end) | \(.highestPriority // .highest) | \(.total) |")
             ' draugr-out/report.json)
           fi
 

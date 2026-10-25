@@ -117,12 +117,19 @@ jobs:
         run: |
           set -euo pipefail
           go build -o /tmp/draugr-before ./cmd/draugr
+          # From inside the demo, so its descriptor decides what is installed. At the repository
+          # root `tools install` finds no descriptor and installs the zero-config set, and a bumped
+          # tool outside that set would never run in either scan.
+          cd demo
           /tmp/draugr-before tools install -y
           /tmp/draugr-before feeds update
-          cd demo
-          /tmp/draugr-before scan --format json --output /tmp/before.json --allow-scan-errors || true
-          jq -S '[.findings[] | {control, rule, severity}] | group_by(.control)
-                 | map({control: .[0].control, n: length})' /tmp/before.json > /tmp/before-shape.json
+          # `-o` names a directory of reports, so the JSON is taken from stdout. `--no-gate`
+          # because the demo fails its gate by design, and that verdict is not what is measured.
+          /tmp/draugr-before scan --format json --no-gate --allow-scan-errors --no-publish > /tmp/before.json
+          jq -S '[.controls[] | {control: .name, n: .total}] | sort_by(.control)' \
+            /tmp/before.json > /tmp/before-shape.json
+          jq -S '[.controls[] | select((.scanErrors // []) | length > 0) | .name]' \
+            /tmp/before.json > /tmp/before-errors.json
           cat /tmp/before-shape.json
 
       - name: Move the pin
@@ -168,24 +175,29 @@ jobs:
         run: |
           set -euo pipefail
           go build -o /tmp/draugr-after ./cmd/draugr
+          cd demo
           /tmp/draugr-after tools install -y --force
           /tmp/draugr-after feeds update
-          cd demo
           for run in 1 2 3; do
             rm -rf "$HOME/.cache/trivy" "$HOME/.cache/grype" "$HOME/nuclei-templates"
             echo "::group::cold run $run"
-            /tmp/draugr-after scan --format json --output "/tmp/after-$run.json" --allow-scan-errors
+            /tmp/draugr-after scan --format json --no-gate --allow-scan-errors --no-publish > "/tmp/after-$run.json"
             # A control that could not run has found nothing, and a bump that leaves one erroring
-            # is not a bump to propose however clean the rest of the report is.
-            if jq -e '[.controls[] | select(.status == "error")] | length > 0' "/tmp/after-$run.json" >/dev/null; then
-              echo "::error::a control errored on cold run $run with the new pin"
-              jq -r '.controls[] | select(.status == "error") | "\(.name): \(.error)"' "/tmp/after-$run.json"
+            # is not a bump to propose however clean the rest of the report is. Measured against
+            # the pinned run, because some of the demo's controls cannot run on a hosted runner at
+            # any version, and those say nothing about the bump.
+            new=$(jq -c --slurpfile before /tmp/before-errors.json \
+              '[.controls[] | select((.scanErrors // []) | length > 0) | .name] - $before[0]' "/tmp/after-$run.json")
+            if [ "$new" != "[]" ]; then
+              echo "::error::a control errored on cold run $run with the new pin and not before it: $new"
+              jq -r --argjson new "$new" '.controls[] | select(.name as $n | $new | index($n))
+                | "\(.name): \(.scanErrors | join("; "))"' "/tmp/after-$run.json"
               exit 1
             fi
             echo "::endgroup::"
           done
-          jq -S '[.findings[] | {control, rule, severity}] | group_by(.control)
-                 | map({control: .[0].control, n: length})' /tmp/after-1.json > /tmp/after-shape.json
+          jq -S '[.controls[] | {control: .name, n: .total}] | sort_by(.control)' \
+            /tmp/after-1.json > /tmp/after-shape.json
 
       # A tool that finds nothing where it used to find plenty has broken in the way that looks
       # like success. Reported rather than enforced: a scanner release genuinely changes what it
@@ -249,3 +261,71 @@ jobs:
             echo "Only linux/amd64 was exercised. The other three platforms are pinned by hash and unrun."
           } > /tmp/body.md
           gh pr create --title "Pin $TOOL at $VERSION" --body-file /tmp/body.md
+
+  # A scheduled run that fails tells nobody: the workflow belongs to no pull request, and a red
+  # row in the Actions tab is read by whoever happens to open it. So a failure raises an issue,
+  # one per tool, and the next run that proves that tool closes it. A bump that fails its proof is
+  # a scanner release Draugr cannot take yet, and that is worth knowing as much as a broken job.
+  notify:
+    name: A failed proposal raises an issue
+    needs: [behind, propose]
+    if: always() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      issues: write
+    steps:
+      - name: Open, update or close the issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # No checkout, so `gh` has no clone to infer the repository from.
+          GH_REPO: ${{ github.repository }}
+          BEHIND: ${{ needs.behind.result }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          label="tool-bump"
+          gh label create "$label" --description "A scheduled scanner bump failed" --color B60205 2>/dev/null || true
+
+          # The job names are the matrix values, which are the tool names, plus the one that asks
+          # what is behind. A failure there means no tool was tried at all, so it is a tool of its own.
+          jobs=$(gh api --paginate "repos/$GH_REPO/actions/runs/$RUN_ID/jobs" \
+            --jq '.jobs[] | select(.name != "A failed proposal raises an issue") | "\(.name)\t\(.conclusion)"')
+
+          while IFS=$'\t' read -r name conclusion; do
+            [ -n "$name" ] || continue
+            title="Scheduled bump failed: $name"
+            existing=$(gh issue list --label "$label" --state open --search "\"$title\" in:title" \
+              --json number,title | jq -r --arg t "$title" '.[] | select(.title == $t) | .number' | head -1)
+            case "$conclusion" in
+              failure)
+                if [ -n "$existing" ]; then
+                  gh issue comment "$existing" --body "Still failing: [run]($RUN_URL)."
+                else
+                  gh issue create --label "$label" --title "$title" --body "$(cat <<BODY
+          The weekly scanner bump for \`$name\` failed: [run]($RUN_URL).
+
+          Either the new release did not pass the proof (\`make gate\`, three cold scans of the demo, no control newly erroring, no control dropping to zero), or the job itself broke before it reached the proof. The run's log says which.
+
+          This issue closes itself when a scheduled run proves \`$name\` again.
+          BODY
+          )"
+                fi
+                ;;
+              success)
+                if [ -n "$existing" ]; then
+                  gh issue comment "$existing" --body "Proven again: [run]($RUN_URL). Closing."
+                  gh issue close "$existing"
+                fi
+                ;;
+            esac
+          done <<<"$jobs"
+
+          # Nothing behind skips the matrix entirely, which is also a pass for every open issue.
+          if [ "$BEHIND" = "success" ] && [ -z "$(grep -v '^What is behind' <<<"$jobs" || true)" ]; then
+            for n in $(gh issue list --label "$label" --state open --json number --jq '.[].number'); do
+              gh issue comment "$n" --body "Nothing is behind as of [this run]($RUN_URL). Closing."
+              gh issue close "$n"
+            done
+          fi
