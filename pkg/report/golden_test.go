@@ -152,12 +152,12 @@ func goldenFullData() Data {
 	}
 	sast := []sarif.Result{
 		{RuleID: "python.flask.security.injection.tainted-sql-string.tainted-sql-string",
-			Level: sarif.LevelError, Priority: "P2", Tool: "semgrep",
+			Level: sarif.LevelError, Priority: "P2", Tool: "Semgrep OSS",
 			Location: sarif.Location{URI: "app/main.py", StartLine: 42},
 			Message:  "Detected user input flowing into a raw SQL string"},
 		// A second scanner on the same line, imported as Bandit's file, so the line is one action
 		// listing both scanners' rules under a title quoting one of them.
-		{RuleID: "B608", Level: sarif.LevelWarning, Priority: "P3", Tool: "bandit",
+		{RuleID: "B608", Level: sarif.LevelWarning, Priority: "P3", Tool: "Bandit",
 			Location: sarif.Location{URI: "app/main.py", StartLine: 42},
 			Message:  "Possible SQL injection vector through string-based query construction."},
 	}

@@ -45,7 +45,7 @@ FIX FIRST  top 6 of 10, by priority
       app/requirements.txt:2
 
   P2  high      …tainted-sql-string.tainted-sql-string · Detected user input flowing into a raw SQL string
-      scanner semgrep · fix change the code
+      scanner semgrep oss · fix change the code
       app/main.py:42
 
   P2  high      private-key · private-key has detected secret for file app/config.pem.

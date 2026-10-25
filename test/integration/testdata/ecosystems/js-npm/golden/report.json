@@ -62,7 +62,7 @@
       "component": "js-npm",
       "control": "sast",
       "findings": "<cleared>",
-      "id": "126aeef45011b4a4",
+      "id": "383267aa7819648d",
       "kind": "code",
       "locations": [
         {
@@ -76,8 +76,7 @@
       "ruleIds": [
         "draugr-fixture-eval"
       ],
-      "summary": "eval runs its argument as code",
-      "title": "Fix draugr-fixture-eval",
+      "title": "Fix “eval runs its argument as code”",
       "where": [
         "src/index.js:4"
       ]

@@ -1,6 +1,31 @@
 {
   "actions": [
     {
+      "clears": 2,
+      "component": "go-submodule",
+      "control": "sast",
+      "findings": "<cleared>",
+      "id": "c821463fc43efe7d",
+      "kind": "code",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 20,
+          "path": "service/main.go",
+          "repository": "./go-submodule"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "G702",
+        "G204"
+      ],
+      "title": "Fix “Command injection via taint analysis”",
+      "where": [
+        "service/main.go:20"
+      ]
+    },
+    {
       "clears": 1,
       "component": "go-submodule",
       "control": "sca",
@@ -30,54 +55,6 @@
       "versioning": "go",
       "where": [
         "service/go.mod:5"
-      ]
-    },
-    {
-      "clears": 1,
-      "component": "go-submodule",
-      "control": "sast",
-      "findings": "<cleared>",
-      "id": "1bd635d5d6af5757",
-      "kind": "code",
-      "locations": [
-        {
-          "kind": "file",
-          "line": 20,
-          "path": "service/main.go",
-          "repository": "./go-submodule"
-        }
-      ],
-      "priority": "P1",
-      "ruleIds": [
-        "G702"
-      ],
-      "title": "Fix G702 “Command injection via taint analysis”",
-      "where": [
-        "service/main.go:20"
-      ]
-    },
-    {
-      "clears": 1,
-      "component": "go-submodule",
-      "control": "sast",
-      "findings": "<cleared>",
-      "id": "553d8004f951980d",
-      "kind": "code",
-      "locations": [
-        {
-          "kind": "file",
-          "line": 20,
-          "path": "service/main.go",
-          "repository": "./go-submodule"
-        }
-      ],
-      "priority": "P2",
-      "ruleIds": [
-        "G204"
-      ],
-      "title": "Fix G204 “Subprocess launched with a potential tainted input or cmd arg…",
-      "where": [
-        "service/main.go:20"
       ]
     }
   ],

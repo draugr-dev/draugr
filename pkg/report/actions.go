@@ -298,7 +298,7 @@ func groupActions(findings []finding, unpinned []string) (actions []action, exte
 			a.summary = summaryFor(a)
 		}
 		if a.atOneLine() {
-			a.title = lineTitle(a.findings)
+			a.title, a.summary = lineTitle(a.findings)
 			a.nameRepository = spansRepositories
 		}
 		a.component = commonComponent(a.findings)
@@ -523,8 +523,8 @@ func actionFor(f finding) (key, title string, kind skald.ActionKind, byRule bool
 	// The title is provisional. It describes the whole line, so groupActions writes it once every
 	// finding on the line is known.
 	case onALine(f):
-		return lineKey + f.component + "\x00" + f.repository + "\x00" + f.location,
-			lineTitle([]finding{f}), ruleKind(f), false
+		title, _ := lineTitle([]finding{f})
+		return lineKey + f.component + "\x00" + f.repository + "\x00" + f.location, title, ruleKind(f), false
 
 	// The same rule in several places is one thing to understand and apply, whether that is a
 	// missing directive in three Dockerfiles or a credential committed to four files.
@@ -582,18 +582,52 @@ func componentRepositories(fs []finding) map[string]string {
 	return out
 }
 
-// lineTitle is what to do about one line of code: the verb, then the scanner's own one-line
-// description of the flaw, quoted, because it is the scanner's wording and often not a sentence of
-// its own. titleFinding says which finding's description it is.
-func lineTitle(fs []finding) string {
+// lineTitle is what to do about one line of code, and the description to print under the title
+// when the title does not carry it.
+//
+// The verb, then the scanner's own one-line description of the flaw, quoted, because it is the
+// scanner's wording and often not a sentence of its own. titleFinding says which finding's
+// description it is. A line one rule flags, whose description would be cut short, is titled by the
+// rule's name instead, with the description whole under it, the shape of every action named for a
+// rule. Where several rules flag the line, the title quotes one of them, cut if it must be, because
+// the rule's name would leave the others out.
+func lineTitle(fs []finding) (title, summary string) {
 	f := titleFinding(fs)
-	if d := describe(f); d != "" {
-		return truncate(actionVerb(f)+" “"+d+"”", actionTitleWidth)
+	d := describe(f)
+	switch {
+	case d != "" && f.ruleID != "" && !fitsTitle(f, d) && oneRule(fs):
+		return truncate(actionVerb(f)+" "+shortRuleName(f.ruleID), actionTitleWidth), d
+	case d != "":
+		return quoted(actionVerb(f)+" ", d, actionTitleWidth), ""
+	case f.ruleID != "":
+		return truncate(actionVerb(f)+" "+shortRuleName(f.ruleID), actionTitleWidth), ""
 	}
-	if t := titleFor(f); t != "" {
-		return t
+	return truncate(actionVerb(f)+" "+f.location, actionTitleWidth), ""
+}
+
+// oneRule reports whether every finding is the same scanner's same rule.
+func oneRule(fs []finding) bool {
+	for _, f := range fs[1:] {
+		if f.tool != fs[0].tool || f.ruleID != fs[0].ruleID {
+			return false
+		}
 	}
-	return truncate(actionVerb(f)+" "+f.location, actionTitleWidth)
+	return true
+}
+
+// quoted is prefix, then text in quotation marks, within width. Where the whole does not fit, the
+// quoted text gives way and the closing mark stays, so a title cut short still reads as a quotation
+// that ends.
+func quoted(prefix, text string, width int) string {
+	whole := prefix + "“" + text + "”"
+	if utf8.RuneCountInString(whole) <= width {
+		return whole
+	}
+	room := width - utf8.RuneCountInString(prefix) - 2
+	if room < 2 {
+		return truncate(whole, width)
+	}
+	return prefix + "“" + truncate(text, room) + "”"
 }
 
 // titleFinding is the finding whose description titles an action for one line.
@@ -605,9 +639,8 @@ func lineTitle(fs []finding) string {
 //     what the row is ranked for;
 //   - among findings that rank alike, a description that fits the title whole, because one cut
 //     short loses the end of the sentence, which is where it says what is wrong;
-//   - then the longest description, the most specific in practice: a rule that sees request input
-//     reach a call says so, and one that matches the call alone has less to say;
-//   - then the rule id, which only two equally long descriptions reach.
+//   - then the longest description, the one that says the most about the line;
+//   - then the lowest rule id, which only two equally long descriptions reach.
 func titleFinding(fs []finding) finding {
 	best := fs[0]
 	for _, f := range fs[1:] {
@@ -646,7 +679,8 @@ func fitsTitle(f finding, description string) bool {
 
 // toolRules is one scanner's rules among an action's findings.
 type toolRules struct {
-	// tool is the scanner, lowercased as a finding's facts line prints it.
+	// tool is the scanner as the scanner names itself, without its edition unless the edition is
+	// what tells two scanners on the line apart.
 	tool string
 	// rules holds one finding per distinct rule, for its id and the link to its documentation.
 	rules []finding
@@ -663,20 +697,61 @@ func (a action) rulesByTool() []toolRules {
 	index := map[string]int{}
 	seen := map[string]bool{}
 	for _, f := range append([]finding{titleFinding(a.findings)}, a.findings...) {
-		tool := strings.ToLower(f.tool)
-		if f.ruleID == "" || seen[tool+"\x00"+f.ruleID] {
+		if f.ruleID == "" || seen[f.tool+"\x00"+f.ruleID] {
 			continue
 		}
-		seen[tool+"\x00"+f.ruleID] = true
-		i, ok := index[tool]
+		seen[f.tool+"\x00"+f.ruleID] = true
+		i, ok := index[f.tool]
 		if !ok {
 			i = len(out)
-			index[tool] = i
-			out = append(out, toolRules{tool: tool})
+			index[f.tool] = i
+			out = append(out, toolRules{tool: f.tool})
 		}
 		out[i].rules = append(out[i].rules, f)
 	}
+	named := map[string]int{}
+	for _, g := range out {
+		named[withoutEdition(g.tool)]++
+	}
+	for i, g := range out {
+		if named[withoutEdition(g.tool)] == 1 {
+			out[i].tool = withoutEdition(g.tool)
+		}
+	}
 	return out
+}
+
+// ruleIDs are the first most distinct rules the action clears. For a line of code they are in the
+// order the line under its title lists them, so the first is the rule the title quotes; for any
+// other action, in the order its findings rank.
+func (a action) ruleIDs(most int) []string {
+	fs := a.findings
+	if a.atOneLine() {
+		fs = nil
+		for _, g := range a.rulesByTool() {
+			fs = append(fs, g.rules...)
+		}
+	}
+	out := make([]string, 0, most)
+	seen := map[string]bool{}
+	for _, f := range fs {
+		if seen[f.ruleID] || f.ruleID == "" {
+			continue
+		}
+		seen[f.ruleID] = true
+		if len(out) == most {
+			break
+		}
+		out = append(out, f.ruleID)
+	}
+	return out
+}
+
+// withoutEdition is a scanner's name without the edition it reports beside it: Semgrep for
+// "Semgrep OSS". The edition is the same word on every row a scanner flags, and --evidence records
+// which build ran.
+func withoutEdition(tool string) string {
+	return strings.TrimSuffix(tool, " OSS")
 }
 
 // titleFor writes the imperative for a finding that is its own action: a verb, then the rule.
@@ -686,9 +761,12 @@ func (a action) rulesByTool() []toolRules {
 // and a list of those under a heading promising things to do reads as a list of complaints. The
 // verb is the part a scanner never writes, and the rule's name is the part it always does.
 func titleFor(f finding) string {
-	name := ruleName(f.ruleID, f.message)
-	if name == "" {
+	name, said := ruleName(f.ruleID, f.message)
+	switch {
+	case name == "":
 		return truncate(firstSentence(f.message), actionTitleWidth)
+	case said != "":
+		return quoted(actionVerb(f)+" "+name+" ", said, actionTitleWidth)
 	}
 	return truncate(actionVerb(f)+" "+name, actionTitleWidth)
 }
@@ -784,19 +862,19 @@ func licenseTitle(f finding) string {
 //     is where the scanner files it.
 //   - A slug, "private-key" or "tls-cert-expired", which is already a name.
 //   - A catalog number, "KSV-0017", "DS-0002", a CIS section. It names nothing to somebody who has
-//     not looked it up, so the scanner's one-line summary goes beside it, quoted, because it is
-//     the scanner's wording and often not a sentence of its own.
+//     not looked it up, so said is the scanner's one-line summary, which the title quotes beside
+//     it, because it is the scanner's wording and often not a sentence of its own.
 //
 // Empty when the finding has no rule, which leaves the title to the message.
-func ruleName(id, message string) string {
-	name := shortRuleName(id)
+func ruleName(id, message string) (name, said string) {
+	name = shortRuleName(id)
 	if name == "" || hasLower(name) {
-		return name
+		return name, ""
 	}
 	if summary := firstSentence(message); summary != "" && summary != id {
-		return name + " “" + summary + "”"
+		return name, summary
 	}
-	return name
+	return name, ""
 }
 
 // shortRuleName is the part of a rule id that names the rule: the last segment of a namespaced
@@ -970,18 +1048,7 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 	grouped, external := groupActions(findings, nil)
 	out := make([]Action, 0, len(grouped)+len(external))
 	for _, a := range grouped {
-		rules := make([]string, 0, most)
-		seen := map[string]bool{}
-		for _, f := range a.findings {
-			if seen[f.ruleID] || f.ruleID == "" {
-				continue
-			}
-			seen[f.ruleID] = true
-			if len(rules) == most {
-				break
-			}
-			rules = append(rules, f.ruleID)
-		}
+		rules := a.ruleIDs(most)
 		act := Action{
 			ID:            a.id(),
 			Title:         a.title,

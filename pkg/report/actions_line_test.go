@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/skald"
@@ -26,33 +27,49 @@ func codeFinding(tool, rule, prio string, level sarif.Level, loc, msg string) fi
 		fingerprint: tool + "|" + rule + "|" + loc}
 }
 
-// appPy is what Bandit and Semgrep report on draugr-demo's app/app.py, messages as they wrote them:
-// one shell command on line 23 that four rules flag, an eval on line 30 that three do, and a rule
-// that flags line 30 and one more line.
+// rated is f with the severity the scanner's own rating gave it.
+func rated(f finding, sev sarif.Severity) finding {
+	f.severity = sev
+	return f
+}
+
+// appPy is what Bandit and Semgrep report on draugr-demo's app/app.py, messages as they wrote them
+// and each at the band and severity a scan gives it: one shell command on line 23 that four rules
+// flag, an eval on line 30 that three do, and a rule that flags line 30 and one more line.
 func appPy() []finding {
 	return []finding{
-		codeFinding("Bandit", "B602", "P1", sarif.LevelError, "app/app.py:23",
-			"subprocess call with shell=True identified, security issue."),
-		codeFinding("Semgrep OSS", "python.flask.security.injection.subprocess-injection.subprocess-injection", "P1",
+		// issue_severity HIGH, issue_confidence HIGH.
+		rated(codeFinding("Bandit", "B602", "P1", sarif.LevelError, "app/app.py:23",
+			"subprocess call with shell=True identified, security issue."), sarif.SeverityHigh),
+		// impact MEDIUM, likelihood HIGH.
+		rated(codeFinding("Semgrep OSS", "python.flask.security.injection.subprocess-injection.subprocess-injection", "P1",
 			sarif.LevelError, "app/app.py:23",
 			"Detected user input entering a `subprocess` call unsafely. This could result in a command injection vulnerability."),
-		codeFinding("Semgrep OSS", "python.lang.security.dangerous-subprocess-use.dangerous-subprocess-use", "P1",
+			sarif.SeverityHigh),
+		// impact HIGH, likelihood MEDIUM.
+		rated(codeFinding("Semgrep OSS", "python.lang.security.dangerous-subprocess-use.dangerous-subprocess-use", "P1",
 			sarif.LevelError, "app/app.py:23",
 			"Detected subprocess function 'check_output' with user controlled data. A malicious actor could leverage this to perform command injection."),
-		codeFinding("Semgrep OSS", "python.lang.security.audit.subprocess-shell-true.subprocess-shell-true", "P1",
+			sarif.SeverityHigh),
+		// impact LOW, likelihood HIGH.
+		rated(codeFinding("Semgrep OSS", "python.lang.security.audit.subprocess-shell-true.subprocess-shell-true", "P2",
 			sarif.LevelError, "app/app.py:23",
 			"Found 'subprocess' function 'check_output' with 'shell=True'. This is dangerous because this call will spawn the command using a shell process."),
-		codeFinding("Semgrep OSS", "python.flask.security.injection.user-eval.eval-injection", "P1",
+			sarif.SeverityMedium),
+		// impact MEDIUM, likelihood MEDIUM.
+		rated(codeFinding("Semgrep OSS", "python.flask.security.injection.user-eval.eval-injection", "P2",
 			sarif.LevelError, "app/app.py:30",
-			"Detected user data flowing into eval. This is code injection and should be avoided."),
-		codeFinding("Semgrep OSS", "python.lang.security.audit.eval-detected.eval-detected", "P2",
+			"Detected user data flowing into eval. This is code injection and should be avoided."), sarif.SeverityMedium),
+		// impact HIGH, likelihood LOW, confidence LOW, subcategory audit.
+		rated(codeFinding("Semgrep OSS", "python.lang.security.audit.eval-detected.eval-detected", "P3",
 			sarif.LevelWarning, "app/app.py:30",
-			"Detected the use of eval(). eval() can be dangerous if used to evaluate dynamic content."),
-		codeFinding("Bandit", "B307", "P2", sarif.LevelWarning, "app/app.py:30",
-			"Use of possibly insecure function - consider using safer ast.literal_eval."),
-		codeFinding("Semgrep OSS", "python.lang.security.audit.eval-detected.eval-detected", "P2",
+			"Detected the use of eval(). eval() can be dangerous if used to evaluate dynamic content."), sarif.SeverityLow),
+		// issue_severity MEDIUM, issue_confidence HIGH.
+		rated(codeFinding("Bandit", "B307", "P2", sarif.LevelWarning, "app/app.py:30",
+			"Use of possibly insecure function - consider using safer ast.literal_eval."), sarif.SeverityMedium),
+		rated(codeFinding("Semgrep OSS", "python.lang.security.audit.eval-detected.eval-detected", "P3",
 			sarif.LevelWarning, "app/util.py:12",
-			"Detected the use of eval(). eval() can be dangerous if used to evaluate dynamic content."),
+			"Detected the use of eval(). eval() can be dangerous if used to evaluate dynamic content."), sarif.SeverityLow),
 	}
 }
 
@@ -95,10 +112,11 @@ func TestOneLineOfCodeIsOneAction(t *testing.T) {
 		t.Errorf("the rule's other line is its own action with 1 finding, got %d", n)
 	}
 
-	// Every rule the line clears, by scanner, the one the title quotes first.
+	// Every rule the line clears, by scanner, the one the title quotes first. Each scanner by its
+	// own name, without the edition beside it.
 	want := []string{
-		"semgrep oss: subprocess-shell-true, subprocess-injection, dangerous-subprocess-use",
-		"bandit: B602",
+		"Bandit: B602",
+		"Semgrep: subprocess-injection, dangerous-subprocess-use, subprocess-shell-true",
 	}
 	if got := ruleGroups(line23); !reflect.DeepEqual(got, want) {
 		t.Errorf("rules = %q, want %q", got, want)
@@ -145,16 +163,59 @@ func TestALineIsTitledByWhatItsRulesFound(t *testing.T) {
 
 	at := byLocation(t, first)
 	for loc, want := range map[string]string{
-		// Four rules at one band and severity. The longest description runs past the title, so the
-		// longest that fits it whole titles the line.
-		"app/app.py:23": "Fix “Found 'subprocess' function 'check_output' with 'shell=True'”",
-		// The worst band decides before any description does: eval-injection is the P1.
+		// TestTheTitleOfAppPy23IsDecidedByLength says which tier decides it.
+		"app/app.py:23": "Fix “subprocess call with shell=True identified, security issue”",
+		// Two at the worst band, P2, and Bandit's description runs past the title.
 		"app/app.py:30":  "Fix “Detected user data flowing into eval”",
 		"app/util.py:12": "Fix “Detected the use of eval()”",
 	} {
 		if got := at[demoRepository+" api "+loc].title; got != want {
 			t.Errorf("%s: title = %q, want %q", loc, got, want)
 		}
+	}
+}
+
+// The four rules on app.py:23 are titled by length. The band leaves out subprocess-shell-true, a
+// P2. Severity and score do not separate the other three: each is high, and none is scored.
+// dangerous-subprocess-use does not fit the title whole. Of the two that do, Bandit's description
+// is one character longer than subprocess-injection's, so it titles the line, and a longer one from
+// subprocess-injection that still fits would title it instead.
+func TestTheTitleOfAppPy23IsDecidedByLength(t *testing.T) {
+	var line []finding
+	for _, f := range appPy() {
+		if f.location == "app/app.py:23" {
+			line = append(line, f)
+		}
+	}
+	byRule := map[string]finding{}
+	for _, f := range line {
+		byRule[shortRuleName(f.ruleID)] = f
+	}
+	b602, injection := byRule["B602"], byRule["subprocess-injection"]
+	dangerous, shell := byRule["dangerous-subprocess-use"], byRule["subprocess-shell-true"]
+
+	if !titlesBetter(b602, shell) || shell.priority == b602.priority {
+		t.Errorf("subprocess-shell-true should lose on the band: %s against %s", shell.priority, b602.priority)
+	}
+	for _, f := range []finding{injection, dangerous} {
+		if f.priority != b602.priority || f.severity != b602.severity || f.score != b602.score {
+			t.Errorf("%s should rank alike with B602: %s %s %v", f.ruleID, f.priority, f.severity, f.score)
+		}
+	}
+	if fitsTitle(dangerous, describe(dangerous)) || !fitsTitle(b602, describe(b602)) || !fitsTitle(injection, describe(injection)) {
+		t.Error("only dangerous-subprocess-use should run past the title")
+	}
+	if lb, li := utf8.RuneCountInString(describe(b602)), utf8.RuneCountInString(describe(injection)); lb != li+1 {
+		t.Errorf("descriptions are %d and %d characters, want B602's one longer", lb, li)
+	}
+	if got := titleFinding(line).ruleID; got != "B602" {
+		t.Errorf("titled by %q, want B602", got)
+	}
+
+	longer := injection
+	longer.message = "Detected user input entering a `subprocess` call unsafely here. This could result in injection."
+	if got := titleFinding([]finding{b602, longer, dangerous, shell}).ruleID; got != injection.ruleID {
+		t.Errorf("a longer description that still fits should title the line, got %q", got)
 	}
 }
 
@@ -202,9 +263,82 @@ func TestALineWithoutADescriptionIsStillTitled(t *testing.T) {
 		{finding{control: "sast", ruleID: "x", location: "main.go:12", message: "Uses MD5.", score: 1, hasScore: true},
 			"Review “Uses MD5”"},
 	} {
-		if got := lineTitle([]finding{c.f}); got != c.want {
+		if got, _ := lineTitle([]finding{c.f}); got != c.want {
 			t.Errorf("lineTitle(%+v) = %q, want %q", c.f, got, c.want)
 		}
+	}
+}
+
+// A lone rule whose description would be cut is titled by the rule's name, with the description
+// whole on the line under it, as every action named for a rule is. One whose description fits is
+// quoted. Where several rules flag the line and none fits, the title quotes one of them, cut, and
+// still closes its quotation.
+func TestATitleThatWouldBeCutNamesItsRuleOrClosesItsQuote(t *testing.T) {
+	long := "In Kubernetes, each pod runs in its own isolated environment with its own set of security policies."
+	escalation := codeFinding("Semgrep OSS",
+		"yaml.kubernetes.security.allow-privilege-escalation-true.allow-privilege-escalation-true",
+		"P2", sarif.LevelWarning, "deploy/pod.yaml:13", long)
+	title, summary := lineTitle([]finding{escalation})
+	if title != "Fix allow-privilege-escalation-true" || summary != strings.TrimSuffix(long, ".") {
+		t.Errorf("a lone rule cut short: title %q, summary %q", title, summary)
+	}
+
+	privileged := codeFinding("Semgrep OSS", "yaml.kubernetes.security.privileged-container.privileged-container",
+		"P2", sarif.LevelWarning, "deploy/pod.yaml:11",
+		"Container or pod is running in privileged mode. This grants the container the equivalent of root capabilities.")
+	title, summary = lineTitle([]finding{privileged})
+	if title != "Fix “Container or pod is running in privileged mode”" || summary != "" {
+		t.Errorf("a lone rule that fits: title %q, summary %q", title, summary)
+	}
+
+	other := escalation
+	other.tool, other.ruleID = "Checkov", "CKV_K8S_20"
+	title, summary = lineTitle([]finding{escalation, other})
+	if !strings.HasPrefix(title, "Fix “In Kubernetes, each pod") || !strings.HasSuffix(title, "…”") ||
+		utf8.RuneCountInString(title) > actionTitleWidth || summary != "" {
+		t.Errorf("several rules, none fitting: title %q (%d runes), summary %q",
+			title, utf8.RuneCountInString(title), summary)
+	}
+}
+
+// A title quoting a scanner keeps its closing mark when it is cut, whether it is cut when written or
+// fitted into a narrow terminal. The quoted words give way.
+func TestACutQuotationStaysClosed(t *testing.T) {
+	cve := finding{control: "sca", ruleID: "CVE-2019-20477",
+		message: "PyYAML: command execution through python/object/apply constructor in FullLoader"}
+	if got, want := titleFor(cve), "Fix CVE-2019-20477 “PyYAML: command execution through python/object/ap…”"; got != want {
+		t.Errorf("titleFor = %q, want %q", got, want)
+	}
+	for _, c := range []struct {
+		title string
+		width int
+		want  string
+	}{
+		{"Fix “Detected user data flowing into eval”", 80, "Fix “Detected user data flowing into eval”"},
+		{"Fix “Detected user data flowing into eval”", 30, "Fix “Detected user data flow…”"},
+		{"Fix CVE-1 “A flaw that runs long”", 20, "Fix CVE-1 “A flaw…”"},
+		{"Fix tainted-sql-string", 12, "Fix…"},
+		{"Fix “x”", 6, "Fix “…"},
+	} {
+		if got := elideTitle(c.title, c.width); got != c.want {
+			t.Errorf("elideTitle(%q, %d) = %q, want %q", c.title, c.width, got, c.want)
+		}
+	}
+}
+
+// A scanner is named as it names itself, without the edition beside it, unless the edition is what
+// tells two scanners on one line apart.
+func TestARuleLineNamesEachScannerOnce(t *testing.T) {
+	at := func(tool, rule string) finding {
+		return codeFinding(tool, rule, "P1", sarif.LevelError, "app/app.py:23", "subprocess call with shell=True.")
+	}
+	one, _ := groupActions([]finding{at("Semgrep OSS", "a.b.shell-true"), at("Bandit", "B602")}, nil)
+	if got, want := ruleGroups(one[0]), []string{"Bandit: B602", "Semgrep: shell-true"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("rules = %q, want %q", got, want)
+	}
+	two, _ := groupActions([]finding{at("Semgrep OSS", "a.b.shell-true"), at("Semgrep", "c.d.injection")}, nil)
+	if got, want := ruleGroups(two[0]), []string{"Semgrep OSS: shell-true", "Semgrep: injection"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("rules = %q, want %q", got, want)
 	}
 }
 
@@ -301,13 +435,13 @@ func TestTheRuleLineFitsItsRoom(t *testing.T) {
 		room int
 		want string
 	}{
-		{120, "semgrep oss subprocess-shell-true, subprocess-injection, dangerous-subprocess-use · bandit B602"},
-		{95, "semgrep oss subprocess-shell-true, subprocess-injection, dangerous-subprocess-use · bandit B602"},
-		{94, "semgrep oss subprocess-shell-true, subprocess-injection, dangerous-subprocess-use · and 1 more"},
-		{70, "semgrep oss subprocess-shell-true, subprocess-injection · and 2 more"},
-		{50, "semgrep oss subprocess-shell-true · and 3 more"},
-		{40, "semgrep oss subprocess-shell-true"},
-		{20, "semgrep oss…"},
+		{120, "Bandit: B602 · Semgrep: subprocess-injection, dangerous-subprocess-use, subprocess-shell-true"},
+		{93, "Bandit: B602 · Semgrep: subprocess-injection, dangerous-subprocess-use, subprocess-shell-true"},
+		{92, "Bandit: B602 · Semgrep: subprocess-injection, dangerous-subprocess-use · and 1 more"},
+		{60, "Bandit: B602 · Semgrep: subprocess-injection · and 2 more"},
+		{40, "Bandit: B602 · and 3 more"},
+		{20, "Bandit: B602"},
+		{8, "Bandit:…"},
 	} {
 		if line := ruleLine(tui.Plain(), got[0], c.room); line != c.want {
 			t.Errorf("room %d: %q, want %q", c.room, line, c.want)
@@ -327,8 +461,8 @@ func TestTheConsoleListsALinesRules(t *testing.T) {
 	var b bytes.Buffer
 	renderActions(&b, tui.Plain(), actions, false)
 	want := "" +
-		"  P1  Fix “Found 'subprocess' function 'check_output' with 'shell=True'”\n" +
-		"      semgrep oss subprocess-shell-true, subprocess-injection, dangerous-subprocess-use · bandit B602\n" +
+		"  P1  Fix “subprocess call with shell=True identified, security issue”\n" +
+		"      Bandit: B602 · Semgrep: subprocess-injection, dangerous-subprocess-use, subprocess-shell-true\n" +
 		"      control sast · 4 findings · app/app.py:23\n"
 	if !strings.HasPrefix(b.String(), want) {
 		t.Errorf("got:\n%s\nwant it to open with:\n%s", b.String(), want)
@@ -348,7 +482,7 @@ func TestAnExportedLineActionNamesItsRulesAndItsPlace(t *testing.T) {
 		merged.Results = append(merged.Results, sarif.Result{
 			Control: "sast", Tool: f.tool, RuleID: f.ruleID, Priority: f.priority, Level: f.level,
 			Component: f.component, Repository: f.repository, Message: f.message,
-			Location: sarif.Location{URI: path, StartLine: line},
+			Location: sarif.Location{URI: path, StartLine: line}, Rating: &sarif.Rating{Severity: f.severity},
 		})
 	}
 	data, err := merged.MarshalSARIF()
@@ -367,11 +501,12 @@ func TestAnExportedLineActionNamesItsRulesAndItsPlace(t *testing.T) {
 	if a.Clears != 4 || a.Control != "sast" || a.Kind != skald.KindCode || !a.OneChange || a.Summary != "" {
 		t.Errorf("line 23 = %+v", a)
 	}
+	// The rule the title quotes first, then the order the console lists them in.
 	wantRules := []string{
 		"B602",
 		"python.flask.security.injection.subprocess-injection.subprocess-injection",
-		"python.lang.security.audit.subprocess-shell-true.subprocess-shell-true",
 		"python.lang.security.dangerous-subprocess-use.dangerous-subprocess-use",
+		"python.lang.security.audit.subprocess-shell-true.subprocess-shell-true",
 	}
 	if !reflect.DeepEqual(a.RuleIDs, wantRules) {
 		t.Errorf("ruleIds = %q, want %q", a.RuleIDs, wantRules)

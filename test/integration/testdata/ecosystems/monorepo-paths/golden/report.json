@@ -32,37 +32,6 @@
       ]
     },
     {
-      "clears": 2,
-      "control": "sast",
-      "findings": "<cleared>",
-      "id": "126aeef45011b4a4",
-      "kind": "code",
-      "locations": [
-        {
-          "kind": "file",
-          "line": 4,
-          "path": "services/api/src/index.js",
-          "repository": "./monorepo-paths"
-        },
-        {
-          "kind": "file",
-          "line": 4,
-          "path": "services/web/src/index.js",
-          "repository": "./monorepo-paths"
-        }
-      ],
-      "priority": "P1",
-      "ruleIds": [
-        "draugr-fixture-eval"
-      ],
-      "summary": "eval runs its argument as code",
-      "title": "Fix draugr-fixture-eval",
-      "where": [
-        "services/api/src/index.js:4",
-        "services/web/src/index.js:4"
-      ]
-    },
-    {
       "clears": 1,
       "component": "api",
       "control": "sca",
@@ -124,6 +93,54 @@
       "versioning": "npm",
       "where": [
         "services/web/package-lock.json:15"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "api",
+      "control": "sast",
+      "findings": "<cleared>",
+      "id": "693b562c7885d3b1",
+      "kind": "code",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 4,
+          "path": "services/api/src/index.js",
+          "repository": "./monorepo-paths"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "draugr-fixture-eval"
+      ],
+      "title": "Fix “eval runs its argument as code”",
+      "where": [
+        "services/api/src/index.js:4"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "web",
+      "control": "sast",
+      "findings": "<cleared>",
+      "id": "5b84e7848c982efb",
+      "kind": "code",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 4,
+          "path": "services/web/src/index.js",
+          "repository": "./monorepo-paths"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "draugr-fixture-eval"
+      ],
+      "title": "Fix “eval runs its argument as code”",
+      "where": [
+        "services/web/src/index.js:4"
       ]
     }
   ],

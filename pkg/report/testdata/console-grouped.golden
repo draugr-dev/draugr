@@ -3,16 +3,16 @@ DRAUGR  FAIL  draugr-demo 0.0.0  34.5s
  3 P1 3 P2 3 P3 1 P4
 
 WHAT TO DO  6 actions clear 8 findings
-  P1  Fix CVE-2019-20477 “PyYAML: command execution through python/object/app…
-      component payments · control sca · 1 finding · app/requirements.txt:4 · CVE-2019-20477
   P1  Upgrade jinja2 2.10 → 2.11.3
       component payments · control sca · 2 findings · app/requirements.txt:5 · CVE-2019-10906 +1
+  P1  Fix CVE-2019-20477 “PyYAML: command execution through python/object/ap…”
+      component payments · control sca · 1 finding · app/requirements.txt:4 · CVE-2019-20477
   P1  Fix DS-0002 “Image user should not be 'root'”
       component payments · control iac · 1 finding · app/Dockerfile:1 · DS-0002
   P2  Fix “Detected user input flowing into a raw SQL string”
-      semgrep tainted-sql-string · bandit B608
+      Semgrep: tainted-sql-string · Bandit: B608
       control sast · 2 findings · app/main.py:42
-  P2  Fix CVE-2018-1000656 “python-flask: Denial of Service via crafted JSON…
+  P2  Fix CVE-2018-1000656 “python-flask: Denial of Service via crafted JSON…”
       component internal-tool · control sca · 1 finding · app/requirements.txt:2 · CVE-2018-1000656
   P2  Remove and rotate private-key
       Identified a Private Key, which may compromise cryptographic security

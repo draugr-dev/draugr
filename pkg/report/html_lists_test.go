@@ -153,7 +153,7 @@ func TestAnActionIsARowThatOpensItsFindings(t *testing.T) {
 		`<div class="sub">Identified a Private Key, which may compromise cryptographic security</div>`,
 		// A line of code is titled by what is wrong with it, and lists every rule that flags it.
 		`<span class="name">Fix “Detected user input flowing into a raw SQL string”</span>`,
-		`<div class="sub"><span class="lbl">semgrep</span> tainted-sql-string<span class="faint"> · </span><span class="lbl">bandit</span> B608</div>`,
+		`<div class="sub"><span class="lbl">Semgrep:</span> tainted-sql-string<span class="faint"> · </span><span class="lbl">Bandit:</span> B608</div>`,
 		// The list spans components, so each row says whose it is.
 		`<span class="lbl">component</span> payments`} {
 		if !strings.Contains(acts, want) {

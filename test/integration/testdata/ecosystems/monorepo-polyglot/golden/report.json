@@ -101,7 +101,7 @@
       "component": "api",
       "control": "sast",
       "findings": "<cleared>",
-      "id": "c17d71e5e8c69d79",
+      "id": "95c0d24f57fad06a",
       "kind": "code",
       "locations": [
         {
@@ -115,8 +115,7 @@
       "ruleIds": [
         "draugr-fixture-os-popen"
       ],
-      "summary": "os.popen runs its argument through a shell",
-      "title": "Fix draugr-fixture-os-popen",
+      "title": "Fix “os.popen runs its argument through a shell”",
       "where": [
         "services/api/app.py:7"
       ]
@@ -126,7 +125,7 @@
       "component": "web",
       "control": "sast",
       "findings": "<cleared>",
-      "id": "126aeef45011b4a4",
+      "id": "256674cc2b08261b",
       "kind": "code",
       "locations": [
         {
@@ -140,8 +139,7 @@
       "ruleIds": [
         "draugr-fixture-eval"
       ],
-      "summary": "eval runs its argument as code",
-      "title": "Fix draugr-fixture-eval",
+      "title": "Fix “eval runs its argument as code”",
       "where": [
         "services/web/src/index.js:4"
       ]

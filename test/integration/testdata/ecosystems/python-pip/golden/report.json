@@ -37,7 +37,7 @@
       "component": "python-pip",
       "control": "sast",
       "findings": "<cleared>",
-      "id": "c17d71e5e8c69d79",
+      "id": "d7f464e5a58c45c9",
       "kind": "code",
       "locations": [
         {
@@ -51,8 +51,7 @@
       "ruleIds": [
         "draugr-fixture-os-popen"
       ],
-      "summary": "os.popen runs its argument through a shell",
-      "title": "Fix draugr-fixture-os-popen",
+      "title": "Fix “os.popen runs its argument through a shell”",
       "where": [
         "app.py:7"
       ]

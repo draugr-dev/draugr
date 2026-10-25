@@ -91,7 +91,7 @@ that change clears.
 | Field | Meaning |
 |---|---|
 | `id` | identifies the action across runs. It changes when what the action groups on, or its target, changes; a dependency action groups on its component, package and installed version, and a `sast` action on its component, repository, file and line |
-| `title`, `summary` | what to do, and the scanner's description of the rule where the action is for a rule |
+| `title`, `summary` | what to do, and the scanner's description of the rule where the title names a rule. For code, the title is `Fix` followed by one scanner's description of the flaw, in quotes, or the rule's name where one rule flags the line and its description does not fit the title |
 | `kind` | the kind of work: `bump` (upgrade a dependency), `code` (change the code or its configuration, or investigate what it talks to), `infrastructure` (IaC, a cluster or a cloud account), `credential` (remove and rotate a committed secret), `wait` (a fix that has to come from somebody else's release, or no fixed version yet) or `decide` (a license, an operating system past its end of life, a finding that reports a fact). A control that could be code or infrastructure counts as `code` |
 | `component` | the component every finding belongs to. Absent where the findings span several, which only an action for a rule or an image can |
 | `control`, `priority` | the control the findings came from, and the highest band among them |
@@ -107,7 +107,7 @@ that change clears.
 | `policyApplies` | `false` where the versions are not semantic, such as a distribution's packages, so the action was not split. Absent wherever `withinPolicy` is present |
 | `fixedVersions` | the release each advisory names as its fix, in its own words |
 | `locations[]` | every place the findings are: `repository`, `path`, `line` and `kind`. `kind` is `manifest`, `lockfile`, `vendored` for a copy of the dependency committed to the tree, `image`, or `file` |
-| `where`, `ruleIds` | the first five locations as text, then `and N more`, and the first five rule identifiers |
+| `where`, `ruleIds` | the first five locations as text, then `and N more`, and the first five rule identifiers. A location names its repository when the action spans several, and a code action's names it once the list does. A code action's `ruleIds` start with the rule its title quotes, then follow the console's order, by scanner |
 | `findings[]` | the fingerprint of each finding the action clears, most urgent first. Each matches the `fingerprint` property of one result in `results.sarif` |
 
 The MCP server's `fix_list` returns the same objects without `findings[]`.

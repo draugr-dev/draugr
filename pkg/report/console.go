@@ -2119,7 +2119,7 @@ func renderActions(w io.Writer, col tui.Painter, actions []action, compact bool)
 		}
 		_, _ = fmt.Fprintf(w, "  %s  %s%s\n",
 			col.Paint(priorityColor(a.priority), fmt.Sprintf("%-2s", band)),
-			elide(title, max(titleRoom, minTitleWidth)), label)
+			elideTitle(title, max(titleRoom, minTitleWidth)), label)
 		if compact {
 			continue
 		}
@@ -2162,6 +2162,20 @@ func renderActions(w io.Writer, col tui.Painter, actions []action, compact bool)
 		}
 		_, _ = fmt.Fprintf(w, "      %s\n", strings.Join(meta, col.Paint(cDim, " · ")))
 	}
+}
+
+// elideTitle fits an action's title into width. A title closing on a quotation keeps its closing
+// mark, and the quoted words give way instead, as they do when the title is first written.
+func elideTitle(title string, width int) string {
+	if utf8.RuneCountInString(title) <= width {
+		return title
+	}
+	open := strings.Index(title, "“")
+	if open < 0 || !strings.HasSuffix(title, "”") {
+		return elide(title, width)
+	}
+	inner := strings.TrimSuffix(title[open+len("“"):], "”")
+	return quoted(title[:open], inner, width)
 }
 
 // metaWidth is what an action's labeled facts occupy before the detail is added, so the detail
@@ -2255,7 +2269,7 @@ func namedRules(col tui.Painter, groups []toolRules, shown, total int) string {
 		}
 		part := strings.Join(names, ", ")
 		if g.tool != "" {
-			part = col.Paint(cDim, g.tool) + " " + part
+			part = col.Paint(cDim, g.tool+":") + " " + part
 		}
 		parts = append(parts, part)
 	}

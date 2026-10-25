@@ -91,7 +91,7 @@
       "ruleIds": [
         "AWS-0107"
       ],
-      "title": "Fix AWS-0107 “Security groups should not allow unrestricted ingress to…",
+      "title": "Fix AWS-0107 “Security groups should not allow unrestricted ingress to…”",
       "where": [
         "deploy/terraform/main.tf:10"
       ]
