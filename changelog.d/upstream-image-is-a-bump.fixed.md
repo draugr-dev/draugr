@@ -1,1 +1,0 @@
-- **An image or repository somebody else publishes is in Bump a dependency when moving it can clear a finding.** 0.155.0 put every such action under Wait for a release. It is now a wait only when none of its findings has a fix published. Its row no longer shows a package's fixed version as if it were the image's target.

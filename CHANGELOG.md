@@ -12,6 +12,22 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.155.1] - 2026-10-26
+
+### Fixed
+
+- **An image or repository somebody else publishes is in Bump a dependency when moving it can clear a finding.** 0.155.0 put every such action under Wait for a release. It is now a wait only when none of its findings has a fix published. Its row no longer shows a package's fixed version as if it were the image's target.
+
+### Security
+
+- **An Azure publisher's `org` now sends the token only to Azure DevOps Services or the collection the pipeline names.** Any other origin is refused before anything is sent. For Azure DevOps Server outside Azure Pipelines, set `SYSTEM_TEAMFOUNDATIONCOLLECTIONURI` to the collection's URL.
+
+- **The `draugr-api` publisher sends its token to `DRAUGR_API_URL` or machine-config `publish.apiUrl`.** A descriptor `url:` on another origin fails the scan, as does a `url:` with a token and no `DRAUGR_API_URL`. Set `DRAUGR_API_URL`, or list the origin in `DRAUGR_API_ORIGINS`. Tokens go only over https or loopback, cross-origin redirects are refused, and `doctor` asks the policy server only with `--policy`.
+
+- **`${{ VAR }}` substitutes only built-in CI metadata and the variables the pipeline lists in `DRAUGR_SAGA_ENVS`.** A descriptor or fragment, remote ones included, that names any other variable fails to load, naming it. Add the name to `DRAUGR_SAGA_ENVS` (comma-separated). The built-in names are listed in the Saga reference under Substitution.
+
+- **A descriptor's `tokenEnv` must now be the integration's own variable or one listed in `DRAUGR_TOKEN_ENVS`.** Any other name fails the scan before anything is sent. Set `DRAUGR_TOKEN_ENVS=NAME1,NAME2` in the pipeline's environment. Every dast `auth.tokenEnv` must be listed, since dast has no variable of its own.
+
 ## [0.155.0] - 2026-10-26
 
 ### Changed
@@ -6405,7 +6421,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.155.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.155.1...HEAD
+[0.155.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.155.1
 [0.155.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.155.0
 [0.154.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.154.2
 [0.154.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.154.1
