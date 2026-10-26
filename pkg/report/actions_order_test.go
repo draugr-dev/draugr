@@ -1,11 +1,14 @@
 package report
 
 import (
+	"bytes"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/skald"
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 // ratedDep is a dependency finding with a severity, and with the exploitation signal that raised it
@@ -133,5 +136,22 @@ func TestAnUpstreamImageIsABumpWhenMovingItClearsAFinding(t *testing.T) {
 	}
 	if k := kinds["Update vendor/old:1"]; k != skald.KindWait {
 		t.Errorf("an image none of whose findings has a fix is %q, want a wait", k)
+	}
+}
+
+// TestAnUpstreamImageNamesNoTarget: the one fixed version its findings share is a package's, and
+// printed after the image's name it reads as a tag of the image that nothing here knows exists.
+func TestAnUpstreamImageNamesNoTarget(t *testing.T) {
+	got, _ := groupActions([]finding{upstreamImage("cgr.dev/chainguard/static:latest", "CVE-1", "20260909-r3")}, nil)
+	if len(got) != 1 {
+		t.Fatalf("want one action, got %d", len(got))
+	}
+	if tgt := got[0].target(); tgt != "" {
+		t.Errorf("an upstream image's action names target %q, a package's version", tgt)
+	}
+	var buf bytes.Buffer
+	renderActions(&buf, tui.Plain(), got, false)
+	if strings.Contains(buf.String(), "→") {
+		t.Errorf("the row shows a target:\n%s", buf.String())
 	}
 }

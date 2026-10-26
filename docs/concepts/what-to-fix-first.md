@@ -36,11 +36,11 @@ The actions are split by who does the work, into these lists:
 
 | List | What it holds |
 |---|---|
-| **Bump a dependency** | an upgrade to the release that fixes a dependency, in a repository or an image you build |
+| **Bump a dependency** | an upgrade to the release that fixes a dependency, in a repository or an image you build, or a move of an image or repository somebody else publishes when any of its findings has a fix published |
 | **Change the code** | a change to the application's code or its server's configuration, from `sast`, `dast`, `headers` and `tls` |
 | **Change the infrastructure** | a change to infrastructure code or a live setting, from `iac`, `kubernetes` and `cloud` |
 | **Rotate a credential** | a committed secret to remove and then rotate, from `secrets` |
-| **Wait for a release** | a fix that has to come from somebody else: a newer image or repository its publisher builds, or a package with no fixed release yet |
+| **Wait for a release** | a fix nobody has published yet: a package with no fixed release, or an image or repository none of whose findings has one |
 | **Decide** | a decision rather than a change: a license to accept or replace, an operating system past end of service life |
 
 Each list is ordered the way [the list is ordered](#how-the-list-is-ordered). The order of the lists
@@ -184,9 +184,12 @@ images:
 ```
 
 On `upstream`, every vulnerability in the image becomes one action. *take a newer image*, instead of
-one row per vulnerable library. Nobody can upgrade a package inside an image they do not build; the
-fix is a newer image, or a wait for whoever publishes it. Its licenses become a second action, a
-review of what the image carries, because a newer image carries the same licenses.
+one row per vulnerable library. Nobody can upgrade a package inside an image they do not build, and
+the reference to the image is theirs to move, to a rebuilt image or to a supported base. So the
+action is in **Bump a dependency** when any of its findings has a fix published, and in **Wait for a
+release** only when none has. The row names no target version: the fixes Draugr knows are versions of
+packages inside the image, not of the image. Its licenses become a second action, a review of what
+the image carries, because a newer image carries the same licenses.
 
 On `self` (the default), a package inside the image is yours, and the rows say to upgrade it.
 
