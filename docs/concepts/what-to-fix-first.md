@@ -16,14 +16,14 @@ Draugr's fix list answers a different question: **what should I do, and what wil
 ```
 WHAT TO DO  <n> actions clear <m> findings
 
-<the list>  <n> actions clear <m> findings
+<list name>  <n> actions clear <m> findings
   <band>  <the action>
           <the scanner's description of the rule, when the action names one>
           <each scanner and the rules it flags the line with, for a line of code>
           component <component, when there are several> · control <control> · <n> findings ·
           <upstream, when not yours> · <where it applies> ·
           <the rule it names, and how many more it clears>
-  … and <n> more
+  … and <n> actions not listed
 ```
 
 A schematic rather than a scan, because the shape is what this page is about and a pasted run
@@ -32,26 +32,26 @@ the real thing.
 
 ## One list for each kind of work
 
-The actions are split by who does the work, in this order:
+The actions are split by who does the work, into these lists:
 
-| List | What empties it |
+| List | What it holds |
 |---|---|
-| **Bump a dependency** | move to the release that fixes it |
-| **Change the code** | change the code, or the server's configuration |
-| **Change the infrastructure** | change the infrastructure code, or the live configuration |
-| **Rotate a credential** | remove it from the code, then rotate it |
-| **Wait for a release** | take the fix once its publisher releases one |
-| **Decide** | accept it, or replace what the policy ruled on |
+| **Bump a dependency** | an upgrade to the release that fixes a dependency, in a repository or an image you build |
+| **Change the code** | a change to the application's code or its server's configuration, from `sast`, `dast`, `headers` and `tls` |
+| **Change the infrastructure** | a change to infrastructure code or a live setting, from `iac`, `kubernetes` and `cloud` |
+| **Rotate a credential** | a committed secret to remove and then rotate, from `secrets` |
+| **Wait for a release** | a fix that has to come from somebody else: a newer image or repository its publisher builds, or a package with no fixed release yet |
+| **Decide** | a decision rather than a change: a license to accept or replace, an operating system past end of service life |
 
-Each list is ordered the way [the whole list is](#how-the-list-is-ordered), so the first row of
-**Change the code** is the most urgent change to the code, whatever the dependency upgrades clear.
-One sequence ranked a fix to the application's own code against a base image clearing hundreds of
-findings, by numbers that say nothing about which a developer should change first.
+Each list is ordered the way [the list is ordered](#how-the-list-is-ordered). The order of the lists
+themselves is fixed and says nothing about urgency, so the first row of **Change the code** is the
+most urgent change to the code even when a base image in another list clears hundreds of findings.
+Every action is in exactly one list.
 
 `WHAT TO DO` counts every action and every finding across the lists. Each list shows its first
-three and counts the rest as `… and N more`. `--top N` shows the first `N` of each, and `--top 0`
-every action. A list with nothing in it is left out. The MCP `fix_list` tool takes the same kinds
-as `kind`, to answer for one list.
+three and ends with `… and N actions not listed`. `--top N` shows the first `N` of each list and
+`--top 0` shows every action. A list with nothing in it is left out. The MCP `fix_list` tool takes
+the same kinds as `kind`.
 
 ## Rows are actions, not findings
 
@@ -116,7 +116,7 @@ is worth.
 
 ## How the list is ordered
 
-To order two rows, compare them key by key from the top. The first key where they differ decides.
+To order two rows in one list, compare them key by key from the top. The first key where they differ decides.
 
 1. **Priority.** The highest band among the findings the action clears. An action clearing one P1
    outranks one clearing forty P4s, and an action with no band comes after every action with one.

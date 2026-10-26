@@ -1132,7 +1132,7 @@ type FixListInput struct {
 	// Kind narrows the answer to one list, the way the console shows a list per kind of work. Asked
 	// what a developer should change first, the code list answers it; the full list mixes in base
 	// images and upgrades that rank on numbers that say nothing about code.
-	Kind string `json:"kind,omitempty" jsonschema:"only the actions of one kind of work: bump (upgrade a dependency), code (change the code or the server's configuration), infrastructure, credential (rotate it), wait (for somebody else's release) or decide. Omit for every kind"`
+	Kind string `json:"kind,omitempty" jsonschema:"only the actions of one kind of work: bump (upgrade a dependency), code (change the application's code or its server's configuration), infrastructure (change infrastructure code or a live setting), credential (remove and rotate a committed secret), wait (for somebody else's release) or decide (accept or replace, e.g. a license). Omit for every kind"`
 }
 
 // FixListOutput is the work a report implies, rather than the findings in it.

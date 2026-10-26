@@ -14,7 +14,7 @@ Change the code  3 actions clear 4 findings
   P2  Fix “Detected user input flowing into a raw SQL string”
       Semgrep: tainted-sql-string · Bandit: B608
       control sast · 2 findings · app/main.py:42
-  … and 1 more
+  … and 1 action not listed
 
 Change the infrastructure  2 actions clear 2 findings
   P1  Fix DS-0002 “Image user should not be 'root'”

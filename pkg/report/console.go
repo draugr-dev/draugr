@@ -1702,7 +1702,8 @@ func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) (l
 		}
 		renderActionRows(w, col, shown, d.View == ViewCompact, nameComponents)
 		if len(shown) < len(as) {
-			_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim, fmt.Sprintf("… and %d more", len(as)-len(shown))))
+			_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim, fmt.Sprintf("… and %s not listed",
+				english.Count(len(as)-len(shown), "action"))))
 			listed = limit
 		}
 	}
