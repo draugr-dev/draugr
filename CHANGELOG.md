@@ -16,29 +16,19 @@ _Nothing yet._
 
 ### Changed
 
-- **`draugr tools install` fetches cosign 3.1.4**, which was pinned at 3.1.3.
+- **The fix list is one list per kind of work.** `--view actions` now shows Bump a dependency, Change the code, Change the infrastructure, Rotate a credential, Wait for a release and Decide as separate lists, each in priority order and showing three actions by default. `--top N` limits each list, not the whole. The MCP `fix_list` tool takes `kind` to return one list.
 
-- **`draugr tools install` fetches govulncheck 1.9.0**, which was pinned at 1.8.0.
+- **The fix list gives one action per line of code.** Where it gave one per rule, an action now clears every rule that flags the line. A shell command flagged by Bandit and three Semgrep rules is one `sast` action clearing four findings, listing each rule. `results.sarif` still holds one record per finding.
 
-- **`draugr tools install` fetches retire 6.1.0**, which was pinned at 5.7.0.
+- **Exploited flaws come first within each band.** `--view actions` and the MCP `fix_list` tool rank an action clearing a flaw on CISA's Known Exploited Vulnerabilities catalog first, then one clearing a flaw whose EPSS score is above the configured threshold, then by worst severity, then by findings cleared.
 
-- **`draugr tools install` fetches semgrep 1.182.1**, which was pinned at 1.177.0.
+- **SAST findings take their severity from Semgrep's and Bandit's own ratings, so some change band on your first scan.** Semgrep uses each rule's impact and likelihood instead of reading `error` as high. Semgrep `audit` or low confidence, and Bandit low confidence, lower the severity one step. The console shows the scanner's rating under each finding, and `report.json` carries it.
 
-- **`draugr tools install` fetches syft 1.55.0**, which was pinned at 1.51.1.
-
-- **`draugr tools install` fetches trivy 0.76.1**, which was pinned at 0.74.0.
-
-- **The fix list is one list for each kind of work.** `draugr scan --view actions` shows Bump a dependency, Change the code, Change the infrastructure, Rotate a credential, Wait for a release and Decide separately, each in priority order, three actions each. `--top N` now counts per list. The MCP `fix_list` tool takes `kind` to return one list.
-
-- **The fix list gives one action per line of code, clearing every rule that flags it, where it gave one per rule.** A shell command that Bandit and three Semgrep rules flag is one `sast` action clearing four findings, titled with one scanner's description of the flaw and listing each rule. `results.sarif` still holds one record per finding.
-
-- **Semgrep and imported Bandit findings take their severity from the scanner's own rating, so SAST findings may change band on the first scan with this release.** Semgrep's `error` level was read as high; its impact and likelihood now decide, and `audit` or low confidence lowers a band, as low confidence does for Bandit. Each finding prints its rating.
-
-- **The fix list puts exploited flaws first within each band.** `--view actions` and the MCP `fix_list` tool now rank an action that clears a flaw on CISA's Known Exploited Vulnerabilities catalog first in its band, then one clearing a flaw EPSS raised, then by worst severity, and only then by how many findings it clears.
+- **`draugr tools install` fetches newer versions of six tools:** cosign 3.1.4, govulncheck 1.9.0, retire 6.1.0, semgrep 1.182.1, syft 1.55.0 and trivy 0.76.1. Run it again to update.
 
 ### Fixed
 
-- **A Notary Project signature whose certificate subject differs from the declared one is reported as `provenance-unexpected-identity`.** Earlier releases reported the provenance control as unable to run, because notation states why it refused a signature only in its verbose log, which Draugr now reads.
+- **A Notary Project signature with an unexpected certificate subject is reported as `provenance-unexpected-identity`.** The provenance control previously reported that it could not run.
 
 ## [0.154.2] - 2026-10-25
 
