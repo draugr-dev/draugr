@@ -1,1 +1,0 @@
-- **The fix list is one list for each kind of work.** `draugr scan --view actions` shows Bump a dependency, Change the code, Change the infrastructure, Rotate a credential, Wait for a release and Decide separately, each in priority order, three actions each. `--top N` now counts per list. The MCP `fix_list` tool takes `kind` to return one list.

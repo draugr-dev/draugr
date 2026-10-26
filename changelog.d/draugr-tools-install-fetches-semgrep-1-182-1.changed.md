@@ -1,1 +1,0 @@
-- **`draugr tools install` fetches semgrep 1.182.1**, which was pinned at 1.177.0.

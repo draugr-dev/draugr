@@ -12,6 +12,34 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.155.0] - 2026-10-26
+
+### Changed
+
+- **`draugr tools install` fetches cosign 3.1.4**, which was pinned at 3.1.3.
+
+- **`draugr tools install` fetches govulncheck 1.9.0**, which was pinned at 1.8.0.
+
+- **`draugr tools install` fetches retire 6.1.0**, which was pinned at 5.7.0.
+
+- **`draugr tools install` fetches semgrep 1.182.1**, which was pinned at 1.177.0.
+
+- **`draugr tools install` fetches syft 1.55.0**, which was pinned at 1.51.1.
+
+- **`draugr tools install` fetches trivy 0.76.1**, which was pinned at 0.74.0.
+
+- **The fix list is one list for each kind of work.** `draugr scan --view actions` shows Bump a dependency, Change the code, Change the infrastructure, Rotate a credential, Wait for a release and Decide separately, each in priority order, three actions each. `--top N` now counts per list. The MCP `fix_list` tool takes `kind` to return one list.
+
+- **The fix list gives one action per line of code, clearing every rule that flags it, where it gave one per rule.** A shell command that Bandit and three Semgrep rules flag is one `sast` action clearing four findings, titled with one scanner's description of the flaw and listing each rule. `results.sarif` still holds one record per finding.
+
+- **Semgrep and imported Bandit findings take their severity from the scanner's own rating, so SAST findings may change band on the first scan with this release.** Semgrep's `error` level was read as high; its impact and likelihood now decide, and `audit` or low confidence lowers a band, as low confidence does for Bandit. Each finding prints its rating.
+
+- **The fix list puts exploited flaws first within each band.** `--view actions` and the MCP `fix_list` tool now rank an action that clears a flaw on CISA's Known Exploited Vulnerabilities catalog first in its band, then one clearing a flaw EPSS raised, then by worst severity, and only then by how many findings it clears.
+
+### Fixed
+
+- **A Notary Project signature whose certificate subject differs from the declared one is reported as `provenance-unexpected-identity`.** Earlier releases reported the provenance control as unable to run, because notation states why it refused a signature only in its verbose log, which Draugr now reads.
+
 ## [0.154.2] - 2026-10-25
 
 ### Fixed
@@ -6387,7 +6415,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.154.2...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.155.0...HEAD
+[0.155.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.155.0
 [0.154.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.154.2
 [0.154.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.154.1
 [0.154.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.154.0

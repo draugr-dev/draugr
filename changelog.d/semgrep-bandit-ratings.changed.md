@@ -1,1 +1,0 @@
-- **Semgrep and imported Bandit findings take their severity from the scanner's own rating, so SAST findings may change band on the first scan with this release.** Semgrep's `error` level was read as high; its impact and likelihood now decide, and `audit` or low confidence lowers a band, as low confidence does for Bandit. Each finding prints its rating.

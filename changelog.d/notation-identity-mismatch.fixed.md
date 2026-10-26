@@ -1,1 +1,0 @@
-- **A Notary Project signature whose certificate subject differs from the declared one is reported as `provenance-unexpected-identity`.** Earlier releases reported the provenance control as unable to run, because notation states why it refused a signature only in its verbose log, which Draugr now reads.

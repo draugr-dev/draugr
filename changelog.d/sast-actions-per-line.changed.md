@@ -1,1 +1,0 @@
-- **The fix list gives one action per line of code, clearing every rule that flags it, where it gave one per rule.** A shell command that Bandit and three Semgrep rules flag is one `sast` action clearing four findings, titled with one scanner's description of the flaw and listing each rule. `results.sarif` still holds one record per finding.

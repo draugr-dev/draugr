@@ -1,1 +1,0 @@
-- **`draugr tools install` fetches cosign 3.1.4**, which was pinned at 3.1.3.

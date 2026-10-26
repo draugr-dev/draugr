@@ -1,1 +1,0 @@
-- **`draugr tools install` fetches syft 1.55.0**, which was pinned at 1.51.1.
