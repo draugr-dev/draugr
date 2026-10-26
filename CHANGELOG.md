@@ -20,13 +20,15 @@ _Nothing yet._
 
 ### Security
 
-- **An Azure publisher's `org` now sends the token only to Azure DevOps Services or the collection the pipeline names.** Any other origin is refused before anything is sent. For Azure DevOps Server outside Azure Pipelines, set `SYSTEM_TEAMFOUNDATIONCOLLECTIONURI` to the collection's URL.
+- **These changes fix [GHSA-23g8-j5jp-q8fw](https://github.com/draugr-dev/draugr/security/advisories/GHSA-23g8-j5jp-q8fw).** Pipelines that run untrusted changes to a descriptor with secrets in the environment should upgrade, and rotate any secret such a change could have reached.
 
 - **The `draugr-api` publisher sends its token to `DRAUGR_API_URL` or machine-config `publish.apiUrl`.** A descriptor `url:` on another origin fails the scan, as does a `url:` with a token and no `DRAUGR_API_URL`. Set `DRAUGR_API_URL`, or list the origin in `DRAUGR_API_ORIGINS`. Tokens go only over https or loopback, cross-origin redirects are refused, and `doctor` asks the policy server only with `--policy`.
 
+- **A descriptor's `tokenEnv` must now be the integration's own variable or one listed in `DRAUGR_TOKEN_ENVS`.** Any other name fails the scan before anything is sent. Set `DRAUGR_TOKEN_ENVS=NAME1,NAME2` in the pipeline's environment. Every dast `auth.tokenEnv` must be listed, since dast has no variable of its own.
+
 - **`${{ VAR }}` substitutes only built-in CI metadata and the variables the pipeline lists in `DRAUGR_SAGA_ENVS`.** A descriptor or fragment, remote ones included, that names any other variable fails to load, naming it. Add the name to `DRAUGR_SAGA_ENVS` (comma-separated). The built-in names are listed in the Saga reference under Substitution.
 
-- **A descriptor's `tokenEnv` must now be the integration's own variable or one listed in `DRAUGR_TOKEN_ENVS`.** Any other name fails the scan before anything is sent. Set `DRAUGR_TOKEN_ENVS=NAME1,NAME2` in the pipeline's environment. Every dast `auth.tokenEnv` must be listed, since dast has no variable of its own.
+- **An Azure publisher's `org` now sends the token only to Azure DevOps Services or the collection the pipeline names.** Any other origin is refused before anything is sent. For Azure DevOps Server outside Azure Pipelines, set `SYSTEM_TEAMFOUNDATIONCOLLECTIONURI` to the collection's URL.
 
 ## [0.155.0] - 2026-10-26
 
