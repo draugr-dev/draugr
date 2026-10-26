@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/skald"
 )
 
 // ratedDep is a dependency finding with a severity, and with the exploitation signal that raised it
@@ -102,5 +103,35 @@ func TestBothStepsOfAnUpgradeRankByWhatEitherClears(t *testing.T) {
 	}
 	if got[0].key == got[1].key || got[1].key != got[0].key+"\x00beyond" {
 		t.Errorf("the step within the policy should come first: %q then %q", got[0].key, got[1].key)
+	}
+}
+
+// upstreamImage is a finding in an image somebody else builds, with the fix its package has.
+func upstreamImage(image, rule, fixed string) finding {
+	f := pkgFinding("images", rule, "P1", image, "openssl", "3.0.14", fixed)
+	f.builtUpstream, f.image = true, image
+	f.remediation = sarif.RemediationUpstream
+	return f
+}
+
+// TestAnUpstreamImageIsABumpWhenMovingItClearsAFinding: the reader does not build the image and
+// does choose which one they pull, so an image whose findings have a fix published is a reference
+// to move, and only one whose findings have none is a wait.
+func TestAnUpstreamImageIsABumpWhenMovingItClearsAFinding(t *testing.T) {
+	in := []finding{
+		upstreamImage("python:3.8-slim", "CVE-1", ""),
+		upstreamImage("python:3.8-slim", "CVE-2", "3.0.22"),
+		upstreamImage("vendor/old:1", "CVE-3", ""),
+	}
+	got, _ := groupActions(in, nil)
+	kinds := map[string]skald.ActionKind{}
+	for _, a := range got {
+		kinds[a.title] = a.kind
+	}
+	if k := kinds["Update python:3.8-slim"]; k != skald.KindBump {
+		t.Errorf("an image with a published fix among its findings is %q, want a bump; the first finding grouped had none", k)
+	}
+	if k := kinds["Update vendor/old:1"]; k != skald.KindWait {
+		t.Errorf("an image none of whose findings has a fix is %q, want a wait", k)
 	}
 }

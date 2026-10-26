@@ -294,6 +294,7 @@ func groupActions(findings []finding, unpinned []string) (actions []action, exte
 		if f, ok := a.exemplar(); ok {
 			a.upstream = f.builtUpstream
 		}
+		a.kind = upstreamKind(a)
 		if a.byRule {
 			a.summary = summaryFor(a)
 		}
@@ -468,7 +469,8 @@ func actionFor(f finding) (key, title string, kind skald.ActionKind, byRule bool
 	// not the unit of work here.
 	case f.builtUpstream && f.control == "images" && f.location != "":
 		// The image is the title, so the row does not repeat it below, and the reason it is the
-		// unit of work goes in the meta as one word rather than a clause on every line.
+		// unit of work goes in the meta as one word rather than a clause on every line. Its kind is
+		// decided over every finding it clears, by upstreamKind, once the action is whole.
 		return "image\x00" + f.location, "Update " + displayLocation(f), skald.KindWait, false
 
 	// The same argument one level up, for a repository somebody else publishes. The unit of work is
@@ -975,6 +977,12 @@ func (a action) fixedVersions() []string {
 // order. For any other action, the release only when every advisory in it names the same one: an
 // image's findings are in many packages, and no one package's release is the image's fix.
 func (a action) target() string {
+	// None for an image or a repository somebody else publishes. Its findings' fixed versions are
+	// versions of packages inside it, and naming one after the image's own name reads as a tag or a
+	// release of the image that nothing here knows exists.
+	if strings.HasPrefix(a.key, "image\x00") || strings.HasPrefix(a.key, "upstream\x00") {
+		return ""
+	}
 	if a.step != nil && a.step.target != "" {
 		return a.step.target
 	}
@@ -1156,4 +1164,23 @@ func upstreamUnit(f finding) string {
 		return shortRepository(r)
 	}
 	return f.component
+}
+
+// upstreamKind is the kind of work an action on an image or a repository somebody else publishes
+// is, decided over every finding it clears; any other action keeps its own.
+//
+// The reader does not build it, and does choose which one they pull: the reference in their
+// Dockerfile, descriptor or manifest is theirs to move. So it is a bump when any finding it clears
+// has a fixed version published somewhere, because a newer release or a supported base clears it,
+// and a wait only when none has, because no release yet would.
+func upstreamKind(a action) skald.ActionKind {
+	if !strings.HasPrefix(a.key, "image\x00") && !strings.HasPrefix(a.key, "upstream\x00") {
+		return a.kind
+	}
+	for _, f := range a.findings {
+		if f.pkg != nil && f.pkg.FixedVersion != "" {
+			return skald.KindBump
+		}
+	}
+	return skald.KindWait
 }

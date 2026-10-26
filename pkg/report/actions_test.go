@@ -377,7 +377,7 @@ func TestActionsForReadsEachResultsControl(t *testing.T) {
 		return out
 	}
 	want := []string{
-		"Update python:3.8-slim|images|wait|1",
+		"Update python:3.8-slim|images|bump|1",
 		"Remove and rotate aws-access-token|secrets|credential|1",
 		"Review the licenses in python:3.8-slim|licenses|decide|1",
 	}

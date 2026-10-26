@@ -276,8 +276,8 @@ func TestFixListKeepsEachControlsAction(t *testing.T) {
 		clears  int
 	}
 	want := map[string]row{
-		"Update python:3.8-slim":                          {"images", skald.KindWait, 3},
-		"Update chainguard/static:latest":                 {"images", skald.KindWait, 1},
+		"Update python:3.8-slim":                          {"images", skald.KindBump, 3},
+		"Update chainguard/static:latest":                 {"images", skald.KindBump, 1},
 		"Review the licenses in python:3.8-slim":          {"licenses", skald.KindDecide, 2},
 		"Review the licenses in chainguard/static:latest": {"licenses", skald.KindDecide, 1},
 		"Remove and rotate aws-access-token":              {"secrets", skald.KindCredential, 1},
