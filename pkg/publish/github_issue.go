@@ -32,11 +32,14 @@ type githubIssuePublisher struct {
 }
 
 func newGithubIssuePublisher(cfg saga.PublisherConfig) (Publisher, error) {
-	tokenEnv := firstNonEmpty(cfg.TokenEnv, "GITHUB_TOKEN")
+	tokenEnv, token, err := tokenFor(cfg)
+	if err != nil {
+		return nil, err
+	}
 	p := githubIssuePublisher{
 		cfg:    cfg,
 		repo:   firstNonEmpty(cfg.Repo, os.Getenv("GITHUB_REPOSITORY")),
-		token:  os.Getenv(tokenEnv),
+		token:  token,
 		apiURL: strings.TrimSuffix(firstNonEmpty(os.Getenv("GITHUB_API_URL"), "https://api.github.com"), "/"),
 		label:  firstNonEmpty(cfg.Label, defaultIssueLabel),
 		client: newIssueClient(http.DefaultClient),

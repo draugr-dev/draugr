@@ -188,7 +188,11 @@ func runAirGapped(t *testing.T, s sealed.Scenario, bin, prepared, work, descript
 	if _, err := s.Prepare(work); err != nil {
 		t.Fatal(err)
 	}
-	c.Env = map[string]string{"DRAUGR_SEALED_SEMGREP_RULES": filepath.Join(work, "semgrep.yaml")}
+	// Listed in DRAUGR_SAGA_ENVS for the reason the sealed scenarios list it.
+	c.Env = map[string]string{
+		"DRAUGR_SEALED_SEMGREP_RULES": filepath.Join(work, "semgrep.yaml"),
+		"DRAUGR_SAGA_ENVS":            "DRAUGR_SEALED_SEMGREP_RULES",
+	}
 	if opts.WithoutTool != "" {
 		if err := c.Hide(opts.WithoutTool); err != nil {
 			t.Fatal(err)

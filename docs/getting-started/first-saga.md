@@ -90,8 +90,10 @@ you.
 
 ## Reference environment variables, not secrets
 
-Any string value may reference an environment variable with `${{ VAR_NAME }}`; loading fails
-fast if a referenced variable is unset. Never put a token in the Saga itself:
+Any string value may reference an environment variable with `${{ VAR_NAME }}`, if it is one of
+the [built-in CI names](../reference/saga-schema.md#substitution) or one the pipeline lists in
+`$DRAUGR_SAGA_ENVS`. Loading fails fast on any other name, and on a listed one that is unset. Never
+put a token in the Saga itself:
 
 ```yaml
 project: my-app

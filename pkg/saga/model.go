@@ -607,10 +607,13 @@ type PublisherConfig struct {
 
 	// github / github-pr-comment: Repo defaults to $GITHUB_REPOSITORY; the token to $GITHUB_TOKEN
 	// (or TokenEnv). github: Commit/Ref default to $GITHUB_SHA / $GITHUB_REF.
-	Repo     string `yaml:"repo,omitempty"`
-	Commit   string `yaml:"commit,omitempty"`
-	Ref      string `yaml:"ref,omitempty"`
-	TokenEnv string `yaml:"tokenEnv,omitempty"` // env var holding the token; default GITHUB_TOKEN
+	Repo   string `yaml:"repo,omitempty"`
+	Commit string `yaml:"commit,omitempty"`
+	Ref    string `yaml:"ref,omitempty"`
+	// TokenEnv names the environment variable holding the token, in place of the kind's own
+	// (GITHUB_TOKEN, GITLAB_TOKEN, SYSTEM_ACCESSTOKEN or DRAUGR_API_TOKEN). Any other name must be
+	// listed in $DRAUGR_TOKEN_ENVS, which the pipeline sets.
+	TokenEnv string `yaml:"tokenEnv,omitempty"`
 
 	// github-pr-comment / azure-pr-comment: posts the markdown report as a sticky pull-request
 	// comment. PR defaults to the number parsed from $GITHUB_REF (refs/pull/<n>/merge) or
@@ -626,19 +629,21 @@ type PublisherConfig struct {
 	Org     string `yaml:"org,omitempty"`
 	Project string `yaml:"project,omitempty"`
 
-	// draugr-api: URL is where the server is reached, defaulting to $DRAUGR_API_URL. The token
-	// comes from $DRAUGR_API_TOKEN (or TokenEnv) and never from this file, which is one people
-	// commit.
+	// draugr-api: URL is where the server is reached. The server is $DRAUGR_API_URL, or the
+	// machine's configured default, and URL is used only where its origin is that server's or one
+	// $DRAUGR_API_ORIGINS lists: the descriptor changes by pull request, and the token goes where
+	// URL points. The token comes from $DRAUGR_API_TOKEN (or TokenEnv) and never from this file,
+	// which is one people commit.
 	URL string `yaml:"url,omitempty"`
-	// DefaultURL is what draugr.config.yaml said, carried here so a publisher can consult it last.
-	// Never read from a descriptor, `yaml:"-"`, so writing it in a Saga does nothing and the schema
-	// does not offer it.
-	//
-	// A separate field rather than filling URL, because the two sit at opposite ends of the
-	// precedence chain: URL is somebody's explicit choice for this project and beats the
-	// environment, while this is the organization's default and loses to it. Merging them would
-	// make an ambient value indistinguishable from an intentional one.
+	// DefaultURL is publish.apiUrl from a machine's draugr configuration, ~/.draugr/config.yaml or
+	// the file --config or $DRAUGR_CONFIG names, carried here so a publisher can consult it after
+	// $DRAUGR_API_URL. Never read from a descriptor, `yaml:"-"`, so writing it in a Saga does nothing
+	// and the schema does not offer it.
 	DefaultURL string `yaml:"-"`
+	// ProjectURL is publish.apiUrl from the draugr.config.yaml in the directory being scanned.
+	// Committed with the repository like the descriptor, so it is held to URL's rule rather than
+	// trusted as DefaultURL is. Never read from a descriptor either.
+	ProjectURL string `yaml:"-"`
 
 	// github-issue, gitlab-issue, azure-work-item: one tracking item kept open while the gate fails
 	// and closed when it passes.

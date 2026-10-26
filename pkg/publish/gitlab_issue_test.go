@@ -11,6 +11,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/credential"
 	"github.com/draugr-dev/draugr/pkg/ci"
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -627,6 +628,7 @@ func TestTheGitLabIssuePublisherNeedsAProjectAndAToken(t *testing.T) {
 	}
 
 	t.Setenv("DEPLOY_TOKEN", "secret")
+	t.Setenv(credential.TokenEnvsVar, "DEPLOY_TOKEN")
 	p, err = For(saga.PublisherConfig{Kind: "gitlab-issue", Repo: "acme/app", TokenEnv: "DEPLOY_TOKEN"})
 	if err != nil || p.Kind() != "gitlab-issue" {
 		t.Errorf("repo and tokenEnv: %v, %v", p, err)

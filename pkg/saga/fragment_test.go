@@ -548,9 +548,48 @@ func TestLoadFragmentRejectsBrokenYAMLAndUndefinedVars(t *testing.T) {
 	if _, err := LoadFragment([]byte("components: [oops"), "f.saga-fragment.yaml"); err == nil {
 		t.Error("broken YAML was accepted")
 	}
+	t.Setenv(SagaEnvsVar, "NOPE_UNSET_VAR")
 	_, err := LoadFragment([]byte("components: [{ name: \"${{ NOPE_UNSET_VAR }}\" }]"), "f.saga-fragment.yaml")
-	if err == nil || !strings.Contains(err.Error(), "NOPE_UNSET_VAR") {
+	if err == nil || !strings.Contains(err.Error(), "undefined environment variable(s) referenced in fragment") ||
+		!strings.Contains(err.Error(), "NOPE_UNSET_VAR") {
 		t.Errorf("an undefined variable should be named: %v", err)
+	}
+}
+
+// A fragment from another repository is written by somebody other than the pipeline's owner, and is
+// held to the same rule as the descriptor: an unlisted name refuses the whole resolution.
+func TestARemoteFragmentSubstitutesOnlyWhatThePipelineLists(t *testing.T) {
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "aws-secret")
+	t.Setenv("STAGING_HOST", "staging.acme.example")
+	remote := t.TempDir()
+	write(t, remote, "f.saga-fragment.yaml", `
+components:
+  - name: api
+    hosts:
+      - name: api
+        url: https://${{ STAGING_HOST }}/?k=${{ AWS_SECRET_ACCESS_KEY }}
+`)
+	dir := t.TempDir()
+	root := write(t, dir, "draugr.saga.yaml", rootHeader+`
+fragments:
+  - url: https://github.com/acme/platform.git
+    revision: v2.4.0
+    path: "f.saga-fragment.yaml"
+`)
+	t.Setenv(SagaEnvsVar, "STAGING_HOST")
+	_, err := ResolveFile(root, &fakeFetcher{dir: remote, resolved: "a1b3f9c0d2e4f6a8b0c2"})
+	if err == nil || !strings.Contains(err.Error(), "not listed in $DRAUGR_SAGA_ENVS: AWS_SECRET_ACCESS_KEY") ||
+		strings.Contains(err.Error(), "aws-secret") {
+		t.Fatalf("err = %v", err)
+	}
+
+	t.Setenv(SagaEnvsVar, "STAGING_HOST,AWS_SECRET_ACCESS_KEY")
+	res, err := ResolveFile(root, &fakeFetcher{dir: remote, resolved: "a1b3f9c0d2e4f6a8b0c2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := res.Model.Components[0].Hosts[0].URL; got != "https://staging.acme.example/?k=aws-secret" {
+		t.Errorf("url = %q, want both listed names substituted", got)
 	}
 }
 

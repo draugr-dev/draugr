@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -14,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/draugr-dev/draugr/internal/credential"
 	"github.com/draugr-dev/draugr/pkg/ci"
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -54,6 +56,8 @@ const (
 	// #nosec G101 -- the name of an environment variable, not a credential. The value is read
 	// from the environment at run time and never appears in this repository.
 	apiTokenEnv = "DRAUGR_API_TOKEN"
+	// apiOriginsEnv lists further origins a descriptor's url may name, comma-separated.
+	apiOriginsEnv = "DRAUGR_API_ORIGINS"
 )
 
 // APIDestination is the server a draugr-api publisher sends a run to, and the token it sends.
@@ -62,28 +66,72 @@ type APIDestination struct {
 	Token    string
 }
 
+// ErrOriginRefused is a url, written in the descriptor or in the project's draugr.config.yaml,
+// that names a server the environment does not allow.
+var ErrOriginRefused = errors.New("not an allowed origin")
+
+// OriginRefusedError is a url the token may not be sent to, and what it was compared with.
+type OriginRefusedError struct {
+	// Field says where the refused url was written.
+	Field string
+	// URL is the refused address.
+	URL string
+	// Endpoint is the address the environment names, and EndpointFrom where it was read. Both are
+	// empty where the environment names none.
+	Endpoint, EndpointFrom string
+}
+
+func (e *OriginRefusedError) Error() string {
+	if e.Endpoint == "" {
+		return fmt.Sprintf("draugr-api publisher: %s (%s) is not an allowed origin, and $%s is not set. "+
+			"Set $%s to the server's address, or add the url's origin to $%s",
+			e.Field, e.URL, apiURLEnv, apiURLEnv, apiOriginsEnv)
+	}
+	return fmt.Sprintf("draugr-api publisher: %s (%s) and %s (%s) name different origins, and the token "+
+		"is sent only to the one the environment names. Remove the url, or add its origin to $%s",
+		e.Field, e.URL, e.EndpointFrom, e.Endpoint, apiOriginsEnv)
+}
+
+// Is makes the error match ErrOriginRefused.
+func (e *OriginRefusedError) Is(target error) bool { return target == ErrOriginRefused }
+
+// Reason is the refusal as a policy check's "not checked" reason.
+func (e *OriginRefusedError) Reason() string { return e.Field + " is not an allowed origin" }
+
+// APIURLSet reports whether the environment names a draugr-api server.
+func APIURLSet() bool { return os.Getenv(apiURLEnv) != "" }
+
 // ResolveAPI finds where a draugr-api publisher would send a run, the way the publisher does.
+//
+// The server comes from the environment: $DRAUGR_API_URL, else publish.apiUrl in the machine's
+// configuration. A url written in the descriptor, or in the project's own draugr.config.yaml, is a
+// value that changes by pull request in the repository being scanned, so it is used only where its
+// origin is the environment's, or one $DRAUGR_API_ORIGINS lists. Otherwise the token would go to
+// whichever server the most recent change to the repository named.
 //
 // Neither an endpoint nor a token is somebody running the descriptor locally, which is not a
 // mistake: skip says why there is nowhere to send. One without the other is a mistake, and an
-// error.
+// error. So is a token bound for a url the environment does not allow, an *OriginRefusedError, and
+// a token bound for a server reached without TLS.
 func ResolveAPI(cfg saga.PublisherConfig) (dest APIDestination, skip string, err error) {
-	tokenEnv := firstNonEmpty(cfg.TokenEnv, apiTokenEnv)
-	dest = APIDestination{
-		// Explicit, then ambient-immediate, then the organization's default. Documented in the
-		// Saga reference under the draugr-api publisher.
-		Endpoint: strings.TrimRight(firstNonEmpty(cfg.URL, os.Getenv(apiURLEnv), cfg.DefaultURL), "/"),
-		Token:    os.Getenv(tokenEnv),
+	tokenEnv, token, err := credential.Token(cfg.TokenEnv, apiTokenEnv)
+	if err != nil {
+		return APIDestination{}, "", fmt.Errorf("draugr-api publisher: %w", err)
 	}
+	endpoint, err := apiEndpoint(cfg, token != "")
+	if err != nil {
+		return APIDestination{}, "", err
+	}
+	dest = APIDestination{Endpoint: strings.TrimRight(endpoint, "/"), Token: token}
 	// Both or neither. A descriptor naming this publisher on a machine with no endpoint configured is
 	// somebody running the same Saga locally, and failing their scan over it would make the
-	// descriptor unusable outside CI. Which is the opposite of the point.
+	// descriptor unusable outside CI, the opposite of the point.
 	if dest.Endpoint == "" && dest.Token == "" {
 		return APIDestination{}, "no $" + apiURLEnv + " or $" + tokenEnv, nil
 	}
 	var missing []string
 	if dest.Endpoint == "" {
-		missing = append(missing, "url (or $"+apiURLEnv+")")
+		missing = append(missing, "$"+apiURLEnv)
 	}
 	if dest.Token == "" {
 		missing = append(missing, "$"+tokenEnv)
@@ -93,7 +141,67 @@ func ResolveAPI(cfg saga.PublisherConfig) (dest APIDestination, skip string, err
 		// publish is one somebody believes was published.
 		return APIDestination{}, "", fmt.Errorf("draugr-api publisher: %s", strings.Join(missing, ", "))
 	}
+	if err := credential.RequireTLS(dest.Endpoint); err != nil {
+		return APIDestination{}, "", fmt.Errorf("draugr-api publisher: $%s: %w", tokenEnv, err)
+	}
 	return dest, "", nil
+}
+
+// apiEndpoint is the server a run goes to.
+//
+// The environment's address, or a url the repository wrote where the environment allows it. A
+// refused url on a machine with no endpoint and no token is a local run with nothing to send, so it
+// resolves to no endpoint and ResolveAPI skips.
+func apiEndpoint(cfg saga.PublisherConfig, hasToken bool) (string, error) {
+	trusted, trustedFrom := os.Getenv(apiURLEnv), "$"+apiURLEnv
+	if trusted == "" {
+		trusted, trustedFrom = cfg.DefaultURL, "publish.apiUrl in the machine's configuration"
+	}
+	named, field := cfg.URL, "the descriptor's url"
+	// The project's draugr.config.yaml has always lost to $DRAUGR_API_URL, so it is consulted only
+	// where that is unset. It is committed with the repository, so it is held to the descriptor's
+	// rule rather than trusted as the machine's.
+	if named == "" && os.Getenv(apiURLEnv) == "" {
+		named, field = cfg.ProjectURL, "publish.apiUrl in the project's draugr.config.yaml"
+	}
+	if named == "" {
+		return trusted, nil
+	}
+	ok, err := allowedOrigin(named, trusted)
+	if err != nil {
+		return "", fmt.Errorf("draugr-api publisher: %s: %w", field, err)
+	}
+	switch {
+	case ok:
+		return named, nil
+	case trusted == "" && !hasToken:
+		return "", nil
+	}
+	return "", &OriginRefusedError{Field: field, URL: named, Endpoint: trusted, EndpointFrom: trustedFrom}
+}
+
+// allowedOrigin reports whether a url the repository wrote may receive the token: its origin is the
+// environment's endpoint's, or $DRAUGR_API_ORIGINS lists it.
+func allowedOrigin(named, trusted string) (bool, error) {
+	origin, err := credential.Origin(named)
+	if err != nil {
+		return false, err
+	}
+	if trusted != "" {
+		if t, err := credential.Origin(trusted); err == nil && t == origin {
+			return true, nil
+		}
+	}
+	for _, entry := range credential.List(apiOriginsEnv) {
+		listed, err := credential.Origin(entry)
+		if err != nil {
+			return false, fmt.Errorf("$%s: %w", apiOriginsEnv, err)
+		}
+		if listed == origin {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func newDraugrAPIPublisher(cfg saga.PublisherConfig) (Publisher, error) {

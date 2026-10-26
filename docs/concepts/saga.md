@@ -144,8 +144,10 @@ draugr scan                     # zero-config, current repo
 draugr scan draugr.saga.yaml    # run the descriptor
 ```
 
-Any string value may reference an environment variable with `${{ VAR_NAME }}`. Loading **fails
-fast if one is unset**, rather than scanning on with an empty value.
+Any string value may reference an environment variable with `${{ VAR_NAME }}`, if it is one of
+the [built-in CI names](../reference/saga-schema.md#substitution) or one the pipeline lists in
+`$DRAUGR_SAGA_ENVS`. Loading **fails fast on any other name, or on one that is unset**, rather than
+scanning on with an empty value.
 
 ## Keeping it honest
 

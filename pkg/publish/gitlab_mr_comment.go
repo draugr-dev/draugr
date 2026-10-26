@@ -37,12 +37,15 @@ type gitlabMRCommentPublisher struct {
 }
 
 func newGitLabMRCommentPublisher(cfg saga.PublisherConfig) (Publisher, error) {
-	tokenEnv := firstNonEmpty(cfg.TokenEnv, "GITLAB_TOKEN")
+	tokenEnv, token, err := tokenFor(cfg)
+	if err != nil {
+		return nil, err
+	}
 
 	p := gitlabMRCommentPublisher{
 		apiURL:  gitlabAPIURL(),
 		project: firstNonEmpty(cfg.Repo, os.Getenv("CI_PROJECT_ID")),
-		token:   os.Getenv(tokenEnv),
+		token:   token,
 		marker:  firstNonEmpty(cfg.Marker, defaultPRMarker),
 		mr:      cfg.PR,
 		client:  newRetryingClient(http.DefaultClient),

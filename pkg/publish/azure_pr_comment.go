@@ -41,13 +41,19 @@ func newAzurePRCommentPublisher(cfg saga.PublisherConfig) (Publisher, error) {
 	// SYSTEM_ACCESSTOKEN is the build's own identity. Unlike most pipeline variables it is not
 	// exposed to a script step unless the step maps it explicitly, which is the single most common
 	// reason this publisher cannot authenticate, so the error below names it.
-	tokenEnv := firstNonEmpty(cfg.TokenEnv, "SYSTEM_ACCESSTOKEN")
-	collection := firstNonEmpty(cfg.Org, os.Getenv("SYSTEM_TEAMFOUNDATIONCOLLECTIONURI"))
+	tokenEnv, token, err := tokenFor(cfg)
+	if err != nil {
+		return nil, err
+	}
+	collection, err := azureCollection(cfg.Kind, cfg.Org, token != "")
+	if err != nil {
+		return nil, err
+	}
 	project := firstNonEmpty(cfg.Project, os.Getenv("SYSTEM_TEAMPROJECT"))
 
 	p := azurePRCommentPublisher{
 		repo:   firstNonEmpty(cfg.Repo, os.Getenv("BUILD_REPOSITORY_NAME")),
-		token:  os.Getenv(tokenEnv),
+		token:  token,
 		marker: firstNonEmpty(cfg.Marker, defaultPRMarker),
 		pr:     cfg.PR,
 		client: newRetryingClient(http.DefaultClient),

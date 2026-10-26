@@ -40,12 +40,15 @@ type gitlabIssuePublisher struct {
 }
 
 func newGitLabIssuePublisher(cfg saga.PublisherConfig) (Publisher, error) {
-	tokenEnv := firstNonEmpty(cfg.TokenEnv, "GITLAB_TOKEN")
+	tokenEnv, token, err := tokenFor(cfg)
+	if err != nil {
+		return nil, err
+	}
 	p := gitlabIssuePublisher{
 		cfg:     cfg,
 		apiURL:  gitlabAPIURL(),
 		project: firstNonEmpty(cfg.Repo, os.Getenv("CI_PROJECT_ID")),
-		token:   os.Getenv(tokenEnv),
+		token:   token,
 		label:   firstNonEmpty(cfg.Label, defaultIssueLabel),
 		client:  newIssueClient(http.DefaultClient),
 	}

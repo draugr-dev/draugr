@@ -66,15 +66,13 @@ type File struct {
 
 // PublishSettings holds defaults for the publishers a run delivers to.
 type PublishSettings struct {
-	// APIURL is where the draugr-api publisher posts when nothing more specific says otherwise.
+	// APIURL is where the draugr-api publisher posts when $DRAUGR_API_URL is unset.
 	//
-	// The least specific answer in the chain, and deliberately so:
-	//
-	//	~/.draugr/config.yaml -> ./draugr.config.yaml -> $DRAUGR_API_URL -> url: in the Saga
-	//
-	// Ambient-broad, ambient-narrow, ambient-immediate, then explicit. And explicit wins. An
-	// environment variable is context; a url somebody wrote in a descriptor is intent, and context
-	// does not override intent.
+	// Who wrote it decides how far it is trusted, because the publisher sends its token there.
+	// From ~/.draugr/config.yaml, or the file --config or $DRAUGR_CONFIG names, it is the machine's
+	// answer. From the draugr.config.yaml in the directory being scanned, which is committed with the
+	// repository and changes by pull request, it is held to the rule for a url: in the Saga: used
+	// only on the machine's server's origin, or one $DRAUGR_API_ORIGINS lists.
 	//
 	// No token here, and there never will be. This file is committed alongside a project, and a
 	// credential in it is a credential in somebody's git history.

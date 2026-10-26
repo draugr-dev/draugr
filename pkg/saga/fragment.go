@@ -284,6 +284,9 @@ func loadFragmentFile(path string) (Fragment, error) {
 
 // LoadFragment parses a Saga fragment, substituting ${{ VAR }} from the environment.
 //
+// The descriptor's rule for what may be substituted applies here too, and to a fragment fetched
+// from another repository most of all: its author is not the pipeline's.
+//
 // Validated as a fragment rather than as a Saga. A fragment has no `release:` and that is
 // correct, so checking it against the Saga's rules would reject every valid one; and a fragment
 // that is only meaningful once merged is a fragment nobody can check on its own.
@@ -292,9 +295,8 @@ func LoadFragment(data []byte, path string) (Fragment, error) {
 	if err := yaml.Unmarshal(data, &root); err != nil {
 		return Fragment{}, fmt.Errorf("parse fragment %q: %w", path, err)
 	}
-	if missing := substituteEnv(&root); len(missing) > 0 {
-		return Fragment{}, fmt.Errorf("undefined environment variable(s) referenced in fragment %q: %s",
-			path, strings.Join(missing, ", "))
+	if err := substitute(&root, fmt.Sprintf("fragment %q", path)); err != nil {
+		return Fragment{}, err
 	}
 	if err := noEmptyValues(&root); err != nil {
 		return Fragment{}, fmt.Errorf("fragment %q: %w", path, err)

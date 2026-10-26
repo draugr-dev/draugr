@@ -151,8 +151,10 @@ having: it answers *what did this run actually apply*, including the exclusions 
 contributed, which is the question somebody has when a finding was suppressed and the descriptor
 they have open does not say why.
 
-It carries no credential. A descriptor has a field for the **name** of an environment variable and
-none for a value, and `${{ VAR }}` substitution does not reach `tokenEnv`.
+A descriptor has a field for the **name** of an environment variable holding a credential and none
+for its value. `${{ VAR }}` substitution puts a variable's value into the effective descriptor, and
+substitutes only the built-in CI metadata and the names `$DRAUGR_SAGA_ENVS` lists, so list only
+variables that hold no secret. See [substitution](../reference/saga-schema.md#substitution).
 
 The two kinds of digest answer different questions and neither substitutes for the other.
 `descriptor.digest` is over the **merged, effective** descriptor with `${{ VAR }}` substituted, so
@@ -295,13 +297,26 @@ or keep one
 | `github-issue` | the run | `repo`, `select` and `split` | a GitHub issue that is open while the gate fails | `repo` (default from the env), `select`, `split`, `minPriority`, `children`, `maxChildren`, `label`, `labelBy`, `branches`, `item`; token from `$GITHUB_TOKEN` (or `tokenEnv`) |
 | `gitlab-issue` | the run | `repo`, `select` and `split` | a GitLab issue that is open while the gate fails | `repo` (default from the GitLab CI env), `select`, `split`, `minPriority`, `children`, `maxChildren`, `label`, `labelBy`, `branches`, `item`; token from `$GITLAB_TOKEN` (or `tokenEnv`) |
 | `azure-work-item` | the run | `project`, `select` and `split` | an Azure Boards work item that is open while the gate fails | `org`, `project` (default from the Azure Pipelines env), `select`, `split`, `minPriority`, `children`, `maxChildren`, `label`, `labelBy`, `branches`, `item`; token from `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`) |
-| `draugr-api` | `json`, `sarif` | `url` | any server implementing Draugr's run-ingest API (posts the `json` report, uploads the `sarif` one) | `url` (or `$DRAUGR_API_URL`); token from `$DRAUGR_API_TOKEN` (or `tokenEnv`) |
+| `draugr-api` | `json`, `sarif` | `url` | any server implementing Draugr's run-ingest API (posts the `json` report, uploads the `sarif` one) | `$DRAUGR_API_URL`, or a `url` on its origin; token from `$DRAUGR_API_TOKEN` (or `tokenEnv`) |
 
 No publisher stores a secret in the Saga. Every token comes from an environment variable, and each
 no-ops outside its own context (not in CI, or no PR) so the same Saga still runs locally. Every
 comment publisher upserts one **sticky** comment, updated in place on each push, and pairs with
 [`draugr diff --publish`](pr-diff.md) for a PR security delta. The `github` publisher pairs with
 [code scanning](code-scanning.md).
+
+**`tokenEnv` names the kind's own variable or one the pipeline lists.** A `tokenEnv` other than the
+kind's own (`$GITHUB_TOKEN`, `$GITLAB_TOKEN`, `$SYSTEM_ACCESSTOKEN` or `$DRAUGR_API_TOKEN`) is refused
+unless `$DRAUGR_TOKEN_ENVS` lists it, comma-separated, in the pipeline's environment. The
+[environment reference](../reference/cli.md#environment) says why the pipeline decides.
+
+```bash
+export DRAUGR_TOKEN_ENVS=GH_ISSUES_TOKEN,BOARDS_PAT
+```
+
+**A publisher's token travels only over https**, or over plain http to `localhost`, `127.0.0.0/8` or
+`::1`, and a request carrying one follows a redirect only on the origin it was addressed to. A
+redirect anywhere else fails the request without sending anything there.
 
 ### A server that keeps your runs
 
@@ -322,19 +337,31 @@ export DRAUGR_API_TOKEN=drgr_ci_…      # write-only, scoped to one project
 ```
 
 **Named for the protocol, not for a product.** [Draugr Server](https://draugr.dev) implements it,
-hosted and as an install you run yourself, the same artifact either way, so `url` points at either
-and nothing else changes. Anything else that implements the calls below works identically. The
-publisher does not know or care which it is talking to.
+hosted and as an install you run yourself, the same artifact either way, so `$DRAUGR_API_URL` points
+at either and nothing else changes. Anything else that implements the calls below works identically.
+The publisher does not know or care which it is talking to.
 
 With neither variable set it skips, so the descriptor a pipeline uses still runs on a laptop.
 Setting one without the other fails the scan, because a publish that silently did not happen is one
 somebody believes did.
 
+**The environment chooses the server.** The token goes to `$DRAUGR_API_URL`, or else to
+`publish.apiUrl` in the machine's [configuration](configuration.md#publish). A `url:` in the
+descriptor is used only on that server's [origin](../reference/cli.md#environment) or one
+`$DRAUGR_API_ORIGINS` lists. A `url:` on any other origin fails the scan before any scanner runs,
+naming the two values that disagree. With a token and no `$DRAUGR_API_URL`, a `url:` the list does
+not name is refused the same way.
+
+```bash
+export DRAUGR_API_ORIGINS=https://draugr-eu.acme.example   # a second server one descriptor may name
+```
+
 #### The calls
 
 Written down so the endpoint is an interface rather than a private arrangement. A server that
-implements these receives Draugr runs from any pipeline, with no change to the descriptor beyond
-its URL.
+implements these receives Draugr runs from any pipeline that sets `$DRAUGR_API_URL` to it, with no
+change to the descriptor. The calls carrying the token follow the rule for a
+[publisher's token](#built-in-publishers) on TLS and redirects.
 
 **1. `POST /v1/runs`** with `report.json` as the body, compact JSON whatever the run wrote to disk:
 
@@ -361,7 +388,9 @@ never through the API. At roughly 2.5 KB of SARIF per finding, a descriptor cove
 is around 20 MB before anything unusual happens, and a request body is the wrong place for it.
 
 A presigned object-storage URL is the obvious implementation; a URL pointing back at your own
-server is equally valid, and is how an install with no object store works.
+server is equally valid, and is how an install with no object store works. The upload carries no
+`Authorization` header, since the URL carries its own signature, so it may be on another origin and
+may redirect.
 
 **3. `POST /v1/runs/{id}/complete`** once the upload lands.
 
@@ -384,8 +413,10 @@ your own `detail`.
 
 **An organization's policy, where the server judges one.** Before the scan, Draugr sends
 `POST /v1/ingest/policy/check` with the same token and the descriptor as YAML, `{"descriptor":
-{"effective": "…"}}`. Answer with the outcome below, or `404` where the server judges no policy,
-which Draugr reports as not checked rather than passed. The answer to `POST /v1/runs` carries the
+{"effective": "…"}}`. `draugr doctor` sends it only under `--policy`. Answer with the outcome
+below, or `404` where the server judges no policy, which Draugr reports as not checked rather than
+passed. Where `$DRAUGR_API_URL` is set and the descriptor has no `draugr-api` publisher, the policy
+is reported as not checked for that reason. The answer to `POST /v1/runs` carries the
 same outcome as `policy`, and a run the policy refuses is answered `422 policy_refused` with it.
 
 ```json
@@ -443,6 +474,11 @@ the report in a reply gets their words left alone.
 The thread is created **active**. If your branch policy requires all comments to be resolved
 before merging, someone has to resolve Draugr's thread; set a distinct `marker` per pipeline if
 you run more than one Draugr scan against the same pull request.
+
+An `org` written in the descriptor is the URL the token is sent to. It is used only on the origin of
+`$SYSTEM_TEAMFOUNDATIONCOLLECTIONURI` or on Azure DevOps Services (`https://dev.azure.com`,
+`https://<organization>.visualstudio.com`). To post to Azure DevOps Server from outside Azure
+Pipelines, set `$SYSTEM_TEAMFOUNDATIONCOLLECTIONURI` to the collection's URL.
 
 ### GitLab
 

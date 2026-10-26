@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/draugr-dev/draugr/internal/credential"
 )
 
 // retryAttempts is how many times a request is sent in total, first try included. Three is chosen
@@ -69,20 +71,31 @@ type retryTransport struct {
 
 // newRetryingClient returns a client that retries a refused request. It copies the given client so
 // a caller's timeout and any other settings survive.
+//
+// Every publisher's requests go through it, so it is also where a token is kept to the server it
+// was meant for: a request carrying one is refused over plain http to anything but this machine,
+// and refuses a redirect to another origin. A request carrying none, such as an upload to a
+// presigned storage URL, follows redirects as before.
 func newRetryingClient(c *http.Client) *http.Client {
 	if c == nil {
 		c = http.DefaultClient
 	}
-	out := *c
+	out := credential.Client(c)
 	base := c.Transport
 	if base == nil {
 		base = http.DefaultTransport
 	}
 	out.Transport = &retryTransport{base: base, attempts: retryAttempts, sleep: time.Sleep}
-	return &out
+	return out
 }
 
 func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if err := credential.Guard(req); err != nil {
+		if req.Body != nil {
+			_ = req.Body.Close()
+		}
+		return nil, err
+	}
 	attempts := max(t.attempts, 1)
 	var resp *http.Response
 	var err error

@@ -209,7 +209,8 @@ func TestDastAuthenticatedScanSendsTheCredential(t *testing.T) {
 		"        spec:\n          path: openapi.yaml\n"+
 			"        auth:\n          type: bearer\n          tokenEnv: DRAUGR_IT_TOKEN\n"))
 
-	runDast(t, dir, "draugr.saga.yaml", "DRAUGR_IT_TOKEN=integration-token")
+	// The pipeline lists the variable, which is what lets a descriptor name it.
+	runDast(t, dir, "draugr.saga.yaml", "DRAUGR_IT_TOKEN=integration-token", "DRAUGR_TOKEN_ENVS=DRAUGR_IT_TOKEN")
 
 	_, authed, _ := rec.seen()
 	if authed == 0 {
@@ -222,7 +223,7 @@ func TestDastAuthenticatedScanSendsTheCredential(t *testing.T) {
 	writeFile(t, dir2, "draugr.saga.yaml",
 		dastSaga(quiet.url, "        auth:\n          type: bearer\n          tokenEnv: DRAUGR_IT_ABSENT\n"))
 
-	out := runDast(t, dir2, "draugr.saga.yaml", "DRAUGR_IT_ABSENT=")
+	out := runDast(t, dir2, "draugr.saga.yaml", "DRAUGR_IT_ABSENT=", "DRAUGR_TOKEN_ENVS=DRAUGR_IT_ABSENT")
 	if !strings.Contains(out, "DRAUGR_IT_ABSENT") {
 		t.Errorf("an unset credential should name the variable to set:\n%s", out)
 	}

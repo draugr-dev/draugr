@@ -256,7 +256,9 @@ func TestAzurePRCommentExplicitConfigBeatsTheEnvironment(t *testing.T) {
 		_, _ = w.Write([]byte(`{"value":[]}`))
 	}))
 	defer srv.Close()
-	adoEnv(t, "https://dev.azure.com/wrong")
+	// The environment's own origin, under another collection path: `org` may choose the path, and
+	// the token stays on the server the pipeline named.
+	adoEnv(t, srv.URL+"/wrong")
 
 	p, err := For(saga.PublisherConfig{
 		Kind: "azure-pr-comment", Org: srv.URL, Project: "other", Repo: "repo two", PR: 99,
@@ -268,5 +270,64 @@ func TestAzurePRCommentExplicitConfigBeatsTheEnvironment(t *testing.T) {
 	// A repository name with a space is legal in Azure and has to survive into the URL.
 	if want := "/other/_apis/git/repositories/repo%20two/pullRequests/99/threads"; path != want {
 		t.Errorf("path = %q, want %q", path, want)
+	}
+}
+
+// `org` is the base of every request that carries the build's token, and it changes by pull
+// request. It is used on the environment's origin or on Azure DevOps Services, and refused
+// anywhere else before anything is sent.
+func TestAzureOrgIsRefusedOffTheEnvironmentsOriginAndAzureDevOps(t *testing.T) {
+	var reached int
+	hostile := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		reached++
+		_, _ = w.Write([]byte(`{"value":[]}`))
+	}))
+	defer hostile.Close()
+
+	for _, kind := range []string{"azure-pr-comment", "azure-work-item"} {
+		t.Run(kind, func(t *testing.T) {
+			adoEnv(t, "https://dev.azure.com/acme")
+			cfg := saga.PublisherConfig{Kind: kind, Org: hostile.URL, Project: "p", Repo: "r", PR: 7}
+			_, err := For(cfg)
+			if err == nil || !strings.Contains(err.Error(), "org ("+hostile.URL+") is neither on the origin of $SYSTEM_TEAMFOUNDATIONCOLLECTIONURI") {
+				t.Errorf("err = %v", err)
+			}
+			if CheckCredential(cfg) == nil {
+				t.Error("CheckCredential accepted what For refuses")
+			}
+
+			t.Setenv("SYSTEM_TEAMFOUNDATIONCOLLECTIONURI", "")
+			if _, err := For(cfg); err == nil || !strings.Contains(err.Error(), "$SYSTEM_TEAMFOUNDATIONCOLLECTIONURI is not set") {
+				t.Errorf("err = %v", err)
+			}
+			// No token, nothing to send: the publisher reports what is missing, or skips.
+			t.Setenv("SYSTEM_ACCESSTOKEN", "")
+			if err := CheckCredential(cfg); err != nil {
+				t.Errorf("with no token: %v", err)
+			}
+		})
+	}
+	if reached != 0 {
+		t.Errorf("the org's server got %d requests", reached)
+	}
+
+	t.Setenv("SYSTEM_ACCESSTOKEN", "pat")
+	t.Setenv("SYSTEM_TEAMFOUNDATIONCOLLECTIONURI", "")
+	for org, ok := range map[string]bool{
+		"https://dev.azure.com/acme/":         true,
+		"https://acme.visualstudio.com/":      true,
+		"https://dev.azure.com:8443/acme":     false,
+		"https://a.b.visualstudio.com/":       false,
+		"https://visualstudio.com/":           false,
+		"http://acme.visualstudio.com/":       false,
+		"https://dev.azure.com.attacker.test": false,
+	} {
+		_, err := azureCollection("azure-work-item", org, true)
+		if (err == nil) != ok {
+			t.Errorf("%s: err = %v, want allowed: %v", org, err, ok)
+		}
+	}
+	if _, err := azureCollection("azure-work-item", "ftp://dev.azure.com/acme", true); err == nil {
+		t.Error("an org that is not an http address was accepted")
 	}
 }

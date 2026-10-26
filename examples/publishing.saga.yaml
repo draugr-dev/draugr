@@ -54,7 +54,8 @@ config:
       # repo: acme/my-app
       # commit: ${{ GIT_SHA }}      # the revision the results are attached to
       # ref: refs/heads/main
-      # tokenEnv: GH_PAT            # name the env var that holds the token
+      # tokenEnv: GH_PAT            # name the env var that holds the token; one other than
+      #                             # $GITHUB_TOKEN must be listed in $DRAUGR_TOKEN_ENVS
 
     - kind: azure-pr-comment        # the same, on Azure DevOps
       reports:

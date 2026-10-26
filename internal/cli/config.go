@@ -43,8 +43,10 @@ controllers: {}
 
 # Where runs are delivered, for the whole organization rather than per project.
 #
-# The least specific answer: $DRAUGR_API_URL overrides it for one pipeline, and a url: in a Saga
-# overrides both because somebody wrote it there on purpose. No token here. This file is
+# $DRAUGR_API_URL overrides it for one pipeline. Read from ~/.draugr/config.yaml or the file
+# DRAUGR_CONFIG names, it is where the draugr-api publisher sends its token. Read from a project's
+# draugr.config.yaml, which changes by pull request, it is held to the rule for a url: in a Saga,
+# used only on that server's origin or one $DRAUGR_API_ORIGINS lists. No token here. This file is
 # committed, and a credential in it is a credential in somebody's git history.
 publish: {}
   # apiUrl: https://draugr.acme.example

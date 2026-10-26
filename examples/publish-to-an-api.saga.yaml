@@ -47,7 +47,8 @@ config:
       # server answers with a URL and Draugr uploads it straight there. At roughly 2.5 KB per
       # finding, a descriptor covering twenty images is around 20 MB before anything unusual
       # happens, and a request body is the wrong place for that.
-      # url: https://draugr.acme.example   # or $DRAUGR_API_URL, which is the usual way
+      # url: https://draugr.acme.example   # used only on $DRAUGR_API_URL's origin, or one
+      #                                    # $DRAUGR_API_ORIGINS lists
 
   # Every run records who the CI system reports as having started the pipeline and who wrote the
   # commit, as a handle and the platform's stable id, so a finding somebody accepted on the server

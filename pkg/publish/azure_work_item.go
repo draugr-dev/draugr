@@ -63,12 +63,18 @@ type azureSeen struct {
 }
 
 func newAzureWorkItemPublisher(cfg saga.PublisherConfig) (Publisher, error) {
-	tokenEnv := firstNonEmpty(cfg.TokenEnv, "SYSTEM_ACCESSTOKEN")
-	collection := firstNonEmpty(cfg.Org, os.Getenv("SYSTEM_TEAMFOUNDATIONCOLLECTIONURI"))
+	tokenEnv, token, err := tokenFor(cfg)
+	if err != nil {
+		return nil, err
+	}
+	collection, err := azureCollection(cfg.Kind, cfg.Org, token != "")
+	if err != nil {
+		return nil, err
+	}
 	p := &azureWorkItemPublisher{
 		cfg:      cfg,
 		project:  firstNonEmpty(cfg.Project, os.Getenv("SYSTEM_TEAMPROJECT")),
-		token:    os.Getenv(tokenEnv),
+		token:    token,
 		label:    firstNonEmpty(cfg.Label, defaultIssueLabel),
 		client:   newIssueClient(http.DefaultClient),
 		seen:     map[int64]azureSeen{},

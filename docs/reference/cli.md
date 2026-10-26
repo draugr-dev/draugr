@@ -136,11 +136,23 @@ a span attribute or a cache key.
 | `SYSTEM_ACCESSTOKEN` | the `azure-pr-comment` and `azure-work-item` publishers |
 | `URLHAUS_AUTH_KEY` | the `urlhaus` scanner, the `threats` default. Free from <https://auth.abuse.ch/> |
 | `VIRUSTOTAL_API_KEY` | the `virustotal` scanner, opt-in under `threats` |
-| `DRAUGR_API_TOKEN`, `DRAUGR_API_URL` | the `draugr-api` publisher |
+| `DRAUGR_API_TOKEN`, `DRAUGR_API_URL` | the `draugr-api` publisher. `DRAUGR_API_URL` is the server the token goes to |
 
 A publisher's `tokenEnv` names a different variable in place of its default. A descriptor names the
 variable holding a credential and never the credential, because a descriptor is committed and a
 token in one is a leaked token.
+
+**Where a credential may go.** A descriptor and its fragments change by pull request, and the job
+that runs them holds secrets their authors may not. These variables are how the pipeline, never the
+descriptor, decides which of the job's secrets a descriptor may use and which server a token may
+reach. Each is comma-separated, and a name or origin it does not list is refused before anything is
+sent.
+
+| | |
+|---|---|
+| `DRAUGR_TOKEN_ENVS` | variables a descriptor's `tokenEnv` may name, besides each publisher's own. A dast `auth.tokenEnv` has no default, so every one must be listed |
+| `DRAUGR_API_ORIGINS` | origins a `draugr-api` publisher's `url:` may name, besides the origin of `DRAUGR_API_URL`. An origin is a URL's scheme, host and port, `https://host[:port]`; two URLs on one origin reach the same server |
+| `DRAUGR_SAGA_ENVS` | variables a descriptor or fragment may substitute with `${{ VAR }}`, besides the [built-in CI metadata](saga-schema.md#substitution). Any other name fails the load. List only variables that hold no secret |
 
 **Self-hosted forges**
 
@@ -787,8 +799,20 @@ POLICY  version 7 · https://draugr.example
   scanners   sca scanners: trivy-fs · required: grype-fs  Default · observed
 ```
 
-A run that could not ask says `POLICY  not checked` and why: no endpoint or token, `--offline`, or a
-server that judges no policy. `--policy` makes that an error. A rule the server judges from the
+A run that could not ask says `POLICY  not checked` and one of these reasons:
+
+- `no $DRAUGR_API_URL or $DRAUGR_API_TOKEN`, with neither an endpoint nor a token;
+- `offline`, under `--offline`;
+- `<server> checks no organization policy`, from a server that judges none;
+- the error, from a server that could not be reached;
+- `the descriptor's url is not an allowed origin`, for a `url:` the environment does not allow;
+- `publish.apiUrl in the project's draugr.config.yaml is not an allowed origin`, for the same in
+  that file;
+- `the descriptor publishes to no draugr-api server`, with `$DRAUGR_API_URL` set and no
+  `draugr-api` publisher;
+- `run with --policy to ask the server`, from `draugr doctor` without `--policy`.
+
+`--policy` makes each of them an error. A rule the server judges from the
 run's findings rather than from the descriptor is decided when the run is published, and the
 publisher fails the build if the policy fails the published run. `report.json` records the server,
 the policy version and every verdict as
@@ -1208,8 +1232,9 @@ With a descriptor, it **exits non-zero** when:
 
 - the descriptor cannot be loaded, or a required tool is missing or has no data;
 - a target check fails;
-- the organization's [policy](#policy) would refuse or fail the scan, or a `draugr-api` publisher
-  has an endpoint without a token or a token without an endpoint;
+- under `--policy`, the organization's [policy](#policy) would refuse or fail the scan;
+- a `draugr-api` publisher has an endpoint without a token or a token without an endpoint, or a
+  `tokenEnv` that `$DRAUGR_TOKEN_ENVS` does not list;
 - `--strict`, `--policy` or `--fail-on-uncovered` applies, as the flag table says.
 
 So it gates CI: `draugr doctor saga.yaml && draugr scan saga.yaml`.
@@ -1280,13 +1305,13 @@ repository cannot be loaded under it.
 
 ### Policy
 
-Given a descriptor that publishes to a `draugr-api` server, doctor asks that server what the
-organization's policy makes of it, as [`draugr scan`](#the-organizations-policy) does, and lists
-every rule that reaches the project, passing and broken, with what its setting does to a run that
-breaks it:
+Given a descriptor that publishes to a `draugr-api` server and `--policy`, doctor asks that server
+what the organization's policy makes of it, as [`draugr scan`](#the-organizations-policy) does, and
+lists every rule that reaches the project, passing and broken, with what its setting does to a run
+that breaks it:
 
 ```console
-$ draugr doctor draugr.saga.yaml
+$ draugr doctor --policy draugr.saga.yaml
 POLICY  payments · version 7 · https://draugr.example
 Rule       Profile    Result                                                If broken
 threshold  PCI scope  ✗ failOn: P1 · required: P2 or stricter               fails the gate, since 2026-10-01
@@ -1296,7 +1321,13 @@ licenses   Default    – judged at publish                                   ob
 
 A rule marked `–` is one the server judges from the run's findings rather than from the descriptor,
 or one that asks nothing of this project. Doctor exits non-zero where a scan of the descriptor would
-be refused or would fail its gate. With neither an endpoint nor a token it prints
+be refused or would fail its gate.
+
+**Without `--policy`, doctor sends no token and asks no server.** It prints `POLICY  not checked ·
+run with --policy to ask the server`, or the reason the check could not run at all, such as `the
+descriptor's url is not an allowed origin`.
+
+With neither an endpoint nor a token it prints
 `POLICY  not checked · no $DRAUGR_API_URL or $DRAUGR_API_TOKEN`, and `--policy` makes that an
 error; with only one of the two it is an error either way. The token is the project's ingest token,
 which belongs in CI.
@@ -1360,7 +1391,7 @@ The list is **reported, not failed**, unless `--fail-on-uncovered` is passed or
 | `--json` | `false` | Emit the report as JSON instead of tables. A tool not at its pin carries `testedVersion` |
 | `--fail-on-uncovered` | `false` | Exit non-zero when the descriptor declares a surface no enabled control looks at. Also the behavior when [`config.gate.failOnCaveats`](saga-schema.md#configgate) lists `not-checked` |
 | `--strict` | `false` | Exit non-zero when a tool is not the version Draugr tests. Without a descriptor, applies only when no tool is missing |
-| `--policy` | `false` | Exit non-zero when the organization's policy could not be checked, as well as when a scan would be refused or fail by it |
+| `--policy` | `false` | Ask the `draugr-api` server for the organization's policy, sending the token. Exit non-zero when it could not be checked, as well as when a scan would be refused or fail by it |
 | `--offline` | `false` | Skip the check for a newer draugr release, the policy check, and every target check that needs the network (`DRAUGR_NO_UPDATE_CHECK=1` skips only the release check) |
 | `--components` | - | Check only the targets of these components |
 | `--controls` | - | Check only the targets these controls would read |
@@ -1718,7 +1749,7 @@ controllers:            # merged *underneath* the descriptor's own settings
 | `cache.dir`, `cache.ttl`, `cache.readOnly`, `cache.requireDigest` | the `--cache-*` flags. A `ttl` of `0` means the built-in default; `--cache-ttl 0` on the command line means no expiry |
 | `output.view`, `output.evidence`, `output.top` | the `--view`, `--evidence` and `--top` flags. A `top` of `0` means the built-in default |
 | `output.offerInstall` | whether a scan on a terminal [offers to install](#installing-a-missing-scanner) a missing scanner; unset means it does |
-| `publish.apiUrl` | where the `draugr-api` publisher posts, below `$DRAUGR_API_URL` and a `url:` in the descriptor |
+| `publish.apiUrl` | where the `draugr-api` publisher posts when `DRAUGR_API_URL` is unset. In a project's `./draugr.config.yaml` it is held to the rule for a descriptor's `url:`, used only on an allowed origin |
 
 A flag typed on the command line always wins over the file. See [caching &
 performance](../guides/caching-and-performance.md) for the cache settings.

@@ -41,10 +41,13 @@ type githubPRCommentPublisher struct {
 var prRefPattern = regexp.MustCompile(`^refs/pull/(\d+)/`)
 
 func newGithubPRCommentPublisher(cfg saga.PublisherConfig) (Publisher, error) {
-	tokenEnv := firstNonEmpty(cfg.TokenEnv, "GITHUB_TOKEN")
+	tokenEnv, token, err := tokenFor(cfg)
+	if err != nil {
+		return nil, err
+	}
 	p := githubPRCommentPublisher{
 		repo:   firstNonEmpty(cfg.Repo, os.Getenv("GITHUB_REPOSITORY")),
-		token:  os.Getenv(tokenEnv),
+		token:  token,
 		apiURL: firstNonEmpty(os.Getenv("GITHUB_API_URL"), "https://api.github.com"),
 		marker: firstNonEmpty(cfg.Marker, defaultPRMarker),
 		pr:     cfg.PR,

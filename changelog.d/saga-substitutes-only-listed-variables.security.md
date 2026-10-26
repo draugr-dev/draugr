@@ -1,0 +1,1 @@
+- **`${{ VAR }}` substitutes only built-in CI metadata and the variables the pipeline lists in `DRAUGR_SAGA_ENVS`.** A descriptor or fragment, remote ones included, that names any other variable fails to load, naming it. Add the name to `DRAUGR_SAGA_ENVS` (comma-separated). The built-in names are listed in the Saga reference under Substitution.

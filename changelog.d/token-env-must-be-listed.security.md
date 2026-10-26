@@ -1,0 +1,1 @@
+- **A descriptor's `tokenEnv` must now be the integration's own variable or one listed in `DRAUGR_TOKEN_ENVS`.** Any other name fails the scan before anything is sent. Set `DRAUGR_TOKEN_ENVS=NAME1,NAME2` in the pipeline's environment. Every dast `auth.tokenEnv` must be listed, since dast has no variable of its own.

@@ -117,8 +117,11 @@ func runSealed(t *testing.T, s sealed.Scenario, advs sealed.Advisories, bin, ser
 		t.Fatal(err)
 	}
 	c.Server, c.Served, c.RequestLog = filepath.Join(work, "bin", "serve"), served, filepath.Join(work, "requests.log")
+	// The scenarios' descriptors name the rules by substitution, and a descriptor may substitute
+	// only what the pipeline lists, so the harness lists it as a pipeline would.
 	c.Env = map[string]string{
 		"DRAUGR_SEALED_SEMGREP_RULES": filepath.Join(work, "semgrep.yaml"),
+		"DRAUGR_SAGA_ENVS":            "DRAUGR_SEALED_SEMGREP_RULES",
 		"SEMGREP_URL":                 sealed.ServedURL,
 	}
 	draugr := filepath.Join(work, "bin", "draugr")

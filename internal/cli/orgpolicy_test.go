@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -85,44 +87,71 @@ func TestCheckOrgPolicyStatesWhetherItRan(t *testing.T) {
 		return m
 	}
 	t.Run("no server to ask", func(t *testing.T) {
-		p, err := checkOrgPolicy(context.Background(), model(doctorSagaRepoAndImage), "", false)
+		t.Setenv("DRAUGR_API_URL", "")
+		p, err := checkOrgPolicy(context.Background(), model(doctorSagaRepoAndImage), "", "")
 		if err != nil || p != nil {
 			t.Errorf("a descriptor publishing to no draugr-api server has no policy to check: %+v, %v", p, err)
+		}
+	})
+	t.Run("no publisher, and the environment names a server", func(t *testing.T) {
+		// Taking the publisher out of the descriptor is a change to the descriptor, and must not
+		// take the check out with it without a word.
+		t.Setenv("DRAUGR_API_URL", "https://draugr.example")
+		calls := stubPolicy(t, skald.PolicyOutcome{}, nil)
+		p, err := checkOrgPolicy(context.Background(), model(doctorSagaRepoAndImage), "", "")
+		if err != nil || p == nil || p.Checked || p.Reason != "the descriptor publishes to no draugr-api server" || *calls != 0 {
+			t.Errorf("not checked, and why: %+v, %v, %d calls", p, err, *calls)
+		}
+		if err := requirePolicy(p); err == nil || !strings.Contains(err.Error(), "publishes to no draugr-api server") {
+			t.Errorf("--policy: %v", err)
 		}
 	})
 	t.Run("no token", func(t *testing.T) {
 		t.Setenv("DRAUGR_API_URL", "")
 		t.Setenv("DRAUGR_API_TOKEN", "")
 		m := model(strings.Replace(publishingSaga, "      url: https://draugr.example\n", "", 1))
-		p, err := checkOrgPolicy(context.Background(), m, "", false)
+		p, err := checkOrgPolicy(context.Background(), m, "", "")
 		if err != nil || p == nil || p.Checked || !strings.Contains(p.Reason, "$DRAUGR_API_TOKEN") {
 			t.Errorf("a run with no token says it did not check, and why: %+v, %v", p, err)
 		}
 	})
 	t.Run("half configured", func(t *testing.T) {
+		t.Setenv("DRAUGR_API_URL", "https://draugr.example")
 		t.Setenv("DRAUGR_API_TOKEN", "")
-		if _, err := checkOrgPolicy(context.Background(), model(publishingSaga), "", false); err == nil {
+		if _, err := checkOrgPolicy(context.Background(), model(publishingSaga), "", ""); err == nil {
 			t.Error("an endpoint with no token is a mistake, and an error")
 		}
 	})
 	t.Setenv("DRAUGR_API_TOKEN", "drgr_ci_test")
+	t.Setenv("DRAUGR_API_URL", "https://draugr.example")
+	t.Run("a url the environment does not allow", func(t *testing.T) {
+		calls := stubPolicy(t, skald.PolicyOutcome{}, nil)
+		m := model(strings.Replace(publishingSaga, "https://draugr.example", "https://attacker.example", 1))
+		p, err := checkOrgPolicy(context.Background(), m, "project: payments", "")
+		if err != nil || p == nil || p.Checked || p.Reason != "the descriptor's url is not an allowed origin" || *calls != 0 {
+			t.Errorf("not checked, and why: %+v, %v, %d calls", p, err, *calls)
+		}
+		if err := requirePolicy(p); err == nil || !strings.Contains(err.Error(), "not an allowed origin") {
+			t.Errorf("--policy: %v", err)
+		}
+	})
 	t.Run("offline", func(t *testing.T) {
 		calls := stubPolicy(t, skald.PolicyOutcome{}, nil)
-		p, _ := checkOrgPolicy(context.Background(), model(publishingSaga), "project: payments", true)
+		p, _ := checkOrgPolicy(context.Background(), model(publishingSaga), "project: payments", policyOffline)
 		if p == nil || p.Checked || p.Reason != "offline" || *calls != 0 {
 			t.Errorf("offline asks nothing and says so: %+v, %d calls", p, *calls)
 		}
 	})
 	t.Run("no policy on the server", func(t *testing.T) {
 		stubPolicy(t, skald.PolicyOutcome{}, publish.ErrNoPolicyCheck)
-		p, _ := checkOrgPolicy(context.Background(), model(publishingSaga), "project: payments", false)
+		p, _ := checkOrgPolicy(context.Background(), model(publishingSaga), "project: payments", "")
 		if p == nil || p.Checked || !strings.Contains(p.Reason, "checks no organization policy") {
 			t.Errorf("a server with no policy check is not a pass: %+v", p)
 		}
 	})
 	t.Run("unreachable", func(t *testing.T) {
 		stubPolicy(t, skald.PolicyOutcome{}, errors.New("policy check: connection refused"))
-		p, _ := checkOrgPolicy(context.Background(), model(publishingSaga), "project: payments", false)
+		p, _ := checkOrgPolicy(context.Background(), model(publishingSaga), "project: payments", "")
 		if p == nil || p.Checked || !strings.Contains(p.Reason, "connection refused") {
 			t.Errorf("a server that did not answer is not checked: %+v", p)
 		}
@@ -130,11 +159,87 @@ func TestCheckOrgPolicyStatesWhetherItRan(t *testing.T) {
 	t.Run("checked", func(t *testing.T) {
 		stubPolicy(t, skald.PolicyOutcome{Schema: 1, PolicyVersion: 7, Outcome: "fail",
 			Verdicts: []skald.PolicyVerdict{thresholdBroken}}, nil)
-		p, err := checkOrgPolicy(context.Background(), model(publishingSaga), "project: payments", false)
+		p, err := checkOrgPolicy(context.Background(), model(publishingSaga), "project: payments", "")
 		if err != nil || !p.Checked || p.Version != 7 || p.Outcome != "fail" || p.Server != "https://draugr.example" || len(p.Verdicts) != 1 {
 			t.Errorf("checked = %+v, %v", p, err)
 		}
 	})
+	t.Run("a tokenEnv the pipeline does not list", func(t *testing.T) {
+		t.Setenv("AWS_SECRET_ACCESS_KEY", "aws-secret")
+		calls := stubPolicy(t, skald.PolicyOutcome{}, nil)
+		m := model(strings.Replace(publishingSaga, "      url: https://draugr.example\n",
+			"      tokenEnv: AWS_SECRET_ACCESS_KEY\n", 1))
+		_, err := checkOrgPolicy(context.Background(), m, "project: payments", "")
+		if err == nil || !strings.Contains(err.Error(), "DRAUGR_TOKEN_ENVS") || *calls != 0 {
+			t.Errorf("err = %v, %d calls", err, *calls)
+		}
+	})
+}
+
+// The draugr.config.yaml in the directory being scanned is committed with the repository, so its
+// publish.apiUrl is held to the descriptor's rule. The same file named by $DRAUGR_CONFIG is the
+// operator's choice, and trusted as the machine's.
+func TestTheProjectsConfigurationDoesNotChooseTheServer(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("DRAUGR_API_URL", "")
+	t.Setenv("DRAUGR_API_TOKEN", "drgr_ci_test")
+	t.Setenv("DRAUGR_API_ORIGINS", "")
+	t.Setenv("DRAUGR_CONFIG", "")
+	dir := t.TempDir()
+	t.Chdir(dir)
+	if err := os.WriteFile(filepath.Join(dir, "draugr.config.yaml"),
+		[]byte("publish:\n  apiUrl: https://attacker.example\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	load := func() *saga.Model {
+		m, err := saga.Load([]byte(strings.Replace(publishingSaga, "      url: https://draugr.example\n", "", 1)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := applyConfigDefaults(context.Background(), m); err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+
+	err := publish.CheckCredential(load().Config.Publishers[0])
+	if !errors.Is(err, publish.ErrOriginRefused) || !strings.Contains(err.Error(), "publish.apiUrl in the project's draugr.config.yaml") {
+		t.Errorf("the project's file chose the server: %v", err)
+	}
+
+	t.Setenv("DRAUGR_CONFIG", filepath.Join(dir, "draugr.config.yaml"))
+	m := load()
+	if err := publish.CheckCredential(m.Config.Publishers[0]); err != nil {
+		t.Errorf("a file the operator named: %v", err)
+	}
+	if got := m.Config.Publishers[0].DefaultURL; got != "https://attacker.example" {
+		t.Errorf("DefaultURL = %q", got)
+	}
+}
+
+// Two publishers, one on the environment's server and one a pull request added. A scan refuses the
+// second before any scanner runs, and the server it names is never asked anything.
+func TestAScanRefusesAURLTheEnvironmentDoesNotAllowBeforeAnythingRuns(t *testing.T) {
+	t.Setenv("DRAUGR_API_URL", "https://draugr.example")
+	t.Setenv("DRAUGR_API_TOKEN", "drgr_ci_test")
+	t.Setenv("DRAUGR_API_ORIGINS", "")
+	var asked []string
+	prev := policyChecker
+	policyChecker = func(_ context.Context, dest publish.APIDestination, _ string) (skald.PolicyOutcome, error) {
+		asked = append(asked, dest.Endpoint)
+		return skald.PolicyOutcome{Schema: 1, PolicyVersion: 1, Outcome: "none"}, nil
+	}
+	t.Cleanup(func() { policyChecker = prev })
+	hostile := strings.Replace(scanPublishingSaga, "      url: https://draugr.example\n",
+		"    - kind: draugr-api\n      url: https://attacker.example\n", 1)
+	var out bytes.Buffer
+	err := runScan(context.Background(), writeSaga(t, hostile), scanOptions{failOn: "error"}, fakeRegistry(sarif.LevelNote), &out)
+	if !errors.Is(err, publish.ErrOriginRefused) {
+		t.Fatalf("err = %v, want the descriptor's url refused", err)
+	}
+	if len(asked) != 0 || strings.Contains(out.String(), "CONTROLS") {
+		t.Errorf("asked %v, and printed:\n%s", asked, out.String())
+	}
 }
 
 func TestRequirePolicy(t *testing.T) {
@@ -151,6 +256,7 @@ func TestRequirePolicy(t *testing.T) {
 
 // A refusal stops the scan before any scanner starts, and says which rule refused it.
 func TestARefusedRunScansNothing(t *testing.T) {
+	t.Setenv("DRAUGR_API_URL", "https://draugr.example")
 	t.Setenv("DRAUGR_API_TOKEN", "drgr_ci_test")
 	calls := stubPolicy(t, skald.PolicyOutcome{Schema: 1, PolicyVersion: 7, Outcome: "refuse",
 		Verdicts: []skald.PolicyVerdict{effectsRefused}}, nil)
@@ -174,6 +280,7 @@ func TestARefusedRunScansNothing(t *testing.T) {
 // A setting in force the descriptor breaks fails the gate, even where the findings would pass it,
 // and the block names the rule.
 func TestABrokenRuleFailsTheGate(t *testing.T) {
+	t.Setenv("DRAUGR_API_URL", "https://draugr.example")
 	t.Setenv("DRAUGR_API_TOKEN", "drgr_ci_test")
 	observed := skald.PolicyVerdict{Rule: "scanners", Profile: "Default", State: "violates", Mode: "observe", Acts: "none",
 		Items: []skald.PolicyItem{{Field: "sca scanners", Found: "trivy-fs", Constraint: "required", Expected: "grype-fs", Breaks: true}}}
@@ -201,6 +308,7 @@ func TestABrokenRuleFailsTheGate(t *testing.T) {
 
 // --no-publish is judged nowhere, so it asks nothing unless --policy demands it.
 func TestAScanThatPublishesNothingAsksNothing(t *testing.T) {
+	t.Setenv("DRAUGR_API_URL", "https://draugr.example")
 	t.Setenv("DRAUGR_API_TOKEN", "drgr_ci_test")
 	calls := stubPolicy(t, skald.PolicyOutcome{Outcome: "refuse", Verdicts: []skald.PolicyVerdict{effectsRefused}}, nil)
 	var out bytes.Buffer
@@ -213,9 +321,42 @@ func TestAScanThatPublishesNothingAsksNothing(t *testing.T) {
 	}
 }
 
+// Doctor is what somebody runs on a descriptor before trusting it, so without --policy it sends the
+// token nowhere and asks no server anything, and says how to ask.
+func TestDoctorAsksNoServerWithoutPolicy(t *testing.T) {
+	t.Setenv("DRAUGR_API_URL", "https://draugr.example")
+	t.Setenv("DRAUGR_API_TOKEN", "drgr_ci_test")
+	calls := stubPolicy(t, skald.PolicyOutcome{Schema: 1, PolicyVersion: 7, Outcome: "fail",
+		Verdicts: []skald.PolicyVerdict{thresholdBroken}}, nil)
+	var out bytes.Buffer
+	if err := runDoctor(context.Background(), &out, builtins.Registry(), writeSaga(t, publishingSaga),
+		doctorRun{}, fakeDetect("trivy", "git"), nil); err != nil {
+		t.Fatalf("doctor without --policy: %v", err)
+	}
+	if *calls != 0 {
+		t.Errorf("doctor without --policy asked the server %d times", *calls)
+	}
+	if got := out.String(); !strings.Contains(got, "POLICY  not checked · run with --policy to ask the server") {
+		t.Errorf("doctor does not say how to check the policy:\n%s", got)
+	}
+
+	// A url the environment does not allow is said without --policy too, since saying it asks
+	// nobody anything.
+	out.Reset()
+	hostile := strings.Replace(publishingSaga, "https://draugr.example", "https://attacker.example", 1)
+	if err := runDoctor(context.Background(), &out, builtins.Registry(), writeSaga(t, hostile),
+		doctorRun{}, fakeDetect("trivy", "git"), nil); err != nil {
+		t.Fatalf("doctor without --policy: %v", err)
+	}
+	if got := out.String(); !strings.Contains(got, "POLICY  not checked · the descriptor's url is not an allowed origin") || *calls != 0 {
+		t.Errorf("asked %d times:\n%s", *calls, got)
+	}
+}
+
 // doctor lists every rule that reaches the project, passing and broken, and fails where the scan
 // would.
 func TestDoctorShowsThePolicyTable(t *testing.T) {
+	t.Setenv("DRAUGR_API_URL", "https://draugr.example")
 	t.Setenv("DRAUGR_API_TOKEN", "drgr_ci_test")
 	met := skald.PolicyVerdict{Rule: "upgrade", Profile: "Default", State: "meets", Mode: "enforce", EnforceFrom: "2026-10-01",
 		Response: "fail", InForce: true, Acts: "none",
@@ -226,7 +367,7 @@ func TestDoctorShowsThePolicyTable(t *testing.T) {
 		Verdicts: []skald.PolicyVerdict{thresholdBroken, met, later}}, nil)
 	var out bytes.Buffer
 	err := runDoctor(context.Background(), &out, builtins.Registry(), writeSaga(t, publishingSaga),
-		doctorRun{}, fakeDetect("trivy", "git"), nil)
+		doctorRun{requirePolicy: true}, fakeDetect("trivy", "git"), nil)
 	if err == nil || !strings.Contains(err.Error(), "would fail a scan of this descriptor: threshold (PCI scope)") {
 		t.Fatalf("err = %v", err)
 	}

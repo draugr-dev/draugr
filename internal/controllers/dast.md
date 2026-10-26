@@ -46,6 +46,9 @@ config:
   for it when `dast` is enabled.
 - Runs Nuclei's default (safe) template set, **no active/attack scanning**. Intrusive testing
   stays a deliberate, authorized opt-in.
+- A host's `auth.tokenEnv` names the variable holding a credential for an
+  [authenticated scan](../scanners/nuclei.md#authenticated-scans). The pipeline must list it in
+  `$DRAUGR_TOKEN_ENVS`.
 - A deeper opt-in engine (e.g. OWASP ZAP) is a future follow-up
   ([#92](https://github.com/draugr-dev/draugr/issues/92),
   [#129](https://github.com/draugr-dev/draugr/issues/129)).

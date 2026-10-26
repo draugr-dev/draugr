@@ -12,6 +12,7 @@ import (
 
 	"path/filepath"
 
+	"github.com/draugr-dev/draugr/internal/credential"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -401,6 +402,7 @@ func TestNucleiPrewarmTreatsAnUnreadableInstallAsEmpty(t *testing.T) {
 // travels in a file Nuclei is pointed at instead.
 func TestNucleiCredentialNeverReachesArgv(t *testing.T) {
 	t.Setenv("DRAUGR_TEST_API_TOKEN", "s3cret-value")
+	t.Setenv(credential.TokenEnvsVar, "DRAUGR_TEST_API_TOKEN")
 	var argv []string
 	s := nucleiScanner{
 		info: plugin.ScannerInfo{Name: "nuclei"},
@@ -462,6 +464,7 @@ func TestNucleiHeaderFileIsPrivateAndRemoved(t *testing.T) {
 // the login page and report a pass about the application behind it.
 func TestNucleiRefusesToScanUnauthenticatedByAccident(t *testing.T) {
 	t.Setenv("DRAUGR_TEST_MISSING_TOKEN", "")
+	t.Setenv(credential.TokenEnvsVar, "DRAUGR_TEST_MISSING_TOKEN")
 	ran := false
 	s := nucleiScanner{
 		info: plugin.ScannerInfo{Name: "nuclei"},
@@ -485,6 +488,7 @@ func TestNucleiRefusesToScanUnauthenticatedByAccident(t *testing.T) {
 
 func TestAuthHeader(t *testing.T) {
 	t.Setenv("DRAUGR_TEST_TOK", "abc123")
+	t.Setenv(credential.TokenEnvsVar, "DRAUGR_TEST_TOK")
 	for _, c := range []struct {
 		name string
 		auth *plugin.HostAuth
@@ -510,11 +514,60 @@ func TestAuthHeader(t *testing.T) {
 	}
 }
 
+// The endpoint and the variable are both in the descriptor, so a change to it could otherwise
+// send any of the job's secrets to any host. The pipeline lists what may be named.
+func TestNucleiNamesOnlyAVariableThePipelineLists(t *testing.T) {
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "aws-secret")
+	t.Setenv(credential.TokenEnvsVar, "STAGING_TOKEN")
+	ran := false
+	s := nucleiScanner{
+		info: plugin.ScannerInfo{Name: "nuclei"},
+		run:  func(context.Context, []string) ([]byte, error) { ran = true; return nil, nil },
+	}
+	_, err := s.Scan(context.Background(), plugin.HostTarget{
+		URL:  "https://attacker.example",
+		Auth: &plugin.HostAuth{Kind: "bearer", TokenEnv: "AWS_SECRET_ACCESS_KEY"}, // #nosec G101 -- the name of an environment variable
+	}, nil)
+	if err == nil || !strings.Contains(err.Error(), "nuclei: auth.tokenEnv: $AWS_SECRET_ACCESS_KEY is not listed in $DRAUGR_TOKEN_ENVS") ||
+		!strings.Contains(err.Error(), credential.TokenEnvsVar) {
+		t.Fatalf("err = %v, want the variable refused and DRAUGR_TOKEN_ENVS named", err)
+	}
+	if strings.Contains(err.Error(), "aws-secret") {
+		t.Errorf("the refusal printed the secret: %v", err)
+	}
+	if ran {
+		t.Error("nuclei ran with a variable the pipeline never listed")
+	}
+}
+
+// A dynamic scan's endpoint is a declared target, often a service on the CI network with no
+// certificate, so a listed credential is sent to it over plain http as well as https.
+func TestNucleiAuthenticatesAnHTTPEndpoint(t *testing.T) {
+	t.Setenv("DRAUGR_TEST_TOK", "abc123")
+	t.Setenv(credential.TokenEnvsVar, "DRAUGR_TEST_TOK")
+	var argv []string
+	s := nucleiScanner{
+		info: plugin.ScannerInfo{Name: "nuclei"},
+		run:  func(_ context.Context, a []string) ([]byte, error) { argv = a; return nil, nil },
+	}
+	_, err := s.Scan(context.Background(), plugin.HostTarget{
+		URL:  "http://app:8080",
+		Auth: &plugin.HostAuth{Kind: "bearer", TokenEnv: "DRAUGR_TEST_TOK"}, // #nosec G101 -- the name of an environment variable
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(argv, "-H") {
+		t.Errorf("the scan ran without its credential: %v", argv)
+	}
+}
+
 // TestNucleiProvenanceNamesTheVariableNotTheValue keeps the record honest and the secret out of
 // it. A report says the scan authenticated so a reader can tell it apart from an anonymous one,
 // which reaches a different application entirely.
 func TestNucleiProvenanceNamesTheVariableNotTheValue(t *testing.T) {
 	t.Setenv("DRAUGR_TEST_TOK", "abc123")
+	t.Setenv(credential.TokenEnvsVar, "DRAUGR_TEST_TOK")
 	s := nucleiScanner{
 		info: plugin.ScannerInfo{Name: "nuclei"},
 		run:  func(context.Context, []string) ([]byte, error) { return nil, nil },

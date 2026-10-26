@@ -30,8 +30,30 @@ fragments: [ ... ]            # optional, merge other Saga files into this one
 references: [ ... ]           # optional, links to manual/human controls
 ```
 
-Any string value may reference an environment variable with `${{ VAR_NAME }}`; loading
-fails fast if a referenced variable is unset.
+### Substitution
+
+Any string value, in the descriptor and in every fragment, may reference an environment variable
+with `${{ VAR_NAME }}`. The variable must be one of:
+
+- a name listed in `$DRAUGR_SAGA_ENVS`, comma-separated and set by the pipeline. List only
+  variables that hold no secret, because a substituted value can reach a host the descriptor names
+  and every report the run publishes;
+- a built-in name, CI metadata or a name these examples use, none of which holds a credential:
+  `GITHUB_SHA`, `GITHUB_REF`, `GITHUB_REF_NAME`, `GITHUB_RUN_ID`, `GITHUB_RUN_NUMBER`,
+  `GITHUB_REPOSITORY`, `CI_COMMIT_SHA`, `CI_COMMIT_REF_NAME`, `CI_PIPELINE_ID`, `CI_PROJECT_PATH`,
+  `BUILD_SOURCEVERSION`, `BUILD_SOURCEBRANCHNAME`, `BUILD_BUILDID`, `BUILD_REPOSITORY_NAME`,
+  `RELEASE_VERSION`, `IMAGE_TAG`, `GIT_SHA` and `KUBE_CONTEXT`.
+
+Any other name fails the load before anything runs, naming the variable, and the error is the same
+whether or not the job holds it. A listed name that is unset also fails the load, rather than
+leaving an empty value. The [environment reference](cli.md#environment) says why the pipeline
+decides.
+
+```bash
+export DRAUGR_SAGA_ENVS=STAGING_HOST,DEPLOY_REGION
+```
+
+### Values
 
 Every key needs a value. `config:` on its own line, `release: null`, `release: ~` and a bare `-` in
 a list are refused. The word null as a value is quoted, `"null"`.
@@ -176,8 +198,9 @@ components:
         auth:                                   # optional, authenticates the dast scan
           type: bearer                          #   bearer | header
           header: X-API-Key                     #   required with type: header
-          tokenEnv: DRAUGR_API_TOKEN            #   the variable holding it; there is no field
-                                                #   for the credential itself, because a
+          tokenEnv: STAGING_API_TOKEN           #   the variable holding it, which
+                                                #   $DRAUGR_TOKEN_ENVS must list; there is no
+                                                #   field for the credential itself, because a
                                                 #   descriptor is committed
     kubernetes:
       - cluster: prod-cluster                   # required, a name declared under clusters:
@@ -416,8 +439,15 @@ hosts:
   - url: https://api.example.com
     auth:
       type: bearer
-      tokenEnv: DRAUGR_API_TOKEN
+      tokenEnv: STAGING_API_TOKEN
 ```
+
+```bash
+export DRAUGR_TOKEN_ENVS=STAGING_API_TOKEN   # set by the pipeline, beside the secret itself
+```
+
+**Every dast `auth.tokenEnv` must be listed in `$DRAUGR_TOKEN_ENVS`**, because dast has no variable
+of its own. An unlisted one fails the scan before the scanner starts, naming the variable.
 
 `type: bearer` sends `Authorization: Bearer <token>`; `type: header` with `header: X-API-Key` sends
 that header instead.
@@ -753,6 +783,13 @@ name only the formats in the last column.
 | `gitlab-issue` | `repo`, `tokenEnv`, `label`, `branches`, `select`, `split`, `minPriority`, `children`, `maxChildren`, `labelBy`, `item` | none |
 | `gitlab-mr-comment` | `repo`, `pr`, `marker`, `tokenEnv` | `markdown`, `template` |
 
+**`tokenEnv`** names the environment variable holding the publisher's token, in place of the kind's
+own: `$GITHUB_TOKEN` for the `github` kinds, `$GITLAB_TOKEN` for the `gitlab` kinds,
+`$SYSTEM_ACCESSTOKEN` for the `azure` kinds and `$DRAUGR_API_TOKEN` for `draugr-api`. Any other name
+must be listed in `$DRAUGR_TOKEN_ENVS`, comma-separated and set by the pipeline, or the publisher
+fails before it sends anything. The [environment reference](cli.md#environment) says why the
+pipeline decides.
+
 For local artifacts and no destination at all, `-o <dir>` writes `report.json` and `results.sarif`.
 `--report <format>` writes the formats it names instead of those two.
 
@@ -807,6 +844,12 @@ azure-pr-comment` on its own is usually the whole configuration. The token comes
 `$SYSTEM_ACCESSTOKEN` (or `tokenEnv`), which a pipeline must map into the step explicitly. See
 [reports & publishers](../guides/reports-and-publishers.md#azure-devops) for that and for the
 repository permission the build identity needs.
+
+**`org`** is the collection URL every request is sent to, with the token. It is used where its
+origin is that of `$SYSTEM_TEAMFOUNDATIONCOLLECTIONURI`, or Azure DevOps Services
+(`https://dev.azure.com`, `https://<organization>.visualstudio.com`). Any other origin is refused
+before anything is sent. For Azure DevOps Server outside Azure Pipelines, set
+`$SYSTEM_TEAMFOUNDATIONCOLLECTIONURI` to the collection's URL.
 
 The **`gitlab-mr-comment`** publisher is the GitLab counterpart, with the same sticky behavior. The
 project and the merge-request IID default from the GitLab CI environment, so `kind:
@@ -929,7 +972,7 @@ config:
 
 The **`azure-work-item`** publisher keeps an Azure Boards work item open on the same terms and
 reads the same fields, with Azure's in `item` in place of labels, assignees and milestone. `org` and
-`project` default from the Azure Pipelines environment. The token comes from `$SYSTEM_ACCESSTOKEN`
+`project` default from the Azure Pipelines environment, and `org` is held to the rule above. The token comes from `$SYSTEM_ACCESSTOKEN`
 (or `tokenEnv`), mapped into the step; the build identity needs *View* and *Edit work items in this
 node* on the area path, and *Create tag definition* for a tag new to the organization. The
 description is Markdown; Azure DevOps Services is supported, and Server is untested. A work item
@@ -964,7 +1007,8 @@ publishers](../guides/reports-and-publishers.md#the-calls) so anything else can 
 config:
   publishers:
     - kind: draugr-api
-      # url: https://draugr.acme.example   # or $DRAUGR_API_URL
+      # url: https://draugr.acme.example   # only on $DRAUGR_API_URL's origin, or one
+      #                                    # $DRAUGR_API_ORIGINS lists
 ```
 
 It renders the run report and its evidence for itself. The token comes from `$DRAUGR_API_TOKEN` (or
@@ -974,21 +1018,21 @@ A server that judges an organization's policy is also asked about the descriptor
 starts, with the same endpoint and token, and its verdict can refuse the run or fail its gate. See
 [the organization's policy](cli.md#the-organizations-policy).
 
-**Where a setting comes from, least specific first:**
+**The environment chooses the server.** The token goes to the first of:
 
-```
-~/.draugr/config.yaml  →  ./draugr.config.yaml  →  $DRAUGR_API_URL  →  url: in this Saga
-```
+1. `$DRAUGR_API_URL`.
+2. `publish.apiUrl` in `~/.draugr/config.yaml`, or in the file `--config` or `$DRAUGR_CONFIG` names.
 
-Ambient-broad, then ambient-narrow, then ambient-immediate, then explicit, and **explicit wins**. An
-environment variable is context; a `url:` somebody wrote in a descriptor is intent, and context does
-not override intent, and it is the order every other publisher already uses, `repo`, `commit` and
-the rest all beat their environment equivalents, so it is one rule for the whole of Draugr rather
-than a special case here.
+`url:` is used only on that server's [origin](cli.md#environment), or one `$DRAUGR_API_ORIGINS`
+lists (comma-separated). A `url:` on any other origin fails the scan before any scanner runs,
+naming the two values that disagree. With a token set and no `$DRAUGR_API_URL`, a `url:` the list
+does not name is refused the same way, and the error names `$DRAUGR_API_URL`. `publish.apiUrl` in
+the `./draugr.config.yaml` beside the descriptor is held to the same rule, and is ignored while
+`$DRAUGR_API_URL` is set or the descriptor has a `url:`.
 
-Read practically: put the endpoint in `draugr.config.yaml` once for the organization, let a
-pipeline point somewhere else with the environment variable, and write `url:` in a descriptor only
-when that project genuinely belongs somewhere the others do not.
+In practice, put the endpoint in the runner's `~/.draugr/config.yaml` or `$DRAUGR_API_URL`, and
+write `url:` in a descriptor only to choose a path on that server, or a second server the pipeline
+lists in `$DRAUGR_API_ORIGINS`.
 
 `report.json` travels in the request; **`results.sarif` does not travel through the API at all**.
 The server answers with a URL and the publisher uploads the evidence directly to storage. At roughly

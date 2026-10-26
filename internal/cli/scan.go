@@ -303,6 +303,14 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		if err := checkReportNames(model); err != nil {
 			return err
 		}
+		// A credential the environment does not let the descriptor name, or a server it does not
+		// let the descriptor choose, refuses the publisher. Said now rather than once every scanner
+		// has finished.
+		for _, cfg := range model.Config.Publishers {
+			if err := publish.CheckCredential(cfg); err != nil {
+				return err
+			}
+		}
 	}
 	// The organization's policy, before any tool runs, so a refused run costs nothing. Asked where
 	// the run will be published, or where --policy demands it: a scan with --no-publish, the diff
@@ -310,7 +318,11 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// nothing.
 	var orgPolicy *skald.PolicyCheck
 	if !opts.noPublish || opts.requirePolicy {
-		orgPolicy, err = checkOrgPolicy(ctx, model, resolved.Effective(), netpolicy.Offline())
+		held := ""
+		if netpolicy.Offline() {
+			held = policyOffline
+		}
+		orgPolicy, err = checkOrgPolicy(ctx, model, resolved.Effective(), held)
 		if err != nil {
 			return err
 		}
@@ -1013,6 +1025,28 @@ func digestPinnedOnly(t plugin.Target) bool {
 	return img.Digest != ""
 }
 
+// configuredAPIURLs splits publish.apiUrl by who wrote it.
+//
+// machine is from ~/.draugr/config.yaml, or from the one file --config or $DRAUGR_CONFIG names,
+// which the operator of the machine chose. project is from the draugr.config.yaml in the directory
+// being scanned, which is committed with the repository and changes by pull request like the
+// descriptor, so the draugr-api publisher holds it to the descriptor's rule.
+func configuredAPIURLs(res config.Resolved, wd string) (machine, project string) {
+	projectFile := filepath.Join(wd, config.FileName)
+	explicit := config.Explicit(rootConfigPath) != ""
+	for _, src := range res.Sources {
+		url := src.File.Publish.APIURL
+		switch {
+		case url == "":
+		case !explicit && src.Path == projectFile:
+			project = url
+		default:
+			machine = url
+		}
+	}
+	return machine, project
+}
+
 // applyConfigDefaults merges the machine/organization controller defaults under the descriptor.
 //
 // Under, not over: a project that has an opinion keeps it, and inherits the rest. The
@@ -1028,13 +1062,12 @@ func applyConfigDefaults(ctx context.Context, model *saga.Model) (config.File, e
 		return config.File{}, err
 	}
 	// The organization's default endpoint, carried to the publishers that may want it. Applied
-	// here rather than merged into the descriptor's url: the two sit at opposite ends of the
-	// precedence chain, and a default that overwrote an explicit choice would be the wrong way
-	// round.
-	if url := res.File.Publish.APIURL; url != "" {
-		for i := range model.Config.Publishers {
-			model.Config.Publishers[i].DefaultURL = url
-		}
+	// here rather than merged into the descriptor's url, because the two are trusted differently:
+	// the machine's configuration names where the token may go, and the descriptor only asks.
+	machineURL, projectURL := configuredAPIURLs(res, wd)
+	for i := range model.Config.Publishers {
+		model.Config.Publishers[i].DefaultURL = machineURL
+		model.Config.Publishers[i].ProjectURL = projectURL
 	}
 
 	if len(res.File.Controllers) == 0 {

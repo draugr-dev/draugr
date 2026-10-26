@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -26,9 +27,8 @@ func loadModel(data []byte, validate bool) (*Model, error) {
 		return nil, fmt.Errorf("parse saga: %w", err)
 	}
 
-	if missing := substituteEnv(&root); len(missing) > 0 {
-		return nil, fmt.Errorf("undefined environment variable(s) referenced in saga: %s",
-			strings.Join(missing, ", "))
+	if err := substitute(&root, "saga"); err != nil {
+		return nil, err
 	}
 
 	if err := noEmptyValues(&root); err != nil {
@@ -220,13 +220,68 @@ func loadModelFile(path string) (*Model, error) {
 	return loadModel(data, false)
 }
 
+// SagaEnvsVar lists the environment variables a descriptor may substitute with ${{ VAR }}, besides
+// the built-in ones, comma-separated.
+//
+// Set by the pipeline. A descriptor or a fragment changes by pull request, and every value it
+// carries can reach the network: a host it probes, a repository it clones, a report it publishes.
+// Substituting any variable would let a change to it put any of the job's secrets in a URL, so it
+// may substitute only what the pipeline lists.
+const SagaEnvsVar = "DRAUGR_SAGA_ENVS"
+
+// builtinSagaEnvs are the variables a descriptor may substitute without SagaEnvsVar listing them:
+// CI metadata naming a revision, a branch, a run or a repository, and the names Draugr's own
+// documentation uses. None holds a credential. docs/reference/saga-schema.md lists them, and
+// TestTheBuiltInVariablesAreDocumented holds the two together.
+var builtinSagaEnvs = []string{
+	// GitHub Actions.
+	"GITHUB_SHA", "GITHUB_REF", "GITHUB_REF_NAME", "GITHUB_RUN_ID", "GITHUB_RUN_NUMBER", "GITHUB_REPOSITORY",
+	// GitLab CI.
+	"CI_COMMIT_SHA", "CI_COMMIT_REF_NAME", "CI_PIPELINE_ID", "CI_PROJECT_PATH",
+	// Azure Pipelines.
+	"BUILD_SOURCEVERSION", "BUILD_SOURCEBRANCHNAME", "BUILD_BUILDID", "BUILD_REPOSITORY_NAME",
+	// The documentation's examples.
+	"RELEASE_VERSION", "IMAGE_TAG", "GIT_SHA", "KUBE_CONTEXT",
+}
+
+// substitutable reports whether a descriptor may substitute the variable name.
+func substitutable(name string) bool {
+	if slices.Contains(builtinSagaEnvs, name) {
+		return true
+	}
+	for _, listed := range strings.Split(os.Getenv(SagaEnvsVar), ",") {
+		if strings.TrimSpace(listed) == name {
+			return true
+		}
+	}
+	return false
+}
+
+// substitute replaces every ${{ VAR }} in a parsed document, or says which references it refused.
+//
+// A name neither built in nor listed in DRAUGR_SAGA_ENVS is refused before the environment is
+// consulted, so the error is the same whether or not the variable exists, and loading a descriptor
+// cannot be used to learn which variables a job holds. A listed name the environment does not set
+// is an error too, naming it, so a mistake fails here rather than producing an empty value.
+func substitute(root *yaml.Node, where string) error {
+	missing, refused := substituteEnv(root)
+	if len(refused) > 0 {
+		return fmt.Errorf("environment variable(s) referenced in %s and not listed in $%s: %s. Set %s=%s in "+
+			"the pipeline's environment (comma-separated), listing only variables that hold no secret",
+			where, SagaEnvsVar, strings.Join(refused, ", "), SagaEnvsVar, strings.Join(refused, ","))
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("undefined environment variable(s) referenced in %s: %s", where, strings.Join(missing, ", "))
+	}
+	return nil
+}
+
 // substituteEnv walks the parsed YAML tree and replaces every ${{ VAR }} in scalar
 // values with the corresponding environment variable. Because it operates on parsed
 // nodes, YAML comments (which live in the nodes' comment fields, not in scalar values)
-// are never substituted. It returns any referenced-but-undefined variable names, so
-// config mistakes fail fast instead of silently producing empty values.
-func substituteEnv(root *yaml.Node) []string {
-	var missing []string
+// are never substituted. It returns the names it may substitute and the environment does
+// not set, and the names it may not substitute at all, each once, in the order they appear.
+func substituteEnv(root *yaml.Node) (missing, refused []string) {
 	seen := map[string]bool{}
 
 	var walk func(*yaml.Node)
@@ -237,6 +292,13 @@ func substituteEnv(root *yaml.Node) []string {
 		if n.Kind == yaml.ScalarNode {
 			n.Value = envPattern.ReplaceAllStringFunc(n.Value, func(match string) string {
 				name := envPattern.FindStringSubmatch(match)[1]
+				if !substitutable(name) {
+					if !seen[name] {
+						seen[name] = true
+						refused = append(refused, name)
+					}
+					return match
+				}
 				if val, ok := os.LookupEnv(name); ok {
 					return val
 				}
@@ -253,7 +315,7 @@ func substituteEnv(root *yaml.Node) []string {
 	}
 
 	walk(root)
-	return missing
+	return missing, refused
 }
 
 // foldOlderSpellings moves a descriptor written against a name we have moved off onto the current

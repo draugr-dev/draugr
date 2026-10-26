@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/credential"
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
@@ -86,6 +87,7 @@ func TestGithubPublisherConfigOverridesEnv(t *testing.T) {
 	defer srv.Close()
 	t.Setenv("GITHUB_API_URL", srv.URL)
 	t.Setenv("MY_TOKEN", "custom-token")
+	t.Setenv(credential.TokenEnvsVar, "OTHER_TOKEN, MY_TOKEN")
 
 	p, err := For(saga.PublisherConfig{
 		Kind: "github", Repo: "org/repo", Commit: "abc", Ref: "refs/heads/dev", TokenEnv: "MY_TOKEN",

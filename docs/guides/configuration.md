@@ -155,15 +155,19 @@ Forty repositories pointing at one install would otherwise repeat the endpoint i
 descriptors, and change it in forty places when the host moves. Set it once in a runner image and
 every pipeline picks it up.
 
-**It is the least specific answer, and loses to everything more specific:**
+**The environment names the server.** The `draugr-api` publisher sends its token to the first of:
 
-```
-~/.draugr/config.yaml  →  ./draugr.config.yaml  →  $DRAUGR_API_URL  →  url: in the Saga
-```
+1. `$DRAUGR_API_URL`.
+2. `publish.apiUrl` in `~/.draugr/config.yaml`, or in the file `--config` or `$DRAUGR_CONFIG` names.
 
-Ambient-broad, ambient-narrow, ambient-immediate, then explicit. An environment variable is context,
-*this pipeline talks to staging*, and a `url:` somebody wrote in a descriptor is intent. Context
-does not override intent, which is the same order every publisher already uses for its other fields.
+- A `url:` in the descriptor, or `publish.apiUrl` in `./draugr.config.yaml`, is used only on the
+  origin of the server above, or on an [origin](../reference/cli.md#environment)
+  `$DRAUGR_API_ORIGINS` lists (comma-separated).
+- Any other origin fails the scan before it starts, naming both values.
+- With no server set and a token present, every `url:` that `$DRAUGR_API_ORIGINS` does not list is
+  refused.
+- `publish.apiUrl` in `./draugr.config.yaml` is ignored while `$DRAUGR_API_URL` is set, or while the
+  descriptor has a `url:`.
 
 **No token, here or anywhere in this file.** It is committed alongside a project, and a credential
 in it is a credential in somebody's git history. `$DRAUGR_API_TOKEN` is the only way in.

@@ -14,6 +14,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/credential"
 	"github.com/draugr-dev/draugr/pkg/ci"
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -770,6 +771,7 @@ func TestTheAzureWorkItemPublisherNeedsAProjectAndAToken(t *testing.T) {
 	}
 
 	t.Setenv("BOARDS_PAT", "pat")
+	t.Setenv(credential.TokenEnvsVar, "BOARDS_PAT")
 	p, err = For(saga.PublisherConfig{Kind: "azure-work-item", Org: "https://dev.azure.com/acme", Project: "Shop", TokenEnv: "BOARDS_PAT"})
 	if err != nil || p.Kind() != "azure-work-item" {
 		t.Fatalf("org, project and tokenEnv: %v, %v", p, err)

@@ -251,7 +251,8 @@ components:
         type: api            # skips browser-only headers
         auth:                # how to authenticate the probe; omit to probe anonymously
           type: bearer       # bearer (Authorization: Bearer <token>) | header
-          tokenEnv: API_TOKEN   # the environment variable holding it, never the token itself
+          tokenEnv: API_TOKEN   # the environment variable holding it, never the token itself;
+                                # the pipeline lists it in $DRAUGR_TOKEN_ENVS
           # type: header
           # header: X-API-Key
         spec:                # drive the scan from an OpenAPI document instead of crawling
@@ -307,4 +308,5 @@ references:
 # Tip: string values support environment-variable substitution, e.g.
 #   version: "${{ RELEASE_VERSION }}"
 #   image: registry.example.com/acme/web:${{ IMAGE_TAG }}
-# Referenced variables must be set in the environment (tokens in comments are ignored).
+# Referenced variables must be set in the environment (tokens in comments are ignored), and be
+# built-in CI metadata or listed by the pipeline in $DRAUGR_SAGA_ENVS.

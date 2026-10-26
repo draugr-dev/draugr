@@ -96,7 +96,9 @@ func runLive(t *testing.T, s sealed.Scenario, bin string) {
 	out := filepath.Join(work, "out")
 	cmd := exec.Command(bin, "scan", "draugr.saga.yaml", "--output", out, "--log-level", "warn") // #nosec G204 -- the binary under test
 	cmd.Dir = work
-	cmd.Env = append(os.Environ(), "DRAUGR_SEALED_SEMGREP_RULES="+rules, "NO_COLOR=1")
+	// Listed in DRAUGR_SAGA_ENVS for the reason the sealed scenarios list it.
+	cmd.Env = append(os.Environ(), "DRAUGR_SEALED_SEMGREP_RULES="+rules,
+		"DRAUGR_SAGA_ENVS=DRAUGR_SEALED_SEMGREP_RULES", "NO_COLOR=1")
 	console, err := cmd.CombinedOutput()
 	t.Logf("%s: draugr scan exit=%v\n%s", s.Name, err, console)
 

@@ -125,8 +125,20 @@ components:
         type: api
         auth:
           type: bearer                 # or: type: header, header: X-API-Key
-          tokenEnv: DRAUGR_API_TOKEN
+          tokenEnv: STAGING_API_TOKEN
 ```
+
+and list the variable where the pipeline sets its environment:
+
+```bash
+export DRAUGR_TOKEN_ENVS=STAGING_API_TOKEN   # comma-separated
+```
+
+**Every `auth.tokenEnv` must be listed in `$DRAUGR_TOKEN_ENVS`**, because dast has no variable of
+its own. An unlisted one fails the scan before Nuclei starts, naming the variable. The
+[environment reference](../../docs/reference/cli.md#environment) says why the pipeline decides. The
+endpoint may be `http://` as well as `https://`, since a staging service on the CI network often has
+no certificate.
 
 **There is no field for the credential itself, on purpose.** A descriptor is committed, so a token
 written into one is a leaked token, and `secrets` would rightly flag it. Making the value
@@ -141,13 +153,14 @@ runs.
 exactly the quiet pass this exists to prevent:
 
 ```
-run nuclei: nuclei: $DRAUGR_API_TOKEN is empty, so this scan would run unauthenticated and
+run nuclei: nuclei: $STAGING_API_TOKEN is empty, so this scan would run unauthenticated and
 report on the login page rather than the application behind it
 ```
 
 **Authenticating asks for no extra permission**, and that is a decision rather than an oversight.
-Naming `tokenEnv` on an endpoint is already an explicit opt-in, in a file that is committed and
-reviewed, the consent a declared effect would ask for has been given by configuring it. Requiring
+Naming `tokenEnv` on an endpoint, in a file that is committed and reviewed, and listing it in the
+pipeline's `$DRAUGR_TOKEN_ENVS` are already explicit opt-ins, so the consent a declared effect would
+ask for has been given by configuring it. Requiring
 `allowEffects` on top would put a prompt in front of every `dast` run, including the anonymous
 ones, which is how people learn to accept without reading.
 

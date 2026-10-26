@@ -35,12 +35,15 @@ type githubPublisher struct {
 }
 
 func newGithubPublisher(cfg saga.PublisherConfig) (Publisher, error) {
-	tokenEnv := firstNonEmpty(cfg.TokenEnv, "GITHUB_TOKEN")
+	tokenEnv, token, err := tokenFor(cfg)
+	if err != nil {
+		return nil, err
+	}
 	g := githubPublisher{
 		repo:   firstNonEmpty(cfg.Repo, os.Getenv("GITHUB_REPOSITORY")),
 		commit: firstNonEmpty(cfg.Commit, os.Getenv("GITHUB_SHA")),
 		ref:    firstNonEmpty(cfg.Ref, os.Getenv("GITHUB_REF")),
-		token:  os.Getenv(tokenEnv),
+		token:  token,
 		apiURL: firstNonEmpty(os.Getenv("GITHUB_API_URL"), "https://api.github.com"),
 		client: newRetryingClient(http.DefaultClient),
 		// Processing usually takes seconds. The bound is generous because a run that gives up

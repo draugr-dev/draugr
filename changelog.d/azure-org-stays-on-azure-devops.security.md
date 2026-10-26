@@ -1,0 +1,1 @@
+- **An Azure publisher's `org` now sends the token only to Azure DevOps Services or the collection the pipeline names.** Any other origin is refused before anything is sent. For Azure DevOps Server outside Azure Pipelines, set `SYSTEM_TEAMFOUNDATIONCOLLECTIONURI` to the collection's URL.

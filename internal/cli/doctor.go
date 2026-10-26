@@ -128,8 +128,8 @@ func newDoctorCommand() *cobra.Command {
 		"skip the check for a newer draugr release and every target check that needs the network "+
 			"(also set by the root --offline flag)")
 	cmd.Flags().BoolVar(&opts.requirePolicy, "policy", false,
-		"require the organization's policy check against the draugr-api server the descriptor publishes to; "+
-			"not being able to check it is then an error")
+		"ask the draugr-api server the descriptor publishes to for the organization's policy, sending the token; "+
+			"without it doctor sends no token, and with it not being able to check is an error")
 	cmd.Flags().StringSliceVar(&opts.components, "components", nil,
 		"check only the targets of these components")
 	cmd.Flags().StringSliceVar(&opts.labels, "labels", nil,
@@ -213,13 +213,23 @@ func runDoctor(
 
 	// The organization's policy, from the server the descriptor publishes to. Judged on the
 	// descriptor as the scan would send it, with the machine's configured defaults merged under it.
+	//
+	// Asked only under --policy. Doctor is what somebody runs on a descriptor they have not
+	// reviewed yet, and asking means sending the token to the server it names.
 	var orgPolicy *skald.PolicyCheck
 	if model != nil {
 		if _, err := applyConfigDefaults(ctx, model); err != nil {
 			return err
 		}
+		held := ""
+		switch {
+		case run.offline:
+			held = policyOffline
+		case !run.requirePolicy:
+			held = policyNotAsked
+		}
 		var err error
-		orgPolicy, err = checkOrgPolicy(ctx, model, (&saga.Resolved{Model: model}).Effective(), run.offline)
+		orgPolicy, err = checkOrgPolicy(ctx, model, (&saga.Resolved{Model: model}).Effective(), held)
 		if err != nil {
 			return err
 		}

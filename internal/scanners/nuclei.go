@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/draugr-dev/draugr/internal/credential"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -99,17 +100,28 @@ func (s nucleiScanner) DataState(ctx context.Context) []plugin.DataState {
 //
 // The value is read here and nowhere earlier on purpose: it must not reach the descriptor, a
 // cache key, a report, or a log. Everything upstream carries the variable's name instead.
+//
+// The endpoint and the variable are both written in the descriptor, so a change to it could send
+// any of the job's secrets to any host. The variable has to be one $DRAUGR_TOKEN_ENVS lists, which
+// the pipeline sets.
+//
+// Plain http is accepted, unlike for a publisher's token. The endpoint is a declared target, often
+// a service on the CI network with no certificate, and what TLS would protect against there is
+// somebody reading that network rather than somebody editing the descriptor.
 func authHeader(a *plugin.HostAuth) (string, error) {
 	if a == nil {
 		return "", nil
 	}
-	token := os.Getenv(a.TokenEnv)
+	name, token, err := credential.Token(a.TokenEnv, "")
+	if err != nil {
+		return "", fmt.Errorf("nuclei: auth.%w", err)
+	}
 	if token == "" {
 		// Loudly, because the alternative is the failure this feature exists to remove: a scan
 		// that quietly falls back to anonymous, probes the login page, and reports a pass about
 		// the application behind it.
 		return "", fmt.Errorf("nuclei: $%s is empty, so this scan would run unauthenticated and "+
-			"report on the login page rather than the application behind it", a.TokenEnv)
+			"report on the login page rather than the application behind it", name)
 	}
 	switch a.Kind {
 	case "bearer":
