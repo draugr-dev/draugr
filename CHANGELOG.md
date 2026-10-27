@@ -16,9 +16,9 @@ _Nothing yet._
 
 ### Changed
 
-- **`draugr tools install` fetches gosec 2.30.0**, which was pinned at 2.29.0. A G702 finding now names the call it reaches, as in `Command injection via taint analysis: os/exec.Command`.
+- **`draugr tools install` fetches gosec 2.30.0.** A G702 finding now names the call it reaches, as in `Command injection via taint analysis: os/exec.Command`.
 
-- **`fix_list` returns every action in each list, and `next` says why its action leads.** Actions that tied with the third in a list are no longer left out. `limit` still caps each list. `next` from `summarize_report` and `scan` ends with the CVE and the KEV or EPSS signal behind the action it quotes.
+- **`fix_list` returns every action in each list unless `limit` is set, and `next` says why its action leads.** The default was three per list, which could drop actions tied with the third. When the action `next` quotes, from `summarize_report` and `scan`, clears a finding on KEV or with a raised EPSS score, `next` names that finding's rule and the signal.
 
 ## [0.156.0] - 2026-10-27
 
