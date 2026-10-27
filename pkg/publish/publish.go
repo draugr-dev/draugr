@@ -193,6 +193,15 @@ func Kinds() []string {
 // every configured publisher. It returns the first error encountered; a publisher that fails
 // does not prevent the others from being attempted.
 func Run(ctx context.Context, publishers []saga.PublisherConfig, data report.Data) error {
+	return deliverAll(ctx, publishers, data, deliverTo)
+}
+
+// sender hands one built publisher what was rendered for it.
+type sender func(ctx context.Context, p Publisher, data report.Data, artifacts []report.Artifact) error
+
+// deliverAll is Run with the last step chosen by the caller: rendering is shared, and Judge reads
+// the server's answer where Run needs only whether delivery succeeded.
+func deliverAll(ctx context.Context, publishers []saga.PublisherConfig, data report.Data, send sender) error {
 	if len(publishers) == 0 {
 		return nil
 	}
@@ -282,7 +291,7 @@ func Run(ctx context.Context, publishers []saga.PublisherConfig, data report.Dat
 		// whoever is taking files. Only the file publisher writes them, and it ignores what it
 		// cannot use.
 		deliver = append(deliver, sboms...)
-		if err := deliverTo(ctx, p, data, deliver); err != nil {
+		if err := send(ctx, p, data, deliver); err != nil {
 			failures = append(failures, fmt.Errorf("publisher %q: %w", cfg.Kind, err))
 		}
 	}

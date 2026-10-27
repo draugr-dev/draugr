@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -71,7 +72,9 @@ type scanOptions struct {
 	templateFile  string
 	noPublish     bool
 	requirePolicy bool
-	top           int
+	// policyWait is how long to wait for each server's verdict on the published run.
+	policyWait time.Duration
+	top        int
 	// topConfigured is output.top having set top, which chooses a number as --top does.
 	topConfigured   bool
 	noTips          bool
@@ -105,7 +108,7 @@ var scanFlagGroups = []flagGroup{
 		"min-priority", "artifact-min-priority", "template", "template-file", "no-tips",
 	}},
 	{"Caching", []string{"cache-dir", "cache-ttl", "cache-read-only", "cache-require-digest"}},
-	{"Running the scan", []string{"jobs", "allow-effects", "no-publish", "policy"}},
+	{"Running the scan", []string{"jobs", "allow-effects", "no-publish", "policy", "policy-wait"}},
 }
 
 func newScanCommand() *cobra.Command {
@@ -189,6 +192,8 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.requirePolicy, "policy", false,
 		"require the organization's policy check against the draugr-api server the descriptor publishes to; "+
 			"not being able to check it is then an error")
+	cmd.Flags().DurationVar(&opts.policyWait, "policy-wait", publish.DefaultPolicyWait,
+		"how long to wait for each draugr-api server's policy verdict on the published run's findings (0 = do not wait)")
 	cmd.Flags().IntVar(&opts.top, "top", 10, "console: max findings to list in the ranked table (0 = all)")
 	cmd.Flags().BoolVar(&opts.noTips, "no-tips", false, "suppress the console's contextual tips (also DRAUGR_NO_TIPS)")
 	cmd.Flags().StringSliceVar(&opts.components, "components", nil,
@@ -552,6 +557,27 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			data.Verdict = verdict
 		}
 	}
+	// The run goes to the draugr-api servers before anything is rendered. A server judges a rule over
+	// findings only once they arrive, and what it decides is a reason the run fails, so it has to be
+	// known before the console, the artifacts and the other publishers say what happened.
+	//
+	// Held rather than returned: a run that both failed its gate and could not publish is two
+	// facts, and the gate is the one the command exists to report. Returning here named the
+	// publisher as the outcome and never mentioned the verdict, which sends a reader to fix a
+	// token when what actually happened is that the build should not ship.
+	var publishErr error
+	if !opts.noPublish {
+		var judged *skald.PolicyCheck
+		judged, publishErr = publish.Judge(ctx, model.Config.Publishers, data, opts.policyWait)
+		// The pre-flight asked the same servers, so it is never nil where a server judged the run.
+		if judged != nil && orgPolicy != nil {
+			orgPolicy.Run = judged
+			if judged.Fails() {
+				verdict.Verdict = norn.Fail
+				data.Verdict = verdict
+			}
+		}
+	}
 	if format == "template" {
 		art, err := report.Build(saga.ReportConfig{
 			Format: "template", Template: opts.template, TemplateFile: opts.templateFile,
@@ -576,17 +602,12 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			return err
 		}
 	}
-	// Deliver each publisher's reports (Saga config.publishers).
-	// --no-publish suppresses this so a caller (e.g. the diff workflow, which scans both sides
-	// of a PR) can produce artifacts without triggering side effects like a code-scanning upload.
-	//
-	// Held rather than returned: a run that both failed its gate and could not publish is two
-	// facts, and the gate is the one the command exists to report. Returning here named the
-	// publisher as the outcome and never mentioned the verdict, which sends a reader to fix a
-	// token when what actually happened is that the build should not ship.
-	var publishErr error
+	// Deliver each remaining publisher's reports (Saga config.publishers), with the servers' verdict
+	// in them. --no-publish suppresses this so a caller (e.g. the diff workflow, which scans both
+	// sides of a PR) can produce artifacts without triggering side effects like a code-scanning
+	// upload.
 	if !opts.noPublish {
-		publishErr = publish.Run(ctx, model.Config.Publishers, data)
+		publishErr = errors.Join(publishErr, publish.Run(ctx, publish.ExceptAPI(model.Config.Publishers), data))
 	}
 
 	if incomplete {
@@ -621,6 +642,11 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// swallows the scan error that leaves no report for the diff to read.
 	if verdict.Verdict == norn.Fail && !opts.noGate {
 		return alsoPublish(fmt.Errorf("policy verdict: fail"), publishErr)
+	}
+	if opts.requirePolicy {
+		if err := requireRunPolicy(orgPolicy, opts.policyWait); err != nil {
+			return alsoPublish(err, publishErr)
+		}
 	}
 	return publishErr
 }

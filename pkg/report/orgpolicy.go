@@ -61,14 +61,26 @@ func pad(s string, width int) string {
 // writePolicy is a scan's POLICY block: each verdict the run breaks, or a line saying none is
 // broken or that the policy could not be checked. Nil where the descriptor publishes to no server
 // that judges one.
+//
+// Where the run was published, the servers' verdict on it covers the descriptor's settings as well
+// as the findings', so its verdicts replace the pre-flight's. A verdict the wait ended before, or a
+// server that could not say, is named on the heading, because neither is a pass.
 func writePolicy(w io.Writer, col tui.Painter, p *skald.PolicyCheck) {
 	if p == nil {
 		return
 	}
 	_, _ = fmt.Fprintln(w)
+	run := p.Run
+	head, shown := p, p
+	if run != nil && run.Checked {
+		head = run
+	}
+	if run != nil && (run.Checked || len(run.Verdicts) > 0) {
+		shown = run
+	}
 	var rows []policyRow
 	checked := 0
-	for _, v := range p.Verdicts {
+	for _, v := range shown.Verdicts {
 		if v.Evaluated() {
 			checked++
 		}
@@ -79,11 +91,16 @@ func writePolicy(w io.Writer, col tui.Painter, p *skald.PolicyCheck) {
 			rows = append(rows, policyRow{rule: v.Rule, item: item.String(), verdict: v, first: i == 0})
 		}
 	}
-	head := policyHeading(col, p, "")
-	if p.Checked && len(rows) == 0 {
-		head += col.Paint(cDim, fmt.Sprintf(" · %s checked, none broken", english.Count(checked, "rule")))
+	line := policyHeading(col, head, "")
+	switch {
+	case run != nil && !run.Checked:
+		line += col.Paint(cDim, " · ") + col.Paint(cFail, "run not checked") + col.Paint(cDim, " · "+run.Reason)
+	case run != nil && run.Pending:
+		line += col.Paint(cDim, " · ") + col.Paint(cFail, "decided after publish")
+	case shown.Checked && len(rows) == 0:
+		line += col.Paint(cDim, fmt.Sprintf(" · %s checked, none broken", english.Count(checked, "rule")))
 	}
-	_, _ = fmt.Fprintln(w, head)
+	_, _ = fmt.Fprintln(w, line)
 	ruleW, itemW := 0, 0
 	for _, r := range rows {
 		ruleW = max(ruleW, runeWidth(r.rule))

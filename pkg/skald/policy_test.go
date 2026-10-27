@@ -56,3 +56,27 @@ func TestStrongestAndSummary(t *testing.T) {
 		t.Error("with no item marked, every item is what the verdict names")
 	}
 }
+
+func TestAnOutcomeIsUndecidedWhileAnythingIsPending(t *testing.T) {
+	if (PolicyOutcome{Outcome: PolicyNone, Passed: true}).Undecided() {
+		t.Error("an answer with nothing pending is decided")
+	}
+	if !(PolicyOutcome{Pending: true}).Undecided() {
+		t.Error("the run's answer says pending")
+	}
+	if !(PolicyOutcome{Verdicts: []PolicyVerdict{{Rule: "licenses"}, {Rule: "threshold", Pending: true}}}).Undecided() {
+		t.Error("a publish answer marks the pending verdict")
+	}
+}
+
+func TestACheckFailsOnFailOrRefuse(t *testing.T) {
+	for outcome, fails := range map[string]bool{PolicyNone: false, "": false, PolicyFail: true, PolicyRefuse: true} {
+		if got := (&PolicyCheck{Outcome: outcome}).Fails(); got != fails {
+			t.Errorf("%q fails = %v", outcome, got)
+		}
+	}
+	var none *PolicyCheck
+	if none.Fails() {
+		t.Error("no check fails nothing")
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/draugr-dev/draugr/pkg/publish"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -98,6 +99,25 @@ func requirePolicy(p *skald.PolicyCheck) error {
 		return fmt.Errorf("--policy: the descriptor publishes to no draugr-api server, so there is no organization policy to check")
 	case !p.Checked:
 		return fmt.Errorf("--policy: the organization's policy was not checked: %s", p.Reason)
+	}
+	return nil
+}
+
+// requireRunPolicy is --policy after publishing: a server that could not say what it made of the
+// run, or had not decided by the time the wait ended, is an error rather than a line in the report.
+// A run published to no server that judges policy has nothing to require.
+func requireRunPolicy(p *skald.PolicyCheck, wait time.Duration) error {
+	switch {
+	case p == nil || p.Run == nil:
+		return nil
+	case !p.Run.Checked:
+		return fmt.Errorf("--policy: the organization's policy was not checked on the published run: %s", p.Run.Reason)
+	case p.Run.Pending && wait <= 0:
+		return fmt.Errorf("--policy: the server decides part of the organization's policy on the published run " +
+			"after publish, and --policy-wait 0 waits for none of it")
+	case p.Run.Pending:
+		return fmt.Errorf("--policy: the server had not decided the organization's policy on the published run "+
+			"within --policy-wait %s", wait)
 	}
 	return nil
 }

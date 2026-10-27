@@ -1,0 +1,1 @@
+- **A rule over findings in the organization's policy now fails the scan that produced them.** `draugr scan` publishes to `draugr-api` servers first and waits for their verdict on the run, up to `--policy-wait` (default `5m`), before printing the report and running other publishers. A failing rule fails the gate; a verdict not received is never a pass.

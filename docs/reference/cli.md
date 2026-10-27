@@ -502,10 +502,12 @@ whether it is a shortlist or every finding, and `--top 0` also lists every row u
 | `--allow-effects` | - | Accept scanner effects for this run (`mutate`, `privilege`). `config.allowEffects` is the reviewed equivalent. See [below](#scanners-that-do-more-than-read) |
 | `--no-publish` | `false` | Skip the descriptor's configured publishers (still writes `-o` artifacts and stdout) |
 | `--policy` | `false` | Require the [organization's policy](#the-organizations-policy) check |
+| `--policy-wait` | `5m` | How long to wait for each `draugr-api` server's [verdict on the published run](#the-organizations-policy) (`0` = do not wait) |
 
 Under `--policy`, a descriptor publishing to no `draugr-api` server, a missing token, an unreachable
-server or `--offline` is an error rather than `not checked`. With `--no-publish`, the policy check
-runs only under `--policy`.
+server or `--offline` is an error rather than `not checked`, and so is a verdict on the published
+run that the server could not give or had not decided within `--policy-wait`. With `--no-publish`,
+the policy check runs only under `--policy`.
 
 The `--cache-*` flags have counterparts in [`draugr.config.yaml`](#draugr-config) under `cache:`
 (`dir`, `ttl`, `readOnly`, `requireDigest`), and `--view`, `--evidence` and `--top` under
@@ -812,12 +814,26 @@ A run that could not ask says `POLICY  not checked` and one of these reasons:
   `draugr-api` publisher;
 - `run with --policy to ask the server`, from `draugr doctor` without `--policy`.
 
-`--policy` makes each of them an error. A rule the server judges from the
-run's findings rather than from the descriptor is decided when the run is published, and the
-publisher fails the build if the policy fails the published run. `report.json` records the server,
-the policy version and every verdict as
-[`policy`](report-schema.md#telling-a-partial-run-from-a-clean-one). A scan with `--no-publish` is
-published nowhere, so it asks nothing unless `--policy` is passed.
+`--policy` makes each of them an error.
+
+A rule the server judges from the run's findings rather than from the descriptor is decided once the
+run is published. So a scan publishes to its `draugr-api` servers first and waits up to
+`--policy-wait` for each one's verdict on the run, then prints the report, writes `-o` and runs the
+other publishers with that verdict in them. The verdict on the run replaces the pre-flight's in the
+`POLICY` block, and a broken rule in force fails the gate as the pre-flight's does. A verdict the
+scan could not get is never a pass, and the `POLICY` line says which:
+
+- `decided after publish`, where the server had not decided every rule within `--policy-wait`;
+- `run not checked` and the status, where the server answered `401`, `404` or a `5xx`.
+
+```console
+POLICY  version 7 · https://draugr.example · decided after publish
+```
+
+Without `--policy`, neither fails the gate. `report.json` records the server, the policy version and
+every verdict as [`policy`](report-schema.md#telling-a-partial-run-from-a-clean-one), and the
+verdict on the published run as `policy.run`. A scan with `--no-publish` is published nowhere, so it
+asks nothing unless `--policy` is passed.
 
 ## `draugr explain <rule-id>`
 

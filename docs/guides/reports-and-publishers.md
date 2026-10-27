@@ -427,15 +427,35 @@ same outcome as `policy`, and a run the policy refuses is answered `422 policy_r
 ```
 
 `outcome` is the strongest `acts` among the verdicts, `refuse` over `fail` over `none`. Draugr stops
-a scan the pre-flight refuses, fails the gate of one it fails, and fails the publish of a run whose
-`policy.outcome` is `fail`. Each item reads as `<field>: <found> · <constraint>: <expected>`, and a
-verdict marked `"pending": true` is decided after the answer, which Draugr notes in the log.
+a scan the pre-flight refuses and fails the gate of one it fails. Each item reads as `<field>:
+<found> · <constraint>: <expected>`.
+
+**The verdict on the run's findings.** A verdict marked `"pending": true` in the answer to `POST
+/v1/runs` is decided once the evidence is expanded. `draugr scan` delivers to `draugr-api`
+publishers before anything else, and after `complete`, or after an answer of `duplicate` or `held`,
+asks `GET /v1/ingest/runs/{id}/policy` with the same token every five seconds until the answer's
+`pending` is `false` or `--policy-wait` (five minutes by default) runs out. The answer is the
+outcome above with `pending` always present:
+
+```json
+{"schema": 1, "project": "payments", "policyVersion": 7, "outcome": "none", "passed": true, "pending": true,
+ "verdicts": [{"rule": "licenses", "profile": "Default", "state": "not_evaluated",
+   "detail": "the run's evidence is not expanded into findings yet", "mode": "enforce",
+   "enforceFrom": "2026-10-01", "response": "fail", "inForce": true, "acts": "none", "pending": true}]}
+```
+
+While `pending` is `true`, `outcome` covers only the rules decided so far. Answer `429` with
+`Retry-After` and Draugr waits that long before asking again. Draugr reads `401`, `404` and `5xx` as
+not checked, carrying the status, and never as a pass. The verdict then reaches the console, the
+`-o` artifacts and every other publisher, and a run whose `outcome` is `fail` fails the gate. An
+answer to `POST /v1/runs` with nothing pending is final, and Draugr asks nothing more.
 
 Lines worth recognizing in a build log:
 
 - `evidence already held`. A re-run produced the same findings, so there was nothing to upload.
 - `run already recorded`, a retried job, recognized as the same run rather than counted twice.
-- `policy decided after publish`, a rule the server judges once the evidence is expanded.
+- `waiting for the policy verdict`, the scan asking for the verdict on the run's findings.
+- `policy decided after publish`, a rule still undecided when the scan stopped asking for it.
 
 ### Azure DevOps
 

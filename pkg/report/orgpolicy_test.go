@@ -83,3 +83,51 @@ func TestARefusedRunNamesWhatRefusedIt(t *testing.T) {
 		t.Errorf("refused =\n%s", got)
 	}
 }
+
+// The servers' verdict on the published run covers the descriptor's settings and the findings', so
+// where it was decided it is what the block shows. Where it was not, the heading says so.
+func TestThePolicyBlockShowsTheRunsVerdict(t *testing.T) {
+	descriptor := skald.PolicyVerdict{Rule: "upgrade", State: "meets"}
+	licenses := skald.PolicyVerdict{Rule: "licenses", Profile: "Default", State: "violates", Mode: "enforce",
+		Response: "fail", InForce: true, Acts: "fail",
+		Items: []skald.PolicyItem{{Field: "license", Found: "AGPL-3.0", Constraint: "forbidden", Expected: "AGPL-3.0", Breaks: true}}}
+	preflight := func(run *skald.PolicyCheck) *skald.PolicyCheck {
+		return &skald.PolicyCheck{Checked: true, Version: 7, Server: "https://draugr.example", Outcome: "none",
+			Verdicts: []skald.PolicyVerdict{descriptor, {Rule: "licenses", State: "not_evaluated"}}, Run: run}
+	}
+	render := func(p *skald.PolicyCheck) string {
+		var buf bytes.Buffer
+		writePolicy(&buf, tui.Plain(), p)
+		return strings.TrimSpace(buf.String())
+	}
+	cases := []struct {
+		name string
+		run  *skald.PolicyCheck
+		want []string
+	}{
+		{"decided, and failing", &skald.PolicyCheck{Checked: true, Version: 8, Server: "https://draugr.example", Outcome: "fail",
+			Verdicts: []skald.PolicyVerdict{descriptor, licenses}},
+			[]string{"POLICY  version 8 · https://draugr.example", "  licenses  license: AGPL-3.0 · forbidden: AGPL-3.0  Default · fails the gate"}},
+		{"decided, and passing", &skald.PolicyCheck{Checked: true, Version: 8, Server: "https://draugr.example", Outcome: "none",
+			Verdicts: []skald.PolicyVerdict{descriptor, {Rule: "licenses", State: "meets"}}},
+			[]string{"POLICY  version 8 · https://draugr.example · 2 rules checked, none broken"}},
+		{"the wait ran out", &skald.PolicyCheck{Checked: true, Pending: true, Version: 8, Server: "https://draugr.example", Outcome: "none",
+			Verdicts: []skald.PolicyVerdict{descriptor, {Rule: "licenses", State: "not_evaluated", Pending: true}}},
+			[]string{"POLICY  version 8 · https://draugr.example · decided after publish"}},
+		{"not checked", &skald.PolicyCheck{Server: "https://draugr.example", Reason: "401 Unauthorized"},
+			[]string{"POLICY  version 7 · https://draugr.example · run not checked · 401 Unauthorized"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := render(preflight(c.run))
+			for _, want := range c.want {
+				if !strings.Contains(got, want) {
+					t.Errorf("missing %q:\n%s", want, got)
+				}
+			}
+			if strings.Contains(got, "none broken") && (c.run.Pending || !c.run.Checked) {
+				t.Errorf("a verdict not decided reads as a pass:\n%s", got)
+			}
+		})
+	}
+}

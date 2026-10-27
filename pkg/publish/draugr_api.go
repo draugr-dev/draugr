@@ -223,8 +223,21 @@ func newDraugrAPIPublisher(cfg saga.PublisherConfig) (Publisher, error) {
 // Kind is the publisher's config selector.
 func (draugrAPIPublisher) Kind() string { return "draugr-api" }
 
-// Publish posts the run, uploads the evidence, and says the upload landed.
+// Publish posts the run, uploads the evidence, and says the upload landed. A run the
+// organization's policy fails is an error once the run is recorded.
 func (p draugrAPIPublisher) Publish(ctx context.Context, artifacts []report.Artifact) error {
+	accepted, err := p.deliver(ctx, artifacts)
+	if err != nil {
+		return err
+	}
+	// The organization's verdict on the run, returned once the run is fully recorded, so a failing
+	// policy fails the build without leaving the run half published.
+	return policyFailure(accepted.Run, accepted.Policy)
+}
+
+// deliver posts the run, uploads the evidence, says the upload landed, and returns the server's
+// answer. A retried run and evidence the server already holds are delivered too: the run exists.
+func (p draugrAPIPublisher) deliver(ctx context.Context, artifacts []report.Artifact) (acceptedRun, error) {
 	var runReport, evidence []byte
 	for _, a := range artifacts {
 		switch a.Format {
@@ -236,77 +249,79 @@ func (p draugrAPIPublisher) Publish(ctx context.Context, artifacts []report.Arti
 	}
 	// Named separately, because each comes from a different reporter and the error says which failed.
 	if runReport == nil {
-		return fmt.Errorf("draugr-api publisher requires a 'json' report")
+		return acceptedRun{}, fmt.Errorf("draugr-api publisher requires a 'json' report")
 	}
 	if evidence == nil {
-		return fmt.Errorf("draugr-api publisher requires a 'sarif' report")
+		return acceptedRun{}, fmt.Errorf("draugr-api publisher requires a 'sarif' report")
 	}
 	// Compact, however the reporter wrote it. The document goes from one program to another, its
 	// indentation is a fifth of its size, and a server bounds what it accepts. The evidence is
 	// uploaded byte for byte, because its digest is sent ahead of it.
 	var packed bytes.Buffer
 	if err := json.Compact(&packed, runReport); err != nil {
-		return fmt.Errorf("draugr-api publisher: the json report is not JSON: %w", err)
+		return acceptedRun{}, fmt.Errorf("draugr-api publisher: the json report is not JSON: %w", err)
 	}
 	runReport = packed.Bytes()
 
 	accepted, err := p.postRun(ctx, runReport, evidence)
 	if err != nil {
-		return err
+		return acceptedRun{}, err
 	}
-	// The organization's verdict on the run, known now and returned once the run is fully recorded,
-	// so a failing policy fails the build without leaving the run half published.
-	policyErr := policyFailure(accepted.Run, accepted.Policy)
 	if accepted.Duplicate {
 		// A retried job. The run exists; there is nothing to upload and nothing to complete.
 		slog.Info("run already recorded", "run", accepted.Run, "project", accepted.Project)
-		return policyErr
+		return accepted, nil
 	}
 	if accepted.Evidence.Held {
 		slog.Info("evidence already held", "run", accepted.Run, "project", accepted.Project)
-		return policyErr
+		return accepted, nil
 	}
 	if accepted.Evidence.Error != "" {
 		// The server took the run and cannot take its evidence. Reported rather than swallowed: a
 		// run whose findings never arrive is worse than a failed publish, because it looks fine.
-		return fmt.Errorf("draugr-api publisher: run %s recorded, evidence refused: %s",
+		return acceptedRun{}, fmt.Errorf("draugr-api publisher: run %s recorded, evidence refused: %s",
 			accepted.Run, accepted.Evidence.Error)
 	}
 	if accepted.Evidence.Upload == "" {
-		return fmt.Errorf("draugr-api publisher: run %s recorded with no upload URL", accepted.Run)
+		return acceptedRun{}, fmt.Errorf("draugr-api publisher: run %s recorded with no upload URL", accepted.Run)
 	}
 
 	if err := p.putEvidence(ctx, accepted.Evidence.Upload, evidence); err != nil {
-		return err
+		return acceptedRun{}, err
 	}
 	if err := p.complete(ctx, accepted.Run); err != nil {
-		return err
+		return acceptedRun{}, err
 	}
 	slog.Info("run published", "run", accepted.Run, "project", accepted.Project,
 		"verdict", accepted.Verdict)
-	return policyErr
+	return accepted, nil
 }
 
 // policyFailure is the error a run's policy outcome makes, nil where the policy passes it or the
 // server said nothing about policy.
 //
-// A verdict the server decides once the evidence is expanded is said here, because the build has
-// passed by the time it is decided, and the run page is where a failure would then appear.
+// A verdict the server decides once the evidence is expanded is noted in the log: nothing waits for
+// it on this path, and the run page is where a failure would then appear.
 func policyFailure(run string, policy *skald.PolicyOutcome) error {
 	if policy == nil {
 		return nil
 	}
+	logPending(run, *policy)
+	if policy.Outcome != skald.PolicyFail {
+		return nil
+	}
+	return fmt.Errorf("draugr-api publisher: run %s recorded, and the organization's policy fails it: %s",
+		run, policy.Summary(skald.PolicyFail))
+}
+
+// logPending notes each setting the server decides after the scan has stopped asking.
+func logPending(run string, policy skald.PolicyOutcome) {
 	for _, v := range policy.Verdicts {
 		if v.Pending {
 			slog.Info("policy decided after publish", "run", run, "rule", v.Rule, "profile", v.Profile,
 				"term", v.Term())
 		}
 	}
-	if policy.Outcome != skald.PolicyFail {
-		return nil
-	}
-	return fmt.Errorf("draugr-api publisher: run %s recorded, and the organization's policy fails it: %s",
-		run, policy.Summary(skald.PolicyFail))
 }
 
 // acceptedRun is what the server answers.

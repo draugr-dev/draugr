@@ -22,9 +22,26 @@ type PolicyOutcome struct {
 	// Paused says an organization-wide pause stood, so no setting acted.
 	Paused bool `json:"paused,omitempty"`
 	// Outcome is the strongest act among the verdicts: refuse, then fail, then none.
-	Outcome  string          `json:"outcome"`
-	Passed   bool            `json:"passed"`
+	Outcome string `json:"outcome"`
+	Passed  bool   `json:"passed"`
+	// Pending, on the answer to a published run's policy, says the server has not decided every
+	// setting yet, so Outcome and Passed cover only the settings decided so far.
+	Pending  bool            `json:"pending,omitempty"`
 	Verdicts []PolicyVerdict `json:"verdicts,omitempty"`
+}
+
+// Undecided reports whether a setting is still to be decided: the answer says it is pending, or a
+// verdict does.
+func (p PolicyOutcome) Undecided() bool {
+	if p.Pending {
+		return true
+	}
+	for _, v := range p.Verdicts {
+		if v.Pending {
+			return true
+		}
+	}
+	return false
 }
 
 // The acts a policy verdict, and so an outcome, can have.
@@ -134,7 +151,7 @@ func (v PolicyVerdict) Breaking() []PolicyItem {
 }
 
 // PolicyCheck is what a run's pre-flight learned of the organization's policy, as report.json
-// records it.
+// records it. Run is the same for the published run, judged with its findings.
 type PolicyCheck struct {
 	// Server is the endpoint the policy came from.
 	Server string `json:"server,omitempty"`
@@ -142,9 +159,21 @@ type PolicyCheck struct {
 	Checked bool   `json:"checked"`
 	Reason  string `json:"reason,omitempty"`
 	// Version is the policy version the descriptor was judged against.
-	Version  int             `json:"version,omitempty"`
-	Outcome  string          `json:"outcome,omitempty"`
+	Version int    `json:"version,omitempty"`
+	Outcome string `json:"outcome,omitempty"`
+	// Pending says the server had not decided every setting when the wait for its verdict ended, so
+	// Outcome covers only the settings it had. It is never a pass.
+	Pending  bool            `json:"pending,omitempty"`
 	Verdicts []PolicyVerdict `json:"verdicts,omitempty"`
+	// Run is the servers' verdict on the published run, its findings included. Nil where the run was
+	// published to no server that judges policy.
+	Run *PolicyCheck `json:"run,omitempty"`
+}
+
+// Fails reports whether the check's outcome fails the gate. A refusal fails it too, since a run
+// already recorded can no longer be refused.
+func (p *PolicyCheck) Fails() bool {
+	return p != nil && (p.Outcome == PolicyFail || p.Outcome == PolicyRefuse)
 }
 
 // Strongest is the stronger of two acts: refuse, then fail, then none.

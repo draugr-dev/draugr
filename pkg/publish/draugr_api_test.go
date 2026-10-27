@@ -41,6 +41,10 @@ type server struct {
 	duplicate bool
 	// policy, when set, is the organization's verdict the server answers with.
 	policy map[string]any
+	// polls are the answers to GET /v1/ingest/runs/{id}/policy, in order, the last repeated.
+	polls []pollAnswer
+	// polled records the run each poll asked about.
+	polled []string
 	// upload, when set, is where the server says to put the evidence: a presigned URL on another
 	// origin, as an object store's is. Unset, the evidence goes to this server's own /evidence.
 	upload string
@@ -118,6 +122,23 @@ func (p *server) server(t *testing.T) *httptest.Server {
 			t.Error("the ingest token was sent to the storage endpoint")
 		}
 		w.WriteHeader(http.StatusOK)
+	})
+	mux.HandleFunc("GET /v1/ingest/runs/{id}/policy", func(w http.ResponseWriter, r *http.Request) {
+		p.mu.Lock()
+		n := len(p.polled)
+		p.polled = append(p.polled, r.PathValue("id"))
+		p.mu.Unlock()
+		if len(p.polls) == 0 {
+			t.Error("the run's policy was asked for, and the test expected no poll")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		a := p.polls[min(n, len(p.polls)-1)]
+		for k, v := range a.header {
+			w.Header().Set(k, v)
+		}
+		w.WriteHeader(a.status)
+		_, _ = io.WriteString(w, a.body)
 	})
 	mux.HandleFunc("POST /v1/runs/{id}/complete", func(w http.ResponseWriter, r *http.Request) {
 		p.mu.Lock()
