@@ -156,7 +156,9 @@ The scan reads those datasets from the feed cache and never fetches them, whethe
 the error names the `draugr feeds update` command that fetches it.
 An empty `feeds` means no finding was checked against KEV or EPSS. `next` names the first thing to
 do, quoting the title of an action in `fix_list`: of the first action at or above `minPriority` in
-each list, the one with the highest priority, the earlier list on a tie.
+each list, the one with the highest priority, the earlier list on a tie. Where the action's
+exploitation signal comes from KEV or EPSS, `next` ends with `and leads because <rule> is on KEV` or
+`has EPSS 0.87`.
 
 ```json
 {
@@ -164,7 +166,7 @@ each list, the one with the highest priority, the earlier list on a tie.
     "priority": "P1", "severity": "high", "ruleId": "CVE-2021-44228",
     "location": "api/pom.xml:12", "action": "upgrade", "fixedVersion": "2.17.1",
     "escalation": {"from": "high", "to": "critical", "signal": "kev",
-                   "detail": "on CISA's Known Exploited Vulnerabilities list", "asOf": "2026-09-24"},
+                   "detail": "on KEV", "asOf": "2026-09-24"},
     "alsoFoundBy": ["grype"]
   }],
   "accepted": [{
@@ -173,7 +175,7 @@ each list, the one with the highest priority, the earlier list on a tie.
     "origin": "saga", "source": "fragments/api.saga.yaml"
   }],
   "feeds": [{"signal": "epss", "asOf": "2026-09-01", "stale": true, "entries": 2, "threshold": 0.5}],
-  "next": "Start with \"Upgrade log4j-core 2.14.1 → 2.17.1\" in api/pom.xml:12, which clears 1 finding. Then scan again to confirm it is gone."
+  "next": "Start with \"Upgrade log4j-core 2.14.1 → 2.17.1\" in api/pom.xml:12, which clears 1 finding and leads because CVE-2021-44228 is on KEV. Then scan again to confirm it is gone."
 }
 ```
 
@@ -314,12 +316,11 @@ analysis moved it.
 
 The lists are in a fixed order of kind, which [says nothing about
 urgency](../concepts/what-to-fix-first.md), so a reply names the head of each list that applies.
-Each list shows its first three actions, as the console does, and `limit` changes that number for
-every list.
+Every action in every list is returned; the console shows three per list. `limit` caps each list.
 
 `kind` returns one of the lists: `bump`, `code`, `infrastructure`, `credential`, `wait` or
-`decide`. `limit` then applies to that list, defaulting to 20, and `totalActions` and `totalClears`
-count it. Any other value is an error naming the valid kinds.
+`decide`. `limit` then applies to that list, and `totalActions` and `totalClears` count it. Any
+other value is an error naming the valid kinds.
 
 | Field | What it counts |
 |---|---|

@@ -510,7 +510,18 @@ func startWith(a report.Action) string {
 	if where := placesOf(a); where != "" {
 		s += " in " + where
 	}
-	s += ", which clears " + english.Count(a.Clears, "finding") + ". "
+	s += ", which clears " + english.Count(a.Clears, "finding")
+	// The reason it leads, where KEV or EPSS raised one of its findings. Without it the count is
+	// the only fact in the sentence, and an assistant repeats it as the reason, which it is not:
+	// exploitation ranks above how many findings an action clears.
+	if e := a.Exploitation; e != nil && e.RuleID != "" && e.Detail != "" {
+		verb := " is " // "on KEV"
+		if e.Signal == "epss" {
+			verb = " has " // "EPSS 0.87"
+		}
+		s += " and leads because " + e.RuleID + verb + e.Detail
+	}
+	s += ". "
 	switch a.Kind {
 	case skald.KindWait, skald.KindDecide:
 		// Replacing, accepting and waiting are all answers here, and only one of them clears anything.
@@ -1200,7 +1211,13 @@ type FixListInput struct {
 	Path string `json:"path" jsonschema:"path to a results.sarif produced by draugr scan"`
 	// Limit is per list, as the console's --top is: a cut across the lists would spend its rows on
 	// whichever kind of work comes first and leave the others with none.
-	Limit int `json:"limit,omitempty" jsonschema:"maximum actions per list; defaults to 3, or to 20 when kind is set"`
+	//
+	// No cap by default. The console's three rows per list are for a screen; an assistant has no
+	// screen, and it reads a short list as the whole of what matters. Actions inside one band often
+	// tie on every key, so a cut falls at an arbitrary place among them. The actions are returned
+	// without their findings, so every list whole is small next to what a summary of the findings
+	// costs.
+	Limit int `json:"limit,omitempty" jsonschema:"maximum actions per list; every action when omitted"`
 	// Kind narrows the answer to one list, the way the console shows a list per kind of work. Asked
 	// what a developer should change first, the code list answers it.
 	Kind string `json:"kind,omitempty" jsonschema:"only the list for one kind of work: bump (upgrade a dependency), code (change the application's code or its server's configuration), infrastructure (change infrastructure code or a live setting), credential (remove and rotate a committed secret), wait (for somebody else's release) or decide (accept or replace, e.g. a license). Omit for every list"`
@@ -1216,7 +1233,7 @@ type FixListOutput struct {
 	Clears int       `json:"clears" jsonschema:"findings the returned actions clear between them, each counted once"`
 	// TotalActions and TotalClears are every list whole, so a reply can say how much the actions
 	// returned leave.
-	TotalActions int    `json:"totalActions" jsonschema:"actions in every list, whether or not the limit returned them"`
+	TotalActions int    `json:"totalActions" jsonschema:"actions in every list, including any a limit left out"`
 	TotalClears  int    `json:"totalClears" jsonschema:"findings the actions in every list clear between them, each counted once"`
 	Note         string `json:"note,omitempty"`
 }
@@ -1230,9 +1247,9 @@ type FixListOutput struct {
 type FixList struct {
 	Kind skald.ActionKind `json:"kind" jsonschema:"bump, code, infrastructure, credential, wait or decide"`
 	Name string           `json:"name" jsonschema:"the list's name as the console prints it"`
-	// Actions are the first Limit of the list's actions.
+	// Actions are the list's actions, or its first Limit when one is set.
 	Actions      []report.Action `json:"actions" jsonschema:"things to do, most urgent first: by priority, then exploitation, then severity, then how many findings each clears"`
-	TotalActions int             `json:"totalActions" jsonschema:"actions in this list, whether or not the limit returned them"`
+	TotalActions int             `json:"totalActions" jsonschema:"actions in this list, including any a limit left out"`
 	TotalClears  int             `json:"totalClears" jsonschema:"findings this list's actions clear between them, each counted once"`
 }
 
@@ -1257,13 +1274,6 @@ func FixListTool(_ context.Context, _ *mcp.CallToolRequest, in FixListInput) (*m
 		return nil, FixListOutput{}, fmt.Errorf("%s: %w", in.Path, err)
 	}
 
-	limit := in.Limit
-	if limit <= 0 {
-		limit = report.ActionsPerList
-		if in.Kind != "" {
-			limit = defaultLimit
-		}
-	}
 	actions := actionsOf(rep)
 	if in.Kind != "" {
 		kind := skald.ActionKind(in.Kind)
@@ -1278,8 +1288,8 @@ func FixListTool(_ context.Context, _ *mcp.CallToolRequest, in FixListInput) (*m
 	for _, l := range report.ListsOf(actions) {
 		list := FixList{Kind: l.Kind, Name: l.Kind.ListName(), TotalActions: len(l.Actions),
 			TotalClears: report.Cleared(l.Actions), Actions: l.Actions}
-		if len(list.Actions) > limit {
-			list.Actions, cut = list.Actions[:limit], true
+		if in.Limit > 0 && len(list.Actions) > in.Limit {
+			list.Actions, cut = list.Actions[:in.Limit], true
 		}
 		// Without their findings. The most urgent actions of a real project carry hundreds of them,
 		// many times the size of the list itself, and an assistant asking what to do is answered by
@@ -1294,10 +1304,10 @@ func FixListTool(_ context.Context, _ *mcp.CallToolRequest, in FixListInput) (*m
 	switch {
 	case cut && in.Kind != "":
 		out.Note = fmt.Sprintf(
-			"showing the %d most urgent of %d actions; raise limit to see more", limit, len(actions))
+			"showing the %d most urgent of %d actions; omit limit to see every one", in.Limit, len(actions))
 	case cut:
 		out.Note = fmt.Sprintf("showing up to %s from each list, most urgent first; a list's "+
-			"totalActions counts the rest; raise limit to see more", english.Count(limit, "action"))
+			"totalActions counts the rest; omit limit to see every one", english.Count(in.Limit, "action"))
 	}
 	return nil, out, nil
 }

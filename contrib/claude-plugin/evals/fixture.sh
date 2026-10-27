@@ -137,3 +137,50 @@ dependencies() {
         file: reports/dependencies.sarif
 "
 }
+
+# infrastructure stands in for a misconfiguration scan another pipeline step ran: a SARIF 2.1.0 file
+# for the api service's Dockerfile and pod manifest, imported into the iac control. Call it before
+# `descriptor`, which reads the `API_EXTRA` this extends.
+#
+# Four findings, all high and all P1 in the api service, each clearing one finding: they tie on every
+# key an action ranks by, so their order among themselves comes from their file and line. The
+# privileged container sorts fourth of four, past the console's cut of three.
+infrastructure() {
+  mkdir -p reports services/api/deploy
+  printf 'FROM python:3.12-slim\nCOPY app /app\n' >services/api/Dockerfile
+  cat >services/api/deploy/pod.yaml <<'YAML'
+apiVersion: v1
+kind: Pod
+metadata:
+  name: api
+spec:
+  containers:
+    - name: api
+      image: api:1.0
+      securityContext:
+        privileged: true
+YAML
+  mis() { # rule file line message
+    printf '{"ruleId":"%s","level":"error","message":{"text":"%s"},' "$1" "$4"
+    printf '"locations":[{"physicalLocation":{"artifactLocation":{"uri":"%s"},"region":{"startLine":%s}}}],' "$2" "$3"
+    printf '"properties":{"security-severity":"8.0"}}'
+  }
+  {
+    printf '{"version":"2.1.0","$schema":"https://json.schemastore.org/sarif-2.1.0.json","runs":[{'
+    printf '"tool":{"driver":{"name":"misconfiguration-fixture","version":"1.0.0"}},"results":['
+    mis DS-0002 services/api/Dockerfile 1 "Image user should not be 'root'"
+    printf ','
+    mis KSV-0118 services/api/deploy/pod.yaml 5 "Default security context configured"
+    printf ','
+    mis KSV-0014 services/api/deploy/pod.yaml 7 "Root file system is not read-only"
+    printf ','
+    mis KSV-0017 services/api/deploy/pod.yaml 7 "Privileged"
+    printf ']}]}\n'
+  } >reports/infrastructure.sarif
+  git_ add reports services/api/Dockerfile services/api/deploy/pod.yaml
+  git_ commit -q -m "Add the misconfiguration scan"
+  API_EXTRA="${API_EXTRA:-    imports:
+}      - control: iac
+        file: reports/infrastructure.sarif
+"
+}

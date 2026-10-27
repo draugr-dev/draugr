@@ -51,7 +51,7 @@ Every action is in exactly one list.
 `WHAT TO DO` counts every action and every finding across the lists. Each list shows its first
 three and ends with `… and N actions not listed`. `--top N` shows the first `N` of each list and
 `--top 0` shows every action. A list with nothing in it is left out. The MCP `fix_list` tool returns
-the same lists, cut at the same three, and its `kind` returns one of them.
+the same lists without the console's cut of three, and its `kind` returns one of them.
 
 ## Rows are actions, not findings
 
