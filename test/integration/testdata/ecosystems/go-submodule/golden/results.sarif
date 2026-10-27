@@ -145,7 +145,7 @@
             }
           ],
           "message": {
-            "text": "Command injection via taint analysis"
+            "text": "Command injection via taint analysis: os/exec.Command"
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -198,10 +198,10 @@
           "rules": [
             {
               "fullDescription": {
-                "text": "Command injection via taint analysis"
+                "text": "Command injection via taint analysis: os/exec.Command"
               },
               "help": {
-                "text": "Command injection via taint analysis\nSeverity: HIGH\nConfidence: HIGH\n"
+                "text": "Command injection via taint analysis: os/exec.Command\nSeverity: HIGH\nConfidence: HIGH\n"
               },
               "id": "G702",
               "name": "Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')",
@@ -211,7 +211,7 @@
                 ]
               },
               "shortDescription": {
-                "text": "Command injection via taint analysis"
+                "text": "Command injection via taint analysis: os/exec.Command"
               }
             },
             {

@@ -21,7 +21,7 @@
         "G204"
       ],
       "severity": "high",
-      "title": "Fix “Command injection via taint analysis”",
+      "title": "Fix “Command injection via taint analysis: os/exec.Command”",
       "where": [
         "service/main.go:20"
       ]

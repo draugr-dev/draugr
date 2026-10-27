@@ -21,7 +21,7 @@
         "G204"
       ],
       "severity": "high",
-      "title": "Fix “Command injection via taint analysis”",
+      "title": "Fix “Command injection via taint analysis: os/exec.Command”",
       "where": [
         "default/main.go:21"
       ]
@@ -47,7 +47,7 @@
         "G204"
       ],
       "severity": "high",
-      "title": "Fix “Command injection via taint analysis”",
+      "title": "Fix “Command injection via taint analysis: os/exec.Command”",
       "where": [
         "tags/main.go:21"
       ]
@@ -72,7 +72,7 @@
         "G702"
       ],
       "severity": "high",
-      "title": "Fix “Command injection via taint analysis”",
+      "title": "Fix “Command injection via taint analysis: os/exec.Command”",
       "where": [
         "exclude/main.go:22"
       ]
