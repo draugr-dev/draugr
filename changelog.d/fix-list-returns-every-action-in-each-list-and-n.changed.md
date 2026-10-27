@@ -1,0 +1,1 @@
+- **`fix_list` returns every action in each list, and `next` says why its action leads.** Actions that tied with the third in a list are no longer left out. `limit` still caps each list. `next` from `summarize_report` and `scan` ends with the CVE and the KEV or EPSS signal behind the action it quotes.

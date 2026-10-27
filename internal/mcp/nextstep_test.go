@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -59,6 +58,15 @@ func TestNextNamesTheFirstActionInItsOwnWords(t *testing.T) {
 			jquery("CVE-2020-11022", "https://github.com/acme/shop"),
 			jquery("CVE-2020-11023", "https://github.com/acme/admin"),
 		}, want: `Start with "Upgrade jquery 1.8.3 → 3.5.0" in acme/admin web/package-lock.json:12 and acme/shop web/package-lock.json:12, which clears 2 findings. Then scan again to confirm they are gone.`},
+		// Exploitation outranks the count, so the instruction names it: an assistant given only the
+		// count repeats it as the reason.
+		"kev": {results: []sarif.Result{
+			escalated(jquery("CVE-2020-11023", "https://github.com/acme/shop"), "kev", "on KEV"),
+			jquery("CVE-2020-11022", "https://github.com/acme/shop"),
+		}, want: `Start with "Upgrade jquery 1.8.3 → 3.5.0" in web/package-lock.json:12, which clears 2 findings and leads because CVE-2020-11023 is on KEV. Then scan again to confirm they are gone.`},
+		"epss": {results: []sarif.Result{
+			escalated(jquery("CVE-2020-11022", "https://github.com/acme/shop"), "epss", "EPSS 0.87"),
+		}, want: `Start with "Upgrade jquery 1.8.3 → 3.5.0" in web/package-lock.json:12, which clears 1 finding and leads because CVE-2020-11022 has EPSS 0.87. Then scan again to confirm it is gone.`},
 		"code": {results: []sarif.Result{func() sarif.Result {
 			r := stamped("sast", "B602", "P1", "app/app.py", 17)
 			r.Message = "Command built from request input"
@@ -300,12 +308,16 @@ func TestFixListAnswersOverASession(t *testing.T) {
 
 // TestTheLimitHintStatesTheDefaults: the hint names the numbers a model is told to expect, so it is
 // held to the constants the tool applies.
-func TestTheLimitHintStatesTheDefaults(t *testing.T) {
+func TestTheLimitHintStatesTheDefault(t *testing.T) {
 	field, _ := reflect.TypeFor[FixListInput]().FieldByName("Limit")
-	hint := field.Tag.Get("jsonschema")
-	for _, n := range []int{report.ActionsPerList, defaultLimit} {
-		if !strings.Contains(hint, strconv.Itoa(n)) {
-			t.Errorf("the limit hint does not name the default %d: %q", n, hint)
-		}
+	if hint := field.Tag.Get("jsonschema"); !strings.Contains(hint, "every action when omitted") {
+		t.Errorf("the limit hint does not say an omitted limit returns every action: %q", hint)
 	}
+}
+
+// escalated marks a result as raised by an exploitation signal, the way pkg/exploit does.
+func escalated(r sarif.Result, signal, detail string) sarif.Result {
+	r.Escalation = &sarif.Escalation{From: sarif.SeverityMedium, To: sarif.SeverityCritical,
+		Signal: signal, Detail: detail, AsOf: "2026-10-25"}
+	return r
 }

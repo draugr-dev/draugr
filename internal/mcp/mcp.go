@@ -194,9 +194,12 @@ func NewServer(opts Options) (*mcp.Server, error) {
 		Description: "Turn a report into the things to do about it, one list per kind of work " +
 			"(bump a dependency, change the code, change the infrastructure, rotate a credential, " +
 			"wait for a release, decide), each most urgent first, each action saying how many " +
-			"findings it clears and what it ranks by. Name the head of each list that applies: " +
-			"the lists are in a fixed order of kind, only priority compares an action in one list " +
-			"with an action in another, and which list to work from is the reader's choice. Ask " +
+			"findings it clears and what it ranks by. Every action is returned unless limit is set. " +
+			"Name the head of each list that applies: the lists are in a fixed order of kind, only " +
+			"priority compares an action in one list with an action in another, and which list to " +
+			"work from is the reader's choice. Name every action tied with the head of a list, not " +
+			"only the first. Actions tie when they have the same priority, exploitation, severity " +
+			"and number of findings cleared, and their order among themselves carries no meaning. Ask " +
 			"this rather than summarize_report when the question is what to change: one upgrade " +
 			"usually clears many findings, and an image somebody else publishes is one action " +
 			"however many packages are wrong inside it.",

@@ -248,13 +248,14 @@ func TestFixListAgreesWithTheConsoleAndReportJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if top.Note != fmt.Sprintf("showing the %d most urgent of %d actions; raise limit to see more", shown, top.TotalActions) {
+	if top.Note != fmt.Sprintf("showing the %d most urgent of %d actions; omit limit to see every one", shown, top.TotalActions) {
 		t.Errorf("the note should say what the limit left out: %q", top.Note)
 	}
 
-	// Asked for nothing in particular, fix_list returns what the console prints by default: every
-	// list, each cut to the same number of rows and counting the rest.
-	byDefault, err := report.Build(saga.ReportConfig{Format: "console"}, report.Data{Run: run, View: report.ViewActions})
+	// Asked for nothing in particular, fix_list returns every action, in the order the console
+	// prints them with --top 0, and leaves nothing out to note. The console's three rows per list
+	// are for a screen; an assistant reads a short list as everything that matters.
+	everyRow, err := report.Build(saga.ReportConfig{Format: "console"}, report.Data{Run: run, View: report.ViewActions, TopN: -1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,33 +263,30 @@ func TestFixListAgreesWithTheConsoleAndReportJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cut := false
+	longer := false
 	for _, list := range lists0.Lists {
-		if len(list.Actions) > report.ActionsPerList {
-			t.Errorf("%s: %d actions, more than the console's %d", list.Kind, len(list.Actions), report.ActionsPerList)
+		if len(list.Actions) != list.TotalActions {
+			t.Errorf("%s: %d of %d actions returned with no limit set", list.Kind, len(list.Actions), list.TotalActions)
 		}
-		if list.TotalActions > len(list.Actions) {
-			cut = true
-			notListed := fmt.Sprintf("… and %d action", list.TotalActions-len(list.Actions))
-			if !bytes.Contains(byDefault.Bytes, []byte(notListed)) {
-				t.Errorf("%s: fix_list leaves %d out, which the console does not say:\n%s",
-					list.Kind, list.TotalActions-len(list.Actions), byDefault.Bytes)
-			}
-		}
-		if list.Name != list.Kind.ListName() || !bytes.Contains(byDefault.Bytes, []byte(list.Name)) {
+		longer = longer || len(list.Actions) > report.ActionsPerList
+		if list.Name != list.Kind.ListName() || !bytes.Contains(everyRow.Bytes, []byte(list.Name)) {
 			t.Errorf("%s: list named %q, which the console does not print", list.Kind, list.Name)
 		}
+		at := 0
 		for _, a := range list.Actions {
-			if !bytes.Contains(byDefault.Bytes, []byte(a.Title)) {
-				t.Errorf("%s: %q is not a row the console prints by default", list.Kind, a.Title)
+			i := bytes.Index(everyRow.Bytes[at:], []byte(a.Title))
+			if i < 0 {
+				t.Errorf("%s: %q is not a console row after the one before it:\n%s", list.Kind, a.Title, everyRow.Bytes)
+				continue
 			}
+			at += i + len(a.Title)
 		}
 	}
-	if !cut {
-		t.Fatal("the fixture should hold a list longer than the console shows")
+	if !longer {
+		t.Fatal("the fixture should hold a list longer than the console shows by default")
 	}
-	if lists0.Note == "" || lists0.TotalActions != len(recorded.Actions) {
-		t.Errorf("a cut list should be noted and the totals should count every list: note %q, %d of %d actions",
+	if lists0.Note != "" || lists0.TotalActions != len(recorded.Actions) {
+		t.Errorf("nothing was cut, so nothing should be noted, and the totals should count every list: note %q, %d of %d actions",
 			lists0.Note, lists0.TotalActions, len(recorded.Actions))
 	}
 }
