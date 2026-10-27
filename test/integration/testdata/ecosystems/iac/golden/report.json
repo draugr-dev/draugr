@@ -19,6 +19,7 @@
       "ruleIds": [
         "DS-0002"
       ],
+      "severity": "high",
       "title": "Fix DS-0002 “Image user should not be 'root'”",
       "where": [
         "Dockerfile:1"
@@ -43,6 +44,7 @@
       "ruleIds": [
         "KSV-0009"
       ],
+      "severity": "high",
       "title": "Fix KSV-0009 “Access to host network”",
       "where": [
         "deploy/chart/templates/deployment.yaml:7"
@@ -67,6 +69,7 @@
       "ruleIds": [
         "KSV-0017"
       ],
+      "severity": "high",
       "title": "Fix KSV-0017 “Privileged”",
       "where": [
         "deploy/k8s/deployment.yaml:24"
@@ -91,6 +94,7 @@
       "ruleIds": [
         "AWS-0107"
       ],
+      "severity": "high",
       "title": "Fix AWS-0107 “Security groups should not allow unrestricted ingress to…”",
       "where": [
         "deploy/terraform/main.tf:10"
@@ -121,6 +125,7 @@
       "ruleIds": [
         "KSV-0125"
       ],
+      "severity": "medium",
       "title": "Fix KSV-0125 “Restrict container images to trusted registries”",
       "where": [
         "deploy/chart/templates/deployment.yaml:26",
@@ -146,6 +151,7 @@
       "ruleIds": [
         "DS-0026"
       ],
+      "severity": "low",
       "title": "Fix DS-0026 “No HEALTHCHECK defined”",
       "where": [
         "Dockerfile:1"

@@ -25,6 +25,7 @@
       "ruleIds": [
         "CVE-2021-25900"
       ],
+      "severity": "high",
       "target": "1.6.1",
       "title": "Upgrade smallvec 1.6.0",
       "versioning": "crates.io",

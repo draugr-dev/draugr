@@ -24,6 +24,7 @@
       "ruleIds": [
         "license/ISC/inherits"
       ],
+      "severity": "high",
       "title": "Replace or accept inherits, licensed ISC",
       "where": [
         "licenses-deny/package-lock.json:15",
@@ -49,6 +50,7 @@
       "ruleIds": [
         "license/MIT/ms"
       ],
+      "severity": "high",
       "title": "Replace or accept ms, licensed MIT",
       "where": [
         "trivy-license-deny/package-lock.json:15"
@@ -72,6 +74,7 @@
       "ruleIds": [
         "license/LGPL-3.0"
       ],
+      "severity": "medium",
       "title": "Review the files licensed LGPL-3.0",
       "where": [
         "full/LICENSE"
@@ -96,6 +99,7 @@
       "ruleIds": [
         "license/0BSD/tslib"
       ],
+      "severity": "medium",
       "title": "Replace or accept tslib, licensed 0BSD",
       "where": [
         "licenses-warn/package-lock.json:15"
@@ -120,6 +124,7 @@
       "ruleIds": [
         "license/BSD-3-Clause/sprintf-js"
       ],
+      "severity": "medium",
       "title": "Replace or accept sprintf-js, licensed BSD-3-Clause",
       "where": [
         "trivy-license-warn/package-lock.json:15"

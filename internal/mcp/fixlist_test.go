@@ -120,6 +120,21 @@ type actionRow struct {
 	Clears                                  int
 }
 
+// allActions is every action fix_list returned, list after list.
+func allActions(out FixListOutput) []report.Action {
+	var acts []report.Action
+	for _, l := range out.Lists {
+		acts = append(acts, l.Actions...)
+	}
+	return acts
+}
+
+// summarized is what summarize_report returns for a report read from disk, its next step named
+// from the same report's fix list.
+func summarized(rep sarif.Report, minPriority string, limit int) SummarizeOutput {
+	return summarize(rep, actionsOf(rep), minPriority, limit)
+}
+
 func rowsOf(actions []report.Action) []actionRow {
 	out := make([]actionRow, 0, len(actions))
 	for _, a := range actions {
@@ -151,14 +166,28 @@ func TestFixListAgreesWithTheConsoleAndReportJSON(t *testing.T) {
 	if err := json.Unmarshal(doc.Bytes, &recorded); err != nil {
 		t.Fatal(err)
 	}
-	got, want := rowsOf(all.Actions), rowsOf(recorded.Actions)
-	if len(got) != len(want) {
-		t.Fatalf("fix_list has %d actions and report.json %d:\n%+v\n%+v", len(got), len(want), got, want)
+	// report.json keeps one list in rank order, each action naming its kind; fix_list splits it by
+	// kind. Each fix_list list is report.json's actions of that kind, in the same order.
+	byKind := map[skald.ActionKind][]report.Action{}
+	for _, a := range recorded.Actions {
+		byKind[a.Kind] = append(byKind[a.Kind], a)
 	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("action %d differs:\n fix_list    %+v\n report.json %+v", i+1, got[i], want[i])
+	if len(all.Lists) != len(byKind) {
+		t.Fatalf("fix_list has %d lists and report.json's actions span %d kinds", len(all.Lists), len(byKind))
+	}
+	for _, list := range all.Lists {
+		got, want := rowsOf(list.Actions), rowsOf(byKind[list.Kind])
+		if len(got) != len(want) {
+			t.Fatalf("%s: fix_list has %d actions and report.json %d:\n%+v\n%+v", list.Kind, len(got), len(want), got, want)
 		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Errorf("%s action %d differs:\n fix_list    %+v\n report.json %+v", list.Kind, i+1, got[i], want[i])
+			}
+		}
+	}
+	if len(allActions(all)) != len(recorded.Actions) {
+		t.Errorf("fix_list returns %d actions, report.json %d", len(allActions(all)), len(recorded.Actions))
 	}
 
 	// The console, cut short so each list says what it left out. Its heading counts every action,
@@ -205,7 +234,7 @@ func TestFixListAgreesWithTheConsoleAndReportJSON(t *testing.T) {
 			t.Errorf("%s: console says %d actions clear %d; fix_list says %d clear %d",
 				kind, n, m, one.TotalActions, one.TotalClears)
 		}
-		for i, a := range one.Actions {
+		for i, a := range allActions(one) {
 			if !bytes.Contains(console.Bytes, []byte(a.Title)) {
 				t.Errorf("%s: fix_list's action %d, %q, is not a console row", kind, i+1, a.Title)
 			}
@@ -214,12 +243,53 @@ func TestFixListAgreesWithTheConsoleAndReportJSON(t *testing.T) {
 	if lists < 2 {
 		t.Fatalf("the fixture should span at least two kinds of work, got %d", lists)
 	}
-	_, top, err := FixListTool(context.Background(), nil, FixListInput{Path: writeRunSARIF(t, run), Limit: shown})
+	_, top, err := FixListTool(context.Background(), nil,
+		FixListInput{Path: writeRunSARIF(t, run), Limit: shown, Kind: string(skald.KindBump)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if top.Note != fmt.Sprintf("showing the %d most urgent of %d actions; raise limit to see more", shown, len(want)) {
+	if top.Note != fmt.Sprintf("showing the %d most urgent of %d actions; raise limit to see more", shown, top.TotalActions) {
 		t.Errorf("the note should say what the limit left out: %q", top.Note)
+	}
+
+	// Asked for nothing in particular, fix_list returns what the console prints by default: every
+	// list, each cut to the same number of rows and counting the rest.
+	byDefault, err := report.Build(saga.ReportConfig{Format: "console"}, report.Data{Run: run, View: report.ViewActions})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, lists0, err := FixListTool(context.Background(), nil, FixListInput{Path: writeRunSARIF(t, run)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cut := false
+	for _, list := range lists0.Lists {
+		if len(list.Actions) > report.ActionsPerList {
+			t.Errorf("%s: %d actions, more than the console's %d", list.Kind, len(list.Actions), report.ActionsPerList)
+		}
+		if list.TotalActions > len(list.Actions) {
+			cut = true
+			notListed := fmt.Sprintf("… and %d action", list.TotalActions-len(list.Actions))
+			if !bytes.Contains(byDefault.Bytes, []byte(notListed)) {
+				t.Errorf("%s: fix_list leaves %d out, which the console does not say:\n%s",
+					list.Kind, list.TotalActions-len(list.Actions), byDefault.Bytes)
+			}
+		}
+		if list.Name != list.Kind.ListName() || !bytes.Contains(byDefault.Bytes, []byte(list.Name)) {
+			t.Errorf("%s: list named %q, which the console does not print", list.Kind, list.Name)
+		}
+		for _, a := range list.Actions {
+			if !bytes.Contains(byDefault.Bytes, []byte(a.Title)) {
+				t.Errorf("%s: %q is not a row the console prints by default", list.Kind, a.Title)
+			}
+		}
+	}
+	if !cut {
+		t.Fatal("the fixture should hold a list longer than the console shows")
+	}
+	if lists0.Note == "" || lists0.TotalActions != len(recorded.Actions) {
+		t.Errorf("a cut list should be noted and the totals should count every list: note %q, %d of %d actions",
+			lists0.Note, lists0.TotalActions, len(recorded.Actions))
 	}
 }
 
@@ -249,7 +319,7 @@ func TestFixListCountsEachFindingOnce(t *testing.T) {
 	}
 
 	var steps []report.Action
-	for _, a := range out.Actions {
+	for _, a := range allActions(out) {
 		if a.Package == "jquery" && a.Component == "storefront" {
 			steps = append(steps, a)
 		}
@@ -285,7 +355,7 @@ func TestFixListKeepsEachControlsAction(t *testing.T) {
 		"Upgrade jquery 1.12.2":                           {"sca", skald.KindBump, 2},
 	}
 	got := map[string]int{}
-	for _, a := range out.Actions {
+	for _, a := range allActions(out) {
 		got[a.Title]++
 		w, ok := want[a.Title]
 		if !ok {

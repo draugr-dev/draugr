@@ -25,6 +25,7 @@
       "ruleIds": [
         "CVE-2022-30122"
       ],
+      "severity": "high",
       "target": "2.2.3.1",
       "title": "Upgrade rack 2.2.3",
       "versioning": "rubygems",

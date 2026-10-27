@@ -17,6 +17,7 @@
       "ruleIds": [
         "sealed-debug-exposure"
       ],
+      "severity": "medium",
       "summary": "Sealed fixture debug field in an API response: The response carries the debug marker the sealed fixture plants",
       "title": "Fix sealed-debug-exposure",
       "where": [

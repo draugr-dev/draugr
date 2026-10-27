@@ -1,0 +1,1 @@
+- **`fix_list` and `report.json` say why each action ranks where it does.** Each action now carries `exploitation`, the KEV or EPSS signal and the CVE it raised, and `severity`, with `severityFrom` where that signal or reachability analysis moved it. An assistant can explain why an upgrade clearing two findings on KEV leads one clearing more.

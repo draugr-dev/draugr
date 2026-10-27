@@ -47,18 +47,20 @@ func consoleFixFirstLimit(topN int) int {
 }
 
 // consoleActionsPerList is how many actions each of the fix list's lists shows, from Data.TopN:
-// 0 → the default (consoleActionsPerListN), a negative value → all (-1), a positive value → n.
+// 0 → the default (ActionsPerList), a negative value → all (-1), a positive value → n.
 //
 // Per list rather than in all, because a cut across the lists would spend its rows on whichever
 // kind of work comes first and leave the others with none.
 func consoleActionsPerList(topN int) int {
 	if topN == 0 {
-		return consoleActionsPerListN
+		return ActionsPerList
 	}
 	return consoleFixFirstLimit(topN)
 }
 
-const consoleActionsPerListN = 3
+// ActionsPerList is how many actions each of the fix list's lists shows by default, in the console
+// and in the MCP server's fix_list.
+const ActionsPerList = 3
 
 // The report's vocabulary maps onto the shared palette, so a "critical" here looks like a
 // "critical" everywhere else Draugr writes.
@@ -2805,7 +2807,7 @@ func appendOnce(list []string, v string) []string {
 // listKinds is the kinds of work the actions hold, in WorkOrder, then any kind WorkOrder does not
 // name in the order its first action appears. Never dropped: an action with a kind no list names
 // is still work, and leaving it out would make the list say there is less to do than there is.
-func listKinds(byKind map[skald.ActionKind][]action) []skald.ActionKind {
+func listKinds[T any](byKind map[skald.ActionKind][]T) []skald.ActionKind {
 	var out []skald.ActionKind
 	named := map[skald.ActionKind]bool{}
 	for _, k := range skald.WorkOrder {

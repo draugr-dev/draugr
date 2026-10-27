@@ -62,7 +62,7 @@ func decisionsReport() sarif.Report {
 // The decision travels with the finding it took out of the ranking, and never as work: who
 // accepted it, why, until when, and whether the analysis was this project's or a supplier's.
 func TestSummarizeReturnsEachAcceptedFindingWithItsDecision(t *testing.T) {
-	out := summarize(decisionsReport(), "", 20)
+	out := summarized(decisionsReport(), "", 20)
 
 	for _, f := range out.Findings {
 		if strings.HasPrefix(f.RuleID, "CVE-2023-") {
@@ -90,7 +90,7 @@ func TestSummarizeReturnsEachAcceptedFindingWithItsDecision(t *testing.T) {
 // The list is capped like the findings, and the count stays whole, so a truncated list reads as
 // truncated rather than as everything that was decided.
 func TestAcceptedIsCappedAndTheCountIsNot(t *testing.T) {
-	out := summarize(decisionsReport(), "", 1)
+	out := summarized(decisionsReport(), "", 1)
 	if out.Suppressed != 2 || len(out.Accepted) != 1 || out.Accepted[0].RuleID != "CVE-2023-0002" {
 		t.Errorf("suppressed=%d accepted=%+v, want 2 counted and the most severe returned",
 			out.Suppressed, out.Accepted)
@@ -98,7 +98,7 @@ func TestAcceptedIsCappedAndTheCountIsNot(t *testing.T) {
 }
 
 func TestFindingsCarryReachabilityAndEscalation(t *testing.T) {
-	out := summarize(decisionsReport(), "", 20)
+	out := summarized(decisionsReport(), "", 20)
 	byRule := map[string]Finding{}
 	for _, f := range out.Findings {
 		byRule[f.RuleID] = f
@@ -126,7 +126,7 @@ func TestFindingsCarryReachabilityAndEscalation(t *testing.T) {
 // Two scanners reporting one flaw is one finding, as the gate counts it, and the second scanner is
 // named on it rather than dropped.
 func TestACorrelatedCopyIsCountedOnceAndNamed(t *testing.T) {
-	out := summarize(decisionsReport(), "", 20)
+	out := summarized(decisionsReport(), "", 20)
 	if out.Total != 2 || out.Counts.High != 1 {
 		t.Errorf("total=%d counts=%+v, want the grype copy counted under trivy-fs", out.Total, out.Counts)
 	}
@@ -168,43 +168,8 @@ func TestSummarizeReportReadsFeedStalenessFromTheFile(t *testing.T) {
 }
 
 func TestNoFeedsMeansNoneWereConsulted(t *testing.T) {
-	out := summarize(sarif.Report{Results: []sarif.Result{{RuleID: "r", Level: sarif.LevelError}}}, "", 0)
+	out := summarized(sarif.Report{Results: []sarif.Result{{RuleID: "r", Level: sarif.LevelError}}}, "", 0)
 	if out.Feeds != nil {
 		t.Errorf("feeds = %+v, want none for a scan that loaded no exploitability data", out.Feeds)
-	}
-}
-
-func TestNextNamesTheFirstFindingAndWhatToDo(t *testing.T) {
-	finding := func(p *sarif.Package, mod func(*sarif.Result)) sarif.Report {
-		r := sarif.Result{RuleID: "R-1", Level: sarif.LevelError, Package: p,
-			Location: sarif.Location{URI: "go.mod", StartLine: 3}}
-		if mod != nil {
-			mod(&r)
-		}
-		return sarif.Report{Results: []sarif.Result{r}}
-	}
-	for name, tc := range map[string]struct {
-		rep  sarif.Report
-		min  string
-		want string
-	}{
-		"upgrade": {rep: finding(&sarif.Package{Name: "x/net", FixedVersion: "0.23.0"}, nil),
-			want: "Start with R-1 in go.mod:3: upgrade x/net to 0.23.0. Then scan again to confirm it is gone."},
-		"upstream": {rep: finding(nil, func(r *sarif.Result) { r.OSEndOfLife = true }),
-			want: "Start with R-1 in go.mod:3: move to a supported operating system release, which fixes every finding in that layer. Then scan again to confirm it is gone."},
-		"external": {rep: finding(nil, func(r *sarif.Result) { r.ProviderOperated = true }),
-			want: "Start with R-1 in go.mod:3: report it to whoever operates the surface; nothing in this project changes it. Then scan again to confirm it is gone."},
-		"none": {rep: finding(nil, nil),
-			want: "Start with R-1 in go.mod:3: no fix is published; remove the dependency or record an acceptance with an expiry. Then scan again to confirm it is gone."},
-		"filtered": {rep: finding(nil, func(r *sarif.Result) { r.Priority = "P4" }), min: "p1",
-			want: "Nothing at or above P1. Lower minPriority to see the 1 below it."},
-		"clean": {rep: sarif.Report{},
-			want: "Nothing to fix in the controls that ran."},
-	} {
-		t.Run(name, func(t *testing.T) {
-			if got := summarize(tc.rep, tc.min, 0).Next; got != tc.want {
-				t.Errorf("next =\n %s\nwant\n %s", got, tc.want)
-			}
-		})
 	}
 }

@@ -20,6 +20,7 @@
         "G702",
         "G204"
       ],
+      "severity": "high",
       "title": "Fix “Command injection via taint analysis”",
       "where": [
         "default/main.go:21"
@@ -45,6 +46,7 @@
         "G702",
         "G204"
       ],
+      "severity": "high",
       "title": "Fix “Command injection via taint analysis”",
       "where": [
         "tags/main.go:21"
@@ -69,6 +71,7 @@
       "ruleIds": [
         "G702"
       ],
+      "severity": "high",
       "title": "Fix “Command injection via taint analysis”",
       "where": [
         "exclude/main.go:22"
@@ -93,6 +96,7 @@
       "ruleIds": [
         "G401"
       ],
+      "severity": "medium",
       "title": "Fix “Use of weak cryptographic primitive”",
       "where": [
         "default/main.go:18"
@@ -117,6 +121,7 @@
       "ruleIds": [
         "G501"
       ],
+      "severity": "medium",
       "title": "Fix “Blocklisted import crypto/md5: weak cryptographic primitive”",
       "where": [
         "default/main.go:6"
@@ -141,6 +146,7 @@
       "ruleIds": [
         "G401"
       ],
+      "severity": "medium",
       "title": "Fix “Use of weak cryptographic primitive”",
       "where": [
         "exclude/main.go:18"
@@ -165,6 +171,7 @@
       "ruleIds": [
         "G501"
       ],
+      "severity": "medium",
       "title": "Fix “Blocklisted import crypto/md5: weak cryptographic primitive”",
       "where": [
         "exclude/main.go:6"
@@ -189,6 +196,7 @@
       "ruleIds": [
         "G204"
       ],
+      "severity": "medium",
       "summary": "Subprocess launched with a potential tainted input or cmd arguments",
       "title": "Fix G204",
       "where": [
@@ -214,6 +222,7 @@
       "ruleIds": [
         "G401"
       ],
+      "severity": "medium",
       "title": "Fix “Use of weak cryptographic primitive”",
       "where": [
         "tags/main.go:18"
@@ -238,6 +247,7 @@
       "ruleIds": [
         "G501"
       ],
+      "severity": "medium",
       "title": "Fix “Blocklisted import crypto/md5: weak cryptographic primitive”",
       "where": [
         "tags/main.go:6"
@@ -262,6 +272,7 @@
       "ruleIds": [
         "G306"
       ],
+      "severity": "medium",
       "title": "Fix “Expect WriteFile permissions to be 0600 or less”",
       "where": [
         "tags/tagged.go:10"

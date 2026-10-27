@@ -71,3 +71,69 @@ YAML
 report() {
   draugr scan draugr.saga.yaml --no-gate --no-tips -o "$1" >/dev/null
 }
+
+# sarif_only scans like report, then removes report.json, so the actions and the next step can only
+# come from the tools reading results.sarif, as for a SARIF file another pipeline produced.
+sarif_only() {
+  report "$1"
+  rm -f "$1/report.json"
+}
+
+# shell_call commits a Python handler in the api service that passes request input to os.popen, the
+# command injection the fixture's Semgrep rule draugr-fixture-os-popen reports.
+shell_call() {
+  mkdir -p services/api/app
+  cat >services/api/app/ping.py <<'PY'
+import os
+
+from flask import request
+
+
+def ping():
+    return os.popen("ping -c 1 " + request.args["host"]).read()
+PY
+  git_ add services/api/app/ping.py
+  git_ commit -q -m "Add a ping handler"
+}
+
+# dependencies stands in for a dependency scan another pipeline step ran: a SARIF 2.1.0 file for the
+# api service's npm packages, which the descriptor imports into the sca control, and a copy of CISA's
+# KEV catalog listing the one CVE in it known to be exploited. Call it before descriptor, which reads
+# the CONFIG and API_EXTRA it sets.
+#
+# jquery 1.8.3 carries two medium findings, one of them on KEV, which raises it to critical. lodash
+# 4.17.15 carries three, the worst of them high. Both are P1 in the api service, so the jquery upgrade
+# leads the dependency list on the KEV finding alone, ahead of the upgrade that clears more.
+dependencies() {
+  mkdir -p reports
+  dep() { # rule level score message package version fixed
+    printf '{"ruleId":"%s","level":"%s","message":{"text":"%s"},' "$1" "$2" "$4"
+    printf '"locations":[{"physicalLocation":{"artifactLocation":{"uri":"services/api/package-lock.json"}}}],'
+    printf '"properties":{"security-severity":"%s","package":{"name":"%s","version":"%s","fixedVersion":"%s","ecosystem":"npm","purl":"pkg:npm/%s@%s"}}}' \
+      "$3" "$5" "$6" "$7" "$5" "$6"
+  }
+  {
+    printf '{"version":"2.1.0","$schema":"https://json.schemastore.org/sarif-2.1.0.json","runs":[{'
+    printf '"tool":{"driver":{"name":"dependency-fixture","version":"1.0.0"}},"results":['
+    dep CVE-2020-11023 warning 6.1 "jQuery passes HTML containing option elements from untrusted sources to its DOM methods, which can execute it" jquery 1.8.3 3.5.0
+    printf ','
+    dep CVE-2020-11022 warning 6.1 "jQuery passes HTML from untrusted sources to its DOM methods, which can execute it" jquery 1.8.3 3.5.0
+    printf ','
+    dep CVE-2020-8203 error 7.4 "Prototype pollution in lodash zipObjectDeep" lodash 4.17.15 4.17.19
+    printf ','
+    dep CVE-2021-23337 error 7.2 "Command injection in lodash template" lodash 4.17.15 4.17.21
+    printf ','
+    dep CVE-2020-28500 warning 5.3 "Regular expression denial of service in lodash toNumber, trim and trimEnd" lodash 4.17.15 4.17.21
+    printf ']}]}\n'
+  } >reports/dependencies.sarif
+  printf '{"vulnerabilities":[{"cveID":"CVE-2020-11023"}]}\n' >reports/kev.json
+  git_ add reports
+  git_ commit -q -m "Add the dependency scan and the KEV catalog"
+  CONFIG="  exploitability:
+    kev: reports/kev.json
+"
+  API_EXTRA="    imports:
+      - control: sca
+        file: reports/dependencies.sarif
+"
+}

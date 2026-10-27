@@ -62,6 +62,10 @@ type action struct {
 	// earlier build of the thing it names, and that belongs beside the row rather than in a
 	// caveat further down that the reader has to connect back.
 	cached bool
+	// rank is what the action is ordered by, set once the list is whole. Held rather than recomputed
+	// where it is exported, so what report.json and fix_list say an action ranked by is the value
+	// the order was decided on.
+	rank rankKeys
 }
 
 // count is how many findings the action resolves.
@@ -315,56 +319,82 @@ func groupActions(findings []finding, unpinned []string) (actions []action, exte
 		actions = append(actions, a)
 	}
 	actions = splitByPolicy(actions)
-	ranks := packageRanks(actions)
-	sort.SliceStable(ranks, func(i, j int) bool { return moreUrgent(ranks[i], ranks[j]) })
-	sorted := make([]action, len(ranks))
-	for i, r := range ranks {
-		sorted[i] = *r.action
-	}
-	return sorted, external
+	rankByPackage(actions)
+	sort.SliceStable(actions, func(i, j int) bool { return moreUrgent(actions[i], actions[j]) })
+	return actions, external
 }
 
-// rankedAction is an action and what it is ranked by: its own band, severity, exploitation signal
-// and count, or for one step of an upgrade the policy split, the package's.
-type rankedAction struct {
-	*action
+// rankKeys are what an action is ranked by: its own band, exploitation signal, severity and count,
+// or for one step of an upgrade the policy split, the package's.
+type rankKeys struct {
 	priority string
-	// severity is the rank of the worst severity it clears, as the band was computed from it.
-	severity int
+	// severity is the worst severity it clears, as the band was computed from it.
+	severity sarif.Severity
+	// reported is the worst severity it clears as the scanners reported it, before KEV, EPSS or
+	// reachability analysis moved any.
+	reported sarif.Severity
 	// signal is the strongest exploitation evidence among what it clears: 2 for KEV, 1 for EPSS.
 	signal int
-	count  int
-	group  string
-	beyond bool
+	// exploited is the finding that carries signal, the first in the action's order to carry it.
+	// Nil where signal is 0.
+	exploited *finding
+	count     int
 }
 
-// packageRanks pairs each action with what it is ranked by. The steps of one package's upgrade
-// rank together, by the worst band either clears and the findings both clear, so the major step
-// that clears the urgent findings is read beside the minor step it follows.
-func packageRanks(actions []action) []rankedAction {
-	worst := map[string]string{}
-	severity := map[string]int{}
-	signal := map[string]int{}
-	total := map[string]int{}
-	group := func(a action) string { return strings.TrimSuffix(a.key, "\x00beyond") }
-	for _, a := range actions {
-		g := group(a)
-		if w, ok := worst[g]; !ok || moreUrgentBand(a.priority, w) {
-			worst[g] = a.priority
+// group is what the steps of one package's upgrade share: the key without the suffix the step past
+// the policy carries.
+func (a action) group() string { return strings.TrimSuffix(a.key, "\x00beyond") }
+
+// beyond reports whether the action is the step past its component's fixes.upgrade.
+func (a action) beyond() bool { return a.key != a.group() }
+
+// rankByPackage sets what each action is ranked by. The steps of one package's upgrade rank
+// together, by the worst band either clears and the findings both clear, so the major step that
+// clears the urgent findings is read beside the minor step it follows.
+func rankByPackage(actions []action) {
+	keys := map[string]*rankKeys{}
+	for i := range actions {
+		a := &actions[i]
+		g := a.group()
+		k, ok := keys[g]
+		if !ok {
+			k = &rankKeys{priority: a.priority}
+			keys[g] = k
+		}
+		if moreUrgentBand(a.priority, k.priority) {
+			k.priority = a.priority
 		}
 		for _, f := range a.findings {
-			severity[g] = max(severity[g], rankedSeverity(f).Rank())
-			signal[g] = max(signal[g], exploitationSignal(f))
+			if s := rankedSeverity(f); s.Rank() > k.severity.Rank() {
+				k.severity = s
+			}
+			if f.severity.Rank() > k.reported.Rank() {
+				k.reported = f.severity
+			}
+			if s := exploitationSignal(f); s > k.signal {
+				k.signal, k.exploited = s, &f
+			}
 		}
-		total[g] += a.count()
+		k.count += a.count()
 	}
-	out := make([]rankedAction, len(actions))
 	for i := range actions {
-		g := group(actions[i])
-		out[i] = rankedAction{action: &actions[i], priority: worst[g], severity: severity[g],
-			signal: signal[g], count: total[g], group: g, beyond: actions[i].key != g}
+		actions[i].rank = *keys[actions[i].group()]
 	}
-	return out
+}
+
+// export is what report.json and fix_list say an action ranked by inside its band: the worst
+// severity as ranked, the scanners' worst where something moved it, and the escalation behind the
+// exploitation signal, in the words the finding's own escalation uses.
+func (k rankKeys) export() (severity, from sarif.Severity, exploited *skald.ActionExploitation) {
+	severity = k.severity
+	if k.reported != k.severity {
+		from = k.reported
+	}
+	if f := k.exploited; f != nil {
+		e := f.escalation
+		exploited = &skald.ActionExploitation{Signal: e.Signal, RuleID: f.ruleID, Detail: e.Detail, AsOf: e.AsOf}
+	}
+	return severity, from, exploited
 }
 
 // exploitationSignal ranks the evidence that a finding's flaw is exploited: 2 when it is on KEV, 1
@@ -406,21 +436,22 @@ func commonComponent(fs []finding) string {
 // of how bad a flaw would be can say. Then severity, the rating the band was computed from. Count
 // decides only between actions alike in all three, because a scanner that reports one finding per
 // package per advisory makes volume a measure of how it splits its output more than of urgency.
-func moreUrgent(a, b rankedAction) bool {
-	if a.priority != b.priority {
-		return moreUrgentBand(a.priority, b.priority)
+func moreUrgent(a, b action) bool {
+	ra, rb := a.rank, b.rank
+	if ra.priority != rb.priority {
+		return moreUrgentBand(ra.priority, rb.priority)
 	}
-	if a.signal != b.signal {
-		return a.signal > b.signal
+	if ra.signal != rb.signal {
+		return ra.signal > rb.signal
 	}
-	if a.severity != b.severity {
-		return a.severity > b.severity
+	if sa, sb := ra.severity.Rank(), rb.severity.Rank(); sa != sb {
+		return sa > sb
 	}
-	if a.count != b.count {
-		return a.count > b.count
+	if ra.count != rb.count {
+		return ra.count > rb.count
 	}
 	// Two steps of one upgrade: the one within the policy first, because the other presumes it.
-	return a.group == b.group && !a.beyond && b.beyond
+	return a.group() == b.group() && !a.beyond() && b.beyond()
 }
 
 // moreUrgentBand reports whether band a outranks band b. An unprioritized finding has no band to
@@ -1077,6 +1108,7 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 			Findings:      actionFindings(a.findings),
 			OneChange:     !a.byRule,
 		}
+		act.Severity, act.SeverityFrom, act.Exploitation = a.rank.export()
 		if p := a.dependency(); p != nil {
 			act.Ecosystem, act.Package, act.From = p.Ecosystem, p.Name, p.Version
 			act.Versioning = ecosystemName(a)
@@ -1111,6 +1143,33 @@ func Cleared(actions []Action) int {
 		groups[i] = a.Fingerprints
 	}
 	return distinctFindings(groups)
+}
+
+// ActionList is one of the fix list's lists: the actions of one kind of work, most urgent first.
+type ActionList struct {
+	Kind    skald.ActionKind
+	Actions []Action
+}
+
+// ListsOf splits a fix list into the lists the console's "What to do" prints: one per kind of work,
+// in skald.WorkOrder, each keeping the order ActionsFor gave its actions. A kind with no action has
+// no list.
+//
+// The same split the console makes, so an assistant reading the lists and a terminal printing them
+// put the same action at the head of each. Inside a band the ranking's keys are exploitation, then
+// severity, then count, and only a published CVE carries exploitation evidence, so one list across
+// kinds puts every exploited dependency above every flaw in the project's own code.
+func ListsOf(actions []Action) []ActionList {
+	byKind := map[skald.ActionKind][]Action{}
+	for _, a := range actions {
+		byKind[a.Kind] = append(byKind[a.Kind], a)
+	}
+	kinds := listKinds(byKind)
+	out := make([]ActionList, 0, len(kinds))
+	for _, k := range kinds {
+		out = append(out, ActionList{Kind: k, Actions: byKind[k]})
+	}
+	return out
 }
 
 // distinctFindings counts the distinct fingerprints across groups.

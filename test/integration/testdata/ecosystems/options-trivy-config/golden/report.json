@@ -24,6 +24,7 @@
       "ruleIds": [
         "DRAUGR-0002"
       ],
+      "severity": "high",
       "title": "Fix DRAUGR-0002 “Base image from an untrusted registry”",
       "where": [
         "acme/Dockerfile:1",
@@ -54,6 +55,7 @@
       "ruleIds": [
         "DRAUGR-0001"
       ],
+      "severity": "medium",
       "title": "Fix DRAUGR-0001 “Image names no maintainer”",
       "where": [
         "derived/Dockerfile:1",

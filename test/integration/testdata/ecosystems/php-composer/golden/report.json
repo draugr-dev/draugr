@@ -25,6 +25,7 @@
       "ruleIds": [
         "CVE-2022-29248"
       ],
+      "severity": "high",
       "target": "7.4.3",
       "title": "Upgrade guzzlehttp/guzzle 7.4.0",
       "versioning": "packagist",

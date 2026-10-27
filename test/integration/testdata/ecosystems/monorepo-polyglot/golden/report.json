@@ -25,6 +25,7 @@
       "ruleIds": [
         "CVE-2018-1000656"
       ],
+      "severity": "high",
       "target": "0.12.3",
       "title": "Upgrade Flask 0.12.2",
       "versioning": "pypi",
@@ -57,6 +58,7 @@
       "ruleIds": [
         "CVE-2021-44906"
       ],
+      "severity": "high",
       "target": "1.2.6",
       "title": "Upgrade minimist 1.2.5",
       "versioning": "npm",
@@ -89,6 +91,7 @@
       "ruleIds": [
         "CVE-2020-36067"
       ],
+      "severity": "high",
       "target": "v1.6.6",
       "title": "Upgrade github.com/tidwall/gjson v1.6.5",
       "versioning": "go",
@@ -115,6 +118,7 @@
       "ruleIds": [
         "draugr-fixture-os-popen"
       ],
+      "severity": "high",
       "title": "Fix “os.popen runs its argument through a shell”",
       "where": [
         "services/api/app.py:7"
@@ -139,6 +143,7 @@
       "ruleIds": [
         "draugr-fixture-eval"
       ],
+      "severity": "high",
       "title": "Fix “eval runs its argument as code”",
       "where": [
         "services/web/src/index.js:4"
@@ -163,6 +168,7 @@
       "ruleIds": [
         "aws-access-token"
       ],
+      "severity": "high",
       "summary": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms",
       "title": "Remove and rotate aws-access-token",
       "where": [

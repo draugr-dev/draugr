@@ -23,6 +23,7 @@
       "ruleIds": [
         "GHSA-8q59-q68h-6hv4-pyyaml"
       ],
+      "severity": "critical",
       "target": "5.4",
       "title": "Upgrade pyyaml 5.3.1",
       "versioning": "pypi",
@@ -53,6 +54,7 @@
       "ruleIds": [
         "CVE-2020-14343-pyyaml"
       ],
+      "severity": "critical",
       "target": "5.4",
       "title": "Upgrade pyyaml 5.3.1",
       "versioning": "pypi",

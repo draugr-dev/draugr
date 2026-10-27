@@ -29,6 +29,20 @@ type Action struct {
 	Priority string `json:"priority,omitempty"`
 	// Clears is how many findings this one action resolves.
 	Clears int `json:"clears"`
+	// Severity, SeverityFrom and Exploitation are what orders actions inside one priority band. For
+	// the two steps of an upgrade split by Policy they are the package's, because both steps rank
+	// together, so the values always account for the order the actions are in.
+	//
+	// Severity is the worst severity among the findings, as ranked: raised where KEV or EPSS raised
+	// one, lowered where reachability analysis lowered one.
+	Severity sarif.Severity `json:"severity,omitempty" jsonschema:"the worst severity among the findings it clears, as ranked after KEV or EPSS raised one or reachability analysis lowered one: critical, high, medium or low"`
+	// SeverityFrom is the worst severity as the scanners reported it, where an adjustment changed
+	// the worst. Absent where Severity is the scanners' own.
+	SeverityFrom sarif.Severity `json:"severityFrom,omitempty" jsonschema:"the worst severity the scanners reported, present where KEV, EPSS or reachability analysis changed it"`
+	// Exploitation is the strongest exploitation evidence among the findings, read from the
+	// escalation of the finding that carries it. KEV outranks EPSS. Nil where no finding was
+	// escalated.
+	Exploitation *ActionExploitation `json:"exploitation,omitempty" jsonschema:"the strongest exploitation evidence among the findings it clears, from the escalation of one of them; absent where KEV and EPSS raised none"`
 	// Upstream marks an action whose unit of work is something somebody else publishes: the fix
 	// is to take a newer one, not to change anything inside it.
 	Upstream bool `json:"upstream,omitempty"`
@@ -123,6 +137,19 @@ type ActionLocation struct {
 	Line int    `json:"line,omitempty"`
 	// Kind is one of the Location constants.
 	Kind string `json:"kind"`
+}
+
+// ActionExploitation is the exploitation evidence an action ranks by: one finding's escalation, in
+// the words the finding's own escalation uses.
+type ActionExploitation struct {
+	// Signal names the dataset that raised the finding: "kev" or "epss".
+	Signal string `json:"signal" jsonschema:"kev (observed exploitation) or epss (predicted probability of exploitation)"`
+	// RuleID is the rule of the finding the signal raised, a CVE.
+	RuleID string `json:"ruleId" jsonschema:"the rule of the finding the signal raised, a CVE"`
+	// Detail is the specific fact, e.g. "on KEV" or "EPSS 0.87".
+	Detail string `json:"detail,omitempty" jsonschema:"the specific fact, e.g. on KEV or EPSS 0.87"`
+	// AsOf is the day the data was fetched, as YYYY-MM-DD.
+	AsOf string `json:"asOf,omitempty" jsonschema:"the day the dataset was obtained, YYYY-MM-DD"`
 }
 
 // ActionFinding is one finding an action clears.

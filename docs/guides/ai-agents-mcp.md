@@ -80,7 +80,7 @@ The plugin and the binary update separately:
 | `check_tools` | Which scanners are present, what's missing, and the command that fixes it |
 | `feeds_status` | Whether each feed (KEV, EPSS, the Go vulnerability database) is cached and current, and the command that fetches any missing or stale one |
 | `summarize_report` | An existing `results.sarif`, ranked by priority, each finding carrying its remediation and what to upgrade to |
-| `fix_list` | The same report as **things to do**, most urgent first, each saying how many findings it clears and which release clears them |
+| `fix_list` | The same report as **things to do**, one list per kind of work, each most urgent first, each action saying how many findings it clears, which release clears them and what it ranks by |
 | `explain_rule` | What a rule means and how to fix it, from the report the scan already wrote |
 | `diff_reports` | What a change introduced and resolved, and whether a pull-request gate would fail |
 | `list_surveyors` | What can be discovered, and what each surveyor reads |
@@ -155,7 +155,8 @@ The scan reads those datasets from the feed cache and never fetches them, whethe
 `config.exploitability` says `cache` or `auto`. A feed the cache does not hold fails the call, and
 the error names the `draugr feeds update` command that fetches it.
 An empty `feeds` means no finding was checked against KEV or EPSS. `next` names the first thing to
-do.
+do, quoting the title of an action in `fix_list`: of the first action at or above `minPriority` in
+each list, the one with the highest priority, the earlier list on a tie.
 
 ```json
 {
@@ -172,7 +173,7 @@ do.
     "origin": "saga", "source": "fragments/api.saga.yaml"
   }],
   "feeds": [{"signal": "epss", "asOf": "2026-09-01", "stale": true, "entries": 2, "threshold": 0.5}],
-  "next": "Start with CVE-2021-44228 in api/pom.xml:12: upgrade log4j-core to 2.17.1. Then scan again to confirm it is gone."
+  "next": "Start with \"Upgrade log4j-core 2.14.1 → 2.17.1\" in api/pom.xml:12, which clears 1 finding. Then scan again to confirm it is gone."
 }
 ```
 
@@ -303,19 +304,29 @@ gone. A saved SARIF file is something your assistant can point you at, or read b
 `fix_list` answers "what should I do?", one row per remediation rather than per finding, because one
 change usually clears many, and each row names the release to move to. Eight vulnerabilities in one
 library are one upgrade, and every vulnerable package inside an image somebody else publishes is one
-newer image. It uses the same grouping `draugr scan --view actions` prints, so an assistant and a
+newer image. It returns the lists `draugr scan --view actions` prints, one per
+[kind of work](../concepts/what-to-fix-first.md), from the same grouping, so an assistant and a
 terminal cannot describe the same report differently. Each row is an
 [action as `report.json` carries it](../reference/report-schema.md#what-each-action-carries), without
-the list of findings under it. `clears` is the figure the rows returned clear between them.
+the list of findings under it, and carries the keys it ranks by: `exploitation`, the KEV or EPSS
+evidence and the CVE it raised, and `severity`, with `severityFrom` where KEV, EPSS or reachability
+analysis moved it.
 
-`kind` returns one of the console's lists: `bump`, `code`, `infrastructure`, `credential`, `wait`
-or `decide`. `limit` applies within that list, and `totalActions` and `totalClears` count that list.
-Any other value is an error naming the valid kinds.
+The lists are in a fixed order of kind, which [says nothing about
+urgency](../concepts/what-to-fix-first.md), so a reply names the head of each list that applies.
+Each list shows its first three actions, as the console does, and `limit` changes that number for
+every list.
+
+`kind` returns one of the lists: `bump`, `code`, `infrastructure`, `credential`, `wait` or
+`decide`. `limit` then applies to that list, defaulting to 20, and `totalActions` and `totalClears`
+count it. Any other value is an error naming the valid kinds.
 
 | Field | What it counts |
 |---|---|
+| `lists[].totalActions` | actions in that list, returned or not |
+| `lists[].totalClears` | findings that list's actions clear between them, each counted once |
 | `clears` | findings the rows returned clear between them, each counted once |
-| `totalActions` | actions the report holds, returned or not |
+| `totalActions` | actions in every list, returned or not |
 | `totalClears` | findings every action clears between them, each counted once |
 
 `explain_rule` answers "what does this mean and what do I change?". The remediation the scanner

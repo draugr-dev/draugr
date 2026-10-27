@@ -27,6 +27,7 @@
         "CVE-2021-38561",
         "CVE-2022-32149"
       ],
+      "severity": "high",
       "target": "v0.3.8",
       "title": "Upgrade golang.org/x/text v0.3.6",
       "versioning": "go",
@@ -54,6 +55,7 @@
         "G702",
         "G204"
       ],
+      "severity": "high",
       "title": "Fix “Command injection via taint analysis”",
       "where": [
         "main.go:26"
@@ -78,6 +80,7 @@
       "ruleIds": [
         "aws-access-token"
       ],
+      "severity": "high",
       "summary": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms",
       "title": "Remove and rotate aws-access-token",
       "where": [

@@ -25,6 +25,7 @@
       "ruleIds": [
         "CVE-2020-36067"
       ],
+      "severity": "high",
       "target": "v1.6.6",
       "title": "Upgrade github.com/tidwall/gjson v1.6.5",
       "versioning": "go",
@@ -57,6 +58,8 @@
       "ruleIds": [
         "CVE-2020-36067"
       ],
+      "severity": "medium",
+      "severityFrom": "high",
       "target": "v1.6.6",
       "title": "Upgrade github.com/tidwall/gjson v1.6.5",
       "versioning": "go",

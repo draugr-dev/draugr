@@ -50,8 +50,8 @@ Every action is in exactly one list.
 
 `WHAT TO DO` counts every action and every finding across the lists. Each list shows its first
 three and ends with `… and N actions not listed`. `--top N` shows the first `N` of each list and
-`--top 0` shows every action. A list with nothing in it is left out. The MCP `fix_list` tool takes
-the same kinds as `kind`.
+`--top 0` shows every action. A list with nothing in it is left out. The MCP `fix_list` tool returns
+the same lists, cut at the same three, and its `kind` returns one of them.
 
 ## Rows are actions, not findings
 
@@ -142,10 +142,11 @@ same findings therefore produce the same list on every run.
 finding per advisory per package counts an old base image in hundreds, and ranked on volume that
 image would outrank a single flaw on KEV.
 
-**Where each key comes from.** The band, the escalation naming `kev` or `epss` with the date its data
-was fetched, and the severity with what adjusted it are on each finding in `report.json` and
-`results.sarif`. `fixes.upgrade` is in the descriptor. To check why one row sits above another,
-compare those values on the findings each row clears.
+**Where each key comes from.** Each action in `report.json` and in `fix_list` carries the keys it
+was ranked by: `priority`, `exploitation` with the CVE KEV or EPSS raised, `severity` with
+`severityFrom` where an adjustment moved it, and `clears`. The band, the escalation naming `kev` or
+`epss` with the date its data was fetched, and the severity with what adjusted it are also on each
+finding in `report.json` and `results.sarif`. `fixes.upgrade` is in the descriptor.
 
 ## Two descriptor fields change what is recommended
 

@@ -206,7 +206,7 @@ func TestSummarizeRanksAndCaps(t *testing.T) {
 			{RuleID: "mid", Level: sarif.LevelWarning, Priority: "P2", Message: "meh"},
 		},
 	}
-	out := summarize(rep, "", 0)
+	out := summarized(rep, "", 0)
 	if out.Total != 3 || out.Returned != 3 {
 		t.Errorf("total/returned = %d/%d, want 3/3", out.Total, out.Returned)
 	}
@@ -222,7 +222,7 @@ func TestSummarizeRanksAndCaps(t *testing.T) {
 	}
 
 	// Filtering narrows the list, not the counts: the rest of the backlog didn't vanish.
-	narrowed := summarize(rep, "p2", 0)
+	narrowed := summarized(rep, "p2", 0)
 	if narrowed.Returned != 2 {
 		t.Errorf("returned = %d, want 2", narrowed.Returned)
 	}
@@ -231,7 +231,7 @@ func TestSummarizeRanksAndCaps(t *testing.T) {
 	}
 
 	// Truncation has to announce itself, or the agent reads a partial list as complete.
-	capped := summarize(rep, "", 1)
+	capped := summarized(rep, "", 1)
 	if len(capped.Findings) != 1 || capped.Note == "" {
 		t.Errorf("capped = %+v, want 1 finding and a note", capped)
 	}
@@ -241,7 +241,7 @@ func TestSummarizeRanksAndCaps(t *testing.T) {
 // question than the one asked, and Sagas without classification are common.
 func TestSummarizeKeepsUnprioritizedFindings(t *testing.T) {
 	rep := sarif.Report{Results: []sarif.Result{{RuleID: "r", Level: sarif.LevelError, Message: "m"}}}
-	if out := summarize(rep, "p1", 0); out.Returned != 1 {
+	if out := summarized(rep, "p1", 0); out.Returned != 1 {
 		t.Errorf("returned = %d, want the unprioritized finding kept", out.Returned)
 	}
 }
@@ -879,7 +879,7 @@ func TestSummarizeDoesNotHandBackAcceptedRisk(t *testing.T) {
 		{RuleID: "CVE-LIVE", Level: sarif.LevelError, HasScore: true, Score: 9.8, Priority: "P1"},
 	}}
 
-	out := summarize(rep, "", 20)
+	out := summarized(rep, "", 20)
 	if out.Counts.Critical != 1 || out.Total != 1 {
 		t.Errorf("a suppressed finding was counted as work: counts=%+v total=%d", out.Counts, out.Total)
 	}
@@ -1026,21 +1026,22 @@ func TestFixListGroupsWhatOneChangeClears(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(out.Actions) != 2 {
-		t.Fatalf("want one action per fix, got %d: %+v", len(out.Actions), out.Actions)
+	acts := allActions(out)
+	if len(acts) != 2 {
+		t.Fatalf("want one action per fix, got %d: %+v", len(acts), acts)
 	}
-	if out.Actions[0].Clears != 2 {
-		t.Errorf("the upgrade should clear both of its findings: %+v", out.Actions[0])
+	if acts[0].Clears != 2 {
+		t.Errorf("the upgrade should clear both of its findings: %+v", acts[0])
 	}
 	// Ordered by the worst thing each clears, not by how many. A P1 outranks volume.
-	if out.Actions[0].Priority != "P1" {
-		t.Errorf("actions should lead with the worst priority they clear: %+v", out.Actions)
+	if acts[0].Priority != "P1" {
+		t.Errorf("actions should lead with the worst priority they clear: %+v", acts)
 	}
 	if out.Clears != 3 {
 		t.Errorf("clears should total what the list resolves, got %d", out.Clears)
 	}
 	// What to do, without every finding under it; the counts answer the question.
-	if up := out.Actions[0]; up.Package != "jinja2" || up.From != "2.10" || up.ID == "" || len(up.Fingerprints) != 0 {
+	if up := acts[0]; up.Package != "jinja2" || up.From != "2.10" || up.ID == "" || len(up.Fingerprints) != 0 {
 		t.Errorf("the upgrade should name its dependency and carry no findings: %+v", up)
 	}
 }
@@ -1059,8 +1060,8 @@ func TestFixListLeavesAcceptedRiskOut(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(out.Actions) != 0 {
-		t.Errorf("an accepted finding was proposed as work: %+v", out.Actions)
+	if len(out.Lists) != 0 {
+		t.Errorf("an accepted finding was proposed as work: %+v", out.Lists)
 	}
 }
 
@@ -1096,7 +1097,7 @@ func TestFindingsCarryWhatItTakesToAct(t *testing.T) {
 			},
 		}},
 	}
-	out := summarize(rep, "", 20)
+	out := summarized(rep, "", 20)
 	if len(out.Findings) != 1 {
 		t.Fatalf("want one finding, got %+v", out.Findings)
 	}
@@ -1129,12 +1130,12 @@ func TestRemediationIsNotTheFindingRepeated(t *testing.T) {
 		Rules:   map[string]sarif.Rule{"R": {ShortDescription: "same text", FullDescription: "same text"}},
 		Results: []sarif.Result{{RuleID: "R", Level: sarif.LevelWarning, Message: "same text"}},
 	}
-	if got := summarize(rep, "", 20).Findings[0].Remediation; got != "" {
+	if got := summarized(rep, "", 20).Findings[0].Remediation; got != "" {
 		t.Errorf("the finding was echoed back as its own fix: %q", got)
 	}
 	// And a rule the report never described has nothing to offer rather than something wrong.
 	bare := sarif.Report{Results: []sarif.Result{{RuleID: "unknown", Level: sarif.LevelWarning}}}
-	if got := summarize(bare, "", 20).Findings[0].Remediation; got != "" {
+	if got := summarized(bare, "", 20).Findings[0].Remediation; got != "" {
 		t.Errorf("a rule with no entry should yield no remediation, got %q", got)
 	}
 }
@@ -1506,8 +1507,9 @@ func TestFixListNarrowsToOneKindOfWork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(code.Actions) != 1 || code.Actions[0].Kind != skald.KindCode {
-		t.Fatalf("want the one code action, got %+v", code.Actions)
+	if len(code.Lists) != 1 || len(code.Lists[0].Actions) != 1 || code.Lists[0].Kind != skald.KindCode ||
+		code.Lists[0].Actions[0].Kind != skald.KindCode {
+		t.Fatalf("want the code list with its one action, got %+v", code.Lists)
 	}
 	if code.TotalActions != 1 || code.TotalClears != 1 {
 		t.Errorf("totals should count the list asked for, got %d actions clearing %d", code.TotalActions, code.TotalClears)

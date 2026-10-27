@@ -19,6 +19,7 @@
       "ruleIds": [
         "aws-access-token"
       ],
+      "severity": "high",
       "summary": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms",
       "title": "Remove and rotate aws-access-token",
       "where": [
@@ -44,6 +45,7 @@
       "ruleIds": [
         "draugr-fixture-token"
       ],
+      "severity": "high",
       "summary": "Sealed-tier fixture token",
       "title": "Remove and rotate draugr-fixture-token",
       "where": [

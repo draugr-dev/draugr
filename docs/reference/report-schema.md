@@ -96,6 +96,9 @@ that change clears.
 | `component` | the component every finding belongs to. Absent where the findings span several, which only an action for a rule or an image can |
 | `control`, `priority` | the control the findings came from, and the highest band among them |
 | `clears` | how many findings the action resolves |
+| `severity` | the worst severity among the findings after KEV, EPSS and reachability analysis adjusted them, the severity the band was computed from |
+| `severityFrom` | the worst severity as the scanners reported it. Present only where KEV, EPSS or reachability analysis changed the worst |
+| `exploitation` | the strongest exploitation evidence among the findings, from one finding's `escalation`: `signal` (`kev` or `epss`), `ruleId` (the CVE it raised), `detail` (`on KEV`, `EPSS 0.87`) and `asOf`. KEV outranks EPSS. Absent where neither raised a finding |
 | `upstream` | `true` where the unit of work is something somebody else publishes, such as an image |
 | `ecosystem`, `package`, `from` | the package's ecosystem, its name and the version installed, for an action that upgrades or replaces a dependency |
 | `versioning` | the ecosystem whose rules order the package's versions, in lower case, such as `debian`, `red hat`, `maven`, `pypi` or `npm`. `ecosystem` is the scanner's own name, which can differ, as `pip` does from `pypi` |
@@ -110,7 +113,15 @@ that change clears.
 | `where`, `ruleIds` | the first five locations as text, then `and N more`, and the first five rule identifiers. A location names its repository when the action spans several, and a code action's names it once the list does. A code action's `ruleIds` start with the rule its title quotes, then follow the console's order, by scanner |
 | `findings[]` | the fingerprint of each finding the action clears, most urgent first. Each matches the `fingerprint` property of one result in `results.sarif` |
 
-The MCP server's `fix_list` returns the same objects without `findings[]`.
+`priority`, `exploitation`, `severity` and `clears` are the keys the list is [ordered
+by](../concepts/what-to-fix-first.md#how-the-list-is-ordered), so two actions can be compared from
+their own fields. The two steps of an upgrade split by `policy` rank together, by the worst band
+and every finding either step clears:
+
+- `exploitation`, `severity` and `severityFrom` are the package's, the same on both steps;
+- `priority` and `clears` are each step's own.
+
+The MCP server's `fix_list` returns the same objects without `findings[]`, in one list per `kind`.
 
 ```bash
 jq -r '.actions[] | select(.package) | "\(.component) \(.package) \(.from) → \(.target // "no single release")"' out/report.json

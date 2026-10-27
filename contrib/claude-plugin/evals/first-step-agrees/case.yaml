@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: first-step-agrees
+context:
+  scaffold_script: scaffold.sh

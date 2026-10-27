@@ -12,6 +12,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/enrich"
 	"github.com/draugr-dev/draugr/internal/exploitdata"
 	"github.com/draugr-dev/draugr/internal/git"
@@ -329,7 +330,7 @@ type SummarizeOutput struct {
 	// Feeds is empty when no exploitability data was loaded, which is the answer to "was this
 	// checked against KEV" and not an omission.
 	Feeds []Feed `json:"feeds,omitempty" jsonschema:"exploitability datasets the scan consulted; absent means no finding was checked against KEV or EPSS"`
-	Next  string `json:"next" jsonschema:"what to do with this result"`
+	Next  string `json:"next" jsonschema:"the first thing to do: of the first actions at or above minPriority in fix_list's lists for this report, the one with the highest priority, the earlier list on a tie; the action's title is quoted"`
 	Note  string `json:"note,omitempty"`
 }
 
@@ -359,11 +360,18 @@ func SummarizeReportTool(_ context.Context, _ *mcp.CallToolRequest, in Summarize
 	if err != nil {
 		return nil, SummarizeOutput{}, fmt.Errorf("%s: %w", in.Path, err)
 	}
-	return nil, summarize(rep, in.MinPriority, in.Limit), nil
+	return nil, summarize(rep, actionsOf(rep), in.MinPriority, in.Limit), nil
 }
 
-// summarize ranks, filters and truncates a report.
-func summarize(rep sarif.Report, minPriority string, limit int) SummarizeOutput {
+// actionsOf is the fix list for a results.sarif read from disk. One entry under any name: each
+// result carries the control it came from, which the grouping keys on.
+func actionsOf(rep sarif.Report) []report.Action {
+	return report.ActionsFor(map[string]sarif.Report{"": rep})
+}
+
+// summarize ranks, filters and truncates a report, and names the first of actions, the report's fix
+// list, as the thing to do next.
+func summarize(rep sarif.Report, actions []report.Action, minPriority string, limit int) SummarizeOutput {
 	if limit <= 0 {
 		limit = defaultLimit
 	}
@@ -424,45 +432,107 @@ func summarize(rep sarif.Report, minPriority string, limit int) SummarizeOutput 
 			Signal: c.Signal, AsOf: c.AsOf, Stale: c.Stale, Entries: c.Entries, Threshold: c.Threshold,
 		})
 	}
-	out.Next = nextStep(out, minPriority)
+	out.Next = nextStep(out, actions, minPriority)
 	return out
 }
 
-// nextStep names what to do with a summary, from the summary alone.
+// nextStep names what to do first: the action fix_list leads with for the same report.
+//
+// From the fix list rather than from the findings in the summary. The summary orders findings by
+// priority, severity and score, which knows nothing of exploitation evidence or of whether a fix
+// exists, so its first finding can be a flaw with no fix while fix_list leads with an upgrade
+// clearing one on KEV. An assistant handed both is handed two answers, and one ranking is the only
+// way not to. The action's own title also says what kind of work it is: a change to code, a
+// credential to rotate, a dependency to move.
 //
 // Deterministic: the same report gives the same instruction, so an assistant's advice can be traced
 // to a result rather than to its own reading of one.
-func nextStep(out SummarizeOutput, minPriority string) string {
-	if len(out.Findings) == 0 {
-		if out.Total > 0 {
-			return fmt.Sprintf("Nothing at or above %s. Lower minPriority to see the %d below it.",
-				strings.ToUpper(minPriority), out.Total)
-		}
+func nextStep(out SummarizeOutput, actions []report.Action, minPriority string) string {
+	if out.Total == 0 {
 		return "Nothing to fix in the controls that ran."
 	}
-	f := out.Findings[0]
-	where := f.RuleID
-	if f.Location != "" {
-		where += " in " + f.Location
+	if a, ok := firstAction(actions, minPriority); ok {
+		return startWith(a)
 	}
-	var do string
-	switch sarif.Remediation(f.Action) {
-	case sarif.RemediationUpgrade:
-		if f.Package != "" && f.FixedVersion != "" {
-			do = fmt.Sprintf("upgrade %s to %s", f.Package, f.FixedVersion)
-		} else {
-			do = "apply the remediation"
+	// Findings at or above the floor and no action for any of them: every one is on a surface
+	// somebody else operates, which the fix list leaves out.
+	if out.Returned > 0 {
+		within := ""
+		if minPriority != "" {
+			within = " at or above " + strings.ToUpper(minPriority)
 		}
-	case sarif.RemediationUpstream:
-		do = "move to a supported operating system release, which fixes every finding in that layer"
-	case sarif.RemediationExternal:
-		do = "report it to whoever operates the surface; nothing in this project changes it"
-	case sarif.RemediationNone:
-		do = "no fix is published; remove the dependency or record an acceptance with an expiry"
-	default:
-		do = "apply the remediation"
+		return fmt.Sprintf("Every finding%s is on a surface somebody else operates. Report them to "+
+			"whoever operates it; nothing in this project changes them.", within)
 	}
-	return fmt.Sprintf("Start with %s: %s. Then scan again to confirm it is gone.", where, do)
+	return fmt.Sprintf("Nothing at or above %s. Lower minPriority to see the %d below it.",
+		strings.ToUpper(minPriority), out.Total)
+}
+
+// firstAction is the action fix_list leads with for minPriority.
+//
+// fix_list returns one list per kind of work, and each list's head is its first action at or above
+// minPriority. The heads are compared by band, because priority is the one key that means the same
+// in every list: a P1 credential comes before a P3 upgrade whichever list is returned first.
+// Between heads in one band the earlier list in skald.WorkOrder leads, which is the order fix_list
+// returns them in. The keys below the band do not compare across lists, which is why there are
+// lists.
+func firstAction(actions []report.Action, minPriority string) (report.Action, bool) {
+	var first report.Action
+	found := false
+	for _, list := range report.ListsOf(actions) {
+		for _, a := range list.Actions {
+			if !atOrAbove(a.Priority, minPriority) {
+				continue
+			}
+			if !found || bandRank(a.Priority) > bandRank(first.Priority) {
+				first, found = a, true
+			}
+			break
+		}
+	}
+	return first, found
+}
+
+// bandRank orders priorities, an unprioritized action below every band.
+func bandRank(p string) int { return prioritization.Priority(strings.ToUpper(p)).Rank() }
+
+// startWith is the instruction to take one action: its title and target as fix_list states them,
+// where it applies, and how many findings it clears.
+//
+// The title is quoted because it is the action's own wording, which an assistant can find in
+// fix_list, and because some titles carry a comma of their own.
+func startWith(a report.Action) string {
+	title := a.Title
+	if a.Target != "" {
+		title += " → " + a.Target
+	}
+	s := `Start with "` + title + `"`
+	if where := placesOf(a); where != "" {
+		s += " in " + where
+	}
+	s += ", which clears " + english.Count(a.Clears, "finding") + ". "
+	switch a.Kind {
+	case skald.KindWait, skald.KindDecide:
+		// Replacing, accepting and waiting are all answers here, and only one of them clears anything.
+		return s + "Record an acceptance with an expiry for any finding kept, then scan again."
+	default:
+		return s + "Then scan again to confirm " + english.Choose(a.Clears, "it is", "they are") + " gone."
+	}
+}
+
+// placesOf names where an action applies, as the console's row does: the first two places, then
+// how many more. Empty for something somebody else publishes, which the title already names.
+func placesOf(a report.Action) string {
+	if a.Upstream {
+		return ""
+	}
+	const named = 2
+	n := min(named, len(a.Where), len(a.Locations))
+	names := slices.Clone(a.Where[:n])
+	if rest := len(a.Locations) - n; rest > 0 {
+		names = append(names, fmt.Sprintf("%d more", rest))
+	}
+	return english.And(names)
 }
 
 // acceptedFrom converts a suppressed result and the decision behind it.
@@ -795,7 +865,7 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 			Unread:          unreadFiles(run.Inputs),
 			Unexamined:      unexaminedNote,
 			Delivered:       delivered,
-			SummarizeOutput: summarize(merged, in.MinPriority, in.Limit),
+			SummarizeOutput: summarize(merged, report.ActionsFor(reports), in.MinPriority, in.Limit),
 		}
 		// A delivery failure is returned rather than folded into the verdict: the findings are
 		// real either way, and a caller told "fail" without being told the upload never happened
@@ -1127,26 +1197,43 @@ func locationsOf(rep sarif.Report, id string) []string {
 
 // FixListInput asks what to do about a report.
 type FixListInput struct {
-	Path  string `json:"path" jsonschema:"path to a results.sarif produced by draugr scan"`
-	Limit int    `json:"limit,omitempty" jsonschema:"maximum actions to return; defaults to 20"`
+	Path string `json:"path" jsonschema:"path to a results.sarif produced by draugr scan"`
+	// Limit is per list, as the console's --top is: a cut across the lists would spend its rows on
+	// whichever kind of work comes first and leave the others with none.
+	Limit int `json:"limit,omitempty" jsonschema:"maximum actions per list; defaults to 3, or to 20 when kind is set"`
 	// Kind narrows the answer to one list, the way the console shows a list per kind of work. Asked
-	// what a developer should change first, the code list answers it; the full list mixes in base
-	// images and upgrades that rank on numbers that say nothing about code.
-	Kind string `json:"kind,omitempty" jsonschema:"only the actions of one kind of work: bump (upgrade a dependency), code (change the application's code or its server's configuration), infrastructure (change infrastructure code or a live setting), credential (remove and rotate a committed secret), wait (for somebody else's release) or decide (accept or replace, e.g. a license). Omit for every kind"`
+	// what a developer should change first, the code list answers it.
+	Kind string `json:"kind,omitempty" jsonschema:"only the list for one kind of work: bump (upgrade a dependency), code (change the application's code or its server's configuration), infrastructure (change infrastructure code or a live setting), credential (remove and rotate a committed secret), wait (for somebody else's release) or decide (accept or replace, e.g. a license). Omit for every list"`
 }
 
-// FixListOutput is the work a report implies, rather than the findings in it.
+// FixListOutput is the work a report implies, rather than the findings in it, as the lists the
+// console's "What to do" prints: one per kind of work.
 //
-// The counts mean what the console's "What to do" heading means: Clears is what the actions
-// returned clear, each finding counted once, and the totals say what the limit left out.
+// The counts mean what the console's headings mean: Clears is what the actions returned clear, each
+// finding counted once, and the totals say what the limit left out.
 type FixListOutput struct {
-	Actions []report.Action `json:"actions" jsonschema:"things to do, most urgent first; each says how many findings it clears"`
-	Clears  int             `json:"clears" jsonschema:"findings the returned actions clear between them, each counted once"`
-	// TotalActions and TotalClears are the whole list, so a reply can say how much the actions
+	Lists  []FixList `json:"lists" jsonschema:"one list per kind of work, ordered bump, code, infrastructure, credential, wait, decide; a kind with no action has no list"`
+	Clears int       `json:"clears" jsonschema:"findings the returned actions clear between them, each counted once"`
+	// TotalActions and TotalClears are every list whole, so a reply can say how much the actions
 	// returned leave.
-	TotalActions int    `json:"totalActions" jsonschema:"actions the report implies, returned or not"`
-	TotalClears  int    `json:"totalClears" jsonschema:"findings every action clears between them, each counted once"`
+	TotalActions int    `json:"totalActions" jsonschema:"actions in every list, whether or not the limit returned them"`
+	TotalClears  int    `json:"totalClears" jsonschema:"findings the actions in every list clear between them, each counted once"`
 	Note         string `json:"note,omitempty"`
+}
+
+// FixList is one kind of work's actions, the way the console prints one of its lists.
+//
+// Lists rather than one sequence because the ranking cannot weigh one kind of work against another
+// inside a band. Its keys there are exploitation evidence, then severity, then count, and only a
+// published CVE carries exploitation evidence, so a single sequence puts every exploited dependency
+// above every flaw in the project's own code, and the two are different people's work.
+type FixList struct {
+	Kind skald.ActionKind `json:"kind" jsonschema:"bump, code, infrastructure, credential, wait or decide"`
+	Name string           `json:"name" jsonschema:"the list's name as the console prints it"`
+	// Actions are the first Limit of the list's actions.
+	Actions      []report.Action `json:"actions" jsonschema:"things to do, most urgent first: by priority, then exploitation, then severity, then how many findings each clears"`
+	TotalActions int             `json:"totalActions" jsonschema:"actions in this list, whether or not the limit returned them"`
+	TotalClears  int             `json:"totalClears" jsonschema:"findings this list's actions clear between them, each counted once"`
 }
 
 // FixListTool answers "what should I do" with actions rather than findings.
@@ -1154,8 +1241,9 @@ type FixListOutput struct {
 // One remediation usually clears many findings: eight vulnerabilities in one library are one
 // upgrade, and every package inside an image somebody else publishes is one newer image. An
 // assistant handed the findings has to work that out for itself, and will do it differently each
-// time, so this is report.ActionsFor, the grouping the terminal prints and report.json records.
-// Each result in results.sarif names the control that found it, which the grouping keys on.
+// time, so this is report.ActionsFor, the grouping the terminal prints and report.json records,
+// split by report.ListsOf into the console's lists. Each result in results.sarif names the control
+// that found it, which the grouping keys on.
 func FixListTool(_ context.Context, _ *mcp.CallToolRequest, in FixListInput) (*mcp.CallToolResult, FixListOutput, error) {
 	if in.Path == "" {
 		return nil, FixListOutput{}, fmt.Errorf("path is required")
@@ -1171,9 +1259,12 @@ func FixListTool(_ context.Context, _ *mcp.CallToolRequest, in FixListInput) (*m
 
 	limit := in.Limit
 	if limit <= 0 {
-		limit = defaultLimit
+		limit = report.ActionsPerList
+		if in.Kind != "" {
+			limit = defaultLimit
+		}
 	}
-	actions := report.ActionsFor(map[string]sarif.Report{"": rep})
+	actions := actionsOf(rep)
 	if in.Kind != "" {
 		kind := skald.ActionKind(in.Kind)
 		if kind.ListName() == "" {
@@ -1181,20 +1272,33 @@ func FixListTool(_ context.Context, _ *mcp.CallToolRequest, in FixListInput) (*m
 		}
 		actions = slices.DeleteFunc(actions, func(a skald.Action) bool { return a.Kind != kind })
 	}
-	out := FixListOutput{TotalActions: len(actions), TotalClears: report.Cleared(actions)}
-	if len(actions) > limit {
+	out := FixListOutput{TotalActions: len(actions), TotalClears: report.Cleared(actions), Lists: []FixList{}}
+	var shown []report.Action
+	cut := false
+	for _, l := range report.ListsOf(actions) {
+		list := FixList{Kind: l.Kind, Name: l.Kind.ListName(), TotalActions: len(l.Actions),
+			TotalClears: report.Cleared(l.Actions), Actions: l.Actions}
+		if len(list.Actions) > limit {
+			list.Actions, cut = list.Actions[:limit], true
+		}
+		// Without their findings. The most urgent actions of a real project carry hundreds of them,
+		// many times the size of the list itself, and an assistant asking what to do is answered by
+		// the counts. report.json names them by fingerprint, and results.sarif holds each one.
+		for i := range list.Actions {
+			shown = append(shown, list.Actions[i])
+			list.Actions[i].Fingerprints = nil
+		}
+		out.Lists = append(out.Lists, list)
+	}
+	out.Clears = report.Cleared(shown)
+	switch {
+	case cut && in.Kind != "":
 		out.Note = fmt.Sprintf(
 			"showing the %d most urgent of %d actions; raise limit to see more", limit, len(actions))
-		actions = actions[:limit]
+	case cut:
+		out.Note = fmt.Sprintf("showing up to %s from each list, most urgent first; a list's "+
+			"totalActions counts the rest; raise limit to see more", english.Count(limit, "action"))
 	}
-	out.Clears = report.Cleared(actions)
-	// Without their findings. The most urgent actions of a real project carry hundreds of them, many
-	// times the size of the list itself, and an assistant asking what to do is answered by the
-	// counts. report.json names them by fingerprint, and results.sarif holds each one.
-	for i := range actions {
-		actions[i].Fingerprints = nil
-	}
-	out.Actions = actions
 	return nil, out, nil
 }
 

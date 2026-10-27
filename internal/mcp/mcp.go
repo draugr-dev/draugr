@@ -191,11 +191,15 @@ func NewServer(opts Options) (*mcp.Server, error) {
 	}, ExplainRuleTool)
 	mcp.AddTool(s, &mcp.Tool{
 		Name: "fix_list",
-		Description: "Turn a report into the things to do about it, most urgent first, each " +
-			"saying how many findings it clears. Ask this rather than summarize_report when " +
-			"the question is what to change: one upgrade usually clears many findings, and an " +
-			"image somebody else publishes is one action however many packages are wrong " +
-			"inside it.",
+		Description: "Turn a report into the things to do about it, one list per kind of work " +
+			"(bump a dependency, change the code, change the infrastructure, rotate a credential, " +
+			"wait for a release, decide), each most urgent first, each action saying how many " +
+			"findings it clears and what it ranks by. Name the head of each list that applies: " +
+			"the lists are in a fixed order of kind, only priority compares an action in one list " +
+			"with an action in another, and which list to work from is the reader's choice. Ask " +
+			"this rather than summarize_report when the question is what to change: one upgrade " +
+			"usually clears many findings, and an image somebody else publishes is one action " +
+			"however many packages are wrong inside it.",
 	}, FixListTool)
 	if opts.Surveyors != nil {
 		mcp.AddTool(s, &mcp.Tool{

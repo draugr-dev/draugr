@@ -6,8 +6,8 @@ controls, priorities and verdict your CI gate uses, instead of choosing a scanne
 itself.
 
 Claude can write and validate the descriptor, run a scan, rank the findings by priority, explain a
-rule, list the fixes that clear the most findings, and compare two reports to show what a change
-introduced. The full list of tools is in the
+rule, list the fixes as the console does, one list per kind of work, and compare two reports to show
+what a change introduced. The full list of tools is in the
 [guide](https://draugr.dev/docs/latest/guides/ai-agents-mcp/).
 
 ## Requirements

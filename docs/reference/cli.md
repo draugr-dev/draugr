@@ -1875,7 +1875,7 @@ and `__pycache__`, and every hidden directory except `.draugr`.
 | `check_tools` | Report which scanners are installed and what to run if any are missing |
 | `feeds_status` | Report whether each feed is cached, with its fetch date, age, size, digest and staleness, and the `draugr feeds update` command to run if any is missing or stale |
 | `explain_rule` | What a finding means and how to fix it, from the scan's own report |
-| `fix_list` | A report as the things to do about it, most urgent first, each saying how many findings it clears |
+| `fix_list` | A report as the things to do about it, one list per kind of work, each most urgent first, each action saying how many findings it clears and what it ranks by |
 | `list_surveyors` | The surveyors this build has and what each discovers |
 | `survey` | Discover what an application is made of and return a descriptor for it; writes nothing |
 | `diff_reports` | Compare two scans, with `failOnNew` to learn whether a pull-request gate would fail |
