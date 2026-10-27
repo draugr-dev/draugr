@@ -783,8 +783,8 @@ omitted alerts there.
 
 A descriptor that publishes to a [`draugr-api`](saga-schema.md#configpublishers) server is checked
 against the organization's policy before any scanner starts, with the endpoint and token publishing
-uses. The server judges the descriptor and words each verdict; Draugr shows what it says and acts on
-it:
+uses, or, where no token is set, the login [`draugr login`](#draugr-login-server) stored. The server
+judges the descriptor and words each verdict; Draugr shows what it says and acts on it:
 
 | A broken setting that | Does |
 |---|---|
@@ -804,6 +804,9 @@ POLICY  version 7 · https://draugr.example
 A run that could not ask says `POLICY  not checked` and one of these reasons:
 
 - `no $DRAUGR_API_URL or $DRAUGR_API_TOKEN`, with neither an endpoint nor a token;
+- `no $DRAUGR_API_TOKEN, and no login for <server>`, for a `url:` with no token and no
+  [`draugr login`](#draugr-login-server) for its server;
+- `the login for <server> expired at <time>`, for a login past its expiry;
 - `offline`, under `--offline`;
 - `<server> checks no organization policy`, from a server that judges none;
 - the error, from a server that could not be reached;
@@ -1246,8 +1249,9 @@ With a descriptor, it **exits non-zero** when:
 - the descriptor cannot be loaded, or a required tool is missing or has no data;
 - a target check fails;
 - under `--policy`, the organization's [policy](#policy) would refuse or fail the scan;
-- a `draugr-api` publisher has an endpoint without a token or a token without an endpoint, or a
-  `tokenEnv` that `$DRAUGR_TOKEN_ENVS` does not list;
+- a `draugr-api` publisher has an endpoint with neither a token nor a
+  [login](#draugr-login-server), or a token without an endpoint, or a `tokenEnv` that
+  `$DRAUGR_TOKEN_ENVS` does not list;
 - `--strict`, `--policy` or `--fail-on-uncovered` applies, as the flag table says.
 
 So it gates CI: `draugr doctor saga.yaml && draugr scan saga.yaml`.
@@ -1342,8 +1346,20 @@ descriptor's url is not an allowed origin`.
 
 With neither an endpoint nor a token it prints
 `POLICY  not checked · no $DRAUGR_API_URL or $DRAUGR_API_TOKEN`, and `--policy` makes that an
-error; with only one of the two it is an error either way. The token is the project's ingest token,
-which belongs in CI.
+error; with only one of the two it is an error either way. `$DRAUGR_API_TOKEN` is the project's
+ingest token, which belongs in CI.
+
+On your own machine, [`draugr login`](#draugr-login-server) stands in for the token, and doctor
+names whose login the server was asked with and when it expires:
+
+```console
+$ draugr doctor --policy draugr.saga.yaml
+POLICY  payments · version 7 · https://draugr.example
+  login  ana@acme.com · acme · until 06:12 UTC
+```
+
+A login that has expired, been revoked, or lacks the `check` scope leaves the policy not checked,
+and the reason names the `draugr login` command to run.
 
 ### Network
 
@@ -1430,6 +1446,72 @@ command.
 Doctor never installs anything; [`draugr tools install`](#draugr-tools-install-tool) provisions
 missing tools. The only repository data it fetches is what its target checks read and fragments
 from other repositories.
+
+---
+
+## `draugr login [server]`
+
+Sign in to a Draugr server by OAuth 2.0 device authorization (RFC 8628) and keep the token it
+issues in the OS keychain. `draugr doctor --policy` and the scan's
+[policy check](#the-organizations-policy) send it where `$DRAUGR_API_TOKEN` is not set, so
+checking a descriptor on your own machine needs no token in your shell.
+
+```console
+$ draugr login https://draugr.example
+LOGIN  https://draugr.example
+  code     ABCD-EFGH
+  open     https://console.example/device
+  expires  15m
+
+approved · ana@acme.com · acme · until 06:12 UTC (12h)
+```
+
+The browser opens on the approval page. Approve there if the page shows the code the terminal
+does; from another machine, open the `open` address and type the code. The server may ask you to
+sign in first, under the organization's single sign-on and second-factor rules, and the command
+waits until the request is approved, denied, or the code expires. A request that is not approved
+ends with one line on stderr and a non-zero exit:
+
+```console
+draugr: denied · ABCD-EFGH · nothing stored
+draugr: expired · ABCD-EFGH · not approved within 15m · run `draugr login https://draugr.example` again
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--no-browser` | `false` | Print the address and code without opening a browser |
+
+The server defaults to `$DRAUGR_API_URL`. It must be `https`, or `http` to this machine.
+
+**The token checks policy and nothing else.** It carries only the `check` scope, lasts until the
+server's expiry with no refresh, and the [`draugr-api`](saga-schema.md#configpublishers) publisher
+never sends it, so a person's login cannot publish a run. When it expires, run `draugr login`
+again.
+
+**Where it is kept.** Draugr keeps one login per server origin in the macOS Keychain, the Windows
+Credential Manager, or a Secret Service such as GNOME Keyring or KWallet on Linux, and never in a
+file. On a machine with none of them, `draugr login` fails and says so. A CI job never reads the
+keychain; it uses `$DRAUGR_API_TOKEN`.
+
+**Where it is sent.** The token goes only to the origin that issued it. The policy check uses it
+for a `draugr-api` publisher whose server is `$DRAUGR_API_URL`, `publish.apiUrl`, or a `url:` with
+the login's origin; a `url:` naming any other server is not checked. A `$DRAUGR_API_TOKEN` in the
+environment is always used in its place.
+
+## `draugr logout [server]`
+
+Tell the server to revoke the token `draugr login` stored (RFC 7009), and remove it from the
+keychain.
+
+```console
+$ draugr logout https://draugr.example
+logged out · https://draugr.example · ana@acme.com · acme · token revoked
+```
+
+The server defaults to `$DRAUGR_API_URL`. Where the server cannot be reached, or under
+`--offline`, logout still removes the login and exits non-zero, because the token stays valid on
+the server until it expires. With no login for the server, it prints `not logged in` and exits
+zero.
 
 ---
 

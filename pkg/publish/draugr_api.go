@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/credential"
+	"github.com/draugr-dev/draugr/internal/login"
 	"github.com/draugr-dev/draugr/pkg/ci"
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -64,6 +65,9 @@ const (
 type APIDestination struct {
 	Endpoint string
 	Token    string
+	// Login is the person's login the token came from, nil for a token from the environment. Only
+	// ResolvePolicyAPI sets it, so only a policy check carries one.
+	Login *login.Login
 }
 
 // ErrOriginRefused is a url, written in the descriptor or in the project's draugr.config.yaml,
@@ -153,6 +157,12 @@ func ResolveAPI(cfg saga.PublisherConfig) (dest APIDestination, skip string, err
 // refused url on a machine with no endpoint and no token is a local run with nothing to send, so it
 // resolves to no endpoint and ResolveAPI skips.
 func apiEndpoint(cfg saga.PublisherConfig, hasToken bool) (string, error) {
+	return apiEndpointAllowing(cfg, hasToken, nil)
+}
+
+// apiEndpointAllowing is apiEndpoint, where loggedIn, when set, also allows a url whose origin
+// holds a login.
+func apiEndpointAllowing(cfg saga.PublisherConfig, hasToken bool, loggedIn func(origin string) bool) (string, error) {
 	trusted, trustedFrom := os.Getenv(apiURLEnv), "$"+apiURLEnv
 	if trusted == "" {
 		trusted, trustedFrom = cfg.DefaultURL, "publish.apiUrl in the machine's configuration"
@@ -170,6 +180,10 @@ func apiEndpoint(cfg saga.PublisherConfig, hasToken bool) (string, error) {
 	ok, err := allowedOrigin(named, trusted)
 	if err != nil {
 		return "", fmt.Errorf("draugr-api publisher: %s: %w", field, err)
+	}
+	if !ok && loggedIn != nil {
+		origin, _ := credential.Origin(named)
+		ok = loggedIn(origin)
 	}
 	switch {
 	case ok:

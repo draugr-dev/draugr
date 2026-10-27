@@ -119,7 +119,16 @@ func writePolicy(w io.Writer, col tui.Painter, p *skald.PolicyCheck) {
 // WritePolicyTable is doctor's POLICY section: every rule that reaches the project, passing and
 // broken, with what its setting does to a run that breaks it.
 func WritePolicyTable(w io.Writer, col tui.Painter, p *skald.PolicyCheck, project string) {
+	WritePolicyTableWith(w, col, p, project, nil)
+}
+
+// WritePolicyTableWith is WritePolicyTable with lines printed as given under the heading, such as
+// whose login the server was asked with.
+func WritePolicyTableWith(w io.Writer, col tui.Painter, p *skald.PolicyCheck, project string, under []string) {
 	_, _ = fmt.Fprintln(w, policyHeading(col, p, project))
+	for _, line := range under {
+		_, _ = fmt.Fprintln(w, line)
+	}
 	if !p.Checked || len(p.Verdicts) == 0 {
 		return
 	}

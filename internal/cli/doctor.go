@@ -15,6 +15,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/controllers"
+	"github.com/draugr-dev/draugr/internal/login"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/internal/preflight"
 	"github.com/draugr-dev/draugr/internal/sagafetch"
@@ -217,6 +218,7 @@ func runDoctor(
 	// Asked only under --policy. Doctor is what somebody runs on a descriptor they have not
 	// reviewed yet, and asking means sending the token to the server it names.
 	var orgPolicy *skald.PolicyCheck
+	var askedAs []login.Login
 	if model != nil {
 		if _, err := applyConfigDefaults(ctx, model); err != nil {
 			return err
@@ -229,7 +231,7 @@ func runDoctor(
 			held = policyNotAsked
 		}
 		var err error
-		orgPolicy, err = checkOrgPolicy(ctx, model, (&saga.Resolved{Model: model}).Effective(), held)
+		orgPolicy, askedAs, err = checkOrgPolicyAs(ctx, model, (&saga.Resolved{Model: model}).Effective(), held)
 		if err != nil {
 			return err
 		}
@@ -277,7 +279,14 @@ func runDoctor(
 		}
 		if orgPolicy != nil {
 			_, _ = fmt.Fprintln(w)
-			report.WritePolicyTable(w, tui.For(w), orgPolicy, model.ProjectName())
+			// Whose sign-in the server judged the descriptor for, since a login is a person's and the
+			// same descriptor can be judged differently for another organization.
+			col := tui.For(w)
+			var under []string
+			for _, l := range askedAs {
+				under = append(under, doctorLoginLine(col, l))
+			}
+			report.WritePolicyTableWith(w, col, orgPolicy, model.ProjectName(), under)
 		}
 		writeNetworkCalls(w, reg, model)
 		if model != nil {

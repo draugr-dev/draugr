@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/login"
+	"github.com/draugr-dev/draugr/pkg/ci"
 	"github.com/draugr-dev/draugr/pkg/publish"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/skald"
@@ -15,6 +17,23 @@ import (
 // policyChecker is the server call, swapped in tests.
 var policyChecker = func(ctx context.Context, dest publish.APIDestination, effective string) (skald.PolicyOutcome, error) {
 	return publish.NewPolicyClient().Check(ctx, dest, effective)
+}
+
+// loginStore is where `draugr login` keeps a person's token, swapped in tests.
+var loginStore = func() login.Store { return login.Keychain{} }
+
+// inPipeline reports whether this run is a CI job, swapped in tests.
+var inPipeline = func() bool { return ci.Detect().Detected() }
+
+// policyLogins is the store a policy check reads a person's login from, nil in a pipeline.
+//
+// A pipeline has its own token and no person's keychain, and on a runner with no keychain service
+// even looking for one can start a session bus. So a CI job never reads it.
+func policyLogins() login.Store {
+	if inPipeline() {
+		return nil
+	}
+	return loginStore()
 }
 
 // Reasons a policy check records in place of asking the server.
@@ -41,24 +60,36 @@ const (
 // reason, never as a pass. Draugr holds no rule logic: the server judges and words each verdict, and
 // this only gathers what it says.
 func checkOrgPolicy(ctx context.Context, model *saga.Model, effective, held string) (*skald.PolicyCheck, error) {
+	p, _, err := checkOrgPolicyAs(ctx, model, effective, held)
+	return p, err
+}
+
+// checkOrgPolicyAs is checkOrgPolicy, also returning each person's login a check was sent with.
+//
+// Where no token is set in the environment, a person's login from `draugr login` stands in for it.
+// The logins are returned beside the check rather than in it, because the check is recorded in
+// report.json and whose login asked is not part of the run.
+func checkOrgPolicyAs(ctx context.Context, model *saga.Model, effective, held string) (*skald.PolicyCheck, []login.Login, error) {
 	dests := publish.APIPublishers(model.Config.Publishers)
 	if len(dests) == 0 {
 		if publish.APIURLSet() {
-			return &skald.PolicyCheck{Reason: policyNoPublisher}, nil
+			return &skald.PolicyCheck{Reason: policyNoPublisher}, nil, nil
 		}
-		return nil, nil
+		return nil, nil, nil
 	}
+	logins := policyLogins()
+	var used []login.Login
 	out := &skald.PolicyCheck{Outcome: skald.PolicyNone}
 	var servers, reasons []string
 	for _, cfg := range dests {
-		dest, skip, err := publish.ResolveAPI(cfg)
+		dest, skip, err := publish.ResolvePolicyAPI(cfg, logins, time.Now())
 		var refused *publish.OriginRefusedError
 		if errors.As(err, &refused) {
 			reasons = append(reasons, refused.Reason())
 			continue
 		}
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		switch {
 		case skip != "":
@@ -78,6 +109,9 @@ func checkOrgPolicy(ctx context.Context, model *saga.Model, effective, held stri
 			continue
 		}
 		out.Checked = true
+		if dest.Login != nil {
+			used = append(used, *dest.Login)
+		}
 		servers = append(servers, dest.Endpoint)
 		out.Version = max(out.Version, outcome.PolicyVersion)
 		out.Outcome = skald.Strongest(out.Outcome, outcome.Outcome)
@@ -88,7 +122,7 @@ func checkOrgPolicy(ctx context.Context, model *saga.Model, effective, held stri
 		out.Outcome = ""
 		out.Reason = strings.Join(reasons, "; ")
 	}
-	return out, nil
+	return out, used, nil
 }
 
 // requirePolicy is --policy: the check has to have run, so a missing token, an unreachable server

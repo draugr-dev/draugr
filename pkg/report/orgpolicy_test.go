@@ -70,6 +70,18 @@ func TestThePolicyTableShowsEveryRule(t *testing.T) {
 	}
 }
 
+// Lines a caller adds sit under the heading, above the table.
+func TestThePolicyTableCarriesLinesUnderItsHeading(t *testing.T) {
+	var buf bytes.Buffer
+	WritePolicyTableWith(&buf, tui.Plain(), &skald.PolicyCheck{Checked: true, Version: 7, Server: "https://draugr.example",
+		Verdicts: []skald.PolicyVerdict{brokenThreshold}}, "payments", []string{"  login  ana@acme.com · acme"})
+	lines := strings.Split(buf.String(), "\n")
+	if lines[0] != "POLICY  payments · version 7 · https://draugr.example" || lines[1] != "  login  ana@acme.com · acme" ||
+		!strings.HasPrefix(lines[2], "Rule") {
+		t.Errorf("printed:\n%s", buf.String())
+	}
+}
+
 func TestARefusedRunNamesWhatRefusedIt(t *testing.T) {
 	var buf bytes.Buffer
 	refused := skald.PolicyVerdict{Rule: "effects", Profile: "Default", State: "violates", Mode: "enforce", EnforceFrom: "2026-10-01",
