@@ -605,15 +605,25 @@ jobs:
                   else if (!(n in c)) c[n] = $2 }
                 END { for (n in c) print n "\t" c[n] }')
 
+          # A tool's issue is any open one under the label whose title is the one below or starts with
+          # the tool's name, as `gosec 2.30.0: …` does. A person who reads a failed run's diff files
+          # what it means under the tool's name, and matching only this run's own title would open a
+          # second issue beside theirs on the next failure. The oldest takes the comment, and a
+          # proven run closes all of them.
+          open=$(gh issue list --label "$label" --state open --limit 200 --json number,title)
+          issues_for() {
+            jq -r --arg t "Scheduled bump failed: $1" --arg p "$1 " \
+              'sort_by(.number) | .[] | select(.title == $t or (.title | startswith($p))) | .number' <<<"$open"
+          }
+
           while IFS=$'\t' read -r name conclusion; do
             [ -n "$name" ] || continue
             title="Scheduled bump failed: $name"
-            existing=$(gh issue list --label "$label" --state open --search "\"$title\" in:title" \
-              --json number,title | jq -r --arg t "$title" '.[] | select(.title == $t) | .number' | head -1)
+            existing=$(issues_for "$name")
             case "$conclusion" in
               failure)
                 if [ -n "$existing" ]; then
-                  gh issue comment "$existing" --body "Still failing: [run]($RUN_URL)."
+                  gh issue comment "$(head -1 <<<"$existing")" --body "Still failing: [run]($RUN_URL)."
                 else
                   gh issue create --label "$label" --title "$title" --body "$(cat <<BODY
           The weekly scanner bump for \`$name\` failed: [run]($RUN_URL).
@@ -628,10 +638,10 @@ jobs:
                 fi
                 ;;
               success)
-                if [ -n "$existing" ]; then
-                  gh issue comment "$existing" --body "Proven again: [run]($RUN_URL). Closing."
-                  gh issue close "$existing"
-                fi
+                for n in $existing; do
+                  gh issue comment "$n" --body "Proven again: [run]($RUN_URL). Closing."
+                  gh issue close "$n"
+                done
                 ;;
             esac
           done <<<"$jobs"
