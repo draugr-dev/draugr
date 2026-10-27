@@ -76,6 +76,14 @@ func quickPolls(t *testing.T) *[]time.Duration {
 	return &waits
 }
 
+// pollCount is how many times the run's policy was asked for. Read under the server's lock, because
+// a poll the wait's limit cut short may still be in the handler.
+func (p *server) pollCount() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return len(p.polled)
+}
+
 // judgeOne publishes to one server and returns what Judge made of it.
 func judgeOne(t *testing.T, p *server, wait time.Duration) (*skald.PolicyCheck, error) {
 	t.Helper()
@@ -95,7 +103,7 @@ func TestAVerdictThatPassesIsAPass(t *testing.T) {
 	if !got.Checked || got.Pending || got.Fails() || got.Version != 7 || got.Outcome != "none" || len(got.Verdicts) != 1 {
 		t.Errorf("a decided, passing verdict: %+v", got)
 	}
-	if len(p.completed) != 1 || len(p.polled) != 1 || p.polled[0] != "run-1" {
+	if len(p.completed) != 1 || p.pollCount() != 1 || p.polled[0] != "run-1" {
 		t.Errorf("completed %v, then polled %v", p.completed, p.polled)
 	}
 	if !strings.HasPrefix(got.Server, "http://127.0.0.1:") {
@@ -123,8 +131,8 @@ func TestAVerdictArrivingAfterSeveralPollsIsWaitedFor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !got.Checked || got.Pending || !got.Fails() || len(p.polled) != 4 {
-		t.Errorf("polled %d times for %+v", len(p.polled), got)
+	if !got.Checked || got.Pending || !got.Fails() || p.pollCount() != 4 {
+		t.Errorf("polled %d times for %+v", p.pollCount(), got)
 	}
 	if len(*waits) != 3 || (*waits)[0] != 7*time.Second {
 		t.Errorf("waited %v between polls, want the interval three times", *waits)
@@ -139,8 +147,8 @@ func TestRunningOutOfTimeIsNotAPass(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !got.Checked || !got.Pending || !got.Fails() || len(got.Verdicts) != 2 || len(p.polled) < 2 {
-		t.Errorf("ran out of time after %d polls: %+v", len(p.polled), got)
+	if !got.Checked || !got.Pending || !got.Fails() || len(got.Verdicts) != 2 || p.pollCount() < 2 {
+		t.Errorf("ran out of time after %d polls: %+v", p.pollCount(), got)
 	}
 }
 
@@ -150,8 +158,8 @@ func TestNotWaitingKeepsThePublishAnswerAsPending(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !got.Checked || !got.Pending || got.Fails() || len(p.polled) != 0 {
-		t.Errorf("--policy-wait 0 asks nothing, and the answer is not a pass: %+v, %d polls", got, len(p.polled))
+	if !got.Checked || !got.Pending || got.Fails() || p.pollCount() != 0 {
+		t.Errorf("--policy-wait 0 asks nothing, and the answer is not a pass: %+v, %d polls", got, p.pollCount())
 	}
 }
 
@@ -161,8 +169,8 @@ func TestAnAnswerWithNothingPendingIsFinal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !got.Checked || got.Pending || !got.Fails() || len(p.polled) != 0 {
-		t.Errorf("a decided publish answer is the verdict: %+v, %d polls", got, len(p.polled))
+	if !got.Checked || got.Pending || !got.Fails() || p.pollCount() != 0 {
+		t.Errorf("a decided publish answer is the verdict: %+v, %d polls", got, p.pollCount())
 	}
 }
 
@@ -178,8 +186,8 @@ func TestARunAlreadyRecordedIsStillWaitedFor(t *testing.T) {
 			p.policy = publishAnswer
 			p.polls = []pollAnswer{runPolicy(t, false, "fail", brokenLicenses)}
 			got, err := judgeOne(t, p, time.Minute)
-			if err != nil || !got.Fails() || len(p.polled) != 1 || len(p.uploads) != 0 {
-				t.Errorf("%+v, %v, %d polls, %d uploads", got, err, len(p.polled), len(p.uploads))
+			if err != nil || !got.Fails() || p.pollCount() != 1 || len(p.uploads) != 0 {
+				t.Errorf("%+v, %v, %d polls, %d uploads", got, err, p.pollCount(), len(p.uploads))
 			}
 		})
 	}
@@ -229,8 +237,8 @@ func TestARateLimitIsWaitedOutAsTheServerAsks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !got.Checked || got.Pending || len(p.polled) != 7 {
-		t.Errorf("%d polls for %+v", len(p.polled), got)
+	if !got.Checked || got.Pending || p.pollCount() != 7 {
+		t.Errorf("%d polls for %+v", p.pollCount(), got)
 	}
 	if len(*waits) != 2 || (*waits)[0] != 12*time.Second || (*waits)[1] != 7*time.Second {
 		t.Errorf("waited %v: Retry-After, then the interval where none was named", *waits)
@@ -294,6 +302,28 @@ func TestTwoServersCombine(t *testing.T) {
 			t.Errorf("one pending makes the whole pending: %+v, %v", got, err)
 		}
 	})
+}
+
+func TestTheWaitIsOneLimitAcrossServers(t *testing.T) {
+	quickPolls(t)
+	// Both still deciding. The first spends the whole limit, so the second, already published to,
+	// is not asked again: two servers wait no longer than one.
+	a := &server{policy: publishAnswer, polls: []pollAnswer{runPolicy(t, true, "none", pendingLicenses)}}
+	b := &server{policy: publishAnswer, polls: []pollAnswer{runPolicy(t, true, "none", pendingLicenses)}}
+	one, other := a.server(t), b.server(t)
+	t.Setenv(apiURLEnv, one.URL)
+	t.Setenv(apiTokenEnv, "drgr_ci_test")
+	t.Setenv(apiOriginsEnv, other.URL)
+	got, err := Judge(context.Background(), []saga.PublisherConfig{
+		{Kind: "draugr-api", URL: one.URL}, {Kind: "draugr-api", URL: other.URL},
+	}, sampleData(), 20*time.Millisecond)
+	if err != nil || !got.Checked || !got.Pending {
+		t.Fatalf("both pending: %+v, %v", got, err)
+	}
+	first, second := a.pollCount(), b.pollCount()
+	if first == 0 || second != 0 {
+		t.Errorf("polls: first %d, second %d; the second should have had no time left", first, second)
+	}
 }
 
 func TestJudgeAsksNothingOfAServerThatJudgesNoPolicy(t *testing.T) {

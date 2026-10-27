@@ -113,7 +113,7 @@ func TestThePolicyBlockShowsTheRunsVerdict(t *testing.T) {
 			[]string{"POLICY  version 8 · https://draugr.example · 2 rules checked, none broken"}},
 		{"the wait ran out", &skald.PolicyCheck{Checked: true, Pending: true, Version: 8, Server: "https://draugr.example", Outcome: "none",
 			Verdicts: []skald.PolicyVerdict{descriptor, {Rule: "licenses", State: "not_evaluated", Pending: true}}},
-			[]string{"POLICY  version 8 · https://draugr.example · decided after publish"}},
+			[]string{"POLICY  version 8 · https://draugr.example · not decided within --policy-wait"}},
 		{"not checked", &skald.PolicyCheck{Server: "https://draugr.example", Reason: "401 Unauthorized"},
 			[]string{"POLICY  version 7 · https://draugr.example · run not checked · 401 Unauthorized"}},
 	}

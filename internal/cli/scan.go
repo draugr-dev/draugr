@@ -72,7 +72,7 @@ type scanOptions struct {
 	templateFile  string
 	noPublish     bool
 	requirePolicy bool
-	// policyWait is how long to wait for each server's verdict on the published run.
+	// policyWait is how long to wait, in all, for the servers' verdict on the published run.
 	policyWait time.Duration
 	top        int
 	// topConfigured is output.top having set top, which chooses a number as --top does.
@@ -193,7 +193,8 @@ func newScanCommand() *cobra.Command {
 		"require the organization's policy check against the draugr-api server the descriptor publishes to; "+
 			"not being able to check it is then an error")
 	cmd.Flags().DurationVar(&opts.policyWait, "policy-wait", publish.DefaultPolicyWait,
-		"how long to wait for each draugr-api server's policy verdict on the published run's findings (0 = do not wait)")
+		"total time to wait for the draugr-api servers' policy verdict on the published run; a verdict not decided by then "+
+			"is named on the POLICY line, and is an error under --policy (0 = do not wait)")
 	cmd.Flags().IntVar(&opts.top, "top", 10, "console: max findings to list in the ranked table (0 = all)")
 	cmd.Flags().BoolVar(&opts.noTips, "no-tips", false, "suppress the console's contextual tips (also DRAUGR_NO_TIPS)")
 	cmd.Flags().StringSliceVar(&opts.components, "components", nil,

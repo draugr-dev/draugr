@@ -431,7 +431,7 @@ a scan the pre-flight refuses and fails the gate of one it fails. Each item read
 <found> · <constraint>: <expected>`.
 
 **The verdict on the run's findings.** A verdict marked `"pending": true` in the answer to `POST
-/v1/runs` is decided once the evidence is expanded. `draugr scan` delivers to `draugr-api`
+/v1/runs` is decided once the server has read the run's evidence. `draugr scan` delivers to `draugr-api`
 publishers before anything else, and after `complete`, or after an answer of `duplicate` or `held`,
 asks `GET /v1/ingest/runs/{id}/policy` with the same token every five seconds until the answer's
 `pending` is `false` or `--policy-wait` (five minutes by default) runs out. The answer is the

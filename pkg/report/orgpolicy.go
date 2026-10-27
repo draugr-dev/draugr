@@ -96,7 +96,7 @@ func writePolicy(w io.Writer, col tui.Painter, p *skald.PolicyCheck) {
 	case run != nil && !run.Checked:
 		line += col.Paint(cDim, " · ") + col.Paint(cFail, "run not checked") + col.Paint(cDim, " · "+run.Reason)
 	case run != nil && run.Pending:
-		line += col.Paint(cDim, " · ") + col.Paint(cFail, "decided after publish")
+		line += col.Paint(cDim, " · ") + col.Paint(cFail, "not decided within --policy-wait")
 	case shown.Checked && len(rows) == 0:
 		line += col.Paint(cDim, fmt.Sprintf(" · %s checked, none broken", english.Count(checked, "rule")))
 	}

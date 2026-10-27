@@ -502,7 +502,7 @@ whether it is a shortlist or every finding, and `--top 0` also lists every row u
 | `--allow-effects` | - | Accept scanner effects for this run (`mutate`, `privilege`). `config.allowEffects` is the reviewed equivalent. See [below](#scanners-that-do-more-than-read) |
 | `--no-publish` | `false` | Skip the descriptor's configured publishers (still writes `-o` artifacts and stdout) |
 | `--policy` | `false` | Require the [organization's policy](#the-organizations-policy) check |
-| `--policy-wait` | `5m` | How long to wait for each `draugr-api` server's [verdict on the published run](#the-organizations-policy) (`0` = do not wait) |
+| `--policy-wait` | `5m` | Total time to wait for the `draugr-api` servers' [verdict on the published run](#the-organizations-policy). A verdict not decided by then is named on the `POLICY` line, and is an error under `--policy` (`0` = do not wait) |
 
 Under `--policy`, a descriptor publishing to no `draugr-api` server, a missing token, an unreachable
 server or `--offline` is an error rather than `not checked`, and so is a verdict on the published
@@ -818,17 +818,14 @@ A run that could not ask says `POLICY  not checked` and one of these reasons:
 
 A rule the server judges from the run's findings rather than from the descriptor is decided once the
 run is published. So a scan publishes to its `draugr-api` servers first and waits up to
-`--policy-wait` for each one's verdict on the run, then prints the report, writes `-o` and runs the
+`--policy-wait`, across all of them, for their verdict on the run, then prints the report, writes `-o` and runs the
 other publishers with that verdict in them. The verdict on the run replaces the pre-flight's in the
 `POLICY` block, and a broken rule in force fails the gate as the pre-flight's does. A verdict the
 scan could not get is never a pass, and the `POLICY` line says which:
 
-- `decided after publish`, where the server had not decided every rule within `--policy-wait`;
-- `run not checked` and the status, where the server answered `401`, `404` or a `5xx`.
-
-```console
-POLICY  version 7 · https://draugr.example · decided after publish
-```
+- `not decided within --policy-wait`, where the wait ended with a rule still undecided;
+- `run not checked` and the status, where the server answered the request for the run's verdict
+  with `401`, `404` or a `5xx`.
 
 Without `--policy`, neither fails the gate. `report.json` records the server, the policy version and
 every verdict as [`policy`](report-schema.md#telling-a-partial-run-from-a-clean-one), and the

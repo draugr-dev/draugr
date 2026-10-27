@@ -167,11 +167,11 @@ func TestAVerdictTheScanCouldNotGet(t *testing.T) {
 		required string
 	}{
 		{"the wait ran out", pending, 50 * time.Millisecond,
-			"POLICY  version 7 · http://127.0.0.1:", "the server had not decided the organization's policy on the published run within --policy-wait 50ms"},
+			"POLICY  version 7 · http://127.0.0.1:", "the server had not decided the policy on the published run after 50ms. Raise --policy-wait"},
 		{"no wait", pending, 0,
-			"POLICY  version 7 · http://127.0.0.1:", "after publish, and --policy-wait 0 waits for none of it"},
+			"POLICY  version 7 · http://127.0.0.1:", "--policy-wait 0 does not wait for it. Set --policy-wait above 0"},
 		{"401", unauthorized, time.Minute,
-			"· run not checked · 401 Unauthorized", "the organization's policy was not checked on the published run: 401 Unauthorized"},
+			"· run not checked · 401 Unauthorized", "the server gave no policy verdict on the published run: 401 Unauthorized"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			judgingServer(t, c.poll)
@@ -185,8 +185,8 @@ func TestAVerdictTheScanCouldNotGet(t *testing.T) {
 			if !strings.Contains(got, c.heading) || strings.Contains(got, "none broken") {
 				t.Errorf("the POLICY line does not say so:\n%s", got)
 			}
-			if status, _ := c.poll(0); status == http.StatusOK && !strings.Contains(got, "· decided after publish") {
-				t.Errorf("a pending verdict reads as decided after publish:\n%s", got)
+			if status, _ := c.poll(0); status == http.StatusOK && !strings.Contains(got, "· not decided within --policy-wait") {
+				t.Errorf("a pending verdict reads as not decided within --policy-wait:\n%s", got)
 			}
 
 			out.Reset()

@@ -111,13 +111,13 @@ func requireRunPolicy(p *skald.PolicyCheck, wait time.Duration) error {
 	case p == nil || p.Run == nil:
 		return nil
 	case !p.Run.Checked:
-		return fmt.Errorf("--policy: the organization's policy was not checked on the published run: %s", p.Run.Reason)
+		return fmt.Errorf("--policy: the server gave no policy verdict on the published run: %s", p.Run.Reason)
 	case p.Run.Pending && wait <= 0:
-		return fmt.Errorf("--policy: the server decides part of the organization's policy on the published run " +
-			"after publish, and --policy-wait 0 waits for none of it")
+		return fmt.Errorf("--policy: the server decides part of the policy after the run is published, and " +
+			"--policy-wait 0 does not wait for it. Set --policy-wait above 0")
 	case p.Run.Pending:
-		return fmt.Errorf("--policy: the server had not decided the organization's policy on the published run "+
-			"within --policy-wait %s", wait)
+		return fmt.Errorf("--policy: the server had not decided the policy on the published run after %s. "+
+			"Raise --policy-wait", wait)
 	}
 	return nil
 }

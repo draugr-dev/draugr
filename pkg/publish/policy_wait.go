@@ -3,6 +3,7 @@ package publish
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -17,7 +18,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/skald"
 )
 
-// DefaultPolicyWait is how long a scan waits, by default, for each server's verdict on the run it
+// DefaultPolicyWait is how long a scan waits, by default, for the servers' verdict on the run it
 // published.
 const DefaultPolicyWait = 5 * time.Minute
 
@@ -37,8 +38,9 @@ var policySleep = func(ctx context.Context, d time.Duration) error {
 	}
 }
 
-// Judge delivers the run to each draugr-api publisher, and waits up to wait for each server's
-// verdict on the run's findings. The verdicts are combined the way the pre-flight combines its
+// Judge delivers the run to each draugr-api publisher, and waits up to wait, in all, for the
+// servers' verdict on the run's findings. One limit rather than one per server, so the time a
+// pipeline spends waiting is the time the flag says, however many servers the descriptor names. The verdicts are combined the way the pre-flight combines its
 // checks: the strongest outcome, every verdict, and every reason a server could not be asked.
 //
 // A server decides a policy over findings only once they arrive, so these publishers go before
@@ -48,7 +50,13 @@ var policySleep = func(ctx context.Context, d time.Duration) error {
 // The error is a publishing failure only. A policy that fails the run is in the check, and the
 // caller decides what it does to the gate, so the failure is not reported twice.
 func Judge(ctx context.Context, publishers []saga.PublisherConfig, data report.Data, wait time.Duration) (*skald.PolicyCheck, error) {
-	var checks []*skald.PolicyCheck
+	// Every server receives the run before any is waited on, and the limit starts once they all
+	// have: the wait is for the verdict, not for the uploads ahead of it.
+	type delivered struct {
+		api      draugrAPIPublisher
+		accepted acceptedRun
+	}
+	var runs []delivered
 	err := deliverAll(ctx, APIPublishers(publishers), data,
 		func(ctx context.Context, p Publisher, _ report.Data, artifacts []report.Artifact) error {
 			api, ok := p.(draugrAPIPublisher)
@@ -56,12 +64,21 @@ func Judge(ctx context.Context, publishers []saga.PublisherConfig, data report.D
 				// Skipped, with nowhere to send: it says why itself.
 				return p.Publish(ctx, artifacts)
 			}
-			check, err := api.judge(ctx, artifacts, wait)
-			if check != nil {
-				checks = append(checks, check)
+			accepted, err := api.deliver(ctx, artifacts)
+			if err == nil && accepted.Policy != nil {
+				runs = append(runs, delivered{api, accepted})
 			}
 			return err
 		})
+	deadline := time.Now().Add(wait)
+	var checks []*skald.PolicyCheck
+	for _, r := range runs {
+		check, werr := r.api.awaitPolicy(ctx, r.accepted.Run, *r.accepted.Policy, max(time.Until(deadline), 0))
+		if werr != nil {
+			return nil, errors.Join(err, werr)
+		}
+		checks = append(checks, check)
+	}
 	return combineRunChecks(checks), err
 }
 
