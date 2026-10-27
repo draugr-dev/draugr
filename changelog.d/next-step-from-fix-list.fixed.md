@@ -1,1 +1,0 @@
-- **`summarize_report` and `scan` name the same first step as `fix_list`.** Their `next` instruction quotes the title of the most urgent action at the head of a `fix_list` list, such as `Upgrade jquery 1.8.3 → 3.5.0`, with where it applies and how many findings it clears. Code and committed secrets get the code and credential wording their actions use.

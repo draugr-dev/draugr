@@ -1,1 +1,0 @@
-- **`fix_list` returns one list per kind of work, as `--view actions` prints them.** Each kind, from bump a dependency to decide, is an entry in `lists`, most urgent first, with three actions shown and the rest counted. A command injection now heads the code list instead of ranking below every exploited dependency.
