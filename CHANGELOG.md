@@ -12,6 +12,20 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.156.0] - 2026-10-27
+
+### Changed
+
+- **`fix_list` returns one list per kind of work, as `--view actions` prints them.** `lists` holds `bump`, `code`, `infrastructure`, `credential`, `wait` and `decide`, leaving out any kind with no action. Each list runs most urgent first, shows three actions by default and counts the rest. A command injection now heads the code list instead of ranking below every exploited dependency.
+
+### Fixed
+
+- **`fix_list` and `report.json` say why each action ranks where it does.** Each action carries `exploitation` (the KEV or EPSS signal and its CVE), `severity`, and `severityFrom` where KEV, EPSS or reachability analysis changed the scanners' rating. Within a priority band, an upgrade that clears one finding on KEV ranks above one that clears more findings, none of them on KEV.
+
+- **Advisory and rule links in the HTML report open in a new tab.** Following one used to replace the report, losing the filters, folded sections and scroll position you had. The advisory site also no longer receives the report's address.
+
+- **`summarize_report` and `scan` name the same first step as `fix_list`.** Their `next` instruction quotes the highest-priority action heading a `fix_list` list, such as `Upgrade jquery 1.8.3 → 3.5.0`, with where it applies and how many findings it clears.
+
 ## [0.155.1] - 2026-10-26
 
 ### Fixed
@@ -6423,7 +6437,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.155.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.156.0...HEAD
+[0.156.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.156.0
 [0.155.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.155.1
 [0.155.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.155.0
 [0.154.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.154.2

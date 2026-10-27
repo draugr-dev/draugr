@@ -1,1 +1,0 @@
-- **Advisory and rule links in the HTML report open in a new tab.** Following one used to replace the report, losing the filters, folded sections and scroll position you had. The advisory site also no longer receives the report's address.
