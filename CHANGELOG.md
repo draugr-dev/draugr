@@ -16,15 +16,15 @@ _Nothing yet._
 
 ### Changed
 
-- **`fix_list` returns one list per kind of work, as `--view actions` prints them.** Each kind, from bump a dependency to decide, is an entry in `lists`, most urgent first, with three actions shown and the rest counted. A command injection now heads the code list instead of ranking below every exploited dependency.
+- **`fix_list` returns one list per kind of work, as `--view actions` prints them.** `lists` holds `bump`, `code`, `infrastructure`, `credential`, `wait` and `decide`, leaving out any kind with no action. Each list runs most urgent first, shows three actions by default and counts the rest. A command injection now heads the code list instead of ranking below every exploited dependency.
 
 ### Fixed
 
-- **`fix_list` and `report.json` say why each action ranks where it does.** Each action now carries `exploitation`, the KEV or EPSS signal and the CVE it raised, and `severity`, with `severityFrom` where that signal or reachability analysis moved it. An assistant can explain why an upgrade clearing two findings on KEV leads one clearing more.
+- **`fix_list` and `report.json` say why each action ranks where it does.** Each action carries `exploitation` (the KEV or EPSS signal and its CVE), `severity`, and `severityFrom` where KEV, EPSS or reachability analysis changed the scanners' rating. Within a priority band, an upgrade that clears one finding on KEV ranks above one that clears more findings, none of them on KEV.
 
 - **Advisory and rule links in the HTML report open in a new tab.** Following one used to replace the report, losing the filters, folded sections and scroll position you had. The advisory site also no longer receives the report's address.
 
-- **`summarize_report` and `scan` name the same first step as `fix_list`.** Their `next` instruction quotes the title of the most urgent action at the head of a `fix_list` list, such as `Upgrade jquery 1.8.3 → 3.5.0`, with where it applies and how many findings it clears. Code and committed secrets get the code and credential wording their actions use.
+- **`summarize_report` and `scan` name the same first step as `fix_list`.** Their `next` instruction quotes the highest-priority action heading a `fix_list` list, such as `Upgrade jquery 1.8.3 → 3.5.0`, with where it applies and how many findings it clears.
 
 ## [0.155.1] - 2026-10-26
 
