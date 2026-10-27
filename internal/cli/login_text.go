@@ -41,7 +41,7 @@ func loginApprovedLine(col tui.Painter, l login.Login) string {
 	return facts(col, tui.StylePass, "approved", parts...)
 }
 
-// loginDeniedError ends a request somebody denied in the browser.
+// loginDeniedError ends a request somebody denied.
 func loginDeniedError(a login.Authorization) error {
 	return errors.New(facts(tui.Plain(), tui.StyleNone, "denied", a.UserCode, "nothing stored"))
 }
@@ -55,7 +55,8 @@ func loginExpiredError(server string, a login.Authorization) error {
 // loginNotStoredError ends a login the keychain would not keep. The token was revoked, or the
 // revocation failed too and why is joined to this.
 func loginNotStoredError(err error) error {
-	return fmt.Errorf("%s: %w", facts(tui.Plain(), tui.StyleNone, "not stored", "token revoked"), err)
+	return fmt.Errorf("%s: %w", facts(tui.Plain(), tui.StyleNone, "not stored", "token revoked",
+		"set $DRAUGR_API_TOKEN instead"), err)
 }
 
 // logoutLine is printed once the login is revoked and removed.
@@ -70,11 +71,11 @@ func logoutNoneLine(col tui.Painter, server string) string {
 
 // logoutNotRevokedError ends a logout that removed the login and could not tell the server.
 func logoutNotRevokedError(l login.Login, why error) error {
-	parts := []string{l.Server, "removed from the keychain", "not revoked"}
+	parts := []string{l.Server, "removed from the keychain"}
 	if !l.Expires.IsZero() {
 		parts = append(parts, "valid until "+l.Expires.UTC().Format(loginClockLayout))
 	}
-	return fmt.Errorf("%s: %w", facts(tui.Plain(), tui.StyleNone, "logged out", parts...), why)
+	return fmt.Errorf("%s: %w", facts(tui.Plain(), tui.StyleNone, "not revoked", parts...), why)
 }
 
 // doctorLoginLine is the line under doctor's POLICY heading naming whose login asked.

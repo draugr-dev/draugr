@@ -29,7 +29,8 @@ func newLoginCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login [server]",
 		Short: "Sign in to a Draugr server for the organization-policy check",
-		Long: "Sign in to a Draugr server by device authorization, approving the request in the browser.\n\n" +
+		Long: "Sign in to a Draugr server. It prints a code and an address: open the address on any machine,\n" +
+			"enter the code and approve.\n\n" +
 			"The token is check-only and lasts until the server's expiry. It is kept in the OS keychain,\n" +
 			"never in a file, and used by `draugr doctor --policy` and the scan's policy check when\n" +
 			"$DRAUGR_API_TOKEN is not set. It never publishes a run.\n\n" +

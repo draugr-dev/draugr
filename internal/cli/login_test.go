@@ -245,7 +245,7 @@ func TestLogout(t *testing.T) {
 		useLogins(t, store)
 		err := runLogout(context.Background(), &bytes.Buffer{}, "https://draugr.example")
 		if err == nil || !strings.Contains(err.Error(),
-			"logged out · https://draugr.example · removed from the keychain · not revoked · valid until 06:12 UTC") {
+			"not revoked · https://draugr.example · removed from the keychain · valid until 06:12 UTC") {
 			t.Errorf("err = %v", err)
 		}
 		if len(store.held) != 0 {

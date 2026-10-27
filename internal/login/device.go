@@ -37,8 +37,8 @@ const maxBody = 1 << 20
 var (
 	// ErrExpired is a code that expired before anybody approved it.
 	ErrExpired = errors.New("the code expired before it was approved")
-	// ErrDenied is a request somebody denied in the browser.
-	ErrDenied = errors.New("the request was denied in the browser")
+	// ErrDenied is a request somebody denied.
+	ErrDenied = errors.New("the request was denied")
 	// ErrInvalidClient is a server that does not know the client `draugr login` presents.
 	ErrInvalidClient = errors.New("the server does not accept " + ClientID + " as a client (invalid_client)")
 )

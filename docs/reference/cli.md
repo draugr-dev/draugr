@@ -804,9 +804,10 @@ POLICY  version 7 · https://draugr.example
 A run that could not ask says `POLICY  not checked` and one of these reasons:
 
 - `no $DRAUGR_API_URL or $DRAUGR_API_TOKEN`, with neither an endpoint nor a token;
-- `no $DRAUGR_API_TOKEN, and no login for <server>`, for a `url:` with no token and no
-  [`draugr login`](#draugr-login-server) for its server;
-- `the login for <server> expired at <time>`, for a login past its expiry;
+- ``no $DRAUGR_API_TOKEN, and no login for <server>; run `draugr login <server>` ``, for a `url:`
+  with no token and no [`draugr login`](#draugr-login-server) for its server;
+- ``the login for <server> expired at 2026-10-28 06:12 UTC; run `draugr login <server>` ``, for a
+  login past its expiry;
 - `offline`, under `--offline`;
 - `<server> checks no organization policy`, from a server that judges none;
 - the error, from a server that could not be reached;
@@ -1451,7 +1452,7 @@ from other repositories.
 
 ## `draugr login [server]`
 
-Sign in to a Draugr server by OAuth 2.0 device authorization (RFC 8628) and keep the token it
+Sign in to a Draugr server by OAuth 2.0 device authorization and keep the token it
 issues in the OS keychain. `draugr doctor --policy` and the scan's
 [policy check](#the-organizations-policy) send it where `$DRAUGR_API_TOKEN` is not set, so
 checking a descriptor on your own machine needs no token in your shell.
@@ -1466,7 +1467,7 @@ LOGIN  https://draugr.example
 approved · ana@acme.com · acme · until 06:12 UTC (12h)
 ```
 
-Open the `open` address in a browser, on this machine or another, and enter the code. The server may ask you to
+Open the address under `open` in a browser, on this machine or another, and enter the code. The server may ask you to
 sign in first, under the organization's single sign-on and second-factor rules, and the command
 waits until the request is approved, denied, or the code expires. A request that is not approved
 ends with one line on stderr and a non-zero exit:
@@ -1495,7 +1496,7 @@ environment is always used in its place.
 
 ## `draugr logout [server]`
 
-Tell the server to revoke the token `draugr login` stored (RFC 7009), and remove it from the
+Tell the server to revoke the token `draugr login` stored, and remove it from the
 keychain.
 
 ```console
