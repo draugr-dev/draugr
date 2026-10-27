@@ -1704,7 +1704,11 @@ about what they would have found. For everything the tool printed, re-run with
 </section>
 </details>
 
-{{define "rule"}}<span class="id">{{if .HelpURI}}<a href="{{.HelpURI}}">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}</span>{{if .Message}}<span class="said"><span class="faint"> · </span>{{.Message}}</span>{{end}}{{end}}
+{{/* A rule's advisory opens in a new tab. The report holds what the reader has filtered, folded and
+   scrolled to, and a link that replaced it would throw that away. noreferrer keeps the report's
+   address, often a CI artifact or a file path, from reaching the advisory's host. */}}
+{{define "ruleid"}}{{if .HelpURI}}<a href="{{.HelpURI}}" target="_blank" rel="noopener noreferrer">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}{{end}}
+{{define "rule"}}<span class="id">{{template "ruleid" .}}</span>{{if .Message}}<span class="said"><span class="faint"> · </span>{{.Message}}</span>{{end}}{{end}}
 {{define "menu"}}
 <span class="menu-anchor{{if .Folded}} folded{{end}}" data-k="{{.K}}">
   <button class="chip-menu" type="button" aria-expanded="false" aria-haspopup="true">
@@ -1772,7 +1776,7 @@ about what they would have found. For everything the tool printed, re-run with
 {{range .Excluded}}<tbody>
 <tr class="meta">
   <td class="{{.SevClass}}">{{.Severity}}</td>
-  <td><code>{{if .HelpURI}}<a href="{{.HelpURI}}">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}</code></td>
+  <td><code>{{template "ruleid" .}}</code></td>
   <td>{{.Control}}</td>
   <td>{{.Component}}</td>
   <td><code>{{.Location}}</code></td>
