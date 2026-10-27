@@ -247,32 +247,32 @@ var installable = map[string]InstallSpec{
 
 	"gosec": {
 		Binary:  "gosec",
-		Version: "2.29.0",
+		Version: "2.30.0",
 		// gosec signs with a key-based (not keyless) cosign bundle, which the identity-based
 		// CosignSpec doesn't cover, SHA-256 pin only for now.
 		Assets: map[string]Asset{
 			"linux/amd64": {
-				URL:             "https://github.com/securego/gosec/releases/download/v2.29.0/gosec_2.29.0_linux_amd64.tar.gz",
+				URL:             "https://github.com/securego/gosec/releases/download/v2.30.0/gosec_2.30.0_linux_amd64.tar.gz",
 				URLTemplate:     "https://github.com/securego/gosec/releases/download/v{version}/gosec_{version}_linux_amd64.tar.gz",
-				SHA256:          "6431b119741c1f4a50fdfcf94e782e16b9e642afc8c7fa9b5d39d48bf3003095",
+				SHA256:          "3fcce2c4e802ff4169217874602a7df355e9a37bcb6ffaa34b08f3d5f336cdfb",
 				BinaryInArchive: "gosec",
 			},
 			"linux/arm64": {
-				URL:             "https://github.com/securego/gosec/releases/download/v2.29.0/gosec_2.29.0_linux_arm64.tar.gz",
+				URL:             "https://github.com/securego/gosec/releases/download/v2.30.0/gosec_2.30.0_linux_arm64.tar.gz",
 				URLTemplate:     "https://github.com/securego/gosec/releases/download/v{version}/gosec_{version}_linux_arm64.tar.gz",
-				SHA256:          "c71244ec8d37488fd479d0d26990968fee03ece48b305d8224ac0c1ebd66e87c",
+				SHA256:          "0867994920453070a5d6a713e35921a3058473e5c3bf777fdd5a2d6f95313fda",
 				BinaryInArchive: "gosec",
 			},
 			"darwin/amd64": {
-				URL:             "https://github.com/securego/gosec/releases/download/v2.29.0/gosec_2.29.0_darwin_amd64.tar.gz",
+				URL:             "https://github.com/securego/gosec/releases/download/v2.30.0/gosec_2.30.0_darwin_amd64.tar.gz",
 				URLTemplate:     "https://github.com/securego/gosec/releases/download/v{version}/gosec_{version}_darwin_amd64.tar.gz",
-				SHA256:          "a48152c3c009988f1750b6508316339c8b55076d24b1a958789e30ea2a21794c",
+				SHA256:          "1b10b496954791f4b57448722f0cb93c0fa4aba24e9d286c0459dfde593e0898",
 				BinaryInArchive: "gosec",
 			},
 			"darwin/arm64": {
-				URL:             "https://github.com/securego/gosec/releases/download/v2.29.0/gosec_2.29.0_darwin_arm64.tar.gz",
+				URL:             "https://github.com/securego/gosec/releases/download/v2.30.0/gosec_2.30.0_darwin_arm64.tar.gz",
 				URLTemplate:     "https://github.com/securego/gosec/releases/download/v{version}/gosec_{version}_darwin_arm64.tar.gz",
-				SHA256:          "7ab6a92c1983b7cb9df12b3ac20fb270afa43cfa12a143c354edae3109c763e5",
+				SHA256:          "cac8c480673fc179798402b6d86efc12b6bcf11c18bcf377fda02cc55846dd97",
 				BinaryInArchive: "gosec",
 			},
 		},

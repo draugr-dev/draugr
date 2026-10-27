@@ -1,0 +1,1 @@
+- **`draugr tools install` fetches gosec 2.30.0**, which was pinned at 2.29.0. A G702 finding now names the call it reaches, as in `Command injection via taint analysis: os/exec.Command`.

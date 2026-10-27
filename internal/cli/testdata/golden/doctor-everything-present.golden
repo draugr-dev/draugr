@@ -5,7 +5,7 @@ Tool         Status   Version  Notes
 cosign       ✓ found  3.1.4    /somewhere/cosign
 git          ✓ found  2.55.0   /somewhere/git
 gitleaks     ✓ found  8.30.1   /somewhere/gitleaks
-gosec        ✓ found  2.29.0   /somewhere/gosec
+gosec        ✓ found  2.30.0   /somewhere/gosec
 govulncheck  ✓ found  1.9.0    /somewhere/govulncheck
 grype        ✓ found  0.118.0  /somewhere/grype
 kube-bench   ✓ found  0.16.0   /somewhere/kube-bench
