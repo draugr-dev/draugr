@@ -88,9 +88,8 @@ func (rr reroute) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 // loginAt stands the device routes up behind https://draugr.example, on a clock fixed at
-// 2026-10-27 18:12 UTC that each poll's wait advances, and records what the browser was asked to
-// open.
-func loginAt(t *testing.T, outcome string) (*loginServer, *[]string) {
+// 2026-10-27 18:12 UTC that each poll's wait advances.
+func loginAt(t *testing.T, outcome string) *loginServer {
 	t.Helper()
 	s := &loginServer{outcome: outcome}
 	srv := httptest.NewServer(s)
@@ -108,14 +107,8 @@ func loginAt(t *testing.T, outcome string) (*loginServer, *[]string) {
 		c.Sleep = func(_ context.Context, d time.Duration) error { now = now.Add(d); return nil }
 		return c, nil
 	}
-	var opened []string
-	prevOpen := openBrowser
-	openBrowser = func(_ context.Context, address string) error {
-		opened = append(opened, address)
-		return nil
-	}
-	t.Cleanup(func() { loginClient, openBrowser = prev, prevOpen })
-	return s, &opened
+	t.Cleanup(func() { loginClient = prev })
+	return s
 }
 
 // loginOutput is what `draugr login https://draugr.example` prints, approved. The reference quotes
@@ -129,19 +122,15 @@ approved · ana@acme.com · acme · until 06:12 UTC (12h)
 `
 
 func TestLoginApproved(t *testing.T) {
-	_, opened := loginAt(t, "approved")
+	loginAt(t, "approved")
 	store := &memoryLogins{}
 	useLogins(t, store)
 	var out bytes.Buffer
-	if err := runLogin(context.Background(), &out, "https://draugr.example", loginOptions{}); err != nil {
+	if err := runLogin(context.Background(), &out, "https://draugr.example"); err != nil {
 		t.Fatal(err)
 	}
 	if out.String() != loginOutput {
 		t.Errorf("printed:\n%s\nwant:\n%s", out.String(), loginOutput)
-	}
-	// The browser gets the link carrying the opaque handle; the printed address carries no code.
-	if len(*opened) != 1 || (*opened)[0] != "https://console.example/device/h1" {
-		t.Errorf("opened %v", *opened)
 	}
 	l, err := store.Get("https://draugr.example")
 	if err != nil || l.Token != "drgl_secret" || l.Email != "ana@acme.com" || l.Server != "https://draugr.example" {
@@ -149,31 +138,6 @@ func TestLoginApproved(t *testing.T) {
 	}
 	if strings.Contains(out.String(), "drgl_secret") {
 		t.Error("the token was printed")
-	}
-}
-
-func TestLoginWithoutABrowser(t *testing.T) {
-	_, opened := loginAt(t, "approved")
-	useLogins(t, &memoryLogins{})
-	var out bytes.Buffer
-	if err := runLogin(context.Background(), &out, "https://draugr.example", loginOptions{noBrowser: true}); err != nil {
-		t.Fatal(err)
-	}
-	if len(*opened) != 0 {
-		t.Errorf("opened %v under --no-browser", *opened)
-	}
-}
-
-// The opener hands an address to whatever the desktop associates with its scheme, so only a web
-// address the server names is opened.
-func TestOnlyAWebAddressIsOpened(t *testing.T) {
-	_, opened := loginAt(t, "approved")
-	for _, address := range []string{"file:///etc/passwd", "javascript:alert(1)", "https://", "%zz"} {
-		openVerification(context.Background(), address)
-	}
-	openVerification(context.Background(), "http://localhost:8080/#/device/h1")
-	if len(*opened) != 1 || (*opened)[0] != "http://localhost:8080/#/device/h1" {
-		t.Errorf("opened %v", *opened)
 	}
 }
 
@@ -188,7 +152,7 @@ func TestLoginNotApproved(t *testing.T) {
 			store := &memoryLogins{}
 			useLogins(t, store)
 			var out bytes.Buffer
-			err := runLogin(context.Background(), &out, "https://draugr.example", loginOptions{})
+			err := runLogin(context.Background(), &out, "https://draugr.example")
 			if err == nil || err.Error() != want {
 				t.Errorf("err = %v, want %q", err, want)
 			}
@@ -202,10 +166,10 @@ func TestLoginNotApproved(t *testing.T) {
 // Where the keychain will not keep the token, nothing holds it, so it is revoked rather than left
 // live until it expires.
 func TestALoginTheKeychainWillNotKeepIsRevoked(t *testing.T) {
-	s, _ := loginAt(t, "approved")
+	s := loginAt(t, "approved")
 	useLogins(t, &memoryLogins{setErr: &login.KeychainError{Err: errors.New("no secret service")}})
 	var out bytes.Buffer
-	err := runLogin(context.Background(), &out, "https://draugr.example", loginOptions{})
+	err := runLogin(context.Background(), &out, "https://draugr.example")
 	if !errors.Is(err, login.ErrNoKeychain) || !strings.Contains(err.Error(), "not stored · token revoked") {
 		t.Errorf("err = %v", err)
 	}
@@ -218,7 +182,7 @@ func TestALoginTheKeychainWillNotKeepIsRevoked(t *testing.T) {
 
 	s.outcome = "revoke-fails"
 	s.polls = 0
-	err = runLogin(context.Background(), &out, "https://draugr.example", loginOptions{})
+	err = runLogin(context.Background(), &out, "https://draugr.example")
 	if !errors.Is(err, login.ErrNoKeychain) || !strings.Contains(err.Error(), "revoke") {
 		t.Errorf("a failed revocation is said too: %v", err)
 	}
@@ -228,7 +192,7 @@ func TestLoginOffline(t *testing.T) {
 	netpolicy.SetOffline(true)
 	t.Cleanup(func() { netpolicy.SetOffline(false) })
 	var out bytes.Buffer
-	err := runLogin(context.Background(), &out, "https://draugr.example", loginOptions{})
+	err := runLogin(context.Background(), &out, "https://draugr.example")
 	var refused *netpolicy.RefusedError
 	if !errors.As(err, &refused) {
 		t.Errorf("err = %v", err)
@@ -236,7 +200,7 @@ func TestLoginOffline(t *testing.T) {
 }
 
 func TestLoginRefusesPlainHTTP(t *testing.T) {
-	err := runLogin(context.Background(), &bytes.Buffer{}, "http://draugr.example", loginOptions{})
+	err := runLogin(context.Background(), &bytes.Buffer{}, "http://draugr.example")
 	if err == nil || !strings.Contains(err.Error(), "not https") {
 		t.Errorf("err = %v", err)
 	}
@@ -250,7 +214,7 @@ func TestLogout(t *testing.T) {
 	}
 
 	t.Run("revoked and removed", func(t *testing.T) {
-		s, _ := loginAt(t, "")
+		s := loginAt(t, "")
 		store := held()
 		useLogins(t, store)
 		var out bytes.Buffer
@@ -265,7 +229,7 @@ func TestLogout(t *testing.T) {
 		}
 	})
 	t.Run("not logged in", func(t *testing.T) {
-		s, _ := loginAt(t, "")
+		s := loginAt(t, "")
 		useLogins(t, &memoryLogins{})
 		var out bytes.Buffer
 		if err := runLogout(context.Background(), &out, "https://draugr.example"); err != nil {
@@ -289,7 +253,7 @@ func TestLogout(t *testing.T) {
 		}
 	})
 	t.Run("offline", func(t *testing.T) {
-		s, _ := loginAt(t, "")
+		s := loginAt(t, "")
 		netpolicy.SetOffline(true)
 		t.Cleanup(func() { netpolicy.SetOffline(false) })
 		store := held()
@@ -325,7 +289,7 @@ func TestServerArg(t *testing.T) {
 }
 
 func TestLoginCommandsAreWired(t *testing.T) {
-	_, opened := loginAt(t, "approved")
+	loginAt(t, "approved")
 	store := &memoryLogins{}
 	useLogins(t, store)
 	t.Setenv("DRAUGR_API_URL", "")
@@ -333,12 +297,12 @@ func TestLoginCommandsAreWired(t *testing.T) {
 	var out bytes.Buffer
 	root.SetOut(&out)
 	root.SetErr(&out)
-	root.SetArgs([]string{"login", "--no-browser", "https://draugr.example"})
+	root.SetArgs([]string{"login", "https://draugr.example"})
 	if err := root.ExecuteContext(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if len(*opened) != 0 || len(store.held) != 1 {
-		t.Errorf("opened %v, held %v", *opened, store.held)
+	if len(store.held) != 1 {
+		t.Errorf("held %v", store.held)
 	}
 	root = newRootCommand()
 	root.SetOut(&out)

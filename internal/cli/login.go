@@ -5,11 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
-	"net/url"
 	"os"
-	"os/exec"
-	"runtime"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -29,26 +25,7 @@ var loginClient = func(server string) (login.Client, error) {
 	return login.NewClient(server, login.Device{Name: host, Version: version.Version})
 }
 
-// openBrowser opens an address in the person's browser, swapped in tests.
-var openBrowser = func(ctx context.Context, address string) error {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = exec.CommandContext(ctx, "open", address) // #nosec G204 -- a fixed opener, given one http or https address as one argument
-	case "windows":
-		cmd = exec.CommandContext(ctx, "rundll32", "url.dll,FileProtocolHandler", address) // #nosec G204 -- a fixed opener, given one http or https address as one argument
-	default:
-		cmd = exec.CommandContext(ctx, "xdg-open", address) // #nosec G204 -- a fixed opener, given one http or https address as one argument
-	}
-	return cmd.Start()
-}
-
-type loginOptions struct {
-	noBrowser bool
-}
-
 func newLoginCommand() *cobra.Command {
-	opts := loginOptions{}
 	cmd := &cobra.Command{
 		Use:   "login [server]",
 		Short: "Sign in to a Draugr server for the organization-policy check",
@@ -63,11 +40,9 @@ func newLoginCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runLogin(cmd.Context(), cmd.OutOrStdout(), server, opts)
+			return runLogin(cmd.Context(), cmd.OutOrStdout(), server)
 		},
 	}
-	cmd.Flags().BoolVar(&opts.noBrowser, "no-browser", false,
-		"print the address and code without opening a browser")
 	return cmd
 }
 
@@ -104,7 +79,7 @@ func serverArg(args []string) (string, error) {
 	return server, nil
 }
 
-func runLogin(ctx context.Context, w io.Writer, server string, opts loginOptions) error {
+func runLogin(ctx context.Context, w io.Writer, server string) error {
 	if netpolicy.Offline() {
 		return netpolicy.Refuse("draugr login", server+"/v1/device/code")
 	}
@@ -122,9 +97,6 @@ func runLogin(ctx context.Context, w io.Writer, server string, opts loginOptions
 	}
 	col := tui.For(w)
 	writeLoginBlock(w, col, server, auth)
-	if !opts.noBrowser {
-		openVerification(ctx, auth.VerificationURIComplete)
-	}
 	l, err := client.Wait(ctx, auth)
 	switch {
 	case errors.Is(err, login.ErrDenied):
@@ -143,23 +115,6 @@ func runLogin(ctx context.Context, w io.Writer, server string, opts loginOptions
 	}
 	_, _ = fmt.Fprintln(w, loginApprovedLine(col, l))
 	return nil
-}
-
-// openVerification opens the approval page, an address the server chose.
-//
-// Only an http or https address is opened: the opener hands it to whatever the desktop associates
-// with its scheme, and a server's answer must not be able to start anything but a browser. A
-// browser that does not open leaves the printed address and code, which is the path for a terminal
-// with no browser anyway.
-func openVerification(ctx context.Context, address string) {
-	u, err := url.Parse(address)
-	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
-		slog.Debug("not opening the verification address", "reason", "not an http or https address")
-		return
-	}
-	if err := openBrowser(ctx, address); err != nil {
-		slog.Debug("browser did not open", "error", err)
-	}
 }
 
 func runLogout(ctx context.Context, w io.Writer, server string) error {

@@ -1466,8 +1466,7 @@ LOGIN  https://draugr.example
 approved · ana@acme.com · acme · until 06:12 UTC (12h)
 ```
 
-The browser opens on the approval page. Approve there if the page shows the code the terminal
-does; from another machine, open the `open` address and type the code. The server may ask you to
+Open the `open` address in a browser, on this machine or another, and enter the code. The server may ask you to
 sign in first, under the organization's single sign-on and second-factor rules, and the command
 waits until the request is approved, denied, or the code expires. A request that is not approved
 ends with one line on stderr and a non-zero exit:
@@ -1476,10 +1475,6 @@ ends with one line on stderr and a non-zero exit:
 draugr: denied · ABCD-EFGH · nothing stored
 draugr: expired · ABCD-EFGH · not approved within 15m · run `draugr login https://draugr.example` again
 ```
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--no-browser` | `false` | Print the address and code without opening a browser |
 
 The server defaults to `$DRAUGR_API_URL`. It must be `https`, or `http` to this machine.
 
