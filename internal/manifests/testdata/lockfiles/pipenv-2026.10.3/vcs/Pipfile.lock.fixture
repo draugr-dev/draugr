@@ -1,0 +1,25 @@
+{
+    "_meta": {
+        "hash": {
+            "sha256": "35402218585c9932e5d673caa4b20b175bd8cefe012e6bb83b2b1a794a9efb11"
+        },
+        "pipfile-spec": 6,
+        "requires": {
+            "python_version": "3.13"
+        },
+        "sources": [
+            {
+                "name": "pypi",
+                "url": "https://pypi.org/simple",
+                "verify_ssl": true
+            }
+        ]
+    },
+    "default": {
+        "six": {
+            "git": "https://github.com/benjaminp/six.git",
+            "ref": "65486e4383f9f411da95937451205d3c7b61b9e1"
+        }
+    },
+    "develop": {}
+}

@@ -1,0 +1,1 @@
+{"name":"acme/registry","require":{"psr/log":"3.0.2"}}

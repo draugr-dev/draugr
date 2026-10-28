@@ -1,0 +1,15 @@
+lockfileVersion: 5.4
+
+importers:
+
+  .:
+    specifiers: {}
+
+  packages/a:
+    specifiers: {}
+
+  packages/b:
+    specifiers:
+      a: 1.0.0
+    dependencies:
+      a: link:../a

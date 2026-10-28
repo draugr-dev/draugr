@@ -1,0 +1,7 @@
+[packages]
+six = "==1.16.0"
+
+[dev-packages]
+
+[requires]
+python_version = "3.13"

@@ -1,0 +1,12 @@
+[project]
+name = "mono"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = ["a", "b"]
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+a = { workspace = true }
+b = { workspace = true }
