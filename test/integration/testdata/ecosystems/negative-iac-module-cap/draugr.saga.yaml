@@ -1,0 +1,11 @@
+project: negative-iac-module-cap
+release:
+  version: "1.0"
+config:
+  controls:
+    iac:
+      enabled: true
+components:
+  - name: negative-iac-module-cap
+    repositories:
+      - url: ./negative-iac-module-cap

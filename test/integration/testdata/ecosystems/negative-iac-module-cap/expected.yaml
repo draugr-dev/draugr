@@ -1,0 +1,13 @@
+# A Terraform root module calling one more module than Trivy evaluates, the last call a security
+# group open to SSH from anywhere. Trivy skips that call, so no finding is reported, and the golden
+# report.json names the root module under dependencyFiles as not read, with how many module calls
+# it makes and how many were checked, rather than the scan passing with no findings.
+#
+# The golden is what fails if a Trivy release rewords a log line the detection reads, because the
+# unread entry then disappears while every unit test still passes. It also fails if a release
+# evaluates every call, which reports AWS-0107 here.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: negative-iac-module-cap
+      repositories: ["."]
