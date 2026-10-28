@@ -1,0 +1,86 @@
+{
+  "controls": [
+    {
+      "errors": 0,
+      "highest": "",
+      "name": "iac",
+      "notes": 0,
+      "threshold": "",
+      "total": 0,
+      "verdict": "pass",
+      "warnings": 0
+    }
+  ],
+  "dependencyFiles": [
+    {
+      "component": "negative-iac-module-cap",
+      "control": "iac",
+      "read": 0,
+      "scanners": [
+        "trivy-config"
+      ],
+      "unread": [
+        {
+          "path": "infra",
+          "reason": "32 of 33 module calls checked; \"zbad\" skipped",
+          "repository": "./negative-iac-module-cap"
+        }
+      ]
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:34c31b60e507e002f8e81f44b11c2749ef3d96d9fe922f028abfcbd080e06887",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "project": "negative-iac-module-cap",
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./negative-iac-module-cap"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "trivy-config",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 1,
+    "scans": 1
+  },
+  "targets": [
+    {
+      "components": [
+        "negative-iac-module-cap"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./negative-iac-module-cap"
+    }
+  ],
+  "verdict": "pass"
+}

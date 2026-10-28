@@ -1,0 +1,1 @@
+- **A Terraform root module with module calls Trivy skipped is reported.** Trivy evaluates a limited number of module calls per module and exits 0 without checking the rest. The `iac` control gives the root module an `unread-files` caveat, as in `32 of 33 module calls checked; "zbad" skipped`. Split the root module, or fail the run on `unread-files`.

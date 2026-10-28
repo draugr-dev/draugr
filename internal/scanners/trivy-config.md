@@ -22,17 +22,28 @@ CloudFormation, and more. See the [IaC glossary
 entry](../../docs/reference/glossary.md#iac-scanning-infrastructure-as-code).
 
 ```
-trivy fs --scanners misconfig --format json --show-suppressed <dir>
+trivy fs --debug --scanners misconfig --format json --show-suppressed <dir>
 trivy convert --quiet --format sarif <report>
 ```
 
 The scan writes JSON because only the JSON lists what Trivy excluded, and `trivy convert` writes
 the SARIF from that report without scanning again. On a Trivy older than 0.53.0, which has no
-`--show-suppressed`, the scan is `trivy config --format sarif <dir>`.
+`--show-suppressed`, the scan is `trivy config --debug --format sarif <dir>`.
 
-The scan runs without `--quiet` because Trivy reports a Terraform module it could not load only in
-its log, and exits 0. Each such module is reported as
-[unread](../controllers/iac.md#unread), named by the file that calls it.
+Trivy reports two Terraform shortfalls only in its log, and exits 0 after either. Draugr reads
+the log for both and reports each as [unread](../controllers/iac.md#unread):
+
+| Shortfall | Reported against | Reason |
+|---|---|---|
+| A module Trivy could not load | the file that calls it | `module "vpc" not loaded` |
+| Module calls Trivy loaded and did not evaluate | the root module's directory | `32 of 33 module calls checked; "zbad" skipped` |
+
+Trivy stops evaluating a module's calls after a fixed number of rounds, 32 in releases 0.69.3 to
+0.76.1, and exits 0; the calls left over are loaded and never checked. A round evaluates at most
+one call that no earlier round did, and a call evaluated again after another changes its inputs
+spends a round too, so a module with fewer than 33 calls can reach the limit. The count of calls
+includes any module Trivy could not load. A module below the root is named by its address, as in
+`in module.wrap`.
 
 ## Saga options
 

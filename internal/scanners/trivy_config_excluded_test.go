@@ -155,7 +155,7 @@ func TestAnOlderTrivyConfigScanIsUnchanged(t *testing.T) {
 
 	sharedTrivyVersion.val = "trivy@0.74.0;db@2026-07-15T00:56:58Z"
 	argv = trivyConfigArgs("/tree", plugin.Config{"namespaces": []any{"user"}})
-	if strings.Join(argv[:7], " ") != "trivy fs --scanners misconfig --format json --show-suppressed" ||
+	if strings.Join(argv[:8], " ") != "trivy fs --debug --scanners misconfig --format json --show-suppressed" ||
 		!hasArg(argv, "--check-namespaces") || argv[len(argv)-1] != "/tree" {
 		t.Errorf("current Trivy: %v", argv)
 	}

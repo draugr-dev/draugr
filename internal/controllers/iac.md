@@ -36,6 +36,20 @@ registry or a git host loads only when Trivy can download it, which `--offline` 
 [`trivy-config`](../scanners/trivy-config.md#data). Vendor the module into the repository, or let
 the run reach its host.
 
+A Terraform root module with module calls Trivy skipped gets an `unread-files` caveat on its
+directory, with how many calls it makes and how many were checked. The resources in the skipped
+calls are not checked:
+
+```
+CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
+  Component  What   Caveat        Why
+  infra      infra  unread-files  32 of 33 module calls checked; "zbad" skipped (iac)
+```
+
+Split the root module, or group its calls into fewer modules. To fail the run on the caveat, set
+`config.gate.failOnCaveats: [unread-files]`, or pass `--fail-on-caveats unread-files` for one run.
+[`trivy-config`](../scanners/trivy-config.md#what-it-does) has how Trivy evaluates module calls.
+
 `report.json` carries every unread file under `dependencyFiles`, see the
 [report schema](../../docs/reference/report-schema.md).
 
