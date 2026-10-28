@@ -137,7 +137,7 @@ func caveats(d Data) []caveat {
 		out = append(out, caveat{u.component, u.file, "names no commit, so nothing ties its findings to this code",
 			saga.CaveatUnboundImports})
 	}
-	for _, g := range unreadByComponent(d.Run.Inputs) {
+	for _, g := range unreadByComponent(d.Run.Inputs, d.Run.Targets) {
 		for _, f := range g.files {
 			out = append(out, caveat{g.component, f.label,
 				fmt.Sprintf("%s (%s)", f.reason, strings.Join(f.controls, ", ")), saga.CaveatUnreadFiles})

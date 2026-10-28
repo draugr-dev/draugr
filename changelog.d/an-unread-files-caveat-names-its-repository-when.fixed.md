@@ -1,0 +1,1 @@
+- **An `unread-files` caveat names its repository whenever the component scans more than one.** A component with two repositories, only one of which had an unread file, showed a bare path such as `bun.lock`, which could be in either; it now reads `acme/remote:bun.lock`.
