@@ -289,6 +289,23 @@ func TestClassifyOnADirectoryWithNoDescriptorSaysWhatToDo(t *testing.T) {
 	}
 }
 
+// The message has to read as a sentence for any directory, including one whose name ends in a dot,
+// and the command it names has to write the descriptor where classify will look for it.
+func TestNoDescriptorErrorReadsForEveryDirectory(t *testing.T) {
+	for _, c := range []struct{ target, want string }{
+		{"", "no *.saga.yaml in the current directory. Run `draugr init` to write one"},
+		{".", "no *.saga.yaml in the current directory. Run `draugr init` to write one"},
+		{"./", "no *.saga.yaml in the current directory. Run `draugr init` to write one"},
+		{"..", "no *.saga.yaml in \"..\". Run `draugr init .. -o ../draugr.saga.yaml` to write one"},
+		{"services/api/", "no *.saga.yaml in \"services/api\". " +
+			"Run `draugr init services/api -o services/api/draugr.saga.yaml` to write one"},
+	} {
+		if got := noDescriptorError(c.target).Error(); got != c.want {
+			t.Errorf("noDescriptorError(%q)\n got %s\nwant %s", c.target, got, c.want)
+		}
+	}
+}
+
 // Reclassifying one component must not mean reclassifying every other one to reach it.
 func TestClassifyComponentsPicksOneAndRedoesIt(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "draugr.saga.yaml")
@@ -393,7 +410,7 @@ func TestClassifyWithNoArgumentUsesTheCurrentDirectory(t *testing.T) {
 	// And with nothing to classify, the message names the directory it looked in.
 	t.Chdir(t.TempDir())
 	err := runClassify("", classifyOptions{}, strings.NewReader(""), &bytes.Buffer{})
-	if err == nil || !strings.Contains(err.Error(), "in .") {
+	if err == nil || !strings.Contains(err.Error(), "in the current directory") {
 		t.Errorf("error = %v, want it to name the directory", err)
 	}
 }

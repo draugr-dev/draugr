@@ -487,3 +487,32 @@ func TestACoverageNoteNamesItsComponent(t *testing.T) {
 		t.Errorf("a one-component run named the component anyway:\n%s", out)
 	}
 }
+
+// The caveat on an unclassified run names commands that work where the reader is. `draugr
+// classify` writes into a descriptor and refuses without one, so a run that had none has to name
+// the command that writes it first.
+func TestUnclassifiedCaveatNamesACommandThatWorks(t *testing.T) {
+	for _, c := range []struct {
+		name        string
+		synthesized bool
+		want, not   string
+	}{
+		{name: "a descriptor", want: "`draugr classify` makes them describe this application",
+			not: "draugr init"},
+		{name: "no descriptor", synthesized: true,
+			want: "Run `draugr init`, then `draugr classify`, to make them describe this application.",
+			not:  "`draugr classify` makes them"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			d := goldenFullData()
+			d.Unclassified, d.Synthesized = true, c.synthesized
+			out := renderWith(t, consoleReporter{}, d)
+			if !strings.Contains(out, c.want) {
+				t.Errorf("want %q in:\n%s", c.want, out)
+			}
+			if strings.Contains(out, c.not) {
+				t.Errorf("did not want %q in:\n%s", c.not, out)
+			}
+		})
+	}
+}

@@ -124,6 +124,10 @@ type Data struct {
 	// and critical, which is the most severe reading, so the bands rank severity alone. A reader
 	// who does not know that is reading a ranking as though it described their application.
 	Unclassified bool
+	// Synthesized reports that the run had no descriptor and Draugr built its model from the
+	// directory. The commands that classify a component need a descriptor to write to, so the
+	// caveat on an unclassified run names the command that writes one first.
+	Synthesized bool
 	// Generated and Version stamp a report with when it ran and what produced it. A report
 	// offered as evidence has to answer both; a reader who cannot tell whether they are looking
 	// at today's scan or last quarter's has nothing they can rely on. Zero values are omitted,

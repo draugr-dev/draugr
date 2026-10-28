@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -63,7 +64,7 @@ func runClassify(target string, opts classifyOptions, in io.Reader, out io.Write
 		// A scan can synthesize a descriptor; classification cannot. Exposure and criticality are
 		// judgements about a component, and there is no file to record them in or read them back
 		// from.
-		return fmt.Errorf("no %s in %s. Run `draugr init` to write one", sagaGlob, dirOf(target))
+		return noDescriptorError(target)
 	}
 
 	model, err := loadSaga(path)
@@ -144,12 +145,23 @@ func guessMark(chosen bool) string {
 	return " (guessed)"
 }
 
-// dirOf names the directory a target refers to, for a message about what is not in it.
-func dirOf(target string) string {
-	if target == "" {
-		return "."
+// noDescriptorError says a directory holds no descriptor and names the command that writes one
+// where classify will look for it.
+//
+// The directory is quoted, or called the current directory, because a path at the end of a
+// sentence can end in a dot of its own (`.`, `..`), and the full stop after it then reads as part
+// of the path. `draugr init` writes into the working directory unless told otherwise, so for any
+// other directory the command carries the output path too.
+func noDescriptorError(target string) error {
+	dir := "."
+	if target != "" {
+		dir = filepath.Clean(target)
 	}
-	return target
+	if dir == "." {
+		return fmt.Errorf("no %s in the current directory. Run `draugr init` to write one", sagaGlob)
+	}
+	return fmt.Errorf("no %s in %q. Run `draugr init %s -o %s` to write one",
+		sagaGlob, dir, dir, filepath.Join(dir, "draugr.saga.yaml"))
 }
 
 // selectComponents resolves --components into the set to ask about, or every component when the
