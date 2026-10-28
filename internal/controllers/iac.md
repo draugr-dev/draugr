@@ -36,6 +36,20 @@ registry or a git host loads only when Trivy can download it, which `--offline` 
 [`trivy-config`](../scanners/trivy-config.md#data). Vendor the module into the repository, or let
 the run reach its host.
 
+A root module is **unread** when it calls more modules than Trivy evaluated. The calls Trivy did
+not evaluate were loaded and never checked, and the report lists the root module's directory with
+how many calls it makes and how many were evaluated:
+
+```
+CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
+  Component  What   Caveat        Why
+  infra      infra  unread-files  Trivy evaluated 32 of 33 module calls, not "zbad" (iac)
+```
+
+[`trivy-config`](../scanners/trivy-config.md#what-it-does) has how Trivy evaluates module calls
+and what each count includes. Split the root module, or group its calls into fewer modules, so
+each module makes fewer calls.
+
 `report.json` carries every unread file under `dependencyFiles`, see the
 [report schema](../../docs/reference/report-schema.md).
 

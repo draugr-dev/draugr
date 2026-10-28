@@ -67,11 +67,13 @@ func NewTrivyConfig() plugin.Scanner {
 // an exclusion leaves no record.
 //
 // Neither passes --quiet, which would also drop the line Trivy logs for a module it could not load
-// (see trivyUnloadedModules). The log goes to stderr, which is read and never printed.
+// (see trivyUnloadedModules), and both pass --debug, the only level at which Trivy logs the module
+// calls it loaded and did not evaluate (see trivyUnevaluatedModules). The log goes to stderr, which
+// is read and never printed.
 func trivyConfigArgs(dir string, cfg plugin.Config) []string {
-	argv := []string{"trivy", "config", "--format", "sarif"}
+	argv := []string{"trivy", "config", "--debug", "--format", "sarif"}
 	if sharedTrivyVersion.showsSuppressed() {
-		argv = []string{"trivy", "fs", "--scanners", "misconfig", "--format", "json", trivyConfigExclusionsArg}
+		argv = []string{"trivy", "fs", "--debug", "--scanners", "misconfig", "--format", "json", trivyConfigExclusionsArg}
 	}
 	for _, path := range stringList(cfg, "checks") {
 		if abs := absPath(path); abs != "" {

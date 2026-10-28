@@ -22,17 +22,29 @@ CloudFormation, and more. See the [IaC glossary
 entry](../../docs/reference/glossary.md#iac-scanning-infrastructure-as-code).
 
 ```
-trivy fs --scanners misconfig --format json --show-suppressed <dir>
+trivy fs --debug --scanners misconfig --format json --show-suppressed <dir>
 trivy convert --quiet --format sarif <report>
 ```
 
 The scan writes JSON because only the JSON lists what Trivy excluded, and `trivy convert` writes
 the SARIF from that report without scanning again. On a Trivy older than 0.53.0, which has no
-`--show-suppressed`, the scan is `trivy config --format sarif <dir>`.
+`--show-suppressed`, the scan is `trivy config --debug --format sarif <dir>`.
 
-The scan runs without `--quiet` because Trivy reports a Terraform module it could not load only in
-its log, and exits 0. Each such module is reported as
-[unread](../controllers/iac.md#unread), named by the file that calls it.
+Trivy reports two Terraform shortfalls only in its log, and exits 0 after either. Draugr reads
+the log for both and reports each as [unread](../controllers/iac.md#unread):
+
+| Shortfall | Logged at | Reported against | Reason |
+|---|---|---|---|
+| A module Trivy could not load | `ERROR`, so the scan omits `--quiet` | the file that calls it | `module "vpc" not loaded` |
+| Module calls Trivy loaded and did not evaluate | `DEBUG`, so the scan passes `--debug` | the root module's directory | `Trivy evaluated 32 of 33 module calls, not "zbad"` |
+
+Trivy evaluates a module's calls in a fixed number of rounds, 32 in releases 0.69.3 to 0.76.1, and
+a round evaluates at most one call that no earlier round did. A module making more calls than
+that, or one whose calls feed each other's inputs and need a round again, has the rest loaded
+and never evaluated, and the resources they define are not checked. Both counts in the reason come
+from Trivy's log, and the count of calls includes any module Trivy could not load. A module below
+the root is named by its address, as in `in module.wrap`. The log goes to stderr, which is read and
+never printed.
 
 ## Saga options
 

@@ -35,7 +35,7 @@ cache hits, findings per control, and aggregation.
 $ draugr scan . --controls iac --log-level debug
 18:16:05 DEBUG  planned job control=iac scanner=trivy-config target=https://github.com/draugr-dev/draugr@ target_kind=repository
 18:16:06 DEBUG  scanning control=iac scanner=trivy-config target_kind=repository
-18:16:06 DEBUG  ran external tool tool=trivy argv="trivy fs --scanners misconfig --format json … /tmp/draugr-repo-964636929" duration=757ms stdout_bytes=105881 dir=/tmp/draugr-repo-964636929
+18:16:06 DEBUG  ran external tool tool=trivy argv="trivy fs --debug --scanners misconfig --format json … /tmp/draugr-repo-964636929" duration=757ms stdout_bytes=105881 dir=/tmp/draugr-repo-964636929
 18:16:06 DEBUG  ran external tool tool=trivy argv="trivy convert --quiet --format sarif /tmp/draugr-trivy-config-431477641.json" duration=48ms stdout_bytes=37967 dir=/tmp/draugr-repo-964636929
 18:16:06 DEBUG  scan complete control=iac scanner=trivy-config findings=14 duration=903ms
 ```

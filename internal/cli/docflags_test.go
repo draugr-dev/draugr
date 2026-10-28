@@ -46,6 +46,7 @@ var notOurs = map[string]string{
 	"--severity":          "Trivy's",
 	"--scanners":          "Trivy's",
 	"--quiet":             "Trivy's, in a logged argv",
+	"--debug":             "Trivy's, in a logged argv",
 	"--vex":               "Trivy's, shown consuming the document Draugr writes",
 	"--download-db-only":  "Trivy's, for the air-gapped guide",
 	"--skip-db-update":    "Trivy's, for the air-gapped guide",

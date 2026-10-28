@@ -1,0 +1,1 @@
+- **A Terraform root module with module calls Trivy did not evaluate is reported.** Trivy evaluates a limited number of module calls per module and exits 0 without checking the rest. The `iac` control lists the root module under Caveats as `unread-files`, with how many calls it makes and how many were evaluated, so `gate.failOnCaveats` can fail the run on it.
