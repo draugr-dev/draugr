@@ -1,0 +1,1 @@
+- **A `bun.lock` that no scanner read packages from is reported as an `unread-files` caveat**, including one holding a dependency on a git repository, which `trivy-fs` reads nothing from. A lockfile of any format whose content Draugr cannot recognize is reported the same way when nothing is read from it, and no longer counts its manifest as locked.

@@ -89,6 +89,71 @@ func TestRepoScanAccountsForWhatItReadInEachRepository(t *testing.T) {
 	}
 }
 
+// bunLockOf is a bun.lock as Bun 1.4.2 writes it, pinning lodash at resolved.
+func bunLockOf(resolved string) string {
+	return `{
+  "lockfileVersion": 2,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "web",
+      "dependencies": {
+        "lodash": "4.17.20",
+      },
+    },
+  },
+  "packages": {
+    "lodash": ["` + resolved + `", "", {}, "sha512-x"],
+  }
+}
+`
+}
+
+// Trivy 0.74.0 reads a bun.lock pinning a registry package and reports nothing at all for one
+// pinning a git repository. The second is reported unread in its own repository, and the first,
+// scanned by the same scanner, is not.
+func TestTrivyFSReportsABunLockItReadNothingFrom(t *testing.T) {
+	trees := map[string]string{
+		"https://example.com/registry.git": writeTree(t, map[string]string{
+			"package.json": npmManifest,
+			"bun.lock":     bunLockOf("lodash@4.17.20"),
+		}),
+		"https://example.com/remote.git": writeTree(t, map[string]string{
+			"package.json": npmManifest,
+			"bun.lock":     bunLockOf("lodash@github:lodash/lodash#ded9bc6"),
+		}),
+	}
+	read := `{"SchemaVersion":2,"Results":[{"Target":"bun.lock","Class":"lang-pkgs","Type":"bun",
+		"Packages":[{"ID":"lodash@4.17.20","Name":"lodash","Version":"4.17.20",
+		"Identifier":{"PURL":"pkg:npm/lodash@4.17.20","UID":"d6cb8fa6ce9ce546"}}]}]}`
+	s, _ := NewTrivyFS().(repoScanner)
+	s.checkout = checkoutOf(trees)
+	s.run = func(_ context.Context, dir string, _ []string) ([]byte, error) {
+		if dir == trees["https://example.com/registry.git"] {
+			return []byte(read), nil
+		}
+		return []byte(`{"SchemaVersion":2,"ArtifactType":"filesystem"}`), nil
+	}
+
+	want := map[string][]sarif.Input{
+		"https://example.com/registry.git": {
+			{Scanner: "trivy-fs", Repository: "https://example.com/registry", Path: "bun.lock", Packages: 1},
+		},
+		"https://example.com/remote.git": {
+			{Scanner: "trivy-fs", Repository: "https://example.com/remote", Path: "bun.lock", Unread: "no packages read"},
+		},
+	}
+	for url, inputs := range want {
+		rep, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: url}, plugin.Config{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(rep.Inputs, inputs) {
+			t.Errorf("%s inputs =\n%+v\nwant\n%+v", url, rep.Inputs, inputs)
+		}
+	}
+}
+
 // A scanner that does not account for its reads says nothing about the files in the tree, rather
 // than reporting every one of them unread.
 func TestRepoScanWithoutAccountingNamesNoInputs(t *testing.T) {

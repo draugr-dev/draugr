@@ -10,6 +10,7 @@ package manifests
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"io/fs"
 	"os"
 	"path"
@@ -78,6 +79,11 @@ type rule struct {
 	// declares reports whether the content names any dependency at all. A go.mod with no require
 	// and a pyproject.toml holding only tool settings pin nothing, and reporting them unread would
 	// be a warning about a file with nothing in it to read. Nil means every such file declares.
+	//
+	// A lockfile it rejects is left out of the walk and still resolves the manifests naming it, so
+	// for a lockfile it returns false only on content that is the format and pins nothing. Content
+	// it cannot place in the format declares, which keeps the file in the walk and reported when no
+	// scanner reads it.
 	declares func(content []byte) bool
 }
 
@@ -162,9 +168,182 @@ func containsAny(words ...string) func([]byte) bool {
 	}
 }
 
-// packageBlocks reports whether a TOML lockfile holds at least n [[package]] entries.
-func packageBlocks(n int) func([]byte) bool {
-	return func(content []byte) bool { return bytes.Count(content, []byte("[[package]]")) >= n }
+// packageBlocks reports whether a TOML lockfile holds a [[package]] entry other than the one its
+// tool writes for the project itself. A file with no entry at all is not that tool's lockfile.
+func packageBlocks(content []byte) bool { return bytes.Count(content, []byte("[[package]]")) != 1 }
+
+// metadataPackages reports whether a Poetry or PDM lockfile holds a [[package]] entry. A file with
+// none pins nothing only when it carries the [metadata] table both tools write.
+func metadataPackages(content []byte) bool {
+	return bytes.Contains(content, []byte("[[package]]")) || !bytes.Contains(content, []byte("[metadata]"))
+}
+
+// yarnLockPins reports whether a yarn.lock pins a package. Every entry has a version, in Yarn 1 and
+// Berry alike, so a Yarn 1 file with its header and no version pins nothing.
+func yarnLockPins(content []byte) bool {
+	return bytes.Contains(content, []byte("version")) || !bytes.Contains(content, []byte("# yarn lockfile v1"))
+}
+
+// pnpmLockPins reports whether a pnpm-lock.yaml pins a package. Lockfile versions 5 to 9 keep
+// resolved packages under a top-level packages key, which pnpm leaves out of a lockfile holding
+// workspace links and nothing else.
+func pnpmLockPins(content []byte) bool {
+	return bytes.HasPrefix(content, []byte("packages:")) || bytes.Contains(content, []byte("\npackages:")) ||
+		!bytes.Contains(content, []byte("lockfileVersion:"))
+}
+
+// jsonObject decodes the top-level members of a JSON object, accepting the comments and trailing
+// commas of the JSONC that bun.lock is written in. ok is false for anything but an object.
+func jsonObject(content []byte) (top map[string]json.RawMessage, ok bool) {
+	if err := json.Unmarshal(stripJSONC(content), &top); err != nil || top == nil {
+		return nil, false
+	}
+	return top, true
+}
+
+// stripJSONC removes comments, and each comma followed by a closing bracket, outside strings.
+func stripJSONC(in []byte) []byte {
+	out := make([]byte, 0, len(in))
+	for i := 0; i < len(in); {
+		switch {
+		case in[i] == '"':
+			end := stringEnd(in, i)
+			out = append(out, in[i:end]...)
+			i = end
+		case bytes.HasPrefix(in[i:], []byte("//")), bytes.HasPrefix(in[i:], []byte("/*")):
+			i = commentEnd(in, i)
+		case in[i] == ',' && closes(in, i+1):
+			i++
+		default:
+			out = append(out, in[i])
+			i++
+		}
+	}
+	return out
+}
+
+// stringEnd is the index after the string opening at i, or len(in) for one never closed.
+func stringEnd(in []byte, i int) int {
+	for j := i + 1; j < len(in); j++ {
+		switch in[j] {
+		case '\\':
+			j++
+		case '"':
+			return j + 1
+		}
+	}
+	return len(in)
+}
+
+// commentEnd is the index after the comment opening at i: the end of the line for //, past the
+// closing */ for a block, or len(in) for a block never closed.
+func commentEnd(in []byte, i int) int {
+	if in[i+1] == '/' {
+		if n := bytes.IndexByte(in[i:], '\n'); n >= 0 {
+			return i + n
+		}
+		return len(in)
+	}
+	if n := bytes.Index(in[i+2:], []byte("*/")); n >= 0 {
+		return i + 2 + n + 2
+	}
+	return len(in)
+}
+
+// closes reports whether the next token from i, past whitespace and comments, closes an object or
+// an array.
+func closes(in []byte, i int) bool {
+	for i < len(in) {
+		switch {
+		case in[i] == ' ', in[i] == '\t', in[i] == '\r', in[i] == '\n':
+			i++
+		case bytes.HasPrefix(in[i:], []byte("//")), bytes.HasPrefix(in[i:], []byte("/*")):
+			i = commentEnd(in, i)
+		default:
+			return in[i] == '}' || in[i] == ']'
+		}
+	}
+	return false
+}
+
+// members is the number of members in a JSON object or array, or -1 for any other value.
+func members(raw json.RawMessage) int {
+	var obj map[string]json.RawMessage
+	if json.Unmarshal(raw, &obj) == nil && obj != nil {
+		return len(obj)
+	}
+	var arr []json.RawMessage
+	if json.Unmarshal(raw, &arr) == nil && arr != nil {
+		return len(arr)
+	}
+	return -1
+}
+
+// bunLockPins reports whether a text bun.lock pins a package that is not one of the project's own
+// workspaces. Each entry under packages is an array whose first member is the package and its
+// resolution: `lodash@4.17.21`, `lodash@github:lodash/lodash#ded9bc6`, `a@workspace:packages/a`.
+// Bun deletes a lockfile that would hold no package, so the one that pins nothing holds workspaces.
+func bunLockPins(content []byte) bool {
+	top, ok := jsonObject(content)
+	if !ok || top["lockfileVersion"] == nil {
+		return true
+	}
+	var packages map[string][]json.RawMessage
+	if err := json.Unmarshal(top["packages"], &packages); err != nil {
+		return true
+	}
+	for _, entry := range packages {
+		var id string
+		if len(entry) == 0 || json.Unmarshal(entry[0], &id) != nil || !strings.Contains(id, "@workspace:") {
+			return true
+		}
+	}
+	return false
+}
+
+// npmLockPins reports whether a package-lock.json or npm-shrinkwrap.json pins a package: an entry
+// under packages other than the project's own "" (lockfile version 2 and later), or one under
+// dependencies (version 1).
+func npmLockPins(content []byte) bool {
+	top, ok := jsonObject(content)
+	if !ok || top["lockfileVersion"] == nil {
+		return true
+	}
+	if raw := top["packages"]; raw != nil {
+		var packages map[string]json.RawMessage
+		if json.Unmarshal(raw, &packages) != nil {
+			return true
+		}
+		delete(packages, "")
+		if len(packages) > 0 {
+			return true
+		}
+	}
+	return top["dependencies"] != nil && members(top["dependencies"]) != 0
+}
+
+// pipfileLockPins reports whether a Pipfile.lock pins a package in any group: default, develop,
+// or a named category. Every member but _meta is a group.
+func pipfileLockPins(content []byte) bool {
+	top, ok := jsonObject(content)
+	if !ok || top["_meta"] == nil {
+		return true
+	}
+	for name, group := range top {
+		if name != "_meta" && members(group) != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// composerLockPins reports whether a composer.lock pins a package in packages or packages-dev.
+func composerLockPins(content []byte) bool {
+	top, ok := jsonObject(content)
+	if !ok || top["packages"] == nil {
+		return true
+	}
+	return members(top["packages"]) != 0 || (top["packages-dev"] != nil && members(top["packages-dev"]) != 0)
 }
 
 // isRequirements matches pip's requirements files by the names projects give them:
@@ -190,10 +369,10 @@ var pythonLocks = []string{"poetry.lock", "uv.lock", "pdm.lock", "pylock.toml", 
 
 var rules = []rule{
 	{ecosystem: "python", kind: Pinned, formats: []string{"requirements.txt"}, match: isRequirements, declares: hasRequirement},
-	{ecosystem: "python", kind: Pinned, formats: []string{"Pipfile.lock"}, declares: containsAny("\"version\"")},
-	{ecosystem: "python", kind: Pinned, formats: []string{"poetry.lock", "pdm.lock"}, declares: packageBlocks(1)},
+	{ecosystem: "python", kind: Pinned, formats: []string{"Pipfile.lock"}, declares: pipfileLockPins},
+	{ecosystem: "python", kind: Pinned, formats: []string{"poetry.lock", "pdm.lock"}, declares: metadataPackages},
 	// uv records the project itself as a package, so one entry is a lockfile with nothing in it.
-	{ecosystem: "python", kind: Pinned, formats: []string{"uv.lock"}, declares: packageBlocks(2)},
+	{ecosystem: "python", kind: Pinned, formats: []string{"uv.lock"}, declares: packageBlocks},
 	{ecosystem: "python", kind: Pinned, formats: []string{"pylock.toml"}, match: isPylock},
 	{ecosystem: "python", kind: Pinned, formats: []string{"setup.py", "setup.cfg"},
 		declares: containsAny("install_requires")},
@@ -205,12 +384,11 @@ var rules = []rule{
 	{ecosystem: "conda", kind: Pinned, formats: []string{"environment.yml", "environment.yaml"},
 		declares: containsAny("dependencies")},
 
-	// A lockfile of version 2 or later keys every package by its node_modules path; version 1 has
-	// a dependencies map instead.
 	{ecosystem: "npm", kind: Pinned, formats: []string{"package-lock.json", "npm-shrinkwrap.json"},
-		declares: containsAny("\"node_modules/", "\"dependencies\"")},
-	{ecosystem: "npm", kind: Pinned, formats: []string{"yarn.lock", "pnpm-lock.yaml", "bun.lock"},
-		declares: containsAny("version")},
+		declares: npmLockPins},
+	{ecosystem: "npm", kind: Pinned, formats: []string{"yarn.lock"}, declares: yarnLockPins},
+	{ecosystem: "npm", kind: Pinned, formats: []string{"pnpm-lock.yaml"}, declares: pnpmLockPins},
+	{ecosystem: "npm", kind: Pinned, formats: []string{"bun.lock"}, declares: bunLockPins},
 	// Bun's binary lockfile, which Bun 1.2 replaced with the text bun.lock. It pins a package.json
 	// as well as any lockfile does, so the manifest is resolved; recognized in its own right so that
 	// a scanner reading nothing from it is reported rather than passed over.
@@ -236,11 +414,11 @@ var rules = []rule{
 		locks: []string{"Gemfile.lock", "gems.locked"}, declares: containsAny("gem ")},
 
 	// Cargo records the crate itself, so one entry is a lockfile with nothing in it.
-	{ecosystem: "rust", kind: Pinned, formats: []string{"Cargo.lock"}, declares: packageBlocks(2)},
+	{ecosystem: "rust", kind: Pinned, formats: []string{"Cargo.lock"}, declares: packageBlocks},
 	{ecosystem: "rust", kind: Declared, formats: []string{"Cargo.toml"}, locks: []string{"Cargo.lock"},
 		declares: containsAny("dependencies]", "dependencies.")},
 
-	{ecosystem: "php", kind: Pinned, formats: []string{"composer.lock"}, declares: containsAny("\"version\"")},
+	{ecosystem: "php", kind: Pinned, formats: []string{"composer.lock"}, declares: composerLockPins},
 	{ecosystem: "php", kind: Declared, formats: []string{"composer.json"}, locks: []string{"composer.lock"},
 		declares: containsAny("\"require")},
 }
@@ -258,7 +436,7 @@ type found struct {
 // Find returns the dependency files under root, in path order. A file whose content names no
 // dependency is left out.
 func Find(root string) []File {
-	all := find(root)
+	all, _ := find(root)
 	out := make([]File, len(all))
 	for i, f := range all {
 		out[i] = f.File
@@ -266,8 +444,13 @@ func Find(root string) []File {
 	return out
 }
 
-func find(root string) []found {
-	var out []found
+// find returns the dependency files under root, in path order, and the paths it left out because
+// their content is the format and names no dependency.
+//
+// A file that cannot be read is kept: nothing shows it names no dependency, and a scanner that
+// cannot read it either is then reported rather than passed over.
+func find(root string) (out []found, empty map[string]bool) {
+	empty = map[string]bool{}
 	_ = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil //nolint:nilerr // an unreadable subtree is reported by the scanner, not here
@@ -292,7 +475,8 @@ func find(root string) []found {
 			}
 			if r.declares != nil {
 				content, err := os.ReadFile(p) // #nosec G304 G122 -- a file under the tree being scanned
-				if err != nil || !r.declares(content) {
+				if err == nil && !r.declares(content) {
+					empty[rel] = true
 					break
 				}
 			}
@@ -302,7 +486,7 @@ func find(root string) []found {
 		return nil
 	})
 	slices.SortFunc(out, func(a, b found) int { return strings.Compare(a.Path, b.Path) })
-	return out
+	return out, empty
 }
 
 // Account returns the dependency files under root that are not in read, each with the reason it
@@ -311,11 +495,15 @@ func find(root string) []found {
 // read holds slash-separated paths relative to root, as a scanner names the files it took packages
 // from. A declared manifest resolved by a lockfile is not unread: the lockfile is what a scanner
 // reads for it, and reporting both would warn about every project that is set up correctly.
+//
+// A lockfile resolves its manifest when the walk holds it, so that it is reported itself if no
+// scanner reads it, or when the walk left it out as the format with nothing in it. A file merely
+// named like a lockfile does neither, because resolving on the name alone would leave the manifest
+// and the lockfile both unreported with nothing read from either.
 func Account(root string, read map[string]bool) []Unread {
-	all := find(root)
-	present := map[string]bool{}
+	all, locks := find(root)
 	for _, f := range all {
-		present[f.Path] = true
+		locks[f.Path] = true
 	}
 	var out []Unread
 	for _, f := range all {
@@ -324,7 +512,7 @@ func Account(root string, read map[string]bool) []Unread {
 		}
 		switch {
 		case f.Kind == Declared:
-			if resolved(root, f, present) {
+			if resolved(f, locks) {
 				continue
 			}
 			out = append(out, Unread{Path: f.Path, Reason: NoLockfile})
@@ -337,17 +525,18 @@ func Account(root string, read map[string]bool) []Unread {
 	return out
 }
 
-// resolved reports whether a declared manifest has a lockfile a scanner reads for it.
-func resolved(root string, f found, present map[string]bool) bool {
+// resolved reports whether a declared manifest has a lockfile among locks, the paths Account found
+// to resolve one.
+func resolved(f found, locks map[string]bool) bool {
 	dir := path.Dir(f.Path)
 	for _, lock := range f.rule.sameDirLocks {
-		if exists(root, path.Join(dir, lock), present) {
+		if locks[path.Join(dir, lock)] {
 			return true
 		}
 	}
 	for {
 		for _, lock := range f.rule.locks {
-			if exists(root, path.Join(dir, lock), present) {
+			if locks[path.Join(dir, lock)] {
 				return true
 			}
 		}
@@ -356,16 +545,6 @@ func resolved(root string, f found, present map[string]bool) bool {
 		}
 		dir = path.Dir(dir)
 	}
-}
-
-// exists asks the walk first and the disk second: a lockfile that declares nothing is not in the
-// walk's results, and it still resolves its manifest.
-func exists(root, rel string, present map[string]bool) bool {
-	if present[rel] {
-		return true
-	}
-	info, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel)))
-	return err == nil && info.Mode().IsRegular()
 }
 
 // requirementLines yields the entries of a requirements file: not blank, not a comment, not an
