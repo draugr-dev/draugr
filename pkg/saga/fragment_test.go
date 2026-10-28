@@ -334,8 +334,8 @@ func TestLoadFromBytesRefusesADescriptorWithFragments(t *testing.T) {
 	if !strings.Contains(err.Error(), "Load it from a path") {
 		t.Errorf("error should say what to do instead: %v", err)
 	}
-	if !strings.Contains(err.Error(), "names 1 fragment, resolved") {
-		t.Errorf("the count should agree with its noun: %v", err)
+	if !strings.HasPrefix(err.Error(), "this descriptor's `fragments:` resolve relative to its file") {
+		t.Errorf("error should say why bytes are not enough: %v", err)
 	}
 }
 
@@ -553,8 +553,8 @@ func TestLoadFragmentRejectsBrokenYAMLAndUndefinedVars(t *testing.T) {
 	}
 	t.Setenv(SagaEnvsVar, "NOPE_UNSET_VAR")
 	_, err := LoadFragment([]byte("components: [{ name: \"${{ NOPE_UNSET_VAR }}\" }]"), "f.saga-fragment.yaml")
-	if err == nil || !strings.Contains(err.Error(), "undefined environment variable referenced in fragment") ||
-		!strings.Contains(err.Error(), "NOPE_UNSET_VAR") {
+	if err == nil || !strings.Contains(err.Error(),
+		`fragment "f.saga-fragment.yaml" references ${{ NOPE_UNSET_VAR }}, which the environment does not set`) {
 		t.Errorf("an undefined variable should be named: %v", err)
 	}
 }
@@ -581,7 +581,7 @@ fragments:
 `)
 	t.Setenv(SagaEnvsVar, "STAGING_HOST")
 	_, err := ResolveFile(root, &fakeFetcher{dir: remote, resolved: "a1b3f9c0d2e4f6a8b0c2"})
-	if err == nil || !strings.Contains(err.Error(), "not listed in $DRAUGR_SAGA_ENVS: AWS_SECRET_ACCESS_KEY") ||
+	if err == nil || !strings.Contains(err.Error(), "references ${{ AWS_SECRET_ACCESS_KEY }}, which $DRAUGR_SAGA_ENVS does not list") ||
 		strings.Contains(err.Error(), "aws-secret") {
 		t.Fatalf("err = %v", err)
 	}

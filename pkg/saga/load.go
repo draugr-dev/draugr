@@ -2,6 +2,7 @@ package saga
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -9,8 +10,6 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
-
-	"github.com/draugr-dev/draugr/internal/english"
 )
 
 // envPattern matches ${{ VAR_NAME }} with optional surrounding whitespace.
@@ -49,8 +48,8 @@ func loadModel(data []byte, validate bool) (*Model, error) {
 		// fragments cannot be honored from bytes alone. Saying so beats returning a model that
 		// silently describes less than the file does.
 		if len(m.Fragments) > 0 {
-			return nil, fmt.Errorf("this descriptor names %s, resolved relative to the file. "+
-				"Load it from a path rather than from bytes", english.Count(len(m.Fragments), "fragment"))
+			return nil, errors.New("this descriptor's `fragments:` resolve relative to its file, " +
+				"and bytes have no file. Load it from a path rather than from bytes")
 		}
 		if err := m.Validate(); err != nil {
 			return nil, err
@@ -268,16 +267,25 @@ func substitutable(name string) bool {
 func substitute(root *yaml.Node, where string) error {
 	missing, refused := substituteEnv(root)
 	if len(refused) > 0 {
-		return fmt.Errorf("%s referenced in %s and not listed in $%s: %s. Set %s=%s in "+
+		// Worded to read the same for one name or several, without a count helper: pkg/saga is
+		// public API and imports nothing from internal/.
+		return fmt.Errorf("%s references %s, which $%s does not list. Set %s=%s in "+
 			"the pipeline's environment (comma-separated), listing only variables that hold no secret",
-			english.Noun(len(refused), "environment variable"), where, SagaEnvsVar,
-			strings.Join(refused, ", "), SagaEnvsVar, strings.Join(refused, ","))
+			where, envRefs(refused), SagaEnvsVar, SagaEnvsVar, strings.Join(refused, ","))
 	}
 	if len(missing) > 0 {
-		return fmt.Errorf("undefined %s referenced in %s: %s",
-			english.Noun(len(missing), "environment variable"), where, strings.Join(missing, ", "))
+		return fmt.Errorf("%s references %s, which the environment does not set", where, envRefs(missing))
 	}
 	return nil
+}
+
+// envRefs writes names as the references the descriptor holds, `${{ NAME }}`, comma-separated.
+func envRefs(names []string) string {
+	refs := make([]string, len(names))
+	for i, n := range names {
+		refs[i] = "${{ " + n + " }}"
+	}
+	return strings.Join(refs, ", ")
 }
 
 // substituteEnv walks the parsed YAML tree and replaces every ${{ VAR }} in scalar

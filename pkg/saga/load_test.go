@@ -143,7 +143,7 @@ release:
   version: "${{ NOT_SET_VAR_XYZ }}"
 `
 	_, err := Load([]byte(src))
-	if err == nil || err.Error() != "undefined environment variable referenced in saga: NOT_SET_VAR_XYZ" {
+	if err == nil || err.Error() != "saga references ${{ NOT_SET_VAR_XYZ }}, which the environment does not set" {
 		t.Fatalf("expected missing-var error, got %v", err)
 	}
 }
@@ -175,12 +175,22 @@ components:
 	}
 }
 
+// Two names read as one sentence, as one does, each written the way the descriptor holds it.
+func TestEnvSubstitutionNamesEveryUndefinedReference(t *testing.T) {
+	t.Setenv(SagaEnvsVar, "NOT_SET_A,NOT_SET_B")
+	_, err := Load([]byte("release:\n  version: \"${{ NOT_SET_A }}-${{ NOT_SET_B }}\"\n"))
+	want := "saga references ${{ NOT_SET_A }}, ${{ NOT_SET_B }}, which the environment does not set"
+	if err == nil || err.Error() != want {
+		t.Errorf("err = %v, want %q", err, want)
+	}
+}
+
 // A descriptor changes by pull request, and every value it holds can reach the network. A name the
 // pipeline did not list is refused, and refused the same way whether or not the job holds it, so
 // loading a descriptor cannot be used to learn which variables exist either.
 func TestEnvSubstitutionRefusesAnUnlistedName(t *testing.T) {
 	t.Setenv(SagaEnvsVar, "STAGING_HOST")
-	want := "environment variable referenced in saga and not listed in $DRAUGR_SAGA_ENVS: AWS_SECRET_ACCESS_KEY. " +
+	want := "saga references ${{ AWS_SECRET_ACCESS_KEY }}, which $DRAUGR_SAGA_ENVS does not list. " +
 		"Set DRAUGR_SAGA_ENVS=AWS_SECRET_ACCESS_KEY in the pipeline's environment (comma-separated), listing only variables that hold no secret"
 	attack := `
 project: x
