@@ -27,7 +27,8 @@ func newClassifyCommand() *cobra.Command {
 			"(exposure + criticality) back into the Saga. These drive finding prioritization.\n" +
 			"By default only unclassified components are asked about; use --all to redo every one,\n" +
 			"or --components to pick which ones.\n\n" +
-			"With no argument, uses the descriptor in the current directory.",
+			"With no argument, uses the descriptor in the current directory. Where there is none,\n" +
+			"offers on a terminal to write one with `draugr init` first.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target := ""
@@ -60,11 +61,17 @@ func runClassify(target string, opts classifyOptions, in io.Reader, out io.Write
 	if err != nil {
 		return err
 	}
+	// One reader for the whole session, so the answer to the init offer does not take the answers
+	// to the questions after it with it into a buffer of its own.
+	terminal := isTTY(in)
+	br := bufio.NewReader(in)
 	if !found {
 		// A scan can synthesize a descriptor; classification cannot. Exposure and criticality are
 		// judgements about a component, and there is no file to record them in or read them back
-		// from.
-		return noDescriptorError(target)
+		// from. So write one first, when there is somebody to ask.
+		if path, err = offerInit(target, terminal, br, out); err != nil {
+			return err
+		}
 	}
 
 	model, err := loadSaga(path)
@@ -80,7 +87,7 @@ func runClassify(target string, opts classifyOptions, in io.Reader, out io.Write
 		return err
 	}
 
-	sc := bufio.NewScanner(in)
+	sc := bufio.NewScanner(br)
 	class := map[string]saga.Classification{}
 	guessed := 0
 	for _, comp := range model.Components {
@@ -145,23 +152,55 @@ func guessMark(chosen bool) string {
 	return " (guessed)"
 }
 
-// noDescriptorError says a directory holds no descriptor and names the command that writes one
-// where classify will look for it.
+// offerInit writes a descriptor for the target directory with `draugr init` when somebody at a
+// terminal agrees, and returns its path. Without a terminal, or on any answer but yes, nothing is
+// written and the error names the command that writes one.
 //
-// The directory is quoted, or called the current directory, because a path at the end of a
-// sentence can end in a dot of its own (`.`, `..`), and the full stop after it then reads as part
-// of the path. `draugr init` writes into the working directory unless told otherwise, so for any
-// other directory the command carries the output path too.
-func noDescriptorError(target string) error {
-	dir := "."
+// Asked rather than done: init writes a file into somebody's repository, and classify was asked
+// to edit one, not to create it.
+func offerInit(target string, terminal bool, in *bufio.Reader, out io.Writer) (string, error) {
+	dir, where := descriptorDir(target)
+	path := filepath.Join(dir, "draugr.saga.yaml")
+	if !terminal {
+		return "", noDescriptorError(target)
+	}
+	_, _ = fmt.Fprintf(out, "No %s %s. Write %s with `draugr init`? [y/N] ", sagaGlob, where, path)
+	if !confirmed(in) {
+		return "", noDescriptorError(target)
+	}
+	if err := runInit(dir, initOptions{output: path}, io.Discard); err != nil {
+		return "", err
+	}
+	_, _ = fmt.Fprintf(out, "✓ wrote %s\n", path)
+	return path, nil
+}
+
+// descriptorDir is the directory a classify target names, cleaned, and how a sentence refers to
+// it.
+//
+// Quoted, or called the current directory, because a path at the end of a sentence can end in a
+// dot of its own (`.`, `..`), and the full stop after it then reads as part of the path.
+func descriptorDir(target string) (dir, where string) {
+	dir = "."
 	if target != "" {
 		dir = filepath.Clean(target)
 	}
 	if dir == "." {
-		return fmt.Errorf("no %s in the current directory. Run `draugr init` to write one", sagaGlob)
+		return dir, "in the current directory"
 	}
-	return fmt.Errorf("no %s in %q. Run `draugr init %s -o %s` to write one",
-		sagaGlob, dir, dir, filepath.Join(dir, "draugr.saga.yaml"))
+	return dir, fmt.Sprintf("in %q", dir)
+}
+
+// noDescriptorError says a directory holds no descriptor and names the command that writes one
+// where classify will look for it. `draugr init` writes into the working directory unless told
+// otherwise, so for any other directory the command carries the output path too.
+func noDescriptorError(target string) error {
+	dir, where := descriptorDir(target)
+	if dir == "." {
+		return fmt.Errorf("no %s %s. Run `draugr init` to write one", sagaGlob, where)
+	}
+	return fmt.Errorf("no %s %s. Run `draugr init %s -o %s` to write one",
+		sagaGlob, where, dir, filepath.Join(dir, "draugr.saga.yaml"))
 }
 
 // selectComponents resolves --components into the set to ask about, or every component when the

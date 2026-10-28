@@ -1141,8 +1141,26 @@ about components missing either one.
 
 Finds the descriptor the same way [`draugr scan`](#draugr-scan-sagayaml--dir) does: with no
 argument, or with a directory, it uses the `*.saga.yaml` or `*.saga.yml` there. With more than one,
-it asks which on a terminal and otherwise exits naming them. A directory holding none is an error,
-because there is no descriptor to write the answers into.
+it asks which on a terminal and otherwise exits naming them.
+
+A directory holding none has no descriptor to write the answers into. On a terminal, classify
+offers to write one with [`draugr init`](#draugr-init-dir) in that directory, then asks its
+questions about it; the default answer is no:
+
+```console
+$ draugr classify
+No *.saga.yaml in the current directory. Write draugr.saga.yaml with `draugr init`? [y/N]
+```
+
+Declining, or a run with no terminal, writes nothing and exits naming the command that writes the
+descriptor:
+
+```console
+$ draugr classify
+draugr: no *.saga.yaml in the current directory. Run `draugr init` to write one
+$ draugr classify ..
+draugr: no *.saga.yaml in "..". Run `draugr init .. -o ../draugr.saga.yaml` to write one
+```
 
 | Flag | Default | Description |
 |------|---------|-------------|

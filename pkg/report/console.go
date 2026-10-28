@@ -134,7 +134,8 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		if d.Unclassified {
 			_, _ = fmt.Fprintf(w, " %s\n", col.Paint(cAccent,
 				"No component declares exposure or criticality, so every one is read as public and critical."))
-			_, _ = fmt.Fprintf(w, " %s\n", col.Paint(cDim, classifyNext(d.Synthesized)))
+			_, _ = fmt.Fprintf(w, " %s\n", col.Paint(cDim,
+				"These bands rank severity alone. `draugr classify` makes them describe this application."))
 		}
 		_, _ = fmt.Fprintln(w)
 	}
@@ -1634,17 +1635,6 @@ func sbomLine(docs []sbom.Document) string {
 	default:
 		return fmt.Sprintf("%s (%s)", english.Count(parts, "document"), docs[0].Format)
 	}
-}
-
-// classifyNext is the second line of the unclassified caveat: what the bands rank, and the
-// commands that make them describe the application. `draugr classify` writes into a descriptor
-// and refuses without one, so a run that had none names the command that writes it first.
-func classifyNext(synthesized bool) string {
-	if synthesized {
-		return "These bands rank severity alone. Run `draugr init`, then `draugr classify`, " +
-			"to make them describe this application."
-	}
-	return "These bands rank severity alone. `draugr classify` makes them describe this application."
 }
 
 // scopeNote describes what a scoped run covered, for the line beside the verdict.

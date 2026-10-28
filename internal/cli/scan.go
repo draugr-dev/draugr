@@ -519,7 +519,6 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		// severity alone. The report says so beside the counts rather than leaving a reader to
 		// take a ranking as a statement about their application.
 		Unclassified:         !usesRiskClassification(model),
-		Synthesized:          synthesized,
 		Components:           components,
 		Scope:                reportScope(scope),
 		Requested:            requested,

@@ -1,0 +1,1 @@
+- **`draugr classify` in a directory with no descriptor offers to write one with `draugr init`, then asks its questions.** The offer is made on a terminal and defaults to no. Declining, or a run with no terminal, names the `draugr init` command that writes the descriptor where `classify` looks, and the message no longer ends in a doubled period.

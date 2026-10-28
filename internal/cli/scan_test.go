@@ -308,21 +308,6 @@ func TestRunScanZeroConfigDirectory(t *testing.T) {
 	}
 }
 
-// A run with no descriptor tells the report so, and the caveat beside the bands then names the
-// command that writes a descriptor before the one that classifies it.
-func TestRunScanZeroConfigCaveatNamesInit(t *testing.T) {
-	dir := t.TempDir()
-	reg := fakeRegistry(sarif.LevelNote)
-	reg.RegisterController(fakeRepoController{})
-	var buf bytes.Buffer
-	if err := runScan(context.Background(), dir, scanOptions{failOn: "error", format: "console"}, reg, &buf); err != nil {
-		t.Fatalf("zero-config scan: %v", err)
-	}
-	if !strings.Contains(buf.String(), "Run `draugr init`, then `draugr classify`") {
-		t.Errorf("the caveat on a zero-config run has to name init first:\n%s", buf.String())
-	}
-}
-
 func TestScanModelSynthesizesForDir(t *testing.T) {
 	dir := t.TempDir()
 	m, synth, err := scanModel(dir)

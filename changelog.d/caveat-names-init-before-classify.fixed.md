@@ -1,1 +1,0 @@
-- **A scan with no descriptor names next steps that work.** The caveat beside the priority counts says to run `draugr init`, then `draugr classify`, where it named `draugr classify` alone, which refuses without a descriptor. `draugr classify` in a directory with no descriptor names the `draugr init` command that writes one where `classify` looks.

@@ -306,6 +306,128 @@ func TestNoDescriptorErrorReadsForEveryDirectory(t *testing.T) {
 	}
 }
 
+// noDescriptorWritten fails if anything matching the descriptor glob exists in dir.
+func noDescriptorWritten(t *testing.T, dir string) {
+	t.Helper()
+	if found, _ := filepath.Glob(filepath.Join(dir, sagaGlob)); len(found) > 0 {
+		t.Errorf("a descriptor was written: %v", found)
+	}
+}
+
+// At a terminal with no descriptor, classify offers to write one, and on yes asks its questions
+// about the descriptor it wrote, without the answer to the offer swallowing the answers after it.
+func TestClassifyOffersInitAndContinues(t *testing.T) {
+	forceTTY(t, true)
+	t.Chdir(t.TempDir())
+
+	var out bytes.Buffer
+	if err := runClassify("", classifyOptions{}, strings.NewReader("y\n2\n3\n"), &out); err != nil {
+		t.Fatalf("%v\n%s", err, out.String())
+	}
+	for _, want := range []string{
+		"No *.saga.yaml in the current directory. Write draugr.saga.yaml with `draugr init`? [y/N] ",
+		"✓ wrote draugr.saga.yaml\n",
+		"Classified 1 component in draugr.saga.yaml.",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("missing %q in:\n%s", want, out.String())
+		}
+	}
+	m, err := loadSaga("draugr.saga.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := m.Components[0]; c.Exposure != saga.ExposureAuthenticated || c.Criticality != saga.CriticalitySupporting {
+		t.Errorf("the answers were not the ones recorded: %+v", c)
+	}
+}
+
+// Another directory: the descriptor is written in that directory, where classify then reads it,
+// and a name ending in a dot still reads as a sentence.
+func TestClassifyOffersInitForAnotherDirectory(t *testing.T) {
+	forceTTY(t, true)
+	parent := t.TempDir()
+	sub := filepath.Join(parent, "sub")
+	if err := os.Mkdir(sub, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(sub)
+
+	var out bytes.Buffer
+	if err := runClassify("..", classifyOptions{}, strings.NewReader("yes\n1\n1\n"), &out); err != nil {
+		t.Fatalf("%v\n%s", err, out.String())
+	}
+	if want := "No *.saga.yaml in \"..\". Write ../draugr.saga.yaml with `draugr init`? [y/N] "; !strings.Contains(out.String(), want) {
+		t.Errorf("missing %q in:\n%s", want, out.String())
+	}
+	if _, err := os.Stat(filepath.Join(parent, "draugr.saga.yaml")); err != nil {
+		t.Errorf("the descriptor is not in the directory classify was pointed at: %v", err)
+	}
+	noDescriptorWritten(t, sub)
+}
+
+// Declining, an empty answer included since no is the default, writes nothing and names the
+// command, the same as a run with nobody to ask.
+func TestClassifyOfferDeclinedWritesNothing(t *testing.T) {
+	for _, answer := range []string{"n\n", "\n", ""} {
+		t.Run(strings.TrimSpace(answer), func(t *testing.T) {
+			forceTTY(t, true)
+			dir := t.TempDir()
+			t.Chdir(dir)
+			var out bytes.Buffer
+			err := runClassify("..", classifyOptions{}, strings.NewReader(answer), &out)
+			want := "no *.saga.yaml in \"..\". Run `draugr init .. -o ../draugr.saga.yaml` to write one"
+			if err == nil || err.Error() != want {
+				t.Errorf("err = %v, want %q", err, want)
+			}
+			if !strings.Contains(out.String(), "[y/N]") {
+				t.Errorf("no offer was made:\n%s", out.String())
+			}
+			noDescriptorWritten(t, dir)
+			noDescriptorWritten(t, filepath.Dir(dir))
+		})
+	}
+}
+
+// Without a terminal there is nobody to ask: no prompt, nothing written, and the error names the
+// command. A prompt in a pipeline would wait for an answer that never comes.
+func TestClassifyWithoutATerminalDoesNotOffer(t *testing.T) {
+	forceTTY(t, false)
+	dir := t.TempDir()
+	t.Chdir(dir)
+	var out bytes.Buffer
+	err := runClassify("", classifyOptions{}, strings.NewReader("y\n1\n1\n"), &out)
+	want := "no *.saga.yaml in the current directory. Run `draugr init` to write one"
+	if err == nil || err.Error() != want {
+		t.Errorf("err = %v, want %q", err, want)
+	}
+	if out.Len() != 0 {
+		t.Errorf("printed with nobody to answer:\n%s", out.String())
+	}
+	noDescriptorWritten(t, dir)
+}
+
+// A descriptor init cannot write is reported, and classify asks nothing further.
+func TestClassifyOfferReportsAFailedInit(t *testing.T) {
+	forceTTY(t, true)
+	if os.Geteuid() == 0 {
+		t.Skip("root writes into a read-only directory")
+	}
+	dir := t.TempDir()
+	// #nosec G302 -- a directory this test makes unwritable, to see init fail
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) }) // #nosec G302 -- restores it so t.TempDir can clean up
+	var out bytes.Buffer
+	if err := runClassify(dir, classifyOptions{}, strings.NewReader("y\n1\n1\n"), &out); err == nil {
+		t.Fatalf("a descriptor that could not be written was reported as written:\n%s", out.String())
+	}
+	if strings.Contains(out.String(), "✓ wrote") || strings.Contains(out.String(), "Component:") {
+		t.Errorf("carried on after init failed:\n%s", out.String())
+	}
+}
+
 // Reclassifying one component must not mean reclassifying every other one to reach it.
 func TestClassifyComponentsPicksOneAndRedoesIt(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "draugr.saga.yaml")
