@@ -12,6 +12,38 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.158.0] - 2026-10-28
+
+### Added
+
+- **Check a descriptor against the organization's policy without a token in your shell.** `draugr login <server>` prints a code and an address to approve it at, then keeps a short-lived, check-only token in the OS keychain; `draugr doctor --policy` and the scan's policy check use it where `$DRAUGR_API_TOKEN` is not set. It never publishes a run. `draugr logout` revokes it.
+
+- **`draugr classify` offers to write a missing descriptor.** With no `*.saga.yaml` in the directory, on a terminal, it asks to run `draugr init` and then asks its questions. Declining, or a run with no terminal, prints the command to run.
+
+- **A rule over findings in the organization's policy now fails the scan that produced them.** `draugr scan` publishes to `draugr-api` servers first, waits up to `--policy-wait` (default `5m`) for their verdict on the run, then prints the report and runs the other publishers. The `POLICY` line names a verdict not received, and `--policy` makes it an error.
+
+### Fixed
+
+- **A `bun.lock` that no scanner read packages from is reported as an `unread-files` caveat**, including one holding a dependency on a git repository, which `trivy-fs` reads nothing from. A lockfile of any format whose content Draugr cannot recognize is reported the same way when nothing is read from it, and no longer counts its manifest as locked.
+
+- **A file Gitleaks skips by its name is reported instead of passing.** Gitleaks does not read a file whose name contains an archive extension, such as `notes.zip.txt`. The `secrets` control gives each such file an `unread-files` caveat, `name has an archive extension`, and a repository it read nothing from gets `no files read`. Rename the file, or fail on `unread-files`.
+
+- **A file Semgrep skipped or did not finish is a caveat instead of a pass.** Semgrep exits 0 after leaving out a file over 1 MB or abandoning a rule that timed out on one. Each such file is now an `unread-files` caveat. Exclude generated files with `ignore:`, or fail the run on `unread-files`.
+
+- **A lockfile that holds only the project and its workspace members is no longer reported as unread.** That covers a `package-lock.json`, Yarn Berry `yarn.lock`, `Cargo.lock` or `uv.lock` for a workspace whose members depend on nothing outside it, and the `yarn.lock` Yarn Berry writes for a project with no dependencies.
+
+- **A Terraform root module with module calls Trivy skipped is reported.** Trivy evaluates a limited number of module calls per module and exits 0 without checking the rest. The `iac` control gives the root module an `unread-files` caveat, as in `32 of 33 module calls checked; "zbad" skipped`. Split the root module, or fail the run on `unread-files`.
+
+- **An `unread-files` caveat names its repository whenever the component scans more than one.** A component with two repositories, only one of which had an unread file, showed a bare path such as `bun.lock`, which could be in either; it now reads `acme/remote:bun.lock`.
+
+- **Counts in messages agree with their noun.** `tools install`, `validate`, `doctor`, TLS certificate expiry and the HTML report say `1 tool` and `1 day`, not `tool(s)` and `day(s)`.
+
+- **`draugr init --per-directory` puts each commented image entry on the component that builds it.** A Dockerfile in a sub-app gives that sub-app's component its own `images:` entry, named after it.
+
+- **`draugr tools install` names only tools that are missing.** A tool Draugr cannot provision, such as `git`, is mentioned only when it is not on `PATH`.
+
+- **A descriptor referencing an unset environment variable names the fix.** The error names each `${{ NAME }}` reference and says to set the variable or remove the reference.
+
 ## [0.157.0] - 2026-10-27
 
 ### Changed
@@ -6445,7 +6477,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.157.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.158.0...HEAD
+[0.158.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.158.0
 [0.157.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.157.0
 [0.156.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.156.0
 [0.155.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.155.1

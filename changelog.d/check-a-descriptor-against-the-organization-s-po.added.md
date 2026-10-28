@@ -1,1 +1,0 @@
-- **Check a descriptor against the organization's policy without a token in your shell.** `draugr login <server>` prints a code and an address to approve it at, then keeps a short-lived, check-only token in the OS keychain; `draugr doctor --policy` and the scan's policy check use it where `$DRAUGR_API_TOKEN` is not set. It never publishes a run. `draugr logout` revokes it.
