@@ -27,8 +27,8 @@ the [SAST glossary entry](../../docs/reference/glossary.md#sast-static-applicati
   Semgrep 1.70.0 or later; an earlier Semgrep refuses the option and the scan reports the error.
 - `--verbose` makes the JSON report list the files Semgrep skipped, with the reason, which it
   leaves out otherwise. Draugr reads the list for [unread files](#unread).
-- `--max-target-bytes 1000000` and `--timeout-threshold 3` are Semgrep's defaults, passed so the
-  reason an unread file is given states the limits the run applied.
+- `--max-target-bytes 1000000` skips files over 1 MB. `--timeout-threshold 3` stops running rules
+  on a file after three timeouts.
 - `--no-error` keeps the process successful when findings exist (findings live in the SARIF
   report, not the exit code; the [`sast`](../controllers/sast.md) controller judges severity).
 - `--metrics=off` avoids sending scan telemetry to the Semgrep registry.
@@ -60,21 +60,20 @@ the [SAST glossary entry](../../docs/reference/glossary.md#sast-static-applicati
 ## Unread
 
 Semgrep finishes with exit 0 and reports findings only from the files it checked. Draugr reads two
-gaps from the JSON report and lists each file as an `unread-files` caveat on the
-[`sast`](../controllers/sast.md#unread) control:
+gaps from the JSON report and lists each file as an `unread-files` caveat:
 
 - **A file over 1 MB**, which Semgrep lists under `paths.skipped` with the reason
   `exceeded_size_limit` and does not scan: `over 1 MB, not scanned`. Semgrep applies the limit
   before it matches files to rule languages, so Draugr lists the file only where a configured rule
-  reads its language, by extension, file name or `#!` line. A ruleset Semgrep fetches cannot be
-  read beforehand and is taken to read every file; `p/default` holds `regex` and `generic` rules,
-  which do.
-- **A rule that timed out on a file**, an entry in `errors` of type `Timeout`: `1 rule timed out:
-  "x"`. When three rules time out on one file, Semgrep runs no further rule on it, and the reason
-  ends `rest not run`.
+  reads its language, by extension, file name or `#!` line. A ruleset Semgrep fetches is taken to
+  read every file.
+- **A rule that timed out on a file**, an entry in `errors` of type `Timeout`: `1 rule timed out,
+  not checked: "x"`. When three rules time out on one file, Semgrep runs no further rule on it, and
+  the reason reads `3 rules timed out, other rules not run`.
 
 A file Semgrep was told to skip, by `.semgrepignore`, `.gitignore` or a component's `ignore:`, is
-not listed.
+not listed. [`sast`](../controllers/sast.md#unread) has what to do about each and how to fail the
+run on them.
 
 ## Severity
 

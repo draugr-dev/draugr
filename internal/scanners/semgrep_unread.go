@@ -136,12 +136,12 @@ func semgrepUnread(doc []byte, dir string, covers semgrepLanguages, prefixes []s
 // file, and the reason says that too, because those rules have no entry to name them by.
 func semgrepTimeoutReason(rules []string) string {
 	if len(rules) == 0 {
-		return "a rule timed out"
+		return "a rule timed out, not checked"
 	}
 	slices.Sort(rules)
-	reason := english.Count(len(rules), "rule") + " timed out"
+	reason := english.Count(len(rules), "rule") + " timed out, not checked"
 	if len(rules) >= semgrepTimeoutThreshold {
-		reason += ", rest not run"
+		reason = english.Count(len(rules), "rule") + " timed out, other rules not run"
 	}
 	quoted := make([]string, len(rules))
 	for i, r := range rules {

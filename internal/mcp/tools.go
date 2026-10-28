@@ -730,7 +730,8 @@ type ScanOutput struct {
 	// Uncovered names surfaces the descriptor declares that no enabled control looked at.
 	Uncovered []string `json:"uncovered,omitempty" jsonschema:"surfaces this descriptor declares that no enabled control examined"`
 	// Unread names the dependency files in scope that no scanner took packages from, the
-	// Terraform files calling a module no scanner loaded, and the files the secrets scan skipped.
+	// Terraform files calling a module no scanner loaded, the files the secrets scan skipped, and
+	// the source files Semgrep skipped or did not finish.
 	Unread []UnreadFile `json:"unread,omitempty" jsonschema:"dependency files no scanner took packages from, Terraform files calling a module no scanner loaded, and files the secrets scanner skipped; what they declare or hold was not checked"`
 	// Unexamined is the same sentence for everything no control covers at all.
 	Unexamined string `json:"unexamined" jsonschema:"what a Draugr scan does not examine, whatever the verdict"`
@@ -741,12 +742,13 @@ type ScanOutput struct {
 }
 
 // UnreadFile is a dependency file no scanner serving a control took packages from, a file calling
-// a Terraform module no scanner loaded, or a file the secrets scan skipped.
+// a Terraform module no scanner loaded, a file the secrets scan skipped, or a source file Semgrep
+// skipped or did not finish.
 type UnreadFile struct {
 	Component  string   `json:"component"`
 	Repository string   `json:"repository,omitempty"`
 	Path       string   `json:"path"`
-	Reason     string   `json:"reason" jsonschema:"no lockfile, no pinned versions, no packages read, modules not loaded, name has an archive extension, or no files read"`
+	Reason     string   `json:"reason" jsonschema:"no lockfile, no pinned versions, no packages read, modules not loaded, name has an archive extension, no files read, 'over 1 MB, not scanned', or a count of rules that timed out with their ids"`
 	Controls   []string `json:"controls" jsonschema:"the controls whose scanners did not read it"`
 }
 

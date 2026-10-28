@@ -95,13 +95,13 @@ func TestASkippedOrUnfinishedSemgrepFileIsReportedUnread(t *testing.T) {
 	want := map[string][]sarif.Input{
 		"one": {
 			{Scanner: "semgrep", Repository: "one", Path: "src/big.js", Unread: "over 1 MB, not scanned"},
-			{Scanner: "semgrep", Repository: "one", Path: "src/slow.js", Unread: `1 rule timed out: "slow-0"`},
+			{Scanner: "semgrep", Repository: "one", Path: "src/slow.js", Unread: `1 rule timed out, not checked: "slow-0"`},
 		},
 		"two": {
 			{Scanner: "semgrep", Repository: "two", Path: "src/big.js", Unread: "over 1 MB, not scanned"},
 			{Scanner: "semgrep", Repository: "two", Path: "src/big.py", Unread: "over 1 MB, not scanned"},
 			{Scanner: "semgrep", Repository: "two", Path: "src/many.js",
-				Unread: `3 rules timed out, rest not run: "slow-0", "slow-1", "slow-2"`},
+				Unread: `3 rules timed out, other rules not run: "slow-0", "slow-1", "slow-2"`},
 		},
 	}
 	results := map[string][]string{
@@ -173,10 +173,10 @@ func TestSemgrepUnreadFilesOfTwoRepositoriesStayApart(t *testing.T) {
 		Component: "app", Control: "sast", Scanners: []string{"semgrep"},
 		Unread: []engine.UnreadInput{
 			{Repository: "one", Path: "src/big.js", Reason: "over 1 MB, not scanned"},
-			{Repository: "one", Path: "src/slow.js", Reason: `1 rule timed out: "slow-0"`},
+			{Repository: "one", Path: "src/slow.js", Reason: `1 rule timed out, not checked: "slow-0"`},
 			{Repository: "two", Path: "src/big.js", Reason: "over 1 MB, not scanned"},
 			{Repository: "two", Path: "src/big.py", Reason: "over 1 MB, not scanned"},
-			{Repository: "two", Path: "src/many.js", Reason: `3 rules timed out, rest not run: "slow-0", "slow-1", "slow-2"`},
+			{Repository: "two", Path: "src/many.js", Reason: `3 rules timed out, other rules not run: "slow-0", "slow-1", "slow-2"`},
 		},
 	}}
 	if !reflect.DeepEqual(res.Inputs, want) {
@@ -217,10 +217,10 @@ func TestSemgrepTimeoutReason(t *testing.T) {
 		rules []string
 		want  string
 	}{
-		{nil, "a rule timed out"},
-		{[]string{"b"}, `1 rule timed out: "b"`},
-		{[]string{"b", "a"}, `2 rules timed out: "a", "b"`},
-		{[]string{"c", "b", "a", "d"}, `4 rules timed out, rest not run: "a", "b", "c", "d"`},
+		{nil, "a rule timed out, not checked"},
+		{[]string{"b"}, `1 rule timed out, not checked: "b"`},
+		{[]string{"b", "a"}, `2 rules timed out, not checked: "a", "b"`},
+		{[]string{"c", "b", "a", "d"}, `4 rules timed out, other rules not run: "a", "b", "c", "d"`},
 	} {
 		if got := semgrepTimeoutReason(tc.rules); got != tc.want {
 			t.Errorf("%v: %q, want %q", tc.rules, got, tc.want)
@@ -242,8 +242,8 @@ func TestSemgrepUnreadJoinsReasonsForOneFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []sarif.Input{
-		{Path: "a.js", Unread: `over 1 MB, not scanned, 1 rule timed out: "r1"`},
-		{Path: "b.js", Unread: "a rule timed out"},
+		{Path: "a.js", Unread: `over 1 MB, not scanned, 1 rule timed out, not checked: "r1"`},
+		{Path: "b.js", Unread: "a rule timed out, not checked"},
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("inputs\n%+v\nwant\n%+v", got, want)

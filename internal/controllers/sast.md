@@ -30,23 +30,25 @@ A source file is **unread** when Semgrep left it out of the scan or stopped chec
 every rule had run. Semgrep exits 0 either way and reports findings only from what it checked, so
 the report lists each such file under **Caveats** as `unread-files`, with a reason:
 
-```
+```console
+$ draugr scan --no-publish
+…
 CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
   Component  What         Caveat        Why
   app        src/big.js   unread-files  over 1 MB, not scanned (sast)
-  app        src/slow.js  unread-files  1 rule timed out: "slow-0" (sast)
+  app        src/slow.js  unread-files  1 rule timed out, not checked: "slow-0" (sast)
 ```
 
 | Reason | What happened | Fix |
 |---|---|---|
-| `over 1 MB, not scanned` | the file is over Semgrep's size limit, and no rule ran on it | split the file, or exclude it with `ignore:` if it is generated |
-| `1 rule timed out: "x"` | the rule ran out of time on the file; the other rules ran | split the file, or set `config` to a ruleset without the rule |
-| `3 rules timed out, rest not run: "x", "y", "z"` | three rules timed out, and Semgrep ran no further rule on the file | as above; the rules not run have no findings here |
+| `over 1 MB, not scanned` | the file is over Semgrep's size limit, and no rule ran on it | exclude it with `ignore:` (usually generated or minified), or split it |
+| `1 rule timed out, not checked: "x"` | the rule ran out of time on the file; the other rules ran | split the file, or set `config` to a ruleset without the rule |
+| `3 rules timed out, other rules not run: "x", "y", "z"` | three rules timed out, and Semgrep ran no further rule on the file | as above; the rules not run were not checked |
 
 A file over the limit is listed only where a configured rule reads its language. Draugr cannot read
 a ruleset Semgrep fetches, such as `p/default`, and takes it to read every file, so with one every
-file over the limit is listed. To fail the run on these, set `config.gate.failOnCaveats: [unread-files]`, or
-pass `--fail-on-caveats unread-files` for one run.
+file over the limit is listed. To fail the run on these, set
+`config.gate.failOnCaveats: [unread-files]`, or pass `--fail-on-caveats unread-files` for one run.
 
 `report.json` carries every unread file under `dependencyFiles`, see the
 [report schema](../../docs/reference/report-schema.md).
