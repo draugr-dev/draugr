@@ -270,11 +270,18 @@ func substitute(root *yaml.Node, where string) error {
 		// Worded to read the same for one name or several, without a count helper: pkg/saga is
 		// public API and imports nothing from internal/.
 		return fmt.Errorf("%s references %s, which $%s does not list. Set %s=%s in "+
-			"the pipeline's environment (comma-separated), listing only variables that hold no secret",
+			"the pipeline's environment, comma-separated. List only variables that hold no secret",
 			where, envRefs(refused), SagaEnvsVar, SagaEnvsVar, strings.Join(refused, ","))
 	}
 	if len(missing) > 0 {
-		return fmt.Errorf("%s references %s, which the environment does not set", where, envRefs(missing))
+		// No closing full stop, here or above: an error string is wrapped and joined by its
+		// callers, and staticcheck holds every one in the package to that.
+		fix := "Set them, or remove the references"
+		if len(missing) == 1 {
+			fix = "Set it, or remove the reference"
+		}
+		return fmt.Errorf("%s references %s, which the environment does not set. %s",
+			where, envRefs(missing), fix)
 	}
 	return nil
 }

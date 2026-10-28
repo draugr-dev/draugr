@@ -1,0 +1,1 @@
+- **A descriptor referencing an unset environment variable names the fix.** The error names each `${{ NAME }}` reference and says to set the variable or remove the reference.

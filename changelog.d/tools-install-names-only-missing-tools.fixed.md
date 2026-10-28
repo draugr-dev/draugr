@@ -1,1 +1,1 @@
-- **`draugr tools install` no longer asks you to install a tool already on `PATH`.** A descriptor needing `git`, with `git` installed, printed a line saying Draugr cannot provision it and to install it separately. Each tool it cannot provision is now looked up the way `draugr doctor` does, and only a missing one is named.
+- **`draugr tools install` names only tools that are missing.** A tool Draugr cannot provision, such as `git`, is mentioned only when it is not on `PATH`.

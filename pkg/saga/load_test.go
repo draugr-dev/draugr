@@ -143,7 +143,8 @@ release:
   version: "${{ NOT_SET_VAR_XYZ }}"
 `
 	_, err := Load([]byte(src))
-	if err == nil || err.Error() != "saga references ${{ NOT_SET_VAR_XYZ }}, which the environment does not set" {
+	if err == nil || err.Error() != "saga references ${{ NOT_SET_VAR_XYZ }}, which the environment does not set. "+
+		"Set it, or remove the reference" {
 		t.Fatalf("expected missing-var error, got %v", err)
 	}
 }
@@ -179,9 +180,22 @@ components:
 func TestEnvSubstitutionNamesEveryUndefinedReference(t *testing.T) {
 	t.Setenv(SagaEnvsVar, "NOT_SET_A,NOT_SET_B")
 	_, err := Load([]byte("release:\n  version: \"${{ NOT_SET_A }}-${{ NOT_SET_B }}\"\n"))
-	want := "saga references ${{ NOT_SET_A }}, ${{ NOT_SET_B }}, which the environment does not set"
+	want := "saga references ${{ NOT_SET_A }}, ${{ NOT_SET_B }}, which the environment does not set. " +
+		"Set them, or remove the references"
 	if err == nil || err.Error() != want {
 		t.Errorf("err = %v, want %q", err, want)
+	}
+}
+
+// Several unlisted names: each is named, and the Set line lists them all.
+func TestEnvSubstitutionRefusesSeveralUnlistedNames(t *testing.T) {
+	t.Setenv(SagaEnvsVar, "STAGING_HOST")
+	_, err := Load([]byte("release:\n  version: \"${{ TOKEN_A }}-${{ TOKEN_B }}\"\n"))
+	want := "saga references ${{ TOKEN_A }}, ${{ TOKEN_B }}, which $DRAUGR_SAGA_ENVS does not list. " +
+		"Set DRAUGR_SAGA_ENVS=TOKEN_A,TOKEN_B in the pipeline's environment, comma-separated. " +
+		"List only variables that hold no secret"
+	if err == nil || err.Error() != want {
+		t.Errorf("err = %v\nwant %s", err, want)
 	}
 }
 
@@ -191,7 +205,8 @@ func TestEnvSubstitutionNamesEveryUndefinedReference(t *testing.T) {
 func TestEnvSubstitutionRefusesAnUnlistedName(t *testing.T) {
 	t.Setenv(SagaEnvsVar, "STAGING_HOST")
 	want := "saga references ${{ AWS_SECRET_ACCESS_KEY }}, which $DRAUGR_SAGA_ENVS does not list. " +
-		"Set DRAUGR_SAGA_ENVS=AWS_SECRET_ACCESS_KEY in the pipeline's environment (comma-separated), listing only variables that hold no secret"
+		"Set DRAUGR_SAGA_ENVS=AWS_SECRET_ACCESS_KEY in the pipeline's environment, comma-separated. " +
+		"List only variables that hold no secret"
 	attack := `
 project: x
 release:
