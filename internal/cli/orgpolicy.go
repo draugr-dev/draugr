@@ -99,6 +99,7 @@ func checkOrgPolicyAs(ctx context.Context, model *saga.Model, effective, held st
 			reasons = append(reasons, held)
 			continue
 		}
+		dest.Project = model.ProjectName()
 		outcome, err := policyChecker(ctx, dest, effective)
 		if errors.Is(err, publish.ErrNoPolicyCheck) {
 			reasons = append(reasons, dest.Endpoint+" checks no organization policy")

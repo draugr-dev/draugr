@@ -337,10 +337,11 @@ func TestDoctorUsesTheLoginWhereNoTokenIsSet(t *testing.T) {
 		Server: "https://draugr.example", Token: "drgl_secret", Email: "ana@acme.com", Organization: "acme",
 		Expires: time.Now().UTC().Truncate(24 * time.Hour).Add(48*time.Hour + 6*time.Hour + 12*time.Minute),
 	}}})
-	var sent []string
+	var sent, projects []string
 	prev := policyChecker
 	policyChecker = func(_ context.Context, dest publish.APIDestination, _ string) (skald.PolicyOutcome, error) {
 		sent = append(sent, dest.Token)
+		projects = append(projects, dest.Project)
 		return skald.PolicyOutcome{Schema: 1, PolicyVersion: 7, Outcome: "none"}, nil
 	}
 	t.Cleanup(func() { policyChecker = prev })
@@ -351,6 +352,10 @@ func TestDoctorUsesTheLoginWhereNoTokenIsSet(t *testing.T) {
 	}
 	if len(sent) != 1 || sent[0] != "drgl_secret" {
 		t.Errorf("sent %v", sent)
+	}
+	// The login's check names the descriptor's project, the route a person's token is accepted on.
+	if m, err := saga.Load([]byte(publishingSaga)); err != nil || len(projects) != 1 || projects[0] != m.ProjectName() || projects[0] == "" {
+		t.Errorf("the check named project %v, want the descriptor's (%v)", projects, err)
 	}
 	if !strings.Contains(out.String(), doctorLoginOutput) {
 		t.Errorf("doctor does not say whose login asked:\n%s", out.String())

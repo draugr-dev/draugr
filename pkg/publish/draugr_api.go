@@ -68,6 +68,10 @@ type APIDestination struct {
 	// Login is the person's login the token came from, nil for a token from the environment. Only
 	// ResolvePolicyAPI sets it, so only a policy check carries one.
 	Login *login.Login
+	// Project is the descriptor's project, which a login's policy check names in its path. A
+	// token from the environment is an ingest token, bound to one project by the server, and the
+	// check it makes names none.
+	Project string
 }
 
 // ErrOriginRefused is a url, written in the descriptor or in the project's draugr.config.yaml,

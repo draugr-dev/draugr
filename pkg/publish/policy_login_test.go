@@ -2,7 +2,9 @@ package publish
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -189,9 +191,11 @@ func TestARefusedLoginSaysToLogInAgain(t *testing.T) {
 		body   string
 		want   string
 	}{
-		"expired or revoked": {http.StatusUnauthorized, `{"error":"invalid_token"}`, "has expired or was revoked; run `draugr login https://draugr.example`"},
-		"no check scope":     {http.StatusForbidden, `{"error":"insufficient_scope"}`, "does not carry the check scope"},
-		"another refusal":    {http.StatusForbidden, `{"error":"forbidden","detail":"not a member"}`, "forbidden: not a member"},
+		"expired or revoked":     {http.StatusUnauthorized, `{"error":"invalid_token"}`, "has expired or was revoked; run `draugr login https://draugr.example`"},
+		"no check scope":         {http.StatusForbidden, `{"error":"insufficient_scope"}`, "does not carry the check scope"},
+		"no role in the project": {http.StatusForbidden, `{"error":"forbidden","detail":"not a member"}`, `holds no role in project "payments"`},
+		"an unknown project":     {http.StatusNotFound, `{"error":"not_found"}`, `has no project "payments", or it is archived`},
+		"another refusal":        {http.StatusTooManyRequests, `{"error":"rate_limited","detail":"slow down"}`, "rate_limited: slow down"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -201,8 +205,9 @@ func TestARefusedLoginSaysToLogInAgain(t *testing.T) {
 			defer srv.Close()
 			l := login.Login{Server: "https://draugr.example", Token: "drgl_login"} // #nosec G101 -- a placeholder the test server never checks
 			_, err := PolicyClient{client: http.DefaultClient}.Check(context.Background(),
-				APIDestination{Endpoint: srv.URL, Token: l.Token, Login: &l}, "project: payments\n")
-			if err == nil || !strings.Contains(err.Error(), tc.want) || strings.Contains(err.Error(), "drgl_login") {
+				APIDestination{Endpoint: srv.URL, Token: l.Token, Login: &l, Project: "payments"}, "project: payments\n")
+			if err == nil || !strings.Contains(err.Error(), tc.want) || strings.Contains(err.Error(), "drgl_login") ||
+				errors.Is(err, ErrNoPolicyCheck) {
 				t.Errorf("err = %v", err)
 			}
 		})
@@ -217,5 +222,83 @@ func TestARefusedLoginSaysToLogInAgain(t *testing.T) {
 		APIDestination{Endpoint: srv.URL, Token: "drgr_ci_test"}, "project: payments\n") // #nosec G101 -- a placeholder the test server never checks
 	if err == nil || strings.Contains(err.Error(), "draugr login") || !strings.Contains(err.Error(), "unknown token") {
 		t.Errorf("err = %v", err)
+	}
+}
+
+// planeStub answers the two policy-check routes the way the server does: the ingest route takes
+// only an ingest token and judges that token's own project, and a person's check token is accepted
+// only on the route naming a project, by any role in it.
+func planeStub(t *testing.T, got *[]string) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		*got = append(*got, r.Method+" "+r.URL.EscapedPath()+" "+auth)
+		answer := func() {
+			_ = json.NewEncoder(w).Encode(map[string]any{"schema": 1, "project": "payments", "policyVersion": 3, "outcome": "pass", "passed": true})
+		}
+		switch {
+		case r.URL.Path == "/v1/ingest/policy/check" && auth == "Bearer drgr_ci_test":
+			answer()
+		case r.URL.Path == "/v1/ingest/policy/check":
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = io.WriteString(w, `{"error":"token_invalid"}`)
+		case r.URL.Path == "/v1/projects/payments/policy/check" && auth == "Bearer drgl_login":
+			answer()
+		case strings.HasPrefix(r.URL.Path, "/v1/projects/"):
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = io.WriteString(w, `{"error":"not_found"}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+// A login's token is a person's check token, which the server refuses on the ingest route, so the
+// check it makes names the descriptor's project. The pipeline's ingest token keeps the ingest route.
+func TestALoginChecksThroughTheProjectRoute(t *testing.T) {
+	var got []string
+	srv := planeStub(t, &got)
+	l := login.Login{Server: srv.URL, Token: "drgl_login"} // #nosec G101 -- a placeholder the test server checks
+	out, err := PolicyClient{client: http.DefaultClient}.Check(context.Background(),
+		APIDestination{Endpoint: srv.URL, Token: l.Token, Login: &l, Project: "payments"}, "project: payments\n")
+	if err != nil || out.PolicyVersion != 3 {
+		t.Fatalf("outcome %+v, err %v, requests %v", out, err, got)
+	}
+	if len(got) != 1 || got[0] != "POST /v1/projects/payments/policy/check Bearer drgl_login" {
+		t.Errorf("requests = %v", got)
+	}
+
+	got = nil
+	// #nosec G101 -- a placeholder the test server checks, not a credential.
+	if _, err := (PolicyClient{client: http.DefaultClient}).Check(context.Background(),
+		APIDestination{Endpoint: srv.URL, Token: "drgr_ci_test", Project: "payments"}, "project: payments\n"); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0] != "POST /v1/ingest/policy/check Bearer drgr_ci_test" {
+		t.Errorf("the pipeline's token left the ingest route: %v", got)
+	}
+
+	got = nil
+	_, err = PolicyClient{client: http.DefaultClient}.Check(context.Background(),
+		APIDestination{Endpoint: srv.URL, Token: l.Token, Login: &l, Project: "pay ments/x"}, "")
+	if len(got) != 1 || !strings.HasPrefix(got[0], "POST /v1/projects/pay%20ments%2Fx/policy/check ") {
+		t.Errorf("the project was not escaped into one path segment: %v", got)
+	}
+	if err == nil || errors.Is(err, ErrNoPolicyCheck) || !strings.Contains(err.Error(), `has no project "pay ments/x"`) {
+		t.Errorf("an unknown project read as a server with no policy: %v", err)
+	}
+}
+
+// A descriptor with no project gives a login's check nothing to name, so nothing is sent.
+func TestALoginCheckNeedsTheDescriptorsProject(t *testing.T) {
+	var got []string
+	srv := planeStub(t, &got)
+	l := login.Login{Server: srv.URL, Token: "drgl_login"} // #nosec G101 -- a placeholder the test server checks
+	_, err := PolicyClient{client: http.DefaultClient}.Check(context.Background(),
+		APIDestination{Endpoint: srv.URL, Token: l.Token, Login: &l}, "")
+	if err == nil || !strings.Contains(err.Error(), "add `project:` to the descriptor") || len(got) != 0 {
+		t.Errorf("err = %v, requests %v", err, got)
 	}
 }

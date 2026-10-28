@@ -1369,8 +1369,9 @@ With neither an endpoint nor a token it prints
 error; with only one of the two it is an error either way. `$DRAUGR_API_TOKEN` is the project's
 ingest token, which belongs in CI.
 
-On your own machine, [`draugr login`](#draugr-login-server) stands in for the token, and doctor
-names whose login the server was asked with and when it expires:
+On your own machine, [`draugr login`](#draugr-login-server) stands in for the token. A login's
+check is made for the project the descriptor's `project:` names, by any role you hold in it, and
+doctor names whose login the server was asked with and when it expires:
 
 ```console
 $ draugr doctor --policy draugr.saga.yaml
@@ -1379,7 +1380,8 @@ POLICY  payments · version 7 · https://draugr.example
 ```
 
 A login that has expired, been revoked, or lacks the `check` scope leaves the policy not checked,
-and the reason names the `draugr login` command to run.
+and the reason names the `draugr login` command to run. So does a descriptor with no `project:`, a
+project the server does not have, and one you hold no role in, each named in the reason.
 
 ### Network
 
