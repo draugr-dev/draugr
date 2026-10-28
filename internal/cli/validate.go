@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/sagafetch"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -116,10 +117,10 @@ func runValidate(args []string, w io.Writer) error {
 	}
 
 	if failed > 0 {
-		return fmt.Errorf("%d of %d Saga file(s) invalid", failed, len(paths))
+		return fmt.Errorf("%d of %s invalid", failed, english.Count(len(paths), "Saga file"))
 	}
 	if len(paths) > 1 {
-		_, _ = fmt.Fprintf(w, "\n%d Saga file(s) valid\n", len(paths))
+		_, _ = fmt.Fprintf(w, "\n%s valid\n", english.Count(len(paths), "Saga file"))
 	}
 	return nil
 }

@@ -1192,7 +1192,7 @@ $ draugr validate
     parse saga: unknown field "failOnn" in config.gate. Check the spelling, or see https://draugr.dev/docs/latest/reference/saga-schema/
 ✗ svc-c/worker.saga.yaml
     parse saga: release.name was removed: it named the project, which is what the top-level `project` names. Move the value there, `project: payments-api`, and a release keeps only its version
-draugr: 3 of 4 Saga file(s) invalid
+draugr: 3 of 4 Saga files invalid
 ```
 
 The section named is the path you write, which is also the heading to look for in the

@@ -488,6 +488,14 @@ func TestACoverageNoteNamesItsComponent(t *testing.T) {
 	}
 }
 
+// The HTML evidence counts SBOM documents with a noun that agrees with the number.
+func TestHTMLCountsSBOMDocuments(t *testing.T) {
+	out := renderWith(t, htmlReporter{}, goldenFullData())
+	if !strings.Contains(out, "2 documents (spdx-json)") {
+		t.Errorf("want the SBOM count with its noun in the evidence:\n%s", out)
+	}
+}
+
 // The caveat on an unclassified run names commands that work where the reader is. `draugr
 // classify` writes into a descriptor and refuses without one, so a run that had none has to name
 // the command that writes it first.

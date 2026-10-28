@@ -100,7 +100,7 @@ func runToolsOutdated(ctx context.Context, w io.Writer, asJSON bool, client *htt
 		// reads "could not reach npm" as "current", which is the confusion `Drift.Err` is shaped
 		// to prevent and the table mode already avoids.
 		if unreachable > 0 {
-			return fmt.Errorf("%d tool(s) could not be compared", unreachable)
+			return fmt.Errorf("%s could not be compared", english.Count(unreachable, "tool"))
 		}
 		return nil
 	}
@@ -138,7 +138,7 @@ func runToolsOutdated(ctx context.Context, w io.Writer, asJSON bool, client *htt
 	}
 	_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, line))
 	if unknown > 0 {
-		return fmt.Errorf("%d tool(s) could not be compared", unknown)
+		return fmt.Errorf("%s could not be compared", english.Count(unknown, "tool"))
 	}
 	return nil
 }
@@ -502,7 +502,7 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, all bool, opts t
 	}
 
 	if failed > 0 {
-		return fmt.Errorf("%d tool(s) failed to install", failed)
+		return fmt.Errorf("%s failed to install", english.Count(failed, "tool"))
 	}
 	return nil
 }

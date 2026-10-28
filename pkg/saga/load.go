@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/draugr-dev/draugr/internal/english"
 )
 
 // envPattern matches ${{ VAR_NAME }} with optional surrounding whitespace.
@@ -47,8 +49,8 @@ func loadModel(data []byte, validate bool) (*Model, error) {
 		// fragments cannot be honored from bytes alone. Saying so beats returning a model that
 		// silently describes less than the file does.
 		if len(m.Fragments) > 0 {
-			return nil, fmt.Errorf("this descriptor names %d fragment(s), which are resolved "+
-				"relative to the file. Load it from a path rather than from bytes", len(m.Fragments))
+			return nil, fmt.Errorf("this descriptor names %s, resolved relative to the file. "+
+				"Load it from a path rather than from bytes", english.Count(len(m.Fragments), "fragment"))
 		}
 		if err := m.Validate(); err != nil {
 			return nil, err
@@ -266,12 +268,14 @@ func substitutable(name string) bool {
 func substitute(root *yaml.Node, where string) error {
 	missing, refused := substituteEnv(root)
 	if len(refused) > 0 {
-		return fmt.Errorf("environment variable(s) referenced in %s and not listed in $%s: %s. Set %s=%s in "+
+		return fmt.Errorf("%s referenced in %s and not listed in $%s: %s. Set %s=%s in "+
 			"the pipeline's environment (comma-separated), listing only variables that hold no secret",
-			where, SagaEnvsVar, strings.Join(refused, ", "), SagaEnvsVar, strings.Join(refused, ","))
+			english.Noun(len(refused), "environment variable"), where, SagaEnvsVar,
+			strings.Join(refused, ", "), SagaEnvsVar, strings.Join(refused, ","))
 	}
 	if len(missing) > 0 {
-		return fmt.Errorf("undefined environment variable(s) referenced in %s: %s", where, strings.Join(missing, ", "))
+		return fmt.Errorf("undefined %s referenced in %s: %s",
+			english.Noun(len(missing), "environment variable"), where, strings.Join(missing, ", "))
 	}
 	return nil
 }

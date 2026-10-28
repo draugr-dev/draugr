@@ -1,0 +1,1 @@
+- **Counts in messages agree with their noun.** `draugr tools install`, `tools outdated`, `validate` and `doctor`, the TLS certificate expiry findings, the HTML report's SBOM line and descriptor loading errors say `1 tool` and `3 days` where they printed `tool(s)` and `day(s)`.

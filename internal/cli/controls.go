@@ -24,7 +24,7 @@ func newControlsCommand() *cobra.Command {
 		Use:   "controls [control]",
 		Short: "List the security controls Draugr can run, their purpose, and scanners",
 		Long: "List every security control Draugr can run, what it checks, its scope, and which\n" +
-			"scanner(s) implement it (default, plus any opt-in alternatives). Enable a control in\n" +
+			"scanners implement it (default, plus any opt-in alternatives). Enable a control in\n" +
 			"your Saga under config.controls.<name> (or per component).\n\n" +
 			"--options adds what each scanner accepts in its Saga block. A scanner listed with no\n" +
 			"options accepts none, and anything written under its block is rejected before the\n" +

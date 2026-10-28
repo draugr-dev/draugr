@@ -143,7 +143,7 @@ release:
   version: "${{ NOT_SET_VAR_XYZ }}"
 `
 	_, err := Load([]byte(src))
-	if err == nil || err.Error() != "undefined environment variable(s) referenced in saga: NOT_SET_VAR_XYZ" {
+	if err == nil || err.Error() != "undefined environment variable referenced in saga: NOT_SET_VAR_XYZ" {
 		t.Fatalf("expected missing-var error, got %v", err)
 	}
 }
@@ -180,7 +180,7 @@ components:
 // loading a descriptor cannot be used to learn which variables exist either.
 func TestEnvSubstitutionRefusesAnUnlistedName(t *testing.T) {
 	t.Setenv(SagaEnvsVar, "STAGING_HOST")
-	want := "environment variable(s) referenced in saga and not listed in $DRAUGR_SAGA_ENVS: AWS_SECRET_ACCESS_KEY. " +
+	want := "environment variable referenced in saga and not listed in $DRAUGR_SAGA_ENVS: AWS_SECRET_ACCESS_KEY. " +
 		"Set DRAUGR_SAGA_ENVS=AWS_SECRET_ACCESS_KEY in the pipeline's environment (comma-separated), listing only variables that hold no secret"
 	attack := `
 project: x

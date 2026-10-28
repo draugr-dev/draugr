@@ -1798,7 +1798,7 @@ about what they would have found. For everything the tool printed, re-run with
 <table class="provenance">
 <tbody>
 {{if .Gate}}<tr><td><span class="mk">gate</span></td><td>{{.Gate}}</td></tr>{{end}}
-{{if .SBOMCount}}<tr><td><span class="mk">sbom</span></td><td>{{.SBOMCount}} document(s) ({{.SBOMFormat}})</td></tr>{{end}}
+{{if .SBOMCount}}<tr><td><span class="mk">sbom</span></td><td>{{plural .SBOMCount "document"}} ({{.SBOMFormat}})</td></tr>{{end}}
 </tbody>
 </table>
 {{end}}

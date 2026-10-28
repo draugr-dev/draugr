@@ -359,9 +359,9 @@ func runDoctor(
 		}
 		if !run.json {
 			_, _ = fmt.Fprintf(w, "\n%s\n", tui.For(w).Paint(tui.StyleFail,
-				fmt.Sprintf("%d declared surface(s) no enabled control looks at, and %s.", len(uncovered), why)))
+				fmt.Sprintf("%s no enabled control looks at, and %s.", english.Count(len(uncovered), "declared surface"), why)))
 		}
-		return fmt.Errorf("%d declared surface(s) not covered by an enabled control", len(uncovered))
+		return fmt.Errorf("%s not covered by an enabled control", english.Count(len(uncovered), "declared surface"))
 	}
 	if !run.json {
 		// "All required tools present" over an empty table is ambiguous: it reads the same

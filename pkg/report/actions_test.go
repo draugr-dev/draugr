@@ -679,8 +679,8 @@ func TestARuleActionCarriesTheScannersSummary(t *testing.T) {
 	}
 
 	got, _ = groupActions([]finding{
-		{control: "tls", ruleID: "tls-cert-expiring", location: "a.example", message: "Certificate expires in 3 day(s).", priority: "P2"},
-		{control: "tls", ruleID: "tls-cert-expiring", location: "b.example", message: "Certificate expires in 9 day(s).", priority: "P2"},
+		{control: "tls", ruleID: "tls-cert-expiring", location: "a.example", message: "Certificate expires in 3 days.", priority: "P2"},
+		{control: "tls", ruleID: "tls-cert-expiring", location: "b.example", message: "Certificate expires in 9 days.", priority: "P2"},
 	}, nil)
 	if len(got) != 1 || got[0].summary != "" {
 		t.Errorf("summary = %q, want none where the findings disagree", got[0].summary)

@@ -334,6 +334,9 @@ func TestLoadFromBytesRefusesADescriptorWithFragments(t *testing.T) {
 	if !strings.Contains(err.Error(), "Load it from a path") {
 		t.Errorf("error should say what to do instead: %v", err)
 	}
+	if !strings.Contains(err.Error(), "names 1 fragment, resolved") {
+		t.Errorf("the count should agree with its noun: %v", err)
+	}
 }
 
 // Provenance is what pays for the split: the resolution says where every part came from.
@@ -550,7 +553,7 @@ func TestLoadFragmentRejectsBrokenYAMLAndUndefinedVars(t *testing.T) {
 	}
 	t.Setenv(SagaEnvsVar, "NOPE_UNSET_VAR")
 	_, err := LoadFragment([]byte("components: [{ name: \"${{ NOPE_UNSET_VAR }}\" }]"), "f.saga-fragment.yaml")
-	if err == nil || !strings.Contains(err.Error(), "undefined environment variable(s) referenced in fragment") ||
+	if err == nil || !strings.Contains(err.Error(), "undefined environment variable referenced in fragment") ||
 		!strings.Contains(err.Error(), "NOPE_UNSET_VAR") {
 		t.Errorf("an undefined variable should be named: %v", err)
 	}

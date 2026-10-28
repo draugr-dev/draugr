@@ -741,6 +741,10 @@ func TestDoctorFailsOnUncoveredOnlyWhenAsked(t *testing.T) {
 			if (err != nil) != c.wantErr {
 				t.Errorf("error = %v, want error: %v\n%s", err, c.wantErr, out.String())
 			}
+			// An image and a host, each uncovered: the count agrees with its noun.
+			if c.wantErr && err.Error() != "2 declared surfaces not covered by an enabled control" {
+				t.Errorf("error = %q", err)
+			}
 		})
 	}
 }

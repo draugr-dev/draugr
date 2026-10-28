@@ -135,6 +135,9 @@ func TestRunToolsInstallFailure(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when an install fails")
 	}
+	if err.Error() != "1 tool failed to install" {
+		t.Errorf("err = %q, want a count that agrees with its noun", err)
+	}
 	if !strings.Contains(out.String(), "✗ trivy") {
 		t.Errorf("output should flag the failed tool\n%s", out.String())
 	}
@@ -944,6 +947,9 @@ func TestToolsOutdatedJSONFailsWhenAnUpstreamCouldNotBeAsked(t *testing.T) {
 	err := runToolsOutdated(context.Background(), &out, true, unreachableClient())
 	if err == nil {
 		t.Fatal("every upstream unreachable and the exit code said success")
+	}
+	if !strings.HasSuffix(err.Error(), " tools could not be compared") {
+		t.Errorf("err = %v, want a count that agrees with its noun", err)
 	}
 	// The rows are written even so, because a pipeline wants both the reasons and the failure.
 	var rows []struct {

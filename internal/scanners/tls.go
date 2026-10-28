@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -234,16 +235,16 @@ func certificateFindings(uri string, state tls.ConnectionState, now time.Time, t
 		out = append(out, sarif.Result{
 			Tool: "draugr-tls", RuleID: "tls-cert-expiring", Level: sarif.LevelError,
 			Score: 7.0, HasScore: true,
-			Message: fmt.Sprintf("Certificate expires in %d day(s), on %s. Renew it before it lapses.",
-				int(remaining.Hours()/24), leaf.NotAfter.UTC().Format(time.DateOnly)),
+			Message: fmt.Sprintf("Certificate expires in %s, on %s. Renew it before it lapses.",
+				english.Count(int(remaining.Hours()/24), "day"), leaf.NotAfter.UTC().Format(time.DateOnly)),
 			Location: sarif.Location{URI: uri},
 		})
 	case remaining < time.Duration(th.warnDays)*24*time.Hour:
 		out = append(out, sarif.Result{
 			Tool: "draugr-tls", RuleID: "tls-cert-expiring", Level: sarif.LevelWarning,
 			Score: 4.0, HasScore: true,
-			Message: fmt.Sprintf("Certificate expires in %d day(s), on %s. Schedule the renewal.",
-				int(remaining.Hours()/24), leaf.NotAfter.UTC().Format(time.DateOnly)),
+			Message: fmt.Sprintf("Certificate expires in %s, on %s. Schedule the renewal.",
+				english.Count(int(remaining.Hours()/24), "day"), leaf.NotAfter.UTC().Format(time.DateOnly)),
 			Location: sarif.Location{URI: uri},
 		})
 	}

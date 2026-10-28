@@ -109,6 +109,9 @@ func TestValidateReportsEveryFileAndFailsIfAnyIsInvalid(t *testing.T) {
 	if err == nil {
 		t.Fatal("one invalid file should fail the command")
 	}
+	if err.Error() != "1 of 2 Saga files invalid" {
+		t.Errorf("err = %q, want the count of each", err)
+	}
 	s := out.String()
 	// The valid one is still reported: a failure must not hide the rest.
 	if !strings.Contains(s, "good.saga.yaml is valid") {
@@ -128,7 +131,7 @@ func TestValidateExpandsGlobs(t *testing.T) {
 	if err := runValidate([]string{filepath.Join(dir, "*.saga.yaml")}, &out); err != nil {
 		t.Fatalf("glob validate: %v", err)
 	}
-	if !strings.Contains(out.String(), "2 Saga file(s) valid") {
+	if !strings.Contains(out.String(), "2 Saga files valid") {
 		t.Errorf("both files should be validated:\n%s", out.String())
 	}
 }

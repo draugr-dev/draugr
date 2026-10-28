@@ -230,6 +230,26 @@ func TestCertificateFindingsExpiry(t *testing.T) {
 	}
 }
 
+// The day count agrees with its noun, one day included.
+func TestCertificateFindingsCountDays(t *testing.T) {
+	for _, c := range []struct {
+		left time.Duration
+		want string
+	}{
+		{36 * time.Hour, "Certificate expires in 1 day, on "},
+		{5*24*time.Hour + time.Hour, "Certificate expires in 5 days, on "},
+		{20*24*time.Hour + time.Hour, "Certificate expires in 20 days, on "},
+	} {
+		cert := makeCert(t, testNow.Add(c.left), x509.SHA256WithRSA, rsaKey(t, 2048))
+		got := certificateFindings("https://example.test", tls.ConnectionState{
+			PeerCertificates: []*x509.Certificate{cert},
+		}, testNow, defaultThresholds())
+		if len(got) != 1 || !strings.HasPrefix(got[0].Message, c.want) {
+			t.Errorf("%s left: got %+v, want a message starting %q", c.left, got, c.want)
+		}
+	}
+}
+
 func TestCertificateFindingsWeakCrypto(t *testing.T) {
 	notAfter := testNow.Add(90 * 24 * time.Hour)
 
