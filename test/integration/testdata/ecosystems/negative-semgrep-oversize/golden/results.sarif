@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "negative-semgrep-oversize/"
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "fields": {
+              "repository": "./negative-semgrep-oversize",
+              "revision": "<cleared>"
+            },
+            "tool": "semgrep",
+            "version": "<cleared>"
+          }
+        ]
+      },
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/app.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 2
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "eval runs its argument as code"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "negative-semgrep-oversize",
+            "control": "sast",
+            "fingerprint": "<cleared>",
+            "priority": "P1",
+            "repository": "./negative-semgrep-oversize",
+            "tool": "Semgrep OSS"
+          },
+          "ruleId": "draugr-fixture-eval"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "eval runs its argument as code"
+              },
+              "help": {
+                "text": "eval runs its argument as code"
+              },
+              "id": "draugr-fixture-eval",
+              "name": "draugr-fixture-eval",
+              "properties": {
+                "tags": [
+                  "scanner:Semgrep OSS"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: draugr-fixture-eval"
+              }
+            }
+          ],
+          "version": "<cleared>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

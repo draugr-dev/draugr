@@ -1,0 +1,120 @@
+{
+  "actions": [
+    {
+      "clears": 1,
+      "component": "negative-semgrep-oversize",
+      "control": "sast",
+      "findings": "<cleared>",
+      "id": "39ae3c1b4930aefb",
+      "kind": "code",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 2,
+          "path": "src/app.js",
+          "repository": "./negative-semgrep-oversize"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "draugr-fixture-eval"
+      ],
+      "severity": "high",
+      "title": "Fix “eval runs its argument as code”",
+      "where": [
+        "src/app.js:2"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "errors": 1,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "sast",
+      "notes": 0,
+      "threshold": "",
+      "total": 1,
+      "verdict": "fail",
+      "warnings": 0
+    }
+  ],
+  "dependencyFiles": [
+    {
+      "component": "negative-semgrep-oversize",
+      "control": "sast",
+      "read": 0,
+      "scanners": [
+        "semgrep"
+      ],
+      "unread": [
+        {
+          "path": "src/bundle.js",
+          "reason": "over 1 MB, not scanned",
+          "repository": "./negative-semgrep-oversize"
+        }
+      ]
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:35c8f0e32dd69e0d6ba71dc96cbd4a29ec0f0a6bde015e544689df7fcab7a6dc",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 1,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0
+  },
+  "project": "negative-semgrep-oversize",
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./negative-semgrep-oversize"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "semgrep",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 1,
+    "scans": 1
+  },
+  "targets": [
+    {
+      "components": [
+        "negative-semgrep-oversize"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./negative-semgrep-oversize"
+    }
+  ],
+  "verdict": "fail"
+}

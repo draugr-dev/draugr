@@ -1,0 +1,13 @@
+# A JavaScript file over Semgrep's 1 MB limit with an eval in it, beside a small file with another.
+# Semgrep reports the small file's eval and leaves the large file out of its scan, so that eval is
+# never reported, and the golden report.json names src/bundle.js under dependencyFiles as not read,
+# rather than the sast control passing it as checked.
+#
+# The golden is what fails if a Semgrep release changes the JSON the detection reads, paths.skipped
+# and its reasons, because the unread entry then disappears while every unit test still passes. It
+# also fails if a release scans the file, which reports the eval on its second line.
+init:
+  controls: [iac, sast, sca, secrets]
+  components:
+    - name: negative-semgrep-oversize
+      repositories: ["."]

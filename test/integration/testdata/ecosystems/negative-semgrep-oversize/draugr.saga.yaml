@@ -1,0 +1,13 @@
+project: negative-semgrep-oversize
+release:
+  version: "1.0"
+config:
+  controls:
+    sast:
+      enabled: true
+      semgrep:
+        config: ${{ DRAUGR_SEALED_SEMGREP_RULES }}
+components:
+  - name: negative-semgrep-oversize
+    repositories:
+      - url: ./negative-semgrep-oversize
