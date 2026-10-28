@@ -33,19 +33,29 @@ func NewPolicyClient() PolicyClient {
 	return PolicyClient{client: newRetryingClient(http.DefaultClient)}
 }
 
+// personalTokenPrefix marks a person's API token, the check-only one `draugr login` keeps included.
+// The prefix is a public marker the server puts on every such token, not part of the secret.
+const personalTokenPrefix = "drgr_api_" // #nosec G101 -- a public prefix marking a token kind, not a credential
+
 // Check sends the effective descriptor to the server's pre-flight and returns its outcome.
 //
 // The server judges and words every verdict, so this carries no rule logic. A pipeline's ingest
 // token is bound to its own project, so its check goes to the ingest route and names none, and a
 // server with no policy check answers it 404, which is ErrNoPolicyCheck rather than an error of the
-// run. A person's login is accepted only on the route naming a project, where a 404 is a project
-// the organization does not have: an error naming it, never a server with nothing to check.
+// run. A person's token, from a login or set in the environment, is accepted only on the route
+// naming a project, where a 404 is a project the token cannot reach: an error naming it, never a
+// server with nothing to check.
 func (c PolicyClient) Check(ctx context.Context, dest APIDestination, effective string) (skald.PolicyOutcome, error) {
-	path := "/v1/ingest/policy/check"
+	personal := dest.Login != nil || strings.HasPrefix(dest.Token, personalTokenPrefix)
+	holder := "the token in the environment"
 	if dest.Login != nil {
+		holder = "the login for " + dest.Endpoint
+	}
+	path := "/v1/ingest/policy/check"
+	if personal {
 		if dest.Project == "" {
-			return skald.PolicyOutcome{}, errors.New("policy check: the descriptor names no project, and a login's check is " +
-				"made for one; add `project:` to the descriptor")
+			return skald.PolicyOutcome{}, errors.New("policy check: the descriptor names no project, and a check made " +
+				"with a person's token is made for one; add `project:` to the descriptor")
 		}
 		path = "/v1/projects/" + url.PathEscape(dest.Project) + "/policy/check"
 	}
@@ -65,9 +75,9 @@ func (c PolicyClient) Check(ctx context.Context, dest APIDestination, effective 
 	}
 	defer func() { _, _ = io.Copy(io.Discard, resp.Body); _ = resp.Body.Close() }()
 	if resp.StatusCode == http.StatusNotFound {
-		if dest.Login != nil {
-			return skald.PolicyOutcome{}, fmt.Errorf("policy check: %s has no project %q, or it is archived; "+
-				"check `project:` in the descriptor", dest.Endpoint, dest.Project)
+		if personal {
+			return skald.PolicyOutcome{}, fmt.Errorf("policy check: %s has no project %q that %s can reach; "+
+				"check `project:` in the descriptor", dest.Endpoint, dest.Project, holder)
 		}
 		return skald.PolicyOutcome{}, ErrNoPolicyCheck
 	}
@@ -84,10 +94,10 @@ func (c PolicyClient) Check(ctx context.Context, dest APIDestination, effective 
 			case resp.StatusCode == http.StatusForbidden && refused.Code == "insufficient_scope":
 				return skald.PolicyOutcome{}, fmt.Errorf("policy check: the login for %s does not carry the %s scope; "+
 					"run `draugr login %s`", dest.Endpoint, login.Scope, dest.Login.Server)
-			case resp.StatusCode == http.StatusForbidden && refused.Code == "forbidden":
-				return skald.PolicyOutcome{}, fmt.Errorf("policy check: the login for %s holds no role in project %q",
-					dest.Endpoint, dest.Project)
 			}
+		}
+		if personal && resp.StatusCode == http.StatusForbidden && refused.Code == "forbidden" {
+			return skald.PolicyOutcome{}, fmt.Errorf("policy check: %s holds no role in project %q", holder, dest.Project)
 		}
 		return skald.PolicyOutcome{}, fmt.Errorf("policy check: %s", refused.said(resp.Status))
 	}

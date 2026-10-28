@@ -194,7 +194,7 @@ func TestARefusedLoginSaysToLogInAgain(t *testing.T) {
 		"expired or revoked":     {http.StatusUnauthorized, `{"error":"invalid_token"}`, "has expired or was revoked; run `draugr login https://draugr.example`"},
 		"no check scope":         {http.StatusForbidden, `{"error":"insufficient_scope"}`, "does not carry the check scope"},
 		"no role in the project": {http.StatusForbidden, `{"error":"forbidden","detail":"not a member"}`, `holds no role in project "payments"`},
-		"an unknown project":     {http.StatusNotFound, `{"error":"not_found"}`, `has no project "payments", or it is archived`},
+		"an unknown project":     {http.StatusNotFound, `{"error":"not_found"}`, `has no project "payments" that the login for`},
 		"another refusal":        {http.StatusTooManyRequests, `{"error":"rate_limited","detail":"slow down"}`, "rate_limited: slow down"},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -242,7 +242,7 @@ func planeStub(t *testing.T, got *[]string) *httptest.Server {
 		case r.URL.Path == "/v1/ingest/policy/check":
 			w.WriteHeader(http.StatusUnauthorized)
 			_, _ = io.WriteString(w, `{"error":"token_invalid"}`)
-		case r.URL.Path == "/v1/projects/payments/policy/check" && auth == "Bearer drgl_login":
+		case r.URL.Path == "/v1/projects/payments/policy/check" && (auth == "Bearer drgl_login" || auth == "Bearer drgr_api_person"):
 			answer()
 		case strings.HasPrefix(r.URL.Path, "/v1/projects/"):
 			w.WriteHeader(http.StatusNotFound)
@@ -300,5 +300,32 @@ func TestALoginCheckNeedsTheDescriptorsProject(t *testing.T) {
 		APIDestination{Endpoint: srv.URL, Token: l.Token, Login: &l}, "")
 	if err == nil || !strings.Contains(err.Error(), "add `project:` to the descriptor") || len(got) != 0 {
 		t.Errorf("err = %v, requests %v", err, got)
+	}
+}
+
+// A person's API token set in the environment is a person's token like a login's, and the server
+// accepts it only on the route naming a project. Its prefix says so; any other token is a pipeline's.
+func TestAPersonalTokenInTheEnvironmentChecksThroughTheProjectRoute(t *testing.T) {
+	var got []string
+	srv := planeStub(t, &got)
+	// #nosec G101 -- a placeholder the test server checks, not a credential.
+	dest := APIDestination{Endpoint: srv.URL, Token: "drgr_api_person", Project: "payments"}
+	if _, err := (PolicyClient{client: http.DefaultClient}).Check(context.Background(), dest, "project: payments\n"); err != nil {
+		t.Fatalf("err %v, requests %v", err, got)
+	}
+	if len(got) != 1 || got[0] != "POST /v1/projects/payments/policy/check Bearer drgr_api_person" {
+		t.Errorf("requests = %v", got)
+	}
+	dest.Project = "billing"
+	_, err := PolicyClient{client: http.DefaultClient}.Check(context.Background(), dest, "")
+	if err == nil || errors.Is(err, ErrNoPolicyCheck) ||
+		!strings.Contains(err.Error(), `has no project "billing" that the token in the environment can reach`) ||
+		strings.Contains(err.Error(), "draugr login") {
+		t.Errorf("err = %v", err)
+	}
+	dest.Project = ""
+	if _, err := (PolicyClient{client: http.DefaultClient}).Check(context.Background(), dest, ""); err == nil ||
+		!strings.Contains(err.Error(), "add `project:`") {
+		t.Errorf("err = %v", err)
 	}
 }
