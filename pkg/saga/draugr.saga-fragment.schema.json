@@ -1733,7 +1733,7 @@
               },
               {
                 "const": "unread-files",
-                "description": "A dependency file or Terraform module, in a repository that was read, that no scanner read."
+                "description": "A file whose contents no scanner read, in a repository that was read: a dependency file, a Terraform file calling a module that was not loaded or not evaluated, or a file the secrets scan skipped."
               },
               {
                 "const": "unread-checks",

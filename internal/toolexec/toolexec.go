@@ -98,8 +98,22 @@ func RunWithEnv(ctx context.Context, dir string, argv, env []string) ([]byte, er
 // logs each Terraform module it failed to load and scans on without it, and nothing in its report
 // says so. A caller that reads only stdout sees a clean scan of less than was there.
 func RunWithStderr(ctx context.Context, dir string, argv, env []string) (stdout, stderr []byte, err error) {
+	return RunWithStderrShown(ctx, dir, argv, env, nil)
+}
+
+// RunWithStderrShown is RunWithStderr for a tool whose log can hold what must not be repeated.
+// shown, when not nil, receives the whole stream and returns the part Draugr may relay into its
+// own log and quote in the error. The caller still receives all of it.
+//
+// Gitleaks at trace level logs the path of each file it skips, which is the only record of the
+// skip, and in the same stream the value of each candidate secret it set aside. Relaying that
+// stream as it is would copy those values into `--log-level trace` output and any `--log-file`.
+func RunWithStderrShown(ctx context.Context, dir string, argv, env []string, shown func([]byte) []byte) (stdout, stderr []byte, err error) {
 	if len(argv) == 0 {
 		return nil, nil, errors.New("empty command")
+	}
+	if shown == nil {
+		shown = func(b []byte) []byte { return b }
 	}
 	started := time.Now()
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) // #nosec G204 -- configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
@@ -113,9 +127,9 @@ func RunWithStderr(ctx context.Context, dir string, argv, env []string) (stdout,
 	// Output() fills the exit error's Stderr only when it captured the stream itself, and explain and
 	// log read it from there.
 	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
-		exit.Stderr = errBuf.Bytes()
-	} else if err == nil && errBuf.Len() > 0 {
-		slog.Log(ctx, observability.LevelTrace, "tool stderr", "tool", argv[0], "stderr", errBuf.String())
+		exit.Stderr = shown(errBuf.Bytes())
+	} else if relay := shown(errBuf.Bytes()); err == nil && len(relay) > 0 {
+		slog.Log(ctx, observability.LevelTrace, "tool stderr", "tool", argv[0], "stderr", string(relay))
 	}
 	log(ctx, argv, dir, started, out, err)
 	return out, errBuf.Bytes(), explain(argv[0], err)

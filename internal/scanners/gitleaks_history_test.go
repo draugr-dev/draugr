@@ -55,6 +55,7 @@ func TestGitleaksReportsASecretStillInTheTreeOnce(t *testing.T) {
 			path := argv[slices.Index(argv, "--report-path")+1]
 			return nil, os.WriteFile(path, []byte(out), 0o600)
 		}
+		s.runLogged = gitleaksTree(withoutLog(s.run), gitleaksVersion(""))
 		return s
 	}
 	type want struct {

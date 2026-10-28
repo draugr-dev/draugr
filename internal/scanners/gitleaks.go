@@ -1,6 +1,7 @@
 package scanners
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -48,6 +49,9 @@ func NewGitleaks() plugin.Scanner {
 	s.historyArgs = gitleaksHistoryArgs
 	s.secrets = gitleaksSecrets
 	s.run = gitleaksRun(s.run, sharedGitleaksVersion.version)
+	s.runLogged = gitleaksTree(func(ctx context.Context, dir string, argv []string) ([]byte, []byte, error) {
+		return gitleaksExec(ctx, dir, argv)
+	}, sharedGitleaksVersion.version)
 	s.parse = parseGitleaks
 	return s
 }
@@ -128,8 +132,12 @@ func gitleaksWantsHistory(cfg plugin.Config) bool {
 // The tree pass is what reports a live secret at the path it actually lives at. History alone
 // cannot: `gitleaks git` reports the path a secret had in the commit that introduced it, so a
 // file since renamed is reported under a directory that no longer exists.
+//
+// At trace level, because that is the only level at which Gitleaks names a file it skipped as an
+// archive (see gitleaksUnread). The history pass is left at its default: it reads a text file's
+// commits whatever the file's name.
 func gitleaksArgs(dir string, cfg plugin.Config) []string {
-	return gitleaksCommand("dir", dir, cfg)
+	return append(gitleaksCommand("dir", dir, cfg), gitleaksTraceArgs...)
 }
 
 // gitleaksHistoryArgs walks the commit history, or returns nothing when history was not asked

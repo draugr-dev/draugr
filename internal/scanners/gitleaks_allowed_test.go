@@ -38,6 +38,15 @@ func gitleaksVersion(v string) func(context.Context) string {
 	return func(context.Context) string { return v }
 }
 
+// withoutLog gives a fake pass that writes only a report the shape of the tree pass's exec, with
+// a log that names nothing.
+func withoutLog(run func(context.Context, string, []string) ([]byte, error)) func(context.Context, string, []string) ([]byte, []byte, error) {
+	return func(ctx context.Context, dir string, argv []string) ([]byte, []byte, error) {
+		out, err := run(ctx, dir, argv)
+		return out, nil, err
+	}
+}
+
 // A secret on a line carrying `gitleaks:allow` reaches the report suppressed in source, and the
 // secret Gitleaks reported arrives as it did. Two repositories, each scanned on its own, so an
 // allow comment in one says nothing about the other.
@@ -56,6 +65,7 @@ func TestAnAllowedSecretArrivesSuppressedInSource(t *testing.T) {
 		}
 		s.cacheVersion = nil
 		s.run = gitleaksRun(passes.run, gitleaksVersion("8.30.1"))
+		s.runLogged = gitleaksTree(withoutLog(passes.run), gitleaksVersion("8.30.1"))
 		rep, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: repo}, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -105,6 +115,7 @@ func TestAnAllowCommentDoesNotCoverTheCommitThatIntroducedTheSecret(t *testing.T
 	}
 	s.cacheVersion = nil
 	s.run = gitleaksRun(passes.run, gitleaksVersion("8.30.1"))
+	s.runLogged = gitleaksTree(withoutLog(passes.run), gitleaksVersion("8.30.1"))
 	rep, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: "./api"}, plugin.Config{"history": true})
 	if err != nil {
 		t.Fatal(err)

@@ -1,0 +1,7 @@
+[90m9:41PM[0m DBG using github.com/wasilibs/go-re2 regex engine
+[90m9:41PM[0m DBG no gitleaks config found in path {{dir}}/.gitleaks.toml, using default gitleaks config
+[90m9:41PM[0m DBG skipping empty file [36mpath=[0m{{dir}}/empty.txt
+[90m9:41PM[0m [34mTRC[0m scanning path [36mpath=[0m{{dir}}/data
+[90m9:41PM[0m DBG skipping binary file [36mmime_type=[0mapplication/zip [36mpath=[0m{{dir}}/data
+[90m9:41PM[0m [32mINF[0m [1mscanned ~0 bytes (0) in 692µs[0m
+[90m9:41PM[0m [32mINF[0m [1mno leaks found[0m

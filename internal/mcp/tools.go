@@ -729,9 +729,9 @@ type ScanOutput struct {
 	Controls []string `json:"controls" jsonschema:"the controls this scan ran; nothing outside them was examined"`
 	// Uncovered names surfaces the descriptor declares that no enabled control looked at.
 	Uncovered []string `json:"uncovered,omitempty" jsonschema:"surfaces this descriptor declares that no enabled control examined"`
-	// Unread names the dependency files in scope that no scanner took packages from, and the
-	// Terraform files calling a module no scanner loaded.
-	Unread []UnreadFile `json:"unread,omitempty" jsonschema:"dependency files no scanner took packages from, and Terraform files calling a module no scanner loaded; what they declare was not checked"`
+	// Unread names the dependency files in scope that no scanner took packages from, the
+	// Terraform files calling a module no scanner loaded, and the files the secrets scan skipped.
+	Unread []UnreadFile `json:"unread,omitempty" jsonschema:"dependency files no scanner took packages from, Terraform files calling a module no scanner loaded, and files the secrets scanner skipped; what they declare or hold was not checked"`
 	// Unexamined is the same sentence for everything no control covers at all.
 	Unexamined string `json:"unexamined" jsonschema:"what a Draugr scan does not examine, whatever the verdict"`
 	// Delivered names where the descriptor's publishers put the report, so a caller can point
@@ -740,13 +740,13 @@ type ScanOutput struct {
 	SummarizeOutput
 }
 
-// UnreadFile is a dependency file no scanner serving a control took packages from, or a file
-// calling a Terraform module no scanner loaded.
+// UnreadFile is a dependency file no scanner serving a control took packages from, a file calling
+// a Terraform module no scanner loaded, or a file the secrets scan skipped.
 type UnreadFile struct {
 	Component  string   `json:"component"`
 	Repository string   `json:"repository,omitempty"`
 	Path       string   `json:"path"`
-	Reason     string   `json:"reason" jsonschema:"no lockfile, no pinned versions, no packages read, or modules not loaded"`
+	Reason     string   `json:"reason" jsonschema:"no lockfile, no pinned versions, no packages read, modules not loaded, name has an archive extension, or no files read"`
 	Controls   []string `json:"controls" jsonschema:"the controls whose scanners did not read it"`
 }
 

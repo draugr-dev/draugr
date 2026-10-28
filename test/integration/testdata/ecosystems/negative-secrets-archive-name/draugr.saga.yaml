@@ -1,0 +1,11 @@
+project: negative-secrets-archive-name
+release:
+  version: "1.0"
+config:
+  controls:
+    secrets:
+      enabled: true
+components:
+  - name: negative-secrets-archive-name
+    repositories:
+      - url: ./negative-secrets-archive-name

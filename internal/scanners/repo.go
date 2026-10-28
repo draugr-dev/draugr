@@ -98,9 +98,14 @@ const ReportPathToken = "{{draugr:report-path}}" // #nosec G101 -- an argv place
 // runReporting runs argv and returns what the tool produced: its stdout, or the file it was
 // pointed at when the argv asks for one.
 func (s repoScanner) runReporting(ctx context.Context, dir string, argv []string) ([]byte, error) {
+	return runToReport(ctx, dir, argv, s.run)
+}
+
+// runToReport is runReporting with the run given, for a pass that runs the tool its own way.
+func runToReport(ctx context.Context, dir string, argv []string, run func(ctx context.Context, dir string, argv []string) ([]byte, error)) ([]byte, error) {
 	i := slices.Index(argv, ReportPathToken)
 	if i < 0 {
-		return s.run(ctx, dir, argv)
+		return run(ctx, dir, argv)
 	}
 	f, err := os.CreateTemp("", "draugr-report-*.sarif")
 	if err != nil {
@@ -114,7 +119,7 @@ func (s repoScanner) runReporting(ctx context.Context, dir string, argv []string
 
 	argv = slices.Clone(argv)
 	argv[i] = path
-	if _, err := s.run(ctx, dir, argv); err != nil {
+	if _, err := run(ctx, dir, argv); err != nil {
 		return nil, err
 	}
 	return os.ReadFile(path) // #nosec G304 -- a path this function just created

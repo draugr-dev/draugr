@@ -1,0 +1,126 @@
+{
+  "actions": [
+    {
+      "clears": 1,
+      "component": "negative-secrets-archive-name",
+      "control": "secrets",
+      "findings": "<cleared>",
+      "id": "8a6b62c38ce5b2e9",
+      "kind": "credential",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 1,
+          "path": "config/aws.env",
+          "repository": "./negative-secrets-archive-name"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "aws-access-token"
+      ],
+      "severity": "high",
+      "summary": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms",
+      "title": "Remove and rotate aws-access-token",
+      "where": [
+        "config/aws.env:1"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "errors": 1,
+      "highest": "high",
+      "highestPriority": "P1",
+      "name": "secrets",
+      "notes": 0,
+      "threshold": "",
+      "total": 1,
+      "verdict": "fail",
+      "warnings": 0
+    }
+  ],
+  "dependencyFiles": [
+    {
+      "component": "negative-secrets-archive-name",
+      "control": "secrets",
+      "read": 0,
+      "scanners": [
+        "gitleaks"
+      ],
+      "unread": [
+        {
+          "path": "notes.zip.txt",
+          "reason": "name has an archive extension",
+          "repository": "./negative-secrets-archive-name"
+        },
+        {
+          "path": "release.brief.md",
+          "reason": "name has an archive extension",
+          "repository": "./negative-secrets-archive-name"
+        }
+      ]
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:0ee47004926e33511ea8868d44bebffd9d5310c8affdd81beb704f05533359e7",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 1,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0
+  },
+  "project": "negative-secrets-archive-name",
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./negative-secrets-archive-name"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "gitleaks",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 1,
+    "scans": 1
+  },
+  "targets": [
+    {
+      "components": [
+        "negative-secrets-archive-name"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./negative-secrets-archive-name"
+    }
+  ],
+  "verdict": "fail"
+}
