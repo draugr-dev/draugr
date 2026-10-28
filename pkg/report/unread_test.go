@@ -3,6 +3,7 @@ package report
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -76,7 +77,7 @@ func TestUnreadCountsWhatItDoesNotName(t *testing.T) {
 	for _, p := range []string{"a/go.mod", "b/go.mod", "c/go.mod", "d/go.mod", "e/go.mod"} {
 		unread = append(unread, engine.UnreadInput{Repository: "r", Path: p, Reason: "no packages read"})
 	}
-	groups := unreadByComponent([]engine.InputCoverage{{Component: "api", Control: "sca", Unread: unread}})
+	groups := unreadByComponent([]engine.InputCoverage{{Component: "api", Control: "sca", Unread: unread}}, nil)
 	got := groups[0].text(unreadShown, func(s string) string { return s })
 	if !strings.HasSuffix(got, "c/go.mod no packages read (sca) · +2") || strings.Contains(got, "d/go.mod") {
 		t.Errorf("text = %q, want three named and +2", got)
@@ -116,5 +117,60 @@ func TestMarkdownNamesUnreadFiles(t *testing.T) {
 	d.Run.Inputs = nil
 	if out := renderWith(t, markdownReporter{}, d); strings.Contains(out, "**Unread**") {
 		t.Error("markdown printed the section with nothing unread")
+	}
+}
+
+// repositoryTargets is a planned repository target for each source, declared by component.
+func repositoryTargets(component string, sources ...string) []engine.TargetOutcome {
+	var out []engine.TargetOutcome
+	for _, s := range sources {
+		out = append(out, engine.TargetOutcome{Kind: "repository", Target: s, Status: engine.TargetReached,
+			Components: []string{component}})
+	}
+	return out
+}
+
+// A component scanning two repositories names the repository of an unread file even when the other
+// repository's files were all read, in the console and in markdown: a bare bun.lock could be in
+// either. One repository scanned at two revisions is still one repository, and keeps the bare path.
+func TestUnreadNamesTheRepositoryWhereTheComponentScansTwo(t *testing.T) {
+	inputs := []engine.InputCoverage{{Component: "both", Control: "sca", Scanners: []string{"trivy-fs"}, Read: 1,
+		Unread: []engine.UnreadInput{{Repository: "https://github.com/acme/remote", Path: "bun.lock", Reason: "no packages read"}}}}
+	for name, c := range map[string]struct {
+		targets []engine.TargetOutcome
+		label   string
+	}{
+		"two repositories, one unread": {
+			targets: repositoryTargets("both", "https://github.com/acme/remote", "https://github.com/acme/registry"),
+			label:   "acme/remote:bun.lock",
+		},
+		"one repository at two revisions": {
+			targets: repositoryTargets("both", "https://github.com/acme/remote@a1b2c3", "https://github.com/acme/remote@d4e5f6"),
+			label:   "bun.lock",
+		},
+		"no targets recorded": {label: "bun.lock"},
+	} {
+		d := goldenGroupedData()
+		d.Run.Inputs = inputs
+		d.Run.Targets = c.targets
+		row := regexp.MustCompile(`(?m)^\s+both\s+` + regexp.QuoteMeta(c.label) + `\s+unread-files\s+no packages read \(sca\)$`)
+		if out := renderWith(t, consoleReporter{}, d); !row.MatchString(out) {
+			t.Errorf("%s: console has no row labeling the file %q:\n%s", name, c.label, out)
+		}
+		md := "- `both` · `" + c.label + "` no packages read (sca)"
+		if out := renderWith(t, markdownReporter{}, d); !strings.Contains(out, md) {
+			t.Errorf("%s: markdown is missing %q:\n%s", name, md, out)
+		}
+	}
+}
+
+// A target another component declared does not make this one's repositories several.
+func TestRepositoriesAreCountedPerComponent(t *testing.T) {
+	targets := append(repositoryTargets("api", "https://github.com/acme/api"),
+		repositoryTargets("web", "https://github.com/acme/web")...)
+	targets = append(targets, engine.TargetOutcome{Kind: "image", Target: "ghcr.io/acme/api:1", Components: []string{"api"}})
+	got := repositoriesByComponent(targets)
+	if got["api"] != 1 || got["web"] != 1 {
+		t.Errorf("repositoriesByComponent = %v, want one each", got)
 	}
 }
