@@ -731,7 +731,7 @@ type ScanOutput struct {
 	Uncovered []string `json:"uncovered,omitempty" jsonschema:"surfaces this descriptor declares that no enabled control examined"`
 	// Unread names the dependency files in scope that no scanner took packages from, and the
 	// Terraform files calling a module no scanner loaded.
-	Unread []UnreadFile `json:"unread,omitempty" jsonschema:"dependency files no scanner took packages from, and Terraform files calling a module no scanner loaded; what they declare was not checked"`
+	Unread []UnreadFile `json:"unread,omitempty" jsonschema:"dependency files no scanner took packages from, Terraform files calling a module no scanner loaded, and files the secrets scanner skipped; what they declare or hold was not checked"`
 	// Unexamined is the same sentence for everything no control covers at all.
 	Unexamined string `json:"unexamined" jsonschema:"what a Draugr scan does not examine, whatever the verdict"`
 	// Delivered names where the descriptor's publishers put the report, so a caller can point

@@ -13,7 +13,7 @@ import (
 const unreadShown = 3
 
 // unreadNote says what the markdown section lists and what it cost.
-const unreadNote = "dependency files and Terraform modules no scanner read · what they declare was not checked"
+const unreadNote = "files no scanner read · what they declare or hold was not checked"
 
 // unreadGroup is one component's unread files, each named once however many controls missed it.
 type unreadGroup struct {

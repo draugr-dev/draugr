@@ -1,0 +1,21 @@
+# A key in config/aws.env, and the same kind of key in notes.zip.txt and release.brief.md, text
+# files whose names contain `.zip` and `.br`. Gitleaks skips both as archives without reading them
+# and reports only the first key. The golden report.json names both files under dependencyFiles as
+# not read, rather than the scan passing over them.
+#
+# The golden is what fails if a Gitleaks release rewords the trace line the detection reads, because
+# the unread entries then disappear while every unit test still passes. It also fails if a release
+# stops treating these names as archives, which reports the two keys here.
+init:
+  controls: [sca, secrets, sast, iac]
+  components:
+    - name: negative-secrets-archive-name
+      repositories: ["."]
+
+secrets:
+  - file: config/aws.env
+    rules: [aws-access-token]
+  - file: notes.zip.txt
+    rules: []
+  - file: release.brief.md
+    rules: []

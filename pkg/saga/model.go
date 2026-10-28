@@ -217,8 +217,8 @@ const (
 	// CaveatNotMeasured is a scanner that cannot honor a component's scope, so it did not run
 	// for that component.
 	CaveatNotMeasured CaveatKind = "not-measured"
-	// CaveatUnreadFiles is a dependency file or Terraform module, in a repository that was read,
-	// that no scanner read.
+	// CaveatUnreadFiles is a dependency file, Terraform module or file searched for secrets, in a
+	// repository that was read, that no scanner read.
 	CaveatUnreadFiles CaveatKind = "unread-files"
 	// CaveatUnreadChecks is a cloud check the scan could not evaluate, because a read it needs
 	// was denied.

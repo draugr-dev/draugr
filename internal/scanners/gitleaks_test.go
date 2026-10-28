@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -35,14 +36,22 @@ func TestGitleaksArgs(t *testing.T) {
 	}
 	// Plus `--config <composed ruleset>`, which every invocation carries and which
 	// TestEveryGitleaksInvocationCarriesTheRuleset checks the contents of. Compared as a prefix so
-	// this test stays about the invocation's shape.
-	if len(argv) != len(want)+2 {
+	// this test stays about the invocation's shape. Then the trace level, at which Gitleaks names
+	// the files it skips.
+	if len(argv) != len(want)+4 {
 		t.Fatalf("argv = %v", argv)
 	}
 	for i := range want {
 		if argv[i] != want[i] {
 			t.Fatalf("argv[%d] = %q, want %q", i, argv[i], want[i])
 		}
+	}
+	if tail := argv[len(argv)-2:]; tail[0] != "--log-level" || tail[1] != "trace" {
+		t.Errorf("argv ends %v, want the trace level", tail)
+	}
+	// The history pass does not need it: it reads a text file's commits whatever its name.
+	if hist := gitleaksHistoryArgs("/work/repo", plugin.Config{"history": true}); slices.Contains(hist, "--log-level") {
+		t.Errorf("history argv %v sets a log level", hist)
 	}
 }
 

@@ -587,6 +587,40 @@ exit 1`
 	}
 }
 
+// A stream that can hold a secret reaches the caller whole, and Draugr's trace log and the error
+// see only what the filter lets through, on success and on failure alike. The markers are
+// assembled by the command, because argv itself is logged at debug.
+func TestRunWithStderrShownRelaysOnlyWhatTheFilterKeeps(t *testing.T) {
+	keepPublic := func(b []byte) []byte {
+		var kept []string
+		for _, line := range strings.Split(string(b), "\n") {
+			if strings.HasPrefix(line, "public") {
+				kept = append(kept, line)
+			}
+		}
+		return []byte(strings.Join(kept, "\n"))
+	}
+	for _, exit := range []string{"0", "1"} {
+		var buf bytes.Buffer
+		restore := captureLogs(t, &buf, observability.LevelTrace)
+		script := `printf 'secret %s%s\n' VALUE 42 >&2; printf 'public %s%s\n' NOTE 7 >&2; exit ` + exit
+		_, stderr, err := RunWithStderrShown(context.Background(), "", []string{"sh", "-c", script}, nil, keepPublic)
+		restore()
+		if !strings.Contains(string(stderr), "secret VALUE42") {
+			t.Errorf("exit %s: the caller got %q, want the whole stream", exit, stderr)
+		}
+		if strings.Contains(buf.String(), "VALUE42") || (err != nil && strings.Contains(err.Error(), "VALUE42")) {
+			t.Errorf("exit %s: a filtered line was repeated:\nlog %s\nerr %v", exit, buf.String(), err)
+		}
+		if !strings.Contains(buf.String(), "public NOTE7") {
+			t.Errorf("exit %s: the kept line was not relayed:\n%s", exit, buf.String())
+		}
+		if exit == "1" && (err == nil || !strings.Contains(err.Error(), "public NOTE7")) {
+			t.Errorf("err = %v, want the kept line quoted", err)
+		}
+	}
+}
+
 func TestFirstLinePrefersTheMostSevereLevel(t *testing.T) {
 	t.Parallel()
 	for raw, want := range map[string]string{

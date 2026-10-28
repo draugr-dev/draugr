@@ -16,11 +16,12 @@ order: 40
 ## What it does
 
 Checks out the component's repository, then runs `gitleaks dir <dir> --report-format sarif
---report-path <file> --exit-code 0 --no-banner` to find leaked credentials, API keys, tokens,
-private keys, in the working tree. See the [secret-detection glossary
+--report-path <file> --exit-code 0 --no-banner --log-level trace` to find leaked credentials, API
+keys, tokens, private keys, in the working tree. See the [secret-detection glossary
 entry](../../docs/reference/glossary.md#secret-detection). A second run with
 `--ignore-gitleaks-allow` records what `gitleaks:allow` comments set aside; see
-[Exclusions](#exclusions).
+[Exclusions](#exclusions). The trace level is what names the files Gitleaks skipped; see
+[Skipped](#skipped).
 
 `--exit-code 0` keeps the process successful even when secrets are found; findings live in
 the SARIF report, not the exit code. The [`secrets`](../controllers/secrets.md) controller
@@ -105,6 +106,31 @@ introduced the secret without it is still reported by the history pass.
 what it excluded. On the tree pass, the checkout is named by its absolute path and the file holds
 repository-relative fingerprints, so no entry matches and a secret it names is still reported.
 [`config.exclude`](../../docs/reference/saga-schema.md#configexclude) keeps the finding and the reason.
+
+## Skipped
+
+Gitleaks decides by a file's name whether it is an archive, and skips every file so named without
+reading it. A name counts when it contains an archive or compression extension anywhere, not only
+at the end. In Gitleaks 8.30.1 those are `.zip`, `.tar`, `.gz`, `.bz2`, `.xz`, `.7z`, `.rar`,
+`.zst`, `.lz4`, `.br`, `.sz`, `.s2` and `.zz`, and `.lz` or `.mz` as the last extension. A secret in
+`notes.zip.txt` or `release.brief.md` is not looked for, and the run reports no leaks.
+
+The SARIF report does not list these files. Gitleaks names each one in its log at trace level, so
+the tree pass runs with `--log-level trace` and each file named gets an `unread-files` caveat with
+the reason `skipped as an archive`. Where Gitleaks reports scanning 0 bytes of a tree that holds a
+file with content, and names no file it skipped, the repository root `.` gets `no files read`. The
+[`secrets`](../controllers/secrets.md#unread) control shows the caveat.
+
+A real archive is not opened either. Gitleaks extracts archives only with `--max-archive-depth`,
+which Draugr does not pass, so `bundle.zip` is named unread like `notes.zip.txt`. A real archive
+whose name holds no archive extension is skipped as a binary file and is not named.
+
+The history pass reads the text of each commit whatever the file is called, so with `history: true`
+the commits of a text file such as `notes.zip.txt` are searched. The tree pass still did not read
+the file, and the caveat stays. A binary file named as an archive is skipped by both passes.
+
+Draugr's own log relays the information, warning and error lines of Gitleaks' log and leaves out
+its trace and debug lines, which hold the value of each candidate secret Gitleaks set aside.
 
 ## Links
 
