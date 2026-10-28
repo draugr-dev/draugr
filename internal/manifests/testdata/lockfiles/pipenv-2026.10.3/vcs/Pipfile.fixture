@@ -1,0 +1,7 @@
+[packages]
+six = {git = "https://github.com/benjaminp/six.git", ref = "1.16.0"}
+
+[dev-packages]
+
+[requires]
+python_version = "3.13"

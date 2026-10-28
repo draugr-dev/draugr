@@ -1,0 +1,1 @@
+{"name":"acme/vcs","repositories":[{"type":"vcs","url":"https://github.com/php-fig/log"}],"require":{"psr/log":"dev-master"},"minimum-stability":"dev"}

@@ -168,9 +168,26 @@ func containsAny(words ...string) func([]byte) bool {
 	}
 }
 
-// packageBlocks reports whether a TOML lockfile holds a [[package]] entry other than the one its
-// tool writes for the project itself. A file with no entry at all is not that tool's lockfile.
-func packageBlocks(content []byte) bool { return bytes.Count(content, []byte("[[package]]")) != 1 }
+// sourcedPackages reports whether a Cargo.lock or uv.lock pins a package from outside the project.
+// Both tools write a [[package]] entry for the project and for every workspace member as well as
+// for each dependency, so counting entries takes a workspace for a project with dependencies. Only
+// a dependency's entry has a source naming where it was fetched from: a registry, a git repository,
+// a URL. local are the sources that name one of the project's own directories instead, which Cargo
+// leaves out and uv writes. A file with no entry at all is not that tool's lockfile.
+func sourcedPackages(local ...string) func([]byte) bool {
+	return func(content []byte) bool {
+		if !bytes.Contains(content, []byte("[[package]]")) {
+			return true
+		}
+		for line := range bytes.Lines(content) {
+			src, ok := bytes.CutPrefix(line, []byte("source = "))
+			if ok && !slices.ContainsFunc(local, func(l string) bool { return bytes.HasPrefix(src, []byte(l)) }) {
+				return true
+			}
+		}
+		return false
+	}
+}
 
 // metadataPackages reports whether a Poetry or PDM lockfile holds a [[package]] entry. A file with
 // none pins nothing only when it carries the [metadata] table both tools write.
@@ -178,10 +195,33 @@ func metadataPackages(content []byte) bool {
 	return bytes.Contains(content, []byte("[[package]]")) || !bytes.Contains(content, []byte("[metadata]"))
 }
 
-// yarnLockPins reports whether a yarn.lock pins a package. Every entry has a version, in Yarn 1 and
-// Berry alike, so a Yarn 1 file with its header and no version pins nothing.
+// yarnLockPins reports whether a yarn.lock pins a package. Yarn 1 writes an entry only for a
+// package and gives each a version, so a file with its header and no version pins nothing. Berry
+// writes an entry for the project and for each workspace as well, resolved under the workspace:
+// protocol, so a Berry file pins a package when an entry resolves to anything else.
 func yarnLockPins(content []byte) bool {
+	if bytes.HasPrefix(content, []byte("__metadata:")) || bytes.Contains(content, []byte("\n__metadata:")) {
+		return berryLockPins(content)
+	}
 	return bytes.Contains(content, []byte("version")) || !bytes.Contains(content, []byte("# yarn lockfile v1"))
+}
+
+// berryLockPins reports whether a Berry yarn.lock holds an entry resolved outside the project's
+// workspaces. Berry always writes the root workspace, so a file resolving no entry at all is not
+// one it wrote.
+func berryLockPins(content []byte) bool {
+	workspaces := 0
+	for line := range bytes.Lines(content) {
+		resolution, ok := bytes.CutPrefix(bytes.TrimSpace(line), []byte("resolution: "))
+		if !ok {
+			continue
+		}
+		if !bytes.Contains(resolution, []byte("@workspace:")) {
+			return true
+		}
+		workspaces++
+	}
+	return workspaces == 0
 }
 
 // pnpmLockPins reports whether a pnpm-lock.yaml pins a package. Lockfile versions 5 to 9 keep
@@ -301,25 +341,43 @@ func bunLockPins(content []byte) bool {
 	return false
 }
 
-// npmLockPins reports whether a package-lock.json or npm-shrinkwrap.json pins a package: an entry
-// under packages other than the project's own "" (lockfile version 2 and later), or one under
-// dependencies (version 1).
+// npmLockPins reports whether a package-lock.json or npm-shrinkwrap.json pins a package: one
+// installed under packages (lockfile version 2 and later), or an entry under dependencies (version
+// 1). A version 2 file repeats its tree under dependencies for npm 6, with each workspace member as
+// a file: entry, so where packages is present it decides alone.
 func npmLockPins(content []byte) bool {
 	top, ok := jsonObject(content)
 	if !ok || top["lockfileVersion"] == nil {
 		return true
 	}
 	if raw := top["packages"]; raw != nil {
-		var packages map[string]json.RawMessage
-		if json.Unmarshal(raw, &packages) != nil {
+		return npmPackagesPin(raw)
+	}
+	return top["dependencies"] != nil && members(top["dependencies"]) != 0
+}
+
+// npmPackagesPin reports whether the packages of a lockfile version 2 or later hold an installed
+// package. An installed package is keyed by its path under node_modules. The project's own folders
+// are keyed by their path alone, "" for the root and packages/a for a workspace member, and a member
+// installed into node_modules is a link to its folder, so a workspace whose members depend on
+// nothing outside it holds no installed package.
+func npmPackagesPin(raw json.RawMessage) bool {
+	var packages map[string]json.RawMessage
+	if json.Unmarshal(raw, &packages) != nil {
+		return true
+	}
+	for key, entry := range packages {
+		var pkg struct {
+			Link bool `json:"link"`
+		}
+		if json.Unmarshal(entry, &pkg) != nil {
 			return true
 		}
-		delete(packages, "")
-		if len(packages) > 0 {
+		if !pkg.Link && strings.Contains("/"+key, "/node_modules/") {
 			return true
 		}
 	}
-	return top["dependencies"] != nil && members(top["dependencies"]) != 0
+	return false
 }
 
 // pipfileLockPins reports whether a Pipfile.lock pins a package in any group: default, develop,
@@ -371,8 +429,10 @@ var rules = []rule{
 	{ecosystem: "python", kind: Pinned, formats: []string{"requirements.txt"}, match: isRequirements, declares: hasRequirement},
 	{ecosystem: "python", kind: Pinned, formats: []string{"Pipfile.lock"}, declares: pipfileLockPins},
 	{ecosystem: "python", kind: Pinned, formats: []string{"poetry.lock", "pdm.lock"}, declares: metadataPackages},
-	// uv records the project itself as a package, so one entry is a lockfile with nothing in it.
-	{ecosystem: "python", kind: Pinned, formats: []string{"uv.lock"}, declares: packageBlocks},
+	// uv gives the project and each workspace member a source naming its directory: virtual for a
+	// project with no build system, editable for one with, and directory for a path dependency.
+	{ecosystem: "python", kind: Pinned, formats: []string{"uv.lock"},
+		declares: sourcedPackages("{ virtual = ", "{ editable = ", "{ directory = ")},
 	{ecosystem: "python", kind: Pinned, formats: []string{"pylock.toml"}, match: isPylock},
 	{ecosystem: "python", kind: Pinned, formats: []string{"setup.py", "setup.cfg"},
 		declares: containsAny("install_requires")},
@@ -413,8 +473,8 @@ var rules = []rule{
 	{ecosystem: "ruby", kind: Declared, formats: []string{"Gemfile", "gems.rb"},
 		locks: []string{"Gemfile.lock", "gems.locked"}, declares: containsAny("gem ")},
 
-	// Cargo records the crate itself, so one entry is a lockfile with nothing in it.
-	{ecosystem: "rust", kind: Pinned, formats: []string{"Cargo.lock"}, declares: packageBlocks},
+	// Cargo gives a crate built from a path, the project and each workspace member, no source.
+	{ecosystem: "rust", kind: Pinned, formats: []string{"Cargo.lock"}, declares: sourcedPackages()},
 	{ecosystem: "rust", kind: Declared, formats: []string{"Cargo.toml"}, locks: []string{"Cargo.lock"},
 		declares: containsAny("dependencies]", "dependencies.")},
 

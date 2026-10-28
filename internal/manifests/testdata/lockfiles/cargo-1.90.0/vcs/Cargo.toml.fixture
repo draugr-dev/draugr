@@ -1,0 +1,7 @@
+[package]
+name = "vcs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+itoa = { git = "https://github.com/dtolnay/itoa", tag = "1.0.11" }

@@ -1,0 +1,5 @@
+[project]
+name = "vcs"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = ["six @ git+https://github.com/benjaminp/six.git@1.16.0"]
