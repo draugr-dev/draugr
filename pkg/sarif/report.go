@@ -747,6 +747,8 @@ type Input struct {
 	// "no pinned versions" or "no packages read". For a Terraform file, the module blocks it calls
 	// that the scanner could not load, as `module "vpc" not loaded`. For a file searched for
 	// secrets, "name has an archive extension", or "no files read" against the repository root.
+	// For a source file, why a SAST scanner did not check all of it, as `over 1 MB, not scanned`
+	// or `1 rule timed out, not checked: "x"`.
 	Unread string `json:"unread,omitempty"`
 }
 

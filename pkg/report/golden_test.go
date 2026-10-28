@@ -101,7 +101,7 @@ func goldenMismatch(path string) string {
 		"       docs/guides/importing-sarif.md, docs/guides/monorepos.md,\n" +
 		"       docs/reference/cli.md,\n" +
 		"       internal/controllers/iac.md, internal/controllers/cloud.md,\n" +
-		"       internal/controllers/secrets.md\n" +
+		"       internal/controllers/secrets.md, internal/controllers/sast.md\n" +
 		"     described rather than pasted, so only a shape change reaches them:\n" +
 		"       docs/concepts/principles.md, docs/concepts/what-to-fix-first.md,\n" +
 		"       docs/guides/findings-in-your-editor.md, docs/guides/caching-and-performance.md\n" +
@@ -386,6 +386,7 @@ var pastesConsoleOutput = map[string]bool{
 	"internal/controllers/iac.md":         true,
 	"internal/controllers/cloud.md":       true,
 	"internal/controllers/secrets.md":     true,
+	"internal/controllers/sast.md":        true,
 }
 
 // consoleShapes are strings only this renderer produces, so a fence carrying one is a paste rather

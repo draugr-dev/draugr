@@ -33,7 +33,9 @@ type UnreadInput struct {
 	// read", for a Terraform file the module blocks not loaded, as `module "vpc" not loaded`, and
 	// for a Terraform root module the calls not evaluated, as `32 of 33 module calls checked;
 	// "zbad" skipped`. For a file searched for secrets, "name has an archive extension", or at the
-	// repository root "no files read".
+	// repository root "no files read". For a source file Semgrep skipped or did not finish,
+	// `over 1 MB, not scanned` or the rules that timed out on it, as `1 rule timed out, not checked:
+	// "x"`.
 	Reason string
 }
 

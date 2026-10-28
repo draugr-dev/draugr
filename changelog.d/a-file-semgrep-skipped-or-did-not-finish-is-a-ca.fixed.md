@@ -1,0 +1,1 @@
+- **A file Semgrep skipped or did not finish is a caveat instead of a pass.** Semgrep exits 0 after leaving out a file over 1 MB or abandoning a rule that timed out on one. Each such file is now an `unread-files` caveat. Set `config.gate.failOnCaveats: [unread-files]` to fail the run on them.

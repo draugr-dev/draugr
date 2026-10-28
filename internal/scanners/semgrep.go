@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/netpolicy"
@@ -135,7 +136,8 @@ func semgrepRegistryHost() string {
 }
 
 // semgrepReports is what one Semgrep run writes: the SARIF it prints, which the findings are read
-// from, and the JSON report it writes beside it, which keeps each rule's metadata.
+// from, and the JSON report it writes beside it, which keeps each rule's metadata and lists the
+// files Semgrep did not finish.
 //
 // Bytes rather than raw JSON, so output that is not JSON reaches the SARIF parser as Semgrep wrote
 // it and fails there with the error every SARIF scanner gives.
@@ -153,7 +155,8 @@ const semgrepJSONPath = "{{draugr:semgrep-json-path}}"
 //
 // One run in two formats. The SARIF is what the findings, their locations, fingerprints and
 // suppressions are read from, and it drops every rule's metadata except a confidence tag. The JSON
-// keeps the metadata, and is read for nothing else.
+// keeps the metadata and lists the files Semgrep skipped or did not finish, and is read for those
+// alone.
 func withSemgrepJSON(run func(ctx context.Context, dir string, argv []string) ([]byte, error)) func(context.Context, string, []string) ([]byte, error) {
 	return func(ctx context.Context, dir string, argv []string) ([]byte, error) {
 		slot := slices.Index(argv, semgrepJSONPath)
@@ -190,7 +193,8 @@ func withSemgrepJSON(run func(ctx context.Context, dir string, argv []string) ([
 }
 
 // parseSemgrep reads the reports one Semgrep run wrote, rates each result from its rule's
-// metadata, and reports each rule from a local config under the id its rules file declares.
+// metadata, reports each rule from a local config under the id its rules file declares, and lists
+// each file Semgrep skipped for its size or did not finish as an unread input (see semgrepUnread).
 //
 // Semgrep prefixes the id of a rule loaded from disk with the directory of the file it came from,
 // as written in --config, dots for slashes: `/home/alice/rules/x.yaml` declaring `no-eval` reports
@@ -199,7 +203,7 @@ func withSemgrepJSON(run func(ctx context.Context, dir string, argv []string) ([
 // findings as all new. The part of the prefix that comes from the configured path is removed; for
 // a configured directory, the part that comes from a subdirectory inside it is kept, which keeps
 // two rules declaring one id in different subdirectories apart.
-func parseSemgrep(out []byte, _ string, cfg plugin.Config) (sarif.Report, error) {
+func parseSemgrep(out []byte, dir string, cfg plugin.Config) (sarif.Report, error) {
 	var reports semgrepReports
 	if err := json.Unmarshal(out, &reports); err != nil {
 		return sarif.Report{}, fmt.Errorf("read Semgrep's reports: %w", err)
@@ -212,7 +216,13 @@ func parseSemgrep(out []byte, _ string, cfg plugin.Config) (sarif.Report, error)
 	if err := rateSemgrep(&report, reports.JSON); err != nil {
 		return sarif.Report{}, err
 	}
-	for _, prefix := range semgrepRulePrefixes(semgrepConfig(cfg)) {
+	config := semgrepConfig(cfg)
+	prefixes := semgrepRulePrefixes(config)
+	report.Inputs, err = semgrepUnread(reports.JSON, dir, semgrepRuleLanguages(config), prefixes)
+	if err != nil {
+		return sarif.Report{}, err
+	}
+	for _, prefix := range prefixes {
 		renameSemgrepRules(&report, prefix)
 	}
 	return report, nil
@@ -327,6 +337,11 @@ func semgrepConfig(cfg plugin.Config) string {
 //
 //   - --json-output writes the same results as JSON to a file beside the SARIF, for the rule
 //     metadata the SARIF leaves out (see withSemgrepJSON).
+//   - --verbose has the JSON list the files Semgrep skipped, with the reason, under
+//     paths.skipped, which it leaves out otherwise (see semgrepUnread). What it adds to stderr is
+//     not read; the SARIF is the same.
+//   - --max-target-bytes and --timeout-threshold restate Semgrep's defaults, so the reason an
+//     unread file is given states the limit the run applied.
 //   - --no-error keeps the process successful when findings exist (findings live in the
 //     SARIF report, not the exit code; the controller judges severity).
 //   - --metrics=off avoids sending scan telemetry to the Semgrep registry.
@@ -339,7 +354,9 @@ func semgrepArgs(dir string, cfg plugin.Config) []string {
 		"semgrep", "scan",
 		"--sarif",
 		"--json-output", semgrepJSONPath,
-		"--quiet",
+		"--verbose",
+		"--max-target-bytes", strconv.Itoa(semgrepMaxTargetBytes),
+		"--timeout-threshold", strconv.Itoa(semgrepTimeoutThreshold),
 		"--no-error",
 		"--metrics=off",
 		"--config", ruleset,

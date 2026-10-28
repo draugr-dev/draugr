@@ -1,0 +1,70 @@
+rules:
+  - id: js-eval
+    languages: [javascript]
+    severity: ERROR
+    message: eval runs its argument as code
+    pattern: eval(...)
+  - id: py-eval
+    languages: [python]
+    severity: ERROR
+    message: eval runs its argument as code
+    pattern: eval(...)
+  # Slow on a function of many assignments: each `...` can span any of them.
+  - id: slow-0
+    languages: [javascript]
+    severity: WARNING
+    message: three assignments in one function
+    patterns:
+      - pattern-inside: |
+          function $F(...) { ... }
+      - pattern: |
+          $A = $B;
+          ...
+          $C = $D;
+          ...
+          $E = $G;
+  - id: slow-1
+    languages: [javascript]
+    severity: WARNING
+    message: three assignments in one function
+    paths:
+      include: [many.js]
+    patterns:
+      - pattern-inside: |
+          function $F(...) { ... }
+      - pattern: |
+          $A = $B;
+          ...
+          $C = $D;
+          ...
+          $E = $G;
+  - id: slow-2
+    languages: [javascript]
+    severity: WARNING
+    message: three assignments in one function
+    paths:
+      include: [many.js]
+    patterns:
+      - pattern-inside: |
+          function $F(...) { ... }
+      - pattern: |
+          $A = $B;
+          ...
+          $C = $D;
+          ...
+          $E = $G;
+  - id: slow-3
+    languages: [javascript]
+    severity: WARNING
+    message: three assignments in one function
+    paths:
+      include: [many.js]
+    patterns:
+      - pattern-inside: |
+          function $F(...) { ... }
+      - pattern: |
+          $A = $B;
+          ...
+          $C = $D;
+          ...
+          $E = $G;
