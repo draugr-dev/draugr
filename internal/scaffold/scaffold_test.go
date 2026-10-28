@@ -106,6 +106,64 @@ func TestSagaPerDirectoryScopesEachPart(t *testing.T) {
 	}
 }
 
+// An image stub belongs to the component whose directory holds the Dockerfile. Uncommented on
+// the root, a sub-app's image would be ranked under the root's exposure and criticality.
+func TestSagaPerDirectoryPutsEachImageStubWithItsDockerfile(t *testing.T) {
+	t.Parallel()
+	pkg := `{"dependencies": {"left-pad": "1.0.0"}}`
+	lock := `{"lockfileVersion": 3, "packages": {}}`
+	files := map[string]string{
+		"services/api/package.json":            pkg,
+		"services/api/package-lock.json":       lock,
+		"services/api/Dockerfile":              "FROM node:20\n",
+		"services/worker/go.mod":               "module worker\n",
+		"services/worker/Dockerfile":           "FROM golang:1.26\n",
+		"services/worker/build/Dockerfile.dev": "FROM golang:1.26\n",
+		"docs/package.json":                    pkg,
+	}
+	got := scaffoldIn(t, files, true)
+	want := "components:\n" +
+		"  - name: shop\n    repositories:\n      - url: .\n        ignore: [docs/, services/api/, services/worker/]\n" +
+		"    # hosts:            # for the headers/DAST controls\n" +
+		"    #   - name: api\n    #     url: https://api.example.com\n    #     type: api\n" +
+		"  - name: docs\n    repositories:\n      - url: .\n        paths: [docs]\n" +
+		"    # Unread · docs/package.json no lockfile · its packages are not checked\n" +
+		"  - name: api\n    repositories:\n      - url: .\n        paths: [services/api]\n" +
+		"    # images:\n    #   - image: myorg/api:latest\n" +
+		"  - name: worker\n    repositories:\n      - url: .\n        paths: [services/worker]\n" +
+		"    # images:\n    #   - image: myorg/worker:latest\n"
+	if !strings.HasSuffix(got, want) {
+		t.Errorf("components =\n%s\nwant\n%s", got[strings.Index(got, "components:"):], want)
+	}
+	// The control stays offered once, in config, however many components build an image.
+	if n := strings.Count(got, "# images:\n    #   enabled: true"); n != 1 {
+		t.Errorf("the images control stub appears %d times:\n%s", n, got)
+	}
+	if _, err := saga.Load([]byte(got)); err != nil {
+		t.Errorf("the scaffold does not load: %v", err)
+	}
+}
+
+// A Dockerfile at the root and one in a part: each component gets the stub for its own.
+func TestSagaPerDirectoryKeepsTheRootImageStubForARootDockerfile(t *testing.T) {
+	t.Parallel()
+	files := map[string]string{
+		"go.mod":                  "module shop\n",
+		"Dockerfile":              "FROM scratch\n",
+		"services/api/go.mod":     "module api\n",
+		"services/api/Dockerfile": "FROM scratch\n",
+	}
+	got := scaffoldIn(t, files, true)
+	for _, want := range []string{
+		"ignore: [services/api/]\n    # images:\n    #   - image: myorg/shop:latest\n",
+		"paths: [services/api]\n    # images:\n    #   - image: myorg/api:latest\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
+	}
+}
+
 // Two npm workspaces, each with one lockfile at its root: every member stays in the component of
 // the workspace whose lockfile resolves it, rather than a component of its own with no lockfile.
 func TestSagaPerDirectoryKeepsWorkspaceMembersWithTheirRoot(t *testing.T) {

@@ -171,21 +171,27 @@ func Saga(t inventory.Tree, name string, perDirectory bool) string {
 		fmt.Fprintf(&b, "    # Directories with their own dependency files: %s\n", PathList(t.Parts))
 		b.WriteString("    # `draugr init --per-directory` writes a component for each.\n")
 	}
-	writeSurfaceStubs(&b, t, name)
+	writeSurfaceStubs(&b, t, name, len(t.Dockerfiles) > 0)
 	return b.String()
 }
 
 // writeSurfaceStubs comments out the images and hosts a component may declare, pre-filled from a
-// Dockerfile and an OpenAPI document where the tree holds one.
-func writeSurfaceStubs(b *strings.Builder, t inventory.Tree, name string) {
-	if len(t.Dockerfiles) > 0 {
-		b.WriteString("    # images:\n    #   - image: myorg/" + name + ":latest\n")
+// Dockerfile and an OpenAPI document where the tree holds one. images says whether the component
+// holds a Dockerfile of its own.
+func writeSurfaceStubs(b *strings.Builder, t inventory.Tree, name string, images bool) {
+	if images {
+		writeImageStub(b, name)
 	}
 	b.WriteString("    # hosts:            # for the headers/DAST controls\n")
 	b.WriteString("    #   - name: api\n    #     url: https://api.example.com\n    #     type: api\n")
 	if len(t.OpenAPI) > 0 {
 		fmt.Fprintf(b, "    #     spec:\n    #       path: ./%s\n", t.OpenAPI[0])
 	}
+}
+
+// writeImageStub comments out the image a component builds, named after the component.
+func writeImageStub(b *strings.Builder, name string) {
+	b.WriteString("    # images:\n    #   - image: myorg/" + name + ":latest\n")
 }
 
 // writeUnresolvedComment names the dependency files no scanner can take packages from.
@@ -201,13 +207,24 @@ func writePerDirectory(b *strings.Builder, t inventory.Tree, project string) {
 	names := componentNames(t.Parts, project)
 	fmt.Fprintf(b, "  - name: %s\n    repositories:\n      - url: .\n        ignore: [%s]\n", Scalar(project), dirList(topParts(t.Parts)))
 	writeUnresolvedFor(b, t.Unresolved, ".", t.Parts)
-	writeSurfaceStubs(b, t, project)
+	// Each image stub goes on the component whose directory holds the Dockerfile. An image is
+	// ranked under the exposure and criticality of the component that declares it, so a stub for
+	// a sub-app's Dockerfile left on the root component would, once uncommented, file that
+	// image's findings under the wrong part of the application.
+	built := map[string]bool{}
+	for _, f := range t.Dockerfiles {
+		built[owner(f, t.Parts)] = true
+	}
+	writeSurfaceStubs(b, t, project, built["."])
 	for _, p := range t.Parts {
 		fmt.Fprintf(b, "  - name: %s\n    repositories:\n      - url: .\n        paths: [%s]\n", Scalar(names[p]), Scalar(p))
 		if inner := beneath(p, t.Parts); len(inner) > 0 {
 			fmt.Fprintf(b, "        ignore: [%s]\n", dirList(inner))
 		}
 		writeUnresolvedFor(b, t.Unresolved, p, t.Parts)
+		if built[p] {
+			writeImageStub(b, names[p])
+		}
 	}
 }
 

@@ -194,7 +194,8 @@ packages from under `UNREAD`.
 A directory below the root that holds its own dependency file or `go.mod` is a part of the
 repository. By default the descriptor has one component and names the parts in a comment;
 `--per-directory` writes a component for each, scoped with `paths:`, and the root component
-`ignore:`s them.
+`ignore:`s them. A commented image entry goes on the component whose directory holds the
+Dockerfile.
 
 A JavaScript workspace member stays with its workspace root, whose lockfile resolves it. A member
 is a directory the root `package.json` names under `workspaces` (npm, Yarn, Bun), as an array or as
