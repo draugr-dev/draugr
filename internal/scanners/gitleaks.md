@@ -109,28 +109,30 @@ repository-relative fingerprints, so no entry matches and a secret it names is s
 
 ## Skipped
 
-Gitleaks decides by a file's name whether it is an archive, and skips every file so named without
-reading it. A name counts when it contains an archive or compression extension anywhere, not only
-at the end. In Gitleaks 8.30.1 those are `.zip`, `.tar`, `.gz`, `.bz2`, `.xz`, `.7z`, `.rar`,
-`.zst`, `.lz4`, `.br`, `.sz`, `.s2` and `.zz`, and `.lz` or `.mz` as the last extension. A secret in
-`notes.zip.txt` or `release.brief.md` is not looked for, and the run reports no leaks.
+Gitleaks judges by a file's name, not its content, whether the file is an archive, and skips every
+file so named without reading it. A name counts when it contains an archive extension such as
+`.zip`, `.tar`, `.gz` or `.br` anywhere, so `notes.zip.txt` is skipped, and so is
+`release.brief.md`, for `.br`. A secret in either is not looked for, and the run reports no leaks.
+The rule is in [Gitleaks' source](https://github.com/gitleaks/gitleaks/blob/v8.30.1/sources/file.go)
+at the version Draugr installs.
 
 The SARIF report does not list these files. Gitleaks names each one in its log at trace level, so
 the tree pass runs with `--log-level trace` and each file named gets an `unread-files` caveat with
-the reason `skipped as an archive`. Where Gitleaks reports scanning 0 bytes of a tree that holds a
-file with content, and names no file it skipped, the repository root `.` gets `no files read`. The
-[`secrets`](../controllers/secrets.md#unread) control shows the caveat.
+the reason `name has an archive extension`. Where Gitleaks reports scanning 0 bytes of a tree that
+holds a file with content, and names no file it skipped, the repository root `.` gets
+`no files read`. The [`secrets`](../controllers/secrets.md#unread) control shows the caveat.
 
-A real archive is not opened either. Gitleaks extracts archives only with `--max-archive-depth`,
-which Draugr does not pass, so `bundle.zip` is named unread like `notes.zip.txt`. A real archive
-whose name holds no archive extension is skipped as a binary file and is not named.
+Rename `notes.zip.txt` to `notes.txt` and it is read. To fail the run on a skipped file, set
+`config.gate.failOnCaveats: [unread-files]`.
+
+A real archive such as `bundle.zip` is not opened either, so it is named too. A real archive whose
+name holds no archive extension is skipped as a binary file and is not named.
 
 The history pass reads the text of each commit whatever the file is called, so with `history: true`
 the commits of a text file such as `notes.zip.txt` are searched. The tree pass still did not read
 the file, and the caveat stays. A binary file named as an archive is skipped by both passes.
 
-Draugr's own log relays the information, warning and error lines of Gitleaks' log and leaves out
-its trace and debug lines, which hold the value of each candidate secret Gitleaks set aside.
+Draugr does not relay Gitleaks' trace or debug lines, which can hold candidate secret values.
 
 ## Links
 

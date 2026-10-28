@@ -83,22 +83,22 @@ auditor asks is not "did the scanner run", it is "who decided this was acceptabl
 ## Unread
 
 A file is **unread** when Gitleaks skipped it without reading it. A secret in it was not looked
-for, and the report lists it under **Caveats** as `unread-files`. Gitleaks skips a file whose name
-contains an archive extension anywhere, such as `notes.zip.txt`; the
-[`gitleaks`](../scanners/gitleaks.md#skipped) page lists the extensions. Here a component holds two
-repositories, and each names its own file:
+for, and the report lists it under **Caveats** as `unread-files`. Gitleaks judges by the name, not
+the content, and skips a file whose name contains an archive extension anywhere, such as
+`notes.zip.txt`; [`gitleaks`](../scanners/gitleaks.md#skipped) has the rule. Here a component holds
+two repositories, and each names its own file:
 
 ```
 CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
   Component  What                 Caveat        Why
-  app        ./api:notes.zip.txt  unread-files  skipped as an archive (secrets)
-  app        ./web:notes.zip.txt  unread-files  skipped as an archive (secrets)
+  app        ./api:notes.zip.txt  unread-files  name has an archive extension (secrets)
+  app        ./web:notes.zip.txt  unread-files  name has an archive extension (secrets)
 ```
 
 A repository of which Gitleaks read nothing, while it holds a file with content, is named at its
 root `.` with `no files read`.
 
-Rename a text file so its name holds no archive extension. To fail the run on the caveat, set
+Rename `notes.zip.txt` to `notes.txt` and it is read. To fail the run on a skipped file, set
 `config.gate.failOnCaveats: [unread-files]`, or pass `--fail-on-caveats unread-files` for one run.
 `report.json` carries every unread file under `dependencyFiles`, see the
 [report schema](../../docs/reference/report-schema.md).

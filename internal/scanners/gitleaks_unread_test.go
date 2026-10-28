@@ -87,7 +87,7 @@ func TestGitleaksNamesTheFilesItSkippedAsArchives(t *testing.T) {
 		}
 		var got []string
 		for _, in := range rep.Inputs {
-			if in.Unread != "skipped as an archive" || in.Repository != c.repo || in.Scanner != "gitleaks" {
+			if in.Unread != "name has an archive extension" || in.Repository != c.repo || in.Scanner != "gitleaks" {
 				t.Errorf("%s: input %+v", c.repo, in)
 			}
 			got = append(got, in.Path)

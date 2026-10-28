@@ -119,11 +119,14 @@ judgement about what to do sits with the reader, human or otherwise.
 
 ## The verdict states its own scope
 
-A `scan` result names the controls that ran, any surface your descriptor declares that no enabled
-control looked at, the dependency files no scanner took packages from, the Terraform files calling
-a module no scanner loaded, the files the secrets scanner skipped, and the classes a
-control-based scan does not cover at all, trust boundaries, build-context hygiene, how credentials
-reach a subprocess, protocol assumptions:
+A `scan` result names:
+
+- the controls that ran
+- any surface your descriptor declares that no enabled control looked at
+- the files no scanner read: dependency files no scanner took packages from, Terraform files
+  calling a module no scanner loaded, and files the secrets scanner skipped
+- the classes a control-based scan does not cover at all: trust boundaries, build-context hygiene,
+  how credentials reach a subprocess, protocol assumptions
 
 ```json
 {

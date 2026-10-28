@@ -21,6 +21,10 @@ import (
 // `release.brief.md` are skipped as surely as `bundle.zip`. The SARIF report says nothing about
 // it, so a secret in such a file reads the same as a file with none.
 //
+// A real archive is skipped the same way. Gitleaks opens archives only when `--max-archive-depth`
+// is set above 0, which Draugr does not pass, so the depth it reports exceeding is 0 and nothing
+// the archive holds is read.
+//
 // The only record is a line Gitleaks logs at trace level naming the path. So the tree pass runs at
 // trace level and its log is read for those lines, each file named reported unread. Reading the
 // tool's own account rather than repeating its name rule keeps the answer right when a release
@@ -129,7 +133,7 @@ func gitleaksUnread(stderr []byte, dir string) []sarif.Input {
 			continue
 		}
 		seen[path] = true
-		out = append(out, sarif.Input{Path: path, Unread: "skipped as an archive"})
+		out = append(out, sarif.Input{Path: path, Unread: "name has an archive extension"})
 	}
 	slices.SortFunc(out, func(a, b sarif.Input) int { return strings.Compare(a.Path, b.Path) })
 	if len(out) == 0 && scanned == 0 && holdsContent(dir) {

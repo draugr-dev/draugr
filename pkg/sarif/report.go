@@ -746,7 +746,7 @@ type Input struct {
 	// Unread is why the file contributed no packages, and empty when it was read: "no lockfile",
 	// "no pinned versions" or "no packages read". For a Terraform file, the module blocks it calls
 	// that the scanner could not load, as `module "vpc" not loaded`. For a file searched for
-	// secrets, "skipped as an archive", or "no files read" against the repository root.
+	// secrets, "name has an archive extension", or "no files read" against the repository root.
 	Unread string `json:"unread,omitempty"`
 }
 
