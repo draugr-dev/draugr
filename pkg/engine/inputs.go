@@ -31,8 +31,8 @@ type UnreadInput struct {
 	Path       string
 	// Reason is why it contributed nothing: "no lockfile", "no pinned versions" or "no packages
 	// read", for a Terraform file the module blocks not loaded, as `module "vpc" not loaded`, and
-	// for a Terraform root module the calls not evaluated, as `Trivy evaluated 32 of 33 module
-	// calls, not "zbad"`.
+	// for a Terraform root module the calls not evaluated, as `32 of 33 module calls checked;
+	// "zbad" skipped`.
 	Reason string
 }
 

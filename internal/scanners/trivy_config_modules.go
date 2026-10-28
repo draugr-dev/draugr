@@ -167,10 +167,12 @@ func terraformModuleLabel(dir, path string, n int) string {
 // 0. Only its debug log shows the gap, as a call loaded with no line evaluating it, in a loop that
 // never logged finishing.
 //
-// So the scan runs with --debug, and each root module with calls left unevaluated is reported
-// unread, with how many calls it makes and how many were evaluated. Both counts come from the log
-// rather than from the cap, because a call evaluated again after another changed its inputs spends
-// a round too, and the cap is Trivy's to change.
+// So the scan runs with --debug, the only level that logs those lines, and each root module with
+// calls left unevaluated is reported unread, with how many calls it makes and how many were
+// evaluated. Both counts come from the log rather than from the cap, because a call evaluated again
+// after another changed its inputs spends a round too, and the cap is Trivy's to change. The module
+// Trivy could not load is logged at ERROR, which is why the scan also omits --quiet (see
+// trivyUnloadedModules).
 
 // The messages Trivy's Terraform scanner logs around a module's calls, unchanged from 0.69.3 to
 // 0.76.1, each without its `[terraform evaluator]` or `[terraform scanner]` prefix.
@@ -327,7 +329,7 @@ func (l *trivyCallLoop) unevaluated() string {
 		where = " in module." + strings.Join(l.chain[1:], ".module.")
 	}
 	// The counts first, so a reason cut to fit a column keeps them.
-	return fmt.Sprintf("Trivy evaluated %d of %d module calls%s, not %s",
+	return fmt.Sprintf("%d of %d module calls%s checked; %s skipped",
 		len(l.loaded)-len(missing), len(l.loaded)+len(l.failed), where, strings.Join(missing, ", "))
 }
 
@@ -339,7 +341,7 @@ func mergeUnread(inputs []sarif.Input) []sarif.Input {
 	at := map[string]int{}
 	for _, in := range inputs {
 		if i, ok := at[in.Path]; ok {
-			out[i].Unread += "; " + in.Unread
+			out[i].Unread += ", " + in.Unread
 			continue
 		}
 		at[in.Path] = len(out)

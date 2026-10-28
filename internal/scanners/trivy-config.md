@@ -33,18 +33,17 @@ the SARIF from that report without scanning again. On a Trivy older than 0.53.0,
 Trivy reports two Terraform shortfalls only in its log, and exits 0 after either. Draugr reads
 the log for both and reports each as [unread](../controllers/iac.md#unread):
 
-| Shortfall | Logged at | Reported against | Reason |
-|---|---|---|---|
-| A module Trivy could not load | `ERROR`, so the scan omits `--quiet` | the file that calls it | `module "vpc" not loaded` |
-| Module calls Trivy loaded and did not evaluate | `DEBUG`, so the scan passes `--debug` | the root module's directory | `Trivy evaluated 32 of 33 module calls, not "zbad"` |
+| Shortfall | Reported against | Reason |
+|---|---|---|
+| A module Trivy could not load | the file that calls it | `module "vpc" not loaded` |
+| Module calls Trivy loaded and did not evaluate | the root module's directory | `32 of 33 module calls checked; "zbad" skipped` |
 
-Trivy evaluates a module's calls in a fixed number of rounds, 32 in releases 0.69.3 to 0.76.1, and
-a round evaluates at most one call that no earlier round did. A module making more calls than
-that, or one whose calls feed each other's inputs and need a round again, has the rest loaded
-and never evaluated, and the resources they define are not checked. Both counts in the reason come
-from Trivy's log, and the count of calls includes any module Trivy could not load. A module below
-the root is named by its address, as in `in module.wrap`. The log goes to stderr, which is read and
-never printed.
+Trivy stops evaluating a module's calls after a fixed number of rounds, 32 in releases 0.69.3 to
+0.76.1, and exits 0; the calls left over are loaded and never checked. A round evaluates at most
+one call that no earlier round did, and a call evaluated again after another changes its inputs
+spends a round too, so a module with fewer than 33 calls can reach the limit. The count of calls
+includes any module Trivy could not load. A module below the root is named by its address, as in
+`in module.wrap`.
 
 ## Saga options
 

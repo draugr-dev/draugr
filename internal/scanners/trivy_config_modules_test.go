@@ -199,16 +199,16 @@ func TestModuleCallsTrivyDidNotEvaluateAreReportedUnread(t *testing.T) {
 			log:   readTrivyLog(t, "trivy-module-calls.log"),
 			want: []sarif.Input{
 				{Scanner: "trivy-config", Repository: "infra-a", Path: "infra/a",
-					Unread: `Trivy evaluated 32 of 34 module calls, not "zbad"`},
+					Unread: `32 of 34 module calls checked; "zbad" skipped`},
 				{Scanner: "trivy-config", Repository: "infra-a", Path: "infra/a/remote.tf", Unread: `module "vpc" not loaded`},
 				{Scanner: "trivy-config", Repository: "infra-a", Path: "nested",
-					Unread: `Trivy evaluated 32 of 33 module calls in module.wrap, not "zbad"`},
+					Unread: `32 of 33 module calls in module.wrap checked; "zbad" skipped`},
 			},
 		},
 		"infra-b": {
 			log: readTrivyLog(t, "trivy-module-calls-root.log"),
 			want: []sarif.Input{{Scanner: "trivy-config", Repository: "infra-b", Path: ".",
-				Unread: `Trivy evaluated 32 of 33 module calls, not "zbad"`}},
+				Unread: `32 of 33 module calls checked; "zbad" skipped`}},
 		},
 		"infra-c": {
 			log: segment(readTrivyLog(t, "trivy-module-calls.log"), "infra/b"),
@@ -275,18 +275,18 @@ func TestTrivyUnevaluatedModulesReadsOnlyALoopThatRanOut(t *testing.T) {
 		"a loop that finished":                   {root("a") + loaded("x", "y") + started + evaluated("x") + finished + ended, nil},
 		"a loop that never ended":                {root("a") + loaded("x", "y") + started + evaluated("x"), nil},
 		"no root line": {loaded("x", "y") + started + evaluated("x") + ended,
-			[]sarif.Input{{Path: ".", Unread: `Trivy evaluated 1 of 2 module calls, not "y"`}}},
+			[]sarif.Input{{Path: ".", Unread: `1 of 2 module calls checked; "y" skipped`}}},
 		"several left, one loaded twice": {root("a") + loaded("x", "y", "z", "y") + started + evaluated("x") + ended,
-			[]sarif.Input{{Path: "a", Unread: `Trivy evaluated 1 of 3 module calls, not "y", "z"`}}},
+			[]sarif.Input{{Path: "a", Unread: `1 of 3 module calls checked; "y", "z" skipped`}}},
 		"a root named by its absolute path": {root(dir+"/infra/a") + loaded("x", "y") + started + evaluated("x") + ended,
-			[]sarif.Input{{Path: "infra/a", Unread: `Trivy evaluated 1 of 2 module calls, not "y"`}}},
+			[]sarif.Input{{Path: "infra/a", Unread: `1 of 2 module calls checked; "y" skipped`}}},
 		"a loop that ran out in a module two calls down": {root("a") +
 			line("Loaded module", `module="root" module="app" module="db" name="x" file_path="m"`) +
 			line("Loaded module", `module="root" module="app" module="db" name="y" file_path="m"`) +
 			line("Starting submodules evaluation...", `module="root" module="app" module="db"`) +
 			line("Evaluating submodule", `module="root" module="app" module="db" name="x"`) +
 			line("Starting post-submodule evaluation...", `module="root" module="app" module="db"`),
-			[]sarif.Input{{Path: "a", Unread: `Trivy evaluated 1 of 2 module calls in module.app.module.db, not "y"`}}},
+			[]sarif.Input{{Path: "a", Unread: `1 of 2 module calls in module.app.module.db checked; "y" skipped`}}},
 	} {
 		if got := trivyUnevaluatedModules([]byte(tc.log), dir); !slices.Equal(got, tc.want) {
 			t.Errorf("%s: %+v, want %+v", name, got, tc.want)
@@ -306,7 +306,7 @@ func TestTwoReasonsForOnePathAreKeptTogether(t *testing.T) {
 		t.Fatalf("out %q err %v", out, err)
 	}
 	want := []sarif.Input{{Path: ".",
-		Unread: `module block not loaded; Trivy evaluated 32 of 34 module calls, not "zbad"`}}
+		Unread: `module block not loaded, 32 of 34 module calls checked; "zbad" skipped`}}
 	if !slices.Equal(unread, want) {
 		t.Errorf("inputs %+v, want %+v", unread, want)
 	}
