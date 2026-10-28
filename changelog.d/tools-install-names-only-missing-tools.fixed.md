@@ -1,0 +1,1 @@
+- **`draugr tools install` names only the tools it cannot provision that are missing.** A descriptor needing `git`, with `git` already on `PATH`, no longer prints a line asking you to install it separately. It looks for each tool the way `draugr doctor` does.

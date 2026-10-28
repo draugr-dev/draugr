@@ -277,13 +277,17 @@ func installNames(w io.Writer, args []string, opts toolsInstallOptions) ([]strin
 	names := provisionable(required)
 	var unprovisionable []string
 	for _, t := range required {
-		if !tools.Provisionable(t.Binary) {
+		// Found the way `draugr doctor` finds it, so the two commands cannot disagree about
+		// what is missing.
+		if !tools.Provisionable(t.Binary) && !detectTool(context.Background(), t).Found {
 			unprovisionable = appendUnique(unprovisionable, t.Binary)
 		}
 	}
 
 	// The gap is the interesting part. Installing three of five and reporting success leaves
-	// someone one failed scan away from discovering the other two.
+	// someone one failed scan away from discovering the other two. Only what is absent: telling
+	// somebody to install a tool they already have sends them looking for a problem that is not
+	// there, and teaches them to skip the line on the day it names one that is.
 	if len(unprovisionable) > 0 {
 		sort.Strings(unprovisionable)
 		_, _ = fmt.Fprintf(w, "%s needs %s, which Draugr cannot provision. Install %s separately (`draugr doctor %s` says where from).\n\n",

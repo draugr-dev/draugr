@@ -265,7 +265,7 @@ components:
 // every binary put on PATH is one more thing to trust and patch, so the smaller set is the
 // defensible one.
 func TestInstallNamesFromSaga(t *testing.T) {
-	t.Parallel()
+	stubDetect(t, nil) // a machine with nothing installed
 
 	var out bytes.Buffer
 	got, _, err := installNames(&out, nil, toolsInstallOptions{saga: writeSaga(t, toolsSagaTwoControls)})
@@ -278,10 +278,29 @@ func TestInstallNamesFromSaga(t *testing.T) {
 	if len(got) >= len(tools.Installable()) {
 		t.Error("a scoped install that installs everything has done nothing")
 	}
-	// git is needed and cannot be provisioned. Installing the rest and reporting success would
-	// leave someone one failed scan away from finding that out.
-	if !strings.Contains(out.String(), "git") || !strings.Contains(out.String(), "cannot provision") {
+	// git is needed, absent and cannot be provisioned. Installing the rest and reporting success
+	// would leave someone one failed scan away from finding that out.
+	if !strings.Contains(out.String(), `"git"`) || !strings.Contains(out.String(), "cannot provision") {
 		t.Errorf("the gap should be reported, got %q", out.String())
+	}
+}
+
+// A tool Draugr cannot provision and the machine already has is not a gap. Asking somebody to
+// install what they have sends them after a problem that does not exist.
+func TestInstallNamesNamesOnlyWhatIsMissing(t *testing.T) {
+	stubDetect(t, map[string]string{"git": "2.43.0"})
+
+	var out bytes.Buffer
+	got, _, err := installNames(&out, nil, toolsInstallOptions{saga: writeSaga(t, toolsSagaTwoControls)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// What Draugr installs is decided as before; the plan marks what is already current.
+	if !slices.Equal(got, []string{"gitleaks", "trivy"}) {
+		t.Errorf("names = %v, want [gitleaks trivy]", got)
+	}
+	if strings.Contains(out.String(), "cannot provision") {
+		t.Errorf("git is present, so nothing is missing, got %q", out.String())
 	}
 }
 
