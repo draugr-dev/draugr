@@ -18,19 +18,19 @@ _Nothing yet._
 
 - **A cached scan result is never served to a different Draugr version.** The `--cache-dir` key includes the Draugr version, or the commit for a development build, so the first run after an upgrade scans again.
 
-- **`draugr.config.yaml` is checked as a descriptor is.** `config set`, `config validate` and `scan` refuse a control, scanner, scanner option or tool this build does not have, `trivy-fs` written for `trivyFs` among them, and an invalid `output.view`, `output.top` or `cache.ttl`, naming the file, the key and the nearest valid name. `config validate` reports every problem in every file.
+- **A scan now refuses an invalid `draugr.config.yaml`.** `scan`, `config set` and `config validate` fail on an unknown control, scanner, option or tool (`trivy-fs` for `trivyFs`) or a bad `output.view`, `output.top` or `cache.ttl`, naming the file, the key and the nearest valid name. These were ignored before. `draugr config validate` lists every problem.
 
-- **A project's `draugr.config.yaml` can turn a setting off.** Its `false` or `0s` now overrides the home file's `true` or duration, and `cache.ttl: 0s` means no expiry, as `--cache-ttl 0` does. `cache.readOnly` and `cache.requireDigest` still only turn on across files, and `config show` and `config set` now report a `false` that the home file overrides.
+- **`cache.ttl: 0s` now means no expiry, and a project file can turn a setting off.** A project's `false` or `0s` overrides the home file's `true` or duration. `0s` matches `--cache-ttl 0`; leave `ttl` out for the 24h default. `cache.readOnly` and `cache.requireDigest` still only turn on across files, and `config show` and `config set` report an overridden `false`.
 
 - **`draugr config show` says when no project file was read.** Run from a directory with no `draugr.config.yaml`, it names that directory, so a command run from a parent directory no longer reads as a project that sets nothing.
 
-- **`draugr doctor --offline` makes no network call.** It sets the network policy every other command reads, so the release check, the policy check and remote fragments stay offline. Doctor also refuses a misspelled control with `validate`'s did-you-mean, `--strict` applies without a descriptor when a tool is missing, and the `--json` `missing` count includes tools with no data.
+- **`draugr doctor --offline` makes no network call.** The release check, the policy check and remote fragments stay offline. Doctor also suggests the nearest control name for a misspelled one, `--strict` applies without a descriptor when a tool is missing, and the `--json` `missing` count includes tools with no data.
 
-- **A fragment now fills the `exposure`, `criticality`, `builtBy` or label a root descriptor leaves unset** for a component both name, where it was ignored before. A value the root sets still wins. `draugr validate --resolved` marks each of these values with the file that supplied it.
+- **A fragment now fills in the `exposure`, `criticality`, `builtBy` or labels a root descriptor leaves unset** for a component both name. Before, the fragment's values were ignored. A value the root sets still wins. `draugr validate --resolved` marks each value with the file that supplied it.
 
-- **A fragment's `imports:` now apply to a component the root descriptor also names.** The SARIF files both declare are read once each, and the same control and file named in two files count as one import.
+- **A fragment's `imports:` now apply to a component the root descriptor also names.** A SARIF file declared in both is read once, and the same control and file named in both count as one import.
 
-- **`draugr tools install` reports the check it made.** Each line names what verified the install in the plan's `Verify` words, so a `--version` install with nothing published reads `unverified`. `semgrep`, `retire` and `govulncheck` are left alone when current, their plan rows show the version `--version` asks for, and `tools outdated` suggests `--version <latest>`.
+- **`draugr tools install` shows how each install was verified.** Each line gives the plan's `Verify` result, so a `--version` install with nothing published reads `unverified`. A tool on PATH at the pinned version that Draugr did not install is now planned for install. `semgrep`, `retire` and `govulncheck` are skipped when current, and `tools outdated` suggests `--version <latest>`.
 
 ## [0.158.0] - 2026-10-28
 
