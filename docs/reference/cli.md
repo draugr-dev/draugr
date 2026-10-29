@@ -1794,7 +1794,7 @@ and size written. A fetch that fails with a copy already cached keeps that copy,
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--force` | `false` | Fetch even if the cached copy is current |
-| `--saga` | the descriptor in the current directory | Read `config.exploitability.maxAge` from this descriptor |
+| `--saga` | none | Descriptor, or directory holding one, to read the [limit](#staleness) from. One that does not load is an error |
 
 ```bash
 draugr feeds update            # every feed
@@ -1826,31 +1826,29 @@ SOURCES  (cached in /home/you/.draugr/feeds)
   govulndb   Go vulnerability database · https://vuln.go.dev/vulndb.zip
 
 epss older than 24 hours. A scan uses it and marks the report stale. Refresh with `draugr feeds update`.
+
+Stale after 24h · default · --saga applies a descriptor's config.exploitability.maxAge
 ```
 
 A copy is `(stale)` here when it is older than the [limit](#staleness). A stale KEV or EPSS copy
 does not fail a scan: it ranks findings on older data, and the report names the age. A stale
 `govulndb` copy is not read at all; govulncheck queries `vuln.go.dev` instead, and with `--offline`
-the control reports an error.
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--saga` | the descriptor in the current directory | Read `config.exploitability.maxAge` from this descriptor |
+the control reports an error. `--saga` works as it does for `feeds update`.
 
 ### Staleness
 
-`feeds status`, `feeds update` and a scan's `auto` share one limit:
-[`config.exploitability.maxAge`](saga-schema.md#configexploitability) in the descriptor `--saga`
-names, or else in the descriptor in the current directory, the one `draugr scan` reads there. With
-neither, or with a descriptor that does not set it, the limit is 24 hours. A limit set by a
-descriptor is printed with the file it came from:
+The limit is 24 hours, or [`config.exploitability.maxAge`](saga-schema.md#configexploitability) in
+the descriptor `--saga` names, the same limit a scan of that descriptor applies with `auto`.
+Without `--saga` no descriptor is read, so the commands answer the same in every directory. Both
+commands end with the limit and where it came from:
 
 ```
+Stale after 24h · default · --saga applies a descriptor's config.exploitability.maxAge
 Stale after 168h · config.exploitability.maxAge in draugr.saga.yaml
+Never stale · config.exploitability.maxAge in draugr.saga.yaml
 ```
 
-`maxAge: 0s` means a copy is never stale, and the line says `Never stale`. A `--saga` that names
-no descriptor, or a descriptor that does not load, is an error.
+The last is `maxAge: 0s`.
 
 ### Using the cache in a scan
 

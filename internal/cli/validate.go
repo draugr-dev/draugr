@@ -31,10 +31,9 @@ func newValidateCommand() *cobra.Command {
 		Long: "Parse each Saga descriptor, resolve ${{ VAR }} references, and check it against\n" +
 			"the schema. Runs no scanners and needs no tools, so it suits a pre-commit hook or a\n" +
 			"CI lint step.\n\n" +
-			"A descriptor is checked with its fragments merged in; a fragment from another\n" +
+			"A descriptor is checked with its fragments merged in, and a fragment from another\n" +
 			"repository is fetched with git. A fragment file (*.saga-fragment.yaml) is checked\n" +
-			"on its own against the fragment schema, so its missing release: is not an error.\n" +
-			"--resolved prints a descriptor with every fragment merged.\n\n" +
+			"on its own against the fragment schema, which does not require release:.\n\n" +
 			"Accepts paths and globs, and with no arguments discovers *.saga.yaml and\n" +
 			"*.saga-fragment.yaml (and their .yml forms) beneath the current directory. Reports\n" +
 			"every file, then exits non-zero if any one of them is invalid.",

@@ -1,1 +1,1 @@
-- **`draugr explain --help` lists every report `-r` falls back to**, `.draugr-out/results.sarif` included, and `draugr validate --help` describes how fragments are discovered and checked.
+- **`draugr explain --help` lists every report `-r` falls back to**, `.draugr-out/results.sarif` included.

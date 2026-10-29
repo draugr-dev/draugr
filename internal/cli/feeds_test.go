@@ -471,41 +471,53 @@ func TestFeedsMaxAgeZeroIsNeverStale(t *testing.T) {
 	if strings.Contains(got, "(stale)") {
 		t.Errorf("a 0s maxAge is never stale:\n%s", got)
 	}
-	if want := "Never stale · config.exploitability.maxAge 0s in " + path; !strings.Contains(got, want) {
+	if want := "Never stale · config.exploitability.maxAge in " + path; !strings.Contains(got, want) {
 		t.Errorf("want %q:\n%s", want, got)
 	}
 }
 
 func TestResolveFeedLimit(t *testing.T) {
-	t.Run("no descriptor here is the default, unannounced", func(t *testing.T) {
-		t.Chdir(t.TempDir())
-		limit, err := resolveFeedLimit("", "feeds status --saga")
+	// The cache is the machine's, so a descriptor in the working directory is not read: one that
+	// is broken, ambiguous, or needs variables and git access must not change what a cache command
+	// does there.
+	for name, files := range map[string][]string{
+		"one descriptor here":      {"draugr.saga.yaml"},
+		"two descriptors here":     {"a.saga.yaml", "b.saga.yaml"},
+		"a broken descriptor here": {"broken.saga.yaml"},
+	} {
+		t.Run("without --saga, "+name+" is not read", func(t *testing.T) {
+			dir := t.TempDir()
+			for _, f := range files {
+				body := sagaWithMaxAge("72h")
+				if strings.HasPrefix(f, "broken") {
+					body = "release: [\n"
+				}
+				writeSagaAt(t, dir, f, body)
+			}
+			t.Chdir(dir)
+			limit, err := resolveFeedLimit("", "feeds status --saga")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if limit != defaultFeedLimit() || limit.maxAge != feeds.DefaultMaxAge {
+				t.Errorf("limit = %+v, want the default", limit)
+			}
+			if want := "Stale after 24h · default · --saga applies a descriptor's config.exploitability.maxAge"; limit.line() != want {
+				t.Errorf("line = %q, want %q", limit.line(), want)
+			}
+		})
+	}
+	t.Run("a descriptor without maxAge is the default, and says so", func(t *testing.T) {
+		path := writeSaga(t, sagaWithImage)
+		limit, err := resolveFeedLimit(path, "feeds status --saga")
 		if err != nil {
 			t.Fatal(err)
 		}
-		if limit != defaultFeedLimit() || limit.maxAge != feeds.DefaultMaxAge || limit.line() != "" {
-			t.Errorf("limit = %+v, want the default with no line", limit)
-		}
-	})
-	t.Run("the descriptor here is read without --saga", func(t *testing.T) {
-		dir := t.TempDir()
-		writeSagaAt(t, dir, "draugr.saga.yaml", sagaWithMaxAge("72h"))
-		t.Chdir(dir)
-		limit, err := resolveFeedLimit("", "feeds status --saga")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if limit.maxAge != 72*time.Hour || limit.path != "draugr.saga.yaml" {
-			t.Errorf("limit = %+v, want 72h from draugr.saga.yaml", limit)
-		}
-	})
-	t.Run("a descriptor without maxAge is the default, unannounced", func(t *testing.T) {
-		limit, err := resolveFeedLimit(writeSaga(t, sagaWithImage), "feeds status --saga")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if limit != defaultFeedLimit() {
+		if limit.maxAge != feeds.DefaultMaxAge {
 			t.Errorf("limit = %+v, want the default", limit)
+		}
+		if want := "Stale after 24h · default · " + path + " sets no config.exploitability.maxAge"; limit.line() != want {
+			t.Errorf("line = %q, want %q", limit.line(), want)
 		}
 	})
 	t.Run("--saga naming a directory with no descriptor is refused", func(t *testing.T) {

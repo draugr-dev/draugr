@@ -1,1 +1,1 @@
-- **`draugr feeds status` and `feeds update` apply `config.exploitability.maxAge`.** They read it from the descriptor `--saga` names or the one in the current directory, so a copy is stale and refetched at the age a scan with `auto` uses. When a descriptor sets the limit, the output names the file.
+- **`draugr feeds status --saga` and `feeds update --saga` apply the descriptor's `config.exploitability.maxAge`**, so a copy is stale and refetched at the age a scan of that descriptor uses with `auto`. Both commands end with the limit they applied and where it came from.

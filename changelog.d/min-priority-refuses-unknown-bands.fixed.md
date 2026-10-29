@@ -1,1 +1,1 @@
-- **`draugr diff --min-priority` refuses a band outside P1 to P4**, as `--fail-on` refuses one, and accepts a lowercase band. `draugr scan --artifact-min-priority` refuses one too, in place of recording a band that narrowed nothing.
+- **`draugr diff --min-priority` refuses a band outside P1 to P4**, as `--fail-on` refuses one, and accepts a lowercase band. `draugr scan --artifact-min-priority` refuses one too, instead of recording a band that narrowed nothing.

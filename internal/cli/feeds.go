@@ -44,8 +44,8 @@ func newFeedsUpdateCommand() *cobra.Command {
 		Long: "Download CISA's KEV catalog, FIRST's EPSS scores and the Go vulnerability database\n" +
 			"into ~/.draugr/feeds, where a scan reads them without touching the network. With no\n" +
 			"arguments, fetches all three.\n\n" +
-			"A cached copy is current until it is older than config.exploitability.maxAge, read\n" +
-			"from the descriptor --saga names or else the one in the current directory (default 24h).\n\n" +
+			"A cached copy is current for 24h, or for config.exploitability.maxAge in the\n" +
+			"descriptor --saga names.\n\n" +
 			"In CI, run it as its own step so a feed outage surfaces there rather than during a scan.\n" +
 			"A fetch that fails keeps the cached copy and says how old it is; with nothing cached\n" +
 			"there is no answer to keep, and it fails.",
@@ -68,7 +68,7 @@ func newFeedsUpdateCommand() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&force, "force", false, "fetch even if the cached copy is current")
 	cmd.Flags().StringVar(&sagaPath, "saga", "",
-		"read config.exploitability.maxAge from this descriptor (default: the one in the current directory)")
+		"descriptor, or directory holding one, to read config.exploitability.maxAge from")
 	return cmd
 }
 
@@ -97,9 +97,6 @@ func updateFeeds(cmd *cobra.Command, dir string, names []feeds.Name, force bool,
 		return netpolicy.Refuse("feeds update", strings.Join(urls, "\n                        "))
 	}
 
-	if line := limit.line(); line != "" {
-		_, _ = fmt.Fprintln(out, line)
-	}
 	for _, n := range names {
 		if rec, ok := cached[n]; ok && !force && !rec.Stale(now, limit.maxAge) {
 			_, _ = fmt.Fprintf(out, "%-8s current (%s old) · --force to fetch anyway\n", n, feeds.HumanAge(rec.Age(now)))
@@ -126,6 +123,7 @@ func updateFeeds(cmd *cobra.Command, dir string, names []feeds.Name, force bool,
 		}
 		_, _ = fmt.Fprintf(out, "%-8s %s (%s)\n", n, feeds.Path(dir, n), feeds.HumanBytes(rec.Bytes))
 	}
+	_, _ = fmt.Fprintf(out, "\n%s\n", limit.line())
 	return nil
 }
 
@@ -135,11 +133,11 @@ func newFeedsStatusCommand() *cobra.Command {
 		Use:   "status",
 		Short: "Show what is cached, how old it is, and where it came from",
 		Long: "List the cached datasets with their age, size, source and digest.\n\n" +
+			"A copy is stale once it is older than 24h, or than config.exploitability.maxAge in\n" +
+			"the descriptor --saga names.\n\n" +
 			"EPSS is republished daily. A stale KEV or EPSS copy still scans and ranks findings on\n" +
 			"old data. A stale govulndb copy is not read. govulncheck queries vuln.go.dev instead,\n" +
-			"and with --offline the control reports an error.\n\n" +
-			"A copy is stale once it is older than config.exploitability.maxAge, read from the\n" +
-			"descriptor --saga names or else the one in the current directory (default 24h).",
+			"and with --offline the control reports an error.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			dir, err := feeds.Dir()
@@ -155,16 +153,16 @@ func newFeedsStatusCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&sagaPath, "saga", "",
-		"read config.exploitability.maxAge from this descriptor (default: the one in the current directory)")
+		"descriptor, or directory holding one, to read config.exploitability.maxAge from")
 	return cmd
 }
 
 // feedLimit is the age past which a cached feed is stale, and the setting that chose it.
 type feedLimit struct {
 	maxAge time.Duration
-	// written is config.exploitability.maxAge as the descriptor wrote it, and path is that
-	// descriptor. Both are empty when the built-in default applies.
-	written, path string
+	// path is the descriptor --saga named, empty without the flag. written is its
+	// config.exploitability.maxAge as written, empty when it sets none.
+	path, written string
 }
 
 // defaultFeedLimit is the limit a scan applies when no descriptor sets
@@ -173,47 +171,52 @@ func defaultFeedLimit() feedLimit {
 	return feedLimit{maxAge: exploitdata.FromDescriptor(nil, exploitdata.DefaultThreshold).MaxAge}
 }
 
-// resolveFeedLimit is the limit a scan of the same descriptor applies to the feed cache.
+// resolveFeedLimit is the limit a scan of the descriptor --saga names applies to the feed cache,
+// or the default without the flag.
 //
-// The descriptor is the one --saga names or, without it, the one a scan in the current directory
-// reads. Both go through exploitdata.FromDescriptor, which is where a scan's `auto` gets its limit,
-// so `feeds status` and `feeds update` cannot call a copy current that the scan would refetch, or
-// the reverse.
+// The descriptor goes through exploitdata.FromDescriptor, which is where a scan's `auto` gets its
+// limit, so `feeds status` and `feeds update` cannot call a copy current that the same scan would
+// refetch, or the reverse.
 //
-// A directory with no descriptor gets the default limit, as a scan there synthesizes a descriptor
-// with no config. A --saga that names no descriptor is an error: the limit it asked for would
-// otherwise be replaced by the default with nothing on screen saying so.
+// Only a descriptor somebody names is read. The cache belongs to the machine, and loading a
+// descriptor resolves its variables and fetches its remote fragments, so reading whichever one
+// the working directory holds would make a cache command depend on the project it ran in, and
+// fail where that project's variables or git access are missing.
 func resolveFeedLimit(sagaPath, cmdName string) (feedLimit, error) {
+	if sagaPath == "" {
+		return defaultFeedLimit(), nil
+	}
 	path, found, err := resolveDescriptor(sagaPath, cmdName)
 	if err != nil {
 		return feedLimit{}, err
 	}
 	if !found {
-		if sagaPath != "" {
-			return feedLimit{}, fmt.Errorf("--saga: no *.saga.yaml in %s", sagaPath)
-		}
-		return defaultFeedLimit(), nil
+		return feedLimit{}, fmt.Errorf("--saga: no *.saga.yaml in %s. Name a descriptor file, or a directory that holds one", sagaPath)
 	}
 	model, err := loadSaga(path)
 	if err != nil {
 		return feedLimit{}, err
 	}
 	cfg := model.Config.Exploitability
-	limit := feedLimit{maxAge: exploitdata.FromDescriptor(cfg, exploitdata.DefaultThreshold).MaxAge}
+	limit := feedLimit{maxAge: exploitdata.FromDescriptor(cfg, exploitdata.DefaultThreshold).MaxAge, path: path}
 	if cfg != nil && cfg.MaxAge != "" {
-		limit.written, limit.path = cfg.MaxAge, path
+		limit.written = cfg.MaxAge
 	}
 	return limit, nil
 }
 
-// line names the limit a descriptor set, or is "" for the default. A command that applies a file
-// nobody pointed it at says which one.
+// line states the limit and where it came from. It is always printed, because which rule decided
+// "stale" is the question a reader of the ages has.
 func (l feedLimit) line() string {
-	if l.path == "" {
-		return ""
-	}
-	if l.maxAge <= 0 {
-		return fmt.Sprintf("Never stale · config.exploitability.maxAge %s in %s", l.written, l.path)
+	switch {
+	case l.path == "":
+		return fmt.Sprintf("Stale after %s · default · --saga applies a descriptor's config.exploitability.maxAge",
+			feeds.ShortDuration(l.maxAge))
+	case l.written == "":
+		return fmt.Sprintf("Stale after %s · default · %s sets no config.exploitability.maxAge",
+			feeds.ShortDuration(l.maxAge), l.path)
+	case l.maxAge <= 0:
+		return fmt.Sprintf("Never stale · config.exploitability.maxAge in %s", l.path)
 	}
 	return fmt.Sprintf("Stale after %s · config.exploitability.maxAge in %s", l.written, l.path)
 }
@@ -251,9 +254,6 @@ func feedsStatus(out io.Writer, dir string, now time.Time, limit feedLimit) {
 		_, _ = fmt.Fprintf(out, "  %-10s %s · %s\n", n, feeds.Describe(n), feeds.URL(n))
 	}
 
-	if line := limit.line(); line != "" {
-		_, _ = fmt.Fprintf(out, "\n%s\n", line)
-	}
 	switch {
 	case len(missing) == len(feeds.Names()):
 		_, _ = fmt.Fprintf(out, "\nNothing cached. Run `draugr feeds update` to fetch all of them.\n")
@@ -281,6 +281,7 @@ func feedsStatus(out io.Writer, dir string, now time.Time, limit feedLimit) {
 			"and with --offline the control reports an error. Refresh with `draugr feeds update govulndb`.\n",
 			feeds.HumanAge(limit.maxAge))
 	}
+	_, _ = fmt.Fprintf(out, "\n%s\n", limit.line())
 }
 
 // short renders a digest at the length people actually compare, with the algorithm named so it
