@@ -2,12 +2,15 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
 func TestParseRejectsUnknownKeys(t *testing.T) {
@@ -356,6 +359,7 @@ func TestMergeCarriesEveryField(t *testing.T) {
 	populated := reflect.New(reflect.TypeOf(File{})).Elem()
 	fill(t, populated)
 	source := populated.Interface().(File)
+	source.Controllers = nil // Parse folds it, so it never reaches merge
 
 	// Laid over an empty base: everything set must survive.
 	merged := merge(File{}, source)
@@ -400,6 +404,10 @@ func fill(t *testing.T, v reflect.Value) {
 	}
 }
 
+// foldedAtParse are the fields Parse moves onto another before a file is merged, which
+// TestParseFoldsTheOlderSpelling holds to.
+var foldedAtParse = map[string]bool{"Controllers": true}
+
 // assertEveryFieldSet reports any field that came back at its zero value.
 func assertEveryFieldSet(t *testing.T, v reflect.Value, what string) {
 	t.Helper()
@@ -408,6 +416,9 @@ func assertEveryFieldSet(t *testing.T, v reflect.Value, what string) {
 		field, name := v.Field(i), typ.Field(i).Name
 		if field.Kind() == reflect.Struct {
 			assertEveryFieldSet(t, field, what+"."+name)
+			continue
+		}
+		if foldedAtParse[name] {
 			continue
 		}
 		if field.IsZero() {
@@ -442,5 +453,96 @@ func TestExplicitPrefersTheFlagToTheEnvironment(t *testing.T) {
 	t.Setenv(EnvVar, "")
 	if got := Explicit(""); got != "" {
 		t.Errorf("Explicit = %q, want none", got)
+	}
+}
+
+// A file written with `controllers:` loads as `controls:`, and one carrying both after a `config set`
+// keeps every key either sets, with `controls` winning where both set one.
+func TestParseFoldsTheOlderSpelling(t *testing.T) {
+	doc := `controllers:
+  sast:
+    semgrep:
+      config: p/ci
+    gosec:
+      enabled: true
+  sca:
+    enabled: true
+controls:
+  sast:
+    semgrep:
+      config: p/owasp-top-ten
+  licenses:
+    enabled: true
+`
+	f, err := Parse([]byte(doc), "draugr.config.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Controllers != nil {
+		t.Errorf("the older spelling is still populated after Parse: %v", f.Controllers)
+	}
+	want := map[string]saga.ControllerSettings{
+		"sast": {
+			"semgrep": saga.ControllerSettings{"config": "p/owasp-top-ten"},
+			"gosec":   saga.ControllerSettings{"enabled": true},
+		},
+		"sca":      {"enabled": true},
+		"licenses": {"enabled": true},
+	}
+	if !reflect.DeepEqual(normalize(f.Controls), normalize(want)) {
+		t.Errorf("Controls = %#v\nwant %#v", f.Controls, want)
+	}
+
+	// The older spelling alone.
+	f, err = Parse([]byte("controllers:\n  sca:\n    enabled: true\n"), "draugr.config.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := normalize(f.Controls); got != normalize(map[string]saga.ControllerSettings{"sca": {"enabled": true}}) {
+		t.Errorf("Controls = %s", got)
+	}
+}
+
+// normalize renders settings through one type, since YAML decodes a nested mapping as the
+// enclosing named type and a literal written here is a plain map.
+func normalize(m map[string]saga.ControllerSettings) string {
+	return fmt.Sprintf("%v", m)
+}
+
+func TestCurrentKeyReadsTheOlderSpellingAsControls(t *testing.T) {
+	for key, want := range map[string]string{
+		"controllers.sast.semgrep.config": "controls.sast.semgrep.config",
+		"controllers":                     "controls",
+		"controls.sast":                   "controls.sast",
+		"controllersx.sast":               "controllersx.sast",
+		"tools.trivy.version":             "tools.trivy.version",
+	} {
+		if got := CurrentKey(key); got != want {
+			t.Errorf("CurrentKey(%q) = %q, want %q", key, got, want)
+		}
+	}
+}
+
+func TestDiscoveredListsTheFilesANamedOneSkips(t *testing.T) {
+	home, work := t.TempDir(), t.TempDir()
+	t.Setenv("HOME", home)
+	if got := Discovered(work); len(got) != 0 {
+		t.Errorf("Discovered with no files = %v", got)
+	}
+	user := filepath.Join(home, ".draugr", "config.yaml")
+	project := ProjectFile(work)
+	for _, p := range []string{user, project} {
+		if err := os.MkdirAll(filepath.Dir(p), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got, want := Discovered(work), []string{user, project}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Discovered = %v, want %v", got, want)
+	}
+	if got := Files("named.yaml", work); !reflect.DeepEqual(got, []string{"named.yaml"}) {
+		t.Errorf("Files with a named file = %v", got)
 	}
 }

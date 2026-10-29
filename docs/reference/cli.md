@@ -1874,7 +1874,7 @@ cache:                  # where results are reused between runs, and for how lon
   ttl: 24h
 tools:                  # which build `draugr tools install` fetches
   trivy: { version: "0.69.3" }
-controllers:            # merged *underneath* the descriptor's own settings
+controls:               # merged *underneath* the descriptor's own settings
   sast:
     semgrep:
       config: p/owasp-top-ten
@@ -1883,7 +1883,7 @@ controllers:            # merged *underneath* the descriptor's own settings
 | Key | Holds |
 |---|---|
 | `tools.<name>.version` | the build [`tools install`](#draugr-tools-install-tool) provisions |
-| `controllers.<control>.<scanner>` | control defaults, merged underneath the descriptor's `config.controls` |
+| `controls.<control>.<scanner>` | control defaults, merged underneath the descriptor's `config.controls` |
 | `cache.dir`, `cache.ttl`, `cache.readOnly`, `cache.requireDigest` | the `--cache-*` flags. A `ttl` of `0s` means no expiry, as `--cache-ttl 0` does; leaving `ttl` out keeps the built-in default |
 | `output.view`, `output.evidence`, `output.top` | the `--view`, `--evidence` and `--top` flags. A `top` of `0` means the built-in default, not every row as `--top 0` does |
 | `output.offerInstall` | whether a scan on a terminal [offers to install](#installing-a-missing-scanner) a missing scanner; unset means it does |
@@ -1891,6 +1891,11 @@ controllers:            # merged *underneath* the descriptor's own settings
 
 A flag typed on the command line always wins over the file. See [caching &
 performance](../guides/caching-and-performance.md) for the cache settings.
+
+`controllers:` is the older spelling of `controls:`. It still loads and is folded into `controls`
+when the file is read; a file holding both is merged key by key, with
+`controls` winning where both set a key. `get` and `unset` accept a key under either name, and
+`show` and every error report it under `controls`.
 
 ### Where it comes from
 
@@ -1928,19 +1933,49 @@ or else `./draugr.config.yaml`, or `~/.draugr/config.yaml` with `--global`. `--g
 with `--config` or `DRAUGR_CONFIG` is refused, because the global file is not read while either is
 set.
 
+`set` reads a value by its first character. A value starting with `[` or `{` is a YAML flow list or
+mapping and has to parse as one; any other value is one scalar, written as typed, so a URL or a
+value holding `: ` needs no quoting. `true`, `false` and whole numbers are written as booleans and
+numbers. Quote a flow value for the shell, because `[library]` is also a glob pattern:
+
+```bash
+draugr config set controls.sca.trivyFs.pkgTypes '[library, os]'
+```
+
+A string that itself starts with `[` or `{` cannot be written by `set`; edit the file for it.
+
+`unset` of a key the file does not set is refused and writes nothing, naming the file. A key
+Draugr does not have is refused as `get` refuses it.
+
 ```
 $ draugr config show
 Files, least specific first:
   ~/.draugr/config.yaml
-  /repo/draugr.config.yaml
+  ./draugr.config.yaml
 
 In effect:
-  Setting                          Value            From
-  controllers.sast.semgrep.config  p/owasp-top-ten  /repo/draugr.config.yaml
-  tools.trivy.version              0.69.3           ~/.draugr/config.yaml
+  Setting                       Value            From
+  controls.sast.semgrep.config  p/owasp-top-ten  ./draugr.config.yaml
+  tools.trivy.version           0.69.3           ~/.draugr/config.yaml
 ```
 
-`show` names the file each value came from.
+`show` names the file each value came from: relative to the working directory when it is under it,
+under `~` when it is in the home directory, and in full otherwise. A duration is printed as written
+in the file, such as `12h`. With `--config` or `DRAUGR_CONFIG` set, the discovered files that exist
+and are not read are listed under `Skipped while … is set:`.
+
+```
+$ DRAUGR_CONFIG=ci/draugr.yaml draugr config show
+Files, least specific first:
+  ./ci/draugr.yaml
+
+Skipped while DRAUGR_CONFIG is set:
+  ./draugr.config.yaml
+
+In effect:
+  Setting    Value  From
+  cache.ttl  12h    ./ci/draugr.yaml
+```
 
 ### If the file breaks
 
@@ -1954,8 +1989,8 @@ negative `output.top`.
 $ draugr config validate draugr.config.yaml
 ✗ draugr.config.yaml
   output: "veiw" is not a setting Draugr has, did you mean "view"?
-  controllers: "sats" is not a control this build of Draugr provides, did you mean "sast"?
-  controllers.sca: "trivy-fs" is not a scanner of the "sca" control (it has grypeFs, mendSca, retirejs or trivyFs), did you mean "trivyFs"?
+  controls: "sats" is not a control this build of Draugr provides, did you mean "sast"?
+  controls.sca: "trivy-fs" is not a scanner of the "sca" control (it has grypeFs, mendSca, retirejs or trivyFs), did you mean "trivyFs"?
 
 run `draugr controls` to see what this build provides
 every key is listed at https://draugr.dev/docs/latest/reference/cli/#draugr-config

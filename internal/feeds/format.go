@@ -2,6 +2,7 @@ package feeds
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/draugr-dev/draugr/internal/english"
@@ -22,6 +23,19 @@ func HumanAge(d time.Duration) string {
 	default:
 		return english.Count(int(d.Round(time.Hour).Hours())/24, "day")
 	}
+}
+
+// ShortDuration renders a duration the way it is written in a descriptor or a config file: 24h,
+// not 24h0m0s.
+func ShortDuration(d time.Duration) string {
+	s := d.String()
+	if strings.HasSuffix(s, "m0s") {
+		s = strings.TrimSuffix(s, "0s")
+	}
+	if strings.HasSuffix(s, "h0m") {
+		s = strings.TrimSuffix(s, "0m")
+	}
+	return s
 }
 
 // HumanBytes renders a size in the largest unit that keeps it under four digits.

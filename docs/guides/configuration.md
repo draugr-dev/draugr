@@ -26,7 +26,7 @@ output:
   view: actions
   top: 20
 
-controllers:
+controls:
   sca:
     trivyFs:
       pkgTypes: [library]
@@ -92,12 +92,15 @@ keeps it and nothing set here can override a committed Saga.
 draugr config show          # every setting in effect, and which file each came from
 draugr config get cache.dir # one value, as resolved
 draugr config set cache.ttl 12h
+draugr config set controls.sca.trivyFs.pkgTypes '[library]'
 draugr config unset cache.ttl
 ```
 
 `show` reports provenance rather than just values, which is the question you actually have when a
-scan behaves unexpectedly on one machine. `set` edits the file in place and keeps it valid,
-preserving the comments you wrote around the setting.
+scan behaves unexpectedly on one machine, and it lists a discovered file that `--config` or
+`DRAUGR_CONFIG` skips. `set` edits the file in place and keeps it valid, preserving the comments you
+wrote around the setting. A value starting with `[` or `{` is written as a YAML list or mapping, and
+any other value as one string, number or boolean.
 
 The file is held to the checks `draugr validate` makes of a descriptor. `set`, `validate` and every
 command that reads the file, `scan` included, refuse a control or scanner this build does not
@@ -105,9 +108,9 @@ provide, a tool `tools install` does not provision, and a value a scan would ref
 file, the key and the nearest valid name:
 
 ```console
-$ draugr config set controllers.sats.semgrep.config x
+$ draugr config set controls.sats.semgrep.config x
 draugr: that edit would add a problem to the file, so nothing was written:
-  controllers: "sats" is not a control this build of Draugr provides, did you mean "sast"?
+  controls: "sats" is not a control this build of Draugr provides, did you mean "sast"?
 
 run `draugr controls` to see what this build provides
 ```
@@ -154,11 +157,13 @@ output:
   top: 20            # rows in the fix list
 ```
 
-### `controllers`
+### `controls`
 
 The same shape as `config.controls` in a Saga, merged underneath it. A platform team can set a
 default for every repository, a scanner's options, a database mirror an internal network requires,
 without editing a descriptor anywhere.
+
+`controllers:` still loads and is read as `controls:`.
 
 ### `publish`
 

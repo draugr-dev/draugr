@@ -13,7 +13,7 @@ import (
 )
 
 // controlChecker holds control settings to what this build can run, wherever they were written: a
-// descriptor's config.controls, a component's controls, or draugr.config.yaml's controllers. One
+// descriptor's config.controls, a component's controls, or draugr.config.yaml's controls. One
 // checker, so a misspelled control or scanner reads the same in each and none of them is the place
 // a mistake slips through.
 type controlChecker struct {

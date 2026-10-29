@@ -34,20 +34,24 @@ func configHome(t *testing.T, body string) string {
 // writes nothing.
 func TestConfigSetRefusesWhatValidateRefuses(t *testing.T) {
 	for _, c := range []struct{ key, value, want string }{
+		{"controls.sats.semgrep.config", "x",
+			`controls: "sats" is not a control this build of Draugr provides, did you mean "sast"?`},
+		// The older spelling is held to the same checks, reported under the name it loads as.
 		{"controllers.sats.semgrep.config", "x",
-			`controllers: "sats" is not a control this build of Draugr provides, did you mean "sast"?`},
-		{"controllers.secrets.gitleakz.foo", "x",
-			`controllers.secrets: "gitleakz" is not a scanner of the "secrets" control`},
-		{"controllers.secrets.gitleakz.foo", "x", `did you mean "gitleaks"?`},
-		{"controllers.sca.trivy-fs.pkgTypes", "x", `"trivy-fs" is not a scanner of the "sca" control`},
-		{"controllers.sca.trivy-fs.pkgTypes", "x", `did you mean "trivyFs"?`},
-		{"controllers.sca.trivyFs.pkgTypes", "library", `controllers.sca.trivyFs: `},
+			`controls: "sats" is not a control this build of Draugr provides, did you mean "sast"?`},
+		{"controls.secrets.gitleakz.foo", "x",
+			`controls.secrets: "gitleakz" is not a scanner of the "secrets" control`},
+		{"controls.secrets.gitleakz.foo", "x", `did you mean "gitleaks"?`},
+		{"controls.sca.trivy-fs.pkgTypes", "x", `"trivy-fs" is not a scanner of the "sca" control`},
+		{"controls.sca.trivy-fs.pkgTypes", "x", `did you mean "trivyFs"?`},
+		{"controls.sca.trivyFs.pkgTypes", "library", `controls.sca.trivyFs: `},
+		{"controls.sca.trivyFs.pkgTypes", "[library, 5]", `controls.sca.trivyFs: `},
 		{"tools.trivvy.version", "1.0.0",
 			`tools: "trivvy" is not a tool this build of Draugr installs, did you mean "trivy"?`},
 		{"output.top", "-5", `output.top: expected a whole number of 0 or more, got -5`},
 		{"output.view", "banana", `output.view: "banana" is not findings, actions or compact`},
 		{"output.view", "actoins", `did you mean "actions"?`},
-		{"cache.ttl", "-1h", `cache.ttl: expected a duration of 0s or more, got -1h0m0s`},
+		{"cache.ttl", "-1h", `cache.ttl: expected a duration of 0s or more, got -1h`},
 		{"cache.ttl", "5", `cache.ttl: expected a duration such as 12h, got 5`},
 		{"output.veiw", "x", `output: "veiw" is not a setting Draugr has, did you mean "view"?`},
 	} {
@@ -63,6 +67,11 @@ func TestConfigSetRefusesWhatValidateRefuses(t *testing.T) {
 		}
 		if strings.Contains(err.Error(), "init --force") {
 			t.Errorf("set %s %s offered to wipe a file it never wrote: %v", c.key, c.value, err)
+		}
+		// The list of keys answers a key the file cannot hold, not a value it refuses.
+		keyProblem := strings.HasPrefix(c.key, "tools.") || c.key == "output.veiw"
+		if hinted := strings.Contains(err.Error(), config.KeysURL); hinted != keyProblem {
+			t.Errorf("set %s %s: keys hint present = %v:\n%v", c.key, c.value, hinted, err)
 		}
 		if _, statErr := os.Stat(filepath.Join(dir, config.FileName)); !os.IsNotExist(statErr) {
 			t.Errorf("set %s %s wrote the file despite refusing", c.key, c.value)
@@ -85,7 +94,7 @@ func TestConfigValidateChecksEveryFile(t *testing.T) {
 	for _, want := range []string{
 		"✗ ~/.draugr/config.yaml",
 		`tools: "trivvy" is not a tool this build of Draugr installs, did you mean "trivy"?`,
-		`controllers: "sats" is not a control this build of Draugr provides, did you mean "sast"?`,
+		`controls: "sats" is not a control this build of Draugr provides, did you mean "sast"?`,
 		`output.view: "banana" is not findings, actions or compact`,
 		"run `draugr controls` to see what this build provides",
 		config.KeysURL,
@@ -108,7 +117,7 @@ func TestConfigValidateNamedFiles(t *testing.T) {
 	if err == nil || err.Error() != "1 of 2 files did not validate" {
 		t.Errorf("err = %v", err)
 	}
-	if !strings.Contains(out, "✓ "+good) || !strings.Contains(out, "✗ "+missing) {
+	if !strings.Contains(out, "✓ ./good.yaml") || !strings.Contains(out, "✗ ./missing.yaml") {
 		t.Errorf("each file should be reported:\n%s", out)
 	}
 }
@@ -148,9 +157,10 @@ func TestConfigSetReportsAOneWaySettingItCannotTurnOff(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The full path is in the Files list; the tables name the project file by its relative name.
-	if !strings.Contains(out, "  "+filepath.Join(dir, config.FileName)+"\n") {
-		t.Errorf("the Files list lacks the full path:\n%s", out)
+	// The Files list names the files as the tables do: under the working directory relative to
+	// it, and under the home directory by ~.
+	if !strings.Contains(out, "Files, least specific first:\n  ~/.draugr/config.yaml\n  ./draugr.config.yaml\n") {
+		t.Errorf("the Files list does not name both files as the tables do:\n%s", out)
 	}
 	// Columns are padded to the widest cell, so rows are compared with their spacing collapsed.
 	flat := strings.Join(strings.Fields(out), " ")
@@ -234,14 +244,14 @@ func TestConfigShowNamesTheDirectoryItSearched(t *testing.T) {
 // with both places to look next.
 func TestParseConfigReportsParseAndRegistryProblemsTogether(t *testing.T) {
 	_, err := parseConfig(builtins.Registry(), "x.yaml",
-		[]byte("output:\n  veiw: actions\ncontrollers:\n  sats: {}\n"))
+		[]byte("output:\n  veiw: actions\ncontrols:\n  sats: {}\n"))
 	var p *config.Problems
 	if !errors.As(err, &p) {
 		t.Fatalf("want *config.Problems, got %v", err)
 	}
 	want := []string{
 		`output: "veiw" is not a setting Draugr has, did you mean "view"?`,
-		`controllers: "sats" is not a control this build of Draugr provides, did you mean "sast"?`,
+		`controls: "sats" is not a control this build of Draugr provides, did you mean "sast"?`,
 	}
 	if strings.Join(p.List, "\n") != strings.Join(want, "\n") {
 		t.Errorf("problems = %q, want %q", p.List, want)

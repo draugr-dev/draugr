@@ -1,0 +1,1 @@
+- **`draugr config show` lists the files `--config` or `DRAUGR_CONFIG` skips**, names each file relative to the working directory or under `~` rather than by its full path, and prints a duration as the file writes it, `12h` rather than `12h0m0s`.

@@ -145,22 +145,10 @@ func FindGoVulnDB(dir string, now time.Time, maxAge time.Duration) (LocalGoVulnD
 	path := Path(dir, GoVulnDB)
 	if rec.Stale(now, maxAge) {
 		return LocalGoVulnDB{}, fmt.Errorf("local Go vulnerability database fetched %s, older than %s",
-			rec.FetchedAt.UTC().Format("2006-01-02 15:04 UTC"), shortDuration(maxAge))
+			rec.FetchedAt.UTC().Format("2006-01-02 15:04 UTC"), ShortDuration(maxAge))
 	}
 	if err := CheckGoVulnDB(path); err != nil {
 		return LocalGoVulnDB{}, fmt.Errorf("local Go vulnerability database: %w", err)
 	}
 	return LocalGoVulnDB{Path: path, Record: rec}, nil
-}
-
-// shortDuration renders a limit the way it is written in a descriptor: 24h, not 24h0m0s.
-func shortDuration(d time.Duration) string {
-	s := d.String()
-	if strings.HasSuffix(s, "m0s") {
-		s = strings.TrimSuffix(s, "0s")
-	}
-	if strings.HasSuffix(s, "h0m") {
-		s = strings.TrimSuffix(s, "0m")
-	}
-	return s
 }

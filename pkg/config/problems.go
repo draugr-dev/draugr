@@ -66,6 +66,17 @@ func describe(data []byte, errs []string) []string {
 	return out
 }
 
+// keysHintFor is KeysHint when a decoder error names a key the file cannot hold, and "" when every
+// one is a value of the wrong type, which its own line already explains.
+func keysHintFor(errs []string) string {
+	for _, e := range errs {
+		if !wrongType.MatchString(e) {
+			return KeysHint
+		}
+	}
+	return ""
+}
+
 func describeOne(root *yaml.Node, msg string) string {
 	if m := unknownField.FindStringSubmatch(msg); m != nil {
 		line, _ := strconv.Atoi(m[1])

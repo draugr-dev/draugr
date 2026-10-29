@@ -1096,19 +1096,19 @@ func applyConfigDefaults(ctx context.Context, model *saga.Model) (config.File, e
 		model.Config.Publishers[i].ProjectURL = projectURL
 	}
 
-	if len(res.File.Controllers) == 0 {
+	if len(res.File.Controls) == 0 {
 		return res.File, nil
 	}
 	if model.Config.Controls == nil {
 		model.Config.Controls = map[string]saga.ControllerSettings{}
 	}
-	for control, defaults := range res.File.Controllers {
+	for control, defaults := range res.File.Controls {
 		model.Config.Controls[control] = config.DeepMerge(defaults, model.Config.Controls[control])
 	}
 	// Said once, at debug: a reader wondering why a control behaved unexpectedly needs to know a
 	// second file had a say, and `draugr config show` is where the detail lives.
 	slog.DebugContext(ctx, "merged controller defaults from configuration",
-		"files", len(res.Sources), "controls", len(res.File.Controllers))
+		"files", len(res.Sources), "controls", len(res.File.Controls))
 	return res.File, nil
 }
 

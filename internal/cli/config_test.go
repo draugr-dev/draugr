@@ -20,8 +20,8 @@ func TestConfigShowNamesWhereEachValueCame(t *testing.T) {
 	res := config.Resolved{
 		Sources: []config.Source{
 			{Path: "/home/u/.draugr/config.yaml", File: config.File{
-				Tools:       map[string]config.ToolSettings{"trivy": {Version: "0.60.0"}},
-				Controllers: map[string]saga.ControllerSettings{"sast": {"semgrep": map[string]any{"config": "p/default"}}},
+				Tools:    map[string]config.ToolSettings{"trivy": {Version: "0.60.0"}},
+				Controls: map[string]saga.ControllerSettings{"sast": {"semgrep": map[string]any{"config": "p/default"}}},
 			}},
 			{Path: "/repo/draugr.config.yaml", File: config.File{
 				Tools: map[string]config.ToolSettings{"trivy": {Version: "0.69.3"}},
@@ -29,19 +29,19 @@ func TestConfigShowNamesWhereEachValueCame(t *testing.T) {
 		},
 	}
 	res.File = config.File{
-		Tools:       map[string]config.ToolSettings{"trivy": {Version: "0.69.3"}},
-		Controllers: map[string]saga.ControllerSettings{"sast": {"semgrep": map[string]any{"config": "p/default"}}},
+		Tools:    map[string]config.ToolSettings{"trivy": {Version: "0.69.3"}},
+		Controls: map[string]saga.ControllerSettings{"sast": {"semgrep": map[string]any{"config": "p/default"}}},
 	}
 
 	var buf bytes.Buffer
 	writeConfigShow(&buf, res, "/repo")
 	out := buf.String()
 
-	if !strings.Contains(out, "0.69.3") || !strings.Contains(out, "/repo/draugr.config.yaml") {
+	if !strings.Contains(out, "0.69.3") || !strings.Contains(out, "./draugr.config.yaml") {
 		t.Errorf("the winning value is not attributed:\n%s", out)
 	}
 	// A nested setting must render as a dotted path, not as a Go map dumped into a column.
-	if !strings.Contains(out, "controllers.sast.semgrep.config") {
+	if !strings.Contains(out, "controls.sast.semgrep.config") {
 		t.Errorf("nested settings not flattened:\n%s", out)
 	}
 	if strings.Contains(out, "map[") {
@@ -121,7 +121,7 @@ func TestApplyConfigDefaultsRefusesAnUnknownControl(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err := applyConfigDefaults(context.Background(), &saga.Model{})
-	want := `controllers: "sats" is not a control this build of Draugr provides, did you mean "sast"?`
+	want := `controls: "sats" is not a control this build of Draugr provides, did you mean "sast"?`
 	if err == nil || !strings.Contains(err.Error(), want) || !strings.Contains(err.Error(), config.FileName) {
 		t.Errorf("want the file and %q, got %v", want, err)
 	}
@@ -171,14 +171,14 @@ func TestConfigCommandRoundTrip(t *testing.T) {
 		t.Fatalf("init --force: %v %s", err, out)
 	}
 
-	if _, err := runConfig(t, dir, "set", "controllers.sast.semgrep.config", "p/ci"); err != nil {
+	if _, err := runConfig(t, dir, "set", "controls.sast.semgrep.config", "p/ci"); err != nil {
 		t.Fatal(err)
 	}
 	for _, c := range []struct {
 		args []string
 		want string
 	}{
-		{[]string{"get", "controllers.sast.semgrep.config"}, "p/ci"},
+		{[]string{"get", "controls.sast.semgrep.config"}, "p/ci"},
 		{[]string{"show"}, "p/ci"},
 		{[]string{"validate"}, "✓"},
 	} {
@@ -188,11 +188,203 @@ func TestConfigCommandRoundTrip(t *testing.T) {
 		}
 	}
 
-	if _, err := runConfig(t, dir, "unset", "controllers.sast.semgrep.config"); err != nil {
+	if _, err := runConfig(t, dir, "unset", "controls.sast.semgrep.config"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runConfig(t, dir, "get", "controls.sast.semgrep.config"); err == nil {
+		t.Error("get found a key that was unset")
+	}
+}
+
+// Removing a key nobody set writes nothing: no file is created, so `config init` still writes the
+// starter afterwards, and the answer tells a typo from a setting that is simply absent.
+func TestConfigUnsetRefusesAnAbsentKey(t *testing.T) {
+	configHome(t, "")
+	dir := t.TempDir()
+	project := filepath.Join(dir, config.FileName)
+
+	_, err := runConfig(t, dir, "unset", "output.vew")
+	if err == nil || !strings.Contains(err.Error(), `"output.vew" is not a setting Draugr has`) {
+		t.Errorf("unset of a misspelled key: %v", err)
+	}
+	_, err = runConfig(t, dir, "unset", "output.view")
+	if err == nil || err.Error() != `"output.view" is not set in ./draugr.config.yaml, so nothing was written` {
+		t.Errorf("unset of an absent key: %v", err)
+	}
+	if _, statErr := os.Stat(project); !os.IsNotExist(statErr) {
+		t.Fatal("unset of an absent key created the file")
+	}
+	if out, err := runConfig(t, dir, "init"); err != nil {
+		t.Errorf("init after a refused unset: %v %s", err, out)
+	}
+	before, err := os.ReadFile(project) // #nosec G304 -- a test's own temp file
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runConfig(t, dir, "unset", "tools.trivy.version"); err == nil {
+		t.Error("unset of a key the starter does not set succeeded")
+	}
+	if after, _ := os.ReadFile(project); !bytes.Equal(before, after) { // #nosec G304 -- as above
+		t.Errorf("a refused unset rewrote the file:\n%s", after)
+	}
+	_, err = runConfig(t, dir, "unset", "--global", "output.view")
+	if err == nil || err.Error() != `"output.view" is not set in ~/.draugr/config.yaml, so nothing was written` {
+		t.Errorf("unset --global of an absent key: %v", err)
+	}
+}
+
+// The starter's sections are written into as blocks, its comments survive, and emptying a section
+// keeps the comment that explains it.
+func TestConfigStarterTakesAFirstSetAsABlock(t *testing.T) {
+	configHome(t, "")
+	dir := t.TempDir()
+	if _, err := runConfig(t, dir, "init"); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(starterConfig, "controllers") {
+		t.Error("the starter writes the older spelling")
+	}
+	for _, kv := range [][2]string{
+		{"controls.sast.semgrep.config", "p/owasp-top-ten"},
+		{"publish.apiUrl", "https://draugr.acme.example"},
+	} {
+		if _, err := runConfig(t, dir, "set", kv[0], kv[1]); err != nil {
+			t.Fatalf("set %s: %v", kv[0], err)
+		}
+	}
+	data, err := os.ReadFile(filepath.Join(dir, config.FileName)) // #nosec G304 -- a test's own temp file
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(data)
+	for _, want := range []string{
+		"#   controls:\n",
+		"controls:\n  sast:\n    semgrep:\n      config: p/owasp-top-ten\n",
+		"publish:\n  apiUrl: https://draugr.acme.example\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("file lacks %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, ": {sast") || strings.Contains(got, ": {apiUrl") {
+		t.Errorf("a first set was written in flow style:\n%s", got)
+	}
+	if _, err := runConfig(t, dir, "unset", "controls.sast.semgrep.config"); err != nil {
+		t.Fatal(err)
+	}
+	data, _ = os.ReadFile(filepath.Join(dir, config.FileName)) // #nosec G304 -- as above
+	if !strings.Contains(string(data), "#         config: p/owasp-top-ten\ncontrols: {}\n") {
+		t.Errorf("emptying the section discarded its comment:\n%s", data)
+	}
+	if out, err := runConfig(t, dir, "validate"); err != nil {
+		t.Errorf("the edited starter does not validate: %v %s", err, out)
+	}
+}
+
+// `set` writes a flow list where a scanner option takes one, and `get` prints it as `set` takes it.
+func TestConfigSetWritesAList(t *testing.T) {
+	configHome(t, "")
+	dir := t.TempDir()
+	if _, err := runConfig(t, dir, "set", "controls.sca.trivyFs.pkgTypes", "[library, os]"); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := runConfig(t, dir, "get", "controls.sca.trivyFs.pkgTypes"); err != nil || out != "[library, os]\n" {
+		t.Errorf("get = %q %v, want [library, os]", out, err)
+	}
+	_, err := runConfig(t, dir, "set", "controls.sca.trivyFs.pkgTypes", "[library")
+	want := `"[library" starts with "[", so it is read as a YAML list and is not one; write a list as [a, b]`
+	if err == nil || err.Error() != want {
+		t.Errorf("a malformed list: %v, want %q", err, want)
+	}
+}
+
+// A file written with `controllers:` loads, reads back under `controls`, and answers either name.
+func TestConfigReadsTheOlderSpelling(t *testing.T) {
+	configHome(t, "")
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, config.FileName),
+		[]byte("controllers:\n  sast:\n    semgrep:\n      config: p/ci\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"controls.sast.semgrep.config", "controllers.sast.semgrep.config"} {
+		if out, err := runConfig(t, dir, "get", key); err != nil || out != "p/ci\n" {
+			t.Errorf("get %s = %q %v", key, out, err)
+		}
+	}
+	if out, err := runConfig(t, dir, "show"); err != nil || !strings.Contains(out, "controls.sast.semgrep.config") {
+		t.Errorf("show = %q %v", out, err)
+	}
+	if _, err := runConfig(t, dir, "unset", "controls.sast.semgrep.config"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := runConfig(t, dir, "get", "controllers.sast.semgrep.config"); err == nil {
-		t.Error("get found a key that was unset")
+		t.Error("unset under the current name left the older one in force")
+	}
+}
+
+// A file --config or DRAUGR_CONFIG skips is named, because the list of files read cannot show it.
+func TestConfigShowNamesTheFilesANamedOneSkips(t *testing.T) {
+	configHome(t, "output:\n  top: 5\n")
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, config.FileName), []byte("output:\n  top: 7\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	named := filepath.Join(dir, "ci", "draugr.yaml")
+	if err := os.MkdirAll(filepath.Dir(named), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(named, []byte("cache:\n  ttl: 12h\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv(config.EnvVar, named)
+	out, err := runConfig(t, dir, "show")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"Files, least specific first:\n  ./ci/draugr.yaml\n",
+		"Skipped while DRAUGR_CONFIG is set:\n  ~/.draugr/config.yaml\n  ./draugr.config.yaml\n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("show lacks %q:\n%s", want, out)
+		}
+	}
+	if flat := strings.Join(strings.Fields(out), " "); !strings.Contains(flat, "cache.ttl 12h ./ci/draugr.yaml") {
+		t.Errorf("cache.ttl is not written as the file writes it:\n%s", out)
+	}
+
+	// --config names it, and naming the project file itself skips only the home one.
+	t.Setenv(config.EnvVar, "")
+	rootConfigPath = config.FileName
+	t.Cleanup(func() { rootConfigPath = "" })
+	out, err = runConfig(t, dir, "show")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "Skipped while --config is set:\n  ~/.draugr/config.yaml\n\n") {
+		t.Errorf("show does not skip exactly the home file:\n%s", out)
+	}
+}
+
+func TestDisplayPath(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	wd := filepath.Join(home, "repo")
+	for path, want := range map[string]string{
+		filepath.Join(wd, config.FileName):            "./" + config.FileName,
+		filepath.Join(wd, "ci", "draugr.yaml"):        "./ci/draugr.yaml",
+		filepath.Join(home, ".draugr", "config.yaml"): "~/.draugr/config.yaml",
+		filepath.Join(home+"x", "draugr.config.yaml"): filepath.Join(home+"x", "draugr.config.yaml"),
+		filepath.Join(wd+"x", "draugr.config.yaml"):   "~/repox/draugr.config.yaml",
+		"/etc/draugr.yaml":                            "/etc/draugr.yaml",
+	} {
+		if got := displayPath(path, wd); got != want {
+			t.Errorf("displayPath(%q) = %q, want %q", path, got, want)
+		}
+	}
+	if got := displayPath("/etc/draugr.yaml", ""); got != "/etc/draugr.yaml" {
+		t.Errorf("with no working directory: %q", got)
 	}
 }
 
@@ -269,7 +461,7 @@ func TestConfigShowRendersCacheSettings(t *testing.T) {
 	}})
 	want := map[string]string{
 		"cache.dir":           "/var/cache/draugr",
-		"cache.ttl":           "2h0m0s",
+		"cache.ttl":           "2h",
 		"cache.readOnly":      "true",
 		"cache.requireDigest": "false",
 	}
@@ -316,7 +508,9 @@ func TestConfigShowReachesEveryField(t *testing.T) {
 	for i := range typ.NumField() {
 		name := typ.Field(i).Tag.Get("yaml")
 		name = strings.SplitN(name, ",", 2)[0]
-		if name == "" || name == "-" {
+		// The older spelling of controls is folded into it by config.Parse, so no File that reaches
+		// `show` holds it; TestParseFoldsTheOlderSpelling in pkg/config holds the fold.
+		if name == "" || name == "-" || name == "controllers" {
 			continue
 		}
 		if !shown[name] {
