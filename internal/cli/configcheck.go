@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/feeds"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -42,13 +43,13 @@ func loadConfig(wd string) (config.Resolved, error) {
 }
 
 // checkConfig holds one parsed file to what this build provides: the controls and scanners under
-// controllers, by the descriptor's own checks; tool names, against the catalog `tools install`
+// controls, by the descriptor's own checks; tool names, against the catalog `tools install`
 // reads; and the values of output and cache, against what a scan accepts.
 //
 // The result is a *config.Problems naming the file, every problem in it, and one hint.
 func checkConfig(reg *engine.Registry, path string, f config.File) error {
 	ck := newControlChecker(reg)
-	ck.controls("controllers", f.Controllers)
+	ck.controls("controls", f.Controls)
 	problems := ck.problems
 	hint := config.KeysHint
 	if len(problems) > 0 {
@@ -124,7 +125,7 @@ func valueProblems(f config.File) []string {
 		out = append(out, fmt.Sprintf("output.top: expected a whole number of 0 or more, got %d", f.Output.Top))
 	}
 	if ttl := f.Cache.TTL; ttl != nil && *ttl < 0 {
-		out = append(out, fmt.Sprintf("cache.ttl: expected a duration of 0s or more, got %s", *ttl))
+		out = append(out, fmt.Sprintf("cache.ttl: expected a duration of 0s or more, got %s", feeds.ShortDuration(*ttl)))
 	}
 	return out
 }

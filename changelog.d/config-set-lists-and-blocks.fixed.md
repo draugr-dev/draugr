@@ -1,0 +1,1 @@
+- **`draugr config set` writes lists and mappings.** A value starting with `[` or `{` is written as YAML, so `'[library]'` sets a list option instead of being refused as a string. The first key set into an empty `{}`, as in the file `config init` writes, goes on its own line rather than in flow style.

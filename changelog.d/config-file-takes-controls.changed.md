@@ -1,0 +1,1 @@
+- **`draugr.config.yaml` takes `controls:`, the name a descriptor uses.** `draugr config set controls.sast…` works, `config init` writes `controls:`, and `show` and every error name the section `controls`. `controllers:` still loads and is folded into `controls`, merged key by key where a file has both.

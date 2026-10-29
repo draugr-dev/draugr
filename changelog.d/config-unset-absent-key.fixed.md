@@ -1,0 +1,1 @@
+- **`draugr config unset` refuses a key the file does not set.** It names the file and writes nothing, where it used to create an empty `draugr.config.yaml` that `config init` then refused to replace. A misspelled key is reported as a setting Draugr does not have.

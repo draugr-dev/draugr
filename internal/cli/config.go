@@ -14,6 +14,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/english"
+	"github.com/draugr-dev/draugr/internal/feeds"
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -38,12 +39,14 @@ const starterConfig = `# draugr.config.yaml, machine and organization settings, 
 # and --config / DRAUGR_CONFIG replaces both, for reading and for draugr config set. See ` + "`draugr config show`" + ` for what is in
 # effect and where each value came from.
 
-# Default settings for a control, merged *underneath* the Saga's, so a project overrides only the
-# keys it cares about.
-controllers: {}
-  # sast:
-  #   semgrep:
-  #     config: p/owasp-top-ten
+# Default settings for a control, merged *underneath* the Saga's config.controls, so a project
+# overrides only the keys it cares about. For example:
+#
+#   controls:
+#     sast:
+#       semgrep:
+#         config: p/owasp-top-ten
+controls: {}
 
 # Where runs are delivered, for the whole organization rather than per project.
 #
@@ -51,9 +54,11 @@ controllers: {}
 # DRAUGR_CONFIG names, it is where the draugr-api publisher sends its token. Read from a project's
 # draugr.config.yaml, which changes by pull request, it is held to the rule for a url: in a Saga,
 # used only on that server's origin or one $DRAUGR_API_ORIGINS lists. No token here. This file is
-# committed, and a credential in it is a credential in somebody's git history.
+# committed, and a credential in it is a credential in somebody's git history. For example:
+#
+#   publish:
+#     apiUrl: https://draugr.acme.example
 publish: {}
-  # apiUrl: https://draugr.acme.example
 `
 
 func newConfigCommand() *cobra.Command {
@@ -156,7 +161,16 @@ func writeConfigShow(w io.Writer, res config.Resolved, wd string) {
 
 	_, _ = fmt.Fprintln(w, col.Paint(tui.StyleAccent, "Files, least specific first:"))
 	for _, s := range res.Sources {
-		_, _ = fmt.Fprintf(w, "  %s\n", shortHome(s.Path))
+		_, _ = fmt.Fprintf(w, "  %s\n", displayPath(s.Path, wd))
+	}
+	// A file that exists and is not read is the answer to "why is my setting not in effect", and
+	// the list above cannot show it.
+	if skipped := skippedFiles(res, wd); len(skipped) > 0 {
+		_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleAccent,
+			fmt.Sprintf("Skipped while %s is set:", explicitSource())))
+		for _, p := range skipped {
+			_, _ = fmt.Fprintf(w, "  %s\n", displayPath(p, wd))
+		}
 	}
 	if noProject != "" {
 		_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, noProject))
@@ -185,7 +199,7 @@ func writeConfigShow(w io.Writer, res config.Resolved, wd string) {
 	t := tui.NewTable(col, "Setting", "Value", "From").Indent("  ")
 	for _, k := range keys {
 		t.Row(tui.PlainCell(k.key), tui.PlainCell(k.value),
-			tui.Styled(tui.StyleMuted, sourceName(rows[k.key], wd)))
+			tui.Styled(tui.StyleMuted, displayPath(rows[k.key], wd)))
 	}
 	t.Render(w)
 
@@ -196,7 +210,7 @@ func writeConfigShow(w io.Writer, res config.Resolved, wd string) {
 	t = tui.NewTable(col, "Setting", "Value", "From", "Overridden by").Indent("  ")
 	for _, o := range overrides {
 		t.Row(tui.PlainCell(o.Key), tui.PlainCell("false"),
-			tui.Styled(tui.StyleMuted, sourceName(o.Path, wd)), tui.Styled(tui.StyleMuted, sourceName(o.By, wd)))
+			tui.Styled(tui.StyleMuted, displayPath(o.Path, wd)), tui.Styled(tui.StyleMuted, displayPath(o.By, wd)))
 	}
 	t.Render(w)
 	_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, oneWayRule))
@@ -205,14 +219,51 @@ func writeConfigShow(w io.Writer, res config.Resolved, wd string) {
 // oneWayRule states how cache.readOnly and cache.requireDigest layer, under a table of overrides.
 const oneWayRule = "cache.readOnly and cache.requireDigest only turn on across files."
 
-// sourceName is how a table names the file a value came from: the project file as
-// ./draugr.config.yaml and the home file under ~, so the column stays narrow. The Files list above
-// it carries the full paths.
-func sourceName(path, wd string) string {
-	if path == config.ProjectFile(wd) {
-		return "./" + config.FileName
+// skippedFiles lists the discovered files that exist and are not read, because --config or
+// DRAUGR_CONFIG names the one file that is.
+func skippedFiles(res config.Resolved, wd string) []string {
+	explicit := config.Explicit(rootConfigPath)
+	if explicit == "" {
+		return nil
+	}
+	var out []string
+	for _, p := range config.Discovered(wd) {
+		if !readFrom(res, p) && !samePath(p, explicit) {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// samePath reports whether two paths name one file, either of them relative to the working
+// directory.
+func samePath(a, b string) bool {
+	absA, errA := filepath.Abs(a)
+	absB, errB := filepath.Abs(b)
+	return errA == nil && errB == nil && absA == absB
+}
+
+// displayPath is how the config commands name a file: relative to wd, as ./draugr.config.yaml,
+// when it is under wd, and otherwise under ~ when it is in the home directory, so a column of
+// sources stays narrow and a path the reader is standing in reads as one.
+func displayPath(path, wd string) string {
+	abs, err := filepath.Abs(path)
+	if err == nil && wd != "" {
+		rel, err := filepath.Rel(wd, abs)
+		if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return "." + string(filepath.Separator) + rel
+		}
 	}
 	return shortHome(path)
+}
+
+// herePath is displayPath from the working directory.
+func herePath(path string) string {
+	wd, err := os.Getwd()
+	if err != nil {
+		return shortHome(path)
+	}
+	return displayPath(path, wd)
 }
 
 // readFrom reports whether path is one of the files res was read from.
@@ -227,7 +278,11 @@ func readFrom(res config.Resolved, path string) bool {
 
 // shortHome trims a home path to ~ so the column stays readable.
 func shortHome(path string) string {
-	if home, err := os.UserHomeDir(); err == nil && strings.HasPrefix(path, home) {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return path
+	}
+	if path == home || strings.HasPrefix(path, home+string(filepath.Separator)) {
 		return "~" + strings.TrimPrefix(path, home)
 	}
 	return path
@@ -257,7 +312,7 @@ func flatten(f config.File) []kv {
 			out = append(out, kv{"cache.dir", c.Dir})
 		}
 		if c.TTL != nil {
-			out = append(out, kv{"cache.ttl", c.TTL.String()})
+			out = append(out, kv{"cache.ttl", feeds.ShortDuration(*c.TTL)})
 		}
 		if c.ReadOnly != nil {
 			out = append(out, kv{"cache.readOnly", strconv.FormatBool(*c.ReadOnly)})
@@ -285,8 +340,8 @@ func flatten(f config.File) []kv {
 			out = append(out, kv{"output.offerInstall", strconv.FormatBool(*o.OfferInstall)})
 		}
 	}
-	for control, settings := range f.Controllers {
-		out = append(out, flattenAny("controllers."+control, settings)...)
+	for control, settings := range f.Controls {
+		out = append(out, flattenAny("controls."+control, settings)...)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].key < out[j].key })
 	return out
@@ -302,6 +357,13 @@ func flattenAny(prefix string, v any) []kv {
 		m = t
 	case map[string]any:
 		m = t
+	case []any:
+		// Written as `config set` takes it, so a value read here can be typed back.
+		items := make([]string, len(t))
+		for i, item := range t {
+			items[i] = fmt.Sprintf("%v", item)
+		}
+		return []kv{{prefix, "[" + strings.Join(items, ", ") + "]"}}
 	default:
 		return []kv{{prefix, fmt.Sprintf("%v", v)}}
 	}
@@ -326,22 +388,28 @@ func newConfigGetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			key := config.CurrentKey(args[0])
 			for _, k := range flatten(res.File) {
-				if k.key == args[0] {
+				if k.key == key {
 					_, _ = fmt.Fprintln(cmd.OutOrStdout(), k.value)
 					return nil
 				}
 			}
-			// A key nobody set and a key that does not exist are different answers, and this
-			// gave one message for both. The first is a choice and the second is a typo, and
-			// somebody who has just mistyped a setting is the reader least able to tell.
+			// A key nobody set and a key that does not exist are different answers. The first is a
+			// choice and the second is a typo, and somebody who has just mistyped a setting is the
+			// reader least able to tell.
 			if !isSetting(args[0]) {
-				return fmt.Errorf("%q is not a setting Draugr has. `draugr config show` lists "+
-					"what is set; every key is listed at %s", args[0], config.KeysURL)
+				return unknownSetting(args[0])
 			}
 			return fmt.Errorf("%q is not set (see `draugr config show`)", args[0])
 		},
 	}
+}
+
+// unknownSetting is the error for a dotted key the file cannot hold.
+func unknownSetting(key string) error {
+	return fmt.Errorf("%q is not a setting Draugr has. `draugr config show` lists "+
+		"what is set; every key is listed at %s", key, config.KeysURL)
 }
 
 func newConfigSetCommand() *cobra.Command {
@@ -349,10 +417,13 @@ func newConfigSetCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set <key> <value>",
 		Short: "Set a value, keeping the file valid and its comments intact",
-		Long: "Write key=value into a config file, given as a dotted path.\n\n" +
+		Long: "Write a value into a config file at a dotted key.\n\n" +
+			"A value starting with [ or { is a YAML flow list or mapping, such as [library, os].\n" +
+			"Any other value is one string, number or boolean, written as typed.\n\n" +
 			"Comments are preserved. The result is parsed before it is saved, so this never\n" +
 			"leaves a file Draugr cannot load.",
-		Example: "  draugr config set controllers.sast.semgrep.config p/owasp-top-ten\n" +
+		Example: "  draugr config set controls.sast.semgrep.config p/owasp-top-ten\n" +
+			"  draugr config set controls.sca.trivyFs.pkgTypes '[library, os]'\n" +
 			"  draugr config set --global tools.trivy.version 0.69.3",
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -389,7 +460,7 @@ func writeOverridden(w io.Writer, path, key string) {
 	}
 	for _, o := range res.Overrides() {
 		if o.Key == key && o.Path == path {
-			_, _ = fmt.Fprintf(w, "overridden: %s stays true; %s sets it\n", key, sourceName(o.By, wd))
+			_, _ = fmt.Fprintf(w, "overridden: %s stays true; %s sets it\n", key, displayPath(o.By, wd))
 		}
 	}
 }
@@ -399,10 +470,24 @@ func newConfigUnsetCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "unset <key>",
 		Short: "Remove a setting, pruning anything it leaves empty",
-		Args:  cobra.ExactArgs(1),
+		Long: "Remove a setting from a config file, pruning anything it leaves empty.\n\n" +
+			"A key the file does not set is refused, and nothing is written.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			path, err := configPath(global)
+			if err != nil {
+				return err
+			}
 			return editConfig(cmd.OutOrStdout(), global, func(doc []byte) ([]byte, error) {
-				return config.Unset(doc, args[0])
+				out, err := config.Unset(doc, args[0])
+				var notSet *config.NotSetError
+				if !errors.As(err, &notSet) {
+					return out, err
+				}
+				if !isSetting(args[0]) {
+					return nil, unknownSetting(args[0])
+				}
+				return nil, fmt.Errorf("%q is not set in %s, so nothing was written", args[0], herePath(path))
 			})
 		},
 	}
@@ -423,12 +508,12 @@ func editConfig(w io.Writer, global bool, apply func([]byte) ([]byte, error)) er
 		return err
 	}
 	// Which file, always. With two possible destinations, a silent success is a guess.
-	_, _ = fmt.Fprintf(w, "wrote %s\n", shortHome(path))
+	_, _ = fmt.Fprintf(w, "wrote %s\n", herePath(path))
 	// An edit to a file that already had problems is accepted when it adds none, and the ones left
 	// are said, or `wrote` reads as a file that now loads.
 	if n := remainingProblems(path); n > 0 {
 		_, _ = fmt.Fprintf(w, "%s still has %s; `draugr config validate` lists them\n",
-			shortHome(path), english.Count(n, "problem"))
+			herePath(path), english.Count(n, "problem"))
 	}
 	return nil
 }
@@ -513,7 +598,7 @@ func newConfigInitCommand() *cobra.Command {
 			}
 			if _, err := os.Stat(path); err == nil && !force {
 				return fmt.Errorf("%s already exists; pass --force to replace it with the "+
-					"built-in defaults", shortHome(path))
+					"built-in defaults", herePath(path))
 			}
 			if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 				return err
@@ -521,7 +606,7 @@ func newConfigInitCommand() *cobra.Command {
 			if err := os.WriteFile(path, []byte(starterConfig), 0o600); err != nil {
 				return err
 			}
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "wrote %s\n", shortHome(path))
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "wrote %s\n", herePath(path))
 			return nil
 		},
 	}
@@ -559,11 +644,11 @@ func newConfigValidateCommand() *cobra.Command {
 			for _, p := range paths {
 				err := validateConfigFile(reg, p)
 				if err == nil {
-					_, _ = fmt.Fprintf(w, "%s %s\n", col.Paint(tui.StylePass, "✓"), shortHome(p))
+					_, _ = fmt.Fprintf(w, "%s %s\n", col.Paint(tui.StylePass, "✓"), herePath(p))
 					continue
 				}
 				failed++
-				_, _ = fmt.Fprintf(w, "%s %s\n%s\n", col.Paint(tui.StyleFail, "✗"), shortHome(p), problemLines(err))
+				_, _ = fmt.Fprintf(w, "%s %s\n%s\n", col.Paint(tui.StyleFail, "✗"), herePath(p), problemLines(err))
 				if h := problemHint(err); h != "" && !hints[h] {
 					hints[h] = true
 					order = append(order, h)

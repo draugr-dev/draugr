@@ -28,6 +28,12 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
+// The keys of the per-control section, current and older.
+const (
+	controlsKey      = "controls"
+	olderControlsKey = "controllers"
+)
+
 // FileName is the config a project may carry beside its Saga.
 const FileName = "draugr.config.yaml"
 
@@ -40,8 +46,14 @@ type File struct {
 	// Tools pins the build of each external scanner. Provisioning rather than behavior, and
 	// deliberately not readable from a Saga.
 	Tools map[string]ToolSettings `yaml:"tools,omitempty"`
-	// Controllers are default settings merged *underneath* the Saga's, so a project overrides
-	// only the keys it cares about and inherits the rest.
+	// Controls are default settings merged *underneath* the Saga's, so a project overrides only
+	// the keys it cares about and inherits the rest. The same name and shape as a descriptor's
+	// `config.controls`.
+	Controls map[string]saga.ControllerSettings `yaml:"controls,omitempty"`
+	// Controllers is the older spelling, still read so no file breaks.
+	//
+	// Deprecated: write `controls`. Folded into Controls when a file is parsed, so nothing else has
+	// to know both names.
 	Controllers map[string]saga.ControllerSettings `yaml:"controllers,omitempty"`
 	// Cache is where scan results are reused between runs, and for how long.
 	//
@@ -184,6 +196,12 @@ func Files(explicit, workDir string) []string {
 	if explicit = Explicit(explicit); explicit != "" {
 		return []string{explicit}
 	}
+	return Discovered(workDir)
+}
+
+// Discovered lists the files that exist where Load looks when no file is named, least specific
+// first. With a file named, these are the ones it skips.
+func Discovered(workDir string) []string {
 	var out []string
 	for _, path := range discover(workDir) {
 		if _, err := os.Stat(path); err == nil {
@@ -191,6 +209,18 @@ func Files(explicit, workDir string) []string {
 		}
 	}
 	return out
+}
+
+// CurrentKey is a dotted key with the older `controllers` spelling of its first segment replaced
+// by `controls`, the name the section is read under.
+func CurrentKey(key string) string {
+	if rest, ok := strings.CutPrefix(key, olderControlsKey+"."); ok {
+		return controlsKey + "." + rest
+	}
+	if key == olderControlsKey {
+		return controlsKey
+	}
+	return key
 }
 
 // ProjectFile is where Load looks for a project's file: FileName in the working directory.
@@ -237,6 +267,7 @@ func Parse(data []byte, path string) (File, error) {
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	dec.KnownFields(true)
 	err := dec.Decode(&f)
+	foldOlderSpelling(&f)
 	switch {
 	case err == nil:
 		return f, nil
@@ -255,6 +286,27 @@ func Parse(data []byte, path string) (File, error) {
 	return File{}, &Problems{Path: path, List: []string{strings.TrimPrefix(err.Error(), "yaml: ")}}
 }
 
+// foldOlderSpelling moves `controllers` onto `controls`, once, where a file is parsed, as a
+// descriptor's are where it loads.
+//
+// A file carries both after `config set controls…` writes into one that used the older name, so
+// the two are deep-merged rather than one replacing the other: a key only `controllers` sets stays
+// in force, and `controls` wins where both set one, because the newer name is the one somebody
+// meant.
+func foldOlderSpelling(f *File) {
+	older := f.Controllers
+	f.Controllers = nil
+	if len(older) == 0 {
+		return
+	}
+	if f.Controls == nil {
+		f.Controls = make(map[string]saga.ControllerSettings, len(older))
+	}
+	for k, v := range older {
+		f.Controls[k] = DeepMerge(v, f.Controls[k])
+	}
+}
+
 // merge lays b over a, most specific winning per key.
 //
 // Field by field, and every field has to be named here. A new one added to File and forgotten is
@@ -263,8 +315,8 @@ func Parse(data []byte, path string) (File, error) {
 // Field walks the struct so the omission fails a test rather than a user's afternoon.
 func merge(a, b File) File {
 	out := File{
-		Tools:       map[string]ToolSettings{},
-		Controllers: map[string]saga.ControllerSettings{},
+		Tools:    map[string]ToolSettings{},
+		Controls: map[string]saga.ControllerSettings{},
 	}
 	for k, v := range a.Tools {
 		out.Tools[k] = v
@@ -272,11 +324,11 @@ func merge(a, b File) File {
 	for k, v := range b.Tools {
 		out.Tools[k] = v
 	}
-	for k, v := range a.Controllers {
-		out.Controllers[k] = v
+	for k, v := range a.Controls {
+		out.Controls[k] = v
 	}
-	for k, v := range b.Controllers {
-		out.Controllers[k] = DeepMerge(out.Controllers[k], v)
+	for k, v := range b.Controls {
+		out.Controls[k] = DeepMerge(out.Controls[k], v)
 	}
 	// Field by field rather than whole-struct, so a project file setting only `ttl` keeps the
 	// `dir` the machine file supplied. Replacing the struct would make the more specific file
@@ -313,8 +365,8 @@ func merge(a, b File) File {
 	if len(out.Tools) == 0 {
 		out.Tools = nil
 	}
-	if len(out.Controllers) == 0 {
-		out.Controllers = nil
+	if len(out.Controls) == 0 {
+		out.Controls = nil
 	}
 	return out
 }

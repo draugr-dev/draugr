@@ -246,9 +246,11 @@ func TestShortDuration(t *testing.T) {
 		24 * time.Hour:   "24h",
 		90 * time.Minute: "1h30m",
 		45 * time.Second: "45s",
+		12 * time.Hour:   "12h",
+		0:                "0s",
 	} {
-		if got := shortDuration(d); got != want {
-			t.Errorf("shortDuration(%v) = %q, want %q", d, got, want)
+		if got := ShortDuration(d); got != want {
+			t.Errorf("ShortDuration(%v) = %q, want %q", d, got, want)
 		}
 	}
 }
