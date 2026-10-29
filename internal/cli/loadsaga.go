@@ -13,6 +13,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/sagafetch"
+	"github.com/draugr-dev/draugr/internal/scaffold"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/tui"
@@ -205,15 +206,13 @@ func ZeroConfigControls(conjunction string) string {
 
 // syntheticSaga builds the default zero-config Saga: one component scanning the given directory
 // with the repository-based controls. Used when `draugr scan` is pointed at a directory.
+//
+// The project, the component and the repository are named as `draugr init` names them for that
+// directory, read from the working directory. A finding's identity includes its component and its
+// repository, so a run after `init` and a zero-config run of the same directory report the same
+// findings.
 func syntheticSaga(dir string) *saga.Model {
-	abs, err := filepath.Abs(dir)
-	if err != nil {
-		abs = dir
-	}
-	name := filepath.Base(abs)
-	if name == "" || name == "." || name == string(filepath.Separator) {
-		name = "repo"
-	}
+	name := scaffold.NameFor(dir)
 	return &saga.Model{
 		// The project at the top level, which is the only place it is named. A descriptor Draugr
 		// synthesized must be one Draugr's own next command accepts. Which is exactly what `init` then
@@ -222,7 +221,7 @@ func syntheticSaga(dir string) *saga.Model {
 		Config:  saga.Config{Controls: zeroConfigSettings()},
 		Components: []saga.Component{{
 			Name:         name,
-			Repositories: []saga.Repository{{URL: abs}},
+			Repositories: []saga.Repository{{URL: scaffold.RepositoryURL(dir)}},
 		}},
 	}
 }

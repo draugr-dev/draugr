@@ -416,7 +416,9 @@ The scope flags change **what runs**, and so the verdict.
 
 **Zero-config.** A directory with no descriptor is scanned as one component with `sca`,
 `secrets`, `sast` and `iac`. A note saying so is printed to stderr, so machine formats on stdout
-stay clean.
+stay clean. The project, the component and the repository are named as `draugr init` names them,
+so `draugr diff` between a zero-config run and the first run after `init` reports the same
+findings as unchanged.
 
 ```bash
 draugr scan            # zero-config: scan the current repo

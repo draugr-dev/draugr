@@ -7,7 +7,9 @@ package scaffold
 
 import (
 	"fmt"
+	"os"
 	"path"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -165,7 +167,7 @@ func Saga(t inventory.Tree, name string, perDirectory bool) string {
 		writePerDirectory(&b, t, name)
 		return b.String()
 	}
-	fmt.Fprintf(&b, "  - name: %s\n    repositories:\n      - url: .\n", Scalar(name))
+	fmt.Fprintf(&b, "  - name: %s\n    repositories:\n      - url: %s\n", Scalar(name), Here)
 	writeUnresolvedComment(&b, t.Unresolved)
 	if len(t.Parts) > 0 {
 		fmt.Fprintf(&b, "    # Directories with their own dependency files: %s\n", PathList(t.Parts))
@@ -205,7 +207,7 @@ func writeUnresolvedComment(b *strings.Builder, unresolved []manifests.Unread) {
 // and each part carved out of the components above it by ignore:.
 func writePerDirectory(b *strings.Builder, t inventory.Tree, project string) {
 	names := componentNames(t.Parts, project)
-	fmt.Fprintf(b, "  - name: %s\n    repositories:\n      - url: .\n        ignore: [%s]\n", Scalar(project), dirList(topParts(t.Parts)))
+	fmt.Fprintf(b, "  - name: %s\n    repositories:\n      - url: %s\n        ignore: [%s]\n", Scalar(project), Here, dirList(topParts(t.Parts)))
 	writeUnresolvedFor(b, t.Unresolved, ".", t.Parts)
 	// Each image stub goes on the component whose directory holds the Dockerfile. An image is
 	// ranked under the exposure and criticality of the component that declares it, so a stub for
@@ -217,7 +219,7 @@ func writePerDirectory(b *strings.Builder, t inventory.Tree, project string) {
 	}
 	writeSurfaceStubs(b, t, project, built["."])
 	for _, p := range t.Parts {
-		fmt.Fprintf(b, "  - name: %s\n    repositories:\n      - url: .\n        paths: [%s]\n", Scalar(names[p]), Scalar(p))
+		fmt.Fprintf(b, "  - name: %s\n    repositories:\n      - url: %s\n        paths: [%s]\n", Scalar(names[p]), Here, Scalar(p))
 		if inner := beneath(p, t.Parts); len(inner) > 0 {
 			fmt.Fprintf(b, "        ignore: [%s]\n", dirList(inner))
 		}
@@ -318,6 +320,51 @@ func Scalar(s string) string {
 		}
 	}
 	return strconv.Quote(s)
+}
+
+// Here is the url a scaffold gives the repository of the directory it describes. A relative
+// repository url resolves against the directory Draugr runs in, and a scaffold is written to be
+// run from the directory it describes.
+const Here = "."
+
+// NameFor is the name a scaffold gives the project and the component for dir: the last element of
+// its absolute path, folded by ProjectName.
+func NameFor(dir string) string {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		abs = dir
+	}
+	return ProjectName(filepath.Base(abs))
+}
+
+// RepositoryURL is the url a descriptor read from the working directory gives the repository in
+// dir: Here for the working directory itself, the relative path for a directory beneath it, and
+// the absolute path for any other.
+//
+// For the directory a scaffold describes, run from that directory, it is the Here the scaffold
+// writes.
+func RepositoryURL(dir string) string {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return dir
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return abs
+	}
+	rel, err := filepath.Rel(wd, abs)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return abs
+	}
+	switch {
+	case rel == ".":
+		return Here
+	case strings.Contains(rel, ":"):
+		// git reads host:path as an scp-style remote, so a path holding a colon is anchored to
+		// the working directory.
+		return Here + string(filepath.Separator) + rel
+	}
+	return rel
 }
 
 // ProjectName turns a directory name into one a descriptor accepts.

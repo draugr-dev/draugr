@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
 func TestLoadSagaValid(t *testing.T) {
@@ -59,6 +61,69 @@ func TestZeroConfigControlsMatchSyntheticSaga(t *testing.T) {
 	}
 	if got := ZeroConfigControls(""); got != "sca, secrets, sast, iac" {
 		t.Errorf("plain form = %q", got)
+	}
+}
+
+// A finding's identity includes its component and its repository, so the first scan after `init`
+// compares with a zero-config scan only when both name them alike. Two directories, so a name
+// taken from the wrong one, or from the working directory, cannot pass.
+func TestSyntheticSagaNamesWhatInitWrites(t *testing.T) {
+	root := t.TempDir()
+	dirs := []string{"My.Service", "Team Alpha"}
+	for _, d := range dirs {
+		if err := os.Mkdir(filepath.Join(root, d), 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, d := range dirs {
+		t.Chdir(filepath.Join(root, d))
+		var buf strings.Builder
+		if err := runInit(".", initOptions{output: "-"}, &buf); err != nil {
+			t.Fatal(err)
+		}
+		written, err := saga.Load([]byte(buf.String()))
+		if err != nil {
+			t.Fatalf("%s: init wrote a descriptor that does not load: %v", d, err)
+		}
+		synthesized := syntheticSaga(".")
+		if synthesized.Project != written.Project {
+			t.Errorf("%s: project %q, init writes %q", d, synthesized.Project, written.Project)
+		}
+		got, want := synthesized.Components[0], written.Components[0]
+		if got.Name != want.Name {
+			t.Errorf("%s: component %q, init writes %q", d, got.Name, want.Name)
+		}
+		if got.Repositories[0].URL != want.Repositories[0].URL {
+			t.Errorf("%s: repository %q, init writes %q", d, got.Repositories[0].URL, want.Repositories[0].URL)
+		}
+	}
+}
+
+// Pointed at a directory from its parent, the synthesized url is that directory's path from the
+// working directory, which is where the scan resolves a relative url.
+func TestSyntheticSagaFromAParentNamesTheScannedDirectory(t *testing.T) {
+	root := t.TempDir()
+	for _, d := range []string{"services/My.Service", "services/Team Alpha"} {
+		if err := os.MkdirAll(filepath.Join(root, d), 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Chdir(root)
+	for dir, want := range map[string][2]string{
+		"services/My.Service":   {"my-service", filepath.Join("services", "My.Service")},
+		"./services/Team Alpha": {"team-alpha", filepath.Join("services", "Team Alpha")},
+	} {
+		m := syntheticSaga(dir)
+		c := m.Components[0]
+		if m.Project != want[0] || c.Name != want[0] {
+			t.Errorf("%s: project %q, component %q, want %q", dir, m.Project, c.Name, want[0])
+		}
+		if c.Repositories[0].URL != want[1] {
+			t.Errorf("%s: repository %q, want %q", dir, c.Repositories[0].URL, want[1])
+		}
+		if notice := zeroConfigNotice(m); !strings.Contains(notice, "scanning "+filepath.Join(root, want[1])+" with controls") {
+			t.Errorf("%s: the notice should name the absolute directory, got:\n%s", dir, notice)
+		}
 	}
 }
 
@@ -169,8 +234,9 @@ func TestScanModelWithNoTargetSynthesizesForHere(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if url := m.Components[0].Repositories[0].URL; url != here {
-		t.Errorf("repository URL = %q, want the current directory %q", url, here)
+	url := m.Components[0].Repositories[0].URL
+	if abs, err := filepath.Abs(url); err != nil || abs != here {
+		t.Errorf("repository URL = %q resolves to %q, want the current directory %q", url, abs, here)
 	}
 }
 
