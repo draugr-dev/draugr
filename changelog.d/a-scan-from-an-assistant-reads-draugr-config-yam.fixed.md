@@ -1,1 +1,0 @@
-- **A scan from an assistant uses `draugr.config.yaml`.** The MCP `scan` tool reads the file `draugr scan` reads in the same working directory, or the one `--config` or `DRAUGR_CONFIG` names, so the enabled controls, the gate and the publishers match a scan run in a terminal. A malformed file fails with the error `draugr scan` gives.

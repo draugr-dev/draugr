@@ -1,1 +1,0 @@
-- **A failed Grype scan says why.** The error quotes the reason Grype logged after the exit status, such as `exit status 1: failed to load vulnerability db: bad db checksum …`, where it used to end at `exit status 1`. Grype scans also skip Grype's check for a newer release, so they make no request to `toolbox-data.anchore.io`.

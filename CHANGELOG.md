@@ -12,6 +12,26 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.159.0] - 2026-10-29
+
+### Changed
+
+- **`draugr tools install` fetches grype 0.121.0**, which was pinned at 0.118.0.
+
+### Fixed
+
+- **A failed Grype scan says why.** The error quotes the reason Grype logged after the exit status, such as `exit status 1: failed to load vulnerability db: bad db checksum …`, where it used to end at `exit status 1`. Grype scans also skip Grype's check for a newer release, so they make no request to `toolbox-data.anchore.io`.
+
+- **A scan from an assistant uses `draugr.config.yaml`.** The MCP `scan` tool reads the file `draugr scan` reads in the same working directory, or the one `--config` or `DRAUGR_CONFIG` names, so the enabled controls, the gate and the publishers match a scan run in a terminal. A malformed file fails with the error `draugr scan` gives.
+
+- **An assistant's `check_tools` no longer reports tools a scan does not run as missing.** Given a descriptor, it lists what `draugr doctor` lists: the scanner each enabled control selects, `git` for a repository, and `syft` only when `config.sbom` is on. Both read `draugr.config.yaml` first, so a scanner selected there counts.
+
+- **`list_controls` names the current key for turning on an opt-in scanner.** It suggests `config.controls.<control>.<scanner>.enabled` in place of the deprecated `controllers.<control>.<scanner>.enabled`.
+
+- **The `kube-bench-job` scanner runs kube-bench 0.16.0, up from 0.15.6.** It is the release `draugr tools install` pins for the `kube-bench` scanner, so both audit a cluster against the same benchmark definitions.
+
+- **`draugr diff` reports a zero-config scan's findings as unchanged against the first scan after `draugr init`.** A zero-config scan now names the project, component and repository as `init` does (`My.Service` becomes `my-service`), so the two runs no longer read as different projects.
+
 ## [0.158.1] - 2026-10-29
 
 ### Fixed
@@ -6499,7 +6519,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.158.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.159.0...HEAD
+[0.159.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.159.0
 [0.158.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.158.1
 [0.158.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.158.0
 [0.157.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.157.0
