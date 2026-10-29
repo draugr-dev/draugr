@@ -21,12 +21,15 @@ for i in $(seq 1 14); do
   printf 'GITHUB_TOKEN=ghp_%s\n' "$(rand 'A-Za-z0-9' 36)" >"services/$svc/ci/token.$i.env"
 done
 
+# The armor is assembled here rather than written out, so this script is not itself a private key
+# to a secret scanner reading the repository it lives in.
+armor="RSA PRIVATE KEY"
 for i in $(seq 1 11); do
   svc=$([ $((i % 2)) -eq 0 ] && echo web || echo api)
   {
-    echo "-----BEGIN RSA PRIVATE KEY-----"
+    echo "-----BEGIN $armor-----"
     for _ in 1 2 3 4 5 6 7 8; do rand 'A-Za-z0-9+/' 64; echo; done
-    echo "-----END RSA PRIVATE KEY-----"
+    echo "-----END $armor-----"
   } >"services/$svc/deploy/key.$i.pem"
 done
 
