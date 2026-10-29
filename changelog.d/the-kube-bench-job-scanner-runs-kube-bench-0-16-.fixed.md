@@ -1,1 +1,0 @@
-- **The `kube-bench-job` scanner runs kube-bench 0.16.0, up from 0.15.6.** It is the release `draugr tools install` pins for the `kube-bench` scanner, so both audit a cluster against the same benchmark definitions.

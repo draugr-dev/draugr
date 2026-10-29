@@ -1,1 +1,0 @@
-- **An assistant's `check_tools` no longer reports tools a scan does not run as missing.** Given a descriptor, it lists what `draugr doctor` lists: the scanner each enabled control selects, `git` for a repository, and `syft` only when `config.sbom` is on. Both read `draugr.config.yaml` first, so a scanner selected there counts.
