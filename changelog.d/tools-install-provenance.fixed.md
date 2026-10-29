@@ -1,1 +1,0 @@
-- **`draugr tools install` reports the check it made.** Each line names what verified the install in the plan's `Verify` words, so a `--version` install with nothing published reads `unverified`. `semgrep`, `retire` and `govulncheck` are left alone when current, their plan rows show the version `--version` asks for, and `tools outdated` suggests `--version <latest>`.

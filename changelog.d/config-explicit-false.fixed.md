@@ -1,1 +1,0 @@
-- **A project's `draugr.config.yaml` can turn a setting off.** Its `false` or `0s` now overrides the home file's `true` or duration, and `cache.ttl: 0s` means no expiry, as `--cache-ttl 0` does. `cache.readOnly` and `cache.requireDigest` still only turn on across files, and `config show` and `config set` now report a `false` that the home file overrides.

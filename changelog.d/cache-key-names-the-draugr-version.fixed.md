@@ -1,1 +1,0 @@
-- **A cached scan result is never served to a different Draugr version.** The `--cache-dir` key includes the Draugr version, or the commit for a development build, so the first run after an upgrade scans again.

@@ -12,6 +12,26 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.158.1] - 2026-10-29
+
+### Fixed
+
+- **A cached scan result is never served to a different Draugr version.** The `--cache-dir` key includes the Draugr version, or the commit for a development build, so the first run after an upgrade scans again.
+
+- **A scan now refuses an invalid `draugr.config.yaml`.** `scan`, `config set` and `config validate` fail on an unknown control, scanner, option or tool (`trivy-fs` for `trivyFs`) or a bad `output.view`, `output.top` or `cache.ttl`, naming the file, the key and the nearest valid name. These were ignored before. `draugr config validate` lists every problem.
+
+- **`cache.ttl: 0s` now means no expiry, and a project file can turn a setting off.** A project's `false` or `0s` overrides the home file's `true` or duration. `0s` matches `--cache-ttl 0`; leave `ttl` out for the 24h default. `cache.readOnly` and `cache.requireDigest` still only turn on across files, and `config show` and `config set` report an overridden `false`.
+
+- **`draugr config show` says when no project file was read.** Run from a directory with no `draugr.config.yaml`, it names that directory, so a command run from a parent directory no longer reads as a project that sets nothing.
+
+- **`draugr doctor --offline` makes no network call.** The release check, the policy check and remote fragments stay offline. Doctor also suggests the nearest control name for a misspelled one, `--strict` applies without a descriptor when a tool is missing, and the `--json` `missing` count includes tools with no data.
+
+- **A fragment now fills in the `exposure`, `criticality`, `builtBy` or labels a root descriptor leaves unset** for a component both name. Before, the fragment's values were ignored. A value the root sets still wins. `draugr validate --resolved` marks each value with the file that supplied it.
+
+- **A fragment's `imports:` now apply to a component the root descriptor also names.** A SARIF file declared in both is read once, and the same control and file named in both count as one import.
+
+- **`draugr tools install` shows how each install was verified.** Each line gives the plan's `Verify` result, so a `--version` install with nothing published reads `unverified`. A tool on PATH at the pinned version that Draugr did not install is now planned for install. `semgrep`, `retire` and `govulncheck` are skipped when current, and `tools outdated` suggests `--version <latest>`.
+
 ## [0.158.0] - 2026-10-28
 
 ### Added
@@ -6479,7 +6499,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.158.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.158.1...HEAD
+[0.158.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.158.1
 [0.158.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.158.0
 [0.157.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.157.0
 [0.156.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.156.0
