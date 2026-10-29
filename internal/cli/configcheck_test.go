@@ -68,6 +68,11 @@ func TestConfigSetRefusesWhatValidateRefuses(t *testing.T) {
 		if strings.Contains(err.Error(), "init --force") {
 			t.Errorf("set %s %s offered to wipe a file it never wrote: %v", c.key, c.value, err)
 		}
+		// The list of keys answers a key the file cannot hold, not a value it refuses.
+		keyProblem := strings.HasPrefix(c.key, "tools.") || c.key == "output.veiw"
+		if hinted := strings.Contains(err.Error(), config.KeysURL); hinted != keyProblem {
+			t.Errorf("set %s %s: keys hint present = %v:\n%v", c.key, c.value, hinted, err)
+		}
 		if _, statErr := os.Stat(filepath.Join(dir, config.FileName)); !os.IsNotExist(statErr) {
 			t.Errorf("set %s %s wrote the file despite refusing", c.key, c.value)
 		}

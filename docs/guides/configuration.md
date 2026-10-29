@@ -163,8 +163,7 @@ The same shape as `config.controls` in a Saga, merged underneath it. A platform 
 default for every repository, a scanner's options, a database mirror an internal network requires,
 without editing a descriptor anywhere.
 
-`controllers:` is the older spelling. It still loads and is folded into `controls` when the file is
-read, as it is in a descriptor.
+`controllers:` still loads and is read as `controls:`.
 
 ### `publish`
 

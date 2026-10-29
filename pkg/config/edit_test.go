@@ -206,6 +206,19 @@ func TestUnsetFindsEitherSpellingOfControls(t *testing.T) {
 	}
 }
 
+func TestUnsetRemovesAKeyUnderBothSpellings(t *testing.T) {
+	// A file holding the same key under both spellings loads it once, controls winning. Removing it
+	// from controls alone would let the controllers value take effect again.
+	doc := mustSet(t, mustSet(t, nil, "controllers.sast.semgrep.config", "p/old"), "controls.sast.semgrep.config", "p/new")
+	out, err := Unset(doc, "controls.sast.semgrep.config")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(out), "p/old") || strings.Contains(string(out), "p/new") {
+		t.Errorf("a spelling kept the key:\n%s", out)
+	}
+}
+
 func TestUnsetKeepsACommentedSection(t *testing.T) {
 	// The starter explains each section in a comment above it. Removing the last key under one
 	// keeps the section as {}, which configures nothing, rather than deleting the explanation.

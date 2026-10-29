@@ -1892,8 +1892,8 @@ controls:               # merged *underneath* the descriptor's own settings
 A flag typed on the command line always wins over the file. See [caching &
 performance](../guides/caching-and-performance.md) for the cache settings.
 
-`controllers:` is the older spelling of `controls:`, as it is in a descriptor. It still loads and is
-folded into `controls` when the file is read; a file holding both is merged key by key, with
+`controllers:` is the older spelling of `controls:`. It still loads and is folded into `controls`
+when the file is read; a file holding both is merged key by key, with
 `controls` winning where both set a key. `get` and `unset` accept a key under either name, and
 `show` and every error report it under `controls`.
 
@@ -1960,9 +1960,9 @@ In effect:
 ```
 
 `show` names the file each value came from: relative to the working directory when it is under it,
-under `~` when it is in the home directory, and in full otherwise. A duration is printed as the file
-writes it, `12h` rather than `12h0m0s`. With `--config` or `DRAUGR_CONFIG` set, the discovered files
-that exist and are not read are listed under **Skipped**:
+under `~` when it is in the home directory, and in full otherwise. A duration is printed as written
+in the file, such as `12h`. With `--config` or `DRAUGR_CONFIG` set, the discovered files that exist
+and are not read are listed under `Skipped while … is set:`.
 
 ```
 $ DRAUGR_CONFIG=ci/draugr.yaml draugr config show

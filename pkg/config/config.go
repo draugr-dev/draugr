@@ -280,7 +280,7 @@ func Parse(data []byte, path string) (File, error) {
 	// problems, for a caller that checks the rest of the file in the same pass.
 	var te *yaml.TypeError
 	if errors.As(err, &te) {
-		return f, &Problems{Path: path, List: describe(data, te.Errors), Hint: KeysHint}
+		return f, &Problems{Path: path, List: describe(data, te.Errors), Hint: keysHintFor(te.Errors)}
 	}
 	// Not YAML at all. The decoder's message names the line, which is all there is to say.
 	return File{}, &Problems{Path: path, List: []string{strings.TrimPrefix(err.Error(), "yaml: ")}}

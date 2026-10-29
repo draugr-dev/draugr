@@ -61,8 +61,8 @@ func (e *NotSetError) Error() string { return fmt.Sprintf("%q is not set", e.Key
 // setting is removed is not the same file as one that never mentioned mend, and the difference
 // shows up later as a scanner block that exists and configures nothing.
 //
-// A key under `controls` also finds the same key under the older `controllers`, and the other way
-// round, because both spellings load as one section.
+// A key under `controls` also removes the same key under the older `controllers`, and the other
+// way round, because both spellings load as one section.
 func Unset(doc []byte, key string) ([]byte, error) {
 	path, err := splitKey(key)
 	if err != nil {
@@ -72,11 +72,14 @@ func Unset(doc []byte, key string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !removeTop(root.Content[0], path) {
-		other := otherSpelling(path)
-		if other == nil || !removeTop(root.Content[0], other) {
-			return nil, &NotSetError{Key: key}
-		}
+	// Both spellings, because they load as one section: a key left under the other would take
+	// effect again the moment this one is gone.
+	removed := removeTop(root.Content[0], path)
+	if other := otherSpelling(path); other != nil && removeTop(root.Content[0], other) {
+		removed = true
+	}
+	if !removed {
+		return nil, &NotSetError{Key: key}
 	}
 	return render(root)
 }

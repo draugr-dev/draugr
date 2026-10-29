@@ -51,11 +51,17 @@ func checkConfig(reg *engine.Registry, path string, f config.File) error {
 	ck := newControlChecker(reg)
 	ck.controls("controls", f.Controls)
 	problems := ck.problems
-	hint := config.KeysHint
+	// The hint points at where the keys are listed, so it closes a report that names a key the
+	// file cannot hold. A report of values alone already says what each one accepts.
+	var hint string
 	if len(problems) > 0 {
 		hint = ck.hint()
 	}
-	problems = append(problems, toolProblems(f.Tools)...)
+	tools := toolProblems(f.Tools)
+	if len(tools) > 0 && hint == "" {
+		hint = config.KeysHint
+	}
+	problems = append(problems, tools...)
 	problems = append(problems, valueProblems(f)...)
 	if len(problems) == 0 {
 		return nil

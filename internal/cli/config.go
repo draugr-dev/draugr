@@ -36,8 +36,8 @@ const starterConfig = `# draugr.config.yaml, machine and organization settings, 
 #
 # Precedence, least specific first:
 #   ~/.draugr/config.yaml  ->  ./draugr.config.yaml
-# and --config / DRAUGR_CONFIG replaces both, for reading and for draugr config set. See ` + "`draugr config show`" + ` for what is in
-# effect and where each value came from.
+# and --config / DRAUGR_CONFIG replaces both, for reading and for draugr config set.
+# ` + "`draugr config show`" + ` lists what is in effect and where each value came from.
 
 # Default settings for a control, merged *underneath* the Saga's config.controls, so a project
 # overrides only the keys it cares about. For example:
@@ -419,7 +419,8 @@ func newConfigSetCommand() *cobra.Command {
 		Short: "Set a value, keeping the file valid and its comments intact",
 		Long: "Write a value into a config file at a dotted key.\n\n" +
 			"A value starting with [ or { is a YAML flow list or mapping, such as [library, os].\n" +
-			"Any other value is one string, number or boolean, written as typed.\n\n" +
+			"Any other value is one string, number or boolean, written as typed. Quote a flow\n" +
+			"value for the shell, as in the second example.\n\n" +
 			"Comments are preserved. The result is parsed before it is saved, so this never\n" +
 			"leaves a file Draugr cannot load.",
 		Example: "  draugr config set controls.sast.semgrep.config p/owasp-top-ten\n" +
