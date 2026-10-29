@@ -189,7 +189,9 @@ func NewServer(opts Options) (*mcp.Server, error) {
 	mcp.AddTool(s, &mcp.Tool{
 		Name: "check_tools",
 		Description: "Report which external scanners Draugr can find on this machine, and what " +
-			"to run if any are missing. Call this when a scan fails or before suggesting one: a " +
+			"to run if any are missing. Pass the path of the Saga descriptor to check only the " +
+			"tools a scan of it runs, the ones `draugr doctor` requires; without a path, every " +
+			"tool Draugr knows about is checked. Call this when a scan fails or before suggesting one: a " +
 			"control whose scanner is absent cannot run, and Draugr reports that as a failure " +
 			"rather than a pass. This only looks, it will not install anything.",
 	}, checkToolsTool(reg, opts.Config))
@@ -282,7 +284,8 @@ func NewServer(opts Options) (*mcp.Server, error) {
 		desc := "Run a scan for a Saga descriptor and return the verdict with findings " +
 			"ranked by priority. This is expensive and has side effects: it clones " +
 			"repositories, executes external scanners and reaches the network. Prefer " +
-			"summarize_report when a recent report already exists.\n\n" +
+			"summarize_report when a recent report already exists. The scan merges " +
+			"draugr.config.yaml from the server's working directory, as `draugr scan` does.\n\n" +
 			"Scope: this runs the controls the descriptor declares over the components it " +
 			"declares, and nothing else. It is a reproducible floor, not a substitute for " +
 			"reading the code. It does not reason about trust boundaries, whether a build " +

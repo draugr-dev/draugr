@@ -1,0 +1,1 @@
+- **`list_controls` names the current key for turning on an opt-in scanner.** It suggests `config.controls.<control>.<scanner>.enabled` in place of the deprecated `controllers.<control>.<scanner>.enabled`.

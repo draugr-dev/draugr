@@ -999,7 +999,7 @@ func refusal(mode ScanMode, p scanPlan, path string) string {
 
 // CheckToolsInput optionally narrows the check to what one descriptor actually needs.
 type CheckToolsInput struct {
-	Path string `json:"path,omitempty" jsonschema:"path to a Saga descriptor; without it, every tool Draugr knows about is checked"`
+	Path string `json:"path,omitempty" jsonschema:"path to the Saga descriptor about to be scanned; without it, every tool Draugr knows about is checked, including ones this project never runs"`
 }
 
 // ToolStatus is one external tool Draugr would execute.

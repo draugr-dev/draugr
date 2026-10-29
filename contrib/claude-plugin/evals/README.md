@@ -19,8 +19,7 @@ Each case directory holds:
 
 ## Running it
 
-It needs `claude` (Claude Code), `gitleaks` and `semgrep` on `PATH`. The cases scan with gitleaks
-and semgrep, and a model told a tool is missing stops before it scans.
+It needs `claude` (Claude Code), `gitleaks` and `semgrep` on `PATH`.
 
 Each case runs as a Claude Code session on whatever `claude` is signed in with. With a claude.ai
 login and no `ANTHROPIC_API_KEY` set, the sessions use that login's plan; with a key, they are
