@@ -73,11 +73,15 @@ func TestSkipUpdateCheck(t *testing.T) {
 }
 
 func TestRefuse(t *testing.T) {
-	err := Refuse("draugr tools install", "https://example.test/tool.tar.gz")
+	err := Refuse("tools install", "https://example.test/tool.tar.gz")
 	msg := err.Error()
+	// The CLI prints "draugr: " before every error, so the message starts with the command alone.
+	if want := "tools install needs the network; --offline or " + EnvVar + " is set"; !strings.HasPrefix(msg, want) {
+		t.Errorf("message = %q, want it to start %q", msg, want)
+	}
 	// The message has to name what would have been fetched. "Offline" alone leaves the reader
 	// to work out which of several network calls they just prevented.
-	for _, want := range []string{"draugr tools install", EnvVar, "https://example.test/tool.tar.gz"} {
+	for _, want := range []string{"tools install", EnvVar, "https://example.test/tool.tar.gz"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("message does not mention %q: %s", want, msg)
 		}

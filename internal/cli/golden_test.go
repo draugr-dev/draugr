@@ -60,7 +60,7 @@ func TestCommandGolden(t *testing.T) {
 			stubDetect(t, map[string]string{"trivy": tools.PinnedVersion("trivy")})
 			names := []string{"trivy", "gitleaks"}
 			writeInstallPlan(w, names, false,
-				present(context.Background(), names, toolsInstallOptions{}), toolsInstallOptions{})
+				present(names, toolsInstallOptions{}), toolsInstallOptions{})
 		}},
 		{"doctor-everything-present", func(t *testing.T, w *bytes.Buffer) {
 			stubDetect(t, allToolsPresent())

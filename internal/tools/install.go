@@ -420,20 +420,60 @@ var installable = map[string]InstallSpec{
 	},
 }
 
+// The checks an install can make, named as the plan's Verify column names them. One vocabulary
+// for the plan and the result, so the line printed after an install says the same thing the plan
+// said before it, or says why it differs.
+const (
+	// CheckPinned is a release archive matched against a SHA-256 recorded in this build.
+	CheckPinned = "sha256"
+	// CheckPinnedSigned is CheckPinned and the upstream's cosign signature over its checksums.
+	CheckPinnedSigned = "sha256 + cosign"
+	// CheckSigned is another version, listed in checksums the upstream signed with cosign.
+	CheckSigned = "upstream cosign"
+	// CheckChecksum is another version, listed in an unsigned checksums file the upstream publishes.
+	CheckChecksum = "upstream sha256"
+	// CheckPyPI is every artifact of a Python package and its dependencies matched against a
+	// SHA-256 recorded in this build.
+	CheckPyPI = "sha256 (+deps)"
+	// CheckNPM is every package in an npm tree matched against a SHA-512 integrity digest in the
+	// lockfile recorded in this build.
+	CheckNPM = "sha512 (+deps)"
+	// CheckGoSumDB is a Go module and every module it builds with, verified against the Go
+	// checksum database.
+	CheckGoSumDB = "checksum db (+deps)"
+	// CheckNone is an install nothing verified.
+	CheckNone = "unverified"
+)
+
 // Installed describes a successfully provisioned tool.
 type Installed struct {
 	Name    string
 	Version string
 	Path    string
-	// SignatureVerified is true when an upstream cosign signature was verified (in addition
-	// to the always-checked SHA-256 pin).
+	// Verified is the level recorded for this install, the one a scan's attestation reports.
+	Verified Level
+	// Checked names the check the install passed, one of the Check constants. CheckNone when
+	// nothing verified it.
+	Checked string
+	// SignatureVerified is true when an upstream cosign signature was verified.
 	SignatureVerified bool
-	// ProvenanceNote summarizes the signature outcome for reporting (e.g. why it was skipped);
-	// empty when the tool has no cosign provenance configured.
+	// ProvenanceNote says why the install was checked less strongly than the plan expected, such as
+	// cosign being absent or the pinned set not applying. Empty when the plan's check was made.
 	ProvenanceNote string
-	// AlreadyPresent is true when the pinned build was already installed and left untouched.
+	// AlreadyPresent is true when the requested build was already installed and left untouched.
 	AlreadyPresent bool
 }
+
+// Notes for an install checked less strongly than its plan.
+const (
+	noteNoCosign         = "cosign not installed, skipped signature check"
+	noteNothingPublished = "nothing published to check this version against"
+	noteChecksumsFetch   = "could not fetch the upstream checksums"
+	noteNoPinsForVersion = "no digests recorded in this build for this version"
+	notePythonFallback   = "pip could not install the hash-pinned set, so it resolved the package unchecked"
+	noteNodeFallback     = "npm could not install from the pinned lockfile, so it resolved the package unchecked"
+	noteGoFallback       = "the Go checksum database could not be enforced, so the ambient Go settings were used"
+)
 
 // cosignLookPath finds the cosign CLI; overridable in tests. A missing cosign is not an error,
 // provenance verification degrades to the SHA-256 pin with a note.
@@ -482,73 +522,91 @@ func SemgrepVersion() string { return semgrepVersion }
 // installPythonTool provisions a tool that ships as a Python package, and reports it the way an
 // installed binary is reported.
 func installPythonTool(ctx context.Context, name, version, destDir string, spec PythonSpec) (Installed, error) {
-	if version == "" {
-		version = pythonVersions[name]
-	}
+	version = managedVersion(name, version)
 	root := filepath.Dir(destDir)
 	path, level, err := installPython(ctx, root, name, spec, version)
-	if err != nil {
-		return Installed{}, err
-	}
-	// The shim is what ends up on PATH, so it is the file the attestation is about, the same rule
-	// the binary path follows.
-	sum, err := fileSHA256(path)
 	if err != nil {
 		return Installed{}, err
 	}
 	// LevelPinned when the embedded set applied: every artifact in the resolved tree matched a
 	// digest recorded in this binary, which is the same claim a pinned release archive makes and
 	// covers more, the dependencies as well as the tool.
-	recordInstall(destDir, name, installRecord{
-		Version: version, BinarySHA256: sum, Verified: level,
+	res := Installed{Name: name, Version: version, Path: path, Verified: level, Checked: CheckPyPI}
+	if level != LevelPinned {
+		res.Checked, res.ProvenanceNote = CheckNone, unpinnedNote(name, version, notePythonFallback)
+	}
+	return recordManaged(destDir, res)
+}
+
+// managedVersion is the version a language-package install fetches: the one asked for without a
+// leading "v", or the pinned one when none was.
+func managedVersion(name, version string) string {
+	if v := strings.TrimPrefix(strings.TrimSpace(version), "v"); v != "" {
+		return v
+	}
+	return ManagedVersion(name)
+}
+
+// unpinnedNote says why a language-package install is unverified: the version has no digests
+// recorded in this build, or it does and installing from them failed.
+func unpinnedNote(name, version, fallback string) string {
+	if version != ManagedVersion(name) {
+		return noteNoPinsForVersion
+	}
+	return fallback
+}
+
+// recordManaged writes the install record for a language-package tool and returns res.
+//
+// The shim or binary on PATH is the file the record describes, because it is the file a scan
+// executes and the one Current compares on the next run.
+func recordManaged(destDir string, res Installed) (Installed, error) {
+	sum, err := fileSHA256(res.Path)
+	if err != nil {
+		return Installed{}, err
+	}
+	recordInstall(destDir, res.Name, installRecord{
+		Version: res.Version, BinarySHA256: sum, Verified: res.Verified,
 	})
-	return Installed{Name: name, Version: version, Path: path}, nil
+	return res, nil
 }
 
 // installNodeTool provisions a tool that ships as an npm package, and reports it the way an
 // installed binary is reported.
 func installNodeTool(ctx context.Context, name, version, destDir string, spec NodeSpec) (Installed, error) {
-	if version == "" {
-		version = nodeVersions[name]
-	}
+	version = managedVersion(name, version)
 	root := filepath.Dir(destDir)
 	path, level, err := installNode(ctx, root, name, spec, version)
 	if err != nil {
 		return Installed{}, err
 	}
-	// The shim is what ends up on PATH, so it is the file the attestation is about, the same rule
-	// the binary and Python paths follow.
-	sum, err := fileSHA256(path)
-	if err != nil {
-		return Installed{}, err
+	res := Installed{Name: name, Version: version, Path: path, Verified: level, Checked: CheckNPM}
+	if level != LevelPinned {
+		res.Checked, res.ProvenanceNote = CheckNone, unpinnedNote(name, version, noteNodeFallback)
 	}
-	recordInstall(destDir, name, installRecord{
-		Version: version, BinarySHA256: sum, Verified: level,
-	})
-	return Installed{Name: name, Version: version, Path: path}, nil
+	return recordManaged(destDir, res)
 }
 
 // installGoTool provisions a tool built with the Go toolchain, and reports it the way an
 // installed binary is reported.
 func installGoTool(ctx context.Context, name, version, destDir string, spec GoSpec) (Installed, error) {
-	if version == "" {
-		version = goVersions[name]
-	}
+	version = managedVersion(name, version)
 	root := filepath.Dir(destDir)
 	path, level, err := installGo(ctx, root, name, spec, version)
 	if err != nil {
 		return Installed{}, err
 	}
-	sum, err := fileSHA256(path)
-	if err != nil {
-		return Installed{}, err
+	res := Installed{Name: name, Version: version, Path: path, Verified: level, Checked: CheckGoSumDB}
+	switch {
+	case level != LevelPinned:
+		res.Checked, res.ProvenanceNote = CheckNone, noteGoFallback
+	case version != ManagedVersion(name):
+		// The checksum database answers for any version, so the check is the same one. The level is
+		// not: pinned means the version Draugr ships, and the database's signed log is what vouches
+		// for this one.
+		res.Verified = LevelSigned
 	}
-	// LevelPinned when the checksum database verified the module and everything it builds with,
-	// which is the same claim a pinned release archive makes and covers more.
-	recordInstall(destDir, name, installRecord{
-		Version: version, BinarySHA256: sum, Verified: level,
-	})
-	return Installed{Name: name, Version: version, Path: path}, nil
+	return recordManaged(destDir, res)
 }
 
 // pythonVersions pins each Python-packaged tool.
@@ -627,8 +685,17 @@ func Install(ctx context.Context, name, destDir string, client *http.Client, for
 //
 //nolint:gocyclo // one linear sequence: resolve, download, verify, extract, record. Splitting it
 func InstallVersion(ctx context.Context, name, version, destDir string, client *http.Client, force bool) (Installed, error) {
-	// A tool that ships as a Python package is obtained differently and verified the same way.
-	// Handled first so the release-archive path below stays one linear sequence.
+	// A tool that ships as a language package is obtained differently and verified the same way.
+	// Handled first so the release-archive path below stays one linear sequence. Current first, on
+	// the same terms as a release binary: a rebuild of something already in place costs minutes and
+	// a network round, and changes nothing.
+	if managed(name) && !force {
+		if rec, path, ok := currentManaged(destDir, name, version); ok {
+			return Installed{
+				Name: name, Version: rec.Version, Path: path, Verified: rec.Verified, AlreadyPresent: true,
+			}, nil
+		}
+	}
 	if pySpec, ok := PythonTool(name); ok {
 		return installPythonTool(ctx, name, version, destDir, pySpec)
 	}
@@ -671,29 +738,32 @@ func InstallVersion(ctx context.Context, name, version, destDir string, client *
 
 	// A recorded SHA is the strongest thing available and needs no network. It exists only for
 	// the version Draugr ships.
-	level := LevelPinned
+	level, checked, provenanceNote := LevelPinned, CheckPinned, ""
+	signatureVerified := false
 	if asset.SHA256 != "" {
 		if gotSHA != asset.SHA256 {
 			return Installed{}, fmt.Errorf("%s: checksum mismatch for %s: got %s, want %s",
 				name, asset.URL, gotSHA, asset.SHA256)
 		}
+		// Optional provenance layer: verify the upstream's cosign signature over the checksums
+		// file (where published), before anything is written. The SHA-256 pin above is the
+		// mandatory floor; this adds signed-by-the-expected-identity assurance on top.
+		if spec.Cosign != nil {
+			signatureVerified, provenanceNote, err = verifyCosignProvenance(ctx, client, spec.Cosign, asset.URL, gotSHA)
+			if err != nil {
+				return Installed{}, fmt.Errorf("%s: provenance verification failed: %w", name, err)
+			}
+			if signatureVerified {
+				level, checked, provenanceNote = LevelSigned, CheckPinnedSigned, ""
+			}
+		}
 	} else {
-		level, err = verifyByPublishedChecksums(ctx, client, spec, asset, gotSHA)
+		level, provenanceNote, err = verifyByPublishedChecksums(ctx, client, spec, asset, gotSHA)
 		if err != nil {
 			return Installed{}, err
 		}
-	}
-
-	// Optional provenance layer: verify the upstream's cosign signature over the checksums
-	// file (where published), before anything is written. The SHA-256 pin above is the
-	// mandatory floor; this adds signed-by-the-expected-identity assurance on top.
-	signatureVerified := false
-	provenanceNote := ""
-	if spec.Cosign != nil && level == LevelPinned {
-		signatureVerified, provenanceNote, err = verifyCosignProvenance(ctx, client, spec.Cosign, asset.URL, gotSHA)
-		if err != nil {
-			return Installed{}, fmt.Errorf("%s: provenance verification failed: %w", name, err)
-		}
+		checked = checkFor(level)
+		signatureVerified = level == LevelSigned
 	}
 
 	// A bare binary (BinaryInArchive == "") is the downloaded file itself; otherwise extract it
@@ -730,9 +800,6 @@ func InstallVersion(ctx context.Context, name, version, destDir string, client *
 	}
 
 	binSum := sha256.Sum256(bin)
-	if signatureVerified && level == LevelPinned {
-		level = LevelSigned
-	}
 	recordInstall(destDir, name, installRecord{
 		Version:      spec.Version,
 		AssetSHA256:  gotSHA,
@@ -743,9 +810,23 @@ func InstallVersion(ctx context.Context, name, version, destDir string, client *
 		Name:              name,
 		Version:           spec.Version,
 		Path:              dest,
+		Verified:          level,
+		Checked:           checked,
 		SignatureVerified: signatureVerified,
 		ProvenanceNote:    provenanceNote,
 	}, nil
+}
+
+// checkFor names the check a download of another version passed, from the level it earned.
+func checkFor(level Level) string {
+	switch level {
+	case LevelSigned:
+		return CheckSigned
+	case LevelChecksum:
+		return CheckChecksum
+	default:
+		return CheckNone
+	}
 }
 
 // verifyCosignProvenance verifies an upstream's cosign signature over its checksums file, then
@@ -755,7 +836,7 @@ func InstallVersion(ctx context.Context, name, version, destDir string, client *
 func verifyCosignProvenance(ctx context.Context, client *http.Client, cs *CosignSpec, assetURL, wantSHA string) (bool, string, error) {
 	cosignPath, err := cosignLookPath()
 	if err != nil {
-		return false, "cosign not installed, skipped signature check", nil
+		return false, noteNoCosign, nil
 	}
 
 	checksums, err := download(ctx, client, cs.ChecksumsURL)
@@ -972,10 +1053,14 @@ func fileSHA256(path string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// alreadyInstalled reports whether the tool is present at exactly the pinned build, unmodified.
+// alreadyInstalled reports whether the tool is present at exactly the requested build, unmodified.
+//
+// The asset digest is compared only where this build records one, which is the version Draugr
+// ships. Another version has none to compare, and its record's own digest is the evidence that it
+// was installed and not changed since.
 func alreadyInstalled(destDir, name string, spec InstallSpec, asset Asset) (string, bool) {
 	rec, ok := loadManifest(destDir)[name]
-	if !ok || rec.Version != spec.Version || rec.AssetSHA256 != asset.SHA256 {
+	if !ok || rec.Version != spec.Version || (asset.SHA256 != "" && rec.AssetSHA256 != asset.SHA256) {
 		return "", false
 	}
 	dest := filepath.Join(destDir, spec.Binary)
@@ -983,7 +1068,142 @@ func alreadyInstalled(destDir, name string, spec InstallSpec, asset Asset) (stri
 	if err != nil || got != rec.BinarySHA256 {
 		return "", false
 	}
+	// A binary whose data is missing cannot run. kube-bench without its cfg/ tree is the case, and
+	// calling it current would skip the install that restores the tree.
+	if asset.DataInArchive != "" && spec.DataDir != "" {
+		root, err := DataRoot()
+		if err != nil {
+			return "", false
+		}
+		if _, err := os.Stat(filepath.Join(root, spec.DataDir)); err != nil {
+			return "", false
+		}
+	}
 	return dest, true
+}
+
+// managed reports whether a tool is obtained as a language package rather than a release archive.
+func managed(name string) bool { return ManagedVersion(name) != "" }
+
+// currentManaged reports whether a language-package tool is installed at the requested version
+// and unchanged since, with its record and the path on PATH.
+//
+// The file compared is the one on PATH, the shim or the built binary, because it is the one the
+// record describes. The entry point a shim runs is checked as well: a shim whose environment was
+// removed matches its record and runs nothing.
+func currentManaged(destDir, name, version string) (installRecord, string, bool) {
+	rec, ok := loadManifest(destDir)[name]
+	if !ok || rec.Version != managedVersion(name, version) || rec.BinarySHA256 == "" {
+		return installRecord{}, "", false
+	}
+	root := filepath.Dir(destDir)
+	path := filepath.Join(root, "bin", name)
+	got, err := fileSHA256(path)
+	if err != nil || got != rec.BinarySHA256 {
+		return installRecord{}, "", false
+	}
+	var entry string
+	if _, ok := PythonTool(name); ok {
+		entry = filepath.Join(pythonEnvDir(root, name), "bin", name)
+	}
+	if spec, ok := NodeTool(name); ok {
+		entry = filepath.Join(nodeEnvDir(root, name), "node_modules", ".bin", spec.Command)
+	}
+	if entry != "" {
+		if _, err := os.Stat(entry); err != nil {
+			return installRecord{}, "", false
+		}
+	}
+	return rec, path, true
+}
+
+// Current reports whether a tool is installed in destDir at the version an install of version
+// would fetch, unchanged since Draugr wrote it, and returns that version. An empty version means
+// the one Draugr ships.
+//
+// It is the test InstallVersion applies before leaving a tool alone, so a plan built from it and
+// the install that follows agree about what is current. A copy on PATH that Draugr did not install
+// is not current by this test, whatever version it reports, because nothing recorded what it is.
+func Current(destDir, name, version string) (string, bool) {
+	if managed(name) {
+		rec, _, ok := currentManaged(destDir, name, version)
+		return rec.Version, ok
+	}
+	spec, err := SpecFor(name, version)
+	if err != nil {
+		return "", false
+	}
+	asset, ok := spec.Assets[platformKey()]
+	if !ok {
+		return "", false
+	}
+	if _, ok := alreadyInstalled(destDir, name, spec, asset); !ok {
+		return "", false
+	}
+	return spec.Version, true
+}
+
+// PlannedVersion is the version an install of version would fetch, and false when Draugr cannot
+// install that tool at that version on this platform. An empty version means the one Draugr ships.
+func PlannedVersion(name, version string) (string, bool) {
+	if managed(name) {
+		return managedVersion(name, version), true
+	}
+	spec, err := SpecFor(name, version)
+	if err != nil {
+		return "", false
+	}
+	if _, ok := spec.Assets[platformKey()]; !ok {
+		return "", false
+	}
+	return spec.Version, true
+}
+
+// PlannedCheck names the check an install of version will make, before it runs, in the words the
+// install's result uses. Empty when Draugr cannot install the tool.
+func PlannedCheck(name, version string) string {
+	if managed(name) {
+		if _, ok := GoTool(name); ok {
+			// The checksum database answers for every version of a module.
+			return CheckGoSumDB
+		}
+		if managedVersion(name, version) != ManagedVersion(name) {
+			return CheckNone
+		}
+		if _, ok := NodeTool(name); ok {
+			return CheckNPM
+		}
+		return CheckPyPI
+	}
+	spec, err := SpecFor(name, version)
+	if err != nil {
+		return ""
+	}
+	_, cosignErr := cosignLookPath()
+	return releaseCheck(spec, cosignErr == nil)
+}
+
+// releaseCheck is the check a release-archive install of spec makes, given whether the cosign CLI
+// is available to verify a signature.
+//
+// A recorded SHA-256 exists only for the version Draugr ships; any other version is checked against
+// what the upstream publishes, which for some tools is nothing. Without cosign no signature is
+// checked, and the plan says so rather than promising one.
+func releaseCheck(spec InstallSpec, cosign bool) string {
+	if a, ok := spec.Assets[platformKey()]; ok && a.SHA256 != "" {
+		if spec.Cosign != nil && cosign {
+			return CheckPinnedSigned
+		}
+		return CheckPinned
+	}
+	switch {
+	case spec.Cosign != nil && cosign:
+		return CheckSigned
+	case spec.ChecksumsURLTemplate != "", spec.Cosign != nil:
+		return CheckChecksum
+	default:
+		return CheckNone
+	}
 }
 
 // extractTree writes every file under prefix in a .tar.gz to dest, preserving the layout below
@@ -1047,27 +1267,29 @@ func extractTree(data []byte, prefix, dest string) (int, error) {
 }
 
 // verifyByPublishedChecksums checks a download Draugr has no recorded hash for, and reports how
-// strongly it managed to.
+// strongly it managed to, with a note when that is less than the spec allows.
 //
 // It never refuses for want of evidence, a version somebody asked for is installed even when
 // nothing is published to check it against, because refusing would block an operator who knows
 // something Draugr does not. It does refuse a **mismatch**: a published checksum that disagrees
 // is not missing information, it is information saying the download is wrong, and installing past
 // it would be ignoring evidence rather than lacking it.
-func verifyByPublishedChecksums(ctx context.Context, client *http.Client, spec InstallSpec, asset Asset, gotSHA string) (Level, error) {
+func verifyByPublishedChecksums(ctx context.Context, client *http.Client, spec InstallSpec, asset Asset, gotSHA string) (Level, string, error) {
 	file := assetFileName(asset.URL)
 
+	note := ""
 	if spec.Cosign != nil {
 		ok, _, err := verifyCosignProvenance(ctx, client, spec.Cosign, asset.URL, gotSHA)
 		switch {
 		case err != nil:
 			// The signature or the checksums say something is wrong. That is evidence, not a gap.
-			return "", fmt.Errorf("%s %s: %w", spec.Binary, spec.Version, err)
+			return "", "", fmt.Errorf("%s %s: %w", spec.Binary, spec.Version, err)
 		case ok:
-			return LevelSigned, nil
+			return LevelSigned, "", nil
 		}
 		// cosign is not installed, so the signature could not be checked. Fall through to the
 		// checksums file on its own rather than treating an absent verifier as a failure.
+		note = noteNoCosign
 	}
 
 	url := spec.ChecksumsURLTemplate
@@ -1075,18 +1297,18 @@ func verifyByPublishedChecksums(ctx context.Context, client *http.Client, spec I
 		url = spec.Cosign.ChecksumsURL
 	}
 	if url == "" {
-		return LevelUnverified, nil
+		return LevelUnverified, noteNothingPublished, nil
 	}
 	checksums, err := download(ctx, client, url)
 	if err != nil {
 		// Could not fetch them. Unknown, not wrong.
-		return LevelUnverified, nil
+		return LevelUnverified, noteChecksumsFetch, nil
 	}
 	if !checksumsContain(checksums, file, gotSHA) {
-		return "", fmt.Errorf("%s %s: %s is not listed with checksum %s in %s, the download does "+
+		return "", "", fmt.Errorf("%s %s: %s is not listed with checksum %s in %s, the download does "+
 			"not match what the upstream published", spec.Binary, spec.Version, file, gotSHA, url)
 	}
-	return LevelChecksum, nil
+	return LevelChecksum, note, nil
 }
 
 // assetFileName is the last path segment of a download URL, which is how a checksums file names

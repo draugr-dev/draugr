@@ -1263,12 +1263,15 @@ Preflight the environment: report which external scanner tools are **present, mi
 date**, with an install hint for each. Given a descriptor, it first loads it and reports a
 parse or schema error, then checks only the tools needed by the scanners its enabled controls
 select (plus `git` for repository targets and `syft` when `config.sbom` is enabled), then checks
-that each [target](#targets) the scan would read is reachable from this machine. It does not check
-control names or report formats; [`draugr validate`](#draugr-validate-sagayaml--glob-) does.
+that each [target](#targets) the scan would read is reachable from this machine. It refuses a
+control name this build does not provide with the message
+[`draugr validate`](#draugr-validate-sagayaml--glob-) gives. It does not check report formats;
+`validate` does.
 
 With a descriptor, it **exits non-zero** when:
 
-- the descriptor cannot be loaded, or a required tool is missing or has no data;
+- the descriptor cannot be loaded or names a control this build does not provide;
+- a required tool is missing or has no data;
 - a target check fails;
 - under `--policy`, the organization's [policy](#policy) would refuse or fail the scan;
 - a `draugr-api` publisher has an endpoint with neither a token nor a
@@ -1300,7 +1303,7 @@ TOOLS
 Tool         Status     Version  Notes
 …
 trivy        ✓ found    0.69.3   /usr/bin/trivy · tested against 0.74.0
-4 tools are not the version Draugr tests. `draugr tools install --force` installs the tested build.
+4 installed tools are not the version Draugr tests. `draugr tools install --force` installs the tested build.
 ```
 
 The line is a note, not a failure, unless `--strict` is given. An older scanner can find fewer
@@ -1444,15 +1447,17 @@ The list is **reported, not failed**, unless `--fail-on-uncovered` is passed or
 |------|---------|-------------|
 | `--json` | `false` | Emit the report as JSON instead of tables. A tool not at its pin carries `testedVersion` |
 | `--fail-on-uncovered` | `false` | Exit non-zero when the descriptor declares a surface no enabled control looks at. Also the behavior when [`config.gate.failOnCaveats`](saga-schema.md#configgate) lists `not-checked` |
-| `--strict` | `false` | Exit non-zero when a tool is not the version Draugr tests. Without a descriptor, applies only when no tool is missing |
+| `--strict` | `false` | Exit non-zero when a tool is not the version Draugr tests, with or without a descriptor. With one, a missing tool's message comes first |
 | `--policy` | `false` | Ask the `draugr-api` server for the organization's policy, sending the token. Exit non-zero when it could not be checked, as well as when a scan would be refused or fail by it |
-| `--offline` | `false` | Skip the check for a newer draugr release, the policy check, and every target check that needs the network (`DRAUGR_NO_UPDATE_CHECK=1` skips only the release check) |
+| `--offline` | `false` | Make no network call: skips the release check, the policy check, remote fragments and every target check that needs the network. `DRAUGR_NO_UPDATE_CHECK=1` skips only the release check |
 | `--components` | - | Check only the targets of these components |
 | `--controls` | - | Check only the targets these controls would read |
 | `--labels`, `--exposure`, `--criticality` | - | Select components as [`draugr scan`](#draugr-scan-sagayaml--dir) does |
 
 The JSON's top-level fields are `draugr`, `descriptor`, `tools`, `missing`, `targets`, `policy`,
-`data` and `uncoveredSurfaces`.
+`data` and `uncoveredSurfaces`. `missing` counts each required tool that is absent or has no data,
+the count the exit code is decided on. An optional tool that is absent is listed and not counted.
+A tool with no data carries the hint for getting it.
 
 ```bash
 draugr doctor                       # inventory: what Draugr can use, and what you have
@@ -1551,14 +1556,14 @@ Tool         Pinned   Upstream
 cosign       3.1.3    3.1.3     current
 gitleaks     8.30.1   8.30.1    current
 …
-trivy        0.74.0   0.76.0    draugr tools install trivy
+trivy        0.74.0   0.76.0    draugr tools install trivy --version 0.76.0
 
 6 of 12 behind the version their upstream publishes.
 ```
 
 A tool whose upstream could not be asked shows `?` and `could not ask:` with the reason, and the
-last line adds how many could not be asked. `draugr tools install <tool>` installs the pinned
-version; `--version` installs another.
+last line adds how many could not be asked. The command beside a tool that is behind installs the
+upstream's version. Without `--version`, `draugr tools install <tool>` installs the pinned one.
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -1641,31 +1646,41 @@ The plan's `Verify` column says which you are getting before anything is downloa
 | Verify | Meaning |
 |---|---|
 | `sha256` | the pinned build, against a SHA-256 recorded in Draugr |
-| `sha256 + cosign` | the same, and the upstream's cosign signature over its checksums file |
-| `upstream cosign`, `upstream sha256` | another version, against what the upstream signed or published |
-| `unverified` | another version, with nothing published to check it against |
-| `sha256 (+deps)`, `sha512 (+deps)`, `checksum db (+deps)` | `semgrep`, `retire` and `govulncheck`, with every dependency checked too |
+| `sha256 + cosign` | the same, and the upstream's cosign signature over its checksums file, when `cosign` is installed |
+| `upstream cosign` | another version, against checksums the upstream signed, when `cosign` is installed |
+| `upstream sha256` | another version, against checksums the upstream published |
+| `unverified` | another version, with nothing published to check it against; or `semgrep` or `retire` at a version other than the pinned one. Omit `--version` to install the pinned build, which is checked |
+| `sha256 (+deps)`, `sha512 (+deps)` | `semgrep` and `retire` at the pinned version, with every dependency checked against digests recorded in Draugr |
+| `checksum db (+deps)` | `govulncheck` at any version, with every module checked against the Go checksum database |
 | `-` | nothing to install: the tool is already current, or Draugr cannot provision it |
+
+Each installed tool's line repeats the check, as in `sha256 + cosign verified`. A weaker check adds
+a note after `;` saying why, for example `sha256 verified; cosign not installed, skipped signature
+check`. A line reading `unverified` means nothing was checked.
 
 **`--saga` installs what a descriptor needs**, resolved the same way
 [`draugr doctor`](#draugr-doctor-sagayaml) decides what to check: the enabled controls, and the
 scanners those controls will select. Where a descriptor needs something Draugr cannot provision
 (`kubectl`, `git`, `prowler`) the plan **names it** before the table.
 
-**Tools already current are not downloaded again.** The plan marks a tool `already at <version>`
-when the copy on `PATH` reports the pinned version, and when every planned tool is current the
-command prints `Everything is already current.` and stops without asking. Otherwise each tool's
-result is printed, and a release binary in `~/.draugr/bin` whose checksum still matches the
-install record is left alone and counted:
+**Tools already current are not downloaded again.** A tool is current when Draugr's install record
+in `~/.draugr/bin` holds the version the install would fetch, the pinned one or the one `--version`
+or the config names, and the file on `PATH` in `~/.draugr/bin` still matches the checksum recorded
+with it. For `semgrep` and `retire` that file is the launcher, and the environment it runs must
+still exist; for a tool with data, such as `kube-bench`, the data directory must too. The plan marks
+a current tool `already at <version>`, and when every planned tool is current the command prints
+`Everything is already current.` and stops without asking. Otherwise each tool's result is printed,
+and the current ones are left alone and counted:
 
 ```
 ✓ syft 1.51.1 → /home/you/.draugr/bin/syft (sha256 verified)
 7 tools unchanged.
 ```
 
-A binary in `~/.draugr/bin` that no longer matches its record is replaced, and a changed pin also
-reinstalls. `semgrep`, `retire` and `govulncheck` are rebuilt whenever the command installs
-anything. `--force` reinstalls unconditionally.
+A copy elsewhere on `PATH` is not current by this test, whatever version it reports, because no
+record says what it is, so the install puts Draugr's own in `~/.draugr/bin`. A file that no longer
+matches its record is replaced, and a changed pin also reinstalls. `--force` reinstalls
+unconditionally.
 
 **Plan and confirmation.** It first prints the plan (tool, version, category, verification,
 destination). On a terminal it asks for confirmation; without one (CI, pipes) it proceeds. `-y`
@@ -1679,14 +1694,19 @@ when it is absent, unless the descriptor's `provenance` control needs it.
 **Provenance.** The SHA-256 pin is the integrity floor for every release binary. Trivy also
 publishes a keyless **cosign** signature over its checksums file; with the `cosign` CLI installed,
 Draugr verifies that signature, checking the signing certificate identity and OIDC issuer, and
-confirms the archive is listed in the signed checksums. Each line reports what was verified:
-`sha256 + cosign verified`, `sha256 verified`, or `sha256 verified;` followed by why the signature
-was not checked. If `cosign` is present and verification fails, that tool's install fails.
+confirms the archive is listed in the signed checksums. The line reads `sha256 + cosign verified`,
+or `sha256 verified; cosign not installed, skipped signature check` without `cosign`. If `cosign` is
+present and verification fails, that tool's install fails.
 
 Semgrep publishes no release binary, so it is installed from PyPI into a virtual environment Draugr
 owns (`~/.draugr/venv/semgrep`), with every artifact in the resolved tree matched against a digest
-recorded in this build, dependencies included. When `semgrep` is missing, `doctor` suggests
-`draugr tools install semgrep`.
+recorded in this build, dependencies included. Those digests describe the pinned version only, so
+`--version` installs another version by name, and its line reads `unverified; no digests recorded in
+this build for this version`. `retire` works the same way with its pinned lockfile. When `semgrep`
+is missing, `doctor` suggests `draugr tools install semgrep`.
+
+Naming a tool Draugr runs but does not provision, such as `kubectl` or `git`, is refused, and
+`draugr doctor` names where it comes from.
 
 ### `draugr tools uninstall [tool...]`
 

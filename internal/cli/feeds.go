@@ -84,7 +84,7 @@ func updateFeeds(cmd *cobra.Command, dir string, names []feeds.Name, force bool)
 		for _, n := range names {
 			urls = append(urls, feeds.URL(n))
 		}
-		return netpolicy.Refuse("draugr feeds update", strings.Join(urls, "\n                        "))
+		return netpolicy.Refuse("feeds update", strings.Join(urls, "\n                        "))
 	}
 
 	for _, n := range names {

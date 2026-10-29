@@ -82,7 +82,7 @@ func serverArg(args []string) (string, error) {
 
 func runLogin(ctx context.Context, w io.Writer, server string) error {
 	if netpolicy.Offline() {
-		return netpolicy.Refuse("draugr login", server+"/v1/device/code")
+		return netpolicy.Refuse("login", server+"/v1/device/code")
 	}
 	origin, err := login.Origin(server)
 	if err != nil {

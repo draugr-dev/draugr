@@ -49,7 +49,7 @@ func newToolsOutdatedCommand() *cobra.Command {
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if netpolicy.Offline() {
-				return netpolicy.Refuse("draugr tools outdated",
+				return netpolicy.Refuse("tools outdated",
 					"the release listings each tool publishes")
 			}
 			return runToolsOutdated(cmd.Context(), cmd.OutOrStdout(), asJSON, nil)
@@ -117,9 +117,11 @@ func runToolsOutdated(ctx context.Context, w io.Writer, asJSON bool, client *htt
 				tui.Styled(tui.StyleMuted, "could not ask: "+d.Err.Error()))
 		case d.Behind():
 			behind++
+			// The upstream's version, named. Without --version the command installs the pin, which
+			// is the version this row says is behind.
 			table.Row(tui.Styled(tui.StyleStrong, d.Tool), tui.PlainCell(d.Pinned),
 				tui.Styled(tui.StyleAccent, d.Latest),
-				tui.Styled(tui.StyleMuted, "draugr tools install "+d.Tool))
+				tui.Styled(tui.StyleMuted, "draugr tools install "+d.Tool+" --version "+d.Latest))
 		default:
 			table.Row(tui.Styled(tui.StyleStrong, d.Tool), tui.PlainCell(d.Pinned),
 				tui.Styled(tui.StyleMuted, d.Latest), tui.Styled(tui.StyleMuted, "current"))
@@ -195,7 +197,7 @@ func newToolsInstallCommand() *cobra.Command {
 				if len(wanted) == 0 {
 					return nil
 				}
-				return netpolicy.Refuse("draugr tools install",
+				return netpolicy.Refuse("tools install",
 					"the pinned release archive for: "+strings.Join(wanted, ", "))
 			}
 			return runToolsInstall(cmd.OutOrStdout(), cmd.InOrStdin(), names, all, *opts, install)
@@ -323,37 +325,46 @@ func newToolsListCommand() *cobra.Command {
 	}
 }
 
-// runToolsInstall provisions the named tools (all installable ones when names is empty) via
-// install, which is injectable for tests. Returns an error if any install fails, after
-// attempting them all.
-// provenanceLabel summarizes how a provisioned tool was verified: the SHA-256 pin always
-// applies; cosign adds signed provenance when the upstream publishes it.
+// provenanceLabel names the check an install passed, in the words of the plan's Verify column, and
+// why it was weaker than the plan expected when it was.
 func provenanceLabel(res tools.Installed) string {
-	switch {
-	case res.SignatureVerified:
-		return "sha256 + cosign verified"
-	case res.ProvenanceNote != "":
-		return "sha256 verified; " + res.ProvenanceNote
-	default:
-		return "sha256 verified"
+	label := tools.CheckNone
+	if res.Checked != "" && res.Checked != tools.CheckNone {
+		label = res.Checked + " verified"
 	}
+	if res.ProvenanceNote != "" {
+		label += "; " + res.ProvenanceNote
+	}
+	return label
 }
 
 // checkInstallable reports any names Draugr cannot provision, suggesting the closest match.
+//
+// A tool Draugr runs and does not provision, kubectl or git, is refused with its own reason. Planned
+// like an installable one, it would take a row and could count as current, for a command that can
+// never install it.
 func checkInstallable(names []string) error {
 	known := tools.Installable()
 	set := make(map[string]bool, len(known))
 	for _, k := range known {
 		set[k] = true
 	}
-	for _, t := range tools.All() {
-		set[t.Binary] = true
-	}
-	var unknown []string
+	catalog := tools.Catalog()
+	var unknown, external []string
 	for _, n := range names {
-		if !set[n] {
+		switch {
+		case set[n]:
+		case catalog[n].Binary != "":
+			external = append(external, n)
+		default:
 			unknown = append(unknown, n)
 		}
+	}
+	if len(external) > 0 {
+		them := english.Choose(len(external), "it", "them")
+		return fmt.Errorf("cannot install %s: Draugr runs %s and does not provision %s. "+
+			"Run `draugr doctor` to see where to get %s\ninstallable: %s",
+			strings.Join(quoteAll(external), ", "), them, them, them, strings.Join(known, ", "))
 	}
 	if len(unknown) == 0 {
 		return nil
@@ -427,7 +438,7 @@ func runToolsInstall(w io.Writer, in io.Reader, names []string, all bool, opts t
 
 	// Show the plan before doing anything, with what is already satisfied marked as such.
 	planned := names
-	have := present(context.Background(), planned, opts)
+	have := present(planned, opts)
 	writeInstallPlan(w, names, all, have, opts)
 
 	if opts.dryRun {
@@ -521,58 +532,46 @@ func pronounFor(n int) string {
 // downloads none of it. The confirmation gate means *this* number, because a prompt is about what
 // the command is going to do to the machine.
 
-// writeInstallPlan prints what `tools install` will do, before doing it.
-// present reports which of names are already installed at the pinned version.
-//
-// Resolved before the plan is rendered rather than discovered inside the install loop. The plan is
-// the moment someone decides whether to let a security tool write to their machine, and it was
-// describing work it would not do, six rows for one download. detectTool resolves one tool. A var
-// so a test can decide what is installed without arranging binaries on PATH.
+// detectTool finds one tool on PATH the way `draugr doctor` does. A var so a test can decide what
+// is on PATH without arranging binaries there.
 var detectTool = func(ctx context.Context, t tools.Tool) tools.Status {
 	return tools.Detect(ctx, t, nil, nil)
 }
 
-func present(ctx context.Context, names []string, opts toolsInstallOptions) map[string]string {
+// currentTool reports the version a tool is current at in Draugr's own directory, by the record and
+// checksum `tools install` compares before leaving a tool alone. A var so a test can decide what is
+// installed without writing a manifest under the home directory.
+var currentTool = func(name, version string) (string, bool) {
+	dir, err := tools.BinDir()
+	if err != nil {
+		return "", false
+	}
+	return tools.Current(dir, name, version)
+}
+
+// present reports which of names are current at the version the install would fetch: the pin from
+// the config or --version when there is one, and otherwise the version Draugr ships.
+//
+// The same test the install applies, so a tool the plan calls current is one the install leaves
+// alone and a tool it plans is one the install fetches.
+func present(names []string, opts toolsInstallOptions) map[string]string {
 	found := map[string]string{}
 	if opts.force {
 		return found // --force reinstalls regardless, so nothing counts as satisfied
 	}
-	catalog := tools.Catalog()
 	for _, name := range names {
-		t, ok := catalog[name]
-		if !ok {
-			continue
+		if v, ok := currentTool(name, opts.want(name)); ok {
+			found[name] = v
 		}
-		st := detectTool(ctx, t)
-		if !st.Found {
-			continue
-		}
-		// A current binary whose data is missing is not current. kube-bench at the pinned version with
-		// no cfg/ tree cannot run, and reporting it as satisfied is how an install that would have fixed
-		// it gets skipped. Which is this same mistake one layer up.
-		if st.DataChecked && !st.DataFound {
-			continue
-		}
-		// A different version is still work to do, so only the requested one counts. Which is the pin
-		// from the config when there is one, and otherwise the version Draugr ships.
-		if want := opts.want(name); want != "" {
-			if st.Version != strings.TrimPrefix(want, "v") {
-				continue
-			}
-		} else if spec, ok := tools.Spec(name); ok && st.Version != spec.Version {
-			continue
-		}
-		// The language-package paths have no release spec, so their pinned version comes from
-		// their own map. Named individually this became a list of special cases that a fourth
-		// install path would silently not join.
-		if pinned := tools.ManagedVersion(name); pinned != "" && st.Version != pinned {
-			continue
-		}
-		found[name] = st.Version
 	}
 	return found
 }
 
+// writeInstallPlan prints what `tools install` will do, before doing it.
+//
+// Built from present, resolved before the plan is rendered rather than discovered inside the
+// install loop. The plan is the moment someone decides whether to let a security tool write to
+// their machine, so it describes the work the install will do and no other.
 func writeInstallPlan(w io.Writer, names []string, _ bool, have map[string]string, opts toolsInstallOptions) {
 	dir, _ := tools.BinDir()
 	catalog := tools.Catalog()
@@ -586,78 +585,33 @@ func writeInstallPlan(w io.Writer, names []string, _ bool, have map[string]strin
 	col := tui.For(w)
 	table := tui.NewTable(col, "Tool", "Version", "Category", "Verify", "Destination").Indent("  ")
 
-	// A satisfied tool keeps its row. Dropping it would read as forgetting it, and "nothing to do" is
-	// information. But it says so, and it is not counted as work.
-	satisfied := func(name string) bool { _, ok := have[name]; return ok }
 	todo := 0
-
 	for _, name := range names {
-		// A tool obtained as a Python package has no release asset to describe, so its row is
-		// built from what it does have: the pinned version, and the environment it lands in.
-		if pySpec, isPython := tools.PythonTool(name); isPython {
-			if satisfied(name) {
-				table.Row(tui.Styled(tui.StyleMuted, name), tui.PlainCell(tools.PythonVersion(name)),
-					tui.PlainCell(category(name)), tui.PlainCell("-"),
-					tui.Styled(tui.StyleMuted, "already at "+have[name]))
-				continue
-			}
-			todo++
-			table.Row(tui.Styled(tui.StyleAccent, name), tui.PlainCell(tools.PythonVersion(name)),
-				tui.PlainCell(category(name)), tui.PlainCell("sha256 (+deps)"),
-				tui.Styled(tui.StyleMuted, filepath.Join(dir, pySpec.Package)))
-			continue
-		}
-		// Same for an npm package: no release asset, so the row is the pinned version and the
-		// tree it lands in. Without this the plan says "(not installable)" and then installs it,
-		// which is a preflight contradicting the thing it is a preflight for.
-		if nodeSpec, isNode := tools.NodeTool(name); isNode {
-			if satisfied(name) {
-				table.Row(tui.Styled(tui.StyleMuted, name), tui.PlainCell(tools.NodeVersion(name)),
-					tui.PlainCell(category(name)), tui.PlainCell("-"),
-					tui.Styled(tui.StyleMuted, "already at "+have[name]))
-				continue
-			}
-			todo++
-			table.Row(tui.Styled(tui.StyleAccent, name), tui.PlainCell(tools.NodeVersion(name)),
-				tui.PlainCell(category(name)), tui.PlainCell("sha512 (+deps)"),
-				tui.Styled(tui.StyleMuted, filepath.Join(dir, nodeSpec.Command)))
-			continue
-		}
-		// And a tool built from its module: no release asset either, so the row is the pinned
-		// version and the binary it produces. Without this the plan says "(not installable)" and
-		// then installs it, which is a preflight contradicting the thing it is a preflight for.
-		if _, isGo := tools.GoTool(name); isGo {
-			if satisfied(name) {
-				table.Row(tui.Styled(tui.StyleMuted, name), tui.PlainCell(tools.GoVersion(name)),
-					tui.PlainCell(category(name)), tui.PlainCell("-"),
-					tui.Styled(tui.StyleMuted, "already at "+have[name]))
-				continue
-			}
-			todo++
-			table.Row(tui.Styled(tui.StyleAccent, name), tui.PlainCell(tools.GoVersion(name)),
-				tui.PlainCell(category(name)), tui.PlainCell("checksum db (+deps)"),
-				tui.Styled(tui.StyleMuted, filepath.Join(dir, name)))
-			continue
-		}
-		spec, err := tools.SpecFor(name, opts.want(name))
-		ok := err == nil
+		// One row shape for every install method. The version is the one this install fetches,
+		// --version or the config's pin included, and the check is the one it makes for that version.
+		version, ok := tools.PlannedVersion(name, opts.want(name))
 		if !ok {
 			table.Row(tui.Styled(tui.StyleAccent, name), tui.PlainCell("-"),
 				tui.PlainCell(category(name)), tui.PlainCell("-"),
 				tui.Styled(tui.StyleMuted, "(not installable)"))
 			continue
 		}
-		if satisfied(name) {
-			table.Row(tui.Styled(tui.StyleMuted, name), tui.PlainCell(spec.Version),
+		// A satisfied tool keeps its row. Dropping it would read as forgetting it, and "nothing to
+		// do" is information. But it says so, and it is not counted as work.
+		if current, ok := have[name]; ok {
+			table.Row(tui.Styled(tui.StyleMuted, name), tui.PlainCell(version),
 				tui.PlainCell(category(name)), tui.PlainCell("-"),
-				tui.Styled(tui.StyleMuted, "already at "+have[name]))
+				tui.Styled(tui.StyleMuted, "already at "+current))
 			continue
 		}
 		todo++
-		verify := planVerify(spec)
-		table.Row(tui.Styled(tui.StyleAccent, name), tui.PlainCell(spec.Version),
-			tui.PlainCell(category(name)), tui.PlainCell(verify),
-			tui.Styled(tui.StyleMuted, filepath.Join(dir, spec.Binary)))
+		binary := name
+		if spec, ok := tools.Spec(name); ok {
+			binary = spec.Binary
+		}
+		table.Row(tui.Styled(tui.StyleAccent, name), tui.PlainCell(version),
+			tui.PlainCell(category(name)), tui.PlainCell(tools.PlannedCheck(name, opts.want(name))),
+			tui.Styled(tui.StyleMuted, filepath.Join(dir, binary)))
 	}
 	table.Render(w)
 
@@ -755,29 +709,6 @@ func appendUnique(xs []string, s string) []string {
 		}
 	}
 	return append(xs, s)
-}
-
-// planVerify says how strongly the install will be able to verify this download, before it runs.
-//
-// The plan is where someone decides whether to let Draugr write a security tool to their machine,
-// so the strength of the check belongs there rather than in the result afterwards. A recorded
-// SHA-256 exists only for the version Draugr ships; any other version is checked against what the
-// upstream publishes, which for some tools is nothing.
-func planVerify(spec tools.InstallSpec) string {
-	if a, ok := spec.Assets[tools.PlatformKey()]; ok && a.SHA256 != "" {
-		if spec.Cosign != nil {
-			return "sha256 + cosign"
-		}
-		return "sha256"
-	}
-	switch {
-	case spec.Cosign != nil:
-		return "upstream cosign"
-	case spec.ChecksumsURLTemplate != "":
-		return "upstream sha256"
-	default:
-		return "unverified"
-	}
 }
 
 // wantedVersions resolves the version to install per tool: the pins in draugr.config.yaml, then
