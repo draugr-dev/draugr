@@ -168,20 +168,21 @@ components:
 Same name, so these are **one component** with the repository *and* the image. The GCP product
 gets the same component with GCP surfaces instead.
 
-**Each of `exposure`, `criticality`, `builtBy` and every label key takes its value from the first
-file that sets it.** Resolution starts from the descriptor you opened, so a value the root states
-is the value in force, and a fragment can supply a field the root leaves unset but never replace
-one the root sets. Labels are compared key by key.
+### Precedence
 
-Among fragments, the first in resolution order supplies the value:
+`exposure`, `criticality`, `builtBy` and each label key take the value of the first file that sets
+them, in this order:
 
-- `fragments:` entries in the order they are written,
-- the files one pattern matches in path order,
-- a fragment's own `fragments:` immediately after it.
+1. the root descriptor;
+2. `fragments:` entries as written;
+3. the files one pattern matches, in path order;
+4. a fragment's own `fragments:`, immediately after it.
 
-In practice that means `exposure` and `criticality` belong in the root or the shared fragment,
-whose pattern comes first. If a component is genuinely more exposed on one cloud than another,
-leave the classification out of both and let each variant set it.
+A fragment fills a field the root leaves unset and never replaces one it sets.
+
+Set `exposure` and `criticality` in the root, or in the fragment listed first. If a component is
+more exposed on one cloud than another, leave them out of the root and the shared fragment, and set
+them in each variant.
 
 ## Fragments from another repository
 
@@ -201,7 +202,20 @@ with relative paths keeps working when somebody else pulls it in.
 
 ## Seeing what is actually in force
 
-Once a descriptor is assembled from parts, opening one file no longer answers the question.
+Once a descriptor is assembled from parts, opening one file no longer answers the question. Here
+`azure.saga.yaml` also labels the component it ships:
+
+```yaml
+# azure.saga.yaml
+project: acme-azure
+release: { version: "3.1.0" }
+fragments:
+  - path: "**/draugr.saga-fragment.yaml"
+  - path: "**/azure.saga-fragment.yaml"
+components:
+  - name: payments
+    labels: { cloud: azure }
+```
 
 ```bash
 draugr validate azure.saga.yaml --resolved
@@ -220,6 +234,8 @@ release:
   version: 3.1.0
 components:
   - name: payments
+    labels:
+      cloud: azure # from azure.saga.yaml
     exposure: public # from services/payments/draugr.saga-fragment.yaml
     criticality: critical # from services/payments/draugr.saga-fragment.yaml
     repositories:
@@ -228,8 +244,7 @@ components:
       - image: acme.azurecr.io/payments:3.1.0
 ```
 
-Each `exposure`, `criticality`, `builtBy` and label carries a `# from` comment naming the file that
-supplied it, the root included.
+The [`--resolved` reference](../reference/cli.md#--resolved) describes the comments.
 
 The output is **a valid descriptor**, which is what makes it worth piping:
 

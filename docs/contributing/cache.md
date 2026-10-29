@@ -46,11 +46,12 @@ waiting out a clock.
 **The engine then scopes the key to the Draugr build.** `engine.buildScopedKey` hashes the key
 together with `version.Build()`, the version and commit of the running binary (`0.158.1+abcdef12`,
 or `dev+<commit>` for a development build), so an entry one build wrote is never served to another.
-Draugr reads each tool's output itself, and a change to that reading changes what the same tool run
-should produce while every input above stays the same. It is applied where an entry is read and
-written rather than inside `ComputeCacheKey`, so a key a controller sets on its own `ScanJob` is
-scoped too. A development build with no commit recorded, such as a test binary, is `dev+none`, and
-all such builds share entries.
+Draugr reads each tool's output itself, so a new build can read the same tool run differently.
+
+- It is applied where an entry is read and written rather than inside `ComputeCacheKey`, so a key
+  a controller sets on its own `ScanJob` is scoped too.
+- A development build with no commit recorded, such as a test binary, is `dev+none`, and all such
+  builds share entries.
 
 ### Target identity
 
