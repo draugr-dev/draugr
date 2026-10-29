@@ -68,7 +68,7 @@ func ProposeSagaTool(root string) mcp.ToolHandlerFor[ProposeInput, ProposeOutput
 		}
 		tree := inventory.Read(dir)
 		out := ProposeOutput{
-			Saga: scaffold.Saga(tree, scaffold.ProjectName(filepath.Base(dir)), in.PerDirectory),
+			Saga: scaffold.Saga(tree, scaffold.NameFor(dir), in.PerDirectory),
 			Path: filepath.Join(dir, sagaFile),
 		}
 		// The proposal goes through validate_saga's own check, so a descriptor this tool hands back

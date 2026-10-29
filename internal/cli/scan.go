@@ -239,8 +239,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		// Names the shape rather than one filename: a reader whose file is called `web.saga.yaml`
 		// would otherwise read "no draugr.saga.yaml here" as a filename mismatch and rename it,
 		// when the real answer is that the file is somewhere else.
-		_, _ = fmt.Fprintf(os.Stderr, "No *.saga.yaml here, scanning %s with controls: "+ZeroConfigControls("")+".\n"+
-			"(run `draugr init` to scaffold one you can customize)\n\n", model.Components[0].Repositories[0].URL)
+		_, _ = io.WriteString(os.Stderr, zeroConfigNotice(model))
 	}
 	rootLocalRepositories(ctx, model)
 	// Organization defaults are merged *underneath* the descriptor, so the engine sees one
@@ -1227,6 +1226,18 @@ func probeVersion(ctx context.Context, binary string) string {
 // versionProbeTimeout bounds the extra call. Two seconds is far longer than any of these take and
 // far shorter than a reader waiting on a report will tolerate.
 const versionProbeTimeout = 2 * time.Second
+
+// zeroConfigNotice is the note a zero-config scan prints before it runs. It names the directory by
+// its absolute path, because the url the synthesized descriptor records for the working directory
+// is the `.` that `init` writes.
+func zeroConfigNotice(m *saga.Model) string {
+	dir := m.Components[0].Repositories[0].URL
+	if abs, err := filepath.Abs(dir); err == nil {
+		dir = abs
+	}
+	return fmt.Sprintf("No *.saga.yaml here, scanning %s with controls: %s.\n"+
+		"(run `draugr init` to scaffold one you can customize)\n\n", dir, ZeroConfigControls(""))
+}
 
 // checkWorkingTree refuses --working-tree for a descriptor Draugr cannot honor it for.
 //

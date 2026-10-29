@@ -65,17 +65,13 @@ func newInitCommand() *cobra.Command {
 
 // runInit scaffolds a Saga for dir, writing it to opts.output (or stdout).
 func runInit(dir string, opts initOptions, w io.Writer) error {
-	abs, err := filepath.Abs(dir)
-	if err != nil {
-		return err
-	}
 	// Folded to what a project name may be, rather than taken as the directory is spelled.
 	//
 	// `init` in a directory called `My.Service` wrote `project: My.Service`, which Draugr rejects,
 	// so the scaffold this command exists to produce failed the validation of the very next
 	// command it suggests. A capital letter or a dot in a directory name is ordinary, and being
 	// told to go and fix the file the tool just wrote is the worst possible first minute.
-	name := scaffold.ProjectName(filepath.Base(abs))
+	name := scaffold.NameFor(dir)
 	tree := inventory.Read(dir)
 	body := scaffold.Saga(tree, name, opts.perDirectory)
 	if opts.fragment {
@@ -131,6 +127,6 @@ func scaffoldFragment(name string) string {
 	b.WriteString("    # exposure: internal        # public | authenticated | internal | restricted\n")
 	b.WriteString("    # criticality: important    # critical | important | supporting\n")
 	b.WriteString("    repositories:\n")
-	b.WriteString("      - url: .\n")
+	b.WriteString("      - url: " + scaffold.Here + "\n")
 	return b.String()
 }

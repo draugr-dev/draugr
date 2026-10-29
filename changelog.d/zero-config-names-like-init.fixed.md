@@ -1,0 +1,1 @@
+- **`draugr diff` reports a zero-config scan's findings as unchanged against the first scan after `draugr init`.** A zero-config scan now names the project, component and repository as `init` does (`My.Service` becomes `my-service`), so the two runs no longer read as different projects.

@@ -332,6 +332,92 @@ func TestProjectNameKeepsTheNameRecognizable(t *testing.T) {
 	}
 }
 
+// NameFor folds the directory's own name, however the directory is spelled on the command line, so
+// `init` run inside a directory and a scan pointed at it from its parent name one project.
+func TestNameForFoldsTheLastElementOfTheAbsolutePath(t *testing.T) {
+	root := t.TempDir()
+	for _, dir := range []string{"My.Service", "Team Alpha"} {
+		if err := os.Mkdir(filepath.Join(root, dir), 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Chdir(filepath.Join(root, "My.Service"))
+	for dir, want := range map[string]string{
+		".":                                "my-service",
+		"./":                               "my-service",
+		filepath.Join(root, "My.Service"):  "my-service",
+		"../Team Alpha":                    "team-alpha",
+		filepath.Join(root, "Team Alpha"):  "team-alpha",
+		filepath.Join("..", "Team Alpha/"): "team-alpha",
+	} {
+		if got := NameFor(dir); got != want {
+			t.Errorf("NameFor(%q) = %q, want %q", dir, got, want)
+		}
+	}
+}
+
+// RepositoryURL is the url a descriptor in the working directory would hold for dir. For the
+// working directory itself that is the Here a scaffold writes, so a zero-config scan and a scan of
+// the descriptor `init` writes name the same repository.
+func TestRepositoryURLIsRelativeToTheWorkingDirectory(t *testing.T) {
+	root := t.TempDir()
+	for _, dir := range []string{"apps/web", "apps/api", "outside", "odd:name"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Chdir(filepath.Join(root, "apps"))
+	for dir, want := range map[string]string{
+		".":                             Here,
+		"./":                            Here,
+		filepath.Join(root, "apps"):     Here,
+		"web":                           "web",
+		"./api/":                        "api",
+		filepath.Join(root, "apps/api"): "api",
+		"../outside":                    filepath.Join(root, "outside"),
+		"..":                            root,
+		"../odd:name":                   filepath.Join(root, "odd:name"),
+	} {
+		if got := RepositoryURL(dir); got != want {
+			t.Errorf("RepositoryURL(%q) = %q, want %q", dir, got, want)
+		}
+	}
+
+	// A colon would make git read the path as host:path, so the url is anchored with Here.
+	t.Chdir(root)
+	if got, want := RepositoryURL("odd:name"), "."+string(filepath.Separator)+"odd:name"; got != want {
+		t.Errorf("RepositoryURL(%q) = %q, want %q", "odd:name", got, want)
+	}
+}
+
+// The scaffold writes Here as every component's repository url, which is the value RepositoryURL
+// gives the working directory.
+func TestSagaWritesHereForEveryRepository(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	layout(t, root, map[string]string{
+		"web/package-lock.json": "{}",
+		"api/go.mod":            "module api\n",
+	})
+	tree := inventory.Read(root)
+	for _, perDirectory := range []bool{false, true} {
+		var m saga.Model
+		if err := yaml.Unmarshal([]byte(Saga(tree, "app", perDirectory)), &m); err != nil {
+			t.Fatal(err)
+		}
+		for _, c := range m.Components {
+			for _, r := range c.Repositories {
+				if r.URL != Here {
+					t.Errorf("perDirectory=%v: component %q has url %q, want %q", perDirectory, c.Name, r.URL, Here)
+				}
+			}
+		}
+		if perDirectory && len(m.Components) < 3 {
+			t.Errorf("perDirectory: %d components, want the root and two parts", len(m.Components))
+		}
+	}
+}
+
 func TestScalarQuotesWhatYAMLWouldNotReadAsTheSameString(t *testing.T) {
 	for in, want := range map[string]string{
 		"api":          "api",

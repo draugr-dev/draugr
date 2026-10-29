@@ -1384,9 +1384,10 @@ repositories:
 
 A relative path resolves against **where Draugr runs**, like every other path in a descriptor, so
 run it from the directory the descriptor's paths were written for. In CI that is the GitHub
-Action's `working-directory` input or a pipeline step's working directory. `draugr scan .` with no
-descriptor synthesizes one pointing at the directory you named, so the zero-config path lands here
-too.
+Action's `working-directory` input or a pipeline step's working directory. `draugr scan <dir>` with
+no descriptor synthesizes one whose `url` is that directory's path from where Draugr runs: `.` for
+the working directory, a relative path for a directory beneath it, and the absolute path for any
+other.
 
 **A directory inside a checkout is scanned as part of that checkout.** Draugr clones whole
 repositories, so `url: services/payments`, or the `url: .` that `draugr init` writes in a
