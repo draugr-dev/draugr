@@ -34,8 +34,7 @@ import (
 )
 
 type doctorOptions struct {
-	json    bool
-	offline bool
+	json bool
 	// failOnUncovered turns the uncovered-surface note into a failure. Off by default: a
 	// deliberately narrow descriptor is a legitimate thing to have, and a preflight that fails on
 	// a choice somebody made is one people learn to ignore.
@@ -95,10 +94,13 @@ func newDoctorCommand() *cobra.Command {
 			detect := func(ctx context.Context, t tools.Tool) tools.Status {
 				return tools.Detect(ctx, t, nil, nil)
 			}
+			// The root --offline, read through the policy it sets, so doctor and every fetch it
+			// reaches answer the same question the same way.
+			offline := netpolicy.Offline()
 			// Best-effort update check (current vs latest), unless opted out. It never blocks or
 			// fails the command: a short timeout, errors ignored.
 			var latest func(context.Context) (string, error)
-			if !opts.offline && !netpolicy.SkipUpdateCheck() {
+			if !netpolicy.SkipUpdateCheck() {
 				latest = func(ctx context.Context) (string, error) {
 					ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 					defer cancel()
@@ -107,7 +109,7 @@ func newDoctorCommand() *cobra.Command {
 			}
 			run := doctorRun{
 				json: opts.json, failOnUncovered: opts.failOnUncovered, strict: opts.strict,
-				reach: true, offline: opts.offline || netpolicy.Offline(), requirePolicy: opts.requirePolicy,
+				reach: true, offline: offline, requirePolicy: opts.requirePolicy,
 				data: doctorData,
 				scope: engine.Scope{
 					Components: opts.components, Controls: opts.controls, Labels: opts.labels,
@@ -122,12 +124,10 @@ func newDoctorCommand() *cobra.Command {
 		"also fail when a tool is not the version Draugr tests, not only when one is missing")
 	cmd.Flags().BoolVar(&opts.failOnUncovered, "fail-on-uncovered", false,
 		"fail if the descriptor declares a surface no enabled control looks at (reported either way)")
-	// Kept as a command-local flag as well as the root one: it is documented, it is in people's
-	// CI, and "do not check for a release" is a narrower request than "this machine has no
-	// network" that someone may still want to make on its own.
-	cmd.Flags().BoolVar(&opts.offline, "offline", false,
-		"skip the check for a newer draugr release and every target check that needs the network "+
-			"(also set by the root --offline flag)")
+	// No --offline of its own. The root flag is the one that sets the network policy, and a local
+	// flag of the same name shadows it: doctor would skip its own checks while every fetch it reached
+	// still read the policy as online. DRAUGR_NO_UPDATE_CHECK=1 is the narrower request, skipping
+	// only the release check.
 	cmd.Flags().BoolVar(&opts.requirePolicy, "policy", false,
 		"ask the draugr-api server the descriptor publishes to for the organization's policy, sending the token; "+
 			"without it doctor sends no token, and with it not being able to check is an error")
@@ -172,9 +172,14 @@ func runDoctor(
 	inventoryOnly := false
 	if sagaPath != "" {
 		loaded, err := doctorLoad(ctx, sagaPath, run.reach, run.offline)
+		// The control names validate and scan check. A misspelled control passes the schema, so
+		// without this doctor would call the descriptor valid and the scan would then refuse it.
+		if err == nil {
+			err = checkDescriptorControls(reg, sagaPath, loaded)
+		}
 		if err != nil {
 			if run.json {
-				_ = writeDoctorJSON(w, dv, &descriptorReport{Path: sagaPath, Valid: false, Error: err.Error()}, nil, nil, nil, nil, nil)
+				_ = writeDoctorJSON(w, dv, &descriptorReport{Path: sagaPath, Valid: false, Error: err.Error()}, nil, 0, nil, nil, nil, nil)
 			} else {
 				col := tui.For(w)
 				// The reason is carried by the error, which the CLI prints. Written here too it
@@ -263,7 +268,7 @@ func runDoctor(
 		if sagaPath != "" {
 			desc = &descriptorReport{Path: sagaPath, Valid: true}
 		}
-		if err := writeDoctorJSON(w, dv, desc, statuses, uncovered, checks, orgPolicy, data); err != nil {
+		if err := writeDoctorJSON(w, dv, desc, statuses, missing, uncovered, checks, orgPolicy, data); err != nil {
 			return err
 		}
 	} else {
@@ -295,6 +300,17 @@ func runDoctor(
 		}
 	}
 
+	// Asked for, so it decides the exit code, with a descriptor or without one.
+	strictErr := func() error {
+		if !run.strict {
+			return nil
+		}
+		if n := untestedCount(statuses); n > 0 {
+			return fmt.Errorf("%s not the version Draugr tests; run `draugr tools install --force`, "+
+				"or drop --strict to accept them", english.Count(n, "tool")+" "+english.Choose(n, "is", "are"))
+		}
+		return nil
+	}
 	if missing > 0 && inventoryOnly {
 		// Reported, not failed. Which of these matter depends on a descriptor, and there is not one.
 		// `draugr doctor <saga>` is the question with an answer.
@@ -305,14 +321,14 @@ func runDoctor(
 					"`draugr tools install` to fetch the ones it can; the Notes column says where the rest "+
 					"come from.", missing)))
 		}
-		return nil
+		// --strict asks about the tools that are present, and a missing one does not answer that.
+		return strictErr()
 	}
-	// Asked for, so it decides the exit code. After the missing check, because a tool that is not
-	// there is the larger problem and its message is the one to lead with.
-	if run.strict {
-		if n := untestedCount(statuses); n > 0 {
-			return fmt.Errorf("%s not the version Draugr tests; run `draugr tools install --force`, "+
-				"or drop --strict to accept them", english.Count(n, "tool")+" "+english.Choose(n, "is", "are"))
+	// With a descriptor, a missing tool is the larger problem, so its message leads and --strict
+	// answers when nothing is missing. Either way the command exits non-zero.
+	if missing == 0 {
+		if err := strictErr(); err != nil {
+			return err
 		}
 	}
 	if missing > 0 {
@@ -383,8 +399,7 @@ func runDoctor(
 // as `validate` fetches them, because a fragment that cannot be fetched is the first target a scan
 // fails on.
 func doctorLoad(ctx context.Context, path string, reach, offline bool) (*saga.Model, error) {
-	// Offline, a remote fragment is not fetched: doctor's own --offline is narrower than the root
-	// flag the fetcher reads, and the loader it had before target checks existed fetches nothing.
+	// Offline, a remote fragment is not fetched, and the loader that fetches nothing is the one used.
 	if !reach || offline {
 		return saga.LoadFile(path)
 	}
@@ -766,9 +781,12 @@ type toolReport struct {
 	TestedVersion string `json:"testedVersion,omitempty"`
 }
 
+// writeDoctorJSON writes the report. missing is the count the exit code is decided on, passed in
+// rather than recounted so the document and the exit code cannot disagree about one machine: a
+// tool with no data is missing, and an optional tool that is absent is not.
 func writeDoctorJSON(
-	w io.Writer, dv draugrReport, desc *descriptorReport, statuses []tools.Status, uncovered []string,
-	checks []preflight.Check, policy *skald.PolicyCheck, data []engine.ScannerData,
+	w io.Writer, dv draugrReport, desc *descriptorReport, statuses []tools.Status, missing int,
+	uncovered []string, checks []preflight.Check, policy *skald.PolicyCheck, data []engine.ScannerData,
 ) error {
 	report := struct {
 		Draugr     draugrReport      `json:"draugr"`
@@ -788,7 +806,7 @@ func writeDoctorJSON(
 		// form.
 		Data []skald.ScannerData `json:"data,omitempty"`
 	}{
-		Draugr: dv, Descriptor: desc, Tools: make([]toolReport, 0, len(statuses)),
+		Draugr: dv, Descriptor: desc, Tools: make([]toolReport, 0, len(statuses)), Missing: missing,
 		UncoveredSurfaces: uncovered, Targets: checks, Policy: policy, Data: skald.ScannerDataFrom(data),
 	}
 
@@ -797,9 +815,12 @@ func writeDoctorJSON(
 			Binary: st.Tool.Binary, Found: st.Found, Version: st.Version, Path: st.Path,
 			TestedVersion: untestedVersion(st),
 		}
-		if !st.Found {
+		switch {
+		case !st.Found:
 			tr.Hint = st.Tool.InstallHint
-			report.Missing++
+		case st.DataChecked && !st.DataFound:
+			// Present and unable to run, so the hint is how to get its data.
+			tr.Hint = st.Tool.DataHint
 		}
 		report.Tools = append(report.Tools, tr)
 	}

@@ -1261,12 +1261,15 @@ Preflight the environment: report which external scanner tools are **present, mi
 date**, with an install hint for each. Given a descriptor, it first loads it and reports a
 parse or schema error, then checks only the tools needed by the scanners its enabled controls
 select (plus `git` for repository targets and `syft` when `config.sbom` is enabled), then checks
-that each [target](#targets) the scan would read is reachable from this machine. It does not check
-control names or report formats; [`draugr validate`](#draugr-validate-sagayaml--glob-) does.
+that each [target](#targets) the scan would read is reachable from this machine. It refuses a
+control name this build does not provide with the message
+[`draugr validate`](#draugr-validate-sagayaml--glob-) gives. It does not check report formats;
+`validate` does.
 
 With a descriptor, it **exits non-zero** when:
 
-- the descriptor cannot be loaded, or a required tool is missing or has no data;
+- the descriptor cannot be loaded or names a control this build does not provide;
+- a required tool is missing or has no data;
 - a target check fails;
 - under `--policy`, the organization's [policy](#policy) would refuse or fail the scan;
 - a `draugr-api` publisher has an endpoint with neither a token nor a
@@ -1442,15 +1445,17 @@ The list is **reported, not failed**, unless `--fail-on-uncovered` is passed or
 |------|---------|-------------|
 | `--json` | `false` | Emit the report as JSON instead of tables. A tool not at its pin carries `testedVersion` |
 | `--fail-on-uncovered` | `false` | Exit non-zero when the descriptor declares a surface no enabled control looks at. Also the behavior when [`config.gate.failOnCaveats`](saga-schema.md#configgate) lists `not-checked` |
-| `--strict` | `false` | Exit non-zero when a tool is not the version Draugr tests. Without a descriptor, applies only when no tool is missing |
+| `--strict` | `false` | Exit non-zero when a tool is not the version Draugr tests, with or without a descriptor. With one, a missing tool's message comes first |
 | `--policy` | `false` | Ask the `draugr-api` server for the organization's policy, sending the token. Exit non-zero when it could not be checked, as well as when a scan would be refused or fail by it |
-| `--offline` | `false` | Skip the check for a newer draugr release, the policy check, and every target check that needs the network (`DRAUGR_NO_UPDATE_CHECK=1` skips only the release check) |
+| `--offline` | `false` | The global flag. Doctor makes no network call, so it skips the check for a newer draugr release, the policy check, any remote fragment and every target check that needs the network, and `NETWORK` says none of its hosts will be contacted. `DRAUGR_NO_UPDATE_CHECK=1` skips only the release check |
 | `--components` | - | Check only the targets of these components |
 | `--controls` | - | Check only the targets these controls would read |
 | `--labels`, `--exposure`, `--criticality` | - | Select components as [`draugr scan`](#draugr-scan-sagayaml--dir) does |
 
 The JSON's top-level fields are `draugr`, `descriptor`, `tools`, `missing`, `targets`, `policy`,
-`data` and `uncoveredSurfaces`.
+`data` and `uncoveredSurfaces`. `missing` counts each required tool that is absent or has no data,
+the count the exit code is decided on. An optional tool that is absent is listed and not counted. A tool with no
+data carries the hint for getting it.
 
 ```bash
 draugr doctor                       # inventory: what Draugr can use, and what you have

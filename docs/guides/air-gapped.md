@@ -174,11 +174,9 @@ provenance survives the crossing as comments.
 or tells you exactly which fetch it needed, which is a better test than trusting the flag, and the
 one worth putting in CI for an air-gapped environment.
 
-Two narrower opt-outs remain, for a machine that *does* have a network:
-
-- `draugr doctor --offline` skips the release check and every target check that needs the network.
-- `DRAUGR_NO_UPDATE_CHECK=1` skips only the release check, for someone who does not want to be told
-  about releases but is otherwise online.
+`draugr doctor --offline` is the same flag, and doctor makes no network call under it. On a machine
+that *does* have a network, `DRAUGR_NO_UPDATE_CHECK=1` skips only the release check, for someone who
+does not want to be told about releases but is otherwise online.
 
 ## Related
 

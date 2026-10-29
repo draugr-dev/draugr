@@ -13,6 +13,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/sagafetch"
+	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
@@ -264,14 +265,25 @@ func loadResolvedCtx(ctx context.Context, path string) (*saga.Resolved, error) {
 		return nil, fmt.Errorf("%q is not a valid Saga:\n  %s\nrun `draugr validate %s` to check the descriptor",
 			path, detail, path)
 	}
-	// Checked here rather than in pkg/saga: only the registry knows what this build can run, and
-	// pkg/saga cannot import it without a cycle. Which is also why the schema's control list is
-	// generated from the registry rather than written beside it.
-	if err := checkControlNames(builtins.Registry(), model); err != nil {
-		return nil, fmt.Errorf("%q names a control Draugr cannot run:\n  %s",
-			path, strings.ReplaceAll(err.Error(), "\n", "\n  "))
+	if err := checkDescriptorControls(builtins.Registry(), path, model); err != nil {
+		return nil, err
 	}
 	return res, nil
+}
+
+// checkDescriptorControls is checkControlNames for a loaded descriptor, with the path in the message.
+// One function for every command that loads a descriptor to act on it, so a misspelled control is
+// refused with the same did-you-mean by scan, doctor and validate alike.
+//
+// Checked here rather than in pkg/saga: only the registry knows what this build can run, and
+// pkg/saga cannot import it without a cycle. Which is also why the schema's control list is
+// generated from the registry rather than written beside it.
+func checkDescriptorControls(reg *engine.Registry, path string, model *saga.Model) error {
+	if err := checkControlNames(reg, model); err != nil {
+		return fmt.Errorf("%q names a control Draugr cannot run:\n  %s",
+			path, strings.ReplaceAll(err.Error(), "\n", "\n  "))
+	}
+	return nil
 }
 
 // zeroConfigSettings enables each zero-config control in a fresh settings map.

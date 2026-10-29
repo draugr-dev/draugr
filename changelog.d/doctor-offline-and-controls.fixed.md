@@ -1,0 +1,1 @@
+- **`draugr doctor --offline` makes no network call.** It sets the network policy every other command reads, so the release check, the policy check and remote fragments stay offline. Doctor also refuses a misspelled control with `validate`'s did-you-mean, `--strict` applies without a descriptor when a tool is missing, and the `--json` `missing` count includes tools with no data.

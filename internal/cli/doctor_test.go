@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -350,17 +351,46 @@ func TestTheInstallNoteNamesTheCommandWhereThereIsOne(t *testing.T) {
 func TestDoctorCommandViaCobra(t *testing.T) {
 	// A saga with no enabled controls needs no tools, so the command succeeds regardless of
 	// what's installed in the test environment.
-	cmd := newDoctorCommand()
+	t.Setenv(netpolicy.EnvVar, "")
+	t.Cleanup(func() { netpolicy.SetOffline(false) })
+	root := newRootCommand()
 	var out bytes.Buffer
-	cmd.SetOut(&out)
-	cmd.SetArgs([]string{"--offline", writeSaga(t, doctorSagaNoControls)}) // --offline: no network in unit tests
-	if err := cmd.Execute(); err != nil {
+	root.SetOut(&out)
+	root.SetArgs([]string{"doctor", "--offline", writeSaga(t, doctorSagaNoControls)}) // --offline: no network in unit tests
+	if err := root.Execute(); err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
 	// Nothing is enabled, so nothing is required. Which must not read the same as having checked a
 	// list of tools and found them all.
 	if !strings.Contains(out.String(), "No external tools required") {
 		t.Errorf("output = %q", out.String())
+	}
+}
+
+// `doctor --offline` is the root flag, and it sets the network policy every fetch reads. A flag of
+// doctor's own would shadow it, so doctor would skip its own checks while every fetch it reached
+// still read the policy as online.
+func TestDoctorOfflineSetsTheNetworkPolicy(t *testing.T) {
+	t.Setenv(netpolicy.EnvVar, "")
+	t.Cleanup(func() { netpolicy.SetOffline(false) })
+	root := newRootCommand()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetArgs([]string{"doctor", "--offline", writeSaga(t, doctorSagaNoControls)})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if !netpolicy.Offline() {
+		t.Error("doctor --offline left the network policy online")
+	}
+	if !strings.Contains(out.String(), "(offline: none of these will happen)") {
+		t.Errorf("the NETWORK section does not say it is offline:\n%s", out.String())
+	}
+	if strings.Contains(out.String(), "latest:") || strings.Contains(out.String(), "up to date") {
+		t.Errorf("the release check ran under --offline:\n%s", out.String())
+	}
+	if flag := newDoctorCommand().Flags().Lookup("offline"); flag != nil {
+		t.Error("doctor declares an --offline of its own, which shadows the root flag")
 	}
 }
 
@@ -949,6 +979,132 @@ func TestTheTableIsSilentWhenEveryToolMatches(t *testing.T) {
 	writeDoctorTable(&buf, []tools.Status{toolAt("trivy", tools.PinnedVersion("trivy"))})
 	if strings.Contains(buf.String(), "not the version") {
 		t.Errorf("a machine running the tested build was warned:\n%s", buf.String())
+	}
+}
+
+// Without a descriptor, --strict still answers about the tools that are present. A missing tool in
+// the inventory is reported and not failed, and it does not stand in for the answer --strict asked.
+func TestDoctorStrictWithoutADescriptorAppliesWhenAToolIsMissing(t *testing.T) {
+	detect := fakeDetect("trivy") // 1.2.3, nothing's pin; everything else missing
+	var out bytes.Buffer
+	err := runDoctor(context.Background(), &out, builtins.Registry(), "", doctorRun{strict: true}, detect, nil)
+	if err == nil || !strings.Contains(err.Error(), "not the version Draugr tests") {
+		t.Fatalf("err = %v, want --strict to fail on trivy's version\n%s", err, out.String())
+	}
+	if !strings.Contains(out.String(), "are not installed") {
+		t.Errorf("the missing tools should still be reported:\n%s", out.String())
+	}
+
+	// Without --strict the same inventory passes.
+	out.Reset()
+	if err := runDoctor(context.Background(), &out, builtins.Registry(), "", doctorRun{}, detect, nil); err != nil {
+		t.Errorf("an inventory without --strict failed: %v", err)
+	}
+}
+
+// With a descriptor, a missing tool leads: it stops the scan outright, and --strict's complaint
+// about a version is the smaller problem.
+func TestDoctorStrictLetsAMissingToolLeadWithADescriptor(t *testing.T) {
+	detect := fakeDetect("git") // git at 1.2.3, semgrep missing
+	err := runDoctor(context.Background(), &bytes.Buffer{}, builtins.Registry(),
+		writeSaga(t, doctorSagaSASTDefault), doctorRun{strict: true}, detect, nil)
+	if err == nil || !strings.Contains(err.Error(), "missing") {
+		t.Errorf("err = %v, want the missing tool's message", err)
+	}
+}
+
+// Doctor refuses a misspelled control with the message validate and scan give, did-you-mean
+// included. The schema accepts any key, so without the check a misspelled control passes doctor and
+// fails the scan.
+func TestDoctorRefusesAMisspelledControl(t *testing.T) {
+	path := writeSaga(t, `project: app
+release:
+  version: "1.0"
+config:
+  controls:
+    secrts:
+      enabled: true
+components:
+  - name: web
+    repositories:
+      - url: .
+`)
+	var out bytes.Buffer
+	err := runDoctor(context.Background(), &out, builtins.Registry(), path, doctorRun{}, fakeDetect(), nil)
+	if err == nil {
+		t.Fatalf("a misspelled control passed doctor:\n%s", out.String())
+	}
+	if !strings.Contains(err.Error(), `did you mean "secrets"?`) {
+		t.Errorf("err = %v, want validate's did-you-mean", err)
+	}
+	if !strings.Contains(out.String(), "✗ invalid") {
+		t.Errorf("the descriptor line should say invalid:\n%s", out.String())
+	}
+	// The same check validate makes, word for word.
+	verr := loadAndCheck(path)
+	if verr == nil {
+		t.Fatal("validate accepted the descriptor doctor refused")
+	}
+	problem, _, _ := strings.Cut(verr.Error(), "\n")
+	if !strings.Contains(err.Error(), problem) {
+		t.Errorf("doctor's message %q does not carry validate's %q", err, problem)
+	}
+}
+
+// The JSON's missing is the count the exit code is decided on: a tool present without its data is
+// missing, and an optional tool that is absent is not.
+func TestDoctorJSONCountsWhatTheExitCodeCounts(t *testing.T) {
+	detect := func(_ context.Context, tl tools.Tool) tools.Status {
+		if tl.Binary == "trivy" {
+			tl.DataHint = "run `trivy image --download-db-only`"
+			return tools.Status{Tool: tl, Found: true, Version: "1.2.3", Path: "/usr/bin/trivy",
+				DataChecked: true, DataFound: false}
+		}
+		return tools.Status{Tool: tl, Found: true, Version: "1.2.3", Path: "/usr/bin/" + tl.Binary}
+	}
+	var out bytes.Buffer
+	err := runDoctor(context.Background(), &out, builtins.Registry(), writeSaga(t, doctorSagaRepoAndImage),
+		doctorRun{json: true}, detect, nil)
+	if err == nil {
+		t.Fatal("a required tool without its data should fail the check")
+	}
+	var got struct {
+		Missing int `json:"missing"`
+		Tools   []struct {
+			Binary string `json:"binary"`
+			Hint   string `json:"hint"`
+		} `json:"tools"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\n%s", err, out.String())
+	}
+	if got.Missing != 1 {
+		t.Errorf("missing = %d, want 1 for trivy with no data\n%s", got.Missing, out.String())
+	}
+	hinted := false
+	for _, tr := range got.Tools {
+		if tr.Binary == "trivy" {
+			hinted = tr.Hint == "run `trivy image --download-db-only`"
+		}
+	}
+	if !hinted {
+		t.Errorf("trivy's hint should say how to get its data:\n%s", out.String())
+	}
+
+	// An optional tool that is absent is reported and not counted, in the inventory as in the text.
+	out.Reset()
+	optional := func(_ context.Context, tl tools.Tool) tools.Status {
+		return tools.Status{Tool: tl, Found: !tl.Optional, Version: "1.2.3", Path: "/usr/bin/" + tl.Binary}
+	}
+	if err := runDoctor(context.Background(), &out, builtins.Registry(), "", doctorRun{json: true}, optional, nil); err != nil {
+		t.Fatal(err)
+	}
+	got.Missing = -1
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Missing != 0 {
+		t.Errorf("missing = %d, want 0 when only optional tools are absent", got.Missing)
 	}
 }
 
