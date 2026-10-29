@@ -93,6 +93,12 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 	if err != nil {
 		return err
 	}
+	// The same check `scan --min-priority` makes. A band outside P1-P4 would otherwise narrow
+	// nothing, and the full list would read as the narrowed one.
+	minPriority, err := validatePriority("--min-priority", opts.minPriority)
+	if err != nil {
+		return err
+	}
 
 	// No base path is a head with nothing to compare against. A base path that names nothing is
 	// still an error: leaving the base out is a choice, and a missing file is a mistake.
@@ -120,7 +126,7 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 
 	// Narrowed after the comparison, never before it: a diff computed from filtered inputs reads
 	// every finding the filter removed as fixed.
-	result := compared.NarrowNew(opts.minPriority).OnlyRepository(opts.repository)
+	result := compared.NarrowNew(minPriority).OnlyRepository(opts.repository)
 
 	// The gate travels with the result so every rendering states what the verdict was measured
 	// against, and so the verdict itself is computed once rather than in each format.

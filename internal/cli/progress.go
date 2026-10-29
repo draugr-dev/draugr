@@ -87,11 +87,14 @@ func (p *progressLine) writeThrough(b []byte) (int, error) {
 	return p.w.Write(b)
 }
 
-// erase clears every drawn line. Callers hold mu.
+// erase clears every drawn line and leaves the cursor at the start of the frame's first row.
+// Callers hold mu.
 //
 // Moves back over the frame and clears each row rather than overwriting with spaces: the frame is
 // several lines now, and a terminal that has scrolled since would otherwise have blanks written
-// over whatever moved into their place.
+// over whatever moved into their place. The cursor sits on the frame's last row, so a frame of n
+// rows is n clears and n-1 moves up; one more move would clear the row above the frame, which is
+// the reader's own, usually the command they typed.
 func (p *progressLine) erase() {
 	if p.drawn == 0 {
 		return
@@ -99,7 +102,7 @@ func (p *progressLine) erase() {
 	// One write, for the reason draw builds one: a block cleared a row at a time is a block a
 	// reader watches empty.
 	var b strings.Builder
-	for range p.drawn {
+	for range p.drawn - 1 {
 		b.WriteString("\r\033[2K\033[1A")
 	}
 	b.WriteString("\r\033[2K")

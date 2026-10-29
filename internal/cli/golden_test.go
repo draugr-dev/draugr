@@ -77,7 +77,7 @@ func TestCommandGolden(t *testing.T) {
 		{"feeds-status-empty", func(t *testing.T, w *bytes.Buffer) {
 			// A fixed date, so the golden pins the layout rather than the day it ran.
 			feedsStatus(w, filepath.Join(t.TempDir(), "feeds"),
-				time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC))
+				time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC), defaultFeedLimit())
 		}},
 		{"classify-nobody-answered", func(t *testing.T, w *bytes.Buffer) {
 			path := writeSagaAt(t, t.TempDir(), "draugr.saga.yaml", classifySaga)

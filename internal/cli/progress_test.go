@@ -445,3 +445,91 @@ func TestProgressHeadlineNamesARefresh(t *testing.T) {
 		t.Errorf("headline = %q", got)
 	}
 }
+
+// screen replays what the renderer writes onto rows of text, for the control sequences it uses:
+// carriage return, newline, erase line (2K), erase to end of line (K) and cursor up (nA).
+type screen struct {
+	rows     []string
+	row, col int
+}
+
+var csi = regexp.MustCompile(`^\x1b\[(\d*)([A-Za-z])`)
+
+func (s *screen) write(out string) {
+	for len(out) > 0 {
+		if m := csi.FindStringSubmatch(out); m != nil {
+			n := 1
+			if m[1] != "" {
+				n = 0
+				for _, d := range m[1] {
+					n = n*10 + int(d-'0')
+				}
+			}
+			switch m[2] {
+			case "A":
+				s.row = max(0, s.row-n)
+			case "K":
+				if m[1] == "2" {
+					s.rows[s.row] = ""
+				} else {
+					s.rows[s.row] = s.rows[s.row][:min(s.col, len(s.rows[s.row]))]
+				}
+			}
+			out = out[len(m[0]):]
+			continue
+		}
+		switch c := out[0]; c {
+		case '\r':
+			s.col = 0
+		case '\n':
+			s.row++
+			s.col = 0
+			for len(s.rows) <= s.row {
+				s.rows = append(s.rows, "")
+			}
+		default:
+			line := s.rows[s.row]
+			for len(line) < s.col {
+				line += " "
+			}
+			s.rows[s.row] = line[:s.col] + string(c) + line[min(len(line), s.col+1):]
+			s.col++
+		}
+		out = out[1:]
+	}
+}
+
+// Finishing erases the frame and nothing above it. The row above the first frame is the reader's
+// own, usually the command they typed, and a report that starts where that command used to be
+// leaves them unable to see what they ran.
+func TestDoneLeavesTheRowAboveTheFrame(t *testing.T) {
+	for _, steps := range []int{0, 1, 4} {
+		var buf bytes.Buffer
+		p := &progressLine{w: &buf}
+		t.Cleanup(func() { active.Store(nil) })
+
+		ev := engine.ProgressEvent{Total: 9, Complete: 1}
+		for i := range steps {
+			ev.Steps = append(ev.Steps, engine.ProgressStep{Control: "sca", Scanner: string(rune('a' + i)), Total: 2, Running: 1})
+		}
+		p.update(ev)
+		ev.Complete = 2
+		p.update(ev)
+		drawn := p.drawn
+		p.done()
+
+		s := &screen{rows: []string{"$ draugr scan", ""}, row: 1}
+		s.write(buf.String())
+		if s.rows[0] != "$ draugr scan" {
+			t.Errorf("%d-row frame: the row above it reads %q after the erase", drawn, s.rows[0])
+		}
+		for i, r := range s.rows[1:] {
+			if strings.TrimSpace(r) != "" {
+				t.Errorf("%d-row frame: row %d still reads %q", drawn, i+1, r)
+			}
+		}
+		if s.row != 1 || s.col != 0 {
+			t.Errorf("%d-row frame: the report would start at row %d col %d, want the frame's first row", drawn, s.row, s.col)
+		}
+	}
+}

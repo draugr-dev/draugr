@@ -1,0 +1,1 @@
+- **The HTML report reads on a phone.** At phone widths, the labels under each finding and action, the priority and severity chips, the column headings and the page-size buttons are at least 12px. Rule links, row disclosures and finding counts are at least 24px tall to tap. The desktop layout is unchanged.

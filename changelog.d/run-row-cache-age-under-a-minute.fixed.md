@@ -1,0 +1,1 @@
+- **The run row states the age of a cache entry under 30 seconds old**, as `oldest 12s` or `oldest 412ms` in place of `oldest 0s`.
