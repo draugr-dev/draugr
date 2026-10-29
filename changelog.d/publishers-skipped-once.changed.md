@@ -1,0 +1,1 @@
+- **Publishers that stand aside for one reason are logged once.** A local run of a descriptor with a `github` publisher and three `github-issue` entries prints one `publishers skipped` record naming each kind with its count, `kinds.github=1 kinds.github-issue=3`, in place of four. `--log-format json` carries `kinds` as an object of kind to count.
