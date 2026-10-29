@@ -1,1 +1,0 @@
-- **A fragment's `imports:` now apply to a component the root descriptor also names.** The SARIF files both declare are read once each, and the same control and file named in two files count as one import.
