@@ -1,0 +1,1 @@
+- **`draugr tools install` fetches grype 0.121.0**, which was pinned at 0.118.0.

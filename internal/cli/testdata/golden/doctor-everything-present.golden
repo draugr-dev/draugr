@@ -7,7 +7,7 @@ git          ✓ found  2.55.0   /somewhere/git
 gitleaks     ✓ found  8.30.1   /somewhere/gitleaks
 gosec        ✓ found  2.30.0   /somewhere/gosec
 govulncheck  ✓ found  1.9.0    /somewhere/govulncheck
-grype        ✓ found  0.118.0  /somewhere/grype
+grype        ✓ found  0.121.0  /somewhere/grype
 kube-bench   ✓ found  0.16.0   /somewhere/kube-bench
 kubectl      ✓ found  1.31.0   /somewhere/kubectl
 notation     ✓ found  1.3.2    /somewhere/notation

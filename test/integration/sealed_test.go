@@ -149,6 +149,9 @@ func runSealed(t *testing.T, s sealed.Scenario, advs sealed.Advisories, bin, ser
 	scan := append([]string{draugr, "scan", "draugr.saga.yaml", "--output", out}, opts.ScanFlags()...)
 	console, err := c.Command(work, scan...).CombinedOutput()
 	t.Logf("%s: draugr scan exit=%v\n%s", s.Name, err, console)
+	if err := sealed.GrypeDBRewritten(home); err != nil {
+		t.Errorf("%s: %v", s.Name, err)
+	}
 
 	report := readFile(t, filepath.Join(out, "report.json"))
 	errProblems, err := sealed.CheckErrors(s.Expected.Errors, report)
