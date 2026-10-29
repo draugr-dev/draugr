@@ -85,7 +85,33 @@ func unionComponent(a, b Component) (Component, []string) {
 	a.Kubernetes = unionClusters(a.Kubernetes, b.Kubernetes)
 	a.Cloud = unionAccounts(a.Cloud, b.Cloud)
 	a.VEX = unionVEX(a.VEX, b.VEX)
+	a.Imports = unionImports(a.Imports, b.Imports)
 	return a, filled
+}
+
+// unionImports keeps every SARIF file both descriptions import, once per control and file.
+//
+// A control and a file name one import, the identity validateImports refuses to see twice in one
+// list. Two descriptions naming the same pair describe the same import, so the second is dropped
+// rather than left for validation to refuse the merged descriptor over. The same file into a
+// different control is a different import and stays.
+func unionImports(a, b []Import) []Import {
+	if len(b) == 0 {
+		return a
+	}
+	seen := make(map[[2]string]bool, len(a))
+	for _, imp := range a {
+		seen[[2]string{imp.Control, imp.File}] = true
+	}
+	for _, imp := range b {
+		key := [2]string{imp.Control, imp.File}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		a = append(a, imp)
+	}
+	return a
 }
 
 // unionVEX keeps every supplier claim source both descriptions named.

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -187,6 +188,64 @@ components:
 		}
 		if len(res.Origins[comp]) != len(fields) {
 			t.Errorf("origins for %s = %v, want exactly %v", comp, res.Origins[comp], fields)
+		}
+	}
+}
+
+// A fragment's imports reach a component the root also names. The same control and file named in
+// two files is one import, so the merged descriptor validates; the same file into another control
+// is a second import.
+func TestResolveUnionsImportsAcrossFiles(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "draugr.saga.yaml", rootHeader+`
+components:
+  - name: payments
+    repositories: [{ url: "." }]
+    imports:
+      - { control: sast, file: reports/payments-sast.sarif }
+  - name: ledger
+    repositories: [{ url: "." }]
+fragments:
+  - path: "services/*.saga-fragment.yaml"
+`)
+	write(t, dir, "services/a.saga-fragment.yaml", `
+components:
+  - name: payments
+    imports:
+      - { control: sast, file: reports/payments-sast.sarif }
+      - { control: sca, file: reports/payments-sast.sarif }
+  - name: ledger
+    imports:
+      - { control: sca, file: reports/ledger-sca.sarif }
+`)
+	write(t, dir, "services/b.saga-fragment.yaml", `
+components:
+  - name: ledger
+    imports:
+      - { control: sca, file: reports/ledger-sca.sarif }
+      - { control: secrets, file: reports/ledger-secrets.sarif }
+`)
+	res, err := resolveIn(t, dir)
+	if err != nil {
+		t.Fatalf("ResolveFile: %v", err)
+	}
+	got := map[string][]Import{}
+	for _, c := range res.Model.Components {
+		got[c.Name] = c.Imports
+	}
+	want := map[string][]Import{
+		"payments": {
+			{Control: "sast", File: "reports/payments-sast.sarif"},
+			{Control: "sca", File: "reports/payments-sast.sarif"},
+		},
+		"ledger": {
+			{Control: "sca", File: "reports/ledger-sca.sarif"},
+			{Control: "secrets", File: "reports/ledger-secrets.sarif"},
+		},
+	}
+	for name, imports := range want {
+		if !slices.Equal(got[name], imports) {
+			t.Errorf("%s imports = %+v, want %+v", name, got[name], imports)
 		}
 	}
 }
