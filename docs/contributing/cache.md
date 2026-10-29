@@ -171,8 +171,8 @@ path that exists on only one of them.
 
 `dir`, `ttl`, `readOnly`, `requireDigest`, each with a `--cache-*` flag that overrides it.
 
-`ttl` decodes into a pointer, so a file that omits it keeps the built-in default and a file that
-writes `ttl: 0s` asks for entries that never expire, as `--cache-ttl 0` does.
+A file that omits `ttl` keeps the built-in default; `ttl: 0s` means entries never expire, as
+`--cache-ttl 0` does.
 
 ## Tool data, and contention over it
 

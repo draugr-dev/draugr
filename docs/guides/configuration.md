@@ -80,11 +80,8 @@ pipeline built on those keeps working.
 
 The two discovered files are layered, the project's over the machine's, and only per key: a project
 that sets one thing inherits the rest. A value the project writes replaces the machine's, `false`
-and `0s` included, except for `cache.readOnly` and `cache.requireDigest`, which only turn on (see
-[`cache`](#cache)). An explicit file replaces both.
-
-`draugr config show` run where there is no `draugr.config.yaml` names the directory it looked in and
-says that no project file was read, which is what a command run from a parent directory reads.
+and `0s` included, except for `cache.readOnly` and `cache.requireDigest`, which only turn on across
+files. An explicit file replaces both.
 
 Controller settings are merged **underneath** the descriptor's, so a project that has an opinion
 keeps it and nothing set here can override a committed Saga.
@@ -144,9 +141,9 @@ See [caching & performance](caching-and-performance.md) for what each means and
 
 `ttl: 0s` means no expiry, as `--cache-ttl 0` does. Leaving `ttl` out keeps the built-in default.
 
-`readOnly` and `requireDigest` only turn on across files, so a project's `false` does not turn off the
-machine's `true`. `draugr config show` lists that `false` under **Overridden**, beside the file that
-outranks it, and `draugr config set` reports it when it writes one.
+A project's `readOnly: false` or `requireDigest: false` under the machine's `true` is listed by
+`draugr config show` under **Overridden**, beside the file that outranks it, and reported by
+`draugr config set` when it writes one.
 
 ### `output`
 

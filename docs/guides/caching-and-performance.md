@@ -78,8 +78,8 @@ cache:
   requireDigest: true     # do not cache an image named only by a tag
 ```
 
-A flag you type always wins. `readOnly` and `requireDigest` only ever turn *on* from the config. A
-project file's `false` does not undo a machine that declared its results untrustworthy, and
+A flag you type always wins. `readOnly` and `requireDigest` only turn on across files, so a project
+file's `false` does not undo a machine that declared its results untrustworthy, and
 `draugr config show` lists that `false` as overridden. Typing `--cache-read-only=false` still
 overrides it, because you typed it. `ttl: 0s` in the file means no expiry, as `--cache-ttl 0` does.
 

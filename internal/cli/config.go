@@ -141,8 +141,7 @@ func writeConfigShow(w io.Writer, res config.Resolved, wd string) {
 	// a file that was never read.
 	noProject := ""
 	if config.Explicit(rootConfigPath) == "" && !readFrom(res, config.ProjectFile(wd)) {
-		noProject = fmt.Sprintf("No %s in %s, the working directory; no project file was read.",
-			config.FileName, shortHome(wd))
+		noProject = fmt.Sprintf("No %s in %s (the working directory).", config.FileName, shortHome(wd))
 	}
 	if len(res.Sources) == 0 {
 		_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted,
@@ -186,7 +185,7 @@ func writeConfigShow(w io.Writer, res config.Resolved, wd string) {
 	t := tui.NewTable(col, "Setting", "Value", "From").Indent("  ")
 	for _, k := range keys {
 		t.Row(tui.PlainCell(k.key), tui.PlainCell(k.value),
-			tui.Styled(tui.StyleMuted, shortHome(rows[k.key])))
+			tui.Styled(tui.StyleMuted, sourceName(rows[k.key], wd)))
 	}
 	t.Render(w)
 
@@ -197,16 +196,24 @@ func writeConfigShow(w io.Writer, res config.Resolved, wd string) {
 	t = tui.NewTable(col, "Setting", "Value", "From", "Overridden by").Indent("  ")
 	for _, o := range overrides {
 		t.Row(tui.PlainCell(o.Key), tui.PlainCell("false"),
-			tui.Styled(tui.StyleMuted, shortHome(o.Path)), tui.Styled(tui.StyleMuted, shortHome(o.By)))
+			tui.Styled(tui.StyleMuted, sourceName(o.Path, wd)), tui.Styled(tui.StyleMuted, sourceName(o.By, wd)))
 	}
 	t.Render(w)
 	_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, oneWayRule))
 }
 
-// oneWayRule states how cache.readOnly and cache.requireDigest layer, wherever an override of one
-// is reported.
-const oneWayRule = "cache.readOnly and cache.requireDigest only turn on across files, so a more " +
-	"specific file's false does not turn off a less specific file's true."
+// oneWayRule states how cache.readOnly and cache.requireDigest layer, under a table of overrides.
+const oneWayRule = "cache.readOnly and cache.requireDigest only turn on across files."
+
+// sourceName is how a table names the file a value came from: the project file as
+// ./draugr.config.yaml and the home file under ~, so the column stays narrow. The Files list above
+// it carries the full paths.
+func sourceName(path, wd string) string {
+	if path == config.ProjectFile(wd) {
+		return "./" + config.FileName
+	}
+	return shortHome(path)
+}
 
 // readFrom reports whether path is one of the files res was read from.
 func readFrom(res config.Resolved, path string) bool {
@@ -382,8 +389,7 @@ func writeOverridden(w io.Writer, path, key string) {
 	}
 	for _, o := range res.Overrides() {
 		if o.Key == key && o.Path == path {
-			_, _ = fmt.Fprintf(w, "overridden: %s stays true, set by %s\n%s\n",
-				key, shortHome(o.By), oneWayRule)
+			_, _ = fmt.Fprintf(w, "overridden: %s stays true; %s sets it\n", key, sourceName(o.By, wd))
 		}
 	}
 }

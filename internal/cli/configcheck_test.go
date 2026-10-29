@@ -124,8 +124,11 @@ func TestConfigSetReportsAOneWaySettingItCannotTurnOff(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "overridden: cache.readOnly stays true, set by ~/.draugr/config.yaml") {
+	if !strings.Contains(out, "overridden: cache.readOnly stays true; ~/.draugr/config.yaml sets it\n") {
 		t.Errorf("set did not report the override:\n%s", out)
+	}
+	if strings.Contains(out, oneWayRule) {
+		t.Errorf("set repeated the rule `show` states:\n%s", out)
 	}
 	for _, kv := range [][2]string{{"output.evidence", "false"}, {"cache.ttl", "0s"}} {
 		out, err := runConfig(t, dir, "set", kv[0], kv[1])
@@ -145,17 +148,20 @@ func TestConfigSetReportsAOneWaySettingItCannotTurnOff(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	project := filepath.Join(dir, config.FileName)
+	// The full path is in the Files list; the tables name the project file by its relative name.
+	if !strings.Contains(out, "  "+filepath.Join(dir, config.FileName)+"\n") {
+		t.Errorf("the Files list lacks the full path:\n%s", out)
+	}
 	// Columns are padded to the widest cell, so rows are compared with their spacing collapsed.
-	out = strings.Join(strings.Fields(out), " ")
+	flat := strings.Join(strings.Fields(out), " ")
 	for _, want := range []string{
 		"Overridden:",
-		"cache.readOnly false " + project + " ~/.draugr/config.yaml",
+		"cache.readOnly false ./draugr.config.yaml ~/.draugr/config.yaml",
 		"cache.readOnly true ~/.draugr/config.yaml",
-		"output.evidence false " + project,
+		"output.evidence false ./draugr.config.yaml",
 		oneWayRule,
 	} {
-		if !strings.Contains(out, want) {
+		if !strings.Contains(flat, want) {
 			t.Errorf("show lacks %q:\n%s", want, out)
 		}
 	}
@@ -193,7 +199,7 @@ func TestAScanAppliesTheProjectsFalseAndZero(t *testing.T) {
 func TestConfigShowNamesTheDirectoryItSearched(t *testing.T) {
 	configHome(t, "output:\n  top: 5\n")
 	parent := t.TempDir()
-	notice := "No " + config.FileName + " in " + parent + ", the working directory; no project file was read."
+	notice := "No " + config.FileName + " in " + parent + " (the working directory)."
 
 	out, err := runConfig(t, parent, "show")
 	if err != nil {
@@ -213,13 +219,13 @@ func TestConfigShowNamesTheDirectoryItSearched(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(parent, config.FileName), []byte("output:\n  top: 3\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if out, _ = runConfig(t, parent, "show"); strings.Contains(out, "no project file was read") {
+	if out, _ = runConfig(t, parent, "show"); strings.Contains(out, "(the working directory)") {
 		t.Errorf("a project file was found and the notice still printed:\n%s", out)
 	}
 
 	// An explicit file is read alone, so nothing was searched for and nothing is said about it.
 	t.Setenv(config.EnvVar, filepath.Join(parent, config.FileName))
-	if out, _ = runConfig(t, t.TempDir(), "show"); strings.Contains(out, "no project file was read") {
+	if out, _ = runConfig(t, t.TempDir(), "show"); strings.Contains(out, "(the working directory)") {
 		t.Errorf("an explicit file still produced the notice:\n%s", out)
 	}
 }

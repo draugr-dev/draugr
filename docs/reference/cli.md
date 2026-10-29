@@ -1882,7 +1882,7 @@ controllers:            # merged *underneath* the descriptor's own settings
 | `tools.<name>.version` | the build [`tools install`](#draugr-tools-install-tool) provisions |
 | `controllers.<control>.<scanner>` | control defaults, merged underneath the descriptor's `config.controls` |
 | `cache.dir`, `cache.ttl`, `cache.readOnly`, `cache.requireDigest` | the `--cache-*` flags. A `ttl` of `0s` means no expiry, as `--cache-ttl 0` does; leaving `ttl` out keeps the built-in default |
-| `output.view`, `output.evidence`, `output.top` | the `--view`, `--evidence` and `--top` flags. A `top` of `0` means the built-in default |
+| `output.view`, `output.evidence`, `output.top` | the `--view`, `--evidence` and `--top` flags. A `top` of `0` means the built-in default, not every row as `--top 0` does |
 | `output.offerInstall` | whether a scan on a terminal [offers to install](#installing-a-missing-scanner) a missing scanner; unset means it does |
 | `publish.apiUrl` | where the `draugr-api` publisher posts when `DRAUGR_API_URL` is unset. In a project's `./draugr.config.yaml` it is held to the rule for a descriptor's `url:`, used only on an allowed origin |
 
@@ -1898,8 +1898,7 @@ performance](../guides/caching-and-performance.md) for the cache settings.
 | `~/.draugr/config.yaml` | this machine |
 
 Discovered files are layered, project over home. An explicit one replaces both. The project file is
-read from the working directory only; run anywhere else, `show` names the directory it looked in and
-says no project file was read.
+read from the working directory only; run anywhere else, `show` names the directory it searched.
 
 A more specific file's value replaces a less specific file's, `false` and `0s` included.
 `cache.readOnly` and `cache.requireDigest` only turn on across files, so a project's `false` does not
