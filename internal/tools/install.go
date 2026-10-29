@@ -346,7 +346,7 @@ var installable = map[string]InstallSpec{
 	},
 	"grype": {
 		Binary:  "grype",
-		Version: "0.118.0",
+		Version: "0.121.0",
 		// SHA-256 only, for the same reason as Syft above: Anchore publishes the older cosign
 		// cert+signature pair (checksums.txt.pem / .sig) rather than a Sigstore bundle, and
 		// CosignSpec models the bundle format.
@@ -361,27 +361,27 @@ var installable = map[string]InstallSpec{
 		// being updated. Do not lower it.
 		Assets: map[string]Asset{
 			"linux/amd64": {
-				URL:             "https://github.com/anchore/grype/releases/download/v0.118.0/grype_0.118.0_linux_amd64.tar.gz",
+				URL:             "https://github.com/anchore/grype/releases/download/v0.121.0/grype_0.121.0_linux_amd64.tar.gz",
 				URLTemplate:     "https://github.com/anchore/grype/releases/download/v{version}/grype_{version}_linux_amd64.tar.gz",
-				SHA256:          "1d444c5e7360471815f7158f71935fcecc68a3c417d85c7344f770854300bba2",
+				SHA256:          "64e07133d3486115de647a66581461dccf5c732748a0a3119077395565f15519",
 				BinaryInArchive: "grype",
 			},
 			"linux/arm64": {
-				URL:             "https://github.com/anchore/grype/releases/download/v0.118.0/grype_0.118.0_linux_arm64.tar.gz",
+				URL:             "https://github.com/anchore/grype/releases/download/v0.121.0/grype_0.121.0_linux_arm64.tar.gz",
 				URLTemplate:     "https://github.com/anchore/grype/releases/download/v{version}/grype_{version}_linux_arm64.tar.gz",
-				SHA256:          "32aceeb8ee837244775fcb522372c8b3a47914986385f3148f4ee2c930482a84",
+				SHA256:          "86f570f75ca947ea3dd6486309232bcff6d78e44ba081ae75ab14eab72be3dae",
 				BinaryInArchive: "grype",
 			},
 			"darwin/amd64": {
-				URL:             "https://github.com/anchore/grype/releases/download/v0.118.0/grype_0.118.0_darwin_amd64.tar.gz",
+				URL:             "https://github.com/anchore/grype/releases/download/v0.121.0/grype_0.121.0_darwin_amd64.tar.gz",
 				URLTemplate:     "https://github.com/anchore/grype/releases/download/v{version}/grype_{version}_darwin_amd64.tar.gz",
-				SHA256:          "cfeecf3462321c37ec4bd37dcd8a7f6630cc6c0c9997a07ff34002c5d7ef9bb3",
+				SHA256:          "27eef17e42f0340af6582cdbc33ad18faf9f601c613ab81d2e1658a94cbc357f",
 				BinaryInArchive: "grype",
 			},
 			"darwin/arm64": {
-				URL:             "https://github.com/anchore/grype/releases/download/v0.118.0/grype_0.118.0_darwin_arm64.tar.gz",
+				URL:             "https://github.com/anchore/grype/releases/download/v0.121.0/grype_0.121.0_darwin_arm64.tar.gz",
 				URLTemplate:     "https://github.com/anchore/grype/releases/download/v{version}/grype_{version}_darwin_arm64.tar.gz",
-				SHA256:          "938f050bb5076c8aa761867b39843abad2414dfe4cc82b7d36886e634f49c640",
+				SHA256:          "7be39d3a0428c664ce0183e4aba31ed9accffce9eda7e7f6fa84e9c512285f27",
 				BinaryInArchive: "grype",
 			},
 		},

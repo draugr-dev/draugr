@@ -29,7 +29,7 @@
             "text": "A critical vulnerability in python package: pyyaml, version 5.3.1 was found in image 127.0.0.1:18080/options-grype:1.0 at: /usr/lib/python3.12/site-packages/PyYAML-5.3.1.dist-info/METADATA"
           },
           "partialFingerprints": {
-            "primaryLocationLineHash": "574524fd2e1f6d23e4c865fe5506af9c5bb88eec807d8f76cbb0d6daa5b402e6:1"
+            "primaryLocationLineHash": "b937f087b9519e8cdd36d91ea09c7e5f33ebb46ad3ee5d711cf44554139f88ca:1"
           },
           "properties": {
             "component": "by-advisory",
@@ -64,7 +64,7 @@
             "text": "A critical vulnerability in python package: pyyaml, version 5.3.1 was found in image 127.0.0.1:18080/options-grype:1.0 at: /usr/lib/python3.12/site-packages/PyYAML-5.3.1.dist-info/METADATA"
           },
           "partialFingerprints": {
-            "primaryLocationLineHash": "574524fd2e1f6d23e4c865fe5506af9c5bb88eec807d8f76cbb0d6daa5b402e6:1"
+            "primaryLocationLineHash": "b937f087b9519e8cdd36d91ea09c7e5f33ebb46ad3ee5d711cf44554139f88ca:1"
           },
           "properties": {
             "component": "default",

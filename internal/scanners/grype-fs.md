@@ -8,7 +8,7 @@ order: 80
 # Scanner: `grype-fs`
 
 - **Control:** `sca`
-- **Tool:** [Anchore Grype](https://github.com/anchore/grype), `grype dir:<checkout> -q -o sarif`
+- **Tool:** [Anchore Grype](https://github.com/anchore/grype), `grype dir:<checkout> -o sarif`
 - **Status:** ✅ implemented, **opt-in** (Trivy runs by default)
 - **Targets:** source repositories
 - **License / terms:** see [license, terms and what is sent](#license-terms-and-what-is-sent)
@@ -124,3 +124,6 @@ account, no key, no telemetry.
 
 The **vulnerability database**, from `grype.anchore.io`. The same copy `grype` reads, warmed
 once per run.
+
+Grype runs with `GRYPE_CHECK_FOR_APP_UPDATE=false`, so a scan never asks
+`toolbox-data.anchore.io` whether a newer Grype exists.

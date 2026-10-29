@@ -131,12 +131,18 @@ func parseGrypeInventory(out []byte, dir string) ([]sarif.Input, error) {
 	return inputs, nil
 }
 
-// grypeFSArgs builds `grype dir:<dir> -q -o sarif` for a checked-out repository.
+// grypeFSArgs builds `grype dir:<dir> -o sarif` for a checked-out repository.
+//
+// No -q. It silences Grype's log, which is the only place Grype says why a scan failed, and a scan
+// error that holds nothing but an exit status gives the reader nothing to act on. The SARIF goes to
+// stdout either way and the log to stderr, where toolexec finds the line that ended the run and
+// quotes it in the error.
 func grypeFSArgs(dir string, cfg plugin.Config) []string {
-	return grypeOptions([]string{"grype", "dir:" + dir, "-q", "-o", "sarif"}, cfg)
+	return grypeOptions([]string{"grype", "dir:" + dir, "-o", "sarif"}, cfg)
 }
 
-// grypeArgv builds `grype registry:<ref> -q -o sarif` for an image target.
+// grypeArgv builds `grype registry:<ref> -o sarif` for an image target, without -q for the reason
+// grypeFSArgs gives.
 //
 // The `registry:` scheme, not a bare reference: bare, Grype tries a local Docker daemon first and
 // only then the registry. On a CI runner there is no daemon, so that is a failed connection before
@@ -153,7 +159,7 @@ func grypeArgv(target plugin.Target, cfg plugin.Config) ([]string, error) {
 	if ref == "" {
 		return nil, errors.New("grype: image target has neither ref nor digest")
 	}
-	return grypeOptions([]string{"grype", "registry:" + ref, "-q", "-o", "sarif"}, cfg), nil
+	return grypeOptions([]string{"grype", "registry:" + ref, "-o", "sarif"}, cfg), nil
 }
 
 // grypeOptions appends the descriptor's options to a Grype command line. Shared by the image and
@@ -175,15 +181,21 @@ func grypeOptions(argv []string, cfg plugin.Config) []string {
 
 // grypeEnv is the environment Grype runs with, layered over the parent's.
 //
-// Offline, GRYPE_DB_AUTO_UPDATE=false. Skipping the prewarm is not enough on its own: Grype checks
-// for a newer database when it starts a scan too, so without this an offline run still reaches
-// out, once per job. With it, Grype uses its local database and says plainly when there isn't one,
-// a better message than anything Draugr could write on its behalf.
+// Always GRYPE_CHECK_FOR_APP_UPDATE=false. A scan otherwise asks toolbox-data.anchore.io whether a
+// newer Grype exists, once per job and offline too, and logs the failed lookup at ERROR. The
+// version is Draugr's pin, so the answer changes nothing, and with the log on stderr that ERROR
+// line would be the one quoted when the scan fails for some other reason.
+//
+// Offline, GRYPE_DB_AUTO_UPDATE=false as well. Skipping the prewarm is not enough on its own: Grype
+// checks for a newer database when it starts a scan too, so without this an offline run still
+// reaches out, once per job. With it, Grype uses its local database and says plainly when there
+// isn't one, a better message than anything Draugr could write on its behalf.
 func grypeEnv() []string {
-	if !netpolicy.Offline() {
-		return nil
+	env := []string{"GRYPE_CHECK_FOR_APP_UPDATE=false"}
+	if netpolicy.Offline() {
+		env = append(env, "GRYPE_DB_AUTO_UPDATE=false")
 	}
-	return []string{"GRYPE_DB_AUTO_UPDATE=false"}
+	return env
 }
 
 // grypeRun and grypeRunInDir are vars so a test can substitute the exec without arranging binaries

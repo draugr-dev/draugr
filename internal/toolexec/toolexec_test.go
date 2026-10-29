@@ -634,3 +634,51 @@ func TestFirstLinePrefersTheMostSevereLevel(t *testing.T) {
 		}
 	}
 }
+
+// Grype and Syft write `[0000] ERROR …`: a bracketed counter and a padded level, separated by
+// spaces rather than tabs, with the message colored whether or not stderr is a terminal. The
+// streams below are what grype 0.121.0 wrote when it failed, and the reason has to reach the error
+// without the preamble or the color codes, ahead of the unleveled hint grype prints before it.
+func TestFirstLineReadsGrypesLog(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ name, raw, want string }{
+		{
+			name: "a source it cannot resolve, colored",
+			raw:  "[0000] ERROR \x1b[31mfailed to catalog: no source providers were able to resolve the input \"/nonexistent-xyz\"\x1b[0m\n",
+			want: `failed to catalog: no source providers were able to resolve the input "/nonexistent-xyz"`,
+		},
+		{
+			name: "a database rewritten under it",
+			raw: "[0000]  WARN no explicit name and version provided for directory source, deriving artifact ID from the given path (which is not ideal) from=syft\n" +
+				"Database checksum invalid, run `grype db delete` to remove it and `grype db update` to update.\n" +
+				"[0000] ERROR failed to load vulnerability db: bad db checksum (/s/run/home/.cache/grype/db/6/vulnerability.db): \"xxh64:55000f2cfe183096\" vs \"xxh64:4a9cf99fd7662c01\"\n",
+			want: "bad db checksum",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := firstLine(tc.raw)
+			if !strings.Contains(got, tc.want) {
+				t.Errorf("firstLine = %q, want it to contain %q", got, tc.want)
+			}
+			for _, noise := range []string{"[0000]", "ERROR", "\x1b"} {
+				if strings.Contains(got, noise) {
+					t.Errorf("firstLine = %q, still carries %q", got, noise)
+				}
+			}
+		})
+	}
+}
+
+// A bracketed opening with no level after it is content, and stays.
+func TestTabbedLeavesAnUnleveledBracketAlone(t *testing.T) {
+	t.Parallel()
+	for _, line := range []string{"[1] first of two causes", "[0000] retrying the download"} {
+		if got := tabbed(line); got != line {
+			t.Errorf("tabbed(%q) = %q, want it unchanged", line, got)
+		}
+	}
+	if got := tabbed("[0012]  WARN slow"); got != "WARN\tslow" {
+		t.Errorf("tabbed = %q, want the level and message tab-separated", got)
+	}
+}

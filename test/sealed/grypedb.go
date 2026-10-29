@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -19,10 +20,17 @@ import (
 // The database schema the pinned Grype reads, as model, revision and addition. `grype version`
 // prints the model as "Supported DB Schema". A Grype that moves to another model refuses this
 // database rather than reading it wrongly; bump these with the tool and regenerate.
+//
+// The addition has to match too, and nothing refuses a mismatch. When the client_version in
+// import.json is an earlier addition than the pinned Grype's, Grype rehydrates the database on its
+// first read: it migrates the file in place and then writes the new digest to import.json. The
+// sealed scans start together, so a scan that checks the file between those two writes finds a
+// digest that no longer matches and fails with `bad db checksum`. The rehydration records the
+// pinned Grype's schema as client_version, which is what GrypeDBRewritten reads after a scan.
 const (
 	GrypeSchemaModel    = 6
 	grypeSchemaRevision = 1
-	grypeSchemaAddition = 9
+	grypeSchemaAddition = 10
 )
 
 // grypeEcosystems maps an advisory ecosystem to the package type Grype stores it under and the
@@ -65,6 +73,7 @@ CREATE TABLE known_exploited_vulnerability_handles (id integer PRIMARY KEY AUTOI
 CREATE TABLE epss_handles (id integer PRIMARY KEY AUTOINCREMENT, cve text NOT NULL, epss real NOT NULL, percentile real NOT NULL);
 CREATE TABLE epss_metadata (date datetime NOT NULL);
 CREATE TABLE cwe_handles (id integer PRIMARY KEY AUTOINCREMENT, cve text NOT NULL, cwe text NOT NULL, source text, type text);
+CREATE TABLE ssvc_handles (id integer PRIMARY KEY AUTOINCREMENT, cve text NOT NULL, source text, role text, version text, timestamp datetime, exploitation text, automatable text, technical_impact text);
 `
 
 // grypeTime is how Grype's database writes a timestamp.
@@ -95,8 +104,38 @@ func WriteGrypeDB(home string, advs Advisories, builtAt time.Time) error {
 	return writeJSON(filepath.Join(dir, "import.json"), map[string]string{
 		"digest":         "xxh64:" + digest,
 		"source":         "draugr sealed fixture",
-		"client_version": fmt.Sprintf("v%d.%d.%d", GrypeSchemaModel, grypeSchemaRevision, grypeSchemaAddition),
+		"client_version": grypeClientVersion(),
 	})
+}
+
+func grypeClientVersion() string {
+	return fmt.Sprintf("v%d.%d.%d", GrypeSchemaModel, grypeSchemaRevision, grypeSchemaAddition)
+}
+
+// GrypeDBRewritten reports, after a scan, whether Grype rewrote the database WriteGrypeDB left in
+// home for a schema other than the one written, and names the schema it wrote. Nil when the
+// database is as written, and when there is none, because a scenario may bring its own home.
+func GrypeDBRewritten(home string) error {
+	path := filepath.Join(home, ".cache", "grype", "db", fmt.Sprint(GrypeSchemaModel), "import.json")
+	data, err := os.ReadFile(path) // #nosec G304 -- a file under the scenario's own home
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var record struct {
+		ClientVersion string `json:"client_version"`
+	}
+	if err := json.Unmarshal(data, &record); err != nil {
+		return fmt.Errorf("read %s: %w", path, err)
+	}
+	if record.ClientVersion != grypeClientVersion() {
+		return fmt.Errorf("the pinned Grype rewrote the sealed database for schema %s, written for %s: "+
+			"concurrent scans read it mid-rewrite, so set the schema constants in test/sealed/grypedb.go to %s",
+			record.ClientVersion, grypeClientVersion(), record.ClientVersion)
+	}
+	return nil
 }
 
 func writeGrypeTables(path string, advs Advisories, builtAt time.Time) (err error) {
