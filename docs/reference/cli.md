@@ -1897,7 +1897,9 @@ performance](../guides/caching-and-performance.md) for the cache settings.
 | `./draugr.config.yaml` | this project |
 | `~/.draugr/config.yaml` | this machine |
 
-Discovered files are layered, project over home. An explicit one replaces both.
+Discovered files are layered, project over home. An explicit one replaces both. The project file is
+read from the working directory only; run anywhere else, `show` names the directory it looked in and
+says no project file was read.
 
 A more specific file's value replaces a less specific file's, `false` and `0s` included.
 `cache.readOnly` and `cache.requireDigest` only turn on across files, so a project's `false` does not

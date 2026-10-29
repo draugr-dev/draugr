@@ -126,18 +126,30 @@ func newConfigShowCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			writeConfigShow(cmd.OutOrStdout(), res)
+			writeConfigShow(cmd.OutOrStdout(), res, wd)
 			return nil
 		},
 	}
 }
 
-// writeConfigShow renders the resolved settings with their provenance.
-func writeConfigShow(w io.Writer, res config.Resolved) {
+// writeConfigShow renders the resolved settings with their provenance. wd is the directory the
+// project file is looked for in, named when there is none there.
+func writeConfigShow(w io.Writer, res config.Resolved, wd string) {
 	col := tui.For(w)
+	// The project file is read from the working directory and nowhere else, so a command run from a
+	// parent directory reads none. Said whenever it happens, because the listing alone cannot show
+	// a file that was never read.
+	noProject := ""
+	if config.Explicit(rootConfigPath) == "" && !readFrom(res, config.ProjectFile(wd)) {
+		noProject = fmt.Sprintf("No %s in %s, the working directory; no project file was read.",
+			config.FileName, shortHome(wd))
+	}
 	if len(res.Sources) == 0 {
 		_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted,
 			"No configuration found. Draugr's built-in defaults are in effect."))
+		if noProject != "" {
+			_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted, noProject))
+		}
 		_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted,
 			"`draugr config init` writes a starter file here; --global writes it to ~/.draugr."))
 		return
@@ -146,6 +158,9 @@ func writeConfigShow(w io.Writer, res config.Resolved) {
 	_, _ = fmt.Fprintln(w, col.Paint(tui.StyleAccent, "Files, least specific first:"))
 	for _, s := range res.Sources {
 		_, _ = fmt.Fprintf(w, "  %s\n", shortHome(s.Path))
+	}
+	if noProject != "" {
+		_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, noProject))
 	}
 
 	// Provenance is computed by asking which is the *last* source to set a key, which is the one
@@ -192,6 +207,16 @@ func writeConfigShow(w io.Writer, res config.Resolved) {
 // is reported.
 const oneWayRule = "cache.readOnly and cache.requireDigest only turn on across files, so a more " +
 	"specific file's false does not turn off a less specific file's true."
+
+// readFrom reports whether path is one of the files res was read from.
+func readFrom(res config.Resolved, path string) bool {
+	for _, s := range res.Sources {
+		if s.Path == path {
+			return true
+		}
+	}
+	return false
+}
 
 // shortHome trims a home path to ~ so the column stays readable.
 func shortHome(path string) string {

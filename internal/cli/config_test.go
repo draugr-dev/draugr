@@ -34,7 +34,7 @@ func TestConfigShowNamesWhereEachValueCame(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	writeConfigShow(&buf, res)
+	writeConfigShow(&buf, res, "/repo")
 	out := buf.String()
 
 	if !strings.Contains(out, "0.69.3") || !strings.Contains(out, "/repo/draugr.config.yaml") {
@@ -51,7 +51,7 @@ func TestConfigShowNamesWhereEachValueCame(t *testing.T) {
 
 func TestConfigShowSaysNothingIsConfigured(t *testing.T) {
 	var buf bytes.Buffer
-	writeConfigShow(&buf, config.Resolved{})
+	writeConfigShow(&buf, config.Resolved{}, "/repo")
 	if !strings.Contains(buf.String(), "built-in defaults") {
 		t.Errorf("an unconfigured machine should say so plainly:\n%s", buf.String())
 	}

@@ -188,6 +188,42 @@ func TestAScanAppliesTheProjectsFalseAndZero(t *testing.T) {
 	}
 }
 
+// Run from a directory with no project file, `config show` says which directory it looked in, so a
+// run from a parent directory does not read as a project with no settings.
+func TestConfigShowNamesTheDirectoryItSearched(t *testing.T) {
+	configHome(t, "output:\n  top: 5\n")
+	parent := t.TempDir()
+	notice := "No " + config.FileName + " in " + parent + ", the working directory; no project file was read."
+
+	out, err := runConfig(t, parent, "show")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, notice) {
+		t.Errorf("show did not name the directory it searched:\n%s", out)
+	}
+
+	// Nothing configured anywhere: still said, beside the built-in defaults.
+	configHome(t, "")
+	if out, _ = runConfig(t, parent, "show"); !strings.Contains(out, notice) {
+		t.Errorf("show with no files did not name the directory it searched:\n%s", out)
+	}
+
+	// A project file there: listed, and no notice.
+	if err := os.WriteFile(filepath.Join(parent, config.FileName), []byte("output:\n  top: 3\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if out, _ = runConfig(t, parent, "show"); strings.Contains(out, "no project file was read") {
+		t.Errorf("a project file was found and the notice still printed:\n%s", out)
+	}
+
+	// An explicit file is read alone, so nothing was searched for and nothing is said about it.
+	t.Setenv(config.EnvVar, filepath.Join(parent, config.FileName))
+	if out, _ = runConfig(t, t.TempDir(), "show"); strings.Contains(out, "no project file was read") {
+		t.Errorf("an explicit file still produced the notice:\n%s", out)
+	}
+}
+
 // A key the file cannot hold and a control this build does not provide are reported in one pass,
 // with both places to look next.
 func TestParseConfigReportsParseAndRegistryProblemsTogether(t *testing.T) {

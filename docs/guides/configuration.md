@@ -83,6 +83,9 @@ that sets one thing inherits the rest. A value the project writes replaces the m
 and `0s` included, except for `cache.readOnly` and `cache.requireDigest`, which only turn on (see
 [`cache`](#cache)). An explicit file replaces both.
 
+`draugr config show` run where there is no `draugr.config.yaml` names the directory it looked in and
+says that no project file was read, which is what a command run from a parent directory reads.
+
 Controller settings are merged **underneath** the descriptor's, so a project that has an opinion
 keeps it and nothing set here can override a committed Saga.
 
