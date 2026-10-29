@@ -1456,6 +1456,17 @@ const htmlDoc = `<!doctype html>
 
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+  /* Phone widths. No text under 12px, and anything pressed with a finger at least 24px tall
+   * (WCAG 2.2, 2.5.8). Sizes only, so the desktop layout and every color stay as they are. */
+  @media (max-width: 40rem) {
+    .rows .lbl, .rows .pri, .rows .sevchip, .rows .hint, .rows .moved,
+    thead th, .sev, .moved, .size, .chip-menu .c, .menu-row .c, .menu-head { font-size: 12px; }
+    code { font-size: max(.86em, 12px); }
+    .rows summary.rule, .rows .act-clears { min-height: 24px; }
+    .rows .act-clears { display: inline-flex; align-items: center; }
+    .rows .rule .id a { display: inline-block; min-height: 24px; }
+  }
+
   @media print {
     body.tabbed .pin { position: static; }
     .off { display: revert !important; }
