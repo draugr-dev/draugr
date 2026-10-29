@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -108,6 +109,144 @@ components:
 	}
 	if len(c.Repositories) != 1 {
 		t.Errorf("the fragment's surface should still have been added: %+v", c)
+	}
+}
+
+// The root names two components and classifies them partly; two fragments describe both. A value
+// the root sets stands, a value it leaves unset comes from a fragment, and where both fragments set
+// one the first in resolution order supplies it. Origins names the file behind every value.
+func TestResolveFillsWhatTheRootLeavesUnset(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "draugr.saga.yaml", rootHeader+`
+components:
+  - name: payments
+    exposure: restricted
+    repositories: [{ url: "." }]
+  - name: ledger
+    labels: { team: ledger }
+    repositories: [{ url: "." }]
+fragments:
+  - path: "services/*.saga-fragment.yaml"
+`)
+	first := write(t, dir, "services/a.saga-fragment.yaml", `
+components:
+  - name: payments
+    exposure: public
+    criticality: important
+  - name: ledger
+    exposure: internal
+    labels: { team: platform, tier: back }
+`)
+	second := write(t, dir, "services/b.saga-fragment.yaml", `
+components:
+  - name: payments
+    criticality: critical
+    builtBy: upstream
+  - name: ledger
+    exposure: public
+    criticality: supporting
+`)
+	res, err := resolveIn(t, dir)
+	if err != nil {
+		t.Fatalf("ResolveFile: %v", err)
+	}
+	byName := map[string]Component{}
+	for _, c := range res.Model.Components {
+		byName[c.Name] = c
+	}
+
+	payments, ledger := byName["payments"], byName["ledger"]
+	if payments.Exposure != ExposureRestricted {
+		t.Errorf("payments exposure = %q, want the root's restricted", payments.Exposure)
+	}
+	if payments.Criticality != CriticalityImportant {
+		t.Errorf("payments criticality = %q, want important from the first fragment", payments.Criticality)
+	}
+	if payments.BuiltBy != BuiltByUpstream {
+		t.Errorf("payments builtBy = %q, want upstream from the second fragment", payments.BuiltBy)
+	}
+	if ledger.Exposure != ExposureInternal {
+		t.Errorf("ledger exposure = %q, want internal from the first fragment", ledger.Exposure)
+	}
+	if ledger.Criticality != CriticalitySupporting {
+		t.Errorf("ledger criticality = %q, want supporting from the second fragment", ledger.Criticality)
+	}
+	if ledger.Labels["team"] != "ledger" || ledger.Labels["tier"] != "back" {
+		t.Errorf("ledger labels = %v, want the root's team and the fragment's tier", ledger.Labels)
+	}
+
+	root := filepath.Join(dir, "draugr.saga.yaml")
+	want := map[string]map[string]string{
+		"payments": {"exposure": root, "criticality": first, "builtBy": second},
+		"ledger":   {"labels.team": root, "exposure": first, "labels.tier": first, "criticality": second},
+	}
+	for comp, fields := range want {
+		for field, src := range fields {
+			if got := res.Origins[comp][field]; got != filepath.ToSlash(src) && got != src {
+				t.Errorf("origin of %s.%s = %q, want %q", comp, field, got, src)
+			}
+		}
+		if len(res.Origins[comp]) != len(fields) {
+			t.Errorf("origins for %s = %v, want exactly %v", comp, res.Origins[comp], fields)
+		}
+	}
+}
+
+// A fragment's imports reach a component the root also names. The same control and file named in
+// two files is one import, so the merged descriptor validates; the same file into another control
+// is a second import.
+func TestResolveUnionsImportsAcrossFiles(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "draugr.saga.yaml", rootHeader+`
+components:
+  - name: payments
+    repositories: [{ url: "." }]
+    imports:
+      - { control: sast, file: reports/payments-sast.sarif }
+  - name: ledger
+    repositories: [{ url: "." }]
+fragments:
+  - path: "services/*.saga-fragment.yaml"
+`)
+	write(t, dir, "services/a.saga-fragment.yaml", `
+components:
+  - name: payments
+    imports:
+      - { control: sast, file: reports/payments-sast.sarif }
+      - { control: sca, file: reports/payments-sast.sarif }
+  - name: ledger
+    imports:
+      - { control: sca, file: reports/ledger-sca.sarif }
+`)
+	write(t, dir, "services/b.saga-fragment.yaml", `
+components:
+  - name: ledger
+    imports:
+      - { control: sca, file: reports/ledger-sca.sarif }
+      - { control: secrets, file: reports/ledger-secrets.sarif }
+`)
+	res, err := resolveIn(t, dir)
+	if err != nil {
+		t.Fatalf("ResolveFile: %v", err)
+	}
+	got := map[string][]Import{}
+	for _, c := range res.Model.Components {
+		got[c.Name] = c.Imports
+	}
+	want := map[string][]Import{
+		"payments": {
+			{Control: "sast", File: "reports/payments-sast.sarif"},
+			{Control: "sca", File: "reports/payments-sast.sarif"},
+		},
+		"ledger": {
+			{Control: "sca", File: "reports/ledger-sca.sarif"},
+			{Control: "secrets", File: "reports/ledger-secrets.sarif"},
+		},
+	}
+	for name, imports := range want {
+		if !slices.Equal(got[name], imports) {
+			t.Errorf("%s imports = %+v, want %+v", name, got[name], imports)
+		}
 	}
 }
 

@@ -55,6 +55,15 @@ func String() string {
 		Version, Commit, Date, runtime.Version())
 }
 
+// Build names this binary for keying cached scan results: the version and the commit, as
+// `0.158.1+abcdef12`.
+//
+// A release names itself by its version alone. A development build is "dev" whatever it
+// contains, so the commit is what tells two of them apart: the linker's stamp under `make build`,
+// or the VCS revision the Go toolchain recorded under `go build` in a checkout. A build with
+// neither, such as a test binary, is `dev+none`.
+func Build() string { return Version + "+" + Commit }
+
 // Info is the build metadata in structured form, for machine consumers.
 type Info struct {
 	Version string `json:"version"`

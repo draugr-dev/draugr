@@ -18,7 +18,8 @@ import (
 // result.
 //
 // Provenance is emitted as YAML comments, which makes the output both the human answer and a
-// valid descriptor. Comments are ignored by the decoder, so the flattened document can be
+// valid descriptor: the files at the top, and beside each classification value the file that
+// supplied it. Comments are ignored by the decoder, so the flattened document can be
 // scanned. That is what lets a resolved descriptor cross an air gap, be committed as a lockfile
 // with every remote revision pinned to the commit it resolved to, or be diffed in CI so a
 // one-line `fragments:` change is reviewed by its effect rather than by its cause.
@@ -40,10 +41,20 @@ func printResolved(w io.Writer, res *saga.Resolved) error {
 		return fmt.Errorf("render resolved descriptor: %w", err)
 	}
 
+	body := []byte(buf.String())
+	// Attributed only when something was merged: with one file, every value is that file's, and
+	// a comment on each would repeat the header.
+	if len(res.Sources) > 1 {
+		var err error
+		if body, err = saga.AnnotateOrigins(body, res.Origins); err != nil {
+			return fmt.Errorf("render resolved descriptor: %w", err)
+		}
+	}
+
 	if _, err := fmt.Fprint(w, resolvedHeader(res)); err != nil {
 		return err
 	}
-	_, err := fmt.Fprint(w, buf.String())
+	_, err := w.Write(body)
 	return err
 }
 

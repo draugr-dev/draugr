@@ -2171,6 +2171,10 @@ reading the descriptor declared.
 uncovered image is a gap or a fact about the ecosystem, and which certificate roots are trusted,
 stay with whoever answers for the verdict.
 
+**Components merge by name**, and their surfaces union. `exposure`, `criticality`, `builtBy` and
+each label key take the value of the first file that sets them, the root descriptor first; the
+guide gives [the full order](../guides/saga-fragments.md#precedence).
+
 **A pattern that matches nothing is an error.** Somebody wrote the line on purpose, so silence from
 it is indistinguishable from a typo, and the result would be a descriptor scanning less than it
 claims. If a product genuinely has no components on one cloud, do not list that pattern.

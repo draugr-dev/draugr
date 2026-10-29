@@ -587,12 +587,22 @@ func TestSurveyNamesTheExposuresItProposed(t *testing.T) {
 		existing string
 		frag     saga.Component
 		want     []string
+		inFile   string
 		silent   bool
 	}{
 		{
 			name: "a new component",
 			frag: proposed,
 			want: []string{"payments", "public", "draugr classify"},
+		},
+		{
+			// The descriptor names the component and leaves its exposure unset, so the merge fills
+			// it, and the note and the file agree.
+			name:     "a component in the descriptor with no exposure",
+			existing: "components:\n  - name: payments\n    criticality: critical\n",
+			frag:     proposed,
+			want:     []string{"payments", "public", "draugr classify"},
+			inFile:   "exposure: public",
 		},
 		{
 			// The merge keeps the exposure already in the descriptor, so this proposal was
@@ -636,6 +646,15 @@ func TestSurveyNamesTheExposuresItProposed(t *testing.T) {
 			for _, want := range tc.want {
 				if !strings.Contains(got, want) {
 					t.Errorf("the note should mention %q:\n%s", want, got)
+				}
+			}
+			if tc.inFile != "" {
+				written, err := os.ReadFile(out) // #nosec G304 -- the test's own temporary file
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !strings.Contains(string(written), tc.inFile) {
+					t.Errorf("the file lacks %q:\n%s", tc.inFile, written)
 				}
 			}
 		})

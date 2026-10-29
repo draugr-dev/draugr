@@ -3,6 +3,8 @@ package saga
 import (
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 const annotateDoc = `project: app
@@ -114,6 +116,85 @@ func TestAnnotateSignersSaysWhichSignatureEachCameFrom(t *testing.T) {
 	}
 	if _, err := Load([]byte(got)); err != nil {
 		t.Errorf("annotated document no longer parses: %v\n%s", err, got)
+	}
+}
+
+const originsDoc = `project: p
+release:
+  version: "1"
+components:
+  - name: web
+    labels:
+      team: core
+      tier: edge
+    exposure: public
+    criticality: critical
+    builtBy: upstream
+  - name: api
+    exposure: internal
+  - criticality: important
+`
+
+// Each classification value is marked with the file behind it, labels key by key, and a value
+// with no recorded origin is left alone.
+func TestAnnotateOriginsNamesTheFileBehindEachValue(t *testing.T) {
+	out, err := AnnotateOrigins([]byte(originsDoc), map[string]map[string]string{
+		"web": {
+			"exposure": "root.saga.yaml", "criticality": "a.saga-fragment.yaml",
+			"builtBy": "b.saga-fragment.yaml", "labels.tier": "a.saga-fragment.yaml",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(out)
+	for _, want := range []string{
+		"exposure: public # from root.saga.yaml",
+		"criticality: critical # from a.saga-fragment.yaml",
+		"builtBy: upstream # from b.saga-fragment.yaml",
+		"tier: edge # from a.saga-fragment.yaml",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q:\n%s", want, got)
+		}
+	}
+	for _, line := range strings.Split(got, "\n") {
+		if (strings.Contains(line, "team: core") || strings.Contains(line, "internal")) && strings.Contains(line, "#") {
+			t.Errorf("annotated a value with no recorded origin: %q", line)
+		}
+	}
+	// The unnamed component is there to be skipped, so the document is decoded rather than
+	// validated.
+	var m Model
+	if err := yaml.Unmarshal([]byte(got), &m); err != nil || m.Components[0].BuiltBy != BuiltByUpstream {
+		t.Errorf("annotated document no longer decodes: %v\n%s", err, got)
+	}
+}
+
+// Nothing to attribute means the document comes back byte for byte.
+func TestAnnotateOriginsLeavesADocumentItHasNothingToSayAbout(t *testing.T) {
+	origins := map[string]map[string]string{"web": {"exposure": "root.saga.yaml"}}
+	for name, tc := range map[string]struct {
+		doc     string
+		origins map[string]map[string]string
+	}{
+		"no origins":           {originsDoc, nil},
+		"origins for nobody":   {originsDoc, map[string]map[string]string{"gone": {"exposure": "x"}}},
+		"empty document":       {"", origins},
+		"no components":        {"project: p\n", origins},
+		"components not list":  {"components: {name: web}\n", origins},
+		"labels not a mapping": {"components:\n  - name: web\n    labels: [a]\n", map[string]map[string]string{"web": {"labels.a": "x"}}},
+	} {
+		out, err := AnnotateOrigins([]byte(tc.doc), tc.origins)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if string(out) != tc.doc {
+			t.Errorf("%s: document was rewritten:\n%s", name, out)
+		}
+	}
+	if _, err := AnnotateOrigins([]byte("\tnot: [yaml"), origins); err == nil {
+		t.Error("expected a parse error")
 	}
 }
 

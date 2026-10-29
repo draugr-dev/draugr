@@ -66,6 +66,10 @@ func short(sha string) string {
 type Resolved struct {
 	Model   *Model
 	Sources []Source
+	// Origins names the file that supplied each classification value, keyed by component name and
+	// then by field: exposure, criticality, builtBy, or labels.<key>. A file is named as Source.String
+	// renders it. A field no file set is absent.
+	Origins map[string]map[string]string
 }
 
 // Fetcher materializes a remote fragment reference as a local directory.
@@ -91,21 +95,39 @@ type resolver struct {
 	// caused it rather than as the fact that one exists.
 	stack   []string
 	sources []Source
+	// origins is Resolved.Origins, filled as each file is merged.
+	origins map[string]map[string]string
+}
+
+// record attributes the classification fields each component took from one file.
+func (r *resolver) record(supplied map[string][]string, source string) {
+	for comp, fields := range supplied {
+		if len(fields) == 0 {
+			continue
+		}
+		if r.origins[comp] == nil {
+			r.origins[comp] = map[string]string{}
+		}
+		for _, f := range fields {
+			r.origins[comp][f] = source
+		}
+	}
 }
 
 // ResolveFile loads a descriptor and merges every fragment it names.
 //
 // The root is the merge base and fragments are applied after it, which is the opposite of the
-// usual "most specific wins" layering and is deliberate. Components merge by union keeping the
-// first value for scalars, so making the root the base is what keeps the file someone opened
-// authoritative about a component's classification. Fragments are applied later and win less,
-// which is right because they are additive.
+// usual "most specific wins" layering and is deliberate. Components merge by union, and a
+// classification field takes the first value any file gives it, so making the root the base is
+// what keeps the file someone opened authoritative about every value it states. Fragments are
+// applied later and fill only what the root left unset, which is right because they are
+// additive.
 func ResolveFile(path string, fetcher Fetcher) (*Resolved, error) {
 	model, err := loadModelFile(path)
 	if err != nil {
 		return nil, err
 	}
-	r := &resolver{fetcher: fetcher, seen: map[string]bool{}}
+	r := &resolver{fetcher: fetcher, seen: map[string]bool{}, origins: map[string]map[string]string{}}
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		abs = path
@@ -113,6 +135,9 @@ func ResolveFile(path string, fetcher Fetcher) (*Resolved, error) {
 	r.seen[abs] = true
 	r.sources = append(r.sources, Source{Path: path, Root: true, Digest: digestFile(path)})
 	stampExclusions(model.Config.Exclude, path)
+	for _, c := range model.Components {
+		r.record(map[string][]string{c.Name: classificationFields(c)}, path)
+	}
 
 	if err := r.apply(model, model.Fragments, filepath.Dir(path), 0); err != nil {
 		return nil, err
@@ -120,7 +145,7 @@ func ResolveFile(path string, fetcher Fetcher) (*Resolved, error) {
 	if err := model.Validate(); err != nil {
 		return nil, err
 	}
-	return &Resolved{Model: model, Sources: r.sources}, nil
+	return &Resolved{Model: model, Sources: r.sources, Origins: r.origins}, nil
 }
 
 // apply merges every fragment the refs name into model.
@@ -206,7 +231,7 @@ func (r *resolver) mergeFrom(model *Model, ref FragmentRef, dir string, src Sour
 		r.sources = append(r.sources, named)
 		stampExclusions(frag.Config.Exclude, named.String())
 		frag.Source = named.String()
-		Merge(model, frag)
+		r.record(merge(model, frag), frag.Source)
 
 		r.stack = append(r.stack, named.String())
 		err = r.apply(model, frag.Fragments, filepath.Dir(full), depth+1)
@@ -235,14 +260,23 @@ func stampExclusions(rules []ExcludeRule, source string) {
 // Control settings append for the same reason and under a shorter list: FragmentControlOptions
 // says which ones a fragment may carry at all, and every one of them adds to what the descriptor
 // declares rather than answering over it.
-func Merge(model *Model, frag Fragment) {
+func Merge(model *Model, frag Fragment) { merge(model, frag) }
+
+// merge is Merge, returning the classification fields the fragment supplied, by component name.
+func merge(model *Model, frag Fragment) map[string][]string {
 	mergeClusters(model, frag)
 	mergeAccounts(model, frag)
+	supplied := map[string][]string{}
 	for _, comp := range frag.Components {
-		model.Components = UpsertComponent(model.Components, comp)
+		var fields []string
+		model.Components, fields = upsertComponent(model.Components, comp)
+		if len(fields) > 0 {
+			supplied[comp.Name] = append(supplied[comp.Name], fields...)
+		}
 	}
 	model.Config.Exclude = append(model.Config.Exclude, frag.Config.Exclude...)
 	mergeFragmentControls(&model.Config, frag.Config.Controls, frag.Source)
+	return supplied
 }
 
 // mergeClusters adds a fragment's clusters to the model's.

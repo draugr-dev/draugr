@@ -168,10 +168,21 @@ components:
 Same name, so these are **one component** with the repository *and* the image. The GCP product
 gets the same component with GCP surfaces instead.
 
-**Where a component's fields conflict, the first description wins**, and resolution starts from the
-descriptor you opened, so the root stays authoritative. In practice that means `exposure` and
-`criticality` belong in the shared fragment. If a component is genuinely more exposed on one cloud
-than another, leave the classification out of the shared fragment and let each variant set it.
+### Precedence
+
+`exposure`, `criticality`, `builtBy` and each label key take the value of the first file that sets
+them, in this order:
+
+1. the root descriptor;
+2. `fragments:` entries as written;
+3. the files one pattern matches, in path order;
+4. a fragment's own `fragments:`, immediately after it.
+
+A fragment fills a field the root leaves unset and never replaces one it sets.
+
+Set `exposure` and `criticality` in the root, or in the fragment listed first. If a component is
+more exposed on one cloud than another, leave them out of the root and the shared fragment, and set
+them in each variant.
 
 ## Fragments from another repository
 
@@ -191,7 +202,20 @@ with relative paths keeps working when somebody else pulls it in.
 
 ## Seeing what is actually in force
 
-Once a descriptor is assembled from parts, opening one file no longer answers the question.
+Once a descriptor is assembled from parts, opening one file no longer answers the question. Here
+`azure.saga.yaml` also labels the component it ships:
+
+```yaml
+# azure.saga.yaml
+project: acme-azure
+release: { version: "3.1.0" }
+fragments:
+  - path: "**/draugr.saga-fragment.yaml"
+  - path: "**/azure.saga-fragment.yaml"
+components:
+  - name: payments
+    labels: { cloud: azure }
+```
 
 ```bash
 draugr validate azure.saga.yaml --resolved
@@ -204,8 +228,23 @@ draugr validate azure.saga.yaml --resolved
 # root:     azure.saga.yaml
 # fragment: services/payments/draugr.saga-fragment.yaml
 # fragment: services/payments/azure.saga-fragment.yaml
-...
+
+project: acme-azure
+release:
+  version: 3.1.0
+components:
+  - name: payments
+    labels:
+      cloud: azure # from azure.saga.yaml
+    exposure: public # from services/payments/draugr.saga-fragment.yaml
+    criticality: critical # from services/payments/draugr.saga-fragment.yaml
+    repositories:
+      - url: services/payments
+    images:
+      - image: acme.azurecr.io/payments:3.1.0
 ```
+
+The [`--resolved` reference](../reference/cli.md#--resolved) describes the comments.
 
 The output is **a valid descriptor**, which is what makes it worth piping:
 
