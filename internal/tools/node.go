@@ -106,16 +106,26 @@ func installNode(ctx context.Context, root, tool string, spec NodeSpec, version 
 	// --ignore-scripts because an npm package may run arbitrary code on install, and a
 	// provisioning step that executes whatever a dependency author wrote is a supply-chain hole in
 	// the middle of the thing meant to close one. retire.js needs none.
-	level := LevelPinned
-	err = runIn(ctx, envDir, npm, "ci", "--ignore-scripts", "--no-audit", "--no-fund", "--silent")
-	if err != nil {
+	//
+	// The lockfile records one version, so another version skips it: `npm ci` would install the
+	// pinned release under the requested version's name.
+	level := LevelUnverified
+	if version == nodeVersions[tool] {
+		err = runIn(ctx, envDir, npm, "ci", "--ignore-scripts", "--no-audit", "--no-fund", "--silent")
+		if err == nil {
+			level = LevelPinned
+		}
+	}
+	if level != LevelPinned {
 		// A lockfile records one resolution. Falling back keeps the tool installable where that
 		// does not apply; dropping the level keeps the report honest, because nothing recorded in
 		// this binary checked what was installed.
-		level = LevelUnverified
 		fallbackErr := runIn(ctx, envDir, npm, "install", "--ignore-scripts", "--no-audit",
 			"--no-fund", "--silent", spec.Package+"@"+version)
 		if fallbackErr != nil {
+			if err == nil {
+				err = fallbackErr
+			}
 			return "", "", fmt.Errorf("%s: installing %s@%s: %w", tool, spec.Package, version, err)
 		}
 	}

@@ -77,8 +77,13 @@ func TestInstallCosignVerified(t *testing.T) {
 	if !got.SignatureVerified {
 		t.Error("SignatureVerified = false, want true")
 	}
-	if got.ProvenanceNote != "cosign signature verified" {
-		t.Errorf("ProvenanceNote = %q", got.ProvenanceNote)
+	// The plan promised sha256 + cosign and both were checked, so there is nothing to explain.
+	if got.Checked != CheckPinnedSigned || got.ProvenanceNote != "" {
+		t.Errorf("Checked = %q, ProvenanceNote = %q, want %q and no note",
+			got.Checked, got.ProvenanceNote, CheckPinnedSigned)
+	}
+	if got.Verified != LevelSigned {
+		t.Errorf("Verified = %q, want %q", got.Verified, LevelSigned)
 	}
 	// The verify-blob invocation carries the pinned identity + new bundle format.
 	joined := ""
@@ -103,8 +108,12 @@ func TestInstallCosignSkippedWhenAbsent(t *testing.T) {
 	if got.SignatureVerified {
 		t.Error("SignatureVerified = true, want false when cosign is absent")
 	}
-	if got.ProvenanceNote == "" {
-		t.Error("expected a note explaining the skipped signature check")
+	if got.ProvenanceNote != noteNoCosign {
+		t.Errorf("ProvenanceNote = %q, want the note explaining the skipped signature check", got.ProvenanceNote)
+	}
+	// Only the pin was checked, and the result says exactly that.
+	if got.Checked != CheckPinned || got.Verified != LevelPinned {
+		t.Errorf("Checked = %q, Verified = %q, want %q and %q", got.Checked, got.Verified, CheckPinned, LevelPinned)
 	}
 }
 

@@ -1549,14 +1549,14 @@ Tool         Pinned   Upstream
 cosign       3.1.3    3.1.3     current
 gitleaks     8.30.1   8.30.1    current
 …
-trivy        0.74.0   0.76.0    draugr tools install trivy
+trivy        0.74.0   0.76.0    draugr tools install trivy --version 0.76.0
 
 6 of 12 behind the version their upstream publishes.
 ```
 
 A tool whose upstream could not be asked shows `?` and `could not ask:` with the reason, and the
-last line adds how many could not be asked. `draugr tools install <tool>` installs the pinned
-version; `--version` installs another.
+last line adds how many could not be asked. The command beside a tool that is behind installs the
+upstream's version. Without `--version`, `draugr tools install <tool>` installs the pinned one.
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -1639,31 +1639,42 @@ The plan's `Verify` column says which you are getting before anything is downloa
 | Verify | Meaning |
 |---|---|
 | `sha256` | the pinned build, against a SHA-256 recorded in Draugr |
-| `sha256 + cosign` | the same, and the upstream's cosign signature over its checksums file |
-| `upstream cosign`, `upstream sha256` | another version, against what the upstream signed or published |
-| `unverified` | another version, with nothing published to check it against |
-| `sha256 (+deps)`, `sha512 (+deps)`, `checksum db (+deps)` | `semgrep`, `retire` and `govulncheck`, with every dependency checked too |
+| `sha256 + cosign` | the same, and the upstream's cosign signature over its checksums file, when `cosign` is installed |
+| `upstream cosign` | another version, against checksums the upstream signed, when `cosign` is installed |
+| `upstream sha256` | another version, against checksums the upstream published |
+| `unverified` | another version, with nothing published to check it against; or `semgrep` or `retire` at a version other than the pinned one |
+| `sha256 (+deps)`, `sha512 (+deps)` | `semgrep` and `retire` at the pinned version, with every dependency checked against digests recorded in Draugr |
+| `checksum db (+deps)` | `govulncheck` at any version, with every module checked against the Go checksum database |
 | `-` | nothing to install: the tool is already current, or Draugr cannot provision it |
+
+Each installed tool's line names the check it passed in the same words, followed by `verified`, or
+reads `unverified`. Where the check was weaker than the plan's, a note after `;` says why, such as
+`cosign` being absent, the upstream checksums being unreachable, or the pinned set failing to
+install so that the package was resolved unchecked.
 
 **`--saga` installs what a descriptor needs**, resolved the same way
 [`draugr doctor`](#draugr-doctor-sagayaml) decides what to check: the enabled controls, and the
 scanners those controls will select. Where a descriptor needs something Draugr cannot provision
 (`kubectl`, `git`, `prowler`) the plan **names it** before the table.
 
-**Tools already current are not downloaded again.** The plan marks a tool `already at <version>`
-when the copy on `PATH` reports the pinned version, and when every planned tool is current the
-command prints `Everything is already current.` and stops without asking. Otherwise each tool's
-result is printed, and a release binary in `~/.draugr/bin` whose checksum still matches the
-install record is left alone and counted:
+**Tools already current are not downloaded again.** A tool is current when Draugr's install record
+in `~/.draugr/bin` holds the version the install would fetch, the pinned one or the one `--version`
+or the config names, and the file on `PATH` in `~/.draugr/bin` still matches the checksum recorded
+with it. For `semgrep` and `retire` that file is the launcher, and the environment it runs must
+still exist; for a tool with data, such as `kube-bench`, the data directory must too. The plan marks
+a current tool `already at <version>`, and when every planned tool is current the command prints
+`Everything is already current.` and stops without asking. Otherwise each tool's result is printed,
+and the current ones are left alone and counted:
 
 ```
 ✓ syft 1.51.1 → /home/you/.draugr/bin/syft (sha256 verified)
 7 tools unchanged.
 ```
 
-A binary in `~/.draugr/bin` that no longer matches its record is replaced, and a changed pin also
-reinstalls. `semgrep`, `retire` and `govulncheck` are rebuilt whenever the command installs
-anything. `--force` reinstalls unconditionally.
+A copy elsewhere on `PATH` is not current by this test, whatever version it reports, because no
+record says what it is, so the install puts Draugr's own in `~/.draugr/bin`. A file that no longer
+matches its record is replaced, and a changed pin also reinstalls. `--force` reinstalls
+unconditionally.
 
 **Plan and confirmation.** It first prints the plan (tool, version, category, verification,
 destination). On a terminal it asks for confirmation; without one (CI, pipes) it proceeds. `-y`
@@ -1677,14 +1688,19 @@ when it is absent, unless the descriptor's `provenance` control needs it.
 **Provenance.** The SHA-256 pin is the integrity floor for every release binary. Trivy also
 publishes a keyless **cosign** signature over its checksums file; with the `cosign` CLI installed,
 Draugr verifies that signature, checking the signing certificate identity and OIDC issuer, and
-confirms the archive is listed in the signed checksums. Each line reports what was verified:
-`sha256 + cosign verified`, `sha256 verified`, or `sha256 verified;` followed by why the signature
-was not checked. If `cosign` is present and verification fails, that tool's install fails.
+confirms the archive is listed in the signed checksums. The line reads `sha256 + cosign verified`,
+or `sha256 verified; cosign not installed, skipped signature check` without `cosign`. If `cosign` is
+present and verification fails, that tool's install fails.
 
 Semgrep publishes no release binary, so it is installed from PyPI into a virtual environment Draugr
 owns (`~/.draugr/venv/semgrep`), with every artifact in the resolved tree matched against a digest
-recorded in this build, dependencies included. When `semgrep` is missing, `doctor` suggests
-`draugr tools install semgrep`.
+recorded in this build, dependencies included. Those digests describe the pinned version only, so
+`--version` installs another version by name, and its line reads `unverified; no digests recorded in
+this build for this version`. `retire` works the same way with its pinned lockfile. When `semgrep`
+is missing, `doctor` suggests `draugr tools install semgrep`.
+
+Naming a tool Draugr runs but does not provision, such as `kubectl` or `git`, is refused, and
+`draugr doctor` names where it comes from.
 
 ### `draugr tools uninstall [tool...]`
 

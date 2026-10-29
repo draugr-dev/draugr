@@ -25,10 +25,11 @@ func TestRunToolsInstallSuccess(t *testing.T) {
 	stubDetect(t, map[string]string{})
 	var out bytes.Buffer
 	install := func(name string) (tools.Installed, error) {
-		i := tools.Installed{Name: name, Version: "1.2.3", Path: "/home/u/.draugr/bin/" + name}
+		i := tools.Installed{Name: name, Version: "1.2.3", Path: "/home/u/.draugr/bin/" + name,
+			Checked: tools.CheckPinned}
 		if name == "trivy" { // trivy carries cosign provenance
 			i.SignatureVerified = true
-			i.ProvenanceNote = "cosign signature verified"
+			i.Checked = tools.CheckPinnedSigned
 		}
 		return i, nil
 	}
@@ -48,9 +49,17 @@ func TestProvenanceLabel(t *testing.T) {
 		in   tools.Installed
 		want string
 	}{
-		{tools.Installed{SignatureVerified: true, ProvenanceNote: "cosign signature verified"}, "sha256 + cosign verified"},
-		{tools.Installed{ProvenanceNote: "cosign not installed, skipped signature check"}, "sha256 verified; cosign not installed, skipped signature check"},
-		{tools.Installed{}, "sha256 verified"},
+		{tools.Installed{Checked: tools.CheckPinnedSigned}, "sha256 + cosign verified"},
+		{tools.Installed{Checked: tools.CheckPinned, ProvenanceNote: "cosign not installed, skipped signature check"},
+			"sha256 verified; cosign not installed, skipped signature check"},
+		{tools.Installed{Checked: tools.CheckPinned}, "sha256 verified"},
+		{tools.Installed{Checked: tools.CheckChecksum}, "upstream sha256 verified"},
+		{tools.Installed{Checked: tools.CheckPyPI}, "sha256 (+deps) verified"},
+		// What was not verified says so, such as a --version install with nothing published to
+		// check it against.
+		{tools.Installed{Checked: tools.CheckNone, ProvenanceNote: "nothing published to check this version against"},
+			"unverified; nothing published to check this version against"},
+		{tools.Installed{}, "unverified"},
 	}
 	for _, c := range cases {
 		if got := provenanceLabel(c.in); got != c.want {
@@ -480,7 +489,8 @@ func TestInstallNamesReportsABrokenDescriptor(t *testing.T) {
 	}
 }
 
-// stubDetect makes presence deterministic without arranging binaries on PATH.
+// stubDetect makes presence deterministic without arranging binaries on PATH or writing an install
+// record: each tool in found is on PATH at that version, and recorded by Draugr at it.
 func stubDetect(t *testing.T, found map[string]string) {
 	t.Helper()
 	prior := detectTool
@@ -488,6 +498,20 @@ func stubDetect(t *testing.T, found map[string]string) {
 	detectTool = func(_ context.Context, tool tools.Tool) tools.Status {
 		v, ok := found[tool.Binary]
 		return tools.Status{Tool: tool, Found: ok, Version: v, Path: "/somewhere/" + tool.Binary}
+	}
+	stubRecorded(t, found)
+}
+
+// stubRecorded decides what Draugr's install record holds: each tool in recorded is installed at
+// that version and unchanged, and current when that is the version an install would fetch.
+func stubRecorded(t *testing.T, recorded map[string]string) {
+	t.Helper()
+	prior := currentTool
+	t.Cleanup(func() { currentTool = prior })
+	currentTool = func(name, version string) (string, bool) {
+		v, ok := recorded[name]
+		want, planned := tools.PlannedVersion(name, version)
+		return v, ok && planned && v == want
 	}
 }
 
@@ -500,7 +524,7 @@ func TestInstallPlanMarksWhatIsAlreadyThere(t *testing.T) {
 	stubDetect(t, map[string]string{"trivy": pinned.Version})
 	var out bytes.Buffer
 	names := []string{"trivy", "gitleaks"}
-	writeInstallPlan(&out, names, false, present(context.Background(), names, toolsInstallOptions{}), toolsInstallOptions{})
+	writeInstallPlan(&out, names, false, present(names, toolsInstallOptions{}), toolsInstallOptions{})
 
 	got := out.String()
 	if !strings.Contains(got, "already at "+pinned.Version) {
@@ -513,14 +537,14 @@ func TestInstallPlanMarksWhatIsAlreadyThere(t *testing.T) {
 
 func TestPresentIgnoresAWrongVersion(t *testing.T) {
 	stubDetect(t, map[string]string{"trivy": "0.1.0"})
-	if have := present(context.Background(), []string{"trivy"}, toolsInstallOptions{}); len(have) != 0 {
+	if have := present([]string{"trivy"}, toolsInstallOptions{}); len(have) != 0 {
 		t.Errorf("an old version is still work to do: %v", have)
 	}
 }
 
 func TestPresentIgnoresEverythingUnderForce(t *testing.T) {
 	stubDetect(t, map[string]string{"trivy": "0.69.3"})
-	if have := present(context.Background(), []string{"trivy"}, toolsInstallOptions{force: true}); len(have) != 0 {
+	if have := present([]string{"trivy"}, toolsInstallOptions{force: true}); len(have) != 0 {
 		t.Errorf("--force reinstalls regardless: %v", have)
 	}
 }
@@ -639,11 +663,11 @@ func TestPresentIgnoresABinaryThatIsNotThePinnedVersion(t *testing.T) {
 	// The config asks for 0.68.0; 0.69.3 on disk is still work to do, or the pin does nothing.
 	stubDetect(t, map[string]string{"trivy": "0.69.3"})
 	opts := toolsInstallOptions{wanted: map[string]string{"trivy": "0.68.0"}}
-	if have := present(context.Background(), []string{"trivy"}, opts); len(have) != 0 {
+	if have := present([]string{"trivy"}, opts); len(have) != 0 {
 		t.Errorf("a pinned version that is not installed was reported as satisfied: %v", have)
 	}
 	opts.wanted["trivy"] = "v0.69.3"
-	if have := present(context.Background(), []string{"trivy"}, opts); len(have) != 1 {
+	if have := present([]string{"trivy"}, opts); len(have) != 1 {
 		t.Errorf("a leading v is how tags are written and should not force a reinstall: %v", have)
 	}
 }
@@ -655,7 +679,7 @@ func TestInstallPlanSaysHowWellItCanVerify(t *testing.T) {
 	var out bytes.Buffer
 	names := []string{"trivy"}
 	opts := toolsInstallOptions{wanted: map[string]string{"trivy": "0.68.0"}}
-	writeInstallPlan(&out, names, false, present(context.Background(), names, opts), opts)
+	writeInstallPlan(&out, names, false, present(names, opts), opts)
 
 	got := out.String()
 	if !strings.Contains(got, "0.68.0") {
@@ -666,29 +690,81 @@ func TestInstallPlanSaysHowWellItCanVerify(t *testing.T) {
 	}
 }
 
-func TestPlanVerifyReportsTheWeakestHonestClaim(t *testing.T) {
-	key := tools.PlatformKey()
-	cases := []struct {
-		name string
-		spec tools.InstallSpec
-		want string
-	}{
-		{"recorded sha", tools.InstallSpec{Assets: map[string]tools.Asset{key: {SHA256: "abc"}}}, "sha256"},
-		{"recorded sha and a signature",
-			tools.InstallSpec{Assets: map[string]tools.Asset{key: {SHA256: "abc"}}, Cosign: &tools.CosignSpec{}},
-			"sha256 + cosign"},
-		{"upstream signature",
-			tools.InstallSpec{Assets: map[string]tools.Asset{key: {}}, Cosign: &tools.CosignSpec{}},
-			"upstream cosign"},
-		{"upstream checksums only",
-			tools.InstallSpec{Assets: map[string]tools.Asset{key: {}}, ChecksumsURLTemplate: "u"},
-			"upstream sha256"},
-		{"nothing published", tools.InstallSpec{Assets: map[string]tools.Asset{key: {}}}, "unverified"},
-	}
-	for _, tc := range cases {
-		if got := planVerify(tc.spec); got != tc.want {
-			t.Errorf("%s: planVerify = %q, want %q", tc.name, got, tc.want)
+// --version and the config's pin reach every install method's row, with the check that version
+// gets. A row showing the pinned version would describe an install that is not the one about to run.
+func TestInstallPlanShowsTheRequestedVersionForEveryMethod(t *testing.T) {
+	stubDetect(t, nil)
+	names := []string{"govulncheck", "retire", "semgrep"}
+	opts := toolsInstallOptions{wanted: map[string]string{
+		"semgrep": "1.100.0", "govulncheck": "v1.5.0", "retire": "5.0.0",
+	}}
+	var out bytes.Buffer
+	writeInstallPlan(&out, names, false, present(names, opts), opts)
+
+	rows := map[string]string{}
+	for _, line := range strings.Split(out.String(), "\n") {
+		if f := strings.Fields(line); len(f) > 0 {
+			rows[f[0]] = line
 		}
+	}
+	for name, want := range map[string][]string{
+		"semgrep":     {"1.100.0", tools.CheckNone},
+		"retire":      {"5.0.0", tools.CheckNone},
+		"govulncheck": {"1.5.0", tools.CheckGoSumDB},
+	} {
+		for _, w := range want {
+			if !strings.Contains(rows[name], w) {
+				t.Errorf("%s row lacks %q:\n%s", name, w, out.String())
+			}
+		}
+	}
+	if strings.Contains(out.String(), tools.PythonVersion("semgrep")) {
+		t.Errorf("the plan shows the pinned semgrep for an install of another version:\n%s", out.String())
+	}
+}
+
+// "Already at" is the install record, the test the install applies before leaving a tool alone. A
+// copy on PATH at the pinned version that Draugr did not install is still work: the install
+// fetches Draugr's own, so the plan has to say it will.
+func TestInstallPlanReadsTheRecordNotThePath(t *testing.T) {
+	pinned, _ := tools.Spec("trivy")
+	prior := detectTool
+	t.Cleanup(func() { detectTool = prior })
+	detectTool = func(_ context.Context, tool tools.Tool) tools.Status {
+		return tools.Status{Tool: tool, Found: true, Version: pinned.Version, Path: "/usr/bin/" + tool.Binary}
+	}
+	stubRecorded(t, map[string]string{"gitleaks": tools.PinnedVersion("gitleaks")})
+
+	names := []string{"trivy", "gitleaks"}
+	have := present(names, toolsInstallOptions{})
+	if _, ok := have["trivy"]; ok {
+		t.Error("a trivy on PATH that Draugr did not install was called current")
+	}
+	if _, ok := have["gitleaks"]; !ok {
+		t.Error("a recorded, unchanged gitleaks was not called current")
+	}
+}
+
+// The real record, not a stub: currentTool reads the manifest under the home directory.
+func TestCurrentToolReadsDraugrsOwnDirectory(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	if _, ok := currentTool("trivy", ""); ok {
+		t.Error("an empty home directory has nothing current")
+	}
+}
+
+// A tool Draugr runs and cannot provision is refused with that reason, rather than planned and, when
+// it was on PATH, counted as current by a command that can never install it.
+func TestToolsInstallRefusesAToolItDoesNotProvision(t *testing.T) {
+	stubDetect(t, map[string]string{"kubectl": "1.31.0"})
+	var out bytes.Buffer
+	err := runToolsInstall(&out, nil, []string{"kubectl"}, false, toolsInstallOptions{dryRun: true},
+		func(string) (tools.Installed, error) { return tools.Installed{}, nil })
+	if err == nil || !strings.Contains(err.Error(), `"kubectl"`) || !strings.Contains(err.Error(), "does not provision") {
+		t.Errorf("err = %v, want a refusal naming kubectl", err)
+	}
+	if strings.Contains(out.String(), "already current") {
+		t.Errorf("kubectl was planned:\n%s", out.String())
 	}
 }
 
@@ -976,6 +1052,24 @@ func TestToolsOutdatedJSONFailsWhenAnUpstreamCouldNotBeAsked(t *testing.T) {
 }
 
 // unreachableClient answers every request with a failure, whatever the URL.
+// The command beside a tool that is behind installs the upstream's version. Without --version it
+// installs the pin, which is the version the row reports as behind.
+func TestToolsOutdatedSuggestsTheUpstreamVersion(t *testing.T) {
+	client := &http.Client{Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		body := `{"message":"not this one"}`
+		if strings.HasSuffix(r.URL.Path, "/aquasecurity/trivy/releases/latest") {
+			body = `{"tag_name":"v99.1.0"}`
+		}
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{},
+			Body: io.NopCloser(strings.NewReader(body)), Request: r}, nil
+	})}
+	var out bytes.Buffer
+	_ = runToolsOutdated(context.Background(), &out, false, client) // the other upstreams answer nothing usable
+	if !strings.Contains(out.String(), "draugr tools install trivy --version 99.1.0") {
+		t.Errorf("the hint does not install the upstream's version:\n%s", out.String())
+	}
+}
+
 func unreachableClient() *http.Client {
 	return &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
 		return nil, errors.New("no route to host")

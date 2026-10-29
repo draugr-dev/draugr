@@ -90,18 +90,27 @@ func installPython(ctx context.Context, root, tool string, spec PythonSpec, vers
 	pip := filepath.Join(envDir, "bin", "pip")
 
 	// --require-hashes refuses anything whose artifact is not one of the pinned digests, and
-	// --no-deps keeps pip to the set that was pinned rather than resolving alongside it.
-	level := LevelPinned
-	err = run(ctx, pip, "install", "--quiet", "--no-input", "--require-hashes",
-		"--no-deps", "-r", reqPath)
-	if err != nil {
+	// --no-deps keeps pip to the set that was pinned rather than resolving alongside it. The set
+	// describes one version, so another version skips it: installing from it would put the pinned
+	// release on disk under the requested version's name.
+	level := LevelUnverified
+	if version == pythonVersions[tool] {
+		err = run(ctx, pip, "install", "--quiet", "--no-input", "--require-hashes",
+			"--no-deps", "-r", reqPath)
+		if err == nil {
+			level = LevelPinned
+		}
+	}
+	if level != LevelPinned {
 		// The pins are resolved on one platform, so another may legitimately need a different
 		// wheel. Falling back keeps the tool installable everywhere; dropping the level keeps the
 		// report honest, because nothing recorded in this binary checked what was installed.
-		level = LevelUnverified
 		fallbackErr := run(ctx, pip, "install", "--quiet", "--no-input",
 			spec.Package+"=="+version)
 		if fallbackErr != nil {
+			if err == nil {
+				err = fallbackErr
+			}
 			return "", "", fmt.Errorf("%s: installing %s==%s: %w", tool, spec.Package, version, err)
 		}
 	}
