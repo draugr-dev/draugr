@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"path"
 	"strings"
 
@@ -138,11 +137,11 @@ func trackedBranch(c *ci.Context, branches []string) (bool, string) {
 // the next failing run opens another.
 func trackIssues(ctx context.Context, t issueTracker, data report.Data, cfg saga.PublisherConfig) error {
 	if data.Gate.Disabled {
-		slog.Info("publisher skipped", "kind", t.kind(), "reason", "the gate is disabled")
+		reportSkip(ctx, t.kind(), "the gate is disabled")
 		return nil
 	}
 	if ok, why := trackedBranch(data.CI, cfg.Branches); !ok {
-		slog.Info("publisher skipped", "kind", t.kind(), "reason", why)
+		reportSkip(ctx, t.kind(), why)
 		return nil
 	}
 	project := data.ProjectName()
