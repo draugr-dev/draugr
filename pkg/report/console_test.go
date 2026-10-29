@@ -301,6 +301,10 @@ func TestTimingLineSaysHowOldTheOldestReusedEntryWas(t *testing.T) {
 	}{
 		{"hours are rounded to hours", 19*time.Hour + 3*time.Minute + 12*time.Second, "oldest 19h0m0s"},
 		{"under an hour, to minutes", 42*time.Minute + 30*time.Second, "oldest 43m0s"},
+		{"under a minute, to seconds", 12*time.Second + 400*time.Millisecond, "oldest 12s"},
+		{"under thirty seconds, not zero", 29*time.Second + 600*time.Millisecond, "oldest 30s"},
+		{"under a second, to milliseconds", 412*time.Millisecond + 300*time.Microsecond, "oldest 412ms"},
+		{"under a millisecond, as it is", 300 * time.Microsecond, "oldest 300µs"},
 		{"no age recorded, nothing claimed", 0, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

@@ -1,0 +1,1 @@
+- **`draugr explain --help` lists every report `-r` falls back to**, `.draugr-out/results.sarif` included.
