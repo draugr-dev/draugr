@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 
@@ -183,7 +184,7 @@ func explain(tool string, err error) error {
 func firstLine(s string) string {
 	var lines []string
 	for _, line := range strings.Split(s, "\n") {
-		if line = strings.TrimSpace(line); line != "" {
+		if line = tabbed(strings.TrimSpace(ansiEscape.ReplaceAllString(line, ""))); line != "" {
 			lines = append(lines, line)
 		}
 	}
@@ -308,6 +309,25 @@ func message(line string) string {
 		}
 	}
 	return line
+}
+
+// ansiEscape is a terminal color sequence. Grype colors its log whether or not stderr is a
+// terminal, and a color code left in the error reaches the report as literal bytes.
+var ansiEscape = regexp.MustCompile("\x1b\\[[0-9;]*m")
+
+// counterPreamble is the preamble Grype and Syft write ahead of each log line: a bracketed count of
+// seconds since the start, then the level padded to five characters, as in `[0000] ERROR …`.
+var counterPreamble = regexp.MustCompile(`^\[\d+\]\s+([A-Za-z]+)\s+(.*)$`)
+
+// tabbed rewrites a line with a counter preamble into the tab-separated form severity and message
+// read, so the level ranks the line and the preamble is dropped from what is quoted. Any other
+// line is returned as it is.
+func tabbed(line string) string {
+	m := counterPreamble.FindStringSubmatch(line)
+	if m == nil || !isLogLevel(m[1]) {
+		return line
+	}
+	return m[1] + "\t" + m[2]
 }
 
 // isLogLevel reports whether a field is a severity label rather than content.

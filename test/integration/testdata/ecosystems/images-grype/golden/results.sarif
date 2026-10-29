@@ -29,7 +29,7 @@
             "text": "A high vulnerability in python package: flask, version 0.12.2 was found in image 127.0.0.1:18080/images-grype:1.0 at: /usr/lib/python3.12/site-packages/Flask-0.12.2.dist-info/METADATA"
           },
           "partialFingerprints": {
-            "primaryLocationLineHash": "c1ff21c8d522ac6832d540695fa4e00af7cba5a90a58b1e45d9df546dd6368e1:1"
+            "primaryLocationLineHash": "fea3caeee788ff2aba2eb041a886e1fd52a87d83e9abf9ba4da32f3d3be500c7:1"
           },
           "properties": {
             "component": "images-grype",

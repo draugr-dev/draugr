@@ -347,12 +347,54 @@ func TestWriteGrypeDB(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if imported.Digest != "xxh64:"+digest || imported.ClientVersion != "v6.1.9" {
-		t.Errorf("import.json = %s, want the database's digest xxh64:%s and v6.1.9", raw, digest)
+	if imported.Digest != "xxh64:"+digest || imported.ClientVersion != "v6.1.10" {
+		t.Errorf("import.json = %s, want the database's digest xxh64:%s and v6.1.10", raw, digest)
+	}
+	if err := GrypeDBRewritten(home); err != nil {
+		t.Errorf("GrypeDBRewritten on the database as written: %v", err)
 	}
 	// Written twice, the second replaces the first rather than failing on tables that exist.
 	if err := WriteGrypeDB(home, advs, built); err != nil {
 		t.Errorf("rewrite: %v", err)
+	}
+}
+
+// A Grype whose schema addition is later than the database's rehydrates it and records its own
+// schema in import.json. The check names the schema it found, which is the value the constants
+// need, and stays quiet where there is no database to judge.
+func TestGrypeDBRewritten(t *testing.T) {
+	if err := GrypeDBRewritten(t.TempDir()); err != nil {
+		t.Errorf("no database: %v", err)
+	}
+
+	home := t.TempDir()
+	if err := WriteGrypeDB(home, loadTestAdvisories(t), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	record := filepath.Join(home, ".cache", "grype", "db", "6", "import.json")
+	if err := writeJSON(record, map[string]string{"digest": "xxh64:0", "client_version": "v6.1.11"}); err != nil {
+		t.Fatal(err)
+	}
+	err := GrypeDBRewritten(home)
+	if err == nil || !strings.Contains(err.Error(), "v6.1.11") || !strings.Contains(err.Error(), "test/sealed/grypedb.go") {
+		t.Errorf("rewritten for v6.1.11: err = %v, want it to name the schema and the file to change", err)
+	}
+
+	if err := os.WriteFile(record, []byte("{"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := GrypeDBRewritten(home); err == nil {
+		t.Error("an unreadable import record passed")
+	}
+
+	if err := os.Remove(record); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(record, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := GrypeDBRewritten(home); err == nil {
+		t.Error("an import record that cannot be read passed")
 	}
 }
 

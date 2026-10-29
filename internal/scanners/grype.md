@@ -8,7 +8,7 @@ order: 70
 # Scanner: `grype`
 
 - **Control:** `images`
-- **Tool:** [Anchore Grype](https://github.com/anchore/grype), `grype registry:<ref> -q -o sarif`
+- **Tool:** [Anchore Grype](https://github.com/anchore/grype), `grype registry:<ref> -o sarif`
 - **Status:** ✅ implemented, **opt-in** (Trivy runs by default)
 - **Targets:** container images
 - **License / terms:** see [license, terms and what is sent](#license-terms-and-what-is-sent)
@@ -158,3 +158,6 @@ downloads of the vulnerability database. No account, no key, no telemetry.
 The **vulnerability database**, from `grype.anchore.io`. Warmed once before the jobs fan out.
 An offline run reads the cache Grype keeps; `GRYPE_DB_AUTO_UPDATE=false` against a populated
 cache is how to hold it to that.
+
+Grype runs with `GRYPE_CHECK_FOR_APP_UPDATE=false`, so a scan never asks
+`toolbox-data.anchore.io` whether a newer Grype exists.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -50,7 +51,7 @@ func TestGrypeArgv(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"grype", "registry:repo/app:1.0", "-q", "-o", "sarif", "--by-cve"}
+	want := []string{"grype", "registry:repo/app:1.0", "-o", "sarif", "--by-cve"}
 	if !slices.Equal(argv, want) {
 		t.Errorf("argv = %v, want %v", argv, want)
 	}
@@ -93,7 +94,7 @@ func TestGrypeArgvErrors(t *testing.T) {
 }
 
 func TestGrypeFSArgs(t *testing.T) {
-	want := []string{"grype", "dir:/checkout", "-q", "-o", "sarif", "--by-cve"}
+	want := []string{"grype", "dir:/checkout", "-o", "sarif", "--by-cve"}
 	if got := grypeFSArgs("/checkout", nil); !slices.Equal(got, want) {
 		t.Errorf("args = %v, want %v", got, want)
 	}
@@ -141,14 +142,65 @@ func TestGrypeNeverFiltersInsideTheTool(t *testing.T) {
 }
 
 func TestGrypeEnvOnlyDisablesUpdatesOffline(t *testing.T) {
-	if env := grypeEnv(); env != nil {
-		t.Errorf("online, Grype should run with the ambient environment, got %v", env)
+	if env := grypeEnv(); slices.Contains(env, "GRYPE_DB_AUTO_UPDATE=false") {
+		t.Errorf("online env = %v, want Grype free to refresh its database", env)
 	}
 	netpolicy.SetOffline(true)
 	t.Cleanup(func() { netpolicy.SetOffline(false) })
 	if got := grypeEnv(); !slices.Contains(got, "GRYPE_DB_AUTO_UPDATE=false") {
 		t.Errorf("offline env = %v, want the database update disabled, Grype checks for a newer "+
 			"database when a scan starts, not only when asked to update", got)
+	}
+}
+
+// The application update check reaches toolbox-data.anchore.io from every scan, offline included,
+// and logs its failure at ERROR, where it would be the line quoted for an unrelated failure.
+func TestGrypeEnvNeverChecksForANewerGrype(t *testing.T) {
+	t.Cleanup(func() { netpolicy.SetOffline(false) })
+	for _, offline := range []bool{false, true} {
+		netpolicy.SetOffline(offline)
+		if got := grypeEnv(); !slices.Contains(got, "GRYPE_CHECK_FOR_APP_UPDATE=false") {
+			t.Errorf("offline=%v: env = %v, want the application update check off", offline, got)
+		}
+	}
+}
+
+// A failed Grype scan says why. Grype writes the reason to its log, which -q silences, so the
+// stand-in refuses -q. The stderr below is what grype 0.121.0 writes when its database no longer
+// matches the digest in import.json, with the color codes it adds without NO_COLOR, and the scan
+// runs through the real exec path with the stand-in on PATH.
+func TestGrypeFSErrorCarriesWhatGrypeSaid(t *testing.T) {
+	bin := t.TempDir()
+	script := "#!/bin/sh\n" +
+		"for a in \"$@\"; do [ \"$a\" = -q ] && exit 3; done\n" +
+		"printf '%s\\n' '[0000]  WARN no explicit name and version provided for directory source, deriving artifact ID from the given path (which is not ideal) from=syft' >&2\n" +
+		"printf '%s\\n' 'Database checksum invalid, run `grype db delete` to remove it and `grype db update` to update.' >&2\n" +
+		"printf '[0000] ERROR \\033[31mfailed to load vulnerability db: bad db checksum (/home/u/.cache/grype/db/6/vulnerability.db): \"xxh64:55000f2cfe183096\" vs \"xxh64:4a9cf99fd7662c01\"\\033[0m\\n' >&2\n" +
+		"exit 1\n"
+	if err := os.WriteFile(filepath.Join(bin, "grype"), []byte(script), 0o700); err != nil { // #nosec G306 -- an executable the test runs
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	for _, repo := range []string{"api", "worker"} {
+		s := NewGrypeFS().(repoScanner)
+		dir := t.TempDir()
+		s.checkout = func(context.Context, string, string, git.Scope) (git.Tree, func(), error) {
+			return git.Tree{Dir: dir}, func() {}, nil
+		}
+		_, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: repo}, nil)
+		if err == nil {
+			t.Fatalf("%s: want the scan to fail", repo)
+		}
+		msg := err.Error()
+		if !strings.Contains(msg, "exit status 1") || !strings.Contains(msg, "bad db checksum") {
+			t.Errorf("%s: error = %q, want the exit status and grype's reason", repo, msg)
+		}
+		for _, noise := range []string{"\x1b", "[0000]", "WARN"} {
+			if strings.Contains(msg, noise) {
+				t.Errorf("%s: error = %q, carries %q", repo, msg, noise)
+			}
+		}
 	}
 }
 
