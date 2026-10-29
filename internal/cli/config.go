@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,7 +12,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/config"
+	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
@@ -51,9 +55,6 @@ controllers: {}
 publish: {}
   # apiUrl: https://draugr.acme.example
 `
-
-// configKeysURL is where every key of draugr.config.yaml is documented.
-const configKeysURL = "https://draugr.dev/docs/latest/reference/cli/#draugr-config"
 
 func newConfigCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -121,22 +122,33 @@ func newConfigShowCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			res, err := config.Load(rootConfigPath, wd)
+			res, err := loadConfig(wd)
 			if err != nil {
 				return err
 			}
-			writeConfigShow(cmd.OutOrStdout(), res)
+			writeConfigShow(cmd.OutOrStdout(), res, wd)
 			return nil
 		},
 	}
 }
 
-// writeConfigShow renders the resolved settings with their provenance.
-func writeConfigShow(w io.Writer, res config.Resolved) {
+// writeConfigShow renders the resolved settings with their provenance. wd is the directory the
+// project file is looked for in, named when there is none there.
+func writeConfigShow(w io.Writer, res config.Resolved, wd string) {
 	col := tui.For(w)
+	// The project file is read from the working directory and nowhere else, so a command run from a
+	// parent directory reads none. Said whenever it happens, because the listing alone cannot show
+	// a file that was never read.
+	noProject := ""
+	if config.Explicit(rootConfigPath) == "" && !readFrom(res, config.ProjectFile(wd)) {
+		noProject = fmt.Sprintf("No %s in %s (the working directory).", config.FileName, shortHome(wd))
+	}
 	if len(res.Sources) == 0 {
 		_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted,
 			"No configuration found. Draugr's built-in defaults are in effect."))
+		if noProject != "" {
+			_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted, noProject))
+		}
 		_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted,
 			"`draugr config init` writes a starter file here; --global writes it to ~/.draugr."))
 		return
@@ -146,14 +158,23 @@ func writeConfigShow(w io.Writer, res config.Resolved) {
 	for _, s := range res.Sources {
 		_, _ = fmt.Fprintf(w, "  %s\n", shortHome(s.Path))
 	}
+	if noProject != "" {
+		_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, noProject))
+	}
 
 	// Provenance is computed by asking which is the *last* source to set a key, which is the one
-	// that won, the same rule the merge follows, rather than a second implementation of it.
+	// that won, the same rule the merge follows, rather than a second implementation of it. A
+	// one-way setting a later file turned off is the exception, and Overrides names the file that
+	// kept it.
 	rows := map[string]string{}
 	for _, s := range res.Sources {
 		for _, k := range flatten(s.File) {
 			rows[k.key] = s.Path
 		}
+	}
+	overrides := res.Overrides()
+	for _, o := range overrides {
+		rows[o.Key] = o.By
 	}
 	keys := flatten(res.File)
 	if len(keys) == 0 {
@@ -164,9 +185,44 @@ func writeConfigShow(w io.Writer, res config.Resolved) {
 	t := tui.NewTable(col, "Setting", "Value", "From").Indent("  ")
 	for _, k := range keys {
 		t.Row(tui.PlainCell(k.key), tui.PlainCell(k.value),
-			tui.Styled(tui.StyleMuted, shortHome(rows[k.key])))
+			tui.Styled(tui.StyleMuted, sourceName(rows[k.key], wd)))
 	}
 	t.Render(w)
+
+	if len(overrides) == 0 {
+		return
+	}
+	_, _ = fmt.Fprintln(w, "\n"+col.Paint(tui.StyleAccent, "Overridden:"))
+	t = tui.NewTable(col, "Setting", "Value", "From", "Overridden by").Indent("  ")
+	for _, o := range overrides {
+		t.Row(tui.PlainCell(o.Key), tui.PlainCell("false"),
+			tui.Styled(tui.StyleMuted, sourceName(o.Path, wd)), tui.Styled(tui.StyleMuted, sourceName(o.By, wd)))
+	}
+	t.Render(w)
+	_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, oneWayRule))
+}
+
+// oneWayRule states how cache.readOnly and cache.requireDigest layer, under a table of overrides.
+const oneWayRule = "cache.readOnly and cache.requireDigest only turn on across files."
+
+// sourceName is how a table names the file a value came from: the project file as
+// ./draugr.config.yaml and the home file under ~, so the column stays narrow. The Files list above
+// it carries the full paths.
+func sourceName(path, wd string) string {
+	if path == config.ProjectFile(wd) {
+		return "./" + config.FileName
+	}
+	return shortHome(path)
+}
+
+// readFrom reports whether path is one of the files res was read from.
+func readFrom(res config.Resolved, path string) bool {
+	for _, s := range res.Sources {
+		if s.Path == path {
+			return true
+		}
+	}
+	return false
 }
 
 // shortHome trims a home path to ~ so the column stays readable.
@@ -200,14 +256,14 @@ func flatten(f config.File) []kv {
 		if c.Dir != "" {
 			out = append(out, kv{"cache.dir", c.Dir})
 		}
-		if c.TTL != 0 {
+		if c.TTL != nil {
 			out = append(out, kv{"cache.ttl", c.TTL.String()})
 		}
-		if c.ReadOnly {
-			out = append(out, kv{"cache.readOnly", "true"})
+		if c.ReadOnly != nil {
+			out = append(out, kv{"cache.readOnly", strconv.FormatBool(*c.ReadOnly)})
 		}
-		if c.RequireDigest {
-			out = append(out, kv{"cache.requireDigest", "true"})
+		if c.RequireDigest != nil {
+			out = append(out, kv{"cache.requireDigest", strconv.FormatBool(*c.RequireDigest)})
 		}
 	}
 	if pb := f.Publish; pb != (config.PublishSettings{}) {
@@ -219,8 +275,8 @@ func flatten(f config.File) []kv {
 		if o.View != "" {
 			out = append(out, kv{"output.view", o.View})
 		}
-		if o.Evidence {
-			out = append(out, kv{"output.evidence", "true"})
+		if o.Evidence != nil {
+			out = append(out, kv{"output.evidence", strconv.FormatBool(*o.Evidence)})
 		}
 		if o.Top != 0 {
 			out = append(out, kv{"output.top", strconv.Itoa(o.Top)})
@@ -266,7 +322,7 @@ func newConfigGetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			res, err := config.Load(rootConfigPath, wd)
+			res, err := loadConfig(wd)
 			if err != nil {
 				return err
 			}
@@ -281,7 +337,7 @@ func newConfigGetCommand() *cobra.Command {
 			// somebody who has just mistyped a setting is the reader least able to tell.
 			if !isSetting(args[0]) {
 				return fmt.Errorf("%q is not a setting Draugr has. `draugr config show` lists "+
-					"what is set; every key is listed at %s", args[0], configKeysURL)
+					"what is set; every key is listed at %s", args[0], config.KeysURL)
 			}
 			return fmt.Errorf("%q is not set (see `draugr config show`)", args[0])
 		},
@@ -300,13 +356,42 @@ func newConfigSetCommand() *cobra.Command {
 			"  draugr config set --global tools.trivy.version 0.69.3",
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return editConfig(cmd.OutOrStdout(), global, func(doc []byte) ([]byte, error) {
+			w := cmd.OutOrStdout()
+			if err := editConfig(w, global, func(doc []byte) ([]byte, error) {
 				return config.Set(doc, args[0], args[1])
-			})
+			}); err != nil {
+				return err
+			}
+			path, err := configPath(global)
+			if err != nil {
+				return err
+			}
+			writeOverridden(w, path, args[0])
+			return nil
 		},
 	}
 	globalFlag(cmd, &global)
 	return cmd
+}
+
+// writeOverridden says so when the value just written to path does not take effect because a less
+// specific file outranks it, which `wrote` alone would leave the reader to discover.
+func writeOverridden(w io.Writer, path, key string) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return
+	}
+	// A file that fails to load is reported by the next command that reads it; the write itself
+	// succeeded, and this notice is about precedence only.
+	res, err := config.Load(rootConfigPath, wd)
+	if err != nil {
+		return
+	}
+	for _, o := range res.Overrides() {
+		if o.Key == key && o.Path == path {
+			_, _ = fmt.Fprintf(w, "overridden: %s stays true; %s sets it\n", key, sourceName(o.By, wd))
+		}
+	}
 }
 
 func newConfigUnsetCommand() *cobra.Command {
@@ -339,6 +424,12 @@ func editConfig(w io.Writer, global bool, apply func([]byte) ([]byte, error)) er
 	}
 	// Which file, always. With two possible destinations, a silent success is a guess.
 	_, _ = fmt.Fprintf(w, "wrote %s\n", shortHome(path))
+	// An edit to a file that already had problems is accepted when it adds none, and the ones left
+	// are said, or `wrote` reads as a file that now loads.
+	if n := remainingProblems(path); n > 0 {
+		_, _ = fmt.Fprintf(w, "%s still has %s; `draugr config validate` lists them\n",
+			shortHome(path), english.Count(n, "problem"))
+	}
 	return nil
 }
 
@@ -354,15 +445,56 @@ func editConfigAt(path string, apply func([]byte) ([]byte, error)) error {
 	if err != nil {
 		return err
 	}
-	if _, err := config.Parse(out, path); err != nil {
-		return fmt.Errorf("that edit would produce a file Draugr cannot load, so nothing was "+
-			"written:\n  %s", settingProblem(err))
+	// Refused only for a problem the edit adds. A file that already has two is then mended one
+	// `unset` at a time, rather than locked until somebody edits it by hand.
+	reg := builtins.Registry()
+	if _, after := parseConfig(reg, path, out); after != nil {
+		_, before := parseConfig(reg, path, doc)
+		if added := addedProblems(before, after); len(added) > 0 {
+			msg := "that edit would add a problem to the file, so nothing was written:\n  " +
+				strings.Join(added, "\n  ")
+			if h := problemHint(after); h != "" {
+				msg += "\n\n" + h
+			}
+			return errors.New(msg)
+		}
 	}
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return err
 	}
 	return os.WriteFile(path, out, 0o600)
+}
+
+// addedProblems lists the problems after reports that before does not. An error that is not a
+// *config.Problems is one problem of its own.
+func addedProblems(before, after error) []string {
+	var b, a *config.Problems
+	if !errors.As(after, &a) {
+		return []string{after.Error()}
+	}
+	had := map[string]bool{}
+	if errors.As(before, &b) {
+		for _, p := range b.List {
+			had[p] = true
+		}
+	}
+	var out []string
+	for _, p := range a.List {
+		if !had[p] {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// remainingProblems counts what is still wrong with the file at path after an edit was accepted.
+func remainingProblems(path string) int {
+	var p *config.Problems
+	if errors.As(validateConfigFile(builtins.Registry(), path), &p) {
+		return len(p.List)
+	}
+	return 0
 }
 
 func newConfigInitCommand() *cobra.Command {
@@ -412,32 +544,70 @@ func newConfigValidateCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				res, err := config.Load(rootConfigPath, wd)
-				if err != nil {
-					return err
-				}
-				for _, s := range res.Sources {
-					paths = append(paths, s.Path)
-				}
+				// Listed rather than loaded, so one broken file does not stop the rest being checked.
+				paths = config.Files(rootConfigPath, wd)
 				if len(paths) == 0 {
 					_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted,
 						"No configuration found, nothing to check."))
 					return nil
 				}
 			}
+			reg := builtins.Registry()
+			failed := 0
+			hints := map[string]bool{}
+			var order []string
 			for _, p := range paths {
-				data, err := os.ReadFile(p) // #nosec G304 -- operator-provided path
-				if err != nil {
-					return err
+				err := validateConfigFile(reg, p)
+				if err == nil {
+					_, _ = fmt.Fprintf(w, "%s %s\n", col.Paint(tui.StylePass, "✓"), shortHome(p))
+					continue
 				}
-				if _, err := config.Parse(data, p); err != nil {
-					return err
+				failed++
+				_, _ = fmt.Fprintf(w, "%s %s\n%s\n", col.Paint(tui.StyleFail, "✗"), shortHome(p), problemLines(err))
+				if h := problemHint(err); h != "" && !hints[h] {
+					hints[h] = true
+					order = append(order, h)
 				}
-				_, _ = fmt.Fprintf(w, "%s %s\n", col.Paint(tui.StylePass, "✓"), shortHome(p))
 			}
-			return nil
+			if failed == 0 {
+				return nil
+			}
+			for _, h := range order {
+				_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, h))
+			}
+			return fmt.Errorf("%d of %s did not validate", failed, english.Count(len(paths), "file"))
 		},
 	}
+}
+
+// validateConfigFile reads one file and holds it to every check a scan makes of it.
+func validateConfigFile(reg *engine.Registry, path string) error {
+	data, err := os.ReadFile(path) // #nosec G304 -- operator-provided path
+	if err != nil {
+		return err
+	}
+	_, err = parseConfig(reg, path, data)
+	return err
+}
+
+// problemLines renders a configuration error as indented lines, one per problem, without the file
+// name a caller has already printed. An error of another kind is one line.
+func problemLines(err error) string {
+	var p *config.Problems
+	if !errors.As(err, &p) {
+		return "  " + err.Error()
+	}
+	return "  " + strings.Join(p.List, "\n  ")
+}
+
+// problemHint is where a configuration error sends the reader next, or "" for an error of another
+// kind.
+func problemHint(err error) string {
+	var p *config.Problems
+	if errors.As(err, &p) {
+		return p.Hint
+	}
+	return ""
 }
 
 // isSetting reports whether a dotted key names something the config file may hold.
@@ -446,10 +616,11 @@ func newConfigValidateCommand() *cobra.Command {
 // `config set` already makes, so the two cannot disagree about what a setting is. A second list of
 // valid keys kept by hand is the one that goes stale the first time somebody adds a field.
 //
-// Probed with a value of each scalar kind, because a key whose field is a boolean or a number
-// refuses a string, and a probe of one kind only reports those keys as settings Draugr does not have.
+// Probed with a value of each scalar kind, because a key whose field is a boolean, a number or a
+// duration refuses a string, and a probe of one kind only reports those keys as settings Draugr
+// does not have.
 func isSetting(key string) bool {
-	for _, probe := range []string{"probe", "true", "1"} {
+	for _, probe := range []string{"probe", "true", "1", "1h"} {
 		doc, err := config.Set(nil, key, probe)
 		if err != nil {
 			return false
@@ -459,21 +630,4 @@ func isSetting(key string) bool {
 		}
 	}
 	return false
-}
-
-// settingProblem turns a parse failure into something a reader can act on.
-//
-// yaml reports an unknown field as `field nope not found in type config.File`, which names a Go
-// type at somebody who has just mistyped a setting. The rest of a parse error is about their file
-// and is left as it is.
-func settingProblem(err error) string {
-	msg := err.Error()
-	if i := strings.Index(msg, "field "); i >= 0 {
-		if j := strings.Index(msg[i:], " not found in type"); j >= 0 {
-			field := msg[i+len("field ") : i+j]
-			return fmt.Sprintf("%q is not a setting Draugr has; every key is listed at %s",
-				field, configKeysURL)
-		}
-	}
-	return msg
 }

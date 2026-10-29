@@ -171,8 +171,8 @@ path that exists on only one of them.
 
 `dir`, `ttl`, `readOnly`, `requireDigest`, each with a `--cache-*` flag that overrides it.
 
-Note that `ttl: 0` in a config file means *the built-in default*, not “never expire”, a file that
-omits a field is not asking for entries that live forever. Setting `0s` explicitly is how you ask.
+A file that omits `ttl` keeps the built-in default; `ttl: 0s` means entries never expire, as
+`--cache-ttl 0` does.
 
 ## Tool data, and contention over it
 

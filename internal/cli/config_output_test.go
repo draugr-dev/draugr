@@ -10,7 +10,7 @@ import (
 // TestOutputOptionsFromLetsFlagsWin covers the rule that makes a configured default safe: it is a
 // default, and typing a flag overrides it.
 func TestOutputOptionsFromLetsFlagsWin(t *testing.T) {
-	cfg := config.OutputSettings{View: "findings", Evidence: true, Top: 25}
+	cfg := config.OutputSettings{View: "findings", Evidence: new(true), Top: 25}
 
 	// Nothing typed: the file decides.
 	opts := scanOptions{setFlags: map[string]bool{}}
@@ -113,7 +113,7 @@ func TestATypedOutputFlagBeatsTheConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 	opts := scanOptions{view: "actions", setFlags: changedFlags(cmd)}
-	outputOptionsFrom(&opts, config.OutputSettings{View: "compact", Top: 20, Evidence: true})
+	outputOptionsFrom(&opts, config.OutputSettings{View: "compact", Top: 20, Evidence: new(true)})
 	if opts.view != "actions" || opts.top != 0 || opts.evidence {
 		t.Errorf("view %q, top %d, evidence %v: the configuration overrode what was typed", opts.view, opts.top, opts.evidence)
 	}
@@ -124,7 +124,7 @@ func TestATypedOutputFlagBeatsTheConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 	opts = scanOptions{view: "findings", setFlags: changedFlags(untyped)}
-	outputOptionsFrom(&opts, config.OutputSettings{View: "compact", Top: 20, Evidence: true})
+	outputOptionsFrom(&opts, config.OutputSettings{View: "compact", Top: 20, Evidence: new(true)})
 	if opts.view != "compact" || opts.top != 20 || !opts.evidence {
 		t.Errorf("view %q, top %d, evidence %v: the configuration was not applied", opts.view, opts.top, opts.evidence)
 	}

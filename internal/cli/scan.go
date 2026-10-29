@@ -1084,7 +1084,7 @@ func applyConfigDefaults(ctx context.Context, model *saga.Model) (config.File, e
 	if err != nil {
 		return config.File{}, err
 	}
-	res, err := config.Load(rootConfigPath, wd)
+	res, err := loadConfig(wd)
 	if err != nil {
 		return config.File{}, err
 	}
@@ -1123,8 +1123,8 @@ func outputOptionsFrom(opts *scanOptions, cfg config.OutputSettings) {
 	if cfg.View != "" && !opts.setFlags["view"] {
 		opts.view = cfg.View
 	}
-	if cfg.Evidence && !opts.setFlags["evidence"] {
-		opts.evidence = true
+	if cfg.Evidence != nil && !opts.setFlags["evidence"] {
+		opts.evidence = *cfg.Evidence
 	}
 	if cfg.Top != 0 && !opts.setFlags["top"] {
 		opts.top = cfg.Top
@@ -1141,16 +1141,17 @@ func cacheOptionsFrom(opts *scanOptions, cfg config.CacheSettings) {
 	if cfg.Dir != "" && !opts.setFlags["cache-dir"] {
 		opts.cacheDir = cfg.Dir
 	}
-	if cfg.TTL != 0 && !opts.setFlags["cache-ttl"] {
-		opts.cacheTTL = cfg.TTL
+	// Present means written in the file, so `ttl: 0s` asks for no expiry as `--cache-ttl 0` does.
+	if cfg.TTL != nil && !opts.setFlags["cache-ttl"] {
+		opts.cacheTTL = *cfg.TTL
 	}
 	// Booleans only ever turn on: a config that says read-only means somebody decided this
 	// machine's results should not be trusted by the next run, and a flag's absence is not an
 	// argument against that. --cache-read-only=false is still honored, because it was typed.
-	if cfg.ReadOnly && !opts.setFlags["cache-read-only"] {
+	if config.On(cfg.ReadOnly) && !opts.setFlags["cache-read-only"] {
 		opts.cacheReadOnly = true
 	}
-	if cfg.RequireDigest && !opts.setFlags["cache-require-digest"] {
+	if config.On(cfg.RequireDigest) && !opts.setFlags["cache-require-digest"] {
 		opts.cacheRequireDigest = true
 	}
 }

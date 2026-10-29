@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -17,9 +18,124 @@ func TestParseRejectsUnknownKeys(t *testing.T) {
 	if err == nil {
 		t.Fatal("an unknown top-level key was accepted")
 	}
-	// The error has to name the way out; a config that fails is only safe if fixing it is easy.
-	if !strings.Contains(err.Error(), "draugr config") {
-		t.Errorf("error offers no recovery: %v", err)
+	// The error names the key in the file's terms, the nearest real one, and where every key is
+	// listed. Not a Go type, and not `config init --force`, which discards the whole file.
+	for _, want := range []string{`x.yaml:`, `"toolz" is not a setting Draugr has, did you mean "tools"?`, KeysURL} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error lacks %q: %v", want, err)
+		}
+	}
+	for _, unwanted := range []string{"config.File", "init --force"} {
+		if strings.Contains(err.Error(), unwanted) {
+			t.Errorf("error carries %q: %v", unwanted, err)
+		}
+	}
+}
+
+// Every mistake in the file is reported at once, each by the key it is about.
+func TestParseNamesEveryProblemByItsKey(t *testing.T) {
+	doc := "output:\n  veiw: actions\n  evidence: 3\n" +
+		"cache:\n  ttl: 5\n" +
+		"tools:\n  trivy:\n    versio: \"1\"\n" +
+		"publish:\n  zzzzzz: x\n"
+	_, err := Parse([]byte(doc), "x.yaml")
+	var p *Problems
+	if !errors.As(err, &p) {
+		t.Fatalf("want *Problems, got %T: %v", err, err)
+	}
+	want := []string{
+		`output: "veiw" is not a setting Draugr has, did you mean "view"?`,
+		`output.evidence: expected true or false, got 3`,
+		`cache.ttl: expected a duration such as 12h, got 5`,
+		`tools.trivy: "versio" is not a setting Draugr has, did you mean "version"?`,
+		`publish: "zzzzzz" is not a setting Draugr has (it has apiUrl)`,
+	}
+	if !reflect.DeepEqual(p.List, want) {
+		t.Errorf("problems:\n%s\nwant:\n%s", strings.Join(p.List, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+func TestParseReportsBrokenYAMLAsTheDecoderDoes(t *testing.T) {
+	_, err := Parse([]byte("output: [unclosed\n"), "x.yaml")
+	var p *Problems
+	if !errors.As(err, &p) || len(p.List) != 1 || !strings.Contains(p.List[0], "line") {
+		t.Errorf("want one problem naming the line, got %v", err)
+	}
+	if strings.HasPrefix(p.List[0], "yaml: ") {
+		t.Errorf("the decoder's package prefix was kept: %q", p.List[0])
+	}
+}
+
+func TestExpectedNamesWhatAKeyTakes(t *testing.T) {
+	for goType, want := range map[string]string{
+		"time.Duration": "a duration such as 12h", "bool": "true or false", "int": "a whole number",
+		"uint8": "a whole number", "string": "a string", "[]string": "a list",
+		"map[string]config.ToolSettings": "a mapping", "config.OutputSettings": "a mapping",
+	} {
+		if got := expected(goType); got != want {
+			t.Errorf("expected(%q) = %q, want %q", goType, got, want)
+		}
+	}
+}
+
+func TestDescribeKeepsAMessageItCannotPlace(t *testing.T) {
+	// A message that names a line holding no such key is passed through as written: a guess at the
+	// key would send the reader to the wrong line.
+	for _, msg := range []string{
+		"line 9: field nope not found in type config.File",
+		"line 9: cannot unmarshal !!int `5` into time.Duration",
+		"something else entirely",
+	} {
+		if got := describe([]byte("output:\n  view: actions\n"), []string{msg}); got[0] != msg {
+			t.Errorf("describe(%q) = %q", msg, got[0])
+		}
+	}
+}
+
+func TestFieldsAtFollowsTheStruct(t *testing.T) {
+	if got := fieldsAt([]string{"cache"}); !got["readOnly"] || !got["ttl"] || len(got) != 4 {
+		t.Errorf("cache: %v", got)
+	}
+	if got := fieldsAt([]string{"tools", "trivy"}); !got["version"] {
+		t.Errorf("tools.trivy: %v", got)
+	}
+	for _, path := range [][]string{{"nope"}, {"output", "view"}, {"controllers", "sast"}} {
+		if got := fieldsAt(path); got != nil {
+			t.Errorf("fieldsAt(%v) = %v, want nil", path, got)
+		}
+	}
+}
+
+func TestLoadReportsEveryBrokenFile(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv(EnvVar, "")
+	if err := os.MkdirAll(filepath.Join(home, ".draugr"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	write(t, filepath.Join(home, ".draugr", "config.yaml"), "toolz: {}\n")
+	proj := t.TempDir()
+	write(t, filepath.Join(proj, FileName), "outptu: {}\n")
+	_, err := Load("", proj)
+	if err == nil || !strings.Contains(err.Error(), `"toolz"`) || !strings.Contains(err.Error(), `"outptu"`) {
+		t.Errorf("want both files reported, got %v", err)
+	}
+}
+
+func TestFilesListsTheExplicitFileAloneOrWhatExists(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv(EnvVar, "")
+	proj := t.TempDir()
+	if got := Files("", proj); len(got) != 0 {
+		t.Errorf("no files exist, got %v", got)
+	}
+	write(t, ProjectFile(proj), "")
+	if got := Files("", proj); !reflect.DeepEqual(got, []string{ProjectFile(proj)}) {
+		t.Errorf("got %v", got)
+	}
+	if got := Files("/named.yaml", proj); !reflect.DeepEqual(got, []string{"/named.yaml"}) {
+		t.Errorf("the explicit file is listed alone, existing or not: %v", got)
 	}
 }
 
@@ -146,17 +262,17 @@ func TestCacheSettingsLayerFieldByField(t *testing.T) {
 	// A project file setting only `ttl` must keep the `dir` the machine file supplied. Replacing
 	// the struct wholesale would make the more specific file silently discard settings it never
 	// mentioned, the opposite of what layering is for.
-	home := File{Cache: CacheSettings{Dir: "/var/cache/draugr", TTL: time.Hour, RequireDigest: true}}
-	project := File{Cache: CacheSettings{TTL: 15 * time.Minute}}
+	home := File{Cache: CacheSettings{Dir: "/var/cache/draugr", TTL: new(time.Hour), RequireDigest: new(true)}}
+	project := File{Cache: CacheSettings{TTL: new(15 * time.Minute)}}
 
 	got := merge(home, project).Cache
 	if got.Dir != "/var/cache/draugr" {
 		t.Errorf("the project file discarded the machine's cache dir: %q", got.Dir)
 	}
-	if got.TTL != 15*time.Minute {
+	if got.TTL == nil || *got.TTL != 15*time.Minute {
 		t.Errorf("TTL = %v, want the project's", got.TTL)
 	}
-	if !got.RequireDigest {
+	if !On(got.RequireDigest) {
 		t.Error("requireDigest was dropped by a file that never mentioned it")
 	}
 }
@@ -164,9 +280,67 @@ func TestCacheSettingsLayerFieldByField(t *testing.T) {
 func TestCacheReadOnlyOnlyEverTurnsOn(t *testing.T) {
 	// A machine that declares its results untrustworthy should not have that undone by a project
 	// file that simply does not discuss caching.
-	got := merge(File{Cache: CacheSettings{ReadOnly: true}}, File{Cache: CacheSettings{Dir: "x"}}).Cache
-	if !got.ReadOnly {
+	got := merge(File{Cache: CacheSettings{ReadOnly: new(true)}}, File{Cache: CacheSettings{Dir: "x"}}).Cache
+	if !On(got.ReadOnly) {
 		t.Error("read-only was silently cleared")
+	}
+}
+
+// The user's file sets true and 12h, the project's sets false and 0s, read from disk as a scan
+// reads them. Every setting the project writes wins, except the two layered one way, and those are
+// reported rather than dropped without a word.
+func TestAnExplicitFalseOrZeroInTheProjectFileWins(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv(EnvVar, "")
+	if err := os.MkdirAll(filepath.Join(home, ".draugr"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	user := filepath.Join(home, ".draugr", "config.yaml")
+	write(t, user, "output:\n  evidence: true\n  offerInstall: true\n"+
+		"cache:\n  ttl: 12h\n  readOnly: true\n  requireDigest: true\n")
+	proj := t.TempDir()
+	project := filepath.Join(proj, FileName)
+	write(t, project, "output:\n  evidence: false\n  offerInstall: false\n"+
+		"cache:\n  ttl: 0s\n  readOnly: false\n  requireDigest: false\n")
+
+	res, err := Load("", proj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f := res.File; f.Output.Evidence == nil || *f.Output.Evidence {
+		t.Errorf("output.evidence = %v, want the project's false", f.Output.Evidence)
+	}
+	if res.File.Output.Offers() {
+		t.Error("output.offerInstall: the project's false did not win")
+	}
+	if ttl := res.File.Cache.TTL; ttl == nil || *ttl != 0 {
+		t.Errorf("cache.ttl = %v, want the project's 0s", ttl)
+	}
+	if !On(res.File.Cache.ReadOnly) || !On(res.File.Cache.RequireDigest) {
+		t.Errorf("a one-way setting was turned off: %+v", res.File.Cache)
+	}
+
+	want := []Override{
+		{Key: "cache.readOnly", Path: project, By: user},
+		{Key: "cache.requireDigest", Path: project, By: user},
+	}
+	if got := res.Overrides(); !reflect.DeepEqual(got, want) {
+		t.Errorf("Overrides() = %+v, want %+v", got, want)
+	}
+}
+
+// A false with nothing turned on beneath it is a setting like any other, not an override, and a
+// true above a false is ordinary precedence.
+func TestOverridesReportsOnlyAFalseOverATrue(t *testing.T) {
+	for name, sources := range map[string][]Source{
+		"false alone":     {{Path: "p", File: File{Cache: CacheSettings{ReadOnly: new(false)}}}},
+		"true over false": {{Path: "u", File: File{Cache: CacheSettings{ReadOnly: new(false)}}}, {Path: "p", File: File{Cache: CacheSettings{ReadOnly: new(true)}}}},
+		"unset over true": {{Path: "u", File: File{Cache: CacheSettings{ReadOnly: new(true)}}}, {Path: "p"}},
+	} {
+		if got := (Resolved{Sources: sources}).Overrides(); len(got) != 0 {
+			t.Errorf("%s: Overrides() = %+v, want none", name, got)
+		}
 	}
 }
 

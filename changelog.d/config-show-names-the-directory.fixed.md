@@ -1,0 +1,1 @@
+- **`draugr config show` says when no project file was read.** Run from a directory with no `draugr.config.yaml`, it names that directory, so a command run from a parent directory no longer reads as a project that sets nothing.
