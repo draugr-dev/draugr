@@ -1,0 +1,1 @@
+- **Grype scans of several repositories or images no longer fail with `bad db checksum`, or report too few vulnerabilities, after Grype is upgraded.** A newer Grype migrates the database an older one downloaded on its first read, and Draugr now does that read once before the first scan, offline included, so concurrent scans never open the file mid-migration.

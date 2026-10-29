@@ -113,6 +113,10 @@ answer arrives before a scan rather than as an error in the middle of one.
 Draugr downloads it once per run, before the scans fan out, rather than letting every concurrent
 job cold-start it.
 
+Draugr then reads the database once with `grype db providers` before the first scan, offline
+included. The first newer Grype to read a database an older Grype downloaded migrates it in place,
+and this read does that while no scan has the file open.
+
 For an air-gapped runner, see [the air-gapped guide](../../docs/guides/air-gapped.md). With
 `--offline` (or `DRAUGR_OFFLINE`) Draugr sets `GRYPE_DB_AUTO_UPDATE=false`, because Grype checks for
 a newer database when a scan starts as well as at update time. Without it an offline run still
@@ -155,7 +159,8 @@ downloads of the vulnerability database. No account, no key, no telemetry.
 
 ## Data
 
-The **vulnerability database**, from `grype.anchore.io`. Warmed once before the jobs fan out.
+The **vulnerability database**, from `grype.anchore.io`. Warmed once before the jobs fan out,
+and read once before the first scan.
 An offline run reads the cache Grype keeps; `GRYPE_DB_AUTO_UPDATE=false` against a populated
 cache is how to hold it to that.
 

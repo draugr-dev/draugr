@@ -3,10 +3,12 @@ package scanners
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/draugr-dev/draugr/internal/git"
@@ -181,6 +183,7 @@ func TestGrypeFSErrorCarriesWhatGrypeSaid(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	useGrypeDB(t, execGrype)
 
 	for _, repo := range []string{"api", "worker"} {
 		s := NewGrypeFS().(repoScanner)
@@ -388,13 +391,13 @@ func TestGrypeCacheVersionDegradesRatherThanGuessing(t *testing.T) {
 	}
 }
 
-func TestGrypeDBWarmRunsOnceAndNotOffline(t *testing.T) {
-	var calls int
+// grypeOpen is the command that reads Grype's database without scanning anything.
+var grypeOpen = []string{"grype", "db", "providers", "-o", "json"}
+
+func TestGrypeDBWarmUpdatesThenReadsOnceAndNeverUpdatesOffline(t *testing.T) {
+	var ran [][]string
 	w := &grypeDBWarmer{run: func(_ context.Context, argv []string) ([]byte, error) {
-		calls++
-		if !slices.Contains(argv, "update") {
-			t.Errorf("warm ran %v, want a database update", argv)
-		}
+		ran = append(ran, argv)
 		return nil, nil
 	}}
 	for range 3 {
@@ -402,18 +405,163 @@ func TestGrypeDBWarmRunsOnceAndNotOffline(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if calls != 1 {
-		t.Errorf("warmed %d times, want once, the point is that concurrent jobs share one download", calls)
+	want := [][]string{{"grype", "db", "update", "-q"}, grypeOpen}
+	if !slices.EqualFunc(ran, want, slices.Equal) {
+		t.Errorf("warm ran %v, want %v: one download that concurrent jobs share, then one read "+
+			"that migrates what the download left", ran, want)
 	}
 
 	netpolicy.SetOffline(true)
 	t.Cleanup(func() { netpolicy.SetOffline(false) })
-	offline := &grypeDBWarmer{run: func(context.Context, []string) ([]byte, error) {
-		t.Error("an offline run must not reach out to warm a database it was told not to fetch")
-		return nil, nil
-	}}
+	ran = nil
+	offline := &grypeDBWarmer{run: w.run}
 	if err := offline.warm(context.Background()); err != nil {
-		t.Errorf("offline warm should be a no-op, not an error: %v", err)
+		t.Errorf("offline warm should not be an error: %v", err)
+	}
+	if want := [][]string{grypeOpen}; !slices.EqualFunc(ran, want, slices.Equal) {
+		t.Errorf("offline warm ran %v, want only %v: an offline run must not fetch a database it "+
+			"was told not to fetch, and still reads the one on disk", ran, want)
+	}
+}
+
+// A failed update is the warm's answer, and the database on disk is still read: a run whose
+// download failed scans whatever is there, and that is the database that may need migrating.
+func TestGrypeDBWarmReadsTheDatabaseAfterAFailedUpdate(t *testing.T) {
+	var opened bool
+	w := &grypeDBWarmer{run: func(_ context.Context, argv []string) ([]byte, error) {
+		if slices.Equal(argv, grypeOpen) {
+			opened = true
+			return nil, errors.New("exit status 1")
+		}
+		return nil, errors.New("unable to update vulnerability database")
+	}}
+	if err := w.warm(context.Background()); err == nil || !strings.Contains(err.Error(), "unable to update") {
+		t.Errorf("warm = %v, want the update's error rather than the read's", err)
+	}
+	if !opened {
+		t.Error("the database was not read after the update failed")
+	}
+}
+
+// useGrypeDB replaces the process-wide database preparation with one that runs run, for the test.
+func useGrypeDB(t *testing.T, run func(ctx context.Context, argv []string) ([]byte, error)) {
+	t.Helper()
+	prior := sharedGrypeDB
+	t.Cleanup(func() { sharedGrypeDB = prior })
+	sharedGrypeDB = &grypeDBWarmer{run: run}
+}
+
+// grypeMigratingStandIn is a grype that behaves as the real one does over a database an older Grype
+// imported. `grype db providers` migrates it, which takes a moment, and a scan that starts before
+// the migration has finished fails as the real one does, with a checksum that no longer matches.
+// Each invocation is logged to $GRYPE_STANDIN_STATE/log so a test can read the order.
+const grypeMigratingStandIn = `#!/bin/sh
+state="$GRYPE_STANDIN_STATE"
+if [ "$1" = db ] && [ "$2" = providers ]; then
+  echo open-start >> "$state/log"
+  sleep 0.2
+  : > "$state/migrated"
+  echo open-end >> "$state/log"
+  echo '[]'
+  exit 0
+fi
+if [ "$1" = db ]; then
+  echo "db $2" >> "$state/log"
+  exit 0
+fi
+echo "scan $1" >> "$state/log"
+if [ ! -f "$state/migrated" ]; then
+  echo '[0000] ERROR failed to load vulnerability db: bad db checksum' >&2
+  exit 1
+fi
+prev=
+for a in "$@"; do
+  if [ "$prev" = -o ]; then
+    case "$a" in
+      json=*) printf '{"matches": [], "ignoredMatches": [], "source": {"type": "directory", "target": "/src"}}' > "${a#json=}" ;;
+      cyclonedx-json=*) printf '{"components": []}' > "${a#cyclonedx-json=}" ;;
+    esac
+  fi
+  prev=$a
+done
+echo '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"grype"}},"results":[]}]}'
+`
+
+// TestGrypeScansReadTheDatabaseOnceBeforeAnyScan runs Grype scans of two repositories and an image
+// at once, through the real exec path, against a stand-in grype whose database has to be migrated
+// before it can be scanned. Every scan has to wait for the one read that migrates it, the read has
+// to happen once however many scans arrive, and offline it has to happen too, because an offline
+// run has no prewarm to do it.
+func TestGrypeScansReadTheDatabaseOnceBeforeAnyScan(t *testing.T) {
+	t.Cleanup(func() { netpolicy.SetOffline(false) })
+	for _, offline := range []bool{false, true} {
+		t.Run(fmt.Sprintf("offline=%v", offline), func(t *testing.T) {
+			netpolicy.SetOffline(offline)
+			bin, state := t.TempDir(), t.TempDir()
+			if err := os.WriteFile(filepath.Join(bin, "grype"), []byte(grypeMigratingStandIn), 0o700); err != nil { // #nosec G306 -- an executable the test runs
+				t.Fatal(err)
+			}
+			t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+			t.Setenv("GRYPE_STANDIN_STATE", state)
+			useGrypeDB(t, execGrype)
+
+			scans := map[string]func(context.Context) error{}
+			for _, repo := range []string{"api", "worker"} {
+				s := NewGrypeFS().(repoScanner)
+				dir := t.TempDir()
+				s.checkout = func(context.Context, string, string, git.Scope) (git.Tree, func(), error) {
+					return git.Tree{Dir: dir}, func() {}, nil
+				}
+				scans["repository "+repo] = func(ctx context.Context) error {
+					_, err := s.Scan(ctx, plugin.RepositoryTarget{URL: repo}, nil)
+					return err
+				}
+			}
+			image := NewGrype()
+			scans["image"] = func(ctx context.Context) error {
+				_, err := image.Scan(ctx, plugin.ImageTarget{Ref: "registry.example/app:1"}, nil)
+				return err
+			}
+
+			start := make(chan struct{})
+			var wg sync.WaitGroup
+			errs := make(map[string]error, len(scans))
+			var mu sync.Mutex
+			for name, scan := range scans {
+				wg.Go(func() {
+					<-start
+					err := scan(context.Background())
+					mu.Lock()
+					errs[name] = err
+					mu.Unlock()
+				})
+			}
+			close(start)
+			wg.Wait()
+			for name, err := range errs {
+				if err != nil {
+					t.Errorf("%s: %v", name, err)
+				}
+			}
+
+			log, err := os.ReadFile(filepath.Join(state, "log")) // #nosec G304 -- under the test's temp dir
+			if err != nil {
+				t.Fatal(err)
+			}
+			lines := strings.Fields(strings.ReplaceAll(string(log), " ", "_"))
+			if n := slices.Index(lines, "open-end"); n != 1 || lines[0] != "open-start" {
+				t.Errorf("grype ran %v, want the database read to finish before any scan starts", lines)
+			}
+			if n := strings.Count(string(log), "open-start"); n != 1 {
+				t.Errorf("the database was read %d times, want once however many scans run", n)
+			}
+			if n := strings.Count(string(log), "scan "); n != len(scans) {
+				t.Errorf("grype scanned %d times, want %d", n, len(scans))
+			}
+			if strings.Contains(string(log), "db update") {
+				t.Errorf("a scan ran `grype db update`, which belongs to the prewarm alone: %v", lines)
+			}
+		})
 	}
 }
 
