@@ -1227,7 +1227,9 @@ draugr: no files match "nothing/*.saga.yaml"
 ### `--resolved`
 
 Print the descriptor with every [fragment](../guides/saga-fragments.md) merged in, each source
-named in a comment at the top. A descriptor with no fragments says so there.
+named in a comment at the top. A descriptor with no fragments says so there. Each component's
+`exposure`, `criticality`, `builtBy` and labels carry a `# from <file>` comment when the descriptor
+has fragments.
 
 ```bash
 draugr validate azure.saga.yaml --resolved

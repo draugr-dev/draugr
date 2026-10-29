@@ -29,6 +29,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/tools"
+	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/pkg/cache"
 	"github.com/draugr-dev/draugr/pkg/dephealth"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -43,6 +44,8 @@ type Engine struct {
 	reg         *Registry
 	concurrency int
 	cache       cache.Cache
+	// build names the Draugr binary running the scan, version.Build, and scopes every cache key.
+	build string
 	// cacheable, when set, vetoes caching for targets it rejects.
 	cacheable func(plugin.Target) bool
 	// resolveRevision turns a repository's revision into the commit it names, so a cache entry is
@@ -341,7 +344,7 @@ func WithAllowedEffects(kinds []string) Option {
 // New creates an Engine over the given registry. By default it runs up to NumCPU jobs
 // concurrently.
 func New(reg *Registry, opts ...Option) *Engine {
-	e := &Engine{reg: reg, concurrency: defaultConcurrency()}
+	e := &Engine{reg: reg, concurrency: defaultConcurrency(), build: version.Build()}
 	for _, opt := range opts {
 		opt(e)
 	}
@@ -851,6 +854,24 @@ func effectiveKey(ctx context.Context, job plugin.ScanJob, scanner plugin.Scanne
 	return string(plugin.ComputeCacheKey(job.Scanner, scannerVersion(ctx, scanner), job.Target, job.Config))
 }
 
+// buildScopedKey folds the Draugr build into a cache key, so an entry one build wrote is never
+// served to another.
+//
+// Draugr reads each tool's output itself, and the key's scanner version names only the tool. A
+// change to how Draugr parses that output, classifies a file or explains why one went unread
+// changes what the same tool run should produce, and an entry keyed without the build would keep
+// answering with the previous reading until its TTL ran out.
+//
+// Applied where an entry is read and written rather than inside plugin.ComputeCacheKey, so a key a
+// controller computed for itself is scoped too. The singleflight identity is computed without it,
+// because it is compared only within one process, where the build cannot differ. The result is a
+// hex SHA-256 like the key it replaces, so the revision is still appended after an "@" and the
+// entry is still stored under a plain file name.
+func buildScopedKey(key, build string) string {
+	sum := sha256.Sum256([]byte(key + "\x00draugr\x00" + build))
+	return hex.EncodeToString(sum[:])
+}
+
 // revisionKey is what a cached result is pinned to: the content of the part this job reads, or the
 // repository's commit where that cannot be narrowed.
 //
@@ -1227,6 +1248,8 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 					if pj.Job.CacheKey != "" {
 						key = string(pj.Job.CacheKey)
 					}
+					// After the controller's key is taken, for the same reason as the revision below.
+					key = buildScopedKey(key, e.build)
 					// Appended rather than folded into the identity, so a controller that computed
 					// its own key gets the same protection as one that did not.
 					if at := e.revisionKey(jobCtx, scanner, pj.Job, commit); at != "" {

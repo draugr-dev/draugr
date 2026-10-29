@@ -25,8 +25,8 @@ draugr scan draugr.saga.yaml --cache-dir .draugr/cache --cache-ttl 12h
 | `--cache-dir` |, | Enable content-hash caching in this directory |
 | `--cache-ttl` | `24h` | Cache entry lifetime (`0` = no expiry) |
 
-**Every scanner folds its own version into the key**. And, where the answer depends on data the tool
-downloads rather than on the tool itself, that data's version:
+**Every scanner folds its own version into the key**, and where the answer depends on data the tool
+downloads rather than on the tool itself, that data's version too:
 
 | Scanner | What the key follows |
 |---|---|
@@ -34,25 +34,26 @@ downloads rather than on the tool itself, that data's version:
 | `nuclei` | the **template set** version. Republished daily, so this is the one that moves |
 | `semgrep`, `gitleaks`, `gosec`, `kube-bench` | the tool's version |
 | `kube-bench-job` | the pinned image digest |
-| `draugr-headers`, `draugr-tls`, `draugr-k8s-policies` | Draugr's own version, their rules ship in the binary |
 
 So the thing that would change the answer changes the key, and a cached result is invalidated by
 the update that made it wrong rather than by waiting out the clock. [The cache
 architecture](../contributing/cache.md) explains how the key is built and why identity has to mean
-content. A new Nuclei template set, a
-Trivy database refresh, a Semgrep upgrade, or a Draugr release that adds a check will each
-re-scan what they affect.
+content. A new Nuclei template set, a Trivy database refresh or a Semgrep upgrade re-scans what it
+affects.
 
-**Entries are compressed.** A cached entry is a whole SARIF report, which is repetitive by
-construction, a measured one went from 375 KB to 60 KB. That matters most where the cache is
-persisted between CI runs, because an uncompressed cache spends on restore what it saves on
-scanning. A cache written by an older Draugr is read as-is, so upgrading does not throw one away.
+Every key also carries the Draugr version (the commit for a development build), so the first run
+after an upgrade re-scans everything.
 
 Entries still expire on a TTL, as a backstop for what a version cannot express, most notably a
 Semgrep ruleset fetched from the registry, whose contents can change without the tool's version
 moving. For **container images**, pin a `digest:` in the Saga so caching is content-addressed, a
 rebuilt image re-scans immediately instead of serving the old result under a mutable tag. See
 [caching in depth](../concepts/controls-and-scanners.md#content-hash-caching).
+
+**Entries are compressed.** A cached entry is a whole SARIF report, which is repetitive by
+construction, a measured one went from 375 KB to 60 KB. That matters most where the cache is
+persisted between CI runs, because an uncompressed cache spends on restore what it saves on
+scanning.
 
 > **Images without a pinned digest.** If a component's `images:` entry gives only a mutable tag
 > (e.g. `python:3.8-slim`) with no `digest:`, the cache keys on that **tag**. An image rebuilt
@@ -218,9 +219,9 @@ code can reach it.
 
 ### What a hit does and does not promise
 
-The key covers the scanner, its data version, the target's identity and the effective config, so
-a Trivy database refresh or a Nuclei template update invalidates what it affects. Two things it
-cannot cover:
+The key covers the scanner, its data version, the target's identity, the effective config and the
+Draugr version, so a Trivy database refresh or a Nuclei template update invalidates what it
+affects. Two things it cannot cover:
 
 - **A container image named only by a tag.** Rebuild and re-push `acme/api:latest` and the key is
   unchanged, so the previous image's findings are served. Pin a `digest:`, a discovery surveyor
