@@ -99,7 +99,7 @@ func TestKubeBenchJobSpec(t *testing.T) {
 			t.Errorf("mount %q is writable", m.Name)
 		}
 	}
-	// Pinned by digest. A tag is a mutable pointer. V0.15.6 can be repushed. So a tag alone is a scan
+	// Pinned by digest. A tag is a mutable pointer that can be repushed, so a tag alone is a scan
 	// whose result can change with nothing in the descriptor changing.
 	img := pod.Containers[0].Image
 	if !strings.Contains(img, "@sha256:") {
