@@ -1,1 +1,0 @@
-- **Counts in messages agree with their noun.** `tools install`, `validate`, `doctor`, TLS certificate expiry and the HTML report say `1 tool` and `1 day`, not `tool(s)` and `day(s)`.

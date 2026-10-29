@@ -1,1 +1,0 @@
-- **A file Gitleaks skips by its name is reported instead of passing.** Gitleaks does not read a file whose name contains an archive extension, such as `notes.zip.txt`. The `secrets` control gives each such file an `unread-files` caveat, `name has an archive extension`, and a repository it read nothing from gets `no files read`. Rename the file, or fail on `unread-files`.
