@@ -16,8 +16,8 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
+	"github.com/draugr-dev/draugr/internal/suggest"
 	"github.com/draugr-dev/draugr/internal/tools"
-	"github.com/draugr-dev/draugr/pkg/config"
 
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/tui"
@@ -391,32 +391,11 @@ func quoteAll(names []string) []string {
 func closestName(want string, known []string) string {
 	best, bestDist := "", 3 // suggest only for near-misses
 	for _, k := range known {
-		if d := editDistance(want, k); d < bestDist {
+		if d := suggest.Distance(want, k); d < bestDist {
 			best, bestDist = k, d
 		}
 	}
 	return best
-}
-
-// editDistance is Levenshtein, enough for "did you mean" on short tool names.
-func editDistance(a, b string) int {
-	prev := make([]int, len(b)+1)
-	cur := make([]int, len(b)+1)
-	for j := range prev {
-		prev[j] = j
-	}
-	for i := 1; i <= len(a); i++ {
-		cur[0] = i
-		for j := 1; j <= len(b); j++ {
-			cost := 1
-			if a[i-1] == b[j-1] {
-				cost = 0
-			}
-			cur[j] = min(min(cur[j-1]+1, prev[j]+1), prev[j-1]+cost)
-		}
-		prev, cur = cur, prev
-	}
-	return prev[len(b)]
 }
 
 func runToolsInstall(w io.Writer, in io.Reader, names []string, all bool, opts toolsInstallOptions, install func(name string) (tools.Installed, error)) error {
@@ -720,7 +699,7 @@ func wantedVersions(args []string, flag string) (map[string]string, error) {
 	wanted := map[string]string{}
 	wd, err := os.Getwd()
 	if err == nil {
-		res, err := config.Load(rootConfigPath, wd)
+		res, err := loadConfig(wd)
 		if err != nil {
 			return nil, err
 		}

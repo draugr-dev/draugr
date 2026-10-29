@@ -1121,7 +1121,7 @@ func TestWorkingTreeRefusesARemoteRatherThanScanningSomethingElse(t *testing.T) 
 
 func TestCacheSettingsComeFromConfigUnlessTyped(t *testing.T) {
 	cfg := config.CacheSettings{
-		Dir: "/from/config", TTL: 2 * time.Hour, ReadOnly: true, RequireDigest: true,
+		Dir: "/from/config", TTL: new(2 * time.Hour), ReadOnly: new(true), RequireDigest: new(true),
 	}
 
 	// Nothing typed: the config decides.

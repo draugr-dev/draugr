@@ -14,6 +14,7 @@
 package config
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -86,8 +87,9 @@ type OutputSettings struct {
 	// under it), "actions" (a row per thing to do) or "compact" (one line each).
 	View string `yaml:"view,omitempty"`
 	// Evidence also prints what stands behind the verdict, tool provenance, what each control
-	// measured against, the scanned revision, what the run cost.
-	Evidence bool `yaml:"evidence,omitempty"`
+	// measured against, the scanned revision, what the run cost. A pointer, so a more specific
+	// file's `false` is a setting that overrides a less specific file's `true`.
+	Evidence *bool `yaml:"evidence,omitempty"`
 	// Top caps how many rows the fix list shows. Zero means the built-in default rather than
 	// "show none": a file that omits a field is not asking for an empty list.
 	Top int `yaml:"top,omitempty"`
@@ -105,17 +107,21 @@ type CacheSettings struct {
 	// a cache is a promise that an unchanged input has an unchanged answer, and that is a promise
 	// somebody should opt into.
 	Dir string `yaml:"dir,omitempty"`
-	// TTL is how long an entry stays usable. Zero means the built-in default, because a file that
-	// omits the key reads as zero and is not asking for entries that never expire. No expiry is
-	// `--cache-ttl 0` on the command line; a file cannot ask for it.
-	TTL time.Duration `yaml:"ttl,omitempty"`
+	// TTL is how long an entry stays usable. Unset leaves the built-in default; `0s` written in
+	// the file means no expiry, as `--cache-ttl 0` does. A pointer, so the two are told apart and
+	// a more specific file's `0s` overrides a less specific file's duration.
+	TTL *time.Duration `yaml:"ttl,omitempty"`
 	// ReadOnly serves entries without writing them, for a run whose results the next run should
-	// not trust.
-	ReadOnly bool `yaml:"readOnly,omitempty"`
+	// not trust. Layered one way: a more specific file's `false` does not clear a less specific
+	// file's `true`, and Resolved.Overrides reports the `false` that was outranked.
+	ReadOnly *bool `yaml:"readOnly,omitempty"`
 	// RequireDigest refuses to cache an image named only by a tag, which can be rebuilt under the
-	// same name.
-	RequireDigest bool `yaml:"requireDigest,omitempty"`
+	// same name. Layered one way, as ReadOnly is.
+	RequireDigest *bool `yaml:"requireDigest,omitempty"`
 }
+
+// On reports whether a boolean setting is present and true. An absent one is off.
+func On(b *bool) bool { return b != nil && *b }
 
 // ToolSettings pins one external tool.
 type ToolSettings struct {
@@ -143,31 +149,52 @@ type Resolved struct {
 //
 // Otherwise the home file is layered under the project file, so a personal default can be
 // overridden by a repository that has an opinion. Missing files are not an error; a machine with
-// no configuration is the normal case.
+// no configuration is the normal case. Every file is read before an error is returned, so two
+// broken files are reported together.
 func Load(explicit, workDir string) (Resolved, error) {
-	explicit = Explicit(explicit)
-	if explicit != "" {
-		f, err := loadFile(explicit)
-		if err != nil {
-			return Resolved{}, err
-		}
-		return Resolved{File: f, Sources: []Source{{Path: explicit, File: f}}}, nil
-	}
-
-	var out Resolved
-	for _, path := range discover(workDir) {
-		if _, err := os.Stat(path); err != nil {
-			continue
-		}
+	var sources []Source
+	var errs []error
+	for _, path := range Files(explicit, workDir) {
 		f, err := loadFile(path)
 		if err != nil {
-			return Resolved{}, err
+			errs = append(errs, err)
+			continue
 		}
-		out.Sources = append(out.Sources, Source{Path: path, File: f})
-		out.File = merge(out.File, f)
+		sources = append(sources, Source{Path: path, File: f})
 	}
-	return out, nil
+	if len(errs) > 0 {
+		return Resolved{}, errors.Join(errs...)
+	}
+	return Resolve(sources), nil
 }
+
+// Resolve layers sources, least specific first, into the configuration in effect: the rule Load
+// applies, for a caller that reads and checks the files itself.
+func Resolve(sources []Source) Resolved {
+	out := Resolved{Sources: sources}
+	for _, s := range sources {
+		out.File = merge(out.File, s.File)
+	}
+	return out
+}
+
+// Files lists the files Load reads, least specific first: the explicit file alone when one is
+// named, whether or not it exists, or else each discovered file that exists.
+func Files(explicit, workDir string) []string {
+	if explicit = Explicit(explicit); explicit != "" {
+		return []string{explicit}
+	}
+	var out []string
+	for _, path := range discover(workDir) {
+		if _, err := os.Stat(path); err == nil {
+			out = append(out, path)
+		}
+	}
+	return out
+}
+
+// ProjectFile is where Load looks for a project's file: FileName in the working directory.
+func ProjectFile(workDir string) string { return filepath.Join(workDir, FileName) }
 
 // Explicit is the file named by `--config`, or by DRAUGR_CONFIG when the flag is empty, or "" when
 // neither names one. Reading and editing both resolve it here, so `config set` writes the file a
@@ -185,7 +212,7 @@ func discover(workDir string) []string {
 	if home, err := os.UserHomeDir(); err == nil {
 		paths = append(paths, filepath.Join(home, ".draugr", "config.yaml"))
 	}
-	return append(paths, filepath.Join(workDir, FileName))
+	return append(paths, ProjectFile(workDir))
 }
 
 // loadFile reads and validates one file.
@@ -202,20 +229,30 @@ func loadFile(path string) (File, error) {
 // Strict: an unknown key is an error rather than something ignored. A misspelled setting that is
 // silently dropped is a setting somebody believes is in force, and this file exists to make
 // behavior uniform, a typo that quietly opts one machine out defeats the point of having it.
+//
+// A failure is a *Problems naming every key at fault in the file's own terms, rather than the Go
+// types it decodes into, returned beside whatever of the file did decode.
 func Parse(data []byte, path string) (File, error) {
 	var f File
-	dec := yaml.NewDecoder(strings.NewReader(string(data)))
+	dec := yaml.NewDecoder(bytes.NewReader(data))
 	dec.KnownFields(true)
-	if err := dec.Decode(&f); err != nil {
+	err := dec.Decode(&f)
+	switch {
+	case err == nil:
+		return f, nil
+	case errors.Is(err, io.EOF):
 		// An empty file decodes as EOF and is a perfectly good configuration: it says nothing,
 		// so nothing is overridden.
-		if errors.Is(err, io.EOF) {
-			return File{}, nil
-		}
-		return File{}, fmt.Errorf("%s: %w\n\nrun `draugr config validate` to check it, or "+
-			"`draugr config init --force` to start again from the built-in defaults", path, err)
+		return File{}, nil
 	}
-	return f, nil
+	// The decoder carries on past a key it cannot hold, so what it did decode is returned with the
+	// problems, for a caller that checks the rest of the file in the same pass.
+	var te *yaml.TypeError
+	if errors.As(err, &te) {
+		return f, &Problems{Path: path, List: describe(data, te.Errors), Hint: KeysHint}
+	}
+	// Not YAML at all. The decoder's message names the line, which is all there is to say.
+	return File{}, &Problems{Path: path, List: []string{strings.TrimPrefix(err.Error(), "yaml: ")}}
 }
 
 // merge lays b over a, most specific winning per key.
@@ -248,15 +285,11 @@ func merge(a, b File) File {
 	if b.Cache.Dir != "" {
 		out.Cache.Dir = b.Cache.Dir
 	}
-	if b.Cache.TTL != 0 {
+	if b.Cache.TTL != nil {
 		out.Cache.TTL = b.Cache.TTL
 	}
-	if b.Cache.ReadOnly {
-		out.Cache.ReadOnly = true
-	}
-	if b.Cache.RequireDigest {
-		out.Cache.RequireDigest = true
-	}
+	out.Cache.ReadOnly = oneWay(out.Cache.ReadOnly, b.Cache.ReadOnly)
+	out.Cache.RequireDigest = oneWay(out.Cache.RequireDigest, b.Cache.RequireDigest)
 
 	out.Publish = a.Publish
 	if b.Publish.APIURL != "" {
@@ -267,8 +300,8 @@ func merge(a, b File) File {
 	if b.Output.View != "" {
 		out.Output.View = b.Output.View
 	}
-	if b.Output.Evidence {
-		out.Output.Evidence = true
+	if b.Output.Evidence != nil {
+		out.Output.Evidence = b.Output.Evidence
 	}
 	if b.Output.Top != 0 {
 		out.Output.Top = b.Output.Top
@@ -282,6 +315,57 @@ func merge(a, b File) File {
 	}
 	if len(out.Controllers) == 0 {
 		out.Controllers = nil
+	}
+	return out
+}
+
+// oneWay lays b over a for a setting that only turns on across files.
+//
+// A machine that declared its results untrustworthy, or refused to cache an image named by a tag,
+// keeps that answer when a project file says false. Resolved.Overrides reports each false this
+// outranks, so the file that says it is told rather than ignored.
+func oneWay(a, b *bool) *bool {
+	if b == nil || On(a) {
+		return a
+	}
+	return b
+}
+
+// Override is a setting a file makes that a less specific file outranks.
+type Override struct {
+	// Key is the dotted setting, e.g. "cache.readOnly".
+	Key string
+	// Path is the file whose value does not take effect.
+	Path string
+	// By is the less specific file whose value stays in force.
+	By string
+}
+
+// oneWaySettings are the booleans oneWay layers, by the key a file writes them under.
+var oneWaySettings = []struct {
+	key string
+	get func(File) *bool
+}{
+	{"cache.readOnly", func(f File) *bool { return f.Cache.ReadOnly }},
+	{"cache.requireDigest", func(f File) *bool { return f.Cache.RequireDigest }},
+}
+
+// Overrides lists the settings a source makes that do not take effect: a false for a one-way
+// setting that a less specific source turned on.
+func (r Resolved) Overrides() []Override {
+	var out []Override
+	for _, s := range oneWaySettings {
+		on := ""
+		for _, src := range r.Sources {
+			v := s.get(src.File)
+			switch {
+			case v == nil:
+			case *v:
+				on = src.Path
+			case on != "":
+				out = append(out, Override{Key: s.key, Path: src.Path, By: on})
+			}
+		}
 	}
 	return out
 }

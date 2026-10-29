@@ -85,29 +85,45 @@ func TestApplyConfigDefaultsMergesUnderTheDescriptor(t *testing.T) {
 	t.Chdir(dir)
 	t.Setenv("HOME", t.TempDir())
 	if err := os.WriteFile(filepath.Join(dir, config.FileName),
-		[]byte("controllers:\n  sast:\n    semgrep:\n      config: p/org\n      timeout: 300\n"), 0o600); err != nil {
+		[]byte("controllers:\n  sca:\n    trivyFs:\n      detectionPriority: comprehensive\n      includeDevDeps: true\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	// The descriptor has an opinion about config and none about timeout.
+	// The descriptor has an opinion about detectionPriority and none about includeDevDeps.
 	m := &saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
-		"sast": {"semgrep": map[string]any{"config": "p/mine"}},
+		"sca": {"trivyFs": map[string]any{"detectionPriority": "precise"}},
 	}}}
 	if _, err := applyConfigDefaults(context.Background(), m); err != nil {
 		t.Fatal(err)
 	}
 
-	sem, _ := m.Config.Controls["sast"]["semgrep"].(map[string]any)
-	if sem == nil {
-		if s, ok := m.Config.Controls["sast"]["semgrep"].(saga.ControllerSettings); ok {
-			sem = s
-		}
+	block, ok := blockOf(m.Config.Controls["sca"]["trivyFs"])
+	if !ok {
+		t.Fatalf("no trivyFs block: %+v", m.Config.Controls["sca"])
 	}
-	if sem["config"] != "p/mine" {
-		t.Errorf("the descriptor did not win: %+v", sem)
+	if block["detectionPriority"] != "precise" {
+		t.Errorf("the descriptor did not win: %+v", block)
 	}
-	if sem["timeout"] != 300 {
-		t.Errorf("the org default was not inherited: %+v", sem)
+	if block["includeDevDeps"] != true {
+		t.Errorf("the org default was not inherited: %+v", block)
+	}
+}
+
+// A scan refuses a configuration file that names a control this build does not provide, as
+// `draugr validate` refuses one in a descriptor, rather than running without the setting.
+func TestApplyConfigDefaultsRefusesAnUnknownControl(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv(config.EnvVar, "")
+	if err := os.WriteFile(filepath.Join(dir, config.FileName),
+		[]byte("controllers:\n  sats:\n    semgrep:\n      config: p/org\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := applyConfigDefaults(context.Background(), &saga.Model{})
+	want := `controllers: "sats" is not a control this build of Draugr provides, did you mean "sast"?`
+	if err == nil || !strings.Contains(err.Error(), want) || !strings.Contains(err.Error(), config.FileName) {
+		t.Errorf("want the file and %q, got %v", want, err)
 	}
 }
 
@@ -185,7 +201,7 @@ func TestConfigSetGlobalWritesHome(t *testing.T) {
 	t.Setenv("HOME", home)
 	dir := t.TempDir()
 
-	out, err := runConfig(t, dir, "set", "--global", "controllers.sca.trivyFs.timeout", "300")
+	out, err := runConfig(t, dir, "set", "--global", "controllers.sca.trivyFs.detectionPriority", "precise")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,13 +223,19 @@ func TestConfigValidateReportsABrokenFile(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, config.FileName), []byte("toolz: {}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	_, err := runConfig(t, dir, "validate")
+	out, err := runConfig(t, dir, "validate")
 	if err == nil {
 		t.Fatal("a file with an unknown key validated")
 	}
-	// Recovery has to be in the message: a config that fails is only safe if fixing it is easy.
-	if !strings.Contains(err.Error(), "config init --force") {
-		t.Errorf("no recovery offered: %v", err)
+	// The key, the nearest real one, and where every key is listed. Not `config init --force`,
+	// which discards everything else the file says.
+	for _, want := range []string{`"toolz" is not a setting Draugr has, did you mean "tools"?`, config.KeysURL} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "init --force") {
+		t.Errorf("validate offered to wipe the file:\n%s", out)
 	}
 }
 
@@ -243,13 +265,13 @@ func TestConfigShowRendersCacheSettings(t *testing.T) {
 	// `config show` exists so "why is my cache behaving like that" has a filename for an answer.
 	// A setting it does not render is one the command cannot answer for.
 	got := flatten(config.File{Cache: config.CacheSettings{
-		Dir: "/var/cache/draugr", TTL: 2 * time.Hour, ReadOnly: true, RequireDigest: true,
+		Dir: "/var/cache/draugr", TTL: new(2 * time.Hour), ReadOnly: new(true), RequireDigest: new(false),
 	}})
 	want := map[string]string{
 		"cache.dir":           "/var/cache/draugr",
 		"cache.ttl":           "2h0m0s",
 		"cache.readOnly":      "true",
-		"cache.requireDigest": "true",
+		"cache.requireDigest": "false",
 	}
 	if len(got) != len(want) {
 		t.Fatalf("rendered %d settings, want %d: %+v", len(got), len(want), got)

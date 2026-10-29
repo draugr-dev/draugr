@@ -1881,7 +1881,7 @@ controllers:            # merged *underneath* the descriptor's own settings
 |---|---|
 | `tools.<name>.version` | the build [`tools install`](#draugr-tools-install-tool) provisions |
 | `controllers.<control>.<scanner>` | control defaults, merged underneath the descriptor's `config.controls` |
-| `cache.dir`, `cache.ttl`, `cache.readOnly`, `cache.requireDigest` | the `--cache-*` flags. A `ttl` of `0` means the built-in default; `--cache-ttl 0` on the command line means no expiry |
+| `cache.dir`, `cache.ttl`, `cache.readOnly`, `cache.requireDigest` | the `--cache-*` flags. A `ttl` of `0s` means no expiry, as `--cache-ttl 0` does; leaving `ttl` out keeps the built-in default |
 | `output.view`, `output.evidence`, `output.top` | the `--view`, `--evidence` and `--top` flags. A `top` of `0` means the built-in default |
 | `output.offerInstall` | whether a scan on a terminal [offers to install](#installing-a-missing-scanner) a missing scanner; unset means it does |
 | `publish.apiUrl` | where the `draugr-api` publisher posts when `DRAUGR_API_URL` is unset. In a project's `./draugr.config.yaml` it is held to the rule for a descriptor's `url:`, used only on an allowed origin |
@@ -1899,6 +1899,11 @@ performance](../guides/caching-and-performance.md) for the cache settings.
 
 Discovered files are layered, project over home. An explicit one replaces both.
 
+A more specific file's value replaces a less specific file's, `false` and `0s` included.
+`cache.readOnly` and `cache.requireDigest` only turn on across files, so a project's `false` does not
+turn off the home file's `true`. `show` lists that `false` under **Overridden**, and `set` reports
+it when it writes one.
+
 For `draugr scan`, `doctor` and `tools install`, the full order is **component → descriptor → config
 → built-in**, deep-merged, so an override replaces only the keys it names. A scan started through
 [`draugr mcp`](#draugr-mcp) does not read the config file.
@@ -1912,7 +1917,7 @@ For `draugr scan`, `doctor` and `tools install`, the full order is **component �
 | `draugr config set <key> <value>` | write a value |
 | `draugr config unset <key>` | remove one, pruning anything it empties |
 | `draugr config init` | write a commented starter; `--force` replaces an existing file |
-| `draugr config validate [path...]` | check the discovered files load, or the files named |
+| `draugr config validate [path...]` | hold the discovered files, or the files named, to every check a scan makes, reporting each file |
 
 `set`, `unset` and `init` write the file a scan reads: the one `--config` or `DRAUGR_CONFIG` names,
 or else `./draugr.config.yaml`, or `~/.draugr/config.yaml` with `--global`. `--global` together
@@ -1935,16 +1940,32 @@ In effect:
 
 ### If the file breaks
 
-**A command that reads the config refuses to run rather than falling back to the defaults.**
+**A command that reads the config refuses to run rather than falling back to the defaults.** That
+includes `scan`, and covers what `draugr validate` refuses in a descriptor: a control or scanner this
+build does not provide, a scanner option its schema rejects, a tool `tools install` does not
+provision, and a value a scan would refuse, such as an `output.view` that is not a view or a
+negative `output.top`.
+
+```console
+$ draugr config validate draugr.config.yaml
+✗ draugr.config.yaml
+  output: "veiw" is not a setting Draugr has, did you mean "view"?
+  controllers: "sats" is not a control this build of Draugr provides, did you mean "sast"?
+  controllers.sca: "trivy-fs" is not a scanner of the "sca" control (it has grypeFs, mendSca, retirejs or trivyFs), did you mean "trivyFs"?
+
+run `draugr controls` to see what this build provides
+every key is listed at https://draugr.dev/docs/latest/reference/cli/#draugr-config
+draugr: 1 of 1 file did not validate
+```
 
 ```bash
-draugr config validate          # what is wrong, and where
-draugr config init --force      # start again from the built-in defaults
+draugr config validate          # every problem in every file, by key
+draugr config init --force      # discard the file and start again from the built-in defaults
 ```
 
 `set` and `unset` cannot break a file: they edit the parsed document, **so comments survive**, and
-parse the result before saving. The document is re-indented as it is written. Draugr does not
-repair a file it cannot parse.
+hold the result to the same checks before saving. The document is re-indented as it is written.
+Draugr does not repair a file it cannot parse.
 
 ### Secrets
 

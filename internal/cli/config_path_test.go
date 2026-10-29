@@ -48,7 +48,7 @@ func TestConfigEditsTheFileAScanReads(t *testing.T) {
 func TestEveryKindOfKeyIsASetting(t *testing.T) {
 	for key, want := range map[string]bool{
 		"output.evidence": true, "output.offerInstall": true, "output.top": true,
-		"output.view": true, "output.nope": false,
+		"output.view": true, "cache.ttl": true, "cache.readOnly": true, "output.nope": false,
 	} {
 		if got := isSetting(key); got != want {
 			t.Errorf("isSetting(%q) = %v, want %v", key, got, want)

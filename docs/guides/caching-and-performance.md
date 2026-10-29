@@ -79,8 +79,9 @@ cache:
 ```
 
 A flag you type always wins. `readOnly` and `requireDigest` only ever turn *on* from the config. A
-project file that does not discuss caching should not undo a machine that declared its results
-untrustworthy, but typing `--cache-read-only=false` still overrides it, because you typed it.
+project file's `false` does not undo a machine that declared its results untrustworthy, and
+`draugr config show` lists that `false` as overridden. Typing `--cache-read-only=false` still
+overrides it, because you typed it. `ttl: 0s` in the file means no expiry, as `--cache-ttl 0` does.
 
 ## Persisting the cache between CI runs
 
