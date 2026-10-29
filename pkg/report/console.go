@@ -1380,13 +1380,23 @@ func runLine(st engine.Stats) string {
 
 // roundAge renders a cache entry's age at the precision a reader acts on.
 //
-// Minutes under an hour, hours beyond it. "19h" and "42m" answer "should I re-run"; "19h3m12.4s"
-// asks the reader to do the rounding themselves, in a line already carrying four other numbers.
+// Hours from an hour, minutes from a minute, seconds from a second. "19h" and "42m" answer
+// "should I re-run"; "19h3m12.4s" asks the reader to do the rounding themselves, in a line already
+// carrying four other numbers. Under a second it is milliseconds, the unit the run's own duration
+// uses on the same line. Each step keeps the age above zero, because "0s" reads as no age at all
+// beside a count of entries that have one.
 func roundAge(d time.Duration) time.Duration {
-	if d < time.Hour {
+	switch {
+	case d >= time.Hour:
+		return d.Round(time.Hour)
+	case d >= time.Minute:
 		return d.Round(time.Minute)
+	case d >= time.Second:
+		return d.Round(time.Second)
+	case d >= time.Millisecond:
+		return d.Round(time.Millisecond)
 	}
-	return d.Round(time.Hour)
+	return d
 }
 
 // slowestControl names the control that took longest, summed across its jobs.

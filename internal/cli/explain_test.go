@@ -122,3 +122,12 @@ func TestExplainNamesAnUnknownRuleRatherThanGuessing(t *testing.T) {
 		t.Errorf("want an error naming the rule that was not found, got: %v", err)
 	}
 }
+
+// The help names every place -r falls back to, in the order findSARIF tries them.
+func TestExplainHelpNamesWhereItLooks(t *testing.T) {
+	usage := newExplainCommand().Flags().Lookup("report").Usage
+	want := "the first that exists of " + strings.Join(defaultSARIFNames, ", ")
+	if !strings.Contains(usage, want) {
+		t.Errorf("--report help = %q, want it to contain %q", usage, want)
+	}
+}

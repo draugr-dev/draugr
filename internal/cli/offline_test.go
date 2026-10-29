@@ -29,7 +29,7 @@ func TestFeedsUpdateRefusesOffline(t *testing.T) {
 	cmd := newFeedsCommand()
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
-	err := updateFeeds(cmd, dir, feeds.Names(), false)
+	err := updateFeeds(cmd, dir, feeds.Names(), false, defaultFeedLimit())
 	if err == nil {
 		t.Fatal("fetched while offline")
 	}

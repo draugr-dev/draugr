@@ -1,0 +1,1 @@
+- **`draugr validate --help` describes fragments**: how a descriptor's fragments are merged before it is checked, and how a fragment file is checked on its own.
