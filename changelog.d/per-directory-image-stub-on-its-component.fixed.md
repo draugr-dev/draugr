@@ -1,1 +1,0 @@
-- **`draugr init --per-directory` puts each commented image entry on the component that builds it.** A Dockerfile in a sub-app gives that sub-app's component its own `images:` entry, named after it.

@@ -1,1 +1,0 @@
-- **A lockfile that holds only the project and its workspace members is no longer reported as unread.** That covers a `package-lock.json`, Yarn Berry `yarn.lock`, `Cargo.lock` or `uv.lock` for a workspace whose members depend on nothing outside it, and the `yarn.lock` Yarn Berry writes for a project with no dependencies.
