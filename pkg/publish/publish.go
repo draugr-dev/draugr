@@ -18,16 +18,6 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
-// skipPublisher is a no-op Publisher: a configured publisher that has nothing to do in the
-// current environment (e.g. a github publisher run outside CI). It logs why and delivers nothing.
-type skipPublisher struct{ kind, reason string }
-
-func (p skipPublisher) Kind() string { return p.kind }
-func (p skipPublisher) Publish(context.Context, []report.Artifact) error {
-	slog.Info("publisher skipped", "kind", p.kind, "reason", p.reason)
-	return nil
-}
-
 // Publisher delivers rendered report artifacts to one destination.
 type Publisher interface {
 	// Kind is the publisher's config selector, e.g. "file".
@@ -205,6 +195,10 @@ func deliverAll(ctx context.Context, publishers []saga.PublisherConfig, data rep
 	if len(publishers) == 0 {
 		return nil
 	}
+	// Publishers that stand aside are reported once per reason, after every publisher has had its
+	// turn, rather than once each as they go.
+	ctx, skipped := collectSkips(ctx)
+	defer skipped.log()
 
 	// A publisher delivers the record, so it gets the whole record. --min-priority narrows what
 	// this invocation shows you; it must not narrow what is filed.
