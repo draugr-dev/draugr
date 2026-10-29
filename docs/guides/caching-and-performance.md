@@ -40,13 +40,16 @@ So the thing that would change the answer changes the key, and a cached result i
 the update that made it wrong rather than by waiting out the clock. [The cache
 architecture](../contributing/cache.md) explains how the key is built and why identity has to mean
 content. A new Nuclei template set, a
-Trivy database refresh, a Semgrep upgrade, or a Draugr release that adds a check will each
-re-scan what they affect.
+Trivy database refresh or a Semgrep upgrade re-scans what it affects.
+
+**Every key also carries the Draugr version**, so the first run after an upgrade re-scans
+everything once. Draugr reads each tool's output itself, and a new version may read the same output
+differently. A development build keys on its commit.
 
 **Entries are compressed.** A cached entry is a whole SARIF report, which is repetitive by
 construction, a measured one went from 375 KB to 60 KB. That matters most where the cache is
 persisted between CI runs, because an uncompressed cache spends on restore what it saves on
-scanning. A cache written by an older Draugr is read as-is, so upgrading does not throw one away.
+scanning.
 
 Entries still expire on a TTL, as a backstop for what a version cannot express, most notably a
 Semgrep ruleset fetched from the registry, whose contents can change without the tool's version
@@ -218,7 +221,8 @@ code can reach it.
 
 ### What a hit does and does not promise
 
-The key covers the scanner, its data version, the target's identity and the effective config, so
+The key covers the scanner, its data version, the target's identity, the effective config and the
+Draugr version, so
 a Trivy database refresh or a Nuclei template update invalidates what it affects. Two things it
 cannot cover:
 

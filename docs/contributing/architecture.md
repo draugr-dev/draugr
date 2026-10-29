@@ -141,7 +141,7 @@ lossless core. Consequences:
 - **Concurrency:** per-controller worker pools; the whole plan runs as a bounded-parallel
   DAG. Wall-clock ≈ slowest job, not the sum.
 - **Content-hash caching:** cache key = `hash(target identity + scanner id + scanner
-  version + effective config)`. Target identity is a repo commit, an image *digest*, or a
+  version + effective config)`, scoped to the Draugr build that wrote it. Target identity is a repo commit, an image *digest*, or a
   normalized endpoint config. Cache hit → skip the scan, reuse the SARIF. Configurable
   TTL/expiry (new CVEs can affect an unchanged artifact, so caching must be explicit and
   time-bounded). First-class, not an afterthought: at any real scale the cost of a scan is

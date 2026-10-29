@@ -58,6 +58,24 @@ func TestFromBuildInfo(t *testing.T) {
 	}
 }
 
+// Two development builds are both "dev", so the commit is what separates them.
+func TestBuildNamesTheVersionAndTheCommit(t *testing.T) {
+	v, c := Version, Commit
+	t.Cleanup(func() { Version, Commit = v, c })
+
+	for _, tc := range []struct{ version, commit, want string }{
+		{"0.158.1", "abcdef12", "0.158.1+abcdef12"},
+		{"dev", "0cfffcfe", "dev+0cfffcfe"},
+		{"dev", "1a2b3c4d", "dev+1a2b3c4d"},
+		{"dev", "none", "dev+none"},
+	} {
+		Version, Commit = tc.version, tc.commit
+		if got := Build(); got != tc.want {
+			t.Errorf("Build() with %s, %s = %q, want %q", tc.version, tc.commit, got, tc.want)
+		}
+	}
+}
+
 func TestStringAndCurrentAgree(t *testing.T) {
 	info := Current()
 	line := String()

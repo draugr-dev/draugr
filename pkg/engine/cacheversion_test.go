@@ -2,13 +2,73 @@ package engine
 
 import (
 	"context"
+	"regexp"
 	"sync"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/pkg/cache"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
+
+// Two Draugr builds sharing one cache directory never read each other's entries, and each still
+// reads its own. Every other input to the key is identical across the four runs.
+func TestACacheEntryIsNotServedToAnotherDraugrBuild(t *testing.T) {
+	dir := t.TempDir()
+	run := func(build string) (Stats, int) {
+		t.Helper()
+		reg := NewRegistry()
+		reg.RegisterController(fakeController{name: "images", scope: plugin.ScopeComponent, scanner: "s"})
+		sc := &fakeScanner{name: "s"}
+		reg.RegisterScanner(sc)
+		e := New(reg, WithCache(cache.NewLocal(dir, 0)))
+		e.build = build
+		res, err := e.Run(context.Background(), model())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res.Stats, sc.calls()
+	}
+
+	for _, step := range []struct {
+		build       string
+		scans, hits int
+	}{
+		{"0.158.0+1a2b3c4d", 2, 0},
+		{"0.158.1+5e6f7a8b", 2, 0},
+		{"0.158.0+1a2b3c4d", 0, 2},
+		{"0.158.1+5e6f7a8b", 0, 2},
+	} {
+		stats, calls := run(step.build)
+		if stats.Scans != step.scans || stats.CacheHits != step.hits || calls != step.scans {
+			t.Errorf("build %s: scans = %d, hits = %d, scanner calls = %d; want %d scans, %d hits",
+				step.build, stats.Scans, stats.CacheHits, calls, step.scans, step.hits)
+		}
+	}
+}
+
+// An engine keys on the binary it runs in, unless a test says otherwise.
+func TestAnEngineKeysOnTheRunningBuild(t *testing.T) {
+	if got := New(NewRegistry()).build; got != version.Build() {
+		t.Errorf("build = %q, want %q", got, version.Build())
+	}
+}
+
+// The scoped key differs per build and stays a plain hex name, so the revision can still be
+// appended after an "@" and the entry stored under its own file name.
+func TestBuildScopedKeyIsAHexNamePerBuild(t *testing.T) {
+	a, b := buildScopedKey("k", "0.158.0+none"), buildScopedKey("k", "0.158.1+none")
+	if a == b {
+		t.Error("two builds produced one key")
+	}
+	if a != buildScopedKey("k", "0.158.0+none") {
+		t.Error("the same build produced two keys")
+	}
+	if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(a) {
+		t.Errorf("key = %q, want 64 hex characters", a)
+	}
+}
 
 // versionedScanner implements plugin.CacheVersioner and records how often CacheVersion runs.
 type versionedScanner struct {
