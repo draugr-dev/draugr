@@ -44,6 +44,8 @@ _Nothing yet._
 
 - **A descriptor referencing an unset environment variable names the fix.** The error names each `${{ NAME }}` reference and says to set the variable or remove the reference.
 
+- **A person's API token in `$DRAUGR_API_TOKEN` checks the organization's policy.** The check now goes through the descriptor's `project:` instead of the route that accepts only a pipeline's ingest token, and a project the token cannot reach is named in the error.
+
 ## [0.157.0] - 2026-10-27
 
 ### Changed
