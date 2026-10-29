@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	draugrmcp "github.com/draugr-dev/draugr/internal/mcp"
+	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
 func newMCPCommand() *cobra.Command {
@@ -42,11 +44,7 @@ func newMCPCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			srv, err := draugrmcp.NewServer(draugrmcp.Options{
-				Scan:      mode,
-				Registry:  builtins.Registry(),
-				Surveyors: builtins.SurveyorRegistry(),
-			})
+			srv, err := draugrmcp.NewServer(mcpOptions(mode))
 			if err != nil {
 				return err
 			}
@@ -59,4 +57,21 @@ func newMCPCommand() *cobra.Command {
 	cmd.Flags().StringVar(&scanMode, "scan", string(draugrmcp.ScanEffects),
 		"whether the assistant may start scans: effects (ask before one that does more than read), ask (approve each one), always (no prompt), off (not offered)")
 	return cmd
+}
+
+// mcpOptions is the server `draugr mcp` serves.
+//
+// Config is the loader `draugr scan` and `draugr doctor` call, so an assistant's scan in a
+// directory reads the draugr.config.yaml a terminal's scan there reads, and a file `draugr scan`
+// refuses is refused here in the same words.
+func mcpOptions(mode draugrmcp.ScanMode) draugrmcp.Options {
+	return draugrmcp.Options{
+		Scan:      mode,
+		Registry:  builtins.Registry(),
+		Surveyors: builtins.SurveyorRegistry(),
+		Config: func(ctx context.Context, model *saga.Model) error {
+			_, err := applyConfigDefaults(ctx, model)
+			return err
+		},
+	}
 }

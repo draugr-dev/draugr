@@ -251,7 +251,7 @@ func TestScanNextIsFixListsFirstAction(t *testing.T) {
 		"    imports:\n      - control: sca\n        file: "+imported+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	_, scan, err := scanTool(builtins.Registry(), ScanAlways)(context.Background(), nil, ScanInput{Path: path})
+	_, scan, err := scanTool(builtins.Registry(), ScanAlways, nil)(context.Background(), nil, ScanInput{Path: path})
 	if err != nil {
 		t.Fatalf("scan: %v", err)
 	}

@@ -1,0 +1,1 @@
+- **An assistant's `check_tools` requires the tools `draugr doctor` requires.** Given a descriptor, it names the scanners the descriptor's controls select, and Syft only when `config.sbom` is on, so a machine with Semgrep is ready for a `sast` control that runs Semgrep. `draugr doctor` applies `draugr.config.yaml` before it decides which tools a scan needs, as `draugr scan` does.

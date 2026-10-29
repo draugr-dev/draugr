@@ -195,8 +195,9 @@ the exact command that fixes it:
 }
 ```
 
-Given a descriptor it narrows to what that descriptor actually needs, so a Saga enabling only
-`sca` doesn't demand Semgrep.
+Given a descriptor it narrows to the tools `draugr doctor` requires for it, which are the scanners its
+enabled controls select, git for a repository, and Syft when `config.sbom` is on. A Saga that selects Semgrep
+for `sast` does not demand gosec.
 
 **There is no install tool, deliberately.** Installing binaries is a write to your machine, and your
 assistant's client already has a permission model for running commands, one you already understand

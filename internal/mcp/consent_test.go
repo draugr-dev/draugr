@@ -110,7 +110,7 @@ func TestScanDeliversTheDescriptorsPublishers(t *testing.T) {
 			"components:\n  - name: api\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	_, res, err := scanTool(builtins.Registry(), ScanAlways)(context.Background(), nil, ScanInput{Path: path})
+	_, res, err := scanTool(builtins.Registry(), ScanAlways, nil)(context.Background(), nil, ScanInput{Path: path})
 	if err != nil {
 		t.Fatalf("scan: %v", err)
 	}
@@ -134,7 +134,7 @@ func TestScanReportsNoDeliveryWhenNoneIsConfigured(t *testing.T) {
 		"project: app\nrelease:\n  version: \"1.0\"\ncomponents:\n  - name: api\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	_, res, err := scanTool(builtins.Registry(), ScanAlways)(context.Background(), nil, ScanInput{Path: path})
+	_, res, err := scanTool(builtins.Registry(), ScanAlways, nil)(context.Background(), nil, ScanInput{Path: path})
 	if err != nil {
 		t.Fatalf("scan: %v", err)
 	}

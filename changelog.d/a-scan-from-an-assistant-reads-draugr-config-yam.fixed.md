@@ -1,0 +1,1 @@
+- **A scan from an assistant reads `draugr.config.yaml`.** The MCP `scan` tool merges the configuration `draugr scan` reads in the same directory, or the file `--config` or `DRAUGR_CONFIG` names, and refuses a file `draugr scan` refuses. `list_controls` names `config.controls.<control>.<scanner>.enabled` as the key that turns on an opt-in scanner.

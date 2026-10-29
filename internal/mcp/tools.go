@@ -11,11 +11,11 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/enrich"
 	"github.com/draugr-dev/draugr/internal/exploitdata"
 	"github.com/draugr-dev/draugr/internal/git"
+	"github.com/draugr-dev/draugr/internal/needs"
 	"github.com/draugr-dev/draugr/internal/scanpolicy"
 	"github.com/draugr-dev/draugr/internal/surfaces"
 	"github.com/draugr-dev/draugr/internal/tools"
@@ -44,7 +44,7 @@ type Control struct {
 	Scope           string   `json:"scope" jsonschema:"whether the control runs per component or once for the project"`
 	Purpose         string   `json:"purpose" jsonschema:"what the control checks for"`
 	DefaultScanners []string `json:"defaultScanners" jsonschema:"scanners that run when the control is enabled"`
-	OptInScanners   []string `json:"optInScanners,omitempty" jsonschema:"additional scanners, each enabled explicitly under controllers.<control>.<scanner>.enabled"`
+	OptInScanners   []string `json:"optInScanners,omitempty" jsonschema:"additional scanners, each enabled explicitly under config.controls.<control>.<scanner>.enabled"`
 	// ScannerOptions is what each of this control's scanners accepts in its Saga block, keyed by
 	// scanner name. An entry present but empty means that scanner accepts no options; anything
 	// else written under its block is rejected before the scan runs.
@@ -82,7 +82,7 @@ func ListControls(reg *engine.Registry) ControlsOutput {
 	}
 	out := ControlsOutput{
 		Hint: "Enable a control under config.controls.<name> in the Saga, or per component. " +
-			"An opt-in scanner additionally needs controllers.<control>.<scanner>.enabled: true. " +
+			"An opt-in scanner additionally needs config.controls.<control>.<scanner>.enabled: true. " +
 			"A scanner accepts only the options listed in scannerOptions, anything else is " +
 			"rejected when the descriptor is validated, so do not invent keys.",
 	}
@@ -781,7 +781,7 @@ const unexaminedNote = "This verdict covers the controls above and nothing else.
 
 // scanTool builds the scan handler over reg. It's a closure rather than a bare function because
 // the registry is the one thing a scan can't derive from its arguments.
-func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput, ScanOutput] {
+func scanTool(reg *engine.Registry, mode ScanMode, cfg ConfigLoader) mcp.ToolHandlerFor[ScanInput, ScanOutput] {
 	return func(ctx context.Context, req *mcp.CallToolRequest, in ScanInput) (*mcp.CallToolResult, ScanOutput, error) {
 		if in.Path == "" {
 			return nil, ScanOutput{}, fmt.Errorf("path is required")
@@ -792,6 +792,12 @@ func scanTool(reg *engine.Registry, mode ScanMode) mcp.ToolHandlerFor[ScanInput,
 		model, err := saga.LoadFile(in.Path)
 		if err != nil {
 			return nil, ScanOutput{}, fmt.Errorf("load %s: %w", in.Path, err)
+		}
+		// The configuration merged in before the plan, so the consent below describes the scan that
+		// will run: a controller default can enable a control, or a scanner with an effect, that the
+		// descriptor alone does not.
+		if err := cfg.apply(ctx, model); err != nil {
+			return nil, ScanOutput{}, err
 		}
 		plan, err := planScan(reg, model)
 		if err != nil {
@@ -1018,26 +1024,39 @@ type CheckToolsOutput struct {
 	Note   string `json:"note"`
 }
 
-// CheckToolsTool reports which external scanners are present.
+// checkToolsTool builds the check_tools handler, which reports which external scanners are present.
 //
 // This exists because of what Draugr does when one is missing: the control can't run, and a scan
 // that can't run is not a pass. An assistant that hits that needs to say what's wrong and what
 // fixes it. Which is a question about the machine, and answering it is free.
 //
+// Given a descriptor, the tools required are the ones `draugr doctor` requires for it, from the
+// same function and over the same configuration, so the two cannot disagree about whether a machine
+// is ready. A tool counted here and not there stops an assistant before a scan that would have run.
+//
 // It deliberately stops there. Draugr will not install anything on a user's behalf over MCP:
 // that's a write to their machine, and their client already has a permission model for running
 // commands which is stronger than anything this server could offer. Report the command; let the
 // person approve it where they already approve such things.
-func CheckToolsTool(ctx context.Context, _ *mcp.CallToolRequest, in CheckToolsInput) (*mcp.CallToolResult, CheckToolsOutput, error) {
-	required := tools.All()
-	if in.Path != "" {
-		model, err := saga.LoadFile(in.Path)
-		if err != nil {
-			return nil, CheckToolsOutput{}, fmt.Errorf("load %s: %w", in.Path, err)
+func checkToolsTool(reg *engine.Registry, cfg ConfigLoader) mcp.ToolHandlerFor[CheckToolsInput, CheckToolsOutput] {
+	return func(ctx context.Context, _ *mcp.CallToolRequest, in CheckToolsInput) (*mcp.CallToolResult, CheckToolsOutput, error) {
+		required := tools.All()
+		if in.Path != "" {
+			model, err := saga.LoadFile(in.Path)
+			if err != nil {
+				return nil, CheckToolsOutput{}, fmt.Errorf("load %s: %w", in.Path, err)
+			}
+			if err := cfg.apply(ctx, model); err != nil {
+				return nil, CheckToolsOutput{}, err
+			}
+			required = needs.Tools(reg, model)
 		}
-		required = requiredFor(model)
+		return nil, checkTools(ctx, required), nil
 	}
+}
 
+// checkTools detects each of required and says what is missing and the command that installs it.
+func checkTools(ctx context.Context, required []tools.Tool) CheckToolsOutput {
 	out := CheckToolsOutput{Ready: true}
 	for _, t := range required {
 		st := tools.Detect(ctx, t, nil, nil)
@@ -1064,39 +1083,6 @@ func CheckToolsTool(ctx context.Context, _ *mcp.CallToolRequest, in CheckToolsIn
 			"the remedy command, or ask the user to."
 	default:
 		out.Note = "Everything required is present."
-	}
-	return nil, out, nil
-}
-
-// requiredFor returns the tools the controls enabled anywhere in the model would execute. It
-// mirrors `draugr doctor`: no point reporting kube-bench missing when nothing asks for it.
-func requiredFor(model *saga.Model) []tools.Tool {
-	enabled := func(control string) bool {
-		if model.Config.ControllerEnabled(control) {
-			return true
-		}
-		for i := range model.Components {
-			if model.Components[i].ControllerEnabled(control, model.Config) {
-				return true
-			}
-		}
-		return false
-	}
-	need := map[string]bool{}
-	for _, s := range builtins.Registry().Scanners() {
-		info := s.Info()
-		for _, c := range info.Controls {
-			if enabled(c) && info.Binary != "" {
-				need[info.Binary] = true
-			}
-		}
-	}
-	var out []tools.Tool
-	for _, t := range tools.All() {
-		// git is needed by any repository-scoped control, and utilities are cheap to report.
-		if need[t.Binary] || t.Category == tools.CategoryUtility {
-			out = append(out, t)
-		}
 	}
 	return out
 }

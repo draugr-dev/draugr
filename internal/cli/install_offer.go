@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/english"
+	"github.com/draugr-dev/draugr/internal/needs"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/config"
@@ -79,9 +80,9 @@ func missingForScan(reg *engine.Registry, model *saga.Model, scope engine.Scope,
 		return false
 	}
 	byTool := map[string][]string{}
-	for _, u := range scannerUses(reg, model) {
+	for _, u := range needs.Uses(reg, model) {
 		var controls []string
-		for _, c := range u.controls {
+		for _, c := range u.Controls {
 			if inScope(c) {
 				controls = append(controls, c)
 			}
@@ -89,7 +90,7 @@ func missingForScan(reg *engine.Registry, model *saga.Model, scope engine.Scope,
 		if len(controls) == 0 {
 			continue
 		}
-		for _, tool := range append([]string{u.info.Binary}, u.info.AlsoRequires...) {
+		for _, tool := range append([]string{u.Info.Binary}, u.Info.AlsoRequires...) {
 			if tool == "" || !tools.Provisionable(tool) {
 				continue
 			}

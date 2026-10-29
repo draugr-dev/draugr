@@ -28,6 +28,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/surveyor"
 )
 
@@ -82,6 +83,27 @@ type Options struct {
 	// Surveyors supplies the discovery plugins. Empty disables survey and list_surveyors, so a
 	// caller embedding this server chooses whether it may reach a cluster or a forge at all.
 	Surveyors *surveyor.Registry
+	// Config merges Draugr's configuration into each descriptor scan and check_tools read. `draugr
+	// mcp` passes the function `draugr scan` calls. Nil reads no configuration.
+	Config ConfigLoader
+}
+
+// ConfigLoader merges the configuration in effect into a descriptor, the way `draugr scan` merges
+// it: draugr.config.yaml in the process's working directory over ~/.draugr/config.yaml, or the one
+// file --config or $DRAUGR_CONFIG names. It returns the error `draugr scan` would refuse a file
+// with.
+//
+// A function rather than a call into the CLI's loader because the CLI imports this package. The
+// function is the loader itself, so a scan from an assistant and one from a terminal in the same
+// directory read the same files and refuse the same mistakes.
+type ConfigLoader func(ctx context.Context, model *saga.Model) error
+
+// apply runs the loader, when there is one.
+func (c ConfigLoader) apply(ctx context.Context, model *saga.Model) error {
+	if c == nil {
+		return nil
+	}
+	return c(ctx, model)
 }
 
 // serverName is how Draugr identifies itself to a client.
@@ -170,7 +192,7 @@ func NewServer(opts Options) (*mcp.Server, error) {
 			"to run if any are missing. Call this when a scan fails or before suggesting one: a " +
 			"control whose scanner is absent cannot run, and Draugr reports that as a failure " +
 			"rather than a pass. This only looks, it will not install anything.",
-	}, CheckToolsTool)
+	}, checkToolsTool(reg, opts.Config))
 
 	mcp.AddTool(s, &mcp.Tool{
 		Name: "feeds_status",
@@ -277,7 +299,7 @@ func NewServer(opts Options) (*mcp.Server, error) {
 				"sending data to a third party, or whose results are delivered off this machine, " +
 				"asks the user to approve it first."
 		}
-		mcp.AddTool(s, &mcp.Tool{Name: "scan", Description: desc}, scanTool(reg, opts.Scan))
+		mcp.AddTool(s, &mcp.Tool{Name: "scan", Description: desc}, scanTool(reg, opts.Scan, opts.Config))
 	}
 	return s, nil
 }
