@@ -431,8 +431,8 @@ func (w *grypeDBWarmer) warm(ctx context.Context) error {
 // vulnerability.db and then recording the new digest in import.json. A scan that starts before
 // both writes land migrates it again, fails with `bad db checksum`, or reads the file half-written
 // and reports fewer vulnerabilities than the database holds. `grype db update` leaves such a
-// database in place whenever nothing newer has been published, and offline it is the only one
-// there is, so the migration happens here, once, while nothing else has the file open.
+// database in place whenever nothing newer has been published, and offline it is the only
+// database available, so the migration happens here, once, while nothing else has the file open.
 //
 // The scans call it rather than relying on warm because an offline run skips the prewarm. A
 // failure here is not reported: the scan that follows reads the same database and quotes what
