@@ -198,14 +198,22 @@ func grypeEnv() []string {
 	return env
 }
 
-// grypeRun and grypeRunInDir are vars so a test can substitute the exec without arranging binaries
+// grypeRun and grypeRunInDir run one Grype scan, once the shared database has been read (see
+// grypeDBWarmer.open). They are vars so a test can substitute the exec without arranging binaries
 // on PATH.
 var grypeRun = func(ctx context.Context, argv []string) ([]byte, error) {
+	sharedGrypeDB.open(ctx)
 	return toolexec.RunWithEnv(ctx, "", argv, grypeEnv())
 }
 
 var grypeRunInDir = func(ctx context.Context, dir string, argv []string) ([]byte, error) {
+	sharedGrypeDB.open(ctx)
 	return toolexec.RunWithEnv(ctx, dir, argv, grypeEnv())
+}
+
+// execGrype runs a Grype command that is not a scan, with the same environment a scan has.
+func execGrype(ctx context.Context, argv []string) ([]byte, error) {
+	return toolexec.RunWithEnv(ctx, "", argv, grypeEnv())
 }
 
 // parseGrypeRepoSARIF decodes Grype's SARIF and makes its paths repo-relative.
@@ -388,31 +396,53 @@ func (p *grypeVersionProbe) cacheVersion(ctx context.Context) string {
 // version is resolved once per process however many Grype scans a run plans.
 var sharedGrypeVersion = newGrypeVersionProbe()
 
-// grypeDBWarmer downloads Grype's vulnerability database once (memoized) so that a run's
-// concurrent scans don't each cold-start it. run is injectable for tests.
+// grypeDBWarmer prepares Grype's vulnerability database once per process (memoized), downloading it
+// and then reading it, so that a run's concurrent scans neither each cold-start the download nor
+// each migrate the file. run is injectable for tests.
 type grypeDBWarmer struct {
-	once sync.Once
-	err  error
-	run  func(ctx context.Context, argv []string) ([]byte, error)
+	updateOnce sync.Once
+	openOnce   sync.Once
+	err        error
+	run        func(ctx context.Context, argv []string) ([]byte, error)
 }
 
 // warm runs `grype db update -q` at most once and returns any error (best-effort: callers treat
 // failure as non-fatal, a real problem resurfaces at scan time, where it can name the scan it
-// stopped).
+// stopped), then reads the database it left (see open).
 //
-// Offline it does nothing rather than failing. There is nothing to warm without a network, and a
-// prewarm that failed would be the first thing an air-gapped run reported. About a download it was
-// configured never to attempt.
+// Offline it downloads nothing rather than failing. There is nothing to fetch without a network,
+// and a prewarm that failed would be the first thing an air-gapped run reported. About a download
+// it was configured never to attempt.
 func (w *grypeDBWarmer) warm(ctx context.Context) error {
-	w.once.Do(func() {
+	w.updateOnce.Do(func() {
 		if netpolicy.Offline() {
 			return
 		}
 		_, w.err = w.run(ctx, []string{"grype", "db", "update", "-q"})
 	})
+	w.open(ctx)
 	return w.err
 }
 
-// sharedGrypeDB pre-warms the vulnerability database once per process for both Grype-backed
+// open reads the database once, with `grype db providers`, before any scan reads it. Every Grype
+// scan calls it first, and a scan that arrives while it runs waits for it.
+//
+// The first Grype to read a database that an older Grype imported migrates it in place, rewriting
+// vulnerability.db and then recording the new digest in import.json. A scan that starts before
+// both writes land migrates it again, fails with `bad db checksum`, or reads the file half-written
+// and reports fewer vulnerabilities than the database holds. `grype db update` leaves such a
+// database in place whenever nothing newer has been published, and offline it is the only
+// database available, so the migration happens here, once, while nothing else has the file open.
+//
+// The scans call it rather than relying on warm because an offline run skips the prewarm. A
+// failure here is not reported: the scan that follows reads the same database and quotes what
+// Grype said about it.
+func (w *grypeDBWarmer) open(ctx context.Context) {
+	w.openOnce.Do(func() {
+		_, _ = w.run(ctx, []string{"grype", "db", "providers", "-o", "json"})
+	})
+}
+
+// sharedGrypeDB prepares the vulnerability database once per process for both Grype-backed
 // scanners (they share Grype's on-disk cache), so one download serves image and repository scans.
-var sharedGrypeDB = &grypeDBWarmer{run: execArgv}
+var sharedGrypeDB = &grypeDBWarmer{run: execGrype}

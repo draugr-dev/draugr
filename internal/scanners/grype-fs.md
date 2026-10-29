@@ -122,8 +122,8 @@ account, no key, no telemetry.
 
 ## Data
 
-The **vulnerability database**, from `grype.anchore.io`. The same copy `grype` reads, warmed
-once per run.
+The **vulnerability database**, from `grype.anchore.io`. The same copy `grype` reads,
+downloaded once per run and read once before the first scan.
 
 Grype runs with `GRYPE_CHECK_FOR_APP_UPDATE=false`, so a scan never asks
 `toolbox-data.anchore.io` whether a newer Grype exists.

@@ -23,9 +23,9 @@ import (
 //
 // The addition has to match too, and nothing refuses a mismatch. When the client_version in
 // import.json is an earlier addition than the pinned Grype's, Grype rehydrates the database on its
-// first read: it migrates the file in place and then writes the new digest to import.json. The
-// sealed scans start together, so a scan that checks the file between those two writes finds a
-// digest that no longer matches and fails with `bad db checksum`. The rehydration records the
+// first read: it migrates the file in place and then writes the new digest to import.json. Draugr
+// reads the database once before its scans so that the migration happens while nothing else has it
+// open, and the scans then read a database the fixture did not write. The rehydration records the
 // pinned Grype's schema as client_version, which is what GrypeDBRewritten reads after a scan.
 const (
 	GrypeSchemaModel    = 6
@@ -132,7 +132,7 @@ func GrypeDBRewritten(home string) error {
 	}
 	if record.ClientVersion != grypeClientVersion() {
 		return fmt.Errorf("the pinned Grype rewrote the sealed database for schema %s, written for %s: "+
-			"concurrent scans read it mid-rewrite, so set the schema constants in test/sealed/grypedb.go to %s",
+			"the scans read a database the fixture did not write, so set the schema constants in test/sealed/grypedb.go to %s",
 			record.ClientVersion, grypeClientVersion(), record.ClientVersion)
 	}
 	return nil
