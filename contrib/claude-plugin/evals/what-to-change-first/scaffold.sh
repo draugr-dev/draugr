@@ -8,3 +8,6 @@ git_ add services/api/deploy/aws.staging.env
 git_ commit -q -m "Add the staging credentials"
 descriptor
 report .
+# Only the SARIF, as a pipeline that ran the scan elsewhere hands it over. report.json carries the
+# actions already grouped, and a reply read from it answers without the tool this case is about.
+rm report.json
