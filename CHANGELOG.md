@@ -16,21 +16,23 @@ _Nothing yet._
 
 ### Changed
 
-- **`draugr tools install` fetches grype 0.121.0**, which was pinned at 0.118.0.
+- **`draugr tools install` fetches Grype 0.121.0**, which was pinned at 0.118.0.
 
 ### Fixed
 
-- **A failed Grype scan says why.** The error quotes the reason Grype logged after the exit status, such as `exit status 1: failed to load vulnerability db: bad db checksum …`, where it used to end at `exit status 1`. Grype scans also skip Grype's check for a newer release, so they make no request to `toolbox-data.anchore.io`.
+- **A failed Grype scan says why.** The error quotes the reason Grype logged after the exit status, for example `exit status 1: failed to load vulnerability db: bad db checksum …`, in place of the bare `exit status 1`.
 
-- **A scan from an assistant uses `draugr.config.yaml`.** The MCP `scan` tool reads the file `draugr scan` reads in the same working directory, or the one `--config` or `DRAUGR_CONFIG` names, so the enabled controls, the gate and the publishers match a scan run in a terminal. A malformed file fails with the error `draugr scan` gives.
+- **Grype scans no longer contact `toolbox-data.anchore.io`.** They skip Grype's check for a newer Grype release.
 
-- **An assistant's `check_tools` no longer reports tools a scan does not run as missing.** Given a descriptor, it lists what `draugr doctor` lists: the scanner each enabled control selects, `git` for a repository, and `syft` only when `config.sbom` is on. Both read `draugr.config.yaml` first, so a scanner selected there counts.
+- **The MCP `scan` tool reads `draugr.config.yaml`.** It reads the file `draugr scan` reads in the same working directory, or the one `--config` or `DRAUGR_CONFIG` names, so the enabled controls, the gate and the publishers match a scan run in a terminal. A malformed file fails with the error `draugr scan` gives.
 
-- **`list_controls` names the current key for turning on an opt-in scanner.** It suggests `config.controls.<control>.<scanner>.enabled` in place of the deprecated `controllers.<control>.<scanner>.enabled`.
+- **The MCP `check_tools` tool no longer reports tools a scan does not run as missing.** Given a descriptor, it lists what `draugr doctor` lists: the scanner each enabled control selects, `git` for a repository, and `syft` only when `config.sbom` is on. `check_tools` and `draugr doctor` both read `draugr.config.yaml` first, so a scanner selected there counts.
+
+- **The MCP `list_controls` tool names the current key for turning on an opt-in scanner.** It suggests `config.controls.<control>.<scanner>.enabled` in place of the deprecated `controllers.<control>.<scanner>.enabled`.
 
 - **The `kube-bench-job` scanner runs kube-bench 0.16.0, up from 0.15.6.** It is the release `draugr tools install` pins for the `kube-bench` scanner, so both audit a cluster against the same benchmark definitions.
 
-- **`draugr diff` reports a zero-config scan's findings as unchanged against the first scan after `draugr init`.** A zero-config scan now names the project, component and repository as `init` does (`My.Service` becomes `my-service`), so the two runs no longer read as different projects.
+- **`draugr diff` matches findings between a zero-config scan and the first scan after `draugr init`.** The zero-config scan now names the project, component and repository as `init` does (`My.Service` becomes `my-service`), so the two runs read as the same project.
 
 ## [0.158.1] - 2026-10-29
 
