@@ -168,10 +168,20 @@ components:
 Same name, so these are **one component** with the repository *and* the image. The GCP product
 gets the same component with GCP surfaces instead.
 
-**Where a component's fields conflict, the first description wins**, and resolution starts from the
-descriptor you opened, so the root stays authoritative. In practice that means `exposure` and
-`criticality` belong in the shared fragment. If a component is genuinely more exposed on one cloud
-than another, leave the classification out of the shared fragment and let each variant set it.
+**Each of `exposure`, `criticality`, `builtBy` and every label key takes its value from the first
+file that sets it.** Resolution starts from the descriptor you opened, so a value the root states
+is the value in force, and a fragment can supply a field the root leaves unset but never replace
+one the root sets. Labels are compared key by key.
+
+Among fragments, the first in resolution order supplies the value:
+
+- `fragments:` entries in the order they are written,
+- the files one pattern matches in path order,
+- a fragment's own `fragments:` immediately after it.
+
+In practice that means `exposure` and `criticality` belong in the root or the shared fragment,
+whose pattern comes first. If a component is genuinely more exposed on one cloud than another,
+leave the classification out of both and let each variant set it.
 
 ## Fragments from another repository
 
@@ -204,8 +214,22 @@ draugr validate azure.saga.yaml --resolved
 # root:     azure.saga.yaml
 # fragment: services/payments/draugr.saga-fragment.yaml
 # fragment: services/payments/azure.saga-fragment.yaml
-...
+
+project: acme-azure
+release:
+  version: 3.1.0
+components:
+  - name: payments
+    exposure: public # from services/payments/draugr.saga-fragment.yaml
+    criticality: critical # from services/payments/draugr.saga-fragment.yaml
+    repositories:
+      - url: services/payments
+    images:
+      - image: acme.azurecr.io/payments:3.1.0
 ```
+
+Each `exposure`, `criticality`, `builtBy` and label carries a `# from` comment naming the file that
+supplied it, the root included.
 
 The output is **a valid descriptor**, which is what makes it worth piping:
 

@@ -1,0 +1,1 @@
+- **A fragment now fills the `exposure`, `criticality`, `builtBy` or label a root descriptor leaves unset** for a component both name, where it was ignored before. A value the root sets still wins. `draugr validate --resolved` marks each of these values with the file that supplied it.

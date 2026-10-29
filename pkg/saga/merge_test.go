@@ -1,6 +1,9 @@
 package saga
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 // A component described in two fragments is one component, and the surfaces add up rather than
 // one replacing the other, the overlay a split descriptor depends on.
@@ -24,6 +27,55 @@ func TestUpsertComponentKeepsTheFirstClassification(t *testing.T) {
 
 	if comps[0].Exposure != "internal" || comps[0].Criticality != "supporting" {
 		t.Errorf("a later fragment reclassified the component: %+v", comps[0])
+	}
+}
+
+// A field the first description leaves unset is filled by a later one, and a field it sets is
+// not, checked across two components so a fill on one cannot pass for a fill on both.
+func TestUpsertComponentFillsOnlyWhatIsUnset(t *testing.T) {
+	comps := []Component{
+		{Name: "web", Exposure: ExposureInternal, Labels: map[string]string{"team": "core"}},
+		{Name: "api"},
+	}
+	comps, filled := upsertComponent(comps, Component{
+		Name: "web", Exposure: ExposurePublic, Criticality: CriticalityCritical, BuiltBy: BuiltByUpstream,
+		Labels: map[string]string{"team": "other", "tier": "edge"},
+	})
+	web := comps[0]
+	if web.Exposure != ExposureInternal {
+		t.Errorf("web exposure = %q, want the first description's internal", web.Exposure)
+	}
+	if web.Criticality != CriticalityCritical || web.BuiltBy != BuiltByUpstream {
+		t.Errorf("web = %+v, want criticality and builtBy filled from the later description", web)
+	}
+	if web.Labels["team"] != "core" || web.Labels["tier"] != "edge" {
+		t.Errorf("web labels = %v, want team kept and tier filled", web.Labels)
+	}
+	if want := []string{"criticality", "builtBy", "labels.tier"}; !slices.Equal(filled, want) {
+		t.Errorf("filled = %v, want %v", filled, want)
+	}
+	if comps[1].Exposure != "" || comps[1].Criticality != "" || comps[1].Labels != nil {
+		t.Errorf("api = %+v, want it untouched by a description of web", comps[1])
+	}
+
+	comps, filled = upsertComponent(comps, Component{Name: "api", Exposure: ExposureRestricted})
+	if comps[1].Exposure != ExposureRestricted || !slices.Equal(filled, []string{"exposure"}) {
+		t.Errorf("api exposure = %q filled = %v, want restricted filled", comps[1].Exposure, filled)
+	}
+}
+
+// A component seen for the first time supplies every classification field it sets.
+func TestUpsertComponentNamesEveryFieldOfANewComponent(t *testing.T) {
+	_, fields := upsertComponent(nil, Component{
+		Name: "web", Exposure: ExposurePublic, Criticality: CriticalitySupporting, BuiltBy: BuiltBySelf,
+		Labels: map[string]string{"b": "2", "a": "1"},
+	})
+	want := []string{"exposure", "criticality", "builtBy", "labels.a", "labels.b"}
+	if !slices.Equal(fields, want) {
+		t.Errorf("fields = %v, want %v", fields, want)
+	}
+	if _, fields := upsertComponent(nil, Component{Name: "bare"}); len(fields) != 0 {
+		t.Errorf("a component setting nothing supplied %v", fields)
 	}
 }
 

@@ -54,6 +54,51 @@ func TestValidateResolvedMergesFragmentsIntoAValidDescriptor(t *testing.T) {
 	}
 }
 
+// Each classification value names the file that supplied it, so a reader can tell the root's
+// decision from a value a fragment filled in. A standalone descriptor carries no such comments.
+func TestValidateResolvedNamesTheFileBehindEachClassification(t *testing.T) {
+	dir := t.TempDir()
+	root := writeSagaAt(t, dir, "draugr.saga.yaml", validSaga+`fragments:
+  - path: "svc/*.saga-fragment.yaml"
+`)
+	frag := writeSagaAt(t, filepath.Join(dir, "svc"), "a.saga-fragment.yaml", `components:
+  - name: web
+    exposure: internal
+    criticality: critical
+  - name: api
+    exposure: restricted
+`)
+
+	var out bytes.Buffer
+	if err := runResolved([]string{root}, &out); err != nil {
+		t.Fatalf("validate --resolved: %v", err)
+	}
+	got := out.String()
+	for _, want := range []string{
+		"exposure: internal # from " + frag,
+		"criticality: critical # from " + frag,
+		"exposure: restricted # from " + frag,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("resolved output lacks %q:\n%s", want, got)
+		}
+	}
+	flat := writeSagaAt(t, t.TempDir(), "resolved.saga.yaml", got)
+	if err := runValidate([]string{flat}, &bytes.Buffer{}); err != nil {
+		t.Errorf("the annotated output is not a valid descriptor: %v", err)
+	}
+
+	var alone bytes.Buffer
+	if err := runResolved([]string{writeSaga(t, validSaga+`  - name: solo
+    exposure: public
+`)}, &alone); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(alone.String(), "# from") {
+		t.Errorf("a standalone descriptor was attributed value by value:\n%s", alone.String())
+	}
+}
+
 func TestValidateResolvedSaysWhenNothingWasMerged(t *testing.T) {
 	var out bytes.Buffer
 	if err := runResolved([]string{writeSaga(t, validSaga)}, &out); err != nil {

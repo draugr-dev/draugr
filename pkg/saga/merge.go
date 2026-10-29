@@ -1,32 +1,91 @@
 package saga
 
-// UpsertComponent appends comp, or unions its surface into an existing same-named one.
+import (
+	"maps"
+	"slices"
+)
+
+// UpsertComponent appends comp, or merges it into an existing same-named one.
 //
 // The overlay that makes split descriptors work: a shared fragment naming a component's
 // repository and a per-product fragment adding its image end up as one component holding both.
 //
-// Scalars come from the component already present, so the first description of a component wins on
-// name, classification and labels. That is why a resolution starts from the root descriptor. It
-// keeps the file someone opened authoritative about how exposed a component is, rather than
-// letting a fragment merged later quietly reclassify it.
+// Surfaces union. The classification fields, exposure, criticality and builtBy, and each label by
+// key, are filled where the component already present leaves them unset and kept where it sets
+// them. A resolution starts from the root descriptor, so the file someone opened stays
+// authoritative about every value it states, and a fragment merged later can supply a value the
+// root left out but never replace one it gave. Among fragments, the first in resolution order to
+// set a field supplies it.
 func UpsertComponent(components []Component, comp Component) []Component {
-	for i := range components {
-		if components[i].Name == comp.Name {
-			components[i] = unionComponent(components[i], comp)
-			return components
-		}
-	}
-	return append(components, comp)
+	out, _ := upsertComponent(components, comp)
+	return out
 }
 
-func unionComponent(a, b Component) Component {
+// upsertComponent is UpsertComponent, also returning the classification fields comp supplied:
+// every one it sets when it is a new component, and the ones it filled when it merged into an
+// existing one. Field names are as classificationFields reports them.
+func upsertComponent(components []Component, comp Component) ([]Component, []string) {
+	for i := range components {
+		if components[i].Name == comp.Name {
+			var filled []string
+			components[i], filled = unionComponent(components[i], comp)
+			return components, filled
+		}
+	}
+	return append(components, comp), classificationFields(comp)
+}
+
+// classificationFields names the classification fields c sets: exposure, criticality, builtBy,
+// and labels.<key> for each label, in that order with the labels sorted.
+func classificationFields(c Component) []string {
+	var out []string
+	if c.Exposure != "" {
+		out = append(out, "exposure")
+	}
+	if c.Criticality != "" {
+		out = append(out, "criticality")
+	}
+	if c.BuiltBy != "" {
+		out = append(out, "builtBy")
+	}
+	for _, k := range slices.Sorted(maps.Keys(c.Labels)) {
+		out = append(out, "labels."+k)
+	}
+	return out
+}
+
+// unionComponent merges b into a, returning the classification fields b filled.
+func unionComponent(a, b Component) (Component, []string) {
+	var filled []string
+	if a.Exposure == "" && b.Exposure != "" {
+		a.Exposure = b.Exposure
+		filled = append(filled, "exposure")
+	}
+	if a.Criticality == "" && b.Criticality != "" {
+		a.Criticality = b.Criticality
+		filled = append(filled, "criticality")
+	}
+	if a.BuiltBy == "" && b.BuiltBy != "" {
+		a.BuiltBy = b.BuiltBy
+		filled = append(filled, "builtBy")
+	}
+	for _, k := range slices.Sorted(maps.Keys(b.Labels)) {
+		if _, set := a.Labels[k]; set {
+			continue
+		}
+		if a.Labels == nil {
+			a.Labels = map[string]string{}
+		}
+		a.Labels[k] = b.Labels[k]
+		filled = append(filled, "labels."+k)
+	}
 	a.Repositories = unionRepositories(a.Repositories, b.Repositories)
 	a.Images = unionImages(a.Images, b.Images)
 	a.Hosts = unionHosts(a.Hosts, b.Hosts)
 	a.Kubernetes = unionClusters(a.Kubernetes, b.Kubernetes)
 	a.Cloud = unionAccounts(a.Cloud, b.Cloud)
 	a.VEX = unionVEX(a.VEX, b.VEX)
-	return a
+	return a, filled
 }
 
 // unionVEX keeps every supplier claim source both descriptions named.
