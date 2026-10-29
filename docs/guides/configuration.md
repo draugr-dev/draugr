@@ -109,7 +109,7 @@ file, the key and the nearest valid name:
 
 ```console
 $ draugr config set controllers.sats.semgrep.config x
-draugr: that edit would produce a file Draugr cannot load, so nothing was written:
+draugr: that edit would add a problem to the file, so nothing was written:
   controllers: "sats" is not a control this build of Draugr provides, did you mean "sast"?
 
 run `draugr controls` to see what this build provides

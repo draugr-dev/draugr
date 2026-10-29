@@ -418,6 +418,12 @@ func editConfig(w io.Writer, global bool, apply func([]byte) ([]byte, error)) er
 	}
 	// Which file, always. With two possible destinations, a silent success is a guess.
 	_, _ = fmt.Fprintf(w, "wrote %s\n", shortHome(path))
+	// An edit to a file that already had problems is accepted when it adds none, and the ones left
+	// are said, or `wrote` reads as a file that now loads.
+	if n := remainingProblems(path); n > 0 {
+		_, _ = fmt.Fprintf(w, "%s still has %s; `draugr config validate` lists them\n",
+			shortHome(path), english.Count(n, "problem"))
+	}
 	return nil
 }
 
@@ -433,19 +439,56 @@ func editConfigAt(path string, apply func([]byte) ([]byte, error)) error {
 	if err != nil {
 		return err
 	}
-	if _, err := parseConfig(builtins.Registry(), path, out); err != nil {
-		msg := "that edit would produce a file Draugr cannot load, so nothing was written:\n" +
-			problemLines(err)
-		if h := problemHint(err); h != "" {
-			msg += "\n\n" + h
+	// Refused only for a problem the edit adds. A file that already has two is then mended one
+	// `unset` at a time, rather than locked until somebody edits it by hand.
+	reg := builtins.Registry()
+	if _, after := parseConfig(reg, path, out); after != nil {
+		_, before := parseConfig(reg, path, doc)
+		if added := addedProblems(before, after); len(added) > 0 {
+			msg := "that edit would add a problem to the file, so nothing was written:\n  " +
+				strings.Join(added, "\n  ")
+			if h := problemHint(after); h != "" {
+				msg += "\n\n" + h
+			}
+			return errors.New(msg)
 		}
-		return errors.New(msg)
 	}
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return err
 	}
 	return os.WriteFile(path, out, 0o600)
+}
+
+// addedProblems lists the problems after reports that before does not. An error that is not a
+// *config.Problems is one problem of its own.
+func addedProblems(before, after error) []string {
+	var b, a *config.Problems
+	if !errors.As(after, &a) {
+		return []string{after.Error()}
+	}
+	had := map[string]bool{}
+	if errors.As(before, &b) {
+		for _, p := range b.List {
+			had[p] = true
+		}
+	}
+	var out []string
+	for _, p := range a.List {
+		if !had[p] {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// remainingProblems counts what is still wrong with the file at path after an edit was accepted.
+func remainingProblems(path string) int {
+	var p *config.Problems
+	if errors.As(validateConfigFile(builtins.Registry(), path), &p) {
+		return len(p.List)
+	}
+	return 0
 }
 
 func newConfigInitCommand() *cobra.Command {

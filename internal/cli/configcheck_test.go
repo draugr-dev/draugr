@@ -281,3 +281,70 @@ func TestProblemLinesAndHintForAnotherKindOfError(t *testing.T) {
 		t.Errorf("problemHint = %q, want none", got)
 	}
 }
+
+// A file with two mistakes is mended one `unset` at a time: each edit adds no problem, so each is
+// written, and `set` says how many are left until none are.
+func TestConfigUnsetMendsABrokenFileOneKeyAtATime(t *testing.T) {
+	configHome(t, "")
+	dir := t.TempDir()
+	path := filepath.Join(dir, config.FileName)
+	if err := os.WriteFile(path, []byte("controllers:\n  sats: {}\ntools:\n  trivvy:\n    version: \"1\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runConfig(t, dir, "unset", "controllers.sats")
+	if err != nil {
+		t.Fatalf("an edit that adds no problem was refused: %v", err)
+	}
+	if !strings.Contains(out, "still has 1 problem; `draugr config validate` lists them") {
+		t.Errorf("the problem left was not said:\n%s", out)
+	}
+	// An edit that neither adds nor removes one is written too.
+	if _, err := runConfig(t, dir, "set", "output.view", "actions"); err != nil {
+		t.Fatalf("an edit beside an existing problem was refused: %v", err)
+	}
+
+	out, err = runConfig(t, dir, "unset", "tools.trivvy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, "still has") {
+		t.Errorf("a file with no problems left was reported as having some:\n%s", out)
+	}
+	if out, err := runConfig(t, dir, "validate"); err != nil {
+		t.Errorf("the mended file does not validate: %v\n%s", err, out)
+	}
+}
+
+// An edit that adds a problem is refused even when the file had one already, and the refusal names
+// only the problem the edit would add.
+func TestConfigSetRefusesAnEditThatAddsAProblem(t *testing.T) {
+	configHome(t, "")
+	dir := t.TempDir()
+	path := filepath.Join(dir, config.FileName)
+	before := []byte("tools:\n  trivvy:\n    version: \"1\"\n")
+	if err := os.WriteFile(path, before, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := runConfig(t, dir, "set", "output.view", "banana")
+	if err == nil {
+		t.Fatal("an edit that adds a problem was written")
+	}
+	if !strings.Contains(err.Error(), "that edit would add a problem to the file, so nothing was written:\n  "+
+		`output.view: "banana" is not findings, actions or compact`) {
+		t.Errorf("the added problem is not named: %v", err)
+	}
+	if strings.Contains(err.Error(), "trivvy") {
+		t.Errorf("the refusal named a problem the file already had: %v", err)
+	}
+	if got, _ := os.ReadFile(path); string(got) != string(before) { // #nosec G304 -- this test's own temp file
+		t.Errorf("the file changed despite the refusal:\n%s", got)
+	}
+}
+
+func TestAddedProblemsTreatsAnotherErrorAsNew(t *testing.T) {
+	if got := addedProblems(nil, errors.New("boom")); len(got) != 1 || got[0] != "boom" {
+		t.Errorf("got %q", got)
+	}
+}

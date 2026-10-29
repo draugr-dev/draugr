@@ -1965,9 +1965,11 @@ draugr config validate          # every problem in every file, by key
 draugr config init --force      # discard the file and start again from the built-in defaults
 ```
 
-`set` and `unset` cannot break a file: they edit the parsed document, **so comments survive**, and
-hold the result to the same checks before saving. The document is re-indented as it is written.
-Draugr does not repair a file it cannot parse.
+`set` and `unset` cannot break a file. They edit the parsed document, **so comments survive**, and
+refuse an edit whose result has a problem the file did not have, naming that problem. An edit to a
+file that already has problems is written when it adds none, and `set` and `unset` then say how
+many are left, so a file with several is mended one key at a time. The document is re-indented as it
+is written. Draugr does not repair a file it cannot parse.
 
 ### Secrets
 
