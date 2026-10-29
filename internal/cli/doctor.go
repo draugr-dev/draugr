@@ -274,10 +274,18 @@ func runDoctor(
 	} else {
 		if sagaPath != "" {
 			col := tui.For(w)
-			_, _ = fmt.Fprintf(w, "Descriptor  %s %s\n\n",
+			_, _ = fmt.Fprintf(w, "Descriptor  %s %s\n",
 				col.Paint(tui.StylePass, "✓ valid"), col.Paint(tui.StyleMuted, "("+sagaPath+")"))
+			// The TOOLS heading has no blank line of its own above it; every later section does.
+			if len(statuses) > 0 {
+				_, _ = fmt.Fprintln(w)
+			}
 		}
-		writeDoctorTable(w, statuses)
+		// No heading over an empty table. "No external tools required." closes the report and says
+		// it, and a bare header row above it reads as a list that failed to print.
+		if len(statuses) > 0 {
+			writeDoctorTable(w, statuses)
+		}
 		writeDoctorData(w, data)
 		if len(checks) > 0 {
 			writeTargetChecks(w, checks)
@@ -306,8 +314,8 @@ func runDoctor(
 			return nil
 		}
 		if n := untestedCount(statuses); n > 0 {
-			return fmt.Errorf("%s not the version Draugr tests; run `draugr tools install --force`, "+
-				"or drop --strict to accept them", english.Count(n, "tool")+" "+english.Choose(n, "is", "are"))
+			return fmt.Errorf("%s; run `draugr tools install --force`, or drop --strict to accept %s",
+				untestedPhrase(n), english.Choose(n, "it", "them"))
 		}
 		return nil
 	}
@@ -649,8 +657,16 @@ func writeDoctorTable(w io.Writer, statuses []tools.Status) {
 	// fourteen times.
 	if n := untestedCount(statuses); n > 0 {
 		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(tui.StyleAccent, fmt.Sprintf(
-			"%s not the version Draugr tests. `draugr tools install --force` installs the tested build.", english.Count(n, "tool")+" "+english.Choose(n, "is", "are"))))
+			"%s. `draugr tools install --force` installs the tested build.", untestedPhrase(n))))
 	}
+}
+
+// untestedPhrase counts the found tools running another version than the pinned one. "Installed"
+// keeps the count apart from the count of tools that are not installed, which an inventory prints
+// beside it.
+func untestedPhrase(n int) string {
+	return english.Count(n, "installed tool") + " " + english.Choose(n, "is", "are") +
+		" not the version Draugr tests"
 }
 
 // untestedCount is how many found tools are running something other than the pinned version.

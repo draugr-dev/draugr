@@ -49,7 +49,7 @@ func newToolsOutdatedCommand() *cobra.Command {
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if netpolicy.Offline() {
-				return netpolicy.Refuse("draugr tools outdated",
+				return netpolicy.Refuse("tools outdated",
 					"the release listings each tool publishes")
 			}
 			return runToolsOutdated(cmd.Context(), cmd.OutOrStdout(), asJSON, nil)
@@ -197,7 +197,7 @@ func newToolsInstallCommand() *cobra.Command {
 				if len(wanted) == 0 {
 					return nil
 				}
-				return netpolicy.Refuse("draugr tools install",
+				return netpolicy.Refuse("tools install",
 					"the pinned release archive for: "+strings.Join(wanted, ", "))
 			}
 			return runToolsInstall(cmd.OutOrStdout(), cmd.InOrStdin(), names, all, *opts, install)
@@ -361,11 +361,10 @@ func checkInstallable(names []string) error {
 		}
 	}
 	if len(external) > 0 {
+		them := english.Choose(len(external), "it", "them")
 		return fmt.Errorf("cannot install %s: Draugr runs %s and does not provision %s. "+
-			"`draugr doctor` names where %s from\ninstallable: %s",
-			strings.Join(quoteAll(external), ", "), english.Choose(len(external), "it", "them"),
-			english.Choose(len(external), "it", "them"), english.Choose(len(external), "it comes", "they come"),
-			strings.Join(known, ", "))
+			"Run `draugr doctor` to see where to get %s\ninstallable: %s",
+			strings.Join(quoteAll(external), ", "), them, them, them, strings.Join(known, ", "))
 	}
 	if len(unknown) == 0 {
 		return nil

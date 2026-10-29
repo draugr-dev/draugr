@@ -367,6 +367,25 @@ func TestDoctorCommandViaCobra(t *testing.T) {
 	}
 }
 
+// With no tool required there is no TOOLS heading or header row, only the line that says so.
+func TestDoctorPrintsNoToolsTableWhenNothingIsRequired(t *testing.T) {
+	var out bytes.Buffer
+	if err := runDoctor(context.Background(), &out, builtins.Registry(), writeSaga(t, doctorSagaNoControls),
+		doctorRun{}, fakeDetect(), nil); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	if strings.Contains(got, "TOOLS") || strings.Contains(got, "Status") {
+		t.Errorf("an empty tool table was printed:\n%s", got)
+	}
+	if !strings.Contains(got, "No external tools required.") {
+		t.Errorf("the closing line is missing:\n%s", got)
+	}
+	if strings.Contains(got, "\n\n\n") {
+		t.Errorf("two blank lines where the table was:\n%q", got)
+	}
+}
+
 // `doctor --offline` is the root flag, and it sets the network policy every fetch reads. A flag of
 // doctor's own would shadow it, so doctor would skip its own checks while every fetch it reached
 // still read the policy as online.
@@ -964,8 +983,11 @@ func TestTheTableNamesTheTestedVersionAndCountsThemOnce(t *testing.T) {
 	if !strings.Contains(out, "tested against "+pinned) {
 		t.Errorf("the row does not name the version Draugr tests:\n%s", out)
 	}
-	if !strings.Contains(out, "1 tool is not the version Draugr tests") {
+	if !strings.Contains(out, "1 installed tool is not the version Draugr tests") {
 		t.Errorf("the count is missing or does not agree with itself:\n%s", out)
+	}
+	if got := untestedPhrase(4); got != "4 installed tools are not the version Draugr tests" {
+		t.Errorf("plural = %q", got)
 	}
 	if !strings.Contains(out, "tools install --force") {
 		t.Errorf("the line says there is a problem and not what closes it:\n%s", out)

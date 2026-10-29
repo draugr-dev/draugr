@@ -1301,7 +1301,7 @@ TOOLS
 Tool         Status     Version  Notes
 …
 trivy        ✓ found    0.69.3   /usr/bin/trivy · tested against 0.74.0
-4 tools are not the version Draugr tests. `draugr tools install --force` installs the tested build.
+4 installed tools are not the version Draugr tests. `draugr tools install --force` installs the tested build.
 ```
 
 The line is a note, not a failure, unless `--strict` is given. An older scanner can find fewer
@@ -1447,15 +1447,15 @@ The list is **reported, not failed**, unless `--fail-on-uncovered` is passed or
 | `--fail-on-uncovered` | `false` | Exit non-zero when the descriptor declares a surface no enabled control looks at. Also the behavior when [`config.gate.failOnCaveats`](saga-schema.md#configgate) lists `not-checked` |
 | `--strict` | `false` | Exit non-zero when a tool is not the version Draugr tests, with or without a descriptor. With one, a missing tool's message comes first |
 | `--policy` | `false` | Ask the `draugr-api` server for the organization's policy, sending the token. Exit non-zero when it could not be checked, as well as when a scan would be refused or fail by it |
-| `--offline` | `false` | The global flag. Doctor makes no network call, so it skips the check for a newer draugr release, the policy check, any remote fragment and every target check that needs the network, and `NETWORK` says none of its hosts will be contacted. `DRAUGR_NO_UPDATE_CHECK=1` skips only the release check |
+| `--offline` | `false` | Make no network call: skips the release check, the policy check, remote fragments and every target check that needs the network. `DRAUGR_NO_UPDATE_CHECK=1` skips only the release check |
 | `--components` | - | Check only the targets of these components |
 | `--controls` | - | Check only the targets these controls would read |
 | `--labels`, `--exposure`, `--criticality` | - | Select components as [`draugr scan`](#draugr-scan-sagayaml--dir) does |
 
 The JSON's top-level fields are `draugr`, `descriptor`, `tools`, `missing`, `targets`, `policy`,
 `data` and `uncoveredSurfaces`. `missing` counts each required tool that is absent or has no data,
-the count the exit code is decided on. An optional tool that is absent is listed and not counted. A tool with no
-data carries the hint for getting it.
+the count the exit code is decided on. An optional tool that is absent is listed and not counted.
+A tool with no data carries the hint for getting it.
 
 ```bash
 draugr doctor                       # inventory: what Draugr can use, and what you have
@@ -1647,15 +1647,14 @@ The plan's `Verify` column says which you are getting before anything is downloa
 | `sha256 + cosign` | the same, and the upstream's cosign signature over its checksums file, when `cosign` is installed |
 | `upstream cosign` | another version, against checksums the upstream signed, when `cosign` is installed |
 | `upstream sha256` | another version, against checksums the upstream published |
-| `unverified` | another version, with nothing published to check it against; or `semgrep` or `retire` at a version other than the pinned one |
+| `unverified` | another version, with nothing published to check it against; or `semgrep` or `retire` at a version other than the pinned one. Omit `--version` to install the pinned build, which is checked |
 | `sha256 (+deps)`, `sha512 (+deps)` | `semgrep` and `retire` at the pinned version, with every dependency checked against digests recorded in Draugr |
 | `checksum db (+deps)` | `govulncheck` at any version, with every module checked against the Go checksum database |
 | `-` | nothing to install: the tool is already current, or Draugr cannot provision it |
 
-Each installed tool's line names the check it passed in the same words, followed by `verified`, or
-reads `unverified`. Where the check was weaker than the plan's, a note after `;` says why, such as
-`cosign` being absent, the upstream checksums being unreachable, or the pinned set failing to
-install so that the package was resolved unchecked.
+Each installed tool's line repeats the check, as in `sha256 + cosign verified`. A weaker check adds
+a note after `;` saying why, for example `sha256 verified; cosign not installed, skipped signature
+check`. A line reading `unverified` means nothing was checked.
 
 **`--saga` installs what a descriptor needs**, resolved the same way
 [`draugr doctor`](#draugr-doctor-sagayaml) decides what to check: the enabled controls, and the

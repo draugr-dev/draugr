@@ -75,14 +75,16 @@ func Refuse(action, url string) error {
 
 // RefusedError reports that an operation needing the network was declined.
 type RefusedError struct {
-	// Action is what was being attempted, in the user's terms.
+	// Action is what was being attempted, in the user's terms: a command without the leading
+	// "draugr", which the CLI already prints before every error, or a phrase such as "the threats
+	// control".
 	Action string
 	// URL is what would have been fetched. Empty when there is no single one.
 	URL string
 }
 
 func (e *RefusedError) Error() string {
-	msg := e.Action + " needs the network, and " + EnvVar + "/--offline is set"
+	msg := e.Action + " needs the network; --offline or " + EnvVar + " is set"
 	if e.URL != "" {
 		msg += "\n\nit would have fetched " + e.URL
 	}

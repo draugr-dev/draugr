@@ -760,8 +760,15 @@ func TestToolsInstallRefusesAToolItDoesNotProvision(t *testing.T) {
 	var out bytes.Buffer
 	err := runToolsInstall(&out, nil, []string{"kubectl"}, false, toolsInstallOptions{dryRun: true},
 		func(string) (tools.Installed, error) { return tools.Installed{}, nil })
-	if err == nil || !strings.Contains(err.Error(), `"kubectl"`) || !strings.Contains(err.Error(), "does not provision") {
-		t.Errorf("err = %v, want a refusal naming kubectl", err)
+	want := "cannot install \"kubectl\": Draugr runs it and does not provision it. " +
+		"Run `draugr doctor` to see where to get it\ninstallable: "
+	if err == nil || !strings.HasPrefix(err.Error(), want) {
+		t.Errorf("err = %v, want a refusal starting %q", err, want)
+	}
+	err = checkInstallable([]string{"kubectl", "git"})
+	if err == nil || !strings.Contains(err.Error(), "Draugr runs them and does not provision them. "+
+		"Run `draugr doctor` to see where to get them") {
+		t.Errorf("err = %v, want the plural", err)
 	}
 	if strings.Contains(out.String(), "already current") {
 		t.Errorf("kubectl was planned:\n%s", out.String())

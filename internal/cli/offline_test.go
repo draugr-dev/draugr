@@ -55,10 +55,14 @@ func TestToolsInstallRefusesOfflineAndNamesTheTools(t *testing.T) {
 	if err == nil {
 		t.Fatal("installed while offline")
 	}
-	for _, want := range []string{"trivy", "gitleaks", "draugr tools install"} {
+	for _, want := range []string{"trivy", "gitleaks", "tools install needs the network"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error does not mention %q: %v", want, err)
 		}
+	}
+	// The CLI prints "draugr: " before the error, so the error does not name draugr again.
+	if strings.HasPrefix(err.Error(), "draugr ") {
+		t.Errorf("the error repeats the program name the CLI already prints: %v", err)
 	}
 }
 
