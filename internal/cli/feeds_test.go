@@ -76,14 +76,14 @@ func TestFeedsStatus(t *testing.T) {
 	now := time.Now()
 
 	var buf bytes.Buffer
-	feedsStatus(&buf, dir, now)
+	feedsStatus(&buf, dir, now, defaultFeedLimit())
 	if !strings.Contains(buf.String(), "Nothing cached") {
 		t.Errorf("an empty cache should say so plainly:\n%s", buf.String())
 	}
 
 	seed(t, dir, feeds.KEV, kevJSON, 2*time.Hour)
 	buf.Reset()
-	feedsStatus(&buf, dir, now)
+	feedsStatus(&buf, dir, now, defaultFeedLimit())
 	got := buf.String()
 	if !strings.Contains(got, "2 hours") || !strings.Contains(got, "sha256:") {
 		t.Errorf("missing age or digest:\n%s", got)
@@ -97,7 +97,7 @@ func TestFeedsStatus(t *testing.T) {
 
 	seed(t, dir, feeds.EPSS, "cve,epss\n", 50*time.Hour)
 	buf.Reset()
-	feedsStatus(&buf, dir, now)
+	feedsStatus(&buf, dir, now, defaultFeedLimit())
 	if got := buf.String(); !strings.Contains(got, "(stale)") {
 		t.Errorf("a two-day-old feed is stale:\n%s", got)
 	}
@@ -106,7 +106,7 @@ func TestFeedsStatus(t *testing.T) {
 	// of promising the report will merely be marked stale.
 	seed(t, dir, feeds.GoVulnDB, "", 50*time.Hour)
 	buf.Reset()
-	feedsStatus(&buf, dir, now)
+	feedsStatus(&buf, dir, now, defaultFeedLimit())
 	got = buf.String()
 	if !strings.Contains(got, "govulndb older than") || !strings.Contains(got, "A scan does not read it") {
 		t.Errorf("a stale Go database should be named as unread:\n%s", got)
@@ -142,7 +142,7 @@ func TestUpdateFeeds(t *testing.T) {
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 
-	if err := updateFeeds(cmd, dir, feeds.Names(), false); err != nil {
+	if err := updateFeeds(cmd, dir, feeds.Names(), false, defaultFeedLimit()); err != nil {
 		t.Fatal(err)
 	}
 	if *calls != len(feeds.Names()) {
@@ -156,7 +156,7 @@ func TestUpdateFeeds(t *testing.T) {
 	// command twice is the behavior that makes people stop running it.
 	buf.Reset()
 	before := *calls
-	if err := updateFeeds(cmd, dir, feeds.Names(), false); err != nil {
+	if err := updateFeeds(cmd, dir, feeds.Names(), false, defaultFeedLimit()); err != nil {
 		t.Fatal(err)
 	}
 	if *calls != before {
@@ -167,7 +167,7 @@ func TestUpdateFeeds(t *testing.T) {
 	}
 
 	// --force overrides that.
-	if err := updateFeeds(cmd, dir, feeds.Names(), true); err != nil {
+	if err := updateFeeds(cmd, dir, feeds.Names(), true, defaultFeedLimit()); err != nil {
 		t.Fatal(err)
 	}
 	if *calls != before+len(feeds.Names()) {
@@ -181,7 +181,7 @@ func TestUpdateFeedsStopsAtTheFirstFailure(t *testing.T) {
 
 	cmd := newFeedsCommand()
 	cmd.SetOut(io.Discard)
-	err := updateFeeds(cmd, dir, feeds.Names(), false)
+	err := updateFeeds(cmd, dir, feeds.Names(), false, defaultFeedLimit())
 	if err == nil {
 		t.Fatal("a failed fetch was reported as success")
 	}
@@ -295,7 +295,7 @@ func TestUpdateFeedsKeepsTheCachedCopyWhenAFetchFails(t *testing.T) {
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 
-	if err := updateFeeds(cmd, dir, feeds.Names(), false); err != nil {
+	if err := updateFeeds(cmd, dir, feeds.Names(), false, defaultFeedLimit()); err != nil {
 		t.Fatalf("a cached copy should survive a failed fetch: %v", err)
 	}
 	got := buf.String()
@@ -324,7 +324,7 @@ func TestUpdateFeedsStillFailsWithAnEmptyCache(t *testing.T) {
 
 	cmd := newFeedsCommand()
 	cmd.SetOut(io.Discard)
-	if err := updateFeeds(cmd, dir, feeds.Names(), false); err == nil {
+	if err := updateFeeds(cmd, dir, feeds.Names(), false, defaultFeedLimit()); err == nil {
 		t.Fatal("a failed fetch with no cache was reported as success")
 	}
 }
@@ -364,5 +364,203 @@ func TestExploitSettingsThresholdNamesWhatSetIt(t *testing.T) {
 				t.Errorf("thresholdFrom = %q, want %q", got.ThresholdFrom, tc.want)
 			}
 		})
+	}
+}
+
+// sagaWithMaxAge is a descriptor whose config.exploitability.maxAge is the given duration.
+func sagaWithMaxAge(maxAge string) string {
+	return `
+project: app
+release:
+  version: "1.0"
+config:
+  exploitability:
+    epss: auto
+    maxAge: ` + maxAge + `
+components:
+  - name: c
+    images:
+      - image: repo/x:1
+`
+}
+
+// The status and the update read the limit a scan of the same descriptor reads. A week-long
+// maxAge makes a two-day-old copy current for `auto`, so the status must not mark it stale and
+// the update must not refetch it.
+func TestFeedsHonorTheDescriptorsMaxAge(t *testing.T) {
+	dir := cacheHome(t)
+	for _, n := range feeds.Names() {
+		seed(t, dir, n, kevJSON, 50*time.Hour)
+	}
+	path := writeSaga(t, sagaWithMaxAge("168h"))
+
+	limit, err := resolveFeedLimit(path, "feeds status --saga")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if limit.maxAge != 168*time.Hour {
+		t.Fatalf("maxAge = %v, want the descriptor's 168h", limit.maxAge)
+	}
+
+	var buf bytes.Buffer
+	feedsStatus(&buf, dir, time.Now(), limit)
+	got := buf.String()
+	if strings.Contains(got, "stale)") || strings.Contains(got, "older than") {
+		t.Errorf("a two-day-old copy is current under a 168h maxAge:\n%s", got)
+	}
+	if want := "Stale after 168h · config.exploitability.maxAge in " + path; !strings.Contains(got, want) {
+		t.Errorf("the status should name the limit and the file it came from, want %q:\n%s", want, got)
+	}
+
+	calls := stubFetch(t, kevJSON, nil)
+	cmd := newFeedsCommand()
+	buf.Reset()
+	cmd.SetOut(&buf)
+	if err := updateFeeds(cmd, dir, feeds.Names(), false, limit); err != nil {
+		t.Fatal(err)
+	}
+	if *calls != 0 {
+		t.Errorf("refetched %d feeds the descriptor's maxAge calls current", *calls)
+	}
+	if !strings.Contains(buf.String(), "current (2 days old)") || !strings.Contains(buf.String(), "Stale after 168h") {
+		t.Errorf("the update should say each copy is current and under which limit:\n%s", buf.String())
+	}
+
+	// The same cache is stale under the default limit, and is fetched.
+	if err := updateFeeds(cmd, dir, feeds.Names(), false, defaultFeedLimit()); err != nil {
+		t.Fatal(err)
+	}
+	if *calls != len(feeds.Names()) {
+		t.Errorf("fetched %d feeds under the default limit, want %d", *calls, len(feeds.Names()))
+	}
+}
+
+// A shorter maxAge marks a copy stale that the default would call current, and the stale lines
+// state that limit rather than the default's day.
+func TestFeedsStatusShorterMaxAge(t *testing.T) {
+	dir := cacheHome(t)
+	seed(t, dir, feeds.EPSS, "cve,epss\n", 3*time.Hour)
+	seed(t, dir, feeds.GoVulnDB, "", 3*time.Hour)
+	limit, err := resolveFeedLimit(writeSaga(t, sagaWithMaxAge("2h")), "feeds status --saga")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	feedsStatus(&buf, dir, time.Now(), limit)
+	got := buf.String()
+	for _, want := range []string{"3 hours (stale)", "epss older than 2 hours", "govulndb older than 2 hours"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q:\n%s", want, got)
+		}
+	}
+}
+
+// Zero is how a pinned runner says a copy never goes stale, and the line says that rather than
+// "stale after 0s".
+func TestFeedsMaxAgeZeroIsNeverStale(t *testing.T) {
+	dir := cacheHome(t)
+	seed(t, dir, feeds.KEV, kevJSON, 90*24*time.Hour)
+	path := writeSaga(t, sagaWithMaxAge("0s"))
+	limit, err := resolveFeedLimit(path, "feeds status --saga")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	feedsStatus(&buf, dir, time.Now(), limit)
+	got := buf.String()
+	if strings.Contains(got, "(stale)") {
+		t.Errorf("a 0s maxAge is never stale:\n%s", got)
+	}
+	if want := "Never stale · config.exploitability.maxAge 0s in " + path; !strings.Contains(got, want) {
+		t.Errorf("want %q:\n%s", want, got)
+	}
+}
+
+func TestResolveFeedLimit(t *testing.T) {
+	t.Run("no descriptor here is the default, unannounced", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+		limit, err := resolveFeedLimit("", "feeds status --saga")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if limit != defaultFeedLimit() || limit.maxAge != feeds.DefaultMaxAge || limit.line() != "" {
+			t.Errorf("limit = %+v, want the default with no line", limit)
+		}
+	})
+	t.Run("the descriptor here is read without --saga", func(t *testing.T) {
+		dir := t.TempDir()
+		writeSagaAt(t, dir, "draugr.saga.yaml", sagaWithMaxAge("72h"))
+		t.Chdir(dir)
+		limit, err := resolveFeedLimit("", "feeds status --saga")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if limit.maxAge != 72*time.Hour || limit.path != "draugr.saga.yaml" {
+			t.Errorf("limit = %+v, want 72h from draugr.saga.yaml", limit)
+		}
+	})
+	t.Run("a descriptor without maxAge is the default, unannounced", func(t *testing.T) {
+		limit, err := resolveFeedLimit(writeSaga(t, sagaWithImage), "feeds status --saga")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if limit != defaultFeedLimit() {
+			t.Errorf("limit = %+v, want the default", limit)
+		}
+	})
+	t.Run("--saga naming a directory with no descriptor is refused", func(t *testing.T) {
+		dir := t.TempDir()
+		_, err := resolveFeedLimit(dir, "feeds status --saga")
+		if err == nil || !strings.Contains(err.Error(), "--saga: no *.saga.yaml in "+dir) {
+			t.Errorf("err = %v, want a refusal naming the directory", err)
+		}
+	})
+	t.Run("an invalid descriptor is refused", func(t *testing.T) {
+		if _, err := resolveFeedLimit(writeSaga(t, sagaWithMaxAge("a week")), "feeds status --saga"); err == nil {
+			t.Error("an unparseable maxAge was accepted")
+		}
+	})
+	t.Run("a missing --saga file is refused", func(t *testing.T) {
+		if _, err := resolveFeedLimit(filepath.Join(t.TempDir(), "nope.saga.yaml"), "feeds status --saga"); err == nil {
+			t.Error("a missing descriptor was accepted")
+		}
+	})
+}
+
+// The commands themselves, so the flag is proven to reach the limit rather than only the
+// function the flag is meant to call.
+func TestFeedsCommandsReadSaga(t *testing.T) {
+	dir := cacheHome(t)
+	for _, n := range feeds.Names() {
+		seed(t, dir, n, kevJSON, 50*time.Hour)
+	}
+	path := writeSaga(t, sagaWithMaxAge("168h"))
+	calls := stubFetch(t, kevJSON, nil)
+
+	for _, args := range [][]string{{"status", "--saga", path}, {"update", "--saga", path}} {
+		cmd := newFeedsCommand()
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetErr(io.Discard)
+		cmd.SetArgs(args)
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+		if !strings.Contains(buf.String(), "Stale after 168h") {
+			t.Errorf("%v did not apply the descriptor's limit:\n%s", args, buf.String())
+		}
+	}
+	if *calls != 0 {
+		t.Errorf("update refetched %d current feeds", *calls)
+	}
+
+	for _, sub := range []string{"status", "update"} {
+		cmd := newFeedsCommand()
+		cmd.SetOut(io.Discard)
+		cmd.SetErr(io.Discard)
+		cmd.SetArgs([]string{sub, "--saga", t.TempDir()})
+		if err := cmd.Execute(); err == nil {
+			t.Errorf("feeds %s accepted a --saga with no descriptor", sub)
+		}
 	}
 }

@@ -1784,8 +1784,8 @@ fetches a feed only when `--kev` or `--epss` (or `config.exploitability`) says `
 
 ### `draugr feeds update [kev|epss|govulndb]`
 
-Download the feeds into `~/.draugr/feeds`, every feed when none is named. A copy less than a day
-old is left alone unless `--force` is given. Refused under `--offline`.
+Download the feeds into `~/.draugr/feeds`, every feed when none is named. A copy younger than the
+[limit](#staleness) is left alone unless `--force` is given. Refused under `--offline`.
 
 Each feed gets a line saying it is `current (<age> old)`, or `fetching <url>…` followed by the path
 and size written. A fetch that fails with a copy already cached keeps that copy, says so and exits
@@ -1794,6 +1794,7 @@ and size written. A fetch that fails with a copy already cached keeps that copy,
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--force` | `false` | Fetch even if the cached copy is current |
+| `--saga` | the descriptor in the current directory | Read `config.exploitability.maxAge` from this descriptor |
 
 ```bash
 draugr feeds update            # every feed
@@ -1827,11 +1828,29 @@ SOURCES  (cached in /home/you/.draugr/feeds)
 epss older than 24 hours. A scan uses it and marks the report stale. Refresh with `draugr feeds update`.
 ```
 
-A copy is `(stale)` here when it is more than a day old. A stale KEV or EPSS copy does not fail a
-scan: it ranks findings on older data, and the report names the age. A stale `govulndb` copy is not
-read at all; govulncheck queries `vuln.go.dev` instead, and with `--offline` the control reports an
-error. In a scan, `config.exploitability.maxAge` sets the limit for both, while `feeds status` and
-`feeds update` always use a day.
+A copy is `(stale)` here when it is older than the [limit](#staleness). A stale KEV or EPSS copy
+does not fail a scan: it ranks findings on older data, and the report names the age. A stale
+`govulndb` copy is not read at all; govulncheck queries `vuln.go.dev` instead, and with `--offline`
+the control reports an error.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--saga` | the descriptor in the current directory | Read `config.exploitability.maxAge` from this descriptor |
+
+### Staleness
+
+`feeds status`, `feeds update` and a scan's `auto` share one limit:
+[`config.exploitability.maxAge`](saga-schema.md#configexploitability) in the descriptor `--saga`
+names, or else in the descriptor in the current directory, the one `draugr scan` reads there. With
+neither, or with a descriptor that does not set it, the limit is 24 hours. A limit set by a
+descriptor is printed with the file it came from:
+
+```
+Stale after 168h · config.exploitability.maxAge in draugr.saga.yaml
+```
+
+`maxAge: 0s` means a copy is never stale, and the line says `Never stale`. A `--saga` that names
+no descriptor, or a descriptor that does not load, is an error.
 
 ### Using the cache in a scan
 

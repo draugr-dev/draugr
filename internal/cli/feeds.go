@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/draugr-dev/draugr/internal/exploitdata"
 	"github.com/draugr-dev/draugr/internal/feeds"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 
@@ -36,12 +37,15 @@ func newFeedsCommand() *cobra.Command {
 
 func newFeedsUpdateCommand() *cobra.Command {
 	var force bool
+	var sagaPath string
 	cmd := &cobra.Command{
 		Use:   "update [kev|epss|govulndb]",
 		Short: "Fetch the datasets into ~/.draugr/feeds",
 		Long: "Download CISA's KEV catalog, FIRST's EPSS scores and the Go vulnerability database\n" +
 			"into ~/.draugr/feeds, where a scan reads them without touching the network. With no\n" +
 			"arguments, fetches all three.\n\n" +
+			"A cached copy is current until it is older than config.exploitability.maxAge, read\n" +
+			"from the descriptor --saga names or else the one in the current directory (default 24h).\n\n" +
 			"In CI, run it as its own step so a feed outage surfaces there rather than during a scan.\n" +
 			"A fetch that fails keeps the cached copy and says how old it is; with nothing cached\n" +
 			"there is no answer to keep, and it fails.",
@@ -55,10 +59,16 @@ func newFeedsUpdateCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return updateFeeds(cmd, dir, names, force)
+			limit, err := resolveFeedLimit(sagaPath, "feeds update --saga")
+			if err != nil {
+				return err
+			}
+			return updateFeeds(cmd, dir, names, force, limit)
 		},
 	}
 	cmd.Flags().BoolVar(&force, "force", false, "fetch even if the cached copy is current")
+	cmd.Flags().StringVar(&sagaPath, "saga", "",
+		"read config.exploitability.maxAge from this descriptor (default: the one in the current directory)")
 	return cmd
 }
 
@@ -73,7 +83,7 @@ func newFeedsUpdateCommand() *cobra.Command {
 // so a scan cannot rank everything as though nothing were exploited; a cached catalog does not
 // do that. It ranks on data of a known age, the report says how old, and blocking a pipeline on
 // somebody else's outage buys nothing when the answer is already here.
-func updateFeeds(cmd *cobra.Command, dir string, names []feeds.Name, force bool) error {
+func updateFeeds(cmd *cobra.Command, dir string, names []feeds.Name, force bool, limit feedLimit) error {
 	out := cmd.OutOrStdout()
 	cached := feeds.Load(dir)
 	now := time.Now()
@@ -87,8 +97,11 @@ func updateFeeds(cmd *cobra.Command, dir string, names []feeds.Name, force bool)
 		return netpolicy.Refuse("feeds update", strings.Join(urls, "\n                        "))
 	}
 
+	if line := limit.line(); line != "" {
+		_, _ = fmt.Fprintln(out, line)
+	}
 	for _, n := range names {
-		if rec, ok := cached[n]; ok && !force && !rec.Stale(now, feeds.DefaultMaxAge) {
+		if rec, ok := cached[n]; ok && !force && !rec.Stale(now, limit.maxAge) {
 			_, _ = fmt.Fprintf(out, "%-8s current (%s old) · --force to fetch anyway\n", n, feeds.HumanAge(rec.Age(now)))
 			continue
 		}
@@ -117,29 +130,97 @@ func updateFeeds(cmd *cobra.Command, dir string, names []feeds.Name, force bool)
 }
 
 func newFeedsStatusCommand() *cobra.Command {
+	var sagaPath string
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show what is cached, how old it is, and where it came from",
 		Long: "List the cached datasets with their age, size, source and digest.\n\n" +
 			"EPSS is republished daily. A stale KEV or EPSS copy still scans and ranks findings on\n" +
 			"old data. A stale govulndb copy is not read. govulncheck queries vuln.go.dev instead,\n" +
-			"and with --offline the control reports an error.",
+			"and with --offline the control reports an error.\n\n" +
+			"A copy is stale once it is older than config.exploitability.maxAge, read from the\n" +
+			"descriptor --saga names or else the one in the current directory (default 24h).",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			dir, err := feeds.Dir()
 			if err != nil {
 				return err
 			}
-			feedsStatus(cmd.OutOrStdout(), dir, time.Now())
+			limit, err := resolveFeedLimit(sagaPath, "feeds status --saga")
+			if err != nil {
+				return err
+			}
+			feedsStatus(cmd.OutOrStdout(), dir, time.Now(), limit)
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&sagaPath, "saga", "",
+		"read config.exploitability.maxAge from this descriptor (default: the one in the current directory)")
 	return cmd
+}
+
+// feedLimit is the age past which a cached feed is stale, and the setting that chose it.
+type feedLimit struct {
+	maxAge time.Duration
+	// written is config.exploitability.maxAge as the descriptor wrote it, and path is that
+	// descriptor. Both are empty when the built-in default applies.
+	written, path string
+}
+
+// defaultFeedLimit is the limit a scan applies when no descriptor sets
+// config.exploitability.maxAge.
+func defaultFeedLimit() feedLimit {
+	return feedLimit{maxAge: exploitdata.FromDescriptor(nil, exploitdata.DefaultThreshold).MaxAge}
+}
+
+// resolveFeedLimit is the limit a scan of the same descriptor applies to the feed cache.
+//
+// The descriptor is the one --saga names or, without it, the one a scan in the current directory
+// reads. Both go through exploitdata.FromDescriptor, which is where a scan's `auto` gets its limit,
+// so `feeds status` and `feeds update` cannot call a copy current that the scan would refetch, or
+// the reverse.
+//
+// A directory with no descriptor gets the default limit, as a scan there synthesizes a descriptor
+// with no config. A --saga that names no descriptor is an error: the limit it asked for would
+// otherwise be replaced by the default with nothing on screen saying so.
+func resolveFeedLimit(sagaPath, cmdName string) (feedLimit, error) {
+	path, found, err := resolveDescriptor(sagaPath, cmdName)
+	if err != nil {
+		return feedLimit{}, err
+	}
+	if !found {
+		if sagaPath != "" {
+			return feedLimit{}, fmt.Errorf("--saga: no *.saga.yaml in %s", sagaPath)
+		}
+		return defaultFeedLimit(), nil
+	}
+	model, err := loadSaga(path)
+	if err != nil {
+		return feedLimit{}, err
+	}
+	cfg := model.Config.Exploitability
+	limit := feedLimit{maxAge: exploitdata.FromDescriptor(cfg, exploitdata.DefaultThreshold).MaxAge}
+	if cfg != nil && cfg.MaxAge != "" {
+		limit.written, limit.path = cfg.MaxAge, path
+	}
+	return limit, nil
+}
+
+// line names the limit a descriptor set, or is "" for the default. A command that applies a file
+// nobody pointed it at says which one.
+func (l feedLimit) line() string {
+	if l.path == "" {
+		return ""
+	}
+	if l.maxAge <= 0 {
+		return fmt.Sprintf("Never stale · config.exploitability.maxAge %s in %s", l.written, l.path)
+	}
+	return fmt.Sprintf("Stale after %s · config.exploitability.maxAge in %s", l.written, l.path)
 }
 
 // feedsStatus writes the cache report. It never fails: an empty cache is a legitimate state and
 // the answer to "what have I got" is "nothing yet", not an error.
-func feedsStatus(out io.Writer, dir string, now time.Time) {
+func feedsStatus(out io.Writer, dir string, now time.Time, limit feedLimit) {
 	cached := feeds.Load(dir)
 
 	_, _ = fmt.Fprintf(out, "%-10s %-22s %-14s %-10s %s\n", "FEED", "FETCHED", "AGE", "SIZE", "DIGEST")
@@ -152,7 +233,7 @@ func feedsStatus(out io.Writer, dir string, now time.Time) {
 			continue
 		}
 		age := feeds.HumanAge(rec.Age(now))
-		if rec.Stale(now, feeds.DefaultMaxAge) {
+		if rec.Stale(now, limit.maxAge) {
 			stale = append(stale, n)
 			age += " (stale)"
 		}
@@ -170,6 +251,9 @@ func feedsStatus(out io.Writer, dir string, now time.Time) {
 		_, _ = fmt.Fprintf(out, "  %-10s %s · %s\n", n, feeds.Describe(n), feeds.URL(n))
 	}
 
+	if line := limit.line(); line != "" {
+		_, _ = fmt.Fprintf(out, "\n%s\n", line)
+	}
 	switch {
 	case len(missing) == len(feeds.Names()):
 		_, _ = fmt.Fprintf(out, "\nNothing cached. Run `draugr feeds update` to fetch all of them.\n")
@@ -190,12 +274,12 @@ func feedsStatus(out io.Writer, dir string, now time.Time) {
 	}
 	if len(staleRanked) > 0 {
 		_, _ = fmt.Fprintf(out, "\n%s older than %s. A scan uses it and marks the report stale. "+
-			"Refresh with `draugr feeds update`.\n", joinNames(staleRanked), feeds.HumanAge(feeds.DefaultMaxAge))
+			"Refresh with `draugr feeds update`.\n", joinNames(staleRanked), feeds.HumanAge(limit.maxAge))
 	}
 	if staleGo {
 		_, _ = fmt.Fprintf(out, "\ngovulndb older than %s. A scan does not read it. govulncheck queries vuln.go.dev instead, "+
 			"and with --offline the control reports an error. Refresh with `draugr feeds update govulndb`.\n",
-			feeds.HumanAge(feeds.DefaultMaxAge))
+			feeds.HumanAge(limit.maxAge))
 	}
 }
 

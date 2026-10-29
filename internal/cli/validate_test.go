@@ -154,3 +154,13 @@ func TestValidateDeduplicatesPaths(t *testing.T) {
 		t.Errorf("the same file should be validated once, got %d reports:\n%s", n, out.String())
 	}
 }
+
+// Discovery and the check both treat fragments as their own kind of file, and the help says so.
+func TestValidateHelpCoversFragments(t *testing.T) {
+	long := newValidateCommand().Long
+	for _, want := range []string{"*.saga-fragment.yaml", "fragment schema", "fragments merged in", "--resolved"} {
+		if !strings.Contains(long, want) {
+			t.Errorf("validate --help is missing %q:\n%s", want, long)
+		}
+	}
+}
