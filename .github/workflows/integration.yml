@@ -84,10 +84,12 @@ env:
   # request did. Bump this when govulncheck names a newer one.
   GO_VERSION: "1.26.10"
   # The kube-bench release whose benchmark definitions the CIS catalog is checked against.
-  # Keep in sync with defaultKubeBenchImage in internal/scanners/kube_bench_job.go, so that
-  # bumping the image is when a benchmark revision is discovered rather than later.
-  KUBE_BENCH_VERSION: "v0.15.6"
-  KUBE_BENCH_COMMIT: "92e522b9ac82d4253e8b7582de1e75f5dae1f4b5"
+  # The same release as defaultKubeBenchImage in internal/scanners/kube_bench_job.go and the
+  # kube-bench binary pin in internal/tools/install.go, so that moving kube-bench is when a
+  # benchmark revision is discovered rather than later. TestKubeBenchJobImageIsTheInstalledRelease
+  # fails while the three differ.
+  KUBE_BENCH_VERSION: "v0.16.0"
+  KUBE_BENCH_COMMIT: "5c6c22d51b926020e7414e1f1e051851d1a2feff"
 
 jobs:
   integration:

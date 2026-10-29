@@ -133,7 +133,7 @@ const (
 	defaultJobNamespace = "default"
 	// defaultKubeBenchImage is pinned by digest, and the digest is the part that matters.
 	//
-	// A tag is a mutable pointer: v0.15.6 can be repushed to different content, and a scan whose
+	// A tag is a mutable pointer that can be repushed to different content, and a scan whose
 	// result can change with nothing in the descriptor changing is the opposite of what a compliance
 	// report is for. The digest makes the pull reproducible and lets the runtime reject content that
 	// does not match, the same guarantee `draugr tools install` gets from verifying a checksum before
@@ -141,7 +141,12 @@ const (
 	//
 	// The tag is kept alongside it for readability: @sha256:… alone says nothing about which
 	// version is running, and a reader of the descriptor should be able to tell.
-	defaultKubeBenchImage = "docker.io/aquasec/kube-bench:v0.15.6@sha256:861900910eec45b54a97e4a2af81b16fae7203d768f7f8e7de3b7456807870f5"
+	//
+	// The tag is the release `draugr tools install` pins for the kube-bench scanner, so the two
+	// scanners audit one cluster against the same benchmark definitions.
+	// TestKubeBenchJobImageIsTheInstalledRelease holds it there, and its failure message says how
+	// to read the digest and the commit when the binary moves.
+	defaultKubeBenchImage = "docker.io/aquasec/kube-bench:v0.16.0@sha256:75506f222d1eb6ce2a751a5533bdc0a3b54c898e2e49e7751d0ee22cfb862679"
 	// defaultJobTargets are the sections worth running in-cluster: the ones that read a node's own
 	// filesystem and cannot be answered any other way. `policies` is deliberately absent. The
 	// read-only scanner already covers it without creating anything.
