@@ -275,6 +275,9 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if err != nil {
 		return err
 	}
+	if opts.artifactMinPriority, err = validatePriority("--artifact-min-priority", opts.artifactMinPriority); err != nil {
+		return err
+	}
 	// Before the scan, not after. A typo discovered once the scanners have finished is a wasted
 	// pipeline minute for a mistake that was visible on the command line.
 	failOn, failOnPriority, err := resolveGate(opts.failOn, opts.failOnPriority, model.Config.Gate)
@@ -716,7 +719,8 @@ func fixFirstLimit(top int) int {
 }
 
 // validatePriority validates and upper-cases a priority-band flag value. Empty is allowed
-// (feature disabled); flag names the flag for the error message.
+// (feature disabled); flag names the flag for the error message, which takes the shape of the
+// --fail-on refusal so a band mistyped in either flag reads the same.
 func validatePriority(flag, v string) (string, error) {
 	if v == "" {
 		return "", nil
@@ -726,7 +730,7 @@ func validatePriority(flag, v string) (string, error) {
 	case prioritization.P1, prioritization.P2, prioritization.P3, prioritization.P4:
 		return up, nil
 	default:
-		return "", fmt.Errorf("invalid %s %q (want one of P1, P2, P3, P4)", flag, v)
+		return "", fmt.Errorf("%s: %q is not a priority band (%s)", flag, v, strings.Join(saga.Priorities, ", "))
 	}
 }
 

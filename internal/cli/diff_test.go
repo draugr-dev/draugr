@@ -149,6 +149,34 @@ func TestDiffUsesItsOwnStickyComment(t *testing.T) {
 	}
 }
 
+// A band outside P1-P4 ranks 0 and narrows nothing, so the full list would read as the narrowed
+// one. Refused before either report is read, in the words `scan --min-priority` uses.
+func TestDiffRefusesAMinPriorityOutsideTheBands(t *testing.T) {
+	for _, band := range []string{"P9", "P0", "high", "urgent"} {
+		err := runDiff(context.Background(), "missing-base.sarif", "missing-head.sarif",
+			diffOptions{format: "console", minPriority: band}, &bytes.Buffer{})
+		want := `--min-priority: "` + band + `" is not a priority band (P1, P2, P3, P4)`
+		if err == nil || err.Error() != want {
+			t.Errorf("--min-priority %s: err = %v, want %q", band, err, want)
+		}
+	}
+}
+
+// A lowercase band is the band, and narrows the list as the uppercase one does.
+func TestDiffMinPriorityNarrowsInEitherCase(t *testing.T) {
+	head := writeFile(t, "head.sarif", sarifDoc("CVE-2", "warning", "img", "P3"))
+	for _, band := range []string{"P2", "p2"} {
+		var out bytes.Buffer
+		if err := runDiff(context.Background(), "", head,
+			diffOptions{format: "console", minPriority: band}, &out); err != nil {
+			t.Fatalf("--min-priority %s: %v", band, err)
+		}
+		if strings.Contains(out.String(), "CVE-2") {
+			t.Errorf("--min-priority %s kept a new P3:\n%s", band, out.String())
+		}
+	}
+}
+
 func TestDiffRejectsAThresholdItCannotRank(t *testing.T) {
 	// An unrecognized threshold ranks 0, and every new finding is at least that. So accepting one
 	// would quietly turn the gate into "fail on anything new" while reading like a narrowing. It has

@@ -50,7 +50,8 @@ func newExplainCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&reportPath, "report", "r", "",
-		"the results.sarif to read (default: results.sarif, or draugr-out/results.sarif)")
+		"the results.sarif to read (default: the first that exists of "+
+			strings.Join(defaultSARIFNames, ", ")+")")
 	return cmd
 }
 

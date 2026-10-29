@@ -9,3 +9,5 @@ SOURCES  (cached in <path>)
   govulndb   Go vulnerability database · https://vuln.go.dev/vulndb.zip
 
 Nothing cached. Run `draugr feeds update` to fetch all of them.
+
+Stale after 24h · default · --saga applies a descriptor's config.exploitability.maxAge

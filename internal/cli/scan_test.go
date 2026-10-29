@@ -341,8 +341,18 @@ func TestScanModelLoadsFile(t *testing.T) {
 func TestRunScanInvalidMinPriority(t *testing.T) {
 	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
 		scanOptions{failOn: "error", minPriority: "bogus"}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
-	if err == nil || !strings.Contains(err.Error(), "invalid --min-priority") {
-		t.Fatalf("expected invalid min-priority error, got %v", err)
+	if want := `--min-priority: "bogus" is not a priority band (P1, P2, P3, P4)`; err == nil || err.Error() != want {
+		t.Fatalf("err = %v, want %q", err, want)
+	}
+}
+
+// The band the artifacts are narrowed to is recorded inside them, so one outside P1-P4 would
+// narrow nothing and still be written down as the band they were narrowed to.
+func TestRunScanInvalidArtifactMinPriority(t *testing.T) {
+	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
+		scanOptions{failOn: "error", artifactMinPriority: "P9"}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
+	if want := `--artifact-min-priority: "P9" is not a priority band (P1, P2, P3, P4)`; err == nil || err.Error() != want {
+		t.Fatalf("err = %v, want %q", err, want)
 	}
 }
 
