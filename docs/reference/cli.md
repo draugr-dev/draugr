@@ -1908,9 +1908,9 @@ A more specific file's value replaces a less specific file's, `false` and `0s` i
 turn off the home file's `true`. `show` lists that `false` under **Overridden**, and `set` reports
 it when it writes one.
 
-For `draugr scan`, `doctor` and `tools install`, the full order is **component → descriptor → config
-→ built-in**, deep-merged, so an override replaces only the keys it names. A scan started through
-[`draugr mcp`](#draugr-mcp) does not read the config file.
+For `draugr scan`, `doctor`, `tools install` and the `scan` and `check_tools` tools of
+[`draugr mcp`](#draugr-mcp), the full order is **component → descriptor → config → built-in**,
+deep-merged, so an override replaces only the keys it names.
 
 ### Commands
 
@@ -2034,7 +2034,7 @@ and `__pycache__`, and every hidden directory except `.draugr`.
 | `get_saga_schema` | The Saga schema this build enforces |
 | `validate_saga` | Validate a descriptor, by `path` or by `content` |
 | `propose_saga` | Return the descriptor `draugr init` would write for `path`, a directory under the working directory, with `perDirectory` for `--per-directory`; writes nothing and names any descriptor already there |
-| `check_tools` | Report which scanners are installed and what to run if any are missing |
+| `check_tools` | Report which scanners are installed and what to run if any are missing; given a descriptor, the tools `draugr doctor` requires for it |
 | `feeds_status` | Report whether each feed is cached, with its fetch date, age, size, digest and staleness, and the `draugr feeds update` command to run if any is missing or stale |
 | `explain_rule` | What a finding means and how to fix it, from the scan's own report |
 | `fix_list` | A report as the things to do about it, one list per kind of work, each most urgent first, each action saying how many findings it clears and what it ranks by |
@@ -2059,8 +2059,9 @@ Asking needs a client that supports MCP elicitation. A client that cannot prompt
 given the `draugr scan` command instead.
 
 The server speaks MCP on stdin and stdout, so run by hand in a terminal it waits for a client and
-prints nothing. A scan started through the server does not read
-[`draugr.config.yaml`](#draugr-config). See
+prints nothing. `scan` and `check_tools` read [`draugr.config.yaml`](#draugr-config) as
+`draugr scan` does, from the directory the server was started in or from the file `--config` or
+`DRAUGR_CONFIG` names, and fail on a file `draugr scan` refuses. See
 [use Draugr from an AI coding assistant](../guides/ai-agents-mcp.md) for client setup.
 
 ---

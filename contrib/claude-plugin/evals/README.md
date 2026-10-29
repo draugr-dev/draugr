@@ -19,9 +19,7 @@ Each case directory holds:
 
 ## Running it
 
-It needs `claude` (Claude Code), `gitleaks`, `semgrep`, `gosec` and `syft` on `PATH`. The cases
-scan with gitleaks and semgrep; `check_tools` lists the other two as required for the cases'
-descriptor, and a model told a tool is missing stops before it scans.
+It needs `claude` (Claude Code), `gitleaks` and `semgrep` on `PATH`.
 
 Each case runs as a Claude Code session on whatever `claude` is signed in with. With a claude.ai
 login and no `ANTHROPIC_API_KEY` set, the sessions use that login's plan; with a key, they are

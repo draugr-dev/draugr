@@ -14,12 +14,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
-	"github.com/draugr-dev/draugr/internal/controllers"
 	"github.com/draugr-dev/draugr/internal/login"
+	"github.com/draugr-dev/draugr/internal/needs"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/internal/preflight"
 	"github.com/draugr-dev/draugr/internal/sagafetch"
-	"github.com/draugr-dev/draugr/internal/sbom"
 	"github.com/draugr-dev/draugr/internal/selfupdate"
 	"github.com/draugr-dev/draugr/internal/surfaces"
 	"github.com/draugr-dev/draugr/internal/tools"
@@ -190,7 +189,14 @@ func runDoctor(
 			return fmt.Errorf("invalid descriptor: %w", err)
 		}
 		model = loaded
-		required = requiredTools(reg, model)
+		// The configuration's controller defaults merged under the descriptor before anything reads
+		// it, as `draugr scan` merges them, because a default that selects a scanner makes that
+		// scanner's tool required. Everything below, the tools, the targets and the policy, then
+		// describes the scan that would run.
+		if _, err := applyConfigDefaults(ctx, model); err != nil {
+			return err
+		}
+		required = needs.Tools(reg, model)
 	} else {
 		// No descriptor, so nothing has been selected and nothing is required. The catalog is an
 		// inventory here. "what could Draugr use, and what have you got", and treating every entry as
@@ -225,9 +231,6 @@ func runDoctor(
 	var orgPolicy *skald.PolicyCheck
 	var askedAs []login.Login
 	if model != nil {
-		if _, err := applyConfigDefaults(ctx, model); err != nil {
-			return err
-		}
 		held := ""
 		switch {
 		case run.offline:
@@ -468,145 +471,6 @@ func writeTargetChecks(w io.Writer, checks []preflight.Check) {
 	t.Render(w)
 }
 
-// requiredTools returns the external tools needed by the controls enabled anywhere in the
-// model: for each registered scanner serving an enabled control, its binary, plus git when
-// the scanner works on a checked-out repository.
-func requiredTools(reg *engine.Registry, model *saga.Model) []tools.Tool {
-	catalog := tools.Catalog()
-	seen := map[string]bool{}
-	var out []tools.Tool
-	// A binary the catalog does not describe is still checked. Skipping it silently is how
-	// `doctor` came to report "all required tools present" for a control whose scanner was not
-	// installed at all, the one command whose job is answering "will a scan work?" answering yes
-	// because it had never heard of the tool.
-	add := func(binary string) {
-		if binary == "" || seen[binary] {
-			return
-		}
-		seen[binary] = true
-		if t, ok := catalog[binary]; ok {
-			// Everything reaching this function was selected by the descriptor: a scanner serving
-			// an enabled control, something that scanner also requires, or a block the Saga turned
-			// on. `Optional` in the catalog is about the inventory view, where nothing has been
-			// chosen and the question is "what could Draugr use". Carried through to here it means
-			// doctor reports a clean environment for a scan that cannot run, which is the one
-			// answer this command must never give.
-			t.Optional = false
-			out = append(out, t)
-			return
-		}
-		out = append(out, tools.Tool{
-			Binary:      binary,
-			Category:    tools.CategoryScanner,
-			InstallHint: externalInstallHint(binary),
-		})
-	}
-
-	for _, info := range scannersInUse(reg, model) {
-		add(info.Binary)
-		for _, extra := range info.AlsoRequires {
-			add(extra)
-		}
-		for _, tk := range info.TargetKinds {
-			if tk == plugin.TargetRepository {
-				add("git")
-			}
-		}
-	}
-
-	// SBOM generation is not a control, so no scanner declares it. It is required by the Saga's
-	// config.sbom block instead.
-	if s := model.Config.SBOM; s != nil && s.Enabled {
-		add(sbom.Binary)
-	}
-
-	sort.Slice(out, func(i, j int) bool { return out[i].Binary < out[j].Binary })
-	return out
-}
-
-// scannersInUse returns the scanners a scan of model would run: each one serving a control the
-// model enables, and among several serving one control, only those the control selects.
-func scannersInUse(reg *engine.Registry, model *saga.Model) []plugin.ScannerInfo {
-	uses := scannerUses(reg, model)
-	out := make([]plugin.ScannerInfo, len(uses))
-	for i, u := range uses {
-		out[i] = u.info
-	}
-	return out
-}
-
-// scannerUse is a scanner a scan would run and the enabled controls it would run for.
-type scannerUse struct {
-	info     plugin.ScannerInfo
-	controls []string
-}
-
-// scannerUses is scannersInUse with the controls each scanner serves, which is what a message
-// naming the controls a missing tool blocks needs.
-func scannerUses(reg *engine.Registry, model *saga.Model) []scannerUse {
-	enabled := func(control string) bool {
-		if model.Config.ControllerEnabled(control) {
-			return true
-		}
-		for i := range model.Components {
-			if model.Components[i].ControllerEnabled(control, model.Config) {
-				return true
-			}
-		}
-		return false
-	}
-
-	// A control served by several scanners only requires the ones it will actually run. Asking
-	// for the rest sends someone to install a tool the scan would never have used, and reports a
-	// control as unable to run when it can.
-	selected := map[string]map[string]bool{}
-	for _, c := range reg.Controllers() {
-		ci := c.Info()
-		if len(ci.DefaultScanners) == 0 {
-			continue
-		}
-		selected[ci.Name] = controllers.SelectedScanners(*model, c)
-	}
-
-	// An analyzer named in config.reachability is required and is not selectable from a scanner
-	// block, resolveScanners refuses it there deliberately, so the selection above filters it out
-	// with every scanner the control will not run. The descriptor field exists for this: it names
-	// the analyzer "so `draugr doctor` can tell you what to install before a scan finds out for
-	// you", and until now the scan found out.
-	analyzer := map[string]bool{}
-	if r := model.Config.Reachability; r != nil {
-		for _, name := range r.Analyzers {
-			analyzer[name] = true
-		}
-	}
-
-	var out []scannerUse
-	for _, s := range reg.Scanners() {
-		info := s.Info()
-		var controls []string
-		for _, c := range info.Controls {
-			if !enabled(c) {
-				continue
-			}
-			// Named as an analyzer, so the control runs it whatever its scanner block says. Still
-			// inside the enabled check: config.reachability is project-wide, and an analyzer whose
-			// control is switched off is a tool this scan will never reach for.
-			if analyzer[info.Name] {
-				controls = append(controls, c)
-				continue
-			}
-			if set, selectable := selected[c]; selectable && !set[info.Name] {
-				continue // a scanner this control will not run for this model
-			}
-			controls = append(controls, c)
-		}
-		if len(controls) > 0 {
-			out = append(out, scannerUse{info: info, controls: controls})
-		}
-	}
-	return out
-}
-
 func writeDoctorTable(w io.Writer, statuses []tools.Status) {
 	col := tui.For(w)
 	// Named like every other block here. It was the one section with no heading, which made the
@@ -706,7 +570,7 @@ func doctorData(ctx context.Context, reg *engine.Registry, model *saga.Model) []
 	scanners := reg.Scanners()
 	if model != nil {
 		scanners = scanners[:0:0]
-		for _, info := range scannersInUse(reg, model) {
+		for _, info := range needs.Scanners(reg, model) {
 			if sc, ok := reg.Scanner(info.Name); ok {
 				scanners = append(scanners, sc)
 			}
@@ -881,7 +745,7 @@ func scanContacts(reg *engine.Registry, model *saga.Model) []scanContact {
 			scanners = append(scanners, s.Info())
 		}
 	} else {
-		scanners = scannersInUse(reg, model)
+		scanners = needs.Scanners(reg, model)
 	}
 	var rows []scanContact
 	for _, info := range scanners {
@@ -1044,25 +908,6 @@ func installAdvice(t tools.Tool) string {
 // prerequisite and therefore one the install command can replace outright.
 func isBareURL(hint string) bool {
 	return strings.HasPrefix(hint, "http") && !strings.ContainsAny(hint, " ,")
-}
-
-// externalInstallHint says where a tool `draugr tools install` does not fetch comes from.
-//
-// `draugr tools install` fetches pinned releases Draugr has verified, which it can only do for
-// tools it vouched for. For the rest, proprietary ones especially. Naming the source is the
-// whole of the help available, and it is much more use than telling somebody to run a command
-// that will not find it.
-func externalInstallHint(binary string) string {
-	if from, ok := externalTools[binary]; ok {
-		return from
-	}
-	return "required by a registered scanner; not in Draugr's tool catalog"
-}
-
-// externalTools names where to get a tool Draugr execs but never downloads.
-var externalTools = map[string]string{
-	"mend": "proprietary; install the Mend CLI from Mend's documentation, which `draugr tools " +
-		"install` does not fetch. See internal/scanners/mend-sca.md",
 }
 
 // failsOnNotChecked reports whether the descriptor's gate fails a scan on a declared surface no

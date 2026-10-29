@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/needs"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/internal/suggest"
 	"github.com/draugr-dev/draugr/internal/tools"
@@ -259,7 +260,7 @@ func installNames(w io.Writer, args []string, opts toolsInstallOptions) ([]strin
 		if !found {
 			_, _ = fmt.Fprintf(w, "No *.saga.yaml here, installing what `draugr scan` runs without one (%s). "+
 				"`--all` for every tool Draugr provisions.\n\n", ZeroConfigControls(""))
-			return provisionable(requiredTools(builtins.Registry(), syntheticSaga("."))), false, nil
+			return provisionable(needs.Tools(builtins.Registry(), syntheticSaga("."))), false, nil
 		}
 		_, _ = fmt.Fprintf(w, "Installing what %s runs. `--all` for every tool Draugr provisions.\n\n", path)
 		opts.saga = path
@@ -274,7 +275,7 @@ func installNames(w io.Writer, args []string, opts toolsInstallOptions) ([]strin
 	if err != nil {
 		return nil, false, err
 	}
-	required := requiredTools(builtins.Registry(), model)
+	required := needs.Tools(builtins.Registry(), model)
 
 	names := provisionable(required)
 	var unprovisionable []string

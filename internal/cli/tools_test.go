@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/needs"
 	"github.com/draugr-dev/draugr/internal/tools"
 )
 
@@ -441,7 +442,7 @@ func TestInstallNamesReadsTheDirectoryAsScanDoes(t *testing.T) {
 	if err != nil || all {
 		t.Fatalf("no descriptor: names=%v all=%v err=%v", names, all, err)
 	}
-	want := provisionable(requiredTools(builtins.Registry(), syntheticSaga(".")))
+	want := provisionable(needs.Tools(builtins.Registry(), syntheticSaga(".")))
 	if len(want) == 0 || !slices.Equal(names, want) {
 		t.Errorf("no descriptor: names = %v, want what a zero-config scan runs, %v", names, want)
 	}

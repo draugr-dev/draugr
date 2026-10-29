@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/needs"
 	"github.com/draugr-dev/draugr/internal/tools"
 )
 
@@ -60,7 +61,7 @@ func TestSelfscanInstallsEveryScannerItsDescriptorEnables(t *testing.T) {
 	}
 
 	installable := tools.Installable()
-	for _, tool := range requiredTools(builtins.Registry(), model) {
+	for _, tool := range needs.Tools(builtins.Registry(), model) {
 		if tool.Category == tools.CategoryUtility || slices.Contains(installable, tool.Binary) {
 			continue
 		}

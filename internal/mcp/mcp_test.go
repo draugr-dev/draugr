@@ -285,7 +285,7 @@ func TestSummarizeReportToolReadsAFile(t *testing.T) {
 }
 
 func TestScanToolRejectsAMissingPath(t *testing.T) {
-	h := scanTool(builtins.Registry(), ScanAlways)
+	h := scanTool(builtins.Registry(), ScanAlways, nil)
 	if _, _, err := h(context.Background(), nil, ScanInput{}); err == nil {
 		t.Error("want an error without a path")
 	}
@@ -345,7 +345,7 @@ func TestScanToolReturnsAVerdict(t *testing.T) {
 		"project: app\nrelease:\n  version: \"1.0\"\ncomponents:\n  - name: api\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	_, out, err := scanTool(builtins.Registry(), ScanAlways)(context.Background(), nil, ScanInput{Path: path})
+	_, out, err := scanTool(builtins.Registry(), ScanAlways, nil)(context.Background(), nil, ScanInput{Path: path})
 	if err != nil {
 		t.Fatalf("scan: %v", err)
 	}
@@ -368,7 +368,7 @@ func TestScanToolSaysWhatItDidNotLookAt(t *testing.T) {
 			"  - name: api\n    images:\n      - image: registry.example.com/api:1.0\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	_, out, err := scanTool(builtins.Registry(), ScanAlways)(context.Background(), nil, ScanInput{Path: path})
+	_, out, err := scanTool(builtins.Registry(), ScanAlways, nil)(context.Background(), nil, ScanInput{Path: path})
 	if err != nil {
 		t.Fatalf("scan: %v", err)
 	}
@@ -444,7 +444,7 @@ func TestAskModeRefusesWithoutApproval(t *testing.T) {
 		"project: app\nrelease:\n  version: \"1.0\"\ncomponents:\n  - name: api\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	h := scanTool(builtins.Registry(), ScanAsk)
+	h := scanTool(builtins.Registry(), ScanAsk, nil)
 	_, _, err := h(context.Background(), nil, ScanInput{Path: path})
 	if err == nil {
 		t.Fatal("want a refusal when there's no session to ask through")
@@ -458,7 +458,7 @@ func TestAskModeRefusesWithoutApproval(t *testing.T) {
 		t.Error("want a refusal without a session")
 	}
 	// Always mode doesn't consult anyone, so it gets past consent and fails on the descriptor.
-	_, _, err = scanTool(builtins.Registry(), ScanAlways)(context.Background(), nil,
+	_, _, err = scanTool(builtins.Registry(), ScanAlways, nil)(context.Background(), nil,
 		ScanInput{Path: "does-not-exist.saga.yaml"})
 	if err == nil || strings.Contains(err.Error(), "approval") {
 		t.Errorf("always mode should not ask for approval, got: %v", err)
@@ -677,9 +677,9 @@ func TestCheckToolsReportsWhatIsMissing(t *testing.T) {
 	// An empty PATH makes every scanner missing, which is the case worth getting right.
 	t.Setenv("PATH", dir)
 
-	_, out, err := CheckToolsTool(context.Background(), nil, CheckToolsInput{Path: path})
+	_, out, err := checkToolsTool(builtins.Registry(), nil)(context.Background(), nil, CheckToolsInput{Path: path})
 	if err != nil {
-		t.Fatalf("CheckToolsTool: %v", err)
+		t.Fatalf("check_tools: %v", err)
 	}
 	if out.Ready {
 		t.Error("nothing is installed; ready should be false")
@@ -705,9 +705,9 @@ func TestCheckToolsReportsWhatIsMissing(t *testing.T) {
 
 // A missing *optional* tool is not a problem and must not be reported as one.
 func TestCheckToolsIgnoresOptionalTools(t *testing.T) {
-	_, out, err := CheckToolsTool(context.Background(), nil, CheckToolsInput{})
+	_, out, err := checkToolsTool(builtins.Registry(), nil)(context.Background(), nil, CheckToolsInput{})
 	if err != nil {
-		t.Fatalf("CheckToolsTool: %v", err)
+		t.Fatalf("check_tools: %v", err)
 	}
 	for _, tool := range out.Tools {
 		if tool.Optional && !tool.Installed {

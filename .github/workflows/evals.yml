@@ -74,15 +74,13 @@ jobs:
       # than a release. Each run gets a temporary home, which hides ~/.draugr/bin from Draugr's own
       # lookup, so the scanners go on PATH too.
       #
-      # The cases scan with gitleaks and semgrep. Given their descriptor, check_tools also lists
-      # gosec, which can serve sast, and syft as required, and reports the machine not ready
-      # without them, which stops a model before it scans. Both are installed so that a score
-      # measures the model and the plugin.
+      # The cases scan with gitleaks and semgrep, the tools check_tools requires for their
+      # descriptor.
       - name: Build draugr and provision the scanners the cases use
         run: |
           set -euo pipefail
           make build
-          ./bin/draugr tools install -y gitleaks semgrep gosec syft
+          ./bin/draugr tools install -y gitleaks semgrep
           echo "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
           echo "$HOME/.draugr/bin" >> "$GITHUB_PATH"
 

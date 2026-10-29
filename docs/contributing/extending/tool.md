@@ -19,7 +19,7 @@ verified, and that redistribution is not implied.
 | Proprietary, license-gated, or requires an account | **Do not.** Add it to `externalTools` |
 | Copyleft in a way that makes serving the bytes a distribution | Name the upstream URL; never mirror or cache it |
 
-For the last two, add an entry to `externalTools` in `internal/cli/doctor.go`:
+For the last two, add an entry to `externalTools` in `internal/needs/needs.go`:
 
 ```go
 var externalTools = map[string]string{

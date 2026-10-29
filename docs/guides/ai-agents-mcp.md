@@ -195,8 +195,12 @@ the exact command that fixes it:
 }
 ```
 
-Given a descriptor it narrows to what that descriptor actually needs, so a Saga enabling only
-`sca` doesn't demand Semgrep.
+Given a descriptor, it checks the tools `draugr doctor` requires for it:
+
+- the scanner each enabled control selects, so `semgrep` and not `gosec` for a descriptor that
+  selects Semgrep for `sast`;
+- `git`, for a repository;
+- `syft`, when `config.sbom` is on.
 
 **There is no install tool, deliberately.** Installing binaries is a write to your machine, and your
 assistant's client already has a permission model for running commands, one you already understand
@@ -294,8 +298,10 @@ Every other tool reads, and is safe to call freely.
 
 ### The scan honors your reports and publishers
 
-A scan through MCP runs the descriptor's `config.publishers` exactly as
-`draugr scan` does, and the result names where each one landed:
+A scan through MCP reads the `draugr.config.yaml` that `draugr scan` reads in the server's working
+directory, or the file `--config` or `DRAUGR_CONFIG` names, and refuses a malformed one with the same
+error. It runs the descriptor's `config.publishers` exactly as `draugr scan` does, and the result
+names where each one landed:
 
 ```json
 { "verdict": "fail", "delivered": ["file: out/reports"] }
