@@ -71,6 +71,13 @@ type htmlView struct {
 	// shared report that omits them describes a thinner run rather than a broken one, and the
 	// reader has no way to tell which they are looking at.
 	Errors []htmlError
+	// Registries and Unreached are the targets no scanner could read, named as the console's errors
+	// block names them: images a registry refused under that registry, then each other target with
+	// its reason. NotReached counts them against every target the run planned, and Errors keeps
+	// only what a control said that no target accounts for.
+	Registries []htmlRegistry
+	Unreached  []htmlUnreached
+	NotReached string
 	// Suppressed, Imported and Silenced are the three authorities that can set a finding aside, and
 	// they are counted apart because they answer an auditor differently: this project decided, a
 	// supplier asserts, or whoever was editing the file wrote a comment the scanner honored. One
@@ -136,6 +143,19 @@ type htmlTiming struct {
 }
 
 type htmlError struct{ Control, Message string }
+
+// htmlRegistry is one registry that refused images, with its answer and the command that changes
+// it, or no command where logging in would not.
+type htmlRegistry struct {
+	Host, Said, Login string
+	Images            []htmlUnreached
+}
+
+// htmlUnreached is one target no scanner could read. Name is as the console names it, an image's
+// digest shortened, and Full is the whole reference.
+type htmlUnreached struct {
+	Kind, Name, Full, Components, Why string
+}
 
 // htmlComponent is one component's row: the classification it was ranked with, how its own
 // findings ranked, and what nothing was able to look at.
@@ -357,8 +377,16 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		MinPriority: strings.ToUpper(s.minPriority),
 		Hidden:      s.hidden,
 	}
+	view.Registries, view.Unreached, view.NotReached = htmlUnreachedTargets(d)
 	for _, name := range sortedKeys(s.scanErrors) {
-		for _, msg := range dedupeMessages(s.scanErrors[name]) {
+		// A target's failure is said once, by target, as the console says it.
+		var own []string
+		for _, msg := range s.scanErrors[name] {
+			if !targetError(d, name, msg) {
+				own = append(own, msg)
+			}
+		}
+		for _, msg := range dedupeMessages(own) {
 			view.Errors = append(view.Errors, htmlError{Control: name, Message: findingSummary(msg)})
 		}
 	}
@@ -1337,6 +1365,7 @@ const htmlDoc = `<!doctype html>
 
   .errors { border-left: 2px solid var(--p1); padding: .1rem 0 .1rem .9rem; margin: 0 0 1.5rem; list-style: none; }
   .errors li { margin: .25rem 0; }
+  .errors .unreached { list-style: none; padding-left: 1rem; margin: .2rem 0 .35rem; }
 
   .note { color: var(--muted); font-size: .86rem; margin: .35rem 0 1rem; max-width: 46rem; }
   .empty, .just { color: var(--faint); font-style: italic; }
@@ -1631,14 +1660,18 @@ as the run.</p>
 </details>
 {{end}}
 
-{{if .Errors}}
-<h3 id="errors" class="err">Controls that could not run</h3>
-<p class="note">These checks were requested and did not complete, so this report says nothing
-about what they would have found. For everything the tool printed, re-run with
+{{if or .Errors .Registries .Unreached}}
+<h3 id="errors" class="err">Errors</h3>
+<p class="note">{{with .NotReached}}{{.}}. {{end}}A check that did not complete says nothing about
+what it would have found. For each scanner's whole output, re-run with
 <code class="cmd">--log-level trace</code>.</p>
 <pre class="cmd">draugr scan &lt;saga.yaml&gt; --log-level trace</pre>
 <ul class="errors">
-{{range .Errors}}<li><strong>{{.Control}}</strong> · {{.Message}}</li>{{end}}
+{{range .Registries}}<li><strong>{{.Host}}</strong> · {{.Said}}
+<ul class="unreached">{{range .Images}}<li><code title="{{.Full}}">{{.Name}}</code> · {{.Components}}</li>{{end}}</ul>
+{{with .Login}}<code class="cmd">{{.}}</code> then scan again{{end}}</li>
+{{end}}{{range .Unreached}}<li><strong>{{.Kind}}</strong> <code title="{{.Full}}">{{.Name}}</code> · {{.Components}} · {{.Why}}</li>
+{{end}}{{range .Errors}}<li><strong>{{.Control}}</strong> · {{.Message}}</li>{{end}}
 </ul>
 {{end}}
 

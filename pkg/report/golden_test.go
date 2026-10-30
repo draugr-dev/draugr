@@ -41,24 +41,30 @@ func TestConsoleGolden(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		data Data
+		// columns is the terminal's width, empty for none.
+		columns string
 	}{
-		{"full", goldenFullData()},
-		{"clean", goldenCleanData()},
-		{"enriched", goldenEnrichedData()},
+		{"full", goldenFullData(), ""},
+		{"clean", goldenCleanData(), ""},
+		{"enriched", goldenEnrichedData(), ""},
 		// The default the CLI actually renders. The three above pin `--group none`, which is still
 		// reachable and still worth pinning, but a golden that covers only the path most people never
 		// take is a golden that does not describe the product.
-		{"grouped", goldenGroupedData()},
+		{"grouped", goldenGroupedData(), ""},
 		// --evidence, which is the auditor's view: the same run with what stands behind it.
-		{"evidence", goldenEvidenceData()},
+		{"evidence", goldenEvidenceData(), ""},
 		// --view compact. Nothing pinned it, so it was rewritten and no test noticed.
-		{"compact", goldenCompactData()},
+		{"compact", goldenCompactData(), ""},
+		// Images named by digest that a registry refused, on an ordinary terminal and a wide one: the
+		// errors block fits the width it is printed on.
+		{"errors-80", goldenErrorsData(), "80"},
+		{"errors-120", goldenErrorsData(), "120"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			// No terminal width, whatever the shell running the tests thinks. The compact listing
 			// trims itself to the width it is given, and a golden that moved with the window would
 			// pin the window rather than the layout.
-			t.Setenv("COLUMNS", "")
+			t.Setenv("COLUMNS", tc.columns)
 			var b bytes.Buffer
 			if err := (consoleReporter{}).Render(&b, tc.data); err != nil {
 				t.Fatal(err)
@@ -246,6 +252,55 @@ func goldenFullData() Data {
 
 // goldenCleanData pins the other frame users see: nothing found, and the report has to say so
 // without implying more than it checked.
+// goldenErrorsData is a run that could not reach most of what it was given: three images named by
+// digest on a registry that wants a login, one of them declared by two components, an image on a
+// second registry that declines the credential this machine holds, and a repository that does not
+// exist, beside an image that was read.
+func goldenErrorsData() Data {
+	d := refusedRun()
+	d.Project = "mesh-platform"
+	d.Run.Controls = map[string]plugin.ControlResult{
+		"images": {Control: "images", Report: sarif.Report{Tool: "trivy"}},
+		"sca":    {Control: "sca", Report: sarif.Report{Tool: "trivy"}},
+	}
+	d.Run.ScanErrors = map[string][]string{}
+	for _, o := range d.Run.Targets {
+		if o.Status != engine.TargetFailed {
+			continue
+		}
+		control := "images"
+		if o.Kind == "repository" {
+			control = "sca"
+		}
+		d.Run.ScanErrors[control] = append(d.Run.ScanErrors[control], o.Detail)
+		for _, c := range o.Components {
+			d.Run.Stats.Failures = append(d.Run.Stats.Failures,
+				engine.Unscanned{Control: control, Component: c, Kind: o.Kind, Target: o.Target, Detail: o.Detail})
+		}
+	}
+	d.Verdict = norn.Result{Verdict: norn.Fail, Controls: []norn.ControlOutcome{
+		{Control: "images", Verdict: norn.Pass}, {Control: "sca", Verdict: norn.Pass},
+	}}
+	d.Components = []ComponentVerdict{
+		{Name: "billing", Verdict: norn.Pass, Declared: map[string]int{"image": 1, "repository": 1},
+			Unscanned: failuresOf(d, "billing")},
+		{Name: "ingress", Verdict: norn.Pass, Declared: map[string]int{"image": 2}, Unscanned: failuresOf(d, "ingress")},
+		{Name: "mesh", Verdict: norn.Pass, Declared: map[string]int{"image": 3}, Unscanned: failuresOf(d, "mesh")},
+	}
+	return d
+}
+
+// failuresOf is what the run could not read of one component's targets.
+func failuresOf(d Data, component string) []engine.Unscanned {
+	var out []engine.Unscanned
+	for _, f := range d.Run.Stats.Failures {
+		if f.Component == component {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
 func goldenCleanData() Data {
 	return Data{
 		Project: "my-app",
