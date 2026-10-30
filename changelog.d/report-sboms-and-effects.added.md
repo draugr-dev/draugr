@@ -1,1 +1,0 @@
-- **`report.json` records the SBOMs a run wrote and the effects it allowed.** `sboms` lists each document with its file and digest, and each target whose inventory failed, with the reason. `effects` lists the effects the run accepted after `--allow-effects`, the descriptor's `config.allowEffects` beside them, and the effects its scanners had.
