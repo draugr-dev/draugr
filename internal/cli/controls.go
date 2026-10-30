@@ -53,14 +53,7 @@ func runControls(w io.Writer, reg *engine.Registry, showOptions bool, only strin
 			return err
 		}
 	}
-	// Which scanners serve each control (by scanner name).
-	serving := map[string][]string{}
-	for _, s := range reg.Scanners() {
-		info := s.Info()
-		for _, c := range info.Controls {
-			serving[c] = append(serving[c], info.Name)
-		}
-	}
+	serving := servingScanners(reg)
 
 	col := tui.For(w)
 
@@ -94,24 +87,20 @@ func runControls(w io.Writer, reg *engine.Registry, showOptions bool, only strin
 		if only != "" && info.Name != only {
 			continue
 		}
-		isDefault := map[string]bool{}
-		names := make([]string, 0, len(serving[info.Name]))
-		for _, d := range info.DefaultScanners {
-			isDefault[d] = true
-			names = append(names, d)
-		}
-		// Append any registered scanners for this control that aren't defaults, marked opt-in. A
-		// reachability analyzer is opt-in too, but through config.reachability rather than a
-		// scanner block, which the descriptor refuses for it, so it carries its own mark.
-		for _, s := range serving[info.Name] {
+		var names []string
+		// An opt-in scanner is marked. A reachability analyzer is opt-in too, but through
+		// config.reachability rather than a scanner block, which the descriptor refuses for it, so
+		// it carries its own mark.
+		for _, s := range scannersOf(info, serving[info.Name]) {
 			switch {
-			case isDefault[s]:
-			case controllers.IsReachabilityAnalyzer(s):
-				names = append(names, s+"†")
+			case s.analyzer:
+				names = append(names, s.name+"†")
 				analyzer = true
-			default:
-				names = append(names, s+"*")
+			case s.optIn:
+				names = append(names, s.name+"*")
 				optIn = true
+			default:
+				names = append(names, s.name)
 			}
 		}
 		scanners := strings.Join(names, ", ")
@@ -151,6 +140,52 @@ func runControls(w io.Writer, reg *engine.Registry, showOptions bool, only strin
 			"Run `draugr controls --options` for what each scanner accepts in its block."))
 	}
 	return nil
+}
+
+// servingScanners lists the scanners serving each control, by scanner name, in the order the
+// registry holds them.
+func servingScanners(reg *engine.Registry) map[string][]string {
+	serving := map[string][]string{}
+	for _, s := range reg.Scanners() {
+		info := s.Info()
+		for _, c := range info.Controls {
+			serving[c] = append(serving[c], info.Name)
+		}
+	}
+	return serving
+}
+
+// controlScanner is one scanner of a control, as `draugr controls` and `draugr config keys` name it.
+type controlScanner struct {
+	name string
+	// optIn runs only when its block sets enabled: true.
+	optIn bool
+	// analyzer is a reachability analyzer, enabled under config.reachability rather than by a block.
+	analyzer bool
+}
+
+// scannersOf lists one control's scanners: its defaults in their own order, then the others that
+// serve it, in the order serving holds them.
+//
+// One order for both commands, so a control's scanners read the same in `draugr controls` and in
+// `draugr config keys`.
+func scannersOf(info plugin.ControllerInfo, serving []string) []controlScanner {
+	isDefault := map[string]bool{}
+	out := make([]controlScanner, 0, len(serving))
+	for _, d := range info.DefaultScanners {
+		isDefault[d] = true
+		out = append(out, controlScanner{name: d})
+	}
+	for _, s := range serving {
+		switch {
+		case isDefault[s]:
+		case controllers.IsReachabilityAnalyzer(s):
+			out = append(out, controlScanner{name: s, optIn: true, analyzer: true})
+		default:
+			out = append(out, controlScanner{name: s, optIn: true})
+		}
+	}
+	return out
 }
 
 // writeScannerOptions lists what each scanner accepts under its own block in the Saga.

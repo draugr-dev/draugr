@@ -44,7 +44,8 @@ const kubeBenchConfigSchema = `{
   "properties": {
     "targets": {
       "type": "string",
-      "description": "Comma-separated kube-bench targets to run, e.g. \"master,node\". Defaults to the node checks, which are what a scan from outside the control plane can answer."
+      "default": "policies",
+      "description": "Comma-separated kube-bench targets to run, e.g. \"master,node\". Defaults to policies, the section a scan from outside the control plane can answer."
     },
     "configDir": {
       "type": "string",

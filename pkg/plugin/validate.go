@@ -292,6 +292,10 @@ var patternNames = map[string]string{
 	DigestPattern:   "a digest such as sha256:<hex>",
 }
 
+// PatternName says in words what a pattern accepts, in the words ValidateConfig refuses a value
+// in, or "" for a pattern it has no words for.
+func PatternName(pattern string) string { return patternNames[pattern] }
+
 // anyOfConsts is the vocabulary an anyOf of consts names, or nil when the node has none.
 func anyOfConsts(node schemaNode) []any {
 	var out []any

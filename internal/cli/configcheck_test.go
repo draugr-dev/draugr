@@ -78,7 +78,7 @@ func TestConfigSetRefusesWhatValidateRefuses(t *testing.T) {
 		}
 		// The list of keys answers a key the file cannot hold, not a value it refuses.
 		keyProblem := strings.HasPrefix(c.key, "tools.") || c.key == "output.veiw" || c.key == "log.levl"
-		if hinted := strings.Contains(err.Error(), config.KeysURL); hinted != keyProblem {
+		if hinted := strings.Contains(err.Error(), config.KeysHint); hinted != keyProblem {
 			t.Errorf("set %s %s: keys hint present = %v:\n%v", c.key, c.value, hinted, err)
 		}
 		if _, statErr := os.Stat(filepath.Join(dir, config.FileName)); !os.IsNotExist(statErr) {
@@ -105,7 +105,7 @@ func TestConfigValidateChecksEveryFile(t *testing.T) {
 		`controls: "sats" is not a control this build of Draugr provides, did you mean "sast"?`,
 		`output.view: "banana" is not findings, actions or compact`,
 		"run `draugr controls` to see what this build provides",
-		config.KeysURL,
+		config.KeysHint,
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
@@ -264,7 +264,7 @@ func TestParseConfigReportsParseAndRegistryProblemsTogether(t *testing.T) {
 	if strings.Join(p.List, "\n") != strings.Join(want, "\n") {
 		t.Errorf("problems = %q, want %q", p.List, want)
 	}
-	if !strings.Contains(p.Hint, "draugr controls") || !strings.Contains(p.Hint, config.KeysURL) {
+	if !strings.Contains(p.Hint, "draugr controls") || !strings.Contains(p.Hint, config.KeysHint) {
 		t.Errorf("hint = %q, want both", p.Hint)
 	}
 }

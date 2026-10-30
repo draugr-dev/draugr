@@ -235,6 +235,20 @@ func TestAPatternIsEnforced(t *testing.T) {
 	}
 }
 
+// `draugr config keys` says what an option accepts in the words a refusal uses, so the two read
+// the same, and a pattern with no words gets none rather than a regular expression.
+func TestPatternNameIsTheRefusalsWords(t *testing.T) {
+	durationJSON, _ := json.Marshal(DurationPattern)
+	schema := []byte(`{"type":"object","properties":{"timeout":{"type":"string","pattern":` + string(durationJSON) + `}}}`)
+	err := ValidateConfig(schema, Config{"timeout": "soon"})
+	if name := PatternName(DurationPattern); name == "" || err == nil || !strings.Contains(err.Error(), name) {
+		t.Errorf("PatternName(DurationPattern) = %q, refusal %v", name, err)
+	}
+	if name := PatternName("^[A-Z]{3}$"); name != "" {
+		t.Errorf("an unnamed pattern got words: %q", name)
+	}
+}
+
 // Two components auditing one cluster with different namespaces ask different questions, so their
 
 // Only a full object name pins a revision. A branch, a tag, a short hash and nothing at all each

@@ -35,6 +35,7 @@ const trivyLicenseConfigSchema = `{
   "properties": {
     "full": {
       "type": "boolean",
+      "default": false,
       "description": "Also read LICENSE files and source headers, not only package metadata. Finds licenses no manifest declares, and is markedly slower, it reads every file rather than the dependency list."
     },
     "deny": {

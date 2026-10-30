@@ -34,6 +34,7 @@ const grypeConfigSchema = `{
   "properties": {
     "byCve": {
       "type": "boolean",
+      "default": true,
       "description": "Report a finding under its CVE rather than the advisory ID the source used, where a CVE exists. On by default. Turn it off to see the advisory identifier Grype matched on."
     }
   }

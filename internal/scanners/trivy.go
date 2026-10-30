@@ -26,6 +26,7 @@ const trivyConfigSchema = `{
     "pkgTypes": {
       "type": "array",
       "items": { "type": "string", "enum": ["os", "library"] },
+      "default": ["os", "library"],
       "description": "Which package types to analyze. Defaults to both. Narrow it to [\"library\"] when the OS layer is somebody else's responsibility, a base image maintained by a platform team, so the report covers what this component controls."
     },
     "dbRepository": {
@@ -46,6 +47,7 @@ const trivyFSConfigSchema = `{
     "pkgTypes": {
       "type": "array",
       "items": { "type": "string", "enum": ["os", "library"] },
+      "default": ["os", "library"],
       "description": "Which package types to analyze. Defaults to both. Narrow it to [\"library\"] when the OS layer is somebody else's responsibility, a base image maintained by a platform team, so the report covers what this component controls."
     },
     "dbRepository": {
@@ -60,10 +62,12 @@ const trivyFSConfigSchema = `{
     },
     "includeDevDeps": {
       "type": "boolean",
+      "default": false,
       "description": "Report development dependencies too. Trivy leaves them out by default. Applies to npm, Yarn and Gradle."
     },
     "detectionPriority": {
       "type": "string",
+      "default": "precise",
       "anyOf": [
         { "const": "precise", "description": "Pinned versions only. The default." },
         { "const": "comprehensive", "description": "Also a range such as >=1.2 in requirements.txt, read as its minimum version, and Go standard-library vulnerabilities." }

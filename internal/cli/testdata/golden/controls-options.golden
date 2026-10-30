@@ -96,7 +96,7 @@ What each scanner accepts in its Saga block:
   kube-bench
     Option     Type    What it does
     configDir  string  Path to kube-bench's cfg/ tree of benchmark definitions. Needed when the binary is on PATH and its cfg lives beside it rather than in /etc/kube-bench/cfg.
-    targets    string  Comma-separated kube-bench targets to run, e.g. "master,node". Defaults to the node checks, which are what a scan from outside the control plane can answer.
+    targets    string  Comma-separated kube-bench targets to run, e.g. "master,node". Defaults to policies, the section a scan from outside the control plane can answer.
 
   kube-bench-job
     Option        Type    What it does
