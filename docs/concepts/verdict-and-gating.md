@@ -205,6 +205,7 @@ COMPONENTS
 SIGNALS
   KEV           2 findings raised
   EPSS          3 findings raised
+  floor         nothing raised
   reachability  govulncheck · 2 reachable, 3 unreachable
 
 ACCEPTED

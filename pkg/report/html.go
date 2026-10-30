@@ -1,7 +1,6 @@
 package report
 
 import (
-	"fmt"
 	"html/template"
 	"io"
 	"path/filepath"
@@ -87,7 +86,10 @@ type htmlView struct {
 	// Signals is what argued with the ranking: an exploitation catalog, a prediction, a control's
 	// own floor, a reachability verdict. Absent from this format entirely, which made the rendered
 	// report the one place a reader could not find out why a finding outranked its severity.
-	Signals []htmlSignal
+	Signals []signalRow
+	// SignalNotes qualify the rows as they do under the console's, such as what an unknown
+	// reachability count means.
+	SignalNotes []string
 	// Decisions is one row per acceptance. This is the copy somebody keeps, so it carries the
 	// account rather than the count: who, why, and until when.
 	Decisions []htmlDecision
@@ -173,9 +175,6 @@ type htmlControl struct {
 	Prioritized                 bool
 	Critical, High, Medium, Low int
 }
-
-// htmlSignal is one thing that argued with this run's ranking, and how many findings it moved.
-type htmlSignal struct{ Name, Effect string }
 
 // htmlDecision is one acceptance: how many findings it covers, where it is written, git's record of
 // that line, when it lapses, and why. The count alone says how much was set aside and never what
@@ -443,7 +442,7 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		}
 		view.Actions = append(view.Actions, ha)
 	}
-	view.Signals = htmlSignals(d, s)
+	view.Signals, view.SignalNotes = signals(d, s)
 	for _, dec := range decisions(d) {
 		hd := htmlDecision{N: dec.n, Where: dec.where, Expires: dec.expires, Reason: dec.reason}
 		if h := dec.history; h != nil {
@@ -531,41 +530,6 @@ func classification(exposure, criticality string) string {
 	default:
 		return criticality
 	}
-}
-
-// htmlSignals is what argued with this run's ranking, named the way the console names it.
-//
-// One list rather than four scattered facts: an exploitation catalog, a prediction about one, a
-// control's own floor and a reachability verdict all answer the same question, and a reader can
-// only compare them where they are together.
-func htmlSignals(d Data, s summary) []htmlSignal {
-	var out []htmlSignal
-	for _, name := range []string{"kev", "epss"} {
-		n := s.bySignal[name]
-		if n == 0 && !consulted(d, name) {
-			continue
-		}
-		// "nothing raised" is a result rather than an absence: without it the only way to learn a
-		// feed changed nothing is to read every finding looking for a mark that is not there.
-		effect := "nothing raised"
-		if n > 0 {
-			effect = fmt.Sprintf("%s raised", english.Count(n, "finding"))
-		}
-		out = append(out, htmlSignal{Name: strings.ToUpper(name), Effect: effect})
-	}
-	if n := s.floored; n > 0 {
-		out = append(out, htmlSignal{
-			Name: "floor", Effect: fmt.Sprintf("%s raised by a control's own rule", english.Count(n, "finding")),
-		})
-	}
-	rows, _ := reachabilityBlock(d)
-	for _, row := range rows {
-		analyzer, did, _ := strings.Cut(row, "  ")
-		out = append(out, htmlSignal{
-			Name: "reachability", Effect: strings.TrimSpace(analyzer) + " · " + strings.TrimSpace(did),
-		})
-	}
-	return out
 }
 
 // timings renders the run's wall-clock and a worst-first control breakdown.
@@ -1298,16 +1262,22 @@ const htmlDoc = `<!doctype html>
     text-transform: uppercase; color: var(--faint);
   }
   .rows .faint { color: var(--faint); }
-  /* What moved a band, first on the line, in the color of the direction it moved. */
-  .rows .moved {
+  /* What moved a band, first on the line, in the color of the direction it moved. The Signals
+   * table draws the same mark, so a reader matches a signal's rule to the rows it marked. */
+  :is(.rows, .signals) .moved {
     display: inline-flex; align-items: center; gap: 3px; padding: 0 5px; margin-right: 6px;
     border: 1px solid var(--line); border-radius: 4px; font-size: 11.5px; color: var(--text);
     white-space: nowrap;
   }
-  .rows .moved.up { border-color: var(--p1); }
-  .rows .moved.up .g { color: var(--p1); font-weight: 700; }
-  .rows .moved.down { border-color: var(--p3); }
-  .rows .moved.down .g { color: var(--p3); }
+  :is(.rows, .signals) .moved.up { border-color: var(--p1); }
+  :is(.rows, .signals) .moved.up .g { color: var(--p1); font-weight: 700; }
+  :is(.rows, .signals) .moved.down { border-color: var(--p3); }
+  :is(.rows, .signals) .moved.down .g { color: var(--p3); }
+  /* In the table the mark is the cell's own size, because there it is the rule being read. The
+   * condition after it is the qualifier and sits back, and a value the run set is read. */
+  .signals .moved { font-size: inherit; }
+  .signals .how { color: var(--muted); }
+  .signals .how code { color: var(--text); }
   /* The count is the way into the rows behind it. A fix list that says "5 findings" and cannot
    * show which five asks a reader to take it on trust, and the five are already on the page. */
   .rows .act-clears {
@@ -1503,6 +1473,11 @@ const htmlDoc = `<!doctype html>
     .rows summary.rule, .rows .act-clears { min-height: 24px; }
     .rows .act-clears { display: inline-flex; align-items: center; }
     .rows .rule .id a { display: inline-block; min-height: 24px; }
+    /* Three columns under unbroken headings are wider than a phone, and what a signal did is the
+     * column pushed off it. The heading and the mark wrap instead. */
+    .signals th, .signals .moved { white-space: normal; }
+    .signals .moved { align-items: baseline; }
+    .signals th, .signals td { padding-left: .4rem; padding-right: .4rem; }
   }
 
   @media print {
@@ -1576,10 +1551,11 @@ the component is, so the same issue ranks differently on a public API than on an
 {{if .Signals}}
 <details class="fold" open><summary id="signals"><span class="sec">Signals</span></summary>
 <p class="note">What argued with this run's ranking, and how many findings each one moved.</p>
-<table class="provenance">
-<thead><tr><th scope="col">Signal</th><th scope="col">Effect</th></tr></thead>
-{{range .Signals}}<tr><td><code>{{.Name}}</code></td><td>{{.Effect}}</td></tr>{{end}}
+<table class="provenance signals">
+<thead><tr><th scope="col">Signal</th><th scope="col">How it moves a finding</th><th scope="col">This run</th></tr></thead>
+{{range .Signals}}<tr><td><code>{{.Name}}</code></td><td class="how"><span class="moved {{.Moves.Dir}}"><span class="g">{{.Moves.Glyph}}</span>{{.Moves.Change}}</span> {{.Moves.Condition}}{{with .Moves.Value}} <code>{{.}}</code>{{end}}{{.Moves.Rest}}</td><td>{{.Did}}</td></tr>{{end}}
 </table>
+{{range .SignalNotes}}<p class="note">{{.}}</p>{{end}}
 </details>
 {{end}}
 {{if .Controls}}
