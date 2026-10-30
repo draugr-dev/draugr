@@ -70,10 +70,10 @@ schema mapping; point it at the same URL.
 That covers *writing* the descriptor. For the scan's **findings** to appear inline on the lines
 that caused them, see [findings in your editor](findings-in-your-editor.md).
 
-**`draugr.config.yaml` has a schema of its own**, at
-`https://draugr.dev/schema/draugr.config.schema.json`, and every route above works for it with
-that URL and the file name `draugr.config.yaml`. `draugr config init` writes its modeline. See
-[configuring Draugr](configuration.md#in-your-editor).
+**`draugr.config.yaml` has a schema of its own**,
+`https://draugr.dev/schema/draugr.config.schema.json`. Map it with the modeline, VS Code, JetBrains
+or Neovim routes above, using that URL and the file name `draugr.config.yaml`. `draugr config init`
+writes its modeline. See [configuring Draugr](configuration.md#in-your-editor).
 
 ## Matching the schema to your Draugr version
 

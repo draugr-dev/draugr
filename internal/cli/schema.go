@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,18 +19,20 @@ func newSchemaCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "schema",
 		Short: "Print the JSON Schema this build enforces for a Saga, a fragment or the config file",
-		Long: "Print the JSON Schema for draugr.saga.yaml, as embedded in this binary.\n\n" +
-			"Editors fetch it from draugr.dev by default, which needs network access and follows\n" +
+		Long: "Print a JSON Schema embedded in this binary: the Saga's by default, a Saga fragment's\n" +
+			"with --fragment, or draugr.config.yaml's with --config-file.\n\n" +
+			"Editors fetch a schema from draugr.dev by default, which needs network access and follows\n" +
 			"whatever is published. A local copy pins validation to this build and works offline:\n\n" +
 			"  draugr schema -o .saga.schema.json\n" +
 			"  # then in your Saga:\n" +
 			"  # yaml-language-server: $schema=./.saga.schema.json\n\n" +
-			"--fragment prints the schema for a Saga fragment instead. A fragment is a different\n" +
-			"shape, no release, and no policy, so it has a schema of its own.\n\n" +
-			"--config-file prints the schema for draugr.config.yaml instead, which checks what\n" +
-			"`draugr config validate` checks, scanner options included.",
+			"A fragment is a different shape, no release and no policy, so it has a schema of its own.\n" +
+			"The config schema checks what `draugr config validate` checks, scanner options included.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if fragment && configFile {
+				return errors.New("--fragment and --config-file select different schemas; pass one")
+			}
 			doc, file := saga.SchemaJSON, "a Saga"
 			switch {
 			case fragment:
@@ -55,7 +58,6 @@ func newSchemaCommand() *cobra.Command {
 	// Not --config: that is the global flag naming which config file a command reads.
 	cmd.Flags().BoolVar(&configFile, "config-file", false,
 		"print the draugr.config.yaml schema instead of the Saga schema")
-	cmd.MarkFlagsMutuallyExclusive("fragment", "config-file")
 	cmd.Flags().StringVarP(&out, "output", "o", "", "write the schema to this file instead of stdout")
 	return cmd
 }

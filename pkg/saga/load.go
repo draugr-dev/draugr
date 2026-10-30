@@ -388,7 +388,7 @@ func noEmptyValues(root *yaml.Node) error {
 	}
 	problems := make([]string, 0, len(empties))
 	for _, e := range empties {
-		problems = append(problems, fmt.Sprintf("line %d: %s has no value; give it one or delete it", e.Line, e.Path))
+		problems = append(problems, fmt.Sprintf("%s: no value on line %d; give it one or delete it", e.Path, e.Line))
 	}
 	return fmt.Errorf("%s", strings.Join(problems, "; "))
 }

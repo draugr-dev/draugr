@@ -37,64 +37,64 @@ func configFields() map[string]map[string]any {
 	}
 	return map[string]map[string]any{
 		"tools": {
-			"description": "The build of each external tool `draugr tools install` provisions, keyed by tool name.",
+			"description": "The version of each external tool `draugr tools install` provisions, keyed by tool name.",
 		},
 		"tools.*": {
-			"description": "One tool's pin.",
+			"description": "Settings for one tool.",
 		},
 		"tools.*.version": {
-			"description": "The release to install, e.g. `0.69.3`.",
+			"description": "The version to install, e.g. `0.69.3`.",
 		},
 		"controls": {
 			"description": "Default settings for each control, merged underneath a descriptor's `config.controls`, " +
 				"so a project overrides only the keys it names. The same shape as `config.controls` in a Saga.",
 		},
 		"controllers": {
-			"description": "Deprecated: write `controls`. Still read, so no file breaks, and folded into `controls` " +
-				"when the file is read; `controls` wins where both set a key.",
+			"description": "Deprecated: write `controls`. Read as `controls`; `controls` wins where both set a key.",
 		},
 		"cache": {
 			"description": "Where scan results are reused between runs, and for how long.",
 		},
 		"cache.dir": {
-			"description": "The directory results are cached in. Unset leaves caching off. The `--cache-dir` flag.",
+			"description": "The directory results are cached in. Unset leaves caching off. Overridden by `--cache-dir`.",
 		},
 		"cache.ttl": {
 			"description": "How long a cached result stays usable, as a duration such as `24h`. `0s` means no " +
-				"expiry; unset keeps the built-in default. The `--cache-ttl` flag.",
+				"expiry; unset keeps the built-in default. Overridden by `--cache-ttl`.",
 			"pattern": durationPattern,
 		},
 		"cache.readOnly": {
-			"description": "Serve cached results without writing new ones. A more specific file's `false` does " +
-				"not turn off a less specific file's `true`. The `--cache-read-only` flag.",
+			"description": "Serve cached results without writing new ones. A project file's `false` does not " +
+				"override a `true` set in `~/.draugr/config.yaml`. Overridden by `--cache-read-only`.",
 		},
 		"cache.requireDigest": {
 			"description": "Refuse to cache an image named only by a tag, which can be rebuilt under the same name. " +
-				"A more specific file's `false` does not turn off a less specific file's `true`. The " +
-				"`--cache-require-digest` flag.",
+				"A project file's `false` does not override a `true` set in `~/.draugr/config.yaml`. " +
+				"Overridden by `--cache-require-digest`.",
 		},
 		"publish": {
 			"description": "Defaults for where a run is delivered.",
 		},
 		"publish.apiUrl": {
-			"description": "Where the `draugr-api` publisher posts when `$DRAUGR_API_URL` is unset. Read from a " +
-				"project's draugr.config.yaml, it is used only on an allowed origin. Never holds a token.",
+			"description": "Where the `draugr-api` publisher posts when `$DRAUGR_API_URL` is unset. In a project's " +
+				"draugr.config.yaml it is used only on the origin of `publish.apiUrl` in `~/.draugr/config.yaml`, " +
+				"or one `$DRAUGR_API_ORIGINS` lists. Never holds a token.",
 		},
 		"output": {
 			"description": "How a console report is rendered. A flag on the command line overrides each setting.",
 		},
 		"output.view": {
-			"description": "What a console report shows. The `--view` flag.",
+			"description": "What a console report shows. Overridden by `--view`.",
 			"type":        "string",
 			"anyOf":       views,
 		},
 		"output.evidence": {
 			"description": "Also print what stands behind the verdict: tool provenance, what each control measured " +
-				"against, the scanned revision, and what the run cost. The `--evidence` flag.",
+				"against, the scanned revision, and what the run cost. Overridden by `--evidence`.",
 		},
 		"output.top": {
 			"description": "How many rows the fix list shows. `0` means the built-in default rather than every " +
-				"row. The `--top` flag.",
+				"row. Overridden by `--top`.",
 			"minimum": 0,
 		},
 		"output.offerInstall": {

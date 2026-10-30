@@ -139,17 +139,8 @@ draugr schema --config-file -o .draugr/config.schema.json
 # yaml-language-server: $schema=./.draugr/config.schema.json
 ```
 
-Or map it once in VS Code's `.vscode/settings.json`, with no modeline in the file:
-
-```json
-{
-  "yaml.schemas": {
-    "https://draugr.dev/schema/draugr.config.schema.json": ["draugr.config.yaml"]
-  }
-}
-```
-
-[Editor support](editor-support.md) has the same mapping for JetBrains and Neovim.
+To map the file in your editor settings instead of a modeline, see
+[Editor support](editor-support.md).
 
 ## What it can hold
 

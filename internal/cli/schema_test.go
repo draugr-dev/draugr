@@ -80,8 +80,12 @@ func TestSchemaCommandSelectsTheDocument(t *testing.T) {
 			t.Errorf("%s printed %v, want %q", flag, doc["title"], title)
 		}
 	}
-	if _, _, err := runSchema(t, "--fragment", "--config-file"); err == nil {
-		t.Error("--fragment with --config-file was accepted; it can print only one schema")
+	out, _, err := runSchema(t, "--fragment", "--config-file")
+	if want := "--fragment and --config-file select different schemas; pass one"; err == nil || err.Error() != want {
+		t.Errorf("--fragment with --config-file: err = %v, want %q", err, want)
+	}
+	if strings.Contains(out, `"$schema"`) {
+		t.Errorf("--fragment with --config-file printed a schema anyway:\n%.80s", out)
 	}
 }
 

@@ -1947,7 +1947,7 @@ deep-merged, so an override replaces only the keys it names.
 | `draugr config get <key>` | one resolved value |
 | `draugr config set <key> <value>` | write a value |
 | `draugr config unset <key>` | remove one, pruning anything it empties |
-| `draugr config init` | write a commented starter whose first line points an editor at [the schema](../guides/configuration.md#in-your-editor); `--force` replaces an existing file |
+| `draugr config init` | write a commented starter with the editor modeline; `--force` replaces an existing file |
 | `draugr config validate [path...]` | hold the discovered files, or the files named, to every check a scan makes, reporting each file |
 
 `set`, `unset` and `init` write the file a scan reads: the one `--config` or `DRAUGR_CONFIG` names,
@@ -2179,8 +2179,7 @@ draugr schema --config-file        # the schema for draugr.config.yaml
 ```
 
 A fragment has its own schema (no `release:`, no policy); pick it with `--fragment`. The config
-file's schema checks what [`draugr config validate`](#draugr-config) checks, and holds `controls`
-to the same per-control definitions as a Saga's `config.controls`. `--fragment` and
+file's schema checks what [`draugr config validate`](#draugr-config) checks. `--fragment` and
 `--config-file` cannot be combined.
 
 Editors normally fetch the schema from draugr.dev, which needs network access and follows a
