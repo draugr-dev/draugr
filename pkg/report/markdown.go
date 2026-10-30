@@ -181,13 +181,11 @@ func writeCaveatRows(w io.Writer, d Data) {
 		if g.component != "" {
 			head = "**" + g.component + "**"
 		}
-		// The component's row from the table above, so its verdict and what the run did not cover
-		// are read together.
+		// The component's row from the Components table, so its verdict and what the run did not
+		// cover are read together, with the classification the ranking used as the table writes it.
 		if c, ok := verdicts[g.component]; ok {
-			if class := classification(c.Exposure, c.Criticality); class != "" {
-				head += " · " + class
-			}
-			head += " · " + componentVerdictWord(c)
+			exposure, criticality := rankedClass(c)
+			head += " · " + exposure.markdown() + " · " + criticality.markdown() + " · " + componentVerdictWord(c)
 		}
 		_, _ = fmt.Fprintln(w, head)
 		_, _ = fmt.Fprintln(w)
@@ -392,8 +390,8 @@ func writeComponentTable(w io.Writer, d Data) {
 	}
 	_, _ = fmt.Fprintln(w, "### Components")
 	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "| Component | Declared | Verdict | P1 | P2 | P3 | P4 | Failing controls |")
-	_, _ = fmt.Fprintln(w, "|---|---|---|---:|---:|---:|---:|---|")
+	_, _ = fmt.Fprintln(w, "| Component | Exposure | Criticality | Verdict | P1 | P2 | P3 | P4 | Failing controls |")
+	_, _ = fmt.Fprintln(w, "|---|---|---|---|---:|---:|---:|---:|---|")
 	for _, c := range d.Components {
 		// A row of counts beside the word "pass" for a component with a target no scanner read
 		// asserts something no scanner established, and a table is where that reads most like a
@@ -409,8 +407,9 @@ func writeComponentTable(w io.Writer, d Data) {
 		if len(c.FailedCaveats) > 0 {
 			notes = append(notes, failedCaveatNote(c.FailedCaveats))
 		}
-		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %d | %d | %d | %d | %s |\n",
-			c.Name, dash(classification(c.Exposure, c.Criticality)), v,
+		exposure, criticality := rankedClass(c)
+		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %s | %d | %d | %d | %d | %s |\n",
+			c.Name, exposure.markdown(), criticality.markdown(), v,
 			c.Priorities[0], c.Priorities[1], c.Priorities[2], c.Priorities[3],
 			dash(strings.Join(notes, "; ")))
 	}
@@ -419,6 +418,15 @@ func writeComponentTable(w io.Writer, d Data) {
 		_, _ = fmt.Fprintf(w, "_%s not tied to a component (project-wide controls)._\n\n",
 			english.Count(d.UnattributedFindings, "finding"))
 	}
+}
+
+// markdown writes a half of the classification as a cell. Plain text carries no dimming, so a half
+// the ranking assumed says so in words.
+func (h classHalf) markdown() string {
+	if h.Assumed {
+		return h.Value + " (assumed)"
+	}
+	return h.Value
 }
 
 // writeExploitability records the datasets that raised severities in this run.

@@ -238,15 +238,50 @@ func TestACaveatGroupWithoutABreakdownIsHeadedByItsName(t *testing.T) {
 		t.Errorf("want the name alone in markdown:\n%s", md)
 	}
 
+	// Skipped, edge was not ranked, so it has no classification, as its Components row has none.
 	d.Scope = &Scope{SkippedComponents: []string{"edge"}}
-	d.Components = []ComponentVerdict{{Name: "ledger", Verdict: norn.Fail}}
+	d.Components = []ComponentVerdict{{Name: "ledger", Verdict: norn.Fail, Exposure: "internal", Criticality: "supporting"}}
 	if html := caveatsSection(t, renderHTML(t, d)); !strings.Contains(html,
 		`<span class="cv-comp">edge</span><span class="cv-verdict"><span class="none">not scanned</span></span>`) ||
-		!strings.Contains(html, `<span class="cv-comp">ledger</span><span class="cv-verdict"><span class="err">FAIL</span></span>`) {
+		!strings.Contains(html, `<span class="cv-comp">ledger</span><span class="cls">internal · supporting</span><span class="cv-verdict"><span class="err">FAIL</span></span>`) {
 		t.Errorf("want edge not scanned and ledger failing:\n%s", html)
 	}
-	if md := renderWith(t, markdownReporter{}, d); !strings.Contains(md, "\n**ledger** · **FAIL**\n") {
+	if md := renderWith(t, markdownReporter{}, d); !strings.Contains(md, "\n**ledger** · internal · supporting · **FAIL**\n") {
 		t.Errorf("want ledger failing in markdown:\n%s", md)
+	}
+}
+
+// A half the descriptor left out is shown as the level the ranking assumed, marked, in the group
+// header as in the Components table: dimmed and followed by `assumed` in HTML, and `(assumed)` in
+// markdown. Exposure alone leaves criticality assumed, and neither leaves both.
+func TestACaveatGroupHeaderMarksAnAssumedHalf(t *testing.T) {
+	d := everyCaveatData()
+	d.Components[0].Exposure, d.Components[0].Criticality = "internal", ""
+	d.Components[1].Exposure, d.Components[1].Criticality = "", ""
+	doc := renderHTML(t, d)
+	html := caveatsSection(t, doc)
+	for _, want := range []string{
+		`<span class="cv-comp">edge</span><span class="cls">internal · <span class="asm">critical</span><span class="tag">assumed</span></span>`,
+		`<span class="cv-comp">ledger</span><span class="cls"><span class="asm">public</span><span class="tag">assumed</span> · <span class="asm">critical</span><span class="tag">assumed</span></span>`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("missing the group header %s:\n%s", want, html)
+		}
+	}
+	// The same markup the Components table gives the same component, so the two cannot differ.
+	table := section(t, doc, `<table class="components">`, `</table>`)
+	if !strings.Contains(table, `<td class="cls">internal</td>`+"\n"+`  <td class="cls"><span class="asm">critical</span><span class="tag">assumed</span></td>`) {
+		t.Errorf("the Components table renders edge differently:\n%s", table)
+	}
+
+	md := renderWith(t, markdownReporter{}, d)
+	for _, want := range []string{
+		"\n**edge** · internal · critical (assumed) · pass\n",
+		"\n**ledger** · public (assumed) · critical (assumed) · **ERROR**\n",
+	} {
+		if !strings.Contains(md, want) {
+			t.Errorf("markdown is missing %q:\n%s", want, md)
+		}
 	}
 }
 
