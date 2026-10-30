@@ -2203,7 +2203,9 @@ counted in the report.
 A contributed setting is **appended, never assigned**: the descriptor's own values stay, and the
 fragment's are added after them. `report.json` records which file each one came from, under
 `descriptor.contributed`, so a reviewer can find out which included file expects an identity nobody
-reading the descriptor declared.
+reading the descriptor declared. The same map names the configuration file behind each control
+default that reached the descriptor, keyed by the setting's path, as `secrets.gitleaks.history`;
+[the report schema](report-schema.md#what-each-descriptor-source-carries) lists both kinds of key.
 
 `config.controls.provenance.unmatched` and `trustRoot` are **not** on the list. Whether an
 uncovered image is a gap or a fact about the ecosystem, and which certificate roots are trusted,

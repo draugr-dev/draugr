@@ -256,9 +256,14 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// Organization defaults are merged *underneath* the descriptor, so the engine sees one
 	// effective Saga and nothing downstream has to know there were two files. Merged after the
 	// descriptor has been validated on its own, so an error still names what the author wrote.
-	cfg, err := applyConfigDefaults(ctx, model)
+	cfg, supplied, err := applyConfigDefaults(ctx, model)
 	if err != nil {
 		return err
+	}
+	// The merged digest is taken over those defaults, so each file that supplied one is a source of
+	// the descriptor that ran, and the report says which settings came from it.
+	for _, c := range supplied {
+		resolved.AddConfig(c.source, c.settings)
 	}
 	cacheOptionsFrom(&opts, cfg.Cache)
 	outputOptionsFrom(&opts, cfg.Output)
@@ -1074,13 +1079,11 @@ func digestPinnedOnly(t plugin.Target) bool {
 // being scanned, which is committed with the repository and changes by pull request like the
 // descriptor, so the draugr-api publisher holds it to the descriptor's rule.
 func configuredAPIURLs(res config.Resolved, wd string) (machine, project string) {
-	projectFile := filepath.Join(wd, config.FileName)
-	explicit := config.Explicit(rootConfigPath) != ""
 	for _, src := range res.Sources {
 		url := src.File.Publish.APIURL
 		switch {
 		case url == "":
-		case !explicit && src.Path == projectFile:
+		case configOrigin(src.Path, wd) == originProject:
 			project = url
 		default:
 			machine = url
@@ -1089,19 +1092,49 @@ func configuredAPIURLs(res config.Resolved, wd string) (machine, project string)
 	return machine, project
 }
 
-// applyConfigDefaults merges the machine/organization controller defaults under the descriptor.
+// Where a configuration file was found, as a run's descriptor block records it. A file named by
+// --config or $DRAUGR_CONFIG is recorded by the name of the flag or variable, which is what
+// explicitSource calls it.
+const (
+	originMachine = "machine"
+	originProject = "project"
+)
+
+// configOrigin names where a configuration file was found: the flag or variable that named it,
+// since a named file is read alone; project for the draugr.config.yaml in wd; and machine for
+// ~/.draugr/config.yaml.
+func configOrigin(path, wd string) string {
+	switch {
+	case config.Explicit(rootConfigPath) != "":
+		return explicitSource()
+	case path == config.ProjectFile(wd):
+		return originProject
+	default:
+		return originMachine
+	}
+}
+
+// configSource is a configuration file whose control defaults reached the descriptor, as the
+// descriptor block records it, and the settings it supplied.
+type configSource struct {
+	source   saga.Source
+	settings []string
+}
+
+// applyConfigDefaults merges the machine/organization controller defaults under the descriptor,
+// and returns each file whose defaults reached it.
 //
 // Under, not over: a project that has an opinion keeps it, and inherits the rest. The
 // alternative, defaults that a Saga cannot override. Is a guarantee a CLI cannot keep, because
 // the config lives on a machine the same person controls.
-func applyConfigDefaults(ctx context.Context, model *saga.Model) (config.File, error) {
+func applyConfigDefaults(ctx context.Context, model *saga.Model) (config.File, []configSource, error) {
 	wd, err := os.Getwd()
 	if err != nil {
-		return config.File{}, err
+		return config.File{}, nil, err
 	}
 	res, err := loadConfig(wd)
 	if err != nil {
-		return config.File{}, err
+		return config.File{}, nil, err
 	}
 	// The organization's default endpoint, carried to the publishers that may want it. Applied
 	// here rather than merged into the descriptor's url, because the two are trusted differently:
@@ -1113,19 +1146,28 @@ func applyConfigDefaults(ctx context.Context, model *saga.Model) (config.File, e
 	}
 
 	if len(res.File.Controls) == 0 {
-		return res.File, nil
+		return res.File, nil, nil
 	}
-	if model.Config.Controls == nil {
-		model.Config.Controls = map[string]saga.ControllerSettings{}
-	}
-	for control, defaults := range res.File.Controls {
-		model.Config.Controls[control] = config.DeepMerge(defaults, model.Config.Controls[control])
-	}
+	merged, supplied := res.MergeControls(model.Config.Controls)
+	model.Config.Controls = merged
 	// Said once, at debug: a reader wondering why a control behaved unexpectedly needs to know a
-	// second file had a say, and `draugr config show` is where the detail lives.
+	// second file had a say. The report names each file and what it supplied, and `draugr config
+	// show` names the file behind every setting.
 	slog.DebugContext(ctx, "merged controller defaults from configuration",
 		"files", len(res.Sources), "controls", len(res.File.Controls))
-	return res.File, nil
+	sources := make([]configSource, 0, len(supplied))
+	for _, s := range supplied {
+		// Named as `config show` names it, so a report carries no home directory and a reader can
+		// match the row to that command's.
+		sources = append(sources, configSource{
+			source: saga.Source{
+				Path: displayPath(s.Source.Path, wd), Digest: s.Source.Digest,
+				Config: configOrigin(s.Source.Path, wd),
+			},
+			settings: s.Settings,
+		})
+	}
+	return res.File, sources, nil
 }
 
 // outputOptionsFrom folds the configured rendering preferences under the flags.

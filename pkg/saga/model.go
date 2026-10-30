@@ -67,11 +67,14 @@ type Config struct {
 	Controls map[string]ControllerSettings `yaml:"controls,omitempty"`
 
 	// ControlSources names the fragments each control setting arrived from, keyed
-	// "control.option", for the settings FragmentControlOptions admits.
+	// "control.option", for the settings FragmentControlOptions admits, and the configuration file
+	// behind each control default that reached the descriptor, keyed by the setting's dotted path,
+	// as "secrets.gitleaks.history".
 	//
 	// A descriptor's own values are not listed: they came from the file in front of the reader.
 	// What this answers is which included file expects an identity nobody reading the descriptor
-	// declared, which is the attribution that makes carrying the setting in a fragment safe.
+	// declared, which is the attribution that makes carrying the setting in a fragment safe, and
+	// which file outside the repository set a value the descriptor does not hold.
 	//
 	// Never written by hand, so it is not part of the descriptor's schema.
 	ControlSources map[string][]string `yaml:"-" json:"-"`

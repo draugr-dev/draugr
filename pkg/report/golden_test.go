@@ -385,6 +385,26 @@ func goldenEvidenceData() Data {
 		{Tool: "retire", DataState: plugin.DataState{Name: "advisory database",
 			Downloaded: time.Date(2026, 10, 11, 15, 38, 29, 0, time.UTC)}},
 	}
+	// A descriptor of every kind of source: the root, a fragment, and a configuration file at each
+	// level that supplied a control default. The Descriptor section and the evidence row are the
+	// only places a run under --evidence names them, and nothing else pins either.
+	desc := *goldenExclusions()
+	desc.Digest = "sha256:5768228be713b4eb379bbd06d25aab6300d2cdecced48dab21717761f5062e2f"
+	desc.Sources = []skald.DescriptorSource{
+		{Path: "draugr.saga.yaml", Root: true,
+			Digest: "sha256:21f1945335b5ecefd4eb7d7139635e2a047d2e9aefebf26657590734d92e989d"},
+		{Path: "security/exclusions.saga-fragment.yaml",
+			Digest: "sha256:8ba02e9af9a5c0b1d2e3f405162738495a6b7c8d9e0f1a2b3c4d5e6f708192a3"},
+		{Path: "~/.draugr/config.yaml", Config: "machine",
+			Digest: "sha256:ada4ea46d4fc76f6faa97f581e88833b0da9a9c97b6505315d6e82a681f30193"},
+		{Path: "./draugr.config.yaml", Config: "project",
+			Digest: "sha256:5053be34ab493cdd9ca2bde27b38e02ce2525aa5779ace5e324ae872abd7572f"},
+	}
+	desc.Contributed = map[string][]string{
+		"secrets.gitleaks.config":  {"~/.draugr/config.yaml"},
+		"secrets.gitleaks.history": {"./draugr.config.yaml"},
+	}
+	d.Descriptor = &desc
 	return d
 }
 

@@ -84,7 +84,10 @@ and `0s` included, except for `cache.readOnly`, `cache.requireDigest` and `offli
 on across files. An explicit file replaces both.
 
 Controller settings are merged **underneath** the descriptor's, so a project that has an opinion
-keeps it and nothing set here can override a committed Saga.
+keeps it and nothing set here can override a committed Saga. `report.json` and `--evidence` name
+each file whose control default reached the descriptor;
+[the report schema](../reference/report-schema.md#what-each-descriptor-source-carries) has the
+fields.
 
 ## Reading and editing it
 

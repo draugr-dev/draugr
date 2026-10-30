@@ -107,7 +107,7 @@ func TestApplyConfigDefaultsMergesUnderTheDescriptor(t *testing.T) {
 	m := &saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 		"sca": {"trivyFs": map[string]any{"detectionPriority": "precise"}},
 	}}}
-	if _, err := applyConfigDefaults(context.Background(), m); err != nil {
+	if _, _, err := applyConfigDefaults(context.Background(), m); err != nil {
 		t.Fatal(err)
 	}
 
@@ -134,7 +134,7 @@ func TestApplyConfigDefaultsRefusesAnUnknownControl(t *testing.T) {
 		[]byte("controllers:\n  sats:\n    semgrep:\n      config: p/org\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	_, err := applyConfigDefaults(context.Background(), &saga.Model{})
+	_, _, err := applyConfigDefaults(context.Background(), &saga.Model{})
 	want := `controls: "sats" is not a control this build of Draugr provides, did you mean "sast"?`
 	if err == nil || !strings.Contains(err.Error(), want) || !strings.Contains(err.Error(), config.FileName) {
 		t.Errorf("want the file and %q, got %v", want, err)
@@ -145,7 +145,7 @@ func TestApplyConfigDefaultsIsANoOpWithoutAFile(t *testing.T) {
 	t.Chdir(t.TempDir())
 	t.Setenv("HOME", t.TempDir())
 	m := &saga.Model{}
-	if _, err := applyConfigDefaults(context.Background(), m); err != nil {
+	if _, _, err := applyConfigDefaults(context.Background(), m); err != nil {
 		t.Fatal(err)
 	}
 	if len(m.Config.Controls) != 0 {

@@ -260,3 +260,56 @@ func TestAppendFragmentControlsJoinsWhatTwoSurveysProposed(t *testing.T) {
 		t.Error("an empty list created a control block")
 	}
 }
+
+// A configuration file whose control defaults reached the descriptor joins its sources after the
+// descriptor's own files, and is named beside each setting it supplied, where a fragment's
+// contributions are recorded.
+func TestAConfigFileIsASourceOfTheSettingsItSupplied(t *testing.T) {
+	t.Parallel()
+	model := &Model{}
+	Merge(model, fragmentWithSigners("org.saga-fragment.yaml", "chainguard"))
+	res := &Resolved{Model: model, Sources: []Source{
+		{Path: "draugr.saga.yaml", Root: true},
+		{Path: "org.saga-fragment.yaml"},
+	}}
+	project := Source{Path: "./draugr.config.yaml", Digest: "sha256:5053be34ab49", Config: "project"}
+	res.AddConfig(project, []string{"secrets.gitleaks.history", "secrets.gitleaks.history"})
+
+	if len(res.Sources) != 3 || res.Sources[2] != project {
+		t.Errorf("sources = %+v, want the file after the fragment", res.Sources)
+	}
+	got := model.Config.ControlSources
+	if len(got["secrets.gitleaks.history"]) != 1 || got["secrets.gitleaks.history"][0] != "./draugr.config.yaml" {
+		t.Errorf("history = %v, want the file named once", got["secrets.gitleaks.history"])
+	}
+	if len(got["provenance.signers"]) != 1 {
+		t.Errorf("the fragment's attribution changed: %v", got)
+	}
+}
+
+// Nothing is recorded where there is nothing to record it in, or nothing to record: a scan with no
+// descriptor file has no descriptor block, and a file that supplied no setting is not a source.
+func TestAConfigFileThatSuppliedNothingIsNoSource(t *testing.T) {
+	t.Parallel()
+	src := Source{Path: "./draugr.config.yaml", Config: "project"}
+
+	synthesized := &Resolved{Model: &Model{}}
+	synthesized.AddConfig(src, []string{"secrets.gitleaks.history"})
+	if len(synthesized.Sources) != 0 || len(synthesized.Model.Config.ControlSources) != 0 {
+		t.Errorf("a resolution with no descriptor file recorded %+v", synthesized)
+	}
+
+	res := &Resolved{Model: &Model{}, Sources: []Source{{Path: "draugr.saga.yaml", Root: true}}}
+	res.AddConfig(src, nil)
+	if len(res.Sources) != 1 || len(res.Model.Config.ControlSources) != 0 {
+		t.Errorf("a file that supplied nothing was recorded: %+v", res)
+	}
+
+	var none *Resolved
+	none.AddConfig(src, []string{"x"}) // must not panic
+	noModel := &Resolved{Sources: []Source{{Path: "draugr.saga.yaml", Root: true}}}
+	noModel.AddConfig(src, []string{"x"})
+	if len(noModel.Sources) != 1 {
+		t.Errorf("a resolution with no model recorded %+v", noModel.Sources)
+	}
+}

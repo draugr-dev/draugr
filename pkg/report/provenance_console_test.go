@@ -47,6 +47,29 @@ func TestDescriptorLine(t *testing.T) {
 			},
 			"draugr.saga.yaml + 1 fragment",
 		},
+		// A configuration file is not a fragment, and its defaults are in the digest all the same.
+		"with config defaults": {
+			&skald.DescriptorRef{
+				Digest: "sha256:5768228be713b4eb379b",
+				Sources: []skald.DescriptorSource{
+					{Path: "./draugr.saga.yaml", Root: true},
+					{Path: "~/.draugr/config.yaml", Config: "machine"},
+					{Path: "./draugr.config.yaml", Config: "project"},
+				},
+			},
+			"./draugr.saga.yaml · merged digest 5768228be713 · includes config defaults",
+		},
+		"with a fragment and config defaults": {
+			&skald.DescriptorRef{
+				Digest: "sha256:5768228be713b4eb379b",
+				Sources: []skald.DescriptorSource{
+					{Path: "draugr.saga.yaml", Root: true},
+					{Path: "a.saga-fragment.yaml"},
+					{Path: "./draugr.config.yaml", Config: "project"},
+				},
+			},
+			"draugr.saga.yaml + 1 fragment · merged digest 5768228be713 · includes config defaults",
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			if got := descriptorLine(tc.in); got != tc.want {
