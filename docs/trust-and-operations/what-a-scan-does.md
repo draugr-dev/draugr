@@ -75,3 +75,6 @@ and recorded instead, and the obligation it carries, that you are entitled to pr
 What a run actually did appears in the report, so evidence describes what happened rather than what
 was configured. Only scans that really executed count: a cache hit means the traffic was not sent
 this time.
+
+In `report.json` the record is [`effects`](../reference/report-schema.md#effects), which also holds
+the effects the run accepted and the ones the descriptor's `config.allowEffects` declares.

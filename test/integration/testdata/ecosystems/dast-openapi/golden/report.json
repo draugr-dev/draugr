@@ -50,6 +50,16 @@
     ]
   },
   "draugr": "<cleared>",
+  "effects": {
+    "allowed": [],
+    "declared": [],
+    "used": [
+      {
+        "detail": "sends probe traffic to the endpoint, which is lawful only against systems you own or have written permission to test",
+        "kind": "network"
+      }
+    ]
+  },
   "gate": {
     "failOnPriority": "P1"
   },

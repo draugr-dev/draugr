@@ -2096,6 +2096,9 @@ EVIDENCE
   sbom        2 documents (cyclonedx-json)
 ```
 
+`report.json` lists each document under [`sboms`](report-schema.md#sboms) with its file and digest,
+and each target whose inventory failed, with the reason.
+
 ### One document per target, or one per product
 
 `scope` decides what each document covers.

@@ -62,7 +62,14 @@ type jsonReport struct {
 	// with every check and the reason. A check whose read was denied can pass, fail or say nothing,
 	// so its absence from the findings is not a result.
 	UnreadChecks []unreadChecksReport `json:"unreadChecks,omitempty"`
-	Priorities   *priorityCounts      `json:"priorities,omitempty"`
+	// Effects is which scanner effects the run accepted after --allow-effects, beside what the
+	// descriptor declared, and which effects its scanners had. Always present.
+	Effects effectsReport `json:"effects"`
+	// SBOMs are the documents config.sbom asked for: each one the run wrote, with its file and
+	// digest, and each it could not produce, with the reason. Absent when the run wrote none and
+	// recorded no failure.
+	SBOMs      *sbomsReport    `json:"sboms,omitempty"`
+	Priorities *priorityCounts `json:"priorities,omitempty"`
 	// Suppressed are the findings a config.exclude rule set aside, in the bands they were ranked
 	// into. Counted apart from Priorities rather than folded in: an excused finding is not work,
 	// and a count that mixes them says neither how much there is to do nor how much was signed off.
@@ -773,6 +780,8 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 		})
 	}
 	doc.Targets = run.Targets
+	doc.Effects = effectsOf(run)
+	doc.SBOMs = sbomsOf(run)
 
 	for _, cov := range run.Inputs {
 		files := dependencyFilesReport{

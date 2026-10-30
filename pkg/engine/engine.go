@@ -584,6 +584,9 @@ type Result struct {
 	// scans that actually executed count: a cache hit means the traffic was not sent this time,
 	// and a record of effects has to describe what happened rather than what was configured.
 	Effects []plugin.Effect
+	// Consent is which effects the run accepted, after --allow-effects, beside what the
+	// descriptor's config.allowEffects declared.
+	Consent EffectConsent
 	// Skipped are jobs that were planned and then not run, because the scanner could not answer
 	// the question the target asked. Reported because a scanner that quietly does not run is
 	// indistinguishable, in the output, from one that ran and found nothing.
@@ -610,6 +613,10 @@ type Result struct {
 	// SBOMs are the Software Bills of Materials produced when the Saga enables config.sbom.
 	// Evidence rather than judgement: they carry no findings and never affect the verdict.
 	SBOMs []sbom.Document
+	// SBOMFailures are the documents config.sbom asked for and the run did not produce, each with
+	// its reason. Each one is also a ScanErrors entry under (sbom); this is the same failure with
+	// the target it was about.
+	SBOMFailures []SBOMFailure
 	// Consulted names the exploitability datasets this run had loaded, whether or not any of
 	// them moved a finding. Carried for the same reason VEX documents are carried even when they
 	// excused nothing: a dataset that fired for nothing looks exactly like one nobody loaded.
@@ -1367,9 +1374,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// Evidence, after the controls: an SBOM describes what a component contains rather than
 	// judging it, so it never reaches the verdict. A failure is still recorded, because
 	// "you asked for an inventory and did not get one" must not pass quietly.
-	docs, sbomErrs := e.generateSBOMs(ctx, model)
-	if len(sbomErrs) > 0 {
-		ctlErrs[sbomPseudoControl] = append(ctlErrs[sbomPseudoControl], sbomErrs...)
+	docs, sbomFailures := e.generateSBOMs(ctx, model)
+	for _, f := range sbomFailures {
+		ctlErrs[sbomPseudoControl] = append(ctlErrs[sbomPseudoControl], f.Reason)
 	}
 
 	stats.Duration = time.Since(runStart)
@@ -1392,6 +1399,8 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		Scanners:  distinctScanners(planned),
 		SBOMs:     docs,
 	}
+	res.Consent = effectConsent(model.Config.AllowEffects, e.allowEffects)
+	res.SBOMFailures = sbomFailures
 	res.Skipped = skipped
 	res.Inputs = inputCoverage(byCtl)
 	res.UnreadChecks = unreadChecks(byCtl)
@@ -1755,27 +1764,37 @@ func applyExclusions(controls map[string]plugin.ControlResult, rules []saga.Excl
 // would let you believe you got it.
 const sbomPseudoControl = "(sbom)"
 
-// generateSBOMs takes one inventory per distinct repository and image in the model.
+// generateSBOMs takes one inventory per distinct repository and image in the model, and returns
+// the documents with every one that could not be produced.
 //
 // Deduplicated by target identity: several controls scan the same repository, and an SBOM of it
 // is the same document however many controls touched it. A repository's identity carries its
 // scope, so two components on different paths of one repository each get an inventory of their
 // own part, the part their controls scanned. Ordered by component then target so a run is
 // reproducible and two runs diff cleanly.
-func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Document, []string) {
+func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Document, []SBOMFailure) {
 	cfg := model.Config.SBOM
 	if cfg == nil || !cfg.Enabled {
 		return nil, nil
 	}
+	format := cfg.Format
+	if format == "" {
+		format = sbom.DefaultFormat
+	}
+	scope := cfg.Scope
+	if scope == "" {
+		scope = saga.SBOMScopeComponent
+	}
 	if e.sbomGen == nil {
-		return nil, []string{"sbom generation is enabled but no generator is configured"}
+		return nil, []SBOMFailure{{Scope: scope, Format: format,
+			Reason: "sbom generation is enabled but no generator is configured"}}
 	}
 
 	ctx, span := tracer.Start(ctx, "engine.sbom")
 	defer span.End()
 
 	var docs []sbom.Document
-	var errs []string
+	var failed []SBOMFailure
 	seen := make(map[string]bool)
 
 	for i := range model.Components {
@@ -1792,8 +1811,10 @@ func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Do
 		}
 		for _, t := range targets {
 			if ctx.Err() != nil {
-				errs = append(errs, ctx.Err().Error())
-				return docs, errs
+				// One failure for the rest of the run rather than one per target it never reached:
+				// the reason belongs to the run, and repeating it per target adds nothing.
+				failed = append(failed, SBOMFailure{Scope: saga.SBOMScopeComponent, Format: format, Reason: ctx.Err().Error()})
+				return docs, failed
 			}
 			if seen[t.Identity()] {
 				continue
@@ -1801,23 +1822,24 @@ func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Do
 			seen[t.Identity()] = true
 			doc, err := e.sbomGen.Generate(ctx, comp.Name, t, cfg.Format)
 			if err != nil {
-				errs = append(errs, err.Error())
+				failed = append(failed, SBOMFailure{
+					Scope: saga.SBOMScopeComponent, Component: comp.Name, Target: sbom.TargetName(t),
+					Format: format, Reason: err.Error(),
+				})
 				continue
 			}
 			docs = append(docs, doc)
 		}
 	}
 
-	scope := cfg.Scope
-	if scope == "" {
-		scope = saga.SBOMScopeComponent
-	}
 	if scope.Project() {
-		docs, errs = appendProjectSBOM(
-			e.sbomGen, model.ProjectName(), model.Release, cfg.Format, scope, docs, errs)
+		var err error
+		if docs, err = appendProjectSBOM(e.sbomGen, model.ProjectName(), model.Release, cfg.Format, scope, docs); err != nil {
+			failed = append(failed, SBOMFailure{Scope: saga.SBOMScopeProject, Format: format, Reason: err.Error()})
+		}
 	}
-	slog.DebugContext(ctx, "generated SBOMs", "documents", len(docs), "errors", len(errs))
-	return docs, errs
+	slog.DebugContext(ctx, "generated SBOMs", "documents", len(docs), "errors", len(failed))
+	return docs, failed
 }
 
 // appendProjectSBOM assembles the per-target documents into one covering the release, and, for
@@ -1827,23 +1849,23 @@ func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Do
 // manage. The descriptor asked for a document covering the product; quietly delivering seven
 // documents covering repositories would be a green run that answered a different question.
 func appendProjectSBOM(gen sbom.Generator, project string, release saga.Release,
-	format saga.SBOMFormat, scope saga.SBOMScope, docs []sbom.Document, errs []string,
-) ([]sbom.Document, []string) {
+	format saga.SBOMFormat, scope saga.SBOMScope, docs []sbom.Document,
+) ([]sbom.Document, error) {
 	asm, ok := gen.(sbom.Assembler)
 	if !ok {
-		return docs, append(errs, "config.sbom.scope asks for a project document, "+
+		return docs, errors.New("config.sbom.scope asks for a project document, " +
 			"but the configured SBOM generator cannot assemble one")
 	}
 	assembled, err := asm.Assemble(project, release, format, docs)
 	if err != nil {
-		return docs, append(errs, err.Error())
+		return docs, err
 	}
 	if scope == saga.SBOMScopeProject {
 		// The parts were generated because assembling needs them; the descriptor asked only for
 		// the whole. scope: both is how you keep the evidence alongside the summary.
-		return []sbom.Document{assembled}, errs
+		return []sbom.Document{assembled}, nil
 	}
-	return append(docs, assembled), errs
+	return append(docs, assembled), nil
 }
 
 // distinctScanners names the scanners a run used, sorted.
