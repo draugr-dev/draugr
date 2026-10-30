@@ -899,7 +899,9 @@ its component.
 
 New, unaccepted, accepted and fixed findings are listed in one `CHANGED` table, ranked by priority,
 with what happened to each finding in its own column. Within a band, what needs somebody comes
-before what does not. `--view actions` lists the changes as things to do instead. Above the table,
+before what does not. `--view actions` lists the changes as things to do instead, grouped as the
+scan's fix list groups them: one upgrade per package, and one action per line of code, listing every
+rule that flags the line. Above the table,
 one strip per state counts the prioritized findings in `head` by band: new, unaccepted, accepted,
 moved, unchanged and still accepted. A strip with nothing in it is not drawn, and fixed has none,
 because a fixed finding is not in `head`.

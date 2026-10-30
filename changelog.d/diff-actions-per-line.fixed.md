@@ -1,0 +1,1 @@
+- **`draugr diff --view actions` lists a change to code the way `draugr scan` does**, as one action per line, titled the same way and listing every rule that flags it. Two rules on one new line are one action, and a rule on two new lines is two. Rows name the component and repository when the change spans several.

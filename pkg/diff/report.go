@@ -8,6 +8,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
+	fixlist "github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
@@ -264,7 +265,7 @@ func renderConsole(w io.Writer, r Result, opts Options) error {
 	case len(entries) == 0:
 		_, _ = fmt.Fprintln(w, col.Paint(tui.StylePass, nothingChanged(r)))
 	case opts.View == ViewActions:
-		writeDiffActions(w, col, entries, opts)
+		writeDiffActions(w, col, entries, r.Rules, opts)
 	default:
 		writeChanged(w, col, r, entries, opts)
 	}
@@ -354,73 +355,155 @@ type action struct {
 	what  string
 	lead  Entry
 	group []Entry
+	// line is the line of code the action is, for findings at one line; nil for any other action.
+	line *fixlist.CodeLine
+}
+
+// component is the one every finding in the action belongs to, or "" where they span several.
+func (a action) component() string {
+	c := a.group[0].Component
+	for _, e := range a.group[1:] {
+		if e.Component != c {
+			return ""
+		}
+	}
+	return c
 }
 
 // groupChanges turns what a change did into the things somebody would do about it.
 //
-// One remediation usually covers many findings: six advisories in one library are one upgrade.
-// Only where the fix genuinely is one fix, which for a diff means the package, and an acceptance
-// that ended is its own kind of work because the thing to do is decide again rather than upgrade.
+// One remediation usually covers many findings: six advisories in one library are one upgrade, and
+// four rules flagging one line of code are one edit. Only where the fix genuinely is one fix, which
+// for a dependency means the package and for code the line, keyed by fixlist.LineKey so a line is
+// one action in a diff exactly when it is one in the scan's fix list. A rule that flags two lines
+// is two actions, because each line is its own edit. An acceptance that ended is its own kind of
+// work, because the thing to do is decide again rather than upgrade.
 //
 // Shared by both formats. A work list that is a different shape depending on where it is read is
 // two answers to one question.
-func groupChanges(entries []Entry) (actions []action, covered int) {
-	index := map[string]*action{}
-	for _, e := range entries {
+func groupChanges(entries []Entry, rules map[string]sarif.Rule) (actions []action, covered int) {
+	results := make([]sarif.Result, len(entries))
+	for i, e := range entries {
+		results[i] = e.Result
+	}
+	// Placed over every state, so an imported SARIF file's finding at a line joins its component's
+	// repository as it does in the scan.
+	placed := fixlist.PlaceLines(results)
+	index := map[string]int{}
+	lines := map[int]bool{}
+	for i, e := range entries {
 		if !e.Change.NeedsSomebody() {
 			continue
 		}
-		label, _ := upgrade(e)
-		key := strings.TrimSuffix(label, " →")
-		if key == "" {
-			key = e.RuleID
-		}
-		key = string(e.Change) + "\x00" + key
-		if got, ok := index[key]; ok {
-			got.group = append(got.group, e)
-			covered++
-			continue
-		}
-		// The verb is the change's, not the package's. An accepted finding is a decision somebody
-		// already made and the thing to do is read it, not upgrade anything; an acceptance that
-		// ended has to be made again. Presenting either as an upgrade tells a reviewer to do work
-		// that is not theirs and hides the decision that is.
-		subject := strings.TrimSuffix(label, " →")
-		if subject == "" {
-			subject = e.RuleID
-		}
-		what := "Upgrade " + subject
-		switch e.Change {
-		case ChangeUnaccepted:
-			what = "Decide on " + subject + " again"
-		case ChangeAccepted:
-			what = "Review the acceptance of " + subject
-		default:
-			if label == "" {
-				what = "Fix " + subject
+		e.Result = placed[i]
+		covered++
+		key, onLine := fixlist.LineKey(e.Result)
+		if !onLine {
+			label, _ := upgrade(e)
+			if key = strings.TrimSuffix(label, " →"); key == "" {
+				key = e.RuleID
 			}
 		}
-		a := &action{what: what, lead: e, group: []Entry{e}}
-		index[key] = a
-		actions = append(actions, *a)
-		covered++
-	}
-	// The slice holds copies, so the groups have to be read back from the index.
-	for i := range actions {
-		lead := actions[i].lead
-		label, _ := upgrade(lead)
-		key := strings.TrimSuffix(label, " →")
-		if key == "" {
-			key = lead.RuleID
+		key = string(e.Change) + "\x00" + key
+		if at, ok := index[key]; ok {
+			actions[at].group = append(actions[at].group, e)
+			continue
 		}
-		actions[i].group = index[string(lead.Change)+"\x00"+key].group
+		index[key] = len(actions)
+		lines[len(actions)] = onLine
+		actions = append(actions, action{lead: e, group: []Entry{e}})
+	}
+	for i := range actions {
+		if lines[i] {
+			group := make([]sarif.Result, len(actions[i].group))
+			for j, e := range actions[i].group {
+				group[j] = e.Result
+			}
+			line := fixlist.LineOf(rules, group)
+			actions[i].line = &line
+		}
+		actions[i].what = actions[i].title()
 	}
 	return actions, covered
 }
 
+// title is what to do, in the imperative.
+//
+// The verb is the change's, not the package's. An accepted finding is a decision somebody already
+// made and the thing to do is read it, not upgrade anything; an acceptance that ended has to be
+// made again. Presenting either as an upgrade tells a reviewer to do work that is not theirs and
+// hides the decision that is. A new finding at a line of code takes the fix list's own title.
+func (a action) title() string {
+	label, _ := upgrade(a.lead)
+	subject := strings.TrimSuffix(label, " →")
+	if subject == "" {
+		subject = a.lead.RuleID
+	}
+	if a.line != nil {
+		subject = a.line.Location
+	}
+	switch {
+	case a.lead.Change == ChangeUnaccepted:
+		return "Decide on " + subject + " again"
+	case a.lead.Change == ChangeAccepted:
+		return "Review the acceptance of " + subject
+	case a.line != nil:
+		return a.line.Title
+	case label == "":
+		return "Fix " + subject
+	}
+	return "Upgrade " + subject
+}
+
+// span reports whether the actions' findings belong to more than one component, and whether they
+// were found in more than one repository. Either is when a row has to name it: the same path at
+// the same line in two repositories, or in two components sharing one, is two actions whose rows
+// would otherwise read alike.
+func span(actions []action) (components, repositories bool) {
+	var component, repository string
+	for _, a := range actions {
+		for _, e := range a.group {
+			switch {
+			case e.Component == "":
+			case component == "":
+				component = e.Component
+			case e.Component != component:
+				components = true
+			}
+			switch {
+			case e.Repository == "":
+			case repository == "":
+				repository = e.Repository
+			case e.Repository != repository:
+				repositories = true
+			}
+		}
+	}
+	return components, repositories
+}
+
+// actionHeading is the line over the actions: how many there are and what they clear, or how many
+// are listed when --top holds some back.
+func actionHeading(actions []action, covered int, opts Options) (heading string, shown []action, held int) {
+	shown = actions
+	if opts.Top > 0 && len(actions) > opts.Top {
+		shown, held = actions[:opts.Top], len(actions)-opts.Top
+	}
+	verb := "clear"
+	if len(actions) == 1 {
+		verb = "clears"
+	}
+	heading = fmt.Sprintf("%s %s %s", english.Count(len(actions), "action"), verb, english.Count(covered, "finding"))
+	if held > 0 {
+		heading = fmt.Sprintf("top %d of %s · %s", opts.Top, english.Count(len(actions), "action"),
+			english.Count(covered, "finding"))
+	}
+	return heading, shown, held
+}
+
 // writeDiffActions groups what a change introduced into the things somebody would do about it.
-func writeDiffActions(w io.Writer, col tui.Painter, entries []Entry, opts Options) {
-	actions, covered := groupChanges(entries)
+func writeDiffActions(w io.Writer, col tui.Painter, entries []Entry, rules map[string]sarif.Rule, opts Options) {
+	actions, covered := groupChanges(entries, rules)
 	// The same sentence the scan report's fix list uses, so one reader has learned both.
 	// Nothing to do is a result, and a heading of zeros over a blank space is not how to say it.
 	if len(actions) == 0 {
@@ -432,26 +515,27 @@ func writeDiffActions(w io.Writer, col tui.Painter, entries []Entry, opts Option
 
 	// --top caps the listing, and in this view the listing is the actions. A flag that quietly did
 	// nothing in one view would be the same silence as a scanner that did not run.
-	shown, held := actions, 0
-	if opts.Top > 0 && len(actions) > opts.Top {
-		shown, held = actions[:opts.Top], len(actions)-opts.Top
-	}
-	verb := "clear"
-	if len(actions) == 1 {
-		verb = "clears"
-	}
-	heading := fmt.Sprintf("%s %s %s", english.Count(len(actions), "action"), verb, english.Count(covered, "finding"))
-	if held > 0 {
-		heading = fmt.Sprintf("top %d of %s · %s", opts.Top, english.Count(len(actions), "action"),
-			english.Count(covered, "finding"))
-	}
+	heading, shown, held := actionHeading(actions, covered, opts)
 	_, _ = fmt.Fprintf(w, "%s  %s\n", col.Paint(tui.StyleMuted, "WHAT TO DO"),
 		col.Paint(tui.StyleMuted, heading))
+	nameComponents, nameRepositories := span(actions)
 	for _, a := range shown {
+		meta := fmt.Sprintf("%s · %s", dash(a.lead.Control), english.Count(len(a.group), "finding"))
+		if c := a.component(); nameComponents && c != "" {
+			meta = "component " + c + " · " + meta
+		}
 		_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
 			col.Paint(tui.PriorityStyle(a.lead.Priority), dash(a.lead.Priority)),
 			col.Paint(tui.StyleStrong, a.what),
-			col.Paint(tui.StyleMuted, fmt.Sprintf("%s · %s", dash(a.lead.Control), english.Count(len(a.group), "finding"))))
+			col.Paint(tui.StyleMuted, meta))
+		if a.line != nil {
+			if a.line.Summary != "" {
+				_, _ = fmt.Fprintf(w, "      %s\n", col.Paint(tui.StyleMuted, a.line.Summary))
+			}
+			_, _ = fmt.Fprintf(w, "      %s%s\n",
+				col.Paint(tui.StyleMuted, a.line.Where(nameRepositories)+" · "), consoleRules(col, a.line.Rules))
+			continue
+		}
 		// One rule named and the rest counted, because a row listing six identifiers is six things
 		// to read to learn one thing to do.
 		rules := a.lead.RuleID
@@ -470,6 +554,49 @@ func writeDiffActions(w io.Writer, col tui.Painter, entries []Entry, opts Option
 			fmt.Sprintf("%s nobody has to act on.", english.Count(rest, "finding"))))
 	}
 }
+
+// consoleRules is every rule at a line of code, by scanner, each linked to what the scanner
+// published about it: the line the scan's fix list draws under the same action.
+func consoleRules(col tui.Painter, groups []fixlist.LineRules) string {
+	parts := make([]string, 0, len(groups))
+	for _, g := range groups {
+		names := make([]string, 0, len(g.Rules))
+		for _, r := range g.Rules {
+			names = append(names, col.Link(r.HelpURI, r.Name))
+		}
+		part := strings.Join(names, ", ")
+		if g.Tool != "" {
+			part = col.Paint(tui.StyleMuted, g.Tool+":") + " " + part
+		}
+		parts = append(parts, part)
+	}
+	return strings.Join(parts, col.Paint(tui.StyleMuted, " · "))
+}
+
+// markdownRules is consoleRules for a comment: each rule as code, linked where the scanner
+// published a page for it.
+func markdownRules(groups []fixlist.LineRules) string {
+	parts := make([]string, 0, len(groups))
+	for _, g := range groups {
+		names := make([]string, 0, len(g.Rules))
+		for _, r := range g.Rules {
+			name := "`" + r.Name + "`"
+			if r.HelpURI != "" {
+				name = "[" + name + "](" + r.HelpURI + ")"
+			}
+			names = append(names, name)
+		}
+		part := strings.Join(names, ", ")
+		if g.Tool != "" {
+			part = g.Tool + ": " + part
+		}
+		parts = append(parts, part)
+	}
+	return strings.Join(parts, " · ")
+}
+
+// cell is text made safe for a markdown table cell, where a pipe would end the cell early.
+func cell(s string) string { return strings.ReplaceAll(s, "|", `\|`) }
 
 // writeGate states the rule the verdict came from, or says none was asked for.
 //
@@ -535,36 +662,38 @@ func renderMarkdownActions(w io.Writer, r Result, opts Options) error {
 		return nil
 	}
 
-	actions, covered := groupChanges(entries)
+	actions, covered := groupChanges(entries, r.Rules)
 	if len(actions) == 0 {
 		_, _ = fmt.Fprintf(w, "Nothing here is work. %s changed and none of it needs anybody.\n",
 			english.Count(len(entries), "finding"))
 		return nil
 	}
-	shown, held := actions, 0
-	if opts.Top > 0 && len(actions) > opts.Top {
-		shown, held = actions[:opts.Top], len(actions)-opts.Top
-	}
-	verb := "clear"
-	if len(actions) == 1 {
-		verb = "clears"
-	}
-	heading := fmt.Sprintf("%s %s %s", english.Count(len(actions), "action"), verb, english.Count(covered, "finding"))
-	if held > 0 {
-		heading = fmt.Sprintf("top %d of %s · %s", opts.Top, english.Count(len(actions), "action"),
-			english.Count(covered, "finding"))
-	}
+	heading, shown, held := actionHeading(actions, covered, opts)
 	_, _ = fmt.Fprintf(w, "### What to do · %s\n\n", heading)
-	_, _ = fmt.Fprintln(w, "| Priority | What to do | Control | Findings | Where |")
-	_, _ = fmt.Fprintln(w, "|---|---|---|---:|---|")
+	// The component gets a column only where the actions span several, the rule the findings table
+	// follows, and for the same reason: two components' rows are otherwise identical.
+	nameComponents, nameRepositories := span(actions)
+	if nameComponents {
+		_, _ = fmt.Fprintln(w, "| Priority | What to do | Component | Control | Findings | Where |")
+		_, _ = fmt.Fprintln(w, "|---|---|---|---|---:|---|")
+	} else {
+		_, _ = fmt.Fprintln(w, "| Priority | What to do | Control | Findings | Where |")
+		_, _ = fmt.Fprintln(w, "|---|---|---|---:|---|")
+	}
 	for _, a := range shown {
-		rules := "`" + a.lead.RuleID + "`"
+		where := loc(a.lead.Location.URI, a.lead.Location.StartLine) + " · `" + a.lead.RuleID + "`"
 		if more := len(a.group) - 1; more > 0 {
-			rules += fmt.Sprintf(" +%d", more)
+			where += fmt.Sprintf(" +%d", more)
 		}
-		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %d | %s · %s |\n",
-			dash(a.lead.Priority), a.what, dash(a.lead.Control), len(a.group),
-			loc(a.lead.Location.URI, a.lead.Location.StartLine), rules)
+		if a.line != nil {
+			where = a.line.Where(nameRepositories) + " · " + markdownRules(a.line.Rules)
+		}
+		component := ""
+		if nameComponents {
+			component = " " + dash(a.component()) + " |"
+		}
+		_, _ = fmt.Fprintf(w, "| %s | %s |%s %s | %d | %s |\n",
+			dash(a.lead.Priority), cell(a.what), component, dash(a.lead.Control), len(a.group), cell(where))
 	}
 	if held > 0 {
 		_, _ = fmt.Fprintf(w, "\n_…and %s not listed._\n", english.Count(held, "action"))
