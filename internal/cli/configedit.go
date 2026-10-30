@@ -31,7 +31,7 @@ func newConfigEditCommand() *cobra.Command {
 	var global bool
 	cmd := &cobra.Command{
 		Use:   "edit",
-		Short: "Open the config file in an editor, and keep the result if it loads",
+		Short: "Open the config file in an editor, and keep the result unless it adds a problem",
 		Long: "Open the config file in $VISUAL, else $EDITOR, else vi, and write the result back when\n" +
 			"it adds no problem to the file. The file is the one --config or DRAUGR_CONFIG names, else\n" +
 			"./draugr.config.yaml, or ~/.draugr/config.yaml with --global.\n\n" +
