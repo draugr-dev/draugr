@@ -111,6 +111,10 @@ type htmlView struct {
 	// Fixes and Scanners are the project's too: which kinds of work this run needs, and which
 	// tools reported anything.
 	Fixes, Scanners []htmlFacet
+	// Movements offers what moved each finding's band, in the labels Draugr uses wherever it lists
+	// findings. Every value is offered because the vocabulary is Draugr's own, and a finding two
+	// inputs moved counts under both, so the counts can add up to more than the list.
+	Movements []htmlFacet
 	// SARIFHref and TSVHref are data: URIs. Downloads that work with no JavaScript and under any
 	// content-security policy.
 	SARIFHref, TSVHref template.URL
@@ -311,6 +315,9 @@ type htmlFinding struct {
 	// uses. MovedDir is "up" or "down" where the band moved, and empty for a mark that moved nothing,
 	// so the chip can wear the color of the direction rather than of whatever raised it.
 	MovedGlyph, MovedLabel, MovedDir string
+	// Movement is every input that moved the band, as space-separated keys from movements, which
+	// the Movement menu matches against. MovedLabel names one of them, and this holds them all.
+	Movement string
 	// HelpURI documents the rule. Rendered as a link because this is the one format where a
 	// link costs nothing, and a rule id names a finding without explaining it.
 	HelpURI string
@@ -393,7 +400,7 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	view.Components = htmlComponents(d, s)
 	view.Unattributed = d.UnattributedFindings
 	prio, sev, ctl, comp := map[string]int{}, map[string]int{}, map[string]int{}, map[string]int{}
-	fixes, tools := map[string]int{}, map[string]int{}
+	fixes, tools, moved := map[string]int{}, map[string]int{}, map[string]int{}
 	for _, f := range s.findings {
 		hf := toHTMLFinding(f)
 		view.Findings = append(view.Findings, hf)
@@ -403,6 +410,9 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		comp[hf.Component]++
 		fixes[hf.FixKind]++
 		tools[hf.Tool]++
+		for _, m := range strings.Fields(hf.Movement) {
+			moved[m]++
+		}
 	}
 	// The same grouping the console prints and the control plane's "What to do" shows, from the
 	// same function. A fix list that is a different shape depending on where it is read is three
@@ -462,6 +472,7 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	view.ComponentNames = theirVocabulary(comp)
 	view.Fixes = theirVocabulary(fixes)
 	view.Scanners = theirVocabulary(tools)
+	view.Movements = movementFacets(moved)
 	return htmlTemplate.Execute(w, view)
 }
 
@@ -636,6 +647,7 @@ func toHTMLFinding(f finding) htmlFinding {
 		MovedGlyph:    glyph,
 		MovedLabel:    label,
 		MovedDir:      dir,
+		Movement:      strings.Join(movements(f), " "),
 		AcceptedVia:   f.acceptedVia,
 		Justification: f.justification,
 		ActionKey:     actionKeyFor(f),
@@ -761,7 +773,28 @@ func htmlRepos(refs []RepositoryProvenance) []htmlRepo {
 // each choice would leave is one a reader can plan with instead of one they have to try.
 type htmlFacet struct {
 	Value string
+	// Label is what the menu shows where it differs from the value it matches, and empty where the
+	// value is its own name.
+	Label string
 	Count int
+}
+
+// movementMenu is the Movement menu's values in order, each with the label it is offered under.
+var movementMenu = []struct{ key, label string }{
+	{moveEscalation, "raised by a signal"},
+	{moveFloor, "floored by a control"},
+	{moveUnreachable, "lowered as unreachable"},
+	{moveUntouched, "ranked from severity alone"},
+}
+
+// movementFacets offers every movement with its count, a zero where this run has none, for the
+// reason ourVocabulary does.
+func movementFacets(counts map[string]int) []htmlFacet {
+	out := make([]htmlFacet, 0, len(movementMenu))
+	for _, m := range movementMenu {
+		out = append(out, htmlFacet{Value: m.key, Label: m.label, Count: counts[m.key]})
+	}
+	return out
 }
 
 // ourVocabulary lists every value the product defines, in the product's order, whether or not this
@@ -1636,6 +1669,7 @@ about what they would have found. For everything the tool printed, re-run with
     {{template "menu" dict "K" "fix" "Label" "Fix" "Options" .Fixes}}
     <button type="button" class="narrow" id="narrow" aria-expanded="false">Narrow ▾</button>
     {{template "menu" dict "K" "s" "Label" "Severity" "Options" .Severities "Folded" true}}
+    {{template "menu" dict "K" "movement" "Label" "Movement" "Options" .Movements "Folded" true "Multi" true}}
     {{template "menu" dict "K" "m" "Label" "Component" "Options" .ComponentNames "Folded" true}}
     {{template "menu" dict "K" "c" "Label" "Control" "Options" .ControlNames "Folded" true}}
     {{template "menu" dict "K" "sc" "Label" "Scanner" "Options" .Scanners "Folded" true}}
@@ -1695,7 +1729,7 @@ about what they would have found. For everything the tool printed, re-run with
 {{if .Findings}}
 {{template "listbar"}}
 <div class="rows" id="findings">
-{{range .Findings}}<div class="f" data-p="{{.Priority}}" data-s="{{.Severity}}" data-c="{{.Control}}" data-m="{{.Component}}" data-fix="{{.FixKind}}" data-sc="{{.Tool}}" data-a="{{.ActionKey}}" data-q="{{.Search}}">
+{{range .Findings}}<div class="f" data-p="{{.Priority}}" data-s="{{.Severity}}" data-movement="{{.Movement}}" data-c="{{.Control}}" data-m="{{.Component}}" data-fix="{{.FixKind}}" data-sc="{{.Tool}}" data-a="{{.ActionKey}}" data-q="{{.Search}}">
   <span class="chips"><span class="pri {{.Priority}}">{{.Priority}}</span><span class="sevchip {{.SevClass}}">{{.Severity}}</span></span>
   <div class="what">
     {{if .Full}}<details class="more"><summary class="rule">{{template "rule" .}}<span class="hint" aria-hidden="true">more</span></summary><p class="full">{{.Full}}</p></details>
@@ -1725,8 +1759,9 @@ about what they would have found. For everything the tool printed, re-run with
    address, often a CI artifact or a file path, from reaching the advisory's host. */}}
 {{define "ruleid"}}{{if .HelpURI}}<a href="{{.HelpURI}}" target="_blank" rel="noopener noreferrer">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}{{end}}
 {{define "rule"}}<span class="id">{{template "ruleid" .}}</span>{{if .Message}}<span class="said"><span class="faint"> · </span>{{.Message}}</span>{{end}}{{end}}
+{{/* Multi marks a menu whose rows each hold a set of values, space-separated, rather than one. */}}
 {{define "menu"}}
-<span class="menu-anchor{{if .Folded}} folded{{end}}" data-k="{{.K}}">
+<span class="menu-anchor{{if .Folded}} folded{{end}}" data-k="{{.K}}"{{if .Multi}} data-multi{{end}}>
   <button class="chip-menu" type="button" aria-expanded="false" aria-haspopup="true">
     {{.Label}}<span class="c" hidden></span><span class="caret" aria-hidden="true">&#9662;</span>
   </button>
@@ -1735,7 +1770,7 @@ about what they would have found. For everything the tool printed, re-run with
     <div class="menu-options">
       {{range .Options}}
       <label class="menu-row">
-        <span><input type="checkbox" data-k="{{$.K}}" value="{{.Value}}"{{if not .Count}} disabled{{end}}>{{.Value}}</span>
+        <span><input type="checkbox" data-k="{{$.K}}" value="{{.Value}}"{{if .Label}} data-label="{{.Label}}"{{end}}{{if not .Count}} disabled{{end}}>{{or .Label .Value}}</span>
         <span class="c">{{.Count}}</span>
       </label>
       {{end}}
@@ -2064,7 +2099,7 @@ about what they would have found. For everything the tool printed, re-run with
   var dims = Array.prototype.map.call(tools.querySelectorAll(".menu-anchor"), function (a) {
     var boxes = Array.prototype.slice.call(a.querySelectorAll("input[type=checkbox]"));
     return {
-      k: a.dataset.k, anchor: a, folded: a.classList.contains("folded"),
+      k: a.dataset.k, anchor: a, folded: a.classList.contains("folded"), multi: a.hasAttribute("data-multi"),
       button: a.querySelector(".chip-menu"), menu: a.querySelector(".menu"),
       badge: a.querySelector(".chip-menu .c"), boxes: boxes,
     };
@@ -2083,12 +2118,18 @@ about what they would have found. For everything the tool printed, re-run with
   function ticked(d) {
     return d.boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.value; });
   }
+  // The values a row holds in one menu: one for most menus, and every one that applies for a
+  // set-valued menu, where a finding two inputs moved matches either value and counts under both.
+  function held(r, d) {
+    var v = r.d[d.k] || "";
+    return d.multi ? v.split(" ") : [v];
+  }
   function passes(r, skip) {
     for (var i = 0; i < dims.length; i++) {
       var d = dims[i];
       if (d.k === skip) continue;
       var on = ticked(d);
-      if (on.length && on.indexOf(r.d[d.k]) < 0) return false;
+      if (on.length && !held(r, d).some(function (v) { return on.indexOf(v) >= 0; })) return false;
     }
     return true;
   }
@@ -2281,7 +2322,8 @@ about what they would have found. For everything the tool printed, re-run with
       // Each option counts what ticking it would show, given every other narrowing that is on.
       var c = {};
       rows.forEach(function (r) {
-        if (passes(r, d.k) && searched(r) && inAction(r)) c[r.d[d.k]] = (c[r.d[d.k]] || 0) + 1;
+        if (!passes(r, d.k) || !searched(r) || !inAction(r)) return;
+        held(r, d).forEach(function (v) { c[v] = (c[v] || 0) + 1; });
       });
       d.boxes.forEach(function (b) {
         b.closest(".menu-row").querySelector(".c").textContent = (c[b.value] || 0).toLocaleString();
@@ -2297,7 +2339,8 @@ about what they would have found. For everything the tool printed, re-run with
     while (tokenBox.firstChild) tokenBox.removeChild(tokenBox.firstChild);
     dims.forEach(function (d) {
       d.boxes.forEach(function (b) {
-        if (b.checked) token(b.value.toLowerCase(), "Stop filtering by " + b.value, function () { b.checked = false; });
+        var name = b.dataset.label || b.value;
+        if (b.checked) token(name.toLowerCase(), "Stop filtering by " + name, function () { b.checked = false; });
       });
     });
     if (state.act) {

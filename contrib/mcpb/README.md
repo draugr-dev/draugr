@@ -1,7 +1,9 @@
 # MCP Bundle
 
 `draugr-<version>.mcpb`, a zip holding a manifest and the Draugr binary, so an MCP client can
-install a local server in one step. Attached to every release by `.github/workflows/release.yml`.
+install a local server in one step. Attached to every release by
+`.github/workflows/release-post-publish.yml`, which the release workflow calls once the release is
+published.
 
 ## Why this format
 
@@ -33,6 +35,15 @@ manifest advertising five tools against a binary that served four. It also acts 
 binary that can't start can't answer, and the build stops.
 
 ## Building by hand
+
+For a published release with no bundle, run the job that attaches it, along with the rest of what
+follows a publish:
+
+```bash
+gh workflow run "Release post-publish" -f tag=v0.38.0
+```
+
+To build one locally:
 
 ```bash
 ./contrib/mcpb/build.sh 0.38.0 /tmp     # version without the leading v
@@ -195,12 +206,13 @@ move; `mcp-publisher <command> --help` is the authority over this file.
 
 ### Publishing again later
 
-**Normally you don't.** The `publish-mcp` job in `.github/workflows/release.yml` renders and
-publishes on every tag, gated behind the `mcp-registry` environment so it waits for a reviewer. It
-needs one secret, `MCP_PUBLISHER_DNS_KEY`, the same hex key as step 5, set as an *environment*
-secret so only that job can read it.
+**Normally you don't.** The `publish-mcp` job in `.github/workflows/release-post-publish.yml`
+renders and publishes on every tag, gated behind the `mcp-registry` environment so it waits for a
+reviewer. It needs one secret, `MCP_PUBLISHER_DNS_KEY`, the same hex key as step 5, set as an
+*environment* secret so only that job can read it.
 
-By hand, when you need to: `render-server-json.sh <version>`, then steps 5 and 6.
+When that job failed or never ran, dispatch `Release post-publish` for the tag, which runs it
+again. By hand: `render-server-json.sh <version>`, then steps 5 and 6.
 
 ### Not every release needs republishing
 
