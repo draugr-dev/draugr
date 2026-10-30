@@ -178,7 +178,8 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.kevFile, "kev", "", "CISA KEV catalog: a file path, or `auto`/`cache` to read ~/.draugr/feeds. A CVE on it is escalated to critical")
 	cmd.Flags().StringVar(&opts.epssFile, "epss", "", "FIRST EPSS scores: a file path, or `auto`/`cache` to read ~/.draugr/feeds. A CVE at/above --epss-threshold is bumped one band")
 	cmd.Flags().Float64Var(&opts.epssThreshold, "epss-threshold", exploitdata.DefaultThreshold, "EPSS probability (0-1) that triggers a severity bump")
-	cmd.Flags().IntVarP(&opts.jobs, "jobs", "j", 0, "max scan jobs to run in parallel (0 = auto, one per CPU); reported as stats.concurrency")
+	cmd.Flags().IntVarP(&opts.jobs, "jobs", "j", 0,
+		"max scan jobs to run in parallel (0 = auto, one per CPU); reported as stats.concurrency (also scan.jobs in draugr.config.yaml)")
 	cmd.Flags().StringVar(&opts.format, "format", "console",
 		"what to print: "+strings.Join(report.StreamFormats, ", "))
 	// Built from the registry, not restated. --format already does this; --report listed its
@@ -196,7 +197,8 @@ func newScanCommand() *cobra.Command {
 		"total time to wait for the draugr-api servers' policy verdict on the published run; a verdict not decided by then "+
 			"is named on the POLICY line, and is an error under --policy (0 = do not wait)")
 	cmd.Flags().IntVar(&opts.top, "top", 10, "console: max findings to list in the ranked table (0 = all)")
-	cmd.Flags().BoolVar(&opts.noTips, "no-tips", false, "suppress the console's contextual tips (also DRAUGR_NO_TIPS)")
+	cmd.Flags().BoolVar(&opts.noTips, "no-tips", false,
+		"suppress the console's contextual tips and progress line (also DRAUGR_NO_TIPS, or output.tips: false in draugr.config.yaml)")
 	cmd.Flags().StringSliceVar(&opts.components, "components", nil,
 		"scan only these components; the verdict says what it covered")
 	cmd.Flags().StringSliceVar(&opts.labels, "labels", nil,
@@ -251,6 +253,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	}
 	cacheOptionsFrom(&opts, cfg.Cache)
 	outputOptionsFrom(&opts, cfg.Output)
+	scanSettingsFrom(&opts, cfg.Scan)
 
 	// Validated before anything runs, and against this descriptor. A misspelled name matches
 	// nothing, scans nothing, and passes. The "we did not look" verdict the scope is otherwise
@@ -1133,6 +1136,28 @@ func outputOptionsFrom(opts *scanOptions, cfg config.OutputSettings) {
 	if d.top != 0 {
 		opts.top = d.top
 		opts.topConfigured = true
+	}
+	if cfg.Tips != nil && !opts.setFlags["no-tips"] {
+		opts.noTips = !*cfg.Tips
+	}
+}
+
+// tipsOff reports whether the console's advisory output, the tips and the progress line, is off.
+// The first source that answers decides: --no-tips as typed, then DRAUGR_NO_TIPS, then output.tips,
+// which outputOptionsFrom has folded into noTips.
+func (o *scanOptions) tipsOff() bool {
+	if o.setFlags["no-tips"] {
+		return o.noTips
+	}
+	return tipsDisabled() || o.noTips
+}
+
+// scanSettingsFrom folds scan.* under the flags of the same name, by the rule outputOptionsFrom
+// follows: a typed flag wins whatever its value, so `--jobs 0` asks for one job per CPU over a
+// configured cap.
+func scanSettingsFrom(opts *scanOptions, cfg config.ScanSettings) {
+	if cfg.Jobs != nil && !opts.setFlags["jobs"] {
+		opts.jobs = *cfg.Jobs
 	}
 }
 

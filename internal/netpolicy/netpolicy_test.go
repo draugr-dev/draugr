@@ -47,6 +47,59 @@ func TestOfflineFromFlag(t *testing.T) {
 	}
 }
 
+// The configuration answers only when the flag and the environment are silent, and a refusal on
+// its account names the file rather than a flag nobody typed.
+func TestOfflineFromConfiguration(t *testing.T) {
+	t.Setenv(EnvVar, "")
+	t.Cleanup(func() { Decide(nil, "") })
+	const by = "~/.draugr/config.yaml"
+	yes, no := true, false
+
+	Decide(nil, by)
+	if !Offline() {
+		t.Fatal("offline: true in the configuration did not take effect")
+	}
+	if got, want := Because(), by+" sets offline: true"; got != want {
+		t.Errorf("Because() = %q, want %q", got, want)
+	}
+	if got := Refuse("tools install", "").Error(); got != "tools install needs the network; "+by+" sets offline: true" {
+		t.Errorf("refusal = %q", got)
+	}
+
+	// The environment outranks the file, in both directions.
+	t.Setenv(EnvVar, "0")
+	if Offline() {
+		t.Error("DRAUGR_OFFLINE=0 did not outrank the configuration")
+	}
+	t.Setenv(EnvVar, "1")
+	if !Offline() {
+		t.Error("DRAUGR_OFFLINE=1 is not offline")
+	}
+	if got := Because(); got != "--offline or "+EnvVar+" is set" {
+		t.Errorf("Because() = %q, want the variable named, which is what is in force", got)
+	}
+
+	// The flag as typed outranks both, in both directions.
+	Decide(&no, by)
+	if Offline() {
+		t.Error("--offline=false did not outrank DRAUGR_OFFLINE=1 and the configuration")
+	}
+	t.Setenv(EnvVar, "")
+	Decide(&yes, "")
+	if !Offline() {
+		t.Error("--offline did not take effect")
+	}
+	if got := Because(); got != "--offline or "+EnvVar+" is set" {
+		t.Errorf("Because() = %q, want the flag named", got)
+	}
+
+	// A later Decide replaces what an earlier one recorded.
+	Decide(nil, "")
+	if Offline() {
+		t.Error("offline outlived the Decide that cleared it")
+	}
+}
+
 func TestSkipUpdateCheck(t *testing.T) {
 	t.Cleanup(func() { SetOffline(false) })
 	t.Setenv(EnvVar, "")
