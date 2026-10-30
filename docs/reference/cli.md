@@ -1379,6 +1379,8 @@ network and credentials:
 
 A target two components share is checked once. A certificate this machine does not trust still
 passes, with the reason in the row, because the scanners that probe an endpoint do not verify it.
+An image's digest is shortened to twelve hex characters, and `--json` keeps it whole. On a
+terminal too narrow for the table, each target takes a line with its result on the line under it.
 
 ```console
 $ draugr doctor draugr.saga.yaml
