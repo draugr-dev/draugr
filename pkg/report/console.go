@@ -845,11 +845,20 @@ func rankedSeverity(f finding) sarif.Severity {
 	if f.escalation != nil && f.escalation.To != "" {
 		return f.escalation.To
 	}
-	if f.reachability != nil && f.reachability.State == sarif.ReachabilityUnreachable &&
-		f.reachability.RankedAs != "" {
+	if loweredAsUnreachable(f) {
 		return f.reachability.RankedAs
 	}
 	return f.severity
+}
+
+// loweredAsUnreachable reports whether a reachability verdict moved this finding's band down.
+//
+// RankedAs is set only where the verdict changed the severity the band was computed from. A verdict
+// that exploitation outranked, or one on a finding already at the lowest band, carries none and
+// moved nothing.
+func loweredAsUnreachable(f finding) bool {
+	r := f.reachability
+	return r != nil && r.State == sarif.ReachabilityUnreachable && r.RankedAs != ""
 }
 
 // band is the priority cell.
@@ -890,8 +899,7 @@ func movedBy(f finding) *movement {
 	if f.priorityFloor != "" {
 		return &movement{glyph: "↑", label: "floor", style: cHigh}
 	}
-	if f.reachability != nil && f.reachability.State == sarif.ReachabilityUnreachable &&
-		f.reachability.RankedAs != "" {
+	if loweredAsUnreachable(f) {
 		return &movement{glyph: "↓", label: "unreachable", style: cInfo}
 	}
 	// Not a band that moved, and marked here for the same reason the others are: the location is a
@@ -901,6 +909,38 @@ func movedBy(f finding) *movement {
 		return &movement{glyph: "↩", label: "history", style: cAccent}
 	}
 	return nil
+}
+
+// The inputs that can move a band, as movements names them. Untouched is a finding none of them
+// moved.
+const (
+	moveEscalation  = "escalation"
+	moveFloor       = "floor"
+	moveUnreachable = "unreachable"
+	moveUntouched   = "untouched"
+)
+
+// movements is every input that moved this finding's band, in movedBy's order, or untouched where
+// none did.
+//
+// movedBy picks one of these for the row's mark. A finding a signal raised and a control floored
+// carries the signal's mark, and a filter reading the mark would leave it out of the floored ones.
+// History is not among them, because a path in a commit moves no band.
+func movements(f finding) []string {
+	var out []string
+	if f.escalation != nil {
+		out = append(out, moveEscalation)
+	}
+	if f.priorityFloor != "" {
+		out = append(out, moveFloor)
+	}
+	if loweredAsUnreachable(f) {
+		out = append(out, moveUnreachable)
+	}
+	if len(out) == 0 {
+		return []string{moveUntouched}
+	}
+	return out
 }
 
 // ruleIDWidth caps the Rule column. Some scanners use long namespaced ids. Semgrep's run past a

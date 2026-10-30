@@ -1,0 +1,1 @@
+- **Narrow the HTML report's findings by what moved their band.** A Movement menu offers `raised by a signal`, `floored by a control`, `lowered as unreachable` and `ranked from severity alone`, each with its count. A finding moved by two inputs matches both.
