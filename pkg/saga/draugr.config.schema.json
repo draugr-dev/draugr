@@ -14,6 +14,7 @@
           "description": "prowler, published by prowler-cloud.",
           "properties": {
             "compliance": {
+              "default": "cis_5.0_gcp",
               "description": "The Prowler compliance framework to run, such as cis_4.0_gcp. Defaults to cis_5.0_gcp. `prowler gcp --list-compliance` lists them.",
               "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9_.]+_gcp)$",
               "type": "string"
@@ -121,6 +122,7 @@
           "description": "grype, published by anchore.",
           "properties": {
             "byCve": {
+              "default": true,
               "description": "Report a finding under its CVE rather than the advisory ID the source used, where a CVE exists. On by default. Turn it off to see the advisory identifier Grype matched on.",
               "type": "boolean"
             },
@@ -147,6 +149,10 @@
               "type": "boolean"
             },
             "pkgTypes": {
+              "default": [
+                "os",
+                "library"
+              ],
               "description": "Which package types to analyze. Defaults to both. Narrow it to [\"library\"] when the OS layer is somebody else's responsibility, a base image maintained by a platform team, so the report covers what this component controls.",
               "items": {
                 "enum": [
@@ -195,7 +201,8 @@
               "type": "boolean"
             },
             "targets": {
-              "description": "Comma-separated kube-bench targets to run, e.g. \"master,node\". Defaults to the node checks, which are what a scan from outside the control plane can answer.",
+              "default": "policies",
+              "description": "Comma-separated kube-bench targets to run, e.g. \"master,node\". Defaults to policies, the section a scan from outside the control plane can answer.",
               "type": "string"
             }
           },
@@ -214,6 +221,7 @@
               "type": "string"
             },
             "namespace": {
+              "default": "default",
               "description": "Namespace to create the Job in. It must already exist; Draugr does not create namespaces.",
               "type": "string"
             },
@@ -222,10 +230,12 @@
               "type": "string"
             },
             "targets": {
+              "default": "master,node,etcd,controlplane",
               "description": "Comma-separated kube-bench targets to run, e.g. \"master,node\".",
               "type": "string"
             },
             "timeout": {
+              "default": "5m",
               "description": "How long to wait for the Job to finish, e.g. \"5m\".",
               "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+)$",
               "type": "string"
@@ -275,6 +285,7 @@
               "type": "string"
             },
             "resultTimeout": {
+              "default": "10m",
               "description": "How long to wait for Mend to finish analyzing an upload, e.g. \"15m\". Raise it for large monorepos, where the agent's upload finishes long before the analysis does.",
               "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+)$",
               "type": "string"
@@ -309,6 +320,7 @@
               "type": "boolean"
             },
             "full": {
+              "default": false,
               "description": "Also read LICENSE files and source headers, not only package metadata. Finds licenses no manifest declares, and is markedly slower, it reads every file rather than the dependency list.",
               "type": "boolean"
             },
@@ -458,6 +470,7 @@
               "description": "Require every image to be covered by a signer. The end state, once the inventory has been worked through."
             }
           ],
+          "default": "observe",
           "description": "What an image no signer covers is worth. Defaults to observe.",
           "type": "string"
         }
@@ -511,6 +524,7 @@
           "description": "semgrep, published by semgrep.",
           "properties": {
             "config": {
+              "default": "p/default",
               "description": "Ruleset to run: a Semgrep registry ref (e.g. p/owasp-top-ten), a URL, or a rules file or directory on disk, resolved relative to where Draugr runs. Defaults to p/default.",
               "type": "string"
             },
@@ -537,6 +551,7 @@
           "description": "grype-fs, published by anchore.",
           "properties": {
             "byCve": {
+              "default": true,
               "description": "Report a finding under its CVE rather than the advisory ID the source used, where a CVE exists. On by default. Turn it off to see the advisory identifier Grype matched on.",
               "type": "boolean"
             },
@@ -564,6 +579,7 @@
               "type": "string"
             },
             "resultTimeout": {
+              "default": "10m",
               "description": "How long to wait for Mend to finish analyzing an upload, e.g. \"15m\". Raise it for large monorepos, where the agent's upload finishes long before the analysis does.",
               "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+)$",
               "type": "string"
@@ -608,6 +624,7 @@
                   "description": "Also a range such as \u003e=1.2 in requirements.txt, read as its minimum version, and Go standard-library vulnerabilities."
                 }
               ],
+              "default": "precise",
               "description": "How Trivy decides which version of a dependency is installed.",
               "type": "string"
             },
@@ -624,10 +641,15 @@
               "type": "array"
             },
             "includeDevDeps": {
+              "default": false,
               "description": "Report development dependencies too. Trivy leaves them out by default. Applies to npm, Yarn and Gradle.",
               "type": "boolean"
             },
             "pkgTypes": {
+              "default": [
+                "os",
+                "library"
+              ],
               "description": "Which package types to analyze. Defaults to both. Narrow it to [\"library\"] when the OS layer is somebody else's responsibility, a base image maintained by a platform team, so the report covers what this component controls.",
               "items": {
                 "enum": [
@@ -665,6 +687,7 @@
               "type": "boolean"
             },
             "history": {
+              "default": false,
               "description": "Also scan the repository's commit history, in addition to the working tree. Off by default: it needs a full clone rather than a shallow one, so it is slower on a large repository. A secret committed and later removed is still fetchable by anyone who can clone, so it is still compromised, this is what finds it. History findings are marked as such, because they name the path the secret had when it was introduced, and are kept only when that path would be checked out by this component's paths and ignore. A secret still in the tree at the same path is reported once, as the tree finding.",
               "type": "boolean"
             }
@@ -702,6 +725,7 @@
               "type": "boolean"
             },
             "requestsPerMinute": {
+              "default": 4,
               "description": "Override the assumed API allowance. Defaults to the public tier's 4. Raise it only to what your key actually permits, exceeding VirusTotal's limit risks losing access, and their stated penalty for terms violations is a permanent ban.",
               "type": "integer"
             }
@@ -724,10 +748,12 @@
               "type": "boolean"
             },
             "expiryErrorDays": {
+              "default": 14,
               "description": "Report an error when the certificate expires within this many days. Defaults to 14.",
               "type": "integer"
             },
             "expiryWarnDays": {
+              "default": 30,
               "description": "Report a warning when the certificate expires within this many days. Defaults to 30. Lower it for endpoints with automated renewal so the gate only fires when renewal has failed.",
               "type": "integer"
             }

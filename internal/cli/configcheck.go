@@ -170,13 +170,13 @@ func valueProblems(f config.File) []string {
 		out = append(out, notOneOf("output.view", string(v), names))
 	}
 	if f.Output.Top < 0 {
-		out = append(out, fmt.Sprintf("output.top: expected a whole number of 0 or more, got %d", f.Output.Top))
+		out = append(out, fmt.Sprintf("output.top: expected %s, got %d", acceptsCount, f.Output.Top))
 	}
 	if ttl := f.Cache.TTL; ttl != nil && *ttl < 0 {
 		out = append(out, fmt.Sprintf("cache.ttl: expected a duration of 0s or more, got %s", feeds.ShortDuration(*ttl)))
 	}
 	if j := f.Scan.Jobs; j != nil && *j < 0 {
-		out = append(out, fmt.Sprintf("scan.jobs: expected a whole number of 0 or more, got %d", *j))
+		out = append(out, fmt.Sprintf("scan.jobs: expected %s, got %d", acceptsCount, *j))
 	}
 	// Exact spellings, as output.view takes, so the file reads as the schema completes it. The flags
 	// stay lenient about case, which a command line is typed by hand to want.

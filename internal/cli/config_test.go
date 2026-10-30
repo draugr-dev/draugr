@@ -20,7 +20,7 @@ func TestConfigHelpNamesTheFilesAndWhereTheKeysAre(t *testing.T) {
 	long := newConfigCommand().Long
 	for _, want := range []string{
 		"~/.draugr/config.yaml", "./draugr.config.yaml", "--config <path>", config.EnvVar,
-		"`draugr config show`", config.KeysURL,
+		"`draugr config show`", "`draugr config keys`",
 	} {
 		if !strings.Contains(long, want) {
 			t.Errorf("config --help does not name %q:\n%s", want, long)
@@ -435,7 +435,7 @@ func TestConfigValidateReportsABrokenFile(t *testing.T) {
 	}
 	// The key, the nearest real one, and where every key is listed. Not `config init --force`,
 	// which discards everything else the file says.
-	for _, want := range []string{`"toolz" is not a setting Draugr has, did you mean "tools"?`, config.KeysURL} {
+	for _, want := range []string{`"toolz" is not a setting Draugr has, did you mean "tools"?`, config.KeysHint} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
 		}

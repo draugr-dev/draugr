@@ -55,10 +55,12 @@ const draugrTLSConfigSchema = `{
   "properties": {
     "expiryErrorDays": {
       "type": "integer",
+      "default": 14,
       "description": "Report an error when the certificate expires within this many days. Defaults to 14."
     },
     "expiryWarnDays": {
       "type": "integer",
+      "default": 30,
       "description": "Report a warning when the certificate expires within this many days. Defaults to 30. Lower it for endpoints with automated renewal so the gate only fires when renewal has failed."
     }
   }

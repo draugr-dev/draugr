@@ -50,6 +50,7 @@ const virusTotalConfigSchema = `{
   "properties": {
     "requestsPerMinute": {
       "type": "integer",
+      "default": 4,
       "description": "Override the assumed API allowance. Defaults to the public tier's 4. Raise it only to what your key actually permits, exceeding VirusTotal's limit risks losing access, and their stated penalty for terms violations is a permanent ban."
     }
   }

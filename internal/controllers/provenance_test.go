@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -524,4 +525,25 @@ func TestAggregateAccountStaysBoundedAsItGrows(t *testing.T) {
 	if len(summary) > 3*80 {
 		t.Errorf("the summary is %d characters, past what three wrapped lines hold: %q", len(summary), summary)
 	}
+}
+
+// The schema's default for `unmatched` is what `draugr config keys` and an editor show; the control
+// reads its own constant. Held together, so the catalog never states a default the run does not use.
+func TestUnmatchedDeclaresTheDefaultTheControlApplies(t *testing.T) {
+	for _, o := range plugin.Options(provenanceOptionSchema) {
+		if o.Name != unmatchedKey {
+			continue
+		}
+		var node struct {
+			Default string `json:"default"`
+		}
+		if err := json.Unmarshal(o.Schema, &node); err != nil {
+			t.Fatal(err)
+		}
+		if got := provenanceOptionsFrom(nil, nil).unmatched; node.Default != got {
+			t.Errorf("unmatched declares %q, an unset one is %q", node.Default, got)
+		}
+		return
+	}
+	t.Fatal("the provenance control has no unmatched option")
 }

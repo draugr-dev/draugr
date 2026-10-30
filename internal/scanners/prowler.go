@@ -37,6 +37,7 @@ const prowlerConfigSchema = `{
     "compliance": {
       "type": "string",
       "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9_.]+_gcp)$",
+      "default": "cis_5.0_gcp",
       "description": "The Prowler compliance framework to run, such as cis_4.0_gcp. Defaults to cis_5.0_gcp. ` +
 	"`prowler gcp --list-compliance`" + ` lists them."
     }
