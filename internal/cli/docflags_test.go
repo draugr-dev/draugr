@@ -88,9 +88,6 @@ var notOurs = map[string]string{
 	"--k8s-images":    "removed; the surveyor took over, and the reference says so",
 	"--k8s-namespace": "removed, with it",
 	"--github-org":    "removed, with it",
-
-	// Not a flag. Prose uses it as a placeholder for whichever flag overrides a setting.
-	"--flag": "a placeholder in a sentence about flags overriding settings",
 }
 
 // deprecatedFlags are ours, still work, and must not be taught as the way to do the thing.

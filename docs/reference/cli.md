@@ -19,7 +19,7 @@ All commands accept these **global flags**:
 
 `draugr.config.yaml` is read when a command starts, before it reads a descriptor, so `log.level`,
 `log.format` and `offline` hold for every record the command writes and every network call it
-makes. A typed flag wins over `DRAUGR_OFFLINE`, and both win over the file.
+makes. See [precedence](../guides/configuration.md#flags-always-win) for what wins over the file.
 
 **`--offline`** says once that this machine has no network, and every place Draugr would reach out
 honors it. Optional fetches are skipped with a line saying so. A command whose whole purpose is to
@@ -1924,8 +1924,7 @@ signals mean and how to choose a threshold.
 
 Settings for a machine or an organization, read from `draugr.config.yaml`: scanner versions,
 control defaults, cache, output, parallelism, logging, offline and the publish URL. A descriptor
-can override control defaults and the publish URL and none of the rest, so it cannot pin its own
-scanner version.
+can override control defaults and the publish URL, and no other key.
 
 ```yaml
 # draugr.config.yaml
@@ -1950,12 +1949,11 @@ controls:               # merged *underneath* the descriptor's own settings
 | `output.tips` | whether a console scan prints its contextual tips and its [progress display](#while-a-scan-is-running); `false` is `--no-tips`, and unset means it prints them |
 | `scan.jobs` | the `--jobs` flag of `draugr scan`. `0` is one job per CPU, the built-in default, and replaces a less specific file's cap |
 | `log.level`, `log.format` | the `--log-level` and `--log-format` flags of every command |
-| `offline` | the `--offline` flag of every command. Only turns on across files |
+| `offline` | the `--offline` flag of every command |
 | `publish.apiUrl` | where the `draugr-api` publisher posts when `DRAUGR_API_URL` is unset. In a project's `./draugr.config.yaml` it is held to the rule for a descriptor's `url:`, used only on an allowed origin |
 
-A flag typed on the command line always wins over the file, and so does `DRAUGR_OFFLINE` or
-`DRAUGR_NO_TIPS` when it is set. See [caching & performance](../guides/caching-and-performance.md)
-for the cache settings.
+A flag typed on the command line always wins over the file. See [caching &
+performance](../guides/caching-and-performance.md) for the cache settings.
 
 `controllers:` is the older spelling of `controls:`. It still loads and is folded into `controls`
 when the file is read; a file holding both is merged key by key, with
@@ -1973,22 +1971,20 @@ when the file is read; a file holding both is merged key by key, with
 Discovered files are layered, project over home. An explicit one replaces both. The project file is
 read from the working directory only; run anywhere else, `show` names the directory it searched.
 
-A more specific file's value replaces a less specific file's, `false` and `0s` included.
-`cache.readOnly`, `cache.requireDigest` and `offline` only turn on across files, so a project's
-`false` does not turn off the home file's `true`. `show` lists that `false` under **Overridden**,
-and `set` reports it when it writes one. A project file may turn any of the three on.
+A more specific file's value replaces a less specific file's, `false` and `0s` included, except
+for the settings that [only turn on across files](../guides/configuration.md#where-it-is-read-from).
+`show` lists a `false` one of those outranks under **Overridden**, and `set` reports it when it
+writes one.
 
 For `draugr scan`, `doctor`, `tools install` and the `scan` and `check_tools` tools of
 [`draugr mcp`](#draugr-mcp), the full order is **component → descriptor → config → built-in**,
 deep-merged, so an override replaces only the keys it names.
 
-`log.level`, `log.format` and `offline` are read when a command starts, before it reads a
-descriptor. Each file contributes whatever of it loads, and a level or format the flag would refuse
-is left out; every command that reads the configuration, `config validate` and `scan` among them,
-then refuses the file and names the key. A command that declines to fetch under `offline` names the
-file that set it.
+A `log.level` or `log.format` the flag would refuse makes `config validate` and every command that
+reads the configuration refuse the file and name the key. A command that declines to fetch under
+`offline` names the file that set it.
 
-```
+```console
 $ draugr --config machine.yaml self-update --check
 draugr: self-update needs the network; ./machine.yaml sets offline: true
 
