@@ -91,8 +91,8 @@ func (a action) where(limit int) []string {
 			return append(out, fmt.Sprintf("and %d more", countDistinct(a.findings)-limit))
 		}
 		place := displayLocation(f)
-		if spans && f.repository != "" {
-			place = shortRepository(f.repository) + " " + place
+		if spans {
+			place = inRepository(f.repository, place)
 		}
 		if vendored(f) {
 			place += " vendored"
@@ -111,6 +111,15 @@ func (a action) repositories() map[string]bool {
 		}
 	}
 	return out
+}
+
+// inRepository is a place named with the repository it is in, for a list spanning several. A
+// place with no repository is returned as it is.
+func inRepository(repository, place string) string {
+	if repository == "" {
+		return place
+	}
+	return shortRepository(repository) + " " + place
 }
 
 // locationKey is a finding's place: its repository and the path in it.
@@ -263,18 +272,11 @@ func groupActions(findings []finding, unpinned []string) (actions []action, exte
 	}
 	order := []string{}
 	byKey := map[string]*action{}
-	homes := componentRepositories(findings)
 
-	for _, f := range findings {
+	for _, f := range placeLines(findings) {
 		if f.remediation == sarif.RemediationExternal {
 			external = append(external, f)
 			continue
-		}
-		// A SARIF file another tool wrote names paths and no repository, so its finding at a line
-		// is placed in the repository the rest of its component was scanned in. Left unplaced, Bandit's
-		// finding on a line would be one row and Semgrep's three on the same line another.
-		if onALine(f) && f.repository == "" {
-			f.repository = homes[f.component]
 		}
 		key, title, kind, byRule := actionFor(f)
 		a, seen := byKey[key]
@@ -557,7 +559,7 @@ func actionFor(f finding) (key, title string, kind skald.ActionKind, byRule bool
 	// finding on the line is known.
 	case onALine(f):
 		title, _ := lineTitle([]finding{f})
-		return lineKey + f.component + "\x00" + f.repository + "\x00" + f.location, title, ruleKind(f), false
+		return lineKeyOf(f), title, ruleKind(f), false
 
 	// The same rule in several places is one thing to understand and apply, whether that is a
 	// missing directive in three Dockerfiles or a credential committed to four files.
@@ -590,6 +592,28 @@ const lineKey = "line\x00"
 // grouping on its rule.
 func onALine(f finding) bool {
 	return f.control == "sast" && lineSuffix.MatchString(f.location)
+}
+
+// lineKeyOf is the key every finding at one line of code shares: its component, repository and
+// location. Only meaningful where onALine holds.
+func lineKeyOf(f finding) string {
+	return lineKey + f.component + "\x00" + f.repository + "\x00" + f.location
+}
+
+// placeLines is fs with every finding at a line that names no repository placed in the repository
+// the rest of its component was scanned in. A SARIF file another tool wrote names paths and no
+// repository, and left unplaced, Bandit's finding on a line would be one action and Semgrep's three
+// on the same line another. A copy, so the caller's findings keep what their scanners reported.
+func placeLines(fs []finding) []finding {
+	homes := componentRepositories(fs)
+	out := make([]finding, len(fs))
+	for i, f := range fs {
+		if onALine(f) && f.repository == "" {
+			f.repository = homes[f.component]
+		}
+		out[i] = f
+	}
+	return out
 }
 
 // atOneLine reports whether the action is every finding at one line of code.
