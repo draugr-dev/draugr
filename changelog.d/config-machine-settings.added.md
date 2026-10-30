@@ -1,1 +1,0 @@
-- **Set parallelism, logging, tips and offline once in `draugr.config.yaml`.** `scan.jobs`, `log.level`, `log.format`, `output.tips` and `offline` set the defaults for `--jobs`, `--log-level`, `--log-format`, `--no-tips` and `--offline`. A flag or environment variable still wins, and `offline` only turns on across files.

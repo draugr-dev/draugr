@@ -12,6 +12,34 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.161.0] - 2026-10-30
+
+### Added
+
+- **Set parallelism, logging, tips and offline once in `draugr.config.yaml`.** `scan.jobs`, `log.level`, `log.format`, `output.tips` and `offline` set the defaults for `--jobs`, `--log-level`, `--log-format`, `--no-tips` and `--offline`. A flag or environment variable still wins, and `offline` only turns on across files.
+
+- **Deny or flag licenses nobody could identify.** `deny` and `warn` in the licenses control accept `unknown`, which selects every license the scanner could not identify. Such a finding's message quotes the text the scanner found.
+
+- **`report.json` gives each exclusion's file, line and git history.** `descriptor.exclusions[]` lists every `config.exclude` entry with the file and line it is written at, and the last commit to change that line, with its author's name and date. Where a shallow clone or an uncommitted change makes the history unreliable, the entry says why instead.
+
+- **`report.json` records the SBOMs a run wrote and the effects it allowed.** `sboms` lists each document with its file and digest, and each target whose inventory failed, with the reason. `effects` lists the effects the run accepted after `--allow-effects`, the descriptor's `config.allowEffects` beside them, and the effects its scanners had.
+
+- **See exactly which VEX claim excused a finding.** A finding a supplier's VEX document set aside now records the statement's id and the document's sha256, beside its author and source, in `report.json` and `results.sarif`. `report.json` also gains the origin, author, date and source it was missing.
+
+### Deprecated
+
+- **`config.exclude[].acceptedBy` is deprecated, and 0.163.0 removes it.** Nothing verifies the name, so the record of who accepted a finding is now the exclusion's git history. `draugr validate` and `draugr scan` warn with the file and line, `--evidence` and the reports show the history instead, and `report.json` and `results.sarif` keep the name only as `unverifiedAcceptedBy`.
+
+### Fixed
+
+- **`draugr config --help` names the files it reads and where every key is listed.** It lists `~/.draugr/config.yaml` and `./draugr.config.yaml` in the order they layer, says `--config` or `DRAUGR_CONFIG` names one file read alone, and points at `draugr config show` and the reference page of keys.
+
+- **`draugr diff --view actions` groups code findings the way `draugr scan --view actions` does.** Each flagged line of code is one action, titled as the scan titles it, with every rule that flags it listed by scanner. A row names its component and repository when the changes span several.
+
+- **`draugr diff` reads `output.view` and `output.top` from `draugr.config.yaml`.** They set the `--view` and `--top` defaults as they do for `draugr scan`, and a flag on the command line still wins. `output.evidence` sets nothing on a diff, which has no evidence section.
+
+- **`draugr doctor` holds a pinned tool to its pin.** A tool pinned with `tools.<name>.version` in `draugr.config.yaml` is compared with the pinned version. Its row names the file that sets the pin, and the version when the tool is not at it, and the advice under the table names the build `draugr tools install --force` installs.
+
 ## [0.160.0] - 2026-10-30
 
 ### Changed
@@ -6555,7 +6583,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.160.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.161.0...HEAD
+[0.161.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.161.0
 [0.160.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.160.0
 [0.159.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.159.0
 [0.158.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.158.1
