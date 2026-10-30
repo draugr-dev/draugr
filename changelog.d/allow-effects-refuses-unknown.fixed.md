@@ -1,0 +1,1 @@
+- **`draugr scan --allow-effects` refuses a value that is not an effect.** It accepts `disclosure`, `mutate`, `network` and `privilege`, as `config.allowEffects` does, and names the value before anything runs, so `report.json` never lists a misspelled effect as allowed.
