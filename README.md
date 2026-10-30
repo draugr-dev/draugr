@@ -54,8 +54,8 @@ curl -fsSL https://draugr.dev/install.sh | sh
 Installs to `~/.local/bin`, no `sudo`. It verifies before it installs and says which checks ran, the
 archive's SHA-256 against the release `checksums.txt`, plus the cosign signature on that file when
 [cosign](https://docs.sigstore.dev/cosign/) is on your `PATH`, and installs nothing if a check
-fails. The script is [readable in the repo](install.sh); other routes, including Homebrew and `go
-install`, are in the [install guide](docs/getting-started/install.md).
+fails. The script is [readable in the repo](install.sh); a download by hand, the GitHub CLI and `go
+install` are in the [install guide](docs/getting-started/install.md).
 
 ```bash
 draugr init            # describe this project in a draugr.saga.yaml

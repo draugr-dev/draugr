@@ -1,19 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="922" height="1296" viewBox="0 0 922 1296" font-family='&quot;JetBrains Mono&quot;,&quot;SFMono-Regular&quot;,ui-monospace,&quot;Menlo&quot;,&quot;DejaVu Sans Mono&quot;,monospace' font-size="13.5">
+<svg xmlns="http://www.w3.org/2000/svg" width="938" height="1316" viewBox="0 0 938 1316" font-family='&quot;JetBrains Mono&quot;,&quot;SFMono-Regular&quot;,ui-monospace,&quot;Menlo&quot;,&quot;DejaVu Sans Mono&quot;,monospace' font-size="13.5">
 <rect width="100%" height="100%" rx="8" fill="#0b0e11"/>
 <text x="18.0" y="32.0" fill="rgb(232,184,75)" xml:space="preserve">$</text>
-<text x="26.1" y="32.0" fill="#e6e8ea" xml:space="preserve"> draugr scan draugr.saga.yaml --controls sca,secrets --top 7 --no-publish</text>
+<text x="26.1" y="32.0" fill="#e6e8ea" xml:space="preserve"> draugr scan draugr.saga.yaml --controls sca,secrets --top 7</text>
 <text x="18.0" y="72.0" fill="rgb(120,131,141)" xml:space="preserve">DRAUGR</text>
 <rect x="82.4" y="59.0" width="48.3" height="18.0" rx="3" fill="rgb(229,83,75)"/>
 <text x="82.4" y="72.0" fill="rgb(18,6,5)" xml:space="preserve"> FAIL </text>
 <text x="146.8" y="72.0" fill="#e6e8ea" font-weight="600" xml:space="preserve">draugr-demo 1.0</text>
 <text x="283.7" y="72.0" fill="rgb(232,184,75)" xml:space="preserve">(scope: sca, secrets)</text>
-<text x="468.8" y="72.0" fill="rgb(120,131,141)" xml:space="preserve">7.337s</text>
+<text x="468.8" y="72.0" fill="rgb(120,131,141)" xml:space="preserve">8.528s</text>
 <rect x="26.1" y="99.0" width="56.4" height="18.0" rx="3" fill="rgb(229,83,75)"/>
 <text x="26.1" y="112.0" fill="rgb(18,6,5)" xml:space="preserve"> 19 P1 </text>
 <rect x="90.5" y="99.0" width="56.4" height="18.0" rx="3" fill="rgb(232,184,75)"/>
-<text x="90.5" y="112.0" fill="rgb(22,17,10)" xml:space="preserve"> 17 P2 </text>
+<text x="90.5" y="112.0" fill="rgb(22,17,10)" xml:space="preserve"> 18 P2 </text>
 <rect x="154.9" y="99.0" width="48.3" height="18.0" rx="3" fill="rgb(124,166,184)"/>
-<text x="154.9" y="112.0" fill="rgb(10,17,22)" xml:space="preserve"> 3 P3 </text>
+<text x="154.9" y="112.0" fill="rgb(10,17,22)" xml:space="preserve"> 2 P3 </text>
 <text x="211.2" y="112.0" fill="rgb(120,131,141)" xml:space="preserve">0 P4</text>
 <text x="18.0" y="152.0" fill="rgb(120,131,141)" xml:space="preserve">CONTROLS</text>
 <text x="18.0" y="172.0" fill="#e6e8ea" xml:space="preserve">  sca      </text>
@@ -21,25 +21,25 @@
 <rect x="162.9" y="159.0" width="56.4" height="18.0" rx="3" fill="rgb(229,83,75)"/>
 <text x="162.9" y="172.0" fill="rgb(18,6,5)" xml:space="preserve"> 18 P1 </text>
 <rect x="227.3" y="159.0" width="56.4" height="18.0" rx="3" fill="rgb(232,184,75)"/>
-<text x="227.3" y="172.0" fill="rgb(22,17,10)" xml:space="preserve"> 17 P2 </text>
+<text x="227.3" y="172.0" fill="rgb(22,17,10)" xml:space="preserve"> 18 P2 </text>
 <rect x="291.7" y="159.0" width="48.3" height="18.0" rx="3" fill="rgb(124,166,184)"/>
-<text x="291.7" y="172.0" fill="rgb(10,17,22)" xml:space="preserve"> 3 P3 </text>
+<text x="291.7" y="172.0" fill="rgb(10,17,22)" xml:space="preserve"> 2 P3 </text>
 <text x="18.0" y="192.0" fill="#e6e8ea" xml:space="preserve">  secrets  </text>
 <text x="106.6" y="192.0" fill="rgb(229,83,75)" font-weight="600" xml:space="preserve">FAIL </text>
 <rect x="162.9" y="179.0" width="48.3" height="18.0" rx="3" fill="rgb(229,83,75)"/>
 <text x="162.9" y="192.0" fill="rgb(18,6,5)" xml:space="preserve"> 1 P1 </text>
 <text x="18.0" y="232.0" fill="rgb(120,131,141)" xml:space="preserve">MEASURED AGAINST</text>
 <text x="18.0" y="252.0" fill="#e6e8ea" xml:space="preserve">  sca      </text>
-<text x="106.6" y="252.0" fill="rgb(120,131,141)" xml:space="preserve">govulncheck v1.8.0;db@2026-10-08 22:31:09 · database: local copy, fetched 2026-10-17</text>
+<text x="106.6" y="252.0" fill="rgb(120,131,141)" xml:space="preserve">govulncheck v1.8.0;db@2026-10-27 21:16:18 · database: local copy, fetched 2026-10-29</text>
 <text x="18.0" y="292.0" fill="rgb(120,131,141)" xml:space="preserve">COMPONENTS</text>
 <text x="18.0" y="312.0" fill="#e6e8ea" xml:space="preserve">  api         </text>
 <text x="130.7" y="312.0" fill="rgb(229,83,75)" font-weight="600" xml:space="preserve">FAIL </text>
 <rect x="187.1" y="299.0" width="56.4" height="18.0" rx="3" fill="rgb(229,83,75)"/>
 <text x="187.1" y="312.0" fill="rgb(18,6,5)" xml:space="preserve"> 15 P1 </text>
 <rect x="251.5" y="299.0" width="56.4" height="18.0" rx="3" fill="rgb(232,184,75)"/>
-<text x="251.5" y="312.0" fill="rgb(22,17,10)" xml:space="preserve"> 13 P2 </text>
+<text x="251.5" y="312.0" fill="rgb(22,17,10)" xml:space="preserve"> 14 P2 </text>
 <rect x="315.9" y="299.0" width="48.3" height="18.0" rx="3" fill="rgb(124,166,184)"/>
-<text x="315.9" y="312.0" fill="rgb(10,17,22)" xml:space="preserve"> 2 P3 </text>
+<text x="315.9" y="312.0" fill="rgb(10,17,22)" xml:space="preserve"> 1 P3 </text>
 <text x="18.0" y="332.0" fill="#e6e8ea" xml:space="preserve">  storefront  </text>
 <text x="130.7" y="332.0" fill="rgb(229,83,75)" font-weight="600" xml:space="preserve">FAIL </text>
 <rect x="187.1" y="319.0" width="48.3" height="18.0" rx="3" fill="rgb(229,83,75)"/>
@@ -177,5 +177,6 @@
 <text x="219.3" y="1232.0" fill="rgb(120,131,141)" xml:space="preserve">the same findings as a list of things to do</text>
 <text x="34.1" y="1252.0" fill="rgb(120,131,141)" xml:space="preserve">draugr explain &lt;rule&gt;</text>
 <text x="219.3" y="1252.0" fill="rgb(120,131,141)" xml:space="preserve">what a rule means and how to fix it</text>
-<text x="18.0" y="1272.0" fill="#e6e8ea" xml:space="preserve">draugr: policy verdict: fail</text>
+<text x="18.0" y="1272.0" fill="#e6e8ea" xml:space="preserve">18:36:18 INFO   publishers skipped kinds.github=1 kinds.github-issue=3 reason=&quot;not a GitHub Actions environment&quot;</text>
+<text x="18.0" y="1292.0" fill="#e6e8ea" xml:space="preserve">draugr: policy verdict: fail</text>
 </svg>

@@ -121,7 +121,12 @@ func (v PolicyVerdict) Term() string {
 	case PolicyFail:
 		act = "fails the gate"
 	case PolicyRefuse:
+		// A refusing setting that a run broke only in its findings failed the run, because the
+		// findings are read after the publish has been answered. The server says which in Acts.
 		act = "refuses"
+		if v.Acts == PolicyFail {
+			act = "fails the gate"
+		}
 	case "strip":
 		act = "removes the addresses"
 	default:
