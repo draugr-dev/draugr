@@ -489,6 +489,12 @@ jobs:
         with:
           app-id: ${{ secrets.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          # Requested by name, so the token holds what this job uses and nothing else the App is
+          # granted. Contents pushes the bump branch, and pull requests opens its pull request.
+          # The commit stages internal/tools, the command goldens and changelog.d by name, never a
+          # workflow file.
+          permission-contents: write
+          permission-pull-requests: write
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: steps.any.outputs.any == 'true'
