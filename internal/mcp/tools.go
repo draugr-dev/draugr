@@ -16,6 +16,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/exploitdata"
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/needs"
+	"github.com/draugr-dev/draugr/internal/registry"
 	"github.com/draugr-dev/draugr/internal/scanpolicy"
 	"github.com/draugr-dev/draugr/internal/surfaces"
 	"github.com/draugr-dev/draugr/internal/tools"
@@ -837,6 +838,7 @@ func scanTool(reg *engine.Registry, mode ScanMode, cfg ConfigLoader) mcp.ToolHan
 			engine.WithRevisionResolver(git.ResolveRevision),
 			engine.WithTreeResolver(git.ResolveTree),
 			engine.WithModuleResolver(git.ModuleRoots),
+			engine.WithRegistryCredentials(registry.HasCredential),
 		)...).Run(ctx, *model)
 		if runErr != nil {
 			// Say so rather than swallowing it: a partial scan that reads as complete is worse

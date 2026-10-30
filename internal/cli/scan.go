@@ -19,6 +19,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/exploitdata"
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
+	"github.com/draugr-dev/draugr/internal/registry"
 	sbomgen "github.com/draugr-dev/draugr/internal/sbom"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/internal/version"
@@ -400,6 +401,9 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			}
 			return git.RemoteURL(context.Background(), path)
 		}),
+		// So an image a registry refused says whether this machine has a login for it, read where
+		// the scanners read one.
+		engine.WithRegistryCredentials(registry.HasCredential),
 	)
 	if netpolicy.Offline() {
 		eopts = append(eopts, engine.WithoutPrewarm())
