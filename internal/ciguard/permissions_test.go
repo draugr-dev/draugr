@@ -107,10 +107,16 @@ func calledWorkflow(job string) string {
 
 // writeScopes collects every `<scope>: write` a workflow's YAML asks for. Deliberately textual:
 // the question is which scopes appear, and a parser would buy precision this does not need.
+//
+// `permission-<scope>: write` is skipped. It is an input to create-github-app-token, scoping the
+// App's own token, which a caller neither grants nor could.
 func writeScopes(yaml string) map[string]bool {
 	out := map[string]bool{}
 	re := regexp.MustCompile(`(?m)^\s*([a-z-]+):\s*write\b`)
 	for _, m := range re.FindAllStringSubmatch(yaml, -1) {
+		if strings.HasPrefix(m[1], "permission-") {
+			continue
+		}
 		out[m[1]] = true
 	}
 	return out

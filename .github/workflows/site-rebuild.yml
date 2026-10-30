@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # No-ops rather than failing when the secret is absent, so forks stay green, the same
-      # treatment release.yml gives it.
+      # treatment release-post-publish.yml gives it.
       - name: Trigger the site rebuild
         env:
           HOOK: ${{ secrets.CLOUDFLARE_PAGES_DEPLOY_HOOK }}

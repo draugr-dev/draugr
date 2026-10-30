@@ -1,0 +1,351 @@
+# What a release does once its archives are published and signed: move the major tag, attach the
+# MCP Bundle, rebuild the docs site, render the sample report and publish to the MCP Registry.
+#
+# Each of those is a job of its own. One that fails turns the run red and the others still run,
+# because none of them waits on another unless it reads what that one produced. The registry
+# listing names the bundle, so publish-mcp waits on mcp-bundle, and nothing waits on major-tag.
+# TestNothingAfterThePublishWaitsOnTheMajorTag keeps it that way.
+#
+# release.yml calls this after goreleaser. It also runs on its own, for a release that is already
+# published, when a step here failed or never ran:
+#
+#   gh workflow run "Release post-publish" -f tag=vX.Y.Z
+#
+# Re-running release.yml instead runs goreleaser again, which publishes again. This workflow
+# builds, signs and publishes none of the release's archives, so running it twice is safe, and
+# TestThePostPublishPathNeverBuilds holds it to that.
+#
+# Dispatched without `--ref`, it runs the definition on main, so a fix to one of these steps
+# reaches a release cut before the fix. Nothing here signs, so the run's ref enters no
+# certificate, and every job that runs a script checks out the tag for it.
+name: Release post-publish
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The published release to finish (vX.Y.Z).
+        required: true
+        type: string
+    # Passed by name rather than inherited, so this workflow receives the secrets it uses and no
+    # others.
+    secrets:
+      RELEASE_APP_ID:
+        required: false
+      RELEASE_APP_PRIVATE_KEY:
+        required: false
+      CLOUDFLARE_PAGES_DEPLOY_HOOK:
+        required: false
+      # An environment secret of `mcp-registry`. A called workflow reads one only when the caller
+      # passes it by name as well; without that, publish-mcp finds it empty and skips the publish
+      # as though the key had never been configured.
+      MCP_PUBLISHER_DNS_KEY:
+        required: false
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The published release to finish (vX.Y.Z).
+        required: true
+        type: string
+
+env:
+  TAG: ${{ inputs.tag }}
+  # The patch ci.yml pins, for the reason given there.
+  GO_VERSION: "1.26.10"
+
+permissions:
+  contents: read
+
+jobs:
+  # Every other job waits on this one, so nothing is attached to, listed for or pointed at a tag
+  # with no published release behind it.
+  release:
+    name: The release is published
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Refuse a tag with no published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'$TAG' is not a release tag (vX.Y.Z)."
+            exit 1
+          fi
+          if ! draft=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft); then
+            echo "::error::$TAG has no release. This workflow finishes a published release, and release.yml is what publishes one."
+            exit 1
+          fi
+          if [ "$draft" != "false" ]; then
+            echo "::error::$TAG is a draft release, so nothing outside this repository can download it yet."
+            exit 1
+          fi
+          # The signed index install.sh verifies every archive against. A release without it is one
+          # goreleaser did not finish publishing.
+          assets=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
+          if ! grep -qx checksums.txt <<<"$assets"; then
+            echo "::error::$TAG has no checksums.txt, so its archives cannot be verified."
+            exit 1
+          fi
+          echo "$TAG is published"
+
+  # The moving major tag, so `draugr-dev/draugr@v0` runs the newest v0.x.y without editing a pin.
+  #
+  # Moved with the release App's token, granted `workflows`. GitHub refuses a ref update from an
+  # App that lacks that permission when the commit it moves to carries a workflow file no branch
+  # holds with the same contents, which is the case whenever main has changed a workflow since
+  # the tag was cut. GITHUB_TOKEN cannot be granted `workflows` at all.
+  #
+  # A ref moved with an App token starts any workflow listening for it, where one moved with
+  # GITHUB_TOKEN starts none. release.yml triggers on vX.Y.Z only, so the move cannot start a
+  # release, and TestTheMajorTagStartsNoWorkflow holds every workflow to that.
+  #
+  # On a GitHub-hosted runner, as every job holding the App key is. A self-hosted runner also runs
+  # pull requests' code, and a key on it is reachable from one.
+  major-tag:
+    name: Move the major tag
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Mint an installation token
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          # Requested by name, so the token holds these two whatever else the App is granted.
+          # Contents moves the ref; workflows lets it move onto a commit carrying a workflow file
+          # no branch holds.
+          permission-contents: write
+          permission-workflows: write
+
+      # Through the API rather than a checkout and a push, so no credential is written to disk.
+      - name: Move the major tag to this release
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          set -euo pipefail
+          major="${TAG%%.*}"
+          # Finishing an older release by hand must not point the major tag back at it, so the
+          # tag moves only when this is the newest vX.Y.Z of its major.
+          newest=$(
+            gh api --paginate "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$major." \
+              --jq '.[].ref | ltrimstr("refs/tags/") | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))' |
+              sort -V | tail -n 1
+          )
+          if [ "$newest" != "$TAG" ]; then
+            echo "::notice::$major stays where it is: $newest is newer than $TAG."
+            exit 0
+          fi
+          # The tag's own object, so the major tag peels to the same annotated tag and commit.
+          target=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .object.sha)
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$major" --silent 2>/dev/null; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$major" \
+              -f sha="$target" -F force=true --silent
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f ref="refs/tags/$major" -f sha="$target" --silent
+          fi
+          echo "moved $major -> $TAG"
+
+  # The MCP Bundle, assembled from the published archives rather than rebuilt, so the binaries in
+  # it are bit-for-bit the ones checksums.txt covers.
+  mcp-bundle:
+    name: MCP Bundle
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # upload the bundle to the release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      - name: Build and attach the MCP Bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          ./contrib/mcpb/build.sh "$version" "$RUNNER_TEMP"
+          gh release upload "$TAG" \
+            "$RUNNER_TEMP/draugr-$version.mcpb" \
+            "$RUNNER_TEMP/draugr-$version.mcpb.sha256" \
+            --repo "$GITHUB_REPOSITORY" --clobber
+
+  # `latest` on the docs site is built from the newest release tag, so a release needs a rebuild.
+  # This one serves the previous release's sample report at /demo/; demo-report starts a second
+  # rebuild once this release's report is attached.
+  #
+  # The hook is a Cloudflare Pages Deploy Hook, stored as the CLOUDFLARE_PAGES_DEPLOY_HOOK
+  # repository secret. Without it the job says so and passes, so a fork's release stays green.
+  docs:
+    name: Docs site rebuild
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Trigger docs site rebuild
+        env:
+          HOOK: ${{ secrets.CLOUDFLARE_PAGES_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$HOOK" ]; then
+            curl -fsS -X POST "$HOOK" && echo "docs rebuild triggered"
+          else
+            echo "CLOUDFLARE_PAGES_DEPLOY_HOOK not set; skipping docs rebuild"
+          fi
+
+  # The sample report at draugr.dev/demo/cli/report/: a real scan of the demo sandbox by the binary
+  # this release published, attached to the release as draugr-demo-report.html. The site fetches
+  # it from the newest release at build time, as it does the docs, so no repository holds a copy
+  # that can go stale or be edited by hand.
+  #
+  # When it fails there is no report on this tag, and the site goes on serving the previous
+  # release's until this job succeeds or the next release renders one.
+  demo-report:
+    name: Demo report
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # upload the report to the release
+    steps:
+      # Neither checkout keeps the token. This job holds a write grant and runs third-party
+      # scanners over the demo's tree, and a credential left in .git/config is one more thing
+      # within their reach.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      # govulncheck runs on the demo's Go module and needs a toolchain to do it.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      # The published binary through the public installer, verified against the release's signed
+      # checksums, so the report is what a user who installs this release would get.
+      - name: Install this release
+        env:
+          DRAUGR_VERSION: ${{ env.TAG }}
+          DRAUGR_INSTALL_DIR: ${{ runner.temp }}/bin
+          DRAUGR_REQUIRE_SIGNATURE: "1"
+        run: |
+          sh ./install.sh
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Check out the demo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: draugr-dev/draugr-demo
+          path: demo
+          persist-credentials: false
+
+      - name: Install the scanners the demo needs
+        working-directory: demo
+        run: |
+          set -euo pipefail
+          draugr tools install -y --saga draugr.saga.yaml
+          draugr feeds update
+
+      - name: Render the report
+        env:
+          DEMO_DIR: ${{ github.workspace }}/demo
+        run: DRAUGR="$(command -v draugr)" ./scripts/demo-report.sh "$RUNNER_TEMP/draugr-demo-report.html"
+
+      - name: Attach it to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$TAG" "$RUNNER_TEMP/draugr-demo-report.html" \
+            --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Rebuild the site to serve it
+        env:
+          HOOK: ${{ secrets.CLOUDFLARE_PAGES_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$HOOK" ]; then
+            curl -fsS -X POST "$HOOK" && echo "site rebuild triggered"
+          else
+            echo "CLOUDFLARE_PAGES_DEPLOY_HOOK not set; skipping site rebuild"
+          fi
+
+  # The MCP Registry listing, published once the bundle it names is attached, so the listing
+  # always points at a bundle that is downloadable and a hash that matches it.
+  #
+  # Gated behind the `mcp-registry` environment for one reason: the DNS key below is what proves
+  # anything published under `dev.draugr` is ours, and an environment secret is readable only by a
+  # job that declares the environment, a repository secret is readable by every workflow in the
+  # repo. Add required reviewers to that environment and each publish waits for a click.
+  #
+  # DNS namespaces have no keyless option. The registry's own CI guide only documents
+  # `login github-oidc` and a PAT, and both authenticate `io.github.*` namespaces, not a domain.
+  publish-mcp:
+    name: MCP Registry
+    needs: mcp-bundle
+    runs-on: ubuntu-latest
+    environment: mcp-registry
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+
+      - name: Publish to the MCP Registry
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MCP_PUBLISHER_DNS_KEY: ${{ secrets.MCP_PUBLISHER_DNS_KEY }}
+        run: |
+          set -euo pipefail
+          # Absent on a fork, and before the secret is configured. Skipping keeps those green:
+          # the release itself succeeded, and a listing is one distribution channel.
+          if [ -z "${MCP_PUBLISHER_DNS_KEY:-}" ]; then
+            echo "MCP_PUBLISHER_DNS_KEY not set; skipping the registry publish"
+            exit 0
+          fi
+          version="${TAG#v}"
+
+          os=$(uname -s | tr '[:upper:]' '[:lower:]')
+          arch=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_${os}_${arch}.tar.gz" \
+            | tar xz mcp-publisher
+
+          # Renders version, bundle URL and SHA-256 from the published release. The hash comes
+          # from the release's own .mcpb.sha256, so the listing cannot advertise a digest that
+          # differs from the artifact.
+          ./contrib/mcpb/render-server-json.sh "$version"
+
+          cd contrib/mcpb
+          # mcp-publisher takes the key as a flag and offers no env-var form, so it is briefly
+          # visible to `ps` on this runner. Acceptable here, the runner is ephemeral and
+          # single-tenant, but it is why the secret is environment-scoped rather than
+          # repo-wide, and why it should be rotated if a job on this runner is ever suspect.
+          "$GITHUB_WORKSPACE/mcp-publisher" login dns \
+            --domain draugr.dev --private-key "$MCP_PUBLISHER_DNS_KEY"
+
+          # A version already in the registry is the state this step exists to reach, so reaching
+          # it twice is not a failure. The registry refuses a duplicate with a 400, which would
+          # otherwise redden a release whose artifacts published perfectly, and a red release run
+          # that is actually fine is worse than no signal, because the next real failure looks the
+          # same.
+          #
+          # Narrow on purpose: only "duplicate version" is forgiven, and it is reported. Every
+          # other 400 still fails, because those mean the listing did not reach the registry.
+          if ! out=$("$GITHUB_WORKSPACE/mcp-publisher" publish 2>&1); then
+            printf '%s\n' "$out"
+            if printf '%s' "$out" | grep -q 'cannot publish duplicate version'; then
+              echo "::notice::Version $version is already in the MCP Registry; nothing to publish."
+            else
+              exit 1
+            fi
+          else
+            printf '%s\n' "$out"
+          fi
