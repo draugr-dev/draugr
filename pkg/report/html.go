@@ -137,14 +137,16 @@ type htmlTiming struct {
 
 type htmlError struct{ Control, Message string }
 
-// htmlComponent is one component's row: what it was declared to be, how its own findings ranked,
-// and what nothing was able to look at.
+// htmlComponent is one component's row: the classification it was ranked with, how its own
+// findings ranked, and what nothing was able to look at.
 type htmlComponent struct {
 	Name string
-	// Class is the exposure and criticality the descriptor declared, as one string, and empty
-	// where it declared neither. Half of why two components with the same finding hold different
-	// bands, and without it the difference between two rows has no visible cause.
-	Class   string
+	// Exposure and Criticality are the classification this component's findings were ranked with,
+	// each marked where the descriptor left it out and the ranking assumed it. Half of why two
+	// components with the same finding hold different bands, and without them the difference
+	// between two rows has no visible cause. Zero on a skipped row, which nothing ranked.
+	Exposure, Criticality classHalf
+
 	Verdict string // "PASS" | "FAIL" | "ERROR" | "not scanned"
 	Fail    bool
 	// Errored marks a component whose scans failed and which therefore found nothing in the sense
@@ -488,12 +490,12 @@ func htmlComponents(d Data, s summary) []htmlComponent {
 	for _, c := range d.Components {
 		row := htmlComponent{
 			Name: c.Name, Verdict: "PASS", Fail: c.Verdict == norn.Fail,
-			Class:       classification(c.Exposure, c.Criticality),
 			Prioritized: s.prioritized,
 			P1:          c.Priorities[0], P2: c.Priorities[1], P3: c.Priorities[2], P4: c.Priorities[3],
 			Findings: c.Findings,
 			Failed:   c.Controls,
 		}
+		row.Exposure, row.Criticality = rankedClass(c)
 		if row.Fail {
 			row.Verdict = "FAIL"
 		}
@@ -517,19 +519,6 @@ func htmlComponents(d Data, s summary) []htmlComponent {
 		}
 	}
 	return out
-}
-
-// classification renders what the descriptor declared a component to be, and nothing where it
-// declared neither half.
-func classification(exposure, criticality string) string {
-	switch {
-	case exposure != "" && criticality != "":
-		return exposure + " · " + criticality
-	case exposure != "":
-		return exposure
-	default:
-		return criticality
-	}
 }
 
 // timings renders the run's wall-clock and a worst-first control breakdown.
@@ -1064,7 +1053,7 @@ const htmlDoc = `<!doctype html>
     font-size: .74rem; font-weight: 500; text-transform: uppercase; letter-spacing: .1em;
     color: var(--faint); border-bottom: 1px solid var(--line-strong); white-space: nowrap;
   }
-  tbody td { border-bottom: 1px solid var(--line); }
+  tbody td, tbody th { border-bottom: 1px solid var(--line); }
   td.num, th.num { text-align: right; font-family: "JetBrains Mono", ui-monospace, monospace; }
 
   /* A finding is two rows: what it is, then what it says. The second carries the sentence somebody
@@ -1127,11 +1116,21 @@ const htmlDoc = `<!doctype html>
    * The same chips, because a component's bands and the strip in the header are one measurement. */
   table.components th[scope="row"] { font-weight: 600; white-space: nowrap; }
   table.components .sevs { display: inline-flex; margin-left: 0; vertical-align: middle; }
-  table.components td:nth-child(3) {
+  /* Keyed on a class rather than a position, so a column added before the verdict cannot take its
+   * style. */
+  table.components td.outcome {
     font-family: "JetBrains Mono", ui-monospace, monospace;
     font-size: .76rem; letter-spacing: .1em; white-space: nowrap;
   }
   .cls { color: var(--muted); white-space: nowrap; }
+  /* A half the descriptor left out shows the level the ranking assumed in its place, faint and
+   * followed by the word, so the mark survives a black-and-white print and a screen reader. In the
+   * table a declared half takes the body ink, which is what sets the faint one apart. */
+  table.components td.cls { color: var(--text); }
+  .cls .asm, .cls .tag { color: var(--faint); }
+  .cls .tag { font-size: .78rem; margin-left: .35rem; }
+  /* A table wider than the screen scrolls inside its own box, and the page stays put. */
+  .scroll { overflow-x: auto; }
   .none { color: var(--faint); font-style: italic; }
   /* The gap sits under the bands rather than beside them. A component can be partly scanned and
    * hold findings worth acting on, and either fact read alone is wrong. */
@@ -1478,6 +1477,15 @@ const htmlDoc = `<!doctype html>
     .signals th, .signals .moved { white-space: normal; }
     .signals .moved { align-items: baseline; }
     .signals th, .signals td { padding-left: .4rem; padding-right: .4rem; }
+    /* The components table closes up its cells and headings, meets the page's margin at both
+     * edges, wraps a hyphenated name and puts an assumed mark under its value, so its five columns
+     * fit a 390px screen. Anything wider scrolls inside .scroll. */
+    table.components th, table.components td { padding-left: .25rem; padding-right: .25rem; }
+    table.components tr > :first-child { padding-left: 0; }
+    table.components tr > :last-child { padding-right: 0; }
+    table.components thead th { letter-spacing: .02em; }
+    table.components th[scope="row"] { white-space: normal; }
+    table.components .cls .tag { display: block; margin-left: 0; }
   }
 
   @media print {
@@ -1489,6 +1497,8 @@ const htmlDoc = `<!doctype html>
     .rows > .cut { display: grid; }
     body { max-width: none; background: #fff; color: #000; }
     tr { break-inside: avoid; }
+    /* Paper does not scroll, so a scroll box would cut the table at its edge. */
+    .scroll { overflow: visible; }
     a::after { content: " (" attr(href) ")"; font-size: .8em; color: #444; }
   }
 </style>
@@ -1585,18 +1595,21 @@ the component is, so the same issue ranks differently on a public API than on an
 <details class="fold" open><summary id="components"><span class="sec">Components</span></summary>
 <p class="note">The verdict for each part of the application on its own findings, under the same gate
 as the run.</p>
+<div class="scroll">
 <table class="components">
 <thead><tr>
   <th scope="col">Component</th>
-  <th scope="col">Declared</th>
+  <th scope="col">Exposure</th>
+  <th scope="col">Criticality</th>
   <th scope="col">Verdict</th>
   <th scope="col">{{if .Prioritized}}Priority{{else}}Findings{{end}}</th>
 </tr></thead>
 <tbody>
 {{range .Components}}<tr{{if .Skipped}} class="skipped"{{end}}>
   <th scope="row">{{.Name}}</th>
-  <td class="cls">{{if .Class}}{{.Class}}{{else}}<span class="none">not declared</span>{{end}}</td>
-  <td>{{if .Skipped}}<span class="none">not scanned</span>{{else if .Errored}}<span class="err">ERROR</span>{{else if .Fail}}<span class="err">FAIL</span>{{else}}<span class="ok">PASS</span>{{end}}</td>
+  <td class="cls">{{if not .Skipped}}{{template "class" .Exposure}}{{end}}</td>
+  <td class="cls">{{if not .Skipped}}{{template "class" .Criticality}}{{end}}</td>
+  <td class="outcome">{{if .Skipped}}<span class="none">not scanned</span>{{else if .Errored}}<span class="err">ERROR</span>{{else if .Fail}}<span class="err">FAIL</span>{{else}}<span class="ok">PASS</span>{{end}}</td>
   <td>
     {{if .Skipped}}
     {{else if and .Prioritized .Findings}}<span class="sevs">
@@ -1612,6 +1625,7 @@ as the run.</p>
 </tr>{{end}}
 </tbody>
 </table>
+</div>
 {{if .Unattributed}}<p class="note">{{plural .Unattributed "finding"}} not tied to a component
 (project-wide controls).</p>{{end}}
 </details>
@@ -1654,7 +1668,7 @@ about what they would have found. For everything the tool printed, re-run with
   {{range .Components}}{{if not .Skipped}}
   <div class="focus" data-m="{{.Name}}" hidden>
     <span class="focus-name">{{.Name}}</span>
-    {{if .Class}}<span class="cls">{{.Class}}</span>{{end}}
+    <span class="cls">{{template "class" .Exposure}} · {{template "class" .Criticality}}</span>
     <span class="focus-verdict">{{if .Errored}}<span class="err">ERROR</span>{{else if .Fail}}<span class="err">FAIL</span>{{else}}<span class="ok">PASS</span>{{end}}</span>
     {{if and .Prioritized .Findings}}<span class="sevs">
       <span class="sev s-p1{{if not .P1}} off{{end}}">{{.P1}} P1</span>
@@ -1733,6 +1747,7 @@ about what they would have found. For everything the tool printed, re-run with
 {{/* A rule's advisory opens in a new tab. The report holds what the reader has filtered, folded and
    scrolled to, and a link that replaced it would throw that away. noreferrer keeps the report's
    address, often a CI artifact or a file path, from reaching the advisory's host. */}}
+{{define "class"}}{{if .Assumed}}<span class="asm">{{.Value}}</span><span class="tag">assumed</span>{{else}}{{.Value}}{{end}}{{end}}
 {{define "ruleid"}}{{if .HelpURI}}<a href="{{.HelpURI}}" target="_blank" rel="noopener noreferrer">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}{{end}}
 {{define "rule"}}<span class="id">{{template "ruleid" .}}</span>{{if .Message}}<span class="said"><span class="faint"> · </span>{{.Message}}</span>{{end}}{{end}}
 {{/* Multi marks a menu whose rows each hold a set of values, space-separated, rather than one. */}}

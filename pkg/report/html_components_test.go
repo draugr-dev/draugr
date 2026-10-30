@@ -87,38 +87,159 @@ func TestTheReportSaysWhichComponentIsFailing(t *testing.T) {
 	}
 }
 
-// TestTheTableSaysWhatEachComponentWasDeclaredToBe: exposure and criticality are half of why two
-// components holding the same finding rank differently, so a table without them shows a difference
-// whose cause is off screen.
-func TestTheTableSaysWhatEachComponentWasDeclaredToBe(t *testing.T) {
-	out := renderHTML(t, componentData())
-	for _, want := range []string{"public · critical", "internal · supporting"} {
-		if !strings.Contains(out, want) {
-			t.Errorf("the declared classification %q is missing", want)
-		}
-	}
-}
-
-// TestAComponentThatDeclaredNothingSaysSo. An empty cell reads as a rendering fault; the reader
-// cannot tell it from a value that failed to print, and the fix is in their descriptor.
-func TestAComponentThatDeclaredNothingSaysSo(t *testing.T) {
+// classifiedData is the three shapes a descriptor can leave a classification in: both halves
+// declared, neither, and one. The ranking reads an undeclared half as the most severe level, so all
+// three rank their one finding P1, and only the classification beside the band says why.
+func classifiedData() Data {
 	d := componentData()
-	d.Components[0].Exposure, d.Components[0].Criticality = "", ""
-	if got := renderHTML(t, d); !strings.Contains(got, "not declared") {
-		t.Error("a component with no exposure or criticality left the cell blank")
+	d.Components = []ComponentVerdict{
+		{
+			Name: "checkout", Verdict: norn.Fail, Exposure: "public", Criticality: "critical",
+			Findings: 1, Priorities: [4]int{1, 0, 0, 0}, Controls: []string{"secrets"},
+		},
+		{
+			Name: "tooling", Verdict: norn.Fail,
+			Findings: 1, Priorities: [4]int{1, 0, 0, 0}, Controls: []string{"secrets"},
+		},
+		{
+			Name: "worker", Verdict: norn.Fail, Exposure: "internal",
+			Findings: 1, Priorities: [4]int{1, 0, 0, 0}, Controls: []string{"secrets"},
+		},
+	}
+	return d
+}
+
+// classCells returns the contents of a row's exposure and criticality cells, in order.
+func classCells(t *testing.T, row string) []string {
+	t.Helper()
+	parts := strings.Split(row, `<td class="cls">`)
+	cells := make([]string, 0, len(parts)-1)
+	for _, p := range parts[1:] {
+		end := strings.Index(p, "</td>")
+		if end < 0 {
+			t.Fatalf("an unclosed classification cell:\n%s", row)
+		}
+		cells = append(cells, p[:end])
+	}
+	return cells
+}
+
+// assumedCell is how a half the descriptor left out renders: the level the ranking used, dimmed,
+// and the word that says it was not declared.
+func assumedCell(value string) string {
+	return `<span class="asm">` + value + `</span><span class="tag">assumed</span>`
+}
+
+// TestEachRowShowsTheClassificationItWasRankedWith: exposure and criticality are half of why two
+// components holding the same finding rank differently, so each half shows the level the band was
+// computed from, and only an assumed half is marked.
+func TestEachRowShowsTheClassificationItWasRankedWith(t *testing.T) {
+	out := renderHTML(t, classifiedData())
+
+	head := section(t, out, `<table class="components">`, "</thead>")
+	for _, want := range []string{`<th scope="col">Exposure</th>`, `<th scope="col">Criticality</th>`} {
+		if !strings.Contains(head, want) {
+			t.Errorf("the header is missing %q:\n%s", want, head)
+		}
+	}
+	if strings.Contains(head, "Declared") {
+		t.Errorf("the header still names a column for what was declared:\n%s", head)
+	}
+
+	for _, c := range []struct{ name, next, exposure, criticality string }{
+		{"checkout", "tooling", "public", "critical"},
+		{"tooling", "worker", assumedCell("public"), assumedCell("critical")},
+		{"worker", "batch", "internal", assumedCell("critical")},
+	} {
+		row := section(t, out, `<th scope="row">`+c.name+`</th>`, `<th scope="row">`+c.next+`</th>`)
+		got := classCells(t, row)
+		if len(got) != 2 || got[0] != c.exposure || got[1] != c.criticality {
+			t.Errorf("%s: classification cells = %q, want [%q %q]", c.name, got, c.exposure, c.criticality)
+		}
 	}
 }
 
-// TestHalfAClassificationStillRenders covers the descriptor that declared one of the two. Joining
-// with a separator unconditionally would print "public · " and read as a value that went missing.
-func TestHalfAClassificationStillRenders(t *testing.T) {
-	for _, c := range []struct{ exposure, criticality, want string }{
-		{"public", "", "public"},
-		{"", "critical", "critical"},
+// TestASkippedRowClaimsNoClassification. Nothing ranked a component the scope left out, so a level
+// in its cells would describe a ranking that did not happen, and an assumed one would call a
+// component public that may well declare otherwise.
+func TestASkippedRowClaimsNoClassification(t *testing.T) {
+	row := section(t, renderHTML(t, classifiedData()), `<th scope="row">batch</th>`, "</tbody>")
+	if got := classCells(t, row); len(got) != 2 || got[0] != "" || got[1] != "" {
+		t.Errorf("the skipped row's classification cells = %q, want two empty cells", got)
+	}
+	if !strings.Contains(row, "not scanned") {
+		t.Errorf("the skipped row does not say it was not scanned:\n%s", row)
+	}
+	if strings.Contains(row, "assumed") {
+		t.Errorf("the skipped row claims an assumed classification:\n%s", row)
+	}
+}
+
+// TestTheStripShowsTheClassificationItWasRankedWith. The strip above a narrowed list describes the
+// same component as its row, and the declared half alone there would leave the same gap.
+func TestTheStripShowsTheClassificationItWasRankedWith(t *testing.T) {
+	out := renderHTML(t, classifiedData())
+	for _, c := range []struct{ name, want string }{
+		{"checkout", `<span class="cls">public · critical</span>`},
+		{"tooling", `<span class="cls">` + assumedCell("public") + ` · ` + assumedCell("critical") + `</span>`},
+		{"worker", `<span class="cls">internal · ` + assumedCell("critical") + `</span>`},
 	} {
-		if got := classification(c.exposure, c.criticality); got != c.want {
-			t.Errorf("classification(%q, %q) = %q, want %q", c.exposure, c.criticality, got, c.want)
+		strip := section(t, out, `data-m="`+c.name+`"`, "</div>")
+		if !strings.Contains(strip, c.want) {
+			t.Errorf("%s: the strip does not carry %q:\n%s", c.name, c.want, strip)
 		}
+	}
+}
+
+// TestTheMarkdownTableShowsTheSameClassification: the two reports describe one run, and a reviewer
+// reading the merge request comment has no dimming to read, so an assumed half says so in words.
+func TestTheMarkdownTableShowsTheSameClassification(t *testing.T) {
+	var buf bytes.Buffer
+	if err := (markdownReporter{}).Render(&buf, classifiedData()); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	head := "| Component | Exposure | Criticality | Verdict | P1 | P2 | P3 | P4 | Failing controls |"
+	for _, want := range []string{
+		head,
+		"| checkout | public | critical | **FAIL** | 1 | 0 | 0 | 0 | secrets |",
+		"| tooling | public (assumed) | critical (assumed) | **FAIL** | 1 | 0 | 0 | 0 | secrets |",
+		"| worker | internal | critical (assumed) | **FAIL** | 1 | 0 | 0 | 0 | secrets |",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the markdown report is missing %q:\n%s", want, out)
+		}
+	}
+	// A delimiter row with a different number of cells from the header is not a table to a
+	// markdown renderer, which prints every line of it as text.
+	rest := out[strings.Index(out, head)+len(head)+1:]
+	delimiter := rest[:strings.Index(rest, "\n")]
+	if got, want := strings.Count(delimiter, "|"), strings.Count(head, "|"); got != want {
+		t.Errorf("the delimiter row %q has %d pipes, the header %d", delimiter, got, want)
+	}
+}
+
+// TestTheComponentsTableStylesEveryColumn. A rule keyed on a column's position belongs to whichever
+// column moves into that position, so the verdict's face is keyed on a class. A row header is a th,
+// which a border drawn under every td leaves out. And a table wider than a phone scrolls inside its
+// own box rather than widening the page.
+func TestTheComponentsTableStylesEveryColumn(t *testing.T) {
+	out := renderHTML(t, classifiedData())
+	if strings.Contains(out, "table.components td:nth-child") {
+		t.Error("the components table still styles a column by its position")
+	}
+	row := section(t, out, `<th scope="row">checkout</th>`, `<th scope="row">tooling</th>`)
+	if !strings.Contains(row, `<td class="outcome"><span class="err">FAIL</span></td>`) {
+		t.Errorf("the verdict cell does not carry the class its style is keyed on:\n%s", row)
+	}
+	if !strings.Contains(out, "table.components td.outcome {") {
+		t.Error("nothing styles the verdict cell")
+	}
+	if !strings.Contains(out, "tbody td, tbody th { border-bottom:") {
+		t.Error("the row border leaves out the row header")
+	}
+	if !strings.Contains(out, "<div class=\"scroll\">\n<table class=\"components\">") {
+		t.Error("the components table is not inside a scroll box")
 	}
 }
 

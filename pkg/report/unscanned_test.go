@@ -127,8 +127,8 @@ func TestEveryFormatMarksAPartlyScannedComponentAnError(t *testing.T) {
 	}
 	for r, want := range map[Reporter]string{
 		consoleReporter{}:  "worker  ERROR",
-		markdownReporter{}: "| worker | - | **ERROR** |",
-		htmlReporter{}:     `<td><span class="err">ERROR</span></td>`,
+		markdownReporter{}: "| worker | public (assumed) | critical (assumed) | **ERROR** |",
+		htmlReporter{}:     `<td class="outcome"><span class="err">ERROR</span></td>`,
 	} {
 		t.Run(r.Format(), func(t *testing.T) {
 			if out := renderWith(t, r, d); !strings.Contains(out, want) {

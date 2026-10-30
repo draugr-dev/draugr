@@ -228,11 +228,13 @@ interrupt anybody for.
 
 ### An unclassified component
 
-A component that declares neither field is read as **`public` and `critical`**, tier C1, the most
-concerning. An unclassified component surfaces rather than hides, and both rows read `not declared`
-in the report so the band is traceable to the gap that produced it.
+A component that declares neither field is ranked as **`public` and `critical`**, tier C1, the most
+concerning, so that an unclassified component surfaces rather than hides. One that declares a single
+field is ranked at the most concerning level for the other. The Components table in the HTML and
+markdown reports shows the level each component was ranked with and marks an undeclared one
+`assumed`.
 
-The fix is a descriptor edit rather than an argument with the tool.
+To change the band, declare the missing field in the descriptor.
 
 ## Exploitability: KEV and EPSS
 
