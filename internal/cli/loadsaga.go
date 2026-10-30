@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/sagafetch"
 	"github.com/draugr-dev/draugr/internal/scaffold"
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -47,7 +48,7 @@ func scanResolved(target string) (*saga.Resolved, bool, error) {
 		}
 		return &saga.Resolved{Model: syntheticSaga(target)}, true, nil
 	}
-	res, err := loadResolvedCtx(context.Background(), path)
+	res, err := loadResolved(context.Background(), path, true)
 	return res, false, err
 }
 
@@ -250,6 +251,17 @@ func loadSagaCtx(ctx context.Context, path string) (*saga.Model, error) {
 // sources, because a report recording what was found and not what was asked for cannot answer why a
 // control ran. And the resolution is discarded the moment the process exits.
 func loadResolvedCtx(ctx context.Context, path string) (*saga.Resolved, error) {
+	return loadResolved(ctx, path, false)
+}
+
+// loadResolved is loadResolvedCtx, and with history set it also records what git's history says
+// about the line each exclusion is written at, for the report.
+//
+// Recorded here, before the fetcher is closed, because closing it removes the checkout of every
+// fragment fetched from another repository, and that checkout is the only copy of its history on
+// this machine. Only a scan asks: the history is evidence in a report, and every other command
+// that loads a descriptor would run git for nothing.
+func loadResolved(ctx context.Context, path string, history bool) (*saga.Resolved, error) {
 	fetcher := sagafetch.New(ctx)
 	defer fetcher.Close()
 
@@ -266,6 +278,9 @@ func loadResolvedCtx(ctx context.Context, path string) (*saga.Resolved, error) {
 	}
 	if err := checkDescriptorControls(builtins.Registry(), path, model); err != nil {
 		return nil, err
+	}
+	if history {
+		git.RecordExclusionHistory(ctx, model.Config.Exclude)
 	}
 	return res, nil
 }

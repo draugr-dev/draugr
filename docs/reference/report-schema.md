@@ -96,10 +96,11 @@ entry, with `justification` as its own field and the rest in its `properties`.
 | Field | What it says |
 |---|---|
 | `justification` | The reason given for setting it aside |
-| `acceptedBy` | Who accepted it, for a rule in the descriptor that named someone |
+| `unverifiedAcceptedBy` | For a rule in the descriptor that still sets the deprecated [`acceptedBy`](saga-schema.md#configexclude), the name it states, which nothing verifies. 0.163.0 removes it. The rule's entry in [`descriptor.exclusions[]`](#what-each-exclusion-carries) carries git's record of who wrote it |
 | `origin` | Whose decision it was: `saga` for a rule in this project's descriptor, `vex` for a supplier's VEX claim this project accepted, `tool` for a directive written beside the line, `scanner` for an entry in the scanner's own ignore file |
 | `author`, `asserted` | For a `vex` suppression, who made the claim and the date they made it |
 | `source` | The descriptor file a rule was written in, where the descriptor is split across several, or the VEX document a claim came from |
+| `line` | For a rule in the descriptor, the line in `source` it starts at. With `source` it names the rule's entry in [`descriptor.exclusions[]`](#what-each-exclusion-carries) |
 | `statementId` | For a `vex` suppression, the statement's `@id` within its document, where the supplier gave one |
 | `digest` | For a `vex` suppression, the sha256 of the document as Draugr read it |
 
@@ -111,6 +112,61 @@ supplier, quote `statementId`.
 A license the scanner could not identify is reported under the rule `license/unknown/<package>`,
 and the message quotes the text it found. `deny` and `warn` accept `unknown` to select every such
 license.
+
+## What each exclusion carries
+
+`report.json` lists the merged descriptor's [`config.exclude`](saga-schema.md#configexclude)
+entries as `descriptor.exclusions[]`, in the order `descriptor.effective` lists them. Each entry
+names the file and line it is written at, and the last commit to change that line, as `git blame`
+names it.
+
+| Field | Meaning |
+|---|---|
+| `source` | the descriptor or fragment: the descriptor's path as `draugr scan` was given it, a local fragment's path joined to the descriptor's directory, or `<url>@<revision> <path>` for a fragment fetched from another repository, with the commit the revision resolved to in parentheses after it when the two differ |
+| `line` | the line the entry starts at |
+| `reason` | the entry's `reason` |
+| `gitHistory.path` | the file's path in the repository that holds it. Absent where no git repository holds the file |
+| `gitHistory.commit`, `gitHistory.author`, `gitHistory.date` | the last commit to change the line, its author's name, and its author date in RFC 3339 with the author's offset. Present only where the history is reliable |
+| `gitHistory.unavailable` | why no commit is reported. Present exactly where `commit` is absent |
+
+A finding an entry set aside names it by the same `source` and `line`, on the finding's
+[`suppressed`](#suppressions) object in `report.json` and in its suppression's `properties` in
+`results.sarif`.
+
+**The history is git's record, reported only where it is reliable.** That is where the checkout
+holds the line's history and the last commit to change the line is not the boundary of a shallow
+clone. A shallow clone attributes every line it holds no history for to its boundary commit,
+whoever wrote the line, so a line at the boundary is reported as unavailable rather than
+attributed. No email address is recorded, and nothing is fetched to deepen a clone.
+
+| `unavailable` | What to do |
+|---|---|
+| `the line is older than the shallow clone's history; fetch full history` | set the fetch depth to full history, see [Full history](#full-history) |
+| `the line is not committed` | commit the change, and scan the commit |
+| `the file is not committed` | commit the file, and scan the commit |
+| `the file is in no git repository` | scan from inside the repository |
+| `git is not installed` | install git |
+| `git blame failed: <git's message>`, `git rev-parse failed: <git's message>` | fix what git's message names, such as a repository owned by another user |
+| `git blame did not answer within 10s` | retry; blame on a very large file or repository can exceed 10s |
+
+A fragment fetched from another repository always names a `revision`, and Draugr clones its
+repository with full history to check that revision out. Its entries carry that repository's
+history, and `gitHistory.path` is the path in that repository.
+
+### Full history
+
+Most CI systems check out a shallow clone by default. Full history on the scan job makes the history
+reliable for every entry:
+
+| CI | Setting |
+|---|---|
+| GitHub Actions | `fetch-depth: 0` on `actions/checkout` |
+| GitLab CI | `GIT_DEPTH: 0` in the job's `variables` |
+| Azure Pipelines | `fetchDepth: 0` on the `checkout` step |
+
+```bash
+jq -r '.descriptor.exclusions[] | "\(.source):\(.line)  \(.gitHistory.commit // .gitHistory.unavailable)"' out/report.json
+```
 
 ## What each action carries
 
@@ -189,6 +245,99 @@ A gate that re-runs when results are too old has everything it needs here:
 
 ```bash
 jq -e '.stats.cache.enabled and (.stats.cache.unpinned // [] | length == 0)' out/report.json
+```
+
+## Effects
+
+`effects` records the [scanner effects](../trust-and-operations/what-a-scan-does.md) the run
+accepted (`allowed`), the ones its descriptor declares (`declared`), and the ones its scanners had
+(`used`). `allowed` differs from `declared` only by what `--allow-effects` added.
+
+| Field | Meaning |
+|---|---|
+| `declared` | [`config.allowEffects`](saga-schema.md#configalloweffects) in the descriptor the run read, fragments included |
+| `allowed` | the effects the run accepted, `declared` and `--allow-effects` together |
+| `used[]` | one entry per effect of a scanner that executed in this run, with `kind` and `detail` (the scanner's statement of what happens to the target). A result reused from the cache does not count, because nothing was sent to produce it |
+
+All three lists are present in every report, empty when nothing applies.
+
+`network` and `disclosure` run without being accepted, so `used` can name a kind `allowed` does not
+hold. Only `mutate` and `privilege` in `used` are bounded by `allowed`.
+
+The block below is from a run whose descriptor declares `allowEffects: [mutate]`, given
+`--allow-effects privilege`, with a `headers` check against one host.
+
+```jsonc
+"effects": {
+  "declared": ["mutate"],
+  "allowed": ["mutate", "privilege"],
+  "used": [
+    {
+      "kind": "network",
+      "detail": "sends an HTTP GET to the endpoint and follows its redirects"
+    }
+  ]
+}
+```
+
+```bash
+jq -e '.effects.allowed - .effects.declared | length == 0' out/report.json   # fail when a flag accepted an effect the descriptor does not
+```
+
+## SBOMs
+
+`sboms` records each [SBOM](saga-schema.md#sbom-generation) document the run wrote and each it
+failed to produce.
+
+| Field | Meaning |
+|---|---|
+| `documents[]` | each document the run wrote, with `scope`, `component`, `target`, `format`, `file` and `digest` |
+| `documents[].scope` | `component` for the inventory of one repository or image, `project` for the document assembled from them, which has no `component` or `target` |
+| `documents[].target` | the repository's source or the image's pinned reference. A repository is named without the `@<revision>` that `targets[].target` adds |
+| `documents[].file` | the file's name in the `-o` directory, and the name every publisher delivers it under |
+| `documents[].digest` | the SHA-256 of the file, as `sha256:<hex>` |
+| `failed[]` | each document the run did not produce, with `scope`, `component`, `target`, `format` and `reason` (the generator's error). `target` is absent on a project document that could not be assembled, and on a failure that belongs to no one target, such as a run with no SBOM generator or a canceled run |
+
+Each `failed[]` entry is also one of the `scanErrors` of the `(sbom)` entry in `controls[]`, so the
+run is incomplete unless `--allow-scan-errors` accepts it. `targets[]` accounts for the controls'
+scans and not for SBOMs, so a repository whose inventory failed can be `reached` there, or absent
+when no control scans it.
+
+Under `scope: project` a target listed in `failed[]` is missing from the assembled document.
+
+`sboms` is absent when the run wrote no document and recorded no failure, which includes every run
+with `config.sbom` off.
+
+The block below is from a run of one component holding two repositories, the second of which could
+not be cloned.
+
+```jsonc
+"sboms": {
+  "documents": [
+    {
+      "scope": "component",
+      "component": "storefront",
+      "target": "https://github.com/draugr-dev/draugr-demo",
+      "format": "cyclonedx-json",
+      "file": "sbom-storefront-https-github-com-draugr-dev-draugr-demo.cdx.json",
+      "digest": "sha256:b9ffb8fd666d3a4437eabf3cb82c006f794a44dec2aaf136bea48b37b524b209"
+    }
+  ],
+  "failed": [
+    {
+      "scope": "component",
+      "component": "storefront",
+      "target": "https://github.com/draugr-dev/storefront-theme",
+      "format": "cyclonedx-json",
+      "reason": "checkout https://github.com/draugr-dev/storefront-theme: git clone: exit status 128: remote: Repository not found.\nfatal: repository 'https://github.com/draugr-dev/storefront-theme/' not found\n"
+    }
+  ]
+}
+```
+
+```bash
+jq -r '.sboms.failed[]? | "\(.target // .scope): \(.reason)"' out/report.json   # which inventories are missing, and why
+(cd out && jq -r '.sboms.documents[]? | "\(.digest | ltrimstr("sha256:"))  \(.file)"' report.json | sha256sum -c)   # the files are the ones recorded
 ```
 
 ## What the run carries

@@ -1222,7 +1222,8 @@
       "description": "One exclusion. Set paths, rules, or both; when both are set a finding must match both.",
       "properties": {
         "acceptedBy": {
-          "description": "Who decided this finding was acceptable. Optional; a suppression without one is reported as unattributed.",
+          "deprecated": true,
+          "description": "Deprecated: delete the line; 0.163.0 removes it. A name typed as who accepted the finding, which nothing verifies. Still read, with a warning, and reported only as unverifiedAcceptedBy. The exclusion's git history records who wrote it.",
           "minLength": 1,
           "type": [
             "string",

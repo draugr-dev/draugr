@@ -250,8 +250,8 @@ Only open items are looked up, and a closed item is never read, reopened or edit
 | passes | one | comment that the gate passed, naming the run, then close |
 | passes | none | nothing |
 
-**Closing an item does not accept the risk.** Accepting is a `config.exclude` entry with a
-`reason`, an `acceptedBy` and an `expires`, which stays in the report. An item closed by hand while
+**Closing an item does not accept the risk.** Accepting is a committed `config.exclude` entry with
+a `reason` and an `expires`, which stays in the report. An item closed by hand while
 the gate still fails is left closed, and the next failing run creates a new one. The body says how
 to accept, so the way out is written down.
 

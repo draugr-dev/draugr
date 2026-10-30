@@ -15,10 +15,10 @@ ranks every finding into a band **P1–P4**:
 
 `exposure` drives *likelihood* and `criticality` drives *impact*.
 
-A finding's **normalized severity** (from its CVSS score, or its SARIF level, or a control floor)
-combines with the component's `exposure × criticality` through two small lookup matrices to yield
-the priority. So the *same* CVE is P1 on a public, business-critical gateway and P3 on an internal
-dev tool, same finding, different risk.
+A finding's **normalized severity** (from its CVSS score, or its SARIF level, or a control's
+severity floor) combines with the component's `exposure × criticality` through two small lookup
+matrices to yield the priority. So the *same* CVE is P1 on a public, business-critical gateway and
+P3 on an internal dev tool, same finding, different risk.
 
 Both matrices are printed in full below, with four findings worked through them.
 
@@ -111,6 +111,10 @@ A finding with neither a score nor a rating, a secret, an IaC check, a rule writ
 rating, is banded from the SARIF level instead: `error` is high, `warning` is medium, `note` and
 `none` are low.
 
+A control may hold its findings at a minimum severity, its **severity floor**, so a `secrets`
+finding is never below `high` whatever its scanner called it. It draws no mark, and `↑ floor` is the
+context floor's.
+
 ### What moves a finding along the severity axis
 
 The two matrices above take two inputs, and **exposure and criticality are one of them**. They are
@@ -118,36 +122,37 @@ declared once per component and do not change from finding to finding. They are 
 chain; they are the axis you supply, and the reason a `medium` on a public, critical service
 outranks a `critical` on an internal batch job.
 
-The other axis is severity, and it is not simply what the scanner called it. Four signals move a
-finding along it before step 2 above reads it:
+The other axis is severity, and it is not simply what the scanner called it. Signals move a finding
+along it before step 2 above reads it, and the context floor sets the tier from step 1 to C1:
 
 ```
    the scanner's severity
            │
            ▼
-   ↑  1  control floor      a control's minimum, e.g. secrets is never below high
+   ↑  1  exploitability     on KEV, or EPSS at or above your threshold
            │
            ▼
-   ↑  2  exploitability     on KEV, or EPSS at or above your threshold
+   ↑  2  dependency health  the package is malicious, or deprecated
            │
            ▼
-   ↑  3  dependency health  the package is malicious, or deprecated
-           │
-           ▼
-   ↓  4  reachability       nothing in your code can reach it
+   ↓  3  reachability       nothing in your code can reach it
            │
            ▼
    the severity the matrix reads   ──→   crossed with exposure × criticality   ──→   P1 … P4
+                                                               ▲
+                                                               │
+   ↑     context floor      ───────────────────────────────────┘
+                            C1 for a leaked credential, whatever its component declares
 ```
 
 | | Signal | Moves | By how much | Where it comes from |
 |---|---|:---:|---|---|
-| 1 | **Control floor** | ↑ | to the control's minimum: `secrets` is never below `high` | Draugr, per control |
-| 2 | **KEV** | ↑ | straight to `critical` | CISA's catalog, cached |
-| 2 | **EPSS** | ↑ | one band | FIRST's scores, cached |
-| 3 | **Malicious** | ↑ | straight to `critical` | the OSSF Malicious Packages Project |
-| 3 | **Deprecated** | ↑ | one band | the package's own publisher |
-| 4 | **Unreachable** | ↓ | one band | an analyzer, e.g. `govulncheck` |
+| 1 | **KEV** | ↑ | straight to `critical` | CISA's catalog, cached |
+| 1 | **EPSS** | ↑ | one band | FIRST's scores, cached |
+| 2 | **Malicious** | ↑ | straight to `critical` | the OSSF Malicious Packages Project |
+| 2 | **Deprecated** | ↑ | one band | the package's own publisher |
+| 3 | **Unreachable** | ↓ | one band | an analyzer, e.g. `govulncheck` |
+| | **Context floor** | ↑ | priority to P1, for a leaked credential, whatever its component declares; severity unchanged | Draugr, per control |
 
 **None of them rewrites what the scanner reported.** The report shows the scanner's own rating
 beside the band it was ranked at and names the signal that moved it, so the distance between the two
@@ -159,12 +164,12 @@ A signal is somebody else's statement, and it is worth as much as the process be
 
 | Signal | Produced by | How | Refreshed | What it cannot tell you |
 |---|---|---|---|---|
-| **Control floor** | Draugr | a minimum per control, set in the code: a leaked credential is usable whatever its scanner called it | per release | anything about the finding itself |
 | **KEV** | CISA | a CVE is added when there is reliable evidence of exploitation in the wild, attempted or successful, and a clear remediation exists. Scanning, security research and a proof of concept do not count | continuously | whether an attack will reach you |
 | **EPSS** | FIRST | a model trained on observed exploitation scores every published CVE daily. Its inputs include public exploit code (Metasploit modules, exploit repositories on GitHub weighted by how widely they are used, Nuclei templates), discussion of the flaw and the CVE's CVSS metrics | daily | whether a CVE with a low score is safe |
 | **Malicious** | the OSSF Malicious Packages Project, via deps.dev | reports contributed by researchers and automated detectors, published in OSV format. A confirmed false positive is withdrawn rather than deleted | as reports arrive | whether a package it has not seen is safe |
 | **Deprecated** | the package's publisher, via deps.dev | the publisher marks a version deprecated in its registry, with a reason that Draugr carries into the report | when the publisher acts | whether the flaw can fire in your code |
 | **Unreachable** | an analyzer, e.g. `govulncheck` | builds a call graph of your code and its dependencies and looks for a path to the function an advisory names | every scan | anything the analysis could not see: reflection, dynamic dispatch, generated code |
+| **Context floor** | Draugr | a context tier per control, set in the code, so a leaked credential ranks as it would on a public, critical component | per release | anything about the finding itself |
 
 The last column is why absence never lowers a band. A CVE missing from KEV, a low EPSS score and a
 package nobody has flagged are all statements that nothing was found, and Draugr ranks them as it
@@ -328,6 +333,9 @@ SIGNALS
   reachability  govulncheck · 2 reachable, 2 unreachable
 ```
 
+The HTML and markdown reports add a column saying how each signal moves a finding, and state the
+EPSS threshold the run used.
+
 **"nothing raised" is printed when nothing moved**, because that is a result rather than an
 absence. Without it, the only way to learn that a feed changed nothing is to read every finding
 looking for a mark that is not there, and then wonder whether you missed one.
@@ -419,7 +427,7 @@ incomparable.
 
 - **Only CVE-identified findings.** Enrichment looks for a CVE id in the finding's rule id, so
   it reaches `sca` and `images` results. SAST, secrets and IaC findings carry no CVE and are
-  never escalated. Their severities come from the scanner and any control floor.
+  never escalated. Their severities come from the scanner and any severity floor.
 - **Severity, not priority, directly.** Enrichment raises severity; priority is then recomputed
   from severity × exposure × criticality. An escalated CVE on a `restricted`, `supporting`
   component may still not be P1, which is the point: exploitability matters *in context*.
@@ -524,8 +532,9 @@ component you have classified as internal reads as a claim about the component, 
 is not true.
 
 ```
-  P1   high   -   github-pat   secrets   gitleaks   cfg.txt:1
-       ↑ a leaked credential is high priority wherever it is found
+  P1  high      github-pat · github-pat has detected secret for file cfg.txt.
+      ↑ floor · scanner gitleaks · fix rotate the credential
+      cfg.txt:1 · a leaked credential is high priority wherever it is found
 ```
 
 **A false positive is not what this is for.** A finding you have judged belongs in

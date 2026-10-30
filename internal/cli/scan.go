@@ -174,7 +174,7 @@ func newScanCommand() *cobra.Command {
 			"--min-priority alone narrows only what is printed, because a file that silently "+
 			"omits findings is read as a scan that did not find them")
 	cmd.Flags().StringSliceVar(&opts.allowEffects, "allow-effects", nil,
-		"accept scanner effects for this run (mutate, privilege); config.allowEffects is the reviewed equivalent")
+		"accept scanner effects for this run ("+saga.EffectKindList()+"); config.allowEffects is the reviewed equivalent")
 	cmd.Flags().StringVar(&opts.kevFile, "kev", "", "CISA KEV catalog: a file path, or `auto`/`cache` to read ~/.draugr/feeds. A CVE on it is escalated to critical")
 	cmd.Flags().StringVar(&opts.epssFile, "epss", "", "FIRST EPSS scores: a file path, or `auto`/`cache` to read ~/.draugr/feeds. A CVE at/above --epss-threshold is bumped one band")
 	cmd.Flags().Float64Var(&opts.epssThreshold, "epss-threshold", exploitdata.DefaultThreshold, "EPSS probability (0-1) that triggers a severity bump")
@@ -228,6 +228,12 @@ func newScanCommand() *cobra.Command {
 var scanInstallOffer = defaultInstallOffer()
 
 func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.Registry, w io.Writer) error {
+	// Refused before the descriptor is read. An effect no scanner declares accepts nothing, so the
+	// run would proceed without the effect it was meant to accept and report.json would still list
+	// the typo as allowed.
+	if err := errors.Join(saga.CheckEffects("--allow-effects", opts.allowEffects)...); err != nil {
+		return err
+	}
 	resolved, synthesized, err := scanResolved(target)
 	if err != nil {
 		return err
@@ -243,6 +249,9 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		// when the real answer is that the file is somewhere else.
 		_, _ = io.WriteString(os.Stderr, zeroConfigNotice(model))
 	}
+	// To stderr for the same reason, and before the scan, where a pipeline's log shows it whether or
+	// not the run then fails.
+	warnDeprecated(os.Stderr, model)
 	rootLocalRepositories(ctx, model)
 	// Organization defaults are merged *underneath* the descriptor, so the engine sees one
 	// effective Saga and nothing downstream has to know there were two files. Merged after the
@@ -1282,6 +1291,14 @@ func probeVersion(ctx context.Context, binary string) string {
 // versionProbeTimeout bounds the extra call. Two seconds is far longer than any of these take and
 // far shorter than a reader waiting on a report will tolerate.
 const versionProbeTimeout = 2 * time.Second
+
+// warnDeprecated prints a warning for each deprecated key the descriptor still sets, naming the file
+// and line, the same words `draugr validate` prints under the file.
+func warnDeprecated(w io.Writer, model *saga.Model) {
+	for _, warning := range saga.AcceptedByWarnings(model.Config.Exclude) {
+		_, _ = fmt.Fprintf(w, "warning: %s\n", warning)
+	}
+}
 
 // zeroConfigNotice is the note a zero-config scan prints before it runs. It names the directory by
 // its absolute path, because the url the synthesized descriptor records for the working directory

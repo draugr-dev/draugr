@@ -117,7 +117,8 @@ func suppressedData() report.Data {
 		"sast": {Control: "sast", Report: sarif.Report{Tool: "gosec", Results: []sarif.Result{
 			at("pkg/engine/engine.go", 2450, &sarif.Suppression{Kind: "inSource", Justification: "a file the descriptor names for import"}),
 			at("internal/preflight/preflight.go", 484, &sarif.Suppression{Kind: "external",
-				Justification: "the path doctor was asked to check", AcceptedBy: "Wilson Santos <wilson@draugr.dev>"}),
+				Justification: "the path doctor was asked to check", AcceptedBy: "Wilson Santos <wilson@draugr.dev>",
+				Source: ".draugr/exclusions/tool-install.saga-fragment.yaml", Line: 12}),
 			at("internal/scanners/repo.go", 118, nil),
 		}}},
 	}}
@@ -142,8 +143,9 @@ func publishTo(t *testing.T, fake *fakeCodeScanning, d report.Data) error {
 	return g.Publish(context.Background(), []report.Artifact{art})
 }
 
-// A suppressed finding's alert is dismissed with the reason and who accepted it, an unsuppressed
-// one is left open, and an alert for a result this upload does not carry is not touched.
+// A suppressed finding's alert is dismissed with the reason and where the exclusion is written, an
+// unsuppressed one is left open, and an alert for a result this upload does not carry is not
+// touched. The descriptor's unverified acceptedBy never reaches the comment.
 func TestGithubPublisherDismissesTheAlertsOfSuppressedFindings(t *testing.T) {
 	fake := &fakeCodeScanning{t: t, statuses: []string{"pending", "complete"}, pageSize: 2, open: []codeScanningAlert{
 		alert(1, "open", "G304", "pkg/engine/engine.go", 2450, ""),
@@ -167,7 +169,7 @@ func TestGithubPublisherDismissesTheAlertsOfSuppressedFindings(t *testing.T) {
 		got["dismissed_comment"] != "Accepted in Draugr: a file the descriptor names for import" {
 		t.Errorf("alert 1 = %v", got)
 	}
-	if got := fake.patches[2]["dismissed_comment"]; got != "Accepted in Draugr: the path doctor was asked to check (accepted by Wilson Santos <wilson@draugr.dev>)" {
+	if got := fake.patches[2]["dismissed_comment"]; got != "Accepted in Draugr: the path doctor was asked to check (.draugr/exclusions/tool-install.saga-fragment.yaml:12)" {
 		t.Errorf("alert 2 comment = %q", got)
 	}
 }
@@ -222,15 +224,35 @@ func TestGithubPublisherSaysWhenTheTabDisagrees(t *testing.T) {
 // The comment is what GitHub keeps of it, and a suppression with no reason says so rather than
 // leaving the comment empty.
 func TestDismissalComment(t *testing.T) {
-	if got := dismissalComment("", ""); got != "Accepted in Draugr: no reason recorded" {
+	if got := dismissalComment("", "", 0); got != "Accepted in Draugr: no reason recorded" {
 		t.Errorf("no reason = %q", got)
 	}
-	long := dismissalComment(strings.Repeat("word ", 100), "a.reviewer@example.com")
-	if n := len([]rune(long)); n != dismissalCommentLimit || !strings.HasSuffix(long, "… (accepted by a.reviewer@example.com)") {
-		t.Errorf("long comment is %d runes and must keep who accepted it: %q", n, long)
+	long := dismissalComment(strings.Repeat("word ", 100), "draugr.saga.yaml", 14)
+	if n := len([]rune(long)); n != dismissalCommentLimit || !strings.HasSuffix(long, "… (draugr.saga.yaml:14)") {
+		t.Errorf("long comment is %d runes and must keep where the exclusion is written: %q", n, long)
 	}
-	if got := dismissalComment("folded\n  across\tlines", ""); got != "Accepted in Draugr: folded across lines" {
+	if got := dismissalComment("fixtures", "draugr.saga.yaml", 0); got != "Accepted in Draugr: fixtures (draugr.saga.yaml)" {
+		t.Errorf("no line = %q", got)
+	}
+	if got := dismissalComment("folded\n  across\tlines", "", 0); got != "Accepted in Draugr: folded across lines" {
 		t.Errorf("whitespace = %q", got)
+	}
+}
+
+// The comment names the exclusion's file and line from the uploaded SARIF, and never the name a
+// descriptor's acceptedBy typed.
+func TestUploadedResultsNameWhereTheExclusionIsWritten(t *testing.T) {
+	doc := `{"runs":[{"tool":{"driver":{"name":"Draugr"}},"results":[
+{"ruleId":"R","locations":[{"physicalLocation":{"artifactLocation":{"uri":"a.go"},"region":{"startLine":1}}}],
+ "suppressions":[{"kind":"external","justification":"fixtures","properties":{"source":"draugr.saga.yaml","line":14,"unverifiedAcceptedBy":"someone"}}]}
+]}]}`
+	_, results, err := uploadedResults([]byte(doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := results[alertKey{rule: "R", path: "a.go", line: 1}].comment
+	if got != "Accepted in Draugr: fixtures (draugr.saga.yaml:14)" {
+		t.Errorf("comment = %q", got)
 	}
 }
 

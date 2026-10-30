@@ -134,7 +134,7 @@ func ResolveFile(path string, fetcher Fetcher) (*Resolved, error) {
 	}
 	r.seen[abs] = true
 	r.sources = append(r.sources, Source{Path: path, Root: true, Digest: digestFile(path)})
-	stampExclusions(model.Config.Exclude, path)
+	stampExclusions(model.Config.Exclude, path, path)
 	for _, c := range model.Components {
 		r.record(map[string][]string{c.Name: classificationFields(c)}, path)
 	}
@@ -229,7 +229,7 @@ func (r *resolver) mergeFrom(model *Model, ref FragmentRef, dir string, src Sour
 		}
 		named.Digest = digestFile(full)
 		r.sources = append(r.sources, named)
-		stampExclusions(frag.Config.Exclude, named.String())
+		stampExclusions(frag.Config.Exclude, named.String(), full)
 		frag.Source = named.String()
 		r.record(merge(model, frag), frag.Source)
 
@@ -243,10 +243,12 @@ func (r *resolver) mergeFrom(model *Model, ref FragmentRef, dir string, src Sour
 	return nil
 }
 
-// stampExclusions records which file each rule came from, so the report can attribute it.
-func stampExclusions(rules []ExcludeRule, source string) {
+// stampExclusions records which file each rule came from, so the report can attribute it: source
+// as the report names the file, and file as it sits on disk, where its git history is read.
+func stampExclusions(rules []ExcludeRule, source, file string) {
 	for i := range rules {
 		rules[i].Source = source
+		rules[i].File = file
 	}
 }
 
@@ -346,6 +348,7 @@ func LoadFragment(data []byte, path string) (Fragment, error) {
 		if err := dec.Decode(&f); err != nil {
 			return Fragment{}, fmt.Errorf("parse fragment %q: %w", path, fragmentFieldHint(err))
 		}
+		stampExcludeLines(&root, f.Config.Exclude)
 	}
 	if err := f.Validate(); err != nil {
 		return Fragment{}, fmt.Errorf("fragment %q: %w", path, err)

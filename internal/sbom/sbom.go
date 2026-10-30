@@ -88,12 +88,12 @@ func (g *Generator) Generate(ctx context.Context, component string, t plugin.Tar
 		// directory named like a registry path is not a hypothetical we want to debug. The clone above
 		// used the raw URL because fetching needs whatever credentials it carries. What the document
 		// is *named* after is the source, which they are not part of.
-		source := target.Source()
+		source := pkgsbom.TargetName(target)
 		src, label, sourceName = "dir:"+tree.Dir, source, source
 		checkoutDir = tree.Dir
 	case plugin.ImageTarget:
 		src = target.PinnedRef()
-		label = src
+		label = pkgsbom.TargetName(target)
 	default:
 		// Hosts and infrastructure have no package inventory to take. Returning an error rather
 		// than an empty document keeps "we produced nothing" from looking like a valid SBOM.

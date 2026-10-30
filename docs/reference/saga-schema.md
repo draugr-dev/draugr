@@ -1582,12 +1582,10 @@ config:
       reason: >-
         The integration test writes a throwaway key so the secrets control has something real
         to find. The material is fake and was never valid anywhere.
-      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
 
     # A risk accepted for now rather than forever.
     - rules: ["CVE-2026-12345"]
       reason: "Upstream fix lands in v2.4. Reachable only from the offline importer."
-      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
       expires: 2026-08-14
 ```
 
@@ -1655,29 +1653,65 @@ was never there.
 | `paths` | Location patterns. A pattern ending in `/` matches everything beneath that directory; otherwise it's a glob against the whole location, so `*.md` and `test/fixture.go` both work. |
 | `rules` | Rule ids. `*` matches any run of characters, **including `/`**, so `CVE-2019-*` and `license/GPL-3.0-only/*` both work. A pattern with no `*` matches exactly. |
 | `reason` | **Required.** Why this exclusion exists. |
-| `acceptedBy` | Who decided this was acceptable. Optional; a suppression without one is reported as **unattributed**. |
 | `expires` | The date it stops applying (`YYYY-MM-DD`). Past it the finding returns and the report says the exclusion lapsed. |
 | `vex` | What this suppression claims about the product, for [`--report vex`](../guides/vex.md). Optional. See [below](#declaring-what-a-suppression-means-in-vex). |
+| `acceptedBy` | A name the descriptor's author typed as who accepted the finding, which nothing verifies. **Deprecated**, and removed in 0.163.0. `draugr validate` and `draugr scan` warn on each one, and the report carries the value only as `unverifiedAcceptedBy`. |
 
 **Who, why, and until when.** The question asked of a suppression is not whether the scanner ran. It
-is who decided this was acceptable, and when. `reason` answers why; the other two answer the rest,
-and they are separate fields rather than prose because a name buried in a sentence cannot be
-reported on.
+is who decided this was acceptable, and when. `reason` answers why and `expires` until when. Who is
+answered by the repository's history of the exclusion's line, the last commit to change it, its
+author and its date, which a reviewer reads with `git blame` and the report carries for each
+exclusion.
 
-`acceptedBy` is optional so existing descriptors keep working, and `--evidence` says how many
-suppressions have nobody attached:
+`--evidence` prints each exclusion that set findings aside, with its file and line and git's record
+of that line. From a scan of a descriptor and one fragment, each committed by a different author:
 
 ```
-ACCEPTED
-  config.exclude  5 findings suppressed · 3 accepted by you@example.com, 2 unattributed
+DECISIONS
+  a fixture key, issued by nobody
+  draugr.saga.yaml:15 · covers 1 finding · aws-access-token · no expiry
+  last changed in 2a4674526bba by Ada Lovelace, 2026-09-14
+
+  test fixtures, never deployed
+  excl/fixtures.saga-fragment.yaml:4 · covers 1 finding · aws-access-token · no expiry
+  last changed in 216dcec72cb8 by Grace Hopper, 2026-10-01
 ```
 
-**Attribution.** A suppression from one of these rules carries `origin: saga`, whether or not the
-rule named anybody, so a reader knows to go and read the descriptor. A report uses four values:
+The history is reported only where it is reliable. A shallow clone, which is what most CI systems
+check out by default, holds no history behind its boundary commit and attributes every older line
+to it, so a line there is reported as unavailable rather than credited to whoever made that commit.
+The same repository cloned with `--depth 1` prints:
+
+```
+DECISIONS
+  a fixture key, issued by nobody
+  draugr.saga.yaml:15 · covers 1 finding · aws-access-token · no expiry
+  git history unavailable: the line is older than the shallow clone's history; fetch full history
+
+  test fixtures, never deployed
+  excl/fixtures.saga-fragment.yaml:4 · covers 1 finding · aws-access-token · no expiry
+  git history unavailable: the line is older than the shallow clone's history; fetch full history
+```
+
+An uncommitted line is reported as unavailable too. `report.json` carries the same record for every
+exclusion, matched or not; [report schema](report-schema.md#what-each-exclusion-carries) lists the
+fields, and [Full history](report-schema.md#full-history) the CI setting that checks out full
+history.
+
+`acceptedBy` predates this. `draugr validate` and `draugr scan` warn on it, naming the line:
+
+```
+✓ draugr.saga.yaml is valid
+  ! draugr.saga.yaml:18: acceptedBy is deprecated and 0.163.0 removes it. Delete the line. Who wrote the exclusion: git blame -L 15,15 draugr.saga.yaml
+```
+
+**Attribution.** A suppression from one of these rules carries `origin: saga`, and the `source` and
+`line` of the rule, so a reader knows which line of the descriptor to read. A report uses four
+values:
 
 | `origin` | what set the finding aside | who to ask |
 |---|---|---|
-| `saga` | a rule in this descriptor | whoever owns the descriptor |
+| `saga` | a rule in this descriptor | whoever committed the rule's line, as its git history records |
 | `vex` | a claim [imported from a supplier's document](#reading-a-suppliers-vex-componentsvex-configvexsources) | the supplier |
 | `tool` | a directive in the scanned file, a `#nosec`, a `# nosemgrep` or a `gitleaks:allow` | whoever committed the line |
 | `scanner` | the scanner's own configuration, a `.trivyignore` line or a Grype `ignore:` rule | whoever owns that file |
@@ -1701,7 +1735,6 @@ config:
   exclude:
     - rules: ["CVE-2018-18074"]
       reason: "The redirect path that leaks the header is never taken; we pin the host."
-      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
       vex:
         status: not_affected
         justification: vulnerable_code_not_in_execute_path
@@ -1749,7 +1782,7 @@ be accepted does not simply reappear unexplained:
 ```
 ACCEPTED
   config.exclude  4 findings suppressed · 1 expired and no longer suppressing
-                  expired 2026-08-14, accepted by Wilson Santos · Upstream fix lands in v2.4…
+                  expired 2026-08-14 · draugr.saga.yaml:9 · Upstream fix lands in v2.4…
 ```
 
 An exclusion accepted "until the upstream fix lands" otherwise has nothing that brings the
@@ -1796,12 +1829,13 @@ ACCEPTED
   scanner exclusions 2 findings suppressed
 ```
 
-Who accepted each one is asked of the evidence rather than of a scan somebody is reading to find
-out what to fix, so `--evidence` adds it:
+Who set each one aside is asked of the evidence rather than of a scan somebody is reading to find
+out what to fix, so `--evidence` adds it: the author of each supplier's statement on the row, and
+each exclusion's git history in the `DECISIONS` block shown above.
 
 ```console
 ACCEPTED
-  config.exclude     5 findings suppressed · 3 accepted by you@example.com, 2 unattributed
+  config.exclude     5 findings suppressed
   VEX                1 finding excused · 1 asserted by ACME Security <sec@acme.example>
   scanner exclusions 2 findings suppressed
 ```
@@ -2061,6 +2095,9 @@ did, under `--evidence`:
 EVIDENCE
   sbom        2 documents (cyclonedx-json)
 ```
+
+`report.json` lists each document under [`sboms`](report-schema.md#sboms) with its file and digest,
+and each target whose inventory failed, with the reason.
 
 ### One document per target, or one per product
 

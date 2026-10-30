@@ -12,6 +12,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/controllers"
 	"github.com/draugr-dev/draugr/internal/depsdev"
 	"github.com/draugr-dev/draugr/internal/exploitdata"
 	"github.com/draugr-dev/draugr/internal/scanners"
@@ -54,6 +55,9 @@ func Load(ctx context.Context, settings exploitdata.Settings, cfg *saga.Dependen
 		// it did, and what it had to work from. A run that enriched without saying what it
 		// consulted produces evidence nobody can check the ranking against.
 		engine.WithConsulted(append(expl.Consulted(), health.Consulted()...)),
+		// The same, for the controls the prioritizer ranks at a tier of their own: the report says
+		// a floor raised nothing only if the run says a floor was there to raise it.
+		engine.WithContextFloors(controllers.ControlsWithContextFloor()),
 	}
 	return Enrichment{Options: append(opts, healthOpts...), Feeds: feeds}, nil
 }

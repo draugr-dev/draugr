@@ -54,7 +54,7 @@ These change the order. Nothing is hidden, and the count stays the same.
 | **KEV** | a vulnerability on CISA's Known Exploited catalog is escalated to critical | [Prioritization](prioritization.md#exploitability-kev-and-epss) |
 | **EPSS** | a prediction at or above your threshold raises the severity one band | [Prioritization](prioritization.md#exploitability-kev-and-epss) |
 | **Reachability** | a vulnerability your code cannot reach is ranked down | [Saga schema](../reference/saga-schema.md#reachability-for-go) |
-| **Control floor** | a control insists on a minimum, so a committed private key is never a warning | [Prioritization](prioritization.md) |
+| **Context floor** | a leaked credential is raised to P1, whatever its component declares; severity unchanged | [Prioritization](prioritization.md#some-findings-are-not-bounded-by-the-component) |
 
 KEV and EPSS are enrichment, turned on under `config.exploitability`, and they read a local cache
 that `draugr feeds update` fills. That is deliberate: a scan that reaches the network mid-run
@@ -68,16 +68,17 @@ finding that vanishes is indistinguishable from one that was never made.
 | Lever | What it does | Where |
 |---|---|---|
 | **Correlation** | one flaw found by three scanners is one row, not three, and the row names the others | [Controls & scanners](controls-and-scanners.md) |
-| **`config.exclude`** | you accept a finding, with a reason, an author and an expiry date | [Saga schema](../reference/saga-schema.md#configexclude) |
+| **`config.exclude`** | you accept a finding, with a reason and an expiry date, and the commit that adds the line records who | [Saga schema](../reference/saga-schema.md#configexclude) |
 | **VEX** | your supplier states a vulnerability does not affect their product, and you import that | [Saga schema](../reference/saga-schema.md#reading-a-suppliers-vex-componentsvex-configvexsources) |
 | **Scanner exclusions** | a scanner set a finding aside on its own, from a directive in the code or from its own configuration | counted apart, see below |
 | **Actions** | findings collapse into the decisions that clear them, so six CVEs in one package are one upgrade | [What to fix first](what-to-fix-first.md) |
 | **`builtBy` / `operatedBy`** | a finding nobody on your team can act on is named as somebody else's | [What to fix first](what-to-fix-first.md) |
 
 The three acceptance routes are counted apart in every report, and the distinction is the point.
-`config.exclude` is a decision somebody here signed. VEX is an assertion whose author you can ask
-about. A scanner exclusion was written outside the descriptor, carries no author and no date, and
-is the weakest of the three. A single total could only report the weakest.
+`config.exclude` is a decision somebody here committed to the descriptor, and the report carries
+the git history of each exclusion's line as the record of who. VEX is an assertion whose author you
+can ask about. A scanner exclusion was written outside the descriptor, carries no author and no
+date, and is the weakest of the three. A single total could only report the weakest.
 
 The weakest one splits again on the finding itself, between a directive in the scanned file and a
 rule in the scanner's own configuration, because those send you to different people: whoever
@@ -116,7 +117,7 @@ lever moved it:
 |---|---|
 | `↑ KEV` | on CISA's Known Exploited Vulnerabilities catalog |
 | `↑ EPSS` | predicted exploitation at or above your threshold |
-| `↑ floor` | a control insists this kind of finding is never lower |
+| `↑ floor` | a leaked credential, ranked P1 whatever its component declares |
 | `↓ unreachable` | analysis found no path from your code to it |
 | `↩ history` | describes a commit rather than the current tree, so its path may be gone |
 
@@ -131,7 +132,8 @@ report nobody should gate on.
 
 So:
 
-- **Accepted findings stay in the report**, marked, with the reason and whoever gave it.
+- **Accepted findings stay in the report**, marked, with the reason and the file and line of the
+  exclusion, whose git history records who wrote it.
 - **The three acceptance routes are counted separately**, never folded into one total.
 - **A rule that suppressed nothing is reported**, because an exclusion doing nothing looks exactly
   like one that is working.

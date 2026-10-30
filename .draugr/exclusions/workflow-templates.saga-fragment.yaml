@@ -16,4 +16,3 @@ config:
 
         Scoped to these two files and this rule. Draugr's own workflows under .github/ pin every
         action to a SHA, so the rule still fails the gate there.
-      acceptedBy: "Wilson Santos <wilson@draugr.dev>"

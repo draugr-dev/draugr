@@ -845,11 +845,20 @@ func rankedSeverity(f finding) sarif.Severity {
 	if f.escalation != nil && f.escalation.To != "" {
 		return f.escalation.To
 	}
-	if f.reachability != nil && f.reachability.State == sarif.ReachabilityUnreachable &&
-		f.reachability.RankedAs != "" {
+	if loweredAsUnreachable(f) {
 		return f.reachability.RankedAs
 	}
 	return f.severity
+}
+
+// loweredAsUnreachable reports whether a reachability verdict moved this finding's band down.
+//
+// RankedAs is set only where the verdict changed the severity the band was computed from. A verdict
+// that exploitation outranked, or one on a finding already at the lowest band, carries none and
+// moved nothing.
+func loweredAsUnreachable(f finding) bool {
+	r := f.reachability
+	return r != nil && r.State == sarif.ReachabilityUnreachable && r.RankedAs != ""
 }
 
 // band is the priority cell.
@@ -890,8 +899,7 @@ func movedBy(f finding) *movement {
 	if f.priorityFloor != "" {
 		return &movement{glyph: "↑", label: "floor", style: cHigh}
 	}
-	if f.reachability != nil && f.reachability.State == sarif.ReachabilityUnreachable &&
-		f.reachability.RankedAs != "" {
+	if loweredAsUnreachable(f) {
 		return &movement{glyph: "↓", label: "unreachable", style: cInfo}
 	}
 	// Not a band that moved, and marked here for the same reason the others are: the location is a
@@ -901,6 +909,38 @@ func movedBy(f finding) *movement {
 		return &movement{glyph: "↩", label: "history", style: cAccent}
 	}
 	return nil
+}
+
+// The inputs that can move a band, as movements names them. Untouched is a finding none of them
+// moved.
+const (
+	moveEscalation  = "escalation"
+	moveFloor       = "floor"
+	moveUnreachable = "unreachable"
+	moveUntouched   = "untouched"
+)
+
+// movements is every input that moved this finding's band, in movedBy's order, or untouched where
+// none did.
+//
+// movedBy picks one of these for the row's mark. A finding a signal raised and a control floored
+// carries the signal's mark, and a filter reading the mark would leave it out of the floored ones.
+// History is not among them, because a path in a commit moves no band.
+func movements(f finding) []string {
+	var out []string
+	if f.escalation != nil {
+		out = append(out, moveEscalation)
+	}
+	if f.priorityFloor != "" {
+		out = append(out, moveFloor)
+	}
+	if loweredAsUnreachable(f) {
+		out = append(out, moveUnreachable)
+	}
+	if len(out) == 0 {
+		return []string{moveUntouched}
+	}
+	return out
 }
 
 // ruleIDWidth caps the Rule column. Some scanners use long namespaced ids. Semgrep's run past a
@@ -1786,55 +1826,21 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int) {
 // One section rather than three, because they answer one question: what moved this ranking away
 // from what severity alone would have given.
 //
-// Counted over every finding rather than the listed ones. `--top` and `--min-priority` narrow what
-// is shown, and this answers what the signals did, not what fitted on the page.
+// Every row reads the same, because every row is the same kind of thing: something that argued
+// with a band, and how much it moved. The colors belong on the marks in the listing below, where a
+// reader is looking for the argued-with rows among hundreds; here there are a handful of rows and a
+// label on each, and a hue would be decoration on a thing that is already found.
+//
+// How each one moves a finding is in the HTML and markdown reports, which have the width for it. A
+// terminal row that carried the rule would push what the signal did off the line.
 func writeSignals(w io.Writer, col tui.Painter, d Data, s summary) {
-	type signal struct{ name, did string }
-	var signals []signal
-
-	// In the order the engine applies them, which is the order the concept introduces them.
-	//
-	// Every row reads the same, because every row is the same kind of thing: something that argued
-	// with a band, and how much it moved. The colors belong on the marks in the listing below,
-	// where a reader is looking for the argued-with rows among hundreds; here there are four rows
-	// and a label on each, and a hue would be decoration on a thing that is already found.
-	for _, name := range []string{"kev", "epss"} {
-		n := s.bySignal[name]
-		if n == 0 && !consulted(d, name) {
-			continue
-		}
-		// "nothing raised" is a result rather than an absence. Without it the only way to learn a
-		// feed changed nothing is to read every finding looking for a mark that is not there.
-		did := "nothing raised"
-		if n > 0 {
-			did = fmt.Sprintf("%s raised", english.Count(n, "finding"))
-		}
-		signals = append(signals, signal{name: strings.ToUpper(name), did: did})
-	}
-	if n := s.floored; n > 0 {
-		signals = append(signals, signal{
-			name: "floor",
-			did:  fmt.Sprintf("%s raised by a control's own rule", english.Count(n, "finding")),
-		})
-	}
-	// Named for what it is rather than for the tool that did it. "govulncheck" in the left column
-	// tells a reader which binary ran and not what it decided, and this is the one signal whose
-	// name they have no reason to know.
-	rows, notes := reachabilityBlock(d)
-	for _, row := range rows {
-		analyzer, did, _ := strings.Cut(row, "  ")
-		signals = append(signals, signal{
-			name: "reachability",
-			did:  strings.TrimSpace(analyzer) + " · " + strings.TrimSpace(did),
-		})
-	}
-	if len(signals) == 0 {
+	rows, notes := signals(d, s)
+	if len(rows) == 0 {
 		return
 	}
-
 	t := tui.NewTable(col).Indent("  ")
-	for _, sig := range signals {
-		t.Row(tui.Styled(tui.StyleStrong, sig.name), tui.Styled(cDim, sig.did))
+	for _, sig := range rows {
+		t.Row(tui.Styled(tui.StyleStrong, sig.Name), tui.Styled(cDim, sig.Did))
 	}
 	_, _ = fmt.Fprintln(w, heading(col, "Signals"))
 	t.Render(w)
@@ -1894,12 +1900,13 @@ func writeAccepted(w io.Writer, col tui.Painter, d Data, full bool) {
 			r.said = append(r.said, fmt.Sprintf("%d expired and no longer suppressing", len(lapsed)))
 			r.lit = true
 			for _, e := range lapsed {
-				who := e.AcceptedBy
-				if who == "" {
-					who = "unattributed"
+				// Where it is written rather than who it names, because the line is what a reader
+				// edits and its git history is the record of who wrote it.
+				parts := []string{"expired " + e.Expires}
+				if where := whereWritten(e.Source, e.Line); where != "" {
+					parts = append(parts, where)
 				}
-				r.notes = append(r.notes, fmt.Sprintf("expired %s, accepted by %s · %s",
-					e.Expires, who, findingSummary(e.Reason)))
+				r.notes = append(r.notes, strings.Join(append(parts, findingSummary(e.Reason)), " · "))
 			}
 		}
 		rows = append(rows, r)
@@ -2017,10 +2024,9 @@ func descriptorSourceNote(src skald.DescriptorSource) string {
 
 // writeDecisions accounts for each acceptance separately, under --evidence.
 //
-// The reason leads, on a line of its own, because it is the only part a reader has to judge. Who
-// signed it, what it covers and when it lapses are facts to check the judgment against, and they
-// were what the row led with while the judgment sat underneath at an indent that made it read as a
-// caption rather than as the thing under review.
+// The reason leads, on a line of its own, because it is the only part a reader has to judge. Where
+// it is written, what it covers and when it lapses are facts to check the judgment against, and the
+// line under them is git's record of who wrote it.
 func writeDecisions(w io.Writer, col tui.Painter, d Data, full bool) {
 	decs := decisions(d)
 	if !full || len(decs) == 0 {
@@ -2033,20 +2039,26 @@ func writeDecisions(w io.Writer, col tui.Painter, d Data, full bool) {
 		}
 		_, _ = fmt.Fprintf(w, "  %s\n", elide(findingSummary(dec.reason), messageWidth))
 
-		who := col.Paint(tui.StyleStrong, dec.by)
-		if dec.by == "unattributed" {
-			// The one an auditor cannot follow up, so it is the only one lit.
-			who = col.Paint(cAccent, dec.by)
+		var parts []string
+		if dec.where != "" {
+			parts = append(parts, col.Paint(tui.StyleStrong, dec.where))
 		}
-		parts := []string{
-			col.Paint(cDim, "accepted by") + " " + who,
-			col.Paint(cDim, "covers") + " " + english.Count(dec.n, "finding"),
-		}
+		parts = append(parts, col.Paint(cDim, "covers")+" "+english.Count(dec.n, "finding"))
 		if said := decisionRules(dec.rules); said != "" {
 			parts = append(parts, said)
 		}
 		parts = append(parts, col.Paint(cDim, lapses(dec.expires)))
 		_, _ = fmt.Fprintf(w, "  %s\n", strings.Join(parts, col.Paint(cDim, " · ")))
+
+		if h := dec.history; h != nil {
+			// Lit where git cannot say who wrote the line, because that is the one an auditor
+			// cannot follow up from the report.
+			style := cDim
+			if h.Commit == "" {
+				style = cAccent
+			}
+			_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(style, h.String()))
+		}
 	}
 	_, _ = fmt.Fprintln(w)
 }

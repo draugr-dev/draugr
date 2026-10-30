@@ -62,7 +62,14 @@ type jsonReport struct {
 	// with every check and the reason. A check whose read was denied can pass, fail or say nothing,
 	// so its absence from the findings is not a result.
 	UnreadChecks []unreadChecksReport `json:"unreadChecks,omitempty"`
-	Priorities   *priorityCounts      `json:"priorities,omitempty"`
+	// Effects is which scanner effects the run accepted after --allow-effects, beside what the
+	// descriptor declared, and which effects its scanners had. Always present.
+	Effects effectsReport `json:"effects"`
+	// SBOMs are the documents config.sbom asked for: each one the run wrote, with its file and
+	// digest, and each it could not produce, with the reason. Absent when the run wrote none and
+	// recorded no failure.
+	SBOMs      *sbomsReport    `json:"sboms,omitempty"`
+	Priorities *priorityCounts `json:"priorities,omitempty"`
 	// Suppressed are the findings a config.exclude rule set aside, in the bands they were ranked
 	// into. Counted apart from Priorities rather than folded in: an excused finding is not work,
 	// and a count that mixes them says neither how much there is to do nor how much was signed off.
@@ -208,8 +215,7 @@ type findingReport struct {
 	// location the checkout lacks as a finding already fixed, when a credential in history is still
 	// readable by anyone who can clone.
 	Historical bool `json:"historical,omitempty"`
-	// Suppressed says a config.exclude rule set this finding aside, with the reason somebody gave
-	// and who accepted it.
+	// Suppressed says a config.exclude rule set this finding aside, with the reason somebody gave.
 	//
 	// Kept in the list rather than filtered out of it, which is what "suppress, don't delete"
 	// means where a machine reads it: an excused finding stays visible with its justification. It
@@ -218,10 +224,13 @@ type findingReport struct {
 	Suppressed *suppressionNote `json:"suppressed,omitempty"`
 }
 
-// suppressionNote is why a finding is not being counted as work, and who said so.
+// suppressionNote is why a finding is not being counted as work.
 type suppressionNote struct {
 	Justification string `json:"justification,omitempty"`
-	AcceptedBy    string `json:"acceptedBy,omitempty"`
+	// UnverifiedAcceptedBy is the name a descriptor rule's deprecated acceptedBy states, which
+	// nothing checks. Named so no reader takes it for who accepted the finding; the record of that
+	// is the git history descriptor.exclusions carries.
+	UnverifiedAcceptedBy string `json:"unverifiedAcceptedBy,omitempty"`
 	// Origin says whose decision this was: empty or "saga" for this project's own rule, "vex" for a
 	// supplier's claim it accepted, "tool" for a directive written beside the line, and "scanner"
 	// for an entry in the scanner's own ignore file (sarif.OriginSaga and the rest).
@@ -234,6 +243,9 @@ type suppressionNote struct {
 	Source      string `json:"source,omitempty"`
 	StatementID string `json:"statementId,omitempty"`
 	Digest      string `json:"digest,omitempty"`
+	// Line is the line in Source a descriptor rule starts at. Source and Line match the rule's
+	// entry in descriptor.exclusions, which carries git's record of that line.
+	Line int `json:"line,omitempty"`
 }
 
 // Provenance is what produced a run, as opposed to what it found.
@@ -382,7 +394,7 @@ type DescriptorRef struct {
 	// Sent because a digest is worth nothing to somebody who cannot reproduce it, and because the
 	// question a reader actually has is "what did this run apply", which no list of filenames
 	// answers. It holds less than the report beside it: the findings, their locations and every
-	// suppression's reason and accepter are already in that, and a descriptor never carries a
+	// suppression's reason are already in that, and a descriptor never carries a
 	// credential. The schema has no field for one, only for the name of a variable.
 	//
 	// A few kilobytes against a report that is already larger.
@@ -396,6 +408,28 @@ type DescriptorRef struct {
 	//
 	// Absent when every setting came from the descriptor itself, which is the ordinary case.
 	Contributed map[string][]string `json:"contributed,omitempty"`
+	// Exclusions are the merged descriptor's config.exclude entries, in its order: where each is
+	// written, and what git's history says about that line.
+	Exclusions []Exclusion `json:"exclusions,omitempty"`
+}
+
+// Exclusion is one config.exclude entry: the file and line it is written at, and git's record of
+// that line.
+//
+// The record of who set a finding aside is the repository's history of the line, which a reviewer
+// reads with git blame. The report carries it where the history is reliable and says why where it
+// is not, so a platform reading the report can show it without the checkout.
+type Exclusion struct {
+	// Source is the descriptor or fragment, named as results.sarif's suppression `source` names it,
+	// and Line the line the entry starts at. Together they match a suppressed finding's `source`
+	// and `line`.
+	Source string `json:"source"`
+	Line   int    `json:"line,omitempty"`
+	// Reason is the entry's reason, so a reader can tell one entry from the next.
+	Reason string `json:"reason"`
+	// GitHistory is what `git blame` says about Line. Absent where nobody asked, as a caller
+	// building a report from a model does.
+	GitHistory *saga.LineHistory `json:"gitHistory,omitempty"`
 }
 
 // DescriptorSource is one file a descriptor was assembled from.
@@ -438,6 +472,26 @@ func DescriptorFrom(res *saga.Resolved) *DescriptorRef {
 		for setting, files := range res.Model.Config.ControlSources {
 			out.Contributed[setting] = append([]string(nil), files...)
 		}
+	}
+	if res.Model != nil {
+		out.Exclusions = ExclusionsFrom(res.Model.Config.Exclude)
+	}
+	return out
+}
+
+// ExclusionsFrom renders exclusion rules as the report's descriptor.exclusions, or nil for none.
+func ExclusionsFrom(rules []saga.ExcludeRule) []Exclusion {
+	if len(rules) == 0 {
+		return nil
+	}
+	out := make([]Exclusion, 0, len(rules))
+	for _, r := range rules {
+		e := Exclusion{Source: r.Source, Line: r.Line, Reason: r.Reason}
+		if r.History != nil {
+			h := *r.History
+			e.GitHistory = &h
+		}
+		out = append(out, e)
 	}
 	return out
 }
@@ -726,6 +780,8 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 		})
 	}
 	doc.Targets = run.Targets
+	doc.Effects = effectsOf(run)
+	doc.SBOMs = sbomsOf(run)
 
 	for _, cov := range run.Inputs {
 		files := dependencyFilesReport{
@@ -1100,8 +1156,9 @@ func suppressionOf(res sarif.Result) *suppressionNote {
 	}
 	s := res.Suppression
 	return &suppressionNote{
-		Justification: s.Justification, AcceptedBy: s.AcceptedBy, Origin: s.Origin,
+		Justification: s.Justification, UnverifiedAcceptedBy: s.AcceptedBy, Origin: s.Origin,
 		Author: s.Author, Asserted: s.Asserted, Source: s.Source, StatementID: s.StatementID, Digest: s.Digest,
+		Line: s.Line,
 	}
 }
 

@@ -34,7 +34,7 @@ func (p *EffectPermissions) UnmarshalYAML(node *yaml.Node) error {
 	}
 	var list []string
 	if err := node.Decode(&list); err != nil {
-		return fmt.Errorf("config.allowEffects must be a list of effects (%s)", effectKindList())
+		return fmt.Errorf("config.allowEffects must be a list of effects (%s)", EffectKindList())
 	}
 	*p = list
 	return nil
@@ -45,12 +45,16 @@ func (p EffectPermissions) Empty() bool { return len(p) == 0 }
 
 // validate rejects an effect kind nothing declares, so a permission that can never apply is a
 // refusal rather than a line that quietly does nothing.
-func (p EffectPermissions) validate() []error {
+func (p EffectPermissions) validate() []error { return CheckEffects("config.allowEffects", p) }
+
+// CheckEffects refuses each kind no scanner can declare, naming where it was written. The
+// descriptor key and the --allow-effects flag accept the same kinds, so a typo in either is
+// refused in the same words rather than accepted by one of them.
+func CheckEffects(where string, kinds []string) []error {
 	var errs []error
-	for _, kind := range p {
+	for _, kind := range kinds {
 		if !knownEffect(kind) {
-			errs = append(errs, fmt.Errorf(
-				"config.allowEffects: %q is not an effect kind (%s)", kind, effectKindList()))
+			errs = append(errs, fmt.Errorf("%s: %q is not an effect kind (%s)", where, kind, EffectKindList()))
 		}
 	}
 	return errs
@@ -65,7 +69,8 @@ func knownEffect(kind string) bool {
 	return i < len(effectKinds) && effectKinds[i] == kind
 }
 
-func effectKindList() string {
+// EffectKindList is every kind a scanner can declare, comma-separated.
+func EffectKindList() string {
 	out := ""
 	for i, k := range effectKinds {
 		if i > 0 {

@@ -1,0 +1,1 @@
+- **The HTML and markdown reports say how each signal moves a finding.** Their Signals table gains a column: KEV raises severity to critical, EPSS raises it one band at or above the threshold the run used, the context floor raises a leaked credential to P1, and reachability lowers severity one band.

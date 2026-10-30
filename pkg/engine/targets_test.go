@@ -150,9 +150,9 @@ func TestOutcomeIdentityMatchesDoctor(t *testing.T) {
 	}
 }
 
-// A target every job skipped was not read, and says why; a job that collapsed into a failed one
-// was not read either, and is never reported as reached for having no failure of its own.
-func TestTargetOutcomesForSkippedAndCollapsedJobs(t *testing.T) {
+// A target every job skipped was not read, and says why; a job the run was canceled before
+// starting was not read either, and is never reported as reached for having no failure of its own.
+func TestTargetOutcomesForSkippedAndUnstartedJobs(t *testing.T) {
 	team := plugin.KubernetesTarget{Cluster: "prod", Namespaces: []string{"team-a"}}
 	repo := plugin.RepositoryTarget{URL: "https://github.com/acme/api"}
 	planned := []PlannedJob{

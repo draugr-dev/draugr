@@ -41,6 +41,7 @@ func loadModel(data []byte, validate bool) (*Model, error) {
 		if err := decodeStrict(&root, &m); err != nil {
 			return nil, err
 		}
+		stampExcludeLines(&root, m.Config.Exclude)
 	}
 	foldOlderSpellings(&m)
 	if validate {

@@ -1,7 +1,6 @@
 package report
 
 import (
-	"fmt"
 	"html/template"
 	"io"
 	"path/filepath"
@@ -87,7 +86,10 @@ type htmlView struct {
 	// Signals is what argued with the ranking: an exploitation catalog, a prediction, a control's
 	// own floor, a reachability verdict. Absent from this format entirely, which made the rendered
 	// report the one place a reader could not find out why a finding outranked its severity.
-	Signals []htmlSignal
+	Signals []signalRow
+	// SignalNotes qualify the rows as they do under the console's, such as what an unknown
+	// reachability count means.
+	SignalNotes []string
 	// Decisions is one row per acceptance. This is the copy somebody keeps, so it carries the
 	// account rather than the count: who, why, and until when.
 	Decisions []htmlDecision
@@ -111,6 +113,10 @@ type htmlView struct {
 	// Fixes and Scanners are the project's too: which kinds of work this run needs, and which
 	// tools reported anything.
 	Fixes, Scanners []htmlFacet
+	// Movements offers what moved each finding's band, in the labels Draugr uses wherever it lists
+	// findings. Every value is offered because the vocabulary is Draugr's own, and a finding two
+	// inputs moved counts under both, so the counts can add up to more than the list.
+	Movements []htmlFacet
 	// SARIFHref and TSVHref are data: URIs. Downloads that work with no JavaScript and under any
 	// content-security policy.
 	SARIFHref, TSVHref template.URL
@@ -170,15 +176,16 @@ type htmlControl struct {
 	Critical, High, Medium, Low int
 }
 
-// htmlSignal is one thing that argued with this run's ranking, and how many findings it moved.
-type htmlSignal struct{ Name, Effect string }
-
-// htmlDecision is one acceptance: how many findings it covers, who signed it, when it lapses, and
-// why. The count alone says how much was set aside and never what was acceptable about it.
+// htmlDecision is one acceptance: how many findings it covers, where it is written, git's record of
+// that line, when it lapses, and why. The count alone says how much was set aside and never what
+// was acceptable about it.
 type htmlDecision struct {
-	N               int
-	By              string
-	Unattributed    bool
+	N     int
+	Where string
+	// History is git's record of the line, empty where the report carries none, and Unavailable
+	// marks a record that says why git could not name a commit.
+	History         string
+	Unavailable     bool
 	Expires, Reason string
 }
 
@@ -307,6 +314,9 @@ type htmlFinding struct {
 	// uses. MovedDir is "up" or "down" where the band moved, and empty for a mark that moved nothing,
 	// so the chip can wear the color of the direction rather than of whatever raised it.
 	MovedGlyph, MovedLabel, MovedDir string
+	// Movement is every input that moved the band, as space-separated keys from movements, which
+	// the Movement menu matches against. MovedLabel names one of them, and this holds them all.
+	Movement string
 	// HelpURI documents the rule. Rendered as a link because this is the one format where a
 	// link costs nothing, and a rule id names a finding without explaining it.
 	HelpURI string
@@ -389,7 +399,7 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	view.Components = htmlComponents(d, s)
 	view.Unattributed = d.UnattributedFindings
 	prio, sev, ctl, comp := map[string]int{}, map[string]int{}, map[string]int{}, map[string]int{}
-	fixes, tools := map[string]int{}, map[string]int{}
+	fixes, tools, moved := map[string]int{}, map[string]int{}, map[string]int{}
 	for _, f := range s.findings {
 		hf := toHTMLFinding(f)
 		view.Findings = append(view.Findings, hf)
@@ -399,6 +409,9 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		comp[hf.Component]++
 		fixes[hf.FixKind]++
 		tools[hf.Tool]++
+		for _, m := range strings.Fields(hf.Movement) {
+			moved[m]++
+		}
 	}
 	// The same grouping the console prints and the control plane's "What to do" shows, from the
 	// same function. A fix list that is a different shape depending on where it is read is three
@@ -429,12 +442,13 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		}
 		view.Actions = append(view.Actions, ha)
 	}
-	view.Signals = htmlSignals(d, s)
+	view.Signals, view.SignalNotes = signals(d, s)
 	for _, dec := range decisions(d) {
-		view.Decisions = append(view.Decisions, htmlDecision{
-			N: dec.n, By: dec.by, Unattributed: dec.by == "unattributed",
-			Expires: dec.expires, Reason: dec.reason,
-		})
+		hd := htmlDecision{N: dec.n, Where: dec.where, Expires: dec.expires, Reason: dec.reason}
+		if h := dec.history; h != nil {
+			hd.History, hd.Unavailable = h.Summary(), h.Commit == ""
+		}
+		view.Decisions = append(view.Decisions, hd)
 	}
 	for _, e := range d.Run.UnmatchedExclusions {
 		view.Unmatched = append(view.Unmatched, htmlUnmatched{
@@ -457,6 +471,7 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	view.ComponentNames = theirVocabulary(comp)
 	view.Fixes = theirVocabulary(fixes)
 	view.Scanners = theirVocabulary(tools)
+	view.Movements = movementFacets(moved)
 	return htmlTemplate.Execute(w, view)
 }
 
@@ -515,41 +530,6 @@ func classification(exposure, criticality string) string {
 	default:
 		return criticality
 	}
-}
-
-// htmlSignals is what argued with this run's ranking, named the way the console names it.
-//
-// One list rather than four scattered facts: an exploitation catalog, a prediction about one, a
-// control's own floor and a reachability verdict all answer the same question, and a reader can
-// only compare them where they are together.
-func htmlSignals(d Data, s summary) []htmlSignal {
-	var out []htmlSignal
-	for _, name := range []string{"kev", "epss"} {
-		n := s.bySignal[name]
-		if n == 0 && !consulted(d, name) {
-			continue
-		}
-		// "nothing raised" is a result rather than an absence: without it the only way to learn a
-		// feed changed nothing is to read every finding looking for a mark that is not there.
-		effect := "nothing raised"
-		if n > 0 {
-			effect = fmt.Sprintf("%s raised", english.Count(n, "finding"))
-		}
-		out = append(out, htmlSignal{Name: strings.ToUpper(name), Effect: effect})
-	}
-	if n := s.floored; n > 0 {
-		out = append(out, htmlSignal{
-			Name: "floor", Effect: fmt.Sprintf("%s raised by a control's own rule", english.Count(n, "finding")),
-		})
-	}
-	rows, _ := reachabilityBlock(d)
-	for _, row := range rows {
-		analyzer, did, _ := strings.Cut(row, "  ")
-		out = append(out, htmlSignal{
-			Name: "reachability", Effect: strings.TrimSpace(analyzer) + " · " + strings.TrimSpace(did),
-		})
-	}
-	return out
 }
 
 // timings renders the run's wall-clock and a worst-first control breakdown.
@@ -631,6 +611,7 @@ func toHTMLFinding(f finding) htmlFinding {
 		MovedGlyph:    glyph,
 		MovedLabel:    label,
 		MovedDir:      dir,
+		Movement:      strings.Join(movements(f), " "),
 		AcceptedVia:   f.acceptedVia,
 		Justification: f.justification,
 		ActionKey:     actionKeyFor(f),
@@ -756,7 +737,28 @@ func htmlRepos(refs []RepositoryProvenance) []htmlRepo {
 // each choice would leave is one a reader can plan with instead of one they have to try.
 type htmlFacet struct {
 	Value string
+	// Label is what the menu shows where it differs from the value it matches, and empty where the
+	// value is its own name.
+	Label string
 	Count int
+}
+
+// movementMenu is the Movement menu's values in order, each with the label it is offered under.
+var movementMenu = []struct{ key, label string }{
+	{moveEscalation, "raised by a signal"},
+	{moveFloor, "floored by a control"},
+	{moveUnreachable, "lowered as unreachable"},
+	{moveUntouched, "ranked from severity alone"},
+}
+
+// movementFacets offers every movement with its count, a zero where this run has none, for the
+// reason ourVocabulary does.
+func movementFacets(counts map[string]int) []htmlFacet {
+	out := make([]htmlFacet, 0, len(movementMenu))
+	for _, m := range movementMenu {
+		out = append(out, htmlFacet{Value: m.key, Label: m.label, Count: counts[m.key]})
+	}
+	return out
 }
 
 // ourVocabulary lists every value the product defines, in the product's order, whether or not this
@@ -1260,16 +1262,22 @@ const htmlDoc = `<!doctype html>
     text-transform: uppercase; color: var(--faint);
   }
   .rows .faint { color: var(--faint); }
-  /* What moved a band, first on the line, in the color of the direction it moved. */
-  .rows .moved {
+  /* What moved a band, first on the line, in the color of the direction it moved. The Signals
+   * table draws the same mark, so a reader matches a signal's rule to the rows it marked. */
+  :is(.rows, .signals) .moved {
     display: inline-flex; align-items: center; gap: 3px; padding: 0 5px; margin-right: 6px;
     border: 1px solid var(--line); border-radius: 4px; font-size: 11.5px; color: var(--text);
     white-space: nowrap;
   }
-  .rows .moved.up { border-color: var(--p1); }
-  .rows .moved.up .g { color: var(--p1); font-weight: 700; }
-  .rows .moved.down { border-color: var(--p3); }
-  .rows .moved.down .g { color: var(--p3); }
+  :is(.rows, .signals) .moved.up { border-color: var(--p1); }
+  :is(.rows, .signals) .moved.up .g { color: var(--p1); font-weight: 700; }
+  :is(.rows, .signals) .moved.down { border-color: var(--p3); }
+  :is(.rows, .signals) .moved.down .g { color: var(--p3); }
+  /* In the table the mark is the cell's own size, because there it is the rule being read. The
+   * condition after it is the qualifier and sits back, and a value the run set is read. */
+  .signals .moved { font-size: inherit; }
+  .signals .how { color: var(--muted); }
+  .signals .how code { color: var(--text); }
   /* The count is the way into the rows behind it. A fix list that says "5 findings" and cannot
    * show which five asks a reader to take it on trust, and the five are already on the page. */
   .rows .act-clears {
@@ -1465,6 +1473,11 @@ const htmlDoc = `<!doctype html>
     .rows summary.rule, .rows .act-clears { min-height: 24px; }
     .rows .act-clears { display: inline-flex; align-items: center; }
     .rows .rule .id a { display: inline-block; min-height: 24px; }
+    /* Three columns under unbroken headings are wider than a phone, and what a signal did is the
+     * column pushed off it. The heading and the mark wrap instead. */
+    .signals th, .signals .moved { white-space: normal; }
+    .signals .moved { align-items: baseline; }
+    .signals th, .signals td { padding-left: .4rem; padding-right: .4rem; }
   }
 
   @media print {
@@ -1538,10 +1551,11 @@ the component is, so the same issue ranks differently on a public API than on an
 {{if .Signals}}
 <details class="fold" open><summary id="signals"><span class="sec">Signals</span></summary>
 <p class="note">What argued with this run's ranking, and how many findings each one moved.</p>
-<table class="provenance">
-<thead><tr><th scope="col">Signal</th><th scope="col">Effect</th></tr></thead>
-{{range .Signals}}<tr><td><code>{{.Name}}</code></td><td>{{.Effect}}</td></tr>{{end}}
+<table class="provenance signals">
+<thead><tr><th scope="col">Signal</th><th scope="col">How it moves a finding</th><th scope="col">This run</th></tr></thead>
+{{range .Signals}}<tr><td><code>{{.Name}}</code></td><td class="how"><span class="moved {{.Moves.Dir}}"><span class="g">{{.Moves.Glyph}}</span>{{.Moves.Change}}</span> {{.Moves.Condition}}{{with .Moves.Value}} <code>{{.}}</code>{{end}}{{.Moves.Rest}}</td><td>{{.Did}}</td></tr>{{end}}
 </table>
+{{range .SignalNotes}}<p class="note">{{.}}</p>{{end}}
 </details>
 {{end}}
 {{if .Controls}}
@@ -1631,6 +1645,7 @@ about what they would have found. For everything the tool printed, re-run with
     {{template "menu" dict "K" "fix" "Label" "Fix" "Options" .Fixes}}
     <button type="button" class="narrow" id="narrow" aria-expanded="false">Narrow ▾</button>
     {{template "menu" dict "K" "s" "Label" "Severity" "Options" .Severities "Folded" true}}
+    {{template "menu" dict "K" "movement" "Label" "Movement" "Options" .Movements "Folded" true "Multi" true}}
     {{template "menu" dict "K" "m" "Label" "Component" "Options" .ComponentNames "Folded" true}}
     {{template "menu" dict "K" "c" "Label" "Control" "Options" .ControlNames "Folded" true}}
     {{template "menu" dict "K" "sc" "Label" "Scanner" "Options" .Scanners "Folded" true}}
@@ -1690,7 +1705,7 @@ about what they would have found. For everything the tool printed, re-run with
 {{if .Findings}}
 {{template "listbar"}}
 <div class="rows" id="findings">
-{{range .Findings}}<div class="f" data-p="{{.Priority}}" data-s="{{.Severity}}" data-c="{{.Control}}" data-m="{{.Component}}" data-fix="{{.FixKind}}" data-sc="{{.Tool}}" data-a="{{.ActionKey}}" data-q="{{.Search}}">
+{{range .Findings}}<div class="f" data-p="{{.Priority}}" data-s="{{.Severity}}" data-movement="{{.Movement}}" data-c="{{.Control}}" data-m="{{.Component}}" data-fix="{{.FixKind}}" data-sc="{{.Tool}}" data-a="{{.ActionKey}}" data-q="{{.Search}}">
   <span class="chips"><span class="pri {{.Priority}}">{{.Priority}}</span><span class="sevchip {{.SevClass}}">{{.Severity}}</span></span>
   <div class="what">
     {{if .Full}}<details class="more"><summary class="rule">{{template "rule" .}}<span class="hint" aria-hidden="true">more</span></summary><p class="full">{{.Full}}</p></details>
@@ -1720,8 +1735,9 @@ about what they would have found. For everything the tool printed, re-run with
    address, often a CI artifact or a file path, from reaching the advisory's host. */}}
 {{define "ruleid"}}{{if .HelpURI}}<a href="{{.HelpURI}}" target="_blank" rel="noopener noreferrer">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}{{end}}
 {{define "rule"}}<span class="id">{{template "ruleid" .}}</span>{{if .Message}}<span class="said"><span class="faint"> · </span>{{.Message}}</span>{{end}}{{end}}
+{{/* Multi marks a menu whose rows each hold a set of values, space-separated, rather than one. */}}
 {{define "menu"}}
-<span class="menu-anchor{{if .Folded}} folded{{end}}" data-k="{{.K}}">
+<span class="menu-anchor{{if .Folded}} folded{{end}}" data-k="{{.K}}"{{if .Multi}} data-multi{{end}}>
   <button class="chip-menu" type="button" aria-expanded="false" aria-haspopup="true">
     {{.Label}}<span class="c" hidden></span><span class="caret" aria-hidden="true">&#9662;</span>
   </button>
@@ -1730,7 +1746,7 @@ about what they would have found. For everything the tool printed, re-run with
     <div class="menu-options">
       {{range .Options}}
       <label class="menu-row">
-        <span><input type="checkbox" data-k="{{$.K}}" value="{{.Value}}"{{if not .Count}} disabled{{end}}>{{.Value}}</span>
+        <span><input type="checkbox" data-k="{{$.K}}" value="{{.Value}}"{{if .Label}} data-label="{{.Label}}"{{end}}{{if not .Count}} disabled{{end}}>{{or .Label .Value}}</span>
         <span class="c">{{.Count}}</span>
       </label>
       {{end}}
@@ -1756,10 +1772,11 @@ about what they would have found. For everything the tool printed, re-run with
 {{if .Decisions}}
 <details class="fold sub" open><summary class="sub"><span class="sub">Decisions</span></summary>
 <table class="provenance">
-<thead><tr><th scope="col" class="num">Findings</th><th scope="col">Accepted by</th><th scope="col">Expires</th><th scope="col">Reason</th></tr></thead>
+<thead><tr><th scope="col" class="num">Findings</th><th scope="col">Exclusion</th><th scope="col">Git history</th><th scope="col">Expires</th><th scope="col">Reason</th></tr></thead>
 {{range .Decisions}}<tr>
   <td class="num">{{.N}}</td>
-  <td>{{if .Unattributed}}<span class="err">unattributed</span>{{else}}{{.By}}{{end}}</td>
+  <td>{{if .Where}}<code>{{.Where}}</code>{{else}}<span class="faint">not recorded</span>{{end}}</td>
+  <td>{{if .Unavailable}}<span class="err">{{.History}}</span>{{else if .History}}{{.History}}{{else}}<span class="faint">not recorded</span>{{end}}</td>
   <td class="when">{{if .Expires}}{{.Expires}}{{else}}<span class="faint">never</span>{{end}}</td>
   <td>{{.Reason}}</td>
 </tr>{{end}}
@@ -2058,7 +2075,7 @@ about what they would have found. For everything the tool printed, re-run with
   var dims = Array.prototype.map.call(tools.querySelectorAll(".menu-anchor"), function (a) {
     var boxes = Array.prototype.slice.call(a.querySelectorAll("input[type=checkbox]"));
     return {
-      k: a.dataset.k, anchor: a, folded: a.classList.contains("folded"),
+      k: a.dataset.k, anchor: a, folded: a.classList.contains("folded"), multi: a.hasAttribute("data-multi"),
       button: a.querySelector(".chip-menu"), menu: a.querySelector(".menu"),
       badge: a.querySelector(".chip-menu .c"), boxes: boxes,
     };
@@ -2077,12 +2094,18 @@ about what they would have found. For everything the tool printed, re-run with
   function ticked(d) {
     return d.boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.value; });
   }
+  // The values a row holds in one menu: one for most menus, and every one that applies for a
+  // set-valued menu, where a finding two inputs moved matches either value and counts under both.
+  function held(r, d) {
+    var v = r.d[d.k] || "";
+    return d.multi ? v.split(" ") : [v];
+  }
   function passes(r, skip) {
     for (var i = 0; i < dims.length; i++) {
       var d = dims[i];
       if (d.k === skip) continue;
       var on = ticked(d);
-      if (on.length && on.indexOf(r.d[d.k]) < 0) return false;
+      if (on.length && !held(r, d).some(function (v) { return on.indexOf(v) >= 0; })) return false;
     }
     return true;
   }
@@ -2275,7 +2298,8 @@ about what they would have found. For everything the tool printed, re-run with
       // Each option counts what ticking it would show, given every other narrowing that is on.
       var c = {};
       rows.forEach(function (r) {
-        if (passes(r, d.k) && searched(r) && inAction(r)) c[r.d[d.k]] = (c[r.d[d.k]] || 0) + 1;
+        if (!passes(r, d.k) || !searched(r) || !inAction(r)) return;
+        held(r, d).forEach(function (v) { c[v] = (c[v] || 0) + 1; });
       });
       d.boxes.forEach(function (b) {
         b.closest(".menu-row").querySelector(".c").textContent = (c[b.value] || 0).toLocaleString();
@@ -2291,7 +2315,8 @@ about what they would have found. For everything the tool printed, re-run with
     while (tokenBox.firstChild) tokenBox.removeChild(tokenBox.firstChild);
     dims.forEach(function (d) {
       d.boxes.forEach(function (b) {
-        if (b.checked) token(b.value.toLowerCase(), "Stop filtering by " + b.value, function () { b.checked = false; });
+        var name = b.dataset.label || b.value;
+        if (b.checked) token(name.toLowerCase(), "Stop filtering by " + name, function () { b.checked = false; });
       });
     });
     if (state.act) {

@@ -7,7 +7,8 @@ name: Rebuild docs site
 # until this trigger existed the only things that did were a release and a human. That made
 # `next` silently identical to `latest`, a docs page could sit merged and unpublished for as
 # long as it took to cut the next release, which is exactly the staleness the versioned docs
-# were meant to prevent. `latest` still comes from the newest release tag (see release.yml).
+# were meant to prevent. `latest` still comes from the newest release tag, and each release
+# rebuilds it (see release-post-publish.yml).
 #
 # workflow_dispatch stays for recovering a missed or failed build.
 #

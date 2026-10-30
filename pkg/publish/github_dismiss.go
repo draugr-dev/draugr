@@ -68,7 +68,8 @@ func uploadedResults(sarif []byte) (tool string, results map[alertKey]suppressed
 				Suppressions []struct {
 					Justification string `json:"justification"`
 					Properties    struct {
-						AcceptedBy string `json:"acceptedBy"`
+						Source string `json:"source"`
+						Line   int    `json:"line"`
 					} `json:"properties"`
 				} `json:"suppressions"`
 			} `json:"results"`
@@ -98,22 +99,26 @@ func uploadedResults(sarif []byte) (tool string, results map[alertKey]suppressed
 				continue
 			}
 			s := r.Suppressions[0]
-			results[key] = suppressedResult{suppressed: true, comment: dismissalComment(s.Justification, s.Properties.AcceptedBy)}
+			results[key] = suppressedResult{suppressed: true, comment: dismissalComment(s.Justification, s.Properties.Source, s.Properties.Line)}
 		}
 	}
 	return tool, results, nil
 }
 
-// dismissalComment is the reason as GitHub will show it, cut to what GitHub keeps. The reason is
-// what gives way: who accepted the finding is the half of the comment an auditor reads it for.
-func dismissalComment(justification, acceptedBy string) string {
+// dismissalComment is the reason as GitHub will show it, cut to what GitHub keeps, and the file and
+// line of the exclusion that made it. The reason is what gives way: the line is where an auditor
+// reads who set the finding aside, in its git history.
+func dismissalComment(justification, source string, line int) string {
 	reason := strings.Join(strings.Fields(justification), " ")
 	if reason == "" {
 		reason = "no reason recorded"
 	}
 	suffix := ""
-	if acceptedBy != "" {
-		suffix = " (accepted by " + acceptedBy + ")"
+	switch {
+	case source != "" && line > 0:
+		suffix = fmt.Sprintf(" (%s:%d)", source, line)
+	case source != "":
+		suffix = " (" + source + ")"
 	}
 	room := dismissalCommentLimit - len([]rune(dismissedBy)) - len([]rune(suffix))
 	if r := []rune(reason); len(r) > room {

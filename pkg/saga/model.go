@@ -263,12 +263,13 @@ type ExcludeRule struct {
 	Rules []string `yaml:"rules,omitempty"`
 	// Reason is why this exclusion exists. Required.
 	Reason string `yaml:"reason"`
-	// AcceptedBy names who decided this finding was acceptable.
+	// AcceptedBy is a name the descriptor's author typed as who accepted the finding.
 	//
-	// The question an auditor asks of a suppression is not whether the scanner ran. It is who
-	// decided, and when. `reason` answers why; without this the who lives in prose if it is recorded
-	// at all, and a name buried in a sentence cannot be reported on. Optional, and a suppression
-	// without one is reported as unattributed rather than rejected.
+	// Deprecated: nothing verifies it, so it records whatever name somebody chose to write. The
+	// record of who wrote an exclusion is the repository's history of its line, which the report
+	// carries as History. Still read until AcceptedByRemovedIn so a descriptor that sets it keeps
+	// working, warned about by AcceptedByWarnings, and reported only as the descriptor's unverified
+	// claim.
 	AcceptedBy string `yaml:"acceptedBy,omitempty"`
 	// Expires is the date this exclusion stops applying, as YYYY-MM-DD.
 	//
@@ -286,6 +287,17 @@ type ExcludeRule struct {
 	// descriptor. Splitting exclusions across files is only safe if the report can still say
 	// which file authorized each one, so the provenance travels with the rule.
 	Source string `yaml:"-"`
+	// Line is the line this rule starts at in Source, and File is the file on disk it was read
+	// from. Both are set by the loader, as Source is, and zero for a rule built in code. File
+	// differs from Source for a fragment fetched from another repository, where it is inside the
+	// checkout the fetch made and exists only as long as that checkout does.
+	Line int    `yaml:"-"`
+	File string `yaml:"-"`
+	// History is what git's history says about Line, set by a caller that asked git. Nil when
+	// nobody asked.
+	History *LineHistory `yaml:"-"`
+	// acceptedByLine is the line the acceptedBy key is written at, for the warning that names it.
+	acceptedByLine int
 }
 
 // expiresLayout is the date format Expires uses: a plain calendar date, because an exclusion

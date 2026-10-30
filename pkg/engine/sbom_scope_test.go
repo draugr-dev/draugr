@@ -35,7 +35,7 @@ func scopeModel(scope saga.SBOMScope) saga.Model {
 	}
 }
 
-func generate(t *testing.T, gen sbom.Generator, scope saga.SBOMScope) ([]sbom.Document, []string) {
+func generate(t *testing.T, gen sbom.Generator, scope saga.SBOMScope) ([]sbom.Document, []SBOMFailure) {
 	t.Helper()
 	e := New(NewRegistry(), WithSBOM(gen))
 	return e.generateSBOMs(context.Background(), scopeModel(scope))
@@ -93,10 +93,15 @@ func TestSBOMScopeBothKeepsTheEvidence(t *testing.T) {
 // answered something else.
 func TestSBOMScopeProjectFailsRatherThanFallingBack(t *testing.T) {
 	_, errs := generate(t, partsOnlyGen{}, saga.SBOMScopeProject)
-	if len(errs) == 0 {
-		t.Fatal("a generator that cannot assemble produced no error")
+	if len(errs) != 1 {
+		t.Fatalf("a generator that cannot assemble produced %d failures, want one: %v", len(errs), errs)
 	}
-	if !strings.Contains(strings.Join(errs, " "), "assemble") {
+	if !strings.Contains(errs[0].Reason, "assemble") {
 		t.Errorf("error should say what could not be done, got: %v", errs)
+	}
+	// The project document failed, and no target did: naming one would send a reader to a
+	// repository with nothing wrong with it.
+	if errs[0].Scope != saga.SBOMScopeProject || errs[0].Target != "" || errs[0].Component != "" {
+		t.Errorf("failure = %+v, want the project document with no target", errs[0])
 	}
 }

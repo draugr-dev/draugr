@@ -128,6 +128,37 @@ make changelog-show      # exactly what a tag would publish
 ./scripts/changelog.sh next    # the version that implies
 ```
 
+**Everything after the publish is a workflow of its own.** The release workflow calls
+`Release post-publish`, which moves the `v0` tag, attaches the MCP Bundle, rebuilds the docs site,
+renders the sample report and publishes to the MCP Registry. Each is a separate job, so one that
+fails turns the run red and the others still run.
+
+To finish a published release whose post-publish jobs failed, dispatch that workflow for the tag.
+Re-running the release workflow instead publishes the release a second time.
+
+```bash
+gh workflow run "Release post-publish" -f tag=vX.Y.Z
+```
+
+It refuses a tag with no published release, builds and signs nothing, and moves `v0` only when the
+tag is the newest release of its major version.
+
+The release GitHub App holds these repository permissions, each read and write:
+
+- **Contents**, to push the release tag, move `v0`, and push the branches behind the release,
+  scanner bump and live-tier pull requests.
+- **Pull requests**, to open those pull requests.
+- **Workflows**, to move `v0`. Without it, GitHub refuses the move whenever no branch holds the
+  tag's version of a workflow file, which is the case once `main` has changed one.
+
+Each job that mints a token from the App names the permissions it uses, and the token holds those
+and nothing else the App is granted. A token that names none receives every permission the App
+holds, and one holding Workflows can rewrite `.github/workflows/`, which changes what every later
+run executes. Only the job that moves `v0` asks for Workflows.
+`TestEveryAppTokenNamesItsPermissions` in `internal/ciguard` fails on a token that names no
+permission, and on a Workflows grant to any job missing from its allow-list, where each entry states
+why that job needs it.
+
 ### Changing the Claude Code plugin
 
 `contrib/claude-plugin` is the plugin Anthropic's plugin directory lists in Claude Code and Cowork.

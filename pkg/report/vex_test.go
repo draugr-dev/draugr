@@ -84,8 +84,16 @@ func TestVEXUndeclaredSuppressionIsAffectedNotNotAffected(t *testing.T) {
 		t.Errorf("affected must carry neither justification nor impact_statement, got %q / %q",
 			st.Justification, st.ImpactStatement)
 	}
-	if want := "accepted by sec@acme.example; expires 2026-12-31"; st.StatusNotes != want {
+	// The descriptor's acceptedBy is nobody's verified name, and a published statement would
+	// present it as who accepted the finding.
+	if want := "expires 2026-12-31"; st.StatusNotes != want {
 		t.Errorf("status_notes = %q, want %q", st.StatusNotes, want)
+	}
+	plain := buildVEX(vexData(vexResult("CVE-2024-0002", &sarif.Suppression{
+		Kind: "external", Justification: "x", AcceptedBy: "sec@acme.example",
+	})))
+	if got := plain.Statements[0].StatusNotes; got != "" {
+		t.Errorf("status_notes = %q, want none without an expiry", got)
 	}
 }
 

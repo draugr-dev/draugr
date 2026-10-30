@@ -90,6 +90,9 @@ type Engine struct {
 	// engine rather than derived from it: the prioritizer is a closure, and what it can answer
 	// from is not something the engine can inspect.
 	consulted []sarif.Consulted
+	// contextFloors names the controls the prioritizer ranks at a context tier of their own. Told
+	// to the engine for the same reason as consulted.
+	contextFloors []string
 }
 
 // Prioritizer computes a finding's priority band from its control and its component's risk
@@ -215,6 +218,17 @@ func WithPrioritization(p Prioritizer) Option {
 // distinction that makes a band explainable.
 func WithConsulted(feeds []sarif.Consulted) Option {
 	return func(e *Engine) { e.consulted = feeds }
+}
+
+// WithContextFloors names the controls whose findings the prioritizer ranks at a context tier of
+// their own, whatever the component declares, so the result can say a floor applied whether or not
+// it raised anything.
+//
+// Separate from WithPrioritization for the reason WithConsulted is: which controls the prioritizer
+// floors is closed over and cannot be read back out. A run that ranks with a floor and does not
+// record it reports a floor that raised nothing exactly as it reports one that never applied.
+func WithContextFloors(controls []string) Option {
+	return func(e *Engine) { e.contextFloors = controls }
 }
 
 // ProgressEvent is what a run is doing at one moment: how much is done, and what is in flight.
@@ -584,6 +598,9 @@ type Result struct {
 	// scans that actually executed count: a cache hit means the traffic was not sent this time,
 	// and a record of effects has to describe what happened rather than what was configured.
 	Effects []plugin.Effect
+	// Consent is which effects the run accepted, after --allow-effects, beside what the
+	// descriptor's config.allowEffects declared.
+	Consent EffectConsent
 	// Skipped are jobs that were planned and then not run, because the scanner could not answer
 	// the question the target asked. Reported because a scanner that quietly does not run is
 	// indistinguishable, in the output, from one that ran and found nothing.
@@ -610,10 +627,18 @@ type Result struct {
 	// SBOMs are the Software Bills of Materials produced when the Saga enables config.sbom.
 	// Evidence rather than judgement: they carry no findings and never affect the verdict.
 	SBOMs []sbom.Document
+	// SBOMFailures are the documents config.sbom asked for and the run did not produce, each with
+	// its reason. Each one is also a ScanErrors entry under (sbom); this is the same failure with
+	// the target it was about.
+	SBOMFailures []SBOMFailure
 	// Consulted names the exploitability datasets this run had loaded, whether or not any of
 	// them moved a finding. Carried for the same reason VEX documents are carried even when they
 	// excused nothing: a dataset that fired for nothing looks exactly like one nobody loaded.
 	Consulted []sarif.Consulted
+	// ContextFloors names the controls whose findings this run ranked at a context tier of their
+	// own, whatever the component declares: the controls a report's floor row is about. Empty when
+	// the caller did not say, which a report reads as no floor applied.
+	ContextFloors []string
 	// ScanErrors records, per control, what stopped it completing, a missing scanner binary, a tool
 	// that exited badly, a plan that couldn't be built. A control listed here checked less than it
 	// was asked to, so its absence of findings is not evidence of absence, and callers that treat an
@@ -709,7 +734,9 @@ type Stats struct {
 	// worth attention is the slowest one rather than the one with the most jobs.
 	Duration  time.Duration
 	ByControl map[string]time.Duration
-	// Unscanned names the jobs that could not run, and what each was going to look at.
+	// Unscanned names what each component has that none of its jobs read: one entry per component
+	// and target, carrying the failed job that was going to look at it. A target two components
+	// declare appears once for each of them, and a target-level count reads Targets instead.
 	//
 	// Recorded per target rather than only per control, because a control's error says a scan
 	// failed and not what went unexamined. A component whose every image failed to pull has had
@@ -999,9 +1026,12 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		failed int
 		// unscanned records what each of those jobs was going to look at.
 		unscanned []Unscanned
-		// examined is every target some scanner did produce a report for. A target one scanner
-		// failed on and another read is not unexamined, and reporting it as such would be the
-		// mirror of the bug this exists to fix: a claim about coverage nothing established.
+		// examined is every target some scanner did produce a report for, by the component whose
+		// job read it. A target one scanner failed on and another read is not unexamined, and
+		// reporting it as such would be the mirror of the bug this exists to fix: a claim about
+		// coverage nothing established. Kept per component because each component's verdict
+		// rests on its own jobs, and another component's job reading the target says nothing
+		// about whether this one's did.
 		examined = map[string]bool{}
 		// reached is examined at the grain a run's account of its targets uses: a repository by its
 		// source and revision whatever paths a job read, a cluster by its name whatever namespaces.
@@ -1293,8 +1323,8 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			if scanErr != nil {
 				span.RecordError(scanErr)
 				span.SetStatus(codes.Error, "scan failed")
+				mu.Lock()
 				if !shared { // record the underlying error once, not once per collapsed job
-					mu.Lock()
 					errs = append(errs, fmt.Errorf("scan %s/%s: %w", pj.Control, pj.Job.Scanner, scanErr))
 					// No scanner prefix: the scanner already names itself when it wraps the
 					// failure ("run nuclei: …"), and adding it again reads as a stutter in
@@ -1304,15 +1334,20 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 						missing = append(missing, MissingTool{Control: pj.Control, Tool: tool, Message: scanErr.Error()})
 					}
 					failed++
-					unscanned = append(unscanned, unscannedFor(pj, scanErr))
 					steps[stepKey(pj)].Failed++
-					mu.Unlock()
 				}
+				// What went unread is recorded for every job, collapsed or not. Two components that
+				// declare one image share its scan, and the component whose job reused the failure
+				// has had that image examined no more than the one whose job ran it. Recorded only
+				// for the job that ran, the other would pass with its image unread, and which one
+				// that was would depend on which job reached the scan first.
+				unscanned = append(unscanned, unscannedFor(pj, scanErr))
+				mu.Unlock()
 				return
 			}
 			res := out.(scanOutcome)
 			mu.Lock()
-			examined[targetKey(pj.Job.Target)] = true
+			examined[examinedKey(pj.Component, pj.Job.Target)] = true
 			reached[outcomeKey(pj.Job.Target)] = true
 			mu.Unlock()
 			span.SetAttributes(attribute.Bool("cache.hit", res.cached), attribute.Bool("dedup", shared))
@@ -1367,9 +1402,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// Evidence, after the controls: an SBOM describes what a component contains rather than
 	// judging it, so it never reaches the verdict. A failure is still recorded, because
 	// "you asked for an inventory and did not get one" must not pass quietly.
-	docs, sbomErrs := e.generateSBOMs(ctx, model)
-	if len(sbomErrs) > 0 {
-		ctlErrs[sbomPseudoControl] = append(ctlErrs[sbomPseudoControl], sbomErrs...)
+	docs, sbomFailures := e.generateSBOMs(ctx, model)
+	for _, f := range sbomFailures {
+		ctlErrs[sbomPseudoControl] = append(ctlErrs[sbomPseudoControl], f.Reason)
 	}
 
 	stats.Duration = time.Since(runStart)
@@ -1392,6 +1427,11 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		Scanners:  distinctScanners(planned),
 		SBOMs:     docs,
 	}
+	// Every floor the prioritizer holds, whether or not its control ran. Which of them ran is in
+	// Controls, and a report reads the two together.
+	res.ContextFloors = e.contextFloors
+	res.Consent = effectConsent(model.Config.AllowEffects, e.allowEffects)
+	res.SBOMFailures = sbomFailures
 	res.Skipped = skipped
 	res.Inputs = inputCoverage(byCtl)
 	res.UnreadChecks = unreadChecks(byCtl)
@@ -1720,9 +1760,11 @@ func applyExclusions(controls map[string]plugin.ControlResult, rules []saga.Excl
 					// and the one nobody reviewed.
 					res.Suppression = &sarif.Suppression{
 						Kind: "external", Justification: rule.Reason, Origin: sarif.OriginSaga,
-						AcceptedBy: rule.AcceptedBy, Expires: rule.Expires,
-						Source: rule.Source,
+						Expires: rule.Expires, Source: rule.Source, Line: rule.Line,
 					}
+					//nolint:staticcheck // SA1019: carried until the key is removed, so a report
+					// keeps the descriptor's claim under the name that marks it unverified.
+					res.Suppression.AcceptedBy = rule.AcceptedBy
 					if rule.VEX != nil {
 						res.Suppression.VEXStatus = rule.VEX.Status
 						res.Suppression.VEXJustification = rule.VEX.Justification
@@ -1753,27 +1795,37 @@ func applyExclusions(controls map[string]plugin.ControlResult, rules []saga.Excl
 // would let you believe you got it.
 const sbomPseudoControl = "(sbom)"
 
-// generateSBOMs takes one inventory per distinct repository and image in the model.
+// generateSBOMs takes one inventory per distinct repository and image in the model, and returns
+// the documents with every one that could not be produced.
 //
 // Deduplicated by target identity: several controls scan the same repository, and an SBOM of it
 // is the same document however many controls touched it. A repository's identity carries its
 // scope, so two components on different paths of one repository each get an inventory of their
 // own part, the part their controls scanned. Ordered by component then target so a run is
 // reproducible and two runs diff cleanly.
-func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Document, []string) {
+func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Document, []SBOMFailure) {
 	cfg := model.Config.SBOM
 	if cfg == nil || !cfg.Enabled {
 		return nil, nil
 	}
+	format := cfg.Format
+	if format == "" {
+		format = sbom.DefaultFormat
+	}
+	scope := cfg.Scope
+	if scope == "" {
+		scope = saga.SBOMScopeComponent
+	}
 	if e.sbomGen == nil {
-		return nil, []string{"sbom generation is enabled but no generator is configured"}
+		return nil, []SBOMFailure{{Scope: scope, Format: format,
+			Reason: "sbom generation is enabled but no generator is configured"}}
 	}
 
 	ctx, span := tracer.Start(ctx, "engine.sbom")
 	defer span.End()
 
 	var docs []sbom.Document
-	var errs []string
+	var failed []SBOMFailure
 	seen := make(map[string]bool)
 
 	for i := range model.Components {
@@ -1790,8 +1842,10 @@ func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Do
 		}
 		for _, t := range targets {
 			if ctx.Err() != nil {
-				errs = append(errs, ctx.Err().Error())
-				return docs, errs
+				// One failure for the rest of the run rather than one per target it never reached:
+				// the reason belongs to the run, and repeating it per target adds nothing.
+				failed = append(failed, SBOMFailure{Scope: saga.SBOMScopeComponent, Format: format, Reason: ctx.Err().Error()})
+				return docs, failed
 			}
 			if seen[t.Identity()] {
 				continue
@@ -1799,23 +1853,24 @@ func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Do
 			seen[t.Identity()] = true
 			doc, err := e.sbomGen.Generate(ctx, comp.Name, t, cfg.Format)
 			if err != nil {
-				errs = append(errs, err.Error())
+				failed = append(failed, SBOMFailure{
+					Scope: saga.SBOMScopeComponent, Component: comp.Name, Target: sbom.TargetName(t),
+					Format: format, Reason: err.Error(),
+				})
 				continue
 			}
 			docs = append(docs, doc)
 		}
 	}
 
-	scope := cfg.Scope
-	if scope == "" {
-		scope = saga.SBOMScopeComponent
-	}
 	if scope.Project() {
-		docs, errs = appendProjectSBOM(
-			e.sbomGen, model.ProjectName(), model.Release, cfg.Format, scope, docs, errs)
+		var err error
+		if docs, err = appendProjectSBOM(e.sbomGen, model.ProjectName(), model.Release, cfg.Format, scope, docs); err != nil {
+			failed = append(failed, SBOMFailure{Scope: saga.SBOMScopeProject, Format: format, Reason: err.Error()})
+		}
 	}
-	slog.DebugContext(ctx, "generated SBOMs", "documents", len(docs), "errors", len(errs))
-	return docs, errs
+	slog.DebugContext(ctx, "generated SBOMs", "documents", len(docs), "errors", len(failed))
+	return docs, failed
 }
 
 // appendProjectSBOM assembles the per-target documents into one covering the release, and, for
@@ -1825,23 +1880,23 @@ func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Do
 // manage. The descriptor asked for a document covering the product; quietly delivering seven
 // documents covering repositories would be a green run that answered a different question.
 func appendProjectSBOM(gen sbom.Generator, project string, release saga.Release,
-	format saga.SBOMFormat, scope saga.SBOMScope, docs []sbom.Document, errs []string,
-) ([]sbom.Document, []string) {
+	format saga.SBOMFormat, scope saga.SBOMScope, docs []sbom.Document,
+) ([]sbom.Document, error) {
 	asm, ok := gen.(sbom.Assembler)
 	if !ok {
-		return docs, append(errs, "config.sbom.scope asks for a project document, "+
+		return docs, errors.New("config.sbom.scope asks for a project document, " +
 			"but the configured SBOM generator cannot assemble one")
 	}
 	assembled, err := asm.Assemble(project, release, format, docs)
 	if err != nil {
-		return docs, append(errs, err.Error())
+		return docs, err
 	}
 	if scope == saga.SBOMScopeProject {
 		// The parts were generated because assembling needs them; the descriptor asked only for
 		// the whole. scope: both is how you keep the evidence alongside the summary.
-		return []sbom.Document{assembled}, errs
+		return []sbom.Document{assembled}, nil
 	}
-	return append(docs, assembled), errs
+	return append(docs, assembled), nil
 }
 
 // distinctScanners names the scanners a run used, sorted.
@@ -1911,26 +1966,38 @@ func stepSnapshot(steps map[string]*ProgressStep) []ProgressStep {
 	return out
 }
 
-// targetKey identifies a target across the scanners that look at it.
-func targetKey(t plugin.Target) string {
-	if t == nil {
-		return ""
+// examinedKey identifies a target, for one component, across the scanners that look at it.
+func examinedKey(component string, t plugin.Target) string {
+	var kind, id string
+	if t != nil {
+		kind, id = string(t.Kind()), t.Identity()
 	}
-	return string(t.Kind()) + "\x00" + t.Identity()
+	return unscannedKey(component, kind, id)
 }
 
-// trulyUnscanned drops failures for targets some other scanner did read, and collapses the rest
-// to one entry per target.
+// unscannedKey is examinedKey spelled from what an Unscanned entry carries.
+func unscannedKey(component, kind, target string) string {
+	return component + "\x00" + kind + "\x00" + target
+}
+
+// trulyUnscanned drops failures for targets another scanner read for the same component, and
+// collapses the rest to one entry per component and target.
 //
 // Two scanners can serve one control and both plan a job for the same image. If one fails and the
 // other succeeds, the image was examined. Reporting it as unscanned would be a claim about
 // coverage that nothing established, which is exactly the failure this data exists to prevent,
 // pointed the other way. And where both fail, the target went unexamined once, not twice.
+//
+// Both rules hold within a component and never across components. Two components that declare one
+// image each rest their verdict on it, so each keeps its own entry: collapsed into one, the entry
+// would name whichever component's job failed first, and the other would read as passing with its
+// image unread. For the same reason one component's job reading the image does not excuse
+// another's failing on it.
 func trulyUnscanned(unscanned []Unscanned, examined map[string]bool) []Unscanned {
 	var out []Unscanned
 	seen := map[string]bool{}
 	for _, u := range unscanned {
-		key := u.Kind + "\x00" + u.Target
+		key := unscannedKey(u.Component, u.Kind, u.Target)
 		if examined[key] || seen[key] {
 			continue
 		}

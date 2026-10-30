@@ -74,7 +74,6 @@ config:
       reason: >-
         The Mend product token identifies a product and authenticates nothing; the user key is
         the credential and never appears in a descriptor. Reported because it is 64 hex characters.
-      acceptedBy: "platform-security"
 ```
 
 The finding stays in the report, marked with that reason. Which is the point: the question an
