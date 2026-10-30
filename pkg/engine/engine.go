@@ -90,6 +90,9 @@ type Engine struct {
 	// engine rather than derived from it: the prioritizer is a closure, and what it can answer
 	// from is not something the engine can inspect.
 	consulted []sarif.Consulted
+	// contextFloors names the controls the prioritizer ranks at a context tier of their own. Told
+	// to the engine for the same reason as consulted.
+	contextFloors []string
 }
 
 // Prioritizer computes a finding's priority band from its control and its component's risk
@@ -215,6 +218,17 @@ func WithPrioritization(p Prioritizer) Option {
 // distinction that makes a band explainable.
 func WithConsulted(feeds []sarif.Consulted) Option {
 	return func(e *Engine) { e.consulted = feeds }
+}
+
+// WithContextFloors names the controls whose findings the prioritizer ranks at a context tier of
+// their own, whatever the component declares, so the result can say a floor applied whether or not
+// it raised anything.
+//
+// Separate from WithPrioritization for the reason WithConsulted is: which controls the prioritizer
+// floors is closed over and cannot be read back out. A run that ranks with a floor and does not
+// record it reports a floor that raised nothing exactly as it reports one that never applied.
+func WithContextFloors(controls []string) Option {
+	return func(e *Engine) { e.contextFloors = controls }
 }
 
 // ProgressEvent is what a run is doing at one moment: how much is done, and what is in flight.
@@ -621,6 +635,10 @@ type Result struct {
 	// them moved a finding. Carried for the same reason VEX documents are carried even when they
 	// excused nothing: a dataset that fired for nothing looks exactly like one nobody loaded.
 	Consulted []sarif.Consulted
+	// ContextFloors names the controls whose findings this run ranked at a context tier of their
+	// own, whatever the component declares: the controls a report's floor row is about. Empty when
+	// the caller did not say, which a report reads as no floor applied.
+	ContextFloors []string
 	// ScanErrors records, per control, what stopped it completing, a missing scanner binary, a tool
 	// that exited badly, a plan that couldn't be built. A control listed here checked less than it
 	// was asked to, so its absence of findings is not evidence of absence, and callers that treat an
@@ -1409,6 +1427,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		Scanners:  distinctScanners(planned),
 		SBOMs:     docs,
 	}
+	// Every floor the prioritizer holds, whether or not its control ran. Which of them ran is in
+	// Controls, and a report reads the two together.
+	res.ContextFloors = e.contextFloors
 	res.Consent = effectConsent(model.Config.AllowEffects, e.allowEffects)
 	res.SBOMFailures = sbomFailures
 	res.Skipped = skipped

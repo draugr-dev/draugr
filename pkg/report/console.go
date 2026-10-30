@@ -1826,55 +1826,21 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int) {
 // One section rather than three, because they answer one question: what moved this ranking away
 // from what severity alone would have given.
 //
-// Counted over every finding rather than the listed ones. `--top` and `--min-priority` narrow what
-// is shown, and this answers what the signals did, not what fitted on the page.
+// Every row reads the same, because every row is the same kind of thing: something that argued
+// with a band, and how much it moved. The colors belong on the marks in the listing below, where a
+// reader is looking for the argued-with rows among hundreds; here there are a handful of rows and a
+// label on each, and a hue would be decoration on a thing that is already found.
+//
+// How each one moves a finding is in the HTML and markdown reports, which have the width for it. A
+// terminal row that carried the rule would push what the signal did off the line.
 func writeSignals(w io.Writer, col tui.Painter, d Data, s summary) {
-	type signal struct{ name, did string }
-	var signals []signal
-
-	// In the order the engine applies them, which is the order the concept introduces them.
-	//
-	// Every row reads the same, because every row is the same kind of thing: something that argued
-	// with a band, and how much it moved. The colors belong on the marks in the listing below,
-	// where a reader is looking for the argued-with rows among hundreds; here there are four rows
-	// and a label on each, and a hue would be decoration on a thing that is already found.
-	for _, name := range []string{"kev", "epss"} {
-		n := s.bySignal[name]
-		if n == 0 && !consulted(d, name) {
-			continue
-		}
-		// "nothing raised" is a result rather than an absence. Without it the only way to learn a
-		// feed changed nothing is to read every finding looking for a mark that is not there.
-		did := "nothing raised"
-		if n > 0 {
-			did = fmt.Sprintf("%s raised", english.Count(n, "finding"))
-		}
-		signals = append(signals, signal{name: strings.ToUpper(name), did: did})
-	}
-	if n := s.floored; n > 0 {
-		signals = append(signals, signal{
-			name: "floor",
-			did:  fmt.Sprintf("%s raised by a control's own rule", english.Count(n, "finding")),
-		})
-	}
-	// Named for what it is rather than for the tool that did it. "govulncheck" in the left column
-	// tells a reader which binary ran and not what it decided, and this is the one signal whose
-	// name they have no reason to know.
-	rows, notes := reachabilityBlock(d)
-	for _, row := range rows {
-		analyzer, did, _ := strings.Cut(row, "  ")
-		signals = append(signals, signal{
-			name: "reachability",
-			did:  strings.TrimSpace(analyzer) + " · " + strings.TrimSpace(did),
-		})
-	}
-	if len(signals) == 0 {
+	rows, notes := signals(d, s)
+	if len(rows) == 0 {
 		return
 	}
-
 	t := tui.NewTable(col).Indent("  ")
-	for _, sig := range signals {
-		t.Row(tui.Styled(tui.StyleStrong, sig.name), tui.Styled(cDim, sig.did))
+	for _, sig := range rows {
+		t.Row(tui.Styled(tui.StyleStrong, sig.Name), tui.Styled(cDim, sig.Did))
 	}
 	_, _ = fmt.Fprintln(w, heading(col, "Signals"))
 	t.Render(w)

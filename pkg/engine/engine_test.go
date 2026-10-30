@@ -133,6 +133,28 @@ func TestWithPrioritizationStampsFindings(t *testing.T) {
 	}
 }
 
+// The floors a run ranks with reach its result whether or not they raised anything, because a
+// report can only say a floor raised nothing if the run says one was there.
+func TestWithContextFloorsReachesTheResult(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(fakeController{name: "images", scope: plugin.ScopeComponent, scanner: "s"})
+	reg.RegisterScanner(&fakeScanner{name: "s"})
+	res, err := New(reg, WithContextFloors([]string{"secrets"})).Run(context.Background(), model())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(res.ContextFloors, []string{"secrets"}) {
+		t.Errorf("ContextFloors = %v, want [secrets]", res.ContextFloors)
+	}
+	none, err := New(reg).Run(context.Background(), model())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if none.ContextFloors != nil {
+		t.Errorf("ContextFloors = %v with none declared, want nil", none.ContextFloors)
+	}
+}
+
 func TestNoPrioritizationLeavesPriorityEmpty(t *testing.T) {
 	reg := NewRegistry()
 	reg.RegisterController(fakeController{name: "images", scope: plugin.ScopeComponent, scanner: "s"})

@@ -79,6 +79,9 @@ CONTROLS
   sca      FAIL   5 P1 6 P2
   secrets  pass   no findings
 
+SIGNALS
+  floor  nothing raised
+
 FIX FIRST  top 3 of 11, by priority
   P1  critical  CVE-2019-10906 · str.format_map allows sandbox escape
       scanner trivy · jinja2 2.10 → 2.10.1
@@ -108,6 +111,9 @@ draugr: policy verdict: fail
   or criticality declared, every component is read as public and critical, so the bands follow
   severity until [Focus](#focus-what-to-fix-first) classifies them.
 - **`CONTROLS`** has a row for each enabled control, saying whether it passed and what it found.
+- **`SIGNALS`** lists what raised or lowered findings in the ranking, and how many each one moved.
+  `floor` ranks a leaked credential P1 whatever its component declares, and raised nothing here
+  because `secrets` found none.
 - **`FIX FIRST`** lists findings most urgent first, each with its band and severity, the advisory
   and its title, the scanner, the fix and the file. For a dependency the fix is the package, the
   installed version and, after `→`, the release to upgrade to.

@@ -54,7 +54,7 @@ These change the order. Nothing is hidden, and the count stays the same.
 | **KEV** | a vulnerability on CISA's Known Exploited catalog is escalated to critical | [Prioritization](prioritization.md#exploitability-kev-and-epss) |
 | **EPSS** | a prediction at or above your threshold raises the severity one band | [Prioritization](prioritization.md#exploitability-kev-and-epss) |
 | **Reachability** | a vulnerability your code cannot reach is ranked down | [Saga schema](../reference/saga-schema.md#reachability-for-go) |
-| **Control floor** | a control insists on a minimum, so a committed private key is never a warning | [Prioritization](prioritization.md) |
+| **Context floor** | a leaked credential is raised to P1, whatever its component declares; severity unchanged | [Prioritization](prioritization.md#some-findings-are-not-bounded-by-the-component) |
 
 KEV and EPSS are enrichment, turned on under `config.exploitability`, and they read a local cache
 that `draugr feeds update` fills. That is deliberate: a scan that reaches the network mid-run
@@ -117,7 +117,7 @@ lever moved it:
 |---|---|
 | `↑ KEV` | on CISA's Known Exploited Vulnerabilities catalog |
 | `↑ EPSS` | predicted exploitation at or above your threshold |
-| `↑ floor` | a control insists this kind of finding is never lower |
+| `↑ floor` | a leaked credential, ranked P1 whatever its component declares |
 | `↓ unreachable` | analysis found no path from your code to it |
 | `↩ history` | describes a commit rather than the current tree, so its path may be gone |
 
