@@ -73,9 +73,15 @@ func newConfigCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
 		Short: "Inspect and edit Draugr's machine and organization settings",
-		Long: "Read and write draugr.config.yaml: settings for the environment running a scan,\n" +
-			"not for the application being scanned, scanner versions, control defaults, and\n" +
-			"anything else meant to be the same across every project on this machine.",
+		Long: "Read and write draugr.config.yaml, the settings for the environment running a scan:\n" +
+			"scanner versions, control defaults, cache, output, parallelism, logging, offline and\n" +
+			"the publish URL.\n\n" +
+			"Files, least specific first:\n" +
+			"  ~/.draugr/config.yaml   this machine\n" +
+			"  ./draugr.config.yaml    this project, read from the working directory only\n" +
+			"--config <path> or " + config.EnvVar + " names one file, read alone in place of both.\n\n" +
+			"`draugr config show` prints the settings in effect and the file each came from.\n" +
+			"Every key is listed at " + config.KeysURL,
 	}
 	cmd.AddCommand(newConfigShowCommand(), newConfigGetCommand(), newConfigSetCommand(),
 		newConfigUnsetCommand(), newConfigInitCommand(), newConfigValidateCommand())
@@ -224,8 +230,9 @@ func writeConfigShow(w io.Writer, res config.Resolved, wd string) {
 	_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, oneWayRule))
 }
 
-// oneWayRule states how cache.readOnly and cache.requireDigest layer, under a table of overrides.
-const oneWayRule = "cache.readOnly and cache.requireDigest only turn on across files."
+// oneWayRule states how the one-way settings layer, under a table of overrides. Built from the list
+// the merge reads, so a setting added to it is named here too.
+var oneWayRule = english.And(config.OneWayKeys()) + " only turn on across files."
 
 // skippedFiles lists the discovered files that exist and are not read, because --config or
 // DRAUGR_CONFIG names the one file that is.
@@ -347,6 +354,23 @@ func flatten(f config.File) []kv {
 		if o.OfferInstall != nil {
 			out = append(out, kv{"output.offerInstall", strconv.FormatBool(*o.OfferInstall)})
 		}
+		if o.Tips != nil {
+			out = append(out, kv{"output.tips", strconv.FormatBool(*o.Tips)})
+		}
+	}
+	if j := f.Scan.Jobs; j != nil {
+		out = append(out, kv{"scan.jobs", strconv.Itoa(*j)})
+	}
+	if l := f.Log; l != (config.LogSettings{}) {
+		if l.Level != "" {
+			out = append(out, kv{"log.level", l.Level})
+		}
+		if l.Format != "" {
+			out = append(out, kv{"log.format", l.Format})
+		}
+	}
+	if f.Offline != nil {
+		out = append(out, kv{"offline", strconv.FormatBool(*f.Offline)})
 	}
 	for control, settings := range f.Controls {
 		out = append(out, flattenAny("controls."+control, settings)...)

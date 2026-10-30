@@ -59,11 +59,12 @@ func newRootCommand() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-			logger, closeLog, err := observability.NewLogger(LogWriter(cmd.ErrOrStderr()), observability.LogOptions{
-				Level:  opts.logLevel,
-				Format: opts.logFormat,
-				File:   opts.logFile,
-			})
+			typed := changedFlags(cmd)
+			// Before the logger exists, so log.level and log.format hold for every record the command
+			// writes, and offline for every call it makes.
+			startup := startupConfig(opts.config)
+			logger, closeLog, err := observability.NewLogger(LogWriter(cmd.ErrOrStderr()),
+				logOptions(opts, startup.File.Log, typed))
 			if err != nil {
 				return err
 			}
@@ -74,24 +75,31 @@ func newRootCommand() *cobra.Command {
 			closeLogFile = closeLog
 			// Recorded once, here, so every network call in the process reads the same answer
 			// rather than each deciding for itself.
-			if opts.offline {
-				netpolicy.SetOffline(true)
+			var offline *bool
+			if typed["offline"] {
+				offline = &opts.offline
 			}
+			by := ""
+			if path := startup.OfflineBy(); path != "" {
+				by = herePath(path)
+			}
+			netpolicy.Decide(offline, by)
 			rootConfigPath = opts.config
 			return nil
 		},
 	}
 
 	cmd.PersistentFlags().StringVar(&opts.logLevel, "log-level", "info",
-		"log level: trace, debug, info, warn, error (trace relays scanner output)")
+		"log level: trace, debug, info, warn, error (trace relays scanner output; also log.level in draugr.config.yaml)")
 	cmd.PersistentFlags().StringVar(&opts.logFormat, "log-format", "console",
-		"log format: console (human-readable, colorized on a terminal), json, or text")
+		"log format: console (human-readable, colorized on a terminal), json, or text (also log.format in draugr.config.yaml)")
 	cmd.PersistentFlags().StringVar(&opts.logFile, "log-file", "",
 		"also append every record to this file, at trace level and unclamped")
 	cmd.PersistentFlags().StringVar(&opts.config, "config", "",
 		"machine/organization settings file, used instead of the discovered ones (also DRAUGR_CONFIG)")
 	cmd.PersistentFlags().BoolVar(&opts.offline, "offline", false,
-		"make no network calls: skip optional fetches, and refuse rather than download (also DRAUGR_OFFLINE=1)")
+		"make no network calls: skip optional fetches, and refuse rather than download "+
+			"(also DRAUGR_OFFLINE=1, or offline: true in draugr.config.yaml)")
 
 	cmd.AddCommand(newVersionCommand())
 	cmd.AddCommand(newSchemaCommand())

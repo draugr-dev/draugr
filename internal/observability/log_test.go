@@ -58,6 +58,31 @@ func TestNewLoggerRejectsBadInput(t *testing.T) {
 	}
 }
 
+// The validators accept what NewLogger accepts and nothing else, including the spellings the flags
+// tolerate, and every listed name is one of them.
+func TestValidLevelAndFormatAgreeWithNewLogger(t *testing.T) {
+	for _, s := range append(append([]string{}, Levels...), "WARN", "warning", " Debug ") {
+		if !ValidLevel(s) {
+			t.Errorf("ValidLevel(%q) = false; NewLogger accepts it", s)
+		}
+	}
+	for _, s := range append(append([]string{}, Formats...), "JSON", " text ") {
+		if !ValidFormat(s) {
+			t.Errorf("ValidFormat(%q) = false; NewLogger accepts it", s)
+		}
+	}
+	for _, s := range []string{"verbose", "debgu"} {
+		if ValidLevel(s) {
+			t.Errorf("ValidLevel(%q) = true; NewLogger refuses it", s)
+		}
+	}
+	for _, s := range []string{"xml", "jsno"} {
+		if ValidFormat(s) {
+			t.Errorf("ValidFormat(%q) = true; NewLogger refuses it", s)
+		}
+	}
+}
+
 func TestParseLevelDefaults(t *testing.T) {
 	lvl, err := parseLevel("")
 	if err != nil || lvl != slog.LevelInfo {

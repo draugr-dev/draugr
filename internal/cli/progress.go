@@ -19,8 +19,8 @@ import (
 // And a line that redraws itself is noise in a CI log, where the file keeps every frame, so the
 // same output that helps a person watching costs a reader of the log a screen of carriage returns.
 //
-// Suppressed by --no-tips and DRAUGR_NO_TIPS alongside the other advisory output: somebody who has
-// turned that off has said they want the report and nothing else.
+// Suppressed by --no-tips, DRAUGR_NO_TIPS and output.tips: false alongside the other advisory
+// output: somebody who has turned that off has said they want the report and nothing else.
 type progressLine struct {
 	w io.Writer
 	// mu serializes writes. The engine reports under its own lock, but nothing promises the same
@@ -114,7 +114,7 @@ func (p *progressLine) erase() {
 
 // newProgressLine returns a renderer, or nil when nothing should be drawn.
 func newProgressLine(w io.Writer, opts scanOptions) *progressLine {
-	if opts.noTips || tipsDisabled() || !tui.IsTerminal(w) {
+	if opts.tipsOff() || !tui.IsTerminal(w) {
 		return nil
 	}
 	return newProgressLineFor(w)

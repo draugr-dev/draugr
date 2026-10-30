@@ -20,6 +20,10 @@ draugr scan draugr.saga.yaml --offline
 DRAUGR_OFFLINE=1 draugr scan draugr.saga.yaml
 ```
 
+A runner image can carry `offline: true` in the file `DRAUGR_CONFIG` names, or in
+`~/.draugr/config.yaml`, so no pipeline has to pass the flag or set the variable. See
+[`offline`](configuration.md#offline).
+
 Offline never fails quietly. Where a fetch was optional it is skipped, with a line saying so.
 Where it was the whole point of the command, the command refuses and names what it would have
 downloaded.

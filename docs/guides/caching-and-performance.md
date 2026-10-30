@@ -261,6 +261,9 @@ draugr scan draugr.saga.yaml -j 1      # serial: deterministic output, handy for
 |------|---------|-------------|
 | `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU) |
 
+`scan.jobs` in [`draugr.config.yaml`](configuration.md#scan) sets the same cap for every scan on a
+machine, and a typed `-j` wins over it.
+
 The run's JSON `stats` reports the effective `concurrency` alongside `jobs` (total jobs),
 `scans`, `cacheHits`, and `deduped`, so you can see the effect and tune from evidence. See the
 [CLI reference](../reference/cli.md#draugr-scan-sagayaml--dir) for the full flag list.

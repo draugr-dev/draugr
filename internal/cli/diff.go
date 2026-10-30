@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/english"
+	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/diff"
 	"github.com/draugr-dev/draugr/pkg/publish"
 	"github.com/draugr-dev/draugr/pkg/report"
@@ -44,11 +45,23 @@ func newDiffCommand() *cobra.Command {
 			"With the head report alone every finding is new, because there is no base to compare\n" +
 			"against. It is the form for the pull request that adds a repository's first descriptor.\n\n" +
 			"--fail-on-new gates on findings the change introduces, not on the existing backlog,\n" +
-			"and takes a priority band or a severity. Exits non-zero when that gate trips.",
+			"and takes a priority band or a severity. Exits non-zero when that gate trips.\n\n" +
+			"output.view and output.top in draugr.config.yaml set the --view and --top defaults,\n" +
+			"as they do for `draugr scan`. A diff has no evidence section, so output.evidence\n" +
+			"sets nothing here.",
 		// One report is a head with no base to compare against: the pull request that adds the
 		// descriptor has nothing at its base to scan.
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			wd, err := os.Getwd()
+			if err != nil {
+				return err
+			}
+			res, err := loadConfig(wd)
+			if err != nil {
+				return err
+			}
+			diffOutputFrom(opts, res.File.Output, changedFlags(cmd))
 			if len(args) == 1 {
 				return runDiff(cmd.Context(), "", args[0], *opts, cmd.OutOrStdout())
 			}
@@ -63,7 +76,7 @@ func newDiffCommand() *cobra.Command {
 	// truncating it silently removes the thing the command exists to show; the flag is for the
 	// dependency bump that introduces forty, and the gate counts every one either way.
 	cmd.Flags().IntVar(&opts.top, "top", 0,
-		"console: max findings to list (0 = all, the default)")
+		"console: max findings to list (0 = all; output.top sets the default)")
 	cmd.Flags().StringVar(&opts.failOnNew, "fail-on-new", "",
 		"fail if the change introduces a finding at or above this: a priority band (P1-P4) or a "+
 			"severity (critical, high, medium, low)")
@@ -78,6 +91,19 @@ func newDiffCommand() *cobra.Command {
 			"from elsewhere would annotate a same-named file here")
 	cmd.Flags().BoolVar(&opts.publish, "publish", false, "post the diff as a sticky pull-request comment (GitHub, GitLab or Azure DevOps, detected from the CI environment)")
 	return cmd
+}
+
+// diffOutputFrom folds output.view and output.top under --view and --top, by the rule `scan`
+// applies, so a flag typed on the command line wins and `top: 0` in the file keeps the built-in
+// default. output.evidence has no flag here to default: a diff renders no evidence section.
+func diffOutputFrom(opts *diffOptions, cfg config.OutputSettings, typed map[string]bool) {
+	d := untypedOutput(cfg, typed)
+	if d.view != "" {
+		opts.view = d.view
+	}
+	if d.top != 0 {
+		opts.top = d.top
+	}
 }
 
 // runDiff loads both SARIF reports, compares them, renders the delta, optionally posts it as a

@@ -8,6 +8,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/feeds"
+	"github.com/draugr-dev/draugr/internal/observability"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -43,9 +44,54 @@ func loadConfig(wd string) (config.Resolved, error) {
 	return config.Resolve(sources), nil
 }
 
+// startupConfig is the configuration a command starts under, read before the logger is built so
+// that log.* and offline hold for the whole run.
+//
+// Lenient where loadConfig refuses, because it runs before any command can report a problem, the
+// commands that mend a broken file included. Each file contributes what decodes from it, and a log
+// value the logger would refuse is left out, so a mistyped log.level cannot stop `draugr config
+// unset` from removing it. Every command that reads the configuration, `scan`, `doctor`, `diff`,
+// `tools install` and `config` among them, still refuses the file and names each problem.
+func startupConfig(flag string) config.Resolved {
+	wd, err := os.Getwd()
+	if err != nil {
+		return config.Resolved{}
+	}
+	var sources []config.Source
+	for _, path := range config.Files(flag, wd) {
+		data, err := os.ReadFile(path) // #nosec G304 G703 -- operator-provided config path
+		if err != nil {
+			continue
+		}
+		// What decoded, without the problems: loadConfig reports those, in the command's own words.
+		f, _ := config.Parse(data, path)
+		if !observability.ValidLevel(f.Log.Level) {
+			f.Log.Level = ""
+		}
+		if !observability.ValidFormat(f.Log.Format) {
+			f.Log.Format = ""
+		}
+		sources = append(sources, config.Source{Path: path, File: f})
+	}
+	return config.Resolve(sources)
+}
+
+// logOptions is the logger a command starts with: --log-level and --log-format as typed, then
+// log.level and log.format, then the flags' defaults.
+func logOptions(opts *globalOptions, cfg config.LogSettings, typed map[string]bool) observability.LogOptions {
+	out := observability.LogOptions{Level: opts.logLevel, Format: opts.logFormat, File: opts.logFile}
+	if cfg.Level != "" && !typed["log-level"] {
+		out.Level = cfg.Level
+	}
+	if cfg.Format != "" && !typed["log-format"] {
+		out.Format = cfg.Format
+	}
+	return out
+}
+
 // checkConfig holds one parsed file to what this build provides: the controls and scanners under
 // controls, by the descriptor's own checks; tool names, against the catalog `tools install`
-// reads; and the values of output and cache, against what a scan accepts.
+// reads; and the values of output, cache, scan and log, against what their flags accept.
 //
 // The result is a *config.Problems naming the file, every problem in it, and one hint.
 func checkConfig(reg *engine.Registry, path string, f config.File) error {
@@ -111,22 +157,16 @@ func toolProblems(pins map[string]config.ToolSettings) []string {
 	return out
 }
 
-// valueProblems reports an output or cache value a scan would refuse, here rather than at scan time,
+// valueProblems reports a value a command would refuse, here rather than when the command runs,
 // where the refusal names a flag nobody typed.
 func valueProblems(f config.File) []string {
 	var out []string
 	if v := report.View(f.Output.View); v != "" && !slices.Contains(report.Views(), v) {
-		views := map[string]bool{}
 		names := make([]string, 0, len(report.Views()))
 		for _, known := range report.Views() {
-			views[string(known)] = true
 			names = append(names, string(known))
 		}
-		msg := fmt.Sprintf("output.view: %q is not %s", v, list(names))
-		if near := nearestName(string(v), views); near != "" {
-			msg += fmt.Sprintf(", did you mean %q?", near)
-		}
-		out = append(out, msg)
+		out = append(out, notOneOf("output.view", string(v), names))
 	}
 	if f.Output.Top < 0 {
 		out = append(out, fmt.Sprintf("output.top: expected a whole number of 0 or more, got %d", f.Output.Top))
@@ -134,5 +174,28 @@ func valueProblems(f config.File) []string {
 	if ttl := f.Cache.TTL; ttl != nil && *ttl < 0 {
 		out = append(out, fmt.Sprintf("cache.ttl: expected a duration of 0s or more, got %s", feeds.ShortDuration(*ttl)))
 	}
+	if j := f.Scan.Jobs; j != nil && *j < 0 {
+		out = append(out, fmt.Sprintf("scan.jobs: expected a whole number of 0 or more, got %d", *j))
+	}
+	if l := f.Log.Level; l != "" && !observability.ValidLevel(l) {
+		out = append(out, notOneOf("log.level", l, observability.Levels))
+	}
+	if fm := f.Log.Format; fm != "" && !observability.ValidFormat(fm) {
+		out = append(out, notOneOf("log.format", fm, observability.Formats))
+	}
 	return out
+}
+
+// notOneOf is the problem with a value outside a closed vocabulary: the key, the value, every value
+// it may take, and the nearest of them.
+func notOneOf(key, value string, valid []string) string {
+	msg := fmt.Sprintf("%s: %q is not %s", key, value, list(valid))
+	known := make(map[string]bool, len(valid))
+	for _, v := range valid {
+		known[v] = true
+	}
+	if near := nearestName(value, known); near != "" {
+		msg += fmt.Sprintf(", did you mean %q?", near)
+	}
+	return msg
 }

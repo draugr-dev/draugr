@@ -75,6 +75,41 @@ type File struct {
 	// repository it builds. Putting either in a descriptor asserts it on everyone else who scans
 	// that application.
 	Output OutputSettings `yaml:"output,omitempty"`
+	// Scan is how a scan runs on the machine doing it.
+	//
+	// How many scanners can run at once is a fact about a machine's CPUs and memory, not about the
+	// application: one descriptor scanned on a laptop and on a large runner wants a different answer
+	// from each.
+	Scan ScanSettings `yaml:"scan,omitempty"`
+	// Log is what Draugr writes to stderr about its own run.
+	//
+	// A log format is chosen by whatever reads the log, a person at a terminal or a collector in a
+	// pipeline, and the same descriptor is scanned by both.
+	Log LogSettings `yaml:"log,omitempty"`
+	// Offline says this machine makes no network calls, as --offline and $DRAUGR_OFFLINE do.
+	//
+	// Layered one way, as Cache.ReadOnly is: a more specific file's `false` does not clear a less
+	// specific file's `true`, and Resolved.Overrides reports the `false` that was outranked. A file
+	// may turn it on, because offline only narrows what a run does and every check it stops reports
+	// itself as not checked.
+	Offline *bool `yaml:"offline,omitempty"`
+}
+
+// ScanSettings configures how a scan runs.
+type ScanSettings struct {
+	// Jobs caps how many scan jobs run at once, as --jobs does. Zero is one per CPU, the built-in
+	// default. A pointer, so a more specific file's `0` restores the default over a less specific
+	// file's cap.
+	Jobs *int `yaml:"jobs,omitempty"`
+}
+
+// LogSettings configures the log Draugr writes to stderr. Each has a `--log-*` flag that
+// overrides it.
+type LogSettings struct {
+	// Level is the least severe record written: trace, debug, info, warn or error.
+	Level string `yaml:"level,omitempty"`
+	// Format is console, json or text.
+	Format string `yaml:"format,omitempty"`
 }
 
 // PublishSettings holds defaults for the publishers a run delivers to.
@@ -108,6 +143,10 @@ type OutputSettings struct {
 	// OfferInstall is whether `draugr scan` on a terminal offers to install the scanners it is
 	// missing before it runs. Unset means it offers; answering "never" writes false.
 	OfferInstall *bool `yaml:"offerInstall,omitempty"`
+	// Tips is whether a console scan prints its contextual tips and its progress line, both of
+	// which --no-tips turns off. Unset means it prints them. A pointer, so a more specific file's
+	// `true` overrides a less specific file's `false`.
+	Tips *bool `yaml:"tips,omitempty"`
 }
 
 // Offers reports whether a scan on a terminal may offer to install missing scanners.
@@ -384,6 +423,24 @@ func merge(a, b File) File {
 	if b.Output.OfferInstall != nil {
 		out.Output.OfferInstall = b.Output.OfferInstall
 	}
+	if b.Output.Tips != nil {
+		out.Output.Tips = b.Output.Tips
+	}
+
+	out.Scan = a.Scan
+	if b.Scan.Jobs != nil {
+		out.Scan.Jobs = b.Scan.Jobs
+	}
+
+	out.Log = a.Log
+	if b.Log.Level != "" {
+		out.Log.Level = b.Log.Level
+	}
+	if b.Log.Format != "" {
+		out.Log.Format = b.Log.Format
+	}
+
+	out.Offline = oneWay(a.Offline, b.Offline)
 
 	if len(out.Tools) == 0 {
 		out.Tools = nil
@@ -396,9 +453,9 @@ func merge(a, b File) File {
 
 // oneWay lays b over a for a setting that only turns on across files.
 //
-// A machine that declared its results untrustworthy, or refused to cache an image named by a tag,
-// keeps that answer when a project file says false. Resolved.Overrides reports each false this
-// outranks, so the file that says it is told rather than ignored.
+// A machine that declared its results untrustworthy, refused to cache an image named by a tag, or
+// said it has no network keeps that answer when a project file says false. Resolved.Overrides
+// reports each false this outranks, so the file that says it is told rather than ignored.
 func oneWay(a, b *bool) *bool {
 	if b == nil || On(a) {
 		return a
@@ -423,6 +480,28 @@ var oneWaySettings = []struct {
 }{
 	{"cache.readOnly", func(f File) *bool { return f.Cache.ReadOnly }},
 	{"cache.requireDigest", func(f File) *bool { return f.Cache.RequireDigest }},
+	{"offline", func(f File) *bool { return f.Offline }},
+}
+
+// OneWayKeys lists the settings that only turn on across files, by the key a file writes them under.
+func OneWayKeys() []string {
+	out := make([]string, 0, len(oneWaySettings))
+	for _, s := range oneWaySettings {
+		out = append(out, s.key)
+	}
+	return out
+}
+
+// OfflineBy is the file whose `offline: true` is in force, or "" when no file turns it on: the most
+// specific one that says true, which is the one `draugr config show` names for it.
+func (r Resolved) OfflineBy() string {
+	by := ""
+	for _, s := range r.Sources {
+		if On(s.File.Offline) {
+			by = s.Path
+		}
+	}
+	return by
 }
 
 // Overrides lists the settings a source makes that do not take effect: a false for a one-way

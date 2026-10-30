@@ -27,17 +27,61 @@ const legacyUpdateEnvVar = "DRAUGR_NO_UPDATE_CHECK"
 // on without the process having to rewrite its own environment.
 var forced atomic.Bool
 
+// allowed is --offline=false as typed, which outranks the environment and the configuration.
+var allowed atomic.Bool
+
+// configured is the configuration file whose `offline: true` is in force, or "" when none is.
+var configured atomic.Pointer[string]
+
 // SetOffline records that the operator asked for offline on the command line.
 func SetOffline(v bool) { forced.Store(v) }
 
+// Decide records the command line's and the configuration's answers, once, at startup.
+//
+// flag is --offline as typed, nil when it was not typed. by names the configuration file whose
+// `offline: true` is in force, as a reader would be told it, or "" when no file turns it on. Every
+// call replaces what an earlier one recorded.
+func Decide(flag *bool, by string) {
+	forced.Store(flag != nil && *flag)
+	allowed.Store(flag != nil && !*flag)
+	configured.Store(&by)
+}
+
 // Offline reports whether this process should avoid the network.
 //
-// True when --offline was passed or DRAUGR_OFFLINE is set to anything that is not a recognized
-// falsey value. An unparseable value counts as true: someone who wrote DRAUGR_OFFLINE=yes meant
-// yes, and the safe reading of "I could not understand your request not to use the network" is
-// not to use the network.
+// The first source that answers decides: --offline as typed, then DRAUGR_OFFLINE, then the
+// configuration. DRAUGR_OFFLINE answers whenever it is set to anything: a recognized falsey value
+// is no, and anything else is yes. An unparseable value counts as yes: someone who wrote
+// DRAUGR_OFFLINE=yes meant yes, and the safe reading of "I could not understand your request not to
+// use the network" is not to use the network.
 func Offline() bool {
-	return forced.Load() || truthy(os.Getenv(EnvVar))
+	switch {
+	case forced.Load():
+		return true
+	case allowed.Load():
+		return false
+	}
+	if v := os.Getenv(EnvVar); v != "" {
+		return truthy(v)
+	}
+	return configuredBy() != ""
+}
+
+// configuredBy is the file Decide recorded, or "".
+func configuredBy() string {
+	if p := configured.Load(); p != nil {
+		return *p
+	}
+	return ""
+}
+
+// Because names what put this process offline, as the end of a sentence about something it
+// declined to do: "--offline or DRAUGR_OFFLINE is set", or the configuration file that sets it.
+func Because() string {
+	if by := configuredBy(); by != "" && !forced.Load() && os.Getenv(EnvVar) == "" {
+		return by + " sets offline: true"
+	}
+	return "--offline or " + EnvVar + " is set"
 }
 
 // SkipUpdateCheck reports whether the check for a newer Draugr release should be skipped.
@@ -70,7 +114,7 @@ func truthy(v string) bool {
 // Names what would have been fetched, because "offline" on its own leaves the reader to work out
 // which of Draugr's several network calls they just prevented.
 func Refuse(action, url string) error {
-	return &RefusedError{Action: action, URL: url}
+	return &RefusedError{Action: action, URL: url, Because: Because()}
 }
 
 // RefusedError reports that an operation needing the network was declined.
@@ -81,10 +125,12 @@ type RefusedError struct {
 	Action string
 	// URL is what would have been fetched. Empty when there is no single one.
 	URL string
+	// Because is what put the process offline, as Because words it.
+	Because string
 }
 
 func (e *RefusedError) Error() string {
-	msg := e.Action + " needs the network; --offline or " + EnvVar + " is set"
+	msg := e.Action + " needs the network; " + e.Because
 	if e.URL != "" {
 		msg += "\n\nit would have fetched " + e.URL
 	}

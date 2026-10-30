@@ -54,6 +54,14 @@ func TestConfigSetRefusesWhatValidateRefuses(t *testing.T) {
 		{"cache.ttl", "-1h", `cache.ttl: expected a duration of 0s or more, got -1h`},
 		{"cache.ttl", "5", `cache.ttl: expected a duration such as 12h, got 5`},
 		{"output.veiw", "x", `output: "veiw" is not a setting Draugr has, did you mean "view"?`},
+		{"scan.jobs", "-2", `scan.jobs: expected a whole number of 0 or more, got -2`},
+		{"scan.jobs", "many", `scan.jobs: expected a whole number, got many`},
+		{"log.level", "verbose", `log.level: "verbose" is not trace, debug, info, warn or error`},
+		{"log.level", "debgu", `log.level: "debgu" is not trace, debug, info, warn or error, did you mean "debug"?`},
+		{"log.format", "jsno", `log.format: "jsno" is not console, json or text, did you mean "json"?`},
+		{"log.levl", "debug", `log: "levl" is not a setting Draugr has, did you mean "level"?`},
+		{"output.tips", "sometimes", `output.tips: expected true or false, got sometimes`},
+		{"offline", "maybe", `offline: expected true or false, got maybe`},
 	} {
 		dir := t.TempDir()
 		configHome(t, "")
@@ -69,7 +77,7 @@ func TestConfigSetRefusesWhatValidateRefuses(t *testing.T) {
 			t.Errorf("set %s %s offered to wipe a file it never wrote: %v", c.key, c.value, err)
 		}
 		// The list of keys answers a key the file cannot hold, not a value it refuses.
-		keyProblem := strings.HasPrefix(c.key, "tools.") || c.key == "output.veiw"
+		keyProblem := strings.HasPrefix(c.key, "tools.") || c.key == "output.veiw" || c.key == "log.levl"
 		if hinted := strings.Contains(err.Error(), config.KeysURL); hinted != keyProblem {
 			t.Errorf("set %s %s: keys hint present = %v:\n%v", c.key, c.value, hinted, err)
 		}
@@ -280,8 +288,12 @@ func TestToolProblemsWithNothingClose(t *testing.T) {
 func TestCheckConfigAcceptsAValidFile(t *testing.T) {
 	f := config.File{
 		Tools:  map[string]config.ToolSettings{"trivy": {Version: "0.69.3"}},
-		Output: config.OutputSettings{View: "actions", Top: 5},
+		Output: config.OutputSettings{View: "actions", Top: 5, Tips: new(false)},
 		Cache:  config.CacheSettings{TTL: new(time.Duration)},
+		Scan:   config.ScanSettings{Jobs: new(0)},
+		// Spelled as the flags accept them, which is not always as the documentation writes them.
+		Log:     config.LogSettings{Level: "WARNING", Format: "JSON"},
+		Offline: new(true),
 	}
 	if err := checkConfig(builtins.Registry(), "x.yaml", f); err != nil {
 		t.Errorf("a valid file was refused: %v", err)

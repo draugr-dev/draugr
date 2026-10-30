@@ -11,11 +11,15 @@ All commands accept these **global flags**:
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--log-level` | `info` | `trace`, `debug`, `info`, `warn`, `error` |
-| `--log-format` | `console` | `console` (human-readable, colorized on a terminal), `json`, or `text` |
+| `--log-level` | `info` | `trace`, `debug`, `info`, `warn`, `error` (or `log.level` in [`draugr.config.yaml`](#draugr-config)) |
+| `--log-format` | `console` | `console` (human-readable, colorized on a terminal), `json`, or `text` (or `log.format` in `draugr.config.yaml`) |
 | `--log-file` | - | Also append every record to this file, at `trace` level and unclamped |
-| `--offline` | `false` | Make no network calls (also `DRAUGR_OFFLINE=1`) |
+| `--offline` | `false` | Make no network calls (also `DRAUGR_OFFLINE=1`, or `offline: true` in `draugr.config.yaml`) |
 | `--config` | - | Machine/organization settings file, used instead of the discovered ones (also `DRAUGR_CONFIG`) |
+
+`draugr.config.yaml` is read when a command starts, before it reads a descriptor, so `log.level`,
+`log.format` and `offline` hold for every record the command writes and every network call it
+makes. See [precedence](../guides/configuration.md#flags-always-win) for what wins over the file.
 
 **`--offline`** says once that this machine has no network, and every place Draugr would reach out
 honors it. Optional fetches are skipped with a line saying so. A command whose whole purpose is to
@@ -273,7 +277,8 @@ A caveat fails the run only when `--fail-on-caveats` or
 | `draugr controls` | A declared surface has no enabled control |
 | `draugr tools install <tool>` | A scanner that ran is on `PATH`, was not installed by Draugr, and is one Draugr can install |
 
-`--no-tips` or `DRAUGR_NO_TIPS=1` turns them off.
+`--no-tips`, `DRAUGR_NO_TIPS=1` or `output.tips: false` in [`draugr.config.yaml`](#draugr-config)
+turns them off.
 
 ### Installing a missing scanner
 
@@ -314,7 +319,8 @@ scanner refreshes its data before the jobs start, the first line reads `Refreshi
 data. The display is erased before the report.
 
 It is drawn **only when stderr is a terminal**, so a report on stdout stays parseable when piped and
-a CI log carries no frames. `--no-tips` and `DRAUGR_NO_TIPS=1` turn it off along with the tips.
+a CI log carries no frames. `--no-tips`, `DRAUGR_NO_TIPS=1` and `output.tips: false` turn it off
+along with the tips.
 
 ### What the run cost
 
@@ -474,7 +480,7 @@ The flag tables below follow the groups in `draugr scan --help`.
 | `--compact` | `false` | Deprecated. Use `--view compact` |
 | `--template` | - | Inline Go `text/template` (with `--format template`) |
 | `--template-file` | - | Go `text/template` file (with `--format template`) |
-| `--no-tips` | `false` | Suppress the console's contextual tips (also `DRAUGR_NO_TIPS`) |
+| `--no-tips` | `false` | Suppress the console's contextual tips and progress line (also `DRAUGR_NO_TIPS`, or `output.tips: false` in `draugr.config.yaml`) |
 
 `--view` takes:
 
@@ -502,7 +508,7 @@ whether it is a shortlist or every finding, and `--top 0` also lists every row u
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU); reported as `stats.concurrency` |
+| `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU); reported as `stats.concurrency` (or `scan.jobs` in `draugr.config.yaml`) |
 | `--allow-effects` | - | Accept scanner effects for this run (`mutate`, `privilege`). `config.allowEffects` is the reviewed equivalent. See [below](#scanners-that-do-more-than-read) |
 | `--no-publish` | `false` | Skip the descriptor's configured publishers (still writes `-o` artifacts and stdout) |
 | `--policy` | `false` | Require the [organization's policy](#the-organizations-policy) check |
@@ -514,8 +520,9 @@ run that the server could not give or had not decided within `--policy-wait`. Wi
 the policy check runs only under `--policy`.
 
 The `--cache-*` flags have counterparts in [`draugr.config.yaml`](#draugr-config) under `cache:`
-(`dir`, `ttl`, `readOnly`, `requireDigest`), and `--view`, `--evidence` and `--top` under
-`output:`. A flag on the command line wins over the file.
+(`dir`, `ttl`, `readOnly`, `requireDigest`); `--view`, `--evidence`, `--top` and `--no-tips` under
+`output:` (`view`, `evidence`, `top`, `tips`); and `--jobs` under `scan:` (`jobs`). A flag on the
+command line wins over the file.
 
 ```bash
 draugr scan draugr.saga.yaml
@@ -935,6 +942,11 @@ CHANGED  4, by priority
 | `--fail-on-new-priority` | - | Deprecated: write the band in `--fail-on-new`. Refused together with `--fail-on-new` |
 | `--publish` | `false` | Post the diff as a sticky pull-request comment. Picks `github-pr-comment`, `azure-pr-comment` or `gitlab-mr-comment` from the CI environment; no-ops off a PR |
 
+`--view` and `--top` have counterparts in [`draugr.config.yaml`](#draugr-config), `output.view` and
+`output.top`, read as `draugr scan` reads them: a flag on the command line wins over the file, and a
+`top` of `0` in the file keeps the default of every row. A diff has no evidence section, so
+`output.evidence` sets nothing here.
+
 The gate reads **new** only. Accepted, unaccepted and moved findings do not trip it, and each is
 reported.
 
@@ -1298,11 +1310,13 @@ binary.
 A tool is also reported as unusable (`✗ no data`) when it is installed but its supporting data is
 not: `kube-bench` without its `cfg/` benchmarks, `nuclei` without its templates.
 
-### A tool that is not the version Draugr tested
+### Versions
 
-Draugr pins a version of each tool it can install, and its own suite runs against that build. A
-tool on `PATH` at another version, from a distribution package or installed with `--version`, has
-its row say which version was tested, and one line under the table counts them:
+Doctor holds each installed tool to the build `draugr tools install` fetches for it: the version
+Draugr tests, or the version [`tools.<name>.version`](#draugr-config) pins where there is a pin.
+Draugr's own suite runs against the tested build. A tool on `PATH` at another version, from a
+distribution package or installed with `--version`, has its row say which version was tested, and
+one line under the table counts them:
 
 ```console
 $ draugr doctor --offline
@@ -1316,6 +1330,30 @@ trivy        ✓ found    0.69.3   /usr/bin/trivy · tested against 0.74.0
 
 The line is a note, not a failure, unless `--strict` is given. An older scanner can find fewer
 things than the tested build.
+
+A pinned tool is held to its pin instead. Its row names the file that sets the pin, and the
+version when the tool is not at it. The line under the table counts the two kinds apart:
+
+```yaml
+# pin.yaml
+tools:
+  trivy: { version: "0.69.3" }
+  semgrep: { version: "1.177.0" }
+```
+
+```console
+$ draugr doctor --config pin.yaml --offline
+…
+TOOLS
+Tool         Status     Version  Notes
+…
+semgrep      ✓ found    1.177.0  /home/wilson/.draugr/bin/semgrep · pinned in ./pin.yaml
+syft         ✓ found    1.51.1   /home/wilson/.draugr/bin/syft · tested against 1.55.0
+trivy        ✓ found    0.74.0   /home/wilson/.draugr/bin/trivy · pinned to 0.69.3 in ./pin.yaml
+5 installed tools are not the version Draugr tests and 1 is not at its pinned version. `draugr tools install --force` installs the pinned build where there is a pin and the tested build otherwise.
+```
+
+`--strict` holds a pinned tool to its pin as well.
 
 ### Targets
 
@@ -1453,9 +1491,9 @@ The list is **reported, not failed**, unless `--fail-on-uncovered` is passed or
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--json` | `false` | Emit the report as JSON instead of tables. A tool not at its pin carries `testedVersion` |
+| `--json` | `false` | Emit the report as JSON instead of tables. A tool not at the version Draugr tests carries `testedVersion`; a tool not at its configured pin carries `pinnedVersion` and `pinnedIn`, the file that pins it, in its place |
 | `--fail-on-uncovered` | `false` | Exit non-zero when the descriptor declares a surface no enabled control looks at. Also the behavior when [`config.gate.failOnCaveats`](saga-schema.md#configgate) lists `not-checked` |
-| `--strict` | `false` | Exit non-zero when a tool is not the version Draugr tests, with or without a descriptor. With one, a missing tool's message comes first |
+| `--strict` | `false` | Exit non-zero when a tool is not at its configured pin, or not the version Draugr tests where it has none, with or without a descriptor. With one, a missing tool's message comes first |
 | `--policy` | `false` | Ask the `draugr-api` server for the organization's policy, sending the token. Exit non-zero when it could not be checked, as well as when a scan would be refused or fail by it |
 | `--offline` | `false` | Make no network call: skips the release check, the policy check, remote fragments and every target check that needs the network. `DRAUGR_NO_UPDATE_CHECK=1` skips only the release check |
 | `--components` | - | Check only the targets of these components |
@@ -1885,9 +1923,8 @@ signals mean and how to choose a threshold.
 ## `draugr config`
 
 Settings for a machine or an organization, read from `draugr.config.yaml`: scanner versions,
-control defaults, cache, output and the publish URL. A descriptor cannot set scanner versions,
-cache or output settings, so it cannot pin its own scanner version; it can override control
-defaults and the publish URL.
+control defaults, cache, output, parallelism, logging, offline and the publish URL. A descriptor
+can override control defaults and the publish URL, and no other key.
 
 ```yaml
 # draugr.config.yaml
@@ -1907,8 +1944,12 @@ controls:               # merged *underneath* the descriptor's own settings
 | `tools.<name>.version` | the build [`tools install`](#draugr-tools-install-tool) provisions |
 | `controls.<control>.<scanner>` | control defaults, merged underneath the descriptor's `config.controls` |
 | `cache.dir`, `cache.ttl`, `cache.readOnly`, `cache.requireDigest` | the `--cache-*` flags. A `ttl` of `0s` means no expiry, as `--cache-ttl 0` does; leaving `ttl` out keeps the built-in default |
-| `output.view`, `output.evidence`, `output.top` | the `--view`, `--evidence` and `--top` flags. A `top` of `0` means the built-in default, not every row as `--top 0` does |
+| `output.view`, `output.evidence`, `output.top` | the `--view`, `--evidence` and `--top` flags of `draugr scan`, and `--view` and `--top` of `draugr diff`. A `top` of `0` keeps the command's own default (a cap for `scan`, every row for `diff`), where `--top 0` lists every row |
 | `output.offerInstall` | whether a scan on a terminal [offers to install](#installing-a-missing-scanner) a missing scanner; unset means it does |
+| `output.tips` | whether a console scan prints its contextual tips and its [progress display](#while-a-scan-is-running); `false` is `--no-tips`, and unset means it prints them |
+| `scan.jobs` | the `--jobs` flag of `draugr scan`. `0` is one job per CPU, the built-in default, and replaces a less specific file's cap |
+| `log.level`, `log.format` | the `--log-level` and `--log-format` flags of every command |
+| `offline` | the `--offline` flag of every command |
 | `publish.apiUrl` | where the `draugr-api` publisher posts when `DRAUGR_API_URL` is unset. In a project's `./draugr.config.yaml` it is held to the rule for a descriptor's `url:`, used only on an allowed origin |
 
 A flag typed on the command line always wins over the file. See [caching &
@@ -1930,14 +1971,25 @@ when the file is read; a file holding both is merged key by key, with
 Discovered files are layered, project over home. An explicit one replaces both. The project file is
 read from the working directory only; run anywhere else, `show` names the directory it searched.
 
-A more specific file's value replaces a less specific file's, `false` and `0s` included.
-`cache.readOnly` and `cache.requireDigest` only turn on across files, so a project's `false` does not
-turn off the home file's `true`. `show` lists that `false` under **Overridden**, and `set` reports
-it when it writes one.
+A more specific file's value replaces a less specific file's, `false` and `0s` included, except
+for the settings that [only turn on across files](../guides/configuration.md#where-it-is-read-from).
+`show` lists a `false` one of those outranks under **Overridden**, and `set` reports it when it
+writes one.
 
 For `draugr scan`, `doctor`, `tools install` and the `scan` and `check_tools` tools of
 [`draugr mcp`](#draugr-mcp), the full order is **component → descriptor → config → built-in**,
 deep-merged, so an override replaces only the keys it names.
+
+A `log.level` or `log.format` the flag would refuse makes `config validate` and every command that
+reads the configuration refuse the file and name the key. A command that declines to fetch under
+`offline` names the file that set it.
+
+```console
+$ draugr --config machine.yaml self-update --check
+draugr: self-update needs the network; ./machine.yaml sets offline: true
+
+it would have fetched https://github.com/draugr-dev/draugr/releases/latest
+```
 
 ### Commands
 

@@ -21,6 +21,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/tools"
 
 	"github.com/draugr-dev/draugr/internal/english"
+	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
@@ -704,10 +705,8 @@ func wantedVersions(args []string, flag string) (map[string]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		for name, t := range res.File.Tools {
-			if t.Version != "" {
-				wanted[name] = t.Version
-			}
+		for name, p := range toolPins(res) {
+			wanted[name] = p.Version
 		}
 	}
 	if flag == "" {
@@ -719,4 +718,46 @@ func wantedVersions(args []string, flag string) (map[string]string, error) {
 	}
 	wanted[args[0]] = flag
 	return wanted, nil
+}
+
+// toolPin is one tools.<name>.version in effect, and the file it came from.
+type toolPin struct {
+	Version string
+	// Path is the file that set it: the most specific one, the file `config show` names for it.
+	Path string
+}
+
+// toolPins lists the pins in effect by tool name. `tools install` installs these and `doctor`
+// holds an installed tool to them, so the two read one answer.
+//
+// The value is the merged one, and the file is the most specific source holding that value, the
+// rule `config show` applies to every key.
+func toolPins(res config.Resolved) map[string]toolPin {
+	out := map[string]toolPin{}
+	for name, t := range res.File.Tools {
+		if t.Version == "" {
+			continue
+		}
+		pin := toolPin{Version: t.Version}
+		for _, s := range res.Sources {
+			if s.File.Tools[name].Version == t.Version {
+				pin.Path = s.Path
+			}
+		}
+		out[name] = pin
+	}
+	return out
+}
+
+// configuredToolPins reads the pins in effect for a command run from the working directory.
+func configuredToolPins() (map[string]toolPin, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	res, err := loadConfig(wd)
+	if err != nil {
+		return nil, err
+	}
+	return toolPins(res), nil
 }
