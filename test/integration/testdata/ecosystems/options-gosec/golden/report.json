@@ -304,6 +304,11 @@
     ]
   },
   "draugr": "<cleared>",
+  "effects": {
+    "allowed": [],
+    "declared": [],
+    "used": []
+  },
   "gate": {
     "failOnPriority": "P1"
   },
