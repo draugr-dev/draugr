@@ -18,15 +18,15 @@ _Nothing yet._
 
 - **`draugr.config.yaml` takes `controls:`, the name a descriptor uses.** `draugr config set controls.sast…` works, `config init` writes `controls:`, and `show` and every error name the section `controls`. `controllers:` still loads and is folded into `controls`, merged key by key where a file has both.
 
-- **Publishers that stand aside for one reason are logged once.** A local run of a descriptor with a `github` publisher and three `github-issue` entries prints one `publishers skipped` record naming each kind with its count, `kinds.github=1 kinds.github-issue=3`, in place of four. `--log-format json` carries `kinds` as an object of kind to count.
+- **A run logs one `publishers skipped` record per reason.** It lists each kind it skipped with a count, such as `kinds.github=1 kinds.github-issue=3`, and `--log-format json` carries `kinds` as an object of kind to count.
 
 ### Fixed
 
 - **`draugr config set` writes lists and mappings.** A value starting with `[` or `{` is written as YAML, so `'[library]'` sets a list option instead of being refused as a string. The first key set into an empty `{}`, as in the file `config init` writes, is written as a block mapping.
 
-- **`draugr config show` lists the files `--config` or `DRAUGR_CONFIG` skips**, names each file relative to the working directory or under `~` rather than by its full path, and prints a duration as the file writes it, `12h` rather than `12h0m0s`.
+- **`draugr config show` lists the discovered files that `--config` or `DRAUGR_CONFIG` leaves unread.** It names each file relative to the working directory or under `~`, and prints a duration as written in the file, such as `12h`.
 
-- **`draugr config unset` refuses a key the file does not set.** It names the file and writes nothing, where it used to create an empty `draugr.config.yaml` that `config init` then refused to replace. A misspelled key is reported as a setting Draugr does not have.
+- **`draugr config unset` refuses a key the file does not set.** It names the file and writes nothing, so no empty `draugr.config.yaml` is left behind for `config init` to refuse. A misspelled key is reported as a setting Draugr does not have.
 
 - **`draugr feeds status --saga` and `feeds update --saga` apply the descriptor's `config.exploitability.maxAge`**, so a copy is stale and refetched at the age a scan of that descriptor uses with `auto`. Both commands end with the limit they applied and where it came from.
 
@@ -34,15 +34,15 @@ _Nothing yet._
 
 - **`draugr explain --help` lists every report `-r` falls back to**, `.draugr-out/results.sarif` included.
 
-- **`draugr validate --help` describes fragments**: how a descriptor's fragments are merged before it is checked, and how a fragment file is checked on its own.
+- **`draugr validate --help` describes how a descriptor's fragments are merged before it is checked**, and how a fragment file is checked on its own.
 
 - **The HTML report reads on a phone.** At phone widths, the labels under each finding and action, the priority and severity chips, the column headings and the page-size buttons are at least 12px. Rule links, row disclosures and finding counts are at least 24px tall to tap. The desktop layout is unchanged.
 
-- **`draugr diff --min-priority` refuses a band outside P1 to P4**, as `--fail-on` refuses one, and accepts a lowercase band. `draugr scan --artifact-min-priority` refuses one too, instead of recording a band that narrowed nothing.
+- **`draugr diff --min-priority` refuses a band outside P1 to P4**, as `--fail-on` refuses one, and accepts a lowercase band. `draugr scan --artifact-min-priority` refuses one too.
 
-- **A scan on a terminal keeps the command you typed on screen.** The progress display used to erase one line more than it drew when the scan finished, so the report started where the command had been.
+- **A scan on a terminal keeps the command you typed on screen.** When the scan finishes, the progress display clears only the lines it drew, so the report starts below your command.
 
-- **The run row states the age of a cache entry under 30 seconds old**, as `oldest 12s` or `oldest 412ms` in place of `oldest 0s`.
+- **The run row shows the age of a cache entry under 30 seconds old**, such as `oldest 12s` or `oldest 412ms`.
 
 ## [0.159.0] - 2026-10-29
 
