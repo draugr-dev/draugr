@@ -1980,8 +1980,8 @@ For `draugr scan`, `doctor`, `tools install` and the `scan` and `check_tools` to
 [`draugr mcp`](#draugr-mcp), the full order is **component → descriptor → config → built-in**,
 deep-merged, so an override replaces only the keys it names.
 
-A `log.level` or `log.format` the flag would refuse makes `config validate` and every command that
-reads the configuration refuse the file and name the key. A command that declines to fetch under
+`log.level` and `log.format` take the lowercase values the flags list. Any other value makes
+`config validate` and every command that reads the configuration refuse the file and name the key. A command that declines to fetch under
 `offline` names the file that set it.
 
 ```console

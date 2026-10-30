@@ -844,6 +844,37 @@
       "$ref": "#/$defs/controllers",
       "description": "Default settings for each control, merged underneath a descriptor's `config.controls`, so a project overrides only the keys it names. The same shape as `config.controls` in a Saga."
     },
+    "log": {
+      "additionalProperties": false,
+      "description": "What Draugr logs, and in which format.",
+      "properties": {
+        "format": {
+          "description": "How log records are written. Overridden by `--log-format`.",
+          "enum": [
+            "console",
+            "json",
+            "text"
+          ],
+          "type": "string"
+        },
+        "level": {
+          "description": "The least severe level logged. Overridden by `--log-level`.",
+          "enum": [
+            "trace",
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "offline": {
+      "description": "Make no network calls: optional fetches are skipped, and commands that exist to download refuse. A more specific file's `false` does not turn it off. Overridden by `--offline` and `$DRAUGR_OFFLINE`.",
+      "type": "boolean"
+    },
     "output": {
       "additionalProperties": false,
       "description": "How a console report is rendered. A flag on the command line overrides each setting.",
@@ -856,8 +887,12 @@
           "description": "Whether `draugr scan` on a terminal offers to install the scanners it is missing. Unset means it offers.",
           "type": "boolean"
         },
+        "tips": {
+          "description": "Whether a console scan prints its contextual tips and its progress line. Unset means it prints them. Overridden by `--no-tips` and `$DRAUGR_NO_TIPS`.",
+          "type": "boolean"
+        },
         "top": {
-          "description": "How many rows the fix list shows. `0` means the built-in default rather than every row. Overridden by `--top`.",
+          "description": "How many rows a console report lists. `0` keeps the command's own default, a cap for `scan` and every row for `diff`. Overridden by `--top`.",
           "minimum": 0,
           "type": "integer"
         },
@@ -893,6 +928,18 @@
             "number",
             "boolean"
           ]
+        }
+      },
+      "type": "object"
+    },
+    "scan": {
+      "additionalProperties": false,
+      "description": "How a scan runs on this machine.",
+      "properties": {
+        "jobs": {
+          "description": "How many scan jobs run at once. `0` means one per CPU. Overridden by `--jobs`.",
+          "minimum": 0,
+          "type": "integer"
         }
       },
       "type": "object"

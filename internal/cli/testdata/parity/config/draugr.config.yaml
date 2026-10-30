@@ -37,3 +37,10 @@ output:
   evidence: true
   top: 20
   offerInstall: false
+  tips: false
+scan:
+  jobs: 4
+log:
+  level: info
+  format: json
+offline: false

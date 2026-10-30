@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/feeds"
@@ -177,10 +178,12 @@ func valueProblems(f config.File) []string {
 	if j := f.Scan.Jobs; j != nil && *j < 0 {
 		out = append(out, fmt.Sprintf("scan.jobs: expected a whole number of 0 or more, got %d", *j))
 	}
-	if l := f.Log.Level; l != "" && !observability.ValidLevel(l) {
+	// Exact spellings, as output.view takes, so the file reads as the schema completes it. The flags
+	// stay lenient about case, which a command line is typed by hand to want.
+	if l := f.Log.Level; l != "" && !slices.Contains(observability.Levels, l) {
 		out = append(out, notOneOf("log.level", l, observability.Levels))
 	}
-	if fm := f.Log.Format; fm != "" && !observability.ValidFormat(fm) {
+	if fm := f.Log.Format; fm != "" && !slices.Contains(observability.Formats, fm) {
 		out = append(out, notOneOf("log.format", fm, observability.Formats))
 	}
 	return out
@@ -192,6 +195,9 @@ func notOneOf(key, value string, valid []string) string {
 	msg := fmt.Sprintf("%s: %q is not %s", key, value, list(valid))
 	known := make(map[string]bool, len(valid))
 	for _, v := range valid {
+		if strings.EqualFold(v, value) {
+			return msg + fmt.Sprintf(", did you mean %q?", v)
+		}
 		known[v] = true
 	}
 	if near := nearestName(value, known); near != "" {

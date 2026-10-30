@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/observability"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/report"
@@ -23,6 +24,15 @@ const durationPattern = `^\+?(0|(([0-9]+(\.[0-9]*)?|\.[0-9]+)(ns|us|µs|μs|ms|s
 // boolean, and the decoder keeps the text of either in a string field, so a version written
 // unquoted loads.
 func freeText() map[string]any { return map[string]any{"type": []any{"string", "number", "boolean"}} }
+
+// stringsAny is values as the []any a schema's enum holds.
+func stringsAny(values []string) []any {
+	out := make([]any, len(values))
+	for i, v := range values {
+		out[i] = v
+	}
+	return out
+}
 
 // configFields describes every key of draugr.config.yaml by its dotted path, `*` standing for a
 // tool name. Each entry is laid over the shape read from the Go type, so it carries the
@@ -93,13 +103,42 @@ func configFields() map[string]map[string]any {
 				"against, the scanned revision, and what the run cost. Overridden by `--evidence`.",
 		},
 		"output.top": {
-			"description": "How many rows the fix list shows. `0` means the built-in default rather than every " +
-				"row. Overridden by `--top`.",
+			"description": "How many rows a console report lists. `0` keeps the command's own default, a cap for " +
+				"`scan` and every row for `diff`. Overridden by `--top`.",
 			"minimum": 0,
 		},
 		"output.offerInstall": {
 			"description": "Whether `draugr scan` on a terminal offers to install the scanners it is missing. " +
 				"Unset means it offers.",
+		},
+		"output.tips": {
+			"description": "Whether a console scan prints its contextual tips and its progress line. Unset means " +
+				"it prints them. Overridden by `--no-tips` and `$DRAUGR_NO_TIPS`.",
+		},
+		"scan": {
+			"description": "How a scan runs on this machine.",
+		},
+		"scan.jobs": {
+			"description": "How many scan jobs run at once. `0` means one per CPU. Overridden by `--jobs`.",
+			"minimum":     0,
+		},
+		"log": {
+			"description": "What Draugr logs, and in which format.",
+		},
+		"log.level": {
+			"description": "The least severe level logged. Overridden by `--log-level`.",
+			"type":        "string",
+			"enum":        stringsAny(observability.Levels),
+		},
+		"log.format": {
+			"description": "How log records are written. Overridden by `--log-format`.",
+			"type":        "string",
+			"enum":        stringsAny(observability.Formats),
+		},
+		"offline": {
+			"description": "Make no network calls: optional fetches are skipped, and commands that exist to " +
+				"download refuse. A more specific file's `false` does not turn it off. Overridden by " +
+				"`--offline` and `$DRAUGR_OFFLINE`.",
 		},
 	}
 }
