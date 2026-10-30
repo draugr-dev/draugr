@@ -1973,7 +1973,10 @@ func applyVEX(controls map[string]plugin.ControlResult, set vex.Set, covered fun
 		}
 		var claims []vex.Claim
 		for _, r := range set.For(component) {
-			claims = append(claims, r.Document.Claims(r.Provenance.Location)...)
+			for _, c := range r.Document.Claims(r.Provenance.Location) {
+				c.Digest = r.Provenance.Digest
+				claims = append(claims, c)
+			}
 		}
 		ix := vex.NewIndex(claims)
 		indexes[component] = ix
@@ -2018,6 +2021,8 @@ func applyVEX(controls map[string]plugin.ControlResult, set vex.Set, covered fun
 				Author:           claim.Author,
 				Asserted:         claim.Timestamp,
 				Source:           claim.Source,
+				StatementID:      claim.StatementID,
+				Digest:           claim.Digest,
 				VEXStatus:        claim.Status,
 				VEXJustification: claim.Justification,
 			}

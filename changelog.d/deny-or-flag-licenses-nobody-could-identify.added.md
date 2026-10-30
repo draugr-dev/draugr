@@ -1,0 +1,1 @@
+- **Deny or flag licenses nobody could identify.** `deny` and `warn` in the licenses control accept `unknown`, which selects every license the scanner could not identify. Such a finding's message quotes the text the scanner found.
