@@ -92,18 +92,21 @@ fields.
 ## Reading and editing it
 
 ```bash
+draugr config keys          # every key, what it accepts and its default
 draugr config show          # every setting in effect, and which file each came from
 draugr config get cache.dir # one value, as resolved
 draugr config set cache.ttl 12h
 draugr config set controls.sca.trivyFs.pkgTypes '[library]'
 draugr config unset cache.ttl
+draugr config edit          # the file in an editor; a save that adds a problem is not written
 ```
 
 `show` reports provenance rather than just values, which is the question you actually have when a
 scan behaves unexpectedly on one machine, and it lists a discovered file that `--config` or
 `DRAUGR_CONFIG` skips. `set` edits the file in place and keeps it valid, preserving the comments you
 wrote around the setting. A value starting with `[` or `{` is written as a YAML list or mapping, and
-any other value as one string, number or boolean.
+any other value as one string, number or boolean. `edit` holds a save to the same check, and reopens
+the editor with the problems when a save adds one.
 
 The file is held to the checks `draugr validate` makes of a descriptor. `set`, `validate` and every
 command that reads the file, `scan` included, refuse a control or scanner this build does not

@@ -1,0 +1,1 @@
+- **`draugr config edit` opens the config file in your editor.** A save that would add a problem is not written, and the editor reopens with the problems as comments at the top, which the next save removes. Saving it unchanged, or empty, cancels. With no file yet, it opens the starter `draugr config init` writes.

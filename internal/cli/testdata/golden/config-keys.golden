@@ -1,0 +1,35 @@
+Key                   Accepts                                      Default
+cache.dir             a directory                                  none, caching off
+cache.readOnly        true or false                                false
+cache.requireDigest   true or false                                false
+cache.ttl             a duration such as 12h; 0s, no expiry        24h
+log.format            console, json or text                        console
+log.level             trace, debug, info, warn or error            info
+offline               true or false                                false
+output.evidence       true or false                                false
+output.offerInstall   true or false                                true
+output.tips           true or false                                true
+output.top            a whole number of 0 or more                  10 for scan, every row for diff
+output.view           findings, actions or compact                 findings
+publish.apiUrl        a URL                                        none
+scan.jobs             a whole number of 0 or more; 0, one per CPU  0
+tools.<tool>.version  a release, such as 0.69.3                    Draugr's pin
+
+Tools: cosign, gitleaks, gosec, govulncheck, grype, kube-bench, notation,
+nuclei, retire, semgrep, syft, trivy.
+
+Controls, each a block of its own:
+  controls.cloud       prowler
+  controls.dast        nuclei
+  controls.headers     draugrHeaders
+  controls.iac         trivyConfig
+  controls.images      trivy, grype*
+  controls.kubernetes  draugrK8sPolicies, kubeBench*, kubeBenchJob*
+  controls.licenses    trivyLicense, mendLicenses*
+  controls.provenance  cosign, notation
+  controls.sast        semgrep, gosec*
+  controls.sca         trivyFs, grypeFs*, mendSca*, retirejs*
+  controls.secrets     gitleaks
+  controls.threats     urlhaus, virustotal*
+  controls.tls         draugrTls
+* opt-in. `draugr config keys controls.<control>` lists one control's keys.

@@ -82,7 +82,7 @@ func TestConfigValidateRefusesABadMachineValueInEitherFile(t *testing.T) {
 		}
 	}
 	// Every problem is a value, and each line already says what the key takes.
-	if strings.Contains(out, config.KeysURL) {
+	if strings.Contains(out, config.KeysHint) {
 		t.Errorf("the list of keys was offered for values, not keys:\n%s", out)
 	}
 }

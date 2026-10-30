@@ -23,7 +23,7 @@ func TestParseRejectsUnknownKeys(t *testing.T) {
 	}
 	// The error names the key in the file's terms, the nearest real one, and where every key is
 	// listed. Not a Go type, and not `config init --force`, which discards the whole file.
-	for _, want := range []string{`x.yaml:`, `"toolz" is not a setting Draugr has, did you mean "tools"?`, KeysURL} {
+	for _, want := range []string{`x.yaml:`, `"toolz" is not a setting Draugr has, did you mean "tools"?`, KeysHint} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error lacks %q: %v", want, err)
 		}

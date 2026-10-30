@@ -81,10 +81,11 @@ func newConfigCommand() *cobra.Command {
 			"  ./draugr.config.yaml    this project, read from the working directory only\n" +
 			"--config <path> or " + config.EnvVar + " names one file, read alone in place of both.\n\n" +
 			"`draugr config show` prints the settings in effect and the file each came from.\n" +
-			"Every key is listed at " + config.KeysURL,
+			"`draugr config keys` lists every key, what it accepts and its default.",
 	}
 	cmd.AddCommand(newConfigShowCommand(), newConfigGetCommand(), newConfigSetCommand(),
-		newConfigUnsetCommand(), newConfigInitCommand(), newConfigValidateCommand())
+		newConfigUnsetCommand(), newConfigInitCommand(), newConfigValidateCommand(),
+		newConfigKeysCommand(), newConfigEditCommand())
 	return cmd
 }
 
@@ -438,10 +439,9 @@ func newConfigGetCommand() *cobra.Command {
 	}
 }
 
-// unknownSetting is the error for a dotted key the file cannot hold.
+// unknownSetting is the error for a dotted key the file cannot hold, with the nearest one it can.
 func unknownSetting(key string) error {
-	return fmt.Errorf("%q is not a setting Draugr has. `draugr config show` lists "+
-		"what is set; every key is listed at %s", key, config.KeysURL)
+	return unknownKey(key, newKeyCatalog(builtins.Registry()))
 }
 
 func newConfigSetCommand() *cobra.Command {
@@ -537,6 +537,12 @@ func editConfig(w io.Writer, global bool, apply func([]byte) ([]byte, error)) er
 	if err != nil {
 		return err
 	}
+	return writeEdit(w, path, apply)
+}
+
+// writeEdit applies an edit to the file at path, writes it back unless the check refuses it, and
+// says which file it wrote and how many problems it still has.
+func writeEdit(w io.Writer, path string, apply func([]byte) ([]byte, error)) error {
 	if err := editConfigAt(path, apply); err != nil {
 		return err
 	}
@@ -569,12 +575,7 @@ func editConfigAt(path string, apply func([]byte) ([]byte, error)) error {
 	if _, after := parseConfig(reg, path, out); after != nil {
 		_, before := parseConfig(reg, path, doc)
 		if added := addedProblems(before, after); len(added) > 0 {
-			msg := "that edit would add a problem to the file, so nothing was written:\n  " +
-				strings.Join(added, "\n  ")
-			if h := problemHint(after); h != "" {
-				msg += "\n\n" + h
-			}
-			return errors.New(msg)
+			return &editRefused{added: added, hint: problemHint(after)}
 		}
 	}
 
@@ -582,6 +583,25 @@ func editConfigAt(path string, apply func([]byte) ([]byte, error)) error {
 		return err
 	}
 	return os.WriteFile(path, out, 0o600)
+}
+
+// refusedLead introduces the problems an edit would add, in the terminal for `set` and `unset` and
+// at the top of the file `edit` reopens.
+const refusedLead = "that edit would add a problem to the file, so nothing was written:"
+
+// editRefused is an edit the check refused, naming each problem it would add.
+type editRefused struct {
+	added []string
+	// hint is where to look next, or "" when the problems already say it.
+	hint string
+}
+
+func (e *editRefused) Error() string {
+	msg := refusedLead + "\n  " + strings.Join(e.added, "\n  ")
+	if e.hint != "" {
+		msg += "\n\n" + e.hint
+	}
+	return msg
 }
 
 // addedProblems lists the problems after reports that before does not. An error that is not a

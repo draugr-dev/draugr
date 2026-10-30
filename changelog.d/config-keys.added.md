@@ -1,0 +1,1 @@
+- **`draugr config keys` lists every key `draugr.config.yaml` takes, with what each accepts and its default.** Each control is one line naming its scanners' keys. `draugr config keys controls.sca` lists one control's keys, and `--all` lists every key on a line of its own. A mistyped key in `config get`, `set` or `unset` names the nearest real one.

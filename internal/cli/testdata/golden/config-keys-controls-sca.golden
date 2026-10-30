@@ -1,0 +1,17 @@
+Key                                     Accepts                               Default
+controls.sca.enabled                    true or false                         true when anything under controls.sca is set
+controls.sca.trivyFs.enabled            true or false                         true
+controls.sca.trivyFs.dbRepository       a list                                -
+controls.sca.trivyFs.detectionPriority  precise or comprehensive              precise
+controls.sca.trivyFs.filePatterns       a list                                -
+controls.sca.trivyFs.includeDevDeps     true or false                         false
+controls.sca.trivyFs.pkgTypes           a list of os, library                 os, library
+controls.sca.grypeFs.enabled            true or false                         false
+controls.sca.grypeFs.byCve              true or false                         true
+controls.sca.mendSca.enabled            true or false                         false
+controls.sca.mendSca.productToken       a string, required                    -
+controls.sca.mendSca.project            a string                              -
+controls.sca.mendSca.resultTimeout      a duration such as 90s, 15m or 1h30m  10m
+controls.sca.mendSca.settings           a mapping                             -
+controls.sca.retirejs.enabled           true or false                         false
+- no default of its own. `draugr controls sca --options` says what each option does.

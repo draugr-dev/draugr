@@ -16,8 +16,9 @@ import (
 // KeysURL is where every key of the file is documented.
 const KeysURL = "https://draugr.dev/docs/latest/reference/cli/#draugr-config"
 
-// KeysHint closes a report of a key or value the file cannot hold.
-const KeysHint = "every key is listed at " + KeysURL
+// KeysHint closes a report of a key the file cannot hold, naming the command that lists every key
+// this build has.
+const KeysHint = "`draugr config keys` lists every key"
 
 // Problems is every reason one configuration file cannot be used, each naming the key it is about.
 type Problems struct {
