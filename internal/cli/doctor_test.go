@@ -553,8 +553,12 @@ func TestUntestedVersionOnlySpeaksWhenItHasSomethingToSay(t *testing.T) {
 		}, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := untestedVersion(tc.st); got != tc.want {
-				t.Errorf("untestedVersion = %q, want %q", got, tc.want)
+			got := ""
+			if target := versionTargetFor(tc.st.Tool.Binary, nil); offTarget(tc.st, target) {
+				got = target.version
+			}
+			if got != tc.want {
+				t.Errorf("off target = %q, want %q", got, tc.want)
 			}
 		})
 	}
@@ -565,19 +569,17 @@ func TestUntestedVersionOnlySpeaksWhenItHasSomethingToSay(t *testing.T) {
 func TestTheTableNamesTheTestedVersionAndCountsThemOnce(t *testing.T) {
 	pinned := tools.PinnedVersion("trivy")
 	var buf bytes.Buffer
-	writeDoctorTable(&buf, []tools.Status{toolAt("trivy", "0.1.0"), toolAt("git", "2.55.0")})
+	writeDoctorTable(&buf, []tools.Status{toolAt("trivy", "0.1.0"), toolAt("git", "2.55.0")}, nil)
 	out := buf.String()
 	if !strings.Contains(out, "tested against "+pinned) {
 		t.Errorf("the row does not name the version Draugr tests:\n%s", out)
 	}
-	if !strings.Contains(out, "1 installed tool is not the version Draugr tests") {
+	if !strings.Contains(out, "1 installed tool is not the version Draugr tests. "+
+		"`draugr tools install --force` installs the tested build.") {
 		t.Errorf("the count is missing or does not agree with itself:\n%s", out)
 	}
-	if got := untestedPhrase(4); got != "4 installed tools are not the version Draugr tests" {
+	if got := offTargetPhrase(4, 0); got != "4 installed tools are not the version Draugr tests" {
 		t.Errorf("plural = %q", got)
-	}
-	if !strings.Contains(out, "tools install --force") {
-		t.Errorf("the line says there is a problem and not what closes it:\n%s", out)
 	}
 }
 
@@ -585,7 +587,7 @@ func TestTheTableNamesTheTestedVersionAndCountsThemOnce(t *testing.T) {
 // told about it.
 func TestTheTableIsSilentWhenEveryToolMatches(t *testing.T) {
 	var buf bytes.Buffer
-	writeDoctorTable(&buf, []tools.Status{toolAt("trivy", tools.PinnedVersion("trivy"))})
+	writeDoctorTable(&buf, []tools.Status{toolAt("trivy", tools.PinnedVersion("trivy"))}, nil)
 	if strings.Contains(buf.String(), "not the version") {
 		t.Errorf("a machine running the tested build was warned:\n%s", buf.String())
 	}

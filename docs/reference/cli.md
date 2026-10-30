@@ -1317,6 +1317,21 @@ trivy        ✓ found    0.69.3   /usr/bin/trivy · tested against 0.74.0
 The line is a note, not a failure, unless `--strict` is given. An older scanner can find fewer
 things than the tested build.
 
+A tool pinned with [`tools.<name>.version`](#draugr-config) is held to its pin instead, the build
+`draugr tools install` fetches for it. Its row names the pin and the file that sets it, whether or
+not the tool matches, and the line under the table counts the two kinds apart:
+
+```console
+$ draugr doctor --config pin.yaml --offline
+…
+semgrep      ✓ found    1.177.0  /home/wilson/.draugr/bin/semgrep · pinned to 1.177.0 in ./pin.yaml
+syft         ✓ found    1.51.1   /home/wilson/.draugr/bin/syft · tested against 1.55.0
+trivy        ✓ found    0.74.0   /home/wilson/.draugr/bin/trivy · pinned to 0.69.3 in ./pin.yaml
+5 installed tools are not the version Draugr tests and 1 is not at its pinned version. `draugr tools install --force` installs the pinned build where there is a pin and the tested build otherwise.
+```
+
+`--strict` holds a pinned tool to its pin as well.
+
 ### Targets
 
 Given a descriptor, doctor plans the scan and checks each target the plan reads, with this machine's
@@ -1453,9 +1468,9 @@ The list is **reported, not failed**, unless `--fail-on-uncovered` is passed or
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--json` | `false` | Emit the report as JSON instead of tables. A tool not at its pin carries `testedVersion` |
+| `--json` | `false` | Emit the report as JSON instead of tables. A tool not at the version Draugr tests carries `testedVersion`; a tool not at its configured pin carries `pinnedVersion` and `pinnedIn`, the file that pins it, in its place |
 | `--fail-on-uncovered` | `false` | Exit non-zero when the descriptor declares a surface no enabled control looks at. Also the behavior when [`config.gate.failOnCaveats`](saga-schema.md#configgate) lists `not-checked` |
-| `--strict` | `false` | Exit non-zero when a tool is not the version Draugr tests, with or without a descriptor. With one, a missing tool's message comes first |
+| `--strict` | `false` | Exit non-zero when a tool is not at its pin in `draugr.config.yaml`, or with no pin not the version Draugr tests, with or without a descriptor. With one, a missing tool's message comes first |
 | `--policy` | `false` | Ask the `draugr-api` server for the organization's policy, sending the token. Exit non-zero when it could not be checked, as well as when a scan would be refused or fail by it |
 | `--offline` | `false` | Make no network call: skips the release check, the policy check, remote fragments and every target check that needs the network. `DRAUGR_NO_UPDATE_CHECK=1` skips only the release check |
 | `--components` | - | Check only the targets of these components |

@@ -1,0 +1,1 @@
+- **`draugr doctor` holds a pinned tool to its pin.** A tool pinned with `tools.<name>.version` in `draugr.config.yaml` is compared with the pinned version. Its row names the pin and the file that sets it, and the advice under the table names the build `draugr tools install --force` installs.

@@ -8,6 +8,7 @@ import (
 	"io"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -71,6 +72,9 @@ type doctorRun struct {
 	// data reads the state of the scanners' data. Set by the command; nil reads none, so a test
 	// asks no tool on the machine running it.
 	data func(context.Context, *engine.Registry, *saga.Model) []engine.ScannerData
+	// pins are the tools.<name>.version settings in effect, which a found tool is held to in place
+	// of the version Draugr tests. Set by the command; nil holds every tool to Draugr's own.
+	pins map[string]toolPin
 }
 
 func newDoctorCommand() *cobra.Command {
@@ -106,10 +110,16 @@ func newDoctorCommand() *cobra.Command {
 					return selfupdate.LatestVersion(ctx, nil)
 				}
 			}
+			// The pins `tools install` reads, so a tool is held to the build that command would put
+			// in its place.
+			pins, err := configuredToolPins()
+			if err != nil {
+				return err
+			}
 			run := doctorRun{
 				json: opts.json, failOnUncovered: opts.failOnUncovered, strict: opts.strict,
 				reach: true, offline: offline, requirePolicy: opts.requirePolicy,
-				data: doctorData,
+				data: doctorData, pins: pins,
 				scope: engine.Scope{
 					Components: opts.components, Controls: opts.controls, Labels: opts.labels,
 					Exposure: exposures(opts.exposure), Criticality: criticalities(opts.criticality),
@@ -120,7 +130,8 @@ func newDoctorCommand() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&opts.json, "json", false, "output results as JSON")
 	cmd.Flags().BoolVar(&opts.strict, "strict", false,
-		"also fail when a tool is not the version Draugr tests, not only when one is missing")
+		"also fail when a tool is not at its pin in draugr.config.yaml, or with no pin not the version "+
+			"Draugr tests, not only when one is missing")
 	cmd.Flags().BoolVar(&opts.failOnUncovered, "fail-on-uncovered", false,
 		"fail if the descriptor declares a surface no enabled control looks at (reported either way)")
 	// No --offline of its own. The root flag is the one that sets the network policy, and a local
@@ -178,7 +189,7 @@ func runDoctor(
 		}
 		if err != nil {
 			if run.json {
-				_ = writeDoctorJSON(w, dv, &descriptorReport{Path: sagaPath, Valid: false, Error: err.Error()}, nil, 0, nil, nil, nil, nil)
+				_ = writeDoctorJSON(w, dv, &descriptorReport{Path: sagaPath, Valid: false, Error: err.Error()}, nil, nil, 0, nil, nil, nil, nil)
 			} else {
 				col := tui.For(w)
 				// The reason is carried by the error, which the CLI prints. Written here too it
@@ -271,7 +282,7 @@ func runDoctor(
 		if sagaPath != "" {
 			desc = &descriptorReport{Path: sagaPath, Valid: true}
 		}
-		if err := writeDoctorJSON(w, dv, desc, statuses, missing, uncovered, checks, orgPolicy, data); err != nil {
+		if err := writeDoctorJSON(w, dv, desc, statuses, run.pins, missing, uncovered, checks, orgPolicy, data); err != nil {
 			return err
 		}
 	} else {
@@ -287,7 +298,7 @@ func runDoctor(
 		// No heading over an empty table. "No external tools required." closes the report and says
 		// it, and a bare header row above it reads as a list that failed to print.
 		if len(statuses) > 0 {
-			writeDoctorTable(w, statuses)
+			writeDoctorTable(w, statuses, run.pins)
 		}
 		writeDoctorData(w, data)
 		if len(checks) > 0 {
@@ -316,9 +327,9 @@ func runDoctor(
 		if !run.strict {
 			return nil
 		}
-		if n := untestedCount(statuses); n > 0 {
+		if tested, pinned := offTargetCounts(statuses, run.pins); tested+pinned > 0 {
 			return fmt.Errorf("%s; run `draugr tools install --force`, or drop --strict to accept %s",
-				untestedPhrase(n), english.Choose(n, "it", "them"))
+				offTargetPhrase(tested, pinned), english.Choose(tested+pinned, "it", "them"))
 		}
 		return nil
 	}
@@ -471,7 +482,7 @@ func writeTargetChecks(w io.Writer, checks []preflight.Check) {
 	t.Render(w)
 }
 
-func writeDoctorTable(w io.Writer, statuses []tools.Status) {
+func writeDoctorTable(w io.Writer, statuses []tools.Status, pins map[string]toolPin) {
 	col := tui.For(w)
 	// Named like every other block here. It was the one section with no heading, which made the
 	// two that had one read as asides to it rather than as its equals.
@@ -495,13 +506,20 @@ func writeDoctorTable(w io.Writer, statuses []tools.Status) {
 		case st.DataChecked && st.DataDetail != "":
 			notes = st.Path + " · " + st.DataDetail
 		}
-		// Found and runnable, and not the build Draugr's own suite ran against. In the row
-		// because this is where somebody looks up one tool, and counted below because a machine
-		// that has not reinstalled in a while has most of them and a mark on every row is not a
-		// mark. Never a failure: refusing to work would be Draugr mistaking "I have not tested
-		// this" for "this is wrong".
-		if pin := untestedVersion(st); pin != "" {
-			notes = fmt.Sprintf("%s · tested against %s", notes, pin)
+		// Found and runnable, and not the build an install would fetch. In the row because this is
+		// where somebody looks up one tool, and counted below because a machine that has not
+		// reinstalled in a while has most of them and a mark on every row is not a mark. Never a
+		// failure: refusing to work would be Draugr mistaking "I have not tested this" for "this is
+		// wrong".
+		//
+		// A configured pin is named on its row whether or not the tool matches it, because it is
+		// why the row is held to a version other than the one Draugr tests.
+		target := versionTargetFor(st.Tool.Binary, pins)
+		switch {
+		case target.pin != nil:
+			notes = fmt.Sprintf("%s · pinned to %s in %s", notes, target.pin.Version, herePath(target.pin.Path))
+		case offTarget(st, target):
+			notes = fmt.Sprintf("%s · tested against %s", notes, target.version)
 		}
 		if version == "" {
 			version = "-"
@@ -519,46 +537,92 @@ func writeDoctorTable(w io.Writer, statuses []tools.Status) {
 	// quietly finds fewer things is the failure a security tool must not have, so this says the
 	// count and the command that closes it rather than leaving a reader to compare two columns
 	// fourteen times.
-	if n := untestedCount(statuses); n > 0 {
+	if tested, pinned := offTargetCounts(statuses, pins); tested+pinned > 0 {
 		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(tui.StyleAccent, fmt.Sprintf(
-			"%s. `draugr tools install --force` installs the tested build.", untestedPhrase(n))))
+			"%s. `draugr tools install --force` %s.", offTargetPhrase(tested, pinned), forceInstalls(tested, pinned))))
 	}
 }
 
-// untestedPhrase counts the found tools running another version than the pinned one. "Installed"
-// keeps the count apart from the count of tools that are not installed, which an inventory prints
-// beside it.
-func untestedPhrase(n int) string {
-	return english.Count(n, "installed tool") + " " + english.Choose(n, "is", "are") +
-		" not the version Draugr tests"
+// versionTarget is the version doctor holds a found tool to: the one `draugr tools install`
+// fetches for it.
+type versionTarget struct {
+	// version is without a leading v, and "" when there is nothing to compare against.
+	version string
+	// pin is the configured pin the version comes from, or nil for the version Draugr tests.
+	pin *toolPin
 }
 
-// untestedCount is how many found tools are running something other than the pinned version.
-func untestedCount(statuses []tools.Status) int {
-	n := 0
-	for _, st := range statuses {
-		if untestedVersion(st) != "" {
-			n++
+// versionTargetFor resolves the version an install of binary fetches: its pin in
+// draugr.config.yaml, resolved as `tools install` resolves it, or else the version Draugr tests.
+func versionTargetFor(binary string, pins map[string]toolPin) versionTarget {
+	if p, ok := pins[binary]; ok {
+		v, ok := tools.PlannedVersion(binary, p.Version)
+		if !ok {
+			v = p.Version
 		}
+		return versionTarget{version: strings.TrimPrefix(strings.TrimSpace(v), "v"), pin: &p}
 	}
-	return n
+	return versionTarget{version: strings.TrimPrefix(tools.PinnedVersion(binary), "v")}
 }
 
-// untestedVersion returns the version Draugr pins when a found tool is not running it, and ""
-// when it matches, when there is no pin, or when the version could not be read.
+// offTarget reports whether a found tool runs another version than its target. False when it
+// matches, when there is no target, or when the version could not be read.
 //
 // String equality after dropping a leading v. Not an ordering: "older than tested" and "newer than
 // tested" are both untested, and a comparison that ranked them would have to decide what a version
 // scheme means for eight tools that do not share one.
-func untestedVersion(st tools.Status) string {
-	if !st.Found || st.Err != nil || st.Version == "" {
-		return ""
+func offTarget(st tools.Status, target versionTarget) bool {
+	if !st.Found || st.Err != nil || st.Version == "" || target.version == "" {
+		return false
 	}
-	pin := strings.TrimPrefix(tools.PinnedVersion(st.Tool.Binary), "v")
-	if pin == "" || pin == strings.TrimPrefix(st.Version, "v") {
-		return ""
+	return target.version != strings.TrimPrefix(st.Version, "v")
+}
+
+// offTargetCounts counts the found tools off their target: tested is those held to the version
+// Draugr tests, pinned those held to a configured pin.
+func offTargetCounts(statuses []tools.Status, pins map[string]toolPin) (tested, pinned int) {
+	for _, st := range statuses {
+		target := versionTargetFor(st.Tool.Binary, pins)
+		switch {
+		case !offTarget(st, target):
+		case target.pin != nil:
+			pinned++
+		default:
+			tested++
+		}
 	}
-	return pin
+	return tested, pinned
+}
+
+// offTargetPhrase counts the found tools off their target. "Installed" keeps the count apart from
+// the count of tools that are not installed, which an inventory prints beside it.
+func offTargetPhrase(tested, pinned int) string {
+	var parts []string
+	if tested > 0 {
+		parts = append(parts, english.Count(tested, "installed tool")+" "+
+			english.Choose(tested, "is", "are")+" not the version Draugr tests")
+	}
+	if pinned > 0 {
+		subject := english.Count(pinned, "installed tool")
+		if tested > 0 {
+			subject = strconv.Itoa(pinned)
+		}
+		parts = append(parts, subject+" "+english.Choose(pinned, "is", "are")+" not at "+
+			english.Choose(pinned, "its pinned version", "their pinned versions"))
+	}
+	return strings.Join(parts, " and ")
+}
+
+// forceInstalls names what `draugr tools install --force` installs for the tools off their target.
+func forceInstalls(tested, pinned int) string {
+	switch {
+	case tested > 0 && pinned > 0:
+		return "installs the pinned build where there is a pin and the tested build otherwise"
+	case pinned > 0:
+		return "installs the pinned build"
+	default:
+		return "installs the tested build"
+	}
 }
 
 // doctorData is the state of the data each scanner in use reads, or every registered scanner's
@@ -655,18 +719,23 @@ type toolReport struct {
 	Version string `json:"version,omitempty"`
 	Path    string `json:"path,omitempty"`
 	Hint    string `json:"hint,omitempty"`
-	// TestedVersion is the version Draugr pins, present only when this tool is not running it.
-	// Absent means the two agree, or that there is no pin to compare against, and a consumer can
-	// treat its presence as the whole answer rather than comparing two strings itself.
+	// TestedVersion is the version Draugr pins, present only when this tool is not running it and
+	// draugr.config.yaml pins none. Absent means the two agree, or that there is no pin to compare
+	// against, and a consumer can treat its presence as the whole answer rather than comparing two
+	// strings itself.
 	TestedVersion string `json:"testedVersion,omitempty"`
+	// PinnedVersion is the version tools.<name>.version pins, present only when this tool is not
+	// running it, on the same terms as TestedVersion. PinnedIn is the file that pins it.
+	PinnedVersion string `json:"pinnedVersion,omitempty"`
+	PinnedIn      string `json:"pinnedIn,omitempty"`
 }
 
 // writeDoctorJSON writes the report. missing is the count the exit code is decided on, passed in
 // rather than recounted so the document and the exit code cannot disagree about one machine: a
 // tool with no data is missing, and an optional tool that is absent is not.
 func writeDoctorJSON(
-	w io.Writer, dv draugrReport, desc *descriptorReport, statuses []tools.Status, missing int,
-	uncovered []string, checks []preflight.Check, policy *skald.PolicyCheck, data []engine.ScannerData,
+	w io.Writer, dv draugrReport, desc *descriptorReport, statuses []tools.Status, pins map[string]toolPin,
+	missing int, uncovered []string, checks []preflight.Check, policy *skald.PolicyCheck, data []engine.ScannerData,
 ) error {
 	report := struct {
 		Draugr     draugrReport      `json:"draugr"`
@@ -691,9 +760,13 @@ func writeDoctorJSON(
 	}
 
 	for _, st := range statuses {
-		tr := toolReport{
-			Binary: st.Tool.Binary, Found: st.Found, Version: st.Version, Path: st.Path,
-			TestedVersion: untestedVersion(st),
+		tr := toolReport{Binary: st.Tool.Binary, Found: st.Found, Version: st.Version, Path: st.Path}
+		if target := versionTargetFor(st.Tool.Binary, pins); offTarget(st, target) {
+			if target.pin != nil {
+				tr.PinnedVersion, tr.PinnedIn = target.version, target.pin.Path
+			} else {
+				tr.TestedVersion = target.version
+			}
 		}
 		switch {
 		case !st.Found:
