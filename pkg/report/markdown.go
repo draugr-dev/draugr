@@ -75,11 +75,10 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		}
 		_, _ = fmt.Fprintln(w)
 		writeScanErrors(w, s)
-		writeNotMeasuredRows(w, d)
 	}
-	writeUnreadRows(w, d)
 
 	writeComponentTable(w, d)
+	writeCaveatRows(w, d)
 	writeEvidenceNotes(w, d)
 
 	if len(s.findings) == 0 {
@@ -141,25 +140,79 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 	return nil
 }
 
-// writeNotMeasuredRows names any scanner that was planned and then not run.
+// writeCaveatRows lists the run's caveats under each component, from the list the console's
+// CAVEATS block prints, so the two cannot disagree.
 //
-// Carried into markdown as well as the console because this is the format that gets pasted into a
-// pull request, where a reader is deciding whether the check passing means anything. A scanner
-// that quietly did not run is indistinguishable there from one that ran and found nothing.
-func writeNotMeasuredRows(w io.Writer, d Data) {
-	if len(d.Run.Skipped) == 0 {
+// Carried into markdown because this is the format pasted into a pull request, where a reader is
+// deciding whether the check passing means anything. A surface nothing looked at, a scanner that
+// did not run and a file nothing read are each indistinguishable there from one that was checked
+// and found clean. Every row, uncapped: the console caps its block for a terminal, and this is the
+// copy that is kept.
+func writeCaveatRows(w io.Writer, d Data) {
+	groups := caveatsByComponent(caveats(d))
+	if len(groups) == 0 {
 		return
 	}
-	_, _ = fmt.Fprintln(w, "**Not measured**")
-	_, _ = fmt.Fprintln(w)
-	for _, sk := range d.Run.Skipped {
-		where := sk.Scanner
-		if sk.Component != "" {
-			where += " on `" + sk.Component + "`"
+	failing := false
+	for _, g := range groups {
+		for _, c := range g.caveats {
+			failing = failing || c.fails(d)
 		}
-		_, _ = fmt.Fprintf(w, "- %s (%s) · %s\n", where, sk.Control, sk.Reason)
 	}
+	_, _ = fmt.Fprintln(w, "### Caveats")
 	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "Shortfalls in what the run covered, by component.")
+	_, _ = fmt.Fprintln(w)
+	switch {
+	case failing && d.AcceptedErrors:
+		_, _ = fmt.Fprintf(w, "✗ would fail the run, accepted by `--allow-scan-errors` · `%s`\n\n", caveatSetting(d))
+	case failing:
+		_, _ = fmt.Fprintf(w, "✗ fails the run · `%s`\n\n", caveatSetting(d))
+	default:
+		_, _ = fmt.Fprintln(w, "No caveat fails the run · `config.gate.failOnCaveats` lists the kinds that do")
+		_, _ = fmt.Fprintln(w)
+	}
+	verdicts := map[string]ComponentVerdict{}
+	for _, c := range d.Components {
+		verdicts[c.Name] = c
+	}
+	for _, g := range groups {
+		head := "_no component_"
+		if g.component != "" {
+			head = "**" + g.component + "**"
+		}
+		// The component's row from the table above, so its verdict and what the run did not cover
+		// are read together.
+		if c, ok := verdicts[g.component]; ok {
+			if class := classification(c.Exposure, c.Criticality); class != "" {
+				head += " · " + class
+			}
+			head += " · " + componentVerdictWord(c)
+		}
+		_, _ = fmt.Fprintln(w, head)
+		_, _ = fmt.Fprintln(w)
+		for _, c := range g.caveats {
+			kind := "`" + string(c.key) + "`"
+			if c.fails(d) {
+				kind = "✗ " + kind
+			}
+			_, _ = fmt.Fprintf(w, "- %s · `%s` · %s\n", kind, c.what, c.detail)
+		}
+		_, _ = fmt.Fprintln(w)
+	}
+}
+
+// componentVerdictWord is a component's verdict as the markdown Components table prints it. A
+// component with a target no scanner read, or a caveat the gate fails on, has not passed, whatever
+// it found in the rest, which is the console's rule.
+func componentVerdictWord(c ComponentVerdict) string {
+	switch {
+	case len(c.Unscanned) > 0 || len(c.FailedCaveats) > 0:
+		return "**ERROR**"
+	case c.Verdict == norn.Fail:
+		return "**FAIL**"
+	}
+	return "pass"
 }
 
 // writeScanErrors lists what stopped each control, under the Controls table.
@@ -342,23 +395,18 @@ func writeComponentTable(w io.Writer, d Data) {
 	_, _ = fmt.Fprintln(w, "| Component | Declared | Verdict | P1 | P2 | P3 | P4 | Failing controls |")
 	_, _ = fmt.Fprintln(w, "|---|---|---|---:|---:|---:|---:|---|")
 	for _, c := range d.Components {
-		v := "pass"
-		if c.Verdict == norn.Fail {
-			v = "**FAIL**"
-		}
-		// A component with a target no scanner read has not passed, whatever it found in the rest,
-		// which is the console's rule. A row of counts beside the word "pass" asserts something no
-		// scanner established, and a table is where that reads most like a result.
+		// A row of counts beside the word "pass" for a component with a target no scanner read
+		// asserts something no scanner established, and a table is where that reads most like a
+		// result. So it reads ERROR, and says what was missed.
+		v := componentVerdictWord(c)
 		var notes []string
 		if len(c.Controls) > 0 {
 			notes = append(notes, strings.Join(c.Controls, ", "))
 		}
 		if len(c.Unscanned) > 0 {
-			v = "**ERROR**"
 			notes = append(notes, unscannedDetail(c.Unscanned, c.Declared))
 		}
 		if len(c.FailedCaveats) > 0 {
-			v = "**ERROR**"
 			notes = append(notes, failedCaveatNote(c.FailedCaveats))
 		}
 		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %d | %d | %d | %d | %s |\n",

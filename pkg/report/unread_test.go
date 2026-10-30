@@ -72,18 +72,6 @@ func TestConsoleSaysNothingWhenEveryFileWasRead(t *testing.T) {
 	}
 }
 
-func TestUnreadCountsWhatItDoesNotName(t *testing.T) {
-	var unread []engine.UnreadInput
-	for _, p := range []string{"a/go.mod", "b/go.mod", "c/go.mod", "d/go.mod", "e/go.mod"} {
-		unread = append(unread, engine.UnreadInput{Repository: "r", Path: p, Reason: "no packages read"})
-	}
-	groups := unreadByComponent([]engine.InputCoverage{{Component: "api", Control: "sca", Unread: unread}}, nil)
-	got := groups[0].text(unreadShown, func(s string) string { return s })
-	if !strings.HasSuffix(got, "c/go.mod no packages read (sca) · +2") || strings.Contains(got, "d/go.mod") {
-		t.Errorf("text = %q, want three named and +2", got)
-	}
-}
-
 // --top 0 asks for everything, and a list it leaves capped would be the one place it was ignored.
 func TestConsoleNamesEveryUnreadFileUnderTopZero(t *testing.T) {
 	var unread []engine.UnreadInput
@@ -102,20 +90,25 @@ func TestConsoleNamesEveryUnreadFileUnderTopZero(t *testing.T) {
 	}
 }
 
+// Markdown lists every unread file, each once under its component, as the console does.
 func TestMarkdownNamesUnreadFiles(t *testing.T) {
 	d := goldenGroupedData()
 	d.Run.Inputs = unreadInputs()
 	out := renderWith(t, markdownReporter{}, d)
+	payments := section(t, out, "**payments**", "\n\n#")
 	for _, want := range []string{
-		"**Unread** · " + unreadNote,
-		"- `payments` · `app/pyproject.toml` no lockfile (licenses, sca) · `app/requirements-dev.txt` no packages read (licenses)",
+		"- `unread-files` · `app/pyproject.toml` · no lockfile (licenses, sca)",
+		"- `unread-files` · `app/requirements-dev.txt` · no packages read (licenses)",
 	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("markdown is missing %q:\n%s", want, out)
+		if !strings.Contains(payments, want) {
+			t.Errorf("markdown is missing %q under payments:\n%s", want, out)
 		}
 	}
+	if n := strings.Count(out, "app/pyproject.toml"); n != 1 {
+		t.Errorf("markdown names app/pyproject.toml %d times, want once:\n%s", n, out)
+	}
 	d.Run.Inputs = nil
-	if out := renderWith(t, markdownReporter{}, d); strings.Contains(out, "**Unread**") {
+	if out := renderWith(t, markdownReporter{}, d); strings.Contains(out, "### Caveats") {
 		t.Error("markdown printed the section with nothing unread")
 	}
 }
@@ -157,7 +150,7 @@ func TestUnreadNamesTheRepositoryWhereTheComponentScansTwo(t *testing.T) {
 		if out := renderWith(t, consoleReporter{}, d); !row.MatchString(out) {
 			t.Errorf("%s: console has no row labeling the file %q:\n%s", name, c.label, out)
 		}
-		md := "- `both` · `" + c.label + "` no packages read (sca)"
+		md := "- `unread-files` · `" + c.label + "` · no packages read (sca)"
 		if out := renderWith(t, markdownReporter{}, d); !strings.Contains(out, md) {
 			t.Errorf("%s: markdown is missing %q:\n%s", name, md, out)
 		}
