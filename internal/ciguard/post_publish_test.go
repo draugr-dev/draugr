@@ -76,17 +76,34 @@ func upstream(w nightlyWorkflow, name string) []string {
 type workflowShape struct {
 	On   any `yaml:"on"`
 	Jobs map[string]struct {
-		Uses    string `yaml:"uses"`
-		RunsOn  any    `yaml:"runs-on"`
-		Secrets any    `yaml:"secrets"`
+		Uses    string         `yaml:"uses"`
+		RunsOn  any            `yaml:"runs-on"`
+		Secrets any            `yaml:"secrets"`
+		Steps   []workflowStep `yaml:"steps"`
 	} `yaml:"jobs"`
 }
 
+// workflowStep is the part of a step the guards that read every file need.
+type workflowStep struct {
+	Name string         `yaml:"name"`
+	Uses string         `yaml:"uses"`
+	With map[string]any `yaml:"with"`
+}
+
+// readAllWorkflows reads every workflow file, keyed by file name. GitHub runs both extensions, so
+// a guard reading only one would pass a workflow written with the other.
 func readAllWorkflows(t *testing.T) map[string]workflowShape {
 	t.Helper()
-	paths, err := filepath.Glob(repoPath(".github/workflows/*.yml"))
-	if err != nil || len(paths) == 0 {
-		t.Fatalf("no workflows found: %v", err)
+	var paths []string
+	for _, pattern := range []string{"*.yml", "*.yaml"} {
+		found, err := filepath.Glob(repoPath(".github/workflows/" + pattern))
+		if err != nil {
+			t.Fatalf("glob %s: %v", pattern, err)
+		}
+		paths = append(paths, found...)
+	}
+	if len(paths) == 0 {
+		t.Fatal("no workflows found")
 	}
 	out := map[string]workflowShape{}
 	for _, p := range paths {

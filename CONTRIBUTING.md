@@ -141,10 +141,23 @@ gh workflow run "Release post-publish" -f tag=vX.Y.Z
 ```
 
 It refuses a tag with no published release, builds and signs nothing, and moves `v0` only when the
-tag is the newest release of its major version. The move uses the release GitHub App, which needs
-the **Contents** and **Workflows** repository permissions, both read and write. Without Workflows,
-GitHub refuses the move whenever no branch holds the tag's version of a workflow file, which is the
-case once `main` has changed one.
+tag is the newest release of its major version.
+
+The release GitHub App holds these repository permissions, each read and write:
+
+- **Contents**, to push the release tag, move `v0`, and push the branches behind the release,
+  scanner bump and live-tier pull requests.
+- **Pull requests**, to open those pull requests.
+- **Workflows**, to move `v0`. Without it, GitHub refuses the move whenever no branch holds the
+  tag's version of a workflow file, which is the case once `main` has changed one.
+
+Each job that mints a token from the App names the permissions it uses, and the token holds those
+and nothing else the App is granted. A token that names none receives every permission the App
+holds, and one holding Workflows can rewrite `.github/workflows/`, which changes what every later
+run executes. Only the job that moves `v0` asks for Workflows.
+`TestEveryAppTokenNamesItsPermissions` in `internal/ciguard` fails on a token that names no
+permission, and on a Workflows grant to any job missing from its allow-list, where each entry states
+why that job needs it.
 
 ### Changing the Claude Code plugin
 

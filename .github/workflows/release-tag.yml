@@ -65,6 +65,10 @@ jobs:
         with:
           app-id: ${{ secrets.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          # Requested by name, so the token holds what this job uses and nothing else the App is
+          # granted. Contents checks out the history and pushes the tag. The job opens no pull
+          # request and writes no workflow file.
+          permission-contents: write
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
