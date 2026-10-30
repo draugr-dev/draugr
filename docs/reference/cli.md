@@ -509,7 +509,7 @@ whether it is a shortlist or every finding, and `--top 0` also lists every row u
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU); reported as `stats.concurrency` (or `scan.jobs` in `draugr.config.yaml`) |
-| `--allow-effects` | - | Accept scanner effects for this run (`mutate`, `privilege`). `config.allowEffects` is the reviewed equivalent. See [below](#scanners-that-do-more-than-read) |
+| `--allow-effects` | - | Accept scanner effects for this run: `disclosure`, `mutate`, `network`, `privilege`. Any other value is refused before the scan. `config.allowEffects` is the reviewed equivalent. See [below](#scanners-that-do-more-than-read) |
 | `--no-publish` | `false` | Skip the descriptor's configured publishers (still writes `-o` artifacts and stdout) |
 | `--policy` | `false` | Require the [organization's policy](#the-organizations-policy) check |
 | `--policy-wait` | `5m` | Total time to wait for the `draugr-api` servers' [verdict on the published run](#the-organizations-policy). A verdict not decided by then is named on the `POLICY` line, and is an error under `--policy` (`0` = do not wait) |

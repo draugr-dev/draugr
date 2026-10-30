@@ -174,7 +174,7 @@ func newScanCommand() *cobra.Command {
 			"--min-priority alone narrows only what is printed, because a file that silently "+
 			"omits findings is read as a scan that did not find them")
 	cmd.Flags().StringSliceVar(&opts.allowEffects, "allow-effects", nil,
-		"accept scanner effects for this run (mutate, privilege); config.allowEffects is the reviewed equivalent")
+		"accept scanner effects for this run ("+saga.EffectKindList()+"); config.allowEffects is the reviewed equivalent")
 	cmd.Flags().StringVar(&opts.kevFile, "kev", "", "CISA KEV catalog: a file path, or `auto`/`cache` to read ~/.draugr/feeds. A CVE on it is escalated to critical")
 	cmd.Flags().StringVar(&opts.epssFile, "epss", "", "FIRST EPSS scores: a file path, or `auto`/`cache` to read ~/.draugr/feeds. A CVE at/above --epss-threshold is bumped one band")
 	cmd.Flags().Float64Var(&opts.epssThreshold, "epss-threshold", exploitdata.DefaultThreshold, "EPSS probability (0-1) that triggers a severity bump")
@@ -228,6 +228,12 @@ func newScanCommand() *cobra.Command {
 var scanInstallOffer = defaultInstallOffer()
 
 func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.Registry, w io.Writer) error {
+	// Refused before the descriptor is read. An effect no scanner declares accepts nothing, so the
+	// run would proceed without the effect it was meant to accept and report.json would still list
+	// the typo as allowed.
+	if err := errors.Join(saga.CheckEffects("--allow-effects", opts.allowEffects)...); err != nil {
+		return err
+	}
 	resolved, synthesized, err := scanResolved(target)
 	if err != nil {
 		return err

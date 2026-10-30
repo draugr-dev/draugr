@@ -356,6 +356,17 @@ func TestRunScanInvalidArtifactMinPriority(t *testing.T) {
 	}
 }
 
+// The flag accepts what config.allowEffects accepts. An unknown kind would accept nothing, and the
+// run would go ahead without the effect while report.json listed the typo as allowed.
+func TestRunScanRefusesAnUnknownAllowedEffect(t *testing.T) {
+	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
+		scanOptions{failOn: "error", allowEffects: []string{"network", "mutat"}}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
+	want := `--allow-effects: "mutat" is not an effect kind (disclosure, mutate, network, privilege)`
+	if err == nil || err.Error() != want {
+		t.Fatalf("err = %v, want %q", err, want)
+	}
+}
+
 func TestRunScanNegativeJobs(t *testing.T) {
 	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
 		scanOptions{failOn: "error", jobs: -3}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
