@@ -1,6 +1,6 @@
 # Draugr
 
-> Security scanning for CI from one file, with every finding ranked by exposure, criticality, exploitability and reachability.
+> Runs every security scanner you trust, then decides which findings matter. SAST, SCA, secrets, IaC and containers, every finding ranked by exposure, criticality, exploitability and reachability.
 
 [![CI](https://github.com/draugr-dev/draugr/actions/workflows/ci.yml/badge.svg)](https://github.com/draugr-dev/draugr/actions/workflows/ci.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/draugr-dev/draugr/badge)](https://scorecard.dev/viewer/?uri=github.com/draugr-dev/draugr)
