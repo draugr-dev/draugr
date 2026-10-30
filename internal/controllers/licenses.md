@@ -68,7 +68,7 @@ It's the wrong one:
 
 `deny` and `warn` name SPDX ids directly and **beat Trivy's category**, because whether a license is
 acceptable depends on what you do with your software. Something Trivy cannot know and the team
-always does.
+always does. `unknown` in either list selects every license the scanner could not identify.
 
 ```yaml
 config:

@@ -374,6 +374,10 @@ type sarifSuppressionProperties struct {
 	// splitting exclusions across files is only safe if the report can still say which file
 	// authorized each one, and a consumer reading this SARIF is exactly who has to answer that.
 	Source string `json:"source,omitempty"`
+	// StatementID and Digest name the VEX statement and the exact document an imported claim came
+	// from, so a consumer can quote the one to its supplier and tell revisions of the other apart.
+	StatementID string `json:"statementId,omitempty"`
+	Digest      string `json:"digest,omitempty"`
 }
 
 type sarifMessage struct {
@@ -478,10 +482,11 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		if s := res.Suppression; s != nil {
 			sup := sarifSuppression{Kind: s.Kind, Justification: s.Justification}
 			if s.AcceptedBy != "" || s.Expires != "" || s.Origin != "" || s.Author != "" ||
-				s.Asserted != "" || s.Source != "" {
+				s.Asserted != "" || s.Source != "" || s.StatementID != "" || s.Digest != "" {
 				sup.Properties = &sarifSuppressionProperties{
 					AcceptedBy: s.AcceptedBy, Expires: s.Expires,
 					Origin: s.Origin, Author: s.Author, Asserted: s.Asserted, Source: s.Source,
+					StatementID: s.StatementID, Digest: s.Digest,
 				}
 			}
 			sr.Suppressions = []sarifSuppression{sup}

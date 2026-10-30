@@ -40,12 +40,12 @@ const trivyLicenseConfigSchema = `{
     "deny": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"]."
+      "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"]. \"unknown\" matches any license the scanner could not identify."
     },
     "warn": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"]."
+      "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"]. \"unknown\" matches any license the scanner could not identify."
     },` + licensePolicySourceProperties + `
   }
 }`
@@ -285,7 +285,7 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 				continue
 			}
 			report.Results = append(report.Results, licenseResult(lic, level, why, lineOf))
-			report.Rules[licenseRuleID(lic.Name, lic.PkgName)] = licenseRule(lic)
+			report.Rules[licenseRuleID(licenseID(lic), lic.PkgName)] = licenseRule(lic)
 		}
 		for _, m := range res.Modified {
 			if m.Status != "ignored" || m.Type != "license" || m.Finding.Name == "" {
@@ -312,13 +312,40 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 	return report, nil
 }
 
+// unknownLicense is the id a license takes when the scanner could not identify it, and the value a
+// deny or warn list writes to select every such license.
+const unknownLicense = "unknown"
+
+// licenseID is the identifier a license finding is keyed on: the SPDX id Trivy reported, or
+// `unknown` where Trivy could not identify the license. The text Trivy found for an unidentified
+// one is whatever a file or a manifest said, which is not an identifier, and keyed on it a policy
+// over unknown licenses could not select them.
+func licenseID(lic trivyLicense) string {
+	if strings.EqualFold(lic.Category, unknownLicense) {
+		return unknownLicense
+	}
+	return lic.Name
+}
+
+// licenseNamed is how a finding's message names its license: the id, or for an unidentified one,
+// the text Trivy found, quoted, so nothing reads it as an SPDX id.
+func licenseNamed(lic trivyLicense) string {
+	if licenseID(lic) != unknownLicense {
+		return lic.Name
+	}
+	if lic.Name == "" {
+		return "under a license Trivy could not identify"
+	}
+	return fmt.Sprintf("under a license Trivy could not identify (found %q)", lic.Name)
+}
+
 // licenseResult builds one license finding.
 func licenseResult(lic trivyLicense, level sarif.Level, why string, lineOf func(trivyLicense) int) sarif.Result {
 	return sarif.Result{
 		Tool:     trivyLicenseScannerName,
-		RuleID:   licenseRuleID(lic.Name, lic.PkgName),
+		RuleID:   licenseRuleID(licenseID(lic), lic.PkgName),
 		Level:    level,
-		Message:  fmt.Sprintf("%s is %s. %s", licenseSubject(lic), lic.Name, why),
+		Message:  fmt.Sprintf("%s is %s. %s", licenseSubject(lic), licenseNamed(lic), why),
 		Location: sarif.Location{URI: lic.FilePath, StartLine: lineOf(lic)},
 	}
 }
@@ -339,12 +366,17 @@ func licenseSubject(lic trivyLicense) string {
 // licenseRule describes a license rule. A file-level rule, `license/<spdx>`, is shared by every
 // file carrying that license, so its description names none of them; the finding's message does.
 func licenseRule(lic trivyLicense) sarif.Rule {
-	short := fmt.Sprintf("%s is licensed %s", lic.PkgName, lic.Name)
+	id := licenseID(lic)
+	licensed := "licensed " + lic.Name
+	if id == unknownLicense {
+		licensed = "under a license Trivy could not identify"
+	}
+	short := fmt.Sprintf("%s is %s", lic.PkgName, licensed)
 	if lic.PkgName == "" {
-		short = "A file is licensed " + lic.Name
+		short = "A file is " + licensed
 	}
 	return sarif.Rule{
-		Name:             lic.Name,
+		Name:             id,
 		ShortDescription: short,
 		FullDescription:  categoryLevel[strings.ToLower(lic.Category)].why,
 		HelpURI:          licenseHelpURI(lic),
@@ -386,8 +418,16 @@ func (d trivyLicenseDoc) lineFinder(dir string) func(trivyLicense) int {
 // SPDX ids directly and beat Trivy's category, because whether a license is acceptable depends on
 // what you do with your software. Something Trivy cannot know and the team always does.
 func licenseLevel(lic trivyLicense, policy licensePolicy) (sarif.Level, string, bool) {
+	// The name first, then `unknown`. Trivy files a license under its `unknown` category whenever
+	// its classifier does not know the name, which can still be a real id a policy lists, and a
+	// deny that stopped matching because Trivy could not classify the license would fail silently.
 	if level, why, ok := policy.match(lic.Name); ok {
 		return level, why, true
+	}
+	if licenseID(lic) == unknownLicense {
+		if level, why, ok := policy.match(unknownLicense); ok {
+			return level, why, true
+		}
 	}
 	meta, ok := categoryLevel[strings.ToLower(lic.Category)]
 	if !ok {

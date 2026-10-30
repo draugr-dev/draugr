@@ -87,6 +87,31 @@ historical finding needs rotating like a tree one. A secret present in both the 
 is reported once, as the tree finding. Each entry in `report.json`'s `findings` carries the same
 `historical` field.
 
+### Suppressions
+
+A finding that something set aside stays in the report with the decision recorded. In `report.json`
+each entry in `findings` carries it as `suppressed`. In `results.sarif` it is a `suppressions`
+entry, with `justification` as its own field and the rest in its `properties`.
+
+| Field | What it says |
+|---|---|
+| `justification` | The reason given for setting it aside |
+| `acceptedBy` | Who accepted it, for a rule in the descriptor that named someone |
+| `origin` | Whose decision it was: `saga` for a rule in this project's descriptor, `vex` for a supplier's VEX claim this project accepted, `tool` for a directive written beside the line, `scanner` for an entry in the scanner's own ignore file |
+| `author`, `asserted` | For a `vex` suppression, who made the claim and the date they made it |
+| `source` | The descriptor file a rule was written in, where the descriptor is split across several, or the VEX document a claim came from |
+| `statementId` | For a `vex` suppression, the statement's `@id` within its document, where the supplier gave one |
+| `digest` | For a `vex` suppression, the sha256 of the document as Draugr read it |
+
+To tell two revisions of one VEX document apart, compare `digest`. To raise a claim with its
+supplier, quote `statementId`.
+
+### Unknown licenses
+
+A license the scanner could not identify is reported under the rule `license/unknown/<package>`,
+and the message quotes the text it found. `deny` and `warn` accept `unknown` to select every such
+license.
+
 ## What each action carries
 
 `report.json` carries the [fix list](../concepts/what-to-fix-first.md) as `actions[]`, most urgent

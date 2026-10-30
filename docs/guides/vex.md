@@ -279,8 +279,9 @@ statement only when everything it could match was scanned:
 
 Naming a source is the opt-in. There is no separate trust setting, because pointing at a document is
 the decision. What Draugr does is make that decision visible afterwards: every finding a claim
-excused carries the author, the document, and the date the claim was asserted, so a year-old
-`not_affected` about a package that has moved on reads as old rather than as current.
+excused carries the author, the document and the date the claim was asserted, with the statement's
+id and the document's digest ([Suppressions](../reference/report-schema.md#suppressions)), so a
+year-old `not_affected` about a package that has moved on reads as old rather than as current.
 
 Draugr does not judge whether a claim is true. It records whose it was.
 

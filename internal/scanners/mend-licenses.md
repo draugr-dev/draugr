@@ -68,7 +68,8 @@ and telling you it did leaves the decision where the evidence is.
 
 Trivy also carries a license *category*, so it can flag a copyleft license a project never listed.
 Mend supplies none. This scanner therefore reports exactly the licenses named in
-`deny` and `warn`, and **nothing at all without a policy**.
+`deny` and `warn`, and **nothing at all without a policy**. A license Mend gives no SPDX id and no
+name for is `unknown`, so `deny: ["unknown"]` selects it here as it does under Trivy.
 
 That is a real difference between the two scanners on one control. A project running only this one
 and expecting category-based flagging would get silence, which is why it is stated here rather

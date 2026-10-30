@@ -49,12 +49,12 @@ const mendLicensesConfigSchema = `{
     "deny": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"]."
+      "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"]. \"unknown\" matches any license the scanner could not identify."
     },
     "warn": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"]."
+      "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"]. \"unknown\" matches any license the scanner could not identify."
     },` + licensePolicySourceProperties + `
   }
 }`

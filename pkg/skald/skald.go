@@ -222,6 +222,18 @@ type findingReport struct {
 type suppressionNote struct {
 	Justification string `json:"justification,omitempty"`
 	AcceptedBy    string `json:"acceptedBy,omitempty"`
+	// Origin says whose decision this was: empty or "saga" for this project's own rule, "vex" for a
+	// supplier's claim it accepted, "tool" for a directive written beside the line, and "scanner"
+	// for an entry in the scanner's own ignore file (sarif.OriginSaga and the rest).
+	Origin string `json:"origin,omitempty"`
+	// Author, Asserted, Source, StatementID and Digest say where an imported claim came from: who
+	// asserted it and when, the document, the statement within it, and the sha256 of the document as
+	// read. Source also names the descriptor file a rule was written in, where there are several.
+	Author      string `json:"author,omitempty"`
+	Asserted    string `json:"asserted,omitempty"`
+	Source      string `json:"source,omitempty"`
+	StatementID string `json:"statementId,omitempty"`
+	Digest      string `json:"digest,omitempty"`
 }
 
 // Provenance is what produced a run, as opposed to what it found.
@@ -1086,9 +1098,10 @@ func suppressionOf(res sarif.Result) *suppressionNote {
 	if !res.Suppressed() || res.Suppression == nil {
 		return nil
 	}
+	s := res.Suppression
 	return &suppressionNote{
-		Justification: res.Suppression.Justification,
-		AcceptedBy:    res.Suppression.AcceptedBy,
+		Justification: s.Justification, AcceptedBy: s.AcceptedBy, Origin: s.Origin,
+		Author: s.Author, Asserted: s.Asserted, Source: s.Source, StatementID: s.StatementID, Digest: s.Digest,
 	}
 }
 

@@ -568,6 +568,12 @@ type Suppression struct {
 	// authorized each one, otherwise composition trades a long descriptor for an unanswerable one,
 	// which is the worse of the two.
 	Source string `json:"source,omitempty"`
+	// StatementID is, for an imported claim, the statement's id within its VEX document, where the
+	// supplier gave one. Empty for a descriptor rule, and for a statement with no id.
+	StatementID string `json:"statementId,omitempty"`
+	// Digest is, for an imported claim, the sha256 of the VEX document as read, so a reader can tell
+	// which revision of a document excused the finding. Empty for a descriptor rule.
+	Digest string `json:"digest,omitempty"`
 }
 
 // Where a suppression's decision came from, for Suppression.Origin.

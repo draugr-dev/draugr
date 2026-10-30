@@ -58,6 +58,9 @@ license anywhere*, is `license/MPL-2.0/*`, while the full id stays available for
 this one dependency*. Package names contain slashes, which is why `config.exclude` patterns match
 `*` across separators.
 
+A license Trivy could not identify is `license/unknown/<package>`, and its message quotes the text
+found. `unknown` in `deny` or `warn` selects every such license, after any id the lists name.
+
 A rule's description holds Trivy's reading of the license category, and is empty for a category
 the scanner would not report without a policy. Each result's message says whether the policy denied
 or flagged the license, and names the setting that listed it.

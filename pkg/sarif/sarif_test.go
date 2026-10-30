@@ -1374,3 +1374,24 @@ func TestProvenanceComponentSurvivesASARIFRoundTrip(t *testing.T) {
 		t.Errorf("provenance = %+v, want both notes with their components", out.Provenance)
 	}
 }
+
+// An imported claim's statement and the digest of its document reach the SARIF property bag, beside
+// its author and source, so a consumer of results.sarif can name the exact claim that excused a
+// finding.
+func TestMarshalSARIFNamesTheVEXStatementAndDocument(t *testing.T) {
+	r := Report{Tool: "trivy", Results: []Result{{
+		RuleID: "CVE-1", Level: LevelError, Message: "boom", Location: Location{URI: "img"},
+		Suppression: &Suppression{Kind: "external", Justification: "not reachable", Origin: OriginVEX,
+			Author: "Acme Ltd", Source: "vendor/acme.json",
+			StatementID: "https://acme.example/vex/stmt-1", Digest: "sha256:aaaa"},
+	}}}
+	data, err := r.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"statementId":"https://acme.example/vex/stmt-1"`, `"digest":"sha256:aaaa"`} {
+		if !strings.Contains(strings.ReplaceAll(string(data), " ", ""), want) {
+			t.Errorf("SARIF lacks %s:\n%s", want, data)
+		}
+	}
+}

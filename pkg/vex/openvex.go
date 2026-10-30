@@ -53,6 +53,9 @@ type Document struct {
 
 // Statement is one claim: this vulnerability, against these products, has this status.
 type Statement struct {
+	// ID identifies the statement within its document, where the supplier gave it one. Optional in
+	// OpenVEX, and what a reader quotes to the supplier when asking about one claim.
+	ID            string        `json:"@id,omitempty"`
 	Vulnerability Vulnerability `json:"vulnerability"`
 	// Products are what the statement is about, the supplier's own artifact.
 	Products []Product `json:"products"`
