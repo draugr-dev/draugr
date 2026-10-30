@@ -282,11 +282,11 @@ func TestLoadFile(t *testing.T) {
 
 func TestAKeyWithNoValueIsRefusedWithItsLine(t *testing.T) {
 	for _, c := range []struct{ name, doc, want string }{
-		{"a section", "project: x\nconfig:\ncomponents:\n  - name: web\n    repositories: [{url: .}]\n", "line 2: config has no value"},
-		{"a nested key", "project: x\ncomponents:\n  - name: web\n    exposure:\n    repositories: [{url: .}]\n", "line 4: components[0].exposure has no value"},
-		{"an explicit null", "project: x\nrelease: null\ncomponents:\n  - name: web\n    repositories: [{url: .}]\n", "line 2: release has no value"},
-		{"a tilde", "project: x\nrelease: ~\ncomponents:\n  - name: web\n    repositories: [{url: .}]\n", "line 2: release has no value"},
-		{"a list item", "project: x\ncomponents:\n  - name: web\n    repositories:\n      - url: .\n      -\n", "line 6: components[0].repositories[1] has no value"},
+		{"a section", "project: x\nconfig:\ncomponents:\n  - name: web\n    repositories: [{url: .}]\n", "config: no value on line 2; give it one or delete it"},
+		{"a nested key", "project: x\ncomponents:\n  - name: web\n    exposure:\n    repositories: [{url: .}]\n", "components[0].exposure: no value on line 4"},
+		{"an explicit null", "project: x\nrelease: null\ncomponents:\n  - name: web\n    repositories: [{url: .}]\n", "release: no value on line 2"},
+		{"a tilde", "project: x\nrelease: ~\ncomponents:\n  - name: web\n    repositories: [{url: .}]\n", "release: no value on line 2"},
+		{"a list item", "project: x\ncomponents:\n  - name: web\n    repositories:\n      - url: .\n      -\n", "components[0].repositories[1]: no value on line 6"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			_, err := Load([]byte(c.doc))

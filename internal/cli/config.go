@@ -15,13 +15,14 @@ import (
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/feeds"
+	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
-// starterConfig is what `config init` writes.
+// starterConfig is the body of what `config init` writes, under starterFile's modeline.
 //
 // Commented rather than bare, because the question a reader has when they first see this file is
 // not "what are the keys" but "why is this separate from my Saga".
@@ -60,6 +61,13 @@ controls: {}
 #     apiUrl: https://draugr.acme.example
 publish: {}
 `
+
+// starterFile is what `config init` writes: the starter, under a modeline naming the schema for
+// this build, so an editor holds the file to the checks this binary makes, as `draugr init` does
+// for a Saga.
+func starterFile() string {
+	return "# yaml-language-server: $schema=" + saga.ConfigSchemaURLFor(version.Version) + "\n" + starterConfig
+}
 
 func newConfigCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -628,7 +636,7 @@ func newConfigInitCommand() *cobra.Command {
 			if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 				return err
 			}
-			if err := os.WriteFile(path, []byte(starterConfig), 0o600); err != nil {
+			if err := os.WriteFile(path, []byte(starterFile()), 0o600); err != nil {
 				return err
 			}
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "wrote %s\n", herePath(path))

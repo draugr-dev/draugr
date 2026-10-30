@@ -287,12 +287,11 @@ func TestToolProblemsWithNothingClose(t *testing.T) {
 
 func TestCheckConfigAcceptsAValidFile(t *testing.T) {
 	f := config.File{
-		Tools:  map[string]config.ToolSettings{"trivy": {Version: "0.69.3"}},
-		Output: config.OutputSettings{View: "actions", Top: 5, Tips: new(false)},
-		Cache:  config.CacheSettings{TTL: new(time.Duration)},
-		Scan:   config.ScanSettings{Jobs: new(0)},
-		// Spelled as the flags accept them, which is not always as the documentation writes them.
-		Log:     config.LogSettings{Level: "WARNING", Format: "JSON"},
+		Tools:   map[string]config.ToolSettings{"trivy": {Version: "0.69.3"}},
+		Output:  config.OutputSettings{View: "actions", Top: 5, Tips: new(false)},
+		Cache:   config.CacheSettings{TTL: new(time.Duration)},
+		Scan:    config.ScanSettings{Jobs: new(0)},
+		Log:     config.LogSettings{Level: "warn", Format: "json"},
 		Offline: new(true),
 	}
 	if err := checkConfig(builtins.Registry(), "x.yaml", f); err != nil {
@@ -374,5 +373,23 @@ func TestConfigSetRefusesAnEditThatAddsAProblem(t *testing.T) {
 func TestAddedProblemsTreatsAnotherErrorAsNew(t *testing.T) {
 	if got := addedProblems(nil, errors.New("boom")); len(got) != 1 || got[0] != "boom" {
 		t.Errorf("got %q", got)
+	}
+}
+
+// The file takes the spellings the schema completes, exactly. A case slip names the spelling it meant,
+// since the flags accept it and somebody copying a command line into the file will make it.
+func TestConfigLogSettingsTakeTheSchemasSpelling(t *testing.T) {
+	f := config.File{Log: config.LogSettings{Level: "WARN", Format: "Json"}}
+	err := checkConfig(builtins.Registry(), "x.yaml", f)
+	if err == nil {
+		t.Fatal("an upper-case level and format were accepted")
+	}
+	for _, want := range []string{
+		`log.level: "WARN" is not trace, debug, info, warn or error, did you mean "warn"?`,
+		`log.format: "Json" is not console, json or text, did you mean "json"?`,
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("missing %q in:\n%v", want, err)
+		}
 	}
 }
