@@ -1,0 +1,1 @@
+- **See which configuration file supplied each control default a run applied.** Under `--evidence`, the `DESCRIPTOR` section lists each such file with its digest and the settings it supplied, and the `descriptor` row says the merged digest includes config defaults. `report.json` adds each file to `descriptor.sources`, marked `config`, and names it in `descriptor.contributed`.

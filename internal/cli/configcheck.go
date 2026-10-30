@@ -35,7 +35,7 @@ func loadConfig(wd string) (config.Resolved, error) {
 			errs = append(errs, err)
 			continue
 		}
-		sources = append(sources, config.Source{Path: path, File: f})
+		sources = append(sources, config.Source{Path: path, File: f, Digest: config.Digest(data)})
 	}
 	if len(errs) > 0 {
 		return config.Resolved{}, errors.Join(errs...)

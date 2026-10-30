@@ -15,6 +15,8 @@ package config
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -184,6 +186,15 @@ type ToolSettings struct {
 type Source struct {
 	Path string
 	File File
+	// Digest is the sha256 of the file's bytes as they were read, as `sha256:<hex>`. Empty for a
+	// source built in memory.
+	Digest string
+}
+
+// Digest is the content digest of a file's bytes, in the form a report gives every other digest.
+func Digest(data []byte) string {
+	sum := sha256.Sum256(data)
+	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
 // Resolved is the configuration in effect, and the files it came from, nearest last.
@@ -206,12 +217,17 @@ func Load(explicit, workDir string) (Resolved, error) {
 	var sources []Source
 	var errs []error
 	for _, path := range Files(explicit, workDir) {
-		f, err := loadFile(path)
+		data, err := os.ReadFile(path) // #nosec G304 G703 -- operator-provided config path
+		if err != nil {
+			errs = append(errs, fmt.Errorf("read %s: %w", path, err))
+			continue
+		}
+		f, err := Parse(data, path)
 		if err != nil {
 			errs = append(errs, err)
 			continue
 		}
-		sources = append(sources, Source{Path: path, File: f})
+		sources = append(sources, Source{Path: path, File: f, Digest: Digest(data)})
 	}
 	if len(errs) > 0 {
 		return Resolved{}, errors.Join(errs...)
@@ -282,15 +298,6 @@ func discover(workDir string) []string {
 		paths = append(paths, filepath.Join(home, ".draugr", "config.yaml"))
 	}
 	return append(paths, ProjectFile(workDir))
-}
-
-// loadFile reads and validates one file.
-func loadFile(path string) (File, error) {
-	data, err := os.ReadFile(path) // #nosec G304 G703 -- operator-provided config path
-	if err != nil {
-		return File{}, fmt.Errorf("read %s: %w", path, err)
-	}
-	return Parse(data, path)
 }
 
 // Parse decodes and validates a configuration.

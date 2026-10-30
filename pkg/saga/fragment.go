@@ -41,6 +41,9 @@ type Source struct {
 	// from, and were they these ones" is the question an exclusion raises: a suppression arriving
 	// from a fragment somebody cannot pin is a decision with no author.
 	Digest string
+	// Config is where a configuration file that supplied control defaults was found: machine,
+	// project, --config or DRAUGR_CONFIG. Empty for the descriptor and its fragments.
+	Config string
 }
 
 // String renders a source the way a report or an error should name it.

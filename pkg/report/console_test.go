@@ -368,9 +368,27 @@ func TestTheDescriptorSectionSaysWhereEachFileCameFrom(t *testing.T) {
 			},
 			want: []string{"github.com/acme/platform@d6a7fb0a3f4b9c"},
 		},
+		{
+			name: "a configuration file, with the settings it supplied",
+			src:  skald.DescriptorSource{Path: "./draugr.config.yaml", Config: "project", Digest: "sha256:5053be34ab493cdd"},
+			want: []string{"config · digest 5053be34ab49 · secrets.gitleaks.history, secrets.gitleaks.redact"},
+			// Where it was found is in report.json; the row says what it is.
+			not: []string{"project", "root", "provenance.signers"},
+		},
+		{
+			name: "a configuration file read with no digest",
+			src:  skald.DescriptorSource{Path: "/etc/draugr/ci.yaml", Config: "DRAUGR_CONFIG"},
+			want: []string{"config · sast.semgrep.config"},
+			not:  []string{"digest"},
+		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			got := descriptorSourceNote(c.src)
+			got := descriptorSourceNote(c.src, map[string][]string{
+				"secrets.gitleaks.redact":  {"./draugr.config.yaml"},
+				"secrets.gitleaks.history": {"./draugr.config.yaml"},
+				"sast.semgrep.config":      {"/etc/draugr/ci.yaml"},
+				"provenance.signers":       {"security/x.saga-fragment.yaml"},
+			})
 			for _, w := range c.want {
 				if !strings.Contains(got, w) {
 					t.Errorf("note = %q, want it to carry %q", got, w)

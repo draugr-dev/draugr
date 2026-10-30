@@ -400,11 +400,14 @@ type DescriptorRef struct {
 	// A few kilobytes against a report that is already larger.
 	Effective string `json:"effective,omitempty"`
 	// Contributed names the fragments each control setting came from, keyed "control.option", for
-	// the settings a fragment is allowed to carry.
+	// the settings a fragment is allowed to carry, and the configuration file behind each control
+	// default that reached the descriptor, keyed by the setting's dotted path.
 	//
 	// Sources says which files were merged and Effective says what the merged descriptor holds.
 	// Neither answers which of those files expects an identity nobody reading the root descriptor
-	// declared, and that is the question a reviewer of an included policy is asking.
+	// declared, and that is the question a reviewer of an included policy is asking. Nor which
+	// value in Effective no committed file holds, because a configuration file outside the
+	// repository supplied it.
 	//
 	// Absent when every setting came from the descriptor itself, which is the ordinary case.
 	Contributed map[string][]string `json:"contributed,omitempty"`
@@ -434,8 +437,12 @@ type Exclusion struct {
 
 // DescriptorSource is one file a descriptor was assembled from.
 type DescriptorSource struct {
-	// Path is the file as the descriptor that named it wrote it.
+	// Path is the file as the descriptor that named it wrote it. A configuration file is named as
+	// `draugr config show` names it: from the working directory, or from the home directory.
 	Path string `json:"path,omitempty"`
+	// Config marks a configuration file that supplied control defaults, by where it was found:
+	// machine, project, --config or DRAUGR_CONFIG. Contributed names the settings it supplied.
+	Config string `json:"config,omitempty"`
 	// URL, Revision and Resolved locate a fragment fetched from another repository. Revision is what
 	// was asked for and Resolved is the commit that turned out to be, a branch moves, so only the
 	// second makes the run reproducible.
@@ -463,7 +470,7 @@ func DescriptorFrom(res *saga.Resolved) *DescriptorRef {
 	}
 	for _, s := range res.Sources {
 		out.Sources = append(out.Sources, DescriptorSource{
-			Path: s.Path, URL: s.URL, Revision: s.Revision, Resolved: s.Resolved,
+			Path: s.Path, Config: s.Config, URL: s.URL, Revision: s.Revision, Resolved: s.Resolved,
 			Digest: s.Digest, Root: s.Root,
 		})
 	}
