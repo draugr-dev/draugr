@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,23 +15,30 @@ import (
 
 func newSchemaCommand() *cobra.Command {
 	var out string
-	var fragment bool
+	var fragment, configFile bool
 	cmd := &cobra.Command{
 		Use:   "schema",
-		Short: "Print the Saga JSON Schema this build enforces",
-		Long: "Print the JSON Schema for draugr.saga.yaml, as embedded in this binary.\n\n" +
-			"Editors fetch it from draugr.dev by default, which needs network access and follows\n" +
+		Short: "Print the JSON Schema this build enforces for a Saga, a fragment or the config file",
+		Long: "Print a JSON Schema embedded in this binary: the Saga's by default, a Saga fragment's\n" +
+			"with --fragment, or draugr.config.yaml's with --config-file.\n\n" +
+			"Editors fetch a schema from draugr.dev by default, which needs network access and follows\n" +
 			"whatever is published. A local copy pins validation to this build and works offline:\n\n" +
 			"  draugr schema -o .saga.schema.json\n" +
 			"  # then in your Saga:\n" +
 			"  # yaml-language-server: $schema=./.saga.schema.json\n\n" +
-			"--fragment prints the schema for a Saga fragment instead. A fragment is a different\n" +
-			"shape, no release, and no policy, so it has a schema of its own.",
+			"A fragment is a different shape, no release and no policy, so it has a schema of its own.\n" +
+			"The config schema checks what `draugr config validate` checks, scanner options included.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			doc := saga.SchemaJSON
-			if fragment {
-				doc = saga.FragmentSchemaJSON
+			if fragment && configFile {
+				return errors.New("--fragment and --config-file select different schemas; pass one")
+			}
+			doc, file := saga.SchemaJSON, "a Saga"
+			switch {
+			case fragment:
+				doc, file = saga.FragmentSchemaJSON, "a Saga fragment"
+			case configFile:
+				doc, file = saga.ConfigSchemaJSON, "draugr.config.yaml"
 			}
 			if out == "" {
 				_, err := cmd.OutOrStdout().Write(doc)
@@ -40,13 +48,16 @@ func newSchemaCommand() *cobra.Command {
 				return fmt.Errorf("write schema: %w", err)
 			}
 			_, _ = fmt.Fprintf(cmd.ErrOrStderr(),
-				"wrote %s (draugr %s)\nreference it from a Saga with:\n  # yaml-language-server: $schema=%s\n",
-				out, version.Version, schemaRef(out))
+				"wrote %s (draugr %s)\nreference it from %s with:\n  # yaml-language-server: $schema=%s\n",
+				out, version.Version, file, schemaRef(out))
 			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&fragment, "fragment", false,
 		"print the Saga fragment schema instead of the Saga schema")
+	// Not --config: that is the global flag naming which config file a command reads.
+	cmd.Flags().BoolVar(&configFile, "config-file", false,
+		"print the draugr.config.yaml schema instead of the Saga schema")
 	cmd.Flags().StringVarP(&out, "output", "o", "", "write the schema to this file instead of stdout")
 	return cmd
 }
