@@ -234,6 +234,9 @@ type suppressionNote struct {
 	Source      string `json:"source,omitempty"`
 	StatementID string `json:"statementId,omitempty"`
 	Digest      string `json:"digest,omitempty"`
+	// Line is the line in Source a descriptor rule starts at. Source and Line match the rule's
+	// entry in descriptor.exclusions, which carries git's record of that line.
+	Line int `json:"line,omitempty"`
 }
 
 // Provenance is what produced a run, as opposed to what it found.
@@ -396,6 +399,28 @@ type DescriptorRef struct {
 	//
 	// Absent when every setting came from the descriptor itself, which is the ordinary case.
 	Contributed map[string][]string `json:"contributed,omitempty"`
+	// Exclusions are the merged descriptor's config.exclude entries, in its order: where each is
+	// written, and what git's history says about that line.
+	Exclusions []Exclusion `json:"exclusions,omitempty"`
+}
+
+// Exclusion is one config.exclude entry: the file and line it is written at, and git's record of
+// that line.
+//
+// The record of who set a finding aside is the repository's history of the line, which a reviewer
+// reads with git blame. The report carries it where the history is reliable and says why where it
+// is not, so a platform reading the report can show it without the checkout.
+type Exclusion struct {
+	// Source is the descriptor or fragment, named as results.sarif's suppression `source` names it,
+	// and Line the line the entry starts at. Together they match a suppressed finding's `source`
+	// and `line`.
+	Source string `json:"source"`
+	Line   int    `json:"line,omitempty"`
+	// Reason is the entry's reason, so a reader can tell one entry from the next.
+	Reason string `json:"reason"`
+	// GitHistory is what `git blame` says about Line. Absent where nobody asked, as a caller
+	// building a report from a model does.
+	GitHistory *saga.LineHistory `json:"gitHistory,omitempty"`
 }
 
 // DescriptorSource is one file a descriptor was assembled from.
@@ -438,6 +463,26 @@ func DescriptorFrom(res *saga.Resolved) *DescriptorRef {
 		for setting, files := range res.Model.Config.ControlSources {
 			out.Contributed[setting] = append([]string(nil), files...)
 		}
+	}
+	if res.Model != nil {
+		out.Exclusions = ExclusionsFrom(res.Model.Config.Exclude)
+	}
+	return out
+}
+
+// ExclusionsFrom renders exclusion rules as the report's descriptor.exclusions, or nil for none.
+func ExclusionsFrom(rules []saga.ExcludeRule) []Exclusion {
+	if len(rules) == 0 {
+		return nil
+	}
+	out := make([]Exclusion, 0, len(rules))
+	for _, r := range rules {
+		e := Exclusion{Source: r.Source, Line: r.Line, Reason: r.Reason}
+		if r.History != nil {
+			h := *r.History
+			e.GitHistory = &h
+		}
+		out = append(out, e)
 	}
 	return out
 }
@@ -1102,6 +1147,7 @@ func suppressionOf(res sarif.Result) *suppressionNote {
 	return &suppressionNote{
 		Justification: s.Justification, AcceptedBy: s.AcceptedBy, Origin: s.Origin,
 		Author: s.Author, Asserted: s.Asserted, Source: s.Source, StatementID: s.StatementID, Digest: s.Digest,
+		Line: s.Line,
 	}
 }
 

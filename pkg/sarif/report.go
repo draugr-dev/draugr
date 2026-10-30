@@ -574,6 +574,10 @@ type Suppression struct {
 	// Digest is, for an imported claim, the sha256 of the VEX document as read, so a reader can tell
 	// which revision of a document excused the finding. Empty for a descriptor rule.
 	Digest string `json:"digest,omitempty"`
+	// Line is the line in Source the exclusion starts at, for a descriptor rule. Zero where it is
+	// not known. Source and Line together name the exclusion that set the finding aside, which is
+	// how report.json's descriptor.exclusions[] entry for it, and its git history, is found.
+	Line int `json:"line,omitempty"`
 }
 
 // Where a suppression's decision came from, for Suppression.Origin.

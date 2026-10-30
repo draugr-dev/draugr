@@ -1721,7 +1721,7 @@ func applyExclusions(controls map[string]plugin.ControlResult, rules []saga.Excl
 					res.Suppression = &sarif.Suppression{
 						Kind: "external", Justification: rule.Reason, Origin: sarif.OriginSaga,
 						AcceptedBy: rule.AcceptedBy, Expires: rule.Expires,
-						Source: rule.Source,
+						Source: rule.Source, Line: rule.Line,
 					}
 					if rule.VEX != nil {
 						res.Suppression.VEXStatus = rule.VEX.Status

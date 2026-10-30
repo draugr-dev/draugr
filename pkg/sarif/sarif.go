@@ -378,6 +378,8 @@ type sarifSuppressionProperties struct {
 	// from, so a consumer can quote the one to its supplier and tell revisions of the other apart.
 	StatementID string `json:"statementId,omitempty"`
 	Digest      string `json:"digest,omitempty"`
+	// Line is the line in Source the exclusion starts at.
+	Line int `json:"line,omitempty"`
 }
 
 type sarifMessage struct {
@@ -482,11 +484,11 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		if s := res.Suppression; s != nil {
 			sup := sarifSuppression{Kind: s.Kind, Justification: s.Justification}
 			if s.AcceptedBy != "" || s.Expires != "" || s.Origin != "" || s.Author != "" ||
-				s.Asserted != "" || s.Source != "" || s.StatementID != "" || s.Digest != "" {
+				s.Asserted != "" || s.Source != "" || s.StatementID != "" || s.Digest != "" || s.Line != 0 {
 				sup.Properties = &sarifSuppressionProperties{
 					AcceptedBy: s.AcceptedBy, Expires: s.Expires,
 					Origin: s.Origin, Author: s.Author, Asserted: s.Asserted, Source: s.Source,
-					StatementID: s.StatementID, Digest: s.Digest,
+					StatementID: s.StatementID, Digest: s.Digest, Line: s.Line,
 				}
 			}
 			sr.Suppressions = []sarifSuppression{sup}
@@ -647,7 +649,7 @@ func readSuppression(sups []sarifSuppression) *Suppression {
 	sup := &Suppression{Kind: first.Kind, Justification: first.Justification, Origin: scannersOwn(first.Kind)}
 	if p := first.Properties; p != nil {
 		sup.AcceptedBy, sup.Expires = p.AcceptedBy, p.Expires
-		sup.Author, sup.Asserted, sup.Source = p.Author, p.Asserted, p.Source
+		sup.Author, sup.Asserted, sup.Source, sup.Line = p.Author, p.Asserted, p.Source, p.Line
 		if p.Origin != "" {
 			// Draugr's own, read back as what it was written as.
 			sup.Origin = p.Origin

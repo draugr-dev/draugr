@@ -61,6 +61,22 @@ func TestAnOldReportWithANameIsStillADescriptorRule(t *testing.T) {
 	}
 }
 
+// The file and line an exclusion is written at survive the report, so a consumer of the SARIF can
+// find the exclusion, and its git history in report.json, from the finding it set aside.
+func TestASuppressionKeepsWhereItsExclusionIsWritten(t *testing.T) {
+	got := roundTrip(t, Suppression{
+		Kind: "external", Justification: "fixtures", Origin: OriginSaga,
+		Source: "excl/fixtures.saga-fragment.yaml", Line: 14,
+	})
+	if got.Source != "excl/fixtures.saga-fragment.yaml" || got.Line != 14 {
+		t.Errorf("source %q line %d, want excl/fixtures.saga-fragment.yaml and 14", got.Source, got.Line)
+	}
+	// A line alone is still worth carrying, and is the one field that would otherwise be dropped.
+	if got := roundTrip(t, Suppression{Kind: "external", Justification: "x", Line: 3}); got.Line != 3 {
+		t.Errorf("line %d, want 3", got.Line)
+	}
+}
+
 // roundTrip writes a result carrying the suppression and reads it back, which is what every
 // consumer of a report does and the only place the origin is decided.
 func roundTrip(t *testing.T, sup Suppression) *Suppression {

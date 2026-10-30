@@ -286,6 +286,17 @@ type ExcludeRule struct {
 	// descriptor. Splitting exclusions across files is only safe if the report can still say
 	// which file authorized each one, so the provenance travels with the rule.
 	Source string `yaml:"-"`
+	// Line is the line this rule starts at in Source, and File is the file on disk it was read
+	// from. Both are set by the loader, as Source is, and zero for a rule built in code. File
+	// differs from Source for a fragment fetched from another repository, where it is inside the
+	// checkout the fetch made and exists only as long as that checkout does.
+	Line int    `yaml:"-"`
+	File string `yaml:"-"`
+	// History is what git's history says about Line, set by a caller that asked git. Nil when
+	// nobody asked.
+	History *LineHistory `yaml:"-"`
+	// acceptedByLine is the line the acceptedBy key is written at, for the warning that names it.
+	acceptedByLine int
 }
 
 // expiresLayout is the date format Expires uses: a plain calendar date, because an exclusion
