@@ -1894,12 +1894,13 @@ func writeAccepted(w io.Writer, col tui.Painter, d Data, full bool) {
 			r.said = append(r.said, fmt.Sprintf("%d expired and no longer suppressing", len(lapsed)))
 			r.lit = true
 			for _, e := range lapsed {
-				who := e.AcceptedBy
-				if who == "" {
-					who = "unattributed"
+				// Where it is written rather than who it names, because the line is what a reader
+				// edits and its git history is the record of who wrote it.
+				parts := []string{"expired " + e.Expires}
+				if where := whereWritten(e.Source, e.Line); where != "" {
+					parts = append(parts, where)
 				}
-				r.notes = append(r.notes, fmt.Sprintf("expired %s, accepted by %s · %s",
-					e.Expires, who, findingSummary(e.Reason)))
+				r.notes = append(r.notes, strings.Join(append(parts, findingSummary(e.Reason)), " · "))
 			}
 		}
 		rows = append(rows, r)
@@ -2017,10 +2018,9 @@ func descriptorSourceNote(src skald.DescriptorSource) string {
 
 // writeDecisions accounts for each acceptance separately, under --evidence.
 //
-// The reason leads, on a line of its own, because it is the only part a reader has to judge. Who
-// signed it, what it covers and when it lapses are facts to check the judgment against, and they
-// were what the row led with while the judgment sat underneath at an indent that made it read as a
-// caption rather than as the thing under review.
+// The reason leads, on a line of its own, because it is the only part a reader has to judge. Where
+// it is written, what it covers and when it lapses are facts to check the judgment against, and the
+// line under them is git's record of who wrote it.
 func writeDecisions(w io.Writer, col tui.Painter, d Data, full bool) {
 	decs := decisions(d)
 	if !full || len(decs) == 0 {
@@ -2033,20 +2033,26 @@ func writeDecisions(w io.Writer, col tui.Painter, d Data, full bool) {
 		}
 		_, _ = fmt.Fprintf(w, "  %s\n", elide(findingSummary(dec.reason), messageWidth))
 
-		who := col.Paint(tui.StyleStrong, dec.by)
-		if dec.by == "unattributed" {
-			// The one an auditor cannot follow up, so it is the only one lit.
-			who = col.Paint(cAccent, dec.by)
+		var parts []string
+		if dec.where != "" {
+			parts = append(parts, col.Paint(tui.StyleStrong, dec.where))
 		}
-		parts := []string{
-			col.Paint(cDim, "accepted by") + " " + who,
-			col.Paint(cDim, "covers") + " " + english.Count(dec.n, "finding"),
-		}
+		parts = append(parts, col.Paint(cDim, "covers")+" "+english.Count(dec.n, "finding"))
 		if said := decisionRules(dec.rules); said != "" {
 			parts = append(parts, said)
 		}
 		parts = append(parts, col.Paint(cDim, lapses(dec.expires)))
 		_, _ = fmt.Fprintf(w, "  %s\n", strings.Join(parts, col.Paint(cDim, " · ")))
+
+		if h := dec.history; h != nil {
+			// Lit where git cannot say who wrote the line, because that is the one an auditor
+			// cannot follow up from the report.
+			style := cDim
+			if h.Commit == "" {
+				style = cAccent
+			}
+			_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(style, h.String()))
+		}
 	}
 	_, _ = fmt.Fprintln(w)
 }

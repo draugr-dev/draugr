@@ -13,6 +13,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/skald"
 )
 
 // decodeDataURI pulls a data: URI's payload back out of rendered HTML the way a browser would:
@@ -156,20 +157,48 @@ func TestRenderedReportsNameWhatMovedTheRanking(t *testing.T) {
 // A count says how much was set aside. It cannot say what anybody thought was acceptable about it,
 // though every suppressed finding carries the reason, and that is the question this format is for.
 func TestRenderedReportsAccountForEachDecision(t *testing.T) {
-	d := suppressedBy("a.reviewer", "")
+	d := suppressedAt("draugr.saga.yaml:12", "draugr.saga.yaml:18", "")
+	d.Descriptor = &skald.DescriptorRef{Exclusions: []skald.Exclusion{
+		{Source: "draugr.saga.yaml", Line: 12, GitHistory: &saga.LineHistory{
+			Commit: "4f2a9c1e0b3d5f7a9c1e", Author: "Ada Lovelace", Date: "2026-09-14T10:00:00+02:00"}},
+		{Source: "draugr.saga.yaml", Line: 18, GitHistory: &saga.LineHistory{Unavailable: "the line is not committed"}},
+	}}
 	var md bytes.Buffer
 	if err := (markdownReporter{}).Render(&md, d); err != nil {
 		t.Fatal(err)
 	}
 	out := md.String()
-	for _, want := range []string{"### Decisions", "a.reviewer", "**unattributed**", "never"} {
+	for _, want := range []string{
+		"### Decisions", "| Findings | Exclusion | Git history | Expires | Reason |",
+		"| 1 | `draugr.saga.yaml:12` | 4f2a9c1e0b3d by Ada Lovelace, 2026-09-14 | never | accepted |",
+		"| 1 | `draugr.saga.yaml:18` | unavailable: the line is not committed | never | accepted |",
+		"| 1 | not recorded | not recorded | never | accepted |",
+	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("markdown is missing %q:\n%s", want, out)
 		}
 	}
-	// And the count above it stops repeating the roll call, which was the same fact twice.
-	if strings.Contains(out, "1 accepted by a.reviewer") {
-		t.Errorf("the count still carries the attribution the table below it gives:\n%s", out)
+	// The descriptor's acceptedBy is nobody's verified name, so no rendering presents it.
+	if strings.Contains(out, "typed.name") || strings.Contains(out, "accepted by") {
+		t.Errorf("the markdown presents the descriptor's acceptedBy:\n%s", out)
+	}
+
+	var page bytes.Buffer
+	if err := (htmlReporter{}).Render(&page, d); err != nil {
+		t.Fatal(err)
+	}
+	html := page.String()
+	for _, want := range []string{
+		"<th scope=\"col\">Git history</th>", "<code>draugr.saga.yaml:12</code>",
+		"<td>4f2a9c1e0b3d by Ada Lovelace, 2026-09-14</td>",
+		`<span class="err">unavailable: the line is not committed</span>`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("html is missing %q", want)
+		}
+	}
+	if strings.Contains(html, "typed.name") {
+		t.Error("the html presents the descriptor's acceptedBy")
 	}
 }
 

@@ -187,7 +187,6 @@ release: {version: "1.0.0"}
 config:
   exclude:
     - reason: "Fixture key, not a live credential."
-      acceptedBy: test@draugr.dev
       paths: ["id_rsa"]
   controllers:
     secrets: {enabled: true}

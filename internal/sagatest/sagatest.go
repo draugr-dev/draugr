@@ -86,6 +86,7 @@ var deprecatedKeys = [][]string{
 	{"config", "controllers"},
 	{"config", "gate", "failOnPriority"},
 	{"components", "*", "controllers"},
+	{"config", "exclude", "*", "acceptedBy"},
 }
 
 // DeprecatedKeysIn returns the deprecated keys a decoded descriptor sets, as dotted paths.

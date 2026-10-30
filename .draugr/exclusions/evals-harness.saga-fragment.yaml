@@ -13,4 +13,3 @@ config:
 
         The exclusion covers only this directory and the license rule. A vulnerability in the same
         packages is still reported, and so is an unclassified license anywhere else in the tree.
-      acceptedBy: "Wilson Santos <wilson@draugr.dev>"

@@ -1,0 +1,1 @@
+- **`report.json` gives each exclusion's file, line and git history.** `descriptor.exclusions[]` lists every `config.exclude` entry with the file and line it is written at, and the last commit to change that line, with its author's name and date. Where a shallow clone or an uncommitted change makes the history unreliable, the entry says why instead.

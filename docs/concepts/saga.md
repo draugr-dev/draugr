@@ -113,7 +113,7 @@ the end of them:
 
 | | Who decided | Where you can see it |
 |---|---|---|
-| `config.exclude` | whoever owns the descriptor, named in `acceptedBy` | the descriptor, in review |
+| `config.exclude` | whoever committed the exclusion, in the git history of its line | the descriptor, in review, and the report |
 | A supplier's VEX | the document's author, on a date they chose | their document |
 | `nosem` in the source | whoever was editing the file | nowhere, until Draugr prints it |
 

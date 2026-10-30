@@ -532,9 +532,9 @@ type Suppression struct {
 	// Justification is the reason the Saga gave. Required by Draugr even though SARIF allows
 	// it to be absent.
 	Justification string `json:"justification"`
-	// AcceptedBy is who decided this was acceptable, when the exclusion said. Empty means the
-	// suppression is unattributed, reported as such, because "who decided" is half the question an
-	// auditor is asking and a blank is an answer worth seeing.
+	// AcceptedBy is the name a descriptor rule's deprecated acceptedBy states. Nothing verifies it,
+	// so a report carries it only as the descriptor's unverified claim; who wrote the rule is the
+	// git history of its line.
 	AcceptedBy string `json:"acceptedBy,omitempty"`
 	// Expires is when the acceptance lapses, as YYYY-MM-DD. Empty means it does not.
 	Expires string `json:"expires,omitempty"`
@@ -554,7 +554,7 @@ type Suppression struct {
 	// an auditor can ask them rather than you.
 	Origin string `json:"origin,omitempty"`
 	// Author is who asserted an imported claim, the VEX document's author. Empty for a descriptor
-	// rule, where AcceptedBy already answers "who decided".
+	// rule, whose author is the git history of the line Source and Line name.
 	Author string `json:"author,omitempty"`
 	// Asserted is when an imported claim was made, as the document wrote it. A supplier's
 	// statement is made on a date they chose, and a year-old `not_affected` about a package that
@@ -574,6 +574,10 @@ type Suppression struct {
 	// Digest is, for an imported claim, the sha256 of the VEX document as read, so a reader can tell
 	// which revision of a document excused the finding. Empty for a descriptor rule.
 	Digest string `json:"digest,omitempty"`
+	// Line is the line in Source the exclusion starts at, for a descriptor rule. Zero where it is
+	// not known. Source and Line together name the exclusion that set the finding aside, which is
+	// how report.json's descriptor.exclusions[] entry for it, and its git history, is found.
+	Line int `json:"line,omitempty"`
 }
 
 // Where a suppression's decision came from, for Suppression.Origin.

@@ -96,10 +96,11 @@ entry, with `justification` as its own field and the rest in its `properties`.
 | Field | What it says |
 |---|---|
 | `justification` | The reason given for setting it aside |
-| `acceptedBy` | Who accepted it, for a rule in the descriptor that named someone |
+| `unverifiedAcceptedBy` | For a rule in the descriptor that still sets the deprecated [`acceptedBy`](saga-schema.md#configexclude), the name it states, which nothing verifies. 0.163.0 removes it. The rule's entry in [`descriptor.exclusions[]`](#what-each-exclusion-carries) carries git's record of who wrote it |
 | `origin` | Whose decision it was: `saga` for a rule in this project's descriptor, `vex` for a supplier's VEX claim this project accepted, `tool` for a directive written beside the line, `scanner` for an entry in the scanner's own ignore file |
 | `author`, `asserted` | For a `vex` suppression, who made the claim and the date they made it |
 | `source` | The descriptor file a rule was written in, where the descriptor is split across several, or the VEX document a claim came from |
+| `line` | For a rule in the descriptor, the line in `source` it starts at. With `source` it names the rule's entry in [`descriptor.exclusions[]`](#what-each-exclusion-carries) |
 | `statementId` | For a `vex` suppression, the statement's `@id` within its document, where the supplier gave one |
 | `digest` | For a `vex` suppression, the sha256 of the document as Draugr read it |
 
@@ -111,6 +112,61 @@ supplier, quote `statementId`.
 A license the scanner could not identify is reported under the rule `license/unknown/<package>`,
 and the message quotes the text it found. `deny` and `warn` accept `unknown` to select every such
 license.
+
+## What each exclusion carries
+
+`report.json` lists the merged descriptor's [`config.exclude`](saga-schema.md#configexclude)
+entries as `descriptor.exclusions[]`, in the order `descriptor.effective` lists them. Each entry
+names the file and line it is written at, and the last commit to change that line, as `git blame`
+names it.
+
+| Field | Meaning |
+|---|---|
+| `source` | the descriptor or fragment: the descriptor's path as `draugr scan` was given it, a local fragment's path joined to the descriptor's directory, or `<url>@<revision> <path>` for a fragment fetched from another repository, with the commit the revision resolved to in parentheses after it when the two differ |
+| `line` | the line the entry starts at |
+| `reason` | the entry's `reason` |
+| `gitHistory.path` | the file's path in the repository that holds it. Absent where no git repository holds the file |
+| `gitHistory.commit`, `gitHistory.author`, `gitHistory.date` | the last commit to change the line, its author's name, and its author date in RFC 3339 with the author's offset. Present only where the history is reliable |
+| `gitHistory.unavailable` | why no commit is reported. Present exactly where `commit` is absent |
+
+A finding an entry set aside names it by the same `source` and `line`, on the finding's
+[`suppressed`](#suppressions) object in `report.json` and in its suppression's `properties` in
+`results.sarif`.
+
+**The history is git's record, reported only where it is reliable.** That is where the checkout
+holds the line's history and the last commit to change the line is not the boundary of a shallow
+clone. A shallow clone attributes every line it holds no history for to its boundary commit,
+whoever wrote the line, so a line at the boundary is reported as unavailable rather than
+attributed. No email address is recorded, and nothing is fetched to deepen a clone.
+
+| `unavailable` | What to do |
+|---|---|
+| `the line is older than the shallow clone's history; fetch full history` | set the fetch depth to full history, see [Full history](#full-history) |
+| `the line is not committed` | commit the change, and scan the commit |
+| `the file is not committed` | commit the file, and scan the commit |
+| `the file is in no git repository` | scan from inside the repository |
+| `git is not installed` | install git |
+| `git blame failed: <git's message>`, `git rev-parse failed: <git's message>` | fix what git's message names, such as a repository owned by another user |
+| `git blame did not answer within 10s` | retry; blame on a very large file or repository can exceed 10s |
+
+A fragment fetched from another repository always names a `revision`, and Draugr clones its
+repository with full history to check that revision out. Its entries carry that repository's
+history, and `gitHistory.path` is the path in that repository.
+
+### Full history
+
+Most CI systems check out a shallow clone by default. Full history on the scan job makes the history
+reliable for every entry:
+
+| CI | Setting |
+|---|---|
+| GitHub Actions | `fetch-depth: 0` on `actions/checkout` |
+| GitLab CI | `GIT_DEPTH: 0` in the job's `variables` |
+| Azure Pipelines | `fetchDepth: 0` on the `checkout` step |
+
+```bash
+jq -r '.descriptor.exclusions[] | "\(.source):\(.line)  \(.gitHistory.commit // .gitHistory.unavailable)"' out/report.json
+```
 
 ## What each action carries
 

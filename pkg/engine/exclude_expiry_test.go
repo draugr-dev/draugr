@@ -55,6 +55,25 @@ func TestExpiredExclusionStopsSuppressing(t *testing.T) {
 	}
 }
 
+// A suppressed finding names the file and line of the exclusion that set it aside, which is how a
+// reader gets from the finding to that line's git history.
+func TestASuppressionNamesTheLineOfItsExclusion(t *testing.T) {
+	t.Parallel()
+
+	ctrls := excludeFixture()
+	rule := saga.ExcludeRule{
+		Rules: []string{"CVE-1"}, Reason: "fixture",
+		Source: "excl/fixtures.saga-fragment.yaml", Line: 7, File: "/checkout/excl/fixtures.saga-fragment.yaml",
+	}
+	if n, _, _ := applyExclusions(ctrls, []saga.ExcludeRule{rule}, time.Now()); n != 1 {
+		t.Fatalf("suppressed %d, want 1", n)
+	}
+	sup := ctrls["sca"].Report.Results[0].Suppression
+	if sup.Source != "excl/fixtures.saga-fragment.yaml" || sup.Line != 7 {
+		t.Errorf("suppression = %+v, want the fragment and line 7", sup)
+	}
+}
+
 // An exclusion with no owner still works. The gap is reported rather than enforced, but the
 // suppression records that nobody was named.
 func TestUnattributedSuppressionIsStillRecorded(t *testing.T) {

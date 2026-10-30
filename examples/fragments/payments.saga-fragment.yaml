@@ -26,5 +26,4 @@ config:
   exclude:
     - rules: [CVE-2023-45853]
       reason: zlib is present but the vulnerable path is not reachable from our handlers
-      acceptedBy: payments@example.com
       expires: "2026-12-31"

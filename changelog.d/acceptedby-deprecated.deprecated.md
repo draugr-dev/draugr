@@ -1,0 +1,1 @@
+- **`config.exclude[].acceptedBy` is deprecated, and 0.163.0 removes it.** Nothing verifies the name, so the record of who accepted a finding is now the exclusion's git history. `draugr validate` and `draugr scan` warn with the file and line, `--evidence` and the reports show the history instead, and `report.json` and `results.sarif` keep the name only as `unverifiedAcceptedBy`.

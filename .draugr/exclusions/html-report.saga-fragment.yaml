@@ -21,4 +21,3 @@ config:
         The equivalent gosec rule (G203) is suppressed inline at the same line for the same
         reason. Scoped to this file and these two rules, so the same pattern anywhere else still
         fails the gate.
-      acceptedBy: "Wilson Santos <wilson@draugr.dev>"

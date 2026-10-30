@@ -94,7 +94,9 @@ complete scan.
 ### Accepted findings
 
 A finding accepted in Draugr, by `config.exclude`, an inline `#nosec` or a VEX statement, is
-dismissed in code scanning as **won't fix**, with the reason and who accepted it as the comment.
+dismissed in code scanning as **won't fix**, with the reason as the comment. A `config.exclude`
+entry's comment also names its file and line, `(draugr.saga.yaml:14)`, where the line's git history
+records who wrote it.
 Code scanning does not read the SARIF `suppressions` the report carries, so the publisher sets each
 alert itself once GitHub has processed the upload.
 

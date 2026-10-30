@@ -19,6 +19,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/sbom"
+	"github.com/draugr-dev/draugr/pkg/skald"
 	"github.com/draugr-dev/draugr/pkg/vex"
 )
 
@@ -196,16 +197,15 @@ func goldenFullData() Data {
 			Concurrency: 8, Duration: 34500 * time.Millisecond,
 		},
 		Suppressed: 2,
-		// One suppression signed and one not, because the line renders them differently and an
-		// element the fixture omits is an element the golden does not pin. This is the account
-		// of who decided what, which is the half of a suppression an auditor comes for.
-		//
 		// A rule whose date passed and a rule that matched nothing, which are the two ways a
 		// descriptor can claim a decision it is not making. They render in different places and at
 		// different weights, so a fixture carrying neither pins the easy half of the block.
+		//
+		// The lapsed rule names an acceptedBy, which no view may print.
 		LapsedExclusions: []saga.ExcludeRule{{
 			Rules: []string{"CVE-2021-0001"}, Expires: "2026-01-31",
 			AcceptedBy: "a.reviewer@example.com", Reason: "waiting on the upstream release",
+			Source: "draugr.saga.yaml", Line: 31,
 		}},
 		UnmatchedExclusions: []saga.ExcludeRule{{
 			Paths: []string{"tests*"}, Reason: "test files that are not deployed",
@@ -237,6 +237,7 @@ func goldenFullData() Data {
 			{Name: "internal-tool", Verdict: norn.Pass},
 		},
 		UnattributedFindings: 3,
+		Descriptor:           goldenExclusions(),
 	}
 }
 
@@ -255,18 +256,37 @@ func goldenCleanData() Data {
 	}
 }
 
-// suppressedLicenses appends the two set-aside findings the Suppressed count refers to: one
-// signed, one not, because the line renders them differently and an element the fixture omits is
-// an element the golden does not pin.
+// suppressedLicenses appends the two set-aside findings the Suppressed count refers to, set aside
+// by exclusions at two lines: one whose git history names a commit and one in a shallow clone
+// whose history is unavailable, because the decisions block renders them differently and an
+// element the fixture omits is an element the golden does not pin. The first names an
+// acceptedBy, which no view may print.
 func suppressedLicenses(base []sarif.Result) []sarif.Result {
 	return append(append([]sarif.Result{}, base...),
 		sarif.Result{RuleID: "license/GPL-3.0-only/x", Level: sarif.LevelWarning,
 			Location: sarif.Location{URI: "go.mod"},
 			Suppression: &sarif.Suppression{Kind: "external",
-				Justification: "legal reviewed; we do not distribute", AcceptedBy: "a.reviewer"}},
+				Justification: "legal reviewed; we do not distribute", AcceptedBy: "a.reviewer",
+				Source: "draugr.saga.yaml", Line: 22}},
 		sarif.Result{RuleID: "license/GPL-3.0-only/y", Level: sarif.LevelWarning,
-			Location:    sarif.Location{URI: "go.mod"},
-			Suppression: &sarif.Suppression{Kind: "external", Justification: "same package tree"}})
+			Location: sarif.Location{URI: "go.mod"},
+			Suppression: &sarif.Suppression{Kind: "external", Justification: "same package tree",
+				Source: "draugr.saga.yaml", Line: 26}})
+}
+
+// goldenExclusions is the descriptor block's account of the two exclusions above: git's record of
+// each line, as a scan records it.
+func goldenExclusions() *skald.DescriptorRef {
+	return &skald.DescriptorRef{Exclusions: []skald.Exclusion{
+		{Source: "draugr.saga.yaml", Line: 22, Reason: "legal reviewed; we do not distribute",
+			GitHistory: &saga.LineHistory{Path: "draugr.saga.yaml",
+				Commit: "4f2a9c1e0b3d5f7a9c1e0b3d5f7a9c1e0b3d5f7a", Author: "Ada Lovelace",
+				Date: "2026-09-14T10:02:11+02:00"}},
+		{Source: "draugr.saga.yaml", Line: 26, Reason: "same package tree",
+			GitHistory: &saga.LineHistory{Path: "draugr.saga.yaml",
+				Unavailable: "the line is older than the shallow clone's history; fetch full history"}},
+		{Source: "draugr.saga.yaml", Line: 31, Reason: "waiting on the upstream release"},
+	}}
 }
 
 // goldenEnrichedData is a run whose severities were raised by exploitability data.
