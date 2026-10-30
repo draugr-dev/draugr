@@ -716,7 +716,9 @@ type Stats struct {
 	// worth attention is the slowest one rather than the one with the most jobs.
 	Duration  time.Duration
 	ByControl map[string]time.Duration
-	// Unscanned names the jobs that could not run, and what each was going to look at.
+	// Unscanned names what each component has that none of its jobs read: one entry per component
+	// and target, carrying the failed job that was going to look at it. A target two components
+	// declare appears once for each of them, and a target-level count reads Targets instead.
 	//
 	// Recorded per target rather than only per control, because a control's error says a scan
 	// failed and not what went unexamined. A component whose every image failed to pull has had
@@ -1006,9 +1008,12 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		failed int
 		// unscanned records what each of those jobs was going to look at.
 		unscanned []Unscanned
-		// examined is every target some scanner did produce a report for. A target one scanner
-		// failed on and another read is not unexamined, and reporting it as such would be the
-		// mirror of the bug this exists to fix: a claim about coverage nothing established.
+		// examined is every target some scanner did produce a report for, by the component whose
+		// job read it. A target one scanner failed on and another read is not unexamined, and
+		// reporting it as such would be the mirror of the bug this exists to fix: a claim about
+		// coverage nothing established. Kept per component because each component's verdict
+		// rests on its own jobs, and another component's job reading the target says nothing
+		// about whether this one's did.
 		examined = map[string]bool{}
 		// reached is examined at the grain a run's account of its targets uses: a repository by its
 		// source and revision whatever paths a job read, a cluster by its name whatever namespaces.
@@ -1300,8 +1305,8 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			if scanErr != nil {
 				span.RecordError(scanErr)
 				span.SetStatus(codes.Error, "scan failed")
+				mu.Lock()
 				if !shared { // record the underlying error once, not once per collapsed job
-					mu.Lock()
 					errs = append(errs, fmt.Errorf("scan %s/%s: %w", pj.Control, pj.Job.Scanner, scanErr))
 					// No scanner prefix: the scanner already names itself when it wraps the
 					// failure ("run nuclei: …"), and adding it again reads as a stutter in
@@ -1311,15 +1316,20 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 						missing = append(missing, MissingTool{Control: pj.Control, Tool: tool, Message: scanErr.Error()})
 					}
 					failed++
-					unscanned = append(unscanned, unscannedFor(pj, scanErr))
 					steps[stepKey(pj)].Failed++
-					mu.Unlock()
 				}
+				// What went unread is recorded for every job, collapsed or not. Two components that
+				// declare one image share its scan, and the component whose job reused the failure
+				// has had that image examined no more than the one whose job ran it. Recorded only
+				// for the job that ran, the other would pass with its image unread, and which one
+				// that was would depend on which job reached the scan first.
+				unscanned = append(unscanned, unscannedFor(pj, scanErr))
+				mu.Unlock()
 				return
 			}
 			res := out.(scanOutcome)
 			mu.Lock()
-			examined[targetKey(pj.Job.Target)] = true
+			examined[examinedKey(pj.Component, pj.Job.Target)] = true
 			reached[outcomeKey(pj.Job.Target)] = true
 			mu.Unlock()
 			span.SetAttributes(attribute.Bool("cache.hit", res.cached), attribute.Bool("dedup", shared))
@@ -1935,26 +1945,38 @@ func stepSnapshot(steps map[string]*ProgressStep) []ProgressStep {
 	return out
 }
 
-// targetKey identifies a target across the scanners that look at it.
-func targetKey(t plugin.Target) string {
-	if t == nil {
-		return ""
+// examinedKey identifies a target, for one component, across the scanners that look at it.
+func examinedKey(component string, t plugin.Target) string {
+	var kind, id string
+	if t != nil {
+		kind, id = string(t.Kind()), t.Identity()
 	}
-	return string(t.Kind()) + "\x00" + t.Identity()
+	return unscannedKey(component, kind, id)
 }
 
-// trulyUnscanned drops failures for targets some other scanner did read, and collapses the rest
-// to one entry per target.
+// unscannedKey is examinedKey spelled from what an Unscanned entry carries.
+func unscannedKey(component, kind, target string) string {
+	return component + "\x00" + kind + "\x00" + target
+}
+
+// trulyUnscanned drops failures for targets another scanner read for the same component, and
+// collapses the rest to one entry per component and target.
 //
 // Two scanners can serve one control and both plan a job for the same image. If one fails and the
 // other succeeds, the image was examined. Reporting it as unscanned would be a claim about
 // coverage that nothing established, which is exactly the failure this data exists to prevent,
 // pointed the other way. And where both fail, the target went unexamined once, not twice.
+//
+// Both rules hold within a component and never across components. Two components that declare one
+// image each rest their verdict on it, so each keeps its own entry: collapsed into one, the entry
+// would name whichever component's job failed first, and the other would read as passing with its
+// image unread. For the same reason one component's job reading the image does not excuse
+// another's failing on it.
 func trulyUnscanned(unscanned []Unscanned, examined map[string]bool) []Unscanned {
 	var out []Unscanned
 	seen := map[string]bool{}
 	for _, u := range unscanned {
-		key := u.Kind + "\x00" + u.Target
+		key := unscannedKey(u.Component, u.Kind, u.Target)
 		if examined[key] || seen[key] {
 			continue
 		}

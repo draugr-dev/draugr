@@ -94,8 +94,8 @@ func targetOutcomes(planned []PlannedJob, skipped []SkippedJob, failures []Unsca
 		case reached[key]:
 			o.Status, o.Detail = TargetReached, ""
 		case o.Status == "":
-			// Planned, never read and never reported as failing: a job collapsed into another that
-			// failed, whose failure is recorded once, against the first.
+			// Planned, never read and never reported as failing: a job the run was canceled
+			// before it could start.
 			o.Status = TargetFailed
 		}
 		slices.Sort(o.Components)
