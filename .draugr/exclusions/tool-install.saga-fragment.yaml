@@ -15,7 +15,6 @@ config:
         requirements file embedded in this binary. None of it is reachable from a descriptor, a
         scanned repository or the network. Rewriting it to satisfy the rule would mean hardcoding
         an interpreter path, which is wrong on every machine that keeps Python somewhere else.
-      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
 
     - paths:
         - "internal/tools/node.go"
@@ -30,7 +29,6 @@ config:
         repository or the network, and the install runs with --ignore-scripts so nothing in the
         package tree executes either. Hardcoding an interpreter path to satisfy the rule would be
         wrong on every machine that keeps Node somewhere else.
-      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
 
     - paths:
         - "internal/tools/gotool.go"
@@ -45,4 +43,3 @@ config:
         rather than inherits. None of it is reachable from a descriptor, a scanned repository or
         the network. Hardcoding a toolchain path to satisfy the rule would be wrong on every
         machine that keeps Go somewhere else.
-      acceptedBy: "Wilson Santos <wilson@draugr.dev>"

@@ -1,6 +1,9 @@
 package sarif
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // A descriptor rule says so in the report, whether or not it named a person.
 //
@@ -58,6 +61,33 @@ func TestAnOldReportWithANameIsStillADescriptorRule(t *testing.T) {
 	}
 	if got := back.Results[0].Suppression.Origin; got != OriginSaga {
 		t.Errorf("origin %q, want %q", got, OriginSaga)
+	}
+}
+
+// The descriptor's acceptedBy is written only under the key that marks it unverified, and a report
+// an earlier release wrote under the old key still reads back, so a baseline from one compares.
+func TestTheDescriptorsNameIsWrittenAsUnverified(t *testing.T) {
+	data, err := Report{Tool: "trivy", Results: []Result{{
+		RuleID: "CVE-2026-1", Level: LevelError, Message: "x",
+		Suppression: &Suppression{Kind: "external", Justification: "j", Origin: OriginSaga, AcceptedBy: "ada@acme.example"},
+	}}}.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"unverifiedAcceptedBy": "ada@acme.example"`) || strings.Contains(string(data), `"acceptedBy"`) {
+		t.Errorf("the name should be written only as unverifiedAcceptedBy:\n%s", data)
+	}
+
+	older := `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Draugr"}},"results":[{"ruleId":"CVE-2026-1",
+"level":"error","message":{"text":"x"},"suppressions":[{"kind":"external","justification":"j",
+"properties":{"acceptedBy":"ada@acme.example"}}]}]}]}`
+	back, err := FromSARIF([]byte(older))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sup := back.Results[0].Suppression
+	if sup == nil || sup.AcceptedBy != "ada@acme.example" || sup.Origin != OriginSaga {
+		t.Errorf("an older report read back as %+v", sup)
 	}
 }
 

@@ -96,7 +96,7 @@ entry, with `justification` as its own field and the rest in its `properties`.
 | Field | What it says |
 |---|---|
 | `justification` | The reason given for setting it aside |
-| `acceptedBy` | Who accepted it, for a rule in the descriptor that named someone |
+| `unverifiedAcceptedBy` | For a rule in the descriptor that still sets the deprecated [`acceptedBy`](saga-schema.md#configexclude), the name it states, which nothing verifies. 0.163.0 removes it. The rule's entry in [`descriptor.exclusions[]`](#what-each-exclusion-carries) carries git's record of who wrote it |
 | `origin` | Whose decision it was: `saga` for a rule in this project's descriptor, `vex` for a supplier's VEX claim this project accepted, `tool` for a directive written beside the line, `scanner` for an entry in the scanner's own ignore file |
 | `author`, `asserted` | For a `vex` suppression, who made the claim and the date they made it |
 | `source` | The descriptor file a rule was written in, where the descriptor is split across several, or the VEX document a claim came from |
@@ -121,7 +121,7 @@ names the file and line it is written at, and what `git blame` says about that l
 
 | Field | Meaning |
 |---|---|
-| `source` | the descriptor or fragment: the descriptor's path as `draugr scan` was given it, a local fragment's path joined to the descriptor's directory, or `<url>@<revision> <path>` for a fragment fetched from another repository |
+| `source` | the descriptor or fragment: the descriptor's path as `draugr scan` was given it, a local fragment's path joined to the descriptor's directory, or `<url>@<revision> <path>` for a fragment fetched from another repository, with the commit the revision resolved to in parentheses after it when the two differ |
 | `line` | the line the entry starts at |
 | `reason` | the entry's `reason` |
 | `gitHistory.path` | the file's path in the repository that holds it. Absent where no git repository holds the file |

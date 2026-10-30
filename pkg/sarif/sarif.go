@@ -347,26 +347,29 @@ type sarifSuppression struct {
 	// suppressions it creates, because an exclusion without a stated reason is how a scanner
 	// gets quietly defanged.
 	Justification string `json:"justification,omitempty"`
-	// Properties carries who accepted the suppression and when it lapses.
+	// Properties carries where the decision is written and when it lapses.
 	//
 	// SARIF has no field for either, and the spec's property bag is where a producer puts what the
 	// schema does not model. They go here rather than being folded into the justification text
-	// because a consumer should be able to read "who" as a value, the whole reason the descriptor
-	// records it is so a report can be filtered and audited by it, and a name inside a sentence
-	// cannot be.
+	// because a consumer should be able to read each as a value, which a report can be filtered
+	// and audited by, and a value inside a sentence cannot be.
 	Properties *sarifSuppressionProperties `json:"properties,omitempty"`
 }
 
 // sarifSuppressionProperties holds Draugr's suppression metadata in SARIF's property bag.
 type sarifSuppressionProperties struct {
+	// UnverifiedAcceptedBy is the name a descriptor's deprecated acceptedBy states, which nothing
+	// checks. Written under this key so no reader takes it for who accepted the finding.
+	UnverifiedAcceptedBy string `json:"unverifiedAcceptedBy,omitempty"`
+	// AcceptedBy is the key a report from an earlier release wrote the same value under. Read so a
+	// baseline from one of those still means what it said, and never written.
 	AcceptedBy string `json:"acceptedBy,omitempty"`
 	Expires    string `json:"expires,omitempty"`
 	// Origin, Author and Asserted describe a claim imported from somebody else's VEX document.
 	//
-	// Carried into the property bag for the same reason acceptedBy is: a consumer reading this
-	// SARIF has to be able to tell a decision this project made from one it accepted on a
-	// supplier's word, and without these the two are the same "external" suppression with a
-	// reason attached.
+	// Carried into the property bag because a consumer reading this SARIF has to be able to tell a
+	// decision this project made from one it accepted on a supplier's word, and without these the
+	// two are the same "external" suppression with a reason attached.
 	Origin   string `json:"origin,omitempty"`
 	Author   string `json:"author,omitempty"`
 	Asserted string `json:"asserted,omitempty"`
@@ -486,7 +489,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 			if s.AcceptedBy != "" || s.Expires != "" || s.Origin != "" || s.Author != "" ||
 				s.Asserted != "" || s.Source != "" || s.StatementID != "" || s.Digest != "" || s.Line != 0 {
 				sup.Properties = &sarifSuppressionProperties{
-					AcceptedBy: s.AcceptedBy, Expires: s.Expires,
+					UnverifiedAcceptedBy: s.AcceptedBy, Expires: s.Expires,
 					Origin: s.Origin, Author: s.Author, Asserted: s.Asserted, Source: s.Source,
 					StatementID: s.StatementID, Digest: s.Digest, Line: s.Line,
 				}
@@ -637,8 +640,8 @@ func parseSecuritySeverity(p *sarifProperties) (float64, bool) {
 // as a count: it stays out of Counts, out of the verdict, and appears in the report marked. So
 // keeping it costs nothing and carries the record it would otherwise throw away.
 //
-// Draugr writes its own suppressions with a property bag naming who accepted the finding and when.
-// A scanner's carries none of that, because there was no decision to record. Somebody wrote a
+// Draugr writes its own suppressions with a property bag naming where the decision is written and
+// when it lapses. A scanner's carries none of that, because there was no decision to record. Somebody wrote a
 // comment in the file. That is a real distinction and it survives here as Origin: a `nosem` is
 // acceptance by whoever was editing, which is not the same as a rule somebody reviewed.
 func readSuppression(sups []sarifSuppression) *Suppression {
@@ -648,14 +651,17 @@ func readSuppression(sups []sarifSuppression) *Suppression {
 	first := sups[0]
 	sup := &Suppression{Kind: first.Kind, Justification: first.Justification, Origin: scannersOwn(first.Kind)}
 	if p := first.Properties; p != nil {
-		sup.AcceptedBy, sup.Expires = p.AcceptedBy, p.Expires
+		sup.AcceptedBy, sup.Expires = p.UnverifiedAcceptedBy, p.Expires
+		if sup.AcceptedBy == "" {
+			sup.AcceptedBy = p.AcceptedBy
+		}
 		sup.Author, sup.Asserted, sup.Source, sup.Line = p.Author, p.Asserted, p.Source, p.Line
 		if p.Origin != "" {
 			// Draugr's own, read back as what it was written as.
 			sup.Origin = p.Origin
-		} else if p.AcceptedBy != "" {
-			// A decision with somebody's name on it and no origin recorded: a descriptor rule
-			// from a Draugr that predates imported claims, which is what an empty Origin means.
+		} else if sup.AcceptedBy != "" {
+			// A decision with a name on it and no origin recorded: a descriptor rule from a Draugr
+			// that predates imported claims, which is what an empty Origin means.
 			sup.Origin = OriginSaga
 		}
 	}

@@ -34,7 +34,7 @@ draugr scan draugr.saga.yaml -o out/ --report vex     # out/openvex.json
       "products": [ { "@id": "pkg:oci/acme/api@2.4.0" } ],
       "status": "not_affected",
       "justification": "vulnerable_code_not_in_execute_path",
-      "status_notes": "accepted by security@acme.example; expires 2026-12-31"
+      "status_notes": "expires 2026-12-31"
     }
   ]
 }
@@ -42,10 +42,10 @@ draugr scan draugr.saga.yaml -o out/ --report vex     # out/openvex.json
 
 ## Where the statements come from
 
-**Your exclusions, mostly.** A suppression in Draugr is not a delete. It keeps the reason, who
-accepted it and when the acceptance lapses, because those are what an auditor asks for. They are
-also most of a VEX statement, so a project that has been suppressing findings properly already has
-the document.
+**Your exclusions, mostly.** A suppression in Draugr is not a delete. It keeps the reason and when
+the acceptance lapses, because those are what an auditor asks for. They are also most of a VEX
+statement, so a project that has been suppressing findings properly already has the document. The
+expiry is published as `status_notes`.
 
 | The finding | Becomes | Carrying |
 |---|---|---|
@@ -75,7 +75,6 @@ config:
   exclude:
     - rules: ["CVE-2018-18074"]
       reason: "The redirect path that leaks the header is never taken; we pin the host."
-      acceptedBy: "security@acme.example"
       expires: "2026-12-31"
       vex:
         status: not_affected

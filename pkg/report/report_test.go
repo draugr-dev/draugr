@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/sbom"
+	"github.com/draugr-dev/draugr/pkg/skald"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
@@ -1109,53 +1111,82 @@ func TestMarkdownRendersTheComponentTable(t *testing.T) {
 	}
 }
 
-// suppressedBy builds a report whose findings were set aside, some with a name against them.
-func suppressedBy(names ...string) Data {
+// suppressedAt builds a report whose findings were set aside by exclusions written at the given
+// places, each `file:line`, or a bare file, or empty for a suppression that names neither. Every
+// suppression carries an acceptedBy, which no decision may present.
+func suppressedAt(places ...string) Data {
 	var results []sarif.Result
-	for i, n := range names {
+	for i, p := range places {
+		source, line := p, 0
+		if file, n, ok := strings.Cut(p, ":"); ok {
+			source = file
+			line, _ = strconv.Atoi(n)
+		}
 		results = append(results, sarif.Result{
 			RuleID: fmt.Sprintf("CVE-%d", i), Level: sarif.LevelError,
-			Suppression: &sarif.Suppression{Kind: "external", Justification: "accepted", AcceptedBy: n},
+			Suppression: &sarif.Suppression{Kind: "external", Justification: "accepted",
+				AcceptedBy: "typed.name@example.com", Source: source, Line: line},
 		})
 	}
 	return Data{
 		Run: engine.Result{
-			Suppressed: len(names),
+			Suppressed: len(places),
 			Controls:   map[string]plugin.ControlResult{"sca": {Report: sarif.Report{Results: results}}},
 		},
 	}
 }
 
-func TestDecisionsNameWhoAcceptedWhatAndWhy(t *testing.T) {
-	// The name is the point of recording it. A count of unattributed says *that* there is a gap; it
-	// does not say who to ask about the rest, nor what any of them thought was acceptable, which is
-	// the question an auditor arrives with. The line above it counts; this answers.
-	if got, want := suppressionLine(suppressedBy("a.reviewer", ""), false),
+func TestDecisionsAreOnePerExclusion(t *testing.T) {
+	if got, want := suppressionLine(suppressedAt("draugr.saga.yaml:12", ""), false),
 		"config.exclude: 2 findings suppressed"; got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
-	got := decisions(suppressedBy("a.reviewer", "a.reviewer", "b.owner", ""))
+	// The same reason written at two lines is two decisions, each with its own history.
+	got := decisions(suppressedAt("draugr.saga.yaml:12", "draugr.saga.yaml:12", "team.saga-fragment.yaml:4", ""))
 	if len(got) != 3 {
-		t.Fatalf("got %d decisions, want one per acceptance: %+v", len(got), got)
+		t.Fatalf("got %d decisions, want one per exclusion: %+v", len(got), got)
 	}
-	if got[0].by != "a.reviewer" || got[0].n != 2 {
+	if got[0].where != "draugr.saga.yaml:12" || got[0].n != 2 || len(got[0].rules) != 2 {
 		t.Errorf("the largest decision should lead: %+v", got[0])
 	}
-	var unsigned bool
 	for _, dec := range got {
-		if dec.by == "unattributed" && dec.n == 1 {
-			unsigned = true
+		if strings.Contains(fmt.Sprintf("%+v", dec), "typed.name") {
+			t.Errorf("a decision carries the descriptor's acceptedBy: %+v", dec)
 		}
-	}
-	if !unsigned {
-		t.Errorf("a suppression nobody signed is the one worth naming, and it is missing: %+v", got)
 	}
 }
 
-func TestDecisionsWithNobodyNamed(t *testing.T) {
-	got := decisions(suppressedBy("", ""))
-	if len(got) != 1 || got[0].by != "unattributed" || got[0].n != 2 {
-		t.Errorf("got %+v, want one unattributed decision covering both", got)
+// A suppression read from a report that recorded no line still groups, by its reason and date.
+func TestDecisionsWithNoLineRecorded(t *testing.T) {
+	got := decisions(suppressedAt("", ""))
+	if len(got) != 1 || got[0].where != "" || got[0].n != 2 {
+		t.Errorf("got %+v, want one decision covering both", got)
+	}
+	if got := decisions(suppressedAt("draugr.saga.yaml")); got[0].where != "draugr.saga.yaml" {
+		t.Errorf("a file with no line should still be named: %+v", got[0])
+	}
+}
+
+// Each decision takes git's record of its line from the report's descriptor block, and only the
+// record for that file and line.
+func TestDecisionsCarryTheirLinesGitHistory(t *testing.T) {
+	d := suppressedAt("draugr.saga.yaml:12", "draugr.saga.yaml:18", "other.saga-fragment.yaml:12")
+	reliable := &saga.LineHistory{Commit: "4f2a9c1e0b3d5f7a", Author: "Ada Lovelace", Date: "2026-09-14T10:00:00Z"}
+	shallow := &saga.LineHistory{Unavailable: "the line dates from the shallow clone's boundary commit or earlier"}
+	d.Descriptor = &skald.DescriptorRef{Exclusions: []skald.Exclusion{
+		{Source: "draugr.saga.yaml", Line: 12, GitHistory: reliable},
+		{Source: "draugr.saga.yaml", Line: 18, GitHistory: shallow},
+		{Source: "unrelated.saga-fragment.yaml", Line: 12, GitHistory: reliable},
+	}}
+	got := map[string]*saga.LineHistory{}
+	for _, dec := range decisions(d) {
+		got[dec.where] = dec.history
+	}
+	if got["draugr.saga.yaml:12"] != reliable || got["draugr.saga.yaml:18"] != shallow {
+		t.Errorf("histories = %+v", got)
+	}
+	if got["other.saga-fragment.yaml:12"] != nil {
+		t.Errorf("a line in another file took this one's history: %+v", got["other.saga-fragment.yaml:12"])
 	}
 }
 
@@ -1168,21 +1199,30 @@ func TestSuppressionLineIsAbsentWithNothingSuppressed(t *testing.T) {
 func TestDecisionsOrderStably(t *testing.T) {
 	// Map iteration would reorder this between runs, and a report offered as evidence should
 	// not differ from itself.
-	first := decisions(suppressedBy("z.last", "a.first"))
+	first := decisions(suppressedAt("z.saga.yaml:1", "a.saga.yaml:9"))
 	for range 5 {
-		got := decisions(suppressedBy("z.last", "a.first"))
+		got := decisions(suppressedAt("z.saga.yaml:1", "a.saga.yaml:9"))
 		if len(got) != len(first) {
 			t.Fatalf("unstable length: %d then %d", len(first), len(got))
 		}
 		for i := range got {
-			if got[i].by != first[i].by {
+			if got[i].where != first[i].where {
 				t.Fatalf("unstable order:\n%+v\n%+v", first, got)
 			}
 		}
 	}
-	// Equal counts fall back to the name, so two readings of one report agree.
-	if first[0].by != "a.first" {
+	// Equal counts fall back to where each is written, so two readings of one report agree.
+	if first[0].where != "a.saga.yaml:9" {
 		t.Errorf("expected alphabetical on a tie: %+v", first)
+	}
+	// Then to the reason and the date, for suppressions that name no place.
+	d := suppressedAt("", "", "")
+	results := d.Run.Controls["sca"].Report.Results
+	results[0].Suppression.Justification, results[1].Suppression.Justification = "b", "a"
+	results[2].Suppression.Justification, results[2].Suppression.Expires = "a", "2027-01-01"
+	got := decisions(d)
+	if len(got) != 3 || got[0].reason != "a" || got[0].expires != "" || got[1].expires != "2027-01-01" || got[2].reason != "b" {
+		t.Errorf("tie order = %+v", got)
 	}
 }
 

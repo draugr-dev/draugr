@@ -12,7 +12,6 @@ config:
         a correlation id rather than a credential — it authenticates nothing and is worthless to
         anyone holding it. Trimming it out of the fixture would leave the test asserting that the
         parser handles output the agent does not produce.
-      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
 
     - paths:
         - "test/integration/repo_scan_test.go"
@@ -22,7 +21,6 @@ config:
         The integration test writes a throwaway RSA key into a temporary repo so the secrets
         control has something real to find; a test asserting it finds nothing asserts nothing.
         The key material is fake and was never valid anywhere.
-      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
 
     - paths:
         - "pkg/publish/azure_pr_comment_test.go"
@@ -35,7 +33,6 @@ config:
         other is sixteen hex digits; both are literals in the table, neither was ever issued by
         anything. A credential-shaped string is what the test is about, so there is no version of
         it that does not look like this to a scanner.
-      acceptedBy: "Wilson Santos <wilson@draugr.dev>"
 
     - paths:
         - "pkg/engine/engine_test.go"
@@ -47,4 +44,3 @@ config:
         is a token that proves nothing about whether the log redacts it. The literal is
         "NOTAREALTOKEN" followed by digits, issued by nobody and valid nowhere. Finding it here is
         the secrets control working; so is leaving it in place.
-      acceptedBy: "Wilson Santos <wilson@draugr.dev>"

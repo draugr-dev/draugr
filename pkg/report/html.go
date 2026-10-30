@@ -173,12 +173,16 @@ type htmlControl struct {
 // htmlSignal is one thing that argued with this run's ranking, and how many findings it moved.
 type htmlSignal struct{ Name, Effect string }
 
-// htmlDecision is one acceptance: how many findings it covers, who signed it, when it lapses, and
-// why. The count alone says how much was set aside and never what was acceptable about it.
+// htmlDecision is one acceptance: how many findings it covers, where it is written, git's record of
+// that line, when it lapses, and why. The count alone says how much was set aside and never what
+// was acceptable about it.
 type htmlDecision struct {
-	N               int
-	By              string
-	Unattributed    bool
+	N     int
+	Where string
+	// History is git's record of the line, empty where the report carries none, and Unavailable
+	// marks a record that says why git could not name a commit.
+	History         string
+	Unavailable     bool
 	Expires, Reason string
 }
 
@@ -431,10 +435,11 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	}
 	view.Signals = htmlSignals(d, s)
 	for _, dec := range decisions(d) {
-		view.Decisions = append(view.Decisions, htmlDecision{
-			N: dec.n, By: dec.by, Unattributed: dec.by == "unattributed",
-			Expires: dec.expires, Reason: dec.reason,
-		})
+		hd := htmlDecision{N: dec.n, Where: dec.where, Expires: dec.expires, Reason: dec.reason}
+		if h := dec.history; h != nil {
+			hd.History, hd.Unavailable = h.String(), h.Commit == ""
+		}
+		view.Decisions = append(view.Decisions, hd)
 	}
 	for _, e := range d.Run.UnmatchedExclusions {
 		view.Unmatched = append(view.Unmatched, htmlUnmatched{
@@ -1756,10 +1761,11 @@ about what they would have found. For everything the tool printed, re-run with
 {{if .Decisions}}
 <details class="fold sub" open><summary class="sub"><span class="sub">Decisions</span></summary>
 <table class="provenance">
-<thead><tr><th scope="col" class="num">Findings</th><th scope="col">Accepted by</th><th scope="col">Expires</th><th scope="col">Reason</th></tr></thead>
+<thead><tr><th scope="col" class="num">Findings</th><th scope="col">Exclusion</th><th scope="col">Git history</th><th scope="col">Expires</th><th scope="col">Reason</th></tr></thead>
 {{range .Decisions}}<tr>
   <td class="num">{{.N}}</td>
-  <td>{{if .Unattributed}}<span class="err">unattributed</span>{{else}}{{.By}}{{end}}</td>
+  <td>{{if .Where}}<code>{{.Where}}</code>{{else}}<span class="faint">not recorded</span>{{end}}</td>
+  <td>{{if .Unavailable}}<span class="err">{{.History}}</span>{{else if .History}}{{.History}}{{else}}<span class="faint">not recorded</span>{{end}}</td>
   <td class="when">{{if .Expires}}{{.Expires}}{{else}}<span class="faint">never</span>{{end}}</td>
   <td>{{.Reason}}</td>
 </tr>{{end}}

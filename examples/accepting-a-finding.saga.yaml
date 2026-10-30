@@ -2,8 +2,10 @@
 # Run it with:  draugr scan examples/accepting-a-finding.saga.yaml
 #
 # An excluded finding is not removed. It stays in the report marked suppressed, carrying the
-# reason somebody gave, who gave it, and when it stops applying. The question an auditor asks of
-# a suppression is never "did the scanner run". It is who decided this was acceptable, and when.
+# reason somebody gave, when it stops applying, and the file and line of the exclusion. The
+# question an auditor asks of a suppression is never "did the scanner run". It is who decided this
+# was acceptable, and when, and the commit that wrote the exclusion's line answers it: report.json
+# carries what git blame says about that line, and `draugr scan --evidence` prints it.
 #
 # Everything below is under `config.exclude`, which is also available in a fragment so a team can
 # accept a finding in its own repository without editing the root descriptor.
@@ -28,19 +30,17 @@ config:
     - rules: [CVE-2023-45853]
       reason: zlib is linked but the vulnerable inflate path is never reached
 
-    # Attributed and dated, which is what makes it a governance record rather than a mute button.
-    #
-    # `acceptedBy` is optional and a suppression without one is reported as unattributed rather
-    # than rejected, but a name buried in the prose of `reason` cannot be reported on, and being
-    # able to list every standing decision by who made it is the point.
+    # Dated, which is what makes it a governance record rather than a mute button.
     #
     # `expires` brings the finding back. An exclusion accepted "until the upstream fix lands" has
     # nothing that returns it, so the temporary ones become permanent by default. Past this date
     # the finding is open again and the report says the exclusion lapsed, rather than silently
     # producing a finding that used to be accepted.
+    #
+    # There is no field for who accepted it. The commit that adds these lines records that, with
+    # an author nobody typed by hand, and the report reads it from git.
     - rules: [CVE-2024-6119]
       reason: waiting on the base image rebuild, tracked in PLATFORM-4412
-      acceptedBy: alice@example.com
       expires: "2026-12-31"
 
     # Narrowed to where the judgement holds. `paths` and `rules` are an AND: this suppresses the
@@ -70,7 +70,6 @@ config:
     # overstatement.
     - rules: [CVE-2022-40897]
       reason: setuptools is a build-time dependency and is not present at runtime
-      acceptedBy: security@example.com
       vex:
         status: not_affected          # not_affected | affected | fixed
         # Why, from VEX's fixed vocabulary. Valid only with not_affected, and a closed vocabulary

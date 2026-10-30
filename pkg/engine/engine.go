@@ -1720,9 +1720,11 @@ func applyExclusions(controls map[string]plugin.ControlResult, rules []saga.Excl
 					// and the one nobody reviewed.
 					res.Suppression = &sarif.Suppression{
 						Kind: "external", Justification: rule.Reason, Origin: sarif.OriginSaga,
-						AcceptedBy: rule.AcceptedBy, Expires: rule.Expires,
-						Source: rule.Source, Line: rule.Line,
+						Expires: rule.Expires, Source: rule.Source, Line: rule.Line,
 					}
+					//nolint:staticcheck // SA1019: carried until the key is removed, so a report
+					// keeps the descriptor's claim under the name that marks it unverified.
+					res.Suppression.AcceptedBy = rule.AcceptedBy
 					if rule.VEX != nil {
 						res.Suppression.VEXStatus = rule.VEX.Status
 						res.Suppression.VEXJustification = rule.VEX.Justification

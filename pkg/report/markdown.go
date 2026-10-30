@@ -212,14 +212,21 @@ func writeEvidenceNotes(w io.Writer, d Data) {
 	if decs := decisions(d); len(decs) > 0 {
 		_, _ = fmt.Fprintln(w, "### Decisions")
 		_, _ = fmt.Fprintln(w)
-		_, _ = fmt.Fprintln(w, "| Findings | Accepted by | Expires | Reason |")
-		_, _ = fmt.Fprintln(w, "|---:|---|---|---|")
+		_, _ = fmt.Fprintln(w, "| Findings | Exclusion | Git history | Expires | Reason |")
+		_, _ = fmt.Fprintln(w, "|---:|---|---|---|---|")
 		for _, dec := range decs {
-			who := dec.by
-			if who == "unattributed" {
-				// The one an auditor cannot follow up, so it is marked rather than left to be
-				// noticed among names.
-				who = "**unattributed**"
+			where := "not recorded"
+			if dec.where != "" {
+				where = "`" + dec.where + "`"
+			}
+			history := "not recorded"
+			if h := dec.history; h != nil {
+				history = h.String()
+				if h.Commit == "" {
+					// The one an auditor cannot follow up, so it is marked rather than left to be
+					// noticed among the commits.
+					history = "**" + history + "**"
+				}
 			}
 			expires := dec.expires
 			if expires == "" {
@@ -227,7 +234,7 @@ func writeEvidenceNotes(w io.Writer, d Data) {
 				// made, and a blank reads as a value the report failed to record.
 				expires = "never"
 			}
-			_, _ = fmt.Fprintf(w, "| %d | %s | %s | %s |\n", dec.n, who, expires, dec.reason)
+			_, _ = fmt.Fprintf(w, "| %d | %s | %s | %s | %s |\n", dec.n, where, history, expires, dec.reason)
 		}
 		_, _ = fmt.Fprintln(w)
 	}

@@ -1585,10 +1585,14 @@ func (g GateSettings) chosen() bool {
 	return g.FailOnPriority != "" && g.FailOnPriority != norn.DefaultPriority
 }
 
-// decision is one acceptance: who made it, what it covers, why, when it lapses, and how many
-// findings it covers.
+// decision is one acceptance: where it is written, git's record of that line, why, when it lapses,
+// and how many findings it covers.
 type decision struct {
-	by      string
+	// where is the exclusion's file and line as `file:line`, its file alone where the line is not
+	// known, or empty where the suppression names neither.
+	where string
+	// history is what git's history says about that line, nil where the report carries none.
+	history *saga.LineHistory
 	reason  string
 	expires string
 	n       int
@@ -1621,22 +1625,25 @@ func acceptedVia(res sarif.Result) string {
 	}
 }
 
-// decisions groups suppressed findings by the decision that set them aside.
+// decisions groups suppressed findings by the exclusion that set them aside.
 //
-// The account an auditor comes for, and the one a single count cannot give: "4 findings suppressed
-// · 2 accepted by A, 1 accepted by B, 1 unattributed" is four facts in one sentence and says
-// nothing about why any of them was acceptable, though every suppressed finding carries the reason.
+// The account an auditor comes for, and the one a single count cannot give: a count says how much
+// was set aside and nothing about why any of it was acceptable, though every suppressed finding
+// carries the reason.
 //
-// Keyed on who, why and until when together, because those three are what makes two suppressions
-// one decision. Two rules with the same reason and the same signature really are one decision
-// spelled twice; the same reason accepted by two people is two.
+// Keyed on where the exclusion is written, why and until when together. Each exclusion is a line
+// somebody wrote in one commit, and its history is that line's, so two entries with the same reason
+// are two decisions with two histories. A suppression that names no line, as one read from an
+// older report, falls back to the reason and the date alone.
+//
+// Who wrote the exclusion is git's record of its line, from the report's descriptor block, and
+// never the descriptor's acceptedBy, which nothing verifies.
 //
 // Only what this project decided. A supplier's analysis and a comment in the source are both
 // reasons a finding stopped counting, and neither is a decision anybody here recorded: counting
-// either among them answers the auditor's question with the wrong name. The comment is the one
-// worth naming twice, because it carries no author at all, so it lands in this table as an
-// unattributed decision and reads as a gap in our own records rather than as what it is.
+// either among them answers the auditor's question with the wrong name.
 func decisions(d Data) []decision {
+	histories := exclusionHistories(d)
 	index := map[string]*decision{}
 	var order []*decision
 	for _, cr := range d.Run.Controls {
@@ -1644,11 +1651,9 @@ func decisions(d Data) []decision {
 			if !res.Suppressed() || res.Imported() || res.SetAsideByScanner() {
 				continue
 			}
-			by := res.Suppression.AcceptedBy
-			if by == "" {
-				by = "unattributed"
-			}
-			key := by + "\x00" + res.Suppression.Justification + "\x00" + res.Suppression.Expires
+			sup := res.Suppression
+			where := whereWritten(sup.Source, sup.Line)
+			key := where + "\x00" + sup.Justification + "\x00" + sup.Expires
 			if got, ok := index[key]; ok {
 				got.n++
 				if !slices.Contains(got.rules, res.RuleID) && res.RuleID != "" {
@@ -1657,8 +1662,8 @@ func decisions(d Data) []decision {
 				continue
 			}
 			dec := &decision{
-				by: by, reason: res.Suppression.Justification,
-				expires: res.Suppression.Expires, n: 1,
+				where: where, history: histories[exclusionKey{sup.Source, sup.Line}],
+				reason: sup.Justification, expires: sup.Expires, n: 1,
 			}
 			if res.RuleID != "" {
 				dec.rules = []string{res.RuleID}
@@ -1667,17 +1672,53 @@ func decisions(d Data) []decision {
 			order = append(order, dec)
 		}
 	}
-	// Most findings first, then by who, so the order is a property of the run rather than of map
+	// Most findings first, then by where, so the order is a property of the run rather than of map
 	// iteration and two readings of one report agree.
 	sort.SliceStable(order, func(i, j int) bool {
 		if order[i].n != order[j].n {
 			return order[i].n > order[j].n
 		}
-		return order[i].by < order[j].by
+		if order[i].where != order[j].where {
+			return order[i].where < order[j].where
+		}
+		if order[i].reason != order[j].reason {
+			return order[i].reason < order[j].reason
+		}
+		return order[i].expires < order[j].expires
 	})
 	out := make([]decision, 0, len(order))
 	for _, dec := range order {
 		out = append(out, *dec)
 	}
 	return out
+}
+
+// exclusionKey names an exclusion by the file and line it is written at, as a suppression does.
+type exclusionKey struct {
+	source string
+	line   int
+}
+
+// exclusionHistories indexes the git history the report's descriptor block carries for each
+// exclusion, by where the exclusion is written.
+func exclusionHistories(d Data) map[exclusionKey]*saga.LineHistory {
+	out := map[exclusionKey]*saga.LineHistory{}
+	if d.Descriptor == nil {
+		return out
+	}
+	for _, e := range d.Descriptor.Exclusions {
+		if e.GitHistory != nil && e.Line > 0 {
+			out[exclusionKey{e.Source, e.Line}] = e.GitHistory
+		}
+	}
+	return out
+}
+
+// whereWritten names an exclusion by its file and line as `file:line`, or its file alone where the
+// line is not known, or nothing.
+func whereWritten(source string, line int) string {
+	if source != "" && line > 0 {
+		return fmt.Sprintf("%s:%d", source, line)
+	}
+	return source
 }

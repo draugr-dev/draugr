@@ -50,14 +50,16 @@ COMPONENTS
 
 ACCEPTED
   config.exclude  2 findings suppressed · 1 expired and no longer suppressing
-              expired 2026-01-31, accepted by a.reviewer@example.com · waiting on the upstream release
+              expired 2026-01-31 · draugr.saga.yaml:31 · waiting on the upstream release
 
 DECISIONS
   legal reviewed; we do not distribute
-  accepted by a.reviewer · covers 1 finding · license/GPL-3.0-only/x · no expiry
+  draugr.saga.yaml:22 · covers 1 finding · license/GPL-3.0-only/x · no expiry
+  applied in 4f2a9c1e0b3d by Ada Lovelace, 2026-09-14 (git history)
 
   same package tree
-  accepted by unattributed · covers 1 finding · license/GPL-3.0-only/y · no expiry
+  draugr.saga.yaml:26 · covers 1 finding · license/GPL-3.0-only/y · no expiry
+  git history unavailable: the line dates from the shallow clone's boundary commit or earlier
 
 UNMATCHED
   config.exclude  paths tests* · test files that are not deployed

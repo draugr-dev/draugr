@@ -263,12 +263,13 @@ type ExcludeRule struct {
 	Rules []string `yaml:"rules,omitempty"`
 	// Reason is why this exclusion exists. Required.
 	Reason string `yaml:"reason"`
-	// AcceptedBy names who decided this finding was acceptable.
+	// AcceptedBy is a name the descriptor's author typed as who accepted the finding.
 	//
-	// The question an auditor asks of a suppression is not whether the scanner ran. It is who
-	// decided, and when. `reason` answers why; without this the who lives in prose if it is recorded
-	// at all, and a name buried in a sentence cannot be reported on. Optional, and a suppression
-	// without one is reported as unattributed rather than rejected.
+	// Deprecated: nothing verifies it, so it records whatever name somebody chose to write. The
+	// record of who wrote an exclusion is the repository's history of its line, which the report
+	// carries as History. Still read until AcceptedByRemovedIn so a descriptor that sets it keeps
+	// working, warned about by AcceptedByWarnings, and reported only as the descriptor's unverified
+	// claim.
 	AcceptedBy string `yaml:"acceptedBy,omitempty"`
 	// Expires is the date this exclusion stops applying, as YYYY-MM-DD.
 	//

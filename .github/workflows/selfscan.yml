@@ -331,7 +331,7 @@ jobs:
 
           **This does not necessarily mean somebody broke something.** The pull-request gate blocks a new P1 from being merged, so the usual cause of a red branch is that the world changed underneath an unchanged tree: an advisory published against a dependency that was already here, a scanner shipping a rule it did not have last week, or a \`config.exclude\` entry reaching its expiry date.
 
-          Two ways out, and the choice is the point: fix it, or accept it with a \`config.exclude\` entry under \`.draugr/exclusions/\` carrying a reason and an \`acceptedBy\`. The finding stays in the report marked suppressed either way, so the decision is visible afterwards.
+          Two ways out, and the choice is the point: fix it, or accept it with a \`config.exclude\` entry under \`.draugr/exclusions/\` carrying a reason, committed by whoever accepts it. The finding stays in the report marked suppressed either way, so the decision is visible afterwards.
 
           This issue closes itself when the branch is green again.
           BODY

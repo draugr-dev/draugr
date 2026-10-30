@@ -298,7 +298,7 @@ type Accepted struct {
 	Package          string `json:"package,omitempty"`
 	Version          string `json:"version,omitempty"`
 	Justification    string `json:"justification" jsonschema:"the reason recorded with the decision"`
-	AcceptedBy       string `json:"acceptedBy,omitempty" jsonschema:"who accepted it; empty means the decision is unattributed"`
+	AcceptedBy       string `json:"acceptedBy,omitempty" jsonschema:"a name the descriptor's deprecated acceptedBy states, which nothing verifies; the git history of the exclusion's line in source records who wrote it"`
 	Expires          string `json:"expires,omitempty" jsonschema:"YYYY-MM-DD the acceptance lapses; empty means it does not"`
 	Origin           string `json:"origin,omitempty" jsonschema:"saga (a rule in the descriptor), vex (a supplier's statement this project accepted), tool or scanner (an annotation in the source)"`
 	Author           string `json:"author,omitempty" jsonschema:"who made an imported VEX statement"`

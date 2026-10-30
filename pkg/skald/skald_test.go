@@ -867,11 +867,8 @@ func TestAnExcusedFindingStaysInTheListAndSaysWhy(t *testing.T) {
 	}
 	var doc struct {
 		Findings []struct {
-			RuleID     string `json:"ruleId"`
-			Suppressed *struct {
-				Justification string `json:"justification"`
-				AcceptedBy    string `json:"acceptedBy"`
-			} `json:"suppressed"`
+			RuleID     string         `json:"ruleId"`
+			Suppressed map[string]any `json:"suppressed"`
 		} `json:"findings"`
 	}
 	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
@@ -884,8 +881,13 @@ func TestAnExcusedFindingStaysInTheListAndSaysWhy(t *testing.T) {
 	if got == nil {
 		t.Fatal("the excused finding is in the list and does not say it was excused")
 	}
-	if got.Justification == "" || got.AcceptedBy == "" {
-		t.Errorf("suppressed = %+v, want the reason and who accepted it", got)
+	if got["justification"] != "a documentation example" {
+		t.Errorf("suppressed = %+v, want the reason", got)
+	}
+	// The descriptor's acceptedBy is nobody's verified name, so it travels only under a key that
+	// says so, and never under the one a reader takes for who accepted the finding.
+	if _, ok := got["acceptedBy"]; ok || got["unverifiedAcceptedBy"] != "someone@example.test" {
+		t.Errorf("suppressed = %+v, want the name only as unverifiedAcceptedBy", got)
 	}
 }
 

@@ -23,8 +23,8 @@ import (
 // that answer, written once, in a form their tooling can apply without a human reading it.
 //
 // Draugr can produce one almost entirely from what a run already knows, because a suppression
-// here is not a delete. `reason`, `acceptedBy` and `expires` are required or recorded for
-// governance reasons that have nothing to do with VEX, and they happen to be most of a VEX
+// here is not a delete. `reason` and `expires` are required or recorded for governance reasons
+// that have nothing to do with VEX, and they happen to be most of a VEX
 // statement. What a suppression does *not* carry is the machine-readable claim. That is
 // `vex.status`, and everything below is about not inventing it when it is absent.
 //
@@ -191,16 +191,13 @@ func statementFor(res sarif.Result) vexStatement {
 	return st
 }
 
-// vexStatusNotes carries the governance half of a suppression, who accepted it and when it
-// lapses. VEX has no field for either, and dropping them would throw away the part of the record
-// an auditor asks about first.
+// vexStatusNotes carries when a suppression lapses. VEX has no field for it, and dropping it would
+// publish a temporary acceptance as a standing one.
+//
+// The descriptor's acceptedBy is left out. Nothing verifies it, and a statement published to the
+// product's consumers would present it as who accepted the finding.
 func vexStatusNotes(sup *sarif.Suppression) string {
-	switch {
-	case sup.AcceptedBy != "" && sup.Expires != "":
-		return fmt.Sprintf("accepted by %s; expires %s", sup.AcceptedBy, sup.Expires)
-	case sup.AcceptedBy != "":
-		return "accepted by " + sup.AcceptedBy
-	case sup.Expires != "":
+	if sup.Expires != "" {
 		return "expires " + sup.Expires
 	}
 	return ""

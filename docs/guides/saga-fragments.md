@@ -34,8 +34,13 @@ config:
       reason: >-
         The integration test writes a throwaway key so the secrets control has something real to
         find. The material is fake and was never valid anywhere.
-      acceptedBy: "sec@acme.example"
 ```
+
+The record of who accepted a finding is the commit that wrote its exclusion. A scan's `report.json`
+names each exclusion's file and line and what `git blame` says about that line, and `draugr scan
+--evidence` prints it under **Decisions**. The [report
+schema](../reference/report-schema.md#what-each-exclusion-carries) says when that history is
+reliable, and how to check out enough of it in CI.
 
 ## What a fragment may contain
 
@@ -199,6 +204,9 @@ so a tag that moves is visible afterwards.
 
 Fragments inside a fetched repository resolve **within it**, so a repository that describes itself
 with relative paths keeps working when somebody else pulls it in.
+
+The repository is cloned with its full history, so an exclusion in a fetched fragment carries that
+repository's git history in the report, read at the commit the revision resolved to.
 
 ## Seeing what is actually in force
 

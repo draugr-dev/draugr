@@ -208,8 +208,7 @@ type findingReport struct {
 	// location the checkout lacks as a finding already fixed, when a credential in history is still
 	// readable by anyone who can clone.
 	Historical bool `json:"historical,omitempty"`
-	// Suppressed says a config.exclude rule set this finding aside, with the reason somebody gave
-	// and who accepted it.
+	// Suppressed says a config.exclude rule set this finding aside, with the reason somebody gave.
 	//
 	// Kept in the list rather than filtered out of it, which is what "suppress, don't delete"
 	// means where a machine reads it: an excused finding stays visible with its justification. It
@@ -218,10 +217,13 @@ type findingReport struct {
 	Suppressed *suppressionNote `json:"suppressed,omitempty"`
 }
 
-// suppressionNote is why a finding is not being counted as work, and who said so.
+// suppressionNote is why a finding is not being counted as work.
 type suppressionNote struct {
 	Justification string `json:"justification,omitempty"`
-	AcceptedBy    string `json:"acceptedBy,omitempty"`
+	// UnverifiedAcceptedBy is the name a descriptor rule's deprecated acceptedBy states, which
+	// nothing checks. Named so no reader takes it for who accepted the finding; the record of that
+	// is the git history descriptor.exclusions carries.
+	UnverifiedAcceptedBy string `json:"unverifiedAcceptedBy,omitempty"`
 	// Origin says whose decision this was: empty or "saga" for this project's own rule, "vex" for a
 	// supplier's claim it accepted, "tool" for a directive written beside the line, and "scanner"
 	// for an entry in the scanner's own ignore file (sarif.OriginSaga and the rest).
@@ -385,7 +387,7 @@ type DescriptorRef struct {
 	// Sent because a digest is worth nothing to somebody who cannot reproduce it, and because the
 	// question a reader actually has is "what did this run apply", which no list of filenames
 	// answers. It holds less than the report beside it: the findings, their locations and every
-	// suppression's reason and accepter are already in that, and a descriptor never carries a
+	// suppression's reason are already in that, and a descriptor never carries a
 	// credential. The schema has no field for one, only for the name of a variable.
 	//
 	// A few kilobytes against a report that is already larger.
@@ -1145,7 +1147,7 @@ func suppressionOf(res sarif.Result) *suppressionNote {
 	}
 	s := res.Suppression
 	return &suppressionNote{
-		Justification: s.Justification, AcceptedBy: s.AcceptedBy, Origin: s.Origin,
+		Justification: s.Justification, UnverifiedAcceptedBy: s.AcceptedBy, Origin: s.Origin,
 		Author: s.Author, Asserted: s.Asserted, Source: s.Source, StatementID: s.StatementID, Digest: s.Digest,
 		Line: s.Line,
 	}
