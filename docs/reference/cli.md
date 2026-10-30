@@ -1810,10 +1810,17 @@ tool. A removed cache refills on the tool's next run.
 ### `draugr tools list`
 
 Show every tool Draugr knows about: its **category** (scanner or utility), the **controls** it
-backs, its pinned version, its source (`draugr tools install`, with the runtime it needs, or
-`system PATH`), and its status: `✓` with the version and path when found, `~` when the version
-found is not the pin, `✗ not found` otherwise. A version shown as `?` is one the tool did not
-report.
+backs, its pinned version (`-` for a tool with none), the command that installs it
+(`draugr tools install`, with the runtime it needs, or `-` for a tool Draugr does not install), and
+its status:
+
+- `✓ <version> (<path>)`: found at the pinned version, or found for a tool with no pin.
+- `~ <version> (<path>)`: found at a version other than the pin.
+- `? version unknown (<path>)`: found, and Draugr cannot read its version.
+- `✗ not found`: no copy on `PATH`.
+
+A copy of a tool Draugr installs, found outside `~/.draugr/bin`, is marked `not installed by Draugr`
+after its path, and `draugr tools uninstall` leaves it alone.
 
 ```bash
 draugr tools list

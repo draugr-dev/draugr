@@ -131,7 +131,7 @@ install fails is one the reader meets while debugging rather than while installi
 - **`Installable()`** must include the tool, or `tools install` will not offer it and `doctor` will
   tell the reader to find it themselves.
 - **`Provisionable()`** (`internal/tools/attest.go`) must recognize it.
-- **`internal/cli/tools.go`**, the install-plan row and the `tools list` source column.
+- **`internal/cli/tools.go`**, the install-plan row and the `tools list` `Install with` column.
 - **The catalog is keyed by binary**, not by scanner. Two scanners sharing a tool share its entry.
 - **`docs/getting-started/install.md`** lists the tools a reader may install themselves. A tool
   absent from it reads as one Draugr cannot provision.

@@ -50,9 +50,13 @@ func TestCommandGolden(t *testing.T) {
 			}
 		}},
 		{"tools-list", func(t *testing.T, w *bytes.Buffer) {
-			// trivy at its pin and gosec behind it, so the golden holds both states whatever the pins are.
-			stubDetect(t, map[string]string{"trivy": tools.PinnedVersion("trivy"), "git": "2.55.0", "gosec": "2.28.0"})
-			if err := runToolsList(context.Background(), w); err != nil {
+			// Every state a found tool can be in, whatever the pins are: trivy in Draugr's directory
+			// at its pin, grype there with a version it did not report, gosec behind the pin in a
+			// directory Draugr did not install it to, and git, which Draugr never installs.
+			bin, _ := listMachine(t,
+				map[string]string{"trivy": tools.PinnedVersion("trivy"), "grype": ""},
+				map[string]string{"git": "2.55.0", "gosec": "2.28.0"})
+			if err := runToolsList(context.Background(), w, bin); err != nil {
 				t.Fatal(err)
 			}
 		}},
