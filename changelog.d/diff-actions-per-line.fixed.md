@@ -1,1 +1,0 @@
-- **`draugr diff --view actions` groups code findings the way `draugr scan --view actions` does.** Each flagged line of code is one action, titled as the scan titles it, with every rule that flags it listed by scanner. A row names its component and repository when the changes span several.
