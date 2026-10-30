@@ -1123,16 +1123,43 @@ func applyConfigDefaults(ctx context.Context, model *saga.Model) (config.File, e
 // (show everything, deliberately) would read as absent and a configured cap would override an
 // explicit instruction.
 func outputOptionsFrom(opts *scanOptions, cfg config.OutputSettings) {
-	if cfg.View != "" && !opts.setFlags["view"] {
-		opts.view = cfg.View
+	d := untypedOutput(cfg, opts.setFlags)
+	if d.view != "" {
+		opts.view = d.view
 	}
-	if cfg.Evidence != nil && !opts.setFlags["evidence"] {
-		opts.evidence = *cfg.Evidence
+	if d.evidence != nil {
+		opts.evidence = *d.evidence
 	}
-	if cfg.Top != 0 && !opts.setFlags["top"] {
-		opts.top = cfg.Top
+	if d.top != 0 {
+		opts.top = d.top
 		opts.topConfigured = true
 	}
+}
+
+// configuredOutput is what output.* sets for the rendering flags a command was not given. Each
+// field is its zero value where the flag was typed or the file is silent.
+type configuredOutput struct {
+	view     string
+	evidence *bool
+	// top is never zero when set: `top: 0` in the file means the built-in default, so it sets
+	// nothing, where `--top 0` asks for every row.
+	top int
+}
+
+// untypedOutput folds output.* under the flags named in typed, the rule `scan` and `diff` share,
+// so the two commands read one file the same way.
+func untypedOutput(cfg config.OutputSettings, typed map[string]bool) configuredOutput {
+	var d configuredOutput
+	if cfg.View != "" && !typed["view"] {
+		d.view = cfg.View
+	}
+	if cfg.Evidence != nil && !typed["evidence"] {
+		d.evidence = cfg.Evidence
+	}
+	if cfg.Top != 0 && !typed["top"] {
+		d.top = cfg.Top
+	}
+	return d
 }
 
 // cacheOptionsFrom folds the configured cache settings under the flags.

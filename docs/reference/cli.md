@@ -935,6 +935,11 @@ CHANGED  4, by priority
 | `--fail-on-new-priority` | - | Deprecated: write the band in `--fail-on-new`. Refused together with `--fail-on-new` |
 | `--publish` | `false` | Post the diff as a sticky pull-request comment. Picks `github-pr-comment`, `azure-pr-comment` or `gitlab-mr-comment` from the CI environment; no-ops off a PR |
 
+`--view` and `--top` have counterparts in [`draugr.config.yaml`](#draugr-config), `output.view` and
+`output.top`, read as `draugr scan` reads them: a flag on the command line wins over the file, and a
+`top` of `0` in the file keeps the default of every row. A diff has no evidence section, so
+`output.evidence` sets nothing here.
+
 The gate reads **new** only. Accepted, unaccepted and moved findings do not trip it, and each is
 reported.
 
@@ -1922,7 +1927,7 @@ controls:               # merged *underneath* the descriptor's own settings
 | `tools.<name>.version` | the build [`tools install`](#draugr-tools-install-tool) provisions |
 | `controls.<control>.<scanner>` | control defaults, merged underneath the descriptor's `config.controls` |
 | `cache.dir`, `cache.ttl`, `cache.readOnly`, `cache.requireDigest` | the `--cache-*` flags. A `ttl` of `0s` means no expiry, as `--cache-ttl 0` does; leaving `ttl` out keeps the built-in default |
-| `output.view`, `output.evidence`, `output.top` | the `--view`, `--evidence` and `--top` flags. A `top` of `0` means the built-in default, not every row as `--top 0` does |
+| `output.view`, `output.evidence`, `output.top` | the `--view`, `--evidence` and `--top` flags of `draugr scan`, and `--view` and `--top` of `draugr diff`. A `top` of `0` means the built-in default, not every row as `--top 0` does |
 | `output.offerInstall` | whether a scan on a terminal [offers to install](#installing-a-missing-scanner) a missing scanner; unset means it does |
 | `publish.apiUrl` | where the `draugr-api` publisher posts when `DRAUGR_API_URL` is unset. In a project's `./draugr.config.yaml` it is held to the rule for a descriptor's `url:`, used only on an allowed origin |
 
