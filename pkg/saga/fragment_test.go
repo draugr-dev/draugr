@@ -744,7 +744,7 @@ func TestLoadFragmentRejectsAnInvalidComponent(t *testing.T) {
 
 func TestAFragmentKeyWithNoValueIsRefused(t *testing.T) {
 	_, err := LoadFragment([]byte("components:\n  - name: web\n    images:\n"), "f.saga-fragment.yaml")
-	if err == nil || !strings.Contains(err.Error(), "line 3: components[0].images has no value") {
+	if err == nil || !strings.Contains(err.Error(), "components[0].images: no value on line 3") {
 		t.Fatalf("err = %v, want the empty key named with its line", err)
 	}
 }

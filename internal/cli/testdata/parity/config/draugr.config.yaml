@@ -1,0 +1,46 @@
+# Every key draugr.config.yaml can hold, written live, so the config parity test changes each one
+# and holds the JSON Schema and `draugr config validate` to the same answer for it.
+tools:
+  trivy:
+    version: "0.69.3"
+  semgrep:
+    version: "1.90.0"
+controls:
+  sast:
+    enabled: true
+    semgrep:
+      config: p/owasp-top-ten
+    gosec:
+      enabled: true
+      exclude: [G104]
+  sca:
+    trivyFs:
+      pkgTypes: [library]
+      detectionPriority: precise
+      includeDevDeps: false
+  licenses:
+    deny: [AGPL-3.0-only]
+    trivyLicense:
+      full: true
+  tls:
+    draugrTls:
+      expiryWarnDays: 21
+cache:
+  dir: /var/cache/draugr
+  ttl: 24h
+  readOnly: false
+  requireDigest: true
+publish:
+  apiUrl: https://draugr.example
+output:
+  view: actions
+  evidence: true
+  top: 20
+  offerInstall: false
+  tips: false
+scan:
+  jobs: 4
+log:
+  level: info
+  format: json
+offline: false

@@ -23,6 +23,15 @@ var SchemaJSON []byte
 //go:embed draugr.saga-fragment.schema.json
 var FragmentSchemaJSON []byte
 
+// ConfigSchemaJSON is the JSON Schema for draugr.config.yaml, embedded for the same reason.
+//
+// Beside the Saga's because its `controls` block is the Saga's: the same per-control definitions,
+// generated from the same registry in the same `go generate`, so a scanner option is held to the
+// same rule in both files.
+//
+//go:embed draugr.config.schema.json
+var ConfigSchemaJSON []byte
+
 // schemaBaseURL is where published copies live. The unversioned file tracks the newest release;
 // each release also publishes an immutable copy under its own tag.
 const schemaBaseURL = "https://draugr.dev/schema"
@@ -34,16 +43,27 @@ const SchemaURL = schemaBaseURL + "/draugr.saga.schema.json"
 // FragmentSchemaURL is the published fragment schema tracking the latest release.
 const FragmentSchemaURL = schemaBaseURL + "/draugr.saga-fragment.schema.json"
 
+// ConfigSchemaURL is the published draugr.config.yaml schema tracking the latest release.
+const ConfigSchemaURL = schemaBaseURL + "/draugr.config.schema.json"
+
 // SchemaURLFor returns the published schema for a specific Draugr version, so an editor
 // validates a Saga against the same rules the installed binary applies. Unreleased builds
 // ("dev", or an empty version) have no published copy, so they fall back to the latest.
-func SchemaURLFor(version string) string {
+func SchemaURLFor(version string) string { return versioned(version, "draugr.saga.schema.json") }
+
+// ConfigSchemaURLFor is SchemaURLFor for the draugr.config.yaml schema.
+func ConfigSchemaURLFor(version string) string {
+	return versioned(version, "draugr.config.schema.json")
+}
+
+// versioned is the published copy of file for version, or the latest one for an unreleased build.
+func versioned(version, file string) string {
 	v := strings.TrimSpace(version)
 	if v == "" || v == "dev" {
-		return SchemaURL
+		return schemaBaseURL + "/" + file
 	}
 	if !strings.HasPrefix(v, "v") {
 		v = "v" + v
 	}
-	return schemaBaseURL + "/" + v + "/draugr.saga.schema.json"
+	return schemaBaseURL + "/" + v + "/" + file
 }

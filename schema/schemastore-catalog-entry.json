@@ -14,6 +14,10 @@
     "every editor that reads this catalog \u2014 permanently, with no fix available to the user.",
     "*.saga-fragment.yaml does not match *.saga.yaml, which is the point of the suffix.",
     "",
+    "The config file is matched by its two names rather than a type, because Draugr reads only",
+    "those: draugr.config.yaml in the working directory, and config.yaml under ~/.draugr. A bare",
+    "config.yaml pattern would claim every other tool's file of that name.",
+    "",
     "Submit only once each schema is served from draugr.dev. A catalog entry is a URL and",
     "editors cache the catalog, so registering ahead of publication hands out a 404 that gets",
     "fixed on their refresh schedule rather than ours."
@@ -38,6 +42,15 @@
         "*.saga-fragment.yml"
       ],
       "url": "https://draugr.dev/schema/draugr.saga-fragment.schema.json"
+    },
+    {
+      "name": "Draugr configuration",
+      "description": "Draugr's machine and organization settings: scanner versions, control defaults, cache, output and the publish URL",
+      "fileMatch": [
+        "draugr.config.yaml",
+        "**/.draugr/config.yaml"
+      ],
+      "url": "https://draugr.dev/schema/draugr.config.schema.json"
     }
   ]
 }

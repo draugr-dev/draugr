@@ -296,8 +296,9 @@ func newSurveyAzureCommand(opts *surveyOptions) *cobra.Command {
 		Short: "Discover from Azure DevOps",
 		Long: "Surveyors that read Azure DevOps. Authentication comes from AZURE_DEVOPS_EXT_PAT\n" +
 			"(or AZURE_DEVOPS_TOKEN, or a token named in scope config), a personal access token\n" +
-			"with the Code (read) scope. An Azure DevOps Server instance is named by\n" +
-			"AZURE_DEVOPS_URL, including its collection.",
+			"with the Code (read) scope. For Azure DevOps Server, set AZURE_DEVOPS_URL to the\n" +
+			"server's address without the collection, such as https://tfs.example.com or\n" +
+			"https://tfs.example.com/tfs, and pass the collection as --org.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
@@ -309,7 +310,8 @@ func newSurveyAzureCommand(opts *surveyOptions) *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if org == "" {
-				return fmt.Errorf("--org is required: it names the Azure DevOps organization to discover repositories in")
+				return fmt.Errorf("--org is required: pass the Azure DevOps organization, or on " +
+					"Azure DevOps Server the collection, to discover repositories in")
 			}
 			return runSurvey(cmd.Context(), *opts, []surveyor.Request{{
 				Surveyor: "azure-devops-repos",
@@ -317,9 +319,10 @@ func newSurveyAzureCommand(opts *surveyOptions) *cobra.Command {
 			}}, builtins.SurveyorRegistry(), cmd.OutOrStdout())
 		},
 	}
-	repos.Flags().StringVar(&org, "org", "", "the Azure DevOps organization to discover repositories in")
+	repos.Flags().StringVar(&org, "org", "",
+		"the Azure DevOps organization, or on Azure DevOps Server the collection, to discover repositories in")
 	repos.Flags().StringVar(&project, "project", "",
-		"limit discovery to one project; omit to survey every project in the organization")
+		"limit discovery to one project; omit to survey every project in the organization or collection")
 
 	cmd.AddCommand(repos)
 	return cmd

@@ -30,6 +30,19 @@ The publisher rules come from the declarations `draugr validate` reads (`reads`,
 `accepts` in `pkg/publish/fields.go`), so the schema and `draugr validate` refuse the same fields on
 each kind. A field added to `PublisherConfig` is refused on every kind until it is named there.
 
+## Derived
+
+`pkg/saga/draugr.saga-fragment.schema.json` and `pkg/saga/draugr.config.schema.json` are generated
+in full by the same `go generate`, and an edit to either is lost.
+
+The config schema copies the Saga schema's `controllers` definition and every `control_*`
+definition it refers to, so `controls` means the same thing in both files. The rest is read from
+`config.File` by reflection in `internal/schemagen/config.go`, which carries one description per
+key. A field added to `config.File` fails generation until `configFields` describes it.
+`internal/cli/config_schema_parity_test.go` holds the schema and `draugr config validate` to the
+same answer for every field of `internal/cli/testdata/parity/config/draugr.config.yaml`, and
+requires that file to write every field.
+
 ## Held to the loader
 
 The parity tests change every field of every document under `examples/` and

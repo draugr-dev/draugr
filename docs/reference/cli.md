@@ -164,7 +164,7 @@ sent.
 |---|---|
 | `GITHUB_API_URL` | GitHub Enterprise Server's API, including `/api/v3`, for `survey github repos` and the GitHub publishers |
 | `GITLAB_URL` | a self-managed GitLab, for `survey gitlab projects` |
-| `AZURE_DEVOPS_URL` | Azure DevOps Server, for `survey azure repos` |
+| `AZURE_DEVOPS_URL` | Azure DevOps Server, without its collection, for `survey azure repos` |
 
 **Observability**
 
@@ -1019,7 +1019,7 @@ Each surveyor is its own subcommand:
 | `--no-exposure` | `k8s images` | `false` | Leave each component's `exposure` unset rather than proposing it |
 | `--org` | `github repos` | - | The GitHub organization to discover repositories in. Required |
 | `--group` | `gitlab projects` | - | The GitLab group to discover projects in, subgroups included. Required |
-| `--org` | `azure repos` | - | The Azure DevOps organization to discover repositories in. Required |
+| `--org` | `azure repos` | - | The Azure DevOps organization, or on Azure DevOps Server the collection, to discover repositories in. Required |
 | `--project` | `azure repos` | - | Limit discovery to one project |
 | `--trust-root` | `provenance` | - | A Sigstore trusted-root file, for an organization running its own Sigstore |
 
@@ -1096,7 +1096,7 @@ that the descriptor is missing every private one.
 |---|---|---|
 | GitHub | `GITHUB_TOKEN` | `GITHUB_API_URL`, including Enterprise Server's `/api/v3`. GitHub Actions sets it on a GHES runner |
 | GitLab | `GITLAB_TOKEN` | `CI_API_V4_URL`, which a runner sets, then `GITLAB_URL`, then `CI_SERVER_URL` |
-| Azure DevOps | `AZURE_DEVOPS_EXT_PAT`, else `AZURE_DEVOPS_TOKEN`. Needs the **Code (read)** scope | `AZURE_DEVOPS_URL`, including its collection |
+| Azure DevOps | `AZURE_DEVOPS_EXT_PAT`, else `AZURE_DEVOPS_TOKEN`. Needs the **Code (read)** scope | `AZURE_DEVOPS_URL`, without the collection, which `--org` names |
 
 ```bash
 draugr survey github repos --org my-org -o draugr.saga.yaml
@@ -1987,8 +1987,8 @@ For `draugr scan`, `doctor`, `tools install` and the `scan` and `check_tools` to
 [`draugr mcp`](#draugr-mcp), the full order is **component → descriptor → config → built-in**,
 deep-merged, so an override replaces only the keys it names.
 
-A `log.level` or `log.format` the flag would refuse makes `config validate` and every command that
-reads the configuration refuse the file and name the key. A command that declines to fetch under
+`log.level` and `log.format` take the lowercase values the flags list. Any other value makes
+`config validate` and every command that reads the configuration refuse the file and name the key. A command that declines to fetch under
 `offline` names the file that set it.
 
 ```console
@@ -2006,7 +2006,7 @@ it would have fetched https://github.com/draugr-dev/draugr/releases/latest
 | `draugr config get <key>` | one resolved value |
 | `draugr config set <key> <value>` | write a value |
 | `draugr config unset <key>` | remove one, pruning anything it empties |
-| `draugr config init` | write a commented starter; `--force` replaces an existing file |
+| `draugr config init` | write a commented starter with the editor modeline; `--force` replaces an existing file |
 | `draugr config validate [path...]` | hold the discovered files, or the files named, to every check a scan makes, reporting each file |
 
 `set`, `unset` and `init` write the file a scan reads: the one `--config` or `DRAUGR_CONFIG` names,
@@ -2063,8 +2063,8 @@ In effect:
 **A command that reads the config refuses to run rather than falling back to the defaults.** That
 includes `scan`, and covers what `draugr validate` refuses in a descriptor: a control or scanner this
 build does not provide, a scanner option its schema rejects, a tool `tools install` does not
-provision, and a value a scan would refuse, such as an `output.view` that is not a view or a
-negative `output.top`.
+provision, a value a scan would refuse, such as an `output.view` that is not a view or a
+negative `output.top`, and a key written with no value.
 
 ```console
 $ draugr config validate draugr.config.yaml
@@ -2228,14 +2228,18 @@ Print the Saga JSON Schema **this build enforces** (it's embedded in the binary)
 |------|---------|-------------|
 | `-o, --output` | stdout | Write to this file instead, and print the modeline that references it |
 | `--fragment` | `false` | Print the [Saga fragment](../guides/saga-fragments.md) schema instead |
+| `--config-file` | `false` | Print the [`draugr.config.yaml`](#draugr-config) schema instead |
 
 ```bash
 draugr schema                      # print it
 draugr schema -o .saga.schema.json # pin editor validation to this exact build
 draugr schema --fragment           # the schema for *.saga-fragment.yaml
+draugr schema --config-file        # the schema for draugr.config.yaml
 ```
 
-A fragment has its own schema (no `release:`, no policy); pick it with `--fragment`.
+A fragment has its own schema (no `release:`, no policy); pick it with `--fragment`. The config
+file's schema checks what [`draugr config validate`](#draugr-config) checks. `--fragment` and
+`--config-file` cannot be combined.
 
 Editors normally fetch the schema from draugr.dev, which needs network access and follows a
 published version. A local copy pins validation to the installed Draugr and works offline. See
