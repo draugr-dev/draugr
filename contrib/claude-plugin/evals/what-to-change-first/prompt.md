@@ -5,4 +5,4 @@ timeout_seconds: 600
 allowed_tools: [Read, Glob, Grep]
 ---
 
-Here is our latest Draugr scan, report.json. What should I change first to clear the most findings?
+Here is our latest Draugr scan, results.sarif. What should I change first to clear the most findings?
