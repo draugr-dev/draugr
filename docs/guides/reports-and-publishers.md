@@ -889,9 +889,25 @@ of findings it clears, and *All findings*. Clicking an action's count opens *All
 narrowed to those findings.
 
 **Each list narrows and pages.** A search box matches the rule, package, file and whole message;
-menus narrow by priority, fix, severity, component, control and scanner, each value carrying how
-many rows it would leave. The list shows 25, 50 or 100 rows at a time, and the choice is kept for
-the next report opened in the same browser.
+menus narrow by priority, fix, severity, movement, component, control and scanner, each value
+carrying how many rows it would leave. The list shows 25, 50 or 100 rows at a time, and the choice
+is kept for the next report opened in the same browser.
+
+**Movement narrows by what moved a finding's band.**
+
+| Value | Means |
+|---|---|
+| `raised by a signal` | on CISA's Known Exploited Vulnerabilities catalog, predicted exploitation at or above your EPSS threshold, or a malicious or deprecated package |
+| `floored by a control` | a control insists this kind of finding is never lower |
+| `lowered as unreachable` | analysis found no path from your code to it |
+| `ranked from severity alone` | none of the three |
+
+A value with no findings is listed with a zero. A finding moved by two inputs matches both values,
+so the counts can add up to more than the list, and its row's
+[mark](../concepts/reducing-the-noise.md#what-the-marks-in-the-output-mean) names the first of them
+in the table's order. `lowered as unreachable` counts a verdict only where it lowered the band, so a
+verdict a signal overruled, or one on a finding already at the lowest band, does not count.
+`↩ history` is not a value, because a path in a commit moves no band.
 
 **Tabs, search and paging are progressive enhancement.** The page renders complete without
 JavaScript: every section in order, every row, and both downloads. The script adds the tabs and
