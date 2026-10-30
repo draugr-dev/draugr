@@ -22,16 +22,30 @@ type AzureDevOpsRepos struct {
 	httpClient *http.Client
 }
 
-// NewAzureDevOpsRepos returns the azure-devops-repos surveyor targeting dev.azure.com.
+// NewAzureDevOpsRepos returns the azure-devops-repos surveyor, targeting $AZURE_DEVOPS_URL or
+// dev.azure.com.
 func NewAzureDevOpsRepos() *AzureDevOpsRepos {
 	return &AzureDevOpsRepos{baseURL: azureDevOpsRoot(), httpClient: http.DefaultClient}
 }
 
-// azureDevOpsRoot resolves the instance, so Azure DevOps Server needs no code change.
+// azureDevOpsRoot returns $AZURE_DEVOPS_URL without a trailing slash, or https://dev.azure.com
+// when it is unset.
 //
-// Server is not a variant of Services with a different hostname. It is reached as
-// `https://{server}/{collection}`, and the collection is part of the path. AZURE_DEVOPS_URL takes
-// whatever the instance actually is, up to but not including the organization or collection.
+// The listing is requested at `{root}/{ref}/_apis/git/repositories`. Microsoft documents the path
+// after the host as `/{organization}[/{project}]` on Services and `/{collection}[/{project}]` on
+// Server, with a virtual directory before the collection where the server has one, as in the
+// `https://{server}/tfs/{collection}` it documents for TFS. On Server, AZURE_DEVOPS_URL takes one
+// of two forms.
+//
+//   - The server, with its virtual directory and without the collection, `https://tfs.example.com`
+//     or `https://tfs.example.com/tfs`. The ref carries the collection, or "collection/project",
+//     in the place an organization takes on Services, so `--org` names the collection.
+//   - The collection's own URL, `https://tfs.example.com/DefaultCollection`, which is the value
+//     $SYSTEM_TEAMFOUNDATIONCOLLECTIONURI holds in a pipeline. The ref carries the project alone,
+//     and the collection-wide listing is out of reach, because Survey refuses an empty ref.
+//
+// The value is used as given, and nothing in it says which form it is, so a ref of
+// "collection/project" under a collection URL names the collection twice.
 func azureDevOpsRoot() string {
 	if u := os.Getenv("AZURE_DEVOPS_URL"); u != "" {
 		return trimSlash(u)
@@ -76,11 +90,14 @@ type adoRepoList struct {
 // surveying the organization describes the estate. Azure DevOps makes the project segment
 // optional for exactly this reason, so Draugr passes the choice through rather than making it.
 //
+// On Azure DevOps Server the collection takes the organization's place; azureDevOpsRoot has the
+// forms AZURE_DEVOPS_URL takes.
+//
 // An auth token is read from scope.Config["token"], then $AZURE_DEVOPS_EXT_PAT (what the az CLI
 // uses), then $AZURE_DEVOPS_TOKEN.
 func (a AzureDevOpsRepos) Survey(ctx context.Context, scope plugin.SurveyScope) (saga.Fragment, error) {
 	ref := strings.Trim(scope.Ref, "/")
-	if ref == "" {
+	if strings.TrimSpace(ref) == "" {
 		return saga.Fragment{}, fmt.Errorf(
 			"azure-devops-repos: scope ref is required: the organization, or \"organization/project\"")
 	}

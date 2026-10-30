@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -35,8 +36,16 @@ func TestAzureDevOpsReposInfo(t *testing.T) {
 }
 
 func TestAzureDevOpsReposRequiresAScope(t *testing.T) {
-	for _, ref := range []string{"", "/", "   "} {
-		if _, err := NewAzureDevOpsRepos().Survey(context.Background(), plugin.SurveyScope{Ref: ref}); err == nil {
+	// A scope that names nothing is refused before any request is sent. A request that failed at the
+	// service instead, with a 404 or a refused connection, would pass this test whether the
+	// surveyor refused the scope or not.
+	a := NewAzureDevOpsRepos()
+	a.httpClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		t.Errorf("a request was sent for an empty scope: %s", r.URL)
+		return nil, fmt.Errorf("no request expected")
+	})}
+	for _, ref := range []string{"", "/", "   ", "/ /"} {
+		if _, err := a.Survey(context.Background(), plugin.SurveyScope{Ref: ref}); err == nil {
 			t.Errorf("Ref %q was accepted; without an organization there is nothing to survey", ref)
 		}
 	}
@@ -336,19 +345,87 @@ func TestAzureDevOpsReposSurfacesAnUnreadableResponse(t *testing.T) {
 	}
 }
 
-func TestAzureDevOpsRootFollowsTheInstance(t *testing.T) {
-	cases := []struct{ name, url, want string }{
-		{"nothing means the hosted service", "", "https://dev.azure.com"},
-		{"a server instance, with its collection", "https://tfs.acme.com/DefaultCollection",
-			"https://tfs.acme.com/DefaultCollection"},
-		{"trailing slash trimmed", "https://tfs.acme.com/DefaultCollection/",
-			"https://tfs.acme.com/DefaultCollection"},
+// roundTripFunc answers a request in-process, so a test can see the URL the surveyor builds for
+// the hosted service without sending anything to it.
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+// emptyListing is a successful response with no repositories in it.
+const emptyListing = `{"count":0,"value":[]}`
+
+func TestAzureDevOpsServicesRequestURLs(t *testing.T) {
+	// Microsoft documents the listing as
+	// https://dev.azure.com/{organization}/{project}/_apis/git/repositories, the project optional.
+	cases := []struct{ name, ref, want string }{
+		{"the organization", "acme",
+			"https://dev.azure.com/acme/_apis/git/repositories?api-version=7.1"},
+		{"one project", "acme/Platform",
+			"https://dev.azure.com/acme/Platform/_apis/git/repositories?api-version=7.1"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("AZURE_DEVOPS_URL", tc.url)
-			if got := azureDevOpsRoot(); got != tc.want {
-				t.Errorf("azureDevOpsRoot() = %q, want %q", got, tc.want)
+			t.Setenv("AZURE_DEVOPS_URL", "")
+			var got string
+			a := NewAzureDevOpsRepos()
+			a.httpClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+				got = r.URL.String()
+				return &http.Response{
+					StatusCode: http.StatusOK, Header: http.Header{}, Request: r,
+					Body: io.NopCloser(strings.NewReader(emptyListing)),
+				}, nil
+			})}
+			if _, err := a.Survey(context.Background(), plugin.SurveyScope{
+				Ref: tc.ref, Config: plugin.Config{"token": "t"},
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if got != tc.want {
+				t.Errorf("request URL = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestAzureDevOpsServerRequestURLs(t *testing.T) {
+	// Microsoft documents the listing as
+	// https://{instance}/{collection}/{project}/_apis/git/repositories, the project optional, where
+	// the instance may carry a virtual directory (/tfs on TFS-era installations). AZURE_DEVOPS_URL
+	// names either the server, with the collection in the ref, or the collection itself, with only
+	// the project in the ref. Each form has to arrive at the documented path.
+	cases := []struct{ name, path, ref, want string }{
+		{"server, collection in the ref", "", "DefaultCollection",
+			"/DefaultCollection/_apis/git/repositories?api-version=7.1"},
+		{"server, collection and project in the ref", "", "DefaultCollection/Platform",
+			"/DefaultCollection/Platform/_apis/git/repositories?api-version=7.1"},
+		{"virtual directory, collection in the ref", "/tfs", "DefaultCollection",
+			"/tfs/DefaultCollection/_apis/git/repositories?api-version=7.1"},
+		{"virtual directory, collection and project in the ref", "/tfs/", "DefaultCollection/Platform",
+			"/tfs/DefaultCollection/Platform/_apis/git/repositories?api-version=7.1"},
+		{"collection in the URL, project in the ref", "/DefaultCollection", "Platform",
+			"/DefaultCollection/Platform/_apis/git/repositories?api-version=7.1"},
+		{"collection URL under a virtual directory, trailing slash", "/tfs/DefaultCollection/", "Platform",
+			"/tfs/DefaultCollection/Platform/_apis/git/repositories?api-version=7.1"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var got string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				got = "http://" + r.Host + r.RequestURI
+				_, _ = fmt.Fprint(w, emptyListing)
+			}))
+			defer srv.Close()
+			t.Setenv("AZURE_DEVOPS_URL", srv.URL+tc.path)
+
+			a := NewAzureDevOpsRepos()
+			a.httpClient = srv.Client()
+			if _, err := a.Survey(context.Background(), plugin.SurveyScope{
+				Ref: tc.ref, Config: plugin.Config{"token": "t"},
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if want := srv.URL + tc.want; got != want {
+				t.Errorf("request URL = %q, want %q", got, want)
 			}
 		})
 	}
