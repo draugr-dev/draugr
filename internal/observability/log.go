@@ -87,6 +87,24 @@ func handlerFor(format string, w io.Writer, opts *slog.HandlerOptions, color boo
 	return nil, fmt.Errorf("unknown log format %q (want console, json, or text)", format)
 }
 
+// Levels are the values a log level is given as, most verbose first.
+var Levels = []string{"trace", "debug", "info", "warn", "error"}
+
+// Formats are the values a log format is given as.
+var Formats = []string{"console", "json", "text"}
+
+// ValidLevel reports whether NewLogger accepts s as a level, spelled as --log-level accepts it.
+func ValidLevel(s string) bool {
+	_, err := parseLevel(s)
+	return err == nil
+}
+
+// ValidFormat reports whether NewLogger accepts s as a format, spelled as --log-format accepts it.
+func ValidFormat(s string) bool {
+	_, err := handlerFor(strings.ToLower(strings.TrimSpace(s)), io.Discard, &slog.HandlerOptions{}, false, 0)
+	return err == nil
+}
+
 // SetDefault installs l as the process-wide default slog logger.
 func SetDefault(l *slog.Logger) { slog.SetDefault(l) }
 

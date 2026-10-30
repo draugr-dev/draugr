@@ -560,6 +560,11 @@ func fillConfig(t *testing.T, v reflect.Value) {
 			fillConfig(t, val)
 		}
 		v.SetMapIndex(key, val)
+	case reflect.Pointer:
+		// A pointer is how a setting tells "false" or "0" from "not set", so it is given a value of
+		// its own; left nil it reads as a setting `show` was right to leave out.
+		v.Set(reflect.New(v.Type().Elem()))
+		fillConfig(t, v.Elem())
 	case reflect.Struct:
 		for i := range v.NumField() {
 			if v.Field(i).CanSet() {

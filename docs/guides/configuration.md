@@ -80,8 +80,8 @@ pipeline built on those keeps working.
 
 The two discovered files are layered, the project's over the machine's, and only per key: a project
 that sets one thing inherits the rest. A value the project writes replaces the machine's, `false`
-and `0s` included, except for `cache.readOnly` and `cache.requireDigest`, which only turn on across
-files. An explicit file replaces both.
+and `0s` included, except for `cache.readOnly`, `cache.requireDigest` and `offline`, which only turn
+on across files. An explicit file replaces both.
 
 Controller settings are merged **underneath** the descriptor's, so a project that has an opinion
 keeps it and nothing set here can override a committed Saga.
@@ -155,7 +155,46 @@ output:
   view: actions      # findings (the default) | actions, a row per thing to do | compact
   evidence: false    # true to always print what stands behind the verdict
   top: 20            # rows in the fix list
+  tips: false        # leave out the contextual tips and the progress display, as --no-tips does
 ```
+
+### `scan`
+
+```yaml
+scan:
+  jobs: 4            # scan jobs run at once; 0 is one per CPU, the default
+```
+
+`jobs` is the default for `--jobs` on every scan the machine runs. Trivy and Semgrep are
+multi-threaded themselves, so a small runner can finish sooner with fewer jobs; see
+[tuning parallelism](caching-and-performance.md#tuning-parallelism). A project's `jobs: 0` restores
+one per CPU over the machine's cap.
+
+### `log`
+
+```yaml
+log:
+  level: debug       # trace | debug | info (the default) | warn | error
+  format: json       # console (the default) | json | text
+```
+
+`level` and `format` are the defaults for `--log-level` and `--log-format` on every command. They
+are read when the command starts, before it reads a descriptor, so they hold for every record it
+writes. A level or format the flag would refuse is left out at that point, and
+`draugr config validate` names it.
+
+### `offline`
+
+```yaml
+offline: true
+```
+
+`offline: true` is `--offline` for every command, read when the command starts. See
+[running air-gapped](air-gapped.md) for what each command does without a network.
+
+Any file may turn it on, and a more specific file's `offline: false` does not turn off a less
+specific file's `true`, which `draugr config show` lists under **Overridden**. `--offline=false` or
+`DRAUGR_OFFLINE=0` turns it off for one run.
 
 ### `controls`
 
@@ -200,6 +239,9 @@ in it is a credential in somebody's git history. `$DRAUGR_API_TOKEN` is the only
 Every setting here has a `--flag` that overrides it, and typing the flag wins **even when what you
 typed is the zero value**. `--top 0` means show everything, and a configured cap does not quietly
 override an explicit instruction.
+
+`DRAUGR_OFFLINE` and `DRAUGR_NO_TIPS` rank between a flag and the file. Either one, when set, wins
+over the file, and a typed flag wins over both.
 
 That is what makes a configured default safe to set: it is a default, not a policy. Whether the
 *gate* should work the same way. Whether an organization can set a floor a descriptor cannot lower,

@@ -237,10 +237,10 @@ func uncoveredFor(model *saga.Model) []report.Gap {
 // for something to type had to read all of them to find out which applied. The report has a place
 // for this now, and one place beats two.
 //
-// Suppressed by --no-tips or DRAUGR_NO_TIPS, which is what those have always meant: the advisory
-// rows go and the ones describing the report itself stay.
+// Suppressed by --no-tips, DRAUGR_NO_TIPS or output.tips: false, which is what those mean: the
+// advisory rows go and the ones describing the report itself stay.
 func scanSuggestions(c tipContext) []report.Suggestion {
-	if c.opts.noTips || tipsDisabled() || c.model == nil {
+	if c.opts.tipsOff() || c.model == nil {
 		return nil
 	}
 	out := make([]report.Suggestion, 0, maxTipsPerRun)
