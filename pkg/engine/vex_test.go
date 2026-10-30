@@ -238,3 +238,37 @@ func TestAProjectClaimIsUnmatchedOnlyWhenNoComponentMatchedIt(t *testing.T) {
 		t.Errorf("with a component left out, a project claim was reported as unmatched: %+v", unmatched)
 	}
 }
+
+// Two suppliers' documents, each excusing a different finding: each suppression names the document
+// that excused it, the statement within it, and the digest of the bytes read, so a policy trusting
+// one source and not the other can tell them apart. A statement the supplier gave no id carries none.
+func TestEachSuppressionNamesTheDocumentAndStatementThatExcusedIt(t *testing.T) {
+	acme := resolved("Acme Ltd", "CVE-1", "pkg:pypi/flask@0.12.2", "not_affected", "vendor/acme.json")
+	acme.Document.Statements[0].ID = "https://acme.example/vex/2026-08/stmt-1"
+	acme.Provenance.Digest = "sha256:aaaa"
+	globex := resolved("Globex", "CVE-2", "pkg:pypi/jinja2@2.10", "not_affected", "vendor/globex.json")
+	globex.Provenance.Digest = "sha256:bbbb"
+
+	controls := controlsWith(
+		finding("api", "CVE-1", "pkg:pypi/flask@0.12.2"),
+		finding("api", "CVE-2", "pkg:pypi/jinja2@2.10"),
+	)
+	set := vex.Set{ByComponent: map[string][]vex.Resolved{"api": {acme, globex}}}
+	if n, _, _ := applyVEX(controls, set, all); n != 2 {
+		t.Fatalf("imported = %d, want 2", n)
+	}
+	want := map[string]sarif.Suppression{
+		"CVE-1": {Source: "vendor/acme.json", StatementID: "https://acme.example/vex/2026-08/stmt-1", Digest: "sha256:aaaa"},
+		"CVE-2": {Source: "vendor/globex.json", StatementID: "", Digest: "sha256:bbbb"},
+	}
+	for _, res := range controls["sca"].Report.Results {
+		s, w := res.Suppression, want[res.RuleID]
+		if s == nil {
+			t.Fatalf("%s was not suppressed", res.RuleID)
+		}
+		if s.Source != w.Source || s.StatementID != w.StatementID || s.Digest != w.Digest {
+			t.Errorf("%s: source %q, statement %q, digest %q; want %q, %q, %q",
+				res.RuleID, s.Source, s.StatementID, s.Digest, w.Source, w.StatementID, w.Digest)
+		}
+	}
+}

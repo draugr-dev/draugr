@@ -29,6 +29,11 @@ type Claim struct {
 	Author string
 	// Source is the document this came from, for the same reason.
 	Source string
+	// StatementID is the statement's id within that document, empty where the supplier gave none.
+	StatementID string
+	// Digest is the sha256 of the document as read, so the claim can be tied to the exact bytes
+	// that made it.
+	Digest string
 	// Timestamp is when the claim was made, statement-level where the statement carried one and
 	// the document's otherwise.
 	Timestamp string
@@ -61,6 +66,7 @@ func (d Document) Claims(source string) []Claim {
 			Statement:     prose(st),
 			Author:        d.Author,
 			Source:        source,
+			StatementID:   st.ID,
 			Timestamp:     when,
 		}
 		if base.Vulnerability == "" {

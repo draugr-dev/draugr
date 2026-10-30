@@ -139,7 +139,7 @@ func mendLicenseReport(ctx context.Context, libs []mendapi.InventoryLibrary, cfg
 		pkg := mendPackageName(lib)
 		for _, lic := range lib.Licenses {
 			id, isSPDX := mendLicenseID(lic)
-			if !isSPDX && id != "" {
+			if !isSPDX && id != unknownLicense {
 				unmapped[id] = true
 			}
 			level, why, matched := policy.match(id)
@@ -166,11 +166,17 @@ func mendLicenseReport(ctx context.Context, libs []mendapi.InventoryLibrary, cfg
 // where there is least evidence, and a wrong entry applies a policy to the *wrong* license, which
 // is worse than one applying to nothing. So the finding says what Mend said, and the operator is
 // told that it did.
+//
+// A license Mend names neither way is `unknown`, the id a deny or warn list writes to select every
+// license its scanner could not identify, on either of the control's scanners.
 func mendLicenseID(lic mendapi.InventoryLicense) (id string, isSPDX bool) {
 	if s := strings.TrimSpace(lic.SPDXName); s != "" {
 		return s, true
 	}
-	return strings.TrimSpace(lic.Name), false
+	if s := strings.TrimSpace(lic.Name); s != "" {
+		return s, false
+	}
+	return unknownLicense, false
 }
 
 // warnUnmappedLicenses tells the operator, once per scan, which identifiers this run produced.

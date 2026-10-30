@@ -1,0 +1,1 @@
+- **See exactly which VEX claim excused a finding.** A finding a supplier's VEX document set aside now records the statement's id and the document's sha256, beside its author and source, in `report.json` and `results.sarif`. `report.json` also gains the origin, author, date and source it was missing.

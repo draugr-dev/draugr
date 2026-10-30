@@ -42,7 +42,7 @@ func TestParseTrivyLicensesReportsOnlyObligations(t *testing.T) {
 		"license/AGPL-3.0-only/github.com/bad/lib":     sarif.LevelError,
 		"license/GPL-3.0-only/github.com/copyleft/lib": sarif.LevelWarning,
 		"license/MPL-2.0/github.com/mid/lib":           sarif.LevelNote,
-		"license/NOASSERTION/github.com/mystery/lib":   sarif.LevelNote,
+		"license/unknown/github.com/mystery/lib":       sarif.LevelNote,
 	}
 	if len(got) != len(want) {
 		t.Fatalf("got %d findings, want %d: %v", len(got), len(want), got)
