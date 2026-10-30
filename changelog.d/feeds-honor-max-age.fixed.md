@@ -1,1 +1,0 @@
-- **`draugr feeds status --saga` and `feeds update --saga` apply the descriptor's `config.exploitability.maxAge`**, so a copy is stale and refetched at the age a scan of that descriptor uses with `auto`. Both commands end with the limit they applied and where it came from.

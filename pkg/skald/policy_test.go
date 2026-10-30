@@ -17,6 +17,9 @@ func TestATermReadsInTheServersPhrases(t *testing.T) {
 		{PolicyVerdict{Mode: "enforce", Response: "fail", EnforceFrom: "2026-11-01"}, "fails the gate from 2026-11-01"},
 		{PolicyVerdict{Mode: "enforce", Response: "refuse", EnforceFrom: "2026-10-01", InForce: true}, "refuses, since 2026-10-01"},
 		{PolicyVerdict{Mode: "enforce", Response: "refuse", EnforceFrom: "2026-12-01"}, "refuses from 2026-12-01"},
+		// Broken only in its findings, after the publish was answered: the server failed the run.
+		{PolicyVerdict{Mode: "enforce", Response: "refuse", EnforceFrom: "2026-10-01", InForce: true, Acts: "fail"}, "fails the gate, since 2026-10-01"},
+		{PolicyVerdict{Mode: "enforce", Response: "refuse", EnforceFrom: "2026-10-01", InForce: true, Acts: "refuse"}, "refuses, since 2026-10-01"},
 		{PolicyVerdict{Mode: "enforce", Response: "strip", EnforceFrom: "2026-10-01", InForce: true}, "removes the addresses, since 2026-10-01"},
 		{PolicyVerdict{Mode: "enforce", Response: "fail", Override: "profile-observing"}, "observed, profile observing"},
 		{PolicyVerdict{Mode: "enforce", Response: "fail", ProfileState: "observing"}, "observed, profile observing"},
