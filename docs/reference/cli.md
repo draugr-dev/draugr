@@ -1947,7 +1947,7 @@ deep-merged, so an override replaces only the keys it names.
 | `draugr config get <key>` | one resolved value |
 | `draugr config set <key> <value>` | write a value |
 | `draugr config unset <key>` | remove one, pruning anything it empties |
-| `draugr config init` | write a commented starter; `--force` replaces an existing file |
+| `draugr config init` | write a commented starter whose first line points an editor at [the schema](../guides/configuration.md#in-your-editor); `--force` replaces an existing file |
 | `draugr config validate [path...]` | hold the discovered files, or the files named, to every check a scan makes, reporting each file |
 
 `set`, `unset` and `init` write the file a scan reads: the one `--config` or `DRAUGR_CONFIG` names,
@@ -2004,8 +2004,8 @@ In effect:
 **A command that reads the config refuses to run rather than falling back to the defaults.** That
 includes `scan`, and covers what `draugr validate` refuses in a descriptor: a control or scanner this
 build does not provide, a scanner option its schema rejects, a tool `tools install` does not
-provision, and a value a scan would refuse, such as an `output.view` that is not a view or a
-negative `output.top`.
+provision, a value a scan would refuse, such as an `output.view` that is not a view or a
+negative `output.top`, and a key written with no value.
 
 ```console
 $ draugr config validate draugr.config.yaml
@@ -2169,14 +2169,19 @@ Print the Saga JSON Schema **this build enforces** (it's embedded in the binary)
 |------|---------|-------------|
 | `-o, --output` | stdout | Write to this file instead, and print the modeline that references it |
 | `--fragment` | `false` | Print the [Saga fragment](../guides/saga-fragments.md) schema instead |
+| `--config-file` | `false` | Print the [`draugr.config.yaml`](#draugr-config) schema instead |
 
 ```bash
 draugr schema                      # print it
 draugr schema -o .saga.schema.json # pin editor validation to this exact build
 draugr schema --fragment           # the schema for *.saga-fragment.yaml
+draugr schema --config-file        # the schema for draugr.config.yaml
 ```
 
-A fragment has its own schema (no `release:`, no policy); pick it with `--fragment`.
+A fragment has its own schema (no `release:`, no policy); pick it with `--fragment`. The config
+file's schema checks what [`draugr config validate`](#draugr-config) checks, and holds `controls`
+to the same per-control definitions as a Saga's `config.controls`. `--fragment` and
+`--config-file` cannot be combined.
 
 Editors normally fetch the schema from draugr.dev, which needs network access and follows a
 published version. A local copy pins validation to the installed Draugr and works offline. See

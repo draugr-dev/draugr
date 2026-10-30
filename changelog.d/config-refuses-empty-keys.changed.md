@@ -1,0 +1,1 @@
+- **`draugr.config.yaml` refuses a key written with no value**, such as `tools:` on a line of its own or `enabled: null`, as a Saga already does. Such a key was read as absent, so a setting somebody started was silently not in force. The error names the key and its line.

@@ -382,12 +382,35 @@ func merged(current, older map[string]ControllerSettings) map[string]ControllerS
 // `draugr validate` accepted. Refusing it names the line, and a reader either deletes the key or
 // fills it in.
 func noEmptyValues(root *yaml.Node) error {
-	var problems []string
+	empties := EmptyValues(root)
+	if len(empties) == 0 {
+		return nil
+	}
+	problems := make([]string, 0, len(empties))
+	for _, e := range empties {
+		problems = append(problems, fmt.Sprintf("line %d: %s has no value; give it one or delete it", e.Line, e.Path))
+	}
+	return fmt.Errorf("%s", strings.Join(problems, "; "))
+}
+
+// EmptyValue is a key or list item written with no value, where it is in the document.
+type EmptyValue struct {
+	// Path is the dotted key, with `[i]` for a list item, e.g. `components[0].exposure`.
+	Path string
+	// Line is the line the missing value is on.
+	Line int
+}
+
+// EmptyValues lists every key and list item in a parsed YAML document written with no value, a key
+// on a line of its own or an explicit `null` or `~`, in document order. The rule the descriptor
+// loader applies, for another file Draugr reads that is held to a JSON Schema refusing null.
+func EmptyValues(root *yaml.Node) []EmptyValue {
+	var problems []EmptyValue
 	var walk func(n *yaml.Node, path string)
 	walk = func(n *yaml.Node, path string) {
 		empty := func(v *yaml.Node, at string) bool {
 			if v.Kind == yaml.ScalarNode && v.Tag == "!!null" {
-				problems = append(problems, fmt.Sprintf("line %d: %s has no value; give it one or delete it", v.Line, at))
+				problems = append(problems, EmptyValue{Path: at, Line: v.Line})
 				return true
 			}
 			return false
@@ -414,8 +437,5 @@ func noEmptyValues(root *yaml.Node) error {
 		}
 	}
 	walk(root, "")
-	if len(problems) > 0 {
-		return fmt.Errorf("%s", strings.Join(problems, "; "))
-	}
-	return nil
+	return problems
 }

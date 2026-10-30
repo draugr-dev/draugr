@@ -1,0 +1,1 @@
+- **Completion and validation for `draugr.config.yaml` in your editor.** A JSON Schema for the file checks what `draugr config validate` checks, control, scanner and tool names and every scanner option included. `draugr config init` writes the modeline that points an editor at it, and `draugr schema --config-file` prints the copy your installed binary enforces.

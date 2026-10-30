@@ -268,8 +268,12 @@ func Parse(data []byte, path string) (File, error) {
 	dec.KnownFields(true)
 	err := dec.Decode(&f)
 	foldOlderSpelling(&f)
+	empties := emptyValues(data)
 	switch {
 	case err == nil:
+		if len(empties) > 0 {
+			return f, &Problems{Path: path, List: empties}
+		}
 		return f, nil
 	case errors.Is(err, io.EOF):
 		// An empty file decodes as EOF and is a perfectly good configuration: it says nothing,
@@ -280,10 +284,29 @@ func Parse(data []byte, path string) (File, error) {
 	// problems, for a caller that checks the rest of the file in the same pass.
 	var te *yaml.TypeError
 	if errors.As(err, &te) {
-		return f, &Problems{Path: path, List: describe(data, te.Errors), Hint: keysHintFor(te.Errors)}
+		return f, &Problems{Path: path, List: append(describe(data, te.Errors), empties...), Hint: keysHintFor(te.Errors)}
 	}
 	// Not YAML at all. The decoder's message names the line, which is all there is to say.
 	return File{}, &Problems{Path: path, List: []string{strings.TrimPrefix(err.Error(), "yaml: ")}}
+}
+
+// emptyValues reports each key written with no value, `tools:` on a line of its own or an explicit
+// `null` or `~`, by the key it is under.
+//
+// The decoder reads any of these as the key being absent, so a setting somebody started and did not
+// finish is silently not in force, while the JSON Schema an editor holds the file to refuses null.
+// Refused for the reason a descriptor refuses it: an editor marking an error in a file Draugr
+// accepts teaches its reader to ignore the editor.
+func emptyValues(data []byte) []string {
+	var root yaml.Node
+	if yaml.Unmarshal(data, &root) != nil {
+		return nil // the decoder reports the syntax error
+	}
+	var out []string
+	for _, e := range saga.EmptyValues(&root) {
+		out = append(out, fmt.Sprintf("%s: no value on line %d; give it one or delete it", CurrentKey(e.Path), e.Line))
+	}
+	return out
 }
 
 // foldOlderSpelling moves `controllers` onto `controls`, once, where a file is parsed, as a

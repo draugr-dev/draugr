@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/feeds"
@@ -114,14 +115,14 @@ func toolProblems(pins map[string]config.ToolSettings) []string {
 // where the refusal names a flag nobody typed.
 func valueProblems(f config.File) []string {
 	var out []string
-	switch v := report.View(f.Output.View); v {
-	case "", report.ViewFindings, report.ViewActions, report.ViewCompact:
-	default:
-		views := map[string]bool{
-			string(report.ViewFindings): true, string(report.ViewActions): true, string(report.ViewCompact): true,
+	if v := report.View(f.Output.View); v != "" && !slices.Contains(report.Views(), v) {
+		views := map[string]bool{}
+		names := make([]string, 0, len(report.Views()))
+		for _, known := range report.Views() {
+			views[string(known)] = true
+			names = append(names, string(known))
 		}
-		msg := fmt.Sprintf("output.view: %q is not %s, %s or %s", v,
-			report.ViewFindings, report.ViewActions, report.ViewCompact)
+		msg := fmt.Sprintf("output.view: %q is not %s", v, list(names))
 		if near := nearestName(string(v), views); near != "" {
 			msg += fmt.Sprintf(", did you mean %q?", near)
 		}

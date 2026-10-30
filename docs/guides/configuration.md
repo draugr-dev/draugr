@@ -104,8 +104,8 @@ any other value as one string, number or boolean.
 
 The file is held to the checks `draugr validate` makes of a descriptor. `set`, `validate` and every
 command that reads the file, `scan` included, refuse a control or scanner this build does not
-provide, a tool `tools install` does not provision, and a value a scan would refuse, naming the
-file, the key and the nearest valid name:
+provide, a tool `tools install` does not provision, a value a scan would refuse, and a key written
+with no value, naming the file, the key and the nearest valid name:
 
 ```console
 $ draugr config set controls.sats.semgrep.config x
@@ -114,6 +114,42 @@ draugr: that edit would add a problem to the file, so nothing was written:
 
 run `draugr controls` to see what this build provides
 ```
+
+## In your editor
+
+Draugr publishes a [JSON Schema](https://draugr.dev/schema/draugr.config.schema.json) for this
+file, generated from the checks `draugr config validate` makes. With it, an editor completes keys
+and the names of controls, scanners and tools, shows what each one does on hover, and flags a
+misspelled key or an option a scanner does not take as you type it.
+
+`draugr config init` writes the modeline on the starter's first line, with the URL for the Draugr
+version that wrote it, so any editor running the YAML language server picks the schema up on open.
+Paste the same line at the top of an existing `draugr.config.yaml` or `~/.draugr/config.yaml`:
+
+```yaml
+# yaml-language-server: $schema=https://draugr.dev/schema/draugr.config.schema.json
+```
+
+To match validation to the installed binary and work offline, write its own copy and point the
+modeline at it:
+
+```bash
+draugr schema --config-file -o .draugr/config.schema.json
+# then on the first line of draugr.config.yaml:
+# yaml-language-server: $schema=./.draugr/config.schema.json
+```
+
+Or map it once in VS Code's `.vscode/settings.json`, with no modeline in the file:
+
+```json
+{
+  "yaml.schemas": {
+    "https://draugr.dev/schema/draugr.config.schema.json": ["draugr.config.yaml"]
+  }
+}
+```
+
+[Editor support](editor-support.md) has the same mapping for JetBrains and Neovim.
 
 ## What it can hold
 

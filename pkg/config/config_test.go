@@ -58,6 +58,34 @@ func TestParseNamesEveryProblemByItsKey(t *testing.T) {
 	}
 }
 
+// A key with no value reads as absent, so a setting somebody started is silently not in force, and
+// the JSON Schema refuses it. Each is named by its key, the older spelling under `controls`, beside
+// any other problem in the file.
+func TestParseRefusesAKeyWithNoValue(t *testing.T) {
+	doc := "tools:\noutput:\n  view: ~\ncontrollers:\n  sast:\n    enabled: null\n"
+	_, err := Parse([]byte(doc), "x.yaml")
+	var p *Problems
+	if !errors.As(err, &p) {
+		t.Fatalf("want *Problems, got %T: %v", err, err)
+	}
+	want := []string{
+		"tools: no value on line 1; give it one or delete it",
+		"output.view: no value on line 3; give it one or delete it",
+		"controls.sast.enabled: no value on line 6; give it one or delete it",
+	}
+	if !reflect.DeepEqual(p.List, want) {
+		t.Errorf("problems:\n%s\nwant:\n%s", strings.Join(p.List, "\n"), strings.Join(want, "\n"))
+	}
+
+	_, err = Parse([]byte("output:\n  veiw: actions\ncache:\n"), "x.yaml")
+	if !errors.As(err, &p) {
+		t.Fatalf("want *Problems, got %T: %v", err, err)
+	}
+	if len(p.List) != 2 || !strings.HasPrefix(p.List[1], "cache: no value on line 3") {
+		t.Errorf("an empty key beside an unknown one: %q", p.List)
+	}
+}
+
 func TestParseReportsBrokenYAMLAsTheDecoderDoes(t *testing.T) {
 	_, err := Parse([]byte("output: [unclosed\n"), "x.yaml")
 	var p *Problems

@@ -249,6 +249,24 @@ const (
 	ViewCompact View = "compact"
 )
 
+// Views lists every view, the default first. The one list `draugr config validate` checks
+// `output.view` against and the config schema offers, so the two cannot name different sets.
+func Views() []View { return []View{ViewFindings, ViewActions, ViewCompact} }
+
+// Summary is one line on what the view shows, for a schema or a list of choices. "" for a name that
+// is not a view.
+func (v View) Summary() string {
+	switch v {
+	case ViewFindings:
+		return "A row per finding, with what argued with its band underneath."
+	case ViewActions:
+		return "A row per thing to do, each saying how many findings it clears."
+	case ViewCompact:
+		return "One line per finding."
+	}
+	return ""
+}
+
 // RepositoryProvenance is one repository as this run read it.
 //
 // An alias rather than a copy: the JSON report is rendered by pkg/skald, which cannot import this

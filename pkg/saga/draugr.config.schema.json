@@ -1,0 +1,946 @@
+{
+  "$comment": "Generated in full from the Saga schema and pkg/config; before editing it by hand, read docs/contributing/schema.md in the draugr repository.",
+  "$defs": {
+    "control_cloud": {
+      "additionalProperties": false,
+      "description": "Check a live cloud account against the provider's CIS Benchmark.",
+      "properties": {
+        "enabled": {
+          "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
+          "type": "boolean"
+        },
+        "prowler": {
+          "additionalProperties": false,
+          "description": "prowler, published by prowler-cloud.",
+          "properties": {
+            "compliance": {
+              "description": "The Prowler compliance framework to run, such as cis_4.0_gcp. Defaults to cis_5.0_gcp. `prowler gcp --list-compliance` lists them.",
+              "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9_.]+_gcp)$",
+              "type": "string"
+            },
+            "enabled": {
+              "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "control_dast": {
+      "additionalProperties": false,
+      "description": "Find problems only visible from outside a running app (dynamic testing).",
+      "properties": {
+        "enabled": {
+          "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
+          "type": "boolean"
+        },
+        "nuclei": {
+          "additionalProperties": false,
+          "description": "nuclei, published by projectdiscovery.",
+          "properties": {
+            "enabled": {
+              "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "control_headers": {
+      "additionalProperties": false,
+      "description": "Check how a running site answers a browser, the settings that stop a page being abused.",
+      "properties": {
+        "draugrHeaders": {
+          "additionalProperties": false,
+          "description": "draugr-headers, published by draugr.",
+          "properties": {
+            "enabled": {
+              "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "enabled": {
+          "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "control_iac": {
+      "additionalProperties": false,
+      "description": "Find settings that leave a door open, in Terraform, Kubernetes and Dockerfiles.",
+      "properties": {
+        "enabled": {
+          "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
+          "type": "boolean"
+        },
+        "trivyConfig": {
+          "additionalProperties": false,
+          "description": "trivy-config, published by aquasecurity.",
+          "properties": {
+            "checks": {
+              "description": "Paths to Rego check files, or directories of them, relative to where Draugr runs. Adds your own misconfiguration rules to Trivy's built-in ones. Without namespaces, every check must declare a package, and the package's first name is the namespace it runs under.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "enabled": {
+              "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
+              "type": "boolean"
+            },
+            "namespaces": {
+              "description": "Top-level Rego package names whose checks Trivy evaluates, e.g. [\"user\"] for package user.tags. Unset, Draugr derives the list from the package lines in checks; set, only the listed namespaces run.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "control_images": {
+      "additionalProperties": false,
+      "description": "Find known flaws in the operating system and packages baked into a container image.",
+      "properties": {
+        "enabled": {
+          "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
+          "type": "boolean"
+        },
+        "grype": {
+          "additionalProperties": false,
+          "description": "grype, published by anchore.",
+          "properties": {
+            "byCve": {
+              "description": "Report a finding under its CVE rather than the advisory ID the source used, where a CVE exists. On by default. Turn it off to see the advisory identifier Grype matched on.",
+              "type": "boolean"
+            },
+            "enabled": {
+              "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "trivy": {
+          "additionalProperties": false,
+          "description": "trivy, published by aquasecurity.",
+          "properties": {
+            "dbRepository": {
+              "description": "OCI repositories to pull the vulnerability database from, in priority order. Point it at an internal mirror where the runner cannot reach a public registry.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "enabled": {
+              "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
+              "type": "boolean"
+            },
+            "pkgTypes": {
+              "description": "Which package types to analyze. Defaults to both. Narrow it to [\"library\"] when the OS layer is somebody else's responsibility, a base image maintained by a platform team, so the report covers what this component controls.",
+              "items": {
+                "enum": [
+                  "os",
+                  "library"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "control_kubernetes": {
+      "additionalProperties": false,
+      "description": "Check a Kubernetes cluster against the CIS Benchmark, rather than taking it on trust.",
+      "properties": {
+        "draugrK8sPolicies": {
+          "additionalProperties": false,
+          "description": "draugr-k8s-policies, published by draugr.",
+          "properties": {
+            "enabled": {
+              "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "enabled": {
+          "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
+          "type": "boolean"
+        },
+        "kubeBench": {
+          "additionalProperties": false,
+          "description": "kube-bench, published by aquasecurity.",
+          "properties": {
+            "configDir": {
+              "description": "Path to kube-bench's cfg/ tree of benchmark definitions. Needed when the binary is on PATH and its cfg lives beside it rather than in /etc/kube-bench/cfg.",
+              "type": "string"
+            },
+            "enabled": {
+              "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
+              "type": "boolean"
+            },
+            "targets": {
+              "description": "Comma-separated kube-bench targets to run, e.g. \"master,node\". Defaults to the node checks, which are what a scan from outside the control plane can answer.",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "kubeBenchJob": {
+          "additionalProperties": false,
+          "description": "kube-bench-job, published by aquasecurity.",
+          "properties": {
+            "enabled": {
+              "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
+              "type": "boolean"
+            },
+            "image": {
+              "description": "kube-bench image the Job runs. Pin it to a digest for a reproducible benchmark, and to an internal mirror where the cluster cannot reach a public registry.",
+              "type": "string"
+            },
+            "namespace": {
+              "description": "Namespace to create the Job in. It must already exist; Draugr does not create namespaces.",
+              "type": "string"
+            },
+            "nodeSelector": {
+              "description": "Node selector for the Job, as comma-separated key=value pairs. Use it to benchmark a specific node pool.",
+              "type": "string"
+            },
+            "targets": {
+              "description": "Comma-separated kube-bench targets to run, e.g. \"master,node\".",
+              "type": "string"
+            },
+            "timeout": {
+              "description": "How long to wait for the Job to finish, e.g. \"5m\".",
+              "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+)$",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "control_licenses": {
+      "additionalProperties": false,
+      "description": "Report license terms attached to code you did not write, where they carry an obligation.",
+      "properties": {
+        "deny": {
+          "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"]. A component may add to the project's list; it cannot remove from it.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "enabled": {
+          "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
+          "type": "boolean"
+        },
+        "mendLicenses": {
+          "additionalProperties": false,
+          "description": "mend-licenses, published by mend.io.",
+          "properties": {
+            "deny": {
+              "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"].",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "enabled": {
+              "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
+              "type": "boolean"
+            },
+            "productToken": {
+              "description": "The Mend product this component reports into. Required. It identifies a product and grants no access, so it belongs in the descriptor rather than the environment.",
+              "type": "string"
+            },
+            "project": {
+              "description": "Prefix for each Mend project name, \u003cproject\u003e-\u003crepository\u003e. Each repository reports into its own project, suffixed with the paths and an 8-character hash when the component sets paths or ignore. Unset, names start at the repository.",
+              "type": "string"
+            },
+            "resultTimeout": {
+              "description": "How long to wait for Mend to finish analyzing an upload, e.g. \"15m\". Raise it for large monorepos, where the agent's upload finishes long before the analysis does.",
+              "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+)$",
+              "type": "string"
+            },
+            "settings": {
+              "description": "Unified Agent configuration keys, passed through verbatim. The agent runs over a checkout already restricted to the component's paths and ignore.",
+              "type": "object"
+            },
+            "warn": {
+              "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"].",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "trivyLicense": {
+          "additionalProperties": false,
+          "description": "trivy-license, published by aquasecurity.",
+          "properties": {
+            "deny": {
+              "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"].",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "enabled": {
+              "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
+              "type": "boolean"
+            },
+            "full": {
+              "description": "Also read LICENSE files and source headers, not only package metadata. Finds licenses no manifest declares, and is markedly slower, it reads every file rather than the dependency list.",
+              "type": "boolean"
+            },
+            "warn": {
+              "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"].",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "warn": {
+          "description": "SPDX identifiers reported as a warning rather than an error, e.g. [\"MPL-2.0\"].",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "control_provenance": {
+      "additionalProperties": false,
+      "description": "Check that a container image is signed by the identity this descriptor expects.",
+      "properties": {
+        "cosign": {
+          "additionalProperties": false,
+          "description": "cosign, published by sigstore.",
+          "properties": {
+            "enabled": {
+              "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "enabled": {
+          "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
+          "type": "boolean"
+        },
+        "notation": {
+          "additionalProperties": false,
+          "description": "notation, published by notaryproject.",
+          "properties": {
+            "enabled": {
+              "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "signers": {
+          "description": "Who is expected to have signed what. A signer names itself, the images it covers, and the identity to check against.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "github": {
+                "additionalProperties": false,
+                "description": "A GitHub Actions signer written as its parts. Expands to the keyless issuer and identity, which draugr validate prints.",
+                "properties": {
+                  "ref": {
+                    "description": "The git ref the workflow ran at, e.g. \"refs/heads/main\" or \"refs/tags/v3\".",
+                    "type": "string"
+                  },
+                  "repository": {
+                    "description": "The repository whose workflow signs, as owner/name. A job calling a reusable workflow is signed as that workflow's repository, not as the caller's.",
+                    "type": "string"
+                  },
+                  "workflow": {
+                    "description": "The workflow file, e.g. \".github/workflows/release.yml\".",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "images": {
+                "description": "Image references this signer covers, where * matches any run of characters, e.g. [\"ghcr.io/acme/*\"]. An image no signer covers is observed rather than checked.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "keyless": {
+                "additionalProperties": false,
+                "description": "A Sigstore keyless signature, identified by who issued the token and which workload it named.",
+                "properties": {
+                  "identity": {
+                    "description": "The exact signing identity, e.g. \"https://github.com/acme/ci/.github/workflows/release.yml@refs/tags/v3\". A job calling a reusable workflow is signed as that workflow, not as the caller. Run the control with no signers declared and read it back from --format sarif.",
+                    "type": "string"
+                  },
+                  "identityRegexp": {
+                    "description": "A Go regular expression the identity must match, for a signer covering several workflows. A pattern loose enough to match anything accepts a signature from anybody.",
+                    "type": "string"
+                  },
+                  "issuer": {
+                    "description": "The OIDC issuer, e.g. \"https://token.actions.githubusercontent.com\" for GitHub Actions or your GitLab instance URL for GitLab CI.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "name": {
+                "description": "What to call this signer, e.g. \"our-ci\". Referenced by an image's signedBy.",
+                "type": "string"
+              },
+              "x509": {
+                "additionalProperties": false,
+                "description": "A Notary Project signature, identified by the certificate it carries and the roots that certificate must chain to. What Azure Pipelines produces with a key in Azure Key Vault, and what an in-house PKI produces.",
+                "properties": {
+                  "subject": {
+                    "description": "The certificate subject to require, as a comma-separated distinguished name, e.g. \"C=US, ST=WA, O=Acme, CN=Acme Release Signing\". Run notation inspect on the image to read the exact string.",
+                    "type": "string"
+                  },
+                  "trustStore": {
+                    "description": "Path to a PEM file of root certificates the signing certificate must chain to, relative to where Draugr runs.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "trustRoot": {
+          "description": "Path to a Sigstore trusted-root JSON file, for a runner that cannot reach the transparency log. Without one, a runner with no egress reports an error rather than a pass.",
+          "type": "string"
+        },
+        "unmatched": {
+          "anyOf": [
+            {
+              "const": "observe",
+              "description": "Report the identity found and expect nothing. Most of what a project runs is published by somebody else, so this is where a policy starts rather than where it ends."
+            },
+            {
+              "const": "warn",
+              "description": "Report an image no signer covers as a warning, without failing the gate on it."
+            },
+            {
+              "const": "fail",
+              "description": "Require every image to be covered by a signer. The end state, once the inventory has been worked through."
+            }
+          ],
+          "description": "What an image no signer covers is worth. Defaults to observe.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "control_sast": {
+      "additionalProperties": false,
+      "description": "Find patterns in a repo's own code that let somebody in (static analysis).",
+      "properties": {
+        "enabled": {
+          "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
+          "type": "boolean"
+        },
+        "gosec": {
+          "additionalProperties": false,
+          "description": "gosec, published by securego.",
+          "properties": {
+            "enabled": {
+              "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
+              "type": "boolean"
+            },
+            "exclude": {
+              "description": "Skip these gosec rules, by ID, e.g. [\"G104\"]. For rules that do not apply to the codebase, a finding you have judged and accepted belongs in exclusions, where it stays in the report marked suppressed.",
+              "items": {
+                "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|G[0-9]{3})$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "include": {
+              "description": "Run only these gosec rules, by ID, e.g. [\"G101\", \"G204\"]. Everything else is skipped.",
+              "items": {
+                "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|G[0-9]{3})$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "tags": {
+              "description": "Go build tags to compile with, e.g. [\"integration\"]. Code behind a tag gosec does not build is code it does not analyze.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "semgrep": {
+          "additionalProperties": false,
+          "description": "semgrep, published by semgrep.",
+          "properties": {
+            "config": {
+              "description": "Ruleset to run: a Semgrep registry ref (e.g. p/owasp-top-ten), a URL, or a rules file or directory on disk, resolved relative to where Draugr runs. Defaults to p/default.",
+              "type": "string"
+            },
+            "enabled": {
+              "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "control_sca": {
+      "additionalProperties": false,
+      "description": "Find known flaws in the libraries a repo depends on (software composition analysis).",
+      "properties": {
+        "enabled": {
+          "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
+          "type": "boolean"
+        },
+        "grypeFs": {
+          "additionalProperties": false,
+          "description": "grype-fs, published by anchore.",
+          "properties": {
+            "byCve": {
+              "description": "Report a finding under its CVE rather than the advisory ID the source used, where a CVE exists. On by default. Turn it off to see the advisory identifier Grype matched on.",
+              "type": "boolean"
+            },
+            "enabled": {
+              "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "mendSca": {
+          "additionalProperties": false,
+          "description": "mend-sca, published by mend.io.",
+          "properties": {
+            "enabled": {
+              "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
+              "type": "boolean"
+            },
+            "productToken": {
+              "description": "The Mend product this component reports into. Required. It identifies a product and grants no access, so it belongs in the descriptor rather than the environment.",
+              "type": "string"
+            },
+            "project": {
+              "description": "Prefix for each Mend project name, \u003cproject\u003e-\u003crepository\u003e. Each repository reports into its own project, suffixed with the paths and an 8-character hash when the component sets paths or ignore. Unset, names start at the repository.",
+              "type": "string"
+            },
+            "resultTimeout": {
+              "description": "How long to wait for Mend to finish analyzing an upload, e.g. \"15m\". Raise it for large monorepos, where the agent's upload finishes long before the analysis does.",
+              "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+)$",
+              "type": "string"
+            },
+            "settings": {
+              "description": "Unified Agent configuration keys, passed through verbatim. The agent runs over a checkout already restricted to the component's paths and ignore.",
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "retirejs": {
+          "additionalProperties": false,
+          "description": "retirejs, published by RetireJS.",
+          "properties": {
+            "enabled": {
+              "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "trivyFs": {
+          "additionalProperties": false,
+          "description": "trivy-fs, published by aquasecurity.",
+          "properties": {
+            "dbRepository": {
+              "description": "OCI repositories to pull the vulnerability database from, in priority order. Point it at an internal mirror where the runner cannot reach a public registry.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "detectionPriority": {
+              "anyOf": [
+                {
+                  "const": "precise",
+                  "description": "Pinned versions only. The default."
+                },
+                {
+                  "const": "comprehensive",
+                  "description": "Also a range such as \u003e=1.2 in requirements.txt, read as its minimum version, and Go standard-library vulnerabilities."
+                }
+              ],
+              "description": "How Trivy decides which version of a dependency is installed.",
+              "type": "string"
+            },
+            "enabled": {
+              "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
+              "type": "boolean"
+            },
+            "filePatterns": {
+              "description": "More files for an analyzer to read, each analyzer:regex, e.g. [\"pip:requirements-.*\\\\.txt\"]. Trivy's pip analyzer reads only requirements.txt.",
+              "items": {
+                "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9-]+:.+)$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "includeDevDeps": {
+              "description": "Report development dependencies too. Trivy leaves them out by default. Applies to npm, Yarn and Gradle.",
+              "type": "boolean"
+            },
+            "pkgTypes": {
+              "description": "Which package types to analyze. Defaults to both. Narrow it to [\"library\"] when the OS layer is somebody else's responsibility, a base image maintained by a platform team, so the report covers what this component controls.",
+              "items": {
+                "enum": [
+                  "os",
+                  "library"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "control_secrets": {
+      "additionalProperties": false,
+      "description": "Find passwords and keys committed by accident, history included.",
+      "properties": {
+        "enabled": {
+          "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
+          "type": "boolean"
+        },
+        "gitleaks": {
+          "additionalProperties": false,
+          "description": "gitleaks, published by gitleaks.",
+          "properties": {
+            "config": {
+              "description": "Path to a Gitleaks TOML rules file, relative to where Draugr runs. Use it for a ruleset shared across repositories; a .gitleaks.toml committed in the scanned repository is already picked up without this.",
+              "type": "string"
+            },
+            "enabled": {
+              "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
+              "type": "boolean"
+            },
+            "history": {
+              "description": "Also scan the repository's commit history, in addition to the working tree. Off by default: it needs a full clone rather than a shallow one, so it is slower on a large repository. A secret committed and later removed is still fetchable by anyone who can clone, so it is still compromised, this is what finds it. History findings are marked as such, because they name the path the secret had when it was introduced, and are kept only when that path would be checked out by this component's paths and ignore. A secret still in the tree at the same path is reported once, as the tree finding.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "control_threats": {
+      "additionalProperties": false,
+      "description": "Check whether a component's hosts appear on public lists of known-hostile addresses.",
+      "properties": {
+        "enabled": {
+          "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
+          "type": "boolean"
+        },
+        "urlhaus": {
+          "additionalProperties": false,
+          "description": "urlhaus, published by abuse.ch.",
+          "properties": {
+            "enabled": {
+              "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "virustotal": {
+          "additionalProperties": false,
+          "description": "virustotal, published by VirusTotal (Google).",
+          "properties": {
+            "enabled": {
+              "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
+              "type": "boolean"
+            },
+            "requestsPerMinute": {
+              "description": "Override the assumed API allowance. Defaults to the public tier's 4. Raise it only to what your key actually permits, exceeding VirusTotal's limit risks losing access, and their stated penalty for terms violations is a permanent ban.",
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "control_tls": {
+      "additionalProperties": false,
+      "description": "Check the certificates and encryption a component's running endpoints offer visitors.",
+      "properties": {
+        "draugrTls": {
+          "additionalProperties": false,
+          "description": "draugr-tls, published by draugr.",
+          "properties": {
+            "enabled": {
+              "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
+              "type": "boolean"
+            },
+            "expiryErrorDays": {
+              "description": "Report an error when the certificate expires within this many days. Defaults to 14.",
+              "type": "integer"
+            },
+            "expiryWarnDays": {
+              "description": "Report a warning when the certificate expires within this many days. Defaults to 30. Lower it for endpoints with automated renewal so the gate only fires when renewal has failed.",
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "enabled": {
+          "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "controllers": {
+      "additionalProperties": false,
+      "description": "Security controls, keyed by name. A control runs only when enabled here (or on a component). Each scanner is configured under its own key inside the control.",
+      "properties": {
+        "cloud": {
+          "$ref": "#/$defs/control_cloud"
+        },
+        "dast": {
+          "$ref": "#/$defs/control_dast"
+        },
+        "headers": {
+          "$ref": "#/$defs/control_headers"
+        },
+        "iac": {
+          "$ref": "#/$defs/control_iac"
+        },
+        "images": {
+          "$ref": "#/$defs/control_images"
+        },
+        "kubernetes": {
+          "$ref": "#/$defs/control_kubernetes"
+        },
+        "licenses": {
+          "$ref": "#/$defs/control_licenses"
+        },
+        "provenance": {
+          "$ref": "#/$defs/control_provenance"
+        },
+        "sast": {
+          "$ref": "#/$defs/control_sast"
+        },
+        "sca": {
+          "$ref": "#/$defs/control_sca"
+        },
+        "secrets": {
+          "$ref": "#/$defs/control_secrets"
+        },
+        "threats": {
+          "$ref": "#/$defs/control_threats"
+        },
+        "tls": {
+          "$ref": "#/$defs/control_tls"
+        }
+      },
+      "type": "object"
+    },
+    "toolSettings": {
+      "additionalProperties": false,
+      "description": "One tool's pin.",
+      "properties": {
+        "version": {
+          "description": "The release to install, e.g. `0.69.3`.",
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://draugr.dev/schema/draugr.config.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The draugr.config.yaml file: settings for the machine or organization running a scan, layered underneath every descriptor it scans. See https://draugr.dev/docs/latest/reference/cli/#draugr-config",
+  "properties": {
+    "cache": {
+      "additionalProperties": false,
+      "description": "Where scan results are reused between runs, and for how long.",
+      "properties": {
+        "dir": {
+          "description": "The directory results are cached in. Unset leaves caching off. The `--cache-dir` flag.",
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "readOnly": {
+          "description": "Serve cached results without writing new ones. A more specific file's `false` does not turn off a less specific file's `true`. The `--cache-read-only` flag.",
+          "type": "boolean"
+        },
+        "requireDigest": {
+          "description": "Refuse to cache an image named only by a tag, which can be rebuilt under the same name. A more specific file's `false` does not turn off a less specific file's `true`. The `--cache-require-digest` flag.",
+          "type": "boolean"
+        },
+        "ttl": {
+          "description": "How long a cached result stays usable, as a duration such as `24h`. `0s` means no expiry; unset keeps the built-in default. The `--cache-ttl` flag.",
+          "pattern": "^\\+?(0|(([0-9]+(\\.[0-9]*)?|\\.[0-9]+)(ns|us|µs|μs|ms|s|m|h))+)$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "controllers": {
+      "$ref": "#/$defs/controllers",
+      "description": "Deprecated: write `controls`. Still read, so no file breaks, and folded into `controls` when the file is read; `controls` wins where both set a key."
+    },
+    "controls": {
+      "$ref": "#/$defs/controllers",
+      "description": "Default settings for each control, merged underneath a descriptor's `config.controls`, so a project overrides only the keys it names. The same shape as `config.controls` in a Saga."
+    },
+    "output": {
+      "additionalProperties": false,
+      "description": "How a console report is rendered. A flag on the command line overrides each setting.",
+      "properties": {
+        "evidence": {
+          "description": "Also print what stands behind the verdict: tool provenance, what each control measured against, the scanned revision, and what the run cost. The `--evidence` flag.",
+          "type": "boolean"
+        },
+        "offerInstall": {
+          "description": "Whether `draugr scan` on a terminal offers to install the scanners it is missing. Unset means it offers.",
+          "type": "boolean"
+        },
+        "top": {
+          "description": "How many rows the fix list shows. `0` means the built-in default rather than every row. The `--top` flag.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "view": {
+          "anyOf": [
+            {
+              "const": "findings",
+              "description": "A row per finding, with what argued with its band underneath."
+            },
+            {
+              "const": "actions",
+              "description": "A row per thing to do, each saying how many findings it clears."
+            },
+            {
+              "const": "compact",
+              "description": "One line per finding."
+            }
+          ],
+          "description": "What a console report shows. The `--view` flag.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "publish": {
+      "additionalProperties": false,
+      "description": "Defaults for where a run is delivered.",
+      "properties": {
+        "apiUrl": {
+          "description": "Where the `draugr-api` publisher posts when `$DRAUGR_API_URL` is unset. Read from a project's draugr.config.yaml, it is used only on an allowed origin. Never holds a token.",
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "tools": {
+      "additionalProperties": false,
+      "description": "The build of each external tool `draugr tools install` provisions, keyed by tool name.",
+      "properties": {
+        "cosign": {
+          "$ref": "#/$defs/toolSettings"
+        },
+        "gitleaks": {
+          "$ref": "#/$defs/toolSettings"
+        },
+        "gosec": {
+          "$ref": "#/$defs/toolSettings"
+        },
+        "govulncheck": {
+          "$ref": "#/$defs/toolSettings"
+        },
+        "grype": {
+          "$ref": "#/$defs/toolSettings"
+        },
+        "kube-bench": {
+          "$ref": "#/$defs/toolSettings"
+        },
+        "notation": {
+          "$ref": "#/$defs/toolSettings"
+        },
+        "nuclei": {
+          "$ref": "#/$defs/toolSettings"
+        },
+        "retire": {
+          "$ref": "#/$defs/toolSettings"
+        },
+        "semgrep": {
+          "$ref": "#/$defs/toolSettings"
+        },
+        "syft": {
+          "$ref": "#/$defs/toolSettings"
+        },
+        "trivy": {
+          "$ref": "#/$defs/toolSettings"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "title": "Draugr configuration",
+  "type": "object"
+}

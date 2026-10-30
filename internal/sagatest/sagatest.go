@@ -27,6 +27,10 @@ var (
 	once             sync.Once
 	sagaSchema, frag *jsonschema.Resolved
 	errSaga, errFrag error
+
+	configOnce   sync.Once
+	configSchema *jsonschema.Resolved
+	errConfig    error
 )
 
 func resolve(raw []byte) (*jsonschema.Resolved, error) {
@@ -151,6 +155,17 @@ func SchemaError(t testing.TB, doc any, fragment bool) error {
 		return fr.Validate(JSONOf(doc))
 	}
 	return full.Validate(JSONOf(doc))
+}
+
+// ConfigSchemaError is what the draugr.config.yaml JSON Schema says about a decoded config file,
+// nil when it accepts it.
+func ConfigSchemaError(t testing.TB, doc any) error {
+	t.Helper()
+	configOnce.Do(func() { configSchema, errConfig = resolve(saga.ConfigSchemaJSON) })
+	if errConfig != nil {
+		t.Fatalf("the embedded config schema does not resolve: %v", errConfig)
+	}
+	return configSchema.Validate(JSONOf(doc))
 }
 
 // Mutation is one change to a descriptor, and where it was made.

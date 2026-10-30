@@ -227,6 +227,21 @@ func TestSchemaURLFor(t *testing.T) {
 	}
 }
 
+// The config schema is published beside the Saga's, under the same versions.
+func TestConfigSchemaURLFor(t *testing.T) {
+	cases := map[string]string{
+		"0.33.0":  "https://draugr.dev/schema/v0.33.0/draugr.config.schema.json",
+		"v0.33.0": "https://draugr.dev/schema/v0.33.0/draugr.config.schema.json",
+		"dev":     ConfigSchemaURL,
+		"":        ConfigSchemaURL,
+	}
+	for in, want := range cases {
+		if got := ConfigSchemaURLFor(in); got != want {
+			t.Errorf("ConfigSchemaURLFor(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 // The embedded copy is what `draugr schema` prints and what an offline setup validates against;
 // it must be the same document the site publishes.
 func TestEmbeddedSchemaMatchesFile(t *testing.T) {
