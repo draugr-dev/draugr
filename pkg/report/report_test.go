@@ -1101,8 +1101,8 @@ func TestMarkdownRendersTheComponentTable(t *testing.T) {
 	got := b.String()
 	for _, want := range []string{
 		"### Components",
-		"| payments | - | **FAIL** | 3 | 3 | 1 | 0 | sca, secrets |",
-		"| internal-tool | - | pass | 0 | 0 | 0 | 0 | - |",
+		"| payments | public (assumed) | critical (assumed) | **FAIL** | 3 | 3 | 1 | 0 | sca, secrets |",
+		"| internal-tool | public (assumed) | critical (assumed) | pass | 0 | 0 | 0 | 0 | - |",
 		"3 findings not tied to a component",
 	} {
 		if !strings.Contains(got, want) {

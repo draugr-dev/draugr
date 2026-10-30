@@ -103,16 +103,36 @@ func DefaultMatrices() Matrices {
 	}
 }
 
+// RankedExposure returns the exposure the ranking reads e as, and whether that value was assumed
+// rather than declared. An empty or unknown exposure ranks as public, the most exposed level, so
+// findings on a component nobody classified surface rather than hide.
+//
+// Exported so that a report showing a component's classification shows the one its findings were
+// ranked with, from the same rule rather than a copy of it.
+func RankedExposure(e saga.Exposure) (ranked saga.Exposure, assumed bool) {
+	if e.Valid() {
+		return e, false
+	}
+	return saga.ExposurePublic, true
+}
+
+// RankedCriticality returns the criticality the ranking reads c as, and whether that value was
+// assumed rather than declared. An empty or unknown criticality ranks as critical, the most severe
+// level, so findings on a component nobody classified surface rather than hide.
+func RankedCriticality(c saga.Criticality) (ranked saga.Criticality, assumed bool) {
+	if c.Valid() {
+		return c, false
+	}
+	return saga.CriticalityCritical, true
+}
+
 // ContextOf returns the context tier for a component's classification. Unclassified or
 // unknown exposure/criticality is treated as the most severe level (public / critical), so findings
-// on unclassified components surface rather than hide.
+// on unclassified components surface rather than hide. RankedExposure and RankedCriticality hold
+// that rule.
 func (m Matrices) ContextOf(exposure saga.Exposure, criticality saga.Criticality) Context {
-	if !exposure.Valid() {
-		exposure = saga.ExposurePublic
-	}
-	if !criticality.Valid() {
-		criticality = saga.CriticalityCritical
-	}
+	exposure, _ = RankedExposure(exposure)
+	criticality, _ = RankedCriticality(criticality)
 	if byCrit, ok := m.ContextTier[exposure]; ok {
 		if ctx, ok := byCrit[criticality]; ok {
 			return ctx

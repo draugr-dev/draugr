@@ -338,6 +338,27 @@ type ComponentVerdict struct {
 // no scanner read, or a caveat of a kind the gate fails on.
 func (c ComponentVerdict) Errored() bool { return len(c.Unscanned) > 0 || len(c.FailedCaveats) > 0 }
 
+// classHalf is one half of a component's classification, exposure or criticality, as the ranking
+// read it.
+type classHalf struct {
+	// Value is the level the component's findings were ranked with.
+	Value string
+	// Assumed marks a half the descriptor did not declare, so Value is the level the ranking put
+	// in its place.
+	Assumed bool
+}
+
+// rankedClass returns the exposure and criticality a component's findings were ranked with.
+//
+// Read through prioritization rather than restated here, so the classification a reader sees is
+// the one the bands beside it were computed from. A copy of the fallback in this package would be a
+// second rule free to drift from the first.
+func rankedClass(c ComponentVerdict) (exposure, criticality classHalf) {
+	e, assumedE := prioritization.RankedExposure(saga.Exposure(c.Exposure))
+	cr, assumedC := prioritization.RankedCriticality(saga.Criticality(c.Criticality))
+	return classHalf{Value: string(e), Assumed: assumedE}, classHalf{Value: string(cr), Assumed: assumedC}
+}
+
 // Reporter renders Data in one format.
 type Reporter interface {
 	Format() string

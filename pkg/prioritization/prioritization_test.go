@@ -94,6 +94,40 @@ func TestUnclassifiedTreatedAsElevated(t *testing.T) {
 	}
 }
 
+// TestTheRankedClassificationIsTheOneContextOfUses: a report shows these values as what each
+// component was ranked with, so each half has to be the one ContextOf ranks with, and marked
+// assumed exactly when the descriptor did not supply a level the ranking knows.
+func TestTheRankedClassificationIsTheOneContextOfUses(t *testing.T) {
+	m := DefaultMatrices()
+	for _, c := range []struct {
+		exposure     saga.Exposure
+		criticality  saga.Criticality
+		wantE        saga.Exposure
+		wantC        saga.Criticality
+		wantAssumedE bool
+		wantAssumedC bool
+	}{
+		{"internal", "supporting", saga.ExposureInternal, saga.CriticalitySupporting, false, false},
+		{"internal", "", saga.ExposureInternal, saga.CriticalityCritical, false, true},
+		{"", "important", saga.ExposurePublic, saga.CriticalityImportant, true, false},
+		{"", "", saga.ExposurePublic, saga.CriticalityCritical, true, true},
+		{"bogus", "bogus", saga.ExposurePublic, saga.CriticalityCritical, true, true},
+	} {
+		e, assumedE := RankedExposure(c.exposure)
+		cr, assumedC := RankedCriticality(c.criticality)
+		if e != c.wantE || assumedE != c.wantAssumedE {
+			t.Errorf("RankedExposure(%q) = %q, %v; want %q, %v", c.exposure, e, assumedE, c.wantE, c.wantAssumedE)
+		}
+		if cr != c.wantC || assumedC != c.wantAssumedC {
+			t.Errorf("RankedCriticality(%q) = %q, %v; want %q, %v", c.criticality, cr, assumedC, c.wantC, c.wantAssumedC)
+		}
+		if got, want := m.ContextOf(c.exposure, c.criticality), m.ContextOf(e, cr); got != want {
+			t.Errorf("ContextOf(%q, %q) = %s, but the ranked values %q, %q give %s",
+				c.exposure, c.criticality, got, e, cr, want)
+		}
+	}
+}
+
 func TestPriorityOfUnknownSeverity(t *testing.T) {
 	m := DefaultMatrices()
 	// Unknown severity treated as low: C1 × low = P3.
