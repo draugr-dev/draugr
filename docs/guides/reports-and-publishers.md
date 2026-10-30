@@ -898,7 +898,7 @@ is kept for the next report opened in the same browser.
 | Value | Means |
 |---|---|
 | `raised by a signal` | on CISA's Known Exploited Vulnerabilities catalog, predicted exploitation at or above your EPSS threshold, or a malicious or deprecated package |
-| `floored by a control` | a control insists this kind of finding is never lower |
+| `floored by a control` | a leaked credential, ranked P1 whatever its component declares |
 | `lowered as unreachable` | analysis found no path from your code to it |
 | `ranked from severity alone` | none of the three |
 

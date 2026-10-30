@@ -429,42 +429,32 @@ func varies(fs []finding, of func(finding) string) bool {
 	return false
 }
 
-// writeSignalRows records what argued with this run's ranking.
+// writeSignalRows records what argued with this run's ranking, how each signal moves a finding,
+// and what it did.
 //
 // Absent from the file reports entirely, which made them the one place a reader could not find out
-// that a finding was raised because CISA lists it as exploited. The console names each signal and
-// how many findings it moved; so does this, in the same words.
+// that a finding was raised because CISA lists it as exploited. The rows are the console's and the
+// HTML report's, from the same table, so the three cannot disagree about what moved a run.
+//
+// The movement in bold, where the HTML report draws the mark a finding row wears: a pull-request
+// comment has no outline to draw, and bold is what keeps the change apart from its condition.
 func writeSignalRows(w io.Writer, d Data, s summary) {
-	type sig struct{ name, did string }
-	var sigs []sig
-	for _, name := range []string{"kev", "epss"} {
-		n := s.bySignal[name]
-		if n == 0 && !consulted(d, name) {
-			continue
-		}
-		did := "nothing raised"
-		if n > 0 {
-			did = fmt.Sprintf("%s raised", english.Count(n, "finding"))
-		}
-		sigs = append(sigs, sig{strings.ToUpper(name), did})
-	}
-	if n := s.floored; n > 0 {
-		sigs = append(sigs, sig{"floor", fmt.Sprintf("%s raised by a control's own rule", english.Count(n, "finding"))})
-	}
-	rows, notes := reachabilityBlock(d)
-	for _, row := range rows {
-		analyzer, did, _ := strings.Cut(row, "  ")
-		sigs = append(sigs, sig{"reachability", strings.TrimSpace(analyzer) + " · " + strings.TrimSpace(did)})
-	}
-	if len(sigs) == 0 {
+	rows, notes := signals(d, s)
+	if len(rows) == 0 {
 		return
 	}
 	_, _ = fmt.Fprintln(w, "### Signals")
 	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "| Signal | Effect |")
-	_, _ = fmt.Fprintln(w, "|---|---|")
-	for _, x := range sigs {
-		_, _ = fmt.Fprintf(w, "| %s | %s |\n", x.name, x.did)
+	_, _ = fmt.Fprintln(w, "| Signal | How it moves a finding | This run |")
+	_, _ = fmt.Fprintln(w, "|---|---|---|")
+	for _, x := range rows {
+		m := x.Moves
+		how := fmt.Sprintf("**%s %s** %s", m.Glyph(), m.Change, m.Condition)
+		if m.Value != "" {
+			how += " `" + m.Value + "`"
+		}
+		how += m.Rest
+		_, _ = fmt.Fprintf(w, "| %s | %s | %s |\n", x.Name, how, x.Did)
 	}
 	_, _ = fmt.Fprintln(w)
 	for _, note := range notes {

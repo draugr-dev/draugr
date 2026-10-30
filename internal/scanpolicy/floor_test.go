@@ -3,6 +3,7 @@ package scanpolicy
 import (
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/controllers"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -93,5 +94,52 @@ func scoreFor(s sarif.Severity) float64 {
 		return 5.0
 	default:
 		return 2.0
+	}
+}
+
+// Every report's Signals section says the floor moves a finding's "priority to P1". That holds
+// because the floor ranks a finding at the tier of a public, critical component, and the controls
+// that declare one also hold their findings at high or above, so a floored finding is that tier
+// crossed with high or critical. A floor on a control whose findings can be medium lands them on
+// P2 and leaves the row untrue, so this fails rather than letting it.
+//
+// Every control with a floor, every classification a descriptor can declare, and every severity a
+// finding can arrive with: by level, by score and by a scanner's rating.
+func TestEveryFlooredFindingIsP1(t *testing.T) {
+	p := DefaultPrioritizer(nil)
+	exposures := append([]saga.Exposure{""}, saga.Exposures...)
+	criticalities := append([]saga.Criticality{""}, saga.Criticalities...)
+
+	var findings []sarif.Result
+	for _, level := range []sarif.Level{sarif.LevelError, sarif.LevelWarning, sarif.LevelNote, sarif.LevelNone} {
+		findings = append(findings, sarif.Result{RuleID: "generic-api-key", Level: level})
+		for _, sev := range []sarif.Severity{sarif.SeverityCritical, sarif.SeverityHigh, sarif.SeverityMedium, sarif.SeverityLow} {
+			findings = append(findings,
+				sarif.Result{RuleID: "generic-api-key", Level: level, Score: scoreFor(sev), HasScore: true},
+				sarif.Result{RuleID: "generic-api-key", Level: level, Rating: &sarif.Rating{Severity: sev}})
+		}
+	}
+
+	floored := 0
+	for _, control := range controllers.ControlsWithContextFloor() {
+		for _, exposure := range exposures {
+			for _, criticality := range criticalities {
+				for _, res := range findings {
+					got := p(control, exposure, criticality, res)
+					if got.Floor == "" {
+						continue
+					}
+					floored++
+					if got.Band != "P1" {
+						t.Errorf("%s on %q/%q, %s finding: band %s with a floor, want P1; the Signals "+
+							"section says the floor moves a finding to P1",
+							control, exposure, criticality, res.Severity(""), got.Band)
+					}
+				}
+			}
+		}
+	}
+	if floored == 0 {
+		t.Fatal("no finding was floored, so nothing here was checked")
 	}
 }

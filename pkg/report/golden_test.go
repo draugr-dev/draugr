@@ -189,6 +189,9 @@ func goldenFullData() Data {
 					Fields: []sarif.Field{{Key: "policy", Value: "deny copyleft"}}}}}},
 		},
 		ScanErrors: map[string][]string{"dast": {"nuclei: executable file not found in $PATH"}},
+		// secrets declares a context floor and ran, so the Signals block has a floor row even with
+		// no feed and no reachability analysis: the most common block a real run prints.
+		ContextFloors: []string{"secrets"},
 		// A run that saved work both ways: some jobs answered from the cache, one shared a scan
 		// with an identical job. Both appear on every real cached run, so the layout the docs
 		// copy has to include them.
