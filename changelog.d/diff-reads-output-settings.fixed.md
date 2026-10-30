@@ -1,0 +1,1 @@
+- **`draugr diff` reads `output.view` and `output.top` from `draugr.config.yaml`.** They set the `--view` and `--top` defaults as they do for `draugr scan`, and a flag on the command line still wins. `output.evidence` sets nothing on a diff, which has no evidence section.

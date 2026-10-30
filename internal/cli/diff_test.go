@@ -363,6 +363,10 @@ func TestDiffTakesEitherVocabulary(t *testing.T) {
 // The head alone is a diff with no base: every finding in it is new, and the gate applies to them
 // as it would to any change. A base path that names nothing is still an error.
 func TestDiffWithTheHeadAloneGatesEveryFinding(t *testing.T) {
+	// The command reads the configuration, so none of this machine's is in play.
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("DRAUGR_CONFIG", "")
+	t.Chdir(t.TempDir())
 	head := writeFile(t, "head.sarif", sarifDoc("CVE-2", "error", "img", "P1"))
 	var out bytes.Buffer
 	opts := diffOptions{format: "markdown", failOnNew: "P1"}

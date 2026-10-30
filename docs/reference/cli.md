@@ -935,6 +935,11 @@ CHANGED  4, by priority
 | `--fail-on-new-priority` | - | Deprecated: write the band in `--fail-on-new`. Refused together with `--fail-on-new` |
 | `--publish` | `false` | Post the diff as a sticky pull-request comment. Picks `github-pr-comment`, `azure-pr-comment` or `gitlab-mr-comment` from the CI environment; no-ops off a PR |
 
+`--view` and `--top` have counterparts in [`draugr.config.yaml`](#draugr-config), `output.view` and
+`output.top`, read as `draugr scan` reads them: a flag on the command line wins over the file, and a
+`top` of `0` in the file keeps the default of every row. A diff has no evidence section, so
+`output.evidence` sets nothing here.
+
 The gate reads **new** only. Accepted, unaccepted and moved findings do not trip it, and each is
 reported.
 
@@ -1298,11 +1303,13 @@ binary.
 A tool is also reported as unusable (`✗ no data`) when it is installed but its supporting data is
 not: `kube-bench` without its `cfg/` benchmarks, `nuclei` without its templates.
 
-### A tool that is not the version Draugr tested
+### Versions
 
-Draugr pins a version of each tool it can install, and its own suite runs against that build. A
-tool on `PATH` at another version, from a distribution package or installed with `--version`, has
-its row say which version was tested, and one line under the table counts them:
+Doctor holds each installed tool to the build `draugr tools install` fetches for it: the version
+Draugr tests, or the version [`tools.<name>.version`](#draugr-config) pins where there is a pin.
+Draugr's own suite runs against the tested build. A tool on `PATH` at another version, from a
+distribution package or installed with `--version`, has its row say which version was tested, and
+one line under the table counts them:
 
 ```console
 $ draugr doctor --offline
@@ -1316,6 +1323,30 @@ trivy        ✓ found    0.69.3   /usr/bin/trivy · tested against 0.74.0
 
 The line is a note, not a failure, unless `--strict` is given. An older scanner can find fewer
 things than the tested build.
+
+A pinned tool is held to its pin instead. Its row names the file that sets the pin, and the
+version when the tool is not at it. The line under the table counts the two kinds apart:
+
+```yaml
+# pin.yaml
+tools:
+  trivy: { version: "0.69.3" }
+  semgrep: { version: "1.177.0" }
+```
+
+```console
+$ draugr doctor --config pin.yaml --offline
+…
+TOOLS
+Tool         Status     Version  Notes
+…
+semgrep      ✓ found    1.177.0  /home/wilson/.draugr/bin/semgrep · pinned in ./pin.yaml
+syft         ✓ found    1.51.1   /home/wilson/.draugr/bin/syft · tested against 1.55.0
+trivy        ✓ found    0.74.0   /home/wilson/.draugr/bin/trivy · pinned to 0.69.3 in ./pin.yaml
+5 installed tools are not the version Draugr tests and 1 is not at its pinned version. `draugr tools install --force` installs the pinned build where there is a pin and the tested build otherwise.
+```
+
+`--strict` holds a pinned tool to its pin as well.
 
 ### Targets
 
@@ -1453,9 +1484,9 @@ The list is **reported, not failed**, unless `--fail-on-uncovered` is passed or
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--json` | `false` | Emit the report as JSON instead of tables. A tool not at its pin carries `testedVersion` |
+| `--json` | `false` | Emit the report as JSON instead of tables. A tool not at the version Draugr tests carries `testedVersion`; a tool not at its configured pin carries `pinnedVersion` and `pinnedIn`, the file that pins it, in its place |
 | `--fail-on-uncovered` | `false` | Exit non-zero when the descriptor declares a surface no enabled control looks at. Also the behavior when [`config.gate.failOnCaveats`](saga-schema.md#configgate) lists `not-checked` |
-| `--strict` | `false` | Exit non-zero when a tool is not the version Draugr tests, with or without a descriptor. With one, a missing tool's message comes first |
+| `--strict` | `false` | Exit non-zero when a tool is not at its configured pin, or not the version Draugr tests where it has none, with or without a descriptor. With one, a missing tool's message comes first |
 | `--policy` | `false` | Ask the `draugr-api` server for the organization's policy, sending the token. Exit non-zero when it could not be checked, as well as when a scan would be refused or fail by it |
 | `--offline` | `false` | Make no network call: skips the release check, the policy check, remote fragments and every target check that needs the network. `DRAUGR_NO_UPDATE_CHECK=1` skips only the release check |
 | `--components` | - | Check only the targets of these components |
@@ -1907,7 +1938,7 @@ controls:               # merged *underneath* the descriptor's own settings
 | `tools.<name>.version` | the build [`tools install`](#draugr-tools-install-tool) provisions |
 | `controls.<control>.<scanner>` | control defaults, merged underneath the descriptor's `config.controls` |
 | `cache.dir`, `cache.ttl`, `cache.readOnly`, `cache.requireDigest` | the `--cache-*` flags. A `ttl` of `0s` means no expiry, as `--cache-ttl 0` does; leaving `ttl` out keeps the built-in default |
-| `output.view`, `output.evidence`, `output.top` | the `--view`, `--evidence` and `--top` flags. A `top` of `0` means the built-in default, not every row as `--top 0` does |
+| `output.view`, `output.evidence`, `output.top` | the `--view`, `--evidence` and `--top` flags of `draugr scan`, and `--view` and `--top` of `draugr diff`. A `top` of `0` keeps the command's own default (a cap for `scan`, every row for `diff`), where `--top 0` lists every row |
 | `output.offerInstall` | whether a scan on a terminal [offers to install](#installing-a-missing-scanner) a missing scanner; unset means it does |
 | `publish.apiUrl` | where the `draugr-api` publisher posts when `DRAUGR_API_URL` is unset. In a project's `./draugr.config.yaml` it is held to the rule for a descriptor's `url:`, used only on an allowed origin |
 

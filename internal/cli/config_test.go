@@ -14,6 +14,20 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
+// `config --help` is where somebody looks first, so it names every file the command reads, the
+// override for both, the command that shows what is in effect and where every key is listed.
+func TestConfigHelpNamesTheFilesAndWhereTheKeysAre(t *testing.T) {
+	long := newConfigCommand().Long
+	for _, want := range []string{
+		"~/.draugr/config.yaml", "./draugr.config.yaml", "--config <path>", config.EnvVar,
+		"`draugr config show`", config.KeysURL,
+	} {
+		if !strings.Contains(long, want) {
+			t.Errorf("config --help does not name %q:\n%s", want, long)
+		}
+	}
+}
+
 func TestConfigShowNamesWhereEachValueCame(t *testing.T) {
 	// The reason `show` exists. A three-layer merge is undebuggable without it: "why is Trivy
 	// 0.68?" has one useful answer, and it is a filename.

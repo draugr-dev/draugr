@@ -1,0 +1,1 @@
+- **`draugr config --help` names the files it reads and where every key is listed.** It lists `~/.draugr/config.yaml` and `./draugr.config.yaml` in the order they layer, says `--config` or `DRAUGR_CONFIG` names one file read alone, and points at `draugr config show` and the reference page of keys.
