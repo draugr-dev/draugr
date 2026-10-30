@@ -164,7 +164,7 @@ sent.
 |---|---|
 | `GITHUB_API_URL` | GitHub Enterprise Server's API, including `/api/v3`, for `survey github repos` and the GitHub publishers |
 | `GITLAB_URL` | a self-managed GitLab, for `survey gitlab projects` |
-| `AZURE_DEVOPS_URL` | Azure DevOps Server, for `survey azure repos` |
+| `AZURE_DEVOPS_URL` | Azure DevOps Server, without its collection, for `survey azure repos` |
 
 **Observability**
 
@@ -1012,7 +1012,7 @@ Each surveyor is its own subcommand:
 | `--no-exposure` | `k8s images` | `false` | Leave each component's `exposure` unset rather than proposing it |
 | `--org` | `github repos` | - | The GitHub organization to discover repositories in. Required |
 | `--group` | `gitlab projects` | - | The GitLab group to discover projects in, subgroups included. Required |
-| `--org` | `azure repos` | - | The Azure DevOps organization to discover repositories in. Required |
+| `--org` | `azure repos` | - | The Azure DevOps organization, or on Azure DevOps Server the collection, to discover repositories in. Required |
 | `--project` | `azure repos` | - | Limit discovery to one project |
 | `--trust-root` | `provenance` | - | A Sigstore trusted-root file, for an organization running its own Sigstore |
 
@@ -1089,7 +1089,7 @@ that the descriptor is missing every private one.
 |---|---|---|
 | GitHub | `GITHUB_TOKEN` | `GITHUB_API_URL`, including Enterprise Server's `/api/v3`. GitHub Actions sets it on a GHES runner |
 | GitLab | `GITLAB_TOKEN` | `CI_API_V4_URL`, which a runner sets, then `GITLAB_URL`, then `CI_SERVER_URL` |
-| Azure DevOps | `AZURE_DEVOPS_EXT_PAT`, else `AZURE_DEVOPS_TOKEN`. Needs the **Code (read)** scope | `AZURE_DEVOPS_URL`, including its collection |
+| Azure DevOps | `AZURE_DEVOPS_EXT_PAT`, else `AZURE_DEVOPS_TOKEN`. Needs the **Code (read)** scope | `AZURE_DEVOPS_URL`, without the collection, which `--org` names |
 
 ```bash
 draugr survey github repos --org my-org -o draugr.saga.yaml

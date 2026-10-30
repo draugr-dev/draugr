@@ -5,8 +5,8 @@
 - **Provides:** repository targets → one Saga component per repository (clone URL + default branch)
 - **Auth:** `AZURE_DEVOPS_EXT_PAT`, else `AZURE_DEVOPS_TOKEN`, else a token in the scope config,
   a personal access token with the **Code (read)** scope, sent as HTTP Basic in the password field
-- **Instance:** `AZURE_DEVOPS_URL` for Azure DevOps Server, including its collection
-  (`https://tfs.example.com/DefaultCollection`); `https://dev.azure.com` by default
+- **Instance:** `https://dev.azure.com` by default; `AZURE_DEVOPS_URL` for Azure DevOps Server
+  2022.1 or later, the first release serving the REST API 7.1 every request names
 - **License / terms:** uses the Azure DevOps REST API 7.1 over HTTPS (stdlib `net/http`). Azure
   DevOps Services obtained online is governed by the
   [Microsoft Customer Agreement](https://www.microsoft.com/licensing/docs/customeragreement) or the
@@ -49,6 +49,25 @@ real findings, while every private repository, which is where the interesting co
 simply not in it. Nobody reading that output has a reason to suspect a gap, so the survey says so
 itself.
 
+## Instance
+
+`AZURE_DEVOPS_URL` is the instance, including the server's virtual directory if it has one, such as
+`/tfs`. `--org` is the organization on Azure DevOps Services and the collection on Azure DevOps
+Server, and `--project` narrows the listing to one project.
+
+| `AZURE_DEVOPS_URL` | `--org` | `--project` | Request |
+|---|---|---|---|
+| unset | `acme` | | `https://dev.azure.com/acme/_apis/git/repositories` |
+| unset | `acme` | `Platform` | `https://dev.azure.com/acme/Platform/_apis/git/repositories` |
+| `https://tfs.example.com` | `DefaultCollection` | | `https://tfs.example.com/DefaultCollection/_apis/git/repositories` |
+| `https://tfs.example.com` | `DefaultCollection` | `Platform` | `https://tfs.example.com/DefaultCollection/Platform/_apis/git/repositories` |
+| `https://tfs.example.com/tfs` | `DefaultCollection` | `Platform` | `https://tfs.example.com/tfs/DefaultCollection/Platform/_apis/git/repositories` |
+| `https://tfs.example.com/DefaultCollection` | `Platform` | | `https://tfs.example.com/DefaultCollection/Platform/_apis/git/repositories` |
+
+`AZURE_DEVOPS_URL` may also be a collection's own URL, the value
+`$SYSTEM_TEAMFOUNDATIONCOLLECTIONURI` holds in a pipeline. `--org` then names a project, the survey
+covers that one project, and `--project` is left out.
+
 ## Why an auth failure is called out by name
 
 Azure DevOps answers an unauthenticated or under-scoped API request with **HTTP 203
@@ -65,7 +84,11 @@ spelling when the answer is a permission.
 ## Links
 
 - Repositories - List API:
-  https://learn.microsoft.com/en-us/rest/api/azure/devops/git/repositories/list?view=azure-devops-rest-7.1
+  https://learn.microsoft.com/en-us/rest/api/azure/devops/git/repositories/list?view=azure-devops-rest-7.1,
+  and for Azure DevOps Server:
+  https://learn.microsoft.com/en-us/rest/api/azure/devops/git/repositories/list?view=azure-devops-server-rest-7.1
+- REST API versions each Azure DevOps Server release serves:
+  https://learn.microsoft.com/en-us/rest/api/azure/devops/?view=azure-devops-rest-7.1
 - Personal access tokens:
   https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate
 - Concepts: [surveyors](../../docs/concepts/surveyors.md)

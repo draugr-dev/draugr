@@ -1,0 +1,1 @@
+- **`draugr survey azure repos` documents the Azure DevOps Server address it takes.** Set `AZURE_DEVOPS_URL` to the server without its collection, such as `https://tfs.example.com` or `https://tfs.example.com/tfs`, and pass the collection as `--org`. A collection's own URL also works, with a project as `--org`.
