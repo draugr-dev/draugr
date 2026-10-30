@@ -1,0 +1,26 @@
+DRAUGR  FAIL  mesh-platform
+
+CONTROLS
+  images  ERROR  no findings
+  sca     ERROR  no findings
+
+ERRORS  5 of 6 targets not reached
+  contoso.azurecr.io  401 unauthorized, no credential
+    Image                                               Components
+    istio/install-cni:1.30.5@sha256:3392f63cfaef…       mesh
+    istio/pilot:1.30.5-distroless@sha256:78052a996140…  mesh
+    istio/proxyv2:1.30.5@sha256:abdd36489d1f…           ingress, mesh
+  docker login contoso.azurecr.io  then scan again
+  ghcr.io  403 forbidden
+    Image                                Components
+    acme/api:2.4.1@sha256:0f4c9d1e7b3a…  billing
+  repository https://github.com/acme/api-archive@main
+    component billing · Repository not found
+
+COMPONENTS
+  billing  ERROR  no findings
+  ingress  ERROR  no findings
+  mesh     ERROR  no findings
+
+No findings from the controls that ran. A control marked ERROR did not report.
+

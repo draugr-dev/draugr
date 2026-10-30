@@ -1,8 +1,13 @@
 package engine
 
 import (
+	"context"
+	"errors"
+	"log/slog"
+	"os/exec"
 	"slices"
 
+	"github.com/draugr-dev/draugr/internal/registry"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 )
 
@@ -35,6 +40,72 @@ type TargetOutcome struct {
 	// Components are the components that declared it, so a target that was not reached can be
 	// read as the components it leaves unscanned.
 	Components []string `json:"components,omitempty"`
+	// Refusal is the registry's answer when the target is an image its registry declined to serve,
+	// and nil otherwise.
+	Refusal *Refusal `json:"refusal,omitempty"`
+}
+
+// Refusal is a container registry declining to serve an image to the machine that ran the scan.
+type Refusal struct {
+	// Registry is the image's registry, as `docker login` names it: `docker.io` for Docker Hub.
+	Registry string `json:"registry"`
+	// Status is the HTTP status the refusal amounts to: 401 when the registry asked for a
+	// credential, 403 when it declined the request it was given.
+	Status int `json:"status"`
+	// Credential is whether the machine held a credential for Registry where the scanners read one,
+	// asked after the scans. Absent when the run did not ask, or the configuration could not be read.
+	Credential *bool `json:"credential,omitempty"`
+}
+
+// refusalOf reads a failed pull of an image for its registry declining to serve it: from everything
+// the tool printed where the scanner ran one, and from the error alone otherwise. A tool's output is
+// read in full because the error is shortened to a line, and the registry's answer can be the part
+// shortened away.
+func refusalOf(t plugin.Target, err error) *Refusal {
+	img, ok := t.(plugin.ImageTarget)
+	if !ok || err == nil {
+		return nil
+	}
+	ref, perr := registry.Parse(img.PinnedRef())
+	if perr != nil {
+		return nil
+	}
+	text := err.Error()
+	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
+		text = string(exit.Stderr) + "\n" + text
+	}
+	status := registry.RefusalStatus(text, ref.Host)
+	if status == 0 {
+		return nil
+	}
+	return &Refusal{Registry: registry.LoginHost(ref.Host), Status: status}
+}
+
+// noteCredentials says, for each image a registry refused, whether this machine holds a credential
+// for that registry, asking once per registry. Nothing is said when nothing can answer, or the
+// answer could not be read: a refusal reported without the fact is still true.
+func noteCredentials(ctx context.Context, targets []TargetOutcome, held func(context.Context, string) (bool, error)) {
+	if held == nil {
+		return
+	}
+	known := map[string]*bool{}
+	for i := range targets {
+		r := targets[i].Refusal
+		if r == nil {
+			continue
+		}
+		answer, asked := known[r.Registry]
+		if !asked {
+			if ok, err := held(ctx, r.Registry); err == nil {
+				answer = &ok
+			} else {
+				slog.DebugContext(ctx, "could not read the credential for a registry that refused an image",
+					"registry", r.Registry, "error", err.Error())
+			}
+			known[r.Registry] = answer
+		}
+		r.Credential = answer
+	}
 }
 
 // targetOutcomes accounts for each distinct target in the plan, in the order first planned.
@@ -75,7 +146,7 @@ func targetOutcomes(planned []PlannedJob, skipped []SkippedJob, failures []Unsca
 		case f.toolMissing && o.Status == "":
 			o.Status, o.Detail = TargetSkipped, f.Detail
 		case !f.toolMissing && o.Status != TargetFailed:
-			o.Status, o.Detail = TargetFailed, f.Detail
+			o.Status, o.Detail, o.Refusal = TargetFailed, f.Detail, f.refusal
 		}
 	}
 	for _, sk := range skipped {
@@ -92,7 +163,7 @@ func targetOutcomes(planned []PlannedJob, skipped []SkippedJob, failures []Unsca
 		o := at[key]
 		switch {
 		case reached[key]:
-			o.Status, o.Detail = TargetReached, ""
+			o.Status, o.Detail, o.Refusal = TargetReached, "", nil
 		case o.Status == "":
 			// Planned, never read and never reported as failing: a job the run was canceled
 			// before it could start.
