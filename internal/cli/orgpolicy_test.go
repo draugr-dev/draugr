@@ -196,7 +196,7 @@ func TestTheProjectsConfigurationDoesNotChooseTheServer(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := applyConfigDefaults(context.Background(), m); err != nil {
+		if _, _, err := applyConfigDefaults(context.Background(), m); err != nil {
 			t.Fatal(err)
 		}
 		return m

@@ -670,8 +670,8 @@ command; on a runner without a network, copy a newer cache in, as
 
 ### `DESCRIPTOR`, under `--evidence`
 
-A descriptor assembled from more than one file gets a `DESCRIPTOR` section naming each file, and
-the `descriptor` evidence row summarizes it:
+A descriptor assembled from more than one file, or holding a control default from a configuration
+file, gets a `DESCRIPTOR` section naming each file, and the `descriptor` evidence row summarizes it:
 
 ```console
 $ draugr scan draugr.saga.yaml --evidence
@@ -685,7 +685,14 @@ DESCRIPTOR
 
 A local file carries the digest of its content. A fragment from another repository carries
 `<repository>@<revision>` and, where the revision is not itself a commit, `commit <sha>` for the
-commit it resolved to. A descriptor that is a single file gets no section.
+commit it resolved to.
+
+A [configuration file](../guides/configuration.md#controls) that supplied a control default is
+listed after them as `<path>  config · digest <sha> · <settings>`, and the `descriptor` row ends
+`· includes config defaults`. The row's fragment count leaves configuration files out.
+
+A descriptor that is a single file, with no configuration file behind any of its settings, gets no
+section.
 
 ### `--format` prints; `--report` writes
 

@@ -1967,14 +1967,16 @@ func writeAccepted(w io.Writer, col tui.Painter, d Data, full bool) {
 	draw("Unmatched", unmatched)
 }
 
-// writeDescriptorSources names every file the descriptor was assembled from, under --evidence.
+// writeDescriptorSources names every file the descriptor was assembled from, under --evidence: its
+// own files, and each configuration file that supplied a control default.
 //
 // A section rather than a clause on the evidence row. How many files a descriptor is split across
 // is the reader's own decision, so the list has no length this can predict, and a set with no end
 // is a set that gets its own block rather than a line that grows.
 //
-// Only where there is more than one. A descriptor that is a single file has already been named on
-// the row above, and a section repeating it is a heading for one fact.
+// Only where there is more than one. A descriptor that is a single file, with no configuration file
+// behind any of its settings, has already been named on the row above, and a section repeating it
+// is a heading for one fact.
 func writeDescriptorSources(w io.Writer, col tui.Painter, d Data, full bool) {
 	if !full || d.Descriptor == nil || len(d.Descriptor.Sources) < 2 {
 		return
@@ -1982,22 +1984,37 @@ func writeDescriptorSources(w io.Writer, col tui.Painter, d Data, full bool) {
 	_, _ = fmt.Fprintln(w, heading(col, "Descriptor"))
 	t := tui.NewTable(col).Indent("  ")
 	for _, src := range d.Descriptor.Sources {
-		t.Row(tui.Styled(tui.StyleStrong, src.Path), tui.Styled(cDim, descriptorSourceNote(src)))
+		t.Row(tui.Styled(tui.StyleStrong, src.Path),
+			tui.Styled(cDim, descriptorSourceNote(src, d.Descriptor.Contributed)))
 	}
 	t.Render(w)
 	_, _ = fmt.Fprintln(w)
 }
 
-// descriptorSourceNote says where one file came from and which text it was.
+// descriptorSourceNote says where one file came from and which text it was, and for a
+// configuration file, which settings it supplied.
 //
 // The repository first where there is one: a path alone says which file inside a tree, and a
 // fragment pulled from somebody else's repository is a file this checkout does not contain, which
 // is the thing a reader cannot work out from the name. The commit is the resolved one rather than
 // the branch that was asked for, since a branch moves and only the commit makes a run reproducible.
-func descriptorSourceNote(src skald.DescriptorSource) string {
+//
+// A configuration file's settings are listed because no committed file holds them: they are the
+// values in the merged descriptor a reader of the repository cannot find.
+func descriptorSourceNote(src skald.DescriptorSource, contributed map[string][]string) string {
 	var parts []string
 	if src.Root {
 		parts = append(parts, "root")
+	}
+	if src.Config != "" {
+		parts = append(parts, "config")
+		if src.Digest != "" {
+			parts = append(parts, "digest "+shortDigest(src.Digest))
+		}
+		if settings := suppliedBy(src.Path, contributed); len(settings) > 0 {
+			parts = append(parts, strings.Join(settings, ", "))
+		}
+		return strings.Join(parts, " · ")
 	}
 	// Both hashes below are named for the same reason the revision is on the row above: this block
 	// prints a commit and a content digest, they look alike, and they answer different questions.
@@ -2020,6 +2037,18 @@ func descriptorSourceNote(src skald.DescriptorSource) string {
 		parts = append(parts, "digest "+shortDigest(src.Digest))
 	}
 	return strings.Join(parts, " · ")
+}
+
+// suppliedBy lists the settings contributed names path for, in order.
+func suppliedBy(path string, contributed map[string][]string) []string {
+	var out []string
+	for setting, files := range contributed {
+		if slices.Contains(files, path) {
+			out = append(out, setting)
+		}
+	}
+	slices.Sort(out)
+	return out
 }
 
 // writeDecisions accounts for each acceptance separately, under --evidence.
@@ -2663,6 +2692,11 @@ func renderOverrides(overrides map[string]string, unit string) string {
 // The digest first, because it is the part that answers a question: two runs carrying the same one
 // were asked the same thing. Fragments are counted rather than listed. The full list is in
 // report.json, and an auditor comparing files is reading that, not a terminal.
+//
+// A configuration file is not a fragment and is not counted as one. Its control defaults are in the
+// merged digest all the same, so the row says the digest includes them. Two runs of one descriptor
+// under different configuration files carry different digests, and this row is where a reader
+// learns why.
 func descriptorLine(d *skald.DescriptorRef) string {
 	if d == nil || len(d.Sources) == 0 {
 		return ""
@@ -2674,15 +2708,26 @@ func descriptorLine(d *skald.DescriptorRef) string {
 			break
 		}
 	}
+	fragments, configured := -1, false // -1 for the root
+	for _, s := range d.Sources {
+		if s.Config != "" {
+			configured = true
+			continue
+		}
+		fragments++
+	}
 	line := root
-	if n := len(d.Sources) - 1; n > 0 {
-		line += fmt.Sprintf(" + %s", english.Count(n, "fragment"))
+	if fragments > 0 {
+		line += fmt.Sprintf(" + %s", english.Count(fragments, "fragment"))
 	}
 	if d.Digest != "" {
 		// Named, because eight characters of hex is not self-evidently anything. It is the digest
 		// of the merged document, fragments folded in, which is what makes two runs comparable when
 		// the descriptor is assembled from several files.
 		line += " · merged digest " + shortDigest(d.Digest)
+	}
+	if configured {
+		line += " · includes config defaults"
 	}
 	return line
 }

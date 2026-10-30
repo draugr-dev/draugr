@@ -124,14 +124,36 @@ func mergeFragmentControls(cfg *Config, frag map[string]ControllerSettings, sour
 			if source == "" {
 				continue
 			}
-			if cfg.ControlSources == nil {
-				cfg.ControlSources = map[string][]string{}
-			}
-			key := name + "." + opt
-			if !slices.Contains(cfg.ControlSources[key], source) {
-				cfg.ControlSources[key] = append(cfg.ControlSources[key], source)
-			}
+			cfg.attribute(name+"."+opt, source)
 		}
+	}
+}
+
+// attribute records that a control setting arrived from source, once.
+func (cfg *Config) attribute(setting, source string) {
+	if cfg.ControlSources == nil {
+		cfg.ControlSources = map[string][]string{}
+	}
+	if !slices.Contains(cfg.ControlSources[setting], source) {
+		cfg.ControlSources[setting] = append(cfg.ControlSources[setting], source)
+	}
+}
+
+// AddConfig records a configuration file whose control defaults reached the merged descriptor: a
+// source after the descriptor's own files, and the file behind each of settings in
+// Config.ControlSources, where a fragment's contributions are recorded.
+//
+// The merged digest is taken over those defaults, so the file is a source of the descriptor that
+// ran. src.Config says where it was found. A resolution with no descriptor file records nothing,
+// because there is no descriptor block for the file to join, and a file that supplied no setting
+// is not a source.
+func (r *Resolved) AddConfig(src Source, settings []string) {
+	if r == nil || r.Model == nil || len(r.Sources) == 0 || len(settings) == 0 {
+		return
+	}
+	r.Sources = append(r.Sources, src)
+	for _, s := range settings {
+		r.Model.Config.attribute(s, src.Path)
 	}
 }
 

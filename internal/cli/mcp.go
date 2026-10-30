@@ -70,7 +70,7 @@ func mcpOptions(mode draugrmcp.ScanMode) draugrmcp.Options {
 		Registry:  builtins.Registry(),
 		Surveyors: builtins.SurveyorRegistry(),
 		Config: func(ctx context.Context, model *saga.Model) error {
-			_, err := applyConfigDefaults(ctx, model)
+			_, _, err := applyConfigDefaults(ctx, model)
 			return err
 		},
 	}

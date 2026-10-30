@@ -113,6 +113,37 @@ A license the scanner could not identify is reported under the rule `license/unk
 and the message quotes the text it found. `deny` and `warn` accept `unknown` to select every such
 license.
 
+## What each descriptor source carries
+
+`descriptor.sources[]` in `report.json` lists the files the run's descriptor was assembled from, in
+order: the descriptor, its fragments as they merged, and each configuration file that supplied a
+[control default](../guides/configuration.md#controls), least specific first. The
+[guide](../guides/reports-and-publishers.md) shows the block and the two digests it carries.
+
+| Field | Meaning |
+|---|---|
+| `path` | the descriptor's path as `draugr scan` was given it; a local fragment's path joined to the descriptor's directory, or a remote fragment's path in its repository; a configuration file's path as `draugr config show` names it |
+| `digest` | the sha256 of the file as read, before `${{ VAR }}` substitution |
+| `root` | `true` for the descriptor |
+| `url`, `revision`, `resolved` | for a fragment fetched from another repository: the repository, the revision the descriptor names, and the commit it resolved to |
+| `config` | for a configuration file, where it was found: `machine` for `~/.draugr/config.yaml`, `project` for `./draugr.config.yaml`, or `--config` or `DRAUGR_CONFIG` for the file either one names, which is read alone |
+
+`descriptor.contributed` maps each control setting that a file other than the descriptor supplied
+to the files that supplied it. Absent when every setting came from the descriptor. Its keys:
+
+- a fragment's setting: `control.option`, for example `provenance.signers`
+- a configuration file's setting: the path from the control's name, for example
+  `secrets.gitleaks.history`
+
+A configuration file is listed only when one of its control defaults reached the descriptor, which
+is when it changes `descriptor.effective` and `descriptor.digest`. A default the descriptor sets
+itself is not listed, and neither is a file that sets no control default.
+
+```bash
+jq -r '.descriptor.sources[] | select(.config) | "\(.config)  \(.path)  \(.digest)"' out/report.json
+jq -r '.descriptor.contributed // {} | to_entries[] | "\(.key)  \(.value | join(", "))"' out/report.json
+```
+
 ## What each exclusion carries
 
 `report.json` lists the merged descriptor's [`config.exclude`](saga-schema.md#configexclude)

@@ -204,7 +204,7 @@ func runDoctor(
 		// it, as `draugr scan` merges them, because a default that selects a scanner makes that
 		// scanner's tool required. Everything below, the tools, the targets and the policy, then
 		// describes the scan that would run.
-		if _, err := applyConfigDefaults(ctx, model); err != nil {
+		if _, _, err := applyConfigDefaults(ctx, model); err != nil {
 			return err
 		}
 		required = needs.Tools(reg, model)

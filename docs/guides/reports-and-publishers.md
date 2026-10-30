@@ -165,6 +165,11 @@ answers whether the text somebody reviewed is the text that ran.
 A fragment fetched from another repository also carries `url`, `revision` and `resolved`. Pin on
 `resolved`: a branch moves, so it is the commit, not the reference, that makes the run reproducible.
 
+A [configuration file](configuration.md#controls) whose control default reached the descriptor is
+listed as a source too, and `descriptor.contributed` names the settings it supplied.
+[The report schema](../reference/report-schema.md#what-each-descriptor-source-carries) has each
+field.
+
 `ci` is the job the scan ran in, `system`, `repository`, `ref`, `workflow`, `job`, `runId`,
 `attempt` and, where the platform publishes enough to build one, `url`. GitHub Actions, GitLab CI,
 Azure Pipelines, CircleCI and Buildkite are recognized; outside them the block is absent rather than
