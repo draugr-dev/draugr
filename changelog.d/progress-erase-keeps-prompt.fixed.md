@@ -1,1 +1,0 @@
-- **A scan on a terminal keeps the command you typed on screen.** The progress display used to erase one line more than it drew when the scan finished, so the report started where the command had been.

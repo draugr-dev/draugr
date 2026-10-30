@@ -12,6 +12,40 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.160.0] - 2026-10-30
+
+### Changed
+
+- **`draugr.config.yaml` takes `controls:`, the name a descriptor uses.** `draugr config set controls.sast…` works, `config init` writes `controls:`, and `show` and every error name the section `controls`. `controllers:` still loads and is folded into `controls`, merged key by key where a file has both.
+
+- **A run logs one `publishers skipped` record per reason.** It lists each kind it skipped with a count, such as `kinds.github=1 kinds.github-issue=3`, and `--log-format json` carries `kinds` as an object of kind to count.
+
+### Fixed
+
+- **`draugr config set` writes lists and mappings.** A value starting with `[` or `{` is written as YAML, so `'[library]'` sets a list option instead of being refused as a string. The first key set into an empty `{}`, as in the file `config init` writes, is written as a block mapping.
+
+- **`draugr config show` lists the discovered files that `--config` or `DRAUGR_CONFIG` leaves unread.** It names each file relative to the working directory or under `~`, and prints a duration as written in the file, such as `12h`.
+
+- **`draugr config unset` refuses a key the file does not set.** It names the file and writes nothing, so no empty `draugr.config.yaml` is left behind for `config init` to refuse. A misspelled key is reported as a setting Draugr does not have.
+
+- **`draugr feeds status --saga` and `feeds update --saga` apply the descriptor's `config.exploitability.maxAge`**, so a copy is stale and refetched at the age a scan of that descriptor uses with `auto`. Both commands end with the limit they applied and where it came from.
+
+- **Grype scans of several repositories or images no longer fail with `bad db checksum`, or report too few vulnerabilities, over a database an older Grype downloaded.** Draugr now reads the database once before the first scan, offline included, so Grype migrates it before concurrent scans open it.
+
+- **`draugr explain --help` lists every report `-r` falls back to**, `.draugr-out/results.sarif` included.
+
+- **`draugr validate --help` describes how a descriptor's fragments are merged before it is checked**, and how a fragment file is checked on its own.
+
+- **The HTML report reads on a phone.** At phone widths, the labels under each finding and action, the priority and severity chips, the column headings and the page-size buttons are at least 12px. Rule links, row disclosures and finding counts are at least 24px tall to tap. The desktop layout is unchanged.
+
+- **`draugr diff --min-priority` refuses a band outside P1 to P4**, as `--fail-on` refuses one, and accepts a lowercase band. `draugr scan --artifact-min-priority` refuses one too.
+
+- **The `POLICY` block says what a refusing setting did to your run.** For a run that breaks the setting only in its findings, which are read after publishing, the block says `fails the gate`, where it said `refuses`.
+
+- **A scan on a terminal keeps the command you typed on screen.** When the scan finishes, the progress display clears only the lines it drew, so the report starts below your command.
+
+- **The run row shows the age of a cache entry under 30 seconds old**, such as `oldest 12s` or `oldest 412ms`.
+
 ## [0.159.0] - 2026-10-29
 
 ### Changed
@@ -6521,7 +6555,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.159.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.160.0...HEAD
+[0.160.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.160.0
 [0.159.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.159.0
 [0.158.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.158.1
 [0.158.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.158.0
