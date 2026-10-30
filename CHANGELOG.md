@@ -40,6 +40,8 @@ _Nothing yet._
 
 - **`draugr diff --min-priority` refuses a band outside P1 to P4**, as `--fail-on` refuses one, and accepts a lowercase band. `draugr scan --artifact-min-priority` refuses one too.
 
+- **The `POLICY` block says what a refusing setting did to your run.** For a run that breaks the setting only in its findings, which are read after publishing, the block says `fails the gate`, where it said `refuses`.
+
 - **A scan on a terminal keeps the command you typed on screen.** When the scan finishes, the progress display clears only the lines it drew, so the report starts below your command.
 
 - **The run row shows the age of a cache entry under 30 seconds old**, such as `oldest 12s` or `oldest 412ms`.
