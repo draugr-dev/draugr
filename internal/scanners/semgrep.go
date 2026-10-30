@@ -31,6 +31,7 @@ const semgrepConfigSchema = `{
   "properties": {
     "config": {
       "type": "string",
+      "default": "p/default",
       "description": "Ruleset to run: a Semgrep registry ref (e.g. p/owasp-top-ten), a URL, or a rules file or directory on disk, resolved relative to where Draugr runs. Defaults to p/default."
     }
   }

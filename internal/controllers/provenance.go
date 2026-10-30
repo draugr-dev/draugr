@@ -146,6 +146,7 @@ var provenanceOptionSchema = json.RawMessage(`{
     },
     "unmatched": {
       "type": "string",
+      "default": "observe",
       "description": "What an image no signer covers is worth. Defaults to observe.",
       "anyOf": [
         {"const": "observe", "description": "Report the identity found and expect nothing. Most of what a project runs is published by somebody else, so this is where a policy starts rather than where it ends."},

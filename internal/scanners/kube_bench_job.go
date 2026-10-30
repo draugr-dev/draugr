@@ -50,10 +50,12 @@ const kubeBenchJobConfigSchema = `{
   "properties": {
     "targets": {
       "type": "string",
+      "default": "master,node,etcd,controlplane",
       "description": "Comma-separated kube-bench targets to run, e.g. \"master,node\"."
     },
     "namespace": {
       "type": "string",
+      "default": "default",
       "description": "Namespace to create the Job in. It must already exist; Draugr does not create namespaces."
     },
     "image": {
@@ -67,6 +69,7 @@ const kubeBenchJobConfigSchema = `{
     "timeout": {
       "type": "string",
       "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+)$",
+      "default": "5m",
       "description": "How long to wait for the Job to finish, e.g. \"5m\"."
     }
   }
