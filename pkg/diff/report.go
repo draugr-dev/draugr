@@ -520,7 +520,7 @@ func writeDiffActions(w io.Writer, col tui.Painter, entries []Entry, rules map[s
 		col.Paint(tui.StyleMuted, heading))
 	nameComponents, nameRepositories := span(actions)
 	for _, a := range shown {
-		meta := fmt.Sprintf("%s · %s", dash(a.lead.Control), english.Count(len(a.group), "finding"))
+		meta := fmt.Sprintf("control %s · %s", dash(a.lead.Control), english.Count(len(a.group), "finding"))
 		if c := a.component(); nameComponents && c != "" {
 			meta = "component " + c + " · " + meta
 		}
@@ -685,15 +685,21 @@ func renderMarkdownActions(w io.Writer, r Result, opts Options) error {
 		if more := len(a.group) - 1; more > 0 {
 			where += fmt.Sprintf(" +%d", more)
 		}
+		what := a.what
 		if a.line != nil {
 			where = a.line.Where(nameRepositories) + " · " + markdownRules(a.line.Rules)
+			// The description under a title that names a rule, as the console draws it. A break
+			// rather than a newline, which would end the table row.
+			if a.line.Summary != "" {
+				what += "<br>" + a.line.Summary
+			}
 		}
 		component := ""
 		if nameComponents {
 			component = " " + dash(a.component()) + " |"
 		}
 		_, _ = fmt.Fprintf(w, "| %s | %s |%s %s | %d | %s |\n",
-			dash(a.lead.Priority), cell(a.what), component, dash(a.lead.Control), len(a.group), cell(where))
+			dash(a.lead.Priority), cell(what), component, dash(a.lead.Control), len(a.group), cell(where))
 	}
 	if held > 0 {
 		_, _ = fmt.Fprintf(w, "\n_…and %s not listed._\n", english.Count(held, "action"))

@@ -49,7 +49,7 @@ func TestTwoRulesAtOneNewLineAreOneAction(t *testing.T) {
 	for _, want := range []string{
 		"1 action clears 2 findings",
 		"Fix “subprocess call with shell=True identified, security issue”",
-		"sast · 2 findings",
+		"control sast · 2 findings",
 		"app/app.py:23 · Bandit: B602 · Semgrep: subprocess-injection",
 	} {
 		if !strings.Contains(console, want) {
@@ -108,9 +108,9 @@ func TestTheSameLineInTwoRepositoriesAndTwoComponents(t *testing.T) {
 	console := renderActions(t, "console", r)
 	for _, want := range []string{
 		"3 actions clear 4 findings",
-		"component api · sast · 2 findings",
-		"component api · sast · 1 finding",
-		"component web · sast · 1 finding",
+		"component api · control sast · 2 findings",
+		"component api · control sast · 1 finding",
+		"component web · control sast · 1 finding",
 		"acme/api app/app.py:23 · Bandit: B602 · Semgrep: subprocess-injection",
 		"acme/shared app/app.py:23 · Bandit: B602",
 	} {
@@ -185,6 +185,34 @@ func TestALineTitledByItsRuleCarriesTheDescription(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q:\n%s", want, got)
 		}
+	}
+	// The comment carries it in the same cell, after a break that keeps the row one row.
+	md := renderActions(t, "markdown", r)
+	if !strings.Contains(md, "| P2 | Fix dangerous-subprocess-use<br>"+long+" | sast | 1 |") {
+		t.Errorf("markdown: the description is not in the title's cell:\n%s", md)
+	}
+}
+
+// Every row labels its control, whether or not it names a component, so a reader never meets the
+// two forms side by side.
+func TestEveryRowLabelsItsControl(t *testing.T) {
+	r := Result{New: []sarif.Result{
+		{RuleID: "CVE-1", Level: sarif.LevelError, Priority: "P1", Control: "sca", Component: "api",
+			Package: &sarif.Package{Name: "urllib3", Version: "2.0.7", FixedVersion: "2.6.0"}},
+		sastAt("Bandit", "B602", "web", repoAPI, "app/app.py", 23, shellMsg),
+	}}
+	got := renderActions(t, "console", r)
+	for _, want := range []string{
+		"Upgrade urllib3 2.0.7  component api · control sca · 1 finding",
+		"component web · control sast · 1 finding",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q:\n%s", want, got)
+		}
+	}
+	single := renderActions(t, "console", Result{New: r.New[:1]})
+	if !strings.Contains(single, "Upgrade urllib3 2.0.7  control sca · 1 finding") || strings.Contains(single, "component") {
+		t.Errorf("one component: the control is unlabeled or the component named:\n%s", single)
 	}
 }
 
