@@ -16,7 +16,7 @@ func TestDescriptorCarriesEachExclusionsFileLineAndHistory(t *testing.T) {
 		Path: "draugr.saga.yaml", Commit: "4f2a9c1e0b3d5f7a9c1e0b3d5f7a9c1e0b3d5f7a",
 		Author: "Ada Lovelace", Date: "2026-09-14T10:00:00+02:00",
 	}
-	shallow := &saga.LineHistory{Path: "draugr.saga.yaml", Unavailable: "the line dates from the shallow clone's boundary commit or earlier"}
+	shallow := &saga.LineHistory{Path: "draugr.saga.yaml", Unavailable: "the line is older than the shallow clone's history; fetch full history"}
 	model := &saga.Model{Project: "p", Config: saga.Config{Exclude: []saga.ExcludeRule{
 		{Rules: []string{"a"}, Reason: "first", Source: "draugr.saga.yaml", Line: 12, History: reliable},
 		{Rules: []string{"b"}, Reason: "second", Source: "draugr.saga.yaml", Line: 18, History: shallow},
@@ -31,7 +31,7 @@ func TestDescriptorCarriesEachExclusionsFileLineAndHistory(t *testing.T) {
 	}
 	want := `[{"gitHistory":{"author":"Ada Lovelace","commit":"4f2a9c1e0b3d5f7a9c1e0b3d5f7a9c1e0b3d5f7a",` +
 		`"date":"2026-09-14T10:00:00+02:00","path":"draugr.saga.yaml"},"line":12,"reason":"first","source":"draugr.saga.yaml"},` +
-		`{"gitHistory":{"path":"draugr.saga.yaml","unavailable":"the line dates from the shallow clone's boundary commit or earlier"},` +
+		`{"gitHistory":{"path":"draugr.saga.yaml","unavailable":"the line is older than the shallow clone's history; fetch full history"},` +
 		`"line":18,"reason":"second","source":"draugr.saga.yaml"},` +
 		`{"line":3,"reason":"third","source":"https://example.com/platform.git@v1 policy.saga-fragment.yaml"}]`
 	if string(raw) != want {

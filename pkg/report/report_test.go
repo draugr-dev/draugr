@@ -1172,7 +1172,7 @@ func TestDecisionsWithNoLineRecorded(t *testing.T) {
 func TestDecisionsCarryTheirLinesGitHistory(t *testing.T) {
 	d := suppressedAt("draugr.saga.yaml:12", "draugr.saga.yaml:18", "other.saga-fragment.yaml:12")
 	reliable := &saga.LineHistory{Commit: "4f2a9c1e0b3d5f7a", Author: "Ada Lovelace", Date: "2026-09-14T10:00:00Z"}
-	shallow := &saga.LineHistory{Unavailable: "the line dates from the shallow clone's boundary commit or earlier"}
+	shallow := &saga.LineHistory{Unavailable: "the line is older than the shallow clone's history; fetch full history"}
 	d.Descriptor = &skald.DescriptorRef{Exclusions: []skald.Exclusion{
 		{Source: "draugr.saga.yaml", Line: 12, GitHistory: reliable},
 		{Source: "draugr.saga.yaml", Line: 18, GitHistory: shallow},

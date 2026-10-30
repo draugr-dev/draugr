@@ -150,8 +150,10 @@ your verdict, and spends its attention on the design questions no scanner comput
 Each finding from `scan`, `summarize_report` and `diff_reports` carries the evidence behind its
 rank as fields: the exploitability signal that raised it, a reachability analyzer's verdict with
 one call path, and the other scanners that reported the same flaw. A finding that a recorded
-decision took out of the ranking comes back in `accepted`, never in `findings`, with who decided,
-why, until when, and whether the analysis was this project's or a supplier's VEX statement.
+decision took out of the ranking comes back in `accepted`, never in `findings`, with why, until
+when, the file that made the decision, and whether the analysis was this project's or a supplier's
+VEX statement. An `acceptedBy` there is the descriptor's unverified claim, the value `report.json`
+names `unverifiedAcceptedBy`; the git history of the exclusion's line records who wrote it.
 `suppressed` is the full count and `accepted` is capped at `limit`. `feeds` names the
 exploitability datasets the scan consulted, dated, and marks any older than the scan's `maxAge`.
 The scan reads those datasets from the feed cache and never fetches them, whether
@@ -174,7 +176,7 @@ exploitation signal comes from KEV or EPSS, `next` ends with `and leads because 
   }],
   "accepted": [{
     "ruleId": "CVE-2023-0001", "severity": "medium", "location": "api/pom.xml",
-    "justification": "test scope only", "acceptedBy": "sec@example.com", "expires": "2026-12-31",
+    "justification": "test scope only", "expires": "2026-12-31",
     "origin": "saga", "source": "fragments/api.saga.yaml"
   }],
   "feeds": [{"signal": "epss", "asOf": "2026-09-01", "stale": true, "entries": 2, "threshold": 0.5}],

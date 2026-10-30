@@ -117,7 +117,8 @@ license.
 
 `report.json` lists the merged descriptor's [`config.exclude`](saga-schema.md#configexclude)
 entries as `descriptor.exclusions[]`, in the order `descriptor.effective` lists them. Each entry
-names the file and line it is written at, and what `git blame` says about that line.
+names the file and line it is written at, and the last commit to change that line, as `git blame`
+names it.
 
 | Field | Meaning |
 |---|---|
@@ -125,7 +126,7 @@ names the file and line it is written at, and what `git blame` says about that l
 | `line` | the line the entry starts at |
 | `reason` | the entry's `reason` |
 | `gitHistory.path` | the file's path in the repository that holds it. Absent where no git repository holds the file |
-| `gitHistory.commit`, `gitHistory.author`, `gitHistory.date` | the commit `git blame` names for the line, its author's name, and its author date in RFC 3339 with the author's offset. Present only where the history is reliable |
+| `gitHistory.commit`, `gitHistory.author`, `gitHistory.date` | the last commit to change the line, its author's name, and its author date in RFC 3339 with the author's offset. Present only where the history is reliable |
 | `gitHistory.unavailable` | why no commit is reported. Present exactly where `commit` is absent |
 
 A finding an entry set aside names it by the same `source` and `line`, on the finding's
@@ -133,24 +134,26 @@ A finding an entry set aside names it by the same `source` and `line`, on the fi
 `results.sarif`.
 
 **The history is git's record, reported only where it is reliable.** That is where the checkout
-holds the line's history and the commit `git blame` names is not the boundary of a shallow clone. A
-shallow clone attributes every line it holds no history for to its boundary commit, whoever wrote
-the line, so a line at the boundary is reported as unavailable rather than attributed. No email
-address is recorded, and nothing is fetched to deepen a clone.
+holds the line's history and the last commit to change the line is not the boundary of a shallow
+clone. A shallow clone attributes every line it holds no history for to its boundary commit,
+whoever wrote the line, so a line at the boundary is reported as unavailable rather than
+attributed. No email address is recorded, and nothing is fetched to deepen a clone.
 
-| `unavailable` | Cause |
+| `unavailable` | What to do |
 |---|---|
-| `the line dates from the shallow clone's boundary commit or earlier` | the checkout is shallow; see the table below |
-| `the line is not committed` | an uncommitted change wrote the line or moved it |
-| `the file is not committed` | the file is untracked, or the repository has no commit |
-| `the file is in no git repository` | |
-| `git is not installed` | |
-| `git blame failed: <git's message>`, `git rev-parse failed: <git's message>` | git refused for another reason, such as a repository owned by another user |
-| `git blame did not answer within 10s` | |
+| `the line is older than the shallow clone's history; fetch full history` | set the fetch depth to full history, see [Full history](#full-history) |
+| `the line is not committed` | commit the change, and scan the commit |
+| `the file is not committed` | commit the file, and scan the commit |
+| `the file is in no git repository` | scan from inside the repository |
+| `git is not installed` | install git |
+| `git blame failed: <git's message>`, `git rev-parse failed: <git's message>` | fix what git's message names, such as a repository owned by another user |
+| `git blame did not answer within 10s` | retry; blame on a very large file or repository can exceed 10s |
 
 A fragment fetched from another repository always names a `revision`, and Draugr clones its
 repository with full history to check that revision out. Its entries carry that repository's
 history, and `gitHistory.path` is the path in that repository.
+
+### Full history
 
 Most CI systems check out a shallow clone by default. Full history on the scan job makes the history
 reliable for every entry:

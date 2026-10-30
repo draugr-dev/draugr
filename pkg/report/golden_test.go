@@ -284,7 +284,7 @@ func goldenExclusions() *skald.DescriptorRef {
 				Date: "2026-09-14T10:02:11+02:00"}},
 		{Source: "draugr.saga.yaml", Line: 26, Reason: "same package tree",
 			GitHistory: &saga.LineHistory{Path: "draugr.saga.yaml",
-				Unavailable: "the line dates from the shallow clone's boundary commit or earlier"}},
+				Unavailable: "the line is older than the shallow clone's history; fetch full history"}},
 		{Source: "draugr.saga.yaml", Line: 31, Reason: "waiting on the upstream release"},
 	}}
 }

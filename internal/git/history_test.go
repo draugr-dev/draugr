@@ -95,7 +95,7 @@ func TestLineHistoriesNamesTheCommitThatWroteEachLine(t *testing.T) {
 			t.Errorf("an email address reached the history: %+v", h)
 		}
 	}
-	if s := got[3].String(); s != "applied in "+first[:12]+" by Ada Lovelace, 2026-09-14 (git history)" {
+	if s := got[3].String(); s != "last changed in "+first[:12]+" by Ada Lovelace, 2026-09-14" {
 		t.Errorf("String() = %q", s)
 	}
 }

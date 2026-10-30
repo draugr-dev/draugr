@@ -437,7 +437,7 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	for _, dec := range decisions(d) {
 		hd := htmlDecision{N: dec.n, Where: dec.where, Expires: dec.expires, Reason: dec.reason}
 		if h := dec.history; h != nil {
-			hd.History, hd.Unavailable = h.String(), h.Commit == ""
+			hd.History, hd.Unavailable = h.Summary(), h.Commit == ""
 		}
 		view.Decisions = append(view.Decisions, hd)
 	}

@@ -37,9 +37,8 @@ func TestValidateWarnsThatAcceptedByIsDeprecated(t *testing.T) {
 	if err := runValidate([]string{path}, &out); err != nil {
 		t.Fatalf("validate: %v", err)
 	}
-	want := "  ! " + path + ":15: acceptedBy is deprecated and no longer read as who accepted the finding, and " +
-		saga.AcceptedByRemovedIn + " removes it. Delete the line; git history records who wrote the exclusion " +
-		"(git blame -L 13,13 " + path + ")\n"
+	want := "  ! " + path + ":15: acceptedBy is deprecated and " + saga.AcceptedByRemovedIn + " removes it. " +
+		"Delete the line. Who wrote the exclusion: git blame -L 13,13 " + path + "\n"
 	if !strings.Contains(out.String(), "is valid\n"+want) {
 		t.Errorf("output\n%s\nwant the warning under the valid line:\n%s", out.String(), want)
 	}

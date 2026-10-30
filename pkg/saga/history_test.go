@@ -98,21 +98,26 @@ func TestStampExcludeLinesLeavesAMismatchAlone(t *testing.T) {
 	}
 }
 
+// The console line names the commit as the last to change the line, which is what blame reports;
+// a table cell already labeled as git history carries the same facts without the verb.
 func TestLineHistoryString(t *testing.T) {
 	cases := []struct {
-		h    LineHistory
-		want string
+		h             LineHistory
+		line, summary string
 	}{
 		{LineHistory{Commit: "4f2a9c1e0b3d5f7a9c1e0b3d5f7a9c1e0b3d5f7a", Author: "Ada Lovelace", Date: "2026-09-14T10:00:00+02:00"},
-			"applied in 4f2a9c1e0b3d by Ada Lovelace, 2026-09-14 (git history)"},
+			"last changed in 4f2a9c1e0b3d by Ada Lovelace, 2026-09-14", "4f2a9c1e0b3d by Ada Lovelace, 2026-09-14"},
 		{LineHistory{Commit: "4f2a9c1", Author: "Ada Lovelace", Date: "2026-09-14"},
-			"applied in 4f2a9c1 by Ada Lovelace, 2026-09-14 (git history)"},
+			"last changed in 4f2a9c1 by Ada Lovelace, 2026-09-14", "4f2a9c1 by Ada Lovelace, 2026-09-14"},
 		{LineHistory{Path: "draugr.saga.yaml", Unavailable: "the line is not committed"},
-			"git history unavailable: the line is not committed"},
+			"git history unavailable: the line is not committed", "unavailable: the line is not committed"},
 	}
 	for _, c := range cases {
-		if got := c.h.String(); got != c.want {
-			t.Errorf("String() = %q, want %q", got, c.want)
+		if got := c.h.String(); got != c.line {
+			t.Errorf("String() = %q, want %q", got, c.line)
+		}
+		if got := c.h.Summary(); got != c.summary {
+			t.Errorf("Summary() = %q, want %q", got, c.summary)
 		}
 	}
 }

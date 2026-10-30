@@ -30,9 +30,8 @@ fragments:
 	if len(got) != 2 {
 		t.Fatalf("warnings = %q, want one per acceptedBy", got)
 	}
-	want := root + ":8: acceptedBy is deprecated and no longer read as who accepted the finding, and " +
-		AcceptedByRemovedIn + " removes it. Delete the line; git history records who wrote the exclusion " +
-		"(git blame -L 6,6 " + root + ")"
+	want := root + ":8: acceptedBy is deprecated and " + AcceptedByRemovedIn + " removes it. " +
+		"Delete the line. Who wrote the exclusion: git blame -L 6,6 " + root
 	if got[0] != want {
 		t.Errorf("warning\n got %q\nwant %q", got[0], want)
 	}
@@ -57,8 +56,10 @@ func TestAcceptedByWarningsWithoutALocalFile(t *testing.T) {
 	if len(got) != 3 {
 		t.Fatalf("warnings = %q", got)
 	}
-	if !strings.HasPrefix(got[0], "https://example.com/p.git@v1 policy.saga-fragment.yaml:5: ") || strings.Contains(got[0], "git blame") {
-		t.Errorf("remote fragment warning = %q", got[0])
+	want := "https://example.com/p.git@v1 policy.saga-fragment.yaml:5: acceptedBy is deprecated and " +
+		AcceptedByRemovedIn + " removes it. Delete the line; the exclusion's git history records who wrote it"
+	if got[0] != want {
+		t.Errorf("remote fragment warning\n got %q\nwant %q", got[0], want)
 	}
 	if !strings.HasPrefix(got[1], "config.exclude: ") || strings.Contains(got[1], "git blame") {
 		t.Errorf("rule built in code = %q", got[1])

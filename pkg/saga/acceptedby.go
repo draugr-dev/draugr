@@ -35,15 +35,15 @@ func AcceptedByWarnings(rules []ExcludeRule) []string {
 		case line > 0:
 			where = fmt.Sprintf("%s:%d", r.Source, line)
 		}
-		blame := ""
+		next := "Delete the line; the exclusion's git history records who wrote it"
 		// A fragment fetched from another repository is read from a checkout that is gone by the
 		// time anybody reads this, so a command to run against it would point at nothing.
 		if r.File != "" && r.Line > 0 && filepath.ToSlash(r.File) == r.Source {
-			blame = fmt.Sprintf(" (git blame -L %d,%d %s)", r.Line, r.Line, r.Source)
+			next = fmt.Sprintf("Delete the line. Who wrote the exclusion: git blame -L %d,%d %s",
+				r.Line, r.Line, r.Source)
 		}
-		out = append(out, fmt.Sprintf("%s: acceptedBy is deprecated and no longer read as who "+
-			"accepted the finding, and %s removes it. Delete the line; git history records who "+
-			"wrote the exclusion%s", where, AcceptedByRemovedIn, blame))
+		out = append(out, fmt.Sprintf("%s: acceptedBy is deprecated and %s removes it. %s",
+			where, AcceptedByRemovedIn, next))
 	}
 	return out
 }

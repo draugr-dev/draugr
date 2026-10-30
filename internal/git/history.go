@@ -32,7 +32,7 @@ const (
 	// HistoryShallow is a line git attributes to a shallow clone's boundary commit. The boundary
 	// stands in for all the history the clone does not hold, so its author may not have written the
 	// line at all.
-	HistoryShallow = "the line dates from the shallow clone's boundary commit or earlier"
+	HistoryShallow = "the line is older than the shallow clone's history; fetch full history"
 )
 
 // RecordExclusionHistory sets each exclusion's History from git blame on the line it starts at,

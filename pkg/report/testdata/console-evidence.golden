@@ -55,11 +55,11 @@ ACCEPTED
 DECISIONS
   legal reviewed; we do not distribute
   draugr.saga.yaml:22 · covers 1 finding · license/GPL-3.0-only/x · no expiry
-  applied in 4f2a9c1e0b3d by Ada Lovelace, 2026-09-14 (git history)
+  last changed in 4f2a9c1e0b3d by Ada Lovelace, 2026-09-14
 
   same package tree
   draugr.saga.yaml:26 · covers 1 finding · license/GPL-3.0-only/y · no expiry
-  git history unavailable: the line dates from the shallow clone's boundary commit or earlier
+  git history unavailable: the line is older than the shallow clone's history; fetch full history
 
 UNMATCHED
   config.exclude  paths tests* · test files that are not deployed

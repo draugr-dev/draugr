@@ -170,8 +170,8 @@ func TestRenderedReportsAccountForEachDecision(t *testing.T) {
 	out := md.String()
 	for _, want := range []string{
 		"### Decisions", "| Findings | Exclusion | Git history | Expires | Reason |",
-		"| 1 | `draugr.saga.yaml:12` | applied in 4f2a9c1e0b3d by Ada Lovelace, 2026-09-14 (git history) | never | accepted |",
-		"| 1 | `draugr.saga.yaml:18` | **git history unavailable: the line is not committed** | never | accepted |",
+		"| 1 | `draugr.saga.yaml:12` | 4f2a9c1e0b3d by Ada Lovelace, 2026-09-14 | never | accepted |",
+		"| 1 | `draugr.saga.yaml:18` | unavailable: the line is not committed | never | accepted |",
 		"| 1 | not recorded | not recorded | never | accepted |",
 	} {
 		if !strings.Contains(out, want) {
@@ -190,8 +190,8 @@ func TestRenderedReportsAccountForEachDecision(t *testing.T) {
 	html := page.String()
 	for _, want := range []string{
 		"<th scope=\"col\">Git history</th>", "<code>draugr.saga.yaml:12</code>",
-		"applied in 4f2a9c1e0b3d by Ada Lovelace, 2026-09-14 (git history)",
-		`<span class="err">git history unavailable: the line is not committed</span>`,
+		"<td>4f2a9c1e0b3d by Ada Lovelace, 2026-09-14</td>",
+		`<span class="err">unavailable: the line is not committed</span>`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("html is missing %q", want)

@@ -221,12 +221,8 @@ func writeEvidenceNotes(w io.Writer, d Data) {
 			}
 			history := "not recorded"
 			if h := dec.history; h != nil {
-				history = h.String()
-				if h.Commit == "" {
-					// The one an auditor cannot follow up, so it is marked rather than left to be
-					// noticed among the commits.
-					history = "**" + history + "**"
-				}
+				// The column names the source, so the cell carries the facts alone.
+				history = h.Summary()
 			}
 			expires := dec.expires
 			if expires == "" {

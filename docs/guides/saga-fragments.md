@@ -37,10 +37,11 @@ config:
 ```
 
 The record of who accepted a finding is the commit that wrote its exclusion. A scan's `report.json`
-names each exclusion's file and line and what `git blame` says about that line, and `draugr scan
+names each exclusion's file and line and the last commit to change that line, and `draugr scan
 --evidence` prints it under **Decisions**. The [report
 schema](../reference/report-schema.md#what-each-exclusion-carries) says when that history is
-reliable, and how to check out enough of it in CI.
+reliable, and [Full history](../reference/report-schema.md#full-history) how to check out enough
+of it in CI.
 
 ## What a fragment may contain
 
