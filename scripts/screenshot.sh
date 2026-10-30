@@ -34,17 +34,25 @@ echo "Fetching what is being exploited…" >&2
 "$DRAUGR" feeds update >/dev/null
 
 echo "Warming the scanner databases (first run downloads Trivy's, which is slow)…" >&2
-(cd "$workdir/draugr-demo" && "$DRAUGR" scan draugr.saga.yaml --controls "$CONTROLS" >/dev/null 2>&1) || true
+(cd "$workdir/draugr-demo" &&
+  env -u GITHUB_ACTIONS -u GITHUB_TOKEN -u GH_TOKEN -u GITHUB_REPOSITORY \
+    "$DRAUGR" scan draugr.saga.yaml --controls "$CONTROLS" >/dev/null 2>&1) || true
 
 # One list for the prompt and the run, so the picture's prompt is the command that drew it.
-args="scan draugr.saga.yaml --controls $CONTROLS --top $TOP --no-publish"
+#
+# No --no-publish, because a reader of the picture would ask what it withholds. The run is in a
+# throwaway clone, so the demo's file publisher writes there and nowhere that matters. Its GitHub
+# publishers act only in GitHub Actions or with a token, so both are cleared from the run's
+# environment and they stand aside.
+args="scan draugr.saga.yaml --controls $CONTROLS --top $TOP"
 cmd="draugr $args"
 # Under a pty, so the renderer colors its output the way it would for a person. COLORTERM is what
 # a terminal uses to say it can show the project's own colors rather than the sixteen it has.
 # The scan exits non-zero because the sandbox fails its own gate, which is the point of it, so the
 # exit code is not this script's answer to anything.
 ( cd "$workdir/draugr-demo" &&
-  COLORTERM=truecolor script -qec "$DRAUGR $args" /dev/null || true
+  env -u GITHUB_ACTIONS -u GITHUB_TOKEN -u GH_TOKEN -u GITHUB_REPOSITORY \
+    COLORTERM=truecolor script -qec "$DRAUGR $args" /dev/null || true
 ) 2>/dev/null | "$ROOT/scripts/screenshot.py" "$cmd" > "$OUT"
 
 echo "wrote $OUT" >&2
