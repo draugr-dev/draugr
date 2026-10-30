@@ -322,7 +322,10 @@ func newToolsListCommand() *cobra.Command {
 		Short: "List the scanner tools Draugr knows about and their install status",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runToolsList(cmd.Context(), cmd.OutOrStdout())
+			// With no home directory there is no Draugr directory, and every copy found was put
+			// there some other way, which is what the table then says.
+			dir, _ := tools.BinDir()
+			return runToolsList(cmd.Context(), cmd.OutOrStdout(), dir)
 		},
 	}
 }
@@ -614,7 +617,9 @@ func writeInstallPlan(w io.Writer, names []string, _ bool, have map[string]strin
 // (interactive) or proceed automatically (CI/pipes). A var so tests can force it.
 var isTTY = func(r io.Reader) bool { return tui.IsTerminal(r) }
 
-func runToolsList(ctx context.Context, w io.Writer) error {
+// runToolsList prints every tool Draugr knows about. binDir is Draugr's own directory, a parameter
+// so a test can stand one in without writing under the home directory.
+func runToolsList(ctx context.Context, w io.Writer, binDir string) error {
 	// Map each tool binary to the controls it backs (a binary like trivy serves several).
 	controlsFor := map[string][]string{}
 	for _, s := range builtins.Registry().Scanners() {
@@ -625,7 +630,7 @@ func runToolsList(ctx context.Context, w io.Writer) error {
 	}
 
 	col := tui.For(w)
-	table := tui.NewTable(col, "Tool", "Category", "Controls", "Pinned", "Source", "Status")
+	table := tui.NewTable(col, "Tool", "Category", "Controls", "Pinned", "Install with", "Status")
 	for _, t := range tools.All() {
 		category := t.Category
 		if category == "" {
@@ -640,7 +645,7 @@ func runToolsList(ctx context.Context, w io.Writer) error {
 		// advice that does not work on a host without it, and nothing else in this table says a
 		// prerequisite exists. Three of these tools publish no release binary at all and are built
 		// here from source, which is not a fact a reader can infer from anything else on the row.
-		pinned, source := "-", "system PATH"
+		pinned, source := "-", "-"
 		if spec, ok := tools.Spec(t.Binary); ok {
 			pinned, source = spec.Version, "draugr tools install"
 		} else if _, ok := tools.PythonTool(t.Binary); ok {
@@ -656,18 +661,10 @@ func runToolsList(ctx context.Context, w io.Writer) error {
 		// machine the test happened to run on, so the one command whose whole output is a table of
 		// what is on this machine was the one nothing could pin.
 		if st := detectTool(ctx, t); st.Found {
-			version := st.Version
-			if version == "" {
-				version = "?"
-			}
-			status, statusStyle = fmt.Sprintf("✓ %s (%s)", version, st.Path), tui.StylePass
-			// Present is not the same answer as present at the version this build pins, and a
-			// tick said both. `tools install` already knew the difference and would have replaced
-			// it, so the two commands disagreed about one machine.
-			if pinned != "-" && version != "?" && version != pinned {
-				status = fmt.Sprintf("~ %s (%s)", version, st.Path)
-				statusStyle = tui.StyleAccent
-			}
+			// Only for a tool `tools install` provisions. Draugr never installs kubectl or git, so
+			// the mark would be true of every copy of them and tell a reader nothing.
+			foreign := source != "-" && !tools.InstalledCopy(binDir, t.Binary, st.Path)
+			status, statusStyle = foundStatus(st, pinned, foreign)
 		}
 		table.Row(
 			tui.Styled(tui.StyleAccent, t.Binary),
@@ -680,6 +677,27 @@ func runToolsList(ctx context.Context, w io.Writer) error {
 	}
 	table.Render(w)
 	return nil
+}
+
+// foundStatus is the Status cell for a tool found on PATH: its version against the pin, and where
+// the copy is. foreign marks a copy `draugr tools install` did not put in Draugr's directory, in
+// the words `draugr tools uninstall` refuses it with.
+func foundStatus(st tools.Status, pinned string, foreign bool) (string, tui.Style) {
+	where := st.Path
+	if foreign {
+		where += ", not installed by Draugr"
+	}
+	switch {
+	// No tick. A tick is a claim about the version, and this is the row where there is none to make.
+	case st.Version == "":
+		return fmt.Sprintf("? version unknown (%s)", where), tui.StyleAccent
+	// Present is not the same answer as present at the version this build pins, and a tick said
+	// both. `tools install` already knew the difference and would have replaced it, so the two
+	// commands disagreed about one machine.
+	case pinned != "-" && st.Version != pinned:
+		return fmt.Sprintf("~ %s (%s)", st.Version, where), tui.StyleAccent
+	}
+	return fmt.Sprintf("✓ %s (%s)", st.Version, where), tui.StylePass
 }
 
 // appendUnique appends s to xs if not already present.

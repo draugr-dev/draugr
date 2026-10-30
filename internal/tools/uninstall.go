@@ -141,14 +141,37 @@ func binaryPath(destDir, name string) string {
 	return filepath.Join(destDir, name)
 }
 
+// installedIn reports whether Draugr installed name into destDir, which holds when the install
+// record names it or its binary is there, and returns the record when there is one. `draugr tools
+// uninstall` removes only what this holds for, and `draugr tools list` reads it through
+// InstalledCopy, so the two commands give one answer about a machine.
+func installedIn(destDir, name string) (installRecord, bool) {
+	if rec, ok := loadManifest(destDir)[name]; ok {
+		return rec, true
+	}
+	_, err := os.Lstat(binaryPath(destDir, name))
+	return installRecord{}, err == nil
+}
+
+// InstalledCopy reports whether path, where name was found, is the copy `draugr tools install` put
+// in destDir. That holds when path sits in destDir and `draugr tools uninstall` would remove name
+// from there. A copy anywhere else was installed some other way, whatever destDir holds.
+func InstalledCopy(destDir, name, path string) bool {
+	if destDir == "" || path == "" || filepath.Dir(filepath.Clean(path)) != filepath.Clean(destDir) {
+		return false
+	}
+	_, ok := installedIn(destDir, name)
+	return ok
+}
+
 // PlanUninstall describes what removing name from destDir takes off the machine. Only paths that
 // exist are listed. The second result is false when Draugr did not install name there.
 func PlanUninstall(destDir, name string) (Removal, bool) {
-	rec, recorded := loadManifest(destDir)[name]
-	bin := binaryPath(destDir, name)
-	if _, err := os.Lstat(bin); err != nil && !recorded {
+	rec, ok := installedIn(destDir, name)
+	if !ok {
 		return Removal{}, false
 	}
+	bin := binaryPath(destDir, name)
 	r := Removal{Name: name, Version: rec.Version}
 	root := filepath.Dir(destDir)
 	add := func(list *[]RemovedPath, kind, path string) {

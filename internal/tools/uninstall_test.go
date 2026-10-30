@@ -233,6 +233,46 @@ func TestCacheDirsAreEachToolsDefault(t *testing.T) {
 }
 
 // A binary in Draugr's directory with no record is removed without touching the record.
+// `tools list` marks a copy Draugr did not install, and `tools uninstall` refuses to remove one. Both
+// read installedIn, and a copy found in Draugr's directory is Draugr's exactly when uninstall would
+// remove it from there.
+func TestInstalledCopyAgreesWithUninstall(t *testing.T) {
+	bin := filepath.Join(t.TempDir(), "bin")
+	writeFile(t, filepath.Join(bin, "trivy"), "trivy binary")
+	recordInstall(bin, "trivy", installRecord{Version: "0.74.0"})
+	writeFile(t, filepath.Join(bin, "gitleaks"), "gitleaks binary") // no record, still Draugr's
+	recordInstall(bin, "grype", installRecord{Version: "0.110.0"})  // recorded, binary gone
+	elsewhere := filepath.Join(t.TempDir(), "local", "bin")
+
+	for _, tc := range []struct {
+		name, tool, path string
+		want             bool
+	}{
+		{"in the directory, recorded", "trivy", filepath.Join(bin, "trivy"), true},
+		{"in the directory, written the long way", "trivy", bin + string(filepath.Separator) + "." + string(filepath.Separator) + "trivy", true},
+		{"in the directory, no record", "gitleaks", filepath.Join(bin, "gitleaks"), true},
+		{"recorded, but this copy is elsewhere", "grype", filepath.Join(elsewhere, "grype"), false},
+		{"recorded, and found elsewhere at the same name", "trivy", filepath.Join(elsewhere, "trivy"), false},
+		{"never installed", "kube-bench", filepath.Join(elsewhere, "kube-bench"), false},
+		{"not found", "trivy", "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := InstalledCopy(bin, tc.tool, tc.path); got != tc.want {
+				t.Errorf("InstalledCopy(%s, %s) = %v, want %v", tc.tool, tc.path, got, tc.want)
+			}
+			if !tc.want || filepath.Dir(filepath.Clean(tc.path)) != bin {
+				return
+			}
+			if _, ok := PlanUninstall(bin, tc.tool); !ok {
+				t.Errorf("tools list calls %s Draugr's and uninstall would refuse it", tc.tool)
+			}
+		})
+	}
+	if InstalledCopy("", "trivy", filepath.Join(bin, "trivy")) {
+		t.Error("with no Draugr directory, no copy is one Draugr installed")
+	}
+}
+
 func TestUninstallWithNoRecordLeavesTheOthers(t *testing.T) {
 	home, bin := fakeHome(t)
 	threeInstalled(t, home, bin)

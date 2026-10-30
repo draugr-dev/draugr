@@ -18,6 +18,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/needs"
 	"github.com/draugr-dev/draugr/internal/tools"
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 func TestRunToolsInstallSuccess(t *testing.T) {
@@ -177,7 +178,7 @@ func TestRunToolsInstallAllInstallsInstallable(t *testing.T) {
 
 func TestRunToolsList(t *testing.T) {
 	var out bytes.Buffer
-	if err := runToolsList(context.Background(), &out); err != nil {
+	if err := runToolsList(context.Background(), &out, t.TempDir()); err != nil {
 		t.Fatalf("runToolsList: %v", err)
 	}
 	s := out.String()
@@ -191,6 +192,122 @@ func TestRunToolsList(t *testing.T) {
 			t.Errorf("list output missing %q\n%s", want, s)
 		}
 	}
+}
+
+// listMachine lays out the machine `tools list` reads, and returns Draugr's directory: a scratch
+// one, never the home directory's. Each tool in draugr has its binary there and an install record,
+// and each in elsewhere is found under /somewhere, the directory stubDetect uses, which a golden
+// keeps rather than scrubbing. The value is the version the tool reports, and "" is one it did not.
+func listMachine(t *testing.T, draugr, elsewhere map[string]string) (bin, other string) {
+	t.Helper()
+	bin, other = filepath.Join(t.TempDir(), "bin"), "/somewhere"
+	record := map[string]map[string]string{}
+	for name := range draugr {
+		writeTestFile(t, filepath.Join(bin, name), "#!/bin/sh")
+		record[name] = map[string]string{"version": tools.PinnedVersion(name)}
+	}
+	manifest, err := json.Marshal(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(bin, ".draugr-tools.json"), string(manifest))
+
+	prior := detectTool
+	t.Cleanup(func() { detectTool = prior })
+	detectTool = func(_ context.Context, tool tools.Tool) tools.Status {
+		if v, ok := draugr[tool.Binary]; ok {
+			return tools.Status{Tool: tool, Found: true, Version: v, Path: filepath.Join(bin, tool.Binary)}
+		}
+		if v, ok := elsewhere[tool.Binary]; ok {
+			return tools.Status{Tool: tool, Found: true, Version: v, Path: other + "/" + tool.Binary}
+		}
+		return tools.Status{Tool: tool}
+	}
+	return bin, other
+}
+
+func writeTestFile(t *testing.T, path, body string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// The Status cell says whose copy was found, by the rule `tools uninstall` applies, and it never
+// ticks a version it could not read.
+func TestToolsListSaysWhoseCopyWasFound(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	bin, other := listMachine(t,
+		map[string]string{"trivy": tools.PinnedVersion("trivy"), "grype": ""},
+		map[string]string{"kube-bench": "0.15.6", "git": "2.55.0"})
+	var out bytes.Buffer
+	if err := runToolsList(context.Background(), &out, bin); err != nil {
+		t.Fatal(err)
+	}
+	rows := map[string]string{}
+	lines := strings.Split(out.String(), "\n")
+	for _, line := range lines[1:] {
+		if f := strings.Fields(line); len(f) > 0 {
+			rows[f[0]] = line
+		}
+	}
+	if !regexp.MustCompile(`^Tool +Category +Controls +Pinned +Install with +Status\s*$`).MatchString(lines[0]) {
+		t.Errorf("header = %q", lines[0])
+	}
+
+	for tool, want := range map[string]string{
+		"trivy": fmt.Sprintf("draugr tools install  ✓ %s (%s)", tools.PinnedVersion("trivy"),
+			filepath.Join(bin, "trivy")),
+		"kube-bench": fmt.Sprintf("draugr tools install  ~ 0.15.6 (%s, not installed by Draugr)",
+			other+"/kube-bench"),
+		"git":      fmt.Sprintf("-  ✓ 2.55.0 (%s)", other+"/git"),
+		"gitleaks": "draugr tools install  ✗ not found",
+		"grype":    fmt.Sprintf("draugr tools install  ? version unknown (%s)", filepath.Join(bin, "grype")),
+	} {
+		if !strings.Contains(squeeze(rows[tool]), want) {
+			t.Errorf("%s row:\n got %q\nwant %q in it", tool, squeeze(rows[tool]), want)
+		}
+	}
+	if strings.Contains(rows["grype"], "✓") {
+		t.Errorf("a version nobody could read is ticked: %q", rows["grype"])
+	}
+	if n := strings.Count(out.String(), "not installed by Draugr"); n != 1 {
+		t.Errorf("the mark is on %d rows, want only kube-bench's:\n%s", n, out.String())
+	}
+	if strings.Contains(out.String(), "system PATH") {
+		t.Errorf("a tool Draugr does not install is still described as system PATH:\n%s", out.String())
+	}
+}
+
+// A copy found elsewhere is marked whatever its version, and a Draugr copy at another version is
+// not, because the mark is about who installed it.
+func TestFoundStatus(t *testing.T) {
+	st := tools.Status{Found: true, Path: "/opt/bin/trivy"}
+	for _, tc := range []struct {
+		version string
+		foreign bool
+		want    string
+		style   tui.Style
+	}{
+		{"", true, "? version unknown (/opt/bin/trivy, not installed by Draugr)", tui.StyleAccent},
+		{"0.1.0", false, "~ 0.1.0 (/opt/bin/trivy)", tui.StyleAccent},
+		{"1.0.0", true, "✓ 1.0.0 (/opt/bin/trivy, not installed by Draugr)", tui.StylePass},
+	} {
+		st.Version = tc.version
+		got, style := foundStatus(st, "1.0.0", tc.foreign)
+		if got != tc.want || style != tc.style {
+			t.Errorf("foundStatus(%q, foreign=%v) = %q %q, want %q %q", tc.version, tc.foreign, got, style, tc.want, tc.style)
+		}
+	}
+}
+
+// squeeze collapses the padding a table puts between columns, so a test reads two cells as two
+// words apart rather than as a column width.
+func squeeze(s string) string {
+	return strings.TrimSpace(regexp.MustCompile(` {2,}`).ReplaceAllString(s, "  "))
 }
 
 func TestToolsCommandWiring(t *testing.T) {
