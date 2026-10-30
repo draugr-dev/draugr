@@ -1,0 +1,1 @@
+- **The `POLICY` block says what a refusing setting did to your run.** A setting that refuses runs fails one that breaks it only in its findings, which are read after the publish has been answered. The block now says `fails the gate` for that run, where it said `refuses`.
