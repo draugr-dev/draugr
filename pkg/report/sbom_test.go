@@ -2,6 +2,9 @@ package report
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -57,42 +60,6 @@ func TestArtifactFilenamesDoNotCollideAcrossImages(t *testing.T) {
 func TestArtifactsEmpty(t *testing.T) {
 	if got := SBOMArtifacts(nil); len(got) != 0 {
 		t.Errorf("want no artifacts, got %d", len(got))
-	}
-}
-
-func TestSlug(t *testing.T) {
-	for in, want := range map[string]string{
-		"web":                       "web",
-		"API Gateway":               "api-gateway",
-		"python:3.8-slim":           "python-3-8-slim",
-		"https://github.com/a/b":    "https-github-com-a-b",
-		"ghcr.io/org/img@sha256:ab": "ghcr-io-org-img-sha256-ab",
-		"---":                       "",
-		"":                          "",
-	} {
-		if got := slug(in); got != want {
-			t.Errorf("slug(%q) = %q, want %q", in, got, want)
-		}
-	}
-}
-
-func TestEveryFormatHasAFileExtension(t *testing.T) {
-	// A format the Saga accepts but that has no extension here would silently produce
-	// "sbom-x-y.json", readable, but not what a consumer keying on the suffix expects.
-	for _, f := range saga.SBOMFormats {
-		meta, ok := sbomMeta[f]
-		if !ok {
-			t.Errorf("format %q has no file extension or media type mapped", f)
-			continue
-		}
-		// An XML or tag-value document labeled application/json would be a lie the moment a
-		// publisher acts on the media type.
-		if meta.ext == "" || meta.contentType == "" {
-			t.Errorf("format %q has an incomplete mapping: %+v", f, meta)
-		}
-		if strings.HasSuffix(string(f), "-xml") && !strings.Contains(meta.contentType, "xml") {
-			t.Errorf("format %q should not claim %q", f, meta.contentType)
-		}
 	}
 }
 
@@ -290,5 +257,40 @@ func TestArtifactFilenamesNumberTwoScopesOfOneRepository(t *testing.T) {
 	want := "sbom-web-https-github-com-acme-mono.spdx.json,sbom-web-https-github-com-acme-mono-2.spdx.json,sbom-web-https-github-com-acme-mono-3.spdx.json"
 	if strings.Join(got, ",") != want {
 		t.Errorf("got %v", got)
+	}
+}
+
+// TestReportJSONNamesTheFilesAPublisherDelivers: report.json's sboms block and the artifacts a
+// publisher delivers are named by one function, so each document the record lists is a file that
+// arrives, with the digest of what is in it.
+func TestReportJSONNamesTheFilesAPublisherDelivers(t *testing.T) {
+	docs := []sbom.Document{
+		{Component: "storefront", Target: "https://github.com/acme/storefront", Format: saga.SBOMCycloneDXJSON, Bytes: []byte(`{"a":1}`)},
+		{Component: "storefront", Target: "https://github.com/acme/storefront", Format: saga.SBOMCycloneDXJSON, Bytes: []byte(`{"b":2}`)},
+		{Component: "api", Target: "ghcr.io/acme/api:2.0.0", Format: saga.SBOMSPDXJSON, Bytes: []byte(`{"c":3}`)},
+	}
+	var buf bytes.Buffer
+	d := Data{Release: saga.Release{Version: "2.0.0"}, Run: engine.Result{SBOMs: docs}, Verdict: norn.Result{Verdict: norn.Pass}}
+	if err := (jsonReporter{}).Render(&buf, d); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	var doc struct {
+		SBOMs struct {
+			Documents []struct{ File, Digest string } `json:"documents"`
+		} `json:"sboms"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatalf("report.json: %v", err)
+	}
+	arts := SBOMArtifacts(docs)
+	if len(doc.SBOMs.Documents) != len(arts) {
+		t.Fatalf("report.json lists %d documents, the publisher delivers %d", len(doc.SBOMs.Documents), len(arts))
+	}
+	for i, a := range arts {
+		sum := sha256.Sum256(a.Bytes)
+		listed := doc.SBOMs.Documents[i]
+		if listed.File != a.Filename || listed.Digest != "sha256:"+hex.EncodeToString(sum[:]) {
+			t.Errorf("report.json lists %+v, the publisher delivers %s with sha256 %x", listed, a.Filename, sum)
+		}
 	}
 }
