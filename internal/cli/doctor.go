@@ -130,8 +130,8 @@ func newDoctorCommand() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&opts.json, "json", false, "output results as JSON")
 	cmd.Flags().BoolVar(&opts.strict, "strict", false,
-		"also fail when a tool is not at its pin in draugr.config.yaml, or with no pin not the version "+
-			"Draugr tests, not only when one is missing")
+		"also fail when a tool is not the version it is pinned to (tools.<name>.version), or the version "+
+			"Draugr tests where it has no pin, not only when one is missing")
 	cmd.Flags().BoolVar(&opts.failOnUncovered, "fail-on-uncovered", false,
 		"fail if the descriptor declares a surface no enabled control looks at (reported either way)")
 	// No --offline of its own. The root flag is the one that sets the network policy, and a local
@@ -512,12 +512,15 @@ func writeDoctorTable(w io.Writer, statuses []tools.Status, pins map[string]tool
 		// failure: refusing to work would be Draugr mistaking "I have not tested this" for "this is
 		// wrong".
 		//
-		// A configured pin is named on its row whether or not the tool matches it, because it is
-		// why the row is held to a version other than the one Draugr tests.
+		// A configured pin's file is named on its row whether or not the tool matches it, because
+		// it is why the row is held to a version other than the one Draugr tests. The version is
+		// named only when the tool is not at it.
 		target := versionTargetFor(st.Tool.Binary, pins)
 		switch {
+		case target.pin != nil && offTarget(st, target):
+			notes = fmt.Sprintf("%s · pinned to %s in %s", notes, target.version, herePath(target.pin.Path))
 		case target.pin != nil:
-			notes = fmt.Sprintf("%s · pinned to %s in %s", notes, target.pin.Version, herePath(target.pin.Path))
+			notes = fmt.Sprintf("%s · pinned in %s", notes, herePath(target.pin.Path))
 		case offTarget(st, target):
 			notes = fmt.Sprintf("%s · tested against %s", notes, target.version)
 		}

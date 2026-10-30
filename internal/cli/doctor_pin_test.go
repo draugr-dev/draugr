@@ -129,15 +129,16 @@ func TestTheTableHoldsAPinnedToolToItsPin(t *testing.T) {
 	}
 
 	// Running the pin is current, though it is not the version Draugr tests. The row still names
-	// the pin, because it is why the row is held to it.
+	// the file that pins it, because it is why the row is held to it, and no version, because the
+	// tool is at it.
 	buf.Reset()
 	writeDoctorTable(&buf, []tools.Status{toolAt("trivy", "v0.60.0")}, pins)
 	out = buf.String()
 	if strings.Contains(out, "not the version") || strings.Contains(out, "pinned version") {
 		t.Errorf("a tool running its pin was warned:\n%s", out)
 	}
-	if !strings.Contains(out, "pinned to 0.60.0 in /etc/draugr/ci.yaml") {
-		t.Errorf("a tool running its pin should still name it:\n%s", out)
+	if !strings.Contains(out, "pinned in /etc/draugr/ci.yaml") || strings.Contains(out, "pinned to") {
+		t.Errorf("a tool running its pin should name the file and not a version:\n%s", out)
 	}
 }
 

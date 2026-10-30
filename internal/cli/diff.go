@@ -76,7 +76,7 @@ func newDiffCommand() *cobra.Command {
 	// truncating it silently removes the thing the command exists to show; the flag is for the
 	// dependency bump that introduces forty, and the gate counts every one either way.
 	cmd.Flags().IntVar(&opts.top, "top", 0,
-		"console: max findings to list (0 = all, the default unless output.top sets one)")
+		"console: max findings to list (0 = all; output.top sets the default)")
 	cmd.Flags().StringVar(&opts.failOnNew, "fail-on-new", "",
 		"fail if the change introduces a finding at or above this: a priority band (P1-P4) or a "+
 			"severity (critical, high, medium, low)")
