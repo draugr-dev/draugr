@@ -65,9 +65,14 @@ func newConfigCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
 		Short: "Inspect and edit Draugr's machine and organization settings",
-		Long: "Read and write draugr.config.yaml: settings for the environment running a scan,\n" +
-			"not for the application being scanned, scanner versions, control defaults, and\n" +
-			"anything else meant to be the same across every project on this machine.",
+		Long: "Read and write draugr.config.yaml, the settings for the environment running a scan:\n" +
+			"scanner versions, control defaults, cache, output and the publish URL.\n\n" +
+			"Files, least specific first:\n" +
+			"  ~/.draugr/config.yaml   this machine\n" +
+			"  ./draugr.config.yaml    this project, read from the working directory only\n" +
+			"--config <path> or " + config.EnvVar + " names one file, read alone in place of both.\n\n" +
+			"`draugr config show` prints the settings in effect and the file each came from.\n" +
+			"Every key is listed at " + config.KeysURL,
 	}
 	cmd.AddCommand(newConfigShowCommand(), newConfigGetCommand(), newConfigSetCommand(),
 		newConfigUnsetCommand(), newConfigInitCommand(), newConfigValidateCommand())
