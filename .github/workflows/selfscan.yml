@@ -88,6 +88,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref }}
+          # Full history, so the report names the last commit to change each exclusion's line. A
+          # shallow clone holds none of it, and every entry reads as history unavailable.
+          fetch-depth: 0
         if: needs.changes.outputs.code == 'true'
 
       # Which release the action will download, resolved here so the tool cache can be keyed on
