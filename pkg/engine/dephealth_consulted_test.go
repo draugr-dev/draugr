@@ -68,7 +68,7 @@ func TestADependencyHealthLookupIsRecordedAsConsulted(t *testing.T) {
 	}
 	want := []sarif.Consulted{
 		{Signal: "kev", AsOf: "2026-10-30", Entries: 1},
-		{Signal: dephealth.ConsultedSignal, AsOf: "2026-10-31", Entries: 2},
+		{Signal: dephealth.DatasetName, AsOf: "2026-10-31", Entries: 2},
 	}
 	if !slices.Equal(consulted, want) {
 		t.Errorf("consulted = %+v, want %+v", consulted, want)
@@ -87,7 +87,7 @@ func TestADependencyHealthLookupThatAnsweredNothingIsNotRecorded(t *testing.T) {
 	} {
 		consulted, _ := healthRun(t, tc.known, tc.err)
 		for _, c := range consulted {
-			if c.Signal == dephealth.ConsultedSignal {
+			if c.Signal == dephealth.DatasetName {
 				t.Errorf("%s: recorded as consulted: %+v", name, consulted)
 			}
 		}

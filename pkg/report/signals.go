@@ -171,7 +171,7 @@ func healthDid(signal string) func(Data, summary) ([]string, []string) {
 // it only then, so a lookup that failed, or that knew none of the packages, lists nothing.
 func healthConsulted(d Data) bool {
 	for _, c := range d.Run.Consulted {
-		if c.Signal == dephealth.ConsultedSignal {
+		if c.Signal == dephealth.DatasetName {
 			return true
 		}
 	}

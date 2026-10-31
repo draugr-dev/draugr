@@ -108,3 +108,36 @@ func TestNoHealthSourceClaimsNothing(t *testing.T) {
 		t.Errorf("an unconfigured signal explained something: %+v", got.Escalation)
 	}
 }
+
+// A deprecated package's finding that nothing can reach is ranked down and carries no escalation:
+// deprecation does not stand against an unreachable verdict, so it is not applied and then undone,
+// which would leave an escalation claiming a band the finding does not show. A malicious package's
+// finding stands, and keeps its escalation and its severity.
+func TestOnlyAMaliciousPackageStandsAgainstAnUnreachableVerdict(t *testing.T) {
+	health := dephealth.New(map[string]dephealth.Package{
+		"pkg:npm/jquery@1.8.3":       {Findings: []dephealth.Finding{{Kind: dephealth.KindDeprecated, Reason: "no longer supported"}}},
+		"pkg:npm/event-stream@3.3.6": {Findings: []dephealth.Finding{{Kind: dephealth.KindMalicious}}},
+	}, "2026-10-31")
+	rank := PrioritizerWith(nil, health)
+	unreachable := &sarif.Reachability{State: sarif.ReachabilityUnreachable, Method: sarif.MethodCallGraph}
+
+	deprecated := pkgResult("CVE-1", "pkg:npm/jquery@1.8.3", sarif.LevelWarning)
+	deprecated.Reachability = unreachable
+	got := rank("sca", saga.ExposureInternal, saga.CriticalitySupporting, deprecated)
+	if got.Escalation != nil {
+		t.Errorf("deprecated and unreachable carries an escalation: %+v", got.Escalation)
+	}
+	if got.RankedAs == "" {
+		t.Errorf("deprecated and unreachable was not ranked down: %+v", got)
+	}
+
+	malicious := pkgResult("CVE-2", "pkg:npm/event-stream@3.3.6", sarif.LevelWarning)
+	malicious.Reachability = unreachable
+	got = rank("sca", saga.ExposureInternal, saga.CriticalitySupporting, malicious)
+	if got.Escalation == nil || got.Escalation.Signal != dephealth.SignalMalicious {
+		t.Errorf("malicious and unreachable lost its escalation: %+v", got.Escalation)
+	}
+	if got.RankedAs != "" {
+		t.Errorf("malicious and unreachable was ranked down to %q", got.RankedAs)
+	}
+}
