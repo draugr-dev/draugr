@@ -93,6 +93,9 @@ type Engine struct {
 	// contextFloors names the controls the prioritizer ranks at a context tier of their own. Told
 	// to the engine for the same reason as consulted.
 	contextFloors []string
+	// registryCredential says whether this machine holds a credential for a registry. See
+	// WithRegistryCredentials.
+	registryCredential func(ctx context.Context, host string) (bool, error)
 }
 
 // Prioritizer computes a finding's priority band from its control and its component's risk
@@ -229,6 +232,17 @@ func WithConsulted(feeds []sarif.Consulted) Option {
 // record it reports a floor that raised nothing exactly as it reports one that never applied.
 func WithContextFloors(controls []string) Option {
 	return func(e *Engine) { e.contextFloors = controls }
+}
+
+// WithRegistryCredentials supplies how to find out whether this machine holds a credential for a
+// container registry, so an image the registry refused says whether a login was missing.
+//
+// Asked after the scans, once for each registry that refused an image, and never for one that did
+// not. Injected rather than built in, because the answer comes from the machine's own container
+// configuration, which can mean running a credential helper. Nil leaves the question unanswered, and
+// the refusal is reported without it.
+func WithRegistryCredentials(fn func(ctx context.Context, host string) (bool, error)) Option {
+	return func(e *Engine) { e.registryCredential = fn }
 }
 
 // ProgressEvent is what a run is doing at one moment: how much is done, and what is in flight.
@@ -803,6 +817,8 @@ type Unscanned struct {
 	target plugin.Target
 	// toolMissing is a job whose tool was not on the machine, so it never tried the target.
 	toolMissing bool
+	// refusal is the registry's answer when the target is an image its registry declined to serve.
+	refusal *Refusal
 }
 
 // MissingTool is a control that could not run a scanner because its executable is not installed.
@@ -1417,8 +1433,10 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			stats.Failures = append(stats.Failures, u)
 		}
 	}
+	targets := targetOutcomes(planned, skipped, unscanned, reached)
+	noteCredentials(ctx, targets, e.registryCredential)
 	res := Result{
-		Targets:   targetOutcomes(planned, skipped, unscanned, reached),
+		Targets:   targets,
 		Controls:  make(map[string]plugin.ControlResult),
 		Stats:     stats,
 		Scope:     e.scope,
@@ -1927,6 +1945,7 @@ func unscannedFor(pj PlannedJob, err error) Unscanned {
 	if err != nil {
 		u.Detail = strings.TrimSpace(err.Error())
 		u.toolMissing = errors.Is(err, exec.ErrNotFound)
+		u.refusal = refusalOf(pj.Job.Target, err)
 	}
 	return u
 }

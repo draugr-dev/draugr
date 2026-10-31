@@ -30,6 +30,9 @@ func TestShortReasonKeepsWhatWentWrong(t *testing.T) {
 			"written for commit 4f2a9c1e7b3d, and this run reads 123509aace3d"},
 		{"sarif-import: reports/bandit.sarif: names repository draugr-demo, which component api does not declare",
 			"names repository draugr-demo, which component api does not declare"},
+		// A registry's request id is not a reason; the clause before it is.
+		{"run trivy: exit status 1: … UNAUTHORIZED: authentication required, visit https://aka.ms/acr/authorization for more information. CorrelationId: 5bf38f62-783a-4cad-a09e-5262470783fa",
+			"authentication required"},
 	} {
 		if got := shortReason(c.detail, whyWidth); got != c.want {
 			t.Errorf("shortReason(%q) = %q, want %q", c.detail, got, c.want)

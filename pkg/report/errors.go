@@ -8,6 +8,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -67,6 +68,9 @@ var kindOrder = []string{"repository", "image", "host", "cluster", "account", "f
 // bareFailure matches a clause that says something failed and not what.
 var bareFailure = regexp.MustCompile(`^(?i:fatal|error|exit status \d+)$`)
 
+// identifierOnly matches a clause that is only an identifier: a UUID, a request id, a digest.
+var identifierOnly = regexp.MustCompile(`^(?:sha256:)?[0-9a-fA-F]{8,}(?:-[0-9a-fA-F]{4,})*$`)
+
 // quotedSpan matches a single-quoted address or path inside a clause.
 var quotedSpan = regexp.MustCompile(`'[^']*'`)
 
@@ -78,6 +82,27 @@ func shortReason(detail string, width int) string {
 	line := strings.Join(strings.Fields(detail), " ")
 	parts := strings.Split(line, ": ")
 	reason := strings.TrimSpace(parts[len(parts)-1])
+	// A registry closes its refusal with a reference for its own logs, "CorrelationId: 5bf38f62-…",
+	// which identifies the request and says nothing about it. The clause before says what went
+	// wrong, less the label of the reference.
+	if identifierOnly.MatchString(reason) && len(parts) > 1 {
+		prev := strings.TrimSpace(parts[len(parts)-2])
+		if k := strings.LastIndex(prev, ". "); k > 0 && !strings.Contains(prev[k+2:], " ") {
+			prev = prev[:k]
+		}
+		// "…, visit https://… for more information" points somewhere else for the reason.
+		var kept []string
+		for _, c := range strings.Split(prev, ", ") {
+			if strings.Contains(c, "://") {
+				break
+			}
+			kept = append(kept, c)
+		}
+		if len(kept) > 0 {
+			prev = strings.Join(kept, ", ")
+		}
+		return truncate(strings.TrimSuffix(prev, "."), width)
+	}
 	if (strings.Contains(reason, "://") || strings.Contains(reason, "'")) && len(parts) > 1 {
 		prev := strings.TrimSpace(parts[len(parts)-2])
 		if k := strings.Index(prev, ". "); k > 0 {
@@ -211,7 +236,9 @@ func shownRows(d Data, n int) (int, bool) {
 	return errorRowsShown, true
 }
 
-// writeErrors draws a row per target no scanner could read.
+// writeErrors draws the targets no scanner could read. Images a registry refused are grouped under
+// that registry, with its answer and the command that changes it said once; every other target is
+// a row of its own, with its reason.
 func writeErrors(w io.Writer, col tui.Painter, d Data) {
 	missed := notReached(d)
 	if len(missed) == 0 {
@@ -219,19 +246,100 @@ func writeErrors(w io.Writer, col tui.Painter, d Data) {
 	}
 	_, _ = fmt.Fprintf(w, "%s  %s\n", heading(col, "Errors"), col.Paint(cFail,
 		fmt.Sprintf("%d of %s not reached", len(missed), english.Count(len(d.Run.Targets), "target"))))
-	t := tui.NewTable(col, "Target", "Components", "Why").Indent("  ")
 	n, capped := shownRows(d, len(missed))
-	for _, m := range missed[:n] {
-		t.Row(tui.Styled(tui.StyleStrong, m.Kind+" "+m.Target),
-			tui.Styled(cDim, strings.Join(m.Components, ", ")),
-			tui.Styled(cDim, shortReason(m.Detail, whyWidth)))
+	cols := tui.Columns(w)
+	groups, rest := byRegistry(missed[:n])
+
+	for _, g := range groups {
+		_, _ = fmt.Fprintf(w, "  %s  %s\n", col.Paint(tui.StyleStrong, g.host), col.Paint(cDim, g.said))
+		rows := make([]unreachedRow, len(g.images))
+		for i, m := range g.images {
+			rows[i] = unreachedRow{name: inRegistry(m.Target, g.host), components: m.Components}
+		}
+		writeUnreached(w, col, cols, "    ", "Image", rows)
+		if g.login {
+			_, _ = fmt.Fprintf(w, "  %s  %s\n", col.Paint(cAccent, loginCommand(g.host)), col.Paint(cDim, "then scan again"))
+		}
 	}
-	t.Render(w)
+	if len(rest) > 0 {
+		rows := make([]unreachedRow, len(rest))
+		for i, m := range rest {
+			rows[i] = unreachedRow{name: m.Kind + " " + shownTarget(m.Kind, m.Target), components: m.Components,
+				why: shortReason(m.Detail, whyWidth)}
+		}
+		writeUnreached(w, col, cols, "  ", "Target", rows)
+	}
 	if capped {
 		_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim,
 			fmt.Sprintf("… and %d more · --top 0 lists every one", len(missed)-n)))
 	}
 	_, _ = fmt.Fprintln(w)
+}
+
+// unreachedRow is one target the errors block names: what it is, the components it leaves
+// unscanned, and why it was not read where its group does not already say.
+type unreachedRow struct {
+	name       string
+	components []string
+	why        string
+}
+
+// writeUnreached draws rows as a table when the table fits a terminal cols wide, and otherwise each
+// target on a line of its own with its components and reason on the line under it. A table cut to
+// fit would cut the reason, which is the one column a reader needs whole, and the target's name is
+// an address, useless shortened. A cols of zero is a file or a pipe, with no width to respect.
+func writeUnreached(w io.Writer, col tui.Painter, cols int, indent, first string, rows []unreachedRow) {
+	headers := []string{first, "Components"}
+	withWhy := slices.ContainsFunc(rows, func(r unreachedRow) bool { return r.why != "" })
+	if withWhy {
+		headers = append(headers, "Why")
+	}
+	widths := make([]int, len(headers))
+	for i, h := range headers {
+		widths[i] = utf8.RuneCountInString(h)
+	}
+	for _, r := range rows {
+		widths[0] = max(widths[0], utf8.RuneCountInString(r.name))
+		widths[1] = max(widths[1], utf8.RuneCountInString(strings.Join(r.components, ", ")))
+		if withWhy {
+			widths[2] = max(widths[2], utf8.RuneCountInString(r.why))
+		}
+	}
+	natural := len(indent) + 2*(len(widths)-1)
+	for _, n := range widths {
+		natural += n
+	}
+
+	if cols > 0 && natural > cols {
+		for _, r := range rows {
+			below := componentsLabel(r.components)
+			if r.why != "" {
+				below += " · " + r.why
+			}
+			_, _ = fmt.Fprintf(w, "%s%s\n", indent, col.Paint(tui.StyleStrong, r.name))
+			_, _ = fmt.Fprintf(w, "%s  %s\n", indent, col.Paint(cDim, truncate(below, max(cols-len(indent)-2, minBelow))))
+		}
+		return
+	}
+	t := tui.NewTable(col, headers...).Indent(indent)
+	for _, r := range rows {
+		cells := []tui.Cell{tui.Styled(tui.StyleStrong, r.name), tui.Styled(cDim, strings.Join(r.components, ", "))}
+		if withWhy {
+			cells = append(cells, tui.Styled(cDim, r.why))
+		}
+		t.Row(cells...)
+	}
+	t.Render(w)
+}
+
+// minBelow is the narrowest the line under a target is cut to, on a terminal too narrow for its
+// indent: below that, a cut says less than a wrap does.
+const minBelow = 40
+
+// componentsLabel names a target's components with the word for them, for a line that has no
+// column heading to say what they are.
+func componentsLabel(cs []string) string {
+	return english.Choose(len(cs), "component", "components") + " " + strings.Join(cs, ", ")
 }
 
 // writeCaveats draws a row per shortfall in what the run covered.

@@ -1379,6 +1379,8 @@ network and credentials:
 
 A target two components share is checked once. A certificate this machine does not trust still
 passes, with the reason in the row, because the scanners that probe an endpoint do not verify it.
+An image's digest is shortened to twelve hex characters, and `--json` keeps it whole. On a
+terminal too narrow for the table, each target takes a line with its result on the line under it.
 
 ```console
 $ draugr doctor draugr.saga.yaml
@@ -1974,8 +1976,9 @@ controls:               # merged *underneath* the descriptor's own settings
 <!-- end of generated config keys -->
 
 `controls.<control>` holds one control's defaults, in the shape a descriptor's `config.controls`
-takes, and is merged underneath it. `draugr config keys controls.<control>`
-lists one control's keys.
+takes, and is merged underneath it. The defaults apply to a control the descriptor turns on, at the
+top level or on a component, and `enabled: true` in the block turns the control on for a descriptor
+that leaves it out. `draugr config keys controls.<control>` lists one control's keys.
 
 A flag typed on the command line always wins over the file. See [caching &
 performance](../guides/caching-and-performance.md) for the cache settings.
@@ -2052,7 +2055,7 @@ naming its scanners' keys, with opt-in scanners marked `*`. A prefix lists the k
 ```console
 $ draugr config keys controls.sca
 Key                                     Accepts                               Default
-controls.sca.enabled                    true or false                         true when anything under controls.sca is set
+controls.sca.enabled                    true or false                         off unless the descriptor turns it on
 controls.sca.trivyFs.enabled            true or false                         true
 controls.sca.trivyFs.dbRepository       a list                                -
 controls.sca.trivyFs.detectionPriority  precise or comprehensive              precise

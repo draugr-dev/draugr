@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/spf13/cobra"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/needs"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/internal/preflight"
+	"github.com/draugr-dev/draugr/internal/registry"
 	"github.com/draugr-dev/draugr/internal/sagafetch"
 	"github.com/draugr-dev/draugr/internal/selfupdate"
 	"github.com/draugr-dev/draugr/internal/surfaces"
@@ -462,22 +464,43 @@ func checkTargets(ctx context.Context, reg *engine.Registry, model *saga.Model, 
 	return preflight.Run(ctx, targets, preflight.Options{Offline: run.offline, Probes: run.probes}), nil
 }
 
-// writeTargetChecks lists each target check and its result.
+// writeTargetChecks lists each target check and its result: a table when it fits the terminal, and
+// otherwise each target on a line of its own with its result under it, as the scan's errors block
+// does. A table cut to fit would cut the result, the one column a reader came for. An image's
+// digest is shortened either way.
 func writeTargetChecks(w io.Writer, checks []preflight.Check) {
 	col := tui.For(w)
 	_, _ = fmt.Fprintf(w, "\n%s\n", doctorHeading(col, "Targets"))
-	t := tui.NewTable(col, "Kind", "Target", "Result")
-	for _, c := range checks {
-		var result tui.Cell
+	targets := make([]string, len(checks))
+	results := make([]tui.Cell, len(checks))
+	widths := []int{len("Kind"), len("Target"), len("Result")}
+	for i, c := range checks {
+		targets[i] = c.Target
+		if c.Kind == "image" {
+			targets[i] = registry.ShortDigest(c.Target)
+		}
 		switch c.Status {
 		case preflight.Passed:
-			result = tui.Styled(tui.StylePass, "✓ "+c.Detail)
+			results[i] = tui.Styled(tui.StylePass, "✓ "+c.Detail)
 		case preflight.Failed:
-			result = tui.Styled(tui.StyleFail, "✗ "+c.Detail)
+			results[i] = tui.Styled(tui.StyleFail, "✗ "+c.Detail)
 		default:
-			result = tui.Styled(tui.StyleMuted, "not checked: "+c.Detail)
+			results[i] = tui.Styled(tui.StyleMuted, "not checked: "+c.Detail)
 		}
-		t.Row(tui.PlainCell(c.Kind), tui.PlainCell(c.Target), result)
+		widths[0] = max(widths[0], utf8.RuneCountInString(c.Kind))
+		widths[1] = max(widths[1], utf8.RuneCountInString(targets[i]))
+		widths[2] = max(widths[2], utf8.RuneCountInString(results[i].Text))
+	}
+	if cols := tui.Columns(w); cols > 0 && widths[0]+widths[1]+widths[2]+4 > cols {
+		for i, c := range checks {
+			_, _ = fmt.Fprintf(w, "%s %s\n", c.Kind, targets[i])
+			_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(results[i].Style, results[i].Text))
+		}
+		return
+	}
+	t := tui.NewTable(col, "Kind", "Target", "Result")
+	for i, c := range checks {
+		t.Row(tui.PlainCell(c.Kind), tui.PlainCell(targets[i]), results[i])
 	}
 	t.Render(w)
 }

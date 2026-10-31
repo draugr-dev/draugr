@@ -123,6 +123,36 @@ func TestApplyConfigDefaultsMergesUnderTheDescriptor(t *testing.T) {
 	}
 }
 
+// A scanner option set for the machine reaches the component that turns its control on, and turns
+// the control on nowhere else: not at the top level, and not on the other component.
+func TestApplyConfigDefaultsTurnsNoControlOn(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv(config.EnvVar, "")
+	if err := os.WriteFile(filepath.Join(dir, config.FileName),
+		[]byte("controls:\n  sast:\n    semgrep:\n      config: p/org\n  secrets:\n    gitleaks:\n      history: true\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m := &saga.Model{Components: []saga.Component{
+		{Name: "api", Controls: map[string]saga.ControllerSettings{"sast": {}}},
+		{Name: "web"},
+	}}
+	_, supplied, err := applyConfigDefaults(context.Background(), m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !m.Components[0].ControllerEnabled("sast", m.Config) || m.Components[1].ControllerEnabled("sast", m.Config) {
+		t.Errorf("sast should run on api alone: %+v", m.Config.Controls)
+	}
+	if _, ok := m.Config.Controls["secrets"]; ok {
+		t.Errorf("a gitleaks option turned secrets on: %+v", m.Config.Controls)
+	}
+	if len(supplied) != 1 || !reflect.DeepEqual(supplied[0].settings, []string{"sast.semgrep.config"}) {
+		t.Errorf("supplied = %+v, want sast.semgrep.config alone", supplied)
+	}
+}
+
 // A scan refuses a configuration file that names a control this build does not provide, as
 // `draugr validate` refuses one in a descriptor, rather than running without the setting.
 func TestApplyConfigDefaultsRefusesAnUnknownControl(t *testing.T) {

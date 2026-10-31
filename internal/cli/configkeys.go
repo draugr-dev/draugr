@@ -165,9 +165,9 @@ func newKeyCatalog(reg *engine.Registry) keyCatalog {
 // block in the order `draugr controls` names them.
 func (c keyCatalog) controlRows(info plugin.ControllerInfo) []configKey {
 	base := "controls." + info.Name
-	// A block with no `enabled` key counts as enabled, so any key written under it turns the
-	// control on, and an absent block leaves it off.
-	out := []configKey{{key: base + ".enabled", accepts: acceptsBool, def: "true when anything under " + base + " is set"}}
+	// A block with no `enabled` key supplies settings to a control the descriptor turns on, and
+	// `enabled: true` turns the control on where the descriptor leaves it out.
+	out := []configKey{{key: base + ".enabled", accepts: acceptsBool, def: "off unless the descriptor turns it on"}}
 	out = append(out, optionRows(base, info.OptionSchema)...)
 	for _, s := range scannersOf(info, c.serving[info.Name]) {
 		if s.analyzer {

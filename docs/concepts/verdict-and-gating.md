@@ -103,7 +103,28 @@ ERRORS  4 of 5 targets not reached
   cluster kubernetes/legacy                      reporting   context "legacy" does not exist
 ```
 
-The scanner's whole message is in `report.json`, under `targets[]`.
+Images a registry refused are listed under that registry instead. Its answer and the login
+command are printed once for all of them, and each digest is shortened to twelve hex characters:
+
+```
+ERRORS  3 of 4 targets not reached
+  contoso.azurecr.io  401 unauthorized, no credential
+    Image                                               Components
+    istio/install-cni:1.30.5@sha256:3392f63cfaef…       mesh
+    istio/pilot:1.30.5-distroless@sha256:78052a996140…  mesh
+    istio/proxyv2:1.30.5@sha256:abdd36489d1f…           ingress, mesh
+  docker login contoso.azurecr.io  then scan again
+```
+
+`no credential` means the Docker configuration of the user who ran the scan,
+`~/.docker/config.json` and the credential helpers it names, holds nothing for that registry. Run
+`docker login` as that user. Where a credential is present, `401 unauthorized` keeps the login
+line, because a new login replaces a credential the registry rejected. `403 forbidden` has none,
+because the registry accepted the credential and still declined the pull, and logging in again
+would not change its answer.
+
+The scanner's whole message is in `report.json`, under `targets[]`, with the whole digest, and the
+registry's answer under `targets[].refusal`.
 
 Pass `--allow-scan-errors` for best-effort scanning. The run then passes on findings alone, and
 the verdict line carries `partial` with the number of targets not reached. The errored control is
