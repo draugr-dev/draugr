@@ -119,9 +119,11 @@ func newScanCommand() *cobra.Command {
 		Short: "Scan an application described by a Saga (or a directory) and produce a verdict",
 		Long: "Load a Saga descriptor, run the applicable security controls, and produce\n" +
 			"pass/fail evidence. Exits non-zero when the policy verdict is fail.\n\n" +
-			"Zero-config: point it at a directory (or omit the argument to use the current\n" +
-			"one) and Draugr scans that repository with " + ZeroConfigControls("and") + ", no\n" +
-			"Saga required. Write a Saga (or run `draugr init`) when you need more control.\n\n" +
+			"Zero-config: with no Saga, point it at a directory (or omit the argument for the\n" +
+			"current one). Draugr scans that repository with " + ZeroConfigControls() + ",\n" +
+			"plus the scanners `draugr init` would enable for its files, such as gosec and\n" +
+			"govulncheck for a go.mod. The report's FOUND section lists what it read, and a\n" +
+			"scanner the tree calls for that cannot run here is reported as a not-checked caveat.\n\n" +
 			"Answers you give every time, the cache, scanner builds, how you like the report,\n" +
 			"belong in draugr.config.yaml rather than on this command line. `draugr config show`\n" +
 			"prints what is in effect and where each setting came from.",
@@ -235,16 +237,13 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if err := errors.Join(saga.CheckEffects("--allow-effects", opts.allowEffects)...); err != nil {
 		return err
 	}
-	resolved, synthesized, err := scanResolved(target)
+	resolved, zc, err := scanResolved(target)
 	if err != nil {
 		return err
 	}
 	model := resolved.Model
-	if synthesized {
+	if zc != nil {
 		// To stderr so it never pollutes a machine-readable stdout format (json/sarif).
-		// Only reachable when the directory has no descriptor, which is what makes suggesting one
-		// safe: the same words printed over a descriptor that exists tell the reader to create a
-		// file they already have.
 		// Names the shape rather than one filename: a reader whose file is called `web.saga.yaml`
 		// would otherwise read "no draugr.saga.yaml here" as a filename mismatch and rename it,
 		// when the real answer is that the file is somewhere else.
@@ -288,6 +287,15 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// Before the checks below and the scanners, so a person at a terminal who is missing a scanner
 	// can install it and get the scan they asked for rather than one with controls marked ERROR.
 	scanInstallOffer.run(ctx, reg, model, scope, cfg)
+	// With the offer answered, a scanner the tree chose that still cannot run here is turned off and
+	// named as a caveat, rather than failing a control nobody configured. Looked up on the PATH the
+	// offer looked on, so the two cannot disagree about what is installed.
+	var unexamined []report.Unexamined
+	var found []report.Found
+	if zc != nil {
+		unexamined = zc.turnOffUnrunnable(reg, scope, scanInstallOffer.lookPath)
+		found = zc.found()
+	}
 
 	minPriority, err := validatePriority("--min-priority", opts.minPriority)
 	if err != nil {
@@ -533,8 +541,10 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			PerControlBand: policy.PerControlBand,
 			Disabled:       opts.noGate,
 		},
-		View:      report.View(opts.view),
-		Uncovered: uncoveredFor(model),
+		View:       report.View(opts.view),
+		Uncovered:  uncoveredFor(model),
+		Unexamined: unexamined,
+		Found:      found,
 		Suggestions: scanSuggestions(tipContext{
 			model: model, run: run, verdict: verdict, opts: &opts, tools: builds,
 		}),
@@ -1346,16 +1356,18 @@ func warnDeprecated(w io.Writer, model *saga.Model) {
 	}
 }
 
-// zeroConfigNotice is the note a zero-config scan prints before it runs. It names the directory by
+// zeroConfigNotice is the line a zero-config scan prints before it runs. It names the directory by
 // its absolute path, because the url the synthesized descriptor records for the working directory
 // is the `.` that `init` writes.
+//
+// One line. What the run read from the tree, and that `draugr init` writes it down, is the report's
+// FOUND section, which the HTML and markdown reports carry as well.
 func zeroConfigNotice(m *saga.Model) string {
 	dir := m.Components[0].Repositories[0].URL
 	if abs, err := filepath.Abs(dir); err == nil {
 		dir = abs
 	}
-	return fmt.Sprintf("No *.saga.yaml here, scanning %s with controls: %s.\n"+
-		"(run `draugr init` to scaffold one you can customize)\n\n", dir, ZeroConfigControls(""))
+	return fmt.Sprintf("No *.saga.yaml here, scanning %s.\n\n", dir)
 }
 
 // checkWorkingTree refuses --working-tree for a descriptor Draugr cannot honor it for.

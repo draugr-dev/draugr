@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -68,22 +69,11 @@ type missingScanner struct {
 // missingForScan lists the tools `draugr tools install` fetches that this scan needs and cannot
 // find, in name order, each with the controls it would leave unrun.
 func missingForScan(reg *engine.Registry, model *saga.Model, scope engine.Scope, lookPath func(string) (string, error)) []missingScanner {
-	inScope := func(control string) bool {
-		if len(scope.Controls) == 0 {
-			return true
-		}
-		for _, c := range scope.Controls {
-			if c == control {
-				return true
-			}
-		}
-		return false
-	}
 	byTool := map[string][]string{}
 	for _, u := range needs.Uses(reg, model) {
 		var controls []string
 		for _, c := range u.Controls {
-			if inScope(c) {
+			if inScope(scope, c) {
 				controls = append(controls, c)
 			}
 		}
@@ -109,6 +99,11 @@ func missingForScan(reg *engine.Registry, model *saga.Model, scope engine.Scope,
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].tool < out[j].tool })
 	return out
+}
+
+// inScope reports whether the scan runs control: every control when --controls names none.
+func inScope(scope engine.Scope, control string) bool {
+	return len(scope.Controls) == 0 || slices.Contains(scope.Controls, control)
 }
 
 // run makes the offer and acts on the answer. It never fails the scan: an install that goes wrong
