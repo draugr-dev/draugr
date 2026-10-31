@@ -304,57 +304,88 @@ func TestFoundIsInitsRowsWordedForTheRun(t *testing.T) {
 			t.Errorf("%s: did %q, want %q", kind, did[kind], want)
 		}
 	}
+
+	// A scanner the run turned off is written off in its row, never named as on beside the caveat
+	// that says it did not run.
+	zc.turnOffUnrunnable(builtins.Registry(), engine.Scope{}, notInstalled("go", "node"))
+	for _, f := range zc.found() {
+		did[f.Kind] = f.Did
+	}
+	for kind, want := range map[string]string{
+		"go":                "sca · gosec off · govulncheck off",
+		"copied JavaScript": "retirejs off",
+		"Dockerfile":        "iac · images off",
+	} {
+		if did[kind] != want {
+			t.Errorf("turned off, %s: did %q, want %q", kind, did[kind], want)
+		}
+	}
 }
 
-// fakeSemgrep stands in for the base sast scanner, and fakeGosec for the one a go.mod adds. Both
-// record that they ran, so a test can tell a scanner turned off from one that ran and failed.
-type fakeSemgrep struct{ ran *atomic.Int32 }
-
-func (fakeSemgrep) Info() plugin.ScannerInfo {
-	return plugin.ScannerInfo{Name: "semgrep", Controls: []string{"sast"},
-		TargetKinds: []plugin.TargetKind{plugin.TargetRepository}}
+// fakeScanner is a repository scanner with the info a real one declares, which counts its runs
+// and fails where err is set, so a test can tell a scanner turned off from one that ran and failed.
+type fakeRepoScanner struct {
+	info plugin.ScannerInfo
+	ran  *atomic.Int32
+	err  error
 }
-func (f fakeSemgrep) Scan(context.Context, plugin.Target, plugin.Config) (sarif.Report, error) {
+
+func (f fakeRepoScanner) Info() plugin.ScannerInfo { return f.info }
+func (f fakeRepoScanner) Scan(context.Context, plugin.Target, plugin.Config) (sarif.Report, error) {
 	f.ran.Add(1)
-	return sarif.Report{Tool: "semgrep", Results: []sarif.Result{
-		{RuleID: "R", Level: sarif.LevelNote, Location: sarif.Location{URI: "checkout/main.go", StartLine: 1}},
+	if f.err != nil {
+		return sarif.Report{}, f.err
+	}
+	return sarif.Report{Tool: f.info.Name, Results: []sarif.Result{
+		{RuleID: f.info.Name + "-R", Level: sarif.LevelNote, Location: sarif.Location{URI: "checkout/main.go", StartLine: 1}},
 	}}, nil
 }
 
-type fakeGosec struct{ ran *atomic.Int32 }
-
-func (fakeGosec) Info() plugin.ScannerInfo {
-	return plugin.ScannerInfo{Name: "gosec", Binary: "gosec", Controls: []string{"sast"},
-		TargetKinds: []plugin.TargetKind{plugin.TargetRepository}}
+// goRegistry is sast and sca with the scanners a go.mod brings in: semgrep and trivy-fs, which the
+// base runs, and gosec and govulncheck, which the tree adds and which fail if anything runs them
+// here. ran counts each scanner's runs by name.
+func goRegistry() (*engine.Registry, map[string]*atomic.Int32) {
+	ran := map[string]*atomic.Int32{}
+	repo := []plugin.TargetKind{plugin.TargetRepository}
+	reg := engine.NewRegistry()
+	reg.RegisterController(controllers.NewSAST())
+	reg.RegisterController(controllers.NewSCA())
+	for _, s := range []fakeRepoScanner{
+		{info: plugin.ScannerInfo{Name: "semgrep", Controls: []string{"sast"}, TargetKinds: repo}},
+		{info: plugin.ScannerInfo{Name: "trivy-fs", Controls: []string{"sca"}, TargetKinds: repo}},
+		{info: plugin.ScannerInfo{Name: "gosec", Binary: "gosec", Controls: []string{"sast"}, TargetKinds: repo},
+			err: errors.New("gosec needs Go, and no `go` is on PATH")},
+		{info: plugin.ScannerInfo{Name: "govulncheck", Binary: "govulncheck", Reachability: true,
+			Controls: []string{"sca"}, TargetKinds: repo},
+			err: errors.New("govulncheck needs Go, and no `go` is on PATH")},
+	} {
+		s.ran = &atomic.Int32{}
+		ran[s.info.Name] = s.ran
+		reg.RegisterScanner(s)
+	}
+	return reg, ran
 }
-func (f fakeGosec) Scan(context.Context, plugin.Target, plugin.Config) (sarif.Report, error) {
-	f.ran.Add(1)
-	return sarif.Report{}, errors.New(`exec: "gosec": executable file not found in $PATH`)
-}
 
-// A zero-config scan of a tree whose go.mod calls for gosec, on a machine without it: the run
-// completes, sast passes on what semgrep found, gosec never runs, and the report carries FOUND and a
-// not-checked caveat naming both modules. Two modules, so a caveat naming only the first, or a row
-// per module, cannot pass.
+// A zero-config scan of a tree with two Go modules, on a machine without Go: the run is not
+// incomplete, gosec and govulncheck never run, FOUND writes both off, and each is a not-checked
+// caveat naming both modules, in the console, the markdown and the HTML report. Two modules, so a
+// caveat naming only the first, or a row per module, cannot pass.
 func TestZeroConfigScanReportsAScannerItCannotRunAsACaveat(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "shop")
 	layout(t, dir, map[string]string{
-		"checkout/go.mod":  "module checkout\n\ngo 1.26\n",
+		"checkout/go.mod":  "module checkout\n\nrequire golang.org/x/text v0.3.0\n",
 		"checkout/main.go": "package main\n",
 		"tools/go.mod":     "module tools\n\ngo 1.26\n",
 		"tools/main.go":    "package main\n",
 	})
-	semgrepRan, gosecRan := &atomic.Int32{}, &atomic.Int32{}
-	reg := engine.NewRegistry()
-	reg.RegisterController(controllers.NewSAST())
-	reg.RegisterScanner(fakeSemgrep{ran: semgrepRan})
-	reg.RegisterScanner(fakeGosec{ran: gosecRan})
+	reg, ran := goRegistry()
 
 	orig := scanInstallOffer
 	t.Cleanup(func() { scanInstallOffer = orig })
 	scanInstallOffer.terminal = func() bool { return false }
-	scanInstallOffer.lookPath = notInstalled("gosec")
+	scanInstallOffer.lookPath = notInstalled("go")
 
+	const modules = "checkout/go.mod · tools/go.mod"
 	for _, format := range []string{"console", "markdown", "html", "json"} {
 		var out bytes.Buffer
 		opts := scanOptions{format: format, noPublish: true}
@@ -378,8 +409,9 @@ func TestZeroConfigScanReportsAScannerItCannotRunAsACaveat(t *testing.T) {
 		case "console":
 			for _, want := range []string{
 				"FOUND  read from the tree · `draugr init` writes them to draugr.saga.yaml\n",
-				"  go  checkout/go.mod · tools/go.mod  gosec · govulncheck\n",
-				"checkout/go.mod · tools/go.mod  not-checked  gosec not installed · draugr tools install gosec",
+				"  go  " + modules + "  sca · gosec off · govulncheck off\n",
+				modules + "  not-checked  gosec needs Go\n",
+				modules + "  not-checked  govulncheck needs Go\n",
 			} {
 				if !strings.Contains(got, want) {
 					t.Errorf("console missing %q:\n%s", want, got)
@@ -389,17 +421,26 @@ func TestZeroConfigScanReportsAScannerItCannotRunAsACaveat(t *testing.T) {
 				t.Errorf("a scanner the tree chose shows as an error:\n%s", got)
 			}
 			if strings.Index(got, "CONTROLS") > strings.Index(got, "FOUND") {
-				t.Errorf("FOUND comes after CONTROLS:\n%s", got)
+				t.Errorf("FOUND comes before CONTROLS:\n%s", got)
 			}
 		case "markdown":
-			for _, want := range []string{"### Found", "| go | checkout/go.mod · tools/go.mod | gosec · govulncheck |",
-				"`not-checked` · `checkout/go.mod · tools/go.mod` · gosec not installed"} {
+			for _, want := range []string{
+				"### Found",
+				"| go | " + modules + " | sca · gosec off · govulncheck off |",
+				"- `not-checked` · `" + modules + "` · gosec needs Go\n",
+				"- `not-checked` · `" + modules + "` · govulncheck needs Go\n",
+			} {
 				if !strings.Contains(got, want) {
 					t.Errorf("markdown missing %q:\n%s", want, got)
 				}
 			}
 		case "html":
-			for _, want := range []string{`id="found"`, "gosec not installed · draugr tools install gosec"} {
+			for _, want := range []string{
+				`id="found"`,
+				"<tr><td>go</td><td><code>" + modules + "</code></td><td>sca · gosec off · govulncheck off</td></tr>",
+				`<span class="name">` + modules + `</span></div><div class="sub">gosec needs Go</div>`,
+				`<span class="name">` + modules + `</span></div><div class="sub">govulncheck needs Go</div>`,
+			} {
 				if !strings.Contains(got, want) {
 					t.Errorf("html missing %q", want)
 				}
@@ -407,18 +448,22 @@ func TestZeroConfigScanReportsAScannerItCannotRunAsACaveat(t *testing.T) {
 		case "json":
 			// The document a pipeline parses carries what it always carried: a caveat no gate fails
 			// on is not in it.
-			for _, absent := range []string{"read from the tree", "gosec not installed"} {
+			for _, absent := range []string{"read from the tree", "needs Go"} {
 				if strings.Contains(got, absent) {
 					t.Errorf("report.json gained %q:\n%s", absent, got)
 				}
 			}
 		}
 	}
-	if gosecRan.Load() != 0 {
-		t.Errorf("gosec ran %d times after it was turned off", gosecRan.Load())
+	for _, off := range []string{"gosec", "govulncheck"} {
+		if n := ran[off].Load(); n != 0 {
+			t.Errorf("%s ran %d times after it was turned off", off, n)
+		}
 	}
-	if semgrepRan.Load() == 0 {
-		t.Error("semgrep did not run")
+	for _, on := range []string{"semgrep", "trivy-fs"} {
+		if ran[on].Load() == 0 {
+			t.Errorf("%s did not run", on)
+		}
 	}
 }
 
@@ -432,16 +477,12 @@ func TestADescriptorRunHasNoFoundSection(t *testing.T) {
 		"draugr.saga.yaml": "project: shop\nconfig:\n  controls:\n    sast:\n      enabled: true\n" +
 			"      gosec:\n        enabled: true\ncomponents:\n  - name: shop\n    repositories:\n      - url: .\n",
 	})
-	semgrepRan, gosecRan := &atomic.Int32{}, &atomic.Int32{}
-	reg := engine.NewRegistry()
-	reg.RegisterController(controllers.NewSAST())
-	reg.RegisterScanner(fakeSemgrep{ran: semgrepRan})
-	reg.RegisterScanner(fakeGosec{ran: gosecRan})
+	reg, ran := goRegistry()
 
 	orig := scanInstallOffer
 	t.Cleanup(func() { scanInstallOffer = orig })
 	scanInstallOffer.terminal = func() bool { return false }
-	scanInstallOffer.lookPath = notInstalled("gosec")
+	scanInstallOffer.lookPath = notInstalled("go")
 
 	t.Chdir(dir)
 	var out bytes.Buffer
@@ -452,7 +493,10 @@ func TestADescriptorRunHasNoFoundSection(t *testing.T) {
 	if strings.Contains(out.String(), "FOUND") || strings.Contains(out.String(), "not-checked") {
 		t.Errorf("a descriptor run printed FOUND or a not-checked caveat:\n%s", out.String())
 	}
-	if gosecRan.Load() == 0 {
+	if ran["gosec"].Load() == 0 {
 		t.Error("the descriptor asked for gosec and it was not attempted")
+	}
+	if !strings.Contains(out.String(), "gosec needs Go, and no `go` is on PATH") {
+		t.Errorf("the descriptor run does not name Go under sast:\n%s", out.String())
 	}
 }

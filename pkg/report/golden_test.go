@@ -255,7 +255,7 @@ func goldenFullData() Data {
 
 // goldenZeroConfigData is a scan of a directory with no descriptor, of the kind the demo produces
 // with Go off PATH: the FOUND section `draugr init` would print for the tree, worded for the run,
-// and the two Go scanners it called for as not-checked caveats.
+// with the two Go scanners it called for written off and listed as not-checked caveats.
 func goldenZeroConfigData() Data {
 	sca := []sarif.Result{
 		{RuleID: "CVE-2019-20477", Level: sarif.LevelError, Score: 9.8, HasScore: true, Priority: "P1",
@@ -283,7 +283,7 @@ func goldenZeroConfigData() Data {
 		Unclassified: true,
 		Found: []Found{
 			{Kind: "python", Files: "app/requirements.txt", Did: "sca"},
-			{Kind: "go", Files: "checkout/go.mod", Did: "sca · gosec · govulncheck"},
+			{Kind: "go", Files: "checkout/go.mod", Did: "sca · gosec off · govulncheck off"},
 			{Kind: "npm", Files: "web/package-lock.json · web/package.json", Did: "sca"},
 			{Kind: "copied JavaScript", Files: "app/static/js/jquery.min.js · web/static/js/jquery.min.js", Did: "retirejs"},
 			{Kind: "Kubernetes", Files: "deploy/pod.yaml", Did: "iac"},

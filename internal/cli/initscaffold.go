@@ -28,8 +28,19 @@ type foundRow struct {
 // initSays is what init's FOUND block says the scaffold does with the files.
 func (r foundRow) initSays() string { return dotJoin(r.on, r.commented, ", commented") }
 
-// scanSays is what a scan's FOUND section says the run did with them.
-func (r foundRow) scanSays() string { return dotJoin(r.on, r.off, " off") }
+// scanSays is what a scan's FOUND section says the run did with them. A scanner in turnedOff is
+// written `<name> off`, as the control the scaffold leaves commented out is, so the row never names
+// a scanner as on that the run did not run.
+func (r foundRow) scanSays(turnedOff []string) string {
+	on := make([]string, len(r.on))
+	for i, name := range r.on {
+		on[i] = name
+		if slices.Contains(turnedOff, name) {
+			on[i] = name + " off"
+		}
+	}
+	return dotJoin(on, r.off, " off")
+}
 
 // dotJoin joins what was turned on, and then the block left off with its suffix, where there is
 // one.

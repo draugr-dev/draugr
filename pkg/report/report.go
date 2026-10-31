@@ -222,8 +222,8 @@ type Found struct {
 	Kind string
 	// Files are the files, joined into one list.
 	Files string
-	// Did is what the run did with them: the controls and scanners it turned on, and a control it
-	// left off.
+	// Did is what the run did with them: the controls and scanners it turned on, and each one it
+	// left off, written `<name> off`.
 	Did string
 }
 

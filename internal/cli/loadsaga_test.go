@@ -57,11 +57,8 @@ func TestZeroConfigControlsMatchSyntheticSaga(t *testing.T) {
 	if !slices.Equal(enabled, zeroConfigControls()) {
 		t.Errorf("an empty tree enables %v, the list names %v", enabled, zeroConfigControls())
 	}
-	if got := ZeroConfigControls("and"); got != "iac, sast, sca, and secrets" {
-		t.Errorf("conjunction form = %q", got)
-	}
-	if got := ZeroConfigControls(""); got != "iac, sast, sca, secrets" {
-		t.Errorf("plain form = %q", got)
+	if got := ZeroConfigControls(); got != "iac, sast, sca and secrets" {
+		t.Errorf("ZeroConfigControls = %q", got)
 	}
 }
 
@@ -130,7 +127,7 @@ func TestSyntheticSagaFromAParentNamesTheScannedDirectory(t *testing.T) {
 
 func TestScanHelpRendersTheDerivedControls(t *testing.T) {
 	long := newScanCommand().Long
-	if !strings.Contains(long, ZeroConfigControls("and")) {
+	if !strings.Contains(long, ZeroConfigControls()) {
 		t.Errorf("scan help should render the derived control list, got:\n%s", long)
 	}
 }

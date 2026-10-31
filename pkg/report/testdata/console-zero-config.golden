@@ -12,7 +12,7 @@ CONTROLS
 
 FOUND  read from the tree · `draugr init` writes them to draugr.saga.yaml
   python             app/requirements.txt                                       sca
-  go                 checkout/go.mod                                            sca · gosec · govulncheck
+  go                 checkout/go.mod                                            sca · gosec off · govulncheck off
   npm                web/package-lock.json · web/package.json                   sca
   copied JavaScript  app/static/js/jquery.min.js · web/static/js/jquery.min.js  retirejs
   Kubernetes         deploy/pod.yaml                                            iac

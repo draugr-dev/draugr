@@ -13,12 +13,13 @@ import (
 )
 
 // found is the report's FOUND section: what the tree held and what the run did with each kind of
-// file, from the rows `draugr init` prints for the same tree.
+// file, from the rows `draugr init` prints for the same tree. Called after turnOffUnrunnable, so a
+// scanner it turned off reads as off.
 func (zc *zeroConfig) found() []report.Found {
 	rows := foundRows(zc.tree)
 	out := make([]report.Found, len(rows))
 	for i, r := range rows {
-		out[i] = report.Found{Kind: r.kind, Files: r.where, Did: r.scanSays()}
+		out[i] = report.Found{Kind: r.kind, Files: r.where, Did: r.scanSays(zc.turnedOff)}
 	}
 	return out
 }
@@ -27,10 +28,11 @@ func (zc *zeroConfig) found() []report.Found {
 // returns the files each one would have examined.
 //
 // A scanner the tree chose is one the model runs and the base does not: gosec and govulncheck for a
-// go.mod, retire.js for copied JavaScript, Grype for a file only it reads. Nobody asked for it by
-// name, so a missing tool or runtime is a gap in what the run covered rather than a control that
-// failed, and the run says which files went unexamined and what would examine them. A scanner the
-// base runs keeps the behavior a descriptor's would: missing, it fails its control.
+// go.mod, retire.js for copied JavaScript, Grype for a file only it reads. No descriptor asked for
+// it, and a reader who never chose a scanner cannot be told their configuration is broken, so a
+// missing tool or runtime is a gap in what the run covered rather than a control that failed, and
+// the run says which files went unexamined and what would examine them. A scanner the base runs
+// keeps the behavior a descriptor's would: missing, it fails its control.
 //
 // Called once the install offer has had its answer, so what `draugr tools install` can fetch is
 // offered before anything is turned off. A control outside the scope is left alone, since the run
@@ -55,6 +57,7 @@ func (zc *zeroConfig) turnOffUnrunnable(reg *engine.Registry, scope engine.Scope
 			continue
 		}
 		turnOff(zc.model, u.Info)
+		zc.turnedOff = append(zc.turnedOff, u.Info.Name)
 		out = append(out, report.Unexamined{
 			Component: zc.model.Components[0].Name, Files: foundFiles(rows, u.Info.Name), Why: why,
 		})

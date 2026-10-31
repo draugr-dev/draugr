@@ -1,1 +1,0 @@
-- **gosec names Go when it is missing.** On a machine without Go, gosec analyzes nothing, and the scan now fails `sast` with `gosec needs Go` rather than reporting the module clean.

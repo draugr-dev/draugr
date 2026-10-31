@@ -153,9 +153,7 @@ CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that d
 ```
 
 A [scan with no descriptor](../reference/cli.md#draugr-scan-sagayaml--dir) uses the same kind for a
-file whose scanner could not run on the machine, such as `govulncheck` for a `go.mod` on a machine
-without Go. The tree chose that scanner and no descriptor asked for it, so the run reports the gap
-rather than failing over it.
+file whose scanner could not run on the machine, such as `govulncheck` for a `go.mod` without Go.
 
 [`draugr doctor`](../reference/cli.md#draugr-doctor-sagayaml) says the same thing **before** the
 scan, which is usually where you want to hear it, and `--fail-on-uncovered` turns it into a

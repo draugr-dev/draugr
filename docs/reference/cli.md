@@ -438,11 +438,11 @@ prints the same rows. A run from a descriptor has no `FOUND` section.
 
 A scanner the tree called for that cannot run on this machine, because its tool or the runtime it
 runs on is missing, is turned off for the run after the
-[install offer](#installing-a-missing-scanner), and listed under `CAVEATS` as `not-checked` with the
-files that called for it and what is missing, such as `govulncheck needs Go` or
+[install offer](#installing-a-missing-scanner). Its `FOUND` row writes it `off`, as in
+`sca · gosec off · govulncheck off`, and `CAVEATS` lists it as `not-checked` with the files that
+called for it and what is missing, such as `govulncheck needs Go` or
 `gosec not installed · draugr tools install gosec`. The run is not marked incomplete for it. A
-missing `trivy`, `semgrep` or `gitleaks` still fails its control, as every zero-config scan runs
-them.
+missing `trivy`, `semgrep` or `gitleaks` fails its control.
 
 The line `No *.saga.yaml here, scanning <dir>.` is printed to stderr, with the directory's absolute
 path, so machine formats on stdout stay clean. The project, component and repository names are the
@@ -1668,9 +1668,9 @@ no shell config. Refused under `--offline`, naming the tools it would fetch.
 **What gets installed.** `--saga` installs the tools that descriptor's scan will run and nothing
 else. With no arguments it reads the current directory the way `draugr scan` does: it installs what
 the descriptor there runs, or, with no descriptor, what a zero-config scan runs, which is what
-`draugr init` would enable for the tree, and says which on its first line. With more than one descriptor it asks which on a terminal and otherwise exits
-naming them. `--all` installs everything this host can have. `--all`, `--saga` and a tool list are
-refused in combination.
+`draugr init` would enable for the tree, and says which on its first line. With more than one
+descriptor it asks which on a terminal and otherwise exits naming them. `--all` installs everything
+this host can have. `--all`, `--saga` and a tool list are refused in combination.
 
 **Some are built from a package, not downloaded as a binary.** `govulncheck` needs Go 1.21 or newer,
 `retire` needs Node 18 or newer, and `semgrep` needs Python 3.10 or newer, because none publishes a

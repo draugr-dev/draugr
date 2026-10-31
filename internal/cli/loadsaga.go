@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/inventory"
 	"github.com/draugr-dev/draugr/internal/sagafetch"
@@ -213,27 +214,16 @@ func zeroConfigControls() []string {
 	return out
 }
 
-// ZeroConfigControls lists those controls in a readable form, e.g. "iac, sast, sca, and secrets".
-func ZeroConfigControls(conjunction string) string {
-	controls := zeroConfigControls()
-	switch len(controls) {
-	case 0:
-		return ""
-	case 1:
-		return controls[0]
-	}
-	if conjunction == "" {
-		return strings.Join(controls, ", ")
-	}
-	head, tail := controls[:len(controls)-1], controls[len(controls)-1]
-	return strings.Join(head, ", ") + ", " + conjunction + " " + tail
-}
+// ZeroConfigControls lists those controls as a sentence names them, e.g. "iac, sast, sca and
+// secrets".
+func ZeroConfigControls() string { return english.And(zeroConfigControls()) }
 
-// zeroConfig is a scan of a directory that holds no descriptor: what the tree held, and the model
-// made of it.
+// zeroConfig is a scan of a directory that holds no descriptor: what the tree held, the model
+// made of it, and the scanners the run turned off because they cannot run here.
 type zeroConfig struct {
-	tree  inventory.Tree
-	model *saga.Model
+	tree      inventory.Tree
+	model     *saga.Model
+	turnedOff []string
 }
 
 // synthesize reads dir as `draugr init` does and returns the model init would write for it, with
