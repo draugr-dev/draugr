@@ -16,7 +16,7 @@ _Nothing yet._
 
 ### Fixed
 
-- **gosec no longer passes Go code it could not analyze.** Without the Go toolchain gosec analyzes nothing, and `sast` passed with no findings. The control now errors with `gosec needs Go`, and govulncheck names Go the same way instead of reporting `no go.mod file`.
+- **`sast` errors when gosec runs without Go on PATH.** gosec analyzes nothing without the Go toolchain, so a `sast` pass from a machine without Go had not checked the Go code. The control now fails with ``gosec needs Go, and no `go` is on PATH``, and govulncheck names the missing Go the same way. Put Go on PATH to scan Go modules.
 
 ## [0.162.1] - 2026-10-31
 
