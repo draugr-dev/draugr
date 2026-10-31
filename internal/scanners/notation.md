@@ -63,6 +63,7 @@ verification failed for all the signatures`.
 |---|---|
 | `no signature is associated with` | `provenance-unsigned` |
 | `does not match the X.509 trusted identities` | `provenance-unexpected-identity` |
+| `certificate chain does not contain any trusted certificate` | `provenance-unexpected-identity` |
 | `has no applicable trust policy statement` | an error: the scope Draugr wrote did not match the image it was built from |
 | anything else | an error the control reports |
 

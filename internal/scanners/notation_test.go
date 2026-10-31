@@ -91,6 +91,13 @@ func TestNotationClassifiesWhatItWasTold(t *testing.T) {
 			`level=warning msg=Signature sha256:b1c55ca46a2ed2721b753e1599337fe5dda61df5607e459402e30f85bdeeedff failed verification with error: signing certificate from the digital signature does not match the X.509 trusted identities [map["C":"US" "CN":"Acme" "O":"Acme" "ST":"WA"]] defined in the trust policy "acme-pki"` + "\n" +
 				"Error: signature verification failed for all the signatures associated with acme.azurecr.io/payments@sha256:abc",
 			"provenance-unexpected-identity", ""},
+		// A certificate from a root the trust store does not hold. notation checks the chain before
+		// the subject, so this is also what a signature wrong on both counts says.
+		{"a root we do not trust",
+			`level=error msg=authenticity validation failed. Failure reason: the signature's certificate chain does not contain any trusted certificate` + "\n" +
+				`level=warning msg=Signature sha256:0a2a2c795059b9b5729d77a9795d281ef2967529aab6aeef2e3d0006cecca50e failed verification with error: the signature's certificate chain does not contain any trusted certificate` + "\n" +
+				"Error: signature verification failed for all the signatures associated with acme.azurecr.io/payments@sha256:abc",
+			"provenance-unexpected-identity", ""},
 		// Draugr writes the policy itself, scoped to the image in front of it, so this says the
 		// scope did not match the reference it was built from. That is a fault here, not a
 		// finding about somebody's artifact.
@@ -119,6 +126,24 @@ func TestNotationClassifiesWhatItWasTold(t *testing.T) {
 				t.Fatalf("results = %v, want one %s", rep.Results, c.wantRule)
 			}
 		})
+	}
+}
+
+// A wrong subject and an untrusted root share a rule, and the message says which one it was, since
+// the fix for each is a different line of the descriptor.
+func TestNotationSaysWhichPartOfTheCertificateWasRefused(t *testing.T) {
+	for said, want := range map[string]string{
+		"failed verification with error: signing certificate from the digital signature does not match the X.509 trusted identities": "is not the x509.subject of signer acme-pki",
+		"failed verification with error: the signature's certificate chain does not contain any trusted certificate":                 "x509.trustStore of signer acme-pki",
+	} {
+		s, _, _ := stubNotation(t, said, errors.New("exit status 1"))
+		rep, err := notationScan(t, s, notationCfg(t))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(rep.Results) != 1 || !strings.Contains(rep.Results[0].Message, want) {
+			t.Errorf("notation said %q; results = %v, want a message saying %q", said, rep.Results, want)
+		}
 	}
 }
 

@@ -265,7 +265,8 @@ func TestProvenanceNotationVerifiesARealSignature(t *testing.T) {
 	config, cert, subject := notationTestCert(t, "draugr-integration")
 	notationAs(t, config, "sign", repo+"@"+digest)
 
-	signedBy := func(subject string) string {
+	// A descriptor trusting the roots in trustStore and the certificate subject named.
+	signedUnder := func(trustStore, subject string) string {
 		return `project: provenance-integration
 release: {version: "1.0.0"}
 config:
@@ -276,7 +277,7 @@ config:
         - name: release-signing
           images: ["` + registry + `/*"]
           x509:
-            trustStore: ` + cert + `
+            trustStore: ` + trustStore + `
             subject: "` + subject + `"
 components:
   - name: app
@@ -287,6 +288,7 @@ components:
         digest: ` + digest + `
 `
 	}
+	signedBy := func(subject string) string { return signedUnder(cert, subject) }
 
 	t.Run("declared subject", func(t *testing.T) {
 		out, passed := scanProvenance(t, signedBy(subject))
@@ -321,6 +323,21 @@ components:
 		}
 		if passed {
 			t.Error("an image signed by a certificate the descriptor does not name must fail the gate")
+		}
+	})
+
+	// The declared subject, under a root the trust store does not hold: a certificate issued with
+	// the right name by somebody else's authority. notation refuses it before reading the subject,
+	// with a third string, and it is a finding about the image rather than a control that could not
+	// run.
+	t.Run("another root", func(t *testing.T) {
+		_, otherRoot, _ := notationTestCert(t, "somebody-else")
+		got, passed := runScan(t, signedUnder(otherRoot, subject))
+		if len(got) != 1 || !strings.HasPrefix(got[0], "provenance-unexpected-identity") {
+			t.Fatalf("findings = %v, want one provenance-unexpected-identity from notation", got)
+		}
+		if passed {
+			t.Error("an image signed under a root the descriptor does not trust must fail the gate")
 		}
 	})
 }
