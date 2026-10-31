@@ -43,6 +43,9 @@ const (
 	SignalMalicious = "malicious"
 	// SignalDeprecated is a version its own publisher has marked as no longer supported.
 	SignalDeprecated = "deprecated"
+	// DatasetName names dependency health in a run's consulted datasets. One entry for both
+	// signals, because one lookup answers both.
+	DatasetName = "dependency-health"
 )
 
 // Finding types, as the upstream data names them.
@@ -117,7 +120,7 @@ func (s *Source) Consulted() []sarif.Consulted {
 		return nil
 	}
 	return []sarif.Consulted{{
-		Signal: "dependency-health", AsOf: s.asOf, Entries: len(s.byPurl),
+		Signal: DatasetName, AsOf: s.asOf, Entries: len(s.byPurl),
 	}}
 }
 
