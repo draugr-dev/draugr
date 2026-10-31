@@ -1592,23 +1592,41 @@ const htmlDoc = `<!doctype html>
 
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-  /* Phone widths. No text under 12px, and anything pressed with a finger at least 24px tall
-   * (WCAG 2.2, 2.5.8). Sizes only, so the desktop layout and every color stay as they are. */
+  /* Phone widths. No text under 12px, anything pressed with a finger at least 24px tall (WCAG 2.2,
+   * 2.5.8), and every row's text wrapping inside the row. Nothing here applies on a wider screen,
+   * so the desktop layout and every color stay as they are. */
   @media (max-width: 40rem) {
     .rows .lbl, .rows .pri, .rows .sevchip, .rows .hint, .rows .moved,
     thead th, .sev, .moved, .size, .chip-menu .c, .menu-row .c, .menu-head { font-size: 12px; }
     code { font-size: max(.86em, 12px); }
     .rows summary.rule, .rows .act-clears { min-height: 24px; }
     .rows .act-clears { display: inline-flex; align-items: center; }
-    .rows .rule .id a { display: inline-block; min-height: 24px; }
+    /* The chips start the first line of a finding, a thing to do and a caveat, and the text runs
+     * on beside them and then under them, so every line after the first has the row's full width.
+     * A float rather than the grid, whose gutter is as tall as the row. Its height is held under
+     * one line of the title, so a second line starts at the row's edge whatever the chips' font
+     * measures; the chips center in it. A cut row keeps the display: none it already has. */
+    .rows > :is(.f, .act, .cv):not(.cut) { display: flow-root; }
+    .rows > :is(.f, .act, .cv) > .chips {
+      float: left; height: 21px; margin-right: 10px; align-items: center;
+    }
+    /* The summary of a row that opens wraps like any other title. A summary held to one line
+     * leaves the message a few characters beside the chips, and pushes a long rule id and the mark
+     * saying the row opens past the panel's edge, which cuts them off. The id breaks inside itself
+     * where it has no space to break at (the overflow-wrap on .what), and a no-break space keeps
+     * the mark on the same line as the message's last word. */
+    .rows summary.rule { display: block; white-space: normal; }
+    .rows summary.rule .said::after { content: "\a0"; }
+    .rows summary.rule .hint { margin-left: 4px; }
+    /* The id's link takes padding to reach 24px, where an inline-block would make it one box that
+     * cannot break across lines. Padding on an inline box widens what a finger can press and
+     * leaves the line where it is. */
+    .rows .rule .id a { padding: 3px 0; }
     /* Three columns under unbroken headings are wider than a phone, and what a signal did is the
      * column pushed off it. The heading and the mark wrap instead. */
     .signals th, .signals .moved { white-space: normal; }
     .signals .moved { align-items: baseline; }
     .signals th, .signals td { padding-left: .4rem; padding-right: .4rem; }
-    /* The kind over what it names, because a gutter wide enough for the longest kind leaves the
-     * path beside it a few characters a line. */
-    .rows > .cv { grid-template-columns: minmax(0, 1fr); gap: 6px; }
     .rows .cvchip { font-size: 12px; }
     /* The components table closes up its cells and headings, meets the page's margin at both
      * edges, wraps a hyphenated name and puts an assumed mark under its value, so its five columns
