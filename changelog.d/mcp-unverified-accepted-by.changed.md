@@ -1,0 +1,1 @@
+- **The MCP tools return an exclusion's `acceptedBy` value as `unverifiedAcceptedBy`, the key `report.json` and `results.sarif` use.** A client reading `accepted` beside either file finds the name under one key, and the key says nothing verifies it. `report.json` carries who wrote the exclusion, from its git history.

@@ -4,8 +4,8 @@ type: llm
 
 PASS if the reply does all three:
 
-1. Reports the eval call in services/web/src/index.js as already accepted, naming Dana Reyes or the
-   reason she gave.
+1. Reports the eval call in services/web/src/index.js as already accepted, with the reason recorded
+   for it.
 2. Treats both committed AWS keys as needing action.
 3. Treats the eval call in services/api/src/index.js as needing action. Fixing it and recording a
    reviewed acceptance for it are both action.

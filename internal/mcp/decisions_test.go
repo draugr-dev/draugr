@@ -2,12 +2,17 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/report"
+	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
@@ -79,7 +84,7 @@ func TestSummarizeReturnsEachAcceptedFindingWithItsDecision(t *testing.T) {
 			Author: "Example Inc", Asserted: "2026-06-01", Source: "vex/worker.openvex.json",
 			VEXStatus: "not_affected", VEXJustification: "vulnerable_code_not_in_execute_path"},
 		{RuleID: "CVE-2023-0001", Severity: "medium", Component: "api", Location: "api/pom.xml",
-			Justification: "test scope only", AcceptedBy: "sec@example.com", Expires: "2026-12-31",
+			Justification: "test scope only", UnverifiedAcceptedBy: "sec@example.com", Expires: "2026-12-31",
 			Origin: "saga", Source: "fragments/api.saga.yaml"},
 	}
 	if !reflect.DeepEqual(out.Accepted, want) {
@@ -94,6 +99,88 @@ func TestAcceptedIsCappedAndTheCountIsNot(t *testing.T) {
 	if out.Suppressed != 2 || len(out.Accepted) != 1 || out.Accepted[0].RuleID != "CVE-2023-0002" {
 		t.Errorf("suppressed=%d accepted=%+v, want 2 counted and the most severe returned",
 			out.Suppressed, out.Accepted)
+	}
+}
+
+// An assistant handed accepted and report.json together, or a client reading both, finds each
+// value of a decision under the key report.json gives it. A second key for one value is a second
+// thing to explain, and the older key, acceptedBy, presents a name nothing verifies as who
+// accepted the finding.
+func TestAcceptedNamesEachValueAsReportJSONDoes(t *testing.T) {
+	run := engine.Result{Controls: map[string]plugin.ControlResult{
+		"sca": {Report: sarif.Report{Results: []sarif.Result{
+			{RuleID: "CVE-2023-0001", Tool: "trivy-fs", Priority: "P2", Level: sarif.LevelWarning,
+				Component: "api", Location: sarif.Location{URI: "api/pom.xml"},
+				Suppression: &sarif.Suppression{
+					Kind: "external", Justification: "test scope only", AcceptedBy: "Dana Reyes",
+					Expires: "2026-12-31", Origin: sarif.OriginSaga, Source: "fragments/api.saga.yaml", Line: 7,
+				}},
+			{RuleID: "CVE-2023-0002", Tool: "trivy-fs", Priority: "P1", Level: sarif.LevelError,
+				Component: "worker", Package: &sarif.Package{Name: "openssl", Version: "3.0.1"},
+				Suppression: &sarif.Suppression{
+					Kind: "external", Justification: "vulnerable_code_not_in_execute_path", Origin: "vex",
+					Author: "Example Inc", Asserted: "2026-06-01", Source: "vex/worker.openvex.json",
+					StatementID: "stmt-1", Digest: "sha256:0123",
+				}},
+		}}},
+	}}
+
+	doc, err := report.Build(saga.ReportConfig{Format: "json"}, report.Data{Run: run, MinPriority: "P4"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var recorded struct {
+		Findings []struct {
+			RuleID     string         `json:"ruleId"`
+			Suppressed map[string]any `json:"suppressed"`
+		} `json:"findings"`
+	}
+	if err := json.Unmarshal(doc.Bytes, &recorded); err != nil {
+		t.Fatal(err)
+	}
+	notes := map[string]map[string]any{}
+	for _, f := range recorded.Findings {
+		if f.Suppressed != nil {
+			notes[f.RuleID] = f.Suppressed
+		}
+	}
+
+	_, out, err := SummarizeReportTool(context.Background(), nil, SummarizeInput{Path: writeRunSARIF(t, run)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Accepted) != len(notes) || len(notes) != 2 {
+		t.Fatalf("accepted lists %d decisions and report.json %d, want 2 in each", len(out.Accepted), len(notes))
+	}
+	for _, a := range out.Accepted {
+		note, ok := notes[a.RuleID]
+		if !ok {
+			t.Errorf("accepted lists %s and report.json has no suppressed note for it", a.RuleID)
+			continue
+		}
+		raw, err := json.Marshal(a)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got map[string]any
+		if err := json.Unmarshal(raw, &got); err != nil {
+			t.Fatal(err)
+		}
+		for key, value := range note {
+			for other, v := range got {
+				if v == value && other != key {
+					t.Errorf("%s: report.json names %v %q, and accepted names it %q", a.RuleID, value, key, other)
+				}
+			}
+		}
+		if a.RuleID == "CVE-2023-0001" {
+			if got["unverifiedAcceptedBy"] != "Dana Reyes" {
+				t.Errorf("accepted carries the descriptor's name as %v, want unverifiedAcceptedBy", got)
+			}
+			if _, old := got["acceptedBy"]; old {
+				t.Errorf("accepted still names the descriptor's unverified name acceptedBy: %v", got)
+			}
+		}
 	}
 }
 

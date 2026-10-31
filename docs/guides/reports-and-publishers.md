@@ -215,8 +215,8 @@ not double the count with nothing new wrong.
 
 `suppressed` is absent when nothing was excused, so a document carrying it is a run where somebody
 made a decision rather than one reporting that they did not. Each entry in `findings` carries the
-same thing per finding: a `suppressed` block with the justification and who accepted it, on the
-findings that have one.
+same thing per finding: a `suppressed` block with the justification and the file that recorded the
+decision, on the findings that have one.
 
 `gate` is the policy the verdict was judged against:
 
