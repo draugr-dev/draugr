@@ -650,6 +650,20 @@ P1  critical  NSWG-ECO-328 · Cross-Site Scripting (XSS)
 
 The publisher's own words travel in `report.json` and the SARIF, where there is room for a sentence.
 
+When the lookup answers, `SIGNALS` lists `malicious` and `deprecated` with the findings each raised,
+or `nothing raised`. Neither row appears when the lookup did not answer.
+
+```console
+SIGNALS
+  KEV           2 findings raised
+  EPSS          2 findings raised
+  malicious     nothing raised
+  deprecated    12 findings raised
+  reachability  govulncheck · 2 reachable, 3 unreachable
+```
+
+`report.json` records the lookup under [`consulted`](report-schema.md#what-the-run-carries).
+
 **What it covers.** The language ecosystems deps.dev indexes: Cargo, Go, Maven, npm, NuGet, PyPI and
 RubyGems. Operating-system packages from a container image are not among them, so on an image-heavy
 project this speaks to the dependencies you chose rather than to the base you built on.

@@ -768,7 +768,7 @@ type Input struct {
 // to the human-facing report, which has room for them. What a consumer of the evidence needs to
 // explain a band is narrower. Which signals could have fired, and as of when.
 type Consulted struct {
-	// Signal names the dataset: "kev" or "epss".
+	// Signal names the dataset: "kev", "epss" or "dependency-health".
 	Signal string `json:"signal"`
 	// AsOf is the day the copy was obtained, as YYYY-MM-DD. Empty when the caller supplied a
 	// file with no fetch to record, which is itself worth seeing.
