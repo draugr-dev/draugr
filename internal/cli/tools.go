@@ -688,9 +688,9 @@ func foundStatus(st tools.Status, pinned string, foreign bool) (string, tui.Styl
 		where += ", not installed by Draugr"
 	}
 	switch {
-	// No tick. A tick is a claim about the version, and this is the row where there is none to make.
 	case st.Version == "":
-		return fmt.Sprintf("? version unknown (%s)", where), tui.StyleAccent
+		status, style := versionUnknown()
+		return fmt.Sprintf("%s (%s)", status, where), style
 	// Present is not the same answer as present at the version this build pins, and a tick said
 	// both. `tools install` already knew the difference and would have replaced it, so the two
 	// commands disagreed about one machine.
@@ -698,6 +698,15 @@ func foundStatus(st tools.Status, pinned string, foreign bool) (string, tui.Styl
 		return fmt.Sprintf("~ %s (%s)", st.Version, where), tui.StyleAccent
 	}
 	return fmt.Sprintf("✓ %s (%s)", st.Version, where), tui.StylePass
+}
+
+// versionUnknown is the status, and its style, of a found tool whose version Draugr cannot read:
+// a probe that failed, or output with no version in it, such as a build that reports `dev`.
+// `tools list` and `doctor` both draw it, so one copy reads alike in either.
+//
+// No tick. A tick is a claim about the version, and this is the row where there is none to make.
+func versionUnknown() (string, tui.Style) {
+	return "? version unknown", tui.StyleAccent
 }
 
 // appendUnique appends s to xs if not already present.

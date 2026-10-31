@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
@@ -302,6 +304,72 @@ func TestCheckControlNamesAcceptsDeclaredOptionsAndTheEnabledFlag(t *testing.T) 
 	}}}
 	if err := checkControlNames(builtins.Registry(), m); err != nil {
 		t.Errorf("rejected a valid block: %v", err)
+	}
+}
+
+// An `enabled` that is not true or false is refused wherever a block can hold one, in a descriptor
+// and in draugr.config.yaml, with one message. The run would read it as some other answer.
+func TestAnEnabledThatIsNotABooleanIsRefused(t *testing.T) {
+	controls := func() map[string]saga.ControllerSettings {
+		return map[string]saga.ControllerSettings{
+			"sast": {"enabled": "maybe", "gosec": map[string]any{"enabled": "true"}},
+			"tls":  {"enabled": true, "draugrTls": map[string]any{"enabled": 1}},
+		}
+	}
+	m := &saga.Model{
+		Config: saga.Config{Controls: controls()},
+		Components: []saga.Component{
+			{Name: "web", Controls: map[string]saga.ControllerSettings{"secrets": {"enabled": []any{true}}}},
+			{Name: "api", Controls: map[string]saga.ControllerSettings{"iac": {"enabled": false}}},
+		},
+	}
+	err := checkControlNames(builtins.Registry(), m)
+	if err == nil {
+		t.Fatal("four flags that are not true or false were accepted")
+	}
+	// Every line says what the key accepts, so no closing line sends the reader elsewhere.
+	want := strings.Join([]string{
+		`config.controls.sast.enabled: expected true or false, got "maybe"`,
+		`config.controls.sast.gosec.enabled: expected true or false, got "true"`,
+		`config.controls.tls.draugrTls.enabled: expected true or false, got 1`,
+		`components["web"].controls.secrets.enabled: expected true or false, got a list`,
+	}, "\n")
+	if err.Error() != want {
+		t.Errorf("descriptor:\n got %s\nwant %s", err, want)
+	}
+
+	// draugr.config.yaml, through the same checker, in the same words under its own key path.
+	err = checkConfig(builtins.Registry(), "draugr.config.yaml", config.File{Controls: controls()})
+	var p *config.Problems
+	if !errors.As(err, &p) {
+		t.Fatalf("config: %v", err)
+	}
+	if got, want := strings.Join(p.List, "\n"), strings.Join([]string{
+		`controls.sast.enabled: expected true or false, got "maybe"`,
+		`controls.sast.gosec.enabled: expected true or false, got "true"`,
+		`controls.tls.draugrTls.enabled: expected true or false, got 1`,
+	}, "\n"); got != want {
+		t.Errorf("config:\n got %s\nwant %s", got, want)
+	}
+	if p.Hint != "" {
+		t.Errorf("config hint = %q, want none", p.Hint)
+	}
+}
+
+// A report holding another kind of problem as well keeps its closing line, which that problem needs.
+func TestAnEnabledProblemBesideAMisspelledControlKeepsTheHint(t *testing.T) {
+	m := &saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
+		"sast": {"enabled": map[string]any{"on": true}},
+		"scaa": {},
+	}}}
+	err := checkControlNames(builtins.Registry(), m)
+	if err == nil {
+		t.Fatal("accepted a misspelled control")
+	}
+	for _, want := range []string{"got a mapping", `"scaa" is not a control`, "run `draugr controls`"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error should hold %q:\n%v", want, err)
+		}
 	}
 }
 
