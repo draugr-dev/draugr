@@ -25,6 +25,8 @@ on:
       # change to either dates the published page even when docs/ is untouched.
       - "internal/cli/**"
       - "pkg/saga/**"
+      # The scanner pages live beside their code, and the site publishes them with the docs.
+      - "internal/scanners/*.md"
   workflow_dispatch:
 
 permissions:
