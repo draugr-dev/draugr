@@ -152,8 +152,9 @@ rank as fields: the exploitability signal that raised it, a reachability analyze
 one call path, and the other scanners that reported the same flaw. A finding that a recorded
 decision took out of the ranking comes back in `accepted`, never in `findings`, with why, until
 when, the file that made the decision, and whether the analysis was this project's or a supplier's
-VEX statement. An `acceptedBy` there is the descriptor's unverified claim, the value `report.json`
-names `unverifiedAcceptedBy`; the git history of the exclusion's line records who wrote it.
+VEX statement. An entry's `unverifiedAcceptedBy` is the name a descriptor rule's deprecated
+`acceptedBy` states, under the key `report.json` and `results.sarif` use. Nothing verifies the name,
+and 0.163.0 removes the key. The git history of the exclusion's line records who wrote it.
 `suppressed` is the full count and `accepted` is capped at `limit`. `feeds` names the
 exploitability datasets the scan consulted, dated, and marks any older than the scan's `maxAge`.
 The scan reads those datasets from the feed cache and never fetches them, whether

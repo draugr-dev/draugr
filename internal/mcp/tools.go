@@ -290,23 +290,30 @@ type Escalation struct {
 //
 // Returned beside the findings rather than among them: an accepted risk handed back as work is
 // one an assistant proposes to fix against the owner's decision. Returned at all because a count
-// on its own cannot answer who decided, why, or until when, and those are the questions.
+// on its own cannot answer why, until when, or where the decision is written, and those are the
+// questions.
+//
+// A value report.json's suppressed note also carries goes under the key it has there, so a client
+// reading this beside report.json or results.sarif finds one value under one key.
 type Accepted struct {
-	RuleID           string `json:"ruleId"`
-	Severity         string `json:"severity"`
-	Location         string `json:"location,omitempty"`
-	Component        string `json:"component,omitempty"`
-	Package          string `json:"package,omitempty"`
-	Version          string `json:"version,omitempty"`
-	Justification    string `json:"justification" jsonschema:"the reason recorded with the decision"`
-	AcceptedBy       string `json:"acceptedBy,omitempty" jsonschema:"a name the descriptor's deprecated acceptedBy states, which nothing verifies; the git history of the exclusion's line in source records who wrote it"`
-	Expires          string `json:"expires,omitempty" jsonschema:"YYYY-MM-DD the acceptance lapses; empty means it does not"`
-	Origin           string `json:"origin,omitempty" jsonschema:"saga (a rule in the descriptor), vex (a supplier's statement this project accepted), tool or scanner (an annotation in the source)"`
-	Author           string `json:"author,omitempty" jsonschema:"who made an imported VEX statement"`
-	Asserted         string `json:"asserted,omitempty" jsonschema:"when an imported VEX statement was made"`
-	Source           string `json:"source,omitempty" jsonschema:"the descriptor, fragment or VEX document the decision was written in"`
-	VEXStatus        string `json:"vexStatus,omitempty" jsonschema:"not_affected, affected or fixed; empty reads as affected"`
-	VEXJustification string `json:"vexJustification,omitempty" jsonschema:"why the product is not affected, from VEX's fixed vocabulary"`
+	RuleID        string `json:"ruleId"`
+	Severity      string `json:"severity"`
+	Location      string `json:"location,omitempty"`
+	Component     string `json:"component,omitempty"`
+	Package       string `json:"package,omitempty"`
+	Version       string `json:"version,omitempty"`
+	Justification string `json:"justification" jsonschema:"the reason recorded with the decision"`
+	// UnverifiedAcceptedBy is the name a descriptor rule's deprecated acceptedBy states. Named so no
+	// reader takes it for who accepted the finding; the record of that is the git history of the
+	// exclusion's line.
+	UnverifiedAcceptedBy string `json:"unverifiedAcceptedBy,omitempty" jsonschema:"the descriptor rule's deprecated acceptedBy, a name the descriptor's author typed as who accepted the finding, which nothing verifies; the git history of the exclusion's line records who wrote it"`
+	Expires              string `json:"expires,omitempty" jsonschema:"YYYY-MM-DD the acceptance lapses; empty means it does not"`
+	Origin               string `json:"origin,omitempty" jsonschema:"saga (a rule in the descriptor), vex (a supplier's statement this project accepted), tool or scanner (an annotation in the source)"`
+	Author               string `json:"author,omitempty" jsonschema:"who made an imported VEX statement"`
+	Asserted             string `json:"asserted,omitempty" jsonschema:"when an imported VEX statement was made"`
+	Source               string `json:"source,omitempty" jsonschema:"the descriptor, fragment or VEX document the decision was written in"`
+	VEXStatus            string `json:"vexStatus,omitempty" jsonschema:"not_affected, affected or fixed; empty reads as affected"`
+	VEXJustification     string `json:"vexJustification,omitempty" jsonschema:"why the product is not affected, from VEX's fixed vocabulary"`
 }
 
 // Feed is an exploitability dataset the scan had loaded.
@@ -327,7 +334,7 @@ type SummarizeOutput struct {
 	Returned   int        `json:"returned"`
 	Counts     Counts     `json:"counts"`
 	Findings   []Finding  `json:"findings"`
-	Accepted   []Accepted `json:"accepted,omitempty" jsonschema:"the suppressed findings with who decided and why, most severe first, capped at limit; report each as a decision, never as work to fix"`
+	Accepted   []Accepted `json:"accepted,omitempty" jsonschema:"the suppressed findings with why, until when and where each decision is written, most severe first, capped at limit; report each as a decision, never as work to fix"`
 	// Feeds is empty when no exploitability data was loaded, which is the answer to "was this
 	// checked against KEV" and not an omission.
 	Feeds []Feed `json:"feeds,omitempty" jsonschema:"exploitability datasets the scan consulted; absent means no finding was checked against KEV or EPSS"`
@@ -552,7 +559,7 @@ func acceptedFrom(res sarif.Result) Accepted {
 	s := res.Suppression
 	a := Accepted{
 		RuleID: res.RuleID, Severity: string(res.Severity("")), Location: locationOf(res),
-		Component: res.Component, Justification: s.Justification, AcceptedBy: s.AcceptedBy,
+		Component: res.Component, Justification: s.Justification, UnverifiedAcceptedBy: s.AcceptedBy,
 		Expires: s.Expires, Origin: s.Origin, Author: s.Author, Asserted: s.Asserted, Source: s.Source,
 		VEXStatus: s.VEXStatus, VEXJustification: s.VEXJustification,
 	}
