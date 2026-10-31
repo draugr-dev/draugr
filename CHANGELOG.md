@@ -24,9 +24,9 @@ _Nothing yet._
 
 - **The HTML report's labels are readable in the light theme, the one a printed report uses.** P2 and P3 were drawn in their band's fill color, under 2:1 on white. Every priority and severity label now clears 4.5:1 in both themes, and P1 stays apart from P2 for a reader with red-green color blindness.
 
-- **The HTML report's rows use the full width of a phone.** On a narrow screen the priority and severity chips start the first line of a finding, a fix-list row or a caveat, and the text continues under them. A long rule id wraps inside its row, and the `more` mark that opens the row stays in view.
+- **The HTML report's rows use the full width of a phone.** On a narrow screen a finding, a fix-list row or a caveat opens with its priority and severity chips and wraps its text beneath them, where the chips had a column of their own taking about 40% of the row. A long rule id wraps inside its row, and the `more` mark that opens the row stays in view.
 
-- **`SIGNALS` lists dependency health's two signals.** With `config.dependencyHealth` on, the console, HTML and markdown reports list `malicious` and `deprecated` with the findings each raised, or `nothing raised`. Neither was listed before, and `report.json` now records the lookup under `consulted`.
+- **Reports list dependency health under `SIGNALS`.** With `config.dependencyHealth` on, the console, HTML and markdown reports list `malicious` and `deprecated` with the findings each raised, or `nothing raised`, and `report.json` names dependency health in `consulted`, the datasets the run read.
 
 ## [0.162.0] - 2026-10-31
 
