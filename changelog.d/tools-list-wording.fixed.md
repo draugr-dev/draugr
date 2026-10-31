@@ -1,1 +1,0 @@
-- **`draugr tools list` marks a copy of a tool that Draugr did not install.** The `Source` column is now `Install with`, with `-` for a tool Draugr does not install. A copy outside `~/.draugr/bin` is marked `not installed by Draugr`, and a version the tool does not report shows `? version unknown`, with no tick.

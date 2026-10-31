@@ -1,1 +1,0 @@
-- **`draugr config keys` and your editor show the default of a scanner option that has one.** The Saga and config schemas declare it.

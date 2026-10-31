@@ -1,1 +1,0 @@
-- **`SIGNALS` lists the context floor when it raised nothing.** A run in which the `secrets` control ran has a `floor` row saying `nothing raised`, in the console, HTML and markdown reports, so a floor that changed nothing can be told from one that never applied.
