@@ -152,6 +152,9 @@ CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that d
   api        images  not-checked  images off
 ```
 
+A [scan with no descriptor](../reference/cli.md#draugr-scan-sagayaml--dir) uses the same kind for a
+file whose scanner could not run on the machine, such as `govulncheck` for a `go.mod` without Go.
+
 [`draugr doctor`](../reference/cli.md#draugr-doctor-sagayaml) says the same thing **before** the
 scan, which is usually where you want to hear it, and `--fail-on-uncovered` turns it into a
 failure for a descriptor that is meant to be complete:

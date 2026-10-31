@@ -1752,7 +1752,7 @@
             "anyOf": [
               {
                 "const": "not-checked",
-                "description": "A surface a component declares that no enabled control looks at."
+                "description": "A part of the component the run did not examine: a surface it declares that no enabled control looks at, or, on a scan with no descriptor, a file whose scanner could not run on this machine."
               },
               {
                 "const": "not-measured",

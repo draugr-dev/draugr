@@ -215,7 +215,9 @@ type CaveatKind string
 
 // The kinds of caveat, in the order the report names them.
 const (
-	// CaveatNotChecked is a surface a component declares that no enabled control looks at.
+	// CaveatNotChecked is a part of the component the run did not examine: a surface it declares
+	// that no enabled control looks at, or, on a scan with no descriptor, a file whose scanner could
+	// not run on this machine.
 	CaveatNotChecked CaveatKind = "not-checked"
 	// CaveatNotMeasured is a scanner that cannot honor a component's scope, so it did not run
 	// for that component.

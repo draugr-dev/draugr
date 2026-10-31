@@ -77,6 +77,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		writeScanErrors(w, s)
 	}
 
+	writeFoundRows(w, d)
 	writeComponentTable(w, d)
 	writeCaveatRows(w, d)
 	writeEvidenceNotes(w, d)
@@ -138,6 +139,25 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 	_, _ = fmt.Fprintln(w)
 	writeRunEvidence(w, d, s)
 	return nil
+}
+
+// writeFoundRows lists what a run with no descriptor read from the tree, as the console's FOUND
+// section does. The pull request this is pasted into is often the first place somebody meets the
+// run, and without it a scanner the tree turned on is one nobody can account for.
+func writeFoundRows(w io.Writer, d Data) {
+	if len(d.Found) == 0 {
+		return
+	}
+	_, _ = fmt.Fprintln(w, "### Found")
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "What the run read from the tree, which `draugr init` writes to `draugr.saga.yaml`.")
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "| Kind | Files | This run |")
+	_, _ = fmt.Fprintln(w, "|---|---|---|")
+	for _, f := range d.Found {
+		_, _ = fmt.Fprintf(w, "| %s | %s | %s |\n", f.Kind, f.Files, f.Did)
+	}
+	_, _ = fmt.Fprintln(w)
 }
 
 // writeCaveatRows lists the run's caveats under each component, from the list the console's

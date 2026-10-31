@@ -12,6 +12,12 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.162.2] - 2026-10-31
+
+### Fixed
+
+- **`sast` errors when gosec runs without Go on PATH.** gosec analyzes nothing without the Go toolchain, so a `sast` pass from a machine without Go had not checked the Go code. The control now fails with ``gosec needs Go, and no `go` is on PATH``, and govulncheck names the missing Go the same way. Put Go on PATH to scan Go modules.
+
 ## [0.162.1] - 2026-10-31
 
 ### Fixed
@@ -6641,7 +6647,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.162.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.162.2...HEAD
+[0.162.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.162.2
 [0.162.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.162.1
 [0.162.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.162.0
 [0.161.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.161.0

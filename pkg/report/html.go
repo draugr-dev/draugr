@@ -39,6 +39,9 @@ type htmlView struct {
 	// produce those and a table that omits them makes the parts look like the whole.
 	Components   []htmlComponent
 	Unattributed int
+	// Found is the console's FOUND section: what a run with no descriptor read from the tree, and
+	// what it turned on for each kind of file. Empty for a run from a descriptor.
+	Found []Found
 	// Caveats is the console's CAVEATS block under each component. A shared report is the copy read
 	// by somebody who never saw the console, and without it a component nothing checked reads as a
 	// clean one.
@@ -461,6 +464,7 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		view.Controls = append(view.Controls, htmlControl{Control: name, Errored: true, NoReport: true})
 	}
 	view.Components = htmlComponents(d, s)
+	view.Found = d.Found
 	view.Caveats = htmlCaveatBlock(d, view.Components)
 	view.Unattributed = d.UnattributedFindings
 	prio, sev, ctl, comp := map[string]int{}, map[string]int{}, map[string]int{}, map[string]int{}
@@ -1387,6 +1391,8 @@ const htmlDoc = `<!doctype html>
   .signals .moved { font-size: inherit; }
   .signals .how { color: var(--muted); }
   .signals .how code { color: var(--text); }
+  /* A path has no space to break at, and three of them joined are wider than a phone. */
+  .found code { overflow-wrap: anywhere; }
   /* The count is the way into the rows behind it. A fix list that says "5 findings" and cannot
    * show which five asks a reader to take it on trust, and the five are already on the page. */
   .rows .act-clears {
@@ -1636,7 +1642,7 @@ const htmlDoc = `<!doctype html>
      * column pushed off it. The heading and the mark wrap instead. */
     .signals th, .signals .moved { white-space: normal; }
     .signals .moved { align-items: baseline; }
-    .signals th, .signals td { padding-left: .4rem; padding-right: .4rem; }
+    :is(.signals, .found) th, :is(.signals, .found) td { padding-left: .4rem; padding-right: .4rem; }
     .rows .cvchip { font-size: 12px; }
     /* The components table closes up its cells and headings, meets the page's margin at both
      * edges, wraps a hyphenated name and puts an assumed mark under its value, so its five columns
@@ -1684,6 +1690,7 @@ const htmlDoc = `<!doctype html>
   <a class="tab" href="#findings-h">Findings</a>
   {{if .Signals}}<a class="tab" href="#signals">Signals</a>{{end}}
   {{if .Controls}}<a class="tab" href="#controls">Controls</a>{{end}}
+  {{if .Found}}<a class="tab" href="#found">Found</a>{{end}}
   {{if .Components}}<a class="tab" href="#components">Components</a>{{end}}
   {{if .Caveats.Groups}}<a class="tab{{if .Caveats.Fail}} err{{end}}" href="#caveats">Caveats</a>{{end}}
   {{if .Errors}}<a class="tab err" href="#errors">Errors</a>{{end}}
@@ -1751,6 +1758,16 @@ the component is, so the same issue ranks differently on a public API than on an
   </span>{{end}}
 </li>{{end}}
 </ul>
+</details>
+{{end}}
+{{if .Found}}
+<details class="fold" open><summary id="found"><span class="sec">Found</span></summary>
+<p class="note">What the run read from the tree, which <code>draugr init</code> writes to
+<code>draugr.saga.yaml</code>.</p>
+<table class="provenance found">
+<thead><tr><th scope="col">Kind</th><th scope="col">Files</th><th scope="col">This run</th></tr></thead>
+{{range .Found}}<tr><td>{{.Kind}}</td><td><code>{{.Files}}</code></td><td>{{.Did}}</td></tr>{{end}}
+</table>
 </details>
 {{end}}
 {{if .Components}}

@@ -1,9 +1,12 @@
 package scaffold
 
 import (
+	"flag"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -438,5 +441,122 @@ func TestScalarQuotesWhatYAMLWouldNotReadAsTheSameString(t *testing.T) {
 		if got := Scalar(in); got != want {
 			t.Errorf("Scalar(%q) = %s, want %s", in, got, want)
 		}
+	}
+}
+
+// update rewrites the scaffold golden files instead of comparing against them:
+//
+//	go test ./internal/scaffold -update
+var update = flag.Bool("update", false, "rewrite the scaffold golden files")
+
+// The text is pinned whole. The MCP server's propose_saga returns it to an assistant, and a model
+// reads every comment in it, so a change that passes every substring check above can still change
+// what an assistant proposes. A scan with no descriptor reads this text as its own configuration
+// as well, which is the second reason a change to it has to be deliberate.
+func TestSagaTextIsPinned(t *testing.T) {
+	t.Parallel()
+	monorepo := map[string]string{
+		"go.mod":                           "module shop\n\nrequire golang.org/x/text v0.3.0\n",
+		"services/api/go.mod":              "module api\n\nrequire golang.org/x/net v0.1.0\n",
+		"services/api/worker/package.json": `{"dependencies": {"left-pad": "1.0.0"}}`,
+		"web/package.json":                 `{"dependencies": {"left-pad": "1.0.0"}}`,
+		"web/package-lock.json":            `{"lockfileVersion": 3, "packages": {}}`,
+		"web/Dockerfile":                   "FROM scratch\n",
+		"requirements-dev.txt":             "pytest==8.0.0\n",
+	}
+	for _, tc := range []struct {
+		name         string
+		files        map[string]string
+		perDirectory bool
+	}{
+		{"empty", map[string]string{"README.md": "shop\n"}, false},
+		{"shop", shop, false},
+		{"monorepo", monorepo, false},
+		{"monorepo-per-directory", monorepo, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := scaffoldIn(t, tc.files, tc.perDirectory)
+			path := filepath.Join("testdata", "saga-"+tc.name+".golden")
+			if *update {
+				if err := os.WriteFile(path, []byte(got), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				return
+			}
+			want, err := os.ReadFile(path) // #nosec G304 -- a fixed path under testdata/
+			if err != nil {
+				t.Fatalf("read golden: %v (run: go test ./internal/scaffold -update)", err)
+			}
+			if got != string(want) {
+				t.Errorf("the scaffold text changed. propose_saga returns it to an assistant, and a scan with "+
+					"no descriptor reads it as its configuration. If the change is intended: "+
+					"go test ./internal/scaffold -update\n--- want ---\n%s\n--- got ---\n%s", want, got)
+			}
+		})
+	}
+}
+
+// Model is the text read back: every scanner the text enables is on in the model, and nothing the
+// text leaves commented out is.
+func TestModelIsTheTextReadBack(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	layout(t, dir, shop)
+	tree := inventory.Read(dir)
+	m, err := Model(tree, "shop")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := saga.Load([]byte(Saga(tree, "shop", false)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(m, want) {
+		t.Errorf("Model = %+v\nthe text reads as %+v", m, want)
+	}
+	if m.Config.Reachability == nil || !slices.Equal(m.Config.Reachability.Analyzers, []string{"govulncheck"}) {
+		t.Errorf("reachability = %+v, want govulncheck for a go.mod", m.Config.Reachability)
+	}
+	for control, scanner := range map[string]string{"sca": "retirejs", "sast": "gosec"} {
+		blk, ok := m.Config.Controls[control][scanner].(saga.ControllerSettings)
+		if !ok || blk["enabled"] != true {
+			t.Errorf("%s.%s = %v, want enabled", control, scanner, m.Config.Controls[control][scanner])
+		}
+	}
+	if _, on := m.Config.Controls["images"]; on {
+		t.Error("the images control is commented out in the text and must stay off")
+	}
+	c := m.Components[0]
+	if len(m.Components) != 1 || len(c.Images) != 0 || len(c.Hosts) != 0 {
+		t.Errorf("want one component with no images and no hosts, got %+v", m.Components)
+	}
+}
+
+// A file name may hold a line break, and the scaffold writes paths into comments. Each one is
+// quoted, so nothing after the break is read as part of the descriptor.
+func TestAPathCannotWriteIntoTheDescriptor(t *testing.T) {
+	t.Parallel()
+	for _, brk := range []string{"\n", "\r", "\u0085", " ", " "} {
+		evil := "web/x" + brk + "release:" + brk + "  version: injected" + brk + "#-1.0.0.js"
+		tree := inventory.Tree{
+			VendoredJS:  []string{evil},
+			Dockerfiles: []string{evil},
+			OpenAPI:     []string{evil},
+			Go:          []string{evil},
+		}
+		m, err := Model(tree, "shop")
+		if err != nil {
+			t.Fatalf("%q: %v", brk, err)
+		}
+		if m.Release.Version != "" {
+			t.Errorf("%q: a path set release.version to %q", brk, m.Release.Version)
+		}
+		if got := PathList([]string{evil}); strings.ContainsAny(got, "\r\n\u0085  ") {
+			t.Errorf("%q: PathList kept the break: %q", brk, got)
+		}
+	}
+	if got := OneLine("web/static/jquery.min.js"); got != "web/static/jquery.min.js" {
+		t.Errorf("an ordinary path is changed: %q", got)
 	}
 }

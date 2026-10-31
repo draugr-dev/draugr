@@ -559,12 +559,12 @@ func TestInstallNamesReadsTheDirectoryAsScanDoes(t *testing.T) {
 	if err != nil || all {
 		t.Fatalf("no descriptor: names=%v all=%v err=%v", names, all, err)
 	}
-	want := provisionable(needs.Tools(builtins.Registry(), syntheticSaga(".")))
+	want := provisionable(needs.Tools(builtins.Registry(), zeroConfigModel(t, ".")))
 	if len(want) == 0 || !slices.Equal(names, want) {
 		t.Errorf("no descriptor: names = %v, want what a zero-config scan runs, %v", names, want)
 	}
-	if !strings.Contains(out.String(), "without one ("+ZeroConfigControls("")+")") {
-		t.Errorf("the zero-config install does not say which controls it is for:\n%s", out.String())
+	if !strings.Contains(out.String(), "without one, the scanners `draugr init` would enable for this tree.") {
+		t.Errorf("the zero-config install does not say what it installs for:\n%s", out.String())
 	}
 
 	// A descriptor called anything a scan would find, not only the name init writes.

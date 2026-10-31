@@ -32,7 +32,7 @@ func notInstalled(missing ...string) func(string) (string, error) {
 // The zero-config scan's controls, with trivy and semgrep missing: each tool once, with every
 // control it would leave unrun, and nothing for a tool that is present.
 func TestMissingForScanNamesEachToolWithTheControlsItBlocks(t *testing.T) {
-	model := syntheticSaga(t.TempDir())
+	model := zeroConfigModel(t, t.TempDir())
 	got := missingForScan(builtins.Registry(), model, engine.Scope{}, notInstalled("trivy", "semgrep"))
 	want := []missingScanner{{tool: "semgrep", controls: []string{"sast"}}, {tool: "trivy", controls: []string{"iac", "sca"}}}
 	if !reflect.DeepEqual(got, want) {
@@ -68,15 +68,16 @@ func offerWith(answer string, missing ...string) (installOffer, *bytes.Buffer, *
 	}, &out, &installed
 }
 
-func runOffer(o installOffer, cfg config.File, scope engine.Scope) {
-	o.run(context.Background(), builtins.Registry(), syntheticSaga(os.TempDir()), scope, cfg)
+func runOffer(t *testing.T, o installOffer, cfg config.File, scope engine.Scope) {
+	t.Helper()
+	o.run(context.Background(), builtins.Registry(), zeroConfigModel(t, t.TempDir()), scope, cfg)
 }
 
 func TestTheOfferNamesWhatIsMissingAndInstallsItOnYes(t *testing.T) {
 	cfg := config.File{Tools: map[string]config.ToolSettings{"trivy": {Version: "0.69.3"}}}
 	for _, yes := range []string{"\n", "y\n", "YES\n"} {
 		o, out, installed := offerWith(yes, "trivy", "semgrep")
-		runOffer(o, cfg, engine.Scope{})
+		runOffer(t, o, cfg, engine.Scope{})
 		for _, want := range []string{
 			"semgrep and trivy are not installed, so iac, sast and sca would not run.\n",
 			"Install them now with draugr tools install semgrep trivy? [Y/n/never] ",
@@ -95,7 +96,7 @@ func TestTheOfferNamesWhatIsMissingAndInstallsItOnYes(t *testing.T) {
 
 func TestTheOfferForOneToolIsWorded(t *testing.T) {
 	o, out, _ := offerWith("n\n", "trivy")
-	runOffer(o, config.File{}, engine.Scope{Controls: []string{"iac"}})
+	runOffer(t, o, config.File{}, engine.Scope{Controls: []string{"iac"}})
 	for _, want := range []string{"trivy is not installed, so iac would not run.", "Install it now with draugr tools install trivy?"} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("missing %q in:\n%s", want, out)
@@ -106,7 +107,7 @@ func TestTheOfferForOneToolIsWorded(t *testing.T) {
 func TestNoAndAnythingElseInstallNothing(t *testing.T) {
 	for _, no := range []string{"n\n", "no\n", "maybe\n", ""} {
 		o, out, installed := offerWith(no, "trivy")
-		runOffer(o, config.File{}, engine.Scope{})
+		runOffer(t, o, config.File{}, engine.Scope{})
 		if len(*installed) != 0 {
 			t.Errorf("answer %q installed %v", no, *installed)
 		}
@@ -118,7 +119,7 @@ func TestNoAndAnythingElseInstallNothing(t *testing.T) {
 
 func TestNeverIsRememberedAndSaysHowToUndoIt(t *testing.T) {
 	o, out, installed := offerWith("never\n", "trivy")
-	runOffer(o, config.File{}, engine.Scope{})
+	runOffer(t, o, config.File{}, engine.Scope{})
 	if len(*installed) != 0 {
 		t.Errorf("never installed %v", *installed)
 	}
@@ -130,7 +131,7 @@ func TestNeverIsRememberedAndSaysHowToUndoIt(t *testing.T) {
 
 	o, out, _ = offerWith("never\n", "trivy")
 	o.remember = func() (string, string, error) { return "", "", errors.New("read-only file system") }
-	runOffer(o, config.File{}, engine.Scope{})
+	runOffer(t, o, config.File{}, engine.Scope{})
 	if !strings.Contains(out.String(), "could not write output.offerInstall: false: read-only file system. The scan continues.") {
 		t.Errorf("a failed write went unreported:\n%s", out)
 	}
@@ -142,7 +143,7 @@ func TestAFailedInstallIsReportedAndTheRestContinue(t *testing.T) {
 	o.install = func(context.Context, string, string) (tools.Installed, error) {
 		return tools.Installed{}, errors.New("download failed")
 	}
-	runOffer(o, config.File{}, engine.Scope{})
+	runOffer(t, o, config.File{}, engine.Scope{})
 	if !strings.Contains(out.String(), "✗ trivy: download failed") {
 		t.Errorf("failure not reported:\n%s", out)
 	}
@@ -164,7 +165,7 @@ func TestTheOfferIsMadeOnlyWhenItCanBeAnswered(t *testing.T) {
 			o, out, installed := offerWith("y\n", "trivy")
 			cfg := config.File{}
 			setup(&o, &cfg)
-			runOffer(o, cfg, engine.Scope{})
+			runOffer(t, o, cfg, engine.Scope{})
 			if out.Len() != 0 || len(*installed) != 0 {
 				t.Errorf("offered anyway: %q, installed %v", out, *installed)
 			}

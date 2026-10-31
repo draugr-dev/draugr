@@ -263,6 +263,11 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		}
 		_, _ = fmt.Fprintln(w)
 	}
+	// What the run read from the tree, on a run with no descriptor, beside the controls it explains.
+	// Context, so the dense view leaves it out, as it leaves out the components and the signals.
+	if !dense(d) {
+		writeFound(w, col, d)
+	}
 	// In every view. An error is why the run is incomplete, and a caveat is what it did not cover;
 	// a dense view drops context, never either of those.
 	writeErrors(w, col, d)
@@ -1819,6 +1824,25 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int) {
 	}
 	_, _ = fmt.Fprintln(w, heading(col, "Try"))
 	t.Render(w)
+}
+
+// foundNote is what the FOUND heading says about its rows, in every format.
+const foundNote = "read from the tree · `draugr init` writes them to draugr.saga.yaml"
+
+// writeFound lists what a run with no descriptor read from the tree, a row per kind of file, in the
+// rows `draugr init` prints for the same tree. Nothing on a run from a descriptor, whose reader
+// already wrote down what to scan.
+func writeFound(w io.Writer, col tui.Painter, d Data) {
+	if len(d.Found) == 0 {
+		return
+	}
+	_, _ = fmt.Fprintf(w, "%s  %s\n", heading(col, "Found"), col.Paint(cDim, foundNote))
+	t := tui.NewTable(col).Indent("  ")
+	for _, f := range d.Found {
+		t.Row(tui.PlainCell(f.Kind), tui.PlainCell(f.Files), tui.Styled(cDim, f.Did))
+	}
+	t.Render(w)
+	_, _ = fmt.Fprintln(w)
 }
 
 // writeSignals names everything that argued with a band, and what each one did.
