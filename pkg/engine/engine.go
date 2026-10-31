@@ -1475,7 +1475,13 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// Dependency health before reachability, so the ranking a reachability verdict is compared
 	// against already includes anything the dependency itself said. Both are enrichment that can
 	// only run once the scanners have produced something to enrich.
-	e.applyDependencyHealth(ctx, res.Controls, model)
+	//
+	// Recorded here rather than with the feeds the prioritizer was built with, because until now
+	// there was nothing to record: the lookup happens after the scanners, and a source asked before
+	// it has answered nothing.
+	if e.applyDependencyHealth(ctx, res.Controls, model) {
+		res.Consulted = append(slices.Clone(res.Consulted), e.health.Consulted()...)
+	}
 
 	// Reachability first, so a suppression decision is made against a fully enriched finding and
 	// an excused finding still carries the evidence about whether anything could reach it.
@@ -2630,14 +2636,14 @@ func WithDependencyHealth(resolve DependencyHealthResolver, src *dephealth.Sourc
 }
 
 // applyDependencyHealth asks about every package this run found, then reranks the findings the
-// answer moves.
+// answer moves. It reports whether the lookup happened, which is what the run's evidence records.
 //
 // A resolver that fails is reported by whoever supplied it and does not stop the run. This signal
 // never gates, so a lookup that did not happen costs a reader a line of evidence rather than a
 // verdict, which is the same trade the Nuclei template cache makes.
-func (e *Engine) applyDependencyHealth(ctx context.Context, controls map[string]plugin.ControlResult, model saga.Model) {
+func (e *Engine) applyDependencyHealth(ctx context.Context, controls map[string]plugin.ControlResult, model saga.Model) bool {
 	if e.resolveHealth == nil || e.health == nil {
-		return
+		return false
 	}
 	seen := map[string]bool{}
 	var purls []string
@@ -2651,14 +2657,14 @@ func (e *Engine) applyDependencyHealth(ctx context.Context, controls map[string]
 		}
 	}
 	if len(purls) == 0 {
-		return
+		return false
 	}
 	sort.Strings(purls) // so two runs over one tree ask the same question in the same order
 	if err := e.resolveHealth(ctx, purls); err != nil {
-		return // reported by the caller; the run continues unenriched
+		return false // reported by the caller; the run continues unenriched
 	}
 	if e.health.Empty() {
-		return
+		return true
 	}
 	for name, cr := range controls {
 		for i := range cr.Report.Results {
@@ -2669,6 +2675,7 @@ func (e *Engine) applyDependencyHealth(ctx context.Context, controls map[string]
 		}
 		controls[name] = cr
 	}
+	return true
 }
 
 // planImports plans a job for each SARIF file a component imports, under the control the

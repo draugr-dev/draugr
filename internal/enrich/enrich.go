@@ -53,8 +53,9 @@ func Load(ctx context.Context, settings exploitdata.Settings, cfg *saga.Dependen
 		engine.WithPrioritization(scanpolicy.PrioritizerWith(expl, health)),
 		// Beside the prioritizer, because they describe the same decision from two sides: what
 		// it did, and what it had to work from. A run that enriched without saying what it
-		// consulted produces evidence nobody can check the ranking against.
-		engine.WithConsulted(append(expl.Consulted(), health.Consulted()...)),
+		// consulted produces evidence nobody can check the ranking against. Dependency health is
+		// not among them: it has answered nothing yet, and the engine records it once it has.
+		engine.WithConsulted(expl.Consulted()),
 		// The same, for the controls the prioritizer ranks at a tier of their own: the report says
 		// a floor raised nothing only if the run says a floor was there to raise it.
 		engine.WithContextFloors(controllers.ControlsWithContextFloor()),
