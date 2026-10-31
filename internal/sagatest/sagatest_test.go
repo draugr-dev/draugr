@@ -100,7 +100,7 @@ func TestSchemaErrorJudgesEitherDocument(t *testing.T) {
 }
 
 func TestMutationsChangeOneThingAtATime(t *testing.T) {
-	base := map[string]any{"project": "shop", "tags": []any{"a"}}
+	base := map[string]any{"project": "shop", "tags": []any{"a"}, "enabled": true}
 	kinds := map[string]int{}
 	for _, m := range Mutations(base) {
 		kinds[m.Kind+" "+m.Path]++
@@ -108,16 +108,22 @@ func TestMutationsChangeOneThingAtATime(t *testing.T) {
 		if m.Kind == "upper" && m.Path == "project" && doc["project"] != "SHOP" {
 			t.Errorf("upper project: got %v", doc["project"])
 		}
+		if m.Kind == "string" {
+			if _, isBool := doc["enabled"].(bool); isBool {
+				t.Errorf("string enabled: still a boolean, %v", doc["enabled"])
+			}
+		}
 	}
 	for _, want := range []string{
 		"extra-key ", "null project", "upper project", "unknown project", "number project",
 		"bool project", "null tags", "null tags.0", "upper tags.0", "unknown tags.0",
+		"null enabled", "string enabled",
 	} {
 		if kinds[want] != 1 {
 			t.Errorf("mutation %q made %d times, want once", want, kinds[want])
 		}
 	}
-	if base["project"] != "shop" || base["tags"].([]any)[0] != "a" {
+	if base["project"] != "shop" || base["tags"].([]any)[0] != "a" || base["enabled"] != true {
 		t.Errorf("a mutation changed the document it was made from: %v", base)
 	}
 }

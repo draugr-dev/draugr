@@ -497,6 +497,9 @@ nothing: an option a scanner does not read is an error, not a setting that quiet
 three things: `enabled`, a scanner's block, or a setting the control takes. Anything else is
 rejected, whatever shape its value has.
 
+**`enabled` is `true` or `false`**, under a control and under a scanner. `yes`, `1` and a quoted
+`"true"` are rejected.
+
 ```console
 $ draugr validate draugr.saga.yaml
 draugr: config.controls.sast: scanners are enabled under their own name, not in a list. Write `config.controls.sast.<scanner>.enabled: true` (it has gosec or semgrep)

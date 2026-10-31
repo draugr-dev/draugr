@@ -2148,9 +2148,9 @@ In effect:
 
 **A command that reads the config refuses to run rather than falling back to the defaults.** That
 includes `scan`, and covers what `draugr validate` refuses in a descriptor: a control or scanner this
-build does not provide, a scanner option its schema rejects, a tool `tools install` does not
-provision, a value a scan would refuse, such as an `output.view` that is not a view or a
-negative `output.top`, and a key written with no value.
+build does not provide, a scanner option its schema rejects, an `enabled` that is not `true` or
+`false`, a tool `tools install` does not provision, a value a scan would refuse, such as an
+`output.view` that is not a view or a negative `output.top`, and a key written with no value.
 
 ```console
 $ draugr config validate draugr.config.yaml
