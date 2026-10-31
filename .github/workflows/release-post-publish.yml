@@ -341,7 +341,7 @@ jobs:
           # other 400 still fails, because those mean the listing did not reach the registry.
           if ! out=$("$GITHUB_WORKSPACE/mcp-publisher" publish 2>&1); then
             printf '%s\n' "$out"
-            if printf '%s' "$out" | grep -q 'cannot publish duplicate version'; then
+            if grep -q 'cannot publish duplicate version' <<<"$out"; then
               echo "::notice::Version $version is already in the MCP Registry; nothing to publish."
             else
               exit 1
