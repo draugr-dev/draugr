@@ -283,11 +283,12 @@ jobs:
           cat /tmp/shape.md
           # Loud where a control stopped reporting entirely, which is the one shape that is always
           # a defect rather than a difference of opinion between two scanner releases.
-          if jq -r -s '
+          silenced=$(jq -r -s '
             (.[0] | map({(.control): .n}) | add // {}) as $b |
             (.[1] | map({(.control): .n}) | add // {}) as $a |
             [($b | keys)[] | select(($b[.] > 0) and (($a[.] // 0) == 0))] | join(" ")
-          ' /tmp/before-shape.json /tmp/after-shape.json | grep -q '[a-z]'; then
+          ' /tmp/before-shape.json /tmp/after-shape.json)
+          if [ -n "$silenced" ]; then
             echo "::error::a control reported findings before the bump and none after"
             exit 1
           fi

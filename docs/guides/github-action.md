@@ -62,7 +62,29 @@ doctor saga.yaml --fail-on-uncovered` makes that a failing step instead of a not
 |---|---|---|---|
 | `auto` (default) | any | `diff` on `pull_request`, `scan` otherwise | both permissions below |
 | `scan` | push / schedule | full scan; the Saga's publishers deliver results (e.g. `github` → code scanning) | `security-events: write` |
-| `diff` | pull request | scan base + head, post one sticky new/fixed comment (publishers suppressed) | `pull-requests: write`, `fetch-depth: 0` |
+| `diff` | pull request, merge queue | scan base + head, post one sticky new/fixed comment (publishers suppressed). On `merge_group`: base is the commit the queue built the entry on, no comment | `pull-requests: write`, `fetch-depth: 0` |
+
+**In a merge queue**, `auto` picks `scan` for a `merge_group` event, which gates the entry on
+everything in the tree, findings already on `main` included. To gate an entry on the findings it
+adds, as `diff` gates its pull request, choose `diff` on `merge_group`:
+
+```yaml
+on:
+  pull_request:
+  merge_group:
+    types: [checks_requested]
+jobs:
+  draugr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: draugr-dev/draugr@v0
+        with:
+          mode: ${{ github.event_name == 'merge_group' && 'diff' || 'auto' }}
+          fail-on-new: P1
+```
 
 A pull request that adds the repository's first descriptor has none at its base. Diff mode then
 compares the head against no findings, so every finding is new and `fail-on-new` gates on them. A
