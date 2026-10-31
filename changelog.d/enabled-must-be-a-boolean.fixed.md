@@ -1,1 +1,0 @@
-- **`draugr validate` and `draugr config validate` refuse an `enabled` that is not `true` or `false`.** `enabled: yes` or `enabled: "true"` under a control or scanner passed validation, and then turned the control off or left a scanner at its default. Each is reported with its key and value.

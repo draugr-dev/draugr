@@ -1,0 +1,1 @@
+- **gosec no longer passes Go code it could not analyze.** Without the Go toolchain gosec analyzes nothing, and `sast` passed with no findings. The control now errors with `gosec needs Go`, and govulncheck names Go the same way instead of reporting `no go.mod file`.

@@ -12,6 +12,22 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.162.1] - 2026-10-31
+
+### Fixed
+
+- **A Notary Project signature from a root outside the signer's `x509.trustStore` is a finding.** The provenance control reports `provenance-unexpected-identity` on the image and names the trust store to check, where it reported that the control could not run.
+
+- **`draugr doctor` marks a tool whose version it cannot read.** A build that prints `dev`, or a version check that fails, shows `? version unknown` in the tools table instead of `✓ found`, as `draugr tools list` already does.
+
+- **`draugr validate` and `draugr config validate` refuse an `enabled` that is not `true` or `false`.** `enabled: yes` or `enabled: "true"` under a control or scanner passed validation, and then turned the control off or left a scanner at its default. Each is reported with its key and value.
+
+- **The HTML report's labels are readable in the light theme, the one a printed report uses.** P2 and P3 were drawn in their band's fill color, under 2:1 on white. Every priority and severity label now clears 4.5:1 in both themes, and P1 stays apart from P2 for a reader with red-green color blindness.
+
+- **The HTML report's rows use the full width of a phone.** On a narrow screen a finding, a fix-list row or a caveat opens with its priority and severity chips and wraps its text beneath them, where the chips had a column of their own taking about 40% of the row. A long rule id wraps inside its row, and the `more` mark that opens the row stays in view.
+
+- **Reports list dependency health under `SIGNALS`.** With `config.dependencyHealth` on, the console, HTML and markdown reports list `malicious` and `deprecated` with the findings each raised, or `nothing raised`, and `report.json` names dependency health in `consulted`, the datasets the run read.
+
 ## [0.162.0] - 2026-10-31
 
 ### Added
@@ -6625,7 +6641,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.162.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.162.1...HEAD
+[0.162.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.162.1
 [0.162.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.162.0
 [0.161.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.161.0
 [0.160.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.160.0

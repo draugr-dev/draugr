@@ -1,1 +1,0 @@
-- **A Notary Project signature from a root outside the signer's `x509.trustStore` is a finding.** The provenance control reports `provenance-unexpected-identity` on the image and names the trust store to check, where it reported that the control could not run.
