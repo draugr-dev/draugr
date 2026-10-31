@@ -497,6 +497,9 @@ nothing: an option a scanner does not read is an error, not a setting that quiet
 three things: `enabled`, a scanner's block, or a setting the control takes. Anything else is
 rejected, whatever shape its value has.
 
+**`enabled` is `true` or `false`**, under a control and under a scanner. `yes`, `1` and a quoted
+`"true"` are rejected.
+
 ```console
 $ draugr validate draugr.saga.yaml
 draugr: config.controls.sast: scanners are enabled under their own name, not in a list. Write `config.controls.sast.<scanner>.enabled: true` (it has gosec or semgrep)
@@ -646,6 +649,20 @@ P1  critical  NSWG-ECO-328 · Cross-Site Scripting (XSS)
 ```
 
 The publisher's own words travel in `report.json` and the SARIF, where there is room for a sentence.
+
+When the lookup answers, `SIGNALS` lists `malicious` and `deprecated` with the findings each raised,
+or `nothing raised`. Neither row appears when the lookup did not answer.
+
+```console
+SIGNALS
+  KEV           2 findings raised
+  EPSS          2 findings raised
+  malicious     nothing raised
+  deprecated    12 findings raised
+  reachability  govulncheck · 2 reachable, 3 unreachable
+```
+
+`report.json` records the lookup under [`consulted`](report-schema.md#what-the-run-carries).
 
 **What it covers.** The language ecosystems deps.dev indexes: Cargo, Go, Maven, npm, NuGet, PyPI and
 RubyGems. Operating-system packages from a container image are not among them, so on an image-heavy

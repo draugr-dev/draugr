@@ -235,3 +235,83 @@ func TestAFloorThatRaisedIsListedWithoutTheRunsFloors(t *testing.T) {
 	}
 	t.Errorf("no floor row in %+v", rows)
 }
+
+// healthData is a run whose dependency-health lookup raised one of two components' findings as
+// deprecated, and found nothing malicious.
+func healthData(recorded bool) Data {
+	d := Data{Run: engine.Result{Controls: map[string]plugin.ControlResult{
+		"sca": {Control: "sca", Report: sarif.Report{Tool: "trivy", Results: []sarif.Result{
+			{RuleID: "NSWG-ECO-328", Level: sarif.LevelWarning, Priority: "P2", Component: "web",
+				Escalation: &sarif.Escalation{Signal: "deprecated", From: "medium", To: "high"}},
+			{RuleID: "CVE-2019-20477", Level: sarif.LevelWarning, Priority: "P3", Component: "api"},
+		}}},
+	}}}
+	if recorded {
+		d.Run.Consulted = []sarif.Consulted{{Signal: "dependency-health", AsOf: "2026-10-31", Entries: 2}}
+	}
+	return d
+}
+
+// Dependency health's two signals are listed whenever its lookup answered, each with what it raised,
+// in every report: "nothing raised" for malicious is a result, and a missing row cannot be told from
+// a run that never asked.
+func TestDependencyHealthIsListedWheneverItsLookupAnswered(t *testing.T) {
+	var console, page, md bytes.Buffer
+	d := healthData(true)
+	if err := (consoleReporter{}).Render(&console, d); err != nil {
+		t.Fatal(err)
+	}
+	if err := (htmlReporter{}).Render(&page, d); err != nil {
+		t.Fatal(err)
+	}
+	if err := (markdownReporter{}).Render(&md, d); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"\n  malicious   nothing raised\n", "\n  deprecated  1 finding raised\n"} {
+		if !strings.Contains(console.String(), want) {
+			t.Errorf("console signals want %q:\n%s", want, console.String())
+		}
+	}
+	for _, want := range []string{
+		`<td><code>malicious</code></td><td class="how"><span class="moved up"><span class="g">↑</span>severity to critical</span> ` +
+			`when the package is in the OSSF Malicious Packages Project</td><td>nothing raised</td>`,
+		`<td><code>deprecated</code></td><td class="how"><span class="moved up"><span class="g">↑</span>severity one band</span> ` +
+			`when the publisher has marked the version as no longer supported</td><td>1 finding raised</td>`,
+	} {
+		if !strings.Contains(page.String(), want) {
+			t.Errorf("the html report is missing\n%s", want)
+		}
+	}
+	for _, want := range []string{
+		"| malicious | **↑ severity to critical** when the package is in the OSSF Malicious Packages Project | nothing raised |\n",
+		"| deprecated | **↑ severity one band** when the publisher has marked the version as no longer supported | 1 finding raised |\n",
+	} {
+		if !strings.Contains(md.String(), want) {
+			t.Errorf("markdown signals want %q:\n%s", want, md.String())
+		}
+	}
+}
+
+// A run that did not ask lists neither. One whose caller ranked with dependency health without
+// recording the lookup still lists the signal that raised something, because the count alone shows
+// it applied, and leaves out the one it cannot vouch for.
+func TestDependencyHealthIsLeftOutWhenNothingSaysItRan(t *testing.T) {
+	names := func(d Data) map[string]string {
+		rows, _ := signals(d, summarize(d))
+		out := map[string]string{}
+		for _, r := range rows {
+			out[r.Name] = r.Did
+		}
+		return out
+	}
+	off := healthData(false)
+	sca := off.Run.Controls["sca"]
+	sca.Report.Results[0].Escalation = nil
+	off.Run.Controls["sca"] = sca
+	if got := names(off); got["malicious"] != "" || got["deprecated"] != "" {
+		t.Errorf("a run that never asked lists %v", got)
+	}
+	if got := names(healthData(false)); got["deprecated"] != "1 finding raised" || got["malicious"] != "" {
+		t.Errorf("an unrecorded lookup that raised one finding: %v", got)
+	}
+}

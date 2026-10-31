@@ -2,7 +2,9 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/controllers"
@@ -40,6 +42,9 @@ type controlChecker struct {
 	// Whether any problem was about what a block says rather than what it names, which decides
 	// where the closing line sends the reader: the option list, or the control list.
 	optionProblem bool
+	// How many problems are an `enabled` that is not true or false. Each names what it accepts,
+	// so a report of only these needs no closing line.
+	enabledProblems int
 }
 
 func newControlChecker(reg *engine.Registry) *controlChecker {
@@ -107,6 +112,7 @@ func (ck *controlChecker) settings(where, control string, settings saga.Controll
 	if !ck.known[control] {
 		return // the control itself is already reported; its keys would be noise
 	}
+	ck.enabled(where+"."+control, settings)
 	for _, key := range sortedKeys(settings) {
 		if key == "enabled" || ck.keysFor[control][key] || ck.optionsFor[control][key] {
 			continue
@@ -167,6 +173,7 @@ func (ck *controlChecker) settings(where, control string, settings saga.Controll
 					"Write `%s: { enabled: true }`", where, control, key, key))
 			continue
 		}
+		ck.enabled(where+"."+control+"."+key, block)
 		cfg := plugin.Config{}
 		for k, v := range block {
 			if k != "enabled" {
@@ -203,6 +210,37 @@ func (ck *controlChecker) settings(where, control string, settings saga.Controll
 	}
 }
 
+// enabled reports an `enabled` in a control's or a scanner's block that is not true or false.
+//
+// The run reads any other value as if the key said something else: a control as off, and a scanner
+// as though the key were absent, so `enabled: "false"` leaves a default scanner running.
+func (ck *controlChecker) enabled(where string, block map[string]any) {
+	v, ok := block["enabled"]
+	// A key with no value is refused where the file is read, under its own message.
+	if !ok || v == nil {
+		return
+	}
+	if _, ok := v.(bool); ok {
+		return
+	}
+	ck.problems = append(ck.problems, fmt.Sprintf("%s.enabled: expected %s, got %s", where, acceptsBool, valueText(v)))
+	ck.enabledProblems++
+}
+
+// valueText shows a value from a block as a refusal names it: a string quoted, so `"true"` reads
+// as text, and a mapping or a list by its shape.
+func valueText(v any) string {
+	switch x := v.(type) {
+	case string:
+		return strconv.Quote(x)
+	case map[string]any:
+		return "a mapping"
+	case []any:
+		return "a list"
+	}
+	return fmt.Sprint(v)
+}
+
 // controls checks every control in a map of control settings, under where.
 func (ck *controlChecker) controls(where string, controls map[string]saga.ControllerSettings) {
 	for _, name := range sortedKeys(controls) {
@@ -211,8 +249,12 @@ func (ck *controlChecker) controls(where string, controls map[string]saga.Contro
 	}
 }
 
-// hint is the line that closes a report of these problems.
+// hint is the line that closes a report of these problems, or "" when every problem already says
+// what it accepts.
 func (ck *controlChecker) hint() string {
+	if ck.enabledProblems == len(ck.problems) {
+		return ""
+	}
 	if ck.optionProblem {
 		return "run `draugr controls --options` to see what each scanner accepts"
 	}
@@ -295,7 +337,10 @@ func checkControlNames(reg *engine.Registry, model *saga.Model) error {
 	if len(ck.problems) == 0 {
 		return nil
 	}
-	return fmt.Errorf("%s\n\n%s", strings.Join(ck.problems, "\n"), ck.hint())
+	if h := ck.hint(); h != "" {
+		return fmt.Errorf("%s\n\n%s", strings.Join(ck.problems, "\n"), h)
+	}
+	return errors.New(strings.Join(ck.problems, "\n"))
 }
 
 // nearestName returns the known name closest to name, or "" when nothing is close enough.
