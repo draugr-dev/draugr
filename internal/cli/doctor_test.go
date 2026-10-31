@@ -593,6 +593,74 @@ func TestTheTableIsSilentWhenEveryToolMatches(t *testing.T) {
 	}
 }
 
+// A copy whose version cannot be read, such as a build that reports `dev`, gets the status
+// `tools list` gives it and no tick, beside a copy whose version reads. It is still present, so it
+// fails nothing.
+func TestDoctorDoesNotTickAVersionItCannotRead(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	detect := func(_ context.Context, tool tools.Tool) tools.Status {
+		st := tools.Status{Tool: tool, Found: true, Path: "/usr/bin/" + tool.Binary}
+		if tool.Binary == "git" {
+			st.Version = "2.55.0"
+		}
+		return st
+	}
+	var out bytes.Buffer
+	if err := runDoctor(context.Background(), &out, builtins.Registry(),
+		writeSaga(t, doctorSagaRepoAndImage), doctorRun{}, detect, nil); err != nil {
+		t.Fatalf("a copy whose version cannot be read is not a missing tool: %v\n%s", err, out.String())
+	}
+	rows := map[string]string{}
+	for _, line := range strings.Split(out.String(), "\n") {
+		if f := strings.Fields(line); len(f) > 0 {
+			rows[f[0]] = squeeze(line)
+		}
+	}
+	for tool, want := range map[string]string{
+		"trivy": "trivy  ? version unknown  -  /usr/bin/trivy",
+		"git":   "git  ✓ found  2.55.0  /usr/bin/git",
+	} {
+		if rows[tool] != want {
+			t.Errorf("%s row:\n got %q\nwant %q\n%s", tool, rows[tool], want, out.String())
+		}
+	}
+	if !strings.Contains(out.String(), "All required tools present.") {
+		t.Errorf("both tools are present:\n%s", out.String())
+	}
+}
+
+// Every way a version goes unread draws the same status, and what else the row says survives it. A
+// tool with no data is still a failure, whatever its version.
+func TestTheTableMarksAnUnreadVersionWhateverElseItSays(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	for _, tc := range []struct {
+		name string
+		st   tools.Status
+		want string
+	}{
+		{"the probe failed", tools.Status{
+			Tool: tools.Tool{Binary: "gosec"}, Found: true, Path: "/x/gosec", Err: errors.New("exit status 2"),
+		}, "gosec  ? version unknown  -  /x/gosec (version check failed)"},
+		{"its data is present", tools.Status{
+			Tool: tools.Tool{Binary: "nuclei"}, Found: true, Path: "/x/nuclei",
+			DataChecked: true, DataFound: true, DataDetail: "templates 10.3.1",
+		}, "nuclei  ? version unknown  -  /x/nuclei · templates 10.3.1"},
+		{"its data is missing", tools.Status{
+			Tool: tools.Tool{Binary: "nuclei", DataHint: "run nuclei -update-templates"}, Found: true,
+			Path: "/x/nuclei", DataChecked: true,
+		}, "nuclei  ✗ no data  -  run nuclei -update-templates"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			writeDoctorTable(&buf, []tools.Status{tc.st}, nil)
+			lines := strings.Split(buf.String(), "\n")
+			if len(lines) < 3 || squeeze(lines[2]) != tc.want {
+				t.Errorf("row:\n got %q\nwant %q\n%s", squeeze(lines[min(2, len(lines)-1)]), tc.want, buf.String())
+			}
+		})
+	}
+}
+
 // Without a descriptor, --strict still answers about the tools that are present. A missing tool in
 // the inventory is reported and not failed, and it does not stand in for the answer --strict asked.
 func TestDoctorStrictWithoutADescriptorAppliesWhenAToolIsMissing(t *testing.T) {
