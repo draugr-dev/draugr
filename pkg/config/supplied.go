@@ -16,26 +16,41 @@ type Supplied struct {
 }
 
 // MergeControls lays a descriptor's controls over the control defaults in effect, and names the
-// file behind each default that reached the result.
+// file behind each default that reached the result. controls is the descriptor's config.controls,
+// and components its components, read for the controls they turn on.
+//
+// A block supplies settings to a control the descriptor turns on, at the top level or on a
+// component, and turns a control on itself only with `enabled: true`. A machine-wide scanner option
+// would otherwise add its control to every scan on the machine, and the descriptor is what decides
+// which controls run. For a control only components turn on, the defaults are laid under an
+// `enabled: false` top-level block, so the components that turn it on inherit them and the rest
+// stay off, as a descriptor written that way behaves.
 //
 // The merge and the attribution are one function so they cannot disagree about which value won. A
 // default reaches the result where the descriptor sets nothing at that setting or above it, and it
 // is the most specific file's, the rule Resolve applies between files. A default the descriptor
-// overrode is attributed to nobody: it changed nothing the descriptor's digest is taken over. Files
-// are returned least specific first, and a file that supplied nothing is left out.
-func (r Resolved) MergeControls(controls map[string]saga.ControllerSettings) (map[string]saga.ControllerSettings, []Supplied) {
+// overrode, or one for a control nothing turns on, is attributed to nobody: it changed nothing the
+// descriptor's digest is taken over. Files are returned least specific first, and a file that
+// supplied nothing is left out.
+func (r Resolved) MergeControls(controls map[string]saga.ControllerSettings, components []saga.Component) (map[string]saga.ControllerSettings, []Supplied) {
 	if len(r.File.Controls) == 0 {
 		return controls, nil
 	}
 	merged := make(map[string]saga.ControllerSettings, len(controls)+len(r.File.Controls))
 	maps.Copy(merged, controls)
+	reached := map[string]bool{}
 	for control, defaults := range r.File.Controls {
-		merged[control] = DeepMerge(defaults, controls[control])
+		under, ok := underneath(control, defaults, controls, components)
+		if !ok {
+			continue
+		}
+		reached[control] = true
+		merged[control] = DeepMerge(defaults, under)
 	}
 
 	settings := make([][]string, len(r.Sources))
 	for _, path := range leaves(nil, r.File.Controls) {
-		if setAt(controls, path) {
+		if !reached[path[0]] || setAt(controls, path) {
 			continue
 		}
 		owner := -1
@@ -57,6 +72,29 @@ func (r Resolved) MergeControls(controls map[string]saga.ControllerSettings) (ma
 		out = append(out, Supplied{Source: s, Settings: settings[i]})
 	}
 	return merged, out
+}
+
+// underneath is what a control's defaults are merged under, and whether they reach the descriptor
+// at all: the descriptor's own block where it has one, an `enabled: false` block where only
+// components turn the control on, and nothing where the defaults turn it on themselves.
+func underneath(control string, defaults saga.ControllerSettings, controls map[string]saga.ControllerSettings,
+	components []saga.Component) (saga.ControllerSettings, bool) {
+	project := saga.Config{Controls: controls}
+	if on, _ := defaults["enabled"].(bool); on {
+		return controls[control], true
+	}
+	if project.ControllerEnabled(control) {
+		return controls[control], true
+	}
+	for _, comp := range components {
+		if _, own := comp.Controls[control]; own && comp.ControllerEnabled(control, project) {
+			if block, declared := controls[control]; declared {
+				return block, true
+			}
+			return saga.ControllerSettings{"enabled": false}, true
+		}
+	}
+	return nil, false
 }
 
 // leaves lists the path to every value under controls that is not itself a mapping with keys, the

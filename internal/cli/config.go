@@ -41,7 +41,8 @@ const starterConfig = `# draugr.config.yaml, machine and organization settings, 
 # ` + "`draugr config show`" + ` lists what is in effect and where each value came from.
 
 # Default settings for a control, merged *underneath* the Saga's config.controls, so a project
-# overrides only the keys it cares about. For example:
+# overrides only the keys it cares about. Settings apply to a control the Saga turns on, and
+# enabled: true in a block turns its control on for every Saga that leaves it out. For example:
 #
 #   controls:
 #     sast:
