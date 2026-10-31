@@ -1,1 +1,0 @@
-- **A shared HTML or markdown report says what the scan did not cover.** Every row of the console's `CAVEATS` block appears under its component, in a Caveats tab in HTML and a Caveats section in markdown. A kind listed in `config.gate.failOnCaveats` is marked `✗`. Markdown's separate not-measured and unread lists are folded in.

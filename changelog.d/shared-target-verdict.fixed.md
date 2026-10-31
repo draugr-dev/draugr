@@ -1,1 +1,0 @@
-- **Every component that declares a target no scanner could read reads `ERROR`.** Two components sharing one unreadable image are both marked in every run, whichever job reached the image first, and `ERRORS` lists the image once with both components.

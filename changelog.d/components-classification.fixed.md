@@ -1,1 +1,0 @@
-- **The Components table shows the exposure and criticality each component was ranked with.** The HTML and markdown reports show them as two columns, `Exposure` and `Criticality`, in place of `Declared`, and a level the descriptor left out appears as the one the ranking used, `public` or `critical`, marked `assumed`. The HTML table also fits a phone screen.

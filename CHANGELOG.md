@@ -12,6 +12,48 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.162.0] - 2026-10-31
+
+### Added
+
+- **`draugr config edit` opens the config file in your editor.** A save that would add a problem is not written, and the editor reopens with the problems listed as comments at the top. The next save removes them. Saving the file unchanged, or empty, cancels. With no file yet, it opens the starter `draugr config init` writes.
+
+- **`draugr config keys` lists every key `draugr.config.yaml` takes, with what each accepts and its default.** Each control is one line naming its scanners' keys. `draugr config keys controls.sca` lists one control's keys, and `--all` lists every key on a line of its own. A mistyped key in `config get`, `set` or `unset` names the nearest real one.
+
+- **`--evidence` names the config file behind each control default a run applied.** The `DESCRIPTOR` section lists each such file with its digest and the settings it supplied, and the `descriptor` row says the merged digest includes those defaults. `report.json` adds each file to `descriptor.sources`, with `config` saying which file it was (`machine`, `project`, `--config` or `DRAUGR_CONFIG`), and names it beside each setting in `descriptor.contributed`.
+
+- **Your editor can complete and check `draugr.config.yaml`.** A JSON Schema for the file checks control, scanner and tool names and every scanner option, as `draugr config validate` does. `draugr config init` writes the comment line that points an editor at the schema, and `draugr schema --config-file` prints the schema your installed version enforces.
+
+- **Narrow the HTML report's findings by what moved their band.** A Movement menu offers `raised by a signal`, `floored by a control`, `lowered as unreachable` and `ranked from severity alone`, each with its count. A finding can match more than one.
+
+- **The HTML and markdown reports say how each signal moves a finding.** Their Signals table gains a column: KEV raises severity to critical, EPSS raises it one band at or above the threshold the run used, the context floor raises a leaked credential's priority to P1, and reachability lowers severity one band.
+
+### Changed
+
+- **A control block in `draugr.config.yaml` no longer turns its control on.** Its settings apply only to a control the descriptor turns on, whether at the top level or on a component. To run a control on every scan that reads the file, set `enabled: true` in its block.
+
+- **`draugr.config.yaml` refuses a key written with no value**, such as `tools:` on a line of its own or `enabled: null`, as a Saga already does. Such a key was read as absent, so a setting somebody started was silently not in force. The error names the key and its line.
+
+- **`draugr config keys` and your editor show the default of a scanner option that has one.** The Saga and config schemas declare it.
+
+### Fixed
+
+- **`draugr scan --allow-effects` refuses a value that is not an effect.** It accepts `disclosure`, `mutate`, `network` and `privilege`, as `config.allowEffects` does, and names the value before anything runs, so `report.json` never lists a misspelled effect as allowed.
+
+- **`draugr survey azure repos` documents the Azure DevOps Server address it takes.** Set `AZURE_DEVOPS_URL` to the server without its collection, such as `https://tfs.example.com` or `https://tfs.example.com/tfs`, and pass the collection as `--org`. If `AZURE_DEVOPS_URL` names a collection instead, pass a project as `--org`.
+
+- **The Components table shows the exposure and criticality each component was ranked with.** The HTML and markdown reports show them as two columns, `Exposure` and `Criticality`, in place of `Declared`, and a level the descriptor left out appears as the one the ranking used, `public` or `critical`, marked `assumed`. The HTML table also fits a phone screen.
+
+- **A shared HTML or markdown report says what the scan did not cover.** Every row of the console's `CAVEATS` block appears under its component, in a Caveats tab in HTML and a Caveats section in markdown. A kind listed in `config.gate.failOnCaveats` is marked `✗`. The markdown report's separate not-measured and unread lists are now part of that section.
+
+- **`ERRORS` names the registry that refused an image, and the command that fixes it.** `ERRORS` groups those images under the registry with its answer, such as `401 unauthorized, no credential`, and prints `docker login <host>` once, as the HTML report does. Both `ERRORS` and `draugr doctor` shorten digests and fit a narrow terminal.
+
+- **Every component sharing a target no scanner could read is marked `ERROR`.** When two components declare one unreadable image, both are marked on every run, and `ERRORS` lists the image once with both components.
+
+- **`SIGNALS` lists the context floor when it raised nothing.** A run in which the `secrets` control ran has a `floor` row saying `nothing raised`, in the console, HTML and markdown reports, so a floor that raised nothing can be told from one that did not run.
+
+- **`draugr tools list` marks a copy of a tool that Draugr did not install.** The `Source` column is now `Install with`, with `-` for a tool Draugr does not install. A copy outside `~/.draugr/bin` is marked `not installed by Draugr`, and a version the tool does not report shows `? version unknown`, with no `✓`.
+
 ## [0.161.0] - 2026-10-30
 
 ### Added
@@ -6583,7 +6625,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.161.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.162.0...HEAD
+[0.162.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.162.0
 [0.161.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.161.0
 [0.160.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.160.0
 [0.159.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.159.0

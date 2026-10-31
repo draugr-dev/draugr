@@ -1,1 +1,0 @@
-- **An image its registry refused names the registry and the command that fixes it.** `ERRORS` groups those images under the registry with its answer, such as `401 unauthorized, no credential`, and prints `docker login <host>` once, as the HTML report does. Both `ERRORS` and `draugr doctor` shorten digests and fit a narrow terminal.
