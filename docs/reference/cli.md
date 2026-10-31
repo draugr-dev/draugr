@@ -1338,6 +1338,10 @@ trivy        ✓ found    0.69.3   /usr/bin/trivy · tested against 0.74.0
 The line is a note, not a failure, unless `--strict` is given. An older scanner can find fewer
 things than the tested build.
 
+A tool whose version Draugr cannot read, such as a build that reports `dev`, shows
+`? version unknown` instead of `✓ found`, the status [`draugr tools list`](#draugr-tools-list)
+gives it. The line under the table does not count it, and `--strict` does not fail on it.
+
 A pinned tool is held to its pin instead. Its row names the file that sets the pin, and the
 version when the tool is not at it. The line under the table counts the two kinds apart:
 

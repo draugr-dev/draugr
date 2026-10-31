@@ -520,14 +520,22 @@ func writeDoctorTable(w io.Writer, statuses []tools.Status, pins map[string]tool
 			status, notes, style = "– optional", "optional: "+installAdvice(st.Tool), tui.StyleMuted
 		case !st.Found:
 			status, notes, style = "✗ missing", "install: "+installAdvice(st.Tool), tui.StyleFail
-		case st.Err != nil:
-			version, notes = "?", fmt.Sprintf("%s (version check failed)", st.Path)
 		case st.DataChecked && !st.DataFound:
 			// Found, runnable, and useless. Reported as a failure rather than a note, because it
 			// fails a scan exactly as surely as the binary being absent.
 			status, notes, style = "✗ no data", st.Tool.DataHint, tui.StyleFail
-		case st.DataChecked && st.DataDetail != "":
-			notes = st.Path + " · " + st.DataDetail
+		default:
+			// The status `tools list` gives the same copy. A tick would tell the reader the copy is
+			// fine when nothing has checked its version.
+			if st.Version == "" {
+				status, style = versionUnknown()
+			}
+			if st.Err != nil {
+				notes += " (version check failed)"
+			}
+			if st.DataChecked && st.DataDetail != "" {
+				notes += " · " + st.DataDetail
+			}
 		}
 		// Found and runnable, and not the build an install would fetch. In the row because this is
 		// where somebody looks up one tool, and counted below because a machine that has not
