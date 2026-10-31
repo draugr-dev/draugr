@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"slices"
@@ -17,6 +18,7 @@ import (
 	"time"
 
 	"github.com/draugr-dev/draugr/internal/git"
+	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -49,7 +51,31 @@ func NewGovulncheck() plugin.Scanner {
 	)
 	s.cacheVersion = govulncheckCacheVersion
 	s.preflight = func(ctx context.Context, _ plugin.Config) error { return govulncheckPreflight(ctx) }
+	s.run = onRuntime(s.info.Binary, s.run)
 	return s
+}
+
+// lookRuntime finds a runtime on PATH. A variable so a test can take one off it.
+var lookRuntime = exec.LookPath
+
+// onRuntime runs a tool only where the runtime the tool catalog says it runs on is on PATH, and
+// otherwise refuses with that runtime named.
+//
+// The tool's own answer names a symptom or nothing at all. govulncheck loads a module's packages
+// with `go`, and with no `go` it reports "no go.mod file" over a module that has one; gosec exits 0
+// having analyzed nothing. Checked where the tool runs rather than before the checkout, so a tree
+// holding no module, where nothing runs, still reports that it holds none.
+func onRuntime(binary string, run func(ctx context.Context, dir string, argv []string) ([]byte, error)) func(ctx context.Context, dir string, argv []string) ([]byte, error) {
+	rt := tools.Catalog()[binary].Runtime
+	if rt.Binary == "" {
+		return run
+	}
+	return func(ctx context.Context, dir string, argv []string) ([]byte, error) {
+		if _, err := lookRuntime(rt.Binary); err != nil {
+			return nil, fmt.Errorf("%s needs %s, and no `%s` is on PATH", binary, rt.Name, rt.Binary)
+		}
+		return run(ctx, dir, argv)
+	}
 }
 
 // govulncheckCacheVersion is the scanner and database version a cached result was made with.

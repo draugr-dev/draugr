@@ -99,6 +99,10 @@ check does not apply to this codebase at all.
 
 - Integration mode: **exec** over a local checkout; `gosec` + `git` must be on `PATH`
   (`draugr tools install gosec` provisions a pinned, SHA-256-verified copy).
+- gosec loads a module's packages with `go`, so Go must be on `PATH` too. Without it gosec exits 0
+  having analyzed nothing, and the scan fails the control with ``gosec needs Go, and no `go` is on
+  PATH`` rather than reporting the module clean. A tree holding no module runs nothing and needs no
+  Go.
 - gosec signs its releases with a **key-based** cosign bundle; Draugr's identity-based signature
   verification (used for Trivy) doesn't cover that yet, so `tools install` verifies gosec by
   SHA-256 only for now.

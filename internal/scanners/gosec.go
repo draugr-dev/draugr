@@ -64,6 +64,9 @@ func NewGosec() plugin.Scanner {
 		parseGosec,
 	)
 	s.cacheVersion = sharedGosecVersion.version
+	// gosec loads a module's packages with `go`. Without it, gosec exits 0 having analyzed
+	// nothing, and the control would read as a clean pass.
+	s.run = onRuntime(s.info.Binary, s.run)
 	return s
 }
 
