@@ -382,7 +382,7 @@ own property bag:
 |---|---|
 | `draugr/provenance` | What each scanner said about its own run, the standard applied, the scope, how much of it could be decided. An entry stating `coverage` carries `component`, the component whose tree it describes |
 | `decided` | The classifications this run settled, whether or not a finding resulted |
-| `consulted` | The exploitability datasets the run had loaded: the signal, the day the copy was obtained, whether it was older than the run's `maxAge`, how many records it held, the EPSS threshold, and what set it |
+| `consulted` | The datasets the run ranked with, the exploitability feeds it had loaded and `dependency-health` once its lookup answered: the signal, the day the copy was obtained, whether it was older than the run's `maxAge`, how many records it held, the EPSS threshold, and what set it |
 
 **`decided` and `consulted` both exist to separate "looked and found nothing" from "never
 looked."** A scanner that reports nothing about a control has either examined it and been
@@ -404,7 +404,7 @@ an escalation that arrives anonymous: the dataset names itself and the day its c
 while the line a score was measured against does not say who drew it. Whether a band is a policy or
 an accident depends on the answer.
 
-A run that loaded no exploitability data writes no `consulted` block at all.
+A run that loaded no exploitability data and asked nothing of dependency health writes no `consulted` block at all. `dependency-health` is absent when the lookup failed or knew none of the run's packages; `entries` is how many it knew.
 
 The `sarif` report is also what your editor reads. See [see findings in your
 editor](../guides/findings-in-your-editor.md) for inline diagnostics in VS Code and JetBrains.
