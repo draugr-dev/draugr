@@ -134,6 +134,59 @@ func TestPoolSharedTreeIsReadOnly(t *testing.T) {
 	}
 }
 
+// A checkout holds whatever symbolic links its repository commits, pointing wherever the
+// repository says. Freezing and thawing the tree must change the modes of what is in it and of
+// nothing a link reaches: a file outside the checkout keeps its mode, and a directory a link names
+// stays one a scanner can enter.
+func TestPoolNeverChangesWhatASymlinkPointsAt(t *testing.T) {
+	outside := filepath.Join(t.TempDir(), "id_ed25519")
+	if err := os.WriteFile(outside, []byte("private"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	p := NewPool()
+	tree, _, err := p.Checkout(context.Background(), "repo@rev", func(context.Context) (Tree, func(), error) {
+		tree, clean, err := fakeTree(t)
+		if err != nil {
+			return tree, clean, err
+		}
+		linked := filepath.Join(tree.Dir, "gci")
+		if err := os.Mkdir(linked, 0o750); err != nil {
+			return tree, clean, err
+		}
+		if err := os.WriteFile(filepath.Join(linked, "OWNERS"), []byte("x"), 0o600); err != nil {
+			return tree, clean, err
+		}
+		for link, target := range map[string]string{"key": outside, "ubuntu": "gci"} {
+			if err := os.Symlink(target, filepath.Join(tree.Dir, link)); err != nil {
+				return tree, clean, err
+			}
+		}
+		return tree, clean, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Frozen: the file outside keeps its mode, and the directory is entered through its link.
+	if info, err := os.Stat(outside); err != nil || info.Mode().Perm() != 0o600 {
+		t.Errorf("freezing the checkout changed a file outside it through a link: %v, %v", info.Mode(), err)
+	}
+	if _, err := os.ReadFile(filepath.Join(tree.Dir, "ubuntu", "OWNERS")); err != nil {
+		t.Errorf("a directory reached through a link cannot be entered while frozen: %v", err)
+	}
+
+	p.Close()
+
+	// Thawed and removed: still the same mode outside, and nothing left behind.
+	if info, err := os.Stat(outside); err != nil || info.Mode().Perm() != 0o600 {
+		t.Errorf("thawing the checkout changed a file outside it through a link: %v, %v", info.Mode(), err)
+	}
+	if _, err := os.Stat(tree.Dir); !os.IsNotExist(err) {
+		t.Errorf("a checkout holding links survived Close: %v", err)
+	}
+}
+
 func TestPoolCloseRemovesEvenAFrozenTree(t *testing.T) {
 	// A directory without write permission cannot have its entries removed, so cleanup has to
 	// undo the freeze first. Otherwise every run leaves its checkouts on disk.
