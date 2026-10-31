@@ -127,13 +127,17 @@ access to that host, or a local copy fetched with `draugr feeds update govulndb`
 - **Tests are not analyzed.** Reporting a vulnerability reachable only from code that never ships
   produces a finding a developer cannot act on, which is the kind that teaches people to stop
   reading the report.
-- **Requires a Go module, and a Go toolchain to install.** `draugr tools install govulncheck`
+- **Requires a Go module, and a Go toolchain to install and to run.** `draugr tools install govulncheck`
   provisions it at the pinned version, building it with the `go` on PATH, govulncheck publishes
   no release binary, so there is no archive to download. The build is verified against the Go
   checksum database, which covers every module it is built from and not only the tool; an install
   that could not reach the database still succeeds and is recorded as `unverified`, because
   reporting otherwise would claim evidence nobody gathered. With no Go on PATH, the error names
   the toolchain and the `go install` line that does the same job by hand.
+
+  govulncheck loads a module's packages with `go`. A scan over a module with no `go` on PATH fails
+  with ``govulncheck needs Go, and no `go` is on PATH``, where govulncheck itself would report
+  `no go.mod file`. A tree holding no module runs nothing and needs no Go.
 
   `draugr doctor` asks for it whenever a descriptor names it under `config.reachability`, so a
   missing analyzer is reported before a scan rather than by one. It is not required when the `sca`

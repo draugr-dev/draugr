@@ -60,7 +60,30 @@ type Tool struct {
 	DataOK func(out []byte) (ok bool, detail string)
 	// DataHint tells the user how to obtain the data when it is missing.
 	DataHint string
+	// Runtime is the program the tool runs on, which has to be on PATH beside it. The zero value
+	// is a tool that needs nothing else to run.
+	//
+	// Not the same as how the tool is installed. gosec arrives as a release binary and still loads
+	// a module's packages with `go`, so a host with gosec and no Go has a gosec that cannot run.
+	Runtime Runtime
 }
+
+// Runtime is a program a tool runs on.
+type Runtime struct {
+	// Binary is the executable looked up on PATH, e.g. "go".
+	Binary string
+	// Name is what a reader calls it, e.g. "Go".
+	Name string
+}
+
+// The runtimes a tool in the catalog runs on.
+var (
+	// RuntimeGo is the Go toolchain, which a tool analyzing Go source runs to load a module's
+	// packages.
+	RuntimeGo = Runtime{Binary: "go", Name: "Go"}
+	// RuntimeNode is Node, which runs a tool installed as an npm package.
+	RuntimeNode = Runtime{Binary: "node", Name: "Node"}
+)
 
 // Tool categories.
 const (
@@ -123,6 +146,7 @@ func Catalog() map[string]Tool {
 			VersionArgs: []string{"--version"},
 			InstallHint: "npm install -g retire, retire.js publishes to npm only, so it needs a Node runtime",
 			Category:    CategoryScanner,
+			Runtime:     RuntimeNode,
 		},
 		"gitleaks": {
 			Binary:      "gitleaks",
@@ -144,12 +168,14 @@ func Catalog() map[string]Tool {
 			InstallHint: "draugr tools install govulncheck, it is distributed as a Go package " +
 				"and needs a Go toolchain to build",
 			Category: CategoryScanner,
+			Runtime:  RuntimeGo,
 		},
 		"gosec": {
 			Binary:      "gosec",
 			VersionArgs: []string{"-version"},
 			InstallHint: "https://github.com/securego/gosec#installation",
 			Category:    CategoryScanner,
+			Runtime:     RuntimeGo,
 		},
 		"nuclei": {
 			Binary:      "nuclei",
