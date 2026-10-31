@@ -11,6 +11,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # A merge queue entry, which is the pull request merged onto main and onto every entry ahead of
+  # it. The queue merges an entry once every required check has reported on it. No branch filter,
+  # for the reason ci.yml gives.
+  merge_group:
+    types: [checks_requested]
   # A new advisory can fail a dependency nobody has touched, so main is scanned on weekdays as
   # well as on every push. The notify job raises an issue when that scan is red.
   schedule:
@@ -57,12 +62,15 @@ jobs:
           ref: ${{ inputs.ref }}
           # Need the base commit to diff against; a shallow clone has only the tip.
           fetch-depth: 0
+      # A merge queue entry is narrowed against the commit the queue built it on, the same way its
+      # pull request was narrowed against main, because the scan below asks the entry the pull
+      # request's question, which is whether the change adds a P1.
       - id: filter
         run: |
           set -euo pipefail
-          base="${{ github.event.pull_request.base.sha }}"
+          base="${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}"
           if [ -z "$base" ]; then
-            # A push to main, or anything without a PR base: assume code and scan.
+            # A push to main, or anything without a base to compare against: assume code and scan.
             echo "code=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
           # Anything that is not documentation is treated as code. Erring this way means a new
@@ -226,6 +234,15 @@ jobs:
           # branch is urgent enough to block the change that introduces it, and two thresholds
           # would mean a P1 that is allowed in and never allowed out.
           fail-on-new: P1
+          # A merge queue entry gets the pull request's gate, a diff against the commit the queue
+          # built it on, gated by fail-on-new above. `auto` would pick a full scan there, as it does
+          # for every event that is not a pull request, and a full scan judges the whole tree, so
+          # an advisory published against a dependency already on main would fail every entry
+          # until somebody dealt with it. The notify job below raises that case as an issue rather
+          # than a blocked merge. The diff posts no comment on a queue entry, which has no pull
+          # request to post it on, and uploads nothing to code scanning; the push to main after the
+          # merge does that.
+          mode: ${{ github.event_name == 'merge_group' && 'diff' || 'auto' }}
 
       - name: Upload evidence
         # always(), not the code filter: the evidence is most wanted when the gate failed, and

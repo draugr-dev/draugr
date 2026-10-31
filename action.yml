@@ -100,8 +100,10 @@ inputs:
       What the action does. "scan": run a full scan and let the Saga's publishers deliver
       results (e.g. `github` → code scanning). "diff": scan the pull request's base and head and
       upsert one sticky new/fixed comment (the Saga's publishers are suppressed so it never
-      double-posts alongside code scanning). "auto" (default): pick "diff" on pull_request events
-      and "scan" otherwise, so a single workflow does the right thing on both push and PRs.
+      double-posts alongside code scanning). On a merge queue's merge_group event, "diff" compares
+      the entry with the commit the queue built it on and posts no comment. "auto" (default): pick
+      "diff" on pull_request events and "scan" otherwise, so a single workflow does the right
+      thing on both push and PRs.
     required: false
     default: auto
   fail-on-new:
@@ -352,9 +354,10 @@ runs:
         INPUT_CODE_SCANNING: ${{ inputs.code-scanning }}
         INPUT_CODE_SCANNING_MIN_PRIORITY: ${{ inputs.code-scanning-min-priority }}
         INPUT_ARGS: ${{ inputs.args }}
-        # base SHA of the PR; head is the current checkout. Requires the caller to check out with
-        # fetch-depth: 0 so the base commit is present.
-        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        # The base is the pull request's base commit, or for a merge queue entry the commit the
+        # queue built the entry on; head is the current checkout. Requires the caller to check out
+        # with fetch-depth: 0 so the base commit is present.
+        BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
         # For the sticky PR comment (github-pr-comment publisher). Needs pull-requests: write.
         GITHUB_TOKEN: ${{ github.token }}
       run: |
@@ -362,7 +365,7 @@ runs:
         draugr version
 
         if [ -z "${BASE_SHA:-}" ]; then
-          echo "::error::diff mode requires a pull_request event (no base SHA in context)"; exit 1
+          echo "::error::diff mode requires a pull_request or merge_group event (no base SHA in context)"; exit 1
         fi
 
         # The head scan describes the code under review, so it goes where `output` says and

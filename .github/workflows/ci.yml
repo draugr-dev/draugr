@@ -5,11 +5,19 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # A merge queue entry, which is the pull request merged onto main and onto every entry ahead of
+  # it. The queue merges an entry once every required check has reported on it, and the three jobs
+  # below are required. No branch filter, because main is the only branch with a queue and a filter
+  # is one more condition an entry has to meet before the checks report.
+  merge_group:
+    types: [checks_requested]
 
 # Least privilege by default; jobs opt into more if needed.
 permissions:
   contents: read
 
+# Keyed on the ref. A merge queue entry's ref is a temporary branch of its own, so one entry never
+# cancels another's run.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -44,6 +52,11 @@ jobs:
           base="${{ github.event.pull_request.base.sha }}"
           if [ -z "$base" ]; then
             # A push to main, or anything without a PR base: assume code and run everything.
+            #
+            # A merge queue entry lands here on purpose. The filter below spares only a change to
+            # the license, so narrowing an entry against the queue's base would almost never skip
+            # anything, and the build and tests on the merged tree are what find two changes that
+            # pass alone and fail together.
             echo "code=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
           # Anything but the license is treated as code. Markdown counts: the Go tests read the

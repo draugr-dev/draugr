@@ -2,7 +2,8 @@ name: Integration
 
 # Integration tests exercise real external dependencies, a real Trivy binary and an
 # ephemeral kind cluster, that the unit tests stub out (see issue #39). They run on every pull
-# request, on main, on a nightly schedule, on demand, and against a release tag.
+# request, on every merge queue entry, on main, on a nightly schedule, on demand, and against a
+# release tag.
 #
 # Being required is what makes running unconditionally part of the same decision. A required check
 # that never runs is never reported, and a pull request waiting on a report that will not arrive
@@ -39,6 +40,11 @@ on:
     - cron: "23 6 * * *" # nightly at 06:23 UTC
   workflow_dispatch:
   pull_request:
+  # A merge queue entry, which is the pull request merged onto main and onto every entry ahead of
+  # it. Both pull request jobs are required, and the queue merges an entry once every required check
+  # has reported on it. Unfiltered for the reason the pull request trigger is.
+  merge_group:
+    types: [checks_requested]
   # Called by release.yml against the tag.
   workflow_call:
     inputs:
@@ -70,7 +76,8 @@ permissions:
   contents: read
 
 # The event is part of the group so that a push to main cancels an earlier push rather than the
-# nightly run, which carries the only live and air-gapped verdicts of the day.
+# nightly run, which carries the only live and air-gapped verdicts of the day. A merge queue entry's
+# ref is a temporary branch of its own, so one entry never cancels another's run.
 concurrency:
   # And the ref a caller asked for, so several calls from one run, each proving its own branch, do
   # not cancel each other.
@@ -104,21 +111,31 @@ jobs:
           # branched from, and a shallow clone holds neither end of that.
           fetch-depth: 0
 
-      # Whether this run has anything to judge. Only a pull request has a diff to narrow; a push, a
-      # schedule, a dispatch and a release tag all run the suite, because the question they answer
-      # is about a tree rather than about a change.
+      # Whether this run has anything to judge. A pull request and a merge queue entry each have a
+      # diff to narrow; a push, a schedule, a dispatch and a release tag all run the suite, because
+      # the question they answer is about a tree rather than about a change.
+      #
+      # A queue entry is narrowed against the commit the queue built it on, which is main or the
+      # entry ahead of it, and each of those has a run of its own. An entry that changes nothing in
+      # that commit but prose, pictures or release notes cannot change the suite's answer, and when
+      # an entry ahead fails, the queue rebuilds the ones behind it on a new base and each is
+      # decided again. Without this, every queued change to the docs would wait the ten minutes the
+      # suite takes.
       - &decide
         name: Decide whether the diff needs the suite
         id: needed
         env:
-          BASE: ${{ github.event.pull_request.base.sha }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
         run: |
           set -euo pipefail
-          if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            echo "Running: $GITHUB_EVENT_NAME judges a tree, not a change." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
+          case "$GITHUB_EVENT_NAME" in
+            pull_request | merge_group) ;;
+            *)
+              echo "run=true" >> "$GITHUB_OUTPUT"
+              echo "Running: $GITHUB_EVENT_NAME judges a tree, not a change." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+              ;;
+          esac
           changed=$(git diff --name-only "$BASE" HEAD)
           run=$(printf '%s\n' "$changed" | ./scripts/integration-needed.sh)
           echo "run=$run" >> "$GITHUB_OUTPUT"
@@ -245,8 +262,8 @@ jobs:
           DRAUGR_INTEGRATION_STRICT: "1"
           # A fixture whose advisory data no longer shows the difference a test measures fails on
           # main and on the nightly run, where a red suite raises an issue, and skips everywhere
-          # else. The data moves with no change to the tree, so it gates no pull request, no
-          # release and no proposed scanner bump.
+          # else. The data moves with no change to the tree, so it gates no pull request, no merge
+          # queue entry, no release and no proposed scanner bump.
           DRAUGR_INTEGRATION_DRIFT_FAILS: >-
             ${{ inputs.suite != 'pull-request' && (github.event_name == 'schedule' ||
             (github.event_name == 'push' && github.ref == 'refs/heads/main')) && '1' || '' }}
