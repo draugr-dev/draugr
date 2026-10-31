@@ -930,18 +930,26 @@ const htmlDoc = `<!doctype html>
     --on-accent: #0b0e11;
 
     /* The priority ramp, and it is not invented here: these are the values the console already
-     * prints and the dashboard already draws, so a band means one color everywhere. */
-    --p1: #e5534b;
+     * prints and the dashboard already draws, so a band means one color everywhere.
+     *
+     * A band as text is --pN, a shade of its fill that clears 4.5:1 on every surface and on the
+     * band's own quiet fill. Anything filled, a strip, a chip, a bar, takes the ramp itself from
+     * --pN-fill and labels it with --on-pN-fill. TestEveryLabelClearsAAInEveryTheme measures both. */
+    --p1: #e9635b;
     --p2: #e8b84b;
     --p3: #7ca6b8;
-    --p4: #6b7680;
-    --on-p1: #120605;
-    --on-p2: #16110a;
-    --on-p3: #0a1116;
-    /* White rather than the body ink: P4 is the lightest fill in the ramp, and the page's own text
-     * color on it measures 3.78:1, under the floor. This clears it at 4.64:1 in both themes,
-     * because the P4 fill keeps its hue the way the rest of the ramp does. */
-    --on-p4: #ffffff;
+    --p4: #859198;
+    --p1-fill: #e5534b;
+    --p2-fill: #e8b84b;
+    --p3-fill: #7ca6b8;
+    --p4-fill: #6b7680;
+    /* Dark ink on the red fill in both themes: white on it is 3.7:1. */
+    --on-p1-fill: #0b0e11;
+    --on-p2-fill: #16110a;
+    --on-p3-fill: #0a1116;
+    /* White rather than the body ink: the page's own text color on the P4 fill measures 3.78:1,
+     * under the floor, and white clears it at 4.64:1. */
+    --on-p4-fill: #ffffff;
     /* The quiet fills a priority chip in a list sits on, the band's own hue under its own ink. */
     --p1-quiet: rgb(229 83 75 / 14%);
     --p2-quiet: rgb(232 184 75 / 14%);
@@ -977,24 +985,25 @@ const htmlDoc = `<!doctype html>
 
   --text: #10161c;
   --muted: #55606b;
-  --faint: #6b7680;
+  --faint: #646f78;
 
   --accent: #a97d12;
   --accent-quiet: rgb(232 184 75 / 26%);
   --accent-text: #7d5a08;
-  --on-accent: #ffffff;
+  --on-accent: #0b0e11;
 
-  /* The bands keep their hue, because a band that changed color with the theme would be two
-  * scales for one set of numbers. Only the ink on them moves. */
-  --p1: #c0342b;
-  --on-p1: #ffffff;
-  --p2: #e8b84b;
-  --p3: #7ca6b8;
-  --p4: #6b7680;
+  /* The fills keep their hue, because a band that changed color with the theme would be two
+  * scales for one set of numbers. Only the text moves, to a shade dark enough for white, and
+  * P1's leans to crimson: a red and a gold that dark are one color to a deutan reader, and
+  * TestP1AndP2StayApartForADeutanReader holds them apart. */
+  --p1: #b02a52;
+  --p2: #7c5f0e;
+  --p3: #34637a;
+  --p4: #5f646e;
   --p1-quiet: rgb(192 52 43 / 11%);
-  --p2-quiet: rgb(169 125 18 / 26%);
-  --p3-quiet: rgb(52 99 122 / 22%);
-  --p4-quiet: rgb(107 118 128 / 14%);
+  --p2-quiet: rgb(232 184 75 / 26%);
+  --p3-quiet: rgb(124 166 184 / 22%);
+  --p4-quiet: rgb(107 118 128 / 11%);
 
   --pass: #2e7d33;
   --fail: #c0342b;
@@ -1013,24 +1022,25 @@ const htmlDoc = `<!doctype html>
 
     --text: #10161c;
     --muted: #55606b;
-    --faint: #6b7680;
+    --faint: #646f78;
 
     --accent: #a97d12;
     --accent-quiet: rgb(232 184 75 / 26%);
     --accent-text: #7d5a08;
-    --on-accent: #ffffff;
+    --on-accent: #0b0e11;
 
-    /* The bands keep their hue, because a band that changed color with the theme would be two
-    * scales for one set of numbers. Only the ink on them moves. */
-    --p1: #c0342b;
-    --on-p1: #ffffff;
-    --p2: #e8b84b;
-    --p3: #7ca6b8;
-    --p4: #6b7680;
+    /* The fills keep their hue, because a band that changed color with the theme would be two
+    * scales for one set of numbers. Only the text moves, to a shade dark enough for white, and
+    * P1's leans to crimson: a red and a gold that dark are one color to a deutan reader, and
+    * TestP1AndP2StayApartForADeutanReader holds them apart. */
+    --p1: #b02a52;
+    --p2: #7c5f0e;
+    --p3: #34637a;
+    --p4: #5f646e;
     --p1-quiet: rgb(192 52 43 / 11%);
-    --p2-quiet: rgb(169 125 18 / 26%);
-    --p3-quiet: rgb(52 99 122 / 22%);
-    --p4-quiet: rgb(107 118 128 / 14%);
+    --p2-quiet: rgb(232 184 75 / 26%);
+    --p3-quiet: rgb(124 166 184 / 22%);
+    --p4-quiet: rgb(107 118 128 / 11%);
 
     --pass: #2e7d33;
     --fail: #c0342b;
@@ -1120,10 +1130,10 @@ const htmlDoc = `<!doctype html>
     font-size: .78rem; font-weight: 500;
     padding: .2rem .5rem; border-radius: 4px; white-space: nowrap;
   }
-  .band.b1 { background: var(--p1); color: var(--on-p1); }
-  .band.b2 { background: var(--p2); color: var(--on-p2); }
-  .band.b3 { background: var(--p3); color: var(--on-p3); }
-  .band.b4 { background: var(--p4); color: var(--on-p4); }
+  .band.b1 { background: var(--p1-fill); color: var(--on-p1-fill); }
+  .band.b2 { background: var(--p2-fill); color: var(--on-p2-fill); }
+  .band.b3 { background: var(--p3-fill); color: var(--on-p3-fill); }
+  .band.b4 { background: var(--p4-fill); color: var(--on-p4-fill); }
   .band.zero { background: transparent; color: var(--faint); border: 1px solid var(--line); }
 
   /* The report's own sections, as a tab row. Outlined pills read as filters, which is what the
@@ -1145,7 +1155,7 @@ const htmlDoc = `<!doctype html>
   .tab.err { color: var(--p1); }
   /* The section the reader is in, which for an anchored document is whichever they last followed.
    * :target is the browser's own answer and costs no script. */
-  .tab:is(:target, .on) { background: var(--accent-quiet); color: var(--accent); font-weight: 600; }
+  .tab:is(:target, .on) { background: var(--accent-quiet); color: var(--accent-text); font-weight: 600; }
 
   table { border-collapse: collapse; width: 100%; margin: .4rem 0 1.25rem; font-size: .88rem; }
   th, td { text-align: left; padding: .45rem .7rem; vertical-align: top; }
@@ -1199,16 +1209,16 @@ const htmlDoc = `<!doctype html>
     padding: .1rem .45rem; border-radius: 3px; white-space: nowrap;
     border: 1px solid transparent;
   }
-  .sev.s-critical { background: var(--p1); color: var(--on-p1); }
-  .sev.s-high     { background: var(--p1); color: var(--on-p1); }
-  .sev.s-medium   { background: var(--p2); color: var(--on-p2); }
-  .sev.s-low      { background: var(--p4); color: var(--on-p4); }
+  .sev.s-critical { background: var(--p1-fill); color: var(--on-p1-fill); }
+  .sev.s-high     { background: var(--p1-fill); color: var(--on-p1-fill); }
+  .sev.s-medium   { background: var(--p2-fill); color: var(--on-p2-fill); }
+  .sev.s-low      { background: var(--p4-fill); color: var(--on-p4-fill); }
   /* The bands wear the same chips, from the same ramp, because a control's counts and the strip
    * above them are now the same measurement and a second palette would say otherwise. */
-  .sev.s-p1 { background: var(--p1); color: var(--on-p1); }
-  .sev.s-p2 { background: var(--p2); color: var(--on-p2); }
-  .sev.s-p3 { background: var(--p3); color: var(--on-p3); }
-  .sev.s-p4 { background: var(--p4); color: var(--on-p4); }
+  .sev.s-p1 { background: var(--p1-fill); color: var(--on-p1-fill); }
+  .sev.s-p2 { background: var(--p2-fill); color: var(--on-p2-fill); }
+  .sev.s-p3 { background: var(--p3-fill); color: var(--on-p3-fill); }
+  .sev.s-p4 { background: var(--p4-fill); color: var(--on-p4-fill); }
   .sev.off { background: transparent; color: var(--faint); border-color: var(--line); }
 
   /* Components as a table, where the controls above them are rows: a reader compares components
@@ -1318,10 +1328,10 @@ const htmlDoc = `<!doctype html>
     padding: 2px 7px; border-radius: 2px; border: 1px solid var(--line-strong); white-space: nowrap;
     font: 400 11px "JetBrains Mono", ui-monospace, monospace; color: var(--text);
   }
-  .rows .sevchip.sev-critical { border-color: var(--p1); }
-  .rows .sevchip.sev-high { border-color: var(--p2); }
-  .rows .sevchip.sev-medium { border-color: var(--p3); }
-  .rows .sevchip.sev-low { border-color: var(--p4); }
+  .rows .sevchip.sev-critical { border-color: var(--p1-fill); }
+  .rows .sevchip.sev-high { border-color: var(--p2-fill); }
+  .rows .sevchip.sev-medium { border-color: var(--p3-fill); }
+  .rows .sevchip.sev-low { border-color: var(--p4-fill); }
   .rows .what { min-width: 0; overflow-wrap: anywhere; }
   .rows .rule { line-height: 1.45; }
   .rows .rule .id, .rows .rule .name {
@@ -1583,7 +1593,7 @@ const htmlDoc = `<!doctype html>
     display: inline-block; width: 8rem; height: .5rem; background: var(--line);
     border-radius: 3px; overflow: hidden; vertical-align: middle; margin-right: .45rem;
   }
-  .bar-fill { display: block; height: 100%; background: var(--p3); }
+  .bar-fill { display: block; height: 100%; background: var(--p3-fill); }
 
   footer {
     color: var(--faint); font-size: .82rem; margin-top: 2.5rem;
