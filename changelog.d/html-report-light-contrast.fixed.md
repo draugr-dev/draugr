@@ -1,1 +1,0 @@
-- **The HTML report's labels are readable in the light theme, the one a printed report uses.** P2 and P3 were drawn in their band's fill color, under 2:1 on white. Every priority and severity label now clears 4.5:1 in both themes, and P1 stays apart from P2 for a reader with red-green color blindness.
