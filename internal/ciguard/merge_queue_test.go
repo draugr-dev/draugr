@@ -219,3 +219,30 @@ func TestTheSelfScanGatesAQueueEntryOnWhatItIntroduces(t *testing.T) {
 		}
 	}
 }
+
+// The trigger check reads every shape `merge_group` takes, and names the two that keep a check from
+// reporting on an entry.
+func TestQueueTriggerProblemReadsEveryShape(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		on   string
+		want string
+	}{
+		"no merge_group":          {on: "\n  pull_request:\n", want: "does not run on merge_group"},
+		"bare merge_group":        {on: "\n  merge_group:\n", want: ""},
+		"checks_requested":        {on: "\n  merge_group:\n    types: [checks_requested]\n", want: ""},
+		"a branch filter":         {on: "\n  merge_group:\n    branches: [main]\n", want: "narrows merge_group with branches"},
+		"types without the event": {on: "\n  merge_group:\n    types: [destroyed]\n", want: "limits merge_group to types that leave out checks_requested"},
+		"one event, no settings":  {on: "push", want: "does not run on merge_group"},
+	} {
+		var workflow struct {
+			On any `yaml:"on"`
+		}
+		if err := yaml.Unmarshal([]byte("on: "+tc.on), &workflow); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if got := queueTriggerProblem(workflow.On); got != tc.want {
+			t.Errorf("%s: queueTriggerProblem = %q, want %q", name, got, tc.want)
+		}
+	}
+}

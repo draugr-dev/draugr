@@ -103,7 +103,7 @@ inputs:
       double-posts alongside code scanning). On a merge queue's merge_group event, "diff" compares
       the entry with the commit the queue built it on and posts no comment. "auto" (default): pick
       "diff" on pull_request events and "scan" otherwise, so a single workflow does the right
-      thing on both push and PRs.
+      thing on both push and PRs. "auto" picks "scan" on merge_group, so set "diff" there.
     required: false
     default: auto
   fail-on-new:
