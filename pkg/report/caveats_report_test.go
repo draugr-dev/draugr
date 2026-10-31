@@ -122,7 +122,7 @@ func TestACaveatTheGateFailsOnIsMarkedInTheReports(t *testing.T) {
 		t.Error("the Caveats tab does not wear the fail color while a caveat fails the run")
 	}
 	html := caveatsSection(t, doc)
-	if !strings.Contains(html, `<span class="cv-key"><span class="cv-x">✗</span>fails the run · <code>config.gate.failOnCaveats: unbound-imports</code></span>`) {
+	if !strings.Contains(html, `<span class="cv-key fails">1 fails the run · <code>config.gate.failOnCaveats: unbound-imports</code></span>`) {
 		t.Errorf("the note does not say what fails the run:\n%s", html)
 	}
 	rows := section(t, html, `<div class="rows">`, `</details>`)
@@ -148,7 +148,7 @@ func TestACaveatTheGateFailsOnIsMarkedInTheReports(t *testing.T) {
 	md := renderWith(t, markdownReporter{}, d)
 	for _, want := range []string{
 		"### Caveats\n\nShortfalls in what the run covered, by component.\n\n",
-		"✗ fails the run · `config.gate.failOnCaveats: unbound-imports`\n",
+		"\n1 fails the run · `config.gate.failOnCaveats: unbound-imports`\n",
 		"**edge** · public · critical · pass\n",
 		"**ledger** · internal · critical · **ERROR**\n",
 	} {
@@ -173,20 +173,40 @@ func TestAcceptedCaveatsLeaveTheFailColor(t *testing.T) {
 	}
 	html := caveatsSection(t, doc)
 	for _, want := range []string{
-		`<span class="cv-key accepted"><span class="cv-x">✗</span>would fail the run, accepted by <code>--allow-scan-errors</code> · <code>config.gate.failOnCaveats: unbound-imports</code></span>`,
+		`<span class="cv-key accepted">1 accepted by <code>--allow-scan-errors</code> · <code>config.gate.failOnCaveats: unbound-imports</code></span>`,
 		`<span class="cvchip accepted">✗ unbound-imports</span>`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("missing %s:\n%s", want, html)
 		}
 	}
-	if strings.Contains(html, "✗</span>fails the run") || strings.Contains(html, "cvchip fails") {
+	if strings.Contains(html, "fails the run") || strings.Contains(html, "cvchip fails") {
 		t.Errorf("an accepted caveat reads as failing:\n%s", html)
 	}
 	md := renderWith(t, markdownReporter{}, d)
-	if !strings.Contains(md, "✗ would fail the run, accepted by `--allow-scan-errors` · `config.gate.failOnCaveats: unbound-imports`\n") ||
-		strings.Contains(md, "✗ fails the run") {
+	if !strings.Contains(md, "\n1 accepted by `--allow-scan-errors` · `config.gate.failOnCaveats: unbound-imports`\n") ||
+		strings.Contains(md, "fails the run") {
 		t.Errorf("markdown does not say the caveat was accepted:\n%s", md)
+	}
+}
+
+// The note is the console heading's, word for word: a count, and the verb agreeing with it.
+func TestTheCaveatsNoteIsTheConsoles(t *testing.T) {
+	d := everyCaveatData()
+	d.FailOnCaveats = []saga.CaveatKind{saga.CaveatUnboundImports, saga.CaveatUnreadFiles}
+	d.Components[1].FailedCaveats = FailedCaveats(d)
+	console := renderWith(t, consoleReporter{}, d)
+	const note = "2 fail the run · config.gate.failOnCaveats: unbound-imports, unread-files"
+	if !strings.Contains(console, note) {
+		t.Fatalf("the console no longer says %q, so this test compares against nothing:\n%s", note, console)
+	}
+	html := caveatsSection(t, renderHTML(t, d))
+	if !strings.Contains(html, `<span class="cv-key fails">2 fail the run · <code>config.gate.failOnCaveats: unbound-imports, unread-files</code></span>`) {
+		t.Errorf("the HTML note is not the console's:\n%s", html)
+	}
+	md := renderWith(t, markdownReporter{}, d)
+	if !strings.Contains(md, "\n2 fail the run · `config.gate.failOnCaveats: unbound-imports, unread-files`\n") {
+		t.Errorf("the markdown note is not the console's:\n%s", md)
 	}
 }
 
@@ -201,11 +221,11 @@ func TestCaveatsNothingFailsOnNameTheSetting(t *testing.T) {
 	if !strings.Contains(doc, `<a class="tab" href="#caveats">Caveats</a>`) || strings.Contains(html, "✗") {
 		t.Errorf("a caveat is marked failing with nothing in the gate:\n%s", html)
 	}
-	if !strings.Contains(html, `<span class="cv-key">No caveat fails the run · <code>config.gate.failOnCaveats</code> lists the kinds that do</span>`) {
+	if !strings.Contains(html, `<span class="cv-key">do not fail the run · <code>config.gate.failOnCaveats</code> lists the kinds that do</span>`) {
 		t.Errorf("the note does not name the setting:\n%s", html)
 	}
 	md := renderWith(t, markdownReporter{}, d)
-	if !strings.Contains(md, "No caveat fails the run · `config.gate.failOnCaveats` lists the kinds that do\n") || strings.Contains(md, "✗") {
+	if !strings.Contains(md, "\ndo not fail the run · `config.gate.failOnCaveats` lists the kinds that do\n") || strings.Contains(md, "✗") {
 		t.Errorf("markdown:\n%s", md)
 	}
 }

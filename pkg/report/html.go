@@ -178,6 +178,9 @@ type htmlCaveats struct {
 	// Fail is set while a caveat fails the run, and Accepted where --allow-scan-errors passed it.
 	// The tab wears the fail color for the first and not the second, as the verdict does.
 	Fail, Accepted bool
+	// Failing counts the caveats the gate fails on, for the note the console's CAVEATS heading
+	// carries, in its words.
+	Failing int
 }
 
 // htmlCaveatGroup opens with the component's own row from the Components table, so its verdict and
@@ -584,6 +587,8 @@ func htmlCaveatBlock(d Data, components []htmlComponent) htmlCaveats {
 	if failing {
 		out.Setting = caveatSetting(d)
 		out.Fail, out.Accepted = !d.AcceptedErrors, d.AcceptedErrors
+		fails, _ := splitCaveats(d)
+		out.Failing = len(fails)
 	}
 	return out
 }
@@ -1407,14 +1412,12 @@ const htmlDoc = `<!doctype html>
 
   /* A caveat is a row in the findings' panel: the kind in the chip gutter, what it names, and the
    * reason under it. Each component opens with its own line, carrying what the Components table
-   * says about it, so a verdict and what the run did not cover are read together. The key's mark
-   * sits in a fixed width and wears the color of the rows it marks. */
+   * says about it, so a verdict and what the run did not cover are read together. The key carries
+   * the console heading's note in its words, and its color: the fail color while caveats fail the
+   * run, the accent where --allow-scan-errors accepted them. */
   .cv-key { display: block; margin-top: .2rem; }
-  .cv-x {
-    display: inline-block; width: 1.15em;
-    color: var(--p1); font-weight: 600; font-family: "JetBrains Mono", ui-monospace, monospace;
-  }
-  .cv-key.accepted .cv-x { color: var(--accent-text); }
+  .cv-key.fails { color: var(--p1); }
+  .cv-key.accepted { color: var(--accent-text); }
   .rows > .cv {
     display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px; align-items: baseline;
     padding: 11px 8px; border-bottom: 1px solid var(--line);
@@ -1736,9 +1739,9 @@ as the run.</p>
 {{with .Caveats}}{{if .Groups}}
 <details class="fold" open><summary id="caveats"><span class="sec">Caveats</span></summary>
 <p class="note">Shortfalls in what the run covered, by component.
-{{- if .Accepted}}<span class="cv-key accepted"><span class="cv-x">✗</span>would fail the run, accepted by <code>--allow-scan-errors</code> · <code>{{.Setting}}</code></span>
-{{- else if .Fail}}<span class="cv-key"><span class="cv-x">✗</span>fails the run · <code>{{.Setting}}</code></span>
-{{- else}}<span class="cv-key">No caveat fails the run · <code>config.gate.failOnCaveats</code> lists the kinds that do</span>{{end}}</p>
+{{- if .Accepted}}<span class="cv-key accepted">{{.Failing}} accepted by <code>--allow-scan-errors</code> · <code>{{.Setting}}</code></span>
+{{- else if .Fail}}<span class="cv-key fails">{{.Failing}} {{if eq .Failing 1}}fails{{else}}fail{{end}} the run · <code>{{.Setting}}</code></span>
+{{- else}}<span class="cv-key">do not fail the run · <code>config.gate.failOnCaveats</code> lists the kinds that do</span>{{end}}</p>
 <div class="rows">
 {{range .Groups}}{{with .Component}}<div class="cv-head"><span class="cv-comp">{{if .Name}}{{.Name}}{{else}}<span class="none">no component</span>{{end}}</span>
   {{- /* The pair the Components table and the focus strip show, from the same template. A component

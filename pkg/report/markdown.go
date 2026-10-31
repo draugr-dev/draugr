@@ -153,23 +153,23 @@ func writeCaveatRows(w io.Writer, d Data) {
 	if len(groups) == 0 {
 		return
 	}
-	failing := false
-	for _, g := range groups {
-		for _, c := range g.caveats {
-			failing = failing || c.fails(d)
-		}
-	}
+	failing, _ := splitCaveats(d)
 	_, _ = fmt.Fprintln(w, "### Caveats")
 	_, _ = fmt.Fprintln(w)
 	_, _ = fmt.Fprintln(w, "Shortfalls in what the run covered, by component.")
 	_, _ = fmt.Fprintln(w)
+	// The console heading's note, in its words.
 	switch {
-	case failing && d.AcceptedErrors:
-		_, _ = fmt.Fprintf(w, "✗ would fail the run, accepted by `--allow-scan-errors` · `%s`\n\n", caveatSetting(d))
-	case failing:
-		_, _ = fmt.Fprintf(w, "✗ fails the run · `%s`\n\n", caveatSetting(d))
+	case len(failing) > 0 && d.AcceptedErrors:
+		_, _ = fmt.Fprintf(w, "%d accepted by `--allow-scan-errors` · `%s`\n\n", len(failing), caveatSetting(d))
+	case len(failing) > 0:
+		verb := "fail"
+		if len(failing) == 1 {
+			verb = "fails"
+		}
+		_, _ = fmt.Fprintf(w, "%d %s the run · `%s`\n\n", len(failing), verb, caveatSetting(d))
 	default:
-		_, _ = fmt.Fprintln(w, "No caveat fails the run · `config.gate.failOnCaveats` lists the kinds that do")
+		_, _ = fmt.Fprintln(w, "do not fail the run · `config.gate.failOnCaveats` lists the kinds that do")
 		_, _ = fmt.Fprintln(w)
 	}
 	verdicts := map[string]ComponentVerdict{}
