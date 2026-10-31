@@ -293,7 +293,7 @@ Install them now with draugr tools install semgrep trivy? [Y/n/never]
 | Answer | Does |
 |---|---|
 | Enter, `y` or `yes` | installs them, at the version the config pins if it pins one, then scans |
-| `n`, or anything else | scans without them; the affected controls read `<tool> not installed` |
+| `n`, or anything else | scans without them; the affected controls read `<tool> not installed`, and a scanner a [zero-config](#draugr-scan-sagayaml--dir) scan chose from the tree is a `not-checked` caveat instead |
 | `never` | scans without them and writes `output.offerInstall: false` to `~/.draugr/config.yaml`, or to the file `--config` or `DRAUGR_CONFIG` names |
 
 It asks only when stdin, stdout and stderr are all terminals, and never with `--offline`, so a
@@ -420,12 +420,35 @@ draugr: --components: this descriptor declares no component "frontnd" (it has: a
 The scope flags change **what runs**, and so the verdict.
 [`--min-priority`](#what---min-priority-narrows) changes only what is *printed* from a full run.
 
-**Zero-config.** A directory with no descriptor is scanned as one component with `sca`,
-`secrets`, `sast` and `iac`. A note saying so is printed to stderr, so machine formats on stdout
-stay clean. The project, component and repository names are the ones `draugr init` writes
-(`My.Service` becomes `my-service`), and a scan of the working directory records its repository
-`url` as `.`. `draugr diff` between a zero-config run and the first run after `init` therefore
-reports shared findings as unchanged. The note prints the directory's absolute path.
+**Zero-config.** A directory with no descriptor is scanned with the descriptor
+[`draugr init`](#draugr-init-dir) would write for it, read from the same tree: one component with
+`sca`, `secrets`, `sast` and `iac`, and the scanners the files call for.
+
+| In the tree | Turned on |
+|---|---|
+| a `go.mod` | `sast.gosec`, and `govulncheck` as the reachability analyzer |
+| copied JavaScript, such as `jquery.min.js` | `sca.retirejs` |
+| a requirements file Trivy opens only by pattern, such as `requirements-dev.txt` | `sca.trivyFs.filePatterns` |
+| a file only Grype reads, such as `setup.py` or `pdm.lock` | `sca.grypeFs` |
+
+What `init` writes commented out stays off: the `images:` entry for a Dockerfile, and the host for
+an OpenAPI document. The report gains a `FOUND` section after `CONTROLS`, in the console, HTML and
+markdown reports, listing each kind of file, its paths and what the run did with it; `draugr init`
+prints the same rows. A run from a descriptor has no `FOUND` section.
+
+A scanner the tree called for that cannot run on this machine, because its tool or the runtime it
+runs on is missing, is turned off for the run after the
+[install offer](#installing-a-missing-scanner), and listed under `CAVEATS` as `not-checked` with the
+files that called for it and what is missing, such as `govulncheck needs Go` or
+`gosec not installed · draugr tools install gosec`. The run is not marked incomplete for it. A
+missing `trivy`, `semgrep` or `gitleaks` still fails its control, as every zero-config scan runs
+them.
+
+The line `No *.saga.yaml here, scanning <dir>.` is printed to stderr, with the directory's absolute
+path, so machine formats on stdout stay clean. The project, component and repository names are the
+ones `draugr init` writes (`My.Service` becomes `my-service`), and a scan of the working directory
+records its repository `url` as `.`. `draugr diff` between a zero-config run and the first run after
+`init` therefore reports shared findings as unchanged.
 
 ```bash
 draugr scan            # zero-config: scan the current repo
@@ -1644,8 +1667,8 @@ no shell config. Refused under `--offline`, naming the tools it would fetch.
 
 **What gets installed.** `--saga` installs the tools that descriptor's scan will run and nothing
 else. With no arguments it reads the current directory the way `draugr scan` does: it installs what
-the descriptor there runs, or, with no descriptor, what a zero-config scan runs, and says which on
-its first line. With more than one descriptor it asks which on a terminal and otherwise exits
+the descriptor there runs, or, with no descriptor, what a zero-config scan runs, which is what
+`draugr init` would enable for the tree, and says which on its first line. With more than one descriptor it asks which on a terminal and otherwise exits
 naming them. `--all` installs everything this host can have. `--all`, `--saga` and a tool list are
 refused in combination.
 

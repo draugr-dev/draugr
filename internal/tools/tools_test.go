@@ -342,3 +342,25 @@ func TestRuntimeMissingKeepsTheMessageAndTheCause(t *testing.T) {
 		t.Error("an unmarked error classified as a missing runtime")
 	}
 }
+
+// A tool installed through a language's package manager runs on that language's runtime, so the
+// catalog says so for each. gosec arrives as a release binary and still loads packages with `go`.
+func TestTheCatalogNamesTheRuntimeEachToolRunsOn(t *testing.T) {
+	cat := Catalog()
+	for name := range goInstallable {
+		if cat[name].Runtime != RuntimeGo {
+			t.Errorf("%s is built with Go and its catalog entry names runtime %+v", name, cat[name].Runtime)
+		}
+	}
+	for name := range nodeInstallable {
+		if cat[name].Runtime != RuntimeNode {
+			t.Errorf("%s is an npm package and its catalog entry names runtime %+v", name, cat[name].Runtime)
+		}
+	}
+	if cat["gosec"].Runtime != RuntimeGo {
+		t.Errorf("gosec runtime = %+v, want Go", cat["gosec"].Runtime)
+	}
+	if cat["trivy"].Runtime != (Runtime{}) {
+		t.Errorf("trivy needs nothing to run, and the catalog names %+v", cat["trivy"].Runtime)
+	}
+}

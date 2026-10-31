@@ -3,14 +3,43 @@ package cli
 import (
 	"fmt"
 	"io"
+	"slices"
+	"strings"
 
 	"github.com/draugr-dev/draugr/internal/inventory"
 	"github.com/draugr-dev/draugr/internal/scaffold"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
-// foundRow is one kind of thing found, where, and what it enabled.
-type foundRow struct{ kind, where, enables string }
+// foundRow is one kind of file found, where, and what a descriptor for the tree does with it.
+//
+// One list for `draugr init`'s FOUND block and for the FOUND section of a scan with no descriptor,
+// which say the same thing about the same tree in the two places a reader meets it.
+type foundRow struct {
+	kind, where string
+	// on are the controls and scanners the scaffold turns on for these files, by the names the
+	// registry gives them.
+	on []string
+	// commented is the block the scaffold writes commented out for these files, and off the
+	// control that block would turn on, which a scan with no descriptor leaves off.
+	commented, off string
+}
+
+// initSays is what init's FOUND block says the scaffold does with the files.
+func (r foundRow) initSays() string { return dotJoin(r.on, r.commented, ", commented") }
+
+// scanSays is what a scan's FOUND section says the run did with them.
+func (r foundRow) scanSays() string { return dotJoin(r.on, r.off, " off") }
+
+// dotJoin joins what was turned on, and then the block left off with its suffix, where there is
+// one.
+func dotJoin(on []string, left, suffix string) string {
+	parts := slices.Clone(on)
+	if left != "" {
+		parts = append(parts, left+suffix)
+	}
+	return strings.Join(parts, " · ")
+}
 
 func foundRows(t inventory.Tree) []foundRow {
 	var rows []foundRow
@@ -22,43 +51,63 @@ func foundRows(t inventory.Tree) []foundRow {
 		}
 		byEco[f.Ecosystem] = append(byEco[f.Ecosystem], f.Path)
 	}
+	goScanners := []string{"gosec", "govulncheck"}
 	for _, e := range ecos {
 		if e == "go" {
 			// Every go.mod, including one that requires nothing and so is not a dependency.
-			rows = append(rows, foundRow{e, scaffold.PathList(scaffold.GoModules(t)), "sca · gosec · govulncheck"})
+			rows = append(rows, foundRow{kind: e, where: scaffold.PathList(scaffold.GoModules(t)),
+				on: append([]string{"sca"}, goScanners...)})
 			continue
 		}
-		rows = append(rows, foundRow{e, scaffold.PathList(byEco[e]), "sca"})
+		rows = append(rows, foundRow{kind: e, where: scaffold.PathList(byEco[e]), on: []string{"sca"}})
 	}
 	if _, ok := byEco["go"]; !ok && len(t.Go) > 0 {
 		// A go.mod with no requirements gives sca nothing to read, and the Go controls their code.
-		rows = append(rows, foundRow{"go", scaffold.PathList(scaffold.GoModules(t)), "gosec · govulncheck"})
+		rows = append(rows, foundRow{kind: "go", where: scaffold.PathList(scaffold.GoModules(t)), on: goScanners})
 	}
 	if len(t.VendoredJS) > 0 {
-		rows = append(rows, foundRow{"copied JavaScript", scaffold.PathList(t.VendoredJS), "retirejs"})
+		rows = append(rows, foundRow{kind: "copied JavaScript", where: scaffold.PathList(t.VendoredJS), on: []string{"retirejs"}})
 	}
 	if len(t.TrivyByPattern) > 0 {
-		rows = append(rows, foundRow{"read by a file pattern", scaffold.PathList(scaffold.FilePaths(t.TrivyByPattern)), "trivy-fs filePatterns"})
+		rows = append(rows, foundRow{kind: "read by a file pattern",
+			where: scaffold.PathList(scaffold.FilePaths(t.TrivyByPattern)), on: []string{"trivy-fs filePatterns"}})
 	}
 	if len(t.TrivyUnread) > 0 {
-		rows = append(rows, foundRow{"read by Grype only", scaffold.PathList(scaffold.FilePaths(t.TrivyUnread)), "grype-fs"})
+		rows = append(rows, foundRow{kind: "read by Grype only",
+			where: scaffold.PathList(scaffold.FilePaths(t.TrivyUnread)), on: []string{"grype-fs"}})
 	}
+	iac := []string{"iac"}
 	if len(t.Terraform) > 0 {
-		rows = append(rows, foundRow{"Terraform", scaffold.PathList(t.Terraform), "iac"})
+		rows = append(rows, foundRow{kind: "Terraform", where: scaffold.PathList(t.Terraform), on: iac})
 	}
 	if len(t.Helm) > 0 {
-		rows = append(rows, foundRow{"Helm", scaffold.PathList(t.Helm), "iac"})
+		rows = append(rows, foundRow{kind: "Helm", where: scaffold.PathList(t.Helm), on: iac})
 	}
 	if len(t.Kubernetes) > 0 {
-		rows = append(rows, foundRow{"Kubernetes", scaffold.PathList(t.Kubernetes), "iac"})
+		rows = append(rows, foundRow{kind: "Kubernetes", where: scaffold.PathList(t.Kubernetes), on: iac})
 	}
 	if len(t.Dockerfiles) > 0 {
-		rows = append(rows, foundRow{"Dockerfile", scaffold.PathList(t.Dockerfiles), "iac · images, commented"})
+		rows = append(rows, foundRow{kind: "Dockerfile", where: scaffold.PathList(t.Dockerfiles), on: iac,
+			commented: "images", off: "images"})
 	}
 	if len(t.OpenAPI) > 0 {
-		rows = append(rows, foundRow{"OpenAPI", scaffold.PathList(t.OpenAPI), "hosts spec, commented"})
+		// The scaffold comments out a host whose spec is this document, and dast is the control that
+		// reads a host's spec.
+		rows = append(rows, foundRow{kind: "OpenAPI", where: scaffold.PathList(t.OpenAPI),
+			commented: "hosts spec", off: "dast"})
 	}
 	return rows
+}
+
+// foundFiles are the files of every row that turned scanner on, as one list.
+func foundFiles(rows []foundRow, scanner string) string {
+	var where []string
+	for _, r := range rows {
+		if slices.Contains(r.on, scanner) {
+			where = append(where, r.where)
+		}
+	}
+	return strings.Join(where, " · ")
 }
 
 // unreadNote says what the Unread section lists, in the words a scan's own section uses.
@@ -77,7 +126,7 @@ func writeInitSummary(w io.Writer, col tui.Painter, t inventory.Tree, opts initO
 		_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted, "FOUND"))
 		tbl := tui.NewTable(col).Indent("  ")
 		for _, r := range rows {
-			tbl.Row(tui.PlainCell(r.kind), tui.PlainCell(r.where), tui.Styled(tui.StyleMuted, r.enables))
+			tbl.Row(tui.PlainCell(r.kind), tui.PlainCell(r.where), tui.Styled(tui.StyleMuted, r.initSays()))
 		}
 		tbl.Render(w)
 		_, _ = fmt.Fprintln(w)

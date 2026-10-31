@@ -25,9 +25,10 @@ import (
 // unscanned, rather than once per control that tried, which at scale is the same missing repository
 // repeated under every control that reads repositories.
 //
-// A caveat does not fail the run: a declared surface no enabled control looks at, a scanner that
-// cannot honor a component's scope, a dependency file inside a repository that was read. Each makes
-// the run cover less than it appears to, so each is shown, in every view, apart from the errors.
+// A caveat does not fail the run: a declared surface no enabled control looks at, a file a scan with
+// no descriptor found whose scanner could not run here, a scanner that cannot honor a component's
+// scope, a dependency file inside a repository that was read. Each makes the run cover less than it
+// appears to, so each is shown, in every view, apart from the errors.
 
 // errorRowsShown caps both blocks, as the findings are capped: --top 0 shows every row.
 const errorRowsShown = 10
@@ -139,13 +140,16 @@ type caveat struct {
 	key saga.CaveatKind
 }
 
-// caveats gathers what was declared and not checked, what could not be measured, and the files and
-// checks that were not read, by component.
+// caveats gathers what was declared and not checked, the files whose scanner could not run, what
+// could not be measured, and the files and checks that were not read, by component.
 func caveats(d Data) []caveat {
 	var out []caveat
 	for _, g := range d.Uncovered {
 		out = append(out, caveat{g.Component, g.Surface, strings.Join(g.Controls, ", ") + " off",
 			saga.CaveatNotChecked})
+	}
+	for _, u := range d.Unexamined {
+		out = append(out, caveat{u.Component, u.Files, u.Why, saga.CaveatNotChecked})
 	}
 	for _, sk := range d.Run.Skipped {
 		out = append(out, caveat{sk.Component, sk.Scanner, sk.Reason, saga.CaveatNotMeasured})

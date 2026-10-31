@@ -55,6 +55,9 @@ func TestConsoleGolden(t *testing.T) {
 		{"evidence", goldenEvidenceData(), ""},
 		// --view compact. Nothing pinned it, so it was rewritten and no test noticed.
 		{"compact", goldenCompactData(), ""},
+		// A run with no descriptor: what it read from the tree, and the scanners the tree called for
+		// that could not run here.
+		{"zero-config", goldenZeroConfigData(), ""},
 		// Images named by digest that a registry refused, on an ordinary terminal and a wide one: the
 		// errors block fits the width it is printed on.
 		{"errors-80", goldenErrorsData(), "80"},
@@ -247,6 +250,49 @@ func goldenFullData() Data {
 		},
 		UnattributedFindings: 3,
 		Descriptor:           goldenExclusions(),
+	}
+}
+
+// goldenZeroConfigData is a scan of a directory with no descriptor, of the kind the demo produces
+// with Go off PATH: the FOUND section `draugr init` would print for the tree, worded for the run,
+// and the two Go scanners it called for as not-checked caveats.
+func goldenZeroConfigData() Data {
+	sca := []sarif.Result{
+		{RuleID: "CVE-2019-20477", Level: sarif.LevelError, Score: 9.8, HasScore: true, Priority: "P1",
+			Tool: "trivy", Component: "demo", Location: sarif.Location{URI: "app/requirements.txt", StartLine: 4},
+			Message: "PyYAML: command execution through python/object/apply constructor in FullLoader",
+			Package: &sarif.Package{Name: "PyYAML", Version: "5.1", FixedVersion: "5.2", Ecosystem: "pip"}},
+	}
+	iac := []sarif.Result{
+		{RuleID: "DS-0002", Level: sarif.LevelError, Score: 8.0, HasScore: true, Priority: "P1",
+			Tool: "trivy", Component: "demo", Location: sarif.Location{URI: "app/Dockerfile", StartLine: 1},
+			Message: "Image user should not be 'root'"},
+	}
+	return Data{
+		Project: "demo",
+		Run: engine.Result{Controls: map[string]plugin.ControlResult{
+			"sca":     {Control: "sca", Report: sarif.Report{Tool: "trivy", Results: sca}},
+			"iac":     {Control: "iac", Report: sarif.Report{Tool: "trivy", Results: iac}},
+			"sast":    {Control: "sast", Report: sarif.Report{Tool: "semgrep"}},
+			"secrets": {Control: "secrets", Report: sarif.Report{Tool: "gitleaks"}},
+		}},
+		Verdict: norn.Result{Verdict: norn.Fail, Controls: []norn.ControlOutcome{
+			{Control: "iac", Verdict: norn.Fail}, {Control: "sast", Verdict: norn.Pass},
+			{Control: "sca", Verdict: norn.Fail}, {Control: "secrets", Verdict: norn.Pass},
+		}},
+		Unclassified: true,
+		Found: []Found{
+			{Kind: "python", Files: "app/requirements.txt", Did: "sca"},
+			{Kind: "go", Files: "checkout/go.mod", Did: "sca · gosec · govulncheck"},
+			{Kind: "npm", Files: "web/package-lock.json · web/package.json", Did: "sca"},
+			{Kind: "copied JavaScript", Files: "app/static/js/jquery.min.js · web/static/js/jquery.min.js", Did: "retirejs"},
+			{Kind: "Kubernetes", Files: "deploy/pod.yaml", Did: "iac"},
+			{Kind: "Dockerfile", Files: "app/Dockerfile", Did: "iac · images off"},
+		},
+		Unexamined: []Unexamined{
+			{Component: "demo", Files: "checkout/go.mod", Why: "gosec needs Go"},
+			{Component: "demo", Files: "checkout/go.mod", Why: "govulncheck needs Go"},
+		},
 	}
 }
 

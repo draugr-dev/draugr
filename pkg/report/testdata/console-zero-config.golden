@@ -1,0 +1,38 @@
+DRAUGR  FAIL  demo
+
+ 2 P1 0 P2 0 P3 0 P4
+ No component declares exposure or criticality, so every one is read as public and critical.
+ These bands rank severity alone. `draugr classify` makes them describe this application.
+
+CONTROLS
+  iac      FAIL   1 P1
+  sast     pass   no findings
+  sca      FAIL   1 P1
+  secrets  pass   no findings
+
+FOUND  read from the tree · `draugr init` writes them to draugr.saga.yaml
+  python             app/requirements.txt                                       sca
+  go                 checkout/go.mod                                            sca · gosec · govulncheck
+  npm                web/package-lock.json · web/package.json                   sca
+  copied JavaScript  app/static/js/jquery.min.js · web/static/js/jquery.min.js  retirejs
+  Kubernetes         deploy/pod.yaml                                            iac
+  Dockerfile         app/Dockerfile                                             iac · images off
+
+CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
+  Component  What             Caveat       Why
+  demo       checkout/go.mod  not-checked  gosec needs Go
+  demo       checkout/go.mod  not-checked  govulncheck needs Go
+
+FIX FIRST  all 2, by priority
+  P1  critical  CVE-2019-20477 · PyYAML: command execution through python/object/apply constructor in…
+      scanner trivy · PyYAML 5.1 → 5.2
+      app/requirements.txt:4
+
+  P1  high      DS-0002 · Image user should not be 'root'
+      scanner trivy · fix change the code
+      app/Dockerfile:1
+
+TRY
+  --view compact         one line each, to see how much there is
+  --view actions         the same findings as a list of things to do
+  draugr explain <rule>  what a rule means and how to fix it

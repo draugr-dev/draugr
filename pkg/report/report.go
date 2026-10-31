@@ -109,6 +109,13 @@ type Data struct {
 	View View
 	// Uncovered is what this descriptor declares and no enabled control examines.
 	Uncovered []Gap
+	// Unexamined are the files a run with no descriptor found that called for a scanner this
+	// machine cannot run, which the run turned off. Each is a not-checked caveat.
+	Unexamined []Unexamined
+	// Found is what a run with no descriptor read from the tree, a row per kind of file, and nil
+	// for a run from a descriptor. The report does not read the tree; the caller that did passes
+	// what it found.
+	Found []Found
 	// FailOnCaveats is the kinds of caveat the gate fails the run on, as gate.failOnCaveats or
 	// --fail-on-caveats set them. A caveat of a listed kind is reported with the errors.
 	FailOnCaveats []saga.CaveatKind
@@ -192,6 +199,32 @@ type Gap struct {
 	Component, Surface string
 	// Controls are the ones that would have looked at it, every one of them off.
 	Controls []string
+}
+
+// Unexamined is a set of files that called for a scanner the machine running the scan cannot run.
+//
+// Only a run with no descriptor has them. A descriptor names its scanners, and one that cannot run
+// is an error, because somebody asked for it. With no descriptor the tree chose the scanner, and the
+// run reports what went unexamined rather than failing over a tool nobody asked for.
+type Unexamined struct {
+	// Component holds the files.
+	Component string
+	// Files are the files that called for the scanner, joined into one list.
+	Files string
+	// Why names what the machine is missing, and the command that installs it where Draugr can.
+	Why string
+}
+
+// Found is one kind of file a run with no descriptor read from the tree: its kind, the files, and
+// what the run did with them.
+type Found struct {
+	// Kind names what was found, an ecosystem or a kind of file: go, copied JavaScript, Dockerfile.
+	Kind string
+	// Files are the files, joined into one list.
+	Files string
+	// Did is what the run did with them: the controls and scanners it turned on, and a control it
+	// left off.
+	Did string
 }
 
 // uncoveredColumns label the two vocabularies doctor's "Not checked" block puts side by side.

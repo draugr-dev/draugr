@@ -1,13 +1,16 @@
 package scanners
 
 import (
+	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -364,5 +367,85 @@ func TestGovulncheckPathSummaryPicksTheShortest(t *testing.T) {
 	}
 	if got := govulncheckPathSummary(nil); got != "a call path exists" {
 		t.Errorf("summary with no paths = %q", got)
+	}
+}
+
+// withoutGo takes Go off the PATH the runtime check reads, for the length of the test.
+func withoutGo(t *testing.T) {
+	t.Helper()
+	orig := lookRuntime
+	t.Cleanup(func() { lookRuntime = orig })
+	lookRuntime = func(name string) (string, error) {
+		if name == "go" {
+			return "", exec.ErrNotFound
+		}
+		return "/usr/bin/" + name, nil
+	}
+}
+
+// With no `go`, govulncheck says "no go.mod file" over a module that has one. The scan names Go as
+// what is missing instead, through Scan, over a checkout that holds a go.mod.
+func TestGovulncheckNamesGoWhenGoIsMissing(t *testing.T) {
+	withoutGo(t)
+	useGoVulnDB(t, noCopy)
+	s := NewGovulncheck().(repoScanner)
+	mod := goModule(t)
+	s.checkout = func(context.Context, string, string, git.Scope) (git.Tree, func(), error) {
+		return git.Tree{Dir: mod}, func() {}, nil
+	}
+	_, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: mod}, nil)
+	if err == nil || !strings.Contains(err.Error(), "govulncheck needs Go, and no `go` is on PATH") {
+		t.Errorf("Scan err = %v, want Go named as missing", err)
+	}
+}
+
+// gosec with no `go` exits 0 having analyzed nothing. The scan refuses it with Go named instead of
+// reading the silence as a clean module.
+func TestGosecNamesGoWhenGoIsMissing(t *testing.T) {
+	withoutGo(t)
+	s := NewGosec().(repoScanner)
+	mod := goModule(t)
+	s.checkout = func(context.Context, string, string, git.Scope) (git.Tree, func(), error) {
+		return git.Tree{Dir: mod}, func() {}, nil
+	}
+	_, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: mod}, nil)
+	if err == nil || !strings.Contains(err.Error(), "gosec needs Go, and no `go` is on PATH") {
+		t.Errorf("Scan err = %v, want Go named as missing", err)
+	}
+}
+
+// A tree with no module runs nothing, and says it holds none, whether or not Go is installed.
+func TestGovulncheckWithoutGoStillReportsATreeWithNoModule(t *testing.T) {
+	withoutGo(t)
+	useGoVulnDB(t, noCopy)
+	s := NewGovulncheck().(repoScanner)
+	empty := t.TempDir()
+	s.checkout = func(context.Context, string, string, git.Scope) (git.Tree, func(), error) {
+		return git.Tree{Dir: empty}, func() {}, nil
+	}
+	rep, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: empty}, nil)
+	if err != nil {
+		t.Fatalf("a tree with no go.mod failed: %v", err)
+	}
+	if len(rep.Provenance) == 0 || !strings.Contains(rep.Provenance[0].Fields[0].Value, "no go.mod found") {
+		t.Errorf("provenance = %+v, want the tree reported as holding no module", rep.Provenance)
+	}
+}
+
+// With Go present the tool runs as it always did, and a tool the catalog gives no runtime is
+// passed through unwrapped.
+func TestOnRuntimeRunsTheToolWhereTheRuntimeIsPresent(t *testing.T) {
+	ran := false
+	run := func(context.Context, string, []string) ([]byte, error) { ran = true; return []byte("ok"), nil }
+	orig := lookRuntime
+	t.Cleanup(func() { lookRuntime = orig })
+	lookRuntime = func(name string) (string, error) { return "/usr/bin/" + name, nil }
+	if out, err := onRuntime("govulncheck", run)(context.Background(), "", nil); err != nil || string(out) != "ok" || !ran {
+		t.Errorf("out=%q err=%v ran=%v", out, err, ran)
+	}
+	ran = false
+	withoutGo(t)
+	if _, err := onRuntime("trivy", run)(context.Background(), "", nil); err != nil || !ran {
+		t.Errorf("trivy runs on nothing and was refused: %v", err)
 	}
 }

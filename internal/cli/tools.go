@@ -170,9 +170,10 @@ func newToolsInstallCommand() *cobra.Command {
 		Long: "Download pinned scanner/utility binaries, verify each against a SHA-256 recorded in\n" +
 			"Draugr, and install them into ~/.draugr/bin (which Draugr adds to PATH automatically).\n" +
 			"With no arguments, installs what a scan of this directory runs: its descriptor's\n" +
-			"scanners, or with no descriptor, the zero-config ones. With --saga, what that\n" +
-			"descriptor runs; with --all, every tool Draugr can provision. Prints the plan first;\n" +
-			"when run interactively it asks for confirmation. Never downloads without being asked.",
+			"scanners, or with no descriptor, what `draugr init` would enable for the tree. With\n" +
+			"--saga, what that descriptor runs; with --all, every tool Draugr can provision. Prints\n" +
+			"the plan first; when run interactively it asks for confirmation. Never downloads\n" +
+			"without being asked.",
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dir, err := tools.BinDir()
@@ -252,16 +253,20 @@ func installNames(w io.Writer, args []string, opts toolsInstallOptions) ([]strin
 			return args, false, nil
 		}
 		// The directory answers which scanners this machine needs, the same way `draugr scan` reads
-		// it: the descriptor here, or with none, the controls a scan here synthesizes. Named out
-		// loud, because a command that reads a file nobody pointed it at has to say which one.
+		// it: the descriptor here, or with none, the model a scan here synthesizes from the tree. Named
+		// out loud, because a command that reads a file nobody pointed it at has to say which one.
 		path, found, err := resolveDescriptor(".", "tools install --saga")
 		if err != nil {
 			return nil, false, err
 		}
 		if !found {
-			_, _ = fmt.Fprintf(w, "No *.saga.yaml here, installing what `draugr scan` runs without one (%s). "+
-				"`--all` for every tool Draugr provisions.\n\n", ZeroConfigControls(""))
-			return provisionable(needs.Tools(builtins.Registry(), syntheticSaga("."))), false, nil
+			model, err := syntheticSaga(".")
+			if err != nil {
+				return nil, false, err
+			}
+			_, _ = fmt.Fprint(w, "No *.saga.yaml here, installing what `draugr scan` runs without one, "+
+				"the scanners `draugr init` would enable for this tree. `--all` for every tool Draugr provisions.\n\n")
+			return provisionable(needs.Tools(builtins.Registry(), model)), false, nil
 		}
 		_, _ = fmt.Fprintf(w, "Installing what %s runs. `--all` for every tool Draugr provisions.\n\n", path)
 		opts.saga = path

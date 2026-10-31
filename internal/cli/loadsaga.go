@@ -10,9 +10,11 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/git"
+	"github.com/draugr-dev/draugr/internal/inventory"
 	"github.com/draugr-dev/draugr/internal/sagafetch"
 	"github.com/draugr-dev/draugr/internal/scaffold"
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -21,35 +23,39 @@ import (
 )
 
 // scanModel resolves a scan target into a Saga model. An empty target means the current
-// directory. A directory target is scanned zero-config with a synthesized Saga (the
-// zeroConfigControls over that repo); a file target is loaded as a Saga descriptor. Returns whether the
-// model was synthesized so the caller can note it.
+// directory. A directory target with no descriptor is scanned zero-config, with the model `draugr
+// init` would write for it; a file target is loaded as a Saga descriptor. Returns whether the model
+// was synthesized so the caller can note it.
 func scanModel(target string) (m *saga.Model, synthesized bool, err error) {
-	res, synthesized, err := scanResolved(target)
+	res, zc, err := scanResolved(target)
 	if err != nil {
-		return nil, synthesized, err
+		return nil, zc != nil, err
 	}
-	return res.Model, synthesized, nil
+	return res.Model, zc != nil, nil
 }
 
 // scanResolved is scanModel keeping the resolution, for the caller that reports which files the
-// scan was driven by.
+// scan was driven by, and what the tree held where there was no descriptor to say.
 //
-// A synthesized model has none, and its Resolved carries no sources rather than one naming a file
-// that was never read.
-func scanResolved(target string) (*saga.Resolved, bool, error) {
+// A synthesized model has no files behind it, and its Resolved carries no sources rather than one
+// naming a file that was never read. Its zeroConfig is nil for a model loaded from a descriptor.
+func scanResolved(target string) (*saga.Resolved, *zeroConfig, error) {
 	path, found, err := resolveDescriptor(target, "scan")
 	if err != nil {
-		return nil, false, err
+		return nil, nil, err
 	}
 	if !found {
 		if target == "" {
 			target = "."
 		}
-		return &saga.Resolved{Model: syntheticSaga(target)}, true, nil
+		zc, err := synthesize(target)
+		if err != nil {
+			return nil, nil, err
+		}
+		return &saga.Resolved{Model: zc.model}, zc, nil
 	}
 	res, err := loadResolved(context.Background(), path, true)
-	return res, false, err
+	return res, nil, err
 }
 
 // resolveDescriptor turns a path that may be a directory into the descriptor to act on. An empty
@@ -183,48 +189,82 @@ func promptForDescriptor(found []string) (string, bool) {
 	return found[n-1], true
 }
 
-// zeroConfigControls are the controls a zero-config scan enables: the repository-based ones, which
-// need nothing but the directory in front of them. This is the single source of truth, the help
-// text and the run notice render it rather than restating it, so adding a control here can't leave
-// stale prose behind.
-var zeroConfigControls = []string{"sca", "secrets", "sast", "iac"}
+// zeroConfigBase is what a zero-config scan runs on a tree that holds nothing a scanner is chosen for:
+// the controls `draugr init` turns on whatever the tree holds, each with its default scanners.
+var zeroConfigBase = sync.OnceValues(func() (*saga.Model, error) {
+	return scaffold.Model(inventory.Tree{}, "app")
+})
 
-// ZeroConfigControls lists those controls in a readable form, e.g. "sca, secrets, sast, and iac".
+// zeroConfigControls are the controls a zero-config scan enables on any tree, read off zeroConfigBase,
+// in name order. The help text and `draugr tools install` render them rather than restating them,
+// so a control the scaffold gains cannot leave stale prose behind.
+func zeroConfigControls() []string {
+	m, err := zeroConfigBase()
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for name := range m.Config.Controls {
+		if m.Config.ControllerEnabled(name) {
+			out = append(out, name)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// ZeroConfigControls lists those controls in a readable form, e.g. "iac, sast, sca, and secrets".
 func ZeroConfigControls(conjunction string) string {
-	switch len(zeroConfigControls) {
+	controls := zeroConfigControls()
+	switch len(controls) {
 	case 0:
 		return ""
 	case 1:
-		return zeroConfigControls[0]
+		return controls[0]
 	}
-	head := zeroConfigControls[:len(zeroConfigControls)-1]
-	tail := zeroConfigControls[len(zeroConfigControls)-1]
 	if conjunction == "" {
-		return strings.Join(zeroConfigControls, ", ")
+		return strings.Join(controls, ", ")
 	}
+	head, tail := controls[:len(controls)-1], controls[len(controls)-1]
 	return strings.Join(head, ", ") + ", " + conjunction + " " + tail
 }
 
-// syntheticSaga builds the default zero-config Saga: one component scanning the given directory
-// with the repository-based controls. Used when `draugr scan` is pointed at a directory.
+// zeroConfig is a scan of a directory that holds no descriptor: what the tree held, and the model
+// made of it.
+type zeroConfig struct {
+	tree  inventory.Tree
+	model *saga.Model
+}
+
+// synthesize reads dir as `draugr init` does and returns the model init would write for it, with
+// one component scanning the directory.
 //
-// The project, the component and the repository are named as `draugr init` names them for that
-// directory, read from the working directory. A finding's identity includes its component and its
-// repository, so a run after `init` and a zero-config run of the same directory report the same
-// findings.
-func syntheticSaga(dir string) *saga.Model {
-	name := scaffold.NameFor(dir)
-	return &saga.Model{
-		// The project at the top level, which is the only place it is named. A descriptor Draugr
-		// synthesized must be one Draugr's own next command accepts. Which is exactly what `init` then
-		// `validate` walks through.
-		Project: name,
-		Config:  saga.Config{Controls: zeroConfigSettings()},
-		Components: []saga.Component{{
-			Name:         name,
-			Repositories: []saga.Repository{{URL: scaffold.RepositoryURL(dir)}},
-		}},
+// The model is read from the text init writes (scaffold.Model), so a zero-config scan runs every
+// scanner the tree calls for and nothing init leaves commented out. The project, the component and
+// the repository are named as init names them, read from the working directory. A finding's
+// identity includes its component and its repository, so a run after `init` and a zero-config run
+// of the same directory report the same findings.
+//
+// The repository is the one change from the text. init writes Here, for a descriptor that sits in
+// the directory it describes; a scan may be pointed at the directory from anywhere, and the url is
+// that directory as the working directory reaches it.
+func synthesize(dir string) (*zeroConfig, error) {
+	tree := inventory.Read(dir)
+	m, err := scaffold.Model(tree, scaffold.NameFor(dir))
+	if err != nil {
+		return nil, err
 	}
+	m.Components[0].Repositories[0].URL = scaffold.RepositoryURL(dir)
+	return &zeroConfig{tree: tree, model: m}, nil
+}
+
+// syntheticSaga is the model a zero-config scan of dir runs.
+func syntheticSaga(dir string) (*saga.Model, error) {
+	zc, err := synthesize(dir)
+	if err != nil {
+		return nil, err
+	}
+	return zc.model, nil
 }
 
 // loadSaga loads a Saga for a command that needs it, presenting any parse/validation failure with
@@ -298,13 +338,4 @@ func checkDescriptorControls(reg *engine.Registry, path string, model *saga.Mode
 			path, strings.ReplaceAll(err.Error(), "\n", "\n  "))
 	}
 	return nil
-}
-
-// zeroConfigSettings enables each zero-config control in a fresh settings map.
-func zeroConfigSettings() map[string]saga.ControllerSettings {
-	out := make(map[string]saga.ControllerSettings, len(zeroConfigControls))
-	for _, name := range zeroConfigControls {
-		out[name] = saga.ControllerSettings{"enabled": true}
-	}
-	return out
 }

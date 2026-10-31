@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"gopkg.in/yaml.v3"
 
@@ -27,10 +28,29 @@ const shownPaths = 3
 
 // PathList joins paths with a separator, the first shownPaths of them and a count of the rest.
 func PathList(paths []string) string {
-	if len(paths) > shownPaths {
-		return strings.Join(paths[:shownPaths], " · ") + fmt.Sprintf(" · +%d", len(paths)-shownPaths)
+	shown := make([]string, 0, shownPaths)
+	for _, p := range paths[:min(len(paths), shownPaths)] {
+		shown = append(shown, OneLine(p))
 	}
-	return strings.Join(paths, " · ")
+	if len(paths) > shownPaths {
+		return strings.Join(shown, " · ") + fmt.Sprintf(" · +%d", len(paths)-shownPaths)
+	}
+	return strings.Join(shown, " · ")
+}
+
+// OneLine is a path as a comment or a terminal can carry it: unchanged, or quoted with Go's escapes
+// where it holds a control character or a line break.
+//
+// A file name may hold a newline, and a scaffold writes paths into YAML comments. Unquoted, the text
+// after the newline would be read as part of the descriptor, and a scan with no descriptor reads
+// this text as its own configuration. YAML also breaks a line at U+0085, U+2028 and U+2029.
+func OneLine(path string) string {
+	if strings.ContainsFunc(path, func(r rune) bool {
+		return unicode.IsControl(r) || r == '\u2028' || r == '\u2029'
+	}) {
+		return strconv.Quote(path)
+	}
+	return path
 }
 
 // FilePaths are the paths of files, in order.
@@ -65,7 +85,7 @@ func iacInputs(t inventory.Tree) []string {
 func trivyUnreadNames(t inventory.Tree) string {
 	var names []string
 	for _, f := range t.TrivyUnread {
-		if n := path.Base(f.Path); !slices.Contains(names, n) {
+		if n := OneLine(path.Base(f.Path)); !slices.Contains(names, n) {
 			names = append(names, n)
 		}
 	}
@@ -177,6 +197,20 @@ func Saga(t inventory.Tree, name string, perDirectory bool) string {
 	return b.String()
 }
 
+// Model is the descriptor Saga writes for the tree, read back as Draugr reads one: one component,
+// with every scanner the tree calls for and nothing that Saga leaves commented out.
+//
+// Read from the text rather than built beside it, so a scan with no descriptor runs what `draugr
+// init` would write for the same directory, and a scanner added to one is added to the other. A
+// second construction would agree with the text until the day somebody changed only one of them.
+func Model(t inventory.Tree, name string) (*saga.Model, error) {
+	m, err := saga.Load([]byte(Saga(t, name, false)))
+	if err != nil {
+		return nil, fmt.Errorf("the scaffold for %s does not load: %w", name, err)
+	}
+	return m, nil
+}
+
 // writeSurfaceStubs comments out the images and hosts a component may declare, pre-filled from a
 // Dockerfile and an OpenAPI document where the tree holds one. images says whether the component
 // holds a Dockerfile of its own.
@@ -187,7 +221,7 @@ func writeSurfaceStubs(b *strings.Builder, t inventory.Tree, name string, images
 	b.WriteString("    # hosts:            # for the headers/DAST controls\n")
 	b.WriteString("    #   - name: api\n    #     url: https://api.example.com\n    #     type: api\n")
 	if len(t.OpenAPI) > 0 {
-		fmt.Fprintf(b, "    #     spec:\n    #       path: ./%s\n", t.OpenAPI[0])
+		fmt.Fprintf(b, "    #     spec:\n    #       path: ./%s\n", OneLine(t.OpenAPI[0]))
 	}
 }
 
@@ -199,7 +233,7 @@ func writeImageStub(b *strings.Builder, name string) {
 // writeUnresolvedComment names the dependency files no scanner can take packages from.
 func writeUnresolvedComment(b *strings.Builder, unresolved []manifests.Unread) {
 	for _, u := range unresolved {
-		fmt.Fprintf(b, "    # Unread · %s %s · its packages are not checked\n", u.Path, u.Reason)
+		fmt.Fprintf(b, "    # Unread · %s %s · its packages are not checked\n", OneLine(u.Path), u.Reason)
 	}
 }
 

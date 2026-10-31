@@ -21,6 +21,7 @@ func everyCaveatData() Data {
 		FailOnCaveats:     []saga.CaveatKind{saga.CaveatUnboundImports},
 		FailOnCaveatsFrom: "config.gate.failOnCaveats",
 		Uncovered:         []Gap{{Component: "edge", Surface: "hosts", Controls: []string{"dast", "headers", "tls"}}},
+		Unexamined:        []Unexamined{{Component: "ledger", Files: "checkout/go.mod", Why: "govulncheck needs Go"}},
 		Run: engine.Result{
 			Controls: map[string]plugin.ControlResult{
 				"sca": {Control: "sca", Report: sarif.Report{Provenance: []sarif.Provenance{{
@@ -54,6 +55,7 @@ var everyCaveat = []struct {
 	{"edge", "not-checked", "hosts", "dast, headers, tls off", false},
 	{"edge", "not-measured", "kube-bench", "audits the whole cluster and cannot be narrowed to namespace edge", false},
 	{"edge", "unread-checks", "compute", "1 check · denied compute.instances.list", false},
+	{"ledger", "not-checked", "checkout/go.mod", "govulncheck needs Go", false},
 	{"ledger", "unbound-imports", "reports/review.sarif", "names no commit, so nothing ties its findings to this code", true},
 	{"ledger", "unread-files", "package.json", "no lockfile (sca)", false},
 }
@@ -233,7 +235,7 @@ func TestCaveatsNothingFailsOnNameTheSetting(t *testing.T) {
 // A run with no caveats has no tab and no section, in either report.
 func TestARunWithNoCaveatsHasNoCaveatsSection(t *testing.T) {
 	d := everyCaveatData()
-	d.Uncovered, d.Run.Skipped, d.Run.UnreadChecks, d.Run.Inputs = nil, nil, nil, nil
+	d.Uncovered, d.Unexamined, d.Run.Skipped, d.Run.UnreadChecks, d.Run.Inputs = nil, nil, nil, nil, nil
 	d.Run.Controls = map[string]plugin.ControlResult{"sca": {Control: "sca"}}
 	d.Components[1].FailedCaveats = nil
 	doc := renderHTML(t, d)

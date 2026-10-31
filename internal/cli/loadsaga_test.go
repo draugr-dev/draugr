@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -42,24 +43,24 @@ func TestLoadSagaInvalidHasContextAndHint(t *testing.T) {
 	}
 }
 
-// The zero-config control list appears in the scan help and the run notice. Both must render it
-// from syntheticSaga's actual set, hard-coded copies drifted from reality twice before.
+// The zero-config control list appears in the scan help. It is read off the model a tree holding
+// nothing synthesizes, so it names exactly the controls that model enables.
 func TestZeroConfigControlsMatchSyntheticSaga(t *testing.T) {
-	model := syntheticSaga(t.TempDir())
+	model := zeroConfigModel(t, t.TempDir())
+	var enabled []string
 	for name := range model.Config.Controls {
-		if !strings.Contains(ZeroConfigControls("and"), name) {
-			t.Errorf("control %q is enabled zero-config but missing from the rendered list %q",
-				name, ZeroConfigControls("and"))
+		if model.Config.ControllerEnabled(name) {
+			enabled = append(enabled, name)
 		}
 	}
-	if got := len(model.Config.Controls); got != len(zeroConfigControls) {
-		t.Errorf("synthesized saga enables %d controls, the list names %d", got, len(zeroConfigControls))
+	slices.Sort(enabled)
+	if !slices.Equal(enabled, zeroConfigControls()) {
+		t.Errorf("an empty tree enables %v, the list names %v", enabled, zeroConfigControls())
 	}
-	// The help text uses the "and" form; the run notice uses the plain list.
-	if got := ZeroConfigControls("and"); got != "sca, secrets, sast, and iac" {
+	if got := ZeroConfigControls("and"); got != "iac, sast, sca, and secrets" {
 		t.Errorf("conjunction form = %q", got)
 	}
-	if got := ZeroConfigControls(""); got != "sca, secrets, sast, iac" {
+	if got := ZeroConfigControls(""); got != "iac, sast, sca, secrets" {
 		t.Errorf("plain form = %q", got)
 	}
 }
@@ -85,7 +86,7 @@ func TestSyntheticSagaNamesWhatInitWrites(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: init wrote a descriptor that does not load: %v", d, err)
 		}
-		synthesized := syntheticSaga(".")
+		synthesized := zeroConfigModel(t, ".")
 		if synthesized.Project != written.Project {
 			t.Errorf("%s: project %q, init writes %q", d, synthesized.Project, written.Project)
 		}
@@ -113,7 +114,7 @@ func TestSyntheticSagaFromAParentNamesTheScannedDirectory(t *testing.T) {
 		"services/My.Service":   {"my-service", filepath.Join("services", "My.Service")},
 		"./services/Team Alpha": {"team-alpha", filepath.Join("services", "Team Alpha")},
 	} {
-		m := syntheticSaga(dir)
+		m := zeroConfigModel(t, dir)
 		c := m.Components[0]
 		if m.Project != want[0] || c.Name != want[0] {
 			t.Errorf("%s: project %q, component %q, want %q", dir, m.Project, c.Name, want[0])
@@ -121,8 +122,8 @@ func TestSyntheticSagaFromAParentNamesTheScannedDirectory(t *testing.T) {
 		if c.Repositories[0].URL != want[1] {
 			t.Errorf("%s: repository %q, want %q", dir, c.Repositories[0].URL, want[1])
 		}
-		if notice := zeroConfigNotice(m); !strings.Contains(notice, "scanning "+filepath.Join(root, want[1])+" with controls") {
-			t.Errorf("%s: the notice should name the absolute directory, got:\n%s", dir, notice)
+		if notice, want := zeroConfigNotice(m), "No *.saga.yaml here, scanning "+filepath.Join(root, want[1])+".\n\n"; notice != want {
+			t.Errorf("%s: notice = %q, want %q", dir, notice, want)
 		}
 	}
 }
