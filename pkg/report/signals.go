@@ -6,13 +6,15 @@ import (
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/english"
+	"github.com/draugr-dev/draugr/pkg/dephealth"
 	"github.com/draugr-dev/draugr/pkg/exploit"
 )
 
 // signalRow is one row of the Signals section: something that argued with this run's ranking, how
 // it moves a finding, and what it did in this run.
 type signalRow struct {
-	// Name is the signal as every report names it: KEV, EPSS, floor, reachability.
+	// Name is the signal as every report names it: KEV, EPSS, malicious, deprecated, floor,
+	// reachability.
 	Name string
 	// Moves is how the signal moves a finding.
 	Moves signalMove
@@ -82,6 +84,23 @@ var signalKinds = []signalKind{
 	},
 	{name: "EPSS", moves: epssMoves, did: feedDid(exploit.SignalEPSS)},
 	{
+		// Named as a finding's mark names them, so a reader can match the row to the marks it counts.
+		name: "malicious",
+		moves: func(Data) signalMove {
+			return signalMove{Up: true, Change: "severity to critical",
+				Condition: "when the package is in the OSSF Malicious Packages Project"}
+		},
+		did: healthDid(dephealth.SignalMalicious),
+	},
+	{
+		name: "deprecated",
+		moves: func(Data) signalMove {
+			return signalMove{Up: true, Change: "severity one band",
+				Condition: "when its publisher has marked the version as no longer supported"}
+		},
+		did: healthDid(dephealth.SignalDeprecated),
+	},
+	{
 		name: "floor",
 		// The context floor, which the `↑ floor` mark counts, and not the severity floor, which
 		// draws no mark. P1 because it ranks a finding at the tier of a public, critical component
@@ -134,6 +153,29 @@ func feedDid(name string) func(Data, summary) ([]string, []string) {
 		}
 		return []string{raisedCount(n, "")}, nil
 	}
+}
+
+// healthDid is what one of dependency health's two signals did: listed whenever the lookup answered,
+// for the reason a feed is listed when it raised nothing.
+func healthDid(signal string) func(Data, summary) ([]string, []string) {
+	return func(d Data, s summary) ([]string, []string) {
+		n := s.bySignal[signal]
+		if n == 0 && !healthConsulted(d) {
+			return nil, nil
+		}
+		return []string{raisedCount(n, "")}, nil
+	}
+}
+
+// healthConsulted reports whether this run's dependency-health lookup answered. The engine records
+// it only then, so a lookup that failed, or that knew none of the packages, lists nothing.
+func healthConsulted(d Data) bool {
+	for _, c := range d.Run.Consulted {
+		if c.Signal == dephealth.ConsultedSignal {
+			return true
+		}
+	}
+	return false
 }
 
 // floorDid is what the control floor did: listed whenever a control that declares one ran, for the
