@@ -233,8 +233,8 @@ func set(doc any, path []string, v any) {
 }
 
 // Mutations lists every single change the parity test makes to a descriptor: each string in the
-// wrong case, as a value nothing defines, as a number and as a boolean, an unknown key in each
-// mapping, and each value and list item as null.
+// wrong case, as a value nothing defines, as a number and as a boolean, each boolean as a string,
+// an unknown key in each mapping, and each value and list item as null.
 func Mutations(base any) []Mutation {
 	var out []Mutation
 	var walk func(n any, path []string)
@@ -282,6 +282,13 @@ func Mutations(base any) []Mutation {
 			d = deepCopy(base)
 			set(d, path, true)
 			out = append(out, Mutation{"bool", strings.Join(path, "."), d})
+		case bool:
+			// A flag written as text. YAML reads `yes` and a quoted "true" as strings, and a
+			// free-form block such as a control's keeps either as one, where a reader that asks for
+			// a boolean finds none.
+			d := deepCopy(base)
+			set(d, path, "zz-not-a-value")
+			out = append(out, Mutation{"string", strings.Join(path, "."), d})
 		}
 	}
 	walk(base, nil)
