@@ -20,13 +20,16 @@ const notationScannerName = "notation"
 //
 // Matched on the message rather than the exit code, because notation exits 1 for everything: a
 // missing signature, a wrong certificate and a registry it could not reach are one code. So the
-// two outcomes that mean something are recognized by what it said, and everything else is an
-// error this control reports rather than a result. A message that changes wording upstream turns
+// outcomes that mean something are recognized by what it said, and everything else is an error
+// this control reports rather than a result. A message that changes wording upstream turns
 // a finding into an error, which is the direction a security control should fail in.
 const (
 	notationUnsigned = "no signature is associated with"
 	notationMismatch = "does not match the X.509 trusted identities"
-	notationNoPolicy = "has no applicable trust policy statement"
+	// A certificate that does not chain to any root in the trust store. notation checks the chain
+	// before the subject, so a signature that fails both says this.
+	notationUntrustedRoot = "certificate chain does not contain any trusted certificate"
+	notationNoPolicy      = "has no applicable trust policy statement"
 )
 
 // notationConfigSchema is the JSON Schema for the job config this scanner receives. Every key is
@@ -138,7 +141,15 @@ func (s *notationVerifier) Scan(ctx context.Context, target plugin.Target, cfg p
 	}
 	said := string(out) + " " + runErr.Error()
 	switch {
-	case strings.Contains(said, notationMismatch):
+	case strings.Contains(said, notationMismatch), strings.Contains(said, notationUntrustedRoot):
+		// Each names the field to check, because the two are fixed on different lines of the
+		// descriptor.
+		message := fmt.Sprintf("Signed by a certificate whose subject is not the x509.subject of "+
+			"signer %s.", signer)
+		if strings.Contains(said, notationUntrustedRoot) {
+			message = fmt.Sprintf("Signed by a certificate that does not chain to a root in the "+
+				"x509.trustStore of signer %s.", signer)
+		}
 		report.Results = []sarif.Result{{
 			Tool:     notationScannerName,
 			RuleID:   "provenance-unexpected-identity",
@@ -146,8 +157,7 @@ func (s *notationVerifier) Scan(ctx context.Context, target plugin.Target, cfg p
 			Score:    9.0,
 			HasScore: true,
 			Location: sarif.Location{URI: img.Ref},
-			Message: fmt.Sprintf("Signed by a certificate that is not %s. The artifact is signed, "+
-				"by an identity this descriptor does not name.", signer),
+			Message:  message,
 		}}
 		return report, nil
 	case strings.Contains(said, notationUnsigned):
