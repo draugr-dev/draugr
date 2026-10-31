@@ -207,15 +207,17 @@ move; `mcp-publisher <command> --help` is the authority over this file.
 ### Publishing again later
 
 **Normally you don't.** The `publish-mcp` job in `.github/workflows/release-post-publish.yml`
-renders and publishes on every tag, gated behind the `mcp-registry` environment so it waits for a
-reviewer. It needs one secret, `MCP_PUBLISHER_DNS_KEY`, the same hex key as step 5, set as an
-*environment* secret so only that job can read it.
+renders and publishes on every tag once the bundle is attached, with no approval step. It needs one
+secret, `MCP_PUBLISHER_DNS_KEY`, the same hex key as step 5, set as a secret of the `mcp-registry`
+environment. Only that job declares the environment, so no other job can read the key.
 
-When that job failed or never ran, dispatch `Release post-publish` for the tag, which runs it
-again. By hand: `render-server-json.sh <version>`, then steps 5 and 6.
+The job also passes without listing anything when the secret is unset, as on a fork, and when the
+registry already holds the version, which it reports as a notice. The job's log says which
+happened.
 
-### Not every release needs republishing
+When that job failed, skipped or never ran, dispatch `Release post-publish` for the tag, which runs
+it again. By hand: `render-server-json.sh <version>`, then steps 5 and 6.
 
-The registry entry points at a fixed version. Refresh it when the MCP surface changes, a new tool, a
-changed transport, a fix in the server, not for releases that don't affect it. Each republish asks
-every client to re-download 60 MB.
+The registry entry points at a fixed version, so the job lists every release, including one that
+leaves the MCP surface unchanged. Each new listing asks every client to re-download the bundle,
+about 68 MiB as of 0.162.0.
