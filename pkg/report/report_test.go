@@ -1824,7 +1824,8 @@ func TestMarkdownNamesAScannerThatCouldNotAnswer(t *testing.T) {
 	if err := (markdownReporter{}).Render(&buf, d); err != nil {
 		t.Fatalf("Render: %v", err)
 	}
-	for _, want := range []string{"Not measured", "kube-bench-job", "team-a", "cannot be narrowed"} {
+	for _, want := range []string{"### Caveats", "**team-a**",
+		"- `not-measured` · `kube-bench-job` · audits the whole cluster and cannot be narrowed to namespace team-a"} {
 		if !strings.Contains(buf.String(), want) {
 			t.Errorf("missing %q:\n%s", want, buf.String())
 		}

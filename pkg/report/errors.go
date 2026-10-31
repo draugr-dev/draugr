@@ -172,10 +172,40 @@ func caveats(d Data) []caveat {
 	return out
 }
 
+// fails reports whether the gate lists this caveat's kind in failOnCaveats.
+func (c caveat) fails(d Data) bool { return slices.Contains(d.FailOnCaveats, c.key) }
+
+// caveatGroup is one component's caveats, in the order caveats lists them.
+type caveatGroup struct {
+	component string
+	caveats   []caveat
+}
+
+// caveatsByComponent folds the run's caveats under their components, which is how the HTML and
+// markdown reports list them. caveats sorts by component, so each group is a run of rows.
+func caveatsByComponent(cs []caveat) []caveatGroup {
+	var out []caveatGroup
+	for _, c := range cs {
+		if n := len(out); n > 0 && out[n-1].component == c.component {
+			out[n-1].caveats = append(out[n-1].caveats, c)
+			continue
+		}
+		out = append(out, caveatGroup{component: c.component, caveats: []caveat{c}})
+	}
+	return out
+}
+
+// caveatSetting names the setting that makes a caveat fail the run and the kinds it lists, in the
+// words every format prints: `config.gate.failOnCaveats: unread-files`.
+func caveatSetting(d Data) string {
+	return fmt.Sprintf("%s: %s", cmp.Or(d.FailOnCaveatsFrom, "config.gate.failOnCaveats"),
+		strings.Join(namesOfKinds(d.FailOnCaveats), ", "))
+}
+
 // splitCaveats divides the run's caveats into the ones the gate fails on and the rest.
 func splitCaveats(d Data) (failing, rest []caveat) {
 	for _, c := range caveats(d) {
-		if slices.Contains(d.FailOnCaveats, c.key) {
+		if c.fails(d) {
 			failing = append(failing, c)
 		} else {
 			rest = append(rest, c)
@@ -327,8 +357,7 @@ func writeCaveats(w io.Writer, col tui.Painter, d Data) {
 	failing, _ := splitCaveats(d)
 	note := col.Paint(cDim, "do not fail the run · config.gate.failOnCaveats lists the kinds that do")
 	if len(failing) > 0 {
-		setting := fmt.Sprintf("%s: %s", cmp.Or(d.FailOnCaveatsFrom, "config.gate.failOnCaveats"),
-			strings.Join(namesOfKinds(d.FailOnCaveats), ", "))
+		setting := caveatSetting(d)
 		verb := "fail"
 		if len(failing) == 1 {
 			verb = "fails"
@@ -349,7 +378,7 @@ func writeCaveats(w io.Writer, col tui.Painter, d Data) {
 		// did, and the kinds stay aligned under one another when something is.
 		if len(failing) > 0 {
 			kind = tui.Styled(cAccent, "  "+string(c.key))
-			if slices.Contains(d.FailOnCaveats, c.key) {
+			if c.fails(d) {
 				kind = tui.Styled(cFail, "✗ "+string(c.key))
 			}
 		}

@@ -1,19 +1,10 @@
 package report
 
 import (
-	"fmt"
-	"io"
 	"strings"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
 )
-
-// unreadShown caps the files a component's line names in markdown. The rest are counted, and
-// report.json carries them all.
-const unreadShown = 3
-
-// unreadNote says what the markdown section lists and what it cost.
-const unreadNote = "files no scanner read in full · what they declare or hold was not checked"
 
 // unreadGroup is one component's unread files, each named once however many controls missed it.
 type unreadGroup struct {
@@ -96,32 +87,4 @@ func repositoriesByComponent(targets []engine.TargetOutcome) map[string]int {
 		out[c] = len(s)
 	}
 	return out
-}
-
-// text is the group's line: each file with its reason and the controls it went unread for, the
-// first limit of them and a count of the rest. A negative limit names every file.
-func (g unreadGroup) text(limit int, code func(string) string) string {
-	parts := make([]string, 0, len(g.files))
-	for i, f := range g.files {
-		if i == limit {
-			parts = append(parts, fmt.Sprintf("+%d", len(g.files)-limit))
-			break
-		}
-		parts = append(parts, fmt.Sprintf("%s %s (%s)", code(f.label), f.reason, strings.Join(f.controls, ", ")))
-	}
-	return strings.Join(parts, " · ")
-}
-
-// writeUnreadRows lists the unread files for the format pasted into a pull request, where a passing check
-// is read as covering the whole repository.
-func writeUnreadRows(w io.Writer, d Data) {
-	groups := unreadByComponent(d.Run.Inputs, d.Run.Targets)
-	if len(groups) == 0 {
-		return
-	}
-	_, _ = fmt.Fprintf(w, "**Unread** · %s\n\n", unreadNote)
-	for _, g := range groups {
-		_, _ = fmt.Fprintf(w, "- `%s` · %s\n", g.component, g.text(unreadShown, func(s string) string { return "`" + s + "`" }))
-	}
-	_, _ = fmt.Fprintln(w)
 }

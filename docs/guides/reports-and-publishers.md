@@ -882,6 +882,14 @@ Narrowing the findings to a single component adds a strip above the list carryin
 verdict, its bands and the controls it did not pass. It appears for one component and not for two,
 because there is no verdict that describes two.
 
+**Caveats get a tab of their own** when the run has any. It lists every caveat under its component,
+with the exposure, criticality and verdict the Components table gives that component, and holds the
+same rows as the console's `CAVEATS` block. Each row names the caveat's kind, what it applies to, and
+the reason. A kind listed in [`config.gate.failOnCaveats`](../reference/saga-schema.md#configgate)
+marks its rows `✗` and turns the tab red when a caveat fails the run. When `--allow-scan-errors`
+accepts the run, the tab is not red and the section's note names the flag. The markdown report lists
+the same rows under **Caveats**.
+
 **A finding whose message is too long for its row opens to the whole of it.** Such a row is marked
 `more`; click anywhere on it, or press Enter on it, and the scanner's full message replaces the
 shortened one. Links on the row, such as an advisory, keep working. It is a native
