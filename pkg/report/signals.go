@@ -96,7 +96,7 @@ var signalKinds = []signalKind{
 		name: "deprecated",
 		moves: func(Data) signalMove {
 			return signalMove{Up: true, Change: "severity one band",
-				Condition: "when its publisher has marked the version as no longer supported"}
+				Condition: "when the publisher has marked the version as no longer supported"}
 		},
 		did: healthDid(dephealth.SignalDeprecated),
 	},
