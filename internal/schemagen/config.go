@@ -57,7 +57,9 @@ func configFields() map[string]map[string]any {
 		},
 		"controls": {
 			"description": "Default settings for each control, merged underneath a descriptor's `config.controls`, " +
-				"so a project overrides only the keys it names. The same shape as `config.controls` in a Saga.",
+				"so a project overrides only the keys it names. Settings apply to a control the descriptor turns on, and " +
+				"`enabled: true` in a block turns its control on for a descriptor that leaves it out. " +
+				"The same shape as `config.controls` in a Saga.",
 		},
 		"controllers": {
 			"description": "Deprecated: write `controls`. Read as `controls`; `controls` wins where both set a key.",

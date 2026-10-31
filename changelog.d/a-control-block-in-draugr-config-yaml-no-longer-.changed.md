@@ -1,0 +1,1 @@
+- **A control block in `draugr.config.yaml` no longer turns its control on.** Settings under `controls.<control>` reach a control the descriptor turns on, at the top level or on a component. To run a control on every scan that reads the file, set `enabled: true` in its block.

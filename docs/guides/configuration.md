@@ -84,7 +84,7 @@ and `0s` included, except for `cache.readOnly`, `cache.requireDigest` and `offli
 on across files. An explicit file replaces both.
 
 Controller settings are merged **underneath** the descriptor's, so a project that has an opinion
-keeps it and nothing set here can override a committed Saga. `report.json` and `--evidence` name
+keeps it: the file never replaces a key the Saga sets, and a Saga's `enabled: false` still wins. `report.json` and `--evidence` name
 each file whose control default reached the descriptor;
 [the report schema](../reference/report-schema.md#what-each-descriptor-source-carries) has the
 fields.
@@ -232,6 +232,20 @@ A more specific file's `offline: false` does not turn it off. `--offline=false` 
 The same shape as `config.controls` in a Saga, merged underneath it. A platform team can set a
 default for every repository, a scanner's options, a database mirror an internal network requires,
 without editing a descriptor anywhere.
+
+A block of settings configures a control the descriptor turns on, at the top level or on a
+component, and does not turn the control on. To run the control on every scan that reads the file,
+including one whose descriptor leaves it out, set `enabled: true` in the block:
+
+```yaml
+controls:
+  sast:
+    enabled: true
+    semgrep:
+      config: p/owasp-top-ten
+```
+
+A descriptor that sets `enabled: false` for the control still turns it off.
 
 `controllers:` still loads and is read as `controls:`.
 

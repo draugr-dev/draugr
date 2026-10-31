@@ -1152,7 +1152,7 @@ func applyConfigDefaults(ctx context.Context, model *saga.Model) (config.File, [
 	if len(res.File.Controls) == 0 {
 		return res.File, nil, nil
 	}
-	merged, supplied := res.MergeControls(model.Config.Controls)
+	merged, supplied := res.MergeControls(model.Config.Controls, model.Components)
 	model.Config.Controls = merged
 	// Said once, at debug: a reader wondering why a control behaved unexpectedly needs to know a
 	// second file had a say. The report names each file and what it supplied, and `draugr config
