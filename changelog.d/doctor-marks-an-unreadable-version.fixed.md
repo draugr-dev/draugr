@@ -1,1 +1,0 @@
-- **`draugr doctor` marks a tool whose version it cannot read.** A build that prints `dev`, or a version check that fails, shows `? version unknown` in the tools table instead of `✓ found`, as `draugr tools list` already does.

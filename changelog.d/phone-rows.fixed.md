@@ -1,1 +1,0 @@
-- **The HTML report's rows use the full width of a phone.** On a narrow screen the priority and severity chips start the first line of a finding, a fix-list row or a caveat, and the text continues under them. A long rule id wraps inside its row, and the `more` mark that opens the row stays in view.

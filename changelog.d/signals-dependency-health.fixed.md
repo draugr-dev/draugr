@@ -1,1 +1,0 @@
-- **`SIGNALS` lists dependency health's two signals.** With `config.dependencyHealth` on, the console, HTML and markdown reports list `malicious` and `deprecated` with the findings each raised, or `nothing raised`. Neither was listed before, and `report.json` now records the lookup under `consulted`.
