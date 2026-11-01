@@ -60,9 +60,6 @@ func TestASuppliersClaimSuppressesAndSaysWhose(t *testing.T) {
 	if res.Suppression.Author != "Acme Ltd" {
 		t.Errorf("author = %q, want the document's", res.Suppression.Author)
 	}
-	if res.Suppression.AcceptedBy != "" {
-		t.Error("acceptedBy is for a decision this project made, and must stay empty here")
-	}
 	if res.Suppression.Asserted == "" {
 		t.Error("a claim's own date is what makes a stale one visible")
 	}
@@ -144,7 +141,8 @@ func TestAnAffectedClaimChangesNothingAndIsNotReportedUnmatched(t *testing.T) {
 func TestALocalDecisionIsNotOverwrittenByASupplier(t *testing.T) {
 	res := finding("api", "CVE-1", "pkg:pypi/flask@0.12.2")
 	res.Suppression = &sarif.Suppression{
-		Kind: "external", Justification: "we accepted this", AcceptedBy: "A. Engineer",
+		Kind: "external", Justification: "we accepted this", Origin: sarif.OriginSaga,
+		Source: "draugr.saga.yaml", Line: 12,
 	}
 	controls := controlsWith(res)
 	set := vex.Set{ByComponent: map[string][]vex.Resolved{
@@ -156,7 +154,7 @@ func TestALocalDecisionIsNotOverwrittenByASupplier(t *testing.T) {
 		t.Errorf("imported = %d, want 0, the local decision already covered it", n)
 	}
 	got := controls["sca"].Report.Results[0].Suppression
-	if got.AcceptedBy != "A. Engineer" || got.Origin == sarif.OriginVEX {
+	if got.Justification != "we accepted this" || got.Source != "draugr.saga.yaml" || got.Origin != sarif.OriginSaga {
 		t.Errorf("suppression = %+v, want this project's own reason intact", got)
 	}
 }

@@ -117,8 +117,7 @@ func suppressedData() report.Data {
 		"sast": {Control: "sast", Report: sarif.Report{Tool: "gosec", Results: []sarif.Result{
 			at("pkg/engine/engine.go", 2450, &sarif.Suppression{Kind: "inSource", Justification: "a file the descriptor names for import"}),
 			at("internal/preflight/preflight.go", 484, &sarif.Suppression{Kind: "external",
-				Justification: "the path doctor was asked to check", AcceptedBy: "Wilson Santos <wilson@draugr.dev>",
-				Source: ".draugr/exclusions/tool-install.saga-fragment.yaml", Line: 12}),
+				Justification: "the path doctor was asked to check", Source: ".draugr/exclusions/tool-install.saga-fragment.yaml", Line: 12}),
 			at("internal/scanners/repo.go", 118, nil),
 		}}},
 	}}
@@ -145,7 +144,7 @@ func publishTo(t *testing.T, fake *fakeCodeScanning, d report.Data) error {
 
 // A suppressed finding's alert is dismissed with the reason and where the exclusion is written, an
 // unsuppressed one is left open, and an alert for a result this upload does not carry is not
-// touched. The descriptor's unverified acceptedBy never reaches the comment.
+// touched.
 func TestGithubPublisherDismissesTheAlertsOfSuppressedFindings(t *testing.T) {
 	fake := &fakeCodeScanning{t: t, statuses: []string{"pending", "complete"}, pageSize: 2, open: []codeScanningAlert{
 		alert(1, "open", "G304", "pkg/engine/engine.go", 2450, ""),
@@ -239,12 +238,11 @@ func TestDismissalComment(t *testing.T) {
 	}
 }
 
-// The comment names the exclusion's file and line from the uploaded SARIF, and never the name a
-// descriptor's acceptedBy typed.
+// The comment names the exclusion's file and line from the uploaded SARIF.
 func TestUploadedResultsNameWhereTheExclusionIsWritten(t *testing.T) {
 	doc := `{"runs":[{"tool":{"driver":{"name":"Draugr"}},"results":[
 {"ruleId":"R","locations":[{"physicalLocation":{"artifactLocation":{"uri":"a.go"},"region":{"startLine":1}}}],
- "suppressions":[{"kind":"external","justification":"fixtures","properties":{"source":"draugr.saga.yaml","line":14,"unverifiedAcceptedBy":"someone"}}]}
+ "suppressions":[{"kind":"external","justification":"fixtures","properties":{"source":"draugr.saga.yaml","line":14}}]}
 ]}]}`
 	_, results, err := uploadedResults([]byte(doc))
 	if err != nil {

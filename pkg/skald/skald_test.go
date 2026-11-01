@@ -818,7 +818,7 @@ func TestPrioritiesCountWhatTheGateJudges(t *testing.T) {
 			{RuleID: "CVE-1", Level: sarif.LevelError, Priority: "P1"},
 			// Excused. Still in the report with its reason, and not work.
 			{RuleID: "CVE-2", Level: sarif.LevelError, Priority: "P1", Suppression: &sarif.Suppression{
-				Kind: "external", Justification: "a documentation example", AcceptedBy: "someone@example.test",
+				Kind: "external", Justification: "a documentation example",
 			}},
 			// The other matcher's copy of CVE-1. Not work either, and not a suppression: it is
 			// already in the number above under the first tool's rule id.
@@ -857,7 +857,8 @@ func TestAnExcusedFindingStaysInTheListAndSaysWhy(t *testing.T) {
 	run := engine.Result{Controls: map[string]plugin.ControlResult{
 		"secrets": {Control: "secrets", Report: sarif.Report{Results: []sarif.Result{
 			{RuleID: "github-pat", Level: sarif.LevelError, Priority: "P1", Suppression: &sarif.Suppression{
-				Kind: "external", Justification: "a documentation example", AcceptedBy: "someone@example.test",
+				Kind: "external", Justification: "a documentation example", Origin: sarif.OriginSaga,
+				Source: "draugr.saga.yaml", Line: 14,
 			}},
 		}}},
 	}}
@@ -881,13 +882,10 @@ func TestAnExcusedFindingStaysInTheListAndSaysWhy(t *testing.T) {
 	if got == nil {
 		t.Fatal("the excused finding is in the list and does not say it was excused")
 	}
-	if got["justification"] != "a documentation example" {
-		t.Errorf("suppressed = %+v, want the reason", got)
-	}
-	// The descriptor's acceptedBy is nobody's verified name, so it travels only under a key that
-	// says so, and never under the one a reader takes for who accepted the finding.
-	if _, ok := got["acceptedBy"]; ok || got["unverifiedAcceptedBy"] != "someone@example.test" {
-		t.Errorf("suppressed = %+v, want the name only as unverifiedAcceptedBy", got)
+	// The reason, and the file and line that match the rule's entry in descriptor.exclusions, whose
+	// git history records who wrote it.
+	if got["justification"] != "a documentation example" || got["source"] != "draugr.saga.yaml" || got["line"] != float64(14) {
+		t.Errorf("suppressed = %+v, want the reason and where the rule is written", got)
 	}
 }
 

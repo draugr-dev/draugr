@@ -379,11 +379,12 @@ func TestOnlyRepositoryTellsSiblingGroupsApart(t *testing.T) {
 	}
 }
 
-// suppressed is a copy of a result carrying a decision to live with it.
-func suppressed(r sarif.Result, by string) sarif.Result {
+// suppressed is a copy of a result carrying a decision to live with it, written at line 12 of the
+// descriptor.
+func suppressed(r sarif.Result) sarif.Result {
 	r.Suppression = &sarif.Suppression{
-		Kind: "external", Justification: "reviewed, accepted", AcceptedBy: by,
-		Origin: sarif.OriginSaga,
+		Kind: "external", Justification: "reviewed, accepted", Origin: sarif.OriginSaga,
+		Source: "draugr.saga.yaml", Line: 12,
 	}
 	return r
 }
@@ -403,7 +404,7 @@ func TestAcceptingARiskIsNotFixingIt(t *testing.T) {
 	f := finding("CVE-2024-11111", "requirements.txt", 3)
 	r := Compare(
 		sarif.Report{Results: []sarif.Result{f}},
-		sarif.Report{Results: []sarif.Result{suppressed(f, "wilson@draugr.dev")}},
+		sarif.Report{Results: []sarif.Result{suppressed(f)}},
 	)
 
 	if len(r.Fixed) != 0 {
@@ -412,8 +413,42 @@ func TestAcceptingARiskIsNotFixingIt(t *testing.T) {
 	if len(r.Accepted) != 1 {
 		t.Fatalf("accepted = %d, want 1", len(r.Accepted))
 	}
-	if r.Accepted[0].Suppression.AcceptedBy != "wilson@draugr.dev" {
-		t.Error("the decision arrived without the person who made it")
+	if s := r.Accepted[0].Suppression; s.Source != "draugr.saga.yaml" || s.Line != 12 {
+		t.Errorf("the decision arrived without the line that records it: %+v", s)
+	}
+}
+
+// A baseline an earlier release wrote names a descriptor rule's typed name under acceptedBy or
+// unverifiedAcceptedBy, and records no origin. Read through the SARIF draugr diff loads, it is
+// still the decision it recorded: the finding a pull request leaves suppressed is unchanged, and
+// one the pull request reopens is unaccepted rather than new.
+func TestABaselineFromAnEarlierReleaseStillReadsAsADecision(t *testing.T) {
+	for _, key := range []string{"acceptedBy", "unverifiedAcceptedBy"} {
+		t.Run(key, func(t *testing.T) {
+			older := `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"trivy"}},"results":[
+{"ruleId":"CVE-2024-11111","level":"error","message":{"text":"CVE-2024-11111"},
+ "locations":[{"physicalLocation":{"artifactLocation":{"uri":"requirements.txt"},"region":{"startLine":3}}}],
+ "suppressions":[{"kind":"external","justification":"reviewed, accepted",
+   "properties":{"` + key + `":"someone@example.com"}}]}]}]}`
+			base, err := sarif.FromSARIF([]byte(older))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if s := base.Results[0].Suppression; s == nil || s.Origin != sarif.OriginSaga {
+				t.Fatalf("the old baseline's suppression read back as %+v", s)
+			}
+
+			f := finding("CVE-2024-11111", "requirements.txt", 3)
+			kept := Compare(base, sarif.Report{Results: []sarif.Result{suppressed(f)}})
+			if len(kept.Unchanged) != 1 || len(kept.Accepted) != 0 || len(kept.New) != 0 {
+				t.Errorf("kept: unchanged=%d accepted=%d new=%d, want the decision unchanged",
+					len(kept.Unchanged), len(kept.Accepted), len(kept.New))
+			}
+			reopened := Compare(base, sarif.Report{Results: []sarif.Result{f}})
+			if len(reopened.Unaccepted) != 1 || len(reopened.New) != 0 {
+				t.Errorf("reopened: unaccepted=%d new=%d, want it unaccepted", len(reopened.Unaccepted), len(reopened.New))
+			}
+		})
 	}
 }
 
@@ -422,7 +457,7 @@ func TestALapsedExclusionIsUnacceptedRatherThanNew(t *testing.T) {
 	// loses the part somebody has to act on, which is that a decision needs making again.
 	f := finding("CVE-2024-11111", "requirements.txt", 3)
 	r := Compare(
-		sarif.Report{Results: []sarif.Result{suppressed(f, "wilson@draugr.dev")}},
+		sarif.Report{Results: []sarif.Result{suppressed(f)}},
 		sarif.Report{Results: []sarif.Result{f}},
 	)
 
@@ -440,7 +475,7 @@ func TestAFindingThatArrivesAlreadyExcusedIsVisible(t *testing.T) {
 	f := finding("CVE-2024-22222", "requirements.txt", 7)
 	r := Compare(
 		sarif.Report{},
-		sarif.Report{Results: []sarif.Result{suppressed(f, "wilson@draugr.dev")}},
+		sarif.Report{Results: []sarif.Result{suppressed(f)}},
 	)
 
 	if len(r.Accepted) != 1 {
@@ -452,7 +487,7 @@ func TestAFindingThatArrivesAlreadyExcusedIsVisible(t *testing.T) {
 }
 
 func TestADecisionThatDidNotChangeIsUnchanged(t *testing.T) {
-	f := suppressed(finding("CVE-2024-11111", "requirements.txt", 3), "wilson@draugr.dev")
+	f := suppressed(finding("CVE-2024-11111", "requirements.txt", 3))
 	r := Compare(
 		sarif.Report{Results: []sarif.Result{f}},
 		sarif.Report{Results: []sarif.Result{f}},
@@ -464,7 +499,7 @@ func TestADecisionThatDidNotChangeIsUnchanged(t *testing.T) {
 
 func TestAFindingSuppressedThenGoneIsNotCountedAsFixed(t *testing.T) {
 	// It was not counting either way, so calling it fixed inflates the good news.
-	f := suppressed(finding("CVE-2024-11111", "requirements.txt", 3), "wilson@draugr.dev")
+	f := suppressed(finding("CVE-2024-11111", "requirements.txt", 3))
 	r := Compare(sarif.Report{Results: []sarif.Result{f}}, sarif.Report{})
 
 	if len(r.Fixed) != 0 {

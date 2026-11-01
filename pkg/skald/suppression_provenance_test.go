@@ -24,8 +24,7 @@ func TestAnImportedSuppressionNamesItsDocumentAndStatement(t *testing.T) {
 				StatementID: "https://acme.example/vex/stmt-1", Digest: "sha256:aaaa",
 			}},
 			{RuleID: "CVE-2", Level: sarif.LevelError, Priority: "P2", Suppression: &sarif.Suppression{
-				Kind: "external", Justification: "a test fixture", AcceptedBy: "someone@example.test",
-				Origin: sarif.OriginSaga,
+				Kind: "external", Justification: "a test fixture", Origin: sarif.OriginSaga,
 			}},
 		}}},
 	}}

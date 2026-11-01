@@ -532,10 +532,6 @@ type Suppression struct {
 	// Justification is the reason the Saga gave. Required by Draugr even though SARIF allows
 	// it to be absent.
 	Justification string `json:"justification"`
-	// AcceptedBy is the name a descriptor rule's deprecated acceptedBy states. Nothing verifies it,
-	// so a report carries it only as the descriptor's unverified claim; who wrote the rule is the
-	// git history of its line.
-	AcceptedBy string `json:"acceptedBy,omitempty"`
 	// Expires is when the acceptance lapses, as YYYY-MM-DD. Empty means it does not.
 	Expires string `json:"expires,omitempty"`
 	// VEXStatus is what the exclusion declared this suppression means as a claim about the product:

@@ -193,9 +193,6 @@ func statementFor(res sarif.Result) vexStatement {
 
 // vexStatusNotes carries when a suppression lapses. VEX has no field for it, and dropping it would
 // publish a temporary acceptance as a standing one.
-//
-// The descriptor's acceptedBy is left out. Nothing verifies it, and a statement published to the
-// product's consumers would present it as who accepted the finding.
 func vexStatusNotes(sup *sarif.Suppression) string {
 	if sup.Expires != "" {
 		return "expires " + sup.Expires

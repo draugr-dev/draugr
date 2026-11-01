@@ -39,6 +39,13 @@ func TestNoExampleUsesARemovedKey(t *testing.T) {
 		t.Fatalf("found %d documents under %s; the walk is not reading the tree", len(sources), root)
 	}
 
+	// removedFields keys a field by the section its message prints, which marks some lists and not
+	// others (`config.exclude` is a list), so both sides are compared with every `[]` taken out.
+	removed := map[string]string{}
+	for key, why := range removedFields {
+		removed[strings.ReplaceAll(key, "[]", "")] = why
+	}
+
 	for _, path := range sources {
 		// #nosec G304 -- every path is one the walk above found under this repository's own docs
 		// and examples; nothing comes from input.
@@ -55,7 +62,7 @@ func TestNoExampleUsesARemovedKey(t *testing.T) {
 				continue
 			}
 			for _, key := range keyPaths(&doc, "") {
-				if why, ok := removedFields[key]; ok {
+				if why, ok := removed[strings.ReplaceAll(key, "[]", "")]; ok {
 					t.Errorf("%s:%d shows %s, which the parser refuses: %s", where, block.line, key, why)
 				}
 			}

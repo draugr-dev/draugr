@@ -69,7 +69,6 @@ func TestLoadStampsTheLineAnAliasPointsAt(t *testing.T) {
     - *fixture
     - rules: [x]
       reason: "x"
-      acceptedBy: someone
 `), false)
 	if err != nil {
 		t.Fatal(err)
@@ -77,9 +76,6 @@ func TestLoadStampsTheLineAnAliasPointsAt(t *testing.T) {
 	got := m.Config.Exclude
 	if got[0].Line != 3 || got[1].Line != 3 || got[2].Line != 7 {
 		t.Errorf("lines = %d, %d, %d, want 3, 3, 7", got[0].Line, got[1].Line, got[2].Line)
-	}
-	if got[2].acceptedByLine != 9 || got[0].acceptedByLine != 0 {
-		t.Errorf("acceptedBy lines = %d, %d, want 9 and none", got[2].acceptedByLine, got[0].acceptedByLine)
 	}
 }
 

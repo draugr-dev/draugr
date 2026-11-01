@@ -148,9 +148,6 @@ var deprecatedKeys = map[string]bool{
 	// Replaced by `controls`, the word every other surface uses. Still read, and folded into
 	// `controls` when a descriptor loads.
 	"controllers": true,
-	// A name nothing verifies. The git history of the exclusion's line records who wrote it. Still
-	// read, with a warning, until the release that removes it.
-	"acceptedBy": true,
 }
 
 // TestDeprecatedKeysSayTheyAreDeprecated keeps the exemption list from becoming a place to hide a

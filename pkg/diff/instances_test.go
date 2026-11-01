@@ -96,8 +96,8 @@ func TestInstancesThatMovedOrWereEditedAroundAreUnchanged(t *testing.T) {
 // the pairings apart: paired by fingerprint both are unchanged, and paired greedily in line order
 // one would read as accepted and the other as unaccepted, two decisions nobody made.
 func TestAnExactMatchIsNotTakenByALooseOne(t *testing.T) {
-	base := report(suppressed(instance(10, "A", "r1"), "sam"), instance(20, "B", "r1"))
-	head := report(instance(5, "X", "r1"), suppressed(instance(30, "A", "r1"), "sam"))
+	base := report(suppressed(instance(10, "A", "r1")), instance(20, "B", "r1"))
+	head := report(instance(5, "X", "r1"), suppressed(instance(30, "A", "r1")))
 	d := Compare(base, head)
 	if len(d.Accepted) != 0 || len(d.Unaccepted) != 0 {
 		t.Fatalf("accepted = %d, unaccepted = %d, want neither", len(d.Accepted), len(d.Unaccepted))

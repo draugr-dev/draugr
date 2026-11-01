@@ -75,7 +75,6 @@ var openStrings = map[string]string{
 	"$defs.vexConfig.properties.author":                              "who is asserting, free text",
 	"$defs.vexConfig.properties.product":                             "the product identifier a consumer will match on",
 	"$defs.excludeRule.properties.reason":                            "why somebody excused a finding, in their words",
-	"$defs.excludeRule.properties.acceptedBy":                        "who accepted it: an address or a name",
 	"$defs.component.properties.labels.additionalProperties":         "the organization's own label values",
 	"$defs.fragmentComponent.properties.name":                        "the component's own name",
 	"$defs.fragmentComponent.properties.labels.additionalProperties": "the organization's own label values",

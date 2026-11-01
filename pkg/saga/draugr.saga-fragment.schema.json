@@ -1247,16 +1247,6 @@
       "additionalProperties": false,
       "description": "One exclusion. Set paths, rules, or both; when both are set a finding must match both.",
       "properties": {
-        "acceptedBy": {
-          "deprecated": true,
-          "description": "Deprecated: delete the line; 0.164.0 removes it. A name typed as who accepted the finding, which nothing verifies. Still read, with a warning, and reported only as unverifiedAcceptedBy. The exclusion's git history records who wrote it.",
-          "minLength": 1,
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
-        },
         "expires": {
           "description": "Date this exclusion stops applying (YYYY-MM-DD). Past it the finding returns and the report says the exclusion lapsed.",
           "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|\\d{4}-\\d{2}-\\d{2})$",

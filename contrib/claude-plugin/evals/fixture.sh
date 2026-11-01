@@ -79,6 +79,19 @@ sarif_only() {
   rm -f "$1/report.json"
 }
 
+# web_exclusion sets the web service's eval call aside with a config.exclude entry that gives a
+# reason. Call it before descriptor, which reads the CONFIG it sets. The entry starts at line 4 of
+# draugr.saga.yaml.
+web_exclusion() {
+  CONFIG='  exclude:
+    - paths: ["services/web/src/index.js"]
+      rules: ["draugr-fixture-eval"]
+      reason: >-
+        The web service passes only constants from its own templates to run(); no request data
+        reaches it.
+'
+}
+
 # shell_call commits a Python handler in the api service that passes request input to os.popen, the
 # command injection the fixture's Semgrep rule draugr-fixture-os-popen reports.
 shell_call() {

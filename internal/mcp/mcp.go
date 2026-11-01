@@ -259,8 +259,10 @@ func NewServer(opts Options) (*mcp.Server, error) {
 			"its findings ranked by priority, deduplicated, with the rule documentation link " +
 			"for each. Answers 'what should I fix first?' from a scan that already ran, without " +
 			"starting a new one. A finding the project " +
-			"accepted comes back in accepted, with who decided, why and until when; report it as " +
-			"a decision and do not propose fixing it. It covers the controls " +
+			"accepted comes back in accepted, with why, until when and the file and line that " +
+			"record the decision; report it as a decision and do not propose fixing it. Who " +
+			"wrote a rule in the descriptor is the git history of that line, which report.json " +
+			"carries in descriptor.exclusions[].gitHistory. It covers the controls " +
 			"that scan ran and nothing else, so treat it as a floor to build on rather than a " +
 			"complete account of a codebase's security. Given a report.json, read the " +
 			"results.sarif in the same directory, since report.json holds the verdict and the fix list " +

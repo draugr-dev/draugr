@@ -177,6 +177,9 @@ var removedFields = map[string]string{
 		"`cluster:`, declared once under the top-level `clusters:`, as in " +
 		"`clusters: {prod: {context: prod-eu-west-1}}` with `kubernetes: [{cluster: prod}]`; the " +
 		"control that checks it is `kubernetes` under `config.controls`",
+	"config.exclude.acceptedBy": "delete the line. The record of who wrote an exclusion is the git " +
+		"history of its line, which `git blame` shows and report.json carries as " +
+		"`descriptor.exclusions[].gitHistory`",
 }
 
 // environmentRemoved explains a target that still labels itself.

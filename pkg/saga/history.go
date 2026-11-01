@@ -72,23 +72,7 @@ func stampExcludeLines(root *yaml.Node, rules []ExcludeRule) {
 	for i, item := range exclude.Content {
 		item = resolveAlias(item)
 		rules[i].Line = item.Line
-		if key := mappingKey(item, "acceptedBy"); key != nil {
-			rules[i].acceptedByLine = key.Line
-		}
 	}
-}
-
-// mappingKey returns the key node named key in a mapping, or nil.
-func mappingKey(n *yaml.Node, key string) *yaml.Node {
-	if n == nil || n.Kind != yaml.MappingNode {
-		return nil
-	}
-	for i := 0; i+1 < len(n.Content); i += 2 {
-		if n.Content[i].Value == key {
-			return n.Content[i]
-		}
-	}
-	return nil
 }
 
 // resolveAlias follows an alias to the node it names, whose line is where the text is written.

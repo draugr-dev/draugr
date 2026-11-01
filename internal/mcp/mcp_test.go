@@ -874,7 +874,7 @@ func TestSummarizeDoesNotHandBackAcceptedRisk(t *testing.T) {
 	rep := sarif.Report{Results: []sarif.Result{
 		{RuleID: "CVE-ACCEPTED", Level: sarif.LevelError, HasScore: true, Score: 9.8, Priority: "P1",
 			Suppression: &sarif.Suppression{
-				Kind: "external", Justification: "not reachable", AcceptedBy: "sec@example.com",
+				Kind: "external", Justification: "not reachable", Origin: sarif.OriginSaga,
 			}},
 		{RuleID: "CVE-LIVE", Level: sarif.LevelError, HasScore: true, Score: 9.8, Priority: "P1"},
 	}}
@@ -1053,7 +1053,7 @@ func TestFixListLeavesAcceptedRiskOut(t *testing.T) {
 		{RuleID: "CVE-ACCEPTED", Priority: "P1", Level: sarif.LevelError,
 			Location: sarif.Location{URI: "a"},
 			Suppression: &sarif.Suppression{
-				Kind: "external", Justification: "not reachable", AcceptedBy: "sec@example.com",
+				Kind: "external", Justification: "not reachable", Origin: sarif.OriginSaga,
 			}},
 	}}
 	_, out, err := FixListTool(context.Background(), nil, FixListInput{Path: writeSARIF(t, rep)})

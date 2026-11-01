@@ -24,7 +24,7 @@ may read it, and what may leave the machine.
 
 | Artifact | Written when | Carries |
 |---|---|---|
-| `results.sarif` | `-o`, by default | each finding's rule, message, file path and line, package and version, component, the component's declared exposure, criticality and labels, its priority, reachability call paths where an analyzer found them, and suppressions with their reason and who accepted them; what each scanner said about its run |
+| `results.sarif` | `-o`, by default | each finding's rule, message, file path and line, package and version, component, the component's declared exposure, criticality and labels, its priority, reachability call paths where an analyzer found them, and suppressions with their reason and the file and line that record each; what each scanner said about its run |
 | `report.json` | `-o`, by default | the same findings, plus the descriptor's path and digest and the gate. In CI it names the pipeline run, who started it and who wrote the commit: handle, display name and account ID, and an email only when `config.ci.recordEmail` asks for it |
 | `report.html`, `report.md`, `report.txt`, `evidence.txt` | `--report html`, `markdown`, `console`, `evidence` | the findings, rendered for a person |
 | `report.junit.xml`, `gl-*.json` | `--report junit` or a GitLab format | the findings, in the shape that platform reads |

@@ -227,10 +227,6 @@ type findingReport struct {
 // suppressionNote is why a finding is not being counted as work.
 type suppressionNote struct {
 	Justification string `json:"justification,omitempty"`
-	// UnverifiedAcceptedBy is the name a descriptor rule's deprecated acceptedBy states, which
-	// nothing checks. Named so no reader takes it for who accepted the finding; the record of that
-	// is the git history descriptor.exclusions carries.
-	UnverifiedAcceptedBy string `json:"unverifiedAcceptedBy,omitempty"`
 	// Origin says whose decision this was: empty or "saga" for this project's own rule, "vex" for a
 	// supplier's claim it accepted, "tool" for a directive written beside the line, and "scanner"
 	// for an entry in the scanner's own ignore file (sarif.OriginSaga and the rest).
@@ -1163,7 +1159,7 @@ func suppressionOf(res sarif.Result) *suppressionNote {
 	}
 	s := res.Suppression
 	return &suppressionNote{
-		Justification: s.Justification, UnverifiedAcceptedBy: s.AcceptedBy, Origin: s.Origin,
+		Justification: s.Justification, Origin: s.Origin,
 		Author: s.Author, Asserted: s.Asserted, Source: s.Source, StatementID: s.StatementID, Digest: s.Digest,
 		Line: s.Line,
 	}

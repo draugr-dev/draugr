@@ -230,13 +230,7 @@ func loadAndWarn(path string) ([]string, error) {
 		if err != nil {
 			return nil, nil
 		}
-		// Checked on its own, so it is named as the path given rather than as a descriptor would.
-		rules := frag.Config.Exclude
-		for i := range rules {
-			rules[i].Source, rules[i].File = filepath.ToSlash(path), path
-		}
-		warnings := (&saga.Model{Config: saga.Config{Exclude: rules}}).ExcludeWarnings(filepath.Dir(path))
-		return append(warnings, saga.AcceptedByWarnings(rules)...), nil
+		return (&saga.Model{Config: saga.Config{Exclude: frag.Config.Exclude}}).ExcludeWarnings(filepath.Dir(path)), nil
 	}
 	fetcher := sagafetch.New(context.Background())
 	defer fetcher.Close()
@@ -245,8 +239,7 @@ func loadAndWarn(path string) ([]string, error) {
 		return nil, nil
 	}
 	warnings := append(res.Model.ExcludeWarnings(filepath.Dir(path)), res.Model.ClusterWarnings()...)
-	warnings = append(warnings, res.Model.AccountWarnings()...)
-	return append(warnings, saga.AcceptedByWarnings(res.Model.Config.Exclude)...), nil
+	return append(warnings, res.Model.AccountWarnings()...), nil
 }
 
 // explanations collects what each control has to say about a descriptor that has already
