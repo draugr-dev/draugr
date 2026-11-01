@@ -281,6 +281,14 @@ no descriptor at the head fails, because there is nothing to scan: the GitHub Ac
 naming the missing descriptor, and the GitLab and Azure DevOps templates with the scan's own error,
 `draugr.saga.yaml does not exist`.
 
+### When the release refuses the base's descriptor
+
+A release can refuse a descriptor an earlier release accepted, as 0.164.0 refuses
+`config.exclude[].acceptedBy`. The three templates validate the base's descriptor before scanning
+the base, and scan a refused one with the head's copy, with a warning that quotes the refusal. The
+pull request that removes the key is gated like any other, and both trees are read with the head's
+descriptor.
+
 ## Do not pay for the base scan twice
 
 Scanning the base on every pull request is the honest way to get a comparable pair, and it is also
