@@ -25,7 +25,18 @@ func xnet(tool, rule, component, repo string, level sarif.Level) sarif.Result {
 // where nothing ruled, keeps no verdict: the same advisory in another repository is another
 // finding. And the summary counts each flaw once, as the bands do.
 func TestAVerdictReachesEveryScannersCopyOfTheFlaw(t *testing.T) {
-	const cve = "CVE-2026-78663"
+	verdictReachesEveryCopy(t, "CVE-2026-78663")
+}
+
+// The same holds for a flaw with no CVE, which every scanner, govulncheck included, reports under
+// its GitHub advisory id.
+func TestAVerdictReachesEveryScannersCopyOfAFlawWithNoCVE(t *testing.T) {
+	verdictReachesEveryCopy(t, "GHSA-w67g-5rqw-f597")
+}
+
+// verdictReachesEveryCopy runs the case above for the advisory id cve.
+func verdictReachesEveryCopy(t *testing.T, cve string) {
+	t.Helper()
 	verdict := analyzed("repo-api", cve, "golang.org/x/net", sarif.ReachabilityUnreachable)
 	verdict.Location = sarif.Location{URI: "go.mod"}
 	ctrls := controlsWith(

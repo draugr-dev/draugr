@@ -704,26 +704,39 @@ func govulncheckSymbols(advisory *govulncheckOSV, module string) []string {
 
 // govulncheckIdentifiers lists every identifier this advisory should be reported under.
 //
-// The CVEs first and the Go advisory id only when there is no CVE, for the reason retire.js picks
-// the same way: a CVE is what a reader can look up, what an exclusion is most likely written
-// against, and what every other scanner and every exploitability feed keys on. An advisory with
-// several CVEs becomes several findings, because that is how the manifest scanners report it.
+// The CVEs where there are any, for the reason retire.js picks the same way: a CVE is what a reader
+// can look up, what an exclusion is most likely written against, and what every other scanner and
+// every exploitability feed keys on. An advisory with several CVEs becomes several findings,
+// because that is how the manifest scanners report it.
+//
+// Without a CVE, the GitHub advisory ids, which are what Trivy and Grype report the same flaw
+// under. Reported under the Go id, this finding would not match their copies, so the verdict would
+// not reach them, they would be ranked without it, and the flaw would be counted twice. The Go id
+// is used only for an advisory with neither a CVE nor a GitHub id.
 func govulncheckIdentifiers(osvID string, advisory *govulncheckOSV) []string {
-	var cves []string
-	if advisory != nil {
-		seen := map[string]bool{}
-		for _, alias := range advisory.Aliases {
-			if strings.HasPrefix(strings.ToUpper(alias), "CVE-") && !seen[alias] {
-				seen[alias] = true
-				cves = append(cves, alias)
-			}
-		}
-	}
-	if len(cves) == 0 {
+	if advisory == nil {
 		return []string{osvID}
 	}
-	sort.Strings(cves)
-	return cves
+	for _, prefix := range []string{"CVE-", "GHSA-"} {
+		if ids := aliasesWith(advisory.Aliases, prefix); len(ids) > 0 {
+			return ids
+		}
+	}
+	return []string{osvID}
+}
+
+// aliasesWith returns the aliases starting with prefix, deduplicated and sorted.
+func aliasesWith(aliases []string, prefix string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, alias := range aliases {
+		if strings.HasPrefix(strings.ToUpper(alias), prefix) && !seen[alias] {
+			seen[alias] = true
+			out = append(out, alias)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // govulncheckModuleVersion reports the vulnerable module's version, read from the trace frame

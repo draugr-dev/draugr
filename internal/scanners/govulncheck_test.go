@@ -320,6 +320,38 @@ func TestParseGovulncheckReportsEachCVEAnAdvisoryHas(t *testing.T) {
 	}
 }
 
+func TestParseGovulncheckReportsTheGitHubAdvisoryWhereThereIsNoCVE(t *testing.T) {
+	// Trivy and Grype report a flaw with no CVE under its GitHub advisory id. Under the Go id the
+	// verdict would never reach their copies and the flaw would be counted twice.
+	stream := `{"config":{"scan_level":"symbol"}}
+{"SBOM":{"modules":[{"path":"github.com/gorilla/websocket","version":"v1.5.0"}]}}
+{"osv":{"id":"GO-2026-6278","summary":"s","aliases":["GHSA-w67g-5rqw-f597"]}}
+{"finding":{"osv":"GO-2026-6278","trace":[{"module":"github.com/gorilla/websocket","version":"v1.5.0"}]}}`
+	report, err := parseGovulncheck([]byte(stream), "", plugin.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Results) != 1 || report.Results[0].RuleID != "GHSA-w67g-5rqw-f597" {
+		t.Errorf("rule ids = %+v, want the GitHub advisory id", report.Results)
+	}
+}
+
+// A CVE is preferred to a GitHub advisory id where an advisory has both, as every other scanner and
+// feed prefers it.
+func TestParseGovulncheckPrefersACVEToAGitHubAdvisory(t *testing.T) {
+	stream := `{"config":{"scan_level":"symbol"}}
+{"SBOM":{"modules":[{"path":"m","version":"v1"}]}}
+{"osv":{"id":"GO-2020-0015","summary":"s","aliases":["GHSA-5rcv-m4m3-hfh7","CVE-2020-14040"]}}
+{"finding":{"osv":"GO-2020-0015","trace":[{"module":"m","version":"v1"}]}}`
+	report, err := parseGovulncheck([]byte(stream), "", plugin.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Results) != 1 || report.Results[0].RuleID != "CVE-2020-14040" {
+		t.Errorf("rule ids = %+v, want the CVE alone", report.Results)
+	}
+}
+
 func TestParseGovulncheckFallsBackToTheGoAdvisoryID(t *testing.T) {
 	// An advisory with no CVE still has to be reportable, under an id a suppression can name.
 	stream := `{"config":{"scan_level":"symbol"}}
