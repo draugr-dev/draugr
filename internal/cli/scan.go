@@ -87,7 +87,12 @@ type scanOptions struct {
 	allowScanErrors bool
 	// failOnCaveats is --fail-on-caveats as typed, read only when setFlags says it was passed.
 	failOnCaveats []string
-	view          string
+	// base is --base: the results.sarif of the scan this one is compared against, so the run can
+	// gate on what it reports that the base does not.
+	base string
+	// failOnNew is --fail-on-new as typed, which replaces config.gate.failOnNew for this run.
+	failOnNew string
+	view      string
 	// group and compact are the two flags --view replaces, kept so a pipeline written against
 	// them keeps working while it says so.
 	group   string
@@ -102,7 +107,9 @@ type scanOptions struct {
 // made in.
 var scanFlagGroups = []flagGroup{
 	{"What is scanned", []string{"components", "labels", "exposure", "criticality", "controls", "working-tree"}},
-	{"What fails the build", []string{"fail-on", "fail-on-priority", "fail-on-caveats", "no-gate", "allow-scan-errors"}},
+	{"What fails the build", []string{
+		"fail-on", "fail-on-priority", "fail-on-caveats", "base", "fail-on-new", "no-gate", "allow-scan-errors",
+	}},
 	{"Exploitability data", []string{"kev", "epss", "epss-threshold"}},
 	{"Output", []string{
 		"format", "output", "report", "view", "group", "compact", "evidence", "top",
@@ -155,6 +162,12 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringSliceVar(&opts.failOnCaveats, "fail-on-caveats", nil,
 		"kinds of caveat that fail the run as an error does: "+strings.Join(namesOf(saga.CaveatKinds), ", ")+
 			", or none; overrides config.gate.failOnCaveats")
+	cmd.Flags().StringVar(&opts.base, "base", "",
+		"the `results.sarif` of the scan to compare against; a finding this scan reports and the "+
+			"base does not is new, and config.gate.failOnNew or --fail-on-new judges it")
+	cmd.Flags().StringVar(&opts.failOnNew, "fail-on-new", "",
+		"the gate on new findings: a priority band (P1-P4) or a severity (critical, high, medium, "+
+			"low); overrides config.gate.failOnNew")
 	cmd.Flags().BoolVar(&opts.evidence, "evidence", false,
 		"also print what stands behind the verdict: tool provenance, what each control measured "+
 			"against, the scanned revision, and what the run cost")
@@ -310,6 +323,16 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	failOnCaveats, caveatSetting, err := resolveFailOnCaveats(opts.failOnCaveats, opts.setFlags["fail-on-caveats"], model.Config.Gate)
 	if err != nil {
 		return err
+	}
+	// The gate on new findings and the base it compares against, both read before the scan: a
+	// mistyped threshold, a base that names no file and a base of another scope are all visible
+	// now, and each would otherwise be learned once the scanners had finished.
+	againstBase, err := newBaseGate(opts, model.Config.Gate, scope)
+	if err != nil {
+		return err
+	}
+	if !opts.noGate {
+		againstBase.noteUnapplied(os.Stderr)
 	}
 	// Before the scanners run, because the answer does not depend on what they find and a wasted
 	// pipeline is a poor way to learn that the gate was never going to fire.
@@ -500,6 +523,12 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if orgPolicy != nil && orgPolicy.Outcome == skald.PolicyFail {
 		verdict.Verdict = norn.Fail
 	}
+	// Compared before the report is built, so every document the run writes or publishes states the
+	// gate on new findings beside the verdict rather than leaving it to a later command.
+	newFindings, newTripped, err := againstBase.compare(run)
+	if err != nil {
+		return err
+	}
 
 	format := opts.format
 	if format == "" {
@@ -537,6 +566,8 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			FailOnPriority: policy.FailOnPriority,
 			PerControlBand: policy.PerControlBand,
 			Disabled:       opts.noGate,
+			FailOnNew:      againstBase.setting(),
+			New:            newFindings,
 		},
 		View:       report.View(opts.view),
 		Uncovered:  uncoveredFor(model),
@@ -671,8 +702,11 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// above: the flag says "I am producing a report to compare later, and the comparison is the
 	// gate", not "ignore whatever happened". `|| true` in a pipeline cannot tell the two apart, and
 	// swallows the scan error that leaves no report for the diff to read.
-	if verdict.Verdict == norn.Fail && !opts.noGate {
-		return alsoPublish(fmt.Errorf("policy verdict: fail"), publishErr)
+	//
+	// The gate on new findings decides the exit code beside the verdict, and --no-gate releases both:
+	// report.json still states each outcome.
+	if (verdict.Verdict == norn.Fail || newTripped > 0) && !opts.noGate {
+		return alsoPublish(againstBase.failure(verdict.Verdict == norn.Fail, newTripped), publishErr)
 	}
 	if opts.requirePolicy {
 		if err := requireRunPolicy(orgPolicy, opts.policyWait); err != nil {

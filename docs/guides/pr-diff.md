@@ -433,6 +433,13 @@ filtered inputs reads every finding the filter removed as fixed.
 findings at or above the given severity / priority, matched as described in [what counts as "the
 same finding"](#what-counts-as-the-same-finding).
 
+The same gate can be written in the descriptor as
+[`config.gate.failOnNew`](../reference/saga-schema.md#configgate), where it is reviewed with the rest
+of the policy, and `--fail-on-new` overrides it for one run. `draugr scan --base main/results.sarif`
+applies it within the scan, by the comparison `draugr diff` makes, so the `report.json` the scan
+writes and publishes states the gate, the base and the verdict. See [gating on new
+findings](../reference/cli.md#gating-on-new-findings).
+
 ## Post the delta as a PR comment
 
 `--publish` posts the diff as a **sticky** pull-request comment, updated in place on each push,

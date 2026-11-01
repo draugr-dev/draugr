@@ -10,6 +10,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/skald"
 )
 
 func TestShortReasonKeepsWhatWentWrong(t *testing.T) {
@@ -301,6 +302,24 @@ func TestAComponentWithAFailingCaveatReadsError(t *testing.T) {
 func TestReportJSONCarriesFailedCaveats(t *testing.T) {
 	out := renderWith(t, jsonReporter{}, failingCaveatData())
 	for _, want := range []string{`"failOnCaveats": [`, `"unread-checks"`, `"failedCaveats": [`, `"what": "go.mod"`, `"kind": "unread-files"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %s in report.json:\n%s", want, out)
+		}
+	}
+}
+
+// report.json, written by the json reporter as a publisher writes it, carries the gate on new
+// findings and the comparison the run made, from the same settings the command resolved.
+func TestReportJSONCarriesTheGateOnNewFindings(t *testing.T) {
+	d := failingCaveatData()
+	d.Gate.FailOnNew = "P2"
+	d.Gate.New = &skald.NewFindings{
+		Base:       []sarif.RepositoryRef{{URL: "https://example.com/api.git", Revision: "3f2a9c1"}},
+		Introduced: []sarif.Result{{RuleID: "CVE-1", Priority: "P2"}},
+		Tripped:    true,
+	}
+	out := renderWith(t, jsonReporter{}, d)
+	for _, want := range []string{`"failOnNew": "P2"`, `"commit": "3f2a9c1"`, `"p2": 1`, `"verdict": "fail"`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %s in report.json:\n%s", want, out)
 		}

@@ -115,10 +115,14 @@ func reportUnreachableGate(out io.Writer, model *saga.Model, band string) error 
 // resolveDiffGate is resolveGate for the differential gate, which asks the same question about a
 // smaller set: what the change introduced rather than what the repository carries.
 //
+// A flag replaces the descriptor's gate.failOnNew for one run, the precedence resolveGate gives
+// --fail-on over failOn. Both `draugr diff` and `draugr scan --base` resolve it here, so the two
+// cannot read one descriptor differently.
+//
 // No default here, and that is the difference. An absent gate on `scan` means the run is still
 // judged, on the band; an absent one here means the diff is reported and decides nothing, which is
 // what the two scans either side of a `draugr diff` are for.
-func resolveDiffGate(flagFailOn, flagPriority string) (sarif.Severity, string, error) {
+func resolveDiffGate(flagFailOn, flagPriority string, gate *saga.GateConfig) (sarif.Severity, string, error) {
 	if flagFailOn != "" && flagPriority != "" {
 		return "", "", errBothDiffGates
 	}
@@ -130,10 +134,31 @@ func resolveDiffGate(flagFailOn, flagPriority string) (sarif.Severity, string, e
 	if err != nil {
 		return "", "", fmt.Errorf("--fail-on-new: %w", err)
 	}
-	if kind == saga.GateSeverity {
-		return sarif.Severity(value), "", nil
+	if kind == saga.GateNone {
+		kind, value = gate.ResolvedNew()
 	}
-	return "", value, nil
+	switch kind {
+	case saga.GateSeverity:
+		return sarif.Severity(value), "", nil
+	case saga.GatePriority:
+		return "", value, nil
+	}
+	return "", "", nil
+}
+
+// newGateSetting is the gate on new findings as report.json states it: the band or the severity
+// it fails at, or empty where none is set.
+func newGateSetting(failOn sarif.Severity, band string) string {
+	if band != "" {
+		return band
+	}
+	return string(failOn)
+}
+
+// errNewFindings is what a tripped gate on new findings exits with, in `draugr diff` and in
+// `draugr scan --base` alike.
+func errNewFindings(n int) error {
+	return fmt.Errorf("differential gate: %s at or above the threshold", english.Count(n, "new finding"))
 }
 
 var errBothDiffGates = errors.New(

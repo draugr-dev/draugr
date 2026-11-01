@@ -207,6 +207,20 @@ type GateConfig struct {
 	// In the descriptor for the reason the rest of this block is: it is policy, reviewed with the
 	// rest of the gate. --fail-on-caveats overrides it for one run.
 	FailOnCaveats []CaveatKind `yaml:"failOnCaveats,omitempty"`
+
+	// FailOnNew is the threshold at which a new finding fails the build: one this scan reports and
+	// the base scan it is compared against does not. The same vocabulary as FailOn, a band or a
+	// severity. Empty applies no gate to new findings.
+	//
+	// Applied where a comparison is made, `draugr scan --base` and `draugr diff`, and overridden for
+	// one run by their --fail-on-new. In the descriptor for the reason the rest of this block is:
+	// a pipeline's gate on what a change introduces is policy, and a flag in a workflow file is
+	// reviewed by whoever owns the workflow rather than with the rest of the gate.
+	//
+	// Independent of FailOn's vocabulary. The two gates ask about different sets of findings, the
+	// whole backlog and what one change added, and a team gating the backlog on P1 while refusing
+	// any new high is stating two policies rather than contradicting itself.
+	FailOnNew string `yaml:"failOnNew,omitempty"`
 }
 
 // CaveatKind is a kind of caveat: a shortfall in what a run covered that does not, unless

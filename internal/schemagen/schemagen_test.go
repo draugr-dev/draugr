@@ -430,6 +430,12 @@ func TestHandWrittenEnumsMatchTheirSource(t *testing.T) {
 			want: gateVocabulary(),
 		},
 		{
+			// The gate on new findings takes what ParseGate takes, the same as --fail-on-new.
+			name: "the gate on new findings",
+			path: []string{"gateConfig", "properties", "failOnNew"},
+			want: gateVocabulary(),
+		},
+		{
 			name: "exposure",
 			path: []string{"exposure"},
 			want: exposureStrings(),

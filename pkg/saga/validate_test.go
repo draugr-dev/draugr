@@ -706,6 +706,56 @@ func TestAGateAsksOneQuestion(t *testing.T) {
 	}
 }
 
+// The gate on new findings takes failOn's vocabulary, validated the same way, and is a question
+// about a different set of findings, so its vocabulary need not match failOn's.
+func TestTheGateOnNewFindingsIsValidatedLikeFailOn(t *testing.T) {
+	with := func(g *GateConfig) error {
+		return (&Model{Release: Release{Version: "1"}, Config: Config{Gate: g}}).Validate()
+	}
+	for _, g := range []*GateConfig{
+		{FailOnNew: "P2"},
+		{FailOnNew: "high"},
+		{FailOnNew: "error"},
+		{FailOn: "P1", FailOnNew: "high"},
+		{FailOn: "critical", FailOnNew: "P3"},
+	} {
+		if err := with(g); err != nil {
+			t.Errorf("%+v should be valid: %v", g, err)
+		}
+	}
+	err := with(&GateConfig{FailOnNew: "urgent"})
+	if err == nil {
+		t.Fatal("config.gate.failOnNew accepted a word that is not a threshold")
+	}
+	for _, want := range []string{"config.gate.failOnNew", `"urgent"`, "P1, P2, P3, P4", "critical, high, medium, low"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("message does not mention %q: %v", want, err)
+		}
+	}
+}
+
+// ResolvedNew reads the gate on new findings in whichever vocabulary it was written, and reports
+// none for a block that sets none, for no block, and for a word that is not a threshold.
+func TestResolvedNewReadsEitherVocabulary(t *testing.T) {
+	for _, c := range []struct {
+		gate      *GateConfig
+		wantKind  GateKind
+		wantValue string
+	}{
+		{nil, GateNone, ""},
+		{&GateConfig{}, GateNone, ""},
+		{&GateConfig{FailOnNew: "p2"}, GatePriority, "P2"},
+		{&GateConfig{FailOnNew: "high"}, GateSeverity, "high"},
+		{&GateConfig{FailOnNew: "warning"}, GateSeverity, "medium"},
+		{&GateConfig{FailOnNew: "urgent"}, GateNone, ""},
+	} {
+		kind, value := c.gate.ResolvedNew()
+		if kind != c.wantKind || value != c.wantValue {
+			t.Errorf("%+v.ResolvedNew() = %v %q, want %v %q", c.gate, kind, value, c.wantKind, c.wantValue)
+		}
+	}
+}
+
 // A descriptor with no release is a whole one. The version labels the reports and nothing a scan
 // finds or decides depends on it.
 func TestAReleaseIsOptional(t *testing.T) {

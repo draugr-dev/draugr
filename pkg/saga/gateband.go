@@ -103,3 +103,17 @@ func (g *GateConfig) Resolved() (GateKind, string) {
 	}
 	return GateNone, ""
 }
+
+// ResolvedNew is the gate on new findings this block asks for, GateNone where it sets none or
+// writes a word that is no threshold. Validation refuses the second, so it is reached only by a
+// descriptor that skipped validation.
+func (g *GateConfig) ResolvedNew() (GateKind, string) {
+	if g == nil {
+		return GateNone, ""
+	}
+	kind, value, err := ParseGate(g.FailOnNew)
+	if err != nil {
+		return GateNone, ""
+	}
+	return kind, value
+}

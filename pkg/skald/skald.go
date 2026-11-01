@@ -328,6 +328,23 @@ type Gate struct {
 	Disabled bool
 	// FailOnCaveats are the kinds of caveat that fail the run as an error does.
 	FailOnCaveats []saga.CaveatKind
+	// FailOnNew is the threshold at which a finding new since the base scan fails the run, a band
+	// or a severity, as config.gate.failOnNew or --fail-on-new set it. Empty where neither did.
+	FailOnNew string
+	// New is the run's comparison with a base scan, nil where no comparison ran.
+	New *NewFindings
+}
+
+// NewFindings is a run's comparison with the base scan it was given.
+type NewFindings struct {
+	// Base is each repository the base scan read and the revision it read, as the base's SARIF
+	// records them.
+	Base []sarif.RepositoryRef
+	// Introduced are the findings this run reports and the base does not, without a second
+	// scanner's copy of one already counted.
+	Introduced []sarif.Result
+	// Tripped reports whether any of them met FailOnNew. False where FailOnNew is empty.
+	Tripped bool
 }
 
 // gateReport is the gate as the JSON document states it.
@@ -351,6 +368,77 @@ type gateReport struct {
 	// FailOnCaveats are the kinds of caveat that fail the run as an error does, as
 	// gate.failOnCaveats or --fail-on-caveats named them. Absent when it fails on none.
 	FailOnCaveats []saga.CaveatKind `json:"failOnCaveats,omitempty"`
+	// FailOnNew is the gate on new findings in force, from gate.failOnNew or --fail-on-new. Absent
+	// when neither set it.
+	FailOnNew string `json:"failOnNew,omitempty"`
+	// New is the comparison with a base scan, present only when one ran. FailOnNew present and New
+	// absent is a gate on new findings that was asked for and had no base to apply to.
+	New *newReport `json:"new,omitempty"`
+}
+
+// newReport is the comparison with a base scan as the JSON document states it.
+type newReport struct {
+	Base baseReport `json:"base"`
+	// Introduced counts the new findings by band.
+	Introduced priorityCounts `json:"introduced"`
+	// Verdict is the gate on new findings' outcome, pass or fail. Absent where no threshold was
+	// set: the comparison is then reported and decides nothing, and a verdict nobody asked for
+	// would be one the document invented.
+	Verdict string `json:"verdict,omitempty"`
+}
+
+// baseReport identifies the scan a run was compared against, by what that scan's SARIF records.
+type baseReport struct {
+	// Commit is the revision the base read, where it read one repository. Absent where it read
+	// several, whose revisions differ, so that no one of them is reported as the base's.
+	Commit string `json:"commit,omitempty"`
+	// Repositories is each repository the base read and its revision, in the shape of the
+	// document's own repositories.
+	Repositories []sarif.RepositoryRef `json:"repositories,omitempty"`
+}
+
+// describeNew renders a comparison with a base scan, nil where none ran.
+func describeNew(n *NewFindings, failOnNew string) *newReport {
+	if n == nil {
+		return nil
+	}
+	out := &newReport{Base: baseReport{Repositories: n.Base, Commit: oneRevision(n.Base)}}
+	for _, f := range n.Introduced {
+		switch prioritization.Priority(f.Priority) {
+		case prioritization.P1:
+			out.Introduced.P1++
+		case prioritization.P2:
+			out.Introduced.P2++
+		case prioritization.P3:
+			out.Introduced.P3++
+		case prioritization.P4:
+			out.Introduced.P4++
+		}
+	}
+	if failOnNew != "" {
+		out.Verdict = string(norn.Pass)
+		if n.Tripped {
+			out.Verdict = string(norn.Fail)
+		}
+	}
+	return out
+}
+
+// oneRevision is the revision every repository was read at, or empty where they were read at
+// several, or one of them at a revision git could not report.
+//
+// Every entry has to agree. One repository spelled two ways, `…/api.git` and `…/api`, is two
+// entries at one revision and still one commit; two repositories are two commits, and naming
+// either as the base's would report one of them as the whole.
+func oneRevision(repos []sarif.RepositoryRef) string {
+	rev := ""
+	for _, r := range repos {
+		if r.Revision == "" || (rev != "" && r.Revision != rev) {
+			return ""
+		}
+		rev = r.Revision
+	}
+	return rev
 }
 
 // describeGate renders the gate, filling in the default threshold rather than emitting an empty
@@ -365,7 +453,10 @@ func describeGate(g *Gate) *gateReport {
 	// claiming a severity gate that was not in force beside the band that was. The console said
 	// `Gate: fails on P1.` and the document said `{"threshold":"high","failOnPriority":"P1"}`,
 	// which is the contradiction one field exists to prevent, reintroduced one layer down.
-	out := &gateReport{Disabled: g.Disabled, FailOnCaveats: g.FailOnCaveats}
+	out := &gateReport{
+		Disabled: g.Disabled, FailOnCaveats: g.FailOnCaveats,
+		FailOnNew: g.FailOnNew, New: describeNew(g.New, g.FailOnNew),
+	}
 	if g.Policy.GatesOnSeverity() {
 		out.Threshold = string(g.Policy.FailOn)
 	} else {

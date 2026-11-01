@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 
-	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/diff"
 	"github.com/draugr-dev/draugr/pkg/publish"
@@ -29,6 +29,12 @@ type diffOptions struct {
 	minPriority       string
 	repository        string
 	publish           bool
+	// saga is --saga as typed: the descriptor, or a directory holding one, whose
+	// config.gate.failOnNew applies where neither --fail-on-new spelling is passed.
+	saga string
+	// gate is that descriptor's gate block, read by the command before runDiff, and nil where no
+	// descriptor was read.
+	gate *saga.GateConfig
 }
 
 func newDiffCommand() *cobra.Command {
@@ -45,7 +51,9 @@ func newDiffCommand() *cobra.Command {
 			"With the head report alone every finding is new, because there is no base to compare\n" +
 			"against. It is the form for the pull request that adds a repository's first descriptor.\n\n" +
 			"--fail-on-new gates on findings the change introduces, not on the existing backlog,\n" +
-			"and takes a priority band or a severity. Exits non-zero when that gate trips.\n\n" +
+			"and takes a priority band or a severity. Exits non-zero when that gate trips. Without\n" +
+			"it, config.gate.failOnNew in the descriptor applies: the one --saga names, or the one\n" +
+			"in the working directory.\n\n" +
 			"output.view and output.top in draugr.config.yaml set the --view and --top defaults,\n" +
 			"as they do for `draugr scan`. A diff has no evidence section, so output.evidence\n" +
 			"sets nothing here.",
@@ -62,6 +70,14 @@ func newDiffCommand() *cobra.Command {
 				return err
 			}
 			diffOutputFrom(opts, res.File.Output, changedFlags(cmd))
+			// The descriptor is read only where it can decide something: a named one always, so a
+			// path that names nothing is an error, and the working directory's only where no
+			// threshold was typed.
+			if opts.saga != "" || (opts.failOnNew == "" && opts.failOnNewPriority == "") {
+				if opts.gate, err = diffDescriptorGate(opts.saga, cmd.ErrOrStderr()); err != nil {
+					return err
+				}
+			}
 			if len(args) == 1 {
 				return runDiff(cmd.Context(), "", args[0], *opts, cmd.OutOrStdout())
 			}
@@ -79,7 +95,10 @@ func newDiffCommand() *cobra.Command {
 		"console: max findings to list (0 = all; output.top sets the default)")
 	cmd.Flags().StringVar(&opts.failOnNew, "fail-on-new", "",
 		"fail if the change introduces a finding at or above this: a priority band (P1-P4) or a "+
-			"severity (critical, high, medium, low)")
+			"severity (critical, high, medium, low); overrides config.gate.failOnNew")
+	cmd.Flags().StringVar(&opts.saga, "saga", "",
+		"descriptor, or directory holding one, whose config.gate.failOnNew applies when "+
+			"--fail-on-new is not passed (default: the one in the working directory)")
 	cmd.Flags().StringVar(&opts.failOnNewPriority, "fail-on-new-priority", "",
 		"deprecated: write the band in --fail-on-new, which takes either vocabulary")
 	_ = cmd.Flags().MarkDeprecated("fail-on-new-priority",
@@ -115,7 +134,7 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 	// One threshold in either vocabulary, the same as the gate `scan` applies. The older
 	// --fail-on-new-priority still resolves, and the two together are refused for the reason the
 	// pair on `scan` is: one of them would be doing nothing.
-	failOn, failOnNewPriority, err := resolveDiffGate(opts.failOnNew, opts.failOnNewPriority)
+	failOn, failOnNewPriority, err := resolveDiffGate(opts.failOnNew, opts.failOnNewPriority, opts.gate)
 	if err != nil {
 		return err
 	}
@@ -143,11 +162,8 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 	var compared diff.Result
 	if noBase {
 		compared = diff.CompareWithoutBase(head)
-	} else {
-		if err := comparableScopes(basePath, base, headPath, head); err != nil {
-			return err
-		}
-		compared = diff.Compare(base, head)
+	} else if compared, err = compareWithBase(basePath, base, headPath, head); err != nil {
+		return err
 	}
 
 	// Narrowed after the comparison, never before it: a diff computed from filtered inputs reads
@@ -183,10 +199,7 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 	}
 
 	if len(result.Tripped) > 0 {
-		return alsoPublish(
-			fmt.Errorf("differential gate: %s at or above the threshold",
-				english.Count(len(result.Tripped), "new finding")),
-			publishErr)
+		return alsoPublish(errNewFindings(len(result.Tripped)), publishErr)
 	}
 	// The gate passed and only delivery failed, which is still non-zero. But the message has to
 	// say which, because the two are the same color in a checks list and only one of them is about
@@ -248,6 +261,62 @@ func loadSARIF(path string) (sarif.Report, error) {
 		return sarif.Report{}, fmt.Errorf("%s: %w", path, err)
 	}
 	return rep, nil
+}
+
+// compareWithBase is the comparison `draugr diff` makes and `draugr scan --base` makes, one
+// function so the two cannot classify one pair of reports differently: refused where the reports
+// did not cover the same ground, and otherwise every finding classified by diff.Compare.
+func compareWithBase(baseName string, base sarif.Report, headName string, head sarif.Report) (diff.Result, error) {
+	if err := comparableScopes(baseName, base, headName, head); err != nil {
+		return diff.Result{}, err
+	}
+	return diff.Compare(base, head), nil
+}
+
+// diffDescriptorGate is the gate block of the descriptor whose config.gate.failOnNew a diff
+// applies: the one --saga names, or else the one in the working directory. Nil where there is
+// none to read.
+//
+// A named descriptor that cannot be found or read is an error, because somebody asked for it. In
+// the working directory, none is the diff of two reports with no descriptor beside them, which
+// gates nothing as it always has. Several is said on w and read as none: picking one by name
+// would apply a gate nobody chose, and refusing would stop a diff that asked for no gate at all.
+func diffDescriptorGate(sagaPath string, w io.Writer) (*saga.GateConfig, error) {
+	path := ""
+	if sagaPath != "" {
+		found := false
+		var err error
+		if path, found, err = resolveDescriptor(sagaPath, "diff --saga"); err != nil {
+			return nil, err
+		}
+		if !found {
+			return nil, fmt.Errorf("--saga: no *.saga.yaml in %s. Name a descriptor file, or a directory that holds one", sagaPath)
+		}
+	} else {
+		here, err := descriptorsIn(".")
+		if err != nil {
+			return nil, err
+		}
+		switch len(here) {
+		case 0:
+			return nil, nil
+		case 1:
+			path = here[0]
+		default:
+			names := make([]string, len(here))
+			for i, p := range here {
+				names[i] = filepath.Base(p)
+			}
+			_, _ = fmt.Fprintf(w, "config.gate.failOnNew not read: the working directory holds %d descriptors (%s). "+
+				"Name one with --saga.\n", len(here), strings.Join(names, ", "))
+			return nil, nil
+		}
+	}
+	model, err := loadSaga(path)
+	if err != nil {
+		return nil, err
+	}
+	return model.Config.Gate, nil
 }
 
 // comparableScopes refuses to compare two reports that did not cover the same ground.

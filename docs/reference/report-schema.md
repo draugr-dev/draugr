@@ -45,6 +45,59 @@ jq -r '.targets[]? | select(.status != "reached") | "\(.kind) \(.target): \(.det
 jq -r '[.targets[]?.refusal | select(.credential == false) | .registry] | unique[]' out/report.json   # registries to log in to
 ```
 
+## Gate
+
+`gate` in `report.json` is the policy the run was judged against, and the outcome of the gate on new
+findings where a comparison ran:
+
+| Field | Meaning |
+|---|---|
+| `gate.failOnPriority` | the band a control fails at, on a run that gates on the band. The default, `P1`, is written out |
+| `gate.threshold` | the severity a control fails at, on a run that gates on severity. Exactly one of `threshold` and `failOnPriority` is present |
+| `gate.perControl` | the controls judged against a threshold of their own, in the gate's vocabulary |
+| `gate.disabled` | `true` under `--no-gate`: the verdicts stand and the command exited 0 |
+| `gate.failOnCaveats` | the kinds of caveat that fail the run, from [`config.gate.failOnCaveats`](saga-schema.md#configgate) or `--fail-on-caveats` |
+| `gate.failOnNew` | the gate on new findings in force, from [`config.gate.failOnNew`](saga-schema.md#configgate) or `--fail-on-new`. Absent when neither set one |
+| `gate.new` | the comparison with the scan [`--base`](cli.md#gating-on-new-findings) named, present only when one ran |
+| `gate.new.base.commit` | the revision the base read, where it read one repository. Absent where it read several |
+| `gate.new.base.repositories[]` | each repository the base read, with `url` and `revision`, as its `results.sarif` records them |
+| `gate.new.introduced` | the new findings by band, `p1` to `p4`, without a second scanner's copy of a finding already counted |
+| `gate.new.verdict` | the gate on new findings' outcome, `pass` or `fail`. Absent where no `failOnNew` is set |
+
+`failOnNew` with no `new` is a gate on new findings that was asked for and had no base to apply to.
+From a scan given a `--base`, under `failOn: critical` and `failOnNew: P2`, of a change that
+committed a token:
+
+```json
+"gate": {
+  "threshold": "critical",
+  "failOnNew": "P2",
+  "new": {
+    "base": {
+      "commit": "329ec1aec5d509b29bae7895e1201cac962a7243",
+      "repositories": [
+        {
+          "url": ".",
+          "revision": "329ec1aec5d509b29bae7895e1201cac962a7243"
+        }
+      ]
+    },
+    "introduced": {
+      "p1": 1,
+      "p2": 0,
+      "p3": 0,
+      "p4": 0
+    },
+    "verdict": "fail"
+  }
+}
+```
+
+```bash
+jq -e '.gate.new.verdict != "fail"' out/report.json                      # fail on what the change introduced
+jq -e '.gate.failOnNew == null or .gate.new != null' out/report.json     # fail where the gate had no base
+```
+
 ## What each finding carries
 
 Draugr reports as one SARIF tool, so every finding keeps its own attribution in its property bag:

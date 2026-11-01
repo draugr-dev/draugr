@@ -1766,6 +1766,56 @@
           "type": "array",
           "uniqueItems": true
         },
+        "failOnNew": {
+          "anyOf": [
+            {
+              "const": "P1",
+              "description": "Blocks a release: urgent in this component's context."
+            },
+            {
+              "const": "P2",
+              "description": "Scheduled work."
+            },
+            {
+              "const": "P3",
+              "description": "Backlog."
+            },
+            {
+              "const": "P4",
+              "description": "Noted, rarely acted on."
+            },
+            {
+              "const": "critical",
+              "description": "Only a new critical finding fails the build."
+            },
+            {
+              "const": "high",
+              "description": "A new high or critical finding fails the build."
+            },
+            {
+              "const": "medium",
+              "description": "A new medium finding fails the build, and anything worse."
+            },
+            {
+              "const": "low",
+              "description": "Any new rated finding fails the build."
+            },
+            {
+              "const": "error",
+              "description": "The SARIF level a gate used to take; the same as high."
+            },
+            {
+              "const": "warning",
+              "description": "The SARIF level a gate used to take; the same as medium."
+            },
+            {
+              "const": "note",
+              "description": "The SARIF level a gate used to take; the same as low."
+            }
+          ],
+          "description": "The threshold at which a new finding fails the build: one this scan reports and the base scan it is compared against does not. Either vocabulary, a priority band (P1-P4) or a severity (critical, high, medium, low). Applied by draugr scan --base and draugr diff, and overridden for one run by their --fail-on-new. Empty applies no gate to new findings.",
+          "type": "string"
+        },
         "failOnPriority": {
           "description": "Deprecated: write the band in failOn, which takes either vocabulary. Still read, so a descriptor that predates the merge keeps working, and refused alongside failOn.",
           "enum": [

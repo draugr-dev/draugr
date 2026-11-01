@@ -11,6 +11,7 @@ import (
 
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/publish"
+	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/skald"
 )
@@ -335,28 +336,49 @@ func TestDiffPublishFailureStillFailsAPassingGate(t *testing.T) {
 // TestDiffTakesEitherVocabulary: the differential gate asks the same question as the one `scan`
 // applies, about a smaller set, so it is written the same way.
 func TestDiffTakesEitherVocabulary(t *testing.T) {
-	sev, band, err := resolveDiffGate("high", "")
+	sev, band, err := resolveDiffGate("high", "", nil)
 	if err != nil || sev != "high" || band != "" {
 		t.Errorf("severity: got %q %q %v", sev, band, err)
 	}
-	sev, band, err = resolveDiffGate("P1", "")
+	sev, band, err = resolveDiffGate("P1", "", nil)
 	if err != nil || sev != "" || band != "P1" {
 		t.Errorf("band: got %q %q %v", sev, band, err)
 	}
 	// The older spelling still resolves, so a pipeline that predates the merge keeps working.
-	if _, band, err = resolveDiffGate("", "P2"); err != nil || band != "P2" {
+	if _, band, err = resolveDiffGate("", "P2", nil); err != nil || band != "P2" {
 		t.Errorf("deprecated spelling: got %q %v", band, err)
 	}
 	// Nothing named decides nothing: unlike `scan`, an absent differential gate is a diff that is
 	// reported and gates nothing, which is what the two scans either side of it are for.
-	if sev, band, err = resolveDiffGate("", ""); err != nil || sev != "" || band != "" {
+	if sev, band, err = resolveDiffGate("", "", nil); err != nil || sev != "" || band != "" {
 		t.Errorf("absent: got %q %q %v", sev, band, err)
 	}
-	if _, _, err = resolveDiffGate("high", "P1"); err == nil {
+	if sev, band, err = resolveDiffGate("", "", &saga.GateConfig{FailOn: "P1"}); err != nil || sev != "" || band != "" {
+		t.Errorf("failOn is the gate on the whole scan, not on new findings: got %q %q %v", sev, band, err)
+	}
+	if _, _, err = resolveDiffGate("high", "P1", nil); err == nil {
 		t.Error("both spellings together were accepted")
 	}
-	if _, _, err = resolveDiffGate("urgent", ""); err == nil {
+	if _, _, err = resolveDiffGate("urgent", "", nil); err == nil {
 		t.Error("a word in neither vocabulary was accepted")
+	}
+}
+
+// The descriptor's gate.failOnNew applies where no flag names a threshold, in either vocabulary,
+// and a flag replaces it for one run, as --fail-on replaces failOn.
+func TestTheDescriptorsGateOnNewFindingsYieldsToTheFlag(t *testing.T) {
+	gate := &saga.GateConfig{FailOnNew: "p2"}
+	if sev, band, err := resolveDiffGate("", "", gate); err != nil || sev != "" || band != "P2" {
+		t.Errorf("descriptor band: got %q %q %v", sev, band, err)
+	}
+	if sev, band, err := resolveDiffGate("", "", &saga.GateConfig{FailOnNew: "high"}); err != nil || sev != "high" || band != "" {
+		t.Errorf("descriptor severity: got %q %q %v", sev, band, err)
+	}
+	if sev, band, err := resolveDiffGate("critical", "", gate); err != nil || sev != "critical" || band != "" {
+		t.Errorf("--fail-on-new over the descriptor: got %q %q %v", sev, band, err)
+	}
+	if sev, band, err := resolveDiffGate("", "P4", gate); err != nil || sev != "" || band != "P4" {
+		t.Errorf("--fail-on-new-priority over the descriptor: got %q %q %v", sev, band, err)
 	}
 }
 
