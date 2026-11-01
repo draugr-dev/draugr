@@ -12,6 +12,12 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.164.1] - 2026-11-01
+
+### Fixed
+
+- **The gate on new findings keeps running while the base's descriptor sets a removed key.** In diff mode, the GitHub Action and the GitLab and Azure Pipelines templates scan the base with the pull request's descriptor when the release refuses the base's own, and print a warning quoting the refusal. Before, every pull request failed, including the one deleting `config.exclude[].acceptedBy`.
+
 ## [0.164.0] - 2026-11-01
 
 ### Added
@@ -6687,7 +6693,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.164.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.164.1...HEAD
+[0.164.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.164.1
 [0.164.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.164.0
 [0.163.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.163.0
 [0.162.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.162.2
