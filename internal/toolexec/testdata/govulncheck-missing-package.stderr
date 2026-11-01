@@ -1,0 +1,9 @@
+govulncheck: loading packages: 
+There are errors with the provided package patterns:
+
+app/main.go:3:8: no required module provides package example.com/gen/generated; to add it:
+	go get example.com/gen/generated
+/work/app/app/main.go:3:8: could not import example.com/gen/generated (invalid package name: "")
+
+For details on package patterns, see https://pkg.go.dev/cmd/go#hdr-Package_lists_and_patterns.
+
