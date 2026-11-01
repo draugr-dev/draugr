@@ -1,1 +1,0 @@
-- **`draugr diff` and `draugr scan --base` refuse a report narrowed to a band they would misread.** A base written with `--artifact-min-priority P2` no longer reports every P3 and P4 finding at the head as new, and a narrowed head no longer reports the base's lower findings as fixed. `draugr diff --min-priority` at or above the base's band still compares.

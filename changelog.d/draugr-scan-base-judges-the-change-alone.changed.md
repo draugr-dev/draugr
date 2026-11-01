@@ -1,1 +1,0 @@
-- **`draugr scan --base` with a gate on new findings fails only on what the change introduced.** The verdict and the exit code come from `--fail-on-new` or `config.gate.failOnNew`, and the console prints the change as `draugr diff` does. The whole run's outcome against `failOn` no longer fails the run; `report.json` records it as `gate.wholeRun`.
