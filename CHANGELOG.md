@@ -20,7 +20,7 @@ _Nothing yet._
 
 - **Group a stored run by team or data class without the descriptor.** `report.json` gains `componentLabels`, which maps every declared component to its `labels`, `{}` where it declares none, including components with no findings and those a narrowed run skipped.
 
-- **The GitHub Action and the GitLab and Azure Pipelines templates apply `config.gate.failOnNew`.** Each hands `draugr diff` the descriptor it scanned, so the descriptor's gate on new findings decides a pull request when the template's own input is empty. The GitLab and Azure inputs default to P1, which overrides it, and a release without `draugr diff --saga` ignores it.
+- **The GitHub Action and the GitLab and Azure Pipelines templates apply `config.gate.failOnNew`.** Each hands `draugr diff` the descriptor it scanned, so the descriptor's setting gates a pull request when the template's own input is empty. The GitLab and Azure inputs default to P1; set them empty to apply the descriptor's setting. A release whose `draugr diff` lacks `--saga` ignores the setting.
 
 ### Removed
 
@@ -28,9 +28,9 @@ _Nothing yet._
 
 ### Fixed
 
-- **A Go finding Trivy and Grype both report keeps govulncheck's verdict.** The verdict reaches Grype's copy too, whose rule id carries the package, so the finding counted for the flaw is ranked by it rather than staying at the band an unreachable verdict lowers. The reachability counts in `report.json` and the console count each flaw once.
+- **A Go finding Trivy and Grype both report keeps govulncheck's verdict.** Grype's copy carries it as well as Trivy's, so a flaw govulncheck finds unreachable is ranked down whichever copy the report counts. The reachability counts in `report.json` and the console count each flaw once.
 
-- **A repository's own `.gitleaks.toml` now applies to the secrets scan.** Its rules and allowlist are used, with Draugr's rule added. A file that does not set `[extend] useDefault = true` is now scanned without Gitleaks' built-in rules; add the setting to keep them. A `config` in the descriptor still replaces the file.
+- **A repository's own `.gitleaks.toml` now applies to the secrets scan.** Its rules and allowlist are used, with Draugr's rule added. A file that does not set `[extend] useDefault = true` is now scanned without Gitleaks' built-in rules; add the setting to keep them. A `config` in the descriptor replaces the file.
 
 - **A placeholder ingest token is no longer reported.** The secrets rule for Draugr's ingest token now requires 3.5 bits of entropy per character, so `drgr_ci_` followed by one repeated character no longer matches. A real token is unaffected.
 
