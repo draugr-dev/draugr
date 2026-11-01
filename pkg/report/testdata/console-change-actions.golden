@@ -1,0 +1,19 @@
+DRAUGR  FAIL  acme 2.3.0  change since 4f2a9c1, 9d8e7f6 · 3 new · fails on P2
+
+ new        0 P1 2 P2 1 P3 0 P4
+ unchanged  1 P1 0 P2 2 P3 0 P4
+ whole run  1 P1 2 P2 3 P3 0 P4
+
+MEASURED AGAINST
+  provenance  cosign · coverage: 1 of 2 images checked, 1 unsigned
+
+WHAT TO DO  2 actions clear 3 findings
+  P2  Upgrade urllib3 1.26.5 → 2.6.0  control sca · 2 findings
+      requirements.txt:3 · CVE-2025-66418 +1
+  P3  Fix “Detected Flask app with debug=True”  control sast · 1 finding
+      app.py:12 · semgrep: debug-enabled
+
+TRY
+  --view compact         one line each, to see how much there is
+  --view findings        the findings themselves, one row each
+  draugr explain <rule>  what a rule means and how to fix it

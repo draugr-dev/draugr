@@ -794,6 +794,26 @@ func TestTheDefaultGateIsWrittenOutRatherThanLeftBlank(t *testing.T) {
 	}
 }
 
+// A run the gate on new findings judged keeps the whole run's outcome against its own gate, which
+// the top-level verdict no longer states; any other run writes no such key, since its verdict is
+// that outcome.
+func TestTheWholeRunsOutcomeIsKeptBesideAJudgedVerdict(t *testing.T) {
+	judged, err := json.Marshal(describeGate(&Gate{FailOnNew: "P2", New: &NewFindings{}, WholeRun: norn.Fail}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(judged, []byte(`"wholeRun":"fail"`)) {
+		t.Errorf("gate = %s, want wholeRun: fail", judged)
+	}
+	plain, err := json.Marshal(describeGate(&Gate{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(plain, []byte("wholeRun")) {
+		t.Errorf("gate = %s, want no wholeRun on a run judged on all its findings", plain)
+	}
+}
+
 func TestAGateNobodyStatedIsAbsentRatherThanDefaulted(t *testing.T) {
 	if got := describeGate(nil); got != nil {
 		t.Errorf("describeGate(nil) = %+v, want nil", got)

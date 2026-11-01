@@ -333,6 +333,9 @@ type Gate struct {
 	FailOnNew string
 	// New is the run's comparison with a base scan, nil where no comparison ran.
 	New *NewFindings
+	// WholeRun is the outcome of Policy over every finding, on a run the gate on new findings
+	// judged instead. Empty on any other run, whose verdict is that outcome.
+	WholeRun norn.Verdict
 }
 
 // NewFindings is a run's comparison with the base scan it was given.
@@ -374,6 +377,11 @@ type gateReport struct {
 	// New is the comparison with a base scan, present only when one ran. FailOnNew present and New
 	// absent is a gate on new findings that was asked for and had no base to apply to.
 	New *newReport `json:"new,omitempty"`
+	// WholeRun is the outcome of the threshold above over every finding, pass or fail, on a run
+	// whose verdict new.verdict decided. Kept so the document answers how the whole run stands
+	// against its own gate, which the top-level verdict of such a run does not say. Absent on any
+	// other run, where the top-level verdict is that outcome.
+	WholeRun string `json:"wholeRun,omitempty"`
 }
 
 // newReport is the comparison with a base scan as the JSON document states it.
@@ -456,6 +464,7 @@ func describeGate(g *Gate) *gateReport {
 	out := &gateReport{
 		Disabled: g.Disabled, FailOnCaveats: g.FailOnCaveats,
 		FailOnNew: g.FailOnNew, New: describeNew(g.New, g.FailOnNew),
+		WholeRun: string(g.WholeRun),
 	}
 	if g.Policy.GatesOnSeverity() {
 		out.Threshold = string(g.Policy.FailOn)

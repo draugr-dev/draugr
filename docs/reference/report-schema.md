@@ -48,7 +48,14 @@ jq -r '[.targets[]?.refusal | select(.credential == false) | .registry] | unique
 ## Gate
 
 `gate` in `report.json` is the policy the run was judged against, and the outcome of the gate on new
-findings where a comparison ran:
+findings where a comparison ran.
+
+The top-level `verdict` is the run's verdict, the one its exit code came from. On a scan given a
+[`--base`](cli.md#gating-on-new-findings) with a gate on new findings set, that is the gate on new
+findings' outcome, failed as well by the organization's policy or a scan that could not finish. The
+whole run's outcome against `failOnPriority` or `threshold` decides nothing there and is kept in
+`gate.wholeRun`, with each control's own in `controls[].verdict`. On any other run, the top-level
+`verdict` is the whole run's outcome and `gate.wholeRun` is absent.
 
 | Field | Meaning |
 |---|---|
@@ -63,10 +70,12 @@ findings where a comparison ran:
 | `gate.new.base.repositories[]` | each repository the base read, with `url` and `revision`, as its `results.sarif` records them |
 | `gate.new.introduced` | the new findings by band, `p1` to `p4`, without a second scanner's copy of a finding already counted |
 | `gate.new.verdict` | the gate on new findings' outcome, `pass` or `fail`. Absent where no `failOnNew` is set |
+| `gate.wholeRun` | the outcome of `failOnPriority` or `threshold` over every finding, `pass` or `fail`, on a run whose `verdict` the gate on new findings gave. Absent on any other run |
 
 `failOnNew` with no `new` is a gate on new findings that was asked for and had no base to apply to.
 From a scan given a `--base`, under `failOn: critical` and `failOnNew: P2`, of a change that
-committed a token:
+committed a token. The token is a high-severity P1, so the change fails and the whole run passes its
+own gate, and the document's top-level `verdict` is `fail`:
 
 ```json
 "gate": {
@@ -74,11 +83,11 @@ committed a token:
   "failOnNew": "P2",
   "new": {
     "base": {
-      "commit": "329ec1aec5d509b29bae7895e1201cac962a7243",
+      "commit": "0b4a9232671686284eeb6d2dd7d6d26a503b013b",
       "repositories": [
         {
           "url": ".",
-          "revision": "329ec1aec5d509b29bae7895e1201cac962a7243"
+          "revision": "0b4a9232671686284eeb6d2dd7d6d26a503b013b"
         }
       ]
     },
@@ -89,13 +98,15 @@ committed a token:
       "p4": 0
     },
     "verdict": "fail"
-  }
+  },
+  "wholeRun": "pass"
 }
 ```
 
 ```bash
-jq -e '.gate.new.verdict != "fail"' out/report.json                      # fail on what the change introduced
+jq -e '.verdict != "fail"' out/report.json                               # fail where the run failed, as its exit code did
 jq -e '.gate.failOnNew == null or .gate.new != null' out/report.json     # fail where the gate had no base
+jq -r '.gate.wholeRun // .verdict' out/report.json                       # the whole run's outcome, whichever gate decided
 ```
 
 ## What each finding carries

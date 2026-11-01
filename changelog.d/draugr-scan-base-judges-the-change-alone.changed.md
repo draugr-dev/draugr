@@ -1,0 +1,1 @@
+- **`draugr scan --base` judges the change alone.** With a gate on new findings set, the verdict and the exit code come from what the change introduced, and the console prints the change in the layout `draugr diff` uses. The whole run's outcome against `failOn` decides nothing and is recorded in `report.json` as `gate.wholeRun`.

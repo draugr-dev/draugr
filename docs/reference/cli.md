@@ -476,7 +476,7 @@ The flag tables below follow the groups in `draugr scan --help`.
 | `--fail-on` | `P1` | What fails the gate, in either vocabulary: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`). Overrides [`config.gate`](saga-schema.md#configgate); `P1` applies when neither sets one |
 | `--fail-on-priority` | - | Deprecated: write the band in `--fail-on`. Refused together with `--fail-on` |
 | `--fail-on-caveats` | - | Kinds of caveat that fail the run as an error does: `not-checked`, `not-measured`, `unread-files`, `unread-checks`, `unbound-imports`, or `none`. Overrides [`config.gate.failOnCaveats`](saga-schema.md#configgate) |
-| `--base` | - | The `results.sarif` of a scan to compare this one against, by the comparison [`draugr diff`](#draugr-diff-basesarif-headsarif) makes. The gate on new findings applies to what this scan reports and the base does not. See [below](#gating-on-new-findings) |
+| `--base` | - | The `results.sarif` of a scan to compare this one against, by the comparison [`draugr diff`](#draugr-diff-basesarif-headsarif) makes. With a gate on new findings set, the verdict and the exit code come from what this scan reports and the base does not. See [below](#gating-on-new-findings) |
 | `--fail-on-new` | - | The gate on new findings: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`). Overrides [`config.gate.failOnNew`](saga-schema.md#configgate) |
 | `--no-gate` | `false` | Report the verdict, and the outcome of the gate on new findings, but exit 0 on a fail, for producing a report to compare later, where [`draugr diff`](#draugr-diff-basesarif-headsarif) is the gate |
 | `--allow-scan-errors` | `false` | Treat a control whose scanner could not run as a warning rather than a failure. The verdict line then carries `partial`, with the number of targets not reached. A run that planned no jobs at all still fails |
@@ -827,26 +827,60 @@ omitted alerts there.
 `--base` names the `results.sarif` of an earlier scan, usually of the branch a pull request merges
 into. The scan compares itself with that report by the comparison
 [`draugr diff`](#draugr-diff-basesarif-headsarif) makes, and a finding it reports that the base does
-not is **new**. The gate on new findings, `--fail-on-new` or
-[`config.gate.failOnNew`](saga-schema.md#configgate), fails the run when a new finding is at or above
-it, while `--fail-on` goes on judging every finding the scan reports.
+not is **new**.
+
+With a gate on new findings set, `--fail-on-new` or
+[`config.gate.failOnNew`](saga-schema.md#configgate), the scan is judged on its change. The verdict
+and the exit code come from that gate alone, which fails the run when a new finding is at or above
+it. `--fail-on` still judges every finding the scan reports, and `report.json` records that outcome
+as `gate.wholeRun`, where it decides nothing.
 
 ```bash
 draugr scan draugr.saga.yaml -o main/ --no-publish     # on main, kept as an artifact
 draugr scan draugr.saga.yaml -o head/ --base main/results.sarif --fail-on-new P2
 ```
 
-- **The exit code follows both gates.** The run exits non-zero when either fails, and the error names
-  each. `--no-gate` exits 0 on both, and `report.json` still states both outcomes.
+The console prints the change in the layout `draugr diff` uses. The verdict line names the base's
+revision, how many findings are new and the gate. A band strip for each state a finding can be in
+against the base follows, then one for the whole run, then what changed. The policy, MEASURED
+AGAINST, errors and caveats blocks stay, because each says what the change was judged on. A failed
+run's last line names the gate, the new findings that met it and the base.
+
+```console
+$ draugr scan --base base/results.sarif --view actions --no-publish
+DRAUGR  FAIL  shop  change since b5bcb4b · 15 new · fails on P3  4.164s
+
+ new        0 P1 0 P2 15 P3 0 P4
+ unchanged  0 P1 0 P2 1 P3 0 P4
+ whole run  0 P1 0 P2 16 P3 0 P4
+
+WHAT TO DO  2 actions clear 15 findings
+  P3  Upgrade urllib3 1.26.5 → 2.8.0  control sca · 10 findings
+      requirements.txt:3 · CVE-2023-43804 +9
+  P3  Upgrade jinja2 3.1.2 → 3.1.6  control sca · 5 findings
+      requirements.txt:2 · CVE-2024-56201 +4
+
+TRY
+  --view compact         one line each, to see how much there is
+  --view findings        the findings themselves, one row each
+  draugr explain <rule>  what a rule means and how to fix it
+draugr: fails on P3: 15 new findings since b5bcb4b
+```
+
+- **One verdict per run.** The organization's policy and a scan that could not finish still fail the
+  run, as they fail any other. `--no-gate` exits 0, and `report.json` still states each outcome.
+- **A `--base` with no gate on new findings decides nothing.** The run is judged on every finding and
+  prints what a run without `--base` prints, and `report.json` records the comparison.
 - **The base has to cover what the scan covers.** A base whose [scope](#scoping-a-run) differs from
   the run's is refused before anything is scanned, as `draugr diff` refuses two such reports.
 - **Both sides are committed revisions**, so the base and this scan differ only where they read
   different commits. See [`draugr diff`](#draugr-diff-basesarif-headsarif).
-- **A gate on new findings with no `--base`** is reported rather than applied: `report.json` states
+- **A gate on new findings with no `--base`** is reported rather than applied. `report.json` states
   the setting with no comparison, and stderr says that no finding was judged as new.
 
 `report.json` states the comparison in its [`gate`](report-schema.md#gate) block: the setting,
-the commit and repositories the base records, the new findings by band, and the verdict.
+the commit and repositories the base records, the new findings by band, and the verdict. Its
+top-level `verdict` is the one the exit code came from.
 
 ### The organization's policy
 

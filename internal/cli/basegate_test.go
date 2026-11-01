@@ -13,6 +13,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/skald"
 )
 
 // The repositories two components read, one each.
@@ -169,13 +170,9 @@ func TestAScanGatesOnTheFindingsItIntroduces(t *testing.T) {
 	if err == nil {
 		t.Fatal("two new findings at or above P3 passed the gate on new findings")
 	}
-	for _, want := range []string{"differential gate: 2 new findings", "draugr diff " + base} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("error does not say %q: %v", want, err)
-		}
-	}
-	if strings.Contains(err.Error(), "policy verdict") {
-		t.Errorf("the verdict passed and is named as failing: %v", err)
+	// Both of the base's revisions, because it read two repositories and neither is the base alone.
+	if want := "fails on P3: 2 new findings since aaaa111, bbbb222"; err.Error() != want {
+		t.Errorf("error = %q, want %q", err, want)
 	}
 
 	gate := gateOf(t, out)
@@ -242,28 +239,140 @@ func TestTheDescriptorSetsTheGateOnNewFindings(t *testing.T) {
 	}
 }
 
-// A run whose verdict and gate on new findings both fail names both.
-func TestBothGatesFailingAreBothNamed(t *testing.T) {
+// A run given a base and a gate on new findings is judged on its change alone: the verdict on the
+// screen, the verdict in report.json and the exit status all come from the gate on new findings,
+// whatever the whole run's own gate says, and report.json keeps the whole run's outcome beside it.
+// The head adds two findings to api and none to web, so the change is in one of two components and
+// one of two repositories.
+func TestABaseRunIsJudgedOnItsChange(t *testing.T) {
+	for _, tc := range []struct {
+		name              string
+		failOn, failOnNew string
+		// err is the whole exit message, empty for a run that exits 0.
+		err               string
+		verdict, wholeRun string
+		header            string
+	}{
+		{
+			name: "the whole run passes and the change fails", failOnNew: "P3",
+			err:     "fails on P3: 2 new findings since aaaa111, bbbb222",
+			verdict: "fail", wholeRun: "pass",
+			header: "DRAUGR  FAIL  shop 1.0  change since aaaa111, bbbb222 · 2 new · fails on P3",
+		},
+		{
+			name: "the whole run fails and the change passes", failOn: "low", failOnNew: "P1",
+			verdict: "pass", wholeRun: "fail",
+			header: "DRAUGR  PASS  shop 1.0  change since aaaa111, bbbb222 · 2 new · fails on P1",
+		},
+		{
+			name: "both pass", failOnNew: "P1",
+			verdict: "pass", wholeRun: "pass",
+			header: "DRAUGR  PASS  shop 1.0  change since aaaa111, bbbb222 · 2 new · fails on P1",
+		},
+		{
+			// The whole run's failure decides nothing, so the message names the change alone.
+			name: "both fail", failOn: "low", failOnNew: "low",
+			err:     "fails on low severity: 2 new findings since aaaa111, bbbb222",
+			verdict: "fail", wholeRun: "fail",
+			header: "DRAUGR  FAIL  shop 1.0  change since aaaa111, bbbb222 · 2 new · fails on low severity",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := twoComponentSaga(t, "")
+			s, reg := stagedPair()
+			base := scanBase(t, path, reg)
+			introduce(s)
+
+			out := t.TempDir()
+			var console bytes.Buffer
+			err := runScan(context.Background(), path, scanOptions{
+				outputDir: out, noPublish: true, noTips: true, base: base, failOn: tc.failOn, failOnNew: tc.failOnNew,
+			}, reg, &console)
+			switch {
+			case tc.err == "" && err != nil:
+				t.Fatalf("exit = %v, want 0", err)
+			case tc.err != "" && (err == nil || err.Error() != tc.err):
+				t.Fatalf("exit = %v, want %q", err, tc.err)
+			}
+			if first, _, _ := strings.Cut(console.String(), "\n"); !strings.HasPrefix(first, tc.header) {
+				t.Errorf("verdict line = %q, want it to open %q", first, tc.header)
+			}
+			if verdict := reportVerdict(t, out); verdict != tc.verdict {
+				t.Errorf("report.json verdict = %q, want %q, the verdict the exit status came from", verdict, tc.verdict)
+			}
+			gate := gateOf(t, out)
+			if gate["wholeRun"] != tc.wholeRun {
+				t.Errorf("gate.wholeRun = %v, want %q", gate["wholeRun"], tc.wholeRun)
+			}
+			if n, _ := gate["new"].(map[string]any); n["verdict"] != tc.verdict {
+				t.Errorf("gate.new = %v, want verdict %q", gate["new"], tc.verdict)
+			}
+		})
+	}
+}
+
+// A base with no gate on new findings decides nothing, so the run is judged on the whole of it and
+// prints the scan's own report, as it does without a base.
+func TestABaseWithNoGateOnNewFindingsJudgesTheWholeRun(t *testing.T) {
 	path := twoComponentSaga(t, "")
 	s, reg := stagedPair()
 	base := scanBase(t, path, reg)
 	introduce(s)
 
+	out := t.TempDir()
+	var console bytes.Buffer
 	err := runScan(context.Background(), path,
-		scanOptions{noPublish: true, base: base, failOnNew: "low", failOn: "low"}, reg, &bytes.Buffer{})
-	if err == nil {
-		t.Fatal("both gates failed and the run passed")
+		scanOptions{outputDir: out, noPublish: true, noTips: true, base: base, failOn: "low"}, reg, &console)
+	if err == nil || err.Error() != "policy verdict: fail" {
+		t.Fatalf("exit = %v, want the whole run's policy verdict", err)
 	}
-	for _, want := range []string{"policy verdict: fail", "differential gate: 2 new findings"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("error does not say %q: %v", want, err)
+	if strings.Contains(console.String(), "change since") || !strings.Contains(console.String(), "CONTROLS") {
+		t.Errorf("a run with no gate on new findings printed the change:\n%s", console.String())
+	}
+	if verdict := reportVerdict(t, out); verdict != "fail" {
+		t.Errorf("report.json verdict = %q, want fail", verdict)
+	}
+	if _, ok := gateOf(t, out)["wholeRun"]; ok {
+		t.Error("gate.wholeRun is written on a run the whole run judged")
+	}
+}
+
+// A judged run names the organization's policy first where it failed too, and a run nothing on
+// its change failed exits on the policy alone.
+func TestAJudgedRunNamesThePolicyBesideTheChange(t *testing.T) {
+	g := baseGate{band: "P2", basePath: "main/results.sarif"}
+	c := comparison{findings: &skald.NewFindings{}, tripped: 1}
+	for _, tc := range []struct {
+		gate         baseGate
+		c            comparison
+		policyFailed bool
+		want         string
+	}{
+		{g, c, true, "policy verdict: fail, and fails on P2: 1 new finding since main/results.sarif"},
+		{g, c, false, "fails on P2: 1 new finding since main/results.sarif"},
+		{g, comparison{findings: &skald.NewFindings{}}, true, "policy verdict: fail"},
+		{baseGate{}, comparison{}, false, "policy verdict: fail"},
+	} {
+		if got := tc.gate.failure(tc.c, tc.policyFailed).Error(); got != tc.want {
+			t.Errorf("failure = %q, want %q", got, tc.want)
 		}
 	}
-	// Nothing was written, so the error says how to get a results.sarif to list them from, and
-	// names none this run did not write.
-	if !strings.Contains(err.Error(), "scan again with -o <dir>, and `draugr diff "+base+" <dir>/results.sarif` lists them") {
-		t.Errorf("a run with no -o does not say how to list the new findings: %v", err)
+}
+
+// reportVerdict reads the top-level verdict of the report.json written into dir.
+func reportVerdict(t *testing.T, dir string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(dir, "report.json")) // #nosec G304 -- this test's own temp file
+	if err != nil {
+		t.Fatal(err)
 	}
+	var doc struct {
+		Verdict string `json:"verdict"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatal(err)
+	}
+	return doc.Verdict
 }
 
 // A gate on new findings with no base is stated and not applied, with no comparison in the report,

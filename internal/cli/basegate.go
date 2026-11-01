@@ -2,13 +2,14 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
-	"path/filepath"
-	"slices"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/diff"
 	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/skald"
@@ -28,9 +29,6 @@ type baseGate struct {
 	// basePath is --base, and base the report it names. Empty where no --base was passed.
 	basePath string
 	base     sarif.Report
-	// sarifAt is the results.sarif this run writes, where -o writes one, for the message that says
-	// how to list the new findings.
-	sarifAt string
 }
 
 // newBaseGate resolves the gate on new findings and reads the base, before anything is scanned.
@@ -47,9 +45,6 @@ func newBaseGate(opts scanOptions, gate *saga.GateConfig, scope engine.Scope) (b
 	g := baseGate{failOn: failOn, band: band, from: "config.gate.failOnNew", basePath: opts.base}
 	if opts.failOnNew != "" {
 		g.from = "--fail-on-new"
-	}
-	if opts.outputDir != "" && (len(opts.reports) == 0 || slices.Contains(opts.reports, "sarif")) {
-		g.sarifAt = filepath.Join(opts.outputDir, "results.sarif")
 	}
 	if opts.base == "" {
 		return g, nil
@@ -79,52 +74,80 @@ func (g baseGate) noteUnapplied(w io.Writer) {
 		g.from, g.setting())
 }
 
-// compare classifies this run's findings against the base, and returns the comparison as
-// report.json states it and the number of new findings that met the gate. Nil and zero where no
-// --base was passed.
+// comparison is a run's comparison with its base.
+type comparison struct {
+	// findings is the comparison as report.json states it, nil where no --base was passed.
+	findings *skald.NewFindings
+	// result is the comparison classified and gated as `draugr diff` would, for the console.
+	result diff.Result
+	// tripped counts the new findings that met the gate on new findings.
+	tripped int
+}
+
+// compare classifies this run's findings against the base. The zero comparison where no --base was
+// passed.
 //
 // The head is this run as results.sarif carries it, written and read back, so the comparison is
 // the one `draugr diff` would make between the base and that file. Comparing the run as it is held
 // in memory would match findings on fields the file spells differently.
-func (g baseGate) compare(run engine.Result) (*skald.NewFindings, int, error) {
+func (g baseGate) compare(run engine.Result) (comparison, error) {
 	if g.basePath == "" {
-		return nil, 0, nil
+		return comparison{}, nil
 	}
 	head, err := headAsWritten(run)
 	if err != nil {
-		return nil, 0, err
+		return comparison{}, err
 	}
 	compared, err := compareWithBase(g.basePath, g.base, thisScan, head)
 	if err != nil {
-		return nil, 0, err
+		return comparison{}, err
 	}
 	compared.Gate = diff.Gate{FailOn: g.failOn, FailOnPriority: g.band}
 	compared.Tripped = compared.GateNew(g.failOn, g.band)
-	return &skald.NewFindings{
-		Base:       sarif.RepositoriesIn([]sarif.Report{g.base}),
-		Introduced: compared.Counted().New,
-		Tripped:    len(compared.Tripped) > 0,
-	}, len(compared.Tripped), nil
+	return comparison{
+		findings: &skald.NewFindings{
+			Base:       sarif.RepositoriesIn([]sarif.Report{g.base}),
+			Introduced: compared.Counted().New,
+			Tripped:    len(compared.Tripped) > 0,
+		},
+		result:  compared,
+		tripped: len(compared.Tripped),
+	}, nil
 }
 
-// failure is the error a scan exits with when a gate failed: the verdict, the gate on new findings,
-// or both, in that order. policyFailed is the verdict; tripped counts the new findings that met
-// the gate.
-func (g baseGate) failure(policyFailed bool, tripped int) error {
-	if tripped == 0 {
-		return fmt.Errorf("policy verdict: fail")
+// judges reports whether the gate on new findings decides this run: a base was compared and a
+// threshold for what the change introduced is set.
+//
+// Such a run answers one question, whether the change may merge, so it gives one verdict. Two, one
+// for the change and one for the whole run, put a PASS on the screen above an exit code of 1
+// whenever only the change failed, and a reader takes the first thing they read.
+func (g baseGate) judges(c comparison) bool { return c.findings != nil && g.setting() != "" }
+
+// failure is the error a scan exits with when its verdict is fail.
+//
+// A run the gate on new findings judged fails on what its change introduced, and says so in the
+// words its verdict line uses: the gate, how many new findings met it, and the base.
+// policyFailed is the organization's policy, the one other outcome that fails such a run, and is
+// named first where it failed too. Any other run fails on its policy verdict.
+func (g baseGate) failure(c comparison, policyFailed bool) error {
+	if !g.judges(c) || c.tripped == 0 {
+		return errors.New("policy verdict: fail")
 	}
-	newErr := errNewFindings(tripped)
-	if g.sarifAt != "" {
-		newErr = fmt.Errorf("%w; `draugr diff %s %s` lists them", newErr, g.basePath, g.sarifAt)
-	} else {
-		newErr = fmt.Errorf("%w; scan again with -o <dir>, and `draugr diff %s <dir>/results.sarif` "+
-			"lists them", newErr, g.basePath)
-	}
+	err := fmt.Errorf("fails on %s: %s since %s", report.ThresholdWords(g.setting()),
+		english.Count(c.tripped, "new finding"), report.BaseName(c.findings.Base, g.basePath))
 	if policyFailed {
-		return fmt.Errorf("policy verdict: fail, and %w", newErr)
+		return fmt.Errorf("policy verdict: fail, and %w", err)
 	}
-	return newErr
+	return err
+}
+
+// view is what the console draws the change with, on a run the gate on new findings judged, and
+// nil on any other.
+func (g baseGate) view(c comparison) report.ChangeView {
+	if !g.judges(c) {
+		return nil
+	}
+	return diff.ScanView{Result: c.result}
 }
 
 // headAsWritten is the run as results.sarif carries it, read back the way `draugr diff` reads one.

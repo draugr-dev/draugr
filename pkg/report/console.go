@@ -77,50 +77,12 @@ const (
 )
 
 func (consoleReporter) Render(w io.Writer, d Data) error {
+	if d.judgedOnChange() {
+		return renderChange(w, d)
+	}
 	s := summarize(d)
 	col := tui.For(w)
-
-	verdict, vcol := "PASS", cPass
-	if s.verdict == norn.Fail {
-		verdict, vcol = "FAIL", cFail
-	}
-	// The verdict is filled rather than colored, the shape it wears in the dashboard and in the
-	// HTML report. A word in red is one of several red words on the screen; a filled one is the
-	// answer, and a reader who takes a single line from this report takes this one.
-	_, _ = fmt.Fprintf(w, "%s  %s", col.Paint(cDim, "DRAUGR"), col.Chip(vcol, verdict))
-	if rel := d.ProjectName(); rel != "" {
-		if d.Release.Version != "" {
-			rel += " " + d.Release.Version
-		}
-		_, _ = fmt.Fprintf(w, "  %s", col.Paint(tui.StyleStrong, rel))
-	}
-	// Beside the verdict rather than below it. A PASS covering a fifth of the release must not be
-	// readable on its own.
-	if note := scopeNote(d); note != "" {
-		_, _ = fmt.Fprintf(w, "  %s", col.Paint(cAccent, note))
-	}
-	// Beside the verdict, for the reason the scope note is: a pass that accepted errors covered less
-	// than it says, and the word PASS must not be readable on its own.
-	if d.AcceptedErrors {
-		note := "partial · scan errors accepted"
-		if n := len(notReached(d)); n > 0 {
-			note = fmt.Sprintf("partial · %d of %s not reached", n, english.Count(len(d.Run.Targets), "target"))
-		}
-		_, _ = fmt.Fprintf(w, "  %s", col.Paint(cAccent, note))
-	}
-	// What the run cost, where somebody asking is looking. It was reported only under --evidence,
-	// which is the flag for "can I trust this" rather than for "how long did that take", so the
-	// one question every reader has was the one answered furthest from the top.
-	if t := d.Run.Stats.Duration; t > 0 {
-		dur := t.Round(time.Millisecond).String()
-		// Only when refreshing scanner data is why this run was slow. A run that finds its data
-		// current refreshes in well under a second, and its header stays as it was.
-		if r := refreshShare(d.Run.Stats); r != "" {
-			dur += " · " + r
-		}
-		_, _ = fmt.Fprintf(w, "  %s", col.Paint(cDim, dur))
-	}
-	_, _ = fmt.Fprint(w, "\n\n")
+	writeVerdictLine(w, col, s, d, "")
 
 	// listed is how many rows a list printed when it left the rest out, and zero when it printed
 	// everything.
@@ -346,6 +308,55 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	}
 	writeTail(w, col, s, d, listed)
 	return nil
+}
+
+// writeVerdictLine is the report's first line: the verdict, what was scanned, what qualifies the
+// verdict, and what the run cost. note is printed after the qualifiers, empty for none.
+func writeVerdictLine(w io.Writer, col tui.Painter, s summary, d Data, note string) {
+	verdict, vcol := "PASS", cPass
+	if s.verdict == norn.Fail {
+		verdict, vcol = "FAIL", cFail
+	}
+	// The verdict is filled rather than colored, the shape it wears in the dashboard and in the
+	// HTML report. A word in red is one of several red words on the screen; a filled one is the
+	// answer, and a reader who takes a single line from this report takes this one.
+	_, _ = fmt.Fprintf(w, "%s  %s", col.Paint(cDim, "DRAUGR"), col.Chip(vcol, verdict))
+	if rel := d.ProjectName(); rel != "" {
+		if d.Release.Version != "" {
+			rel += " " + d.Release.Version
+		}
+		_, _ = fmt.Fprintf(w, "  %s", col.Paint(tui.StyleStrong, rel))
+	}
+	// Beside the verdict rather than below it. A PASS covering a fifth of the release must not be
+	// readable on its own.
+	if note := scopeNote(d); note != "" {
+		_, _ = fmt.Fprintf(w, "  %s", col.Paint(cAccent, note))
+	}
+	// Beside the verdict, for the reason the scope note is: a pass that accepted errors covered less
+	// than it says, and the word PASS must not be readable on its own.
+	if d.AcceptedErrors {
+		note := "partial · scan errors accepted"
+		if n := len(notReached(d)); n > 0 {
+			note = fmt.Sprintf("partial · %d of %s not reached", n, english.Count(len(d.Run.Targets), "target"))
+		}
+		_, _ = fmt.Fprintf(w, "  %s", col.Paint(cAccent, note))
+	}
+	if note != "" {
+		_, _ = fmt.Fprintf(w, "  %s", note)
+	}
+	// What the run cost, where somebody asking is looking. It was reported only under --evidence,
+	// which is the flag for "can I trust this" rather than for "how long did that take", so the
+	// one question every reader has was the one answered furthest from the top.
+	if t := d.Run.Stats.Duration; t > 0 {
+		dur := t.Round(time.Millisecond).String()
+		// Only when refreshing scanner data is why this run was slow. A run that finds its data
+		// current refreshes in well under a second, and its header stays as it was.
+		if r := refreshShare(d.Run.Stats); r != "" {
+			dur += " · " + r
+		}
+		_, _ = fmt.Fprintf(w, "  %s", col.Paint(cDim, dur))
+	}
+	_, _ = fmt.Fprint(w, "\n\n")
 }
 
 // dense reports whether this view drops what describes the run rather than what it found.
@@ -1240,6 +1251,12 @@ func writeMeasuredAgainst(w io.Writer, col tui.Painter, d Data, width int) {
 		return
 	}
 	_, _ = fmt.Fprintln(w)
+	writeMeasuredRows(w, col, lines, width)
+}
+
+// writeMeasuredRows is the MEASURED AGAINST heading and a row per control, the control names
+// padded to width.
+func writeMeasuredRows(w io.Writer, col tui.Painter, lines []provenanceLine, width int) {
 	_, _ = fmt.Fprintln(w, heading(col, "Measured against"))
 	for _, l := range lines {
 		text := l.Label()
@@ -2658,6 +2675,15 @@ func gateSentence(d Data) string {
 	g := d.Gate
 	if g.Disabled {
 		return "off (--no-gate) · this verdict does not decide the exit code"
+	}
+	// The gate that decided the verdict, which on a run given a --base and a gate on new findings is
+	// that gate. Stating the whole run's gate there would name a rule that decided nothing.
+	if g.judgesChange() {
+		line := "Gate: fails on " + ThresholdWords(g.FailOnNew) + " among findings new since " + g.baseName()
+		if g.FailOnNewFrom != "" {
+			line += " · " + g.FailOnNewFrom
+		}
+		return line
 	}
 	if g.Threshold == "" && len(g.PerControl) == 0 {
 		band := g.FailOnPriority

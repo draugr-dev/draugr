@@ -1,0 +1,12 @@
+DRAUGR  PASS  acme 2.3.0  change since 4f2a9c1, 9d8e7f6 · nothing new · fails on P2
+
+ unchanged  1 P1 0 P2 2 P3 0 P4
+ whole run  1 P1 0 P2 2 P3 0 P4
+
+MEASURED AGAINST
+  provenance  cosign · coverage: 1 of 2 images checked, 1 unsigned
+
+TRY
+  --view compact         one line each, to see how much there is
+  --view actions         the same findings as a list of things to do
+  draugr explain <rule>  what a rule means and how to fix it

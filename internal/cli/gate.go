@@ -155,8 +155,8 @@ func newGateSetting(failOn sarif.Severity, band string) string {
 	return string(failOn)
 }
 
-// errNewFindings is what a tripped gate on new findings exits with, in `draugr diff` and in
-// `draugr scan --base` alike.
+// errNewFindings is what `draugr diff` exits with when its gate on new findings trips. `draugr scan
+// --base` names the base as well, which it has to hand; see baseGate.failure.
 func errNewFindings(n int) error {
 	return fmt.Errorf("differential gate: %s at or above the threshold", english.Count(n, "new finding"))
 }
