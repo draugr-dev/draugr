@@ -100,6 +100,9 @@ func (m *Model) Validate() error {
 				strings.Join(Priorities, ", "), strings.Join(gateSeverityWords(), ", ")))
 		}
 		errs = append(errs, validateCaveatKinds(g.FailOnCaveats, "config.gate.failOnCaveats")...)
+		if _, _, err := ParseGate(g.FailOnNew); err != nil {
+			errs = append(errs, fmt.Errorf("config.gate.failOnNew: %w", err))
+		}
 		// The same vocabulary throughout, because the run asks one question. A band under a
 		// severity gate, or a severity under a band gate, is a second question asked of one
 		// control and puts the reader back where two keys left them.

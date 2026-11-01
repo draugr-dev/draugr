@@ -1338,6 +1338,23 @@ often follows from a choice: a descriptor narrowed on purpose declares surfaces 
 [`draugr doctor`](cli.md#draugr-doctor-sagayaml) fails before the scan when the list names
 `not-checked`.
 
+`failOnNew` is the threshold at which a new finding fails the build. A finding is new when this scan
+reports it and the base scan it is compared against does not. It takes the vocabulary `failOn`
+takes, a band or a severity, and asks its question of the new findings alone, so the two can name
+different thresholds and different vocabularies.
+
+```yaml
+config:
+  gate:
+    failOn: P1             # the backlog fails on a P1…
+    failOnNew: P2          # …and a change fails on a new P2
+```
+
+[`draugr scan --base`](cli.md#gating-on-new-findings) and
+[`draugr diff`](cli.md#draugr-diff-basesarif-headsarif) apply it, and their `--fail-on-new` overrides
+it for one run. A scan with no `--base` has nothing to compare against, so the report states the
+setting with no comparison. Empty, the default, applies no gate to new findings.
+
 
 ## `config.fixes`
 

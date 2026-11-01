@@ -51,6 +51,11 @@ config:
     # the run fails until the grant is fixed. The other kinds: not-checked, not-measured,
     # unread-files. Empty, the default, fails on none.
     failOnCaveats: [unread-checks]
+    # The gate on what a change introduces: a finding this scan reports and the base scan it is
+    # compared against does not. Applied by `draugr scan --base main/results.sarif` and by
+    # `draugr diff`, and overridden for one run by their --fail-on-new. A pull request then fails
+    # on a new P2 while the backlog on main is judged by failOn above.
+    failOnNew: P2            # P1 | P2 | P3 | P4, or critical | high | medium | low
 
   # The largest version step the fix list proposes for a dependency. A package whose findings
   # need more gets a second action for the step past it, labeled with its size and this policy,

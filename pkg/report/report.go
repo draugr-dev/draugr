@@ -1604,6 +1604,11 @@ type GateSettings struct {
 	PerControlBand map[string]string
 	// Disabled is --no-gate: the verdict is reported and the command still exits 0.
 	Disabled bool
+	// FailOnNew is the gate on new findings in force, from config.gate.failOnNew or --fail-on-new,
+	// and empty where neither set one.
+	FailOnNew string
+	// New is the run's comparison with a base scan, nil where none ran.
+	New *skald.NewFindings
 }
 
 // GateForReport is the run's gate in the shape the JSON document states it, for a caller writing
@@ -1624,7 +1629,9 @@ func (g GateSettings) skald() *skald.Gate {
 			FailOnPriority: g.FailOnPriority,
 			PerControlBand: g.PerControlBand,
 		},
-		Disabled: g.Disabled,
+		Disabled:  g.Disabled,
+		FailOnNew: g.FailOnNew,
+		New:       g.New,
 	}
 }
 

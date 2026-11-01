@@ -476,7 +476,9 @@ The flag tables below follow the groups in `draugr scan --help`.
 | `--fail-on` | `P1` | What fails the gate, in either vocabulary: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`). Overrides [`config.gate`](saga-schema.md#configgate); `P1` applies when neither sets one |
 | `--fail-on-priority` | - | Deprecated: write the band in `--fail-on`. Refused together with `--fail-on` |
 | `--fail-on-caveats` | - | Kinds of caveat that fail the run as an error does: `not-checked`, `not-measured`, `unread-files`, `unread-checks`, `unbound-imports`, or `none`. Overrides [`config.gate.failOnCaveats`](saga-schema.md#configgate) |
-| `--no-gate` | `false` | Report the verdict but exit 0 on a fail, for producing a report to compare later, where [`draugr diff`](#draugr-diff-basesarif-headsarif) is the gate |
+| `--base` | - | The `results.sarif` of a scan to compare this one against, by the comparison [`draugr diff`](#draugr-diff-basesarif-headsarif) makes. The gate on new findings applies to what this scan reports and the base does not. See [below](#gating-on-new-findings) |
+| `--fail-on-new` | - | The gate on new findings: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`). Overrides [`config.gate.failOnNew`](saga-schema.md#configgate) |
+| `--no-gate` | `false` | Report the verdict, and the outcome of the gate on new findings, but exit 0 on a fail, for producing a report to compare later, where [`draugr diff`](#draugr-diff-basesarif-headsarif) is the gate |
 | `--allow-scan-errors` | `false` | Treat a control whose scanner could not run as a warning rather than a failure. The verdict line then carries `partial`, with the number of targets not reached. A run that planned no jobs at all still fails |
 
 **Exploitability data**
@@ -820,6 +822,32 @@ omitted alerts there.
 `--min-priority` alone is for reading: a terminal, or an agent asking for the short list. With
 `--format sarif` it also drops the rules that only the omitted findings referenced.
 
+### Gating on new findings
+
+`--base` names the `results.sarif` of an earlier scan, usually of the branch a pull request merges
+into. The scan compares itself with that report by the comparison
+[`draugr diff`](#draugr-diff-basesarif-headsarif) makes, and a finding it reports that the base does
+not is **new**. The gate on new findings, `--fail-on-new` or
+[`config.gate.failOnNew`](saga-schema.md#configgate), fails the run when a new finding is at or above
+it, while `--fail-on` goes on judging every finding the scan reports.
+
+```bash
+draugr scan draugr.saga.yaml -o main/ --no-publish     # on main, kept as an artifact
+draugr scan draugr.saga.yaml -o head/ --base main/results.sarif --fail-on-new P2
+```
+
+- **The exit code follows both gates.** The run exits non-zero when either fails, and the error names
+  each. `--no-gate` exits 0 on both, and `report.json` still states both outcomes.
+- **The base has to cover what the scan covers.** A base whose [scope](#scoping-a-run) differs from
+  the run's is refused before anything is scanned, as `draugr diff` refuses two such reports.
+- **Both sides are committed revisions**, so the base and this scan differ only where they read
+  different commits. See [`draugr diff`](#draugr-diff-basesarif-headsarif).
+- **A gate on new findings with no `--base`** is reported rather than applied: `report.json` states
+  the setting with no comparison, and stderr says that no finding was judged as new.
+
+`report.json` states the comparison in its [`gate`](report-schema.md#the-gate) block: the setting,
+the commit and repositories the base records, the new findings by band, and the verdict.
+
 ### The organization's policy
 
 A descriptor that publishes to a [`draugr-api`](saga-schema.md#configpublishers) server is checked
@@ -968,8 +996,9 @@ CHANGED  4, by priority
 | `--top` | `0` | Console: how many changed findings to list (`0` = all), or how many actions under `--view actions`. Also caps the moved findings whose priority changed |
 | `--min-priority` | - | Report only new findings at or above this priority band (`P1`–`P4`), plus new findings with no priority; fixed and unchanged are unaffected. Narrows the diff, never the scans it was computed from |
 | `--repository` | - | Keep only new findings from this repository, plus those belonging to none (an image, a host). For a code-scanning upload, whose paths anchor to one checkout |
-| `--fail-on-new` | - | Fail if a new finding is at or above this: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`). Without it, the diff exits 0 |
+| `--fail-on-new` | - | Fail if a new finding is at or above this: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`). Overrides [`config.gate.failOnNew`](saga-schema.md#configgate). Without either, the diff exits 0 |
 | `--fail-on-new-priority` | - | Deprecated: write the band in `--fail-on-new`. Refused together with `--fail-on-new` |
+| `--saga` | - | The descriptor, or a directory holding one, whose `config.gate.failOnNew` applies when `--fail-on-new` is not passed. Without it, the descriptor in the working directory |
 | `--publish` | `false` | Post the diff as a sticky pull-request comment. Picks `github-pr-comment`, `azure-pr-comment` or `gitlab-mr-comment` from the CI environment; no-ops off a PR |
 
 `--view` and `--top` have counterparts in [`draugr.config.yaml`](#draugr-config), `output.view` and
@@ -979,6 +1008,12 @@ CHANGED  4, by priority
 
 The gate reads **new** only. Accepted, unaccepted and moved findings do not trip it, and each is
 reported.
+
+**The gate in the descriptor.** Without `--fail-on-new`, the gate is
+[`config.gate.failOnNew`](saga-schema.md#configgate) in the descriptor `--saga` names, or in the
+descriptor in the working directory. A working directory holding several is read as holding none,
+and stderr says so. A descriptor that is there and cannot be read is an error.
+[`draugr scan --base`](#gating-on-new-findings) applies the same setting with the same comparison.
 
 **The head alone.** The pull request that adds a repository's first descriptor has nothing at its
 base to scan. `draugr diff head/results.sarif`, with no base report, compares the head against no

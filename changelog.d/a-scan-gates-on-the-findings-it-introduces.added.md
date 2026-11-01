@@ -1,0 +1,1 @@
+- **Gate a scan on the findings it introduces.** `config.gate.failOnNew` takes a band or a severity, and `draugr scan --base <results.sarif>` applies it by the comparison `draugr diff` makes, which reads it too. `report.json` states the setting, the base's commit, the new findings by band and the verdict. `--fail-on-new` overrides it for one run.
