@@ -23,8 +23,7 @@ func TestExpiredExclusionStopsSuppressing(t *testing.T) {
 	t.Parallel()
 
 	rule := saga.ExcludeRule{
-		Rules: []string{"CVE-1"}, Reason: "upstream fix due in August",
-		AcceptedBy: "Wilson Santos", Expires: "2026-08-14",
+		Rules: []string{"CVE-1"}, Reason: "upstream fix due in August", Expires: "2026-08-14",
 	}
 	now, _ := time.Parse("2006-01-02", "2026-09-01")
 
@@ -42,7 +41,7 @@ func TestExpiredExclusionStopsSuppressing(t *testing.T) {
 		t.Errorf("lapsed = %+v, want the expired rule", lapsed)
 	}
 
-	// Before the date it still applies, and carries who accepted it.
+	// Before the date it still applies, and carries why and until when.
 	before, _ := time.Parse("2006-01-02", "2026-08-01")
 	ctrls = excludeFixture()
 	n, lapsed, _ = applyExclusions(ctrls, []saga.ExcludeRule{rule}, before)
@@ -50,8 +49,8 @@ func TestExpiredExclusionStopsSuppressing(t *testing.T) {
 		t.Fatalf("suppressed=%d lapsed=%d, want 1 and 0", n, len(lapsed))
 	}
 	sup := ctrls["sca"].Report.Results[0].Suppression
-	if sup.AcceptedBy != "Wilson Santos" || sup.Expires != "2026-08-14" {
-		t.Errorf("suppression = %+v, want who and until when", sup)
+	if sup.Justification != "upstream fix due in August" || sup.Expires != "2026-08-14" {
+		t.Errorf("suppression = %+v, want why and until when", sup)
 	}
 }
 
@@ -71,21 +70,5 @@ func TestASuppressionNamesTheLineOfItsExclusion(t *testing.T) {
 	sup := ctrls["sca"].Report.Results[0].Suppression
 	if sup.Source != "excl/fixtures.saga-fragment.yaml" || sup.Line != 7 {
 		t.Errorf("suppression = %+v, want the fragment and line 7", sup)
-	}
-}
-
-// An exclusion with no owner still works. The gap is reported rather than enforced, but the
-// suppression records that nobody was named.
-func TestUnattributedSuppressionIsStillRecorded(t *testing.T) {
-	t.Parallel()
-
-	ctrls := excludeFixture()
-	n, _, _ := applyExclusions(ctrls,
-		[]saga.ExcludeRule{{Rules: []string{"CVE-1"}, Reason: "fixture"}}, time.Now())
-	if n != 1 {
-		t.Fatalf("suppressed %d, want 1", n)
-	}
-	if got := ctrls["sca"].Report.Results[0].Suppression.AcceptedBy; got != "" {
-		t.Errorf("acceptedBy = %q, want empty", got)
 	}
 }

@@ -1709,8 +1709,7 @@ func acceptedVia(res sarif.Result) string {
 // are two decisions with two histories. A suppression that names no line, as one read from an
 // older report, falls back to the reason and the date alone.
 //
-// Who wrote the exclusion is git's record of its line, from the report's descriptor block, and
-// never the descriptor's acceptedBy, which nothing verifies.
+// Who wrote the exclusion is git's record of its line, from the report's descriptor block.
 //
 // Only what this project decided. A supplier's analysis and a comment in the source are both
 // reasons a finding stopped counting, and neither is a decision anybody here recorded: counting

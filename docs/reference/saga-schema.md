@@ -1674,7 +1674,6 @@ was never there.
 | `reason` | **Required.** Why this exclusion exists. |
 | `expires` | The date it stops applying (`YYYY-MM-DD`). Past it the finding returns and the report says the exclusion lapsed. |
 | `vex` | What this suppression claims about the product, for [`--report vex`](../guides/vex.md). Optional. See [below](#declaring-what-a-suppression-means-in-vex). |
-| `acceptedBy` | A name the descriptor's author typed as who accepted the finding, which nothing verifies. **Deprecated**, and removed in 0.164.0. `draugr validate` and `draugr scan` warn on each one, and the report carries the value only as `unverifiedAcceptedBy`. |
 
 **Who, why, and until when.** The question asked of a suppression is not whether the scanner ran. It
 is who decided this was acceptable, and when. `reason` answers why and `expires` until when. Who is
@@ -1716,13 +1715,6 @@ An uncommitted line is reported as unavailable too. `report.json` carries the sa
 exclusion, matched or not; [report schema](report-schema.md#what-each-exclusion-carries) lists the
 fields, and [Full history](report-schema.md#full-history) the CI setting that checks out full
 history.
-
-`acceptedBy` predates this. `draugr validate` and `draugr scan` warn on it, naming the line:
-
-```
-✓ draugr.saga.yaml is valid
-  ! draugr.saga.yaml:18: acceptedBy is deprecated and 0.164.0 removes it. Delete the line. Who wrote the exclusion: git blame -L 15,15 draugr.saga.yaml
-```
 
 **Attribution.** A suppression from one of these rules carries `origin: saga`, and the `source` and
 `line` of the rule, so a reader knows which line of the descriptor to read. A report uses four

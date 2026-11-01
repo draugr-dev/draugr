@@ -1112,8 +1112,7 @@ func TestMarkdownRendersTheComponentTable(t *testing.T) {
 }
 
 // suppressedAt builds a report whose findings were set aside by exclusions written at the given
-// places, each `file:line`, or a bare file, or empty for a suppression that names neither. Every
-// suppression carries an acceptedBy, which no decision may present.
+// places, each `file:line`, or a bare file, or empty for a suppression that names neither.
 func suppressedAt(places ...string) Data {
 	var results []sarif.Result
 	for i, p := range places {
@@ -1125,7 +1124,7 @@ func suppressedAt(places ...string) Data {
 		results = append(results, sarif.Result{
 			RuleID: fmt.Sprintf("CVE-%d", i), Level: sarif.LevelError,
 			Suppression: &sarif.Suppression{Kind: "external", Justification: "accepted",
-				AcceptedBy: "typed.name@example.com", Source: source, Line: line},
+				Source: source, Line: line},
 		})
 	}
 	return Data{
@@ -1148,11 +1147,6 @@ func TestDecisionsAreOnePerExclusion(t *testing.T) {
 	}
 	if got[0].where != "draugr.saga.yaml:12" || got[0].n != 2 || len(got[0].rules) != 2 {
 		t.Errorf("the largest decision should lead: %+v", got[0])
-	}
-	for _, dec := range got {
-		if strings.Contains(fmt.Sprintf("%+v", dec), "typed.name") {
-			t.Errorf("a decision carries the descriptor's acceptedBy: %+v", dec)
-		}
 	}
 }
 

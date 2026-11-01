@@ -18,7 +18,7 @@ func in(r sarif.Result, component, repository, priority string) sarif.Result {
 func TestSplittingAComponentMovesItsFindings(t *testing.T) {
 	const repo = "https://github.com/acme/shop.git"
 	api, web := finding("CVE-1", "api/go.mod", 3), finding("CVE-2", "web/package.json", 9)
-	admin := suppressed(finding("CVE-3", "admin/go.mod", 4), "sec@acme.test")
+	admin := suppressed(finding("CVE-3", "admin/go.mod", 4))
 	base := sarif.Report{Results: []sarif.Result{
 		in(api, "app", repo, "P1"), in(web, "app", repo, "P2"), in(admin, "app", repo, "P1"),
 	}}
@@ -96,7 +96,7 @@ func TestAMoveThatChangesTheDecisionReportsTheDecision(t *testing.T) {
 	f := finding("CVE-1", "go.mod", 3)
 
 	lapsed := Compare(
-		sarif.Report{Results: []sarif.Result{suppressed(in(f, "app", "repo", "P1"), "sec@acme.test")}},
+		sarif.Report{Results: []sarif.Result{suppressed(in(f, "app", "repo", "P1"))}},
 		sarif.Report{Results: []sarif.Result{in(f, "api", "repo", "P1")}},
 	)
 	if len(lapsed.Unaccepted) != 1 || len(lapsed.Moved) != 0 {
@@ -105,7 +105,7 @@ func TestAMoveThatChangesTheDecisionReportsTheDecision(t *testing.T) {
 
 	taken := Compare(
 		sarif.Report{Results: []sarif.Result{in(f, "app", "repo", "P1")}},
-		sarif.Report{Results: []sarif.Result{suppressed(in(f, "api", "repo", "P1"), "sec@acme.test")}},
+		sarif.Report{Results: []sarif.Result{suppressed(in(f, "api", "repo", "P1"))}},
 	)
 	if len(taken.Accepted) != 1 || len(taken.Moved) != 0 {
 		t.Errorf("an exclusion written with the move: accepted %d, moved %d; want 1, 0", len(taken.Accepted), len(taken.Moved))

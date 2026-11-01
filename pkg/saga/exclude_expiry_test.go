@@ -68,8 +68,7 @@ func TestValidateRejectsAnUnreadableExpiry(t *testing.T) {
 	ok := &Model{
 		Release: Release{Version: "1.0"},
 		Config: Config{Exclude: []ExcludeRule{
-			{Rules: []string{"CVE-1"}, Reason: "waiting on upstream",
-				AcceptedBy: "Wilson Santos", Expires: "2026-08-14"},
+			{Rules: []string{"CVE-1"}, Reason: "waiting on upstream", Expires: "2026-08-14"},
 		}},
 	}
 	if err := ok.Validate(); err != nil {

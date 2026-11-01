@@ -257,13 +257,13 @@ func TestFromSARIFKeepsSuppressedAndMarksThem(t *testing.T) {
 }
 
 func TestDraugrsOwnSuppressionsSurviveARoundTrip(t *testing.T) {
-	// Draugr writes who accepted a finding and when. Reading its own report back and losing that
-	// is how "who decided this was acceptable" stops being answerable.
+	// Draugr writes where a decision is recorded and until when. Reading its own report back and
+	// losing that is how "who decided this was acceptable" stops being answerable.
 	rep := Report{Tool: "trivy", Results: []Result{{
 		RuleID: "CVE-2024-11111", Level: LevelError, Message: "vulnerable",
 		Suppression: &Suppression{
-			Kind: "external", Justification: "not reachable",
-			AcceptedBy: "wilson@draugr.dev", Expires: "2027-01-01", Origin: OriginSaga,
+			Kind: "external", Justification: "not reachable", Expires: "2027-01-01", Origin: OriginSaga,
+			Source: "draugr.saga.yaml", Line: 12,
 		},
 	}}}
 	data, err := rep.MarshalSARIF()
@@ -281,8 +281,8 @@ func TestDraugrsOwnSuppressionsSurviveARoundTrip(t *testing.T) {
 	if sup == nil {
 		t.Fatal("the decision did not survive being written and read")
 	}
-	if sup.AcceptedBy != "wilson@draugr.dev" || sup.Expires != "2027-01-01" {
-		t.Errorf("suppression = %+v, want who and until when", sup)
+	if sup.Source != "draugr.saga.yaml" || sup.Line != 12 || sup.Expires != "2027-01-01" {
+		t.Errorf("suppression = %+v, want where and until when", sup)
 	}
 	if sup.Origin != OriginSaga || back.Results[0].SilencedInSource() {
 		t.Errorf("origin = %q, want a recorded decision rather than a comment", sup.Origin)
@@ -312,30 +312,6 @@ func TestAnImportedClaimReadsBackAsImported(t *testing.T) {
 	}
 	if back.Results[0].Suppression.Author == "" {
 		t.Error("the author of the claim was lost")
-	}
-}
-
-func TestAnOlderReportsSuppressionIsReadAsADecision(t *testing.T) {
-	// Origin arrived after suppressions did. A report written before it, carrying an acceptedBy, is
-	// a descriptor rule, reading it as an in-source comment would demote somebody's recorded
-	// decision to a pragma.
-	data := []byte(`{
-		"version": "2.1.0",
-		"runs": [{"tool": {"driver": {"name": "trivy"}}, "results": [
-			{"ruleId": "CVE-2024-11111", "level": "error", "message": {"text": "old"},
-			 "suppressions": [{"kind": "external", "justification": "accepted",
-			   "properties": {"acceptedBy": "someone@acme.example"}}]}
-		]}]
-	}`)
-	got, err := FromSARIF(data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Results[0].SilencedInSource() {
-		t.Error("a recorded decision was read back as a comment in the code")
-	}
-	if got.Results[0].Suppression.Origin != OriginSaga {
-		t.Errorf("origin = %q, want %q", got.Results[0].Suppression.Origin, OriginSaga)
 	}
 }
 

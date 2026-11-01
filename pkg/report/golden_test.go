@@ -212,12 +212,9 @@ func goldenFullData() Data {
 		// A rule whose date passed and a rule that matched nothing, which are the two ways a
 		// descriptor can claim a decision it is not making. They render in different places and at
 		// different weights, so a fixture carrying neither pins the easy half of the block.
-		//
-		// The lapsed rule names an acceptedBy, which no view may print.
 		LapsedExclusions: []saga.ExcludeRule{{
 			Rules: []string{"CVE-2021-0001"}, Expires: "2026-01-31",
-			AcceptedBy: "a.reviewer@example.com", Reason: "waiting on the upstream release",
-			Source: "draugr.saga.yaml", Line: 31,
+			Reason: "waiting on the upstream release", Source: "draugr.saga.yaml", Line: 31,
 		}},
 		UnmatchedExclusions: []saga.ExcludeRule{{
 			Paths: []string{"tests*"}, Reason: "test files that are not deployed",
@@ -363,15 +360,13 @@ func goldenCleanData() Data {
 // suppressedLicenses appends the two set-aside findings the Suppressed count refers to, set aside
 // by exclusions at two lines: one whose git history names a commit and one in a shallow clone
 // whose history is unavailable, because the decisions block renders them differently and an
-// element the fixture omits is an element the golden does not pin. The first names an
-// acceptedBy, which no view may print.
+// element the fixture omits is an element the golden does not pin.
 func suppressedLicenses(base []sarif.Result) []sarif.Result {
 	return append(append([]sarif.Result{}, base...),
 		sarif.Result{RuleID: "license/GPL-3.0-only/x", Level: sarif.LevelWarning,
 			Location: sarif.Location{URI: "go.mod"},
 			Suppression: &sarif.Suppression{Kind: "external",
-				Justification: "legal reviewed; we do not distribute", AcceptedBy: "a.reviewer",
-				Source: "draugr.saga.yaml", Line: 22}},
+				Justification: "legal reviewed; we do not distribute", Source: "draugr.saga.yaml", Line: 22}},
 		sarif.Result{RuleID: "license/GPL-3.0-only/y", Level: sarif.LevelWarning,
 			Location: sarif.Location{URI: "go.mod"},
 			Suppression: &sarif.Suppression{Kind: "external", Justification: "same package tree",

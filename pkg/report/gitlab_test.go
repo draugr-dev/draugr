@@ -370,7 +370,7 @@ func TestGitLabReportsOmitSuppressedFindings(t *testing.T) {
 	d := gitlabData()
 	rep := d.Run.Controls["sast"].Report
 	rep.Results[0].Suppression = &sarif.Suppression{
-		Kind: "external", Justification: "reviewed 2026-08-01", AcceptedBy: "security",
+		Kind: "external", Justification: "reviewed 2026-08-01", Origin: sarif.OriginSaga,
 	}
 	d.Run.Controls["sast"] = plugin.ControlResult{Control: "sast", Report: rep}
 

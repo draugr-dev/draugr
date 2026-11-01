@@ -358,13 +358,13 @@ type sarifSuppression struct {
 
 // sarifSuppressionProperties holds Draugr's suppression metadata in SARIF's property bag.
 type sarifSuppressionProperties struct {
-	// UnverifiedAcceptedBy is the name a descriptor's deprecated acceptedBy states, which nothing
-	// checks. Written under this key so no reader takes it for who accepted the finding.
+	// UnverifiedAcceptedBy and AcceptedBy are the keys earlier releases wrote a descriptor rule's
+	// typed name under, read and never written. A suppression carrying either with no Origin was a
+	// rule in the descriptor, so a baseline from one of those releases still reads as the decision
+	// it recorded.
 	UnverifiedAcceptedBy string `json:"unverifiedAcceptedBy,omitempty"`
-	// AcceptedBy is the key a report from an earlier release wrote the same value under. Read so a
-	// baseline from one of those still means what it said, and never written.
-	AcceptedBy string `json:"acceptedBy,omitempty"`
-	Expires    string `json:"expires,omitempty"`
+	AcceptedBy           string `json:"acceptedBy,omitempty"`
+	Expires              string `json:"expires,omitempty"`
 	// Origin, Author and Asserted describe a claim imported from somebody else's VEX document.
 	//
 	// Carried into the property bag because a consumer reading this SARIF has to be able to tell a
@@ -486,11 +486,11 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		// itself after the upload.
 		if s := res.Suppression; s != nil {
 			sup := sarifSuppression{Kind: s.Kind, Justification: s.Justification}
-			if s.AcceptedBy != "" || s.Expires != "" || s.Origin != "" || s.Author != "" ||
+			if s.Expires != "" || s.Origin != "" || s.Author != "" ||
 				s.Asserted != "" || s.Source != "" || s.StatementID != "" || s.Digest != "" || s.Line != 0 {
 				sup.Properties = &sarifSuppressionProperties{
-					UnverifiedAcceptedBy: s.AcceptedBy, Expires: s.Expires,
-					Origin: s.Origin, Author: s.Author, Asserted: s.Asserted, Source: s.Source,
+					Expires: s.Expires,
+					Origin:  s.Origin, Author: s.Author, Asserted: s.Asserted, Source: s.Source,
 					StatementID: s.StatementID, Digest: s.Digest, Line: s.Line,
 				}
 			}
@@ -651,15 +651,12 @@ func readSuppression(sups []sarifSuppression) *Suppression {
 	first := sups[0]
 	sup := &Suppression{Kind: first.Kind, Justification: first.Justification, Origin: scannersOwn(first.Kind)}
 	if p := first.Properties; p != nil {
-		sup.AcceptedBy, sup.Expires = p.UnverifiedAcceptedBy, p.Expires
-		if sup.AcceptedBy == "" {
-			sup.AcceptedBy = p.AcceptedBy
-		}
+		sup.Expires = p.Expires
 		sup.Author, sup.Asserted, sup.Source, sup.Line = p.Author, p.Asserted, p.Source, p.Line
 		if p.Origin != "" {
 			// Draugr's own, read back as what it was written as.
 			sup.Origin = p.Origin
-		} else if sup.AcceptedBy != "" {
+		} else if p.UnverifiedAcceptedBy != "" || p.AcceptedBy != "" {
 			// A decision with a name on it and no origin recorded: a descriptor rule from a Draugr
 			// that predates imported claims, which is what an empty Origin means.
 			sup.Origin = OriginSaga

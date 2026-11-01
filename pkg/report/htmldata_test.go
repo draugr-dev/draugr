@@ -178,10 +178,6 @@ func TestRenderedReportsAccountForEachDecision(t *testing.T) {
 			t.Errorf("markdown is missing %q:\n%s", want, out)
 		}
 	}
-	// The descriptor's acceptedBy is nobody's verified name, so no rendering presents it.
-	if strings.Contains(out, "typed.name") || strings.Contains(out, "accepted by") {
-		t.Errorf("the markdown presents the descriptor's acceptedBy:\n%s", out)
-	}
 
 	var page bytes.Buffer
 	if err := (htmlReporter{}).Render(&page, d); err != nil {
@@ -196,9 +192,6 @@ func TestRenderedReportsAccountForEachDecision(t *testing.T) {
 		if !strings.Contains(html, want) {
 			t.Errorf("html is missing %q", want)
 		}
-	}
-	if strings.Contains(html, "typed.name") {
-		t.Error("the html presents the descriptor's acceptedBy")
 	}
 }
 

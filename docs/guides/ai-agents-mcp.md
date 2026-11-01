@@ -151,11 +151,11 @@ Each finding from `scan`, `summarize_report` and `diff_reports` carries the evid
 rank as fields: the exploitability signal that raised it, a reachability analyzer's verdict with
 one call path, and the other scanners that reported the same flaw. A finding that a recorded
 decision took out of the ranking comes back in `accepted`, never in `findings`, with why, until
-when, the file that made the decision, and whether the analysis was this project's or a supplier's
-VEX statement. An `acceptedBy` there is the descriptor's unverified claim, the value `report.json`
-names `unverifiedAcceptedBy`; the git history of the exclusion's line records who wrote it.
-`suppressed` is the full count and `accepted` is capped at `limit`. `feeds` names the
-exploitability datasets the scan consulted, dated, and marks any older than the scan's `maxAge`.
+when, the file and line that record the decision, and whether the analysis was this project's or a
+supplier's VEX statement. The git history of a descriptor rule's line records who wrote it, and
+`report.json` carries that history in `descriptor.exclusions[].gitHistory`. `suppressed` is the
+full count and `accepted` is capped at `limit`. `feeds` names the exploitability datasets the scan
+consulted, dated, and marks any older than the scan's `maxAge`.
 The scan reads those datasets from the feed cache and never fetches them, whether
 `config.exploitability` says `cache` or `auto`. A feed the cache does not hold fails the call, and
 the error names the `draugr feeds update` command that fetches it.
