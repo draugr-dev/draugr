@@ -131,7 +131,7 @@ func introduce(s *stagedScanner) {
 // gateOf reads the gate block of the report.json written into dir.
 func gateOf(t *testing.T, dir string) map[string]any {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join(dir, "report.json"))
+	data, err := os.ReadFile(filepath.Join(dir, "report.json")) // #nosec G304 -- this test's own temp file
 	if err != nil {
 		t.Fatal(err)
 	}

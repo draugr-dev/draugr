@@ -218,26 +218,11 @@ made a decision rather than one reporting that they did not. Each entry in `find
 same thing per finding: a `suppressed` block with the justification and who accepted it, on the
 findings that have one.
 
-`gate` is the policy the verdict was judged against:
-
-```json
-"gate": {
-  "threshold": "medium",
-  "perControl": {"licenses": "critical"},
-  "failOn": "P1",
-  "disabled": true
-}
-```
-
-`threshold` is the severity band that fails a control, and it is always stated: an unset
-`--fail-on` is written as the default rather than left blank, because nothing downstream can look
-up what our default is. `perControl` are the controls judged against a different band, and each
-`controls[]` entry repeats the one that applied to it. `failOn` carries a band where the gate asks
-about priority and a severity where it asks about severity, and a control
-also fails on a priority band, which is how a gate reads the component's declared exposure and
-criticality rather than the severity alone. `disabled` is `--no-gate`: the verdict stands and the
-command exits 0 anyway, so anything reading the exit code was told the opposite of what this
-document says.
+`gate` is the policy the verdict was judged against, and the outcome of the gate on new findings
+where a comparison ran. [Gate](../reference/report-schema.md#gate) in the report schema lists each
+field, with a block from a real run. `disabled` is `--no-gate`: the verdict stands and the command
+exits 0 anyway, so anything reading the exit code was told the opposite of what this document
+says.
 
 Between `gate.threshold`, `controls[].threshold` and `controls[].highest`, a consumer can name
 which control crossed which band without reading the descriptor:
