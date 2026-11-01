@@ -291,8 +291,8 @@ type Escalation struct {
 // Returned beside the findings rather than among them: an accepted risk handed back as work is
 // one an assistant proposes to fix against the owner's decision. Returned at all because a count
 // on its own cannot answer why, until when, or where the decision is written, and those are the
-// questions. Who wrote a descriptor rule is the git history of its line, which report.json carries
-// in descriptor.exclusions and results.sarif does not.
+// questions. The git history of a descriptor rule's line records who wrote it, and report.json
+// carries that history in descriptor.exclusions, where results.sarif does not.
 //
 // A value report.json's suppressed note also carries goes under the key it has there, so a client
 // reading this beside report.json or results.sarif finds one value under one key.
@@ -309,7 +309,7 @@ type Accepted struct {
 	Author           string `json:"author,omitempty" jsonschema:"who made an imported VEX statement"`
 	Asserted         string `json:"asserted,omitempty" jsonschema:"when an imported VEX statement was made"`
 	Source           string `json:"source,omitempty" jsonschema:"the descriptor, fragment or VEX document the decision was written in"`
-	Line             int    `json:"line,omitempty" jsonschema:"for a rule in the descriptor, the line in source it starts at; the git history of that line records who wrote it, and report.json carries it in descriptor.exclusions[].gitHistory"`
+	Line             int    `json:"line,omitempty" jsonschema:"for a rule in the descriptor, the line in source it starts at; report.json carries that line's git history in descriptor.exclusions[].gitHistory"`
 	VEXStatus        string `json:"vexStatus,omitempty" jsonschema:"not_affected, affected or fixed; empty reads as affected"`
 	VEXJustification string `json:"vexJustification,omitempty" jsonschema:"why the product is not affected, from VEX's fixed vocabulary"`
 }

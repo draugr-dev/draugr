@@ -152,9 +152,10 @@ rank as fields: the exploitability signal that raised it, a reachability analyze
 one call path, and the other scanners that reported the same flaw. A finding that a recorded
 decision took out of the ranking comes back in `accepted`, never in `findings`, with why, until
 when, the file and line that record the decision, and whether the analysis was this project's or a
-supplier's VEX statement. Who wrote a rule in the descriptor is the git history of that line, which
-`report.json` carries in `descriptor.exclusions[].gitHistory`. `suppressed` is the full count and `accepted` is capped at `limit`. `feeds` names the
-exploitability datasets the scan consulted, dated, and marks any older than the scan's `maxAge`.
+supplier's VEX statement. The git history of a descriptor rule's line records who wrote it, and
+`report.json` carries that history in `descriptor.exclusions[].gitHistory`. `suppressed` is the
+full count and `accepted` is capped at `limit`. `feeds` names the exploitability datasets the scan
+consulted, dated, and marks any older than the scan's `maxAge`.
 The scan reads those datasets from the feed cache and never fetches them, whether
 `config.exploitability` says `cache` or `auto`. A feed the cache does not hold fails the call, and
 the error names the `draugr feeds update` command that fetches it.

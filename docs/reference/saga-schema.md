@@ -1714,10 +1714,6 @@ exclusion, matched or not; [report schema](report-schema.md#what-each-exclusion-
 fields, and [Full history](report-schema.md#full-history) the CI setting that checks out full
 history.
 
-> **`acceptedBy` was removed.** It held a name typed as who accepted the finding, which nothing
-> checked, and the git history of the exclusion's line records who wrote it. A descriptor still
-> carrying the key is refused with an error that says to delete the line.
-
 **Attribution.** A suppression from one of these rules carries `origin: saga`, and the `source` and
 `line` of the rule, so a reader knows which line of the descriptor to read. A report uses four
 values:
