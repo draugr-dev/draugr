@@ -1,1 +1,0 @@
-- **A govulncheck error names the package it could not load, and why.** The scan error carries govulncheck's diagnostic, such as `undefined: generatedVersion` when a build step has not generated the file, so missing generated code reads differently from a module that failed to download.

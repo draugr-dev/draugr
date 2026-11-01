@@ -12,6 +12,30 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.164.0] - 2026-11-01
+
+### Added
+
+- **Gate a scan on the findings it introduces.** With `config.gate.failOnNew` set to a band or a severity, `draugr scan --base <results.sarif>` fails on a new finding at or above it, and `report.json` records the setting, the base commit, the new findings by band and the verdict. `draugr diff` reads the same setting, and `--fail-on-new` overrides it for one run.
+
+- **Group a stored run by team or data class without the descriptor.** `report.json` gains `componentLabels`, which maps every declared component to its `labels`, `{}` where it declares none, including components with no findings and those a narrowed run skipped.
+
+- **The GitHub Action and the GitLab and Azure Pipelines templates apply `config.gate.failOnNew`.** Each hands `draugr diff` the descriptor it scanned, so the descriptor's gate on new findings decides a pull request when the template's own input is empty. The GitLab and Azure inputs default to P1, which overrides it, and a release without `draugr diff --saga` ignores it.
+
+### Removed
+
+- **A descriptor that sets `config.exclude[].acceptedBy` is refused.** `draugr validate` and `draugr scan` name the key and say to delete the line. `git blame` on an exclusion's line shows who wrote it, and `report.json` carries the same record in `descriptor.exclusions[].gitHistory`. `report.json`, `results.sarif` and the MCP `accepted` list stop carrying `unverifiedAcceptedBy`, and `draugr diff` still reads baselines that have it.
+
+### Fixed
+
+- **A Go finding Trivy and Grype both report keeps govulncheck's verdict.** The verdict reaches Grype's copy too, whose rule id carries the package, so the finding counted for the flaw is ranked by it rather than staying at the band an unreachable verdict lowers. The reachability counts in `report.json` and the console count each flaw once.
+
+- **A repository's own `.gitleaks.toml` now applies to the secrets scan.** Its rules and allowlist are used, with Draugr's rule added. A file that does not set `[extend] useDefault = true` is now scanned without Gitleaks' built-in rules; add the setting to keep them. A `config` in the descriptor still replaces the file.
+
+- **A placeholder ingest token is no longer reported.** The secrets rule for Draugr's ingest token now requires 3.5 bits of entropy per character, so `drgr_ci_` followed by one repeated character no longer matches. A real token is unaffected.
+
+- **A govulncheck error names the package it could not load, and why.** The scan error carries govulncheck's diagnostic, such as `undefined: generatedVersion` when a build step has not generated the file, so missing generated code reads differently from a module that failed to download.
+
 ## [0.163.0] - 2026-11-01
 
 ### Added
@@ -6663,7 +6687,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.163.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.164.0...HEAD
+[0.164.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.164.0
 [0.163.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.163.0
 [0.162.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.162.2
 [0.162.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.162.1

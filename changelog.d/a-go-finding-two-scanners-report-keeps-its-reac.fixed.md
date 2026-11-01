@@ -1,1 +1,0 @@
-- **A Go finding Trivy and Grype both report keeps govulncheck's verdict.** The verdict reaches Grype's copy too, whose rule id carries the package, so the finding counted for the flaw is ranked by it rather than staying at the band an unreachable verdict lowers. The reachability counts in `report.json` and the console count each flaw once.

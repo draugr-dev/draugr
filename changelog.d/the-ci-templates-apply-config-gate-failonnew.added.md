@@ -1,1 +1,0 @@
-- **The GitHub Action and the GitLab and Azure Pipelines templates apply `config.gate.failOnNew`.** Each hands `draugr diff` the descriptor it scanned, so the descriptor's gate on new findings decides a pull request when the template's own input is empty. The GitLab and Azure inputs default to P1, which overrides it, and a release without `draugr diff --saga` ignores it.
