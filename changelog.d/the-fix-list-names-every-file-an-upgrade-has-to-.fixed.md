@@ -1,1 +1,0 @@
-- **The fix list names every file an upgrade has to reach.** A vulnerability required by two Go modules, `go.mod` and `tools/go.mod`, or found in a vendored script beside a lockfile, is listed with both files instead of one. It is still counted once.
