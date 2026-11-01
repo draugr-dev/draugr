@@ -57,6 +57,11 @@ func newBaseGate(opts scanOptions, gate *saga.GateConfig, scope engine.Scope) (b
 	if err := comparableScopes(opts.base, g.base, thisScan, scopeReport(scope)); err != nil {
 		return baseGate{}, err
 	}
+	// Checked before the scan, like the scope: a base that would read as new every finding it
+	// left out is known to be unusable before anything is scanned.
+	if err := comparableBands(opts.base, g.base, thisScan, "", ""); err != nil {
+		return baseGate{}, err
+	}
 	return g, nil
 }
 

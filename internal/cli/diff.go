@@ -13,6 +13,7 @@ import (
 
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/diff"
+	"github.com/draugr-dev/draugr/pkg/prioritization"
 	"github.com/draugr-dev/draugr/pkg/publish"
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -162,8 +163,14 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 	var compared diff.Result
 	if noBase {
 		compared = diff.CompareWithoutBase(head)
-	} else if compared, err = compareWithBase(basePath, base, headPath, head); err != nil {
-		return err
+	} else {
+		headBand, _ := skald.MinPriorityOfReport(head)
+		if err := comparableBands(basePath, base, headPath, headBand, minPriority); err != nil {
+			return err
+		}
+		if compared, err = compareWithBase(basePath, base, headPath, head); err != nil {
+			return err
+		}
 	}
 
 	// Narrowed after the comparison, never before it: a diff computed from filtered inputs reads
@@ -345,6 +352,78 @@ func comparableScopes(basePath string, base sarif.Report, headPath string, head 
 		"a finding the head did not look for would be reported as fixed. Re-run the scoped side "+
 		"unscoped, or scope both the same way",
 		describe(basePath, baseScope, baseScoped), describe(headPath, headScope, headScoped))
+}
+
+// comparableBands refuses to compare two reports narrowed to bands the comparison would misread.
+//
+// A report written with --artifact-min-priority, or from a publisher report with minPriority, holds only
+// the findings at or above its band, and says so inside itself. Compared with a report holding more,
+// every finding below that band reads as new, when the base is the narrower one, or as fixed, when
+// the head is. A gate on new findings then fails a change that introduced nothing, or a reader is
+// told that findings were resolved when they were only left out.
+//
+// headBand is the band the head was narrowed to, "" where it holds every finding, as a scan in
+// progress does. minPriority is the band below which the comparison reports nothing new, from
+// `draugr diff --min-priority`; a base narrowed to it or below covers what is judged. Refused rather
+// than judged at the narrower band, so a gate never silently judges a band other than the one
+// configured.
+func comparableBands(basePath string, base sarif.Report, headPath, headBand, minPriority string) error {
+	baseBand, baseNarrowed := skald.MinPriorityOfReport(base)
+	// Narrowed to P4 holds every banded finding, and narrowing keeps the unbanded ones, so it holds
+	// what a whole report holds.
+	if rankOf(baseBand) <= rankOf("P4") {
+		baseBand, baseNarrowed = "", false
+	}
+	if rankOf(headBand) <= rankOf("P4") {
+		headBand = ""
+	}
+	if headBand != "" && (!baseNarrowed || rankOf(headBand) > rankOf(baseBand)) {
+		baseHolds := "holds every band"
+		if baseNarrowed {
+			baseHolds = "was narrowed to " + baseBand
+		}
+		return fmt.Errorf("these reports were not narrowed to the same band:\n  %s %s\n  %s was narrowed to %s\n"+
+			"every %s finding in the base would be reported as fixed. Narrow the base to %s too, or "+
+			"write the head without narrowing it", basePath, baseHolds, headPath, headBand, bandsBelow(headBand), headBand)
+	}
+	if !baseNarrowed {
+		return nil
+	}
+	reach := headBand
+	if minPriority != "" && (reach == "" || rankOf(minPriority) > rankOf(reach)) {
+		reach = minPriority
+	}
+	if reach != "" && rankOf(reach) >= rankOf(baseBand) {
+		return nil
+	}
+	headHolds := "holds every band"
+	if headBand != "" {
+		headHolds = "was narrowed to " + headBand
+	}
+	fix := "Write the base without narrowing it (no --artifact-min-priority or minPriority)"
+	if headPath != thisScan {
+		fix += ", or pass --min-priority " + baseBand
+	}
+	return fmt.Errorf("these reports were not narrowed to the same band:\n  %s was narrowed to %s\n  %s %s\n"+
+		"every %s finding in the head would be reported as new. %s",
+		basePath, baseBand, headPath, headHolds, bandsBelow(baseBand), fix)
+}
+
+// rankOf is a band's urgency, P1 highest, as prioritization ranks it.
+func rankOf(band string) int { return prioritization.Priority(strings.ToUpper(band)).Rank() }
+
+// bandsBelow names the bands less urgent than band, such as "P3 or P4" below P2.
+func bandsBelow(band string) string {
+	var below []string
+	for _, b := range []string{"P1", "P2", "P3", "P4"} {
+		if rankOf(b) < rankOf(band) {
+			below = append(below, b)
+		}
+	}
+	if len(below) == 1 {
+		return below[0]
+	}
+	return strings.Join(below[:len(below)-1], ", ") + " or " + below[len(below)-1]
 }
 
 // resolveDiffView turns the flag into a view, refusing a name that is not one.

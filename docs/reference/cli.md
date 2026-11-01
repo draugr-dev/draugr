@@ -814,6 +814,12 @@ These narrow a file deliberately:
 Both **record what they left out**: a narrowed SARIF carries a `draugr/min-priority` provenance
 entry naming the band, as a scoped run records its scope.
 
+**A comparison refuses a report narrowed to a band it would misread.** A base narrowed to `P2`
+compared with a whole head would report every P3 or P4 finding as new, and a head narrowed above its
+base would report the base's lower findings as fixed. `draugr diff` compares two reports narrowed
+alike, or a narrowed base with `--min-priority` at or above its band. `draugr scan --base` accepts
+only a base written without narrowing. A report narrowed to `P4` counts as written without narrowing.
+
 An upload narrowed to `P1` resolves the P2–P4 alerts **for the ref and category it was uploaded
 against**. A pull-request run uploads against the pull request's own ref and leaves the default
 branch's alerts alone, while a narrowed upload from a push to the default branch resolves the
@@ -872,7 +878,8 @@ draugr: fails on P3: 15 new findings since b5bcb4b
 - **Without a gate on new findings, `--base` changes no verdict.** The run is judged on every finding
   and prints what a run without `--base` prints; `report.json` records the comparison.
 - **The base has to cover what the scan covers.** A base whose [scope](#scoping-a-run) differs from
-  the run's is refused before anything is scanned, as `draugr diff` refuses two such reports.
+  the run's, or one [narrowed to a band](#narrowing-on-purpose), is refused before anything is
+  scanned, as `draugr diff` refuses two such reports.
 - **Both sides are committed revisions**, so the base and this scan differ only where they read
   different commits. See [`draugr diff`](#draugr-diff-basesarif-headsarif).
 - **A gate on new findings with no `--base`** is reported rather than applied. `report.json` states
@@ -982,7 +989,9 @@ Compare two scans and classify every finding as **new**, **unaccepted**, **accep
 **moved** or **unchanged**: the security delta of a change, typically a pull request's head against
 its base branch. Inputs are the `results.sarif` files that
 [`draugr scan -o`](#draugr-scan-sagayaml--dir) writes, which are always complete regardless of
-`--min-priority`. Two reports of different [scope](#scoping-a-run) are refused.
+`--min-priority`. Two reports of different [scope](#scoping-a-run) are refused, and so are two
+[narrowed to different bands](#narrowing-on-purpose), unless `--min-priority` is at or above the
+base's band.
 
 **Accepted** is a finding somebody excused rather than fixed: an exclusion added, or a finding that
 arrived already covered by one. **Unaccepted** is a finding whose exclusion was removed or reached
