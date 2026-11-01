@@ -2579,8 +2579,22 @@ func correlationKeyOf(res sarif.Result) (correlationKey, bool) {
 	}
 	return correlationKey{
 		component: res.Component, repository: res.Repository, image: res.Image,
-		pkg: res.Package.PURL, vuln: vuln,
+		pkg: correlationPURL(res.Package.PURL), vuln: vuln,
 	}, true
+}
+
+// correlationPURL is a package URL as two scanners' reports of one dependency agree on it.
+//
+// Trivy lowercases a Go module's path in the package URL and Grype keeps its case, so
+// `github.com/Azure/go-ntlmssp` arrives as two URLs differing only by case. Within one component,
+// repository and vulnerability, two Go package URLs differing only by case are one dependency
+// reported twice, so the comparison ignores case. Every other ecosystem is compared as written.
+// The finding keeps the URL its scanner wrote; only the key is folded.
+func correlationPURL(purl string) string {
+	if strings.HasPrefix(purl, "pkg:golang/") {
+		return strings.ToLower(purl)
+	}
+	return purl
 }
 
 // strongestOf picks the finding a group is counted under: the one claiming most exposure.

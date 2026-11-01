@@ -173,6 +173,49 @@ func TestCorrelationIsNotPartOfFingerprint(t *testing.T) {
 // single repository URL scoped by `paths:`, so the repository is identical across them and only the
 // component tells them apart. Collapsed, one team's finding is counted under a component that
 // cannot fix it, and the team that can is told it has one fewer than it does.
+// Trivy lowercases a Go module's path in the package URL and Grype keeps its case. Their copies of
+// one flaw in a module with a capital letter in its path are one flaw, counted once, in the
+// component and repository that have it; the other component's copy stays its own.
+func TestCorrelationMatchesAGoModuleWhateverItsCase(t *testing.T) {
+	const version = "@v0.0.0-20221128193559-754e69321358"
+	in := func(tool, rule, purl, component, repo string) sarif.Result {
+		r := found(tool, rule, purl, sarif.LevelError, 7.5)
+		r.Component, r.Repository = component, repo
+		r.Location = sarif.Location{URI: "go.mod"}
+		return r
+	}
+	ctrls := controlsWith(
+		in("trivy", "CVE-2026-32952", "pkg:golang/github.com/azure/go-ntlmssp"+version, "api", "repo-api"),
+		in("grype", "CVE-2026-32952-github.com/Azure/go-ntlmssp", "pkg:golang/github.com/Azure/go-ntlmssp"+version, "api", "repo-api"),
+		in("grype", "CVE-2026-32952-github.com/Azure/go-ntlmssp", "pkg:golang/github.com/Azure/go-ntlmssp"+version, "web", "repo-web"),
+	)
+	groups, _ := applyCorrelation(ctrls)
+	if groups != 1 {
+		t.Fatalf("groups = %d, want the api pair alone", groups)
+	}
+	counted := map[string]int{}
+	for _, r := range ctrls["sca"].Report.Results {
+		if !r.Correlated() {
+			counted[r.Component]++
+		}
+	}
+	if counted["api"] != 1 || counted["web"] != 1 {
+		t.Errorf("counted = %v, want one flaw in each component", counted)
+	}
+	for _, r := range ctrls["sca"].Report.Results {
+		if r.Tool == "trivy" && r.Package.PURL != "pkg:golang/github.com/azure/go-ntlmssp"+version {
+			t.Errorf("trivy's package URL was rewritten to %q; only the key ignores case", r.Package.PURL)
+		}
+	}
+}
+
+// Only Go's package URLs are compared without case. Another ecosystem's are compared as written.
+func TestCorrelationComparesOtherPackageURLsAsWritten(t *testing.T) {
+	if got := correlationPURL("pkg:maven/org.Example/Lib@1.0"); got != "pkg:maven/org.Example/Lib@1.0" {
+		t.Errorf("a maven package URL became %q", got)
+	}
+}
+
 func TestCorrelationDoesNotCrossAComponent(t *testing.T) {
 	inComponent := func(name, tool, path string) sarif.Result {
 		r := found(tool, "CVE-2020-11023", "pkg:npm/jquery@1.8.3", sarif.LevelWarning, 6.9)

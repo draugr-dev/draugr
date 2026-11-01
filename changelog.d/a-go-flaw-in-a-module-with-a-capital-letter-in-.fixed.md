@@ -1,0 +1,1 @@
+- **A Go flaw in a module with a capital letter in its path is counted once.** Trivy writes such a module's package URL in lowercase and Grype keeps its case, so their two copies of one flaw were each counted. They now match as one, as they do for every other module.
