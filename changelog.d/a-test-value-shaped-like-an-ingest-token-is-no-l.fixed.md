@@ -1,0 +1,1 @@
+- **A placeholder ingest token is no longer reported.** The secrets rule for Draugr's ingest token now requires 3.5 bits of entropy per character, so `drgr_ci_` followed by one repeated character no longer matches. A real token is unaffected.

@@ -40,7 +40,7 @@ config:
 
 | Option | What it does |
 |---|---|
-| `config` | Path to a Gitleaks TOML rules file. For a ruleset shared across repositories. Draugr's own rules are added to it rather than replaced by it. See below. |
+| `config` | Path to a Gitleaks TOML rules file, for a ruleset shared across repositories. It replaces a repository's own `.gitleaks.toml`; Draugr's own rules are still added. See [Repository rules](#repository-rules). |
 | `history` | Scan the commit history as well as the tree. Off by default. |
 
 `history: true` adds a second `gitleaks git` pass alongside the `gitleaks dir` pass, **and**
@@ -69,27 +69,40 @@ under the component's
 sharing a repository each see the secrets committed under their own paths, and a secret committed
 under another component's paths is reported there.
 
-A `.gitleaks.toml` committed in the repository being scanned is already honored without this.
-Gitleaks reads it from the target path. This option covers the case that file cannot: an
-organization-wide ruleset that lives outside every repository using it.
+## Repository rules
+
+A `.gitleaks.toml` at the root of a scanned repository applies to that repository's tree and
+history scans: its rules, its allowlist, and whether it extends Gitleaks' built-in rules
+(`[extend] useDefault = true`). Without that setting the built-in rules are not used. The file
+applies even when the component's `paths` do not include it. Each repository in a run is scanned
+with its own file, or with the built-in rules where it has none.
+
+`config` replaces the repository's file, as `--config` does when Gitleaks runs by hand. Use it for
+an organization-wide ruleset that lives outside every repository.
+
+A `.gitleaks.toml` that is a link is read only when it resolves to a file inside the repository. A
+link that points outside it or to nothing, or a directory, is not read; the repository is scanned
+with the built-in rules and the run logs a warning.
 
 ## Draugr's own rules
 
 Every scan runs a ruleset Draugr composes, which **extends** whatever the scan would otherwise have
-used, Gitleaks' built-in rules, or the file `config` names, and adds Draugr's own.
+used: the file `config` names, the repository's `.gitleaks.toml`, or Gitleaks' built-in rules.
+Draugr's own rules are added to whichever it is.
 
 Today that is one rule, for Draugr's ingest token: the credential a pipeline presents to publish a
 run. A tool that scans for other people's leaked credentials while issuing unrecognizable ones of
 its own is holding itself to the lower standard, so the token carries a fixed marker and this
-recognizes it.
+recognizes it. A match is reported only above 3.5 bits of entropy per character, so one character
+repeated after the marker is not reported.
 
 **Extended rather than replaced, in both directions.** Replacing your ruleset would lose your
 rules; skipping ours when you have one would leave the token undetected in exactly the
 repositories that have been configured most carefully.
 
 The composed file is written under `~/.draugr/data/gitleaks/`. If it cannot be written, a machine
-with no writable home, the scan runs with the ruleset `config` names, or with Gitleaks' own. One
-rule is worth losing; the secrets control is not.
+with no writable home, the scan runs with the ruleset it would have extended. One rule is worth
+losing; the secrets control is not.
 
 ## Exclusions
 
