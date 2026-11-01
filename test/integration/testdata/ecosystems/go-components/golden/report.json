@@ -144,14 +144,14 @@
     "analyzers": [
       {
         "analyzer": "govulncheck",
-        "reachable": 2,
+        "reachable": 1,
         "unknown": 0,
-        "unreachable": 2
+        "unreachable": 1
       }
     ],
-    "reachable": 2,
+    "reachable": 1,
     "unknown": 0,
-    "unreachable": 2
+    "unreachable": 1
   },
   "release": {
     "version": "1.0"

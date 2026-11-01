@@ -103,12 +103,12 @@
         "analyzer": "govulncheck",
         "reachable": 1,
         "unknown": 0,
-        "unreachable": 1
+        "unreachable": 0
       }
     ],
     "reachable": 1,
     "unknown": 0,
-    "unreachable": 1
+    "unreachable": 0
   },
   "release": {
     "version": "1.0"

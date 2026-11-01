@@ -1509,6 +1509,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	correlated, alsoSuppressed := applyCorrelation(res.Controls)
 	res.Correlated = correlated
 	res.Suppressed += alsoSuppressed
+	res.Reachability = recountReachability(res.Controls, res.Reachability)
 	// Counted after everything that creates suppressions, so what is left carrying the tool's own
 	// origin is exactly what a scanner silenced rather than what this project decided.
 	res.Silenced = countSilenced(res.Controls)
@@ -2220,7 +2221,7 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 			if _, ok := analyzers[res.Reachability.Analyzer]; !ok {
 				analyzers[res.Reachability.Analyzer] = &AnalyzerReachability{Analyzer: res.Reachability.Analyzer}
 			}
-			key := reachKey{res.Component, res.Repository, res.Location.URI, res.Package.Name, res.RuleID}
+			key := reachKey{res.Component, res.Repository, res.Location.URI, res.Package.Name, reachRule(*res)}
 			verdicts[key] = strongerReachability(verdicts[key], res.Reachability)
 		}
 	}
@@ -2248,7 +2249,7 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 	folded := map[reachKey]bool{}
 	for _, cr := range controls {
 		for _, res := range cr.Report.Results {
-			key := reachKey{res.Component, res.Repository, res.Location.URI, packageName(res), res.RuleID}
+			key := reachKey{res.Component, res.Repository, res.Location.URI, packageName(res), reachRule(res)}
 			if _, ok := verdicts[key]; ok && res.Reachability == nil {
 				folded[key] = true
 			}
@@ -2258,7 +2259,7 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 		kept := cr.Report.Results[:0]
 		for i := range cr.Report.Results {
 			res := cr.Report.Results[i]
-			key := reachKey{res.Component, res.Repository, res.Location.URI, packageName(res), res.RuleID}
+			key := reachKey{res.Component, res.Repository, res.Location.URI, packageName(res), reachRule(res)}
 			switch {
 			case res.Reachability != nil:
 				// An analyzer's own finding. Keep it only where nothing else reported the same
@@ -2315,6 +2316,48 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 	return summary
 }
 
+// recountReachability counts the verdicts again once correlation has marked the copies it counts
+// once, so a flaw two scanners reported is one finding in the summary, as it is in the priority
+// bands and the fix list beside it. Each analyzer's Contributed is kept as applyReachability
+// counted it.
+func recountReachability(controls map[string]plugin.ControlResult, s ReachabilitySummary) ReachabilitySummary {
+	if !s.Ran() {
+		return s
+	}
+	analyzers := map[string]*AnalyzerReachability{}
+	for _, a := range s.Analyzers {
+		analyzers[a.Analyzer] = &AnalyzerReachability{Analyzer: a.Analyzer, Contributed: a.Contributed}
+	}
+	var out ReachabilitySummary
+	for _, cr := range controls {
+		for _, res := range cr.Report.Results {
+			if res.Reachability == nil || res.Correlated() {
+				continue
+			}
+			a, ok := analyzers[res.Reachability.Analyzer]
+			if !ok {
+				a = &AnalyzerReachability{Analyzer: res.Reachability.Analyzer}
+				analyzers[a.Analyzer] = a
+			}
+			switch res.Reachability.State {
+			case sarif.ReachabilityReachable:
+				a.Reachable++
+				out.Reachable++
+			case sarif.ReachabilityUnreachable:
+				a.Unreachable++
+				out.Unreachable++
+			case sarif.ReachabilityUnknown:
+				a.Unknown++
+				out.Unknown++
+			}
+		}
+	}
+	for _, name := range slices.Sorted(maps.Keys(analyzers)) {
+		out.Analyzers = append(out.Analyzers, *analyzers[name])
+	}
+	return out
+}
+
 // strongerReachability keeps the verdict that claims more exposure, for the case where two
 // analyzers cover the same dependency.
 //
@@ -2353,7 +2396,23 @@ type reachKey struct {
 	// manifest is the file the dependency was declared in: a Go module's go.mod.
 	manifest string
 	pkg      string
-	rule     string
+	// rule is the vulnerability the finding is about, from reachRule.
+	rule string
+}
+
+// reachRule is the vulnerability a finding is about, the identifier a verdict is matched on.
+//
+// The vulnerability rather than the rule id, because scanners decorate the id: Grype reports
+// CVE-2026-78663-golang.org/x/net where govulncheck and Trivy report CVE-2026-78663. A key on the
+// string would leave the decorated copy without a verdict, and correlation, which counts the copy
+// claiming the most exposure, would then count that one, since a verdict of unreachable lowers the
+// band of the copy carrying it. A rule id that names no recognized vulnerability is matched as it
+// stands.
+func reachRule(res sarif.Result) string {
+	if id := res.VulnerabilityID(); id != "" {
+		return id
+	}
+	return res.RuleID
 }
 
 // packageName is the package a finding is about, or "" for a finding that is not about one.
