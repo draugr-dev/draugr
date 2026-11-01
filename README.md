@@ -135,30 +135,51 @@ gave** rather than disappearing.
 
 ## In your pipeline
 
-The first-party GitHub Action installs Draugr, provisions the scanners, and hands the merged SARIF
-to code scanning, one clean **Draugr** tool in the Security tab:
+The first-party GitHub Action installs Draugr, and with `tools: true` the scanners the descriptor
+needs. On a pull request it compares the head with the base, posts the findings the change adds and
+fixes as one comment, and fails on a new P1 finding. On a push to `main` it runs the full scan,
+fails on any P1 finding, and sends every finding to the Security tab as one **Draugr** tool.
 
 ```yaml
+name: Security
+on:
+  push:
+    branches: [main]
+  pull_request:
 permissions:
   contents: read
-  security-events: write
-
-steps:
-  - uses: actions/checkout@v4
-  - id: draugr
-    uses: draugr-dev/draugr@v0     # pin @vX.Y.Z for reproducible CI
-    with:
-      saga: draugr.saga.yaml
-      tools: true                  # provision the scanners the controls need
-  - if: always()                   # publish findings even when the gate fails
-    uses: github/codeql-action/upload-sarif@v3
-    with:
-      sarif_file: ${{ steps.draugr.outputs.sarif }}
+  pull-requests: write          # the pull-request comment
+  security-events: write        # the Security tab, on a push
+jobs:
+  draugr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the comparison needs the base commit
+      - id: draugr
+        uses: draugr-dev/draugr@v0   # pin @vX.Y.Z for reproducible CI
+        with:
+          saga: draugr.saga.yaml
+          tools: true             # provision the scanners the controls need
+          fail-on-new: P1         # fail a pull request on a new P1 finding
+      - if: always() && github.event_name == 'push'   # even when the gate fails
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.draugr.outputs.sarif }}
 ```
 
-[GitHub Actions](docs/guides/github-action.md) · [GitLab](docs/guides/gitlab-ci.md), an include,
-GitLab's own report formats, a sticky merge-request comment · [Azure
-Pipelines](docs/guides/azure-pipelines.md), a step template
+Save it as `.github/workflows/draugr.yml` and commit it with the `draugr.saga.yaml` that
+`draugr init` wrote. The upload needs code scanning, which public repositories have and private ones
+get with GitHub Advanced Security; without it, delete the last step. To block a merge on a failing
+run, make the `draugr` check a [required status
+check](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches#require-status-checks-before-merging)
+in the branch's protection rule or ruleset.
+
+[GitHub Actions](docs/guides/github-action.md) · [Code scanning](docs/guides/code-scanning.md),
+findings in the Security tab · [GitLab](docs/guides/gitlab-ci.md), an include, GitLab's own report
+formats, a sticky merge-request comment · [Azure Pipelines](docs/guides/azure-pipelines.md), a step
+template
 
 **From an AI coding assistant.** Ask one to check a change and it will, using whatever scanner it
 finds over a scope it chose. `draugr mcp` serves Draugr over the [Model Context
