@@ -108,6 +108,12 @@ func chmodTree(dir string, dirMode, fileMode os.FileMode) {
 
 // filepathWalk visits dir and everything under it, deepest first so a directory's permissions are
 // changed only after its children have been.
+//
+// A symbolic link is never visited. os.Chmod follows one, so changing a link's mode changes its
+// target's, and the target is wherever the scanned repository points it: a file outside the
+// checkout that the scanning user owns, or a directory inside it, which a file mode leaves
+// untraversable. The link's own mode means nothing on the systems Draugr runs on, so skipping it
+// loses nothing.
 func filepathWalk(dir string, fn func(path string, isDir bool)) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -115,6 +121,9 @@ func filepathWalk(dir string, fn func(path string, isDir bool)) error {
 	}
 	for _, e := range entries {
 		path := dir + string(os.PathSeparator) + e.Name()
+		if e.Type()&os.ModeSymlink != 0 {
+			continue
+		}
 		if e.IsDir() {
 			_ = filepathWalk(path, fn)
 			fn(path, true)
