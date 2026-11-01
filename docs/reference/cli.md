@@ -845,7 +845,7 @@ draugr scan draugr.saga.yaml -o head/ --base main/results.sarif --fail-on-new P2
 - **A gate on new findings with no `--base`** is reported rather than applied: `report.json` states
   the setting with no comparison, and stderr says that no finding was judged as new.
 
-`report.json` states the comparison in its [`gate`](report-schema.md#the-gate) block: the setting,
+`report.json` states the comparison in its [`gate`](report-schema.md#gate) block: the setting,
 the commit and repositories the base records, the new findings by band, and the verdict.
 
 ### The organization's policy

@@ -163,8 +163,8 @@ func newScanCommand() *cobra.Command {
 		"kinds of caveat that fail the run as an error does: "+strings.Join(namesOf(saga.CaveatKinds), ", ")+
 			", or none; overrides config.gate.failOnCaveats")
 	cmd.Flags().StringVar(&opts.base, "base", "",
-		"the `results.sarif` of a scan to compare this one against, as draugr diff compares two; "+
-			"the gate on new findings applies to what this scan reports and the base does not")
+		"the `results.sarif` of the scan to compare against; a finding this scan reports and the "+
+			"base does not is new, and config.gate.failOnNew or --fail-on-new judges it")
 	cmd.Flags().StringVar(&opts.failOnNew, "fail-on-new", "",
 		"the gate on new findings: a priority band (P1-P4) or a severity (critical, high, medium, "+
 			"low); overrides config.gate.failOnNew")

@@ -117,6 +117,9 @@ func (g baseGate) failure(policyFailed bool, tripped int) error {
 	newErr := errNewFindings(tripped)
 	if g.sarifAt != "" {
 		newErr = fmt.Errorf("%w; `draugr diff %s %s` lists them", newErr, g.basePath, g.sarifAt)
+	} else {
+		newErr = fmt.Errorf("%w; scan again with -o <dir>, and `draugr diff %s <dir>/results.sarif` "+
+			"lists them", newErr, g.basePath)
 	}
 	if policyFailed {
 		return fmt.Errorf("policy verdict: fail, and %w", newErr)

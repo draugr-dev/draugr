@@ -259,9 +259,10 @@ func TestBothGatesFailingAreBothNamed(t *testing.T) {
 			t.Errorf("error does not say %q: %v", want, err)
 		}
 	}
-	// Nothing was written, so nothing is offered for `draugr diff` to read.
-	if strings.Contains(err.Error(), "lists them") {
-		t.Errorf("a run with no -o pointed at a results.sarif it did not write: %v", err)
+	// Nothing was written, so the error says how to get a results.sarif to list them from, and
+	// names none this run did not write.
+	if !strings.Contains(err.Error(), "scan again with -o <dir>, and `draugr diff "+base+" <dir>/results.sarif` lists them") {
+		t.Errorf("a run with no -o does not say how to list the new findings: %v", err)
 	}
 }
 

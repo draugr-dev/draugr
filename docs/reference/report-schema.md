@@ -45,7 +45,7 @@ jq -r '.targets[]? | select(.status != "reached") | "\(.kind) \(.target): \(.det
 jq -r '[.targets[]?.refusal | select(.credential == false) | .registry] | unique[]' out/report.json   # registries to log in to
 ```
 
-## The gate
+## Gate
 
 `gate` in `report.json` is the policy the run was judged against, and the outcome of the gate on new
 findings where a comparison ran:
