@@ -156,9 +156,9 @@ config:
                                                      # secret committed and later removed is still
                                                      # in every clone. Needs a full clone, so it is
                                                      # slower on a large repository
-        # config: .draugr/gitleaks.toml              # a rules file shared across repositories. A
-        #                                            # .gitleaks.toml in the scanned repository is
-        #                                            # read without this
+        # config: .draugr/gitleaks.toml              # a rules file shared across repositories. It
+        #                                            # replaces a .gitleaks.toml in the scanned
+        #                                            # repository, which is read without this
 
     headers:
       enabled: true

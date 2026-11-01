@@ -1,0 +1,1 @@
+- **A repository's own `.gitleaks.toml` now applies to the secrets scan.** Its rules and allowlist are used, with Draugr's rule added. A file that does not set `[extend] useDefault = true` is now scanned without Gitleaks' built-in rules; add the setting to keep them. A `config` in the descriptor still replaces the file.

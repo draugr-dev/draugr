@@ -3,10 +3,11 @@
 # One rule, for Draugr's own ingest token. A tool that scans for other people's leaked credentials
 # while issuing unrecognizable ones of its own is holding itself to the lower standard.
 #
-# This file is a template. The placeholder below is replaced before Gitleaks reads it, with either
-# Gitleaks' built-in ruleset or the ruleset the descriptor named — so the rule is added in both
-# cases. A detection that disappears the moment somebody brings their own configuration is one that
-# is absent from every repository configured most carefully.
+# This file is a template. The placeholder below is replaced before Gitleaks reads it, with the
+# ruleset the descriptor named, the scanned repository's own .gitleaks.toml, or Gitleaks' built-in
+# ruleset, so the rule is added in every case. A detection that disappears the moment somebody
+# brings their own configuration is one that is absent from every repository configured most
+# carefully.
 
 title = "Draugr"
 
@@ -24,3 +25,8 @@ description = "Draugr ingest token — publishes scan results, and grants write 
 # length keeps a prose mention of the prefix from reading as a leaked credential.
 regex = '''\bdrgr_ci_[A-Za-z0-9_-]{43}\b'''
 keywords = ["drgr_ci_"]
+# Shannon entropy over the whole match, in bits per character. A real token, 32 random bytes,
+# measures 4.3 at the lowest across twenty thousand draws and about 5 on average. A test value
+# written as one character repeated measures 1.0, and four characters cycled 2.5, so a fixture can
+# be shaped like a token without being reported as one.
+entropy = 3.5

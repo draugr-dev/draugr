@@ -3,6 +3,8 @@ package scanners
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
+	"sync"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -11,17 +13,18 @@ import (
 // gitleaksConfigSchema is the JSON Schema for Gitleaks' Saga config
 // (controllers.secrets.gitleaks). additionalProperties:false rejects mistyped keys.
 //
-// One option, and it is the case the repository cannot cover on its own: Gitleaks already reads a
-// `.gitleaks.toml` sitting in the scanned tree, so a rule or allowlist that belongs to one
-// repository needs nothing here. A ruleset shared across an organization lives outside every
-// repository that uses it, and that is what this points at.
+// `config` is the case the repository cannot cover on its own. A `.gitleaks.toml` at the root of
+// the scanned tree is extended without it (see gitleaksRepoRuleset), so a rule or allowlist that
+// belongs to one repository needs nothing here. A ruleset shared across an organization lives
+// outside every repository that uses it, and that is what this points at. Naming one replaces the
+// repository's file, as `--config` does for Gitleaks run by hand.
 const gitleaksConfigSchema = `{
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "config": {
       "type": "string",
-      "description": "Path to a Gitleaks TOML rules file, relative to where Draugr runs. Use it for a ruleset shared across repositories; a .gitleaks.toml committed in the scanned repository is already picked up without this."
+      "description": "Path to a Gitleaks TOML rules file, relative to where Draugr runs, for a ruleset shared across repositories. It replaces each scanned repository's own .gitleaks.toml. Without it, that file applies, or Gitleaks' built-in rules where the repository has none."
     },
     "history": {
       "type": "boolean",
@@ -150,6 +153,10 @@ func gitleaksHistoryArgs(dir string, cfg plugin.Config) []string {
 	return gitleaksCommand("git", dir, cfg)
 }
 
+// gitleaksRulesetWarned holds each checkout whose .gitleaks.toml was refused and said so. The tree
+// and history passes each build an argv from the same checkout, and one warning covers both.
+var gitleaksRulesetWarned sync.Map
+
 // gitleaksCommand builds the argv for one mode. `--exit-code 0` keeps the process successful when
 // secrets are found: findings live in the report, not the exit code, and the controller decides
 // severity.
@@ -164,16 +171,28 @@ func gitleaksCommand(mode, dir string, cfg plugin.Config) []string {
 		"--no-banner",
 	}
 	// Always a configuration, and always ours: it extends whatever the scan would otherwise have
-	// used, Gitleaks' own ruleset, or the one the descriptor named, and adds Draugr's.
+	// used, the one the descriptor named, the repository's own, or Gitleaks' built-in ruleset, and
+	// adds Draugr's.
 	//
 	// Composing it can fail on a machine with no writable home, and that is not a reason to skip
-	// the scan. Falling back to the descriptor's own configuration keeps the secrets control
+	// the scan. Falling back to the ruleset it would have extended keeps the secrets control
 	// working; what is lost is one rule, and the run says nothing false about what it looked for.
-	userConfig := configPath(cfg, "config")
-	if composed, err := gitleaksConfigFor(userConfig); err == nil {
+	base := configPath(cfg, "config")
+	if base == "" {
+		repo, err := gitleaksRepoRuleset(dir)
+		if err != nil {
+			if _, warned := gitleaksRulesetWarned.LoadOrStore(dir, true); !warned {
+				slog.Warn(".gitleaks.toml not read; scanning with Gitleaks' built-in rules. Commit it as "+
+					"a regular file inside the repository, or name a ruleset with config",
+					"repository", dir, "reason", err)
+			}
+		}
+		base = repo
+	}
+	if composed, err := gitleaksConfigFor(base); err == nil {
 		argv = append(argv, "--config", composed)
-	} else if userConfig != "" {
-		argv = append(argv, "--config", userConfig)
+	} else if base != "" {
+		argv = append(argv, "--config", base)
 	}
 	return argv
 }

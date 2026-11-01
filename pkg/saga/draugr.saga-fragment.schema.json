@@ -1080,7 +1080,7 @@
           "description": "gitleaks, published by gitleaks.",
           "properties": {
             "config": {
-              "description": "Path to a Gitleaks TOML rules file, relative to where Draugr runs. Use it for a ruleset shared across repositories; a .gitleaks.toml committed in the scanned repository is already picked up without this.",
+              "description": "Path to a Gitleaks TOML rules file, relative to where Draugr runs, for a ruleset shared across repositories. It replaces each scanned repository's own .gitleaks.toml. Without it, that file applies, or Gitleaks' built-in rules where the repository has none.",
               "type": "string"
             },
             "enabled": {
