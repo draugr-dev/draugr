@@ -72,7 +72,9 @@ This is on by default and needs nothing set up.
 sticky comment, one note per merge request, edited in place on each push rather than stacking up.
 The gate is on what the change *introduces* (`DRAUGR_FAIL_ON_NEW_PRIORITY`, default `P1`), not on
 the backlog it inherited, so a project with two hundred existing findings is not blocked on every
-merge request. `DRAUGR_DIFF_VIEW` decides what the comment says. See [gate PRs on new
+merge request. Set it empty and the descriptor's
+[`config.gate.failOnNew`](../reference/saga-schema.md#configgate) is the gate, which a release
+without `draugr diff --saga` ignores. `DRAUGR_DIFF_VIEW` decides what the comment says. See [gate PRs on new
 findings](pr-diff.md) for what the states mean and how findings are matched across two scans.
 
 A merge request that adds the project's first descriptor has none at the merge base, and is compared
@@ -162,7 +164,7 @@ draugr:
   variables:
     DRAUGR_SAGA: services/api/draugr.saga.yaml
     DRAUGR_VERSION: v0.90.0               # empty installs the latest release
-    DRAUGR_FAIL_ON_NEW_PRIORITY: P2       # empty disables the differential gate
+    DRAUGR_FAIL_ON_NEW_PRIORITY: P2       # empty applies the descriptor's failOnNew, given diff --saga
     DRAUGR_DIFF_VIEW: actions             # the comment lists what to do, not every finding
     DRAUGR_GATE_DEFAULT_BRANCH: "false"   # keep the default branch green so the widgets populate
     DRAUGR_TOOLS: "false"                 # a runner image that already has the scanners

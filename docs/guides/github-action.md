@@ -104,7 +104,7 @@ scanning](code-scanning.md) for each mode in depth.
 | `version` | `latest` | Draugr release to use (with or without a leading `v`). Pin for reproducibility. |
 | `fail-on` | `P1` | (scan) What fails the gate: a priority band (`P1`–`P4`), which folds in what the descriptor declares about the component, or a severity (`critical`, `high`, `medium`, `low`). |
 | `fail-on-priority` | | Deprecated: write the band in `fail-on`, which takes either vocabulary. |
-| `fail-on-new` | | (diff) Fail on a **new** finding at or above this: a priority band (`P1`-`P4`) or a severity. |
+| `fail-on-new` | | (diff) Fail on a **new** finding at or above this: a priority band (`P1`-`P4`) or a severity. Empty applies the descriptor's [`config.gate.failOnNew`](../reference/saga-schema.md#configgate), which a release without `draugr diff --saga` ignores. |
 | `fail-on-new-priority` | | Deprecated: write the band in `fail-on-new`, which takes either vocabulary. |
 | `diff-view` | `findings` | (diff) What the pull-request comment says. `findings` is a row per finding; `actions` groups them into the things somebody would do, so six advisories in one library are one upgrade. |
 | `min-priority` |, | List findings at or above this band in the console output. |

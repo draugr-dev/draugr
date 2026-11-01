@@ -42,7 +42,7 @@ compared against no findings instead: every finding is new and the gate applies 
 | `mode` | `auto` | `auto` (scan on push, diff on a pull request), `scan`, or `diff` |
 | `version` | latest | pin a release. **do this for real pipelines** |
 | `tools` | `true` | provision the scanners the controls need |
-| `failOnNewPriority` | `P1` | fail a pull request on a new finding at or above this priority |
+| `failOnNewPriority` | `P1` | fail a pull request on a new finding at or above this priority. Set it empty to apply the descriptor's [`config.gate.failOnNew`](../reference/saga-schema.md#configgate) instead, which a release without `draugr diff --saga` ignores |
 | `diffView` | `findings` | what the pull-request comment says: a row per finding, or `actions` grouped into the things somebody would do |
 | `publishResults` | `true` | Tests tab and build artifacts |
 

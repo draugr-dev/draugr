@@ -29,8 +29,10 @@ variables:
   DRAUGR_SAGA: draugr.saga.yaml
   # Empty installs the latest release. Pin it for a pipeline that has to be reproducible.
   DRAUGR_VERSION: ""
-  # Gate a merge request on what it introduces rather than on the backlog it inherited. Empty
-  # disables the differential gate; the descriptor's own gate still applies on the default branch.
+  # Gate a merge request on what it introduces rather than on the backlog it inherited. Set it
+  # empty to apply the descriptor's config.gate.failOnNew instead; with none set, or a release
+  # without `draugr diff --saga`, nothing gates on new findings. The descriptor's own gate still
+  # applies on the default branch.
   DRAUGR_FAIL_ON_NEW_PRIORITY: P1
   # What the merge-request comment says. "findings" is a row per finding; "actions" groups them into
   # the things somebody would do, so six advisories in one library are one upgrade. Which one a team
@@ -146,6 +148,12 @@ draugr:
       if [ -n "${DRAUGR_FAIL_ON_NEW_PRIORITY:-}" ]; then
         gate="--fail-on-new-priority ${DRAUGR_FAIL_ON_NEW_PRIORITY}"
       fi
+      # The descriptor the head was scanned with, so its config.gate.failOnNew is the gate when
+      # DRAUGR_FAIL_ON_NEW_PRIORITY is empty. Asked for, as --view is below.
+      saga=""
+      if draugr help diff 2>&1 | grep -- '--saga' >/dev/null; then
+        saga="--saga ${DRAUGR_SAGA}"
+      fi
       # Asked for rather than assumed: DRAUGR_VERSION pins any published release and this template
       # moves independently of them, so the binary may predate the flag. Without it the comment is
       # what it always was.
@@ -159,7 +167,7 @@ draugr:
       fi
       # --publish selects gitlab-mr-comment from the runner's own environment, and no-ops with an
       # explanation rather than an error when GITLAB_TOKEN is not set.
-      draugr diff ${base_report} draugr-out/results.sarif --publish ${gate} ${view}
+      draugr diff ${base_report} draugr-out/results.sarif --publish ${gate} ${saga} ${view}
   artifacts:
     # A blocked merge request is exactly when a reviewer needs to see why, and reports produced
     # only on success are reports nobody reads.
