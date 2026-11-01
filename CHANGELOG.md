@@ -12,6 +12,18 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.165.0] - 2026-11-01
+
+### Changed
+
+- **`draugr scan --base` with a gate on new findings fails only on what the change introduced.** The verdict and the exit code come from `--fail-on-new` or `config.gate.failOnNew`, and the console prints the change as `draugr diff` does. The whole run's outcome against `failOn` no longer fails the run; `report.json` records it as `gate.wholeRun`.
+
+### Fixed
+
+- **`draugr diff` and `draugr scan --base` refuse a report narrowed to a band they would misread.** A base written with `--artifact-min-priority P2` no longer reports every P3 and P4 finding at the head as new, and a narrowed head no longer reports the base's lower findings as fixed. `draugr diff --min-priority` at or above the base's band still compares.
+
+- **A Go flaw with no CVE is counted once, and ranked by govulncheck's verdict.** govulncheck now reports it under its GitHub advisory id, as Trivy and Grype do, so its reachability verdict reaches their copies. Before, it appeared twice. If an exclusion names the Go id (`GO-…`), change it to the GitHub id (`GHSA-…`).
+
 ## [0.164.1] - 2026-11-01
 
 ### Fixed
@@ -6693,7 +6705,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.164.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.165.0...HEAD
+[0.165.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.0
 [0.164.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.164.1
 [0.164.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.164.0
 [0.163.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.163.0
