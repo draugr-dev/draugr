@@ -52,10 +52,10 @@ findings where a comparison ran.
 
 The top-level `verdict` is the run's verdict, the one its exit code came from. On a scan given a
 [`--base`](cli.md#gating-on-new-findings) with a gate on new findings set, that is the gate on new
-findings' outcome, failed as well by the organization's policy or a scan that could not finish. The
-whole run's outcome against `failOnPriority` or `threshold` decides nothing there and is kept in
-`gate.wholeRun`, with each control's own in `controls[].verdict`. On any other run, the top-level
-`verdict` is the whole run's outcome and `gate.wholeRun` is absent.
+findings' outcome; the run also fails where the organization's policy fails or the scan could not
+finish. The whole run's outcome against `failOnPriority` or `threshold` decides nothing there and is
+kept in `gate.wholeRun`, with each control's own in `controls[].verdict`. On any other run, the
+top-level `verdict` is the whole run's outcome and `gate.wholeRun` is absent.
 
 | Field | Meaning |
 |---|---|

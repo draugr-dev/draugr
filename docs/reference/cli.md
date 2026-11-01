@@ -837,18 +837,18 @@ as `gate.wholeRun`, where it decides nothing.
 
 ```bash
 draugr scan draugr.saga.yaml -o main/ --no-publish     # on main, kept as an artifact
-draugr scan draugr.saga.yaml -o head/ --base main/results.sarif --fail-on-new P2
+draugr scan draugr.saga.yaml -o head/ --base main/results.sarif --fail-on-new P3
 ```
 
 The console prints the change in the layout `draugr diff` uses. The verdict line names the base's
-revision, how many findings are new and the gate. A band strip for each state a finding can be in
-against the base follows, then one for the whole run, then what changed. The policy, MEASURED
-AGAINST, errors and caveats blocks stay, because each says what the change was judged on. A failed
-run's last line names the gate, the new findings that met it and the base.
+revision, how many findings are new and the gate. Band counts for new and unchanged findings
+follow, then for the whole run, then what changed. The policy, MEASURED AGAINST, errors and caveats
+blocks are unchanged. A failed run's last line names the gate, the new findings that met it and
+the base.
 
 ```console
-$ draugr scan --base base/results.sarif --view actions --no-publish
-DRAUGR  FAIL  shop  change since b5bcb4b · 15 new · fails on P3  4.164s
+$ draugr scan --base base/results.sarif --fail-on-new P3 --view actions --no-publish
+DRAUGR  FAIL  shop  change since b5bcb4b · 15 new · fails on P3  3.894s
 
  new        0 P1 0 P2 15 P3 0 P4
  unchanged  0 P1 0 P2 1 P3 0 P4
@@ -869,8 +869,8 @@ draugr: fails on P3: 15 new findings since b5bcb4b
 
 - **One verdict per run.** The organization's policy and a scan that could not finish still fail the
   run, as they fail any other. `--no-gate` exits 0, and `report.json` still states each outcome.
-- **A `--base` with no gate on new findings decides nothing.** The run is judged on every finding and
-  prints what a run without `--base` prints, and `report.json` records the comparison.
+- **Without a gate on new findings, `--base` changes no verdict.** The run is judged on every finding
+  and prints what a run without `--base` prints; `report.json` records the comparison.
 - **The base has to cover what the scan covers.** A base whose [scope](#scoping-a-run) differs from
   the run's is refused before anything is scanned, as `draugr diff` refuses two such reports.
 - **Both sides are committed revisions**, so the base and this scan differ only where they read

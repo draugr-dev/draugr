@@ -722,8 +722,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// the organization's policy beside it where that failed too. report.json states the whole run's
 	// outcome either way.
 	if verdict.Verdict == norn.Fail && !opts.noGate {
-		policyFailed := orgPolicy != nil && (orgPolicy.Fails() || orgPolicy.Run.Fails())
-		return alsoPublish(againstBase.failure(compared, policyFailed), publishErr)
+		return alsoPublish(againstBase.failure(compared, orgPolicy), publishErr)
 	}
 	if opts.requirePolicy {
 		if err := requireRunPolicy(orgPolicy, opts.policyWait); err != nil {

@@ -337,25 +337,57 @@ func TestABaseWithNoGateOnNewFindingsJudgesTheWholeRun(t *testing.T) {
 	}
 }
 
-// A judged run names the organization's policy first where it failed too, and a run nothing on
-// its change failed exits on the policy alone.
+// A judged run names the organization's policy first where it failed beside the change, and where
+// nothing new failed it, names the policy's rules as the cause rather than a bare verdict.
 func TestAJudgedRunNamesThePolicyBesideTheChange(t *testing.T) {
 	g := baseGate{band: "P2", basePath: "main/results.sarif"}
 	c := comparison{findings: &skald.NewFindings{}, tripped: 1}
+	nothingNew := comparison{findings: &skald.NewFindings{}}
+	failed := &skald.PolicyCheck{Outcome: skald.PolicyFail, Verdicts: []skald.PolicyVerdict{thresholdBroken},
+		Run: &skald.PolicyCheck{Outcome: skald.PolicyFail, Verdicts: []skald.PolicyVerdict{thresholdBroken,
+			{Rule: "findings", Profile: "Default", Acts: skald.PolicyFail}}}}
 	for _, tc := range []struct {
-		gate         baseGate
-		c            comparison
-		policyFailed bool
-		want         string
+		gate   baseGate
+		c      comparison
+		policy *skald.PolicyCheck
+		want   string
 	}{
-		{g, c, true, "policy verdict: fail, and fails on P2: 1 new finding since main/results.sarif"},
-		{g, c, false, "fails on P2: 1 new finding since main/results.sarif"},
-		{g, comparison{findings: &skald.NewFindings{}}, true, "policy verdict: fail"},
-		{baseGate{}, comparison{}, false, "policy verdict: fail"},
+		{g, c, failed, "policy verdict: fail; fails on P2: 1 new finding since main/results.sarif"},
+		{g, c, nil, "fails on P2: 1 new finding since main/results.sarif"},
+		{g, nothingNew, failed, "the organization's policy fails this run: threshold (PCI scope), findings (Default)"},
+		{g, nothingNew, &skald.PolicyCheck{Outcome: skald.PolicyFail}, "the organization's policy fails this run"},
+		{baseGate{}, comparison{}, nil, "policy verdict: fail"},
 	} {
-		if got := tc.gate.failure(tc.c, tc.policyFailed).Error(); got != tc.want {
+		if got := tc.gate.failure(tc.c, tc.policy).Error(); got != tc.want {
 			t.Errorf("failure = %q, want %q", got, tc.want)
 		}
+	}
+}
+
+// A run judged on a change that introduced nothing, failed by the organization's policy, exits
+// naming the policy's rule rather than a verdict a reader cannot trace under "nothing new".
+func TestAJudgedRunThePolicyFailsNamesThePolicy(t *testing.T) {
+	path := writeSaga(t, scanPublishingSaga)
+	reg := fakeRegistry(sarif.LevelNote)
+	baseDir := t.TempDir()
+	if err := runScan(context.Background(), path, scanOptions{outputDir: baseDir, noPublish: true}, reg, &bytes.Buffer{}); err != nil {
+		t.Fatalf("base scan: %v", err)
+	}
+
+	t.Setenv("DRAUGR_API_URL", "https://draugr.example")
+	t.Setenv("DRAUGR_API_TOKEN", "drgr_ci_test")
+	stubPolicy(t, skald.PolicyOutcome{Schema: 1, PolicyVersion: 7, Outcome: "fail",
+		Verdicts: []skald.PolicyVerdict{thresholdBroken}}, nil)
+	var out bytes.Buffer
+	err := runScan(context.Background(), path, scanOptions{
+		noPublish: true, requirePolicy: true, noTips: true,
+		base: filepath.Join(baseDir, "results.sarif"), failOnNew: "P1",
+	}, reg, &out)
+	if want := "the organization's policy fails this run: threshold (PCI scope)"; err == nil || err.Error() != want {
+		t.Fatalf("exit = %v, want %q", err, want)
+	}
+	if first, _, _ := strings.Cut(out.String(), "\n"); !strings.Contains(first, "FAIL") || !strings.Contains(first, "nothing new") {
+		t.Errorf("verdict line = %q, want a FAIL on a change with nothing new", first)
 	}
 }
 

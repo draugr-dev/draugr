@@ -282,7 +282,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		// it is worth saying: an SBOM nobody is told about is one nobody uses, a scan that created
 		// something in a cluster owes a record of it whatever the verdict, and somebody asking what
 		// stands behind a pass is asking what somebody asking about a fail is asking.
-		writeTail(w, col, s, d, 0)
+		writeTail(w, col, s, d, 0, true)
 		return nil
 	}
 
@@ -306,7 +306,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		}
 		_, _ = fmt.Fprint(w, "\n")
 	}
-	writeTail(w, col, s, d, listed)
+	writeTail(w, col, s, d, listed, true)
 	return nil
 }
 
@@ -1792,7 +1792,11 @@ func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) (l
 //
 // Shared by both listings. A receipt that appears only in the view somebody is not using is one
 // nobody sees, which is what a duplicated tail drifts into.
-func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int) {
+//
+// listing is false where no findings were listed and none can be: a run judged on a change that
+// introduced nothing. The rows offering another view of them, and a rule to explain, then offer
+// nothing, and only what this run makes worth trying is left.
+func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, listing bool) {
 	writeEffects(w, col, s, d)
 	// What stands behind the verdict, under the findings rather than over them.
 	//
@@ -1803,7 +1807,7 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int) {
 		_, _ = fmt.Fprintf(w, "%s\n", heading(col, "Evidence"))
 		writeEvidence(w, col, d, "  ")
 	}
-	if len(s.findings) == 0 && len(d.Suggestions) == 0 || dense(d) {
+	if (len(s.findings) == 0 || !listing) && len(d.Suggestions) == 0 || dense(d) {
 		return
 	}
 	// "Try", because none of it is required and a heading that reads as instructions puts a reader
@@ -1824,16 +1828,18 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int) {
 			row("--top 0", "every one of them, not the first "+english.Word(listed))
 		}
 	}
-	if d.View != ViewCompact {
-		row("--view compact", "one line each, to see how much there is")
-	}
-	if d.View == ViewActions {
-		row("--view findings", "the findings themselves, one row each")
-	} else {
-		row("--view actions", "the same findings as a list of things to do")
-	}
-	if len(s.findings) > 0 {
-		row("draugr explain <rule>", "what a rule means and how to fix it")
+	if listing {
+		if d.View != ViewCompact {
+			row("--view compact", "one line each, to see how much there is")
+		}
+		if d.View == ViewActions {
+			row("--view findings", "the findings themselves, one row each")
+		} else {
+			row("--view actions", "the same findings as a list of things to do")
+		}
+		if len(s.findings) > 0 {
+			row("draugr explain <rule>", "what a rule means and how to fix it")
+		}
 	}
 	// Whatever this particular run makes worth trying, after the ones that are always true.
 	for _, sug := range d.Suggestions {

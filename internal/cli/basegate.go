@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
+	"strings"
 
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/diff"
@@ -118,27 +120,59 @@ func (g baseGate) compare(run engine.Result) (comparison, error) {
 // judges reports whether the gate on new findings decides this run: a base was compared and a
 // threshold for what the change introduced is set.
 //
-// Such a run answers one question, whether the change may merge, so it gives one verdict. Two, one
-// for the change and one for the whole run, put a PASS on the screen above an exit code of 1
-// whenever only the change failed, and a reader takes the first thing they read.
+// Such a run answers one question, whether the change may merge, so it gives one verdict. A run
+// with two verdicts shows one on screen and exits on the other.
 func (g baseGate) judges(c comparison) bool { return c.findings != nil && g.setting() != "" }
 
-// failure is the error a scan exits with when its verdict is fail.
+// failure is the error a scan exits with when its verdict is fail, policy the organization's policy
+// check, nil where none ran.
 //
 // A run the gate on new findings judged fails on what its change introduced, and says so in the
-// words its verdict line uses: the gate, how many new findings met it, and the base.
-// policyFailed is the organization's policy, the one other outcome that fails such a run, and is
-// named first where it failed too. Any other run fails on its policy verdict.
-func (g baseGate) failure(c comparison, policyFailed bool) error {
-	if !g.judges(c) || c.tripped == 0 {
+// words its verdict line uses: the gate, how many new findings met it, and the base. The
+// organization's policy is the one other outcome that fails such a run by the time this is asked,
+// since a scan that could not finish has already exited naming what did not run. It is named first
+// where it failed beside the change, and alone, with its rules, where nothing new did: a bare
+// "policy verdict: fail" under a verdict line saying "nothing new" names no cause at all. Any other
+// run fails on its policy verdict.
+func (g baseGate) failure(c comparison, policy *skald.PolicyCheck) error {
+	if !g.judges(c) {
 		return errors.New("policy verdict: fail")
+	}
+	if c.tripped == 0 {
+		return policyFailure(policy)
 	}
 	err := fmt.Errorf("fails on %s: %s since %s", report.ThresholdWords(g.setting()),
 		english.Count(c.tripped, "new finding"), report.BaseName(c.findings.Base, g.basePath))
-	if policyFailed {
-		return fmt.Errorf("policy verdict: fail, and %w", err)
+	if policyFails(policy) {
+		return fmt.Errorf("policy verdict: fail; %w", err)
 	}
 	return err
+}
+
+// policyFails reports whether the organization's policy fails the run, before the scan or on the
+// run the servers judged.
+func policyFails(p *skald.PolicyCheck) bool { return p != nil && (p.Fails() || p.Run.Fails()) }
+
+// policyFailure is the error for a run the organization's policy failed, naming each rule that
+// failed it, before the scan and on the published run.
+func policyFailure(p *skald.PolicyCheck) error {
+	var rules []string
+	if p != nil {
+		for _, check := range []*skald.PolicyCheck{p, p.Run} {
+			if check == nil {
+				continue
+			}
+			for _, r := range failingRuleList(check) {
+				if !slices.Contains(rules, r) {
+					rules = append(rules, r)
+				}
+			}
+		}
+	}
+	if len(rules) == 0 {
+		return errors.New("the organization's policy fails this run")
+	}
+	return fmt.Errorf("the organization's policy fails this run: %s", strings.Join(rules, ", "))
 }
 
 // view is what the console draws the change with, on a run the gate on new findings judged, and

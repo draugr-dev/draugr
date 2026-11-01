@@ -439,8 +439,8 @@ of the policy, and `--fail-on-new` overrides it for one run.
 
 `draugr scan --base main/results.sarif` applies it within the scan, by the comparison `draugr diff`
 makes, and the scan is then judged as the diff judges a pair. Its verdict and exit code come from the
-gate on new findings, its console prints the change in the layout above, and its last line on a
-failure names the gate, the new findings that met it and the base's revision, as
+gate on new findings, its console prints the change in the layout `draugr diff` prints, and its last
+line on a failure names the gate, the new findings that met it and the base's revision, as
 `draugr: fails on <band>: <n> new findings since <revision>`. The whole run's outcome against
 `--fail-on` decides nothing, and the `report.json` the scan writes and publishes records it as
 `gate.wholeRun` beside the gate, the base and the verdict. See [gating on new

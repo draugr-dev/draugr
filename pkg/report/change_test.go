@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/norn"
+	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/skald"
 )
@@ -72,6 +73,29 @@ func TestAJudgedRunUnderNoGateSaysTheVerdictDecidesNothing(t *testing.T) {
 	} {
 		if !strings.Contains(b.String(), want) {
 			t.Errorf("output does not say %q:\n%s", want, b.String())
+		}
+	}
+}
+
+// A change that introduced nothing lists nothing, so TRY offers no other view of a listing and no
+// rule to explain, and keeps only what this run makes worth trying.
+func TestAJudgedRunWithNothingListedOffersNoOtherView(t *testing.T) {
+	d := judged(GateSettings{})
+	d.Change = stubChange{}
+	d.Run.Controls = map[string]plugin.ControlResult{"sca": {Control: "sca", Report: sarif.Report{
+		Results: []sarif.Result{{RuleID: "CVE-1", Priority: "P1", Level: sarif.LevelError}},
+	}}}
+	d.Suggestions = []Suggestion{{What: "--cache-dir .draugr/cache", Why: "reuse what did not change"}}
+	var b bytes.Buffer
+	if err := (consoleReporter{}).Render(&b, d); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(b.String(), "--cache-dir .draugr/cache") {
+		t.Errorf("the run's own suggestion is missing:\n%s", b.String())
+	}
+	for _, not := range []string{"--view compact", "--view actions", "draugr explain"} {
+		if strings.Contains(b.String(), not) {
+			t.Errorf("offers %q with nothing listed:\n%s", not, b.String())
 		}
 	}
 }

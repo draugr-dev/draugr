@@ -61,10 +61,11 @@ func renderChange(w io.Writer, d Data) error {
 	}
 	writeErrors(w, col, d)
 	writeCaveats(w, col, d)
-	if d.Change.WriteListing(w, d.View, max(d.TopN, 0)) {
+	listed := d.Change.WriteListing(w, d.View, max(d.TopN, 0))
+	if listed {
 		_, _ = fmt.Fprintln(w)
 	}
-	writeTail(w, col, s, d, 0)
+	writeTail(w, col, s, d, 0, listed)
 	return nil
 }
 
