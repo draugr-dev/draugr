@@ -91,6 +91,52 @@ func verdictReachesEveryCopy(t *testing.T, cve string) {
 	}
 }
 
+// Two Go modules in one component require gjson, and the analyzer finds the vulnerable call in one of
+// them. Correlation counts the two as one flaw, and each module's finding keeps its own verdict and
+// the band that verdict sets: the copy is still the record of its own module, and the fix list
+// names its file.
+func TestEachModuleKeepsItsVerdictThroughCorrelation(t *testing.T) {
+	const repo, rule, pkg = "repo", "CVE-2020-36067", "github.com/tidwall/gjson"
+	withPURL := func(r sarif.Result) sarif.Result {
+		r.Package.PURL = "pkg:golang/" + pkg + "@v0.3.0"
+		return r
+	}
+	ctrls := controlsWith(
+		withPURL(in(scanned(repo, rule, pkg), "go.mod")),
+		withPURL(in(scanned(repo, rule, pkg), "tools/go.mod")),
+		in(analyzed(repo, rule, pkg, sarif.ReachabilityReachable), "go.mod"),
+		in(analyzed(repo, rule, pkg, sarif.ReachabilityUnreachable), "tools/go.mod"),
+	)
+	e := &Engine{prioritize: func(_ string, _ saga.Exposure, _ saga.Criticality, res sarif.Result) Priority {
+		if res.Reachability != nil && res.Reachability.State == sarif.ReachabilityUnreachable {
+			return Priority{Band: "P2"}
+		}
+		return Priority{Band: "P1"}
+	}}
+	e.applyReachability(ctrls, saga.Model{})
+	if groups, _ := applyCorrelation(ctrls); groups != 1 {
+		t.Fatalf("groups = %d, want the two modules' findings correlated as one flaw", groups)
+	}
+
+	want := map[string]struct {
+		state sarif.ReachabilityState
+		band  string
+	}{
+		"go.mod":       {sarif.ReachabilityReachable, "P1"},
+		"tools/go.mod": {sarif.ReachabilityUnreachable, "P2"},
+	}
+	results := ctrls["sca"].Report.Results
+	if len(results) != len(want) {
+		t.Fatalf("results = %d, want one per module", len(results))
+	}
+	for _, r := range results {
+		w := want[r.Location.URI]
+		if r.Reachability == nil || r.Reachability.State != w.state || r.Priority != w.band {
+			t.Errorf("%s: verdict %+v at %s, want %s at %s", r.Location.URI, r.Reachability, r.Priority, w.state, w.band)
+		}
+	}
+}
+
 // A summary from a run where no analyzer ran is left as it is, and an analyzer that appears only
 // on a finding is still counted.
 func TestRecountReachability(t *testing.T) {

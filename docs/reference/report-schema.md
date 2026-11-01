@@ -313,7 +313,7 @@ that change clears.
 | `beyond` | on a step past the policy, its size, `minor` or `major`, measured from the release the `after` step reaches, or from the installed version when there is no `after`. With `policy` it makes the label `major · beyond policy minor` |
 | `policyApplies` | `false` where the versions are not semantic, such as a distribution's packages, so the action was not split. Absent wherever `withinPolicy` is present |
 | `fixedVersions` | the release each advisory names as its fix, in its own words |
-| `locations[]` | every place the findings are: `repository`, `path`, `line` and `kind`. `kind` is `manifest`, `lockfile`, `vendored` for a copy of the dependency committed to the tree, `image`, or `file` |
+| `locations[]` | every place the findings are, then each other file holding a second report of one of them, such as a vendored copy or the same advisory in a second Go module. A second report is a result `results.sarif` marks with `countedUnder`, and it adds its file here and nothing to `clears`. Each place has `repository`, `path`, `line` and `kind`. `kind` is `manifest`, `lockfile`, `vendored` for a copy of the dependency committed to the tree, `image`, or `file` |
 | `where`, `ruleIds` | the first five locations as text, then `and N more`, and the first five rule identifiers. A location names its repository when the action spans several, and a code action's names it once the list does. A code action's `ruleIds` start with the rule its title quotes, then follow the console's order, by scanner |
 | `findings[]` | the fingerprint of each finding the action clears, most urgent first. Each matches the `fingerprint` property of one result in `results.sarif` |
 

@@ -225,7 +225,7 @@ hides work you could have done; the reverse costs a row you skip.
 | the count | how many findings this action clears |
 | `upstream` | present only where the component is somebody else's to fix |
 | `major · beyond policy minor` | the size of an upgrade step and the component's [`fixes.upgrade`](../reference/saga-schema.md#configfixes) it exceeds |
-| the locations | the files its findings are in, up to two named and the rest counted as `and N more`; `--view findings` lists every one. Each names its repository when the action's findings span more than one, and an action for a line of code names it once the list spans several |
+| the locations | the files its findings are in, then each other file holding a second report of one of them, such as the same advisory in a second Go module. A second report adds its file and nothing to the count. Up to two files are named and the rest counted as `and N more`; `locations` in `report.json` lists every one. Each names its repository when the action's findings span more than one, and an action for a line of code names it once the list spans several |
 
 An upgrade names its target version after an arrow. The target is the lowest release that clears
 every finding the row counts, ordered by the package's own ecosystem, so advisories naming several
