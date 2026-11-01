@@ -30,6 +30,10 @@ then dropped. Without that fold, every Go vulnerability would be
 reported twice under two different identifiers, `CVE-2022-32149` from Trivy and `GO-2022-1059`
 here, which is the opposite of what a noise-reduction feature is for.
 
+govulncheck reports a finding under the identifier the manifest scanners use. That is the
+advisory's CVEs, or its GitHub advisory ids (`GHSA-…`) where it has no CVE, or its Go advisory id
+(`GO-…`) where it has neither.
+
 A vulnerability only this scanner reports is **kept**, because a finding one tool found and
 another missed is exactly the one that must not disappear in a deduplication.
 
