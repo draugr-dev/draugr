@@ -1,1 +1,0 @@
-- **Group a stored run by team or data class without the descriptor.** `report.json` gains `componentLabels`, which maps every declared component to its `labels`, `{}` where it declares none, including components with no findings and those a narrowed run skipped.
