@@ -92,6 +92,11 @@
       ]
     }
   ],
+  "componentLabels": {
+    "api": {},
+    "legacy": {},
+    "tools": {}
+  },
   "controls": [
     {
       "errors": 1,

@@ -25,6 +25,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "dast-openapi": {}
+  },
   "controls": [
     {
       "errors": 0,

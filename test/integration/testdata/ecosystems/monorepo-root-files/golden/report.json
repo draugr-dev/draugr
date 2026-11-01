@@ -99,6 +99,10 @@
       ]
     }
   ],
+  "componentLabels": {
+    "api": {},
+    "web": {}
+  },
   "controls": [
     {
       "errors": 2,

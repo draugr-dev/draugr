@@ -1,4 +1,7 @@
 {
+  "componentLabels": {
+    "dotnet-csproj": {}
+  },
   "controls": [
     {
       "errors": 0,

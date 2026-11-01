@@ -34,6 +34,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "jvm-gradle": {}
+  },
   "controls": [
     {
       "errors": 1,

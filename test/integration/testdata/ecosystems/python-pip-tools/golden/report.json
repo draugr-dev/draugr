@@ -34,6 +34,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "python-pip-tools": {}
+  },
   "controls": [
     {
       "errors": 1,

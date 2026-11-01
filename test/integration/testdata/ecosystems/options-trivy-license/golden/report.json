@@ -131,6 +131,16 @@
       ]
     }
   ],
+  "componentLabels": {
+    "default": {},
+    "full": {},
+    "licenses-deny": {},
+    "licenses-warn": {},
+    "licenses-warn-isc": {},
+    "trivy-license-deny": {},
+    "trivy-license-warn": {},
+    "trivyignore": {}
+  },
   "controls": [
     {
       "errors": 2,

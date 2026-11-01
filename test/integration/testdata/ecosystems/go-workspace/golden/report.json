@@ -34,6 +34,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "go-workspace": {}
+  },
   "controls": [
     {
       "errors": 0,

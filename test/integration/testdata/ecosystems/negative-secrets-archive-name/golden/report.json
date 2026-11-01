@@ -27,6 +27,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "negative-secrets-archive-name": {}
+  },
   "controls": [
     {
       "errors": 1,

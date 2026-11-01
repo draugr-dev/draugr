@@ -85,6 +85,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "python-pip": {}
+  },
   "controls": [
     {
       "errors": 1,

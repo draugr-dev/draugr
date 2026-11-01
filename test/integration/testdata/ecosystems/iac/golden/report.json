@@ -158,6 +158,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "iac": {}
+  },
   "controls": [
     {
       "errors": 4,

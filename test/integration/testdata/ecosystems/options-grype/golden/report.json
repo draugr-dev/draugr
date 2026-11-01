@@ -63,6 +63,10 @@
       ]
     }
   ],
+  "componentLabels": {
+    "by-advisory": {},
+    "default": {}
+  },
   "controls": [
     {
       "errors": 2,

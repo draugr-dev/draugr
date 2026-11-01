@@ -33,6 +33,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "jvm-maven-repository": {}
+  },
   "controls": [
     {
       "errors": 1,

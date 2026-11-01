@@ -68,6 +68,10 @@
       ]
     }
   ],
+  "componentLabels": {
+    "api": {},
+    "worker": {}
+  },
   "controls": [
     {
       "errors": 2,

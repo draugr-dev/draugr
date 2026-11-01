@@ -1,4 +1,7 @@
 {
+  "componentLabels": {
+    "jvm-gradle-unlocked": {}
+  },
   "controls": [
     {
       "errors": 0,

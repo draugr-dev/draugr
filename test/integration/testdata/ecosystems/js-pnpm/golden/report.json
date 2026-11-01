@@ -34,6 +34,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "js-pnpm": {}
+  },
   "controls": [
     {
       "errors": 1,

@@ -32,6 +32,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "images-grype": {}
+  },
   "controls": [
     {
       "errors": 1,

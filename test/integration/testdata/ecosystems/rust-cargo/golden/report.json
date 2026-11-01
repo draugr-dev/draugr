@@ -34,6 +34,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "rust-cargo": {}
+  },
   "controls": [
     {
       "errors": 1,
