@@ -101,7 +101,8 @@ type Data struct {
 	Incomplete bool
 	// Labels holds each declared component's labels by component name, with an entry for every
 	// component the descriptor declares, labeled or not. A publisher covering part of a run by
-	// label reads it; the rendered reports do not.
+	// label reads it, and report.json carries it as componentLabels; the reports a person reads do
+	// not.
 	Labels map[string]map[string]string
 
 	// View is what the report shows and how densely, one setting rather than two that have to be
@@ -548,7 +549,7 @@ func (jsonReporter) Render(w io.Writer, d Data) error {
 func (d Data) JSONProvenance() skald.Provenance {
 	gate := d.Gate.skald()
 	gate.FailOnCaveats = d.FailOnCaveats
-	p := skald.Provenance{Descriptor: d.Descriptor, CI: d.CI, Gate: gate, Policy: d.Policy, FailedCaveats: FailedCaveats(d)}
+	p := skald.Provenance{Descriptor: d.Descriptor, CI: d.CI, Gate: gate, Policy: d.Policy, FailedCaveats: FailedCaveats(d), ComponentLabels: d.Labels}
 	reports := make(map[string]sarif.Report, len(d.Run.Controls))
 	for name, cr := range d.Run.Controls {
 		reports[name] = cr.Report
