@@ -35,7 +35,7 @@ block every change.
 
 ## See it in action
 
-<img src="docs/assets/scan.svg" width="900" alt="A draugr scan of the demo sandbox: a FAIL verdict, the four priority bands, the two controls that ran with their priority counts, what each was measured against, a per-component verdict, what reachability analysis concluded, an accepted risk, then the ranked findings. The fifth is jQuery 1.8.3, marked as being on CISA's exploited catalog.">
+<img src="docs/assets/scan.svg" width="900" alt="A draugr scan of the demo sandbox: a FAIL verdict, the four priority bands, the two controls that ran with their priority counts, what each was measured against, a per-component verdict, the signals that raised findings and what reachability analysis concluded, an accepted risk, then the ranked findings. The fifth is jQuery 1.8.3, marked as being on CISA's exploited catalog, and the seventh as deprecated.">
 
 **Priority (P1–P4) is not severity.** Severity says how bad a flaw is at its worst, anywhere.
 Priority weighs that against how exposed and how important the part of your app it sits in is, which
