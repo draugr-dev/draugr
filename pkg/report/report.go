@@ -173,6 +173,9 @@ type Data struct {
 	// AcceptedErrors is a run whose scan errors --allow-scan-errors accepted, which passes covering
 	// less than it was asked to.
 	AcceptedErrors bool
+	// Change draws the run's comparison with its base, on a run the gate on new findings judged.
+	// Nil on any other run, and the console then prints the scan's own layout.
+	Change ChangeView
 }
 
 // ToolBuild is the build of one external scanner, as this run found it.
@@ -1607,9 +1610,25 @@ type GateSettings struct {
 	// FailOnNew is the gate on new findings in force, from config.gate.failOnNew or --fail-on-new,
 	// and empty where neither set one.
 	FailOnNew string
+	// FailOnNewFrom names the setting FailOnNew came from, config.gate.failOnNew or --fail-on-new,
+	// for the line that states the gate.
+	FailOnNewFrom string
 	// New is the run's comparison with a base scan, nil where none ran.
 	New *skald.NewFindings
+	// BasePath is the file --base named, which names the base where its SARIF records no revision.
+	BasePath string
+	// WholeRun is the outcome of the gate above over every finding, on a run the gate on new
+	// findings judged instead. Empty on any other run, whose verdict is that outcome.
+	WholeRun norn.Verdict
 }
+
+// judgesChange reports whether the gate on new findings decides this run's verdict: a --base was
+// compared and a threshold for what it introduced is set. The whole run's outcome is then recorded
+// in WholeRun and decides nothing.
+func (g GateSettings) judgesChange() bool { return g.New != nil && g.FailOnNew != "" }
+
+// baseName is the base as the report quotes it.
+func (g GateSettings) baseName() string { return BaseName(g.New.Base, g.BasePath) }
 
 // GateForReport is the run's gate in the shape the JSON document states it, for a caller writing
 // that document through skald rather than through this package's reporters.
@@ -1632,6 +1651,7 @@ func (g GateSettings) skald() *skald.Gate {
 		Disabled:  g.Disabled,
 		FailOnNew: g.FailOnNew,
 		New:       g.New,
+		WholeRun:  g.WholeRun,
 	}
 }
 

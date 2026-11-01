@@ -169,12 +169,15 @@ func refusedRules(p *skald.PolicyCheck) string {
 }
 
 // failingRules names each rule whose setting fails the gate for this descriptor, and its profile.
-func failingRules(p *skald.PolicyCheck) string {
+func failingRules(p *skald.PolicyCheck) string { return strings.Join(failingRuleList(p), ", ") }
+
+// failingRuleList is failingRules before it is joined.
+func failingRuleList(p *skald.PolicyCheck) []string {
 	var out []string
 	for _, v := range p.Verdicts {
 		if v.Acts == skald.PolicyFail {
 			out = append(out, v.Rule+" ("+v.Profile+")")
 		}
 	}
-	return strings.Join(out, ", ")
+	return out
 }

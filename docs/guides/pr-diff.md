@@ -443,9 +443,15 @@ same finding"](#what-counts-as-the-same-finding).
 
 The same gate can be written in the descriptor as
 [`config.gate.failOnNew`](../reference/saga-schema.md#configgate), where it is reviewed with the rest
-of the policy, and `--fail-on-new` overrides it for one run. `draugr scan --base main/results.sarif`
-applies it within the scan, by the comparison `draugr diff` makes, so the `report.json` the scan
-writes and publishes states the gate, the base and the verdict. See [gating on new
+of the policy, and `--fail-on-new` overrides it for one run.
+
+`draugr scan --base main/results.sarif` applies it within the scan, by the comparison `draugr diff`
+makes, and the scan is then judged as the diff judges a pair. Its verdict and exit code come from the
+gate on new findings, its console prints the change in the layout `draugr diff` prints, and its last
+line on a failure names the gate, the new findings that met it and the base's revision, as
+`draugr: fails on <band>: <n> new findings since <revision>`. The whole run's outcome against
+`--fail-on` decides nothing, and the `report.json` the scan writes and publishes records it as
+`gate.wholeRun` beside the gate, the base and the verdict. See [gating on new
 findings](../reference/cli.md#gating-on-new-findings).
 
 ## Post the delta as a PR comment

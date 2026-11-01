@@ -511,6 +511,23 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	}
 	verdict := policy.Evaluate(reports)
 	components, unattributed := componentVerdicts(policy, model, reports, scope, run.Stats.Unscanned)
+	// Compared before the report is built, so every document the run writes or publishes states the
+	// gate on new findings beside the verdict rather than leaving it to a later command.
+	compared, err := againstBase.compare(run)
+	if err != nil {
+		return err
+	}
+	// A run given a --base and a gate on new findings is judged on its change, as `draugr diff` judges
+	// a pair of scans: the gate on new findings gives the verdict, and the whole run's outcome against
+	// its own gate is recorded and decides nothing. The reasons below that a run fails whatever its
+	// findings say still apply.
+	var wholeRun norn.Verdict
+	if againstBase.judges(compared) {
+		wholeRun, verdict.Verdict = verdict.Verdict, norn.Pass
+		if compared.tripped > 0 {
+			verdict.Verdict = norn.Fail
+		}
+	}
 	// A control that couldn't run didn't find nothing. It found out nothing. Reporting that as a
 	// pass makes the gate a false negative exactly when it matters: in CI, where a scanner failing
 	// to provision is the common case and the warning scrolls past unread.
@@ -522,12 +539,6 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// A setting in force that the descriptor breaks fails the gate, whatever the findings say.
 	if orgPolicy != nil && orgPolicy.Outcome == skald.PolicyFail {
 		verdict.Verdict = norn.Fail
-	}
-	// Compared before the report is built, so every document the run writes or publishes states the
-	// gate on new findings beside the verdict rather than leaving it to a later command.
-	newFindings, newTripped, err := againstBase.compare(run)
-	if err != nil {
-		return err
 	}
 
 	format := opts.format
@@ -567,8 +578,12 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			PerControlBand: policy.PerControlBand,
 			Disabled:       opts.noGate,
 			FailOnNew:      againstBase.setting(),
-			New:            newFindings,
+			FailOnNewFrom:  againstBase.from,
+			New:            compared.findings,
+			BasePath:       againstBase.basePath,
+			WholeRun:       wholeRun,
 		},
+		Change:     againstBase.view(compared),
 		View:       report.View(opts.view),
 		Uncovered:  uncoveredFor(model),
 		Unexamined: unexamined,
@@ -703,10 +718,11 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// gate", not "ignore whatever happened". `|| true` in a pipeline cannot tell the two apart, and
 	// swallows the scan error that leaves no report for the diff to read.
 	//
-	// The gate on new findings decides the exit code beside the verdict, and --no-gate releases both:
-	// report.json still states each outcome.
-	if (verdict.Verdict == norn.Fail || newTripped > 0) && !opts.noGate {
-		return alsoPublish(againstBase.failure(verdict.Verdict == norn.Fail, newTripped), publishErr)
+	// On a run the gate on new findings judged, the verdict is that gate's, and the message names
+	// the organization's policy beside it where that failed too. report.json states the whole run's
+	// outcome either way.
+	if verdict.Verdict == norn.Fail && !opts.noGate {
+		return alsoPublish(againstBase.failure(compared, orgPolicy), publishErr)
 	}
 	if opts.requirePolicy {
 		if err := requireRunPolicy(orgPolicy, opts.policyWait); err != nil {

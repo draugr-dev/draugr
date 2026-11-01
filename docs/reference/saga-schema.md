@@ -1346,14 +1346,16 @@ different thresholds and different vocabularies.
 ```yaml
 config:
   gate:
-    failOn: P1             # the backlog fails on a P1…
+    failOn: P1             # a scan of the whole tree fails on a P1…
     failOnNew: P2          # …and a change fails on a new P2
 ```
 
 [`draugr scan --base`](cli.md#gating-on-new-findings) and
 [`draugr diff`](cli.md#draugr-diff-basesarif-headsarif) apply it, and their `--fail-on-new` overrides
-it for one run. A scan with no `--base` has nothing to compare against, so the report states the
-setting with no comparison. Empty, the default, applies no gate to new findings.
+it for one run. A scan given a `--base` is then judged on its change alone: `failOnNew` gives the
+verdict and the exit code, and the outcome of `failOn` over the whole run is recorded and decides
+nothing. A scan with no `--base` has nothing to compare against, so `failOn` judges it and the report
+states the setting with no comparison. Empty, the default, applies no gate to new findings.
 
 
 ## `config.fixes`

@@ -84,6 +84,9 @@ type Options struct {
 	// a diff is already narrowed to what one change did, and hiding part of that removes the thing
 	// the command exists to show. The flag is for the dependency bump that introduces forty.
 	Top int
+	// upgradeTargets names the release an upgrade action moves to. Set where a scan draws its change,
+	// whose actions then name the release that scan's own fix list names.
+	upgradeTargets bool
 }
 
 // changeStates is the four states in the order a reader meets them, with the mark each one wears
@@ -526,7 +529,7 @@ func writeDiffActions(w io.Writer, col tui.Painter, entries []Entry, rules map[s
 		}
 		_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
 			col.Paint(tui.PriorityStyle(a.lead.Priority), dash(a.lead.Priority)),
-			col.Paint(tui.StyleStrong, a.what),
+			col.Paint(tui.StyleStrong, a.what+upgradeTarget(a, opts)),
 			col.Paint(tui.StyleMuted, meta))
 		if a.line != nil {
 			if a.line.Summary != "" {
@@ -898,7 +901,11 @@ func renderJSON(w io.Writer, r Result) error {
 // work this change inherited, and still accepted is what somebody decided to live with before it.
 // Every finding in head is in exactly one strip, so the strips add up to the head scan.
 func writeBandRows(w io.Writer, col tui.Painter, r Result) {
-	rows := bandRows(r)
+	drawBandRows(w, col, bandRows(r))
+}
+
+// drawBandRows draws the strips writeBandRows lists, each only where it has something in it.
+func drawBandRows(w io.Writer, col tui.Painter, rows []bandRow) {
 	width := 0
 	for _, row := range rows {
 		if row.counts != ([4]int{}) {
