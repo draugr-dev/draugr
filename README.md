@@ -135,10 +135,10 @@ gave** rather than disappearing.
 
 ## In your pipeline
 
-The first-party GitHub Action installs Draugr and the scanners the descriptor needs. On a pull
-request it compares the head with the base, posts the findings the change adds and fixes as one
-comment, and fails on a new P1 finding. On a push to `main` it runs the full scan, fails on any P1
-finding, and sends every finding to the Security tab as one **Draugr** tool.
+The first-party GitHub Action installs Draugr, and with `tools: true` the scanners the descriptor
+needs. On a pull request it compares the head with the base, posts the findings the change adds and
+fixes as one comment, and fails on a new P1 finding. On a push to `main` it runs the full scan,
+fails on any P1 finding, and sends every finding to the Security tab as one **Draugr** tool.
 
 ```yaml
 name: Security
@@ -162,7 +162,7 @@ jobs:
         with:
           saga: draugr.saga.yaml
           tools: true             # provision the scanners the controls need
-          fail-on-new: P1         # the pull request's gate, which has no default
+          fail-on-new: P1         # fail a pull request on a new P1 finding
       - if: always() && github.event_name == 'push'   # even when the gate fails
         uses: github/codeql-action/upload-sarif@v3
         with:
@@ -172,7 +172,7 @@ jobs:
 Save it as `.github/workflows/draugr.yml` and commit it with the `draugr.saga.yaml` that
 `draugr init` wrote. The upload needs code scanning, which public repositories have and private ones
 get with GitHub Advanced Security; without it, delete the last step. To block a merge on a failing
-run, make `draugr` a [required status
+run, make the `draugr` check a [required status
 check](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches#require-status-checks-before-merging)
 in the branch's protection rule or ruleset.
 
