@@ -1,4 +1,7 @@
 {
+  "componentLabels": {
+    "negative-unsupported-lockfile": {}
+  },
   "controls": [
     {
       "errors": 0,

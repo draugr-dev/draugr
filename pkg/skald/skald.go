@@ -95,6 +95,12 @@ type jsonReport struct {
 	// cover sca and not images" has no answer from the artifact, and an exclusion that suppressed a
 	// finding came from a file nobody can name.
 	Descriptor *DescriptorRef `json:"descriptor,omitempty"`
+	// ComponentLabels is each declared component's labels, by component name, as the descriptor
+	// writes them after its fragments merge. Every declared component has an entry, `{}` where it
+	// declares none, so a component with no findings, or outside a narrowed run's scope, still says
+	// whose it is. Absent from a document written before this existed, which is how a reader tells
+	// "no labels" from "not recorded".
+	ComponentLabels map[string]map[string]string `json:"componentLabels,omitempty"`
 	// CI is the job this scan ran in. Absent outside CI, and absent rather than guessed on a
 	// platform Draugr does not recognize.
 	CI *ci.Context `json:"ci,omitempty"`
@@ -271,6 +277,25 @@ type Provenance struct {
 	// FailedCaveats are the run's caveats of a kind the gate fails on. Decided by the caller,
 	// because a caveat is read off the report's own data.
 	FailedCaveats []FailedCaveat
+	// ComponentLabels is each declared component's labels by name, with an entry for every
+	// component the descriptor declares, labeled or not.
+	ComponentLabels map[string]map[string]string
+}
+
+// componentLabels is labels with an empty map in place of a component's nil one, so the document
+// writes `{}` for a component that declares no labels rather than `null`, which reads as unknown.
+func componentLabels(labels map[string]map[string]string) map[string]map[string]string {
+	if len(labels) == 0 {
+		return nil
+	}
+	out := make(map[string]map[string]string, len(labels))
+	for name, l := range labels {
+		if l == nil {
+			l = map[string]string{}
+		}
+		out[name] = l
+	}
+	return out
 }
 
 // FailedCaveat is a caveat whose kind the gate lists in failOnCaveats, so it failed the run as an
@@ -722,19 +747,20 @@ func RenderJSONWithFeeds(w io.Writer, release saga.Release, run engine.Result, v
 // outside this repository and say what they leave out.
 func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine.Result, verdict norn.Result, minPriority string, feeds []FeedProvenance, opts sarif.MarshalOptions, prov Provenance) error {
 	doc := jsonReport{
-		Draugr:        prov.Build,
-		Scanners:      scannersOf(run),
-		Descriptor:    prov.Descriptor,
-		CI:            prov.CI,
-		Project:       project,
-		Release:       releaseInfo{Version: release.Version},
-		Verdict:       string(verdict.Verdict),
-		Scope:         scopeOf(run),
-		Gate:          describeGate(prov.Gate),
-		Actions:       prov.Actions,
-		Policy:        prov.Policy,
-		FailedCaveats: prov.FailedCaveats,
-		ScannerData:   ScannerDataFrom(run.Stats.Data),
+		Draugr:          prov.Build,
+		Scanners:        scannersOf(run),
+		Descriptor:      prov.Descriptor,
+		ComponentLabels: componentLabels(prov.ComponentLabels),
+		CI:              prov.CI,
+		Project:         project,
+		Release:         releaseInfo{Version: release.Version},
+		Verdict:         string(verdict.Verdict),
+		Scope:           scopeOf(run),
+		Gate:            describeGate(prov.Gate),
+		Actions:         prov.Actions,
+		Policy:          prov.Policy,
+		FailedCaveats:   prov.FailedCaveats,
+		ScannerData:     ScannerDataFrom(run.Stats.Data),
 		Stats: statsInfo{
 			Jobs:        run.Stats.Jobs,
 			Scans:       run.Stats.Scans,

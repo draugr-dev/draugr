@@ -60,6 +60,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "go-submodule": {}
+  },
   "controls": [
     {
       "errors": 1,

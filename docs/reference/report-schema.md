@@ -201,6 +201,28 @@ reliable for every entry:
 jq -r '.descriptor.exclusions[] | "\(.source):\(.line)  \(.gitHistory.commit // .gitHistory.unavailable)"' out/report.json
 ```
 
+## Component labels
+
+`componentLabels` in `report.json` maps each component the descriptor declares to its
+[`labels`](saga-schema.md#components), after fragments are merged, with no key or value
+normalized.
+
+```json
+"componentLabels": {
+  "storefront": {"team": "web", "data-class": "pii"},
+  "worker": {}
+}
+```
+
+Every declared component has an entry, `{}` where it declares no labels. A run narrowed with
+`--components` or `--labels` still lists every one, and `scope` names the components that ran. A
+missing `componentLabels` means the labels were not recorded, as in a report from a release that
+predates the key.
+
+```bash
+jq -r '.componentLabels | to_entries[] | select(.value.team == "web") | .key' out/report.json   # the components labeled team=web
+```
+
 ## What each action carries
 
 `report.json` carries the [fix list](../concepts/what-to-fix-first.md) as `actions[]`, most urgent

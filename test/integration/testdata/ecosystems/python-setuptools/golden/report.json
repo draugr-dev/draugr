@@ -34,6 +34,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "python-setuptools": {}
+  },
   "controls": [
     {
       "errors": 1,

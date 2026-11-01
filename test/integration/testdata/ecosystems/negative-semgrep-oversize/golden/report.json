@@ -26,6 +26,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "negative-semgrep-oversize": {}
+  },
   "controls": [
     {
       "errors": 1,

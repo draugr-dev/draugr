@@ -53,6 +53,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "options-gitleaks": {}
+  },
   "controls": [
     {
       "errors": 2,

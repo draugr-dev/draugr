@@ -88,6 +88,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "go-module": {}
+  },
   "controls": [
     {
       "errors": 1,

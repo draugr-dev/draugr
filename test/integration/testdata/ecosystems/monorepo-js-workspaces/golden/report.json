@@ -100,6 +100,11 @@
       ]
     }
   ],
+  "componentLabels": {
+    "npm": {},
+    "pnpm": {},
+    "yarn": {}
+  },
   "controls": [
     {
       "errors": 3,

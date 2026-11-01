@@ -1,4 +1,7 @@
 {
+  "componentLabels": {
+    "negative-without-trivy-db": {}
+  },
   "controls": [
     {
       "errors": 0,

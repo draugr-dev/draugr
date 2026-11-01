@@ -34,6 +34,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "python-uv": {}
+  },
   "controls": [
     {
       "errors": 1,

@@ -68,6 +68,10 @@
       ]
     }
   ],
+  "componentLabels": {
+    "admin": {},
+    "api": {}
+  },
   "controls": [
     {
       "errors": 2,

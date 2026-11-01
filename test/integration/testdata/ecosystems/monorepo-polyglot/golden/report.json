@@ -176,6 +176,11 @@
       ]
     }
   ],
+  "componentLabels": {
+    "api": {},
+    "web": {},
+    "worker": {}
+  },
   "controls": [
     {
       "errors": 2,

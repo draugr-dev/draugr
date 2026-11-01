@@ -63,6 +63,13 @@
       ]
     }
   ],
+  "componentLabels": {
+    "acme": {},
+    "default": {},
+    "derived": {},
+    "trivyignore": {},
+    "user": {}
+  },
   "controls": [
     {
       "errors": 2,

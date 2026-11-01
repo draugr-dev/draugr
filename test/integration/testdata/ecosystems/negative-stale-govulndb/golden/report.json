@@ -1,4 +1,7 @@
 {
+  "componentLabels": {
+    "negative-stale-govulndb": {}
+  },
   "controls": [
     {
       "errors": 0,

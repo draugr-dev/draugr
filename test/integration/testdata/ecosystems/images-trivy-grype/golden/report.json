@@ -32,6 +32,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "images-trivy-grype": {}
+  },
   "controls": [
     {
       "errors": 1,

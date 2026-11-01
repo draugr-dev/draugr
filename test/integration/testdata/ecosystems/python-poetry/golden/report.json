@@ -34,6 +34,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "python-poetry": {}
+  },
   "controls": [
     {
       "errors": 1,

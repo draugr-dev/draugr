@@ -67,6 +67,11 @@
       ]
     }
   ],
+  "componentLabels": {
+    "by-advisory": {},
+    "default": {},
+    "grype-yaml": {}
+  },
   "controls": [
     {
       "errors": 2,

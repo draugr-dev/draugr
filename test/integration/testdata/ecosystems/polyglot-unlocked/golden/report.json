@@ -34,6 +34,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "polyglot-unlocked": {}
+  },
   "controls": [
     {
       "errors": 0,

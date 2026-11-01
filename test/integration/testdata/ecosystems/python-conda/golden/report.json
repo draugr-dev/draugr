@@ -1,4 +1,7 @@
 {
+  "componentLabels": {
+    "python-conda": {}
+  },
   "controls": [
     {
       "errors": 0,

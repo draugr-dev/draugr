@@ -117,6 +117,9 @@
       ]
     }
   ],
+  "componentLabels": {
+    "js-npm": {}
+  },
   "controls": [
     {
       "errors": 0,
