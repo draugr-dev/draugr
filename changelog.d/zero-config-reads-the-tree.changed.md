@@ -1,1 +1,0 @@
-- **A scan with no descriptor reads the tree as `draugr init` does.** A `go.mod` adds gosec and govulncheck, copied JavaScript adds retire.js, and a FOUND section lists what was read. A scanner the tree calls for that cannot run here is written off in FOUND and reported as a `not-checked` caveat, not an error.

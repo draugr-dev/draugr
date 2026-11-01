@@ -1,1 +1,0 @@
-- **The GitHub Action's `diff` mode works in a merge queue.** On a `merge_group` event it compares the entry with the commit the queue built it on, gates on `fail-on-new` and posts no comment. `auto` still picks `scan` there; `docs/guides/github-action.md` shows the line that picks `diff`.
