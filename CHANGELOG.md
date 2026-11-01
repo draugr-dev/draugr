@@ -12,6 +12,22 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.163.0] - 2026-11-01
+
+### Added
+
+- **The GitHub Action's `diff` mode works in a merge queue.** On a `merge_group` event it compares the entry with the commit the queue built it on, gates on `fail-on-new` and posts no comment. `auto` still picks `scan` there; `docs/guides/github-action.md` shows the line that picks `diff`.
+
+### Changed
+
+- **`config.exclude[].acceptedBy` is removed in 0.164.0, one release later than announced.** `draugr validate` and `draugr scan` still warn on each one, and the warning now names 0.164.0. Delete the key from your descriptor.
+
+- **A scan with no descriptor reads the tree as `draugr init` does.** A `go.mod` adds gosec and govulncheck, copied JavaScript adds retire.js, and a FOUND section lists what was read. A scanner the tree calls for that cannot run here is written off in FOUND and reported as a `not-checked` caveat, not an error.
+
+### Security
+
+- **Scanning a repository no longer changes the permissions of what its symbolic links point at.** A link to a file outside the checkout, such as a private key owned by the scanning user, had its target made world-readable, and a link to a directory inside the checkout left that directory unreadable to the scanners. Links are now left alone. https://github.com/draugr-dev/draugr/security/advisories/GHSA-p26r-3m94-f4wq
+
 ## [0.162.2] - 2026-10-31
 
 ### Fixed
@@ -6647,7 +6663,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.162.2...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.163.0...HEAD
+[0.163.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.163.0
 [0.162.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.162.2
 [0.162.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.162.1
 [0.162.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.162.0
