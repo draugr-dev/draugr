@@ -16,17 +16,17 @@ _Nothing yet._
 
 ### Added
 
-- **The GitHub Action's `diff` mode works in a merge queue.** On a `merge_group` event it compares the entry with the commit the queue built it on, gates on `fail-on-new` and posts no comment. `auto` still picks `scan` there; `docs/guides/github-action.md` shows the line that picks `diff`.
+- **The GitHub Action's `diff` mode works in a merge queue.** On a `merge_group` event it compares the queued change with the commit the queue built it on, gates on `fail-on-new` and posts no comment. `auto` still picks `scan` there, and `docs/guides/github-action.md` shows the `mode:` line that picks `diff` for `merge_group`.
 
 ### Changed
 
-- **`config.exclude[].acceptedBy` is removed in 0.164.0, one release later than announced.** `draugr validate` and `draugr scan` still warn on each one, and the warning now names 0.164.0. Delete the key from your descriptor.
+- **Delete `config.exclude[].acceptedBy` from your descriptor before 0.164.0.** The removal moved from 0.163.0 to 0.164.0. `draugr validate` and `draugr scan` still warn on each one, and the warning names 0.164.0.
 
-- **A scan with no descriptor reads the tree as `draugr init` does.** A `go.mod` adds gosec and govulncheck, copied JavaScript adds retire.js, and a FOUND section lists what was read. A scanner the tree calls for that cannot run here is written off in FOUND and reported as a `not-checked` caveat, not an error.
+- **A scan with no descriptor runs what `draugr init` would declare for the tree.** A `go.mod` adds gosec and govulncheck, and JavaScript libraries copied into the repository add retire.js. A FOUND section lists what was read. A scanner the tree calls for that cannot run here is listed in FOUND and reported as a `not-checked` caveat, not an error.
 
 ### Security
 
-- **Scanning a repository no longer changes the permissions of what its symbolic links point at.** A link to a file outside the checkout, such as a private key owned by the scanning user, had its target made world-readable, and a link to a directory inside the checkout left that directory unreadable to the scanners. Links are now left alone. https://github.com/draugr-dev/draugr/security/advisories/GHSA-p26r-3m94-f4wq
+- **Scanning a repository no longer changes the permissions of what its symbolic links point at.** From 0.65.0 through 0.162.2, a link to a file outside the checkout, such as a private key owned by the scanning user, had its target made world-readable. A link to a directory inside the checkout left that directory unreadable to the scanners. If you scanned a repository holding symbolic links with one of those versions, check the modes of the files they point at. https://github.com/draugr-dev/draugr/security/advisories/GHSA-p26r-3m94-f4wq
 
 ## [0.162.2] - 2026-10-31
 
