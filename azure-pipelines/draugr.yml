@@ -48,8 +48,8 @@ parameters:
 
   # Fail a pull request on a new finding at or above this priority. Priority rather than severity
   # so the component's declared exposure and criticality decide. Set it empty to apply the
-  # descriptor's config.gate.failOnNew instead; with none set, or a release without
-  # `draugr diff --saga`, the step reports without gating.
+  # descriptor's config.gate.failOnNew instead; with none set, or a release
+  # whose diff takes no --saga, the step reports without gating.
   - name: failOnNewPriority
     type: string
     default: P1
