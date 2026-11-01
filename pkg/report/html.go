@@ -485,7 +485,7 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	// The same grouping the console prints and the control plane's "What to do" shows, from the
 	// same function. A fix list that is a different shape depending on where it is read is three
 	// answers to one question.
-	grouped, external := groupActions(s.findings, d.Run.Stats.UnpinnedCacheHits)
+	grouped, external := groupActions(s.findings, d.Run.Stats.UnpinnedCacheHits, s.copies...)
 	view.External = len(external)
 	// A finding's action is the one the grouping put it in. An upgrade split by fixes.upgrade puts
 	// findings of one package in two actions, which the finding's own key cannot tell apart.

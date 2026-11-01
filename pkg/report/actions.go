@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -51,6 +52,11 @@ type action struct {
 	nameRepository bool
 	// findings are every finding this action resolves, most urgent first.
 	findings []finding
+	// copies are second reports of flaws among findings, by another scanner or in another manifest,
+	// each counted under one of them. They clear nothing the findings do not and are held for their
+	// locations, because a copy in a second Go module or a vendored file is one more place the change
+	// reaches.
+	copies []finding
 	// upstream marks an action whose unit of work is an image somebody else publishes. The image
 	// names itself in the title, so the row has nothing to add below it.
 	upstream bool
@@ -81,14 +87,15 @@ func (a action) where(limit int) []string {
 	seen := map[string]bool{}
 	spans := len(a.repositories()) > 1 || a.nameRepository
 	out := make([]string, 0, limit)
-	for _, f := range a.findings {
+	places := a.places()
+	for _, f := range places {
 		k := locationKey(f)
 		if f.location == "" || seen[k] {
 			continue
 		}
 		seen[k] = true
 		if len(out) == limit {
-			return append(out, fmt.Sprintf("and %d more", countDistinct(a.findings)-limit))
+			return append(out, fmt.Sprintf("and %d more", countDistinct(places)-limit))
 		}
 		place := displayLocation(f)
 		if spans {
@@ -105,12 +112,45 @@ func (a action) where(limit int) []string {
 // repositories are the distinct repositories the action's findings were found in.
 func (a action) repositories() map[string]bool {
 	out := map[string]bool{}
-	for _, f := range a.findings {
+	for _, f := range a.places() {
 		if f.repository != "" {
 			out[f.repository] = true
 		}
 	}
 	return out
+}
+
+// places are the findings whose locations the action names, every finding it clears and then each
+// copy in a file none of those is in.
+//
+// A copy is compared by its file without the line, because two scanners reading one go.mod can write
+// the line differently or not at all, and a copy there names the same edit twice.
+func (a action) places() []finding {
+	if len(a.copies) == 0 {
+		return a.findings
+	}
+	files := map[string]bool{}
+	for _, f := range a.findings {
+		files[fileKey(f)] = true
+	}
+	out := slices.Clone(a.findings)
+	for _, c := range a.copies {
+		if c.location == "" || files[fileKey(c)] {
+			continue
+		}
+		files[fileKey(c)] = true
+		out = append(out, c)
+	}
+	return out
+}
+
+// fileKey is a finding's file: its repository and its location without the line. An image reference
+// is kept whole, because `redis:7` ends in what looks like a line.
+func fileKey(f finding) string {
+	if locationKind(f) == skald.LocationImage {
+		return locationKey(f)
+	}
+	return f.repository + "\x00" + lineSuffix.ReplaceAllString(f.location, "")
 }
 
 // inRepository is a place named with the repository it is in, for a list spanning several. A
@@ -171,11 +211,12 @@ func aboutDependency(f finding) bool {
 	return pkg != ""
 }
 
-// locations are every distinct place the action's findings are, in the order first seen.
+// locations are every distinct place the action's findings are, in the order first seen, then the
+// files only a copy of one of them is in.
 func (a action) locations() []ActionLocation {
 	seen := map[string]bool{}
 	var out []ActionLocation
-	for _, f := range a.findings {
+	for _, f := range a.places() {
 		k := locationKey(f)
 		if f.location == "" || seen[k] {
 			continue
@@ -265,7 +306,11 @@ func countDistinct(fs []finding) int {
 // Findings nobody running the scan can act on are not here at all. They are counted and reported
 // elsewhere: a list of things to fix that opens with work the reader cannot do teaches them the
 // list is not worth reading.
-func groupActions(findings []finding, unpinned []string) (actions []action, external []finding) {
+//
+// copies are findings correlation counted under another finding. Each joins the action its own key
+// names and adds its location there, never its count, because a copy in a file the action's findings
+// are not in is a place the fix has to reach. A copy whose action is not in the list adds nothing.
+func groupActions(findings []finding, unpinned []string, copies ...finding) (actions []action, external []finding) {
 	fromCache := make(map[string]bool, len(unpinned))
 	for _, ref := range unpinned {
 		fromCache[ref] = true
@@ -288,6 +333,12 @@ func groupActions(findings []finding, unpinned []string) (actions []action, exte
 		// Findings arrive most urgent first, so the first one sets the band and no later, lesser
 		// one lowers it: an action that clears a P1 is P1 work whatever else it clears.
 		a.findings = append(a.findings, f)
+	}
+	for _, c := range copies {
+		key, _, _, _ := actionFor(c)
+		if a, ok := byKey[key]; ok {
+			a.copies = append(a.copies, c)
+		}
 	}
 
 	var listed []finding
@@ -1093,22 +1144,28 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 	}
 	sort.Strings(names)
 
-	var findings []finding
+	var findings, copies []finding
 	for _, name := range names {
 		rep := reports[name]
 		for _, res := range rep.Results {
-			// A flaw another scanner's finding is already counted for, skipped as the console skips
-			// it. Counted twice, one library's advisories would clear more findings here than the
-			// console says exist.
-			if res.Suppressed() || res.Correlated() {
+			if res.Suppressed() {
+				continue
+			}
+			// A copy of a flaw another finding is counted for, reported by another scanner or in
+			// another manifest. The console does not count it, and counting it here would have one
+			// library's advisories clear more findings than the console says exist. It is kept for its
+			// location, which can be a file the counted finding is not in.
+			if res.Correlated() {
+				copies = append(copies, findingOf(name, rep, res))
 				continue
 			}
 			findings = append(findings, findingOf(name, rep, res))
 		}
 	}
 	sortFindings(findings)
+	sortFindings(copies)
 
-	grouped, external := groupActions(findings, nil)
+	grouped, external := groupActions(findings, nil, copies...)
 	out := make([]Action, 0, len(grouped)+len(external))
 	for _, a := range grouped {
 		rules := a.ruleIDs(most)

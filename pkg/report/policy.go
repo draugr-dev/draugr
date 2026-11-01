@@ -93,6 +93,17 @@ func splitOne(a action) []action {
 	w.findings = within
 	w.priority = worstPriority(within)
 	w.step = &policyStep{policy: policy, applies: true, target: target}
+	// A copy goes with the step its own fixes put it in, as the finding it repeats does. Where there
+	// is no step past the policy, or its fixes cannot be sized, it goes with the step within it.
+	var withinCopies, beyondCopies []finding
+	for _, c := range a.copies {
+		if fits, sized := fitsPolicy(ecosystem, installed, fixesOf(c), policy); sized && !fits && len(beyond) > 0 {
+			beyondCopies = append(beyondCopies, c)
+		} else {
+			withinCopies = append(withinCopies, c)
+		}
+	}
+	w.copies = withinCopies
 	if len(beyond) == 0 {
 		return []action{w}
 	}
@@ -100,6 +111,7 @@ func splitOne(a action) []action {
 	b := a
 	b.key = a.key + "\x00beyond"
 	b.findings = beyond
+	b.copies = beyondCopies
 	b.priority = worstPriority(beyond)
 	b.title = fmt.Sprintf("Upgrade %s %s", f.pkg.Name, target)
 	b.step = &policyStep{policy: policy, applies: true, after: w.id()}

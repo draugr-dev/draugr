@@ -78,7 +78,10 @@ type Action struct {
 	// FixedVersions are the releases the advisories name as fixing these findings, in the order
 	// first seen, each advisory's own answer.
 	FixedVersions []string `json:"fixedVersions,omitempty"`
-	// Locations are every distinct place the findings are, in the order first seen.
+	// Locations are every distinct place the findings are, in the order first seen, then each other
+	// file holding a finding counted under one of them, such as a vendored copy or the same advisory
+	// in a second Go module. Such a file is one more place the change reaches and adds nothing to
+	// Clears.
 	Locations []ActionLocation `json:"locations,omitempty"`
 	// Where lists the same places as text, capped, the way the console names them.
 	Where []string `json:"where,omitempty"`

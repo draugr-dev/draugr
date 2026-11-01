@@ -1738,7 +1738,7 @@ func scopeNote(d Data) string {
 // grouping in their head, which for a library carrying a dozen CVEs is a dozen rows describing one
 // upgrade.
 func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) (listed int) {
-	actions, external := groupActions(s.findings, d.Run.Stats.UnpinnedCacheHits)
+	actions, external := groupActions(s.findings, d.Run.Stats.UnpinnedCacheHits, s.copies...)
 
 	if len(actions) == 0 {
 		// Everything found belongs to somebody else. Saying "no findings" would be false and

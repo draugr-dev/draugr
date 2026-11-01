@@ -817,6 +817,10 @@ type summary struct {
 	// or severity, so a control with none says so rather than describing empty counts.
 	controlFindings map[string]int
 	findings        []finding // sorted most-urgent first
+	// copies are the findings correlation counted under another, suppressed ones aside. Nothing
+	// counts them, and the fix list reads them for their locations, because a copy in a second
+	// manifest is a second place to make the change.
+	copies []finding
 	// bySignal is how many findings each dataset moved up a band, and floored how many a control's
 	// own rule raised. Counted over every finding, not only the ones shown: --top and
 	// --min-priority narrow the listing, and "nothing raised" has to mean nothing in the run
@@ -866,9 +870,13 @@ func summarize(d Data) summary {
 	for _, name := range names {
 		rep := d.Run.Controls[name].Report
 		for _, res := range rep.Results {
-			// A flaw another scanner is already counted for. In the report, deliberately not a second row in
-			// the list of things to fix. The row that is there names it.
+			// A flaw another finding is already counted for. In the report, deliberately not a second row
+			// in the list of things to fix. The row that is there names it, and the action that clears it
+			// names the copy's file as well as its own.
 			if res.Correlated() {
+				if !res.Suppressed() {
+					s.copies = append(s.copies, findingOf(name, rep, res))
+				}
 				continue
 			}
 			// Suppressed by a Saga exclusion: still in the report, deliberately not in the
@@ -926,6 +934,7 @@ func summarize(d Data) summary {
 		}
 	}
 	sortFindings(s.findings)
+	sortFindings(s.copies)
 	// --min-priority narrows the listing, not the counts: you still see that 13 P3s exist while
 	// working on the P1s. This matches the JSON report, so every format answers alike.
 	if d.MinPriority != "" {

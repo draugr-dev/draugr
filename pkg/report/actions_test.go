@@ -759,7 +759,10 @@ func TestLicensesAreReviewedNotUpdated(t *testing.T) {
 // ActionsFor answers for the same findings the console lists. A flaw two scanners report is one
 // finding there, counted under one of them, and the fix list an assistant reads cannot clear more
 // than the console says exist.
-func TestActionsForSkipsWhatAnotherScannerCounts(t *testing.T) {
+//
+// retire.js's vendored jQuery and Trivy's in the lockfile beside it are that flaw. Bumping the
+// lockfile leaves the copy as it was, so the action names both files.
+func TestActionsForCountsACopyOnceAndNamesItsFile(t *testing.T) {
 	jquery := &sarif.Package{Name: "jquery", Version: "1.8.1", FixedVersion: "3.5.0", Ecosystem: "npm"}
 	got := ActionsFor(map[string]sarif.Report{"sca": {Results: []sarif.Result{
 		{Tool: "trivy", RuleID: "CVE-2020-11023", Priority: "P1", Package: jquery,
@@ -769,7 +772,17 @@ func TestActionsForSkipsWhatAnotherScannerCounts(t *testing.T) {
 			Correlation: &sarif.Correlation{CountedUnder: "trivy"}},
 	}}})
 	if len(got) != 1 || got[0].Clears != 1 {
-		t.Errorf("actions = %+v, want one clearing the one finding the console counts", got)
+		t.Fatalf("actions = %+v, want one clearing the one finding the console counts", got)
+	}
+	want := []ActionLocation{
+		{Path: "web/package-lock.json", Kind: "lockfile"},
+		{Path: "web/static/js/jquery.min.js", Kind: "vendored"},
+	}
+	if !reflect.DeepEqual(got[0].Locations, want) {
+		t.Errorf("locations = %+v\nwant %+v", got[0].Locations, want)
+	}
+	if w := got[0].Where; !reflect.DeepEqual(w, []string{"web/package-lock.json", "web/static/js/jquery.min.js vendored"}) {
+		t.Errorf("where = %q, want the lockfile and the vendored copy", w)
 	}
 }
 
