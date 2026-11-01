@@ -426,6 +426,14 @@ runs:
           fi
         fi
         if [ -z "$no_base" ]; then
+          # A base descriptor this release refuses, such as one still carrying a key a release
+          # removed, writes no base report, and the diff then fails on every pull request until the
+          # base changes, the one correcting the descriptor included. The base is scanned with this
+          # pull request's copy instead, which compares the two trees under one descriptor.
+          if ! refusal=$( cd "$worktree/$wd" && draugr validate "$INPUT_SAGA" 2>&1 >/dev/null ); then
+            echo "::warning::This Draugr release refuses the base commit's ${INPUT_SAGA}, so the base is scanned with this pull request's copy. Refusal: $(printf '%s\n' "$refusal" | sed -n 1p)"
+            cp "$INPUT_SAGA" "$worktree/$wd/$INPUT_SAGA"
+          fi
           ( cd "$worktree/$wd" && draugr scan "$INPUT_SAGA" -o "$base_out" "${scan_common[@]}" ) || true
         fi
         git worktree remove --force "$worktree" 2>/dev/null || true

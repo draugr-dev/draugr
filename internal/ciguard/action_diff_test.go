@@ -11,9 +11,10 @@ import (
 )
 
 // stubDraugr stands in for the binary the Action downloads. It records each diff it is asked for,
-// refuses to scan a descriptor that is not there, as the real one does, and advertises a diff of the
-// head alone unless STUB_OLD is set. Its help runs past a pipe buffer, so a feature check that
-// closes the pipe early fails here every time rather than now and then.
+// refuses to scan a descriptor that is not there, and to validate or scan one that sets acceptedBy,
+// as the real one does, and advertises a diff of the head alone unless STUB_OLD is set. Its help
+// runs past a pipe buffer, so a feature check that closes the pipe early fails here every time
+// rather than now and then.
 const stubDraugr = `#!/usr/bin/env bash
 case "$1" in
   version) echo "draugr stub" ;;
@@ -25,10 +26,15 @@ case "$1" in
     # As long as the real help, and longer: a reader that stops at the first match closes the pipe
     # while this is still writing, which is what a check under pipefail has to survive.
     for i in $(seq 1 4000); do echo "  --flag-$i string   padding the help past a pipe buffer"; done ;;
+  validate)
+    if grep acceptedBy "$2" >/dev/null; then
+      echo "draugr: parse saga: config.exclude.acceptedBy was removed: delete the line" >&2; exit 1
+    fi ;;
   scan)
     saga="$2"; shift 2; out=""
     while [ $# -gt 0 ]; do [ "$1" = "-o" ] && out="$2"; shift; done
     [ -e "$saga" ] || { echo "no descriptor at $saga" >&2; exit 1; }
+    if grep acceptedBy "$saga" >/dev/null; then echo "acceptedBy was removed" >&2; exit 1; fi
     mkdir -p "$out"; echo '{"version":"2.1.0","runs":[]}' > "$out/results.sarif" ;;
   diff)
     if [ "$2" = "--help" ]; then exec "$0" help; fi
@@ -64,8 +70,8 @@ func actionDiffScript(t *testing.T) string {
 }
 
 // runActionDiff runs the diff step in a repository whose base commit holds baseFiles and whose
-// head holds headFiles, and returns what the step printed, the diffs it asked for, and whether it
-// succeeded.
+// head holds headFiles, each a name or name=content, and returns what the step printed, the diffs
+// it asked for, and whether it succeeded.
 func runActionDiff(t *testing.T, baseFiles, headFiles []string, env ...string) (out, diffs string, ok bool) {
 	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
@@ -104,7 +110,11 @@ func runActionDiff(t *testing.T, baseFiles, headFiles []string, env ...string) (
 			}
 		}
 		for _, f := range append([]string{"README.md"}, files...) {
-			if err := os.WriteFile(filepath.Join(repo, f), []byte(f), 0o600); err != nil {
+			name, content, found := strings.Cut(f, "=")
+			if !found {
+				content = name
+			}
+			if err := os.WriteFile(filepath.Join(repo, name), []byte(content), 0o600); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -199,6 +209,58 @@ func TestTheActionDiffsTwoScansWhenBothSidesHaveTheDescriptor(t *testing.T) {
 	}
 	if strings.Count(diffs, "draugr-base/results.sarif") != 2 {
 		t.Errorf("not a diff of two scans:\n%s", diffs)
+	}
+}
+
+// A base descriptor the running release refuses is scanned with the head's copy, and the step says
+// so with the refusal's reason. Otherwise the base writes no report and every pull request fails,
+// the one that corrects the descriptor included.
+func TestTheActionScansARefusedBaseWithTheHeadsDescriptor(t *testing.T) {
+	t.Parallel()
+	out, diffs, ok := runActionDiff(t, []string{"draugr.saga.yaml=acceptedBy: someone"},
+		[]string{"draugr.saga.yaml", "app.js"})
+	if !ok {
+		t.Fatalf("the step failed:\n%s", out)
+	}
+	want := "::warning::This Draugr release refuses the base commit's draugr.saga.yaml, so the base is " +
+		"scanned with this pull request's copy. Refusal: draugr: parse saga: config.exclude.acceptedBy was removed"
+	if !strings.Contains(out, want) {
+		t.Errorf("no warning naming the refusal and its reason:\n%s", out)
+	}
+	// The stub writes a base report only from a descriptor it accepts, so a diff of two scans is
+	// the head's copy scanning the base.
+	if strings.Count(diffs, "draugr-base/results.sarif") != 2 {
+		t.Errorf("not a diff of two scans:\n%s", diffs)
+	}
+}
+
+// A base descriptor the release accepts is scanned as it is, with nothing said.
+func TestTheActionScansAnAcceptedBaseWithItsOwnDescriptor(t *testing.T) {
+	t.Parallel()
+	out, _, ok := runActionDiff(t, []string{"draugr.saga.yaml"}, []string{"draugr.saga.yaml", "app.js"})
+	if !ok {
+		t.Fatalf("the step failed:\n%s", out)
+	}
+	if strings.Contains(out, "refuses the base") {
+		t.Errorf("an accepted base was reported as refused:\n%s", out)
+	}
+}
+
+// Every shipped pipeline that scans a base validates its descriptor first and scans a refused one
+// with the head's copy. A pipeline that does not fails on every change while the base carries a
+// key a release removed, and nothing about the template looks wrong until a release removes one.
+func TestEveryPipelineScansARefusedBaseWithTheHeadsDescriptor(t *testing.T) {
+	t.Parallel()
+	for _, path := range []string{"action.yml", "azure-pipelines/draugr.yml", "gitlab-ci/draugr.yml"} {
+		// #nosec G304 -- path comes from the hardcoded list above, inside this repository.
+		body, err := os.ReadFile(filepath.Join("../..", path))
+		if err != nil {
+			t.Errorf("%s: %v", path, err)
+			continue
+		}
+		if !strings.Contains(string(body), "draugr validate") || !strings.Contains(string(body), "copy. Refusal: $(printf") {
+			t.Errorf("%s scans the base without validating its descriptor, or says nothing when it is refused", path)
+		}
 	}
 }
 

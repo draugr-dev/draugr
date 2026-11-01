@@ -131,7 +131,16 @@ steps:
             fi
           fi
           if [ -z "$no_base" ]; then
+            # A target-branch descriptor this release refuses, such as one still carrying a key a
+            # release removed, would fail every pull request until the target branch changes, the
+            # one correcting the descriptor included. The target branch is scanned with this pull
+            # request's copy instead, which compares the two trees under one descriptor.
+            if ! refusal=$(draugr validate "${{ parameters.saga }}" 2>&1 >/dev/null); then
+              echo "##vso[task.logissue type=warning]This Draugr release refuses the target branch's ${{ parameters.saga }}, so the target branch is scanned with this pull request's copy. Refusal: $(printf '%s\n' "$refusal" | sed -n 1p)"
+              git show "$BUILD_SOURCEVERSION:./${{ parameters.saga }}" > "${{ parameters.saga }}"
+            fi
             draugr scan "${{ parameters.saga }}" --no-gate --report sarif -o "$(Pipeline.Workspace)/draugr-base"
+            git checkout -q -- "${{ parameters.saga }}"
           fi
 
           # A pull-request build checks out refs/pull/N/merge, which is on no branch, so

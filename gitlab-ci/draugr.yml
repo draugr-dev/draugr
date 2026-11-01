@@ -140,6 +140,14 @@ draugr:
         fi
       fi
       if [ -z "${no_base}" ]; then
+        # A merge-base descriptor this release refuses, such as one still carrying a key a release
+        # removed, would fail every merge request until the merge base changes, the one
+        # correcting the descriptor included. The merge base is scanned with this merge request's
+        # copy instead, which compares the two trees under one descriptor.
+        if ! refusal=$( cd "${DRAUGR_BASE_WORKTREE}" && draugr validate "${DRAUGR_SAGA}" 2>&1 >/dev/null ); then
+          echo "This Draugr release refuses the merge base's ${DRAUGR_SAGA}, so the merge base is scanned with this merge request's copy. Refusal: $(printf '%s\n' "$refusal" | sed -n 1p)"
+          cp "${DRAUGR_SAGA}" "${DRAUGR_BASE_WORKTREE}/${DRAUGR_SAGA}"
+        fi
         ( cd "${DRAUGR_BASE_WORKTREE}" && draugr scan "${DRAUGR_SAGA}" \
             -o "${CI_PROJECT_DIR}/draugr-base-out" --no-publish --no-gate )
       fi
