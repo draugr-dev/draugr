@@ -547,6 +547,19 @@ func TestWithCauses(t *testing.T) {
 			rest:  []string{"* the cause", "trailing prose"},
 			want:  "1 error occurred: the cause",
 		},
+		{
+			// Two files, so each is kept; one position reported twice is kept once.
+			name:  "compiler diagnostics are the items of a Go tool's list",
+			first: "loading packages:",
+			rest: []string{
+				"There are errors with the provided package patterns:",
+				"a/a.go:3:8: undefined: X",
+				"/work/app/a/a.go:3:8: could not import x",
+				"b/b.go:9:2: undefined: Y",
+				"For details on package patterns, see https://pkg.go.dev/cmd/go",
+			},
+			want: "loading packages: a/a.go:3:8: undefined: X; b/b.go:9:2: undefined: Y",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -680,5 +693,41 @@ func TestTabbedLeavesAnUnleveledBracketAlone(t *testing.T) {
 	}
 	if got := tabbed("[0012]  WARN slow"); got != "WARN\tslow" {
 		t.Errorf("tabbed = %q, want the level and message tab-separated", got)
+	}
+}
+
+// govulncheck v1.5.0's stderr when a package will not load, from two real runs, with the module
+// directory replaced by /work/app. The first line alone, `govulncheck: loading packages:`, cannot
+// tell a package that needs generated code from a module that failed to download, and the two have
+// different fixes; the diagnostic after it can.
+func TestGovulncheckLoadingErrorKeepsItsCause(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		fixture string
+		want    string
+	}{
+		{
+			// The go command and the type checker report one position twice, and the go command
+			// suggests `go get`, which is wrong for generated code.
+			fixture: "govulncheck-missing-package.stderr",
+			want: "govulncheck: loading packages: app/main.go:3:8: no required module provides package " +
+				"example.com/gen/generated",
+		},
+		{
+			fixture: "govulncheck-undefined.stderr",
+			want:    "govulncheck: loading packages: /work/app/lib/lib.go:3:28: undefined: generatedVersion",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.fixture, func(t *testing.T) {
+			t.Parallel()
+			raw, err := os.ReadFile(filepath.Join("testdata", tc.fixture))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := firstLine(string(raw)); got != tc.want {
+				t.Errorf("firstLine =\n %q\nwant\n %q", got, tc.want)
+			}
+		})
 	}
 }

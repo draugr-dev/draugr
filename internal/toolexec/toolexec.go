@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -269,23 +270,67 @@ func severity(line string) int {
 //
 // Only when the line ends by promising a list, and only for lines that look like its items, a tool
 // that prints a usage screen after its error is not enumerating causes, and a report is not the
-// place for it.
+// place for it. The items come in two forms: `* ` bullets, and the compiler diagnostics a Go tool
+// prints when it cannot load a package.
 func withCauses(first string, rest []string) string {
 	if !strings.HasSuffix(first, ":") {
 		return first
 	}
-	var causes []string
-	for _, line := range rest {
-		item, ok := strings.CutPrefix(line, "* ")
-		if !ok {
-			break
-		}
-		causes = append(causes, strings.TrimSpace(item))
+	causes := bullets(rest)
+	if len(causes) == 0 {
+		causes = goDiagnostics(rest)
 	}
 	if len(causes) == 0 {
 		return first
 	}
 	return first + " " + strings.Join(causes, "; ")
+}
+
+// bullets is the `* ` list at the start of rest, the form Trivy's `4 errors occurred:` takes.
+func bullets(rest []string) []string {
+	var items []string
+	for _, line := range rest {
+		item, ok := strings.CutPrefix(line, "* ")
+		if !ok {
+			break
+		}
+		items = append(items, strings.TrimSpace(item))
+	}
+	return items
+}
+
+// goDiagnostic is a compiler diagnostic, `file.go:line:col: message`, capturing the file and the
+// position.
+var goDiagnostic = regexp.MustCompile(`^(\S+\.go)(:\d+(?::\d+)?): `)
+
+// goDiagnostics reads what a Go tool prints after `loading packages:` when a package will not load:
+// a header, then one compiler diagnostic per problem, which names the file and what is missing.
+// That is the line that tells a package needing generated code from a module that failed to
+// download, and the two are fixed differently.
+//
+// The go command and the type checker can report the same position twice, once relative and once
+// absolute, so a position is kept once, the first time. A diagnostic that ends by promising more,
+// `; to add it:` before a `go get` line, loses that clause, because the suggestion is wrong for a
+// package a build step generates.
+func goDiagnostics(rest []string) []string {
+	var items []string
+	seen := map[string]bool{}
+	for _, line := range rest {
+		m := goDiagnostic.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		at := filepath.Base(m[1]) + m[2]
+		if seen[at] {
+			continue
+		}
+		seen[at] = true
+		if cut := strings.LastIndex(line, "; "); cut > len(m[0]) && strings.HasSuffix(line, ":") {
+			line = line[:cut]
+		}
+		items = append(items, line)
+	}
+	return items
 }
 
 // message drops the log preamble a tool writes ahead of what it is actually saying.
