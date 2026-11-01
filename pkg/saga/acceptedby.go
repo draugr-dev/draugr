@@ -11,7 +11,7 @@ import (
 //
 // The key holds whatever name the descriptor's author typed and nothing checks it. The record of
 // who wrote an exclusion is the repository's history of the line, which the report carries.
-const AcceptedByRemovedIn = "0.163.0"
+const AcceptedByRemovedIn = "0.164.0"
 
 // AcceptedByWarnings names every exclusion that still sets acceptedBy, by the file and line the key
 // is written at, for `draugr validate` and `draugr scan` to print.
