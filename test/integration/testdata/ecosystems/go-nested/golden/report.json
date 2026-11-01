@@ -18,6 +18,12 @@
           "line": 5,
           "path": "go.mod",
           "repository": "./go-nested"
+        },
+        {
+          "kind": "manifest",
+          "line": 5,
+          "path": "tools/go.mod",
+          "repository": "./go-nested"
         }
       ],
       "package": "github.com/tidwall/gjson",
@@ -30,7 +36,8 @@
       "title": "Upgrade github.com/tidwall/gjson v1.6.5",
       "versioning": "go",
       "where": [
-        "go.mod:5"
+        "go.mod:5",
+        "tools/go.mod:5"
       ]
     }
   ],
