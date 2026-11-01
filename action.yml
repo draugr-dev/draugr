@@ -109,8 +109,9 @@ inputs:
   fail-on-new:
     description: >-
       (diff mode) Fail the gate if the change introduces a finding at or above this, in either
-      vocabulary: a priority band (P1-P4) or a severity (critical, high, medium, low). Empty does
-      not fail on new findings.
+      vocabulary: a priority band (P1-P4) or a severity (critical, high, medium, low). Empty
+      applies the descriptor's config.gate.failOnNew, and fails on no new finding where the
+      descriptor sets none or the release in use takes no --saga on its diff.
     required: false
     default: ""
   fail-on-new-priority:
@@ -432,6 +433,12 @@ runs:
         diff_args=("${base_report[@]}" "$head_out/results.sarif" --publish)
         [ -n "$INPUT_FAIL_ON_NEW" ]          && diff_args+=(--fail-on-new "$INPUT_FAIL_ON_NEW")
         [ -n "$INPUT_FAIL_ON_NEW_PRIORITY" ] && diff_args+=(--fail-on-new-priority "$INPUT_FAIL_ON_NEW_PRIORITY")
+        # The descriptor the head was scanned with, so its config.gate.failOnNew is the gate when
+        # neither input sets one. Asked for, as --view is below, because a pinned release may
+        # predate the flag, and diff then reads only a descriptor alone in this directory.
+        if draugr help diff 2>&1 | grep -- '--saga' >/dev/null; then
+          diff_args+=(--saga "$INPUT_SAGA")
+        fi
         # Asked for rather than assumed, the same way --format sarif is below: `version` lets a
         # caller pin any published release, and this tag moves independently of them, so the binary
         # in front of us may predate the flag. Without it the comment is what it always was.

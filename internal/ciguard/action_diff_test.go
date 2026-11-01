@@ -19,7 +19,7 @@ case "$1" in
   version) echo "draugr stub" ;;
   help)
     if [ -n "$STUB_OLD" ]; then echo "  draugr diff <base.sarif> <head.sarif> [flags]"
-    else echo "  draugr diff [base.sarif] <head.sarif> [flags]"; fi
+    else echo "  draugr diff [base.sarif] <head.sarif> [flags]"; echo "  --saga string   the descriptor"; fi
     echo "  --format string   console, markdown, json, sarif"
     echo "  --repository string"
     # As long as the real help, and longer: a reader that stops at the first match closes the pipe
@@ -199,6 +199,46 @@ func TestTheActionDiffsTwoScansWhenBothSidesHaveTheDescriptor(t *testing.T) {
 	}
 	if strings.Count(diffs, "draugr-base/results.sarif") != 2 {
 		t.Errorf("not a diff of two scans:\n%s", diffs)
+	}
+}
+
+// The diff reads the descriptor the head was scanned with, so its config.gate.failOnNew gates the
+// pull request when no input sets a threshold. A release that predates `diff --saga` is not
+// handed the flag, which it would refuse.
+func TestTheActionNamesTheDescriptorToTheDiff(t *testing.T) {
+	t.Parallel()
+	base, head := []string{"draugr.saga.yaml"}, []string{"draugr.saga.yaml", "app.js"}
+	out, diffs, ok := runActionDiff(t, base, head)
+	if !ok {
+		t.Fatalf("the step failed:\n%s", out)
+	}
+	if !strings.Contains(diffs, "--saga draugr.saga.yaml") {
+		t.Errorf("the diff was not given the descriptor:\n%s", diffs)
+	}
+	out, diffs, ok = runActionDiff(t, base, head, "STUB_OLD=1")
+	if !ok {
+		t.Fatalf("the step failed on an older release:\n%s", out)
+	}
+	if strings.Contains(diffs, "--saga") {
+		t.Errorf("an older release was handed --saga:\n%s", diffs)
+	}
+}
+
+// Every shipped pipeline hands its diff the descriptor, after asking the binary whether it takes
+// one. A template that never passes it gates only on its own input, and a descriptor's
+// failOnNew is read only by chance, when it is the one descriptor in the directory.
+func TestEveryPipelineNamesTheDescriptorToTheDiff(t *testing.T) {
+	t.Parallel()
+	for _, path := range []string{"action.yml", "azure-pipelines/draugr.yml", "gitlab-ci/draugr.yml"} {
+		// #nosec G304 -- path comes from the hardcoded list above, inside this repository.
+		body, err := os.ReadFile(filepath.Join("../..", path))
+		if err != nil {
+			t.Errorf("%s: %v", path, err)
+			continue
+		}
+		if !strings.Contains(string(body), "grep -- '--saga'") || !strings.Contains(string(body), "--saga ") {
+			t.Errorf("%s does not hand draugr diff its descriptor behind a check for --saga", path)
+		}
 	}
 }
 

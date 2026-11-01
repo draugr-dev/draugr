@@ -47,7 +47,9 @@ parameters:
     default: true
 
   # Fail a pull request on a new finding at or above this priority. Priority rather than severity
-  # so the component's declared exposure and criticality decide. Empty reports without gating.
+  # so the component's declared exposure and criticality decide. Set it empty to apply the
+  # descriptor's config.gate.failOnNew instead; with none set, or a release
+  # whose diff takes no --saga, the step reports without gating.
   - name: failOnNewPriority
     type: string
     default: P1
@@ -141,6 +143,12 @@ steps:
           if [ -n "${FAIL_ON_NEW_PRIORITY:-}" ]; then
             gate="--fail-on-new-priority $FAIL_ON_NEW_PRIORITY"
           fi
+          # The descriptor the head was scanned with, so its config.gate.failOnNew is the gate
+          # when failOnNewPriority is empty. Asked for, as --view is below.
+          saga=""
+          if draugr help diff 2>&1 | grep -- '--saga' >/dev/null; then
+            saga="--saga ${{ parameters.saga }}"
+          fi
           # Asked for rather than assumed: `version` pins any published release and this template
           # moves independently of them, so the binary may predate the flag. Without it the comment
           # is what it always was, and the step carries on rather than dying under set -e.
@@ -152,10 +160,10 @@ steps:
               echo "##vso[task.logissue type=warning]diffView needs a Draugr release with 'diff --view'; this one is older, so the comment lists findings."
             fi
           fi
-          # shellcheck disable=SC2086 # base_report, gate and view are deliberate word-splits, empty when unset
+          # shellcheck disable=SC2086 # base_report, gate, saga and view are deliberate word-splits, empty when unset
           draugr diff $base_report \
                       "$(Pipeline.Workspace)/draugr-head/results.sarif" \
-                      --publish $gate $view
+                      --publish $gate $saga $view
         displayName: Gate on new findings
         condition: eq(variables['Build.Reason'], 'PullRequest')
         env:
