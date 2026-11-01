@@ -1,0 +1,1 @@
+- **`config.exclude[].acceptedBy` is removed in 0.164.0, one release later than announced.** `draugr validate` and `draugr scan` still warn on each one, and the warning now names 0.164.0. Delete the key from your descriptor.

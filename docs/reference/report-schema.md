@@ -98,7 +98,7 @@ entry, with `justification` as its own field and the rest in its `properties`.
 | Field | What it says |
 |---|---|
 | `justification` | The reason given for setting it aside |
-| `unverifiedAcceptedBy` | For a rule in the descriptor that still sets the deprecated [`acceptedBy`](saga-schema.md#configexclude), the name it states, which nothing verifies. 0.163.0 removes it. The rule's entry in [`descriptor.exclusions[]`](#what-each-exclusion-carries) carries git's record of who wrote it |
+| `unverifiedAcceptedBy` | For a rule in the descriptor that still sets the deprecated [`acceptedBy`](saga-schema.md#configexclude), the name it states, which nothing verifies. 0.164.0 removes it. The rule's entry in [`descriptor.exclusions[]`](#what-each-exclusion-carries) carries git's record of who wrote it |
 | `origin` | Whose decision it was: `saga` for a rule in this project's descriptor, `vex` for a supplier's VEX claim this project accepted, `tool` for a directive written beside the line, `scanner` for an entry in the scanner's own ignore file |
 | `author`, `asserted` | For a `vex` suppression, who made the claim and the date they made it |
 | `source` | The descriptor file a rule was written in, where the descriptor is split across several, or the VEX document a claim came from |

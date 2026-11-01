@@ -1672,7 +1672,7 @@ was never there.
 | `reason` | **Required.** Why this exclusion exists. |
 | `expires` | The date it stops applying (`YYYY-MM-DD`). Past it the finding returns and the report says the exclusion lapsed. |
 | `vex` | What this suppression claims about the product, for [`--report vex`](../guides/vex.md). Optional. See [below](#declaring-what-a-suppression-means-in-vex). |
-| `acceptedBy` | A name the descriptor's author typed as who accepted the finding, which nothing verifies. **Deprecated**, and removed in 0.163.0. `draugr validate` and `draugr scan` warn on each one, and the report carries the value only as `unverifiedAcceptedBy`. |
+| `acceptedBy` | A name the descriptor's author typed as who accepted the finding, which nothing verifies. **Deprecated**, and removed in 0.164.0. `draugr validate` and `draugr scan` warn on each one, and the report carries the value only as `unverifiedAcceptedBy`. |
 
 **Who, why, and until when.** The question asked of a suppression is not whether the scanner ran. It
 is who decided this was acceptable, and when. `reason` answers why and `expires` until when. Who is
@@ -1719,7 +1719,7 @@ history.
 
 ```
 ✓ draugr.saga.yaml is valid
-  ! draugr.saga.yaml:18: acceptedBy is deprecated and 0.163.0 removes it. Delete the line. Who wrote the exclusion: git blame -L 15,15 draugr.saga.yaml
+  ! draugr.saga.yaml:18: acceptedBy is deprecated and 0.164.0 removes it. Delete the line. Who wrote the exclusion: git blame -L 15,15 draugr.saga.yaml
 ```
 
 **Attribution.** A suppression from one of these rules carries `origin: saga`, and the `source` and
