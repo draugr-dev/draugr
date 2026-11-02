@@ -63,6 +63,39 @@ func TestCompareSaysWhenItCannotOrder(t *testing.T) {
 	}
 }
 
+// A version parsed once orders as Compare orders the strings, for a caller comparing one version
+// against many.
+func TestParsedVersionsOrderAsCompareDoes(t *testing.T) {
+	ecosystems := []string{"", "Cobol", "Debian", "Alpine", "Red Hat", "npm", "PyPI", "Go", "Maven", "RubyGems", "NuGet"}
+	versions := []string{"1.0", " 1.0 ", "2.0", "1.0~rc1", "1.0rc1", "1.0.post1", "v0.3.7", "0.3.8", "1.36.1-r7",
+		"3.0.17-1~deb12u2", "1.0.6-28.el8_10", "2.13.4.2", "not a version", "@@@", "", "v", "latest"}
+	for _, e := range ecosystems {
+		for _, a := range versions {
+			for _, b := range versions {
+				want, wantOK := Compare(e, a, b)
+				va, okA := Parse(e, a)
+				vb, okB := Parse(e, b)
+				got, ok := va.Compare(vb)
+				if got != want || ok != wantOK || (ok && (!okA || !okB)) {
+					t.Errorf("%s: Parse(%q).Compare(Parse(%q)) = %d, %v; Compare = %d, %v", e, a, b, got, ok, want, wantOK)
+				}
+			}
+		}
+	}
+}
+
+// Two ecosystems' versions have no order between them.
+func TestParsedVersionsOfTwoEcosystemsHaveNoOrder(t *testing.T) {
+	npm, _ := Parse("npm", "1.0")
+	pypi, _ := Parse("PyPI", "1.0")
+	if got, ok := npm.Compare(pypi); ok {
+		t.Errorf("npm 1.0 against PyPI 1.0 = %d, ok; want not ok", got)
+	}
+	if got, ok := (Version{}).Compare(npm); ok {
+		t.Errorf("an unparsed version = %d, ok; want not ok", got)
+	}
+}
+
 func TestEcosystemPrefersThePackageURL(t *testing.T) {
 	for _, c := range []struct{ purl, reported, want string }{
 		{"pkg:deb/debian/openssl@3.0.14-1~deb12u2?arch=amd64", "", "Debian"},

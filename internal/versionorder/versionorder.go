@@ -73,19 +73,45 @@ func Ecosystem(purl, reported string) string {
 // rules. ok is false when the ecosystem is not one this orders, or either version does not parse in
 // it, and then the order is unknown rather than equal.
 func Compare(ecosystem, a, b string) (order int, ok bool) {
-	a, b = strings.TrimSpace(a), strings.TrimSpace(b)
-	if ecosystem == "" || !looksLikeAVersion(a) || !looksLikeAVersion(b) {
+	va, ok := Parse(ecosystem, a)
+	if !ok {
 		return 0, false
 	}
-	va, err := semantic.Parse(a, ecosystem)
+	vb, ok := Parse(ecosystem, b)
+	if !ok {
+		return 0, false
+	}
+	return va.Compare(vb)
+}
+
+// Version is one version parsed under one ecosystem's rules, for a caller comparing it many times.
+// Comparing two Versions gives the answer Compare gives for the strings they were parsed from.
+type Version struct {
+	parsed semantic.Version
+}
+
+// Parse reads s as a version under ecosystem's rules. ok is false where Compare would have no order
+// for s against any version: the ecosystem is not one this orders, or s does not parse in it.
+func Parse(ecosystem, s string) (v Version, ok bool) {
+	s = strings.TrimSpace(s)
+	if ecosystem == "" || !looksLikeAVersion(s) {
+		return Version{}, false
+	}
+	parsed, err := semantic.Parse(s, ecosystem)
 	if err != nil {
+		return Version{}, false
+	}
+	return Version{parsed: parsed}, true
+}
+
+// Compare returns -1, 0 or +1 as v is older than, the same as or newer than w. Both come from Parse
+// under one ecosystem; ok is false for a Version Parse did not return, or where the ecosystem's rules
+// give the two no order.
+func (v Version) Compare(w Version) (order int, ok bool) {
+	if v.parsed == nil || w.parsed == nil {
 		return 0, false
 	}
-	vb, err := semantic.Parse(b, ecosystem)
-	if err != nil {
-		return 0, false
-	}
-	order, err = va.Compare(vb)
+	order, err := v.parsed.Compare(w.parsed)
 	if err != nil {
 		return 0, false
 	}
