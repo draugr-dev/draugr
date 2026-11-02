@@ -124,11 +124,29 @@
   ],
   "scanners": [
     {
-      "name": "gitleaks",
+      "failed": [
+        {
+          "component": "web",
+          "control": "sca",
+          "detail": "trivy-fs: paths \"services/wbe\": not in the repository at 2278d40c2894",
+          "kind": "repository",
+          "target": "./negative-mistyped-path"
+        }
+      ],
+      "name": "trivy-fs",
       "version": "<cleared>"
     },
     {
-      "name": "trivy-fs",
+      "failed": [
+        {
+          "component": "web",
+          "control": "secrets",
+          "detail": "gitleaks: paths \"services/wbe\": not in the repository at 2278d40c2894",
+          "kind": "repository",
+          "target": "./negative-mistyped-path"
+        }
+      ],
+      "name": "gitleaks",
       "version": "<cleared>"
     }
   ],

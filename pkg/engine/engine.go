@@ -5,6 +5,7 @@
 package engine
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -623,6 +624,11 @@ type Result struct {
 	// the question the target asked. Reported because a scanner that quietly does not run is
 	// indistinguishable, in the output, from one that ran and found nothing.
 	Skipped []SkippedJob
+	// FailedScans are the jobs whose scanner returned an error, one per job, each with the scanner's
+	// version and the target it was reading. A failed job leaves no report and so no provenance, and
+	// without this a scanner that ran and failed reads the same, in an account of what ran, as one
+	// that was never configured.
+	FailedScans []FailedScan
 	// Targets is what became of each distinct target the run planned: read, failed or skipped, and
 	// the components that declared it. A count of what was declared beside what was reached is the
 	// one thing a reader of the report cannot otherwise get without parsing scanner text.
@@ -825,6 +831,54 @@ type Unscanned struct {
 	refusal *Refusal
 }
 
+// FailedScan is one job whose scanner returned an error, and which scanner it was.
+type FailedScan struct {
+	// Scanner and Version name the scanner that failed. Version is what it reported through
+	// plugin.CacheVersioner, or its static version, and is empty where neither said anything.
+	Scanner string
+	Version string
+	// Control and Component are the job's; Component is empty for a project-wide control.
+	Control   string
+	Component string
+	// Kind and Target name the target as Targets names it, so the two can be read together. Both
+	// are empty for a job with no target.
+	Kind   string
+	Target string
+	// Detail is the scanner's error, the same text as the control's ScanErrors entry for it.
+	Detail string
+}
+
+// failedScanFor records the scanner behind a failed job.
+func failedScanFor(pj PlannedJob, ver string, err error) FailedScan {
+	f := FailedScan{Scanner: pj.Job.Scanner, Version: ver, Control: pj.Control, Component: pj.Component, Detail: err.Error()}
+	if pj.Job.Target != nil {
+		f.Kind, f.Target = outcomeIdentity(pj.Job.Target)
+	}
+	return f
+}
+
+// sortFailedScans orders failed jobs by scanner, then by where they failed, and drops exact repeats:
+// two jobs a controller planned for one target and component, failing alike, are one fact. Jobs
+// finish in whatever order the scheduler gives them, and a report has to say the same thing twice.
+func sortFailedScans(in []FailedScan) []FailedScan {
+	if len(in) == 0 {
+		return nil
+	}
+	out := slices.Clone(in)
+	slices.SortFunc(out, func(a, b FailedScan) int {
+		return cmp.Or(
+			strings.Compare(a.Scanner, b.Scanner),
+			strings.Compare(a.Control, b.Control),
+			strings.Compare(a.Component, b.Component),
+			strings.Compare(a.Kind, b.Kind),
+			strings.Compare(a.Target, b.Target),
+			strings.Compare(a.Detail, b.Detail),
+			strings.Compare(a.Version, b.Version),
+		)
+	})
+	return slices.Compact(out)
+}
+
 // MissingTool is a control that could not run a scanner because its executable is not installed.
 type MissingTool struct {
 	Control string
@@ -876,6 +930,8 @@ type scanOutcome struct {
 	// cannot say. The age of the oldest thing a run trusted is the question a reader has, and
 	// only the entry knows it.
 	storedAt time.Time
+	// version is what the scanner reported, carried on a failure, which has no report to stamp it on.
+	version string
 }
 
 // cacheGet reads an entry and, where the cache can say, when it was written.
@@ -1046,6 +1102,8 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		failed int
 		// unscanned records what each of those jobs was going to look at.
 		unscanned []Unscanned
+		// failedScans records the scanner behind each of those jobs, with the version it reported.
+		failedScans []FailedScan
 		// examined is every target some scanner did produce a report for, by the component whose
 		// job read it. A target one scanner failed on and another read is not unexamined, and
 		// reporting it as such would be the mirror of the bug this exists to fix: a claim about
@@ -1261,6 +1319,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				ctlErrs[pj.Control] = append(ctlErrs[pj.Control], err.Error())
 				failed++
 				unscanned = append(unscanned, unscannedFor(pj, err))
+				failedScans = append(failedScans, failedScanFor(pj, "", err))
 				steps[stepKey(pj)].Failed++
 				mu.Unlock()
 				return
@@ -1321,7 +1380,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				scanDuration.Record(jobCtx, time.Since(start).Seconds(),
 					metric.WithAttributes(attribute.String("scanner", pj.Job.Scanner)))
 				if err != nil {
-					return scanOutcome{}, err
+					// The version goes with the failure: a report naming the scanner that failed has to
+					// be able to say which build of it did.
+					return scanOutcome{version: version}, err
 				}
 				// Before caching, so a cache hit carries the same account a fresh scan does.
 				recordProvenance(&rep, pj.Job.Scanner, version)
@@ -1362,6 +1423,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				// for the job that ran, the other would pass with its image unread, and which one
 				// that was would depend on which job reached the scan first.
 				unscanned = append(unscanned, unscannedFor(pj, scanErr))
+				// Per job for the same reason: each component's job names the scanner that failed it.
+				failedOut, _ := out.(scanOutcome)
+				failedScans = append(failedScans, failedScanFor(pj, failedOut.version, scanErr))
 				mu.Unlock()
 				return
 			}
@@ -1455,6 +1519,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	res.Consent = effectConsent(model.Config.AllowEffects, e.allowEffects)
 	res.SBOMFailures = sbomFailures
 	res.Skipped = skipped
+	res.FailedScans = sortFailedScans(failedScans)
 	res.Inputs = inputCoverage(byCtl)
 	res.UnreadChecks = unreadChecks(byCtl)
 	if len(ctlErrs) > 0 {

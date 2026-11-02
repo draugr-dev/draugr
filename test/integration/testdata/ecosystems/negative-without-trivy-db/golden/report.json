@@ -41,6 +41,21 @@
   "release": {
     "version": "1.0"
   },
+  "scanners": [
+    {
+      "failed": [
+        {
+          "component": "negative-without-trivy-db",
+          "control": "sca",
+          "detail": "run trivy-fs: exit status 1: run error: init error: DB error: database error: --skip-db-update cannot be specified on the first run",
+          "kind": "repository",
+          "target": "./negative-without-trivy-db"
+        }
+      ],
+      "name": "trivy-fs",
+      "version": "<cleared>"
+    }
+  ],
   "stats": {
     "cache": {
       "enabled": false,

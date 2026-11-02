@@ -27,13 +27,14 @@ pipeline should do about it. One is broken infrastructure, the other is work.
 | `policy.run` | the servers' verdict on the published run, its findings included, in the same shape as `policy`. `pending: true` where a rule was still undecided when `--policy-wait` ended; `checked: false` with the status as `reason` where the server answered `401`, `404` or a `5xx`. Absent where the run was published to no server that judges policy |
 | `failedCaveats[]` | the caveats of a kind [`gate.failOnCaveats`](saga-schema.md#configgate) lists, which fail the run as an error does: `component`, `what`, `kind` and `detail`. `gate.failOnCaveats` names the kinds. With `--allow-scan-errors` they are listed and the run passes |
 | `notMeasured[]` | a scanner that was planned and then not run because it could not answer the question its target asked, the control, scanner, component and reason. Not an error: nothing went wrong, and no `scanErrors` are recorded for it. |
+| `scanners[].failed[]` | each job of that scanner that returned an error, with `control`, `component`, `kind`, `target` and `detail`. `kind` and `target` name the target as `targets[]` does, and `detail` is the error as `controls[].scanErrors` carries it. A scanner whose every job failed is still in `scanners[]`, with the version it reported; a scanner the descriptor did not configure is absent. |
 | `dependencyFiles[]` | per component and control, what the scanners that list their inputs read (`read`, a count) and what none of them read (`unread[]`: `repository`, `path` and `reason`). |
 | `dependencyFiles[].unread[]`, a dependency file | a dependency file no scanner read packages from. A reason is `no lockfile`, `no pinned versions` or `no packages read`. The packages the file declares were not checked. |
 | `dependencyFiles[].unread[]`, `iac` | a Terraform file calling a module Trivy could not load, with a reason such as `module "vpc" not loaded`, or a Terraform root module directory with module calls Trivy skipped, with a reason such as `32 of 33 module calls checked; "zbad" skipped`. The resources those modules define were not checked. An `iac` entry has `read` at 0. |
 | `dependencyFiles[].unread[]`, `secrets` | a file Gitleaks skipped without reading it, with the reason `name has an archive extension`, or the repository root `.` with `no files read` where Gitleaks read nothing from a tree holding a file with content. A secret in it was not looked for. A `secrets` entry has `read` at 0. |
 | `dependencyFiles[].unread[]`, `sast` | a source file Semgrep did not check in full, with a reason such as `over 1 MB, not scanned` or `1 rule timed out, not checked: "x"`. The file contents, or the rules, Semgrep did not run were not checked. A `sast` entry has `read` at 0 and appears only when a file is unread. |
 
-`scanErrors` and `notMeasured[]` are omitted when there is nothing to report, so a clean run's
+`scanErrors`, `notMeasured[]` and `scanners[].failed[]` are omitted when there is nothing to report, so a clean run's
 document is unchanged. `targets[]` is omitted when the run planned no target. `dependencyFiles[]` is present whenever a scanner that lists its inputs ran,
 and an entry with no `unread` means every dependency file was read.
 
@@ -42,6 +43,7 @@ draugr scan draugr.saga.yaml -o out/
 jq -e '[.controls[].scanErrors // empty] | length == 0' out/report.json   # fail the build on a partial run
 jq -e '[.dependencyFiles[]?.unread // empty] | length == 0' out/report.json   # fail on a file no scanner read
 jq -r '.targets[]? | select(.status != "reached") | "\(.kind) \(.target): \(.detail)"' out/report.json   # what was not reached, and why
+jq -r '.scanners[]? | "\(.name) \(.version // "")" as $s | .failed[]? | "\($s) \(.component // "") \(.target // ""): \(.detail)"' out/report.json   # which scanner failed, at which version, and where
 jq -r '[.targets[]?.refusal | select(.credential == false) | .registry] | unique[]' out/report.json   # registries to log in to
 ```
 

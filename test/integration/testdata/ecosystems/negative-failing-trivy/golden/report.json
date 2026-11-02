@@ -41,6 +41,20 @@
   "release": {
     "version": "1.0"
   },
+  "scanners": [
+    {
+      "failed": [
+        {
+          "component": "negative-failing-trivy",
+          "control": "sca",
+          "detail": "run trivy-fs: exit status 2: sealed fixture: this program failed on purpose",
+          "kind": "repository",
+          "target": "./negative-failing-trivy"
+        }
+      ],
+      "name": "trivy-fs"
+    }
+  ],
   "stats": {
     "cache": {
       "enabled": false,

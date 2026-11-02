@@ -2,7 +2,9 @@ package skald
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -91,6 +93,97 @@ func TestTheReportNamesTheScannersThatRan(t *testing.T) {
 	}
 	if versions[2] != "trivy@0.69.3;db@2026-09-12T13:01:09Z" {
 		t.Errorf("trivy-fs version = %q, want the tool and the data behind it", versions[2])
+	}
+}
+
+// repoController plans one job per repository each component lists.
+type repoController struct {
+	name, scanner string
+	repos         map[string]string
+}
+
+func (c repoController) Info() plugin.ControllerInfo {
+	return plugin.ControllerInfo{Name: c.name, Scope: plugin.ScopeComponent}
+}
+
+func (c repoController) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
+	return []plugin.ScanJob{{Scanner: c.scanner, Target: plugin.RepositoryTarget{URL: c.repos[comp.Name], Revision: "main"}}}, nil
+}
+
+func (c repoController) Aggregate(reports []sarif.Report) (plugin.ControlResult, error) {
+	return plugin.ControlResult{Control: c.name, Report: sarif.Merge(reports...)}, nil
+}
+
+// repoScanner fails on one repository, reads the rest, and says which build it is.
+type repoScanner struct{ name, version, failOn string }
+
+func (s repoScanner) Info() plugin.ScannerInfo            { return plugin.ScannerInfo{Name: s.name} }
+func (s repoScanner) CacheVersion(context.Context) string { return s.version }
+
+func (s repoScanner) Scan(_ context.Context, t plugin.Target, _ plugin.Config) (sarif.Report, error) {
+	if r := t.(plugin.RepositoryTarget); r.URL == s.failOn {
+		return sarif.Report{}, errors.New("run " + s.name + ": exit status 2: no packages matched the provided patterns")
+	}
+	return sarif.Report{Tool: s.name}, nil
+}
+
+// Two components in two repositories, govulncheck failing in one and reading the other: it is listed
+// with its version, and the failure is recorded beside it with the component, the repository and
+// the error its control carries. trivy-fs, which read both, carries no failure, and gitleaks,
+// registered and never configured, is not listed at all.
+func TestTheReportNamesAScannerThatFailedWhereItFailed(t *testing.T) {
+	const (
+		api = "https://github.com/acme/api"
+		web = "https://github.com/acme/web"
+	)
+	repos := map[string]string{"api": api, "web": web}
+	reg := engine.NewRegistry()
+	reg.RegisterController(repoController{name: "sca", scanner: "trivy-fs", repos: repos})
+	reg.RegisterController(repoController{name: "reach", scanner: "govulncheck", repos: repos})
+	reg.RegisterScanner(repoScanner{name: "trivy-fs", version: "trivy@0.76.1"})
+	reg.RegisterScanner(repoScanner{name: "govulncheck", version: "v1.1.4", failOn: web})
+	reg.RegisterScanner(repoScanner{name: "gitleaks", version: "8.30.1", failOn: web})
+	on := map[string]saga.ControllerSettings{"sca": {}, "reach": {}}
+	run, err := engine.New(reg).Run(context.Background(), saga.Model{
+		Release:    saga.Release{Version: "1"},
+		Components: []saga.Component{{Name: "api", Controls: on}, {Name: "web", Controls: on}},
+	})
+	if err == nil {
+		t.Fatal("want the run to report govulncheck's failure")
+	}
+
+	raw, _ := renderProduced(t, run, Provenance{})["scanners"].([]any)
+	got, _ := json.Marshal(raw)
+	failure := "run govulncheck: exit status 2: no packages matched the provided patterns"
+	want, _ := json.Marshal([]any{
+		map[string]any{"name": "govulncheck", "version": "v1.1.4", "failed": []any{map[string]any{
+			"control": "reach", "component": "web", "kind": "repository", "target": web + "@main", "detail": failure,
+		}}},
+		map[string]any{"name": "trivy-fs", "version": "trivy@0.76.1"},
+	})
+	if string(got) != string(want) {
+		t.Errorf("scanners =\n %s\nwant\n %s", got, want)
+	}
+	if errs := run.ScanErrors["reach"]; len(errs) != 1 || errs[0] != failure {
+		t.Errorf("reach errors = %v, want the failure the scanners entry carries", errs)
+	}
+}
+
+// A scanner whose every job failed is still listed, with the version it reported.
+func TestAScannerThatOnlyFailedIsListed(t *testing.T) {
+	run := engine.Result{FailedScans: []engine.FailedScan{
+		{Scanner: "govulncheck", Version: "v1.1.4", Control: "sca", Component: "api", Detail: "boom"},
+	}}
+	raw, _ := renderProduced(t, run, Provenance{})["scanners"].([]any)
+	if len(raw) != 1 {
+		t.Fatalf("scanners = %v, want govulncheck", raw)
+	}
+	e := raw[0].(map[string]any)
+	if e["name"] != "govulncheck" || e["version"] != "v1.1.4" {
+		t.Errorf("entry = %v, want govulncheck at the version it reported", e)
+	}
+	if failed, _ := e["failed"].([]any); len(failed) != 1 {
+		t.Errorf("failed = %v, want the one failure", e["failed"])
 	}
 }
 
