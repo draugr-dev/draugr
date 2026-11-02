@@ -12,6 +12,14 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.165.1] - 2026-11-01
+
+### Fixed
+
+- **A Go flaw in a module with a capital letter in its path is counted once.** Trivy writes such a module's package URL in lowercase and Grype keeps its case, so their two copies of one flaw were each counted. They now match as one, as they do for every other module.
+
+- **The fix list names every file an upgrade has to reach.** A vulnerability required by two Go modules, `go.mod` and `tools/go.mod`, or found in a vendored script beside a lockfile, is listed with both files instead of one. It is still counted once.
+
 ## [0.165.0] - 2026-11-01
 
 ### Changed
@@ -6705,7 +6713,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.165.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.165.1...HEAD
+[0.165.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.1
 [0.165.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.0
 [0.164.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.164.1
 [0.164.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.164.0
