@@ -41,6 +41,20 @@
   "release": {
     "version": "1.0"
   },
+  "scanners": [
+    {
+      "failed": [
+        {
+          "component": "negative-without-trivy",
+          "control": "sca",
+          "detail": "run trivy-fs: exec: \"trivy\": executable file not found in $PATH. Run `draugr tools install trivy`",
+          "kind": "repository",
+          "target": "./negative-without-trivy"
+        }
+      ],
+      "name": "trivy-fs"
+    }
+  ],
   "stats": {
     "cache": {
       "enabled": false,

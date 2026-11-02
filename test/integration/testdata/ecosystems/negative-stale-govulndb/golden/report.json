@@ -68,6 +68,19 @@
   ],
   "scanners": [
     {
+      "failed": [
+        {
+          "component": "negative-stale-govulndb",
+          "control": "sca",
+          "detail": "govulncheck: cannot run offline: local Go vulnerability database fetched <fetched>, older than 24h; run `draugr feeds update govulndb`",
+          "kind": "repository",
+          "target": "./negative-stale-govulndb"
+        }
+      ],
+      "name": "govulncheck",
+      "version": "<cleared>"
+    },
+    {
       "name": "trivy-fs",
       "version": "<cleared>"
     }
