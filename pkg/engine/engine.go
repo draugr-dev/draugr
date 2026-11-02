@@ -487,6 +487,9 @@ func (e *Engine) validateConfigs(label string, jobs []plugin.ScanJob, permitted 
 					continue
 				}
 			}
+			// The effects this job has: an effect an option turns on is asked for only where the
+			// job's config sets it.
+			info.Effects = plugin.EffectsFor(info, job.Config)
 			if err := consentFor(info, permitted); err != nil {
 				errs = append(errs, fmt.Errorf("%s/%s: %w", label, job.Scanner, err))
 				continue
@@ -1500,7 +1503,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			mu.Lock()
 			stats.ByControl[pj.Control] += jobTook
 			if !res.cached {
-				effects = append(effects, scanner.Info().Effects...)
+				effects = append(effects, plugin.EffectsFor(scanner.Info(), pj.Job.Config)...)
 			}
 			reports[jobIndex] = &report
 			switch {
@@ -2357,9 +2360,48 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 			if _, ok := analyzers[res.Reachability.Analyzer]; !ok {
 				analyzers[res.Reachability.Analyzer] = &AnalyzerReachability{Analyzer: res.Reachability.Analyzer}
 			}
-			key := reachKey{res.Component, res.Repository, res.Location.URI, res.Package.Name, reachRule(*res)}
+			key := reachKeyOf(*res)
 			verdicts[key] = strongerReachability(verdicts[key], res.Reachability)
 		}
+	}
+	// The other identifiers an analyzer reported for its finding reach a copy keyed on any of them,
+	// and record which of the analyzer's findings each one came from, so that finding folds too.
+	// Only an identifier the analyzer did not also report as a finding of its own: one it reported
+	// twice it has said are two findings, and each keeps its own.
+	aliasOf := map[reachKey][]reachKey{}
+	for _, cr := range controls {
+		for _, res := range cr.Report.Results {
+			if res.Reachability == nil || res.Package == nil {
+				continue
+			}
+			own := reachKeyOf(res)
+			for _, alias := range aliasReachKeys(own, res) {
+				if _, reported := verdicts[alias]; reported || slices.Contains(aliasOf[alias], own) {
+					continue
+				}
+				aliasOf[alias] = append(aliasOf[alias], own)
+			}
+		}
+	}
+	// verdictFor is the strongest verdict reaching another scanner's finding, and the analyzer
+	// findings it came from: an analyzer finding under the same identifier or one the analyzer named
+	// beside its own, or under an identifier the scanner itself named beside the finding's.
+	verdictFor := func(res sarif.Result) (*sarif.Reachability, []reachKey) {
+		own := reachKeyOf(res)
+		from := slices.Clone(aliasOf[own])
+		if _, ok := verdicts[own]; ok {
+			from = append(from, own)
+		}
+		for _, alias := range aliasReachKeys(own, res) {
+			if _, ok := verdicts[alias]; ok && !slices.Contains(from, alias) {
+				from = append(from, alias)
+			}
+		}
+		var verdict *sarif.Reachability
+		for _, src := range from {
+			verdict = strongerReachability(verdict, verdicts[src])
+		}
+		return verdict, from
 	}
 	// An analyzer that ran and decided nothing still ran, and a block that omits it is
 	// indistinguishable from a descriptor that never enabled one. It stamps its own provenance
@@ -2385,9 +2427,12 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 	folded := map[reachKey]bool{}
 	for _, cr := range controls {
 		for _, res := range cr.Report.Results {
-			key := reachKey{res.Component, res.Repository, res.Location.URI, packageName(res), reachRule(res)}
-			if _, ok := verdicts[key]; ok && res.Reachability == nil {
-				folded[key] = true
+			if res.Reachability != nil {
+				continue
+			}
+			_, from := verdictFor(res)
+			for _, src := range from {
+				folded[src] = true
 			}
 		}
 	}
@@ -2395,18 +2440,17 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 		kept := cr.Report.Results[:0]
 		for i := range cr.Report.Results {
 			res := cr.Report.Results[i]
-			key := reachKey{res.Component, res.Repository, res.Location.URI, packageName(res), reachRule(res)}
 			switch {
 			case res.Reachability != nil:
 				// An analyzer's own finding. Keep it only where nothing else reported the same
-				// vulnerability in the same package.
-				if folded[key] {
+				// vulnerability in the same package, under any identifier either of them named.
+				if folded[reachKeyOf(res)] {
 					continue
 				}
 				analyzers[res.Reachability.Analyzer].Contributed++
 			default:
-				verdict, ok := verdicts[key]
-				if !ok {
+				verdict, _ := verdictFor(res)
+				if verdict == nil {
 					break
 				}
 				// Copied per finding: one analyzer verdict covers every identifier the advisory
@@ -2574,6 +2618,30 @@ func reachRule(res sarif.Result) string {
 		return id
 	}
 	return res.RuleID
+}
+
+// reachKeyOf is the key a finding's verdict is matched on, under the finding's own vulnerability.
+func reachKeyOf(res sarif.Result) reachKey {
+	return reachKey{res.Component, res.Repository, res.Location.URI, packageName(res), reachRule(res)}
+}
+
+// aliasReachKeys are own under each other identifier the finding's scanner named for it.
+//
+// govulncheck reports a flaw with no CVE under its GitHub advisory id and names the Go id beside it,
+// where Grype reports the same flaw from the Go database under the Go id. The verdict reaches that
+// copy only through the identifier govulncheck named.
+func aliasReachKeys(own reachKey, res sarif.Result) []reachKey {
+	ids := res.AliasVulnerabilityIDs()
+	if len(ids) == 0 {
+		return nil
+	}
+	keys := make([]reachKey, 0, len(ids))
+	for _, id := range ids {
+		key := own
+		key.rule = id
+		keys = append(keys, key)
+	}
+	return keys
 }
 
 // packageName is the package a finding is about, or "" for a finding that is not about one.

@@ -64,6 +64,12 @@ func trivyConfigExec(ctx context.Context, dir string, argv []string) ([]byte, []
 	if netpolicy.Offline() {
 		env = offlineModuleEnv
 	}
+	return trivyExecLogged(ctx, dir, argv, env)
+}
+
+// trivyExecLogged runs Trivy in env with its log kept beside its report, retrying while another job
+// in the run holds its cache.
+func trivyExecLogged(ctx context.Context, dir string, argv, env []string) ([]byte, []byte, error) {
 	var stderr []byte
 	out, err := retryLockedCache(ctx, "trivy", func() ([]byte, error) {
 		var out []byte

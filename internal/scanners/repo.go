@@ -37,8 +37,8 @@ type repoScanner struct {
 	parse func(out []byte, dir string, cfg plugin.Config) (sarif.Report, error)
 	run   func(ctx context.Context, dir string, argv []string) ([]byte, error)
 	// runLogged, when set, runs the main pass in place of run and returns, beside the tool's output,
-	// what its log says it found in the tree and could not read, each as an unread input. For a tool
-	// that reports such a gap only in its log and exits 0.
+	// what its log says it found in the tree and could not read, each as an unread input, added to
+	// the inputs the parser records. For a tool that reports such a gap only in its log and exits 0.
 	runLogged func(ctx context.Context, dir string, argv []string) ([]byte, []sarif.Input, error)
 	// cacheVersion, when set, contributes a tool/data version to the cache key (see
 	// plugin.CacheVersioner). Nil for scanners with no dynamic version.
@@ -319,8 +319,13 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	if err != nil {
 		return sarif.Report{}, err
 	}
-	if s.inventory != nil || s.runLogged != nil {
+	switch {
+	case s.inventory != nil:
 		report.Inputs = inputs
+	case s.runLogged != nil:
+		// Beside what the parser read from the report: the log names what the tool could not read,
+		// and the report what it did.
+		report.Inputs = append(report.Inputs, inputs...)
 	}
 	if s.historyArgs != nil {
 		if argv := s.historyArgs(dir, cfg); len(argv) > 0 {

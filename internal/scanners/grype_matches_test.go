@@ -275,7 +275,9 @@ func TestGrypeRepoFindingsEachCarryTheirOwnMatch(t *testing.T) {
 	trivyOut := trivyTestJSON(t, minimatchMatches, false)
 	trivy := NewTrivyFS().(repoScanner)
 	trivy.checkout, trivy.prewarm, trivy.cacheVersion, trivy.dataState = checkout, nil, nil, nil
-	trivy.run = func(context.Context, string, []string) ([]byte, error) { return []byte(trivyOut), nil }
+	trivy.runLogged = trivyFSRun(func(context.Context, string, []string) ([]byte, []byte, error) {
+		return []byte(trivyOut), nil, nil
+	})
 
 	reg := engine.NewRegistry()
 	reg.RegisterController(matchController{control: "sca", scanners: []string{"grype-fs", "trivy-fs"}})
@@ -436,7 +438,7 @@ func TestGrypeMatchIndexFind(t *testing.T) {
 		{"a location no match has, where the matches agree", msg("npm", "10.2.3", "/elsewhere.yaml"), "/elsewhere.yaml", "pkg:npm/minimatch@10.2.3"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			pkg, ok := index.find("CVE-2026-118764-minimatch", c.message, c.uri)
+			pkg, _, ok := index.find("CVE-2026-118764-minimatch", c.message, c.uri)
 			if ok != (c.purl != "") || pkg.PURL != c.purl {
 				t.Errorf("find = %+v, %v, want %q", pkg, ok, c.purl)
 			}

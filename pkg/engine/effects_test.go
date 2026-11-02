@@ -157,6 +157,90 @@ func TestReadOnlyScannerRecordsNoEffects(t *testing.T) {
 	}
 }
 
+// optionController plans one job per component image, setting the option "opt" on the jobs of
+// the components named in on.
+type optionController struct {
+	scanner string
+	on      map[string]bool
+}
+
+func (c optionController) Info() plugin.ControllerInfo {
+	return plugin.ControllerInfo{Name: "images", Scope: plugin.ScopeComponent, DefaultScanners: []string{c.scanner}}
+}
+
+func (c optionController) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
+	if comp == nil {
+		return nil, nil
+	}
+	var jobs []plugin.ScanJob
+	for _, img := range comp.Images {
+		jobs = append(jobs, plugin.ScanJob{Scanner: c.scanner, Target: plugin.ImageTarget{Ref: img.Image},
+			Config: plugin.Config{"opt": c.on[comp.Name]}})
+	}
+	return jobs, nil
+}
+
+func (c optionController) Aggregate(reports []sarif.Report) (plugin.ControlResult, error) {
+	return plugin.ControlResult{Control: "images", Report: sarif.Merge(reports...)}, nil
+}
+
+// twoComponentModel is two components, each with an image of its own.
+func twoComponentModel() saga.Model {
+	return saga.Model{
+		Config: saga.Config{Controls: map[string]saga.ControllerSettings{"images": {"enabled": true}}},
+		Components: []saga.Component{
+			{Name: "api", Images: []saga.Image{{Image: "acme/api:1"}}},
+			{Name: "web", Images: []saga.Image{{Image: "acme/web:1"}}},
+		},
+	}
+}
+
+// An effect an option turns on belongs to the jobs whose config sets it: recorded when one of two
+// components sets it, and not when neither does.
+func TestOptionEffectIsRecordedOnlyForTheJobsThatSetIt(t *testing.T) {
+	s := effectScanner{name: "resolves", effects: []plugin.Effect{{
+		Kind: plugin.EffectDisclosure, Detail: "sends coordinates", Option: "opt",
+	}}}
+	for name, tc := range map[string]struct {
+		on   map[string]bool
+		want int
+	}{
+		"one of two sets it": {map[string]bool{"api": true}, 1},
+		"neither sets it":    {nil, 0},
+	} {
+		reg := NewRegistry()
+		reg.RegisterController(optionController{scanner: s.name, on: tc.on})
+		reg.RegisterScanner(s)
+		res, err := New(reg).Run(context.Background(), twoComponentModel())
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if len(res.Effects) != tc.want {
+			t.Errorf("%s: effects = %+v, want %d", name, res.Effects, tc.want)
+		}
+	}
+}
+
+// A consent-gated effect behind an option refuses only the job that sets it.
+func TestOptionEffectIsGatedOnlyWhereSet(t *testing.T) {
+	s := effectScanner{name: "creates", effects: []plugin.Effect{{
+		Kind: plugin.EffectMutate, Detail: "creates a Job", Option: "opt",
+	}}}
+	run := func(on map[string]bool) error {
+		reg := NewRegistry()
+		reg.RegisterController(optionController{scanner: s.name, on: on})
+		reg.RegisterScanner(s)
+		_, err := New(reg).Run(context.Background(), twoComponentModel())
+		return err
+	}
+	if err := run(nil); err != nil {
+		t.Errorf("no job sets the option, so nothing needs accepting: %v", err)
+	}
+	if err := run(map[string]bool{"web": true}); err == nil || !strings.Contains(err.Error(), "creates a Job") {
+		t.Errorf("the job setting the option should be refused, got %v", err)
+	}
+}
+
 func TestDedupeEffects(t *testing.T) {
 	net := plugin.Effect{Kind: plugin.EffectNetwork, Detail: "probes"}
 	mut := plugin.Effect{Kind: plugin.EffectMutate, Detail: "creates"}

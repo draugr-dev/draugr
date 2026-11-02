@@ -56,12 +56,12 @@ func runDevDeps(t *testing.T, sca saga.ControllerSettings, components map[string
 
 	trivy := NewTrivyFS().(repoScanner)
 	trivy.checkout, trivy.prewarm, trivy.cacheVersion, trivy.dataState = checkout, nil, nil, nil
-	trivy.run = func(_ context.Context, dir string, argv []string) ([]byte, error) {
+	trivy.runLogged = trivyFSRun(func(_ context.Context, dir string, argv []string) ([]byte, []byte, error) {
 		if !slices.Contains(argv, "--include-dev-deps") {
 			t.Errorf("trivy argv %v: Trivy would leave the development dependencies out", argv)
 		}
-		return devDepsRead(t, repoOf[dir]+".trivy.json"), nil
-	}
+		return devDepsRead(t, repoOf[dir]+".trivy.json"), nil, nil
+	})
 
 	reg := engine.NewRegistry()
 	reg.RegisterController(controllers.NewSCA())

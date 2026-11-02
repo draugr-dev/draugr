@@ -136,8 +136,8 @@ func Formats() []Format {
 var lockfiles = map[string]bool{
 	"Pipfile.lock": true, "poetry.lock": true, "pdm.lock": true, "uv.lock": true, "pylock.toml": true,
 	"package-lock.json": true, "npm-shrinkwrap.json": true, "yarn.lock": true, "pnpm-lock.yaml": true,
-	"bun.lock": true, "bun.lockb": true, "gradle.lockfile": true, "packages.lock.json": true,
-	"Gemfile.lock": true, "gems.locked": true, "Cargo.lock": true, "composer.lock": true,
+	"bun.lock": true, "bun.lockb": true, "gradle.lockfile": true, "buildscript-gradle.lockfile": true,
+	"packages.lock.json": true, "Gemfile.lock": true, "gems.locked": true, "Cargo.lock": true, "composer.lock": true,
 }
 
 // IsLockfile reports whether a path is a lockfile, by the format FormatOf names for it.
@@ -462,7 +462,9 @@ var rules = []rule{
 	{ecosystem: "go", kind: Pinned, formats: []string{"go.mod"}, declares: containsAny("require")},
 
 	{ecosystem: "maven", kind: Pinned, formats: []string{"pom.xml"}, declares: containsAny("<dependenc", "<parent>")},
-	{ecosystem: "gradle", kind: Pinned, formats: []string{"gradle.lockfile"}},
+	// Gradle writes the locks for a build script's own classpath to buildscript-gradle.lockfile, in
+	// the format of gradle.lockfile.
+	{ecosystem: "gradle", kind: Pinned, formats: []string{"gradle.lockfile", "buildscript-gradle.lockfile"}},
 	{ecosystem: "gradle", kind: Declared, formats: []string{"build.gradle", "build.gradle.kts"},
 		locks: []string{"gradle.lockfile"}, declares: containsAny("dependencies")},
 

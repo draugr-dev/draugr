@@ -123,6 +123,9 @@ type trivyPackage struct {
 	// Dev is Trivy's mark on a development dependency, present when it reads them
 	// (--include-dev-deps) and omitted on a runtime one.
 	Dev bool `json:"Dev"`
+	// Relationship is where the package sits in its manifest's tree: root, workspace, direct or
+	// indirect, and empty where the parser records none.
+	Relationship string `json:"Relationship"`
 }
 
 // line is the first line of the package's own entry in its manifest, or 0 where Trivy's parser
@@ -247,7 +250,7 @@ func trivyInput(dir, class, target string, packages int) (sarif.Input, bool) {
 }
 
 // parseTrivyVulns turns Trivy's JSON into the report Draugr publishes.
-func parseTrivyVulns(out []byte, dir string, _ plugin.Config) (sarif.Report, error) {
+func parseTrivyVulns(out []byte, dir string, cfg plugin.Config) (sarif.Report, error) {
 	var doc trivyVulnDoc
 	if err := json.Unmarshal(out, &doc); err != nil {
 		return sarif.Report{}, fmt.Errorf("parse trivy JSON: %w", err)
@@ -266,6 +269,9 @@ func parseTrivyVulns(out []byte, dir string, _ plugin.Config) (sarif.Report, err
 	}
 	for _, res := range doc.Results {
 		if in, ok := trivyInput(dir, res.Class, res.Target, len(res.Packages)); ok && !slices.Contains(trivyListOnly, res.Type) {
+			if reason, ok := pomUnread(res.Type, res.Packages, !resolvesPoms(cfg)); ok {
+				in.Unread = reason
+			}
 			rep.Inputs = append(rep.Inputs, in)
 		}
 		known := res.packageLines()

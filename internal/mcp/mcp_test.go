@@ -1451,7 +1451,8 @@ func TestSurveyIsNotServedWithoutSurveyors(t *testing.T) {
 }
 
 // Two components, and a file two controls missed: named once per component with both controls,
-// and the same path in the other component kept apart.
+// and the same path in the other component kept apart. A file one scanner of a control missed and
+// another read is not unread, as in the console's caveats.
 func TestUnreadFilesNamesEachFileOncePerComponent(t *testing.T) {
 	lock := engine.UnreadInput{Repository: "https://example.com/api", Path: "pyproject.toml", Reason: "no lockfile"}
 	got := unreadFiles([]engine.InputCoverage{
@@ -1459,6 +1460,8 @@ func TestUnreadFilesNamesEachFileOncePerComponent(t *testing.T) {
 		{Component: "api", Control: "sca", Read: 1, Unread: []engine.UnreadInput{lock}},
 		{Component: "worker", Control: "sca", Read: 2, Unread: []engine.UnreadInput{lock}},
 		{Component: "web", Control: "sca", Read: 1},
+		{Component: "android", Control: "sca", Read: 2, Missed: []engine.MissedInput{{Repository: "https://example.com/app",
+			Path: "buildscript-gradle.lockfile", Scanner: "grype-fs", Reason: "no packages read"}}},
 	})
 	want := []UnreadFile{
 		{Component: "api", Repository: lock.Repository, Path: "pyproject.toml", Reason: "no lockfile", Controls: []string{"licenses", "sca"}},

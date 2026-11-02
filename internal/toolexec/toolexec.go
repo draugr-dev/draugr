@@ -206,8 +206,47 @@ func firstLine(s string) string {
 			first, worst = i, rank
 		}
 	}
+	if chain := errorChain(lines[first+1:]); len(chain) > 0 && !strings.HasSuffix(lines[first], ":") {
+		return shorten(strings.Join(chain, ": "))
+	}
 	return shorten(withCauses(message(lines[first]), lines[first+1:]))
 }
+
+// errorChain reads the error a Go tool logs at debug level as a list after its message: each link
+// of the wrapped chain on a line of its own, `- run error:`, followed by the stack frame that
+// wrapped it, the function and then its file and line. It returns the links in order, without the
+// dash and the colon, or nil where rest does not open with one.
+//
+// Trivy logs a failure that way under --debug, as `FATAL Fatal error` and then the chain, where
+// without --debug it writes the chain after the message on one line, `run error: init error: …`.
+// The chain is what identifies the failure, and joined it reads as the one-line form does, so a
+// failure is worded the same whichever level the tool logged at.
+func errorChain(rest []string) []string {
+	var links []string
+	for _, line := range rest {
+		if link, ok := strings.CutPrefix(line, "- "); ok && strings.HasSuffix(link, ":") {
+			links = append(links, strings.TrimSuffix(link, ":"))
+			continue
+		}
+		if len(links) == 0 || !stackFrame(line) {
+			break
+		}
+	}
+	return links
+}
+
+// stackFrame reports whether a line is one of the two a Go stack trace writes per frame: the
+// function, as `github.com/aquasecurity/trivy/pkg/db.(*Client).NeedsUpdate`, or its file and line,
+// as `/home/runner/work/trivy/trivy/pkg/db/db.go:124`.
+func stackFrame(line string) bool {
+	if strings.ContainsAny(line, " \t") {
+		return false
+	}
+	return goFrameFile.MatchString(line) || strings.Contains(line, "/") && strings.Contains(line, ".")
+}
+
+// goFrameFile is the file and line of a stack frame.
+var goFrameFile = regexp.MustCompile(`\.go:\d+$`)
 
 // goCrash reads the report the Go runtime prints when a program crashes: the reason, the signal
 // where there was one, then every goroutine's stack.

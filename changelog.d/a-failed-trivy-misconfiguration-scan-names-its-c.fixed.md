@@ -1,0 +1,1 @@
+- **A failed Trivy misconfiguration scan names its cause.** The `iac` error read `Fatal error`; it now carries Trivy's own chain, as `run error: init error: … --skip-db-update cannot be specified on the first run`.

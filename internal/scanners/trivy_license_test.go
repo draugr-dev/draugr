@@ -22,8 +22,10 @@ const licenseJSON = `{"Results":[{"Target":"go.mod","Class":"license","Licenses"
 ]}]}`
 
 func TestTrivyLicenseArgs(t *testing.T) {
-	// JSON, not SARIF: Trivy's SARIF output contains no license findings at all.
-	want := "trivy fs --quiet --scanners license --format json /src"
+	// JSON, not SARIF: Trivy's SARIF output contains no license findings at all. --debug, not
+	// --quiet: the debug log is where Trivy names a file it could not parse. --offline-scan on every
+	// run, since this scanner never resolves a pom.xml remotely.
+	want := "trivy fs --debug --scanners license --format json --offline-scan /src"
 	if got := strings.Join(trivyLicenseArgs("/src", nil), " "); got != want {
 		t.Errorf("argv = %q, want %q", got, want)
 	}
@@ -248,7 +250,7 @@ func TestTrivyLicenseImageArgv(t *testing.T) {
 		t.Fatalf("argv: %v", err)
 	}
 	want := []string{"trivy", "image", "--quiet", "--scanners", "license", "--format", "json",
-		"ghcr.io/acme/api:1.4"}
+		"--offline-scan", "ghcr.io/acme/api:1.4"}
 	if !slices.Equal(argv, want) {
 		t.Errorf("argv = %v, want %v", argv, want)
 	}

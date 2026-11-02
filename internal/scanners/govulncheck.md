@@ -34,6 +34,13 @@ govulncheck reports a finding under the identifier the manifest scanners use. Th
 advisory's CVEs, or its GitHub advisory ids (`GHSA-…`) where it has no CVE, or its Go advisory id
 (`GO-…`) where it has neither.
 
+**The finding keeps the advisory's other identifiers**, the Go advisory id and each alias the Go
+vulnerability database lists on the entry govulncheck printed, other than the rule id. Grype reports
+a Go flaw with no CVE from the same database under its Go id, `GO-2026-5775`, where this finding
+carries `GHSA-9g5q-2w5x-hmxf`. The verdict reaches Grype's copy through the Go id, this copy folds
+onto it, and the flaw is counted once, ranked by the verdict. An identifier govulncheck also reports
+as a finding of its own carries no verdict across, because it reported the two as two findings.
+
 A vulnerability only this scanner reports is **kept**, because a finding one tool found and
 another missed is exactly the one that must not disappear in a deduplication.
 

@@ -1,0 +1,24 @@
+2026-11-02T16:40:56-06:00	DEBUG	Default config file "file_path=trivy.yaml" not found, using built in values
+2026-11-02T16:40:56-06:00	DEBUG	Cache dir	dir="/cache"
+2026-11-02T16:40:56-06:00	DEBUG	Cache dir	dir="/cache"
+2026-11-02T16:40:56-06:00	DEBUG	Parsed severities	severities=[UNKNOWN LOW MEDIUM HIGH CRITICAL]
+2026-11-02T16:40:56-06:00	DEBUG	Ignore statuses	statuses=[]
+2026-11-02T16:40:56-06:00	DEBUG	[vulndb] There is no db file
+2026-11-02T16:40:56-06:00	DEBUG	[vulndb] There is no valid metadata file	err.message="file open error" err.err="file open error: open /cache/db/metadata.json: no such file or directory" err.time=2026-11-02T22:40:56.688273933Z err.trace="01M6F6RFVGDB4MBM10XYTYZ8SR" err.context.file_path="/cache/db/metadata.json" err.stacktrace="Oops: file open error\n  --- at /home/runner/go/pkg/mod/github.com/aquasecurity/trivy-db@v0.0.0-20261012084708-cbebf2ecd6df/pkg/metadata/metadata.go:43 Client.Get()\n  --- at /home/runner/work/trivy/trivy/pkg/db/db.go:111 Client.NeedsUpdate()\n  --- at /home/runner/work/trivy/trivy/pkg/commands/operation/operation.go:33 DownloadDB()\n  --- at /home/runner/work/trivy/trivy/pkg/commands/artifact/run.go:337 runner.initDB()\n  --- at /home/runner/work/trivy/trivy/pkg/commands/artifact/run.go:146 NewRunner()\n  --- at /home/runner/work/trivy/trivy/pkg/commands/artifact/run.go:426 run()\n  --- at /home/runner/work/trivy/trivy/pkg/commands/artifact/run.go:409 Run()\n  --- at /home/runner/work/trivy/trivy/pkg/commands/app.go:399 NewFilesystemCommand.func2()\n  --- at /home/runner/go/pkg/mod/github.com/spf13/cobra@v1.10.2/command.go:1015 Command.execute()\n  --- at /home/runner/go/pkg/mod/github.com/spf13/cobra@v1.10.2/command.go:1148 Command.ExecuteC()"
+2026-11-02T16:40:56-06:00	ERROR	[vulndb] The first run cannot skip downloading DB
+2026-11-02T16:40:56-06:00	FATAL	Fatal error
+  - run error:
+    github.com/aquasecurity/trivy/pkg/commands/artifact.Run
+        /home/runner/work/trivy/trivy/pkg/commands/artifact/run.go:411
+  - init error:
+    github.com/aquasecurity/trivy/pkg/commands/artifact.run
+        /home/runner/work/trivy/trivy/pkg/commands/artifact/run.go:431
+  - DB error:
+    github.com/aquasecurity/trivy/pkg/commands/artifact.NewRunner
+        /home/runner/work/trivy/trivy/pkg/commands/artifact/run.go:147
+  - database error:
+    github.com/aquasecurity/trivy/pkg/commands/operation.DownloadDB
+        /home/runner/work/trivy/trivy/pkg/commands/operation/operation.go:35
+  - --skip-db-update cannot be specified on the first run:
+    github.com/aquasecurity/trivy/pkg/db.(*Client).NeedsUpdate
+        /home/runner/work/trivy/trivy/pkg/db/db.go:124

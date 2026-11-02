@@ -747,6 +747,9 @@ type dependencyFilesReport struct {
 	// scanner lists only the Terraform files calling a module it could not load.
 	Read   int                `json:"read"`
 	Unread []unreadFileReport `json:"unread,omitempty"`
+	// Missed are the files a scanner read no packages from where another of these scanners read
+	// them, one entry per file and scanner. Read counts them and Unread does not list them.
+	Missed []missedFileReport `json:"missed,omitempty"`
 }
 
 type unreadChecksReport struct {
@@ -760,6 +763,15 @@ type unreadChecksReport struct {
 type unreadFileReport struct {
 	Repository string `json:"repository,omitempty"`
 	Path       string `json:"path"`
+	Reason     string `json:"reason"`
+}
+
+// missedFileReport is a dependency file one scanner of a control read no packages from while
+// another scanner of the control read it. A record, not a caveat: the gate does not count it.
+type missedFileReport struct {
+	Repository string `json:"repository,omitempty"`
+	Path       string `json:"path"`
+	Scanner    string `json:"scanner"`
 	Reason     string `json:"reason"`
 }
 
@@ -990,6 +1002,11 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 		}
 		for _, u := range cov.Unread {
 			files.Unread = append(files.Unread, unreadFileReport{Repository: u.Repository, Path: u.Path, Reason: u.Reason})
+		}
+		for _, m := range cov.Missed {
+			files.Missed = append(files.Missed, missedFileReport{
+				Repository: m.Repository, Path: m.Path, Scanner: m.Scanner, Reason: m.Reason,
+			})
 		}
 		doc.DependencyFiles = append(doc.DependencyFiles, files)
 	}

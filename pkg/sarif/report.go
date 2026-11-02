@@ -166,10 +166,11 @@ type Result struct {
 	Package *Package `json:"package,omitempty"`
 	// Aliases are the other identifiers the scanner reported for this same finding, beside the one
 	// its rule id carries. retire.js names an advisory's CVEs and its GitHub advisory id together,
-	// and a rule id holds one of them.
+	// and a rule id holds one of them; govulncheck names the Go advisory id beside the CVE or GitHub
+	// advisory id it reports; Grype names the vulnerabilities it relates to the match.
 	//
 	// Correlation reads them, so the finding is counted once with another scanner's copy of the flaw
-	// keyed on any of them. Only what the scanner said about this one finding, never an identifier
+	// keyed on any of them, and so does the fold of a reachability verdict onto that copy. Only what the scanner said about this one finding, never an identifier
 	// looked up afterwards: two advisories a database links are not always one flaw, and only the
 	// scanner reporting the finding is asserting that its identifiers are.
 	//
@@ -792,15 +793,16 @@ type Input struct {
 	// Packages is how many packages the scanner read from the file.
 	Packages int `json:"packages,omitempty"`
 	// Unread is why the file contributed no packages, and empty when it was read: "no lockfile",
-	// "no pinned versions" or "no packages read". For a Terraform file, the module blocks it calls
-	// that the scanner could not load, as `module "vpc" not loaded`. For a file searched for
-	// secrets, "name has an archive extension", or "no files read" against the repository root.
+	// "no pinned versions", "no packages read", or "not parsed: " and the parser's error. For a
+	// Terraform file, the module blocks it calls that the scanner could not load, as `module "vpc"
+	// not loaded`. For a file searched for secrets, "name has an archive extension", or "no files read" against the repository root.
 	// For a source file, why a SAST scanner did not check all of it, as `over 1 MB, not scanned`
 	// or `1 rule timed out, not checked: "x"`. For a go.mod, why govulncheck could not load the
 	// module, as `not loaded by govulncheck: main.go:5:2: undefined: Assets`.
 	//
 	// With Packages above zero, the file was read in part and Unread names what was not read, as
-	// `1 requirement not pinned: urllib3` for a requirements file.
+	// `1 requirement not pinned: urllib3` for a requirements file, or `transitive dependencies not
+	// resolved, run mvn dependency:resolve` for a pom.xml.
 	Unread string `json:"unread,omitempty"`
 	// Analysis says Unread is why an analysis of the code the file declares did not run, as for a Go
 	// module govulncheck could not load, rather than why its packages were not read. Another scanner

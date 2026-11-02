@@ -57,6 +57,13 @@
       "read": 1,
       "scanners": [
         "trivy-fs"
+      ],
+      "unread": [
+        {
+          "path": "pom.xml",
+          "reason": "transitive dependencies not resolved, run mvn dependency:resolve",
+          "repository": "./jvm-maven"
+        }
       ]
     }
   ],

@@ -5,6 +5,8 @@ config:
   controls:
     sca:
       enabled: true
+      trivyFs:
+        resolveMaven: true
 components:
   - name: jvm-maven-repository
     repositories:

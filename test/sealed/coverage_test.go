@@ -32,6 +32,8 @@ var formatExceptions = map[string]string{
 	"setup.cfg":           "declarative setuptools metadata, read beside setup.py, which python-setuptools holds",
 	"environment.yaml":    "the same format as environment.yml, which python-conda holds",
 	"build.gradle.kts":    "the Kotlin spelling of build.gradle, which jvm-gradle holds",
+	"buildscript-gradle.lockfile": "the format of gradle.lockfile, which jvm-gradle holds, for a build script's classpath; " +
+		"internal/scanners holds Trivy's and Grype's real output for one",
 }
 
 // TestEveryDependencyFormatHasASealedScenario holds the sealed tier to the list of dependency files

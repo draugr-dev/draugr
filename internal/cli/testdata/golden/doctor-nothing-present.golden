@@ -36,6 +36,7 @@ NETWORK  (besides its targets · --offline stops all of it)
                 grype.anchore.io           vulnerability database · before the scan
                 mirror.gcr.io              vulnerability database · before the scan
                 raw.githubusercontent.com  advisory database · before the scan
+                repo.maven.apache.org      learns each Maven dependency's coordinates, with resolveMaven: true
                 vuln.go.dev                vulnerability database · every scan
     threats     urlhaus-api.abuse.ch       learns each host's name
                 www.virustotal.com         learns each host's domain

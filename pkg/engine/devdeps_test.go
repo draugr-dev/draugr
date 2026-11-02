@@ -61,6 +61,38 @@ func TestMarkDevCopiesStaysWithinOneFile(t *testing.T) {
 	}
 }
 
+// Grype names a finding's other identifiers as aliases, and correlation joins two scanners' copies
+// across them. The mark does not follow the alias: a Grype finding under a GHSA id that aliases
+// Trivy's dev finding takes the mark in the same file, and not in another file, though correlation
+// counts both copies as one flaw.
+func TestTheDevMarkDoesNotFollowAnAlias(t *testing.T) {
+	trivy := devFinding("trivy", "web", "one", "tools/pnpm-lock.yaml", "CVE-2026-0002", true)
+	same := devFinding("grype", "web", "one", "tools/pnpm-lock.yaml", "GHSA-2v37-7h3g-55p8", false)
+	same.Aliases = []string{"CVE-2026-0002"}
+	other := devFinding("grype", "web", "one", "app/pnpm-lock.yaml", "GHSA-2v37-7h3g-55p8", false)
+	other.Aliases = []string{"CVE-2026-0002"}
+
+	reg := NewRegistry()
+	reg.RegisterController(devPolicyController{})
+	e := New(reg)
+	controls := map[string]plugin.ControlResult{"sca": {Report: sarif.Report{Results: []sarif.Result{trivy, same, other}}}}
+	markDevCopies(controls)
+	e.applyDevDependencies(controls, saga.Model{})
+	applyCorrelation(controls)
+
+	got := controls["sca"].Report.Results
+	if !got[1].Package.Dev || !got[1].SetAsideBySetting() {
+		t.Errorf("the aliased copy in the same file: dev %v, suppression %+v, want both", got[1].Package.Dev, got[1].Suppression)
+	}
+	if got[2].Package.Dev || got[2].Suppressed() {
+		t.Errorf("the aliased copy in another file: dev %v, suppression %+v, want neither", got[2].Package.Dev, got[2].Suppression)
+	}
+	if got[2].Correlated() || !got[0].Correlated() {
+		t.Errorf("correlation %+v / %+v, want the alias to join the copies and the runtime one counted",
+			got[0].Correlation, got[2].Correlation)
+	}
+}
+
 // A control with no development-dependency findings, or one with no policy, is left as it was.
 func TestMarkDevCopiesLeavesAControlWithNoMark(t *testing.T) {
 	results := []sarif.Result{devFinding("grype", "web", "one", "a", "CVE-1", false)}
