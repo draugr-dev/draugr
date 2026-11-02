@@ -16,9 +16,9 @@ _Nothing yet._
 
 ### Fixed
 
-- **A partly pinned requirements file is a caveat.** Trivy and Grype read only `==` pins, so the range requirements in a file with some pins were checked by nothing. The file is now listed under `unread-files` with the requirements not checked, as `1 requirement not pinned: urllib3`. A file with no pin stays `no pinned versions`.
+- **A requirements file that mixes `==` pins with range requirements is reported under `unread-files`.** Trivy and Grype check only `==` pins. The file is listed with the requirements left unchecked, as `1 requirement not pinned: urllib3`, and a file with no pins still reports `no pinned versions`. A run that gates on `unread-files` through `config.gate.failOnCaveats` can now fail on such a file.
 
-- **`licenses` reads the requirements files `sca` reads through `trivyFs.filePatterns`.** A file such as `requirements_all.txt`, which `sca` reads through the patterns `draugr init` writes, was listed as unread for `licenses`. `trivy-license` now passes the same `--file-patterns` for each repository, so one setting covers both controls.
+- **`licenses` checks the requirements files matched by `trivyFs.filePatterns`.** A file such as `requirements_all.txt`, matched by the patterns `draugr init` writes, is checked by both `sca` and `licenses`, and `licenses` no longer lists it as unread. One setting covers both controls.
 
 ## [0.165.4] - 2026-11-02
 
