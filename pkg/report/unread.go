@@ -66,6 +66,38 @@ func unreadByComponent(inputs []engine.InputCoverage, targets []engine.TargetOut
 	return out
 }
 
+// missedLines are the evidence rows for the files one scanner of a control read no packages from
+// while another scanner of the control read them, one per file and scanner, as `sca: grype-fs ·
+// android · buildscript-gradle.lockfile · no packages read`.
+//
+// Evidence and not a caveat: the file's packages were checked, by the other scanner, so nothing in
+// it went unexamined. What the row records is which scanner a finding from that file could have come
+// from. The path carries its repository where the component scans more than one, as a caveat's does.
+func missedLines(inputs []engine.InputCoverage, targets []engine.TargetOutcome) []string {
+	planned := repositoriesByComponent(targets)
+	repos := map[string]map[string]bool{}
+	for _, c := range inputs {
+		for _, m := range c.Missed {
+			if repos[c.Component] == nil {
+				repos[c.Component] = map[string]bool{}
+			}
+			repos[c.Component][m.Repository] = true
+		}
+	}
+	var out []string
+	for _, c := range inputs {
+		several := len(repos[c.Component]) > 1 || planned[c.Component] > 1
+		for _, m := range c.Missed {
+			file := m.Path
+			if several {
+				file = shortRepository(m.Repository) + ":" + m.Path
+			}
+			out = append(out, strings.Join([]string{c.Control + ": " + m.Scanner, c.Component, file, m.Reason}, " · "))
+		}
+	}
+	return out
+}
+
 // repositoriesByComponent counts the distinct repositories the run planned for each component. One
 // repository at two revisions is one repository.
 func repositoriesByComponent(targets []engine.TargetOutcome) map[string]int {

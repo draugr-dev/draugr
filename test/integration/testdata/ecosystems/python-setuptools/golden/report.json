@@ -54,6 +54,14 @@
     {
       "component": "python-setuptools",
       "control": "sca",
+      "missed": [
+        {
+          "path": "setup.py",
+          "reason": "no packages read",
+          "repository": "./python-setuptools",
+          "scanner": "trivy-fs"
+        }
+      ],
       "read": 1,
       "scanners": [
         "grype-fs",

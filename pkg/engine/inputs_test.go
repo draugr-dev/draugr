@@ -57,8 +57,9 @@ func (c inputController) Aggregate(reports []sarif.Report) (plugin.ControlResult
 }
 
 // Two components, two repositories each side of a shared one, and two scanners. Every way the
-// coverage could collapse is present: a file one scanner read and the other did not, the same
-// path in two repositories, and one repository scanned once for two components.
+// coverage could collapse is present: a file one scanner read and the other did not, which is
+// recorded as that scanner's miss and is not unread, the same path in two repositories, and one
+// repository scanned once for two components.
 func TestRunReportsWhatNoScanOfAComponentRead(t *testing.T) {
 	trivy := inputScanner{name: "trivy-fs", inputs: map[string][]sarif.Input{
 		"api": {
@@ -96,6 +97,7 @@ func TestRunReportsWhatNoScanOfAComponentRead(t *testing.T) {
 		{
 			Component: "backend", Control: "sca", Scanners: []string{"grype-fs", "trivy-fs"}, Read: 3,
 			Unread: []UnreadInput{{Repository: "api", Path: "pyproject.toml", Reason: "no lockfile"}},
+			Missed: []MissedInput{{Repository: "api", Path: "requirements-dev.txt", Scanner: "trivy-fs", Reason: "no packages read"}},
 		},
 		{
 			Component: "frontend", Control: "sca", Scanners: []string{"grype-fs", "trivy-fs"}, Read: 1,
@@ -141,6 +143,32 @@ func TestStampingInputsLeavesTheCachedReportAlone(t *testing.T) {
 	}
 }
 
+// A scanner that read a file in one pass and listed it unread in another read it; only another
+// scanner's miss is recorded. Among one scanner's reasons for a file, and among the reasons for a
+// file no scanner read, a reason naming a cause is kept over "no packages read".
+func TestInputCoverageCountsAScannerThatReadAFileAsHavingReadIt(t *testing.T) {
+	byCtl := map[string][]sarif.Report{"sca": {
+		{Inputs: []sarif.Input{
+			{Scanner: "a", Component: "c", Repository: "r", Path: "x", Packages: 2},
+			{Scanner: "a", Component: "c", Repository: "r", Path: "x", Unread: "not parsed: y"},
+			{Scanner: "a", Component: "c", Repository: "r", Path: "z", Packages: 1},
+			{Scanner: "a", Component: "c", Repository: "r", Path: "w", Unread: "not parsed: v"},
+		}},
+		{Inputs: []sarif.Input{
+			{Scanner: "b", Component: "c", Repository: "r", Path: "x", Packages: 2},
+			{Scanner: "b", Component: "c", Repository: "r", Path: "z", Unread: "no packages read"},
+			{Scanner: "b", Component: "c", Repository: "r", Path: "z", Unread: "not parsed: y"},
+			{Scanner: "b", Component: "c", Repository: "r", Path: "w", Unread: "no packages read"},
+		}},
+	}}
+	want := []InputCoverage{{Component: "c", Control: "sca", Scanners: []string{"a", "b"}, Read: 2,
+		Unread: []UnreadInput{{Repository: "r", Path: "w", Reason: "not parsed: v"}},
+		Missed: []MissedInput{{Repository: "r", Path: "z", Scanner: "b", Reason: "not parsed: y"}}}}
+	if got := inputCoverage(byCtl); !reflect.DeepEqual(got, want) {
+		t.Errorf("coverage =\n%+v\nwant\n%+v", got, want)
+	}
+}
+
 // The reason is stable whichever scanner finished first.
 func TestInputCoveragePrefersOneReasonDeterministically(t *testing.T) {
 	byCtl := map[string][]sarif.Report{"sca": {
@@ -183,7 +211,9 @@ func TestInputCoverageListsAFileReadInPart(t *testing.T) {
 				// says what was left.
 				{Repository: "worker", Path: "requirements-dev.txt", Reason: "2 requirements not pinned: torch, transformers"},
 				{Repository: "worker", Path: "requirements/test.txt", Reason: "no pinned versions"},
-			}},
+			},
+			// Trivy read nothing of a file Grype read in part: a record of Trivy's gap.
+			Missed: []MissedInput{{Repository: "worker", Path: "requirements-dev.txt", Scanner: "trivy-fs", Reason: "no packages read"}}},
 	}
 	if got := inputCoverage(byCtl); !reflect.DeepEqual(got, want) {
 		t.Errorf("coverage =\n%+v\nwant\n%+v", got, want)

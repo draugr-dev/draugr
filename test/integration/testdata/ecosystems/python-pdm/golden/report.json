@@ -54,6 +54,14 @@
     {
       "component": "python-pdm",
       "control": "sca",
+      "missed": [
+        {
+          "path": "pdm.lock",
+          "reason": "no packages read",
+          "repository": "./python-pdm",
+          "scanner": "trivy-fs"
+        }
+      ],
       "read": 1,
       "scanners": [
         "grype-fs",
