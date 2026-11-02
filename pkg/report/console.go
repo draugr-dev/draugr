@@ -272,7 +272,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		// "No findings ✓" after a control that didn't run would be the same false reassurance
 		// the ERROR row exists to prevent.
 		if len(errored) > 0 {
-			_, _ = fmt.Fprintln(w, col.Paint(cDim, noFindingsWithErrors(d, s.errored)))
+			_, _ = fmt.Fprintln(w, col.Paint(cDim, noFindingsWithErrors))
 		} else {
 			_, _ = fmt.Fprintln(w, col.Paint(cPass, "No findings. ✓"))
 		}
@@ -309,35 +309,11 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	return nil
 }
 
-// noFindingsWithErrors is what a run with no findings and a control in error closes on. A control
-// that reported from one scanner while another failed is named with the scanners on each side, so a
-// reader can tell how much of it ran. noReport is the controls that returned no report at all.
-func noFindingsWithErrors(d Data, noReport []string) string {
-	var sentences, inPart []string
-	for _, c := range d.Verdict.Controls {
-		if !d.Run.Incomplete(c.Control) {
-			continue
-		}
-		reported, failed := d.Run.Partial(c.Control)
-		if len(reported) == 0 {
-			inPart = append(inPart, c.Control)
-			continue
-		}
-		sentences = append(sentences, fmt.Sprintf("In %s, %s reported and %s did not.",
-			c.Control, english.And(reported), english.And(failed)))
-	}
-	if len(sentences) == 0 {
-		return "No findings from the controls that ran. A control marked ERROR did not report."
-	}
-	sentences = slices.Insert(sentences, 0, "No findings from the scanners that reported.")
-	if len(inPart) > 0 {
-		sentences = append(sentences, english.And(inPart)+" reported in part.")
-	}
-	if len(noReport) > 0 {
-		sentences = append(sentences, english.And(noReport)+" did not report.")
-	}
-	return strings.Join(sentences, " ")
-}
+// noFindingsWithErrors is what a run with no findings and a control in error closes on, in every
+// human format. It holds whether a control's scanners all failed or one failed beside another that
+// reported: the CONTROLS row already names the scanner that failed and why, and report.json lists
+// the ones that reported under controls[].reported.
+const noFindingsWithErrors = "No findings. A control marked ERROR checked less than it was asked to."
 
 // writeVerdictLine is the report's first line: the verdict, what was scanned, what qualifies the
 // verdict, and what the run cost. note is printed after the qualifiers, empty for none.

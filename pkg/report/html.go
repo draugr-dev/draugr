@@ -1934,7 +1934,7 @@ what it would have found. For each scanner's whole output, re-run with
 </div>
 {{template "nomatch"}}
 {{else if .Errors}}
-<p>No findings from the controls that ran. A control marked ERROR did not report.</p>
+<p>No findings. A control marked ERROR checked less than it was asked to.</p>
 {{else}}
 <p>No findings. ✓</p>
 {{end}}

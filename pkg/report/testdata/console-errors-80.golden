@@ -22,5 +22,5 @@ COMPONENTS
   ingress  ERROR  no findings
   mesh     ERROR  no findings
 
-No findings from the controls that ran. A control marked ERROR did not report.
+No findings. A control marked ERROR checked less than it was asked to.
 

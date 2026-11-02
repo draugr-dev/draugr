@@ -141,37 +141,22 @@ func TestAControlWithAFailedScannerReadsAlikeInTheConsoleAndReportJSON(t *testin
 			t.Errorf("%s reported = %q, want %q", c.Name, c.Reported, want[c.Name])
 		}
 	}
-	closing := "No findings from the scanners that reported. In sca, grype-fs reported and trivy-fs did not. " +
-		"secrets did not report."
-	if !strings.Contains(console, closing) {
-		t.Errorf("console does not close on %q:\n%s", closing, console)
+	if !strings.Contains(console, noFindingsWithErrors) {
+		t.Errorf("console does not close on %q:\n%s", noFindingsWithErrors, console)
 	}
 }
 
-// A control in error that has no scanner reporting on one side and failing on the other gets no
-// sentence of its own: images, whose one scanner read one target and failed on another, reported in
-// part, and a run with no such control keeps the line it always had.
-func TestNoFindingsWithErrors(t *testing.T) {
-	incomplete := map[string][]string{"sca": {"x"}, "images": {"y"}}
-	controls := []norn.ControlOutcome{{Control: "images"}, {Control: "sast"}, {Control: "sca"}}
-	run := engine.Result{
-		ScanErrors: incomplete,
-		Reported:   map[string][]string{"images": {"trivy"}, "sca": {"grype-fs", "osv-scanner"}, "sast": {"semgrep"}},
-		FailedScans: []engine.FailedScan{
-			{Scanner: "trivy", Control: "images"},
-			{Scanner: "trivy-fs", Control: "sca"},
-		},
-	}
-	d := Data{Run: run, Verdict: norn.Result{Controls: controls}}
-	got := noFindingsWithErrors(d, []string{"dast"})
-	want := "No findings from the scanners that reported. In sca, grype-fs and osv-scanner reported and trivy-fs did not. " +
-		"images reported in part. dast did not report."
-	if got != want {
-		t.Errorf("closing =\n %q\nwant\n %q", got, want)
-	}
-
-	d.Run.Reported = nil
-	if got := noFindingsWithErrors(d, []string{"dast"}); got != "No findings from the controls that ran. A control marked ERROR did not report." {
-		t.Errorf("with no scanner reporting beside a failure, closing = %q", got)
+// TestEveryHumanFormatClosesOnTheSameLine: the console, markdown and HTML reports of a run with a
+// control in error and no findings close on one sentence, so the formats cannot drift apart.
+func TestEveryHumanFormatClosesOnTheSameLine(t *testing.T) {
+	d := twoScannerRun(t)
+	for name, r := range map[string]Reporter{"markdown": markdownReporter{}, "html": htmlReporter{}} {
+		var buf strings.Builder
+		if err := r.Render(&buf, d); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if !strings.Contains(buf.String(), noFindingsWithErrors) {
+			t.Errorf("%s does not close on %q", name, noFindingsWithErrors)
+		}
 	}
 }
