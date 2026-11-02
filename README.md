@@ -1,6 +1,6 @@
 # Draugr
 
-> Runs every security scanner you trust, then decides which findings matter. SAST, SCA, secrets, IaC and containers, every finding ranked by exposure, criticality, exploitability and reachability.
+> Know which security findings to fix first, from the scanners Draugr runs for you. SAST, SCA, secrets, IaC and containers, every finding ranked by exposure, criticality, exploitability and, for Go, reachability.
 
 [![CI](https://github.com/draugr-dev/draugr/actions/workflows/ci.yml/badge.svg)](https://github.com/draugr-dev/draugr/actions/workflows/ci.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/draugr-dev/draugr/badge)](https://scorecard.dev/viewer/?uri=github.com/draugr-dev/draugr)
@@ -8,7 +8,7 @@
 [![Latest release](https://img.shields.io/github/v/release/draugr-dev/draugr?sort=semver)](https://github.com/draugr-dev/draugr/releases)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue)](LICENSE)
 
-**Describe your app. Draugr figures out the rest.**
+**Describe your app in one file, and Draugr hands back the findings in the order to fix them.**
 
 Every application carries problems nobody put there on purpose: a library that turned out to have a
 hole in it, a password committed by accident, a server setting that leaves a door open. Draugr finds
