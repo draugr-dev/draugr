@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -73,9 +75,24 @@ const trivyFSConfigSchema = `{
         { "const": "comprehensive", "description": "Also a range such as >=1.2 in requirements.txt, read as its minimum version, and Go standard-library vulnerabilities." }
       ],
       "description": "How Trivy decides which version of a dependency is installed."
+    },
+    "resolveMaven": {
+      "type": "boolean",
+      "default": false,
+      "description": "Fetch each dependency's pom from Maven Central and the repositories the pom names, to read a pom.xml's transitive dependencies. Sends every dependency's coordinates to them. Ignored with --offline."
     }
   }
 }`
+
+// resolveMavenKey is trivy-fs's option to let Trivy resolve a pom.xml against remote repositories.
+const resolveMavenKey = "resolveMaven"
+
+// resolvesPoms reports whether a trivy-fs job runs without --offline-scan: its config sets
+// resolveMaven and this process may reach the network.
+func resolvesPoms(cfg plugin.Config) bool {
+	on, _ := cfg[resolveMavenKey].(bool)
+	return on && !netpolicy.Offline()
+}
 
 // NewTrivy returns a Scanner that runs Aqua Trivy against container images. It serves the
 // "images" control.
@@ -116,6 +133,12 @@ func NewTrivyFS() plugin.Scanner {
 			Controls:     []string{"sca"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},
 			ConfigSchema: json.RawMessage(trivyFSConfigSchema),
+			Effects: []plugin.Effect{{
+				Kind:   plugin.EffectDisclosure,
+				Option: resolveMavenKey,
+				Detail: "sends the group, artifact and version of each dependency a pom.xml declares, " +
+					"and of theirs, to Maven Central and the repositories the pom names",
+			}},
 		},
 		trivyFSArgs,
 		parseTrivyVulns,
@@ -137,7 +160,7 @@ func NewTrivyFS() plugin.Scanner {
 // trivyUnparsedFiles). The log goes to stderr, which is read and never printed.
 func trivyFSArgs(dir string, cfg plugin.Config) []string {
 	argv := showSuppressedArgs([]string{"trivy", "fs", "--debug", "--scanners", "vuln", "--format", "json", "--list-all-pkgs"})
-	return offlineTrivyArgs(append(trivyFSOptions(trivyOptions(argv, cfg), cfg), dir))
+	return trivyNetworkArgs(append(trivyFSOptions(trivyOptions(argv, cfg), cfg), dir), resolvesPoms(cfg))
 }
 
 // trivyFSOptions adds the options that decide which dependencies a filesystem scan reads. Each
@@ -193,23 +216,91 @@ func trivyOptions(argv []string, cfg plugin.Config) []string {
 	return argv
 }
 
-// offlineTrivyArgs adds --skip-db-update and --offline-scan when this process must make no network
-// calls.
+// trivyNetworkArgs adds the flags that decide what a Trivy scan may fetch, before its positional
+// target.
 //
+// --offline-scan unless resolvePoms. Without it Trivy resolves a pom.xml's dependencies by fetching
+// each dependency's own pom from Maven Central and from the repositories the pom names, which
+// sends the coordinates of every artifact the pom declares, internal ones included, to a party
+// nobody chose. Each Trivy invocation repeats the lookups, and Maven Central rate-limits repeated
+// lookups from one address. With it, Trivy reads the dependencies the pom declares and the local
+// Maven repository. Passed to every Trivy run, including those that read no pom.xml today, so the
+// rule holds for whatever Trivy reads next.
+//
+// --skip-db-update and --skip-java-db-update when this process must make no network calls.
 // Skipping the prewarm is not enough on its own: Trivy refreshes its database at scan time too,
-// so without this an offline run still reaches out, several times, once per job. With it, Trivy
+// so without them an offline run still reaches out, several times, once per job. With them, Trivy
 // uses its local cache and says plainly when there isn't one, which is a better message than
-// anything Draugr could write on its behalf. --offline-scan stops the other request Trivy makes
-// during a scan, resolving a pom.xml's dependencies against Maven Central.
-func offlineTrivyArgs(argv []string) []string {
-	if !netpolicy.Offline() {
-		return argv
+// anything Draugr could write on its behalf.
+func trivyNetworkArgs(argv []string, resolvePoms bool) []string {
+	var flags []string
+	if netpolicy.Offline() {
+		flags = append(flags, "--skip-db-update", "--skip-java-db-update")
+	}
+	if !resolvePoms || netpolicy.Offline() {
+		flags = append(flags, "--offline-scan")
 	}
 	// Before the positional argument: Trivy takes flags ahead of the target.
-	out := make([]string, 0, len(argv)+2)
+	out := make([]string, 0, len(argv)+len(flags))
 	out = append(out, argv[:len(argv)-1]...)
-	out = append(out, "--skip-db-update", "--skip-java-db-update", "--offline-scan")
+	out = append(out, flags...)
 	return append(out, argv[len(argv)-1])
+}
+
+// unresolvedPom is the reason a pom.xml read with --offline-scan is listed with the dependency
+// files read in part, when every direct dependency has a version and none of theirs was read.
+//
+// Both pom reasons name the act that clears the row for sca and licenses and sends nothing to a
+// third party: a Maven build filling the local repository, which Trivy reads under --offline-scan.
+// Each fits the console's caveat column, 80 characters, with ` (licenses, sca)` after it.
+const unresolvedPom = "transitive dependencies not resolved, run mvn dependency:resolve"
+
+// unversionedPom is the reason for a pom.xml with direct dependencies Trivy read no version for,
+// counted: `2 dependency versions not resolved, run mvn dependency:resolve`.
+const unversionedPom = " not resolved, run mvn dependency:resolve"
+
+// pomUnread is why a result set Trivy read from a pom.xml left dependencies unchecked, or false
+// where it read them all. offlineScan says the scan ran with --offline-scan.
+//
+// Two gaps, the first reported over the second because it is the wider:
+//
+//   - A direct dependency with no version. Its version comes from a parent POM, an imported BOM,
+//     or a property one of them defines, and Trivy reads those only from the checkout or the
+//     local Maven repository under --offline-scan, or not at all where no repository has them.
+//     Trivy lists the dependency without a version and checks nothing for it, so the dependency
+//     and everything below it went unread. Counted whether or not the scan resolved, because a
+//     version no repository answered for is as unread online as offline. A version written in
+//     the pom, or in a property the pom or a parent in the checkout defines, is read.
+//   - A direct dependency and no indirect one, under --offline-scan. Trivy finds a dependency's
+//     own dependencies in that dependency's pom, which it then reads only from the local Maven
+//     repository. A Maven build fills that repository with the whole tree, so one indirect
+//     dependency means the pom resolved locally; none, beside a direct one, means nothing did.
+//
+// Trivy's JSON says no more than that, and its log, which names each fetch it skipped, is not read
+// for this scan.
+func pomUnread(typ string, pkgs []trivyPackage, offlineScan bool) (string, bool) {
+	if typ != "pom" {
+		return "", false
+	}
+	direct, indirect, unversioned := false, false, 0
+	for _, p := range pkgs {
+		switch p.Relationship {
+		case "indirect":
+			indirect = true
+		case "direct":
+			direct = true
+			if p.Version == "" || strings.Contains(p.Version, "${") {
+				unversioned++
+			}
+		}
+	}
+	switch {
+	case unversioned > 0:
+		return english.Count(unversioned, "dependency version") + unversionedPom, true
+	case offlineScan && direct && !indirect:
+		return unresolvedPom, true
+	}
+	return "", false
 }
 
 // trivyArgv builds `trivy image --quiet --format json <ref>` for an image target.
@@ -223,7 +314,7 @@ func trivyArgv(target plugin.Target, cfg plugin.Config) ([]string, error) {
 		return nil, errors.New("trivy: image target has neither ref nor digest")
 	}
 	argv := []string{"trivy", "image", "--quiet", "--format", "json"}
-	return offlineTrivyArgs(append(trivyOptions(argv, cfg), ref)), nil
+	return trivyNetworkArgs(append(trivyOptions(argv, cfg), ref), false), nil
 }
 
 // imageRefLocations restates an image finding's location, and names the image it belongs to.

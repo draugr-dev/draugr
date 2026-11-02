@@ -1060,6 +1060,11 @@
                 "type": "string"
               },
               "type": "array"
+            },
+            "resolveMaven": {
+              "default": false,
+              "description": "Fetch each dependency's pom from Maven Central and the repositories the pom names, to read a pom.xml's transitive dependencies. Sends every dependency's coordinates to them. Ignored with --offline.",
+              "type": "boolean"
             }
           },
           "type": "object"

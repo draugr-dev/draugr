@@ -73,7 +73,11 @@ func NewTrivyConfig() plugin.Scanner {
 func trivyConfigArgs(dir string, cfg plugin.Config) []string {
 	argv := []string{"trivy", "config", "--debug", "--format", "sarif"}
 	if sharedTrivyVersion.showsSuppressed() {
-		argv = []string{"trivy", "fs", "--debug", "--scanners", "misconfig", "--format", "json", trivyConfigExclusionsArg}
+		// --offline-scan because `trivy fs` runs Trivy's dependency analyzers whatever --scanners
+		// says, and the pom.xml one resolves against Maven Central without it (see
+		// trivyNetworkArgs). `trivy config` runs none of them and refuses the flag.
+		argv = []string{"trivy", "fs", "--debug", "--scanners", "misconfig", "--format", "json", trivyConfigExclusionsArg,
+			"--offline-scan"}
 	}
 	for _, path := range stringList(cfg, "checks") {
 		if abs := absPath(path); abs != "" {

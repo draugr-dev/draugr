@@ -284,6 +284,26 @@ type Effect struct {
 	// Detail is one line, addressed to whoever has to approve it: what will happen, in terms of
 	// the target rather than the implementation.
 	Detail string
+	// Option is the boolean option in the scanner's Saga block that gives a job this effect, and
+	// empty for an effect every job has. A job whose config leaves the option unset or false does
+	// not have the effect. Declared here rather than decided inside the scanner, so a listing can
+	// say which option turns it on before any descriptor is read.
+	Option string
+}
+
+// EffectsFor is the effects a job of the scanner described by info has under cfg: every effect
+// with no Option, and each one whose Option cfg sets to true.
+func EffectsFor(info ScannerInfo, cfg Config) []Effect {
+	var out []Effect
+	for _, e := range info.Effects {
+		if e.Option != "" {
+			if on, _ := cfg[e.Option].(bool); !on {
+				continue
+			}
+		}
+		out = append(out, e)
+	}
+	return out
 }
 
 // EffectKinds is every effect a scanner can declare, most consequential first.

@@ -176,7 +176,7 @@ func (s licenseScanner) DataState(ctx context.Context) []plugin.DataState {
 // exist only under Results[].Licenses[] in the JSON. --debug for the reason trivyFSArgs gives.
 func trivyLicenseArgs(dir string, cfg plugin.Config) []string {
 	argv := []string{"trivy", "fs", "--debug", "--scanners", "license", "--format", "json"}
-	return offlineTrivyArgs(append(showSuppressedArgs(licenseFullArg(argv, cfg)), dir))
+	return trivyNetworkArgs(append(showSuppressedArgs(licenseFullArg(argv, cfg)), dir), false)
 }
 
 // trivyLicenseRepoArgs is trivyLicenseArgs with a --file-patterns for each pattern the control
@@ -198,7 +198,7 @@ func trivyLicenseImageArgv(target plugin.Target, cfg plugin.Config) ([]string, e
 		return nil, errors.New(trivyLicenseScannerName + ": image target has neither ref nor digest")
 	}
 	argv := []string{"trivy", "image", "--quiet", "--scanners", "license", "--format", "json"}
-	return offlineTrivyArgs(append(showSuppressedArgs(licenseFullArg(argv, cfg)), ref)), nil
+	return trivyNetworkArgs(append(showSuppressedArgs(licenseFullArg(argv, cfg)), ref), false), nil
 }
 
 // licenseFullArg adds --license-full when the descriptor asked for it.
@@ -229,6 +229,7 @@ type trivyLicenseDoc struct {
 		// package metadata arrives in a set of its own, class license-file, with no package name.
 		Target   string         `json:"Target"`
 		Class    string         `json:"Class"`
+		Type     string         `json:"Type"`
 		Packages []trivyPackage `json:"Packages"`
 		Licenses []trivyLicense `json:"Licenses"`
 		// Modified is what Trivy set aside under a rule of its own, reported only when it runs with
@@ -297,6 +298,11 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 
 	for _, res := range doc.Results {
 		if in, ok := trivyInput(dir, res.Class, res.Target, len(res.Packages)); ok {
+			// Always under --offline-scan, so a dependency's license is read only where its pom is in
+			// the local Maven repository, and its own dependencies with it.
+			if reason, ok := pomUnread(res.Type, res.Packages, true); ok {
+				in.Unread = reason
+			}
 			report.Inputs = append(report.Inputs, in)
 		}
 		for _, lic := range res.Licenses {

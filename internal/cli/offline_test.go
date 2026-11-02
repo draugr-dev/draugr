@@ -153,6 +153,50 @@ components:
 	}
 }
 
+// Maven Central is listed for a descriptor where a component's trivyFs block sets resolveMaven, and
+// not where none does, though both run trivy-fs. Two components in two repositories, one setting it.
+func TestDoctorListsMavenCentralOnlyWithResolveMaven(t *testing.T) {
+	const saga1 = `project: app
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: api
+    repositories:
+      - url: https://example.com/api.git
+`
+	for name, tc := range map[string]struct {
+		extra string
+		want  bool
+	}{
+		"set by one component": {`    controls:
+      sca:
+        trivyFs:
+          resolveMaven: true
+  - name: web
+    repositories:
+      - url: https://example.com/web.git
+`, true},
+		"set by none": {`  - name: web
+    repositories:
+      - url: https://example.com/web.git
+`, false},
+	} {
+		model, err := saga.LoadFile(writeSaga(t, saga1+tc.extra))
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		var buf bytes.Buffer
+		writeNetworkCalls(&buf, builtins.Registry(), model)
+		if got := strings.Contains(buf.String(), "repo.maven.apache.org"); got != tc.want {
+			t.Errorf("%s: Maven Central listed = %v, want %v:\n%s", name, got, tc.want, buf.String())
+		}
+	}
+}
+
 // A scanner that tells a third party about a target has to say which host, or the list somebody
 // builds an egress rule from is missing the one entry that discloses something.
 func TestEveryDisclosingScannerNamesItsHost(t *testing.T) {

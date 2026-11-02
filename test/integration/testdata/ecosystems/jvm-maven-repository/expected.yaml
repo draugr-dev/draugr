@@ -1,8 +1,12 @@
 # A pom.xml whose vulnerable dependency is transitive, declared only in the pom of a library the
 # repository depends on. That pom is served from the sealed Maven repository, which
 # home/.m2/settings.xml mirrors every repository to, so the finding exists only if Trivy resolved
-# the library's pom from it. The scan runs without --offline, because under it Draugr passes
-# --offline-scan and Trivy resolves nothing remotely.
+# the library's pom from it. Trivy resolves it only because the descriptor sets
+# trivyFs.resolveMaven, which drops --offline-scan; by default every Trivy run passes that flag and
+# Trivy reads only the dependencies the pom declares. The scan runs without --offline, which would
+# pass --offline-scan whatever the descriptor says.
+proves: [trivy-fs.resolveMaven]
+
 init:
   controls: [sca, secrets, sast, iac]
   components:
@@ -21,3 +25,8 @@ findings:
     rule: CVE-2021-44228
     location: pom.xml
     package: pom org.apache.logging.log4j:log4j-core 2.14.1
+
+# init leaves resolveMaven at its default, so Trivy runs with --offline-scan, never reads the
+# library's pom, and reports nothing for the transitive dependency.
+initScan:
+  unreported: [CVE-2021-44228]

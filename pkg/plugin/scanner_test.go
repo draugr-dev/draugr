@@ -5,6 +5,32 @@ import (
 	"time"
 )
 
+// An effect with no Option applies to every job; one with an Option only where the job's config
+// sets that option to true. A value that is not true, or not a boolean, does not turn it on.
+func TestEffectsForReadsTheOption(t *testing.T) {
+	always := Effect{Kind: EffectNetwork, Detail: "probes"}
+	optional := Effect{Kind: EffectDisclosure, Detail: "sends coordinates", Option: "resolve"}
+	info := ScannerInfo{Effects: []Effect{always, optional}}
+	for name, tc := range map[string]struct {
+		cfg  Config
+		want int
+	}{
+		"no config":   {nil, 1},
+		"option off":  {Config{"resolve": false}, 1},
+		"not a bool":  {Config{"resolve": "true"}, 1},
+		"option on":   {Config{"resolve": true}, 2},
+		"other is on": {Config{"other": true}, 1},
+	} {
+		got := EffectsFor(info, tc.cfg)
+		if len(got) != tc.want || got[0] != always {
+			t.Errorf("%s: EffectsFor = %+v, want %d starting with the unconditional one", name, got, tc.want)
+		}
+	}
+	if got := EffectsFor(ScannerInfo{}, Config{"resolve": true}); got != nil {
+		t.Errorf("a scanner declaring nothing has nothing: %+v", got)
+	}
+}
+
 func TestEffectKindsCoversTheTaxonomy(t *testing.T) {
 	// The Saga schema's allowEffects enum is generated from this, so a kind missing here is a
 	// value the schema rejects and the binary accepts, an editor disagreeing with Draugr.

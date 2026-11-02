@@ -893,13 +893,38 @@ func writeDoctorJSON(
 // disclosure effect to an entry here, so a new one cannot be missing from the list. An empty entry
 // is a scanner whose disclosure goes only to the target's own registry, which the scan contacts
 // anyway.
-var disclosedTo = map[string]struct{ Host, What string }{
-	"urlhaus":       {"urlhaus-api.abuse.ch", "learns each host's name"},
-	"virustotal":    {"www.virustotal.com", "learns each host's domain"},
-	"mend-sca":      {"$MEND_URL", "learns the dependency inventory"},
-	"mend-licenses": {"$MEND_URL", "learns the dependency inventory"},
-	"cosign":        {"rekor.sigstore.dev", "learns an image digest, for a signature with no inclusion proof"},
+//
+// Option, where set, is the scanner's option that turns the disclosure on (plugin.Effect.Option):
+// for a descriptor the host is listed only where a job of the scan sets it.
+var disclosedTo = map[string]struct{ Host, What, Option string }{
+	"urlhaus":       {"urlhaus-api.abuse.ch", "learns each host's name", ""},
+	"virustotal":    {"www.virustotal.com", "learns each host's domain", ""},
+	"mend-sca":      {"$MEND_URL", "learns the dependency inventory", ""},
+	"mend-licenses": {"$MEND_URL", "learns the dependency inventory", ""},
+	"cosign":        {"rekor.sigstore.dev", "learns an image digest, for a signature with no inclusion proof", ""},
 	"notation":      {},
+	"trivy-fs": {"repo.maven.apache.org",
+		"learns each Maven dependency's coordinates, with resolveMaven: true", "resolveMaven"},
+}
+
+// optionDisclosures names the scanners whose planned jobs in a scan of model set the option that
+// turns their disclosure on. A descriptor that does not plan cleanly yields what did plan; doctor
+// reports the planning errors elsewhere.
+func optionDisclosures(reg *engine.Registry, model *saga.Model) map[string]bool {
+	planned, _ := engine.New(reg).Plan(*model)
+	out := map[string]bool{}
+	for _, pj := range planned {
+		sc, ok := reg.Scanner(pj.Job.Scanner)
+		if !ok {
+			continue
+		}
+		for _, e := range plugin.EffectsFor(sc.Info(), pj.Job.Config) {
+			if e.Kind == plugin.EffectDisclosure && e.Option != "" {
+				out[pj.Job.Scanner] = true
+			}
+		}
+	}
+	return out
 }
 
 // scanContact is one host a scan contacts besides its own targets, and why.
@@ -916,12 +941,14 @@ type scanContact struct {
 // declaring what it reads is what keeps a derived list from silently shrinking.
 func scanContacts(reg *engine.Registry, model *saga.Model) []scanContact {
 	var scanners []plugin.ScannerInfo
+	var optioned map[string]bool
 	if model == nil {
 		for _, s := range reg.Scanners() {
 			scanners = append(scanners, s.Info())
 		}
 	} else {
 		scanners = needs.Scanners(reg, model)
+		optioned = optionDisclosures(reg, model)
 	}
 	var rows []scanContact
 	for _, info := range scanners {
@@ -935,7 +962,7 @@ func scanContacts(reg *engine.Registry, model *saga.Model) []scanContact {
 					rows = append(rows, scanContact{control, info.Name, host, d.Name + " · " + when})
 				}
 			}
-			if to := disclosedTo[info.Name]; to.Host != "" {
+			if to := disclosedTo[info.Name]; to.Host != "" && (to.Option == "" || model == nil || optioned[info.Name]) {
 				rows = append(rows, scanContact{control, info.Name, to.Host, to.What})
 			}
 		}

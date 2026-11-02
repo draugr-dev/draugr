@@ -51,7 +51,9 @@ type UnreadInput struct {
 	// not load the module.
 	//
 	// For a requirements file read in part, the requirements not read, as `1 requirement not
-	// pinned: urllib3`.
+	// pinned: urllib3`, and for a pom.xml Trivy did not resolve, `2 dependency versions not
+	// resolved, run mvn dependency:resolve` or `transitive dependencies not resolved, run mvn
+	// dependency:resolve`.
 	Reason string
 }
 

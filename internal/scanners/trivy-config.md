@@ -113,6 +113,9 @@ The **checks bundle**, from `mirror.gcr.io/aquasec/trivy-checks`, Trivy's own de
 per run. With `--offline`, Draugr passes `--skip-check-update` and Trivy evaluates the checks built
 into the pinned release. Misconfiguration scanning reads no vulnerability database.
 
+Every `trivy fs` run passes `--offline-scan`, so this scanner resolves no `pom.xml` against a
+remote Maven repository; see [`sca`](../controllers/sca.md#unread) for what Trivy then reads.
+
 **Terraform modules**, from the host each `module` block's `source` names: `registry.terraform.io`
 for a registry address, or the git host for a `git::` or GitHub source. Trivy downloads them into
 `.aqua/cache` under the system temporary directory. A module with a local `source` path is read from the checkout.

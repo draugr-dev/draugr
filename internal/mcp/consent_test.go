@@ -214,6 +214,32 @@ func TestEffectsModeAsksWhenAnyComponentPlansAnEffect(t *testing.T) {
 	}
 }
 
+// trivy-fs discloses only for a component whose block sets resolveMaven. Two components in two
+// repositories, one setting it: the scan asks, and names trivy-fs once. With neither setting it,
+// the same plan reads only.
+func TestEffectsModeAsksOnlyWhereResolveMavenIsSet(t *testing.T) {
+	model := &saga.Model{
+		Config: saga.Config{Controls: map[string]saga.ControllerSettings{"sca": {"enabled": true}}},
+		Components: []saga.Component{
+			{Name: "api", Repositories: []saga.Repository{{URL: "https://example.com/api.git"}},
+				Controls: map[string]saga.ControllerSettings{"sca": {"trivyFs": map[string]any{"resolveMaven": true}}}},
+			{Name: "web", Repositories: []saga.Repository{{URL: "https://example.com/web.git"}}},
+		},
+	}
+	p := mustPlan(t, model)
+	if !needsApproval(ScanEffects, p) {
+		t.Fatalf("a component resolving poms against Maven Central should ask: %+v", p)
+	}
+	if len(p.effects) != 1 || !strings.HasPrefix(p.effects[0], "trivy-fs (disclosure)") {
+		t.Errorf("effects = %v, want trivy-fs's disclosure once", p.effects)
+	}
+
+	model.Components[0].Controls = nil
+	if p := mustPlan(t, model); needsApproval(ScanEffects, p) {
+		t.Errorf("trivy-fs without resolveMaven should not ask: %v", p.effects)
+	}
+}
+
 // Two repositories under one component plan two jobs, and a scanner that uploads applies to both.
 // The answer must come from the scanners planned, not from how many repositories carry them.
 func TestEffectsModeAcrossTwoRepositoriesOfOneComponent(t *testing.T) {

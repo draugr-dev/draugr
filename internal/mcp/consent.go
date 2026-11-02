@@ -40,14 +40,20 @@ func planScan(reg *engine.Registry, model *saga.Model) (scanPlan, error) {
 	}
 	controls := map[string]bool{}
 	components := map[string]bool{}
-	scanners := map[string]bool{}
 	live := map[string]bool{}
+	// Per job rather than per scanner: an effect an option turns on belongs to the jobs whose
+	// config sets it, and one component setting it is enough for the scan to have it.
+	effects := map[string]bool{}
 	for _, pj := range planned {
 		controls[pj.Control] = true
 		if pj.Component != "" {
 			components[pj.Component] = true
 		}
-		scanners[pj.Job.Scanner] = true
+		if sc, ok := reg.Scanner(pj.Job.Scanner); ok {
+			for _, e := range plugin.EffectsFor(sc.Info(), pj.Job.Config) {
+				effects[fmt.Sprintf("%s (%s): %s", pj.Job.Scanner, e.Kind, e.Detail)] = true
+			}
+		}
 		// A host target is a running service somebody operates, not an artifact sitting on disk.
 		if pj.Job.Target != nil && pj.Job.Target.Kind() == plugin.TargetHost {
 			live[pj.Job.Scanner] = true
@@ -58,15 +64,7 @@ func planScan(reg *engine.Registry, model *saga.Model) (scanPlan, error) {
 		components: len(components),
 		live:       sortedSet(live),
 		delivery:   deliveryLines(model),
-	}
-	for _, name := range sortedSet(scanners) {
-		sc, ok := reg.Scanner(name)
-		if !ok {
-			continue
-		}
-		for _, e := range sc.Info().Effects {
-			p.effects = append(p.effects, fmt.Sprintf("%s (%s): %s", name, e.Kind, e.Detail))
-		}
+		effects:    sortedSet(effects),
 	}
 	// Not a scanner's effect, so no scanner declares it, and a descriptor that enables it sends
 	// the packages this scan finds to a third party all the same.

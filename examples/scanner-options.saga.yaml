@@ -52,6 +52,10 @@ config:
                                                      # OS layer
         dbRepository:                                # the vulnerability database, from a mirror
           - registry.internal/trivy-db:2
+        # resolveMaven: true                         # fetch each dependency's pom from Maven
+                                                     # Central, which sends its coordinates there.
+                                                     # Off, a pom.xml with poms Trivy could not
+                                                     # read is listed under unread-files
       grypeFs:
         enabled: true                                # opt-in. Both scanners run over the same
         byCve: true                                  # tree, and a flaw both find counts once

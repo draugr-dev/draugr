@@ -51,6 +51,7 @@ var notOurs = map[string]string{
 	"--download-db-only":  "Trivy's, for the air-gapped guide",
 	"--skip-db-update":    "Trivy's, for the air-gapped guide",
 	"--skip-check-update": "Trivy's, for the air-gapped guide",
+	"--offline-scan":      "Trivy's, passed on every run so no pom.xml is resolved against Maven Central",
 	"--ignorefile":        "Trivy's",
 	"--no-cache":          "Trivy's",
 	"--scan-cache":        "Trivy's, emptying its cache in the guide to handling scan artifacts",

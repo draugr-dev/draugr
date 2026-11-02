@@ -6,6 +6,7 @@ controls.sca.trivyFs.detectionPriority  precise or comprehensive              pr
 controls.sca.trivyFs.filePatterns       a list                                -
 controls.sca.trivyFs.includeDevDeps     true or false                         false
 controls.sca.trivyFs.pkgTypes           a list of os, library                 os, library
+controls.sca.trivyFs.resolveMaven       true or false                         false
 controls.sca.grypeFs.enabled            true or false                         false
 controls.sca.grypeFs.byCve              true or false                         true
 controls.sca.mendSca.enabled            true or false                         false
