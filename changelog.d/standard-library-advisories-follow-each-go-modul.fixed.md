@@ -1,1 +1,0 @@
-- **Standard-library advisories follow each Go module's own Go version.** With govulncheck in `config.reachability.analyzers`, each module is checked against the Go its own `go.mod` or `go.work` builds with, rather than the checkout root's.
