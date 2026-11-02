@@ -17,6 +17,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/draugr-dev/draugr/internal/english"
 )
 
 // Kind separates a file that names dependencies from one that pins them.
@@ -633,10 +635,64 @@ func hasPin(root, rel string) bool {
 	if err != nil {
 		return false
 	}
-	for _, line := range requirementLines(content) {
-		if strings.Contains(line, "==") {
-			return true
+	return slices.ContainsFunc(requirementLines(content), pinned)
+}
+
+// pinned reports whether a requirement names an exact version.
+func pinned(line string) bool { return strings.Contains(line, "==") }
+
+// namedInReason is how many unpinned requirements a PartlyPinned reason names. Past it the reason
+// gives the count alone, and the file shows which.
+const namedInReason = 3
+
+// PartlyPinned is the reason a requirements file a scanner took packages from was read in part:
+// the requirements in it with no exact version, as `1 requirement not pinned: urllib3`, or
+// `29 requirements not pinned` past namedInReason. Trivy and Grype take a package from a
+// requirements file only where its version is pinned with `==`.
+//
+// Trivy with detectionPriority: comprehensive also takes a range at its minimum version. Where the
+// scanner took more packages than the file pins, which requirements it passed over is not recorded,
+// and the reason counts them, as `2 requirements not read`.
+//
+// ok is false for a file that is not a requirements file or pins every requirement, for one the
+// scanner took as many packages from as it has requirements, and for one it took none from, which
+// Account reports.
+func PartlyPinned(root, rel string, packages int) (Reason, bool) {
+	if packages <= 0 || !isRequirements(rel) {
+		return "", false
+	}
+	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel))) // #nosec G304 -- under the scanned tree
+	if err != nil {
+		return "", false
+	}
+	lines := requirementLines(content)
+	var unpinned []string
+	for _, line := range lines {
+		if !pinned(line) {
+			unpinned = append(unpinned, requirementName(line))
 		}
 	}
-	return false
+	if len(unpinned) == 0 || packages >= len(lines) {
+		return "", false
+	}
+	if pins := len(lines) - len(unpinned); packages > pins {
+		return Reason(english.Count(len(lines)-packages, "requirement") + " not read"), true
+	}
+	reason := english.Count(len(unpinned), "requirement") + " not pinned"
+	if len(unpinned) <= namedInReason {
+		reason += ": " + strings.Join(unpinned, ", ")
+	}
+	return Reason(reason), true
+}
+
+// requirementName is the project a requirement names: `urllib3` in `urllib3>=1.0` and in
+// `urllib3[socks] ; python_version < "3.10"`. A URL or a path names no project, and stands as written.
+func requirementName(line string) string {
+	if strings.Contains(line, "://") || strings.HasPrefix(line, ".") || strings.HasPrefix(line, "/") {
+		return line
+	}
+	if i := strings.IndexAny(line, " <>=!~;[@(,"); i > 0 {
+		return line[:i]
+	}
+	return line
 }

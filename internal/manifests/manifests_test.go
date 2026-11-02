@@ -573,3 +573,42 @@ func TestIsLockfile(t *testing.T) {
 		}
 	}
 }
+
+// Every name a requirements file goes by is held to the same rule: a scanner that took fewer
+// packages than the file has requirements read it in part, and the reason names the requirements
+// with no exact version, or counts them past namedInReason.
+func TestPartlyPinnedNamesTheRequirementsNoScannerTook(t *testing.T) {
+	root := tree(t, map[string]string{
+		"requirements.txt":          "requests==2.25.0\nurllib3>=1.0\n",
+		"requirements-dev.txt":      "# tools\npytest==8.0.0\n-r requirements.txt\nblack[jupyter] ; python_version >= \"3.9\"\nruff~=0.4  # lint\n",
+		"requirements/test.txt":     "flask==0.12.2\ntorch>=2.0\ntransformers\nPillow~=9.0\nnumpy<2\n",
+		"svc/requirements_all.txt":  "a==1\ngit+https://github.com/acme/lib.git\n./vendored/pkg\n",
+		"pinned.requirements.txt":   "a==1\nb===2\n",
+		"unpinned-requirements.txt": "a>=1\nb\n",
+		"setup.py":                  "install_requires=['a>=1']\n",
+	})
+	for _, c := range []struct {
+		rel      string
+		packages int
+		want     Reason
+	}{
+		{"requirements.txt", 1, "1 requirement not pinned: urllib3"},
+		{"requirements-dev.txt", 1, "2 requirements not pinned: black, ruff"},
+		{"requirements/test.txt", 1, "4 requirements not pinned"},
+		{"svc/requirements_all.txt", 1, "2 requirements not pinned: git+https://github.com/acme/lib.git, ./vendored/pkg"},
+		// detectionPriority: comprehensive took two ranges at their minimum, and left two.
+		{"requirements/test.txt", 3, "2 requirements not read"},
+		{"unpinned-requirements.txt", 1, "1 requirement not read"},
+		// Every requirement taken, every one pinned, nothing taken, or not a requirements file.
+		{"requirements/test.txt", 5, ""},
+		{"pinned.requirements.txt", 2, ""},
+		{"requirements.txt", 0, ""},
+		{"setup.py", 1, ""},
+		{"missing-requirements.txt", 1, ""},
+	} {
+		got, ok := PartlyPinned(root, c.rel, c.packages)
+		if got != c.want || ok != (c.want != "") {
+			t.Errorf("PartlyPinned(%s, %d) = %q, %v; want %q", c.rel, c.packages, got, ok, c.want)
+		}
+	}
+}

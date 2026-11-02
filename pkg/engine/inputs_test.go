@@ -152,3 +152,40 @@ func TestInputCoveragePrefersOneReasonDeterministically(t *testing.T) {
 		t.Errorf("coverage = %+v", got)
 	}
 }
+
+// A file a scanner read in part is counted as read and listed with what was not read, unless
+// another scanner of the control read all of it. Two components, each with its own repository and
+// the same path in it, so neither component's answer stands for the other's.
+func TestInputCoverageListsAFileReadInPart(t *testing.T) {
+	const partly = "1 requirement not pinned: urllib3"
+	byCtl := map[string][]sarif.Report{"sca": {
+		{Inputs: []sarif.Input{
+			{Scanner: "trivy-fs", Component: "api", Repository: "api", Path: "requirements.txt", Packages: 1, Unread: partly},
+			{Scanner: "trivy-fs", Component: "worker", Repository: "worker", Path: "requirements.txt", Packages: 1, Unread: partly},
+			{Scanner: "trivy-fs", Component: "worker", Repository: "worker", Path: "requirements-dev.txt", Unread: "no packages read"},
+			{Scanner: "trivy-fs", Component: "worker", Repository: "worker", Path: "requirements/test.txt", Unread: "no pinned versions"},
+		}},
+		{Inputs: []sarif.Input{
+			// Grype read every requirement of worker's file, and only part of api's.
+			{Scanner: "grype-fs", Component: "api", Repository: "api", Path: "requirements.txt", Packages: 1, Unread: partly},
+			{Scanner: "grype-fs", Component: "worker", Repository: "worker", Path: "requirements.txt", Packages: 2},
+			{Scanner: "grype-fs", Component: "worker", Repository: "worker", Path: "requirements-dev.txt", Packages: 3,
+				Unread: "2 requirements not pinned: torch, transformers"},
+			{Scanner: "grype-fs", Component: "worker", Repository: "worker", Path: "requirements/test.txt", Unread: "no pinned versions"},
+		}},
+	}}
+	want := []InputCoverage{
+		{Component: "api", Control: "sca", Scanners: []string{"grype-fs", "trivy-fs"}, Read: 1,
+			Unread: []UnreadInput{{Repository: "api", Path: "requirements.txt", Reason: partly}}},
+		{Component: "worker", Control: "sca", Scanners: []string{"grype-fs", "trivy-fs"}, Read: 2,
+			Unread: []UnreadInput{
+				// Read in part by one scanner and not at all by the other: what was read in part
+				// says what was left.
+				{Repository: "worker", Path: "requirements-dev.txt", Reason: "2 requirements not pinned: torch, transformers"},
+				{Repository: "worker", Path: "requirements/test.txt", Reason: "no pinned versions"},
+			}},
+	}
+	if got := inputCoverage(byCtl); !reflect.DeepEqual(got, want) {
+		t.Errorf("coverage =\n%+v\nwant\n%+v", got, want)
+	}
+}
