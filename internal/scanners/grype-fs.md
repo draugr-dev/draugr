@@ -73,6 +73,14 @@ finding, so the scan also asks for `-o cyclonedx-json` into a temporary file and
 dependency file in the checkout is listed as unread, see [`sca`](../controllers/sca.md#unread).
 A run that writes no inventory is an error rather than a scan that read nothing.
 
+**Each finding's package is read from Grype's JSON report.** Grype's SARIF states a package once
+per advisory and package name, and a lockfile often holds one package at several versions, each a
+match of the same advisory. The version, fixed version and package URL therefore come from the
+finding's own entry in the JSON report the same run writes, which is what correlates it with
+Trivy's copy at that version. A finding with no entry there takes the package the SARIF states only
+where it is that finding's version, and otherwise carries none. [`grype`](grype.md) reads image
+findings the same way.
+
 **One scan per repository.** A component may hold several, and each is scanned and attributed
 separately, findings from two repositories that share a path stay two findings.
 

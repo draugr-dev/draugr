@@ -55,11 +55,28 @@ func runGrypeRecordingExclusions(run func(argv []string) ([]byte, error), dir st
 	if len(doc) == 0 {
 		return nil, errors.New("wrote no JSON report, so what its configuration ignored cannot be reported")
 	}
-	return withGrypeExclusions(out, doc, grypeConfigRules(dir))
+	return withGrypeJSON(out, doc, grypeConfigRules(dir))
 }
 
-// grypeDoc is the slice of Grype's JSON report that names what it ignored.
+// withGrypeJSON completes Grype's SARIF from the JSON report the same invocation wrote: each
+// reported result gains its own match's package (see withGrypeMatchPackages), and each match the
+// configuration ignored is added as a suppressed result (see withGrypeExclusions).
+func withGrypeJSON(sarifOut, jsonOut []byte, files []grypeRuleFile) ([]byte, error) {
+	var doc grypeDoc
+	if err := json.Unmarshal(jsonOut, &doc); err != nil {
+		return nil, fmt.Errorf("read its JSON report: %w", err)
+	}
+	out, err := withGrypeMatchPackages(sarifOut, doc.Matches)
+	if err != nil {
+		return nil, err
+	}
+	return withGrypeExclusions(out, doc, files)
+}
+
+// grypeDoc is the slice of Grype's JSON report Draugr reads: each match it reported, each it
+// ignored, and what it scanned.
 type grypeDoc struct {
+	Matches        []grypeMatch `json:"matches"`
 	IgnoredMatches []grypeMatch `json:"ignoredMatches"`
 	Source         struct {
 		Type string `json:"type"`
@@ -82,7 +99,8 @@ type grypeMatch struct {
 		Type      string `json:"type"`
 		PURL      string `json:"purl"`
 		Locations []struct {
-			Path string `json:"path"`
+			Path       string `json:"path"`
+			AccessPath string `json:"accessPath"`
 		} `json:"locations"`
 	} `json:"artifact"`
 	AppliedIgnoreRules []grypeIgnoreRule `json:"appliedIgnoreRules"`
@@ -175,11 +193,7 @@ func grypeConfigRules(dir string) []grypeRuleFile {
 
 // withGrypeExclusions adds each match Grype's configuration ignored to its SARIF, as a result
 // carrying a suppression with origin scanner. SARIF with nothing to add is returned unchanged.
-func withGrypeExclusions(sarifOut, jsonOut []byte, files []grypeRuleFile) ([]byte, error) {
-	var doc grypeDoc
-	if err := json.Unmarshal(jsonOut, &doc); err != nil {
-		return nil, fmt.Errorf("read its JSON report: %w", err)
-	}
+func withGrypeExclusions(sarifOut []byte, doc grypeDoc, files []grypeRuleFile) ([]byte, error) {
 	image := grypeImageRef(doc)
 	var results, rules []any
 	for _, m := range doc.IgnoredMatches {
@@ -215,7 +229,9 @@ func grypeImageRef(doc grypeDoc) string {
 
 // grypeExcludedResult writes one ignored match as a SARIF result and its rule, in the shape Grype
 // gives a match it reports, so everything that reads Grype's SARIF reads this the same way: the
-// package from the rule's help text and purl, the score from security-severity.
+// score from security-severity, the package from the rule's help text and purl. The result also
+// carries its own match's package, as a reported one does, because an ignored match can share its
+// rule with others at other versions.
 func grypeExcludedResult(m grypeMatch, applied []grypeIgnoreRule, image string, files []grypeRuleFile) (result, rule map[string]any) {
 	v := m.Vulnerability
 	severity := strings.ToLower(v.Severity)
@@ -244,6 +260,7 @@ func grypeExcludedResult(m grypeMatch, applied []grypeIgnoreRule, image string, 
 			"region":           map[string]any{"startLine": 1, "startColumn": 1, "endLine": 1, "endColumn": 1},
 		}}},
 		"suppressions": []any{suppression},
+		"properties":   map[string]any{"package": grypeMatchPackage(m)},
 	}
 
 	help := strings.Join([]string{
@@ -251,7 +268,7 @@ func grypeExcludedResult(m grypeMatch, applied []grypeIgnoreRule, image string, 
 		"Severity: " + severity,
 		"Package: " + m.Artifact.Name,
 		"Version: " + m.Artifact.Version,
-		"Fix Version: " + strings.Join(v.Fix.Versions, ","),
+		"Fix Version: " + grypeMatchPackage(m).FixedVersion,
 		"Type: " + m.Artifact.Type,
 		"Location: " + path,
 		"Data Namespace: " + v.Namespace,

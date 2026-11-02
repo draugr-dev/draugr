@@ -1,10 +1,12 @@
 package scanners
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -244,32 +246,221 @@ func parseGrypeImageSARIF(out []byte, _ plugin.Target, _ plugin.Config) (sarif.R
 	return parseGrypeSARIF(out)
 }
 
-// parseGrypeSARIF decodes Grype's SARIF and gives each result the package its rule is about. Shared
-// by the image and repository scanners, which read the same document.
+// parseGrypeSARIF decodes Grype's SARIF and gives each result its package. Shared by the image and
+// repository scanners, which read the same document.
+//
+// A result normally arrives carrying the package of its own match, which withGrypeMatchPackages
+// read from Grype's JSON report. One that does not falls back to its rule's help text, but only
+// where that text is known to describe it: the rule has no other result, or the result's message
+// states the version the rule does. Grype writes one rule per advisory and package name, so a rule
+// with several results describes one of them, and any other result given its package would carry
+// another match's version, fixed version and package URL. Such a result carries no package. It is
+// then neither correlated with another scanner's copy nor matched by a VEX statement, which is the
+// honest outcome for a finding whose package Draugr cannot name, and better than naming the wrong
+// one.
 func parseGrypeSARIF(out []byte) (sarif.Report, error) {
 	report, err := sarif.FromSARIF(out)
 	if err != nil {
 		return sarif.Report{}, err
 	}
 	packages := grypePackages(out)
+	perRule := map[string]int{}
+	for _, r := range report.Results {
+		perRule[r.RuleID]++
+	}
 	for i := range report.Results {
-		if pkg, ok := packages[report.Results[i].RuleID]; ok {
+		r := &report.Results[i]
+		if r.Package != nil {
+			continue
+		}
+		pkg, ok := packages[r.RuleID]
+		if !ok {
+			continue
+		}
+		if _, version, _ := grypeMessagePackage(r.Message); perRule[r.RuleID] == 1 || version == pkg.Version {
 			p := pkg
-			report.Results[i].Package = &p
+			r.Package = &p
 		}
 	}
 	return report, nil
 }
 
+// grypeResultMessage matches the sentence Grype writes as each result's message, naming the
+// package's type and the installed version that one match is about: "A medium vulnerability in npm
+// package: minimatch, version 9.0.1 was found at: /pnpm-lock.yaml".
+var grypeResultMessage = regexp.MustCompile(`in (\S+) package: .+, version (\S+) was found`)
+
+// grypeMessagePackage reads the package type and version a Grype result's message states, and false
+// for a message that states neither.
+func grypeMessagePackage(message string) (kind, version string, ok bool) {
+	m := grypeResultMessage.FindStringSubmatch(message)
+	if m == nil {
+		return "", "", false
+	}
+	return m[1], m[2], true
+}
+
+// grypeMatchPackage is the package one match of Grype's JSON report is about, in the terms the rule
+// help text uses: the fixing versions joined by commas, the artifact type as the ecosystem.
+func grypeMatchPackage(m grypeMatch) sarif.Package {
+	return sarif.Package{
+		Name:         m.Artifact.Name,
+		Version:      m.Artifact.Version,
+		FixedVersion: strings.Join(m.Vulnerability.Fix.Versions, ","),
+		Ecosystem:    m.Artifact.Type,
+		PURL:         m.Artifact.PURL,
+	}
+}
+
+// withGrypeMatchPackages writes onto each result of Grype's SARIF the package of the match it
+// reports, read from the JSON report the same invocation wrote, as the result property the SARIF
+// reader takes a package from. SARIF with no result to stamp is returned unchanged.
+//
+// Paired with Grype's own SARIF result rather than rebuilt from the JSON, as an ignored match is.
+// The SARIF stays the source of everything else a finding carries, its message, level, score,
+// location and fingerprint, as Grype wrote them, so the change is confined to the one fact the
+// SARIF states per rule instead of per result. Grype writes one rule per advisory and package name,
+// so every match of one advisory in one package shares a rule, and the version, fixed version and
+// package URL in its help text describe only the first.
+func withGrypeMatchPackages(sarifOut []byte, matches []grypeMatch) ([]byte, error) {
+	if len(matches) == 0 {
+		return sarifOut, nil
+	}
+	dec := json.NewDecoder(bytes.NewReader(sarifOut))
+	dec.UseNumber()
+	var log map[string]any
+	if err := dec.Decode(&log); err != nil {
+		return nil, fmt.Errorf("read its SARIF: %w", err)
+	}
+	index := newGrypeMatchIndex(matches)
+	stamped := 0
+	runs, _ := log["runs"].([]any)
+	for _, run := range runs {
+		r, _ := run.(map[string]any)
+		results, _ := r["results"].([]any)
+		for _, res := range results {
+			result, _ := res.(map[string]any)
+			if result == nil {
+				continue
+			}
+			pkg, ok := index.find(grypeSARIFResultFields(result))
+			if !ok {
+				continue
+			}
+			props, _ := result["properties"].(map[string]any)
+			if props == nil {
+				props = map[string]any{}
+				result["properties"] = props
+			}
+			props["package"] = pkg
+			stamped++
+		}
+	}
+	if stamped == 0 {
+		return sarifOut, nil
+	}
+	return json.Marshal(log)
+}
+
+// grypeSARIFResultFields reads what pairs a SARIF result with its match: the rule, the message that
+// states the version, and the location.
+func grypeSARIFResultFields(result map[string]any) (ruleID, message, uri string) {
+	ruleID, _ = result["ruleId"].(string)
+	if msg, ok := result["message"].(map[string]any); ok {
+		message, _ = msg["text"].(string)
+	}
+	if locs, ok := result["locations"].([]any); ok && len(locs) > 0 {
+		loc, _ := locs[0].(map[string]any)
+		phys, _ := loc["physicalLocation"].(map[string]any)
+		art, _ := phys["artifactLocation"].(map[string]any)
+		uri, _ = art["uri"].(string)
+	}
+	return ruleID, message, uri
+}
+
+// grypeMatchIndex holds the matches of Grype's JSON report by rule id and installed version.
+//
+// The version is part of the key because the rule and the file are not enough. A pnpm lockfile
+// commonly holds one package at several versions, each a match of the same advisory under the same
+// rule at the same path, and the version Grype states in each result's message is the one fact that
+// tells them apart.
+type grypeMatchIndex map[string][]grypeMatch
+
+func newGrypeMatchIndex(matches []grypeMatch) grypeMatchIndex {
+	index := grypeMatchIndex{}
+	for _, m := range matches {
+		key := grypeMatchKey(m.Vulnerability.ID+"-"+m.Artifact.Name, m.Artifact.Version)
+		index[key] = append(index[key], m)
+	}
+	return index
+}
+
+func grypeMatchKey(ruleID, version string) string { return ruleID + "\x00" + version }
+
+// find returns the package of the match a result reports, and false where no match fits or the
+// matches that fit disagree about the package.
+//
+// Matches of the rule and version are narrowed to the package type the message names, then to
+// those whose first location, which is the one Grype writes as the result's, is the longest
+// path-wise suffix of the result's location. A suffix rather than equality, because Grype prefixes
+// an image finding's path with a short image name and may root a directory finding's path at the
+// directory it was given.
+func (x grypeMatchIndex) find(ruleID, message, uri string) (sarif.Package, bool) {
+	kind, version, ok := grypeMessagePackage(message)
+	if !ok {
+		return sarif.Package{}, false
+	}
+	var best []grypeMatch
+	longest := -1
+	for _, m := range x[grypeMatchKey(ruleID, version)] {
+		if m.Artifact.Type != kind {
+			continue
+		}
+		switch n := grypeLocationSuffix(m, uri); {
+		case n > longest:
+			best, longest = []grypeMatch{m}, n
+		case n == longest:
+			best = append(best, m)
+		}
+	}
+	if len(best) == 0 {
+		return sarif.Package{}, false
+	}
+	pkg := grypeMatchPackage(best[0])
+	for _, m := range best[1:] {
+		if grypeMatchPackage(m) != pkg {
+			return sarif.Package{}, false
+		}
+	}
+	return pkg, true
+}
+
+// grypeLocationSuffix is the length of a match's first location where the result's location ends
+// with it at a path boundary, and 0 where it does not.
+func grypeLocationSuffix(m grypeMatch, uri string) int {
+	if len(m.Artifact.Locations) == 0 {
+		return 0
+	}
+	u := strings.TrimLeft(uri, "/")
+	longest := 0
+	for _, path := range []string{m.Artifact.Locations[0].Path, m.Artifact.Locations[0].AccessPath} {
+		p := strings.TrimLeft(path, "/")
+		if p != "" && (u == p || strings.HasSuffix(u, "/"+p)) {
+			longest = max(longest, len(p))
+		}
+	}
+	return longest
+}
+
 // grypePackages reads the dependency each rule is about, keyed by rule id.
 //
 // Grype states it on the *rule* rather than the result, a purl in the rule's property bag, and the
-// version that fixes it inside the rule's help text, so the generic SARIF reader does not see it
-// and every Grype finding arrived without a package.
+// version that fixes it inside the rule's help text, so the generic SARIF reader does not see it.
+// The rule describes the first match of its advisory and package name, which is why
+// parseGrypeSARIF reaches for it only where a result carries no package of its own.
 //
-// That is worth more than it looks. A finding with no package identity cannot be matched by a
-// supplier's VEX document, cannot be recognized as the same flaw another scanner reported, and
-// cannot be tied back to an SBOM entry. The data was there the whole time, one level up.
+// A finding with no package identity cannot be matched by a supplier's VEX document, cannot be
+// recognized as the same flaw another scanner reported, and cannot be tied back to an SBOM entry.
 func grypePackages(out []byte) map[string]sarif.Package {
 	var doc struct {
 		Runs []struct {
