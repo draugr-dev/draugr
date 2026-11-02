@@ -51,8 +51,25 @@ func NewGovulncheck() plugin.Scanner {
 	)
 	s.cacheVersion = govulncheckCacheVersion
 	s.preflight = func(ctx context.Context, _ plugin.Config) error { return govulncheckPreflight(ctx) }
-	s.run = onRuntime(s.info.Binary, onBuildGo(onGoWork(execArgvInDirWithEnv)))
+	s.run = onRuntime(s.info.Binary, onBuildGo(onGoWork(inModuleDir(execArgvInDirWithEnv))))
 	return s
+}
+
+// inModuleDir runs govulncheck with the module its argv names (`-C <module>`) as its working
+// directory.
+//
+// govulncheck decides which standard-library advisories apply from `go env GOVERSION`, which it runs
+// in its own working directory rather than in the module `-C` names. The go command there picks the
+// toolchain from the go.mod, or go.work, it finds, so run from the checkout root the root module's
+// `go` line, or no module's at all, would set the standard-library version for every module in the
+// repository. Run from the module, it is the Go that module builds with.
+func inModuleDir(run func(ctx context.Context, dir string, argv, env []string) ([]byte, error)) func(ctx context.Context, dir string, argv, env []string) ([]byte, error) {
+	return func(ctx context.Context, dir string, argv, env []string) ([]byte, error) {
+		if i := slices.Index(argv, "-C"); i >= 0 && i+1 < len(argv) {
+			dir = argv[i+1]
+		}
+		return run(ctx, dir, argv, env)
+	}
 }
 
 // lookRuntime finds a runtime on PATH. A variable so a test can take one off it.

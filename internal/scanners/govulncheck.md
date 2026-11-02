@@ -45,6 +45,12 @@ only requires it is not lent that call path. Two components sharing a repository
 is analyzed as the workspace builds it, which is the build `go build` in that directory produces,
 and a module the workspace does not use is analyzed on its own.
 
+**Standard-library advisories follow each module's Go.** govulncheck runs with the module as its
+working directory, where it reads `go env GOVERSION`, so the standard library is checked at the
+version the go command builds that module with: the toolchain its `go` or `toolchain` line, or its
+`go.work`'s, selects, or the Go on PATH where that is newer. With go1.26.10 on PATH, a module
+declaring `go 1.27.1` is checked against go1.27.1 and one declaring `go 1.26` against go1.26.10.
+
 **Components carved out of one module** are each analyzed from their own code. The checkout holds
 the whole module, as [Scoping a repository](../../docs/reference/saga-schema.md#scoping-a-repository)
 describes, and govulncheck starts from the packages the component's `paths` hold: `./cmd/api/...`
