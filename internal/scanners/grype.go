@@ -264,6 +264,11 @@ func parseGrypeSARIF(out []byte) (sarif.Report, error) {
 		return sarif.Report{}, err
 	}
 	packages := grypePackages(out)
+	if aliases := grypeResultAliases(out); len(aliases) == len(report.Results) {
+		for i, ids := range aliases {
+			report.Results[i].Aliases = ids
+		}
+	}
 	perRule := map[string]int{}
 	for _, r := range report.Results {
 		perRule[r.RuleID]++
@@ -343,7 +348,7 @@ func withGrypeMatchPackages(sarifOut []byte, matches []grypeMatch) ([]byte, erro
 			if result == nil {
 				continue
 			}
-			pkg, ok := index.find(grypeSARIFResultFields(result))
+			pkg, aliases, ok := index.find(grypeSARIFResultFields(result))
 			if !ok {
 				continue
 			}
@@ -353,6 +358,9 @@ func withGrypeMatchPackages(sarifOut []byte, matches []grypeMatch) ([]byte, erro
 				result["properties"] = props
 			}
 			props["package"] = pkg
+			if len(aliases) > 0 {
+				props[grypeAliasesProperty] = aliases
+			}
 			stamped++
 		}
 	}
@@ -397,18 +405,19 @@ func newGrypeMatchIndex(matches []grypeMatch) grypeMatchIndex {
 
 func grypeMatchKey(ruleID, version string) string { return ruleID + "\x00" + version }
 
-// find returns the package of the match a result reports, and false where no match fits or the
-// matches that fit disagree about the package.
+// find returns the package of the match a result reports and the match's other identifiers, and
+// false where no match fits or the matches that fit disagree about the package. Matches that agree
+// about the package and not about the identifiers give none.
 //
 // Matches of the rule and version are narrowed to the package type the message names, then to
 // those whose first location, which is the one Grype writes as the result's, is the longest
 // path-wise suffix of the result's location. A suffix rather than equality, because Grype prefixes
 // an image finding's path with a short image name and may root a directory finding's path at the
 // directory it was given.
-func (x grypeMatchIndex) find(ruleID, message, uri string) (sarif.Package, bool) {
+func (x grypeMatchIndex) find(ruleID, message, uri string) (sarif.Package, []string, bool) {
 	kind, version, ok := grypeMessagePackage(message)
 	if !ok {
-		return sarif.Package{}, false
+		return sarif.Package{}, nil, false
 	}
 	var best []grypeMatch
 	longest := -1
@@ -424,15 +433,72 @@ func (x grypeMatchIndex) find(ruleID, message, uri string) (sarif.Package, bool)
 		}
 	}
 	if len(best) == 0 {
-		return sarif.Package{}, false
+		return sarif.Package{}, nil, false
 	}
-	pkg := grypeMatchPackage(best[0])
+	pkg, aliases := grypeMatchPackage(best[0]), grypeMatchAliases(best[0])
 	for _, m := range best[1:] {
 		if grypeMatchPackage(m) != pkg {
-			return sarif.Package{}, false
+			return sarif.Package{}, nil, false
+		}
+		if !slices.Equal(grypeMatchAliases(m), aliases) {
+			aliases = nil
 		}
 	}
-	return pkg, true
+	return pkg, aliases, true
+}
+
+// grypeAliasesProperty is the result property withGrypeMatchPackages writes a match's other
+// identifiers under, for parseGrypeSARIF to read back. Namespaced, as the SARIF reader's own
+// draugr/rating is, so it cannot be mistaken for a property Grype writes.
+const grypeAliasesProperty = "draugr/aliases"
+
+// grypeMatchAliases are the identifiers of the vulnerabilities Grype relates to a match, other than
+// the one it reported the match under, each once.
+//
+// Grype's record for an advisory names the identifiers that advisory lists as its own: a GitHub
+// advisory's CVE, and, reported by CVE, the advisory it was matched on. They are its statement that
+// those identifiers name the flaw it matched, made about this one match, so correlation can count
+// it once with a copy another scanner keyed on any of them.
+func grypeMatchAliases(m grypeMatch) []string {
+	var ids []string
+	for _, v := range m.RelatedVulnerabilities {
+		if v.ID != "" && v.ID != m.Vulnerability.ID && !slices.Contains(ids, v.ID) {
+			ids = append(ids, v.ID)
+		}
+	}
+	return ids
+}
+
+// grypeResultAliases reads back the identifiers withGrypeMatchPackages wrote on each result, in the
+// order the SARIF lists its results, which is the order the SARIF reader returns them in. Nil when
+// the document cannot be read or holds no result carrying any.
+func grypeResultAliases(out []byte) [][]string {
+	var doc struct {
+		Runs []struct {
+			Results []struct {
+				Properties map[string]json.RawMessage `json:"properties"`
+			} `json:"results"`
+		} `json:"runs"`
+	}
+	if json.Unmarshal(out, &doc) != nil {
+		return nil
+	}
+	var all [][]string
+	found := false
+	for _, run := range doc.Runs {
+		for _, r := range run.Results {
+			var ids []string
+			if raw, ok := r.Properties[grypeAliasesProperty]; ok && json.Unmarshal(raw, &ids) != nil {
+				ids = nil
+			}
+			found = found || len(ids) > 0
+			all = append(all, ids)
+		}
+	}
+	if !found {
+		return nil
+	}
+	return all
 }
 
 // grypeLocationSuffix is the length of a match's first location where the result's location ends

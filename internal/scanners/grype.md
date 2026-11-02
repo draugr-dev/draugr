@@ -77,6 +77,11 @@ URL therefore come from the finding's own entry in the JSON report the same run 
 what correlates it with Trivy's copy at that version. A finding with no entry there takes the
 package the SARIF states only where it is that finding's version, and otherwise carries none.
 
+**Each finding keeps the identifiers Grype relates to its match** in `relatedVulnerabilities`. A
+finding reported by CVE names the GitHub advisory it was matched on, and one reported by GitHub
+advisory names its CVE. Another scanner's copy keyed on any of them is counted once with this one, and a
+reachability verdict reported under any of them reaches it.
+
 ## Writing an exclusion that covers both
 
 Grype's rule identifier is the vulnerability followed by the package it was found in.

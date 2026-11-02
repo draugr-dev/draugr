@@ -262,6 +262,9 @@ func grypeExcludedResult(m grypeMatch, applied []grypeIgnoreRule, image string, 
 		"suppressions": []any{suppression},
 		"properties":   map[string]any{"package": grypeMatchPackage(m)},
 	}
+	if aliases := grypeMatchAliases(m); len(aliases) > 0 {
+		result["properties"].(map[string]any)[grypeAliasesProperty] = aliases
+	}
 
 	help := strings.Join([]string{
 		"Vulnerability " + v.ID,
