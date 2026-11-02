@@ -3,6 +3,7 @@ package report
 import (
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"slices"
 	"strings"
@@ -143,6 +144,65 @@ func TestAControlWithAFailedScannerReadsAlikeInTheConsoleAndReportJSON(t *testin
 	}
 	if !strings.Contains(console, noFindingsWithErrors) {
 		t.Errorf("console does not close on %q:\n%s", noFindingsWithErrors, console)
+	}
+}
+
+// A control with a scan error is a JUnit suite that errors, with the scanner's error in its testcase
+// and no passing testcase beside it: sca, where trivy-fs failed and grype-fs found nothing, and
+// secrets, where both scanners failed and no verdict entry exists.
+func TestJUnitErrorsAControlWithAFailedScanner(t *testing.T) {
+	d := twoScannerRun(t)
+	var suites junitTestsuites
+	if err := xml.Unmarshal([]byte(renderWith(t, junitReporter{}, d)), &suites); err != nil {
+		t.Fatal(err)
+	}
+	if suites.Errors != 2 || suites.Failures != 0 || suites.Tests != 2 {
+		t.Errorf("root tests=%d failures=%d errors=%d, want 2/0/2", suites.Tests, suites.Failures, suites.Errors)
+	}
+	want := map[string]string{"sca": "trivy-fs", "secrets": "gitleaks"}
+	if len(suites.Suites) != len(want) {
+		t.Fatalf("suites = %+v, want sca and secrets", suites.Suites)
+	}
+	for _, s := range suites.Suites {
+		if s.Errors != 1 || s.Tests != 1 || len(s.TestCases) != 1 {
+			t.Errorf("%s: tests=%d errors=%d cases=%d, want one erroring testcase", s.Name, s.Tests, s.Errors, len(s.TestCases))
+			continue
+		}
+		tc := s.TestCases[0]
+		if tc.Error == nil || tc.Failure != nil {
+			t.Errorf("%s: testcase %+v, want an <error> and no <failure>", s.Name, tc)
+			continue
+		}
+		if !strings.Contains(tc.Error.Message, "run "+want[s.Name]+": exit status 1") ||
+			!strings.Contains(tc.Error.Body, "invalid file regexp") {
+			t.Errorf("%s: error %+v, want the failure of %s", s.Name, tc.Error, want[s.Name])
+		}
+	}
+}
+
+// A control whose scanner failed beside findings another reported keeps its failing testcases and
+// gains the erroring one ahead of them, and the scan error's repeats across jobs read as one message.
+func TestJUnitKeepsFindingsBesideAScanError(t *testing.T) {
+	d := sampleData()
+	d.Run.ScanErrors = map[string][]string{"secrets": {"run trufflehog: boom", "run trufflehog: boom"}}
+	var suites junitTestsuites
+	if err := xml.Unmarshal([]byte(renderWith(t, junitReporter{}, d)), &suites); err != nil {
+		t.Fatal(err)
+	}
+	if suites.Failures != 3 || suites.Errors != 1 || suites.Tests != 4 {
+		t.Errorf("root tests=%d failures=%d errors=%d, want 4/3/1", suites.Tests, suites.Failures, suites.Errors)
+	}
+	for _, s := range suites.Suites {
+		if s.Name != "secrets" {
+			if s.Errors != 0 {
+				t.Errorf("%s errors = %d, want 0", s.Name, s.Errors)
+			}
+			continue
+		}
+		first := s.TestCases[0]
+		if s.Failures != 1 || s.Errors != 1 || first.Error == nil || first.Error.Message != "run trufflehog: boom (2 jobs)" {
+			t.Errorf("secrets = %+v, want its finding and one scan error", s)
+		}
 	}
 }
 
