@@ -40,7 +40,6 @@ config:
         pkgTypes: [library]                          # skip the OS layer
         dbRepository: [registry.internal/trivy-db:2] # an internal mirror
         filePatterns: ["pip:requirements-.*\\.txt"]  # more files for the pip analyzer
-        includeDevDeps: true                         # development dependencies too
         detectionPriority: comprehensive             # read >=1.2 as 1.2
         resolveMaven: true                           # fetch each dependency's pom from Maven Central
 ```
@@ -50,12 +49,19 @@ config:
 | `pkgTypes` | Which package types to analyze: `os`, `library`, or both (`--pkg-types`). Narrow it when the OS layer is a platform team's responsibility. |
 | `dbRepository` | OCI repositories to pull the vulnerability database from, in priority order (`--db-repository`). For runners with no route to a public registry. |
 | `filePatterns` | More files for an analyzer to read, each `analyzer:regex` (`--file-patterns`, once per entry). Trivy's pip analyzer reads only `requirements.txt`; the example adds files named `requirements-<something>.txt`. `draugr init` writes the patterns for the requirements files it finds. |
-| `includeDevDeps` | Report development dependencies (`--include-dev-deps`). Trivy leaves them out by default. Applies to npm, Yarn and Gradle. |
 | `detectionPriority` | `precise`, the default, reads pinned versions only. `comprehensive` also reads a range such as `>=1.2` in `requirements.txt` as its minimum version, and reports Go standard-library vulnerabilities (`--detection-priority`). |
 | `resolveMaven` | `true` resolves a `pom.xml`'s transitive dependencies by fetching each dependency's pom from Maven Central and the repositories the pom names, which declares the `disclosure` effect for the job (see [What is sent](#what-is-sent)). `false`, the default, passes `--offline-scan`. Ignored with `--offline`. |
+| `includeDevDeps` | Deprecated. Read as [`config.controls.sca.devDependencies`](../controllers/sca.md#development-dependencies), `true` as `report` and `false` as `suppress`, with a warning. |
 
 `pkgTypes` and `dbRepository` also apply to the `trivy` image scanner. The rest decide which
 of a checkout's dependencies are read, and belong to `trivy-fs` only.
+
+**Development dependencies are read on every run.** Trivy marks each one `Dev` in its JSON, and each
+finding about it carries `dev` on its package. A lockfile holding only development dependencies
+counts as read. [Development dependencies](../../docs/reference/saga-schema.md#development-dependencies)
+says which lockfiles carry the mark, how other scanners take it, and which setting decides whether
+those findings count.
+
 Trivy's `--severity` and `--ignorefile` are deliberately absent: both drop findings inside the
 tool, where a suppression cannot be recorded or reviewed. Use `config.exclude` instead.
 

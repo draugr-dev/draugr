@@ -1,0 +1,173 @@
+package engine
+
+import (
+	"testing"
+
+	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/saga"
+	"github.com/draugr-dev/draugr/pkg/sarif"
+)
+
+// devPolicyController is an sca control whose answer is fixed per component.
+type devPolicyController struct {
+	report map[string]bool
+}
+
+func (devPolicyController) Info() plugin.ControllerInfo {
+	return plugin.ControllerInfo{Name: "sca", Scope: plugin.ScopeComponent}
+}
+func (devPolicyController) Plan(saga.Model, *saga.Component) ([]plugin.ScanJob, error) {
+	return nil, nil
+}
+func (devPolicyController) Aggregate([]sarif.Report) (plugin.ControlResult, error) {
+	return plugin.ControlResult{}, nil
+}
+func (c devPolicyController) ReportsDevDependencies(_ saga.Model, component string) (bool, string) {
+	return c.report[component], "key-for-" + component
+}
+
+// devFinding is one finding about nanoid 3.3.7 in a lockfile.
+func devFinding(tool, component, repository, location, vuln string, dev bool) sarif.Result {
+	return sarif.Result{
+		Tool: tool, RuleID: vuln, Level: sarif.LevelError, Component: component, Repository: repository,
+		Location: sarif.Location{URI: location},
+		Package:  &sarif.Package{Name: "nanoid", Version: "3.3.7", PURL: "pkg:npm/nanoid@3.3.7", Dev: dev},
+	}
+}
+
+// A finding takes the mark from another scanner's finding about the same package in the same file of
+// the same repository and component, and from nothing else: not another file, another repository or
+// another component, and not a finding with no package URL.
+func TestMarkDevCopiesStaysWithinOneFile(t *testing.T) {
+	results := []sarif.Result{
+		devFinding("trivy", "web", "one", "pnpm/pnpm-lock.yaml", "CVE-1", true),
+		devFinding("grype", "web", "one", "pnpm/pnpm-lock.yaml", "CVE-2", false), // takes it
+		devFinding("grype", "web", "one", "app/pnpm-lock.yaml", "CVE-1", false),  // another file
+		devFinding("grype", "web", "two", "pnpm/pnpm-lock.yaml", "CVE-1", false), // another repository
+		devFinding("grype", "api", "one", "pnpm/pnpm-lock.yaml", "CVE-1", false), // another component
+		{Tool: "grype", RuleID: "CVE-1", Component: "web", Repository: "one", Location: sarif.Location{URI: "pnpm/pnpm-lock.yaml"}},
+	}
+	shared := results[1].Package
+	controls := map[string]plugin.ControlResult{"sca": {Report: sarif.Report{Results: results}}}
+	markDevCopies(controls)
+	got := controls["sca"].Report.Results
+	for i, want := range []bool{true, true, false, false, false, false} {
+		if dev := got[i].Package != nil && got[i].Package.Dev; dev != want {
+			t.Errorf("result %d (%s %s %s): dev %v, want %v", i, got[i].Component, got[i].Repository, got[i].Location.URI, dev, want)
+		}
+	}
+	if shared.Dev {
+		t.Error("the mark was written through a package value the scanner handed out, not onto a copy")
+	}
+}
+
+// Grype names a finding's other identifiers as aliases, and correlation joins two scanners' copies
+// across them. The mark does not follow the alias: a Grype finding under a GHSA id that aliases
+// Trivy's dev finding takes the mark in the same file, and not in another file, though correlation
+// counts both copies as one flaw.
+func TestTheDevMarkDoesNotFollowAnAlias(t *testing.T) {
+	trivy := devFinding("trivy", "web", "one", "tools/pnpm-lock.yaml", "CVE-2026-0002", true)
+	same := devFinding("grype", "web", "one", "tools/pnpm-lock.yaml", "GHSA-2v37-7h3g-55p8", false)
+	same.Aliases = []string{"CVE-2026-0002"}
+	other := devFinding("grype", "web", "one", "app/pnpm-lock.yaml", "GHSA-2v37-7h3g-55p8", false)
+	other.Aliases = []string{"CVE-2026-0002"}
+
+	reg := NewRegistry()
+	reg.RegisterController(devPolicyController{})
+	e := New(reg)
+	controls := map[string]plugin.ControlResult{"sca": {Report: sarif.Report{Results: []sarif.Result{trivy, same, other}}}}
+	markDevCopies(controls)
+	e.applyDevDependencies(controls, saga.Model{})
+	applyCorrelation(controls)
+
+	got := controls["sca"].Report.Results
+	if !got[1].Package.Dev || !got[1].SetAsideBySetting() {
+		t.Errorf("the aliased copy in the same file: dev %v, suppression %+v, want both", got[1].Package.Dev, got[1].Suppression)
+	}
+	if got[2].Package.Dev || got[2].Suppressed() {
+		t.Errorf("the aliased copy in another file: dev %v, suppression %+v, want neither", got[2].Package.Dev, got[2].Suppression)
+	}
+	if got[2].Correlated() || !got[0].Correlated() {
+		t.Errorf("correlation %+v / %+v, want the alias to join the copies and the runtime one counted",
+			got[0].Correlation, got[2].Correlation)
+	}
+}
+
+// A control with no development-dependency findings, or one with no policy, is left as it was.
+func TestMarkDevCopiesLeavesAControlWithNoMark(t *testing.T) {
+	results := []sarif.Result{devFinding("grype", "web", "one", "a", "CVE-1", false)}
+	controls := map[string]plugin.ControlResult{"sca": {Report: sarif.Report{Results: results}}}
+	markDevCopies(controls)
+	if controls["sca"].Report.Results[0].Package.Dev {
+		t.Error("a finding was marked with nothing to take the mark from")
+	}
+}
+
+// Each component's answer decides its own findings; a finding a rule already set aside keeps that
+// rule's reason; a runtime finding is never touched; a control without a policy is left alone.
+func TestApplyDevDependenciesAsksEachComponent(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(devPolicyController{report: map[string]bool{"api": true}})
+	e := New(reg)
+
+	excluded := devFinding("trivy", "web", "one", "a", "CVE-9", true)
+	excluded.Suppression = &sarif.Suppression{Kind: "external", Origin: sarif.OriginSaga, Justification: "accepted"}
+	runtime := devFinding("trivy", "web", "one", "a", "CVE-3", false)
+	controls := map[string]plugin.ControlResult{
+		"sca": {Report: sarif.Report{Results: []sarif.Result{
+			devFinding("trivy", "web", "one", "a", "CVE-1", true),
+			devFinding("trivy", "api", "one", "a", "CVE-1", true),
+			excluded,
+			runtime,
+		}}},
+		"images": {Report: sarif.Report{Results: []sarif.Result{devFinding("trivy", "web", "", "img", "CVE-1", true)}}},
+	}
+	if n := e.applyDevDependencies(controls, saga.Model{}); n != 1 {
+		t.Errorf("set aside %d, want 1", n)
+	}
+	got := controls["sca"].Report.Results
+	if s := got[0].Suppression; s == nil || s.Origin != sarif.OriginSetting || s.Source != "key-for-web" ||
+		s.Justification != sarif.JustificationDevDependency {
+		t.Errorf("web's development finding: suppression %+v, want the setting's", s)
+	}
+	if got[1].Suppressed() {
+		t.Error("api reports development dependencies, and its finding was set aside")
+	}
+	if got[2].Suppression.Origin != sarif.OriginSaga {
+		t.Errorf("an excluded finding's reason was replaced: %+v", got[2].Suppression)
+	}
+	if got[3].Suppressed() {
+		t.Error("a runtime finding was set aside")
+	}
+	if controls["images"].Report.Results[0].Suppressed() {
+		t.Error("a control with no policy had a finding set aside")
+	}
+	if sum := controls["sca"].Summary; sum.Errors != 2 {
+		t.Errorf("summary %+v, want the two findings still counted", sum)
+	}
+}
+
+// One flaw in one package, a development dependency in one lockfile of a repository and a runtime
+// one in another. The setting sets the development copy aside and the flaw is still counted, under
+// the copy that ships, which is not set aside by the other's suppression.
+func TestASettingDoesNotReachARuntimeCopyOfTheFlaw(t *testing.T) {
+	dev := devFinding("trivy", "web", "one", "tools/package-lock.json", "CVE-2026-0001", true)
+	dev.Suppression = &sarif.Suppression{Kind: "external", Origin: sarif.OriginSetting, Justification: sarif.JustificationDevDependency}
+	dev.Score = 9.8 // the stronger copy, so only the suppression decides which one counts
+	shipped := devFinding("grype", "web", "one", "app/package-lock.json", "CVE-2026-0001", false)
+	shipped.Score = 5.0
+	controls := map[string]plugin.ControlResult{"sca": {Report: sarif.Report{Results: []sarif.Result{dev, shipped}}}}
+
+	groups, extra := applyCorrelation(controls)
+	if groups != 1 || extra != 0 {
+		t.Errorf("groups %d, extra suppressed %d, want 1 and 0", groups, extra)
+	}
+	got := controls["sca"].Report.Results
+	if got[1].Suppressed() {
+		t.Error("the runtime copy took the development copy's suppression")
+	}
+	if got[1].Correlated() || !got[0].Correlated() {
+		t.Errorf("counted under %+v / %+v, want the runtime copy counted and the development one under it",
+			got[0].Correlation, got[1].Correlation)
+	}
+}

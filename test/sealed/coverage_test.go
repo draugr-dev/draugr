@@ -121,6 +121,8 @@ var optionExceptions = map[string]string{
 	"trivy.dbRepository":    "a database mirror is fetched over the network, and the sealed tier writes the database in place",
 	"trivy-fs.dbRepository": "a database mirror is fetched over the network, and the sealed tier writes the database in place",
 	"trivy.pkgTypes":        "trivy scans container images, and the sealed tier scans repositories; trivy-fs.pkgTypes is the same flag, proved by options-trivy-fs",
+	"trivy-fs.includeDevDeps": "deprecated spelling of sca.devDependencies, read as it and changing no flag; " +
+		"sca.devDependencies is proved by js-npm-dev",
 
 	"provenance.signers":   "verifies signatures held in an image registry, and the sealed tier scans repositories",
 	"provenance.trustRoot": "verifies signatures held in an image registry, and the sealed tier scans repositories",

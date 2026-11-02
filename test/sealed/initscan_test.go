@@ -43,6 +43,33 @@ func TestForInitScan(t *testing.T) {
 	}
 }
 
+// A finding init's descriptor reports set aside by a setting's default is expected there suppressed
+// by the setting, and nowhere else changed.
+func TestForInitScanExpectsAFindingASettingSetsAside(t *testing.T) {
+	exp := Expected{
+		Findings: []FindingExpectation{
+			{Control: "sca", Tool: "trivy", Rule: "CVE-1", Location: "a:1"},
+			{Control: "sca", Tool: "trivy", Rule: "CVE-2", Location: "b:1"},
+		},
+		InitScan: InitScanExpectation{SetAside: []string{"CVE-2"}},
+	}
+	got, err := exp.ForInitScan()
+	if err != nil || len(got.Findings) != 2 || got.Findings[0].Suppressed != "" || got.Findings[1].Suppressed != "setting" {
+		t.Errorf("ForInitScan = %+v (%v), want CVE-2 suppressed by the setting and CVE-1 as it was", got, err)
+	}
+	if exp.Findings[1].Suppressed != "" {
+		t.Error("ForInitScan changed the scenario's own findings")
+	}
+	exp.InitScan.SetAside = []string{"CVE-3"}
+	if _, err := exp.ForInitScan(); err == nil || !strings.Contains(err.Error(), "CVE-3") {
+		t.Errorf("a set-aside rule no finding has was accepted: %v", err)
+	}
+	exp.InitScan = InitScanExpectation{Skip: "the options are the subject", SetAside: []string{"CVE-1"}}
+	if _, err := exp.ForInitScan(); err == nil || !strings.Contains(err.Error(), "skip") {
+		t.Errorf("a skipped init scan with a set-aside rule was accepted: %v", err)
+	}
+}
+
 // init names no Semgrep ruleset, so an offline scan of its descriptor has the sast control refuse
 // the default pack: no Semgrep finding, and the refusal added to whichever errors apply.
 func TestForInitScanExpectsSemgrepToRefuseOffline(t *testing.T) {

@@ -120,6 +120,9 @@ type trivyPackage struct {
 	Locations []struct {
 		StartLine int `json:"StartLine"`
 	} `json:"Locations"`
+	// Dev is Trivy's mark on a development dependency, present when it reads them
+	// (--include-dev-deps) and omitted on a runtime one.
+	Dev bool `json:"Dev"`
 	// Relationship is where the package sits in its manifest's tree: root, workspace, direct or
 	// indirect, and empty where the parser records none.
 	Relationship string `json:"Relationship"`
@@ -141,6 +144,19 @@ func (r trivyVulnResult) packageLines() map[string]int {
 	for _, p := range r.Packages {
 		if p.Identifier.UID != "" && p.line() > 0 {
 			out[p.Identifier.UID] = p.line()
+		}
+	}
+	return out
+}
+
+// devPackages is the UIDs of the packages Trivy marked as development dependencies. A finding names
+// its package by the same UID, which is how the mark reaches it: the vulnerability itself says
+// nothing about how the package is used.
+func (r trivyVulnResult) devPackages() map[string]bool {
+	out := map[string]bool{}
+	for _, p := range r.Packages {
+		if p.Dev && p.Identifier.UID != "" {
+			out[p.Identifier.UID] = true
 		}
 	}
 	return out
@@ -259,9 +275,11 @@ func parseTrivyVulns(out []byte, dir string, cfg plugin.Config) (sarif.Report, e
 			rep.Inputs = append(rep.Inputs, in)
 		}
 		known := res.packageLines()
+		dev := res.devPackages()
 		for _, v := range res.Vulnerabilities {
 			found := trivyVulnResultOf(doc, res, v, layers)
 			found.Location.StartLine = lineOf(res, known, v)
+			found.Package.Dev = dev[v.PkgIdentifier.UID]
 			rep.Results = append(rep.Results, found)
 			if _, seen := rep.Rules[v.VulnerabilityID]; !seen {
 				rep.Rules[v.VulnerabilityID] = trivyVulnRule(v)
@@ -274,6 +292,7 @@ func parseTrivyVulns(out []byte, dir string, cfg plugin.Config) (sarif.Report, e
 				continue
 			}
 			found.Location.StartLine = lineOf(res, known, m.Finding)
+			found.Package.Dev = dev[m.Finding.PkgIdentifier.UID]
 			rep.Results = append(rep.Results, found)
 			if _, seen := rep.Rules[m.Finding.VulnerabilityID]; !seen {
 				rep.Rules[m.Finding.VulnerabilityID] = trivyVulnRule(m.Finding)

@@ -263,6 +263,9 @@ func writeEvidenceNotes(w io.Writer, d Data) {
 	if line := importedLine(d, true); line != "" {
 		accepted = append(accepted, row{"VEX", strings.TrimPrefix(line, "VEX: ")})
 	}
+	for _, r := range settingRows(d) {
+		accepted = append(accepted, row{"`" + r.where() + "`", r.said()})
+	}
 	if line := silencedLine(d); line != "" {
 		accepted = append(accepted, row{"scanner exclusions", strings.TrimPrefix(line, "scanner exclusions: ")})
 	}

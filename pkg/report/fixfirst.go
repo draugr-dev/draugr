@@ -109,7 +109,15 @@ func writeBlockFacts(w io.Writer, col tui.Painter, f finding, width int, withCom
 	// for a vulnerable dependency and there is none to give for a misconfiguration, a hardcoded
 	// secret, or a flaw in the code itself, which keep the phrase alone. A package with no release
 	// to move to keeps its name and takes the phrase that says why.
-	if name, fixed := packageFix(f, true); fixed != "" {
+	//
+	// A development dependency is labeled the way the scanner is, the kind dimmed before the value:
+	// `dev dependency nanoid 3.3.7`. In full here, where the line has room; the compact cell
+	// shortens it to `dev`.
+	name, fixed := packageFix(f, true)
+	if name != "" && isDev(f) {
+		name = col.Paint(cDim, devLabelFull) + " " + name
+	}
+	if fixed != "" {
 		parts = append(parts, name+" "+col.Paint(tui.StyleFixed, "→ "+fixed))
 	} else {
 		if name != "" {

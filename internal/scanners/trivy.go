@@ -40,8 +40,8 @@ const trivyConfigSchema = `{
 }`
 
 // trivyFSConfigSchema is trivyConfigSchema plus the options that decide which dependencies a
-// filesystem scan reads: files Trivy does not read by default, development dependencies, and
-// version ranges.
+// filesystem scan reads: files Trivy does not read by default and version ranges. includeDevDeps is
+// still accepted for one release, as the deprecated spelling of config.controls.sca.devDependencies.
 const trivyFSConfigSchema = `{
   "type": "object",
   "additionalProperties": false,
@@ -65,7 +65,8 @@ const trivyFSConfigSchema = `{
     "includeDevDeps": {
       "type": "boolean",
       "default": false,
-      "description": "Report development dependencies too. Trivy leaves them out by default. Applies to npm, Yarn and Gradle."
+      "deprecated": true,
+      "description": "Deprecated: write config.controls.sca.devDependencies instead. true is read as devDependencies: report. Trivy reads development dependencies on every run."
     },
     "detectionPriority": {
       "type": "string",
@@ -165,11 +166,16 @@ func trivyFSArgs(dir string, cfg plugin.Config) []string {
 
 // trivyFSOptions adds the options that decide which dependencies a filesystem scan reads. Each
 // widens what Trivy examines; none drops a finding.
+//
+// --include-dev-deps on every run, whatever the descriptor says. Left out, Trivy drops a development
+// dependency inside the tool, where Draugr cannot mark it, and reads a lockfile holding nothing else
+// as one it read no packages from. With it, each such package arrives marked `Dev`, the mark reaches
+// every finding about it, and config.controls.sca.devDependencies decides whether those findings
+// count. The deprecated includeDevDeps key no longer changes the command line; the sca control reads
+// it as that setting.
 func trivyFSOptions(argv []string, cfg plugin.Config) []string {
 	argv = filePatternArgs(argv, cfg)
-	if on, _ := cfg["includeDevDeps"].(bool); on {
-		argv = append(argv, "--include-dev-deps")
-	}
+	argv = append(argv, "--include-dev-deps")
 	if v, _ := cfg["detectionPriority"].(string); v != "" {
 		argv = append(argv, "--detection-priority", v)
 	}

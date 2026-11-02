@@ -1,0 +1,1 @@
+- **`config.controls.sca.trivyFs.includeDevDeps` is deprecated and stops being read in the next release.** Until then `true` is read as `devDependencies: report` and `false` as `suppress`, and `draugr validate` and `draugr scan` warn with what to write instead. Replace it with `config.controls.sca.devDependencies`.

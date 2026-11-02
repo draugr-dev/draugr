@@ -40,12 +40,12 @@ config:
 
     sca:
       enabled: true
+      devDependencies: report                        # suppress (default) | report: whether a
+                                                     # finding in a development dependency counts
       trivyFs:
         filePatterns:                                # more files for an analyzer to read, each
           - "pip:requirements-.*\\.txt"              # analyzer:regex. pip reads only
                                                      # requirements.txt by default
-        includeDevDeps: true                         # development dependencies too (npm, Yarn,
-                                                     # Gradle)
         detectionPriority: comprehensive             # precise (default) | comprehensive, which
                                                      # reads >=1.2 as its minimum version
         pkgTypes: [library]                          # os | library, as for the image: skip the

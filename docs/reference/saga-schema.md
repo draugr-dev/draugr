@@ -513,8 +513,8 @@ The shapes that used to be accepted and do nothing: a list of scanner names, a s
 value rather than a block (`gosec: true` enables nothing, because only a block is read), and a
 misspelled setting. Each produced a descriptor that claimed a decision it was not making.
 
-`licenses` is the control that takes settings of its own, `deny` and `warn`; the rest take none
-beyond their scanners'.
+`licenses` takes settings of its own, `deny` and `warn`, and `sca` takes
+[`devDependencies`](#development-dependencies).
 
 **Which scanners take options, and which take only `enabled`:**
 
@@ -528,7 +528,7 @@ beyond their scanners'.
 | `draugr-tls` | `expiryErrorDays`, `expiryWarnDays` |
 | `gosec` | `include`, `exclude`, rule IDs; `tags`, Go build tags |
 | `trivy`, `trivy-fs` | `pkgTypes` (`os`, `library`), `dbRepository`, an internal mirror |
-| `trivy-fs` | `filePatterns` (`analyzer:regex`), which `trivy-license` reads the same repositories with; `includeDevDeps`, `detectionPriority` (`precise`, `comprehensive`); `resolveMaven`, fetch pom dependencies from Maven Central, declares [`disclosure`](../../internal/scanners/trivy-fs.md#what-is-sent) |
+| `trivy-fs` | `filePatterns` (`analyzer:regex`), which `trivy-license` reads the same repositories with; `detectionPriority` (`precise`, `comprehensive`); `resolveMaven`, fetch pom dependencies from Maven Central, declares [`disclosure`](../../internal/scanners/trivy-fs.md#what-is-sent); `includeDevDeps`, deprecated for [`devDependencies`](#development-dependencies) |
 | `grype`, `grype-fs` | `byCve`. Report under the CVE rather than the advisory ID, on by default |
 | `trivy-config` | `checks`, paths to your own Rego; `namespaces`, the top-level package names to evaluate, derived from the checks' `package` lines when unset |
 | `semgrep` | `config`, a registry ref, path or URL |
@@ -540,6 +540,43 @@ beyond their scanners'.
 [`examples/scanner-options.saga.yaml`](../../examples/scanner-options.saga.yaml) writes every
 option every scanner takes, with a line on what each one decides. It is a reference rather than a
 starting point; copy the two or three lines you need.
+
+### Development dependencies
+
+`config.controls.sca.devDependencies` decides whether a finding in a development dependency counts.
+A development dependency is a package the manifest declares for development only, such as a test
+runner, a build tool or a linter.
+
+| Value | Each finding in a development dependency |
+|---|---|
+| `suppress`, the default | Stays in the report and in `report.json`, suppressed with the reason `development dependency`, and out of the counts and the gate |
+| `report` | Is counted, with `dev` beside its package |
+
+```yaml
+config:
+  controls:
+    sca:
+      devDependencies: report       # count findings in development dependencies
+components:
+  - name: build-tools
+    controls:
+      sca:
+        devDependencies: suppress   # replaces the project's setting for this component
+```
+
+Trivy reads development dependencies on every run and marks each one, in npm, Yarn, pnpm, Bun, uv
+and Poetry lockfiles. Grype marks none, so a Grype finding takes the mark from Trivy's finding about
+the same package in the same file. A Grype finding with no matching Trivy finding carries no mark and
+is counted, including every Grype finding when `trivyFs` is off.
+
+The suppression's `origin` is `setting` and its `source` is the key that decided, so the report
+lists it apart from `config.exclude`. A setting sets aside only the copy of a flaw it applies to. A
+package that is a development dependency in one lockfile and a runtime one in another is counted
+for the runtime copy.
+
+**`trivyFs.includeDevDeps` is deprecated.** It is read for one release where `devDependencies` is
+not written beside it, `true` as `report` and `false` as `suppress`, and `draugr validate` and
+`draugr scan` print a warning naming the key to write.
 
 ### Reachability for Go
 

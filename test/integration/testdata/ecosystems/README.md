@@ -71,7 +71,9 @@ are separated by commas. The rules Semgrep runs are in [`semgrep.yaml`](semgrep.
   fetching a pom from the server, and under `--offline` Trivy does not ask.
 - **The descriptor `init` wrote is scanned too**, from the repository, and must report the same
   findings and errors. `initScan:` records where it departs: `unreported` names rules the
-  hand-written descriptor turns on and init does not, and `errors` replaces the expected errors.
+  hand-written descriptor turns on and init does not, `setAside` names rules init's descriptor
+  reports suppressed by a setting's default (origin `setting`, such as a development dependency
+  under `config.controls.sca.devDependencies`), and `errors` replaces the expected errors.
   A departure is a claim about init, so each carries a comment saying which setting init left out.
   `skip:` holds a reason instead, for a scenario whose descriptor is the subject: options init never
   writes, or components declared by hand. The test logs it.

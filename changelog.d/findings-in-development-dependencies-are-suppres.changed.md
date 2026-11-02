@@ -1,0 +1,1 @@
+- **Findings in development dependencies are suppressed by default, whatever the lockfile.** Trivy now reads development dependencies and marks each, and a Grype finding about the same package takes the mark. Each such finding stays in the report suppressed, with `dev` beside its package. Set `config.controls.sca.devDependencies: report` to count them.

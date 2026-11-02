@@ -82,6 +82,26 @@ type Explainer interface {
 	Explain(model saga.Model) []string
 }
 
+// Warner is an optional interface a Controller may implement to name what a valid descriptor says
+// in a way that is going away: a deprecated setting still read, and the setting that replaces it.
+//
+// Each line is complete on its own, says what is read in its place, and names the key to write.
+// Called by `draugr validate`, which prints each under the file it is about, and before a scan,
+// which writes each to stderr so a machine format on stdout stays one document.
+type Warner interface {
+	Warnings(model saga.Model) []string
+}
+
+// DevDependencyPolicy is an optional interface a Controller may implement to decide whether the
+// findings in development dependencies count, per component.
+//
+// The engine asks it once per component that has such a finding, after every scanner's copy of a
+// package has taken the development mark, and sets aside the findings of a component whose answer
+// is false. Source names the setting that decided, which the suppression records.
+type DevDependencyPolicy interface {
+	ReportsDevDependencies(model saga.Model, component string) (report bool, source string)
+}
+
 // ScanJob is a unit of scan work produced by a controller's Plan.
 type ScanJob struct {
 	Scanner  string

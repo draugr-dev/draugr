@@ -78,15 +78,35 @@ func TestTrivyFSArgs(t *testing.T) {
 	argv := trivyFSArgs("/work/repo", nil)
 	// json, not sarif: Trivy's SARIF states the package only in prose. See trivy_vuln_json.go.
 	// --list-all-pkgs, for the line of each package's entry. --debug, not --quiet: the debug log is
-	// where Trivy names a file it could not parse. --offline-scan, so a pom.xml is not resolved
-	// against Maven Central unless resolveMaven says so.
-	want := []string{"trivy", "fs", "--debug", "--scanners", "vuln", "--format", "json", "--list-all-pkgs", "--offline-scan", "/work/repo"}
+	// where Trivy names a file it could not parse. --include-dev-deps, so a development dependency
+	// arrives marked rather than dropped. --offline-scan, so a pom.xml is not resolved against Maven
+	// Central unless resolveMaven says so.
+	want := []string{"trivy", "fs", "--debug", "--scanners", "vuln", "--format", "json", "--list-all-pkgs",
+		"--include-dev-deps", "--offline-scan", "/work/repo"}
 	if len(argv) != len(want) {
 		t.Fatalf("argv = %v", argv)
 	}
 	for i := range want {
 		if argv[i] != want[i] {
 			t.Fatalf("argv[%d] = %q, want %q", i, argv[i], want[i])
+		}
+	}
+}
+
+// Trivy reads development dependencies on every run, so a lockfile's dev packages reach Draugr marked
+// and the sca setting decides whether they count. The deprecated includeDevDeps no longer changes the
+// command line in either direction: false must not drop them inside the tool.
+func TestTrivyFSAlwaysReadsDevelopmentDependencies(t *testing.T) {
+	for _, cfg := range []plugin.Config{nil, {"includeDevDeps": false}, {"includeDevDeps": true}} {
+		argv := trivyFSArgs("/work/repo", cfg)
+		n := 0
+		for _, a := range argv {
+			if a == "--include-dev-deps" {
+				n++
+			}
+		}
+		if n != 1 {
+			t.Errorf("config %v: argv = %v, want --include-dev-deps once", cfg, argv)
 		}
 	}
 }

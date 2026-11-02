@@ -2189,6 +2189,7 @@ naming its scanners' keys, with opt-in scanners marked `*`. A prefix lists the k
 $ draugr config keys controls.sca
 Key                                     Accepts                               Default
 controls.sca.enabled                    true or false                         off unless the descriptor turns it on
+controls.sca.devDependencies            suppress or report                    suppress
 controls.sca.trivyFs.enabled            true or false                         true
 controls.sca.trivyFs.dbRepository       a list                                -
 controls.sca.trivyFs.detectionPriority  precise or comprehensive              precise

@@ -81,6 +81,11 @@ Trivy's copy at that version. A finding with no entry there takes the package th
 where it is that finding's version, and otherwise carries none. [`grype`](grype.md) reads image
 findings the same way.
 
+**Development dependencies take Trivy's mark.** Grype marks no development dependency. A Grype
+finding takes the `dev` mark from [`trivy-fs`](trivy-fs.md)'s finding about the same package in the
+same file, and `config.controls.sca.devDependencies` decides whether it counts; see
+[Development dependencies](../../docs/reference/saga-schema.md#development-dependencies).
+
 **One scan per repository.** A component may hold several, and each is scanned and attributed
 separately, findings from two repositories that share a path stay two findings.
 

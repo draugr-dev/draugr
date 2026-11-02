@@ -51,6 +51,7 @@
             "control": "sca",
             "fingerprint": "<cleared>",
             "package": {
+              "dev": true,
               "ecosystem": "npm",
               "fixedVersion": "1.2.6",
               "name": "minimist",

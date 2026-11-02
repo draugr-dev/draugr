@@ -433,7 +433,12 @@ func missingScannerOptions(controls map[string]map[string]any, body string) []st
 			}
 			def, _ := node.(map[string]any)
 			opts, _ := def["properties"].(map[string]any)
-			for opt := range opts {
+			for opt, o := range opts {
+				// A deprecated option is read and warned about, and an example teaching it would
+				// teach the key the warning tells a reader to replace.
+				if od, _ := o.(map[string]any); od["deprecated"] == true {
+					continue
+				}
 				if opt != "enabled" && !written[path+"."+opt] {
 					missing = append(missing, control+"."+key+"."+opt)
 				}
