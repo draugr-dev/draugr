@@ -70,6 +70,13 @@ findings inside the tool, where Draugr cannot mark them suppressed or record who
 `config.exclude` in the Saga does that and keeps the evidence; the gate thresholds decide what
 fails.
 
+**Each finding's package is read from Grype's JSON report.** Grype's SARIF states a package once
+per advisory and package name, and an image can hold one package at several versions, one per
+`node_modules` directory, each a match of the same advisory. The version, fixed version and package
+URL therefore come from the finding's own entry in the JSON report the same run writes, which is
+what correlates it with Trivy's copy at that version. A finding with no entry there takes the
+package the SARIF states only where it is that finding's version, and otherwise carries none.
+
 ## Writing an exclusion that covers both
 
 Grype's rule identifier is the vulnerability followed by the package it was found in.

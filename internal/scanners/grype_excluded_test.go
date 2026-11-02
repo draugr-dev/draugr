@@ -184,7 +184,7 @@ func TestGrypeDefaultRulesAreNotExclusions(t *testing.T) {
 	if kernel == grypeIgnoredJinja2 {
 		t.Fatal("fixture did not change")
 	}
-	out, err := withGrypeExclusions([]byte(grypeActiveSARIF), []byte(grypeJSON(kernel)), nil)
+	out, err := withGrypeJSON([]byte(grypeActiveSARIF), []byte(grypeJSON(kernel)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +211,7 @@ func TestAGrypeExclusionNamesOnlyTheFileHoldingIt(t *testing.T) {
 	}
 	unreasoned := strings.Replace(grypeIgnoredJinja2, `"reason": "not reachable from the entry point", `, "", 1)
 	unreasoned = strings.ReplaceAll(unreasoned, "CVE-2020-28493", "CVE-2099-0001")
-	out, err := withGrypeExclusions([]byte(grypeActiveSARIF), []byte(grypeJSON(grypeIgnoredJinja2, unreasoned)), grypeConfigRules(dir))
+	out, err := withGrypeJSON([]byte(grypeActiveSARIF), []byte(grypeJSON(grypeIgnoredJinja2, unreasoned)), grypeConfigRules(dir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -254,13 +254,13 @@ func TestAGrypeRunWithNoRecordOfExclusionsFails(t *testing.T) {
 // With nothing excluded the SARIF is returned byte for byte; with something, it must still be a
 // document the reader accepts, and unreadable SARIF is an error rather than an empty report.
 func TestWithGrypeExclusionsKeepsTheDocument(t *testing.T) {
-	if out, err := withGrypeExclusions([]byte(grypeActiveSARIF), []byte(grypeJSON()), nil); err != nil || string(out) != grypeActiveSARIF {
+	if out, err := withGrypeJSON([]byte(grypeActiveSARIF), []byte(grypeJSON()), nil); err != nil || string(out) != grypeActiveSARIF {
 		t.Errorf("out %s err %v, want the SARIF untouched", out, err)
 	}
-	if _, err := withGrypeExclusions([]byte("not sarif"), []byte(grypeJSON(grypeIgnoredJinja2)), nil); err == nil {
+	if _, err := withGrypeJSON([]byte("not sarif"), []byte(grypeJSON(grypeIgnoredJinja2)), nil); err == nil {
 		t.Error("unreadable SARIF was accepted")
 	}
-	out, err := withGrypeExclusions([]byte(`{"version":"2.1.0","runs":[]}`), []byte(grypeJSON(grypeIgnoredJinja2, grypeIgnoredJinja2)), nil)
+	out, err := withGrypeJSON([]byte(`{"version":"2.1.0","runs":[]}`), []byte(grypeJSON(grypeIgnoredJinja2, grypeIgnoredJinja2)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
