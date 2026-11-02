@@ -118,7 +118,6 @@ var optionExceptions = map[string]string{
 
 	"trivy.dbRepository":    "a database mirror is fetched over the network, and the sealed tier writes the database in place",
 	"trivy-fs.dbRepository": "a database mirror is fetched over the network, and the sealed tier writes the database in place",
-	"trivy-fs.resolveMaven": "resolving fetches poms from Maven Central, and the sealed tier has no network",
 	"trivy.pkgTypes":        "trivy scans container images, and the sealed tier scans repositories; trivy-fs.pkgTypes is the same flag, proved by options-trivy-fs",
 
 	"provenance.signers":   "verifies signatures held in an image registry, and the sealed tier scans repositories",
