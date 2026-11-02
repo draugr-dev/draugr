@@ -87,13 +87,6 @@ func retryingRun(tool string, run func(context.Context, []string) ([]byte, error
 	}
 }
 
-// retryingRunInDir wraps a repoScanner run function with the cache-lock retry.
-func retryingRunInDir(tool string, run func(context.Context, string, []string) ([]byte, error)) func(context.Context, string, []string) ([]byte, error) {
-	return func(ctx context.Context, dir string, argv []string) ([]byte, error) {
-		return retryLockedCache(ctx, tool, func() ([]byte, error) { return run(ctx, dir, argv) })
-	}
-}
-
 // jitter returns a random duration in [0, d).
 //
 // From crypto/rand rather than math/rand. Nothing here needs unpredictability. This is a backoff,

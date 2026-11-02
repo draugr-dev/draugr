@@ -1,0 +1,420 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.7.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "serialNumber": "urn:uuid:1ff15c4b-988f-44b1-b676-2d3ca8e2ef9f",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-02T04:44:20-06:00",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "author": "anchore",
+          "name": "grype",
+          "version": "0.121.0"
+        }
+      ]
+    },
+    "component": {
+      "bom-ref": "2f34099ef1dc4e3d",
+      "type": "file",
+      "name": "/checkout"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg:npm/left-pad@github%3Astevemao%2Fleft-pad%235b8e8dd?package-id=57655162473456ae",
+      "type": "library",
+      "name": "left-pad",
+      "version": "github:stevemao/left-pad#5b8e8dd",
+      "cpe": "cpe:2.3:a:left-pad:left-pad:github\\:stevemao\\/left-pad\\#5b8e8dd:*:*:*:*:*:*:*",
+      "purl": "pkg:npm/left-pad@github%3Astevemao%2Fleft-pad%235b8e8dd",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "javascript-lock-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "javascript"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "npm"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "javascript-bun-lock-entry"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:left-pad:left_pad:github\\:stevemao\\/left-pad\\#5b8e8dd:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:left_pad:left-pad:github\\:stevemao\\/left-pad\\#5b8e8dd:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:left_pad:left_pad:github\\:stevemao\\/left-pad\\#5b8e8dd:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:left:left-pad:github\\:stevemao\\/left-pad\\#5b8e8dd:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:left:left_pad:github\\:stevemao\\/left-pad\\#5b8e8dd:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/app/bun.lock"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:npm/nanoid@3.3.7?package-id=efbb0d488b708b2c",
+      "type": "library",
+      "name": "nanoid",
+      "version": "3.3.7",
+      "cpe": "cpe:2.3:a:nanoid_project:nanoid:3.3.7:*:*:*:*:node.js:*:*",
+      "purl": "pkg:npm/nanoid@3.3.7",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "javascript-lock-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "javascript"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "npm"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "javascript-bun-lock-entry"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/app/bun.lock"
+        }
+      ]
+    },
+    {
+      "bom-ref": "bfb2a80420343ce4",
+      "type": "file",
+      "name": "/checkout/app/bun.lock",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "295e4df2cbde56e93e934454c77f9edeb3c3f37d03ec7c878a152510e1827672"
+        }
+      ]
+    }
+  ],
+  "vulnerabilities": [
+    {
+      "bom-ref": "urn:uuid:5a314bf7-c926-4ce2-9b32-d1372434decc",
+      "id": "CVE-2024-55565",
+      "source": {
+        "name": "github-language-javascript",
+        "url": "https://github.com/advisories/GHSA-mwcw-c2x4-8c55"
+      },
+      "references": [
+        {
+          "id": "CVE-2024-55565",
+          "source": {
+            "name": "github-language-javascript",
+            "url": "https://github.com/advisories/GHSA-mwcw-c2x4-8c55"
+          }
+        }
+      ],
+      "ratings": [
+        {
+          "score": 4.3,
+          "severity": "medium",
+          "method": "CVSSv31",
+          "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:L/A:N"
+        },
+        {
+          "source": {
+            "name": "FIRST",
+            "url": "https://www.first.org/epss/"
+          },
+          "score": 0.00665,
+          "method": "other"
+        }
+      ],
+      "description": "Predictable results in nanoid generation when given non-integer values",
+      "advisories": [
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-55565"
+        },
+        {
+          "url": "https://github.com/ai/nanoid/pull/510"
+        },
+        {
+          "url": "https://github.com/ai/nanoid/compare/3.3.7...3.3.8"
+        },
+        {
+          "url": "https://github.com/ai/nanoid/releases/tag/5.0.9"
+        },
+        {
+          "url": "https://lists.debian.org/debian-lts-announce/2024/12/msg00025.html"
+        },
+        {
+          "url": "https://lists.debian.org/debian-lts-announce/2025/01/msg00006.html"
+        }
+      ],
+      "affects": [
+        {
+          "ref": "pkg:npm/nanoid@3.3.7?package-id=efbb0d488b708b2c",
+          "versions": [
+            {
+              "version": "3.3.7",
+              "status": "affected"
+            },
+            {
+              "range": "vers:npm/>=3.3.8",
+              "status": "unaffected"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "bom-ref": "urn:uuid:316d00d1-3bee-4eee-af68-7efcf2b13d03",
+      "id": "CVE-2026-67213",
+      "source": {
+        "name": "github-language-javascript",
+        "url": "https://github.com/advisories/GHSA-2v37-7h3g-55p8"
+      },
+      "references": [
+        {
+          "id": "CVE-2026-67213",
+          "source": {
+            "name": "github-language-javascript",
+            "url": "https://github.com/advisories/GHSA-2v37-7h3g-55p8"
+          }
+        }
+      ],
+      "ratings": [
+        {
+          "score": 5.9,
+          "severity": "high",
+          "method": "CVSSv31",
+          "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H"
+        },
+        {
+          "score": 8.2,
+          "severity": "high",
+          "method": "other",
+          "vector": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N"
+        },
+        {
+          "source": {
+            "name": "FIRST",
+            "url": "https://www.first.org/epss/"
+          },
+          "score": 0.00331,
+          "method": "other"
+        }
+      ],
+      "description": "nanoid: custom generators can loop indefinitely when size is zero",
+      "advisories": [
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-67213"
+        },
+        {
+          "url": "https://github.com/ai/nanoid/commit/cb3626d0f3342fdf179cd425fd9c4fbb92c7d0e7"
+        },
+        {
+          "url": "https://github.com/ai/nanoid/releases/tag/5.1.6"
+        },
+        {
+          "url": "https://www.vulncheck.com/advisories/nanoid-before-infinite-loop-via-zero-size-in-customalphabet-and-customrandom"
+        },
+        {
+          "url": "https://github.com/ai/nanoid/commit/f9d13f150847d117877adee3460a46eceb0cf49b"
+        },
+        {
+          "url": "https://github.com/ai/nanoid/releases/tag/3.3.17"
+        },
+        {
+          "url": "https://github.com/ai/nanoid/commit/e10f8d40ce9d1ab47f66d65a16b48086432730d0"
+        },
+        {
+          "url": "https://github.com/ai/nanoid/releases/tag/3.3.18"
+        }
+      ],
+      "affects": [
+        {
+          "ref": "pkg:npm/nanoid@3.3.7?package-id=efbb0d488b708b2c",
+          "versions": [
+            {
+              "version": "3.3.7",
+              "status": "affected"
+            },
+            {
+              "range": "vers:npm/>=3.3.18",
+              "status": "unaffected"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "bom-ref": "urn:uuid:43a70d68-f599-4535-9efe-94c468d752fd",
+      "id": "CVE-2026-67214",
+      "source": {
+        "name": "github-language-javascript",
+        "url": "https://github.com/advisories/GHSA-28wg-ghj8-5hjv"
+      },
+      "references": [
+        {
+          "id": "CVE-2026-67214",
+          "source": {
+            "name": "github-language-javascript",
+            "url": "https://github.com/advisories/GHSA-28wg-ghj8-5hjv"
+          }
+        }
+      ],
+      "ratings": [
+        {
+          "score": 5.9,
+          "severity": "high",
+          "method": "CVSSv31",
+          "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H"
+        },
+        {
+          "score": 8.2,
+          "severity": "high",
+          "method": "other",
+          "vector": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N"
+        },
+        {
+          "source": {
+            "name": "FIRST",
+            "url": "https://www.first.org/epss/"
+          },
+          "score": 0.0033,
+          "method": "other"
+        }
+      ],
+      "description": "nanoid: non-secure generators can loop indefinitely with negative size",
+      "advisories": [
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-67214"
+        },
+        {
+          "url": "https://github.com/ai/nanoid/commit/6ccc67bbaba71d3d77a21d9b636f4171a268ce49"
+        },
+        {
+          "url": "https://github.com/ai/nanoid/releases/tag/5.1.16"
+        },
+        {
+          "url": "https://www.vulncheck.com/advisories/nanoid-before-infinite-loop-via-negative-size-in-non-secure-module"
+        },
+        {
+          "url": "https://github.com/ai/nanoid/pull/600"
+        },
+        {
+          "url": "https://github.com/ai/nanoid/pull/601"
+        },
+        {
+          "url": "https://github.com/ai/nanoid/commit/e835c9b71eab832bc6106944bdd26ea96cf2c66d"
+        }
+      ],
+      "affects": [
+        {
+          "ref": "pkg:npm/nanoid@3.3.7?package-id=efbb0d488b708b2c",
+          "versions": [
+            {
+              "version": "3.3.7",
+              "status": "affected"
+            },
+            {
+              "range": "vers:npm/>=3.3.16",
+              "status": "unaffected"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "bom-ref": "urn:uuid:79f6907d-e5f7-4eea-8c02-8c6b8d541b62",
+      "id": "CVE-2026-73086",
+      "source": {
+        "name": "github-language-javascript",
+        "url": "https://github.com/advisories/GHSA-xwg4-73v4-xw9w"
+      },
+      "references": [
+        {
+          "id": "CVE-2026-73086",
+          "source": {
+            "name": "github-language-javascript",
+            "url": "https://github.com/advisories/GHSA-xwg4-73v4-xw9w"
+          }
+        }
+      ],
+      "ratings": [
+        {
+          "score": 7.4,
+          "severity": "high",
+          "method": "CVSSv31",
+          "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N"
+        },
+        {
+          "source": {
+            "name": "FIRST",
+            "url": "https://www.first.org/epss/"
+          },
+          "score": 0.00296,
+          "method": "other"
+        }
+      ],
+      "description": "nanoid: Integer Overflow or Wraparound",
+      "advisories": [
+        {
+          "url": "https://github.com/ai/nanoid/security/advisories/GHSA-xwg4-73v4-xw9w"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-73086"
+        },
+        {
+          "url": "https://github.com/ai/nanoid/commit/7087969281cab8ba8ae3babf1894e819068b3bb4"
+        },
+        {
+          "url": "https://github.com/ai/nanoid/commit/821dfed7b5db7f88e92f56c60eef32c8135077c3"
+        },
+        {
+          "url": "https://github.com/ai/nanoid/commit/b0036ed60dc9facd7f1191a50dfb3076500202ac"
+        },
+        {
+          "url": "https://github.com/ai/nanoid/releases/tag/3.3.12"
+        },
+        {
+          "url": "https://github.com/ai/nanoid/releases/tag/5.1.11"
+        }
+      ],
+      "affects": [
+        {
+          "ref": "pkg:npm/nanoid@3.3.7?package-id=efbb0d488b708b2c",
+          "versions": [
+            {
+              "version": "3.3.7",
+              "status": "affected"
+            },
+            {
+              "range": "vers:npm/>=3.3.12",
+              "status": "unaffected"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

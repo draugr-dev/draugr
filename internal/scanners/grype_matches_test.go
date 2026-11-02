@@ -275,7 +275,9 @@ func TestGrypeRepoFindingsEachCarryTheirOwnMatch(t *testing.T) {
 	trivyOut := trivyTestJSON(t, minimatchMatches, false)
 	trivy := NewTrivyFS().(repoScanner)
 	trivy.checkout, trivy.prewarm, trivy.cacheVersion, trivy.dataState = checkout, nil, nil, nil
-	trivy.run = func(context.Context, string, []string) ([]byte, error) { return []byte(trivyOut), nil }
+	trivy.runLogged = trivyFSRun(func(context.Context, string, []string) ([]byte, []byte, error) {
+		return []byte(trivyOut), nil, nil
+	})
 
 	reg := engine.NewRegistry()
 	reg.RegisterController(matchController{control: "sca", scanners: []string{"grype-fs", "trivy-fs"}})

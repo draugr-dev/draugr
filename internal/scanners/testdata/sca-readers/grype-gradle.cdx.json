@@ -1,0 +1,165 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.7.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "serialNumber": "urn:uuid:bfae17f6-c9f6-4e9a-aa55-4ca36f878765",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-02T04:44:19-06:00",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "author": "anchore",
+          "name": "grype",
+          "version": "0.121.0"
+        }
+      ]
+    },
+    "component": {
+      "bom-ref": "d988ce6fb06e8563",
+      "type": "file",
+      "name": "/checkout"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg:maven/org.apache.commons/commons-text@1.9?package-id=ded842ac328f1c10",
+      "type": "library",
+      "name": "commons-text",
+      "version": "1.9",
+      "cpe": "cpe:2.3:a:apache:commons-text:1.9:*:*:*:*:*:*:*",
+      "purl": "pkg:maven/org.apache.commons/commons-text@1.9",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "java-gradle-lockfile-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "java"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "java-archive"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "java-archive"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:apache:commons_text:1.9:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:apache:commons:1.9:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/gradle.lockfile"
+        }
+      ]
+    },
+    {
+      "bom-ref": "ae17f439015eeabb",
+      "type": "file",
+      "name": "/checkout/gradle.lockfile",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "56b64c1c297c5aadd6295cd4be8ff20b0bcedfcda8ce4b966d336e2e21b49fc7"
+        }
+      ]
+    }
+  ],
+  "vulnerabilities": [
+    {
+      "bom-ref": "urn:uuid:b8d01cd8-f434-428f-b723-ea137670010e",
+      "id": "CVE-2022-42889",
+      "source": {
+        "name": "github-language-java",
+        "url": "https://github.com/advisories/GHSA-599f-7c49-w659"
+      },
+      "references": [
+        {
+          "id": "CVE-2022-42889",
+          "source": {
+            "name": "github-language-java",
+            "url": "https://github.com/advisories/GHSA-599f-7c49-w659"
+          }
+        }
+      ],
+      "ratings": [
+        {
+          "score": 9.8,
+          "severity": "critical",
+          "method": "CVSSv31",
+          "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+        },
+        {
+          "source": {
+            "name": "FIRST",
+            "url": "https://www.first.org/epss/"
+          },
+          "score": 0.99931,
+          "method": "other"
+        }
+      ],
+      "description": "Arbitrary code execution in Apache Commons Text",
+      "advisories": [
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-42889"
+        },
+        {
+          "url": "https://lists.apache.org/thread/n2bd4vdsgkqh2tm14l1wyc3jyol7s1om"
+        },
+        {
+          "url": "http://www.openwall.com/lists/oss-security/2022/10/13/4"
+        },
+        {
+          "url": "https://securitylab.github.com/advisories/GHSL-2022-018_Apache_Commons_Text"
+        },
+        {
+          "url": "http://www.openwall.com/lists/oss-security/2022/10/18/1"
+        },
+        {
+          "url": "https://security.netapp.com/advisory/ntap-20221020-0004/"
+        },
+        {
+          "url": "https://psirt.global.sonicwall.com/vuln-detail/SNWLID-2022-0022"
+        },
+        {
+          "url": "https://security.gentoo.org/glsa/202301-05"
+        },
+        {
+          "url": "http://seclists.org/fulldisclosure/2023/Feb/3"
+        },
+        {
+          "url": "http://packetstormsecurity.com/files/171003/OX-App-Suite-Cross-Site-Scripting-Server-Side-Request-Forgery.html"
+        },
+        {
+          "url": "https://arxiv.org/pdf/2306.05534"
+        },
+        {
+          "url": "http://packetstormsecurity.com/files/176650/Apache-Commons-Text-1.9-Remote-Code-Execution.html"
+        }
+      ],
+      "affects": [
+        {
+          "ref": "pkg:maven/org.apache.commons/commons-text@1.9?package-id=ded842ac328f1c10",
+          "versions": [
+            {
+              "version": "1.9",
+              "status": "affected"
+            },
+            {
+              "range": "vers:maven/>=1.10.0",
+              "status": "unaffected"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
