@@ -117,10 +117,13 @@ needs to know which of the two changed.
 jq -r '.scanners[] | "\(.name) \(.version)"' a/report.json b/report.json | sort -u
 ```
 
-Only scanners that ran are listed. One named here having never executed would claim coverage that
-did not happen, and a control that was planned and then skipped is under `notMeasured` instead. A
-tool that would not say what version it is appears without one, because an unreadable version is a
-fact about the run and a placeholder would make two genuinely different builds look identical.
+Only scanners that ran are listed, whether their jobs succeeded or failed. A scanner with a failed
+job carries `failed[]`, one entry per job with the control, component, target and the scanner's
+error, so the version beside it names the build that produced the error. One named here having
+never executed would claim coverage that did not happen, and a control that was planned and then
+skipped is under `notMeasured` instead. A tool that would not say what version it is appears
+without one, because an unreadable version is a fact about the run and a placeholder would make two
+genuinely different builds look identical.
 
 `results.sarif` carries the same two facts in SARIF's own fields, `runs[].tool.driver.version` and
 a `version` on each entry of `runs[].properties["draugr/provenance"]`, so a consumer reading either

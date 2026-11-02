@@ -132,37 +132,69 @@ func sortedControls(errs map[string][]string) []string {
 // scopeInfo mirrors engine.Scope in the report document.
 // scannerUsed is one scanner that ran, and what it was.
 //
-// Only scanners that ran: one listed with a version having never executed claims coverage that did
-// not happen, and a control that was skipped is already reported under notMeasured.
+// Only scanners that ran, whether they succeeded or failed: one listed with a version having never
+// executed claims coverage that did not happen, and a control that was skipped is already reported
+// under notMeasured.
 type scannerUsed struct {
 	Name string `json:"name"`
 	// Version is what the scanner reported through plugin.CacheVersioner, in the producer's own
 	// spelling: "trivy@0.69.3;db@2026-09-12T13:01:09Z". Absent where nothing could be read. That
 	// interface documents what goes in it and why an unreadable one stays empty.
 	Version string `json:"version,omitempty"`
+	// Failed is each job of this scanner that returned an error, and where. Absent when every job
+	// succeeded. A scanner left out on failing would read the same as one nobody configured, and its
+	// error under the control would name a tool the list says did not run.
+	Failed []scannerFailure `json:"failed,omitempty"`
+}
+
+// scannerFailure is one job a scanner failed, named as targets[] names its target.
+type scannerFailure struct {
+	Control   string `json:"control"`
+	Component string `json:"component,omitempty"`
+	Kind      string `json:"kind,omitempty"`
+	Target    string `json:"target,omitempty"`
+	// Detail is the error in the scanner's words, as the control's scanErrors carries it.
+	Detail string `json:"detail"`
 }
 
 // scannersOf lists the scanners this run used, sorted, one entry per tool however many jobs it ran.
 //
-// Read back from the provenance each scan recorded rather than from the registry, so the list is
-// what executed rather than what was available. A scanner whose control was planned and then
-// skipped is not here, and neither is one the descriptor never reached.
+// Read back from the provenance each scan recorded and from the jobs that failed, rather than from
+// the registry, so the list is what executed rather than what was available. A scanner whose
+// control was planned and then skipped is not here, and neither is one the descriptor never reached.
 func scannersOf(run engine.Result) []scannerUsed {
-	versions := map[string]string{}
+	used := map[string]*scannerUsed{}
+	entry := func(name string) *scannerUsed {
+		if _, ok := used[name]; !ok {
+			used[name] = &scannerUsed{Name: name}
+		}
+		return used[name]
+	}
 	for _, name := range sortedControlNames(run) {
 		for _, p := range run.Controls[name].Report.Provenance {
 			// draugr/scope and its siblings account for the run rather than for a tool.
 			if strings.HasPrefix(p.Tool, "draugr/") {
 				continue
 			}
-			if v, seen := versions[p.Tool]; !seen || v == "" {
-				versions[p.Tool] = p.Version
+			if e := entry(p.Tool); e.Version == "" {
+				e.Version = p.Version
 			}
 		}
 	}
-	out := make([]scannerUsed, 0, len(versions))
-	for name, v := range versions {
-		out = append(out, scannerUsed{Name: name, Version: v})
+	// After the provenance, so a version a successful scan recorded is the one kept. Already in
+	// order: the engine sorts its failures by scanner and then by where they happened.
+	for _, f := range run.FailedScans {
+		e := entry(f.Scanner)
+		if e.Version == "" {
+			e.Version = f.Version
+		}
+		e.Failed = append(e.Failed, scannerFailure{
+			Control: f.Control, Component: f.Component, Kind: f.Kind, Target: f.Target, Detail: f.Detail,
+		})
+	}
+	out := make([]scannerUsed, 0, len(used))
+	for _, e := range used {
+		out = append(out, *e)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
