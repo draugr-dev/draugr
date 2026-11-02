@@ -11,8 +11,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
+	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -228,6 +230,35 @@ func TestTrivyParseCauseIsTheSameWhicheverWordingGoChose(t *testing.T) {
 	} {
 		if got := trivyParseCause(err, "app/bun.lock"); got != want {
 			t.Errorf("trivyParseCause(%q) = %q, want %q", err, got, want)
+		}
+	}
+}
+
+// Under --debug Trivy logs a failure's cause as a list after `FATAL Fatal error`, and the scan error
+// carries the cause as it does without --debug. The stream is what Trivy 0.76.1 wrote for `trivy fs
+// --debug --skip-db-update` against an empty cache, replayed through the exec the scanners use.
+// Both repository scanners that run Trivy with --debug are held to it.
+func TestTrivyDebugFailureKeepsItsCause(t *testing.T) {
+	fixture, err := filepath.Abs(filepath.Join("..", "toolexec", "testdata", "trivy-debug-no-db.log"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	prior := execWithStderr
+	t.Cleanup(func() { execWithStderr = prior })
+	execWithStderr = func(ctx context.Context, dir string, _ []string, env []string) ([]byte, []byte, error) {
+		return toolexec.RunWithStderr(ctx, dir, []string{"sh", "-c", `cat "$0" >&2; exit 1`, fixture}, env)
+	}
+	const want = "exit status 1: run error: init error: DB error: database error: " +
+		"--skip-db-update cannot be specified on the first run"
+	trees := map[string]string{"https://example.com/api.git": t.TempDir()}
+	for _, s := range []repoScanner{NewTrivyFS().(repoScanner), NewTrivyLicense().(licenseScanner).repo.(repoScanner)} {
+		s.checkout = checkoutOf(trees)
+		_, err := s.Scan(t.Context(), plugin.RepositoryTarget{URL: "https://example.com/api.git"}, plugin.Config{})
+		if got, full := "", "run "+s.info.Name+": "+want; err == nil || err.Error() != full {
+			if err != nil {
+				got = err.Error()
+			}
+			t.Errorf("%s: err = %q, want %q", s.info.Name, got, full)
 		}
 	}
 }
