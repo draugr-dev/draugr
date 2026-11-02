@@ -13,6 +13,11 @@ func TestVulnerabilityIDIgnoresWhatAScannerAppends(t *testing.T) {
 		{"GO-2022-1059", "GO-2022-1059"},
 		{"RUSTSEC-2020-0159", "RUSTSEC-2020-0159"},
 		{"OSV-2021-1234", "OSV-2021-1234"},
+		// Trivy's identifiers for advisories that have no CVE, as it reports them.
+		{"NSWG-ECO-408", "NSWG-ECO-408"},
+		{"TEMP-0628843-DBAD28", "TEMP-0628843-DBAD28"},
+		{"TEMP-0000000-153207", "TEMP-0000000-153207"},
+		{"DLA-4867-1", "DLA-4867-1"},
 	} {
 		if got := (Result{RuleID: tc.ruleID}).VulnerabilityID(); got != tc.want {
 			t.Errorf("%q → %q, want %q", tc.ruleID, got, tc.want)
@@ -29,6 +34,10 @@ func TestVulnerabilityIDIsEmptyForFindingsThatAreNotVulnerabilities(t *testing.T
 		"generic-api-key",
 		"go.lang.security.audit.dangerous-exec-command.dangerous-exec-command",
 		"AVD-KSV-0012",
+		// Trivy's misconfiguration checks share the shape of an advisory and are not one.
+		"KSV-0012",
+		"DS-0002",
+		"AZU-0001",
 		"",
 	} {
 		if got := (Result{RuleID: ruleID}).VulnerabilityID(); got != "" {
