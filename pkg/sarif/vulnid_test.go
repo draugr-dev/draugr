@@ -46,6 +46,20 @@ func TestVulnerabilityIDIsEmptyForFindingsThatAreNotVulnerabilities(t *testing.T
 	}
 }
 
+// The other identifiers a scanner reported for a finding name each vulnerability once, leaving out
+// the rule id's own and anything that is not a vulnerability identifier.
+func TestAliasVulnerabilityIDs(t *testing.T) {
+	r := Result{RuleID: "CVE-2026-1", Aliases: []string{
+		"CVE-2026-1", "GHSA-cg2g-xh64-v4q7", "retirejs:x:1", "GHSA-cg2g-xh64-v4q7", "",
+	}}
+	if got := r.AliasVulnerabilityIDs(); len(got) != 1 || got[0] != "GHSA-cg2g-xh64-v4q7" {
+		t.Errorf("ids = %q, want the GitHub advisory id once", got)
+	}
+	if got := (Result{RuleID: "CVE-2026-1"}).AliasVulnerabilityIDs(); got != nil {
+		t.Errorf("ids = %q, want none", got)
+	}
+}
+
 func TestVulnerabilityIDDoesNotMatchMidString(t *testing.T) {
 	// Anchored at the front: a rule id that merely mentions an advisory is not a finding about
 	// it, and a wrong identifier in a document a stranger's tooling matches against is worse

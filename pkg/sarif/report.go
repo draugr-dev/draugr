@@ -164,6 +164,19 @@ type Result struct {
 	// resource. Set by the scanners that know, which is those reading a package manifest or an
 	// image's installed set.
 	Package *Package `json:"package,omitempty"`
+	// Aliases are the other identifiers the scanner reported for this same finding, beside the one
+	// its rule id carries. retire.js names an advisory's CVEs and its GitHub advisory id together,
+	// and a rule id holds one of them.
+	//
+	// Correlation reads them, so the finding is counted once with another scanner's copy of the flaw
+	// keyed on any of them. Only what the scanner said about this one finding, never an identifier
+	// looked up afterwards: two advisories a database links are not always one flaw, and only the
+	// scanner reporting the finding is asserting that its identifiers are.
+	//
+	// Not part of Fingerprint, for the reason Package is not. Kept in the cache, so a cached scan
+	// correlates as a fresh one does, and not written to results.sarif, which carries the
+	// correlation they decided.
+	Aliases []string `json:"aliases,omitempty"`
 	// Image is the container image a finding is about, for the scanners that scan one.
 	//
 	// It travels on the finding rather than being recovered from the component afterwards,
@@ -1461,6 +1474,21 @@ var vulnerabilityID = regexp.MustCompile(
 // security group are real findings with no advisory to be un-affected by.
 func (r Result) VulnerabilityID() string {
 	return vulnerabilityID.FindString(r.RuleID)
+}
+
+// AliasVulnerabilityIDs are the vulnerabilities among the finding's Aliases, each once, leaving out
+// VulnerabilityID and anything that names no recognized vulnerability.
+func (r Result) AliasVulnerabilityIDs() []string {
+	own := r.VulnerabilityID()
+	var ids []string
+	for _, a := range r.Aliases {
+		id := vulnerabilityID.FindString(a)
+		if id == "" || id == own || slices.Contains(ids, id) {
+			continue
+		}
+		ids = append(ids, id)
+	}
+	return ids
 }
 
 // AgreementNote is the line under a finding saying which other scanners found it, and where they

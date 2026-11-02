@@ -54,17 +54,32 @@ a `pkg:npm/…` purl. That is what lets a vendored copy of a library and the npm
 recognized as the same thing, and what lets these findings reach the platform report formats rather
 than only the console.
 
+The name is the library's npm package name, taken from the `npmname` retire.js reports beside the
+component. A vendored DOMPurify is `pkg:npm/dompurify@3.4.16` and a vendored underscore.js is
+`pkg:npm/underscore@1.8.3`, the purls a lockfile scanner reports for the installed packages. Where
+retire.js's advisory repository records no npm name, the finding carries the component name
+instead.
+
 **The rule id is the most portable identifier the advisory has**: a CVE where there is one, then
 the GitHub advisory id, and only then retire.js's own identifier, prefixed `retirejs:` so it cannot
 be mistaken for a CVE, and stable so a suppression written against it keeps working.
+
+**The finding keeps the advisory's other identifiers**, each CVE and the GitHub advisory id the
+rule id does not carry. retire.js lists them on one advisory entry, so they name one flaw.
 
 **The message says how the library was recognized**, `[detected by filecontent]`. That is the
 answer to "why is this not in my lockfile": a file matched by content is one the package manager
 never installed.
 
-**Expect overlap with Trivy** where a library *is* npm-managed and in the lockfile. Both will
-report it, under their own rule identifiers, until findings from two scanners are correlated into
-one finding carrying two observations.
+**A vendored copy and the lockfile's copy are one flaw.** Where a library is vendored and also
+pinned in a lockfile of the same component and repository, retire.js and the lockfile scanner each
+report its advisories. Two findings with the same purl are counted once when the rule id of one, or
+one of its other identifiers, is the rule id of the other. retire.js may key an advisory on its CVE
+while Trivy keys it on the GitHub advisory id, and the two still match. The counted finding names
+the other scanner and its rule id, and the fix list has one upgrade naming both files.
+
+Two of the lockfile scanner's findings are never joined through retire.js's identifiers. A scanner
+that reported two identifiers as two findings has said they are two flaws.
 
 ## The advisory database
 
