@@ -754,7 +754,7 @@ type UnreadFile struct {
 	Component  string   `json:"component"`
 	Repository string   `json:"repository,omitempty"`
 	Path       string   `json:"path"`
-	Reason     string   `json:"reason" jsonschema:"no lockfile, no pinned versions, a count of requirements not pinned or not read with their names where few, no packages read, modules not loaded, name has an archive extension, no files read, 'over 1 MB, not scanned', or a count of rules that timed out with their ids"`
+	Reason     string   `json:"reason" jsonschema:"no lockfile, no pinned versions, a count of requirements not pinned or not read with their names where few, transitive dependencies not resolved for a pom.xml, no packages read, modules not loaded, name has an archive extension, no files read, 'over 1 MB, not scanned', or a count of rules that timed out with their ids"`
 	Controls   []string `json:"controls" jsonschema:"the controls whose scanners did not read it"`
 }
 

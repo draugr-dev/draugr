@@ -19,13 +19,13 @@ order: 190
 Two modes, chosen by the target it is handed. A repository is checked out and read in place:
 
 ```
-trivy fs --quiet --scanners license --format json <dir>
+trivy fs --quiet --scanners license --format json --offline-scan <dir>
 ```
 
 An image is named rather than fetched by us, and Trivy pulls it:
 
 ```
-trivy image --quiet --scanners license --format json <ref>
+trivy image --quiet --scanners license --format json --offline-scan <ref>
 ```
 
 Both convert to SARIF through the same parser. That sharing is the point: a license means the same
@@ -106,3 +106,7 @@ later. An older Trivy drops the license and leaves no record of it.
 
 The **vulnerability database**, from `mirror.gcr.io` and `ghcr.io`, which are Trivy's own
 defaults in that order. The same copy the other Trivy-backed scanners read, warmed once per run.
+
+Every run passes `--offline-scan`, and this scanner has no setting that removes it, so it contacts
+no Maven repository. A `pom.xml` whose dependencies Trivy did not resolve is listed as read in part,
+see [`sca`](../controllers/sca.md#unread).

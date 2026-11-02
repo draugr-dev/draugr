@@ -28,7 +28,7 @@ func TestTrivyArgv(t *testing.T) {
 	}
 	// JSON, not SARIF: Trivy's SARIF names the package only in prose and carries no operating
 	// system at all, so an image finding built from it cannot say what it is about.
-	want := []string{"trivy", "image", "--quiet", "--format", "json", "repo/app:1.0"}
+	want := []string{"trivy", "image", "--quiet", "--format", "json", "--offline-scan", "repo/app:1.0"}
 	if len(argv) != len(want) {
 		t.Fatalf("argv = %v", argv)
 	}
@@ -78,7 +78,8 @@ func TestTrivyFSArgs(t *testing.T) {
 	argv := trivyFSArgs("/work/repo", nil)
 	// json, not sarif: Trivy's SARIF states the package only in prose. See trivy_vuln_json.go.
 	// --list-all-pkgs, for the line of each package's entry.
-	want := []string{"trivy", "fs", "--quiet", "--scanners", "vuln", "--format", "json", "--list-all-pkgs", "/work/repo"}
+	// --offline-scan, so a pom.xml is not resolved against Maven Central unless resolveMaven says so.
+	want := []string{"trivy", "fs", "--quiet", "--scanners", "vuln", "--format", "json", "--list-all-pkgs", "--offline-scan", "/work/repo"}
 	if len(argv) != len(want) {
 		t.Fatalf("argv = %v", argv)
 	}

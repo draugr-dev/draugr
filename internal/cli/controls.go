@@ -256,7 +256,12 @@ func writeEffects(w io.Writer, col tui.Painter, reg *engine.Registry, only strin
 			continue
 		}
 		for _, e := range info.Effects {
-			rows = append(rows, row{info.Name, string(e.Kind), e.Detail})
+			detail := e.Detail
+			if e.Option != "" {
+				// A job has it only where its block sets the option, so the row names the option.
+				detail = fmt.Sprintf("with %s: true, %s", e.Option, detail)
+			}
+			rows = append(rows, row{info.Name, string(e.Kind), detail})
 			needsConsent = needsConsent || e.Kind.RequiresConsent()
 		}
 	}

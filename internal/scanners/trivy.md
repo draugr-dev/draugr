@@ -60,4 +60,7 @@ defaults in that order. Draugr warms it once before the jobs fan out, and passes
 `--skip-db-update` when `--offline` is set so an offline run reads the local copy rather than
 reaching out once per job.
 
+Every run passes `--offline-scan`, so no Trivy run resolves a `pom.xml` against a remote Maven
+repository.
+
 `config.controls.images.trivy.dbRepository` replaces both with an internal mirror.

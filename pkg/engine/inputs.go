@@ -41,7 +41,8 @@ type UnreadInput struct {
 	// "x"`. For a go.mod, why govulncheck could not load the module.
 	//
 	// For a requirements file read in part, the requirements not read, as `1 requirement not
-	// pinned: urllib3`.
+	// pinned: urllib3`, and for a pom.xml whose transitive dependencies Trivy did not resolve,
+	// `transitive dependencies not resolved, run mvn dependency:resolve`.
 	Reason string
 }
 

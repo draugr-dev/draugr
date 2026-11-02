@@ -487,6 +487,9 @@ func (e *Engine) validateConfigs(label string, jobs []plugin.ScanJob, permitted 
 					continue
 				}
 			}
+			// The effects this job has: an effect an option turns on is asked for only where the
+			// job's config sets it.
+			info.Effects = plugin.EffectsFor(info, job.Config)
 			if err := consentFor(info, permitted); err != nil {
 				errs = append(errs, fmt.Errorf("%s/%s: %w", label, job.Scanner, err))
 				continue
@@ -1496,7 +1499,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			mu.Lock()
 			stats.ByControl[pj.Control] += jobTook
 			if !res.cached {
-				effects = append(effects, scanner.Info().Effects...)
+				effects = append(effects, plugin.EffectsFor(scanner.Info(), pj.Job.Config)...)
 			}
 			reports[jobIndex] = &report
 			switch {

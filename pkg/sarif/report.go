@@ -779,7 +779,8 @@ type Input struct {
 	// module, as `not loaded by govulncheck: main.go:5:2: undefined: Assets`.
 	//
 	// With Packages above zero, the file was read in part and Unread names what was not read, as
-	// `1 requirement not pinned: urllib3` for a requirements file.
+	// `1 requirement not pinned: urllib3` for a requirements file, or `transitive dependencies not
+	// resolved, run mvn dependency:resolve` for a pom.xml.
 	Unread string `json:"unread,omitempty"`
 	// Analysis says Unread is why an analysis of the code the file declares did not run, as for a Go
 	// module govulncheck could not load, rather than why its packages were not read. Another scanner
