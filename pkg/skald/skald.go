@@ -693,6 +693,28 @@ type controlReport struct {
 	// the counts describe what the scanners that did run found, which is not the same as what is
 	// there.
 	ScanErrors []string `json:"scanErrors,omitempty"`
+	// Reported names the scanners that returned a report for this control, the ones its counts come
+	// from. Present beside scanErrors only, and absent where no scanner reported, so a clean run's
+	// document is unchanged.
+	Reported []string `json:"reported,omitempty"`
+}
+
+// controlVerdict is a control's verdict as the document states it. A control with a scan error
+// fails whatever the scanners that did run found, because their counts describe part of what was
+// asked, and the console marks the same control ERROR from the same fact.
+func controlVerdict(run engine.Result, control string, judged norn.Verdict) string {
+	if run.Incomplete(control) {
+		return string(norn.Fail)
+	}
+	return string(judged)
+}
+
+// reportedBeside is the scanners that reported for control, on a control with a scan error only.
+func reportedBeside(run engine.Result, control string) []string {
+	if !run.Incomplete(control) {
+		return nil
+	}
+	return run.Reported[control]
 }
 
 // notMeasuredReport is a job that was planned and then not run.
@@ -910,7 +932,7 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 		seen[oc.Control] = true
 		doc.Controls = append(doc.Controls, controlReport{
 			Name:            oc.Control,
-			Verdict:         string(oc.Verdict),
+			Verdict:         controlVerdict(run, oc.Control, oc.Verdict),
 			Highest:         string(oc.Highest),
 			HighestPriority: oc.HighestPriority,
 			Threshold:       string(oc.Threshold),
@@ -919,6 +941,7 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 			Notes:           oc.Counts.Note,
 			Total:           oc.Counts.Total(),
 			ScanErrors:      run.ScanErrors[oc.Control],
+			Reported:        reportedBeside(run, oc.Control),
 		})
 	}
 	// A control that produced nothing at all has no outcome to attach to, so listing only the
@@ -931,9 +954,10 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 		}
 		doc.Controls = append(doc.Controls, controlReport{
 			Name:       name,
-			Verdict:    string(norn.Fail),
+			Verdict:    controlVerdict(run, name, norn.Fail),
 			Highest:    string(sarif.LevelNone),
 			ScanErrors: run.ScanErrors[name],
+			Reported:   reportedBeside(run, name),
 		})
 	}
 	sort.Slice(doc.Controls, func(i, j int) bool { return doc.Controls[i].Name < doc.Controls[j].Name })

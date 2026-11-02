@@ -629,6 +629,11 @@ type Result struct {
 	// without this a scanner that ran and failed reads the same, in an account of what ran, as one
 	// that was never configured.
 	FailedScans []FailedScan
+	// Reported names, per control, the scanners whose jobs returned a report, sorted: from a scan,
+	// from the cache or from a scan shared with another job. Beside FailedScans it says which of a
+	// control's scanners its counts come from when another of them failed. Recorded here rather than
+	// read off the reports' provenance, which a scanner reporting no version does not leave.
+	Reported map[string][]string
 	// Targets is what became of each distinct target the run planned: read, failed or skipped, and
 	// the components that declared it. A count of what was declared beside what was reached is the
 	// one thing a reader of the report cannot otherwise get without parsing scanner text.
@@ -855,6 +860,50 @@ func failedScanFor(pj PlannedJob, ver string, err error) FailedScan {
 		f.Kind, f.Target = outcomeIdentity(pj.Job.Target)
 	}
 	return f
+}
+
+// Incomplete reports whether a scan error was recorded against control: a job of it failed, or it
+// could not be planned. A report decides that a control is in error from this, so the console's
+// ERROR and report.json's verdict for one control rest on the same fact.
+func (r Result) Incomplete(control string) bool {
+	_, ok := r.ScanErrors[control]
+	return ok
+}
+
+// Partial splits an incomplete control's scanners into the ones that reported and the ones that
+// failed, each sorted. reported holds only scanners that failed no job of the control, so the two
+// never name one scanner. Both are empty unless the control has a scanner on each side, so a control
+// whose every scanner failed a job, or whose one scanner read one target and failed on another,
+// names nothing.
+func (r Result) Partial(control string) (reported, failed []string) {
+	for _, f := range r.FailedScans {
+		if f.Control == control && !slices.Contains(failed, f.Scanner) {
+			failed = append(failed, f.Scanner)
+		}
+	}
+	for _, s := range r.Reported[control] {
+		if !slices.Contains(failed, s) {
+			reported = append(reported, s)
+		}
+	}
+	if len(reported) == 0 || len(failed) == 0 {
+		return nil, nil
+	}
+	slices.Sort(reported)
+	slices.Sort(failed)
+	return reported, failed
+}
+
+// sortedReported turns the scanners each control reported from into sorted lists, nil for none.
+func sortedReported(by map[string]map[string]bool) map[string][]string {
+	if len(by) == 0 {
+		return nil
+	}
+	out := make(map[string][]string, len(by))
+	for control, scanners := range by {
+		out[control] = slices.Sorted(maps.Keys(scanners))
+	}
+	return out
 }
 
 // sortFailedScans orders failed jobs by scanner, then by where they failed, and drops exact repeats:
@@ -1104,6 +1153,8 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		unscanned []Unscanned
 		// failedScans records the scanner behind each of those jobs, with the version it reported.
 		failedScans []FailedScan
+		// reportedBy is, per control, the scanners some job of that control returned a report from.
+		reportedBy = map[string]map[string]bool{}
 		// examined is every target some scanner did produce a report for, by the component whose
 		// job read it. A target one scanner failed on and another read is not unexamined, and
 		// reporting it as such would be the mirror of the bug this exists to fix: a claim about
@@ -1433,6 +1484,10 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			mu.Lock()
 			examined[examinedKey(pj.Component, pj.Job.Target)] = true
 			reached[outcomeKey(pj.Job.Target)] = true
+			if reportedBy[pj.Control] == nil {
+				reportedBy[pj.Control] = map[string]bool{}
+			}
+			reportedBy[pj.Control][pj.Job.Scanner] = true
 			mu.Unlock()
 			span.SetAttributes(attribute.Bool("cache.hit", res.cached), attribute.Bool("dedup", shared))
 			jobTook := time.Since(jobStart)
@@ -1520,6 +1575,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	res.SBOMFailures = sbomFailures
 	res.Skipped = skipped
 	res.FailedScans = sortFailedScans(failedScans)
+	res.Reported = sortedReported(reportedBy)
 	res.Inputs = inputCoverage(byCtl)
 	res.UnreadChecks = unreadChecks(byCtl)
 	if len(ctlErrs) > 0 {
