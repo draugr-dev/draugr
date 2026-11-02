@@ -689,9 +689,32 @@ func govulncheckResults(
 			Location:     sarif.Location{URI: "go.mod"},
 			Package:      pkg,
 			Reachability: reach,
+			Aliases:      govulncheckAliases(id, key.OSV, advisory),
 		})
 	}
 	return results
+}
+
+// govulncheckAliases are the identifiers of the advisory a finding was reported from, other than
+// the rule id: the Go id first, then the advisory's aliases as the Go vulnerability database lists
+// them.
+//
+// The entry govulncheck printed is one record with one affected range, so its identifiers name the
+// flaw this finding is about. A scanner reading the Go database reports a flaw with no CVE under
+// its Go id, where this finding carries the GitHub advisory id, and correlation and the verdict's
+// fold match that copy through these.
+func govulncheckAliases(rule, osvID string, advisory *govulncheckOSV) []string {
+	ids := []string{osvID}
+	if advisory != nil {
+		ids = append(ids, advisory.Aliases...)
+	}
+	var out []string
+	for _, id := range ids {
+		if id != "" && id != rule && !slices.Contains(out, id) {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // govulncheckState decides the verdict, and refuses to state the strong one without grounds.
