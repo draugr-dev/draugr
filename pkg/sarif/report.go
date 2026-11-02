@@ -1434,12 +1434,21 @@ func (r *Reachability) RankAt(base Severity) Severity {
 // in one scan, and collapsing those would merge two real findings into one. So the decoration
 // stays on the rule id, which is what the scanner said, and everything that needs to know *which
 // vulnerability this is* asks here instead of matching the string.
+//
+// Trivy reports an advisory under its own identifier where the advisory has no CVE: the Node
+// Security Working Group's `NSWG-ECO-408` for an npm package, the Debian security tracker's
+// `TEMP-0628843-DBAD28` and a Debian LTS advisory's `DLA-4867-1` for an operating-system package. A
+// scheme missing here is not a vulnerability to anything that asks, so its findings go uncorrelated,
+// unmatched by VEX and absent from the VEX document.
 var vulnerabilityID = regexp.MustCompile(
 	`^(CVE-\d{4}-\d{4,}` +
 		`|GHSA-[2-9cfghjmpqrvwx]{4}-[2-9cfghjmpqrvwx]{4}-[2-9cfghjmpqrvwx]{4}` +
 		`|OSV-\d{4}-\d+` +
 		`|RUSTSEC-\d{4}-\d{4}` +
-		`|GO-\d{4}-\d{4,})`)
+		`|GO-\d{4}-\d{4,}` +
+		`|NSWG-ECO-\d+` +
+		`|TEMP-\d{7}-[0-9A-F]{6}` +
+		`|DLA-\d+-\d+)`)
 
 // VulnerabilityID is the vulnerability this finding is about, or "" when it is not about one.
 //

@@ -248,6 +248,58 @@ func TestCorrelationDoesNotCrossAComponent(t *testing.T) {
 	}
 }
 
+// One advisory in one package version is one flaw per repository, however many lockfiles hold it,
+// whether Trivy reports it under a CVE or under the Node Security Working Group's own identifier.
+// Two components in two repositories, each with the package pinned in two lockfiles: each
+// repository counts each advisory once, with its other lockfile's copy listed behind it.
+func TestCorrelationCountsAnNSWGAdvisoryOncePerRepository(t *testing.T) {
+	in := func(rule, component, repo, lockfile string) sarif.Result {
+		return sarif.Result{
+			Tool: "trivy", RuleID: rule, Level: sarif.LevelWarning,
+			Component: component, Repository: repo,
+			Location: sarif.Location{URI: lockfile},
+			Package:  &sarif.Package{Name: "deep-extend", Version: "0.4.2", PURL: "pkg:npm/deep-extend@0.4.2"},
+		}
+	}
+	var results []sarif.Result
+	for _, subject := range []struct{ component, repo string }{{"shop", "repo-shop"}, {"blog", "repo-blog"}} {
+		for _, lockfile := range []string{"web/yarn.lock", "admin/yarn.lock"} {
+			for _, rule := range []string{"CVE-2018-3750", "NSWG-ECO-408"} {
+				results = append(results, in(rule, subject.component, subject.repo, lockfile))
+			}
+		}
+	}
+	ctrls := controlsWith(results...)
+
+	if groups, _ := applyCorrelation(ctrls); groups != 4 {
+		t.Fatalf("groups = %d, want one per advisory per repository", groups)
+	}
+	counted := map[string]int{}
+	behind := map[string]int{}
+	for _, r := range ctrls["sca"].Report.Results {
+		key := r.Repository + " " + r.RuleID
+		if r.Correlated() {
+			behind[key]++
+			continue
+		}
+		counted[key]++
+		if len(r.Correlation.AlsoFoundBy) != 1 || r.Correlation.AlsoFoundBy[0].RuleID != r.RuleID {
+			t.Errorf("%s: alsoFoundBy = %+v, want the other lockfile's copy", key, r.Correlation.AlsoFoundBy)
+		}
+	}
+	for _, repo := range []string{"repo-shop", "repo-blog"} {
+		for _, rule := range []string{"CVE-2018-3750", "NSWG-ECO-408"} {
+			key := repo + " " + rule
+			if counted[key] != 1 || behind[key] != 1 {
+				t.Errorf("%s: counted %d, behind %d; want 1 and 1", key, counted[key], behind[key])
+			}
+		}
+	}
+	if n := ctrls["sca"].Report.Counts().Total(); n != 4 {
+		t.Errorf("counted %d, want 4: two advisories in each of two repositories", n)
+	}
+}
+
 // Trivy and Grype reading one image report one flaw, and the same flaw in a second image of the same
 // component is a second one. An image finding carries no repository, so the image is what keeps two
 // images of one component apart.
