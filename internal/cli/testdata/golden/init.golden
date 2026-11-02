@@ -1,8 +1,9 @@
 ✓ wrote <path>
 
 Next:
-  draugr doctor <path>   # check the scanners it needs
-  draugr scan <path>
+  cd <path>
+  draugr doctor draugr.saga.yaml   # check the scanners it needs
+  draugr scan draugr.saga.yaml
 
 --- the file it wrote ---
 # yaml-language-server: $schema=https://draugr.dev/schema/draugr.saga.schema.json

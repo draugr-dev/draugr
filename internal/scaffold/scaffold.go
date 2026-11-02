@@ -133,8 +133,15 @@ func yamlStrings(items []string) string {
 	return "[" + strings.Join(quoted, ", ") + "]"
 }
 
-// Saga renders a starter Saga for what the tree holds.
+// Saga renders a starter Saga for what the tree holds, run from the directory it describes.
 func Saga(t inventory.Tree, name string, perDirectory bool) string {
+	return SagaAt(t, name, perDirectory, Here)
+}
+
+// SagaAt renders a starter Saga for what the tree holds, with url as the repository of every
+// component: Here for a Saga run from the directory it describes, or the directory's path from
+// where the Saga runs.
+func SagaAt(t inventory.Tree, name string, perDirectory bool, url string) string {
 	// note appends the paths behind a line to its comment, so the reason a control is on can be
 	// checked against the tree.
 	note := func(s string) string {
@@ -184,10 +191,10 @@ func Saga(t inventory.Tree, name string, perDirectory bool) string {
 
 	b.WriteString("components:\n")
 	if perDirectory && len(t.Parts) > 0 {
-		writePerDirectory(&b, t, name)
+		writePerDirectory(&b, t, name, url)
 		return b.String()
 	}
-	fmt.Fprintf(&b, "  - name: %s\n    repositories:\n      - url: %s\n", Scalar(name), Here)
+	fmt.Fprintf(&b, "  - name: %s\n    repositories:\n      - url: %s\n", Scalar(name), Scalar(url))
 	writeUnresolvedComment(&b, t.Unresolved)
 	if len(t.Parts) > 0 {
 		fmt.Fprintf(&b, "    # Directories with their own dependency files: %s\n", PathList(t.Parts))
@@ -239,9 +246,9 @@ func writeUnresolvedComment(b *strings.Builder, unresolved []manifests.Unread) {
 
 // writePerDirectory writes the root component and one component per part, each scoped by paths:
 // and each part carved out of the components above it by ignore:.
-func writePerDirectory(b *strings.Builder, t inventory.Tree, project string) {
+func writePerDirectory(b *strings.Builder, t inventory.Tree, project, url string) {
 	names := componentNames(t.Parts, project)
-	fmt.Fprintf(b, "  - name: %s\n    repositories:\n      - url: %s\n        ignore: [%s]\n", Scalar(project), Here, dirList(topParts(t.Parts)))
+	fmt.Fprintf(b, "  - name: %s\n    repositories:\n      - url: %s\n        ignore: [%s]\n", Scalar(project), Scalar(url), dirList(topParts(t.Parts)))
 	writeUnresolvedFor(b, t.Unresolved, ".", t.Parts)
 	// Each image stub goes on the component whose directory holds the Dockerfile. An image is
 	// ranked under the exposure and criticality of the component that declares it, so a stub for
@@ -253,7 +260,7 @@ func writePerDirectory(b *strings.Builder, t inventory.Tree, project string) {
 	}
 	writeSurfaceStubs(b, t, project, built["."])
 	for _, p := range t.Parts {
-		fmt.Fprintf(b, "  - name: %s\n    repositories:\n      - url: %s\n        paths: [%s]\n", Scalar(names[p]), Here, Scalar(p))
+		fmt.Fprintf(b, "  - name: %s\n    repositories:\n      - url: %s\n        paths: [%s]\n", Scalar(names[p]), Scalar(url), Scalar(p))
 		if inner := beneath(p, t.Parts); len(inner) > 0 {
 			fmt.Fprintf(b, "        ignore: [%s]\n", dirList(inner))
 		}

@@ -125,7 +125,7 @@ func foundFiles(rows []foundRow, scanner string) string {
 const initUnreadNote = "dependency files no scanner can take packages from · their packages will not be checked"
 
 // writeInitSummary prints what init wrote and what needs a person.
-func writeInitSummary(w io.Writer, col tui.Painter, t inventory.Tree, opts initOptions) {
+func writeInitSummary(w io.Writer, col tui.Painter, t inventory.Tree, opts initOptions, at place) {
 	out := opts.output
 	_, _ = fmt.Fprintf(w, "%s wrote %s\n", col.Paint(tui.StylePass, "✓"), out)
 	if opts.perDirectory && len(t.Parts) == 0 {
@@ -153,5 +153,9 @@ func writeInitSummary(w io.Writer, col tui.Painter, t inventory.Tree, opts initO
 		}
 		_, _ = fmt.Fprintln(w)
 	}
-	_, _ = fmt.Fprintf(w, "Next:\n  draugr doctor %s   # check the scanners it needs\n  draugr scan %s\n", out, out)
+	_, _ = fmt.Fprintln(w, "Next:")
+	if at.cd != "" {
+		_, _ = fmt.Fprintf(w, "  cd %s\n", at.cd)
+	}
+	_, _ = fmt.Fprintf(w, "  draugr doctor %s   # check the scanners it needs\n  draugr scan %s\n", at.path, at.path)
 }
