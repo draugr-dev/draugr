@@ -657,7 +657,7 @@ or `nothing raised`. Neither row appears when the lookup did not answer.
 
 ```console
 SIGNALS
-  KEV           2 findings raised
+  KEV           2 findings listed · 2 raised
   EPSS          2 findings raised
   malicious     nothing raised
   deprecated    12 findings raised

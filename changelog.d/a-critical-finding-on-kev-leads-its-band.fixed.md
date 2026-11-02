@@ -1,0 +1,1 @@
+- **A critical finding on KEV leads its band.** The action that clears a finding on KEV comes first in its band and carries `exploitation`, including where the scanner already rated it critical. Each finding records the listing as `exploited`, and the `KEV` row under `SIGNALS` counts the findings on the catalog, then how many it raised.

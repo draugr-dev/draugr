@@ -330,7 +330,7 @@ A run says what moved its ranking, beside everything else that moved it:
 
 ```
 SIGNALS
-  KEV           2 findings raised
+  KEV           3 findings listed · 2 raised
   EPSS          1 finding raised
   reachability  govulncheck · 2 reachable, 2 unreachable
 ```
@@ -338,9 +338,14 @@ SIGNALS
 The HTML and markdown reports add a column saying how each signal moves a finding, and state the
 EPSS threshold the run used.
 
-**"nothing raised" is printed when nothing moved**, because that is a result rather than an
-absence. Without it, the only way to learn that a feed changed nothing is to read every finding
-looking for a mark that is not there, and then wonder whether you missed one.
+**The KEV row counts the findings on the catalog**, then how many of them it raised. A finding the
+scanner already rated critical is listed and not raised, and the action that clears it still comes
+[first in its band](what-to-fix-first.md#how-the-list-is-ordered).
+
+**"nothing raised" is printed when nothing moved**, and "nothing listed" when KEV lists none of the
+run's findings, because each is a result rather than an absence. Without them, the only way to learn
+that a feed changed nothing is to read every finding looking for a mark that is not there, and then
+wonder whether you missed one.
 
 The count is over the whole run, not the visible listing, `--top` and `--min-priority` narrow what
 is shown, and this answers what the signals did, not what fitted on the page.

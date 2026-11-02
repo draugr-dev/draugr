@@ -96,7 +96,7 @@ COMPONENTS
   platform    not scanned
 
 SIGNALS
-  KEV   nothing raised
+  KEV   nothing listed
   EPSS  nothing raised
 
 FIX FIRST  top 3 of 21, by priority

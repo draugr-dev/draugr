@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/draugr-dev/draugr/internal/manifests"
+	"github.com/draugr-dev/draugr/pkg/exploit"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/skald"
@@ -459,34 +460,53 @@ func rankByPackage(actions []action) {
 }
 
 // export is what report.json and fix_list say an action ranked by inside its band: the worst
-// severity as ranked, the scanners' worst where something moved it, and the escalation behind the
-// exploitation signal, in the words the finding's own escalation uses.
+// severity as ranked, the scanners' worst where something moved it, and the evidence behind the
+// exploitation signal, in the words the finding's own record uses.
 func (k rankKeys) export() (severity, from sarif.Severity, exploited *skald.ActionExploitation) {
 	severity = k.severity
 	if k.reported != k.severity {
 		from = k.reported
 	}
 	if f := k.exploited; f != nil {
-		e := f.escalation
-		exploited = &skald.ActionExploitation{Signal: e.Signal, RuleID: f.ruleID, Detail: e.Detail, AsOf: e.AsOf}
+		m := f.exploited
+		if m == nil {
+			m = &sarif.Match{Signal: f.escalation.Signal, Detail: f.escalation.Detail, AsOf: f.escalation.AsOf}
+		}
+		exploited = &skald.ActionExploitation{Signal: m.Signal, RuleID: f.ruleID, Detail: m.Detail, AsOf: m.AsOf}
 	}
 	return severity, from, exploited
 }
 
-// exploitationSignal ranks the evidence that a finding's flaw is exploited: 2 when it is on KEV, 1
-// when EPSS raised it, 0 otherwise. KEV outranks EPSS wherever both fire, so the signal that set
-// the rating is the strongest one.
+// exploitationSignal ranks the evidence that a finding's flaw is exploited: 2 when it is on KEV,
+// whether or not KEV raised it, 1 when EPSS raised it, 0 otherwise.
 func exploitationSignal(f finding) int {
+	if f.exploited != nil {
+		return 2
+	}
 	if f.escalation == nil {
 		return 0
 	}
 	switch f.escalation.Signal {
-	case "kev":
+	case exploit.SignalKEV:
 		return 2
-	case "epss":
+	case exploit.SignalEPSS:
 		return 1
 	}
 	return 0
+}
+
+// exploitedOf is the KEV listing a result carries, or nil.
+//
+// Read from the escalation as well, because a report written before the listing was recorded
+// apart carries it only there, and a finding KEV raised is a finding KEV lists.
+func exploitedOf(res sarif.Result) *sarif.Match {
+	if res.Exploited != nil {
+		return res.Exploited
+	}
+	if e := res.Escalation; e != nil && e.Signal == exploit.SignalKEV {
+		return &sarif.Match{Signal: e.Signal, Detail: e.Detail, AsOf: e.AsOf}
+	}
+	return nil
 }
 
 // commonComponent is the component every finding belongs to, or "" where they differ.

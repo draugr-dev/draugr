@@ -39,10 +39,10 @@ type Action struct {
 	// SeverityFrom is the worst severity as the scanners reported it, where an adjustment changed
 	// the worst. Absent where Severity is the scanners' own.
 	SeverityFrom sarif.Severity `json:"severityFrom,omitempty" jsonschema:"the worst severity the scanners reported, present where KEV, EPSS or reachability analysis changed it"`
-	// Exploitation is the strongest exploitation evidence among the findings, read from the
-	// escalation of the finding that carries it. KEV outranks EPSS. Nil where no finding was
-	// escalated.
-	Exploitation *ActionExploitation `json:"exploitation,omitempty" jsonschema:"the strongest exploitation evidence among the findings it clears, from the escalation of one of them; absent where KEV and EPSS raised none"`
+	// Exploitation is the strongest exploitation evidence among the findings: a KEV listing, whether
+	// or not it raised the finding, then an EPSS score that raised one. KEV outranks EPSS. Nil where
+	// no finding is on KEV and EPSS raised none.
+	Exploitation *ActionExploitation `json:"exploitation,omitempty" jsonschema:"the strongest exploitation evidence among the findings it clears: a finding on KEV, whether or not KEV raised it, else one EPSS raised; absent where none is on KEV and EPSS raised none"`
 	// Upstream marks an action whose unit of work is something somebody else publishes: the fix
 	// is to take a newer one, not to change anything inside it.
 	Upstream bool `json:"upstream,omitempty"`
@@ -142,13 +142,13 @@ type ActionLocation struct {
 	Kind string `json:"kind"`
 }
 
-// ActionExploitation is the exploitation evidence an action ranks by: one finding's escalation, in
-// the words the finding's own escalation uses.
+// ActionExploitation is the exploitation evidence an action ranks by: one finding's KEV listing or
+// escalation, in the words the finding's own record uses.
 type ActionExploitation struct {
-	// Signal names the dataset that raised the finding: "kev" or "epss".
+	// Signal names the dataset: "kev" or "epss".
 	Signal string `json:"signal" jsonschema:"kev (observed exploitation) or epss (predicted probability of exploitation)"`
-	// RuleID is the rule of the finding the signal raised, a CVE.
-	RuleID string `json:"ruleId" jsonschema:"the rule of the finding the signal raised, a CVE"`
+	// RuleID is the rule of the finding the signal applies to, a CVE.
+	RuleID string `json:"ruleId" jsonschema:"the rule of the finding the signal applies to, a CVE"`
 	// Detail is the specific fact, e.g. "on KEV" or "EPSS 0.87".
 	Detail string `json:"detail,omitempty" jsonschema:"the specific fact, e.g. on KEV or EPSS 0.87"`
 	// AsOf is the day the data was fetched, as YYYY-MM-DD.
