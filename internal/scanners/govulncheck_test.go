@@ -43,6 +43,9 @@ func TestGovulncheckArgsRunsOncePerModule(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(root, dir, "go.mod"), []byte("module x\n"), 0o600); err != nil {
 			t.Fatal(err)
 		}
+		if err := os.WriteFile(filepath.Join(root, dir, "main.go"), []byte(goMain), 0o600); err != nil {
+			t.Fatal(err)
+		}
 	}
 	got := govulncheckArgs(root, nil, plugin.Config{})
 	if len(got) != 2 {

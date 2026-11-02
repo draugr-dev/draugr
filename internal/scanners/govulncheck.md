@@ -45,6 +45,37 @@ only requires it is not lent that call path. Two components sharing a repository
 is analyzed as the workspace builds it, which is the build `go build` in that directory produces,
 and a module the workspace does not use is analyzed on its own.
 
+**A module with nothing to build is passed by.** A `go.mod` whose module holds no Go file in the
+build, under the default build constraints for the machine and any `-tags` your `GOFLAGS` sets, has
+no code to start a call graph from, and govulncheck does not run over it. A `tools` module holding
+only a `//go:build tools` file is the common case, and nothing is reported for it.
+
+**A module govulncheck cannot load is a caveat, and the others keep their verdicts.** A module that
+does not compile, needs a C library the machine lacks, or uses generated code nobody generated fails
+to load. Its `go.mod` is listed under **Caveats** as `unread-files`, and the reason, after
+`govulncheck:`, names what to do where govulncheck's diagnostics show what is missing:
+
+| Cause | Reason |
+|---|---|
+| a cgo package's C header is not installed | `install the package that provides fuse.h, which github.com/winfsp/cgofuse/fuse includes` |
+| a cgo package's pkg-config library is not installed | `install the package that provides <library>, which <package> needs`, naming two and counting the rest |
+| a file of the package declares the identifier behind a build tag | `set GOFLAGS=-tags=noassets, under which cmd/infra/strelaypoolsrv/auto/noassets.go declares auto.Assets` |
+| nothing in the checkout declares the identifier, usually generated code | `generate or declare pb.PredictOptions, used at pkg/grpc/backend.go:71` |
+| anything else | govulncheck's first diagnostic |
+
+The module's findings keep the band the manifest scanner gave them and carry no verdict, and an
+advisory only govulncheck reports, such as one in the standard library, was not checked there. A
+failure that
+holds for every module, such as a database govulncheck cannot reach, still fails the repository's
+job. To fail the run on a module that did not load, set
+[`config.gate.failOnCaveats: [unread-files]`](../../docs/reference/saga-schema.md#configgate).
+
+**Standard-library advisories follow each module's Go.** govulncheck runs with the module as its
+working directory, where it reads `go env GOVERSION`, so the standard library is checked at the
+version the go command builds that module with: the toolchain its `go` or `toolchain` line, or its
+`go.work`'s, selects, or the Go on PATH where that is newer. With go1.26.10 on PATH, a module
+declaring `go 1.27.1` is checked against go1.27.1 and one declaring `go 1.26` against go1.26.10.
+
 **Components carved out of one module** are each analyzed from their own code. The checkout holds
 the whole module, as [Scoping a repository](../../docs/reference/saga-schema.md#scoping-a-repository)
 describes, and govulncheck starts from the packages the component's `paths` hold: `./cmd/api/...`

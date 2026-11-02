@@ -51,15 +51,19 @@ func TestGovulncheckLoadsAWorkspaceWithNoGoWorkSumOnTheReadOnlyCheckout(t *testi
 
 	dirs := map[string]string{
 		"one": writeTree(t, map[string]string{
-			"go.work":    "go 1.22\n\nuse ./api\n",
-			"api/go.mod": "module example.com/api\n\ngo 1.22\n\nrequire example.com/dep v1.0.0\n",
+			"go.work":     "go 1.22\n\nuse ./api\n",
+			"api/go.mod":  "module example.com/api\n\ngo 1.22\n\nrequire example.com/dep v1.0.0\n",
+			"api/main.go": goMain,
 		}),
 		"two": writeTree(t, map[string]string{
 			"go.work": "go 1.22\n\nuse (\n\t.\n)\n\nreplace example.com/lib => ./lib\n",
 			"go.mod": "module example.com/worker\n\ngo 1.22\n\n" +
 				"require (\n\texample.com/dep v1.0.0\n\texample.com/lib v0.0.0\n)\n",
-			"lib/go.mod":   "module example.com/lib\n\ngo 1.22\n",
-			"tools/go.mod": "module example.com/tools\n\ngo 1.22\n",
+			"main.go":       goMain,
+			"lib/go.mod":    "module example.com/lib\n\ngo 1.22\n",
+			"lib/lib.go":    "package lib\n",
+			"tools/go.mod":  "module example.com/tools\n\ngo 1.22\n",
+			"tools/main.go": goMain,
 		}),
 	}
 

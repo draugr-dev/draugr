@@ -1,0 +1,1 @@
+- **A Go module govulncheck cannot load says what to do.** The caveat names the C header or pkg-config library to install and the package needing it, the build tag to set through `GOFLAGS=-tags=` where a stub declares a missing identifier, or removing govulncheck from `config.reachability.analyzers` where nothing in the checkout declares it.

@@ -12,7 +12,9 @@ import (
 //
 // Per control and not per scanner, because a file one scanner skips and another reads was read. Two
 // scanners serving `sca` differ in what they accept, and reporting each one's gaps would warn about
-// a requirements-dev.txt that Grype read while Trivy passed it by.
+// a requirements-dev.txt that Grype read while Trivy passed it by. A file an analysis could not cover
+// (sarif.Input.Analysis), such as a Go module govulncheck could not load, is listed whoever read its
+// packages, because reading them is not the analysis.
 type InputCoverage struct {
 	Component string
 	Control   string
@@ -36,7 +38,7 @@ type UnreadInput struct {
 	// "zbad" skipped`. For a file searched for secrets, "name has an archive extension", or at the
 	// repository root "no files read". For a source file Semgrep skipped or did not finish,
 	// `over 1 MB, not scanned` or the rules that timed out on it, as `1 rule timed out, not checked:
-	// "x"`.
+	// "x"`. For a go.mod, why govulncheck could not load the module.
 	//
 	// For a requirements file read in part, the requirements not read, as `1 requirement not
 	// pinned: urllib3`.
@@ -54,6 +56,9 @@ func inputCoverage(byCtl map[string][]sarif.Report) []InputCoverage {
 		unread   map[fileKey]string
 		// partly holds the files a scanner took some packages from, with what it did not take.
 		partly map[fileKey]string
+		// analysis holds the files an analysis of their code did not cover, which listed as unread
+		// whoever read their packages.
+		analysis map[fileKey]bool
 	}
 	scopes := map[scope]*acc{}
 	for control, reports := range byCtl {
@@ -63,11 +68,14 @@ func inputCoverage(byCtl map[string][]sarif.Report) []InputCoverage {
 				a := scopes[k]
 				if a == nil {
 					a = &acc{scanners: map[string]bool{}, read: map[fileKey]bool{}, unread: map[fileKey]string{},
-						partly: map[fileKey]string{}}
+						partly: map[fileKey]string{}, analysis: map[fileKey]bool{}}
 					scopes[k] = a
 				}
 				a.scanners[in.Scanner] = true
 				f := fileKey{in.Repository, in.Path}
+				if in.Analysis && in.Unread != "" {
+					a.analysis[f] = true
+				}
 				if in.Unread == "" {
 					a.read[f] = true
 					continue
@@ -96,7 +104,7 @@ func inputCoverage(byCtl map[string][]sarif.Report) []InputCoverage {
 		}
 		slices.Sort(cov.Scanners)
 		for f, reason := range a.unread {
-			if a.read[f] {
+			if a.read[f] && !a.analysis[f] {
 				continue
 			}
 			if _, some := a.partly[f]; some {

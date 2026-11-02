@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/build"
 	"io"
 	"io/fs"
 	"os"
@@ -51,8 +52,25 @@ func NewGovulncheck() plugin.Scanner {
 	)
 	s.cacheVersion = govulncheckCacheVersion
 	s.preflight = func(ctx context.Context, _ plugin.Config) error { return govulncheckPreflight(ctx) }
-	s.run = onRuntime(s.info.Binary, onBuildGo(onGoWork(execArgvInDirWithEnv)))
+	s.run = onRuntime(s.info.Binary, onBuildGo(onUnloaded(onGoWork(inModuleDir(execArgvInDirWithEnv)))))
 	return s
+}
+
+// inModuleDir runs govulncheck with the module its argv names (`-C <module>`) as its working
+// directory.
+//
+// govulncheck decides which standard-library advisories apply from `go env GOVERSION`, which it runs
+// in its own working directory rather than in the module `-C` names. The go command there picks the
+// toolchain from the go.mod, or go.work, it finds, so run from the checkout root the root module's
+// `go` line, or no module's at all, would set the standard-library version for every module in the
+// repository. Run from the module, it is the Go that module builds with.
+func inModuleDir(run func(ctx context.Context, dir string, argv, env []string) ([]byte, error)) func(ctx context.Context, dir string, argv, env []string) ([]byte, error) {
+	return func(ctx context.Context, dir string, argv, env []string) ([]byte, error) {
+		if i := slices.Index(argv, "-C"); i >= 0 && i+1 < len(argv) {
+			dir = argv[i+1]
+		}
+		return run(ctx, dir, argv, env)
+	}
 }
 
 // lookRuntime finds a runtime on PATH. A variable so a test can take one off it.
@@ -108,7 +126,8 @@ func localGovulncheckVersion(url string) *toolVersionProbe {
 }
 
 // govulncheckArgs builds one `govulncheck -C <module> -format json <patterns>` per Go module in the
-// checkout, the patterns being `./...` unless entry narrows them (govulncheckPatterns).
+// checkout that holds a package to build (govulncheckModules), the patterns being `./...` unless
+// entry narrows them (govulncheckPatterns).
 //
 // Per module rather than once at the root, because a repository is not required to be one. A
 // polyglot repository keeps its Go service in a subdirectory, a monorepo keeps several, and
@@ -134,7 +153,7 @@ func govulncheckArgs(dir string, entry []string, _ plugin.Config) [][]string {
 	db := resolveGovulnDB().url
 	mods := goModuleDirs(dir)
 	var out [][]string
-	for _, mod := range mods {
+	for _, mod := range govulncheckModules(dir) {
 		argv := []string{"govulncheck", "-C", mod}
 		if db != "" {
 			argv = append(argv, "-db", db)
@@ -218,7 +237,15 @@ func relSlash(root, target string) (string, bool) {
 // holdsGoPackage reports whether dir, or a directory under it in the same module, holds a Go file
 // that is part of a build. A pattern matching no package fails the run, so a directory of
 // templates or a frontend is no place to start from.
+//
+// Part of a build under the build constraints the go command applies by default, on this machine,
+// with any `-tags` GOFLAGS sets: a file behind `//go:build tools` or `//go:build ignore`, or one for
+// another platform, is not. A module of tool imports alone holds nothing to build, and govulncheck
+// fails over it with "no packages matched". Directories `./...` passes by, vendor/, testdata/ and
+// any whose name starts with `.` or `_`, are passed by here too.
 func holdsGoPackage(dir string) bool {
+	ctx := build.Default
+	ctx.BuildTags = goflagsTags(os.Getenv("GOFLAGS"))
 	found := false
 	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		switch {
@@ -230,6 +257,9 @@ func holdsGoPackage(dir string) bool {
 				return filepath.SkipDir
 			}
 			if p != dir {
+				if strings.HasPrefix(d.Name(), ".") || strings.HasPrefix(d.Name(), "_") {
+					return filepath.SkipDir
+				}
 				if _, err := os.Stat(filepath.Join(p, "go.mod")); err == nil {
 					return filepath.SkipDir
 				}
@@ -237,14 +267,49 @@ func holdsGoPackage(dir string) bool {
 			return nil
 		}
 		name := d.Name()
-		if strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, "_test.go") &&
-			!strings.HasPrefix(name, "_") && !strings.HasPrefix(name, ".") {
+		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			return nil
+		}
+		// A file whose constraints cannot be read is counted, so govulncheck runs and says why.
+		if match, err := ctx.MatchFile(filepath.Dir(p), name); match || err != nil {
 			found = true
 			return filepath.SkipAll
 		}
 		return nil
 	})
 	return found
+}
+
+// goflagsTags reads the build tags a GOFLAGS value sets with `-tags` or `--tags`, comma-separated,
+// as the go command reads them.
+func goflagsTags(goflags string) []string {
+	var tags []string
+	for _, f := range strings.Fields(goflags) {
+		v, ok := strings.CutPrefix(strings.TrimPrefix(strings.TrimPrefix(f, "-"), "-"), "tags=")
+		if !ok || !strings.HasPrefix(f, "-") {
+			continue
+		}
+		tags = nil
+		for _, t := range strings.Split(v, ",") {
+			if t = strings.TrimSpace(t); t != "" {
+				tags = append(tags, t)
+			}
+		}
+	}
+	return tags
+}
+
+// govulncheckModules lists the modules govulncheck runs over: each one goModuleDirs finds that
+// holds a package to build. A module with nothing to build is passed by without a word, because
+// there is no code in it for a call graph to start from.
+func govulncheckModules(root string) []string {
+	var out []string
+	for _, mod := range goModuleDirs(root) {
+		if holdsGoPackage(mod) {
+			out = append(out, mod)
+		}
+	}
+	return out
 }
 
 // goModuleDirs lists the directories under root holding a go.mod, outermost first.
@@ -284,6 +349,9 @@ type govulncheckMessage struct {
 	SBOM    *govulncheckSBOM    `json:"SBOM,omitempty"`
 	OSV     *govulncheckOSV     `json:"osv,omitempty"`
 	Finding *govulncheckFinding `json:"finding,omitempty"`
+	// Unloaded is Draugr's, never govulncheck's: written in place of a run that could not load its
+	// module (see onUnloaded), so the stream still holds one run per module.
+	Unloaded *govulncheckUnloaded `json:"draugrUnloaded,omitempty"`
 }
 
 // govulncheckConfig is the run's own account of what it was able to do.
@@ -371,12 +439,16 @@ func parseGovulncheck(out []byte, dir string, _ plugin.Config) (sarif.Report, er
 func parseGovulncheckAt(out []byte, dir string, now time.Time) (sarif.Report, error) {
 	var modules []string
 	if dir != "" {
-		modules = goModuleDirs(dir)
+		modules = govulncheckModules(dir)
 	}
 	if len(out) == 0 {
 		// Silence over a tree that holds modules is runs that wrote nothing, not a tree with none.
 		if len(modules) > 0 {
 			return sarif.Report{}, fmt.Errorf("govulncheck wrote 0 runs for %d modules", len(modules))
+		}
+		coverage := "no go.mod found, so nothing here carries a verdict"
+		if dir != "" && len(goModuleDirs(dir)) > 0 {
+			coverage = "no Go package builds here under the default build tags"
 		}
 		// No module was found, so nothing ran. Reported rather than returned as a clean result:
 		// a tree this analyzer could not answer for must not be indistinguishable from one where
@@ -393,7 +465,7 @@ func parseGovulncheckAt(out []byte, dir string, now time.Time) (sarif.Report, er
 				Tool: govulncheckScanner,
 				Fields: []sarif.Field{{
 					Key:   "coverage",
-					Value: "no go.mod found, so nothing here carries a verdict",
+					Value: coverage,
 				}},
 			}},
 		}, nil
@@ -416,21 +488,29 @@ func parseGovulncheckAt(out []byte, dir string, now time.Time) (sarif.Report, er
 	if len(modules) > 0 && len(runs) != len(modules) {
 		return sarif.Report{}, fmt.Errorf("govulncheck wrote %d runs for %d modules", len(runs), len(modules))
 	}
+	var inputs []sarif.Input
 	for _, run := range runs {
+		// A module that did not load is named as unread, and has no results: its findings keep the
+		// band the manifest scanner gave them, with no verdict.
+		if u := run[0].Unloaded; u != nil {
+			inputs = append(inputs, sarif.Input{Path: u.GoMod, Unread: u.Reason, Analysis: true})
+			continue
+		}
 		results = append(results, govulncheckRunResults(run, manifests, asOf)...)
 	}
-	return sarif.Report{Tool: govulncheckScanner, Results: results, Provenance: []sarif.Provenance{{
+	return sarif.Report{Tool: govulncheckScanner, Results: results, Inputs: inputs, Provenance: []sarif.Provenance{{
 		Tool:   govulncheckScanner,
 		Fields: []sarif.Field{{Key: "database", Value: resolveGovulnDB().describe()}},
 	}}}, nil
 }
 
 // splitGovulncheckRuns divides a concatenated stream into one slice per govulncheck run. Each run
-// opens with a config message; anything before the first belongs to a run of its own.
+// opens with a config message, or is a module that did not load; anything before the first belongs
+// to a run of its own.
 func splitGovulncheckRuns(msgs []govulncheckMessage) [][]govulncheckMessage {
 	var runs [][]govulncheckMessage
 	for _, m := range msgs {
-		if m.Config != nil || len(runs) == 0 {
+		if m.Config != nil || m.Unloaded != nil || len(runs) == 0 {
 			runs = append(runs, nil)
 		}
 		runs[len(runs)-1] = append(runs[len(runs)-1], m)

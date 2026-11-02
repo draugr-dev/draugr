@@ -1,0 +1,1 @@
+- **One Go module that fails to load no longer discards govulncheck's other verdicts.** The modules that loaded keep their reachability, and the failed module's `go.mod` is an `unread-files` caveat; `gate.failOnCaveats: [unread-files]` fails the run on it. A module holding only build-tagged files, such as a tools module, is skipped.

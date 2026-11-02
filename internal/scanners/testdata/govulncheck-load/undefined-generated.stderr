@@ -1,0 +1,10 @@
+govulncheck: loading packages:
+There are errors with the provided package patterns:
+
+-: no non-test Go files in {{module}}/pkg/grpc/proto
+{{module}}/pkg/grpc/backend.go:71:41: undefined: pb.PredictOptions
+{{module}}/pkg/grpc/backend.go:71:87: undefined: pb.EmbeddingResult
+{{module}}/pkg/grpc/backend.go:72:44: undefined: pb.PredictOptions
+{{module}}/pkg/grpc/backend.go:72:77: undefined: pb.Reply
+
+For details on package patterns, see https://pkg.go.dev/cmd/go#hdr-Package_lists_and_patterns.

@@ -1,0 +1,8 @@
+govulncheck: loading packages:
+There are errors with the provided package patterns:
+
+{{module}}/cmd/infra/strelaypoolsrv/main.go:294:17: undefined: auto.Assets
+{{module}}/lib/api/api_statics.go:38:25: undefined: auto.Assets
+{{module}}/lib/api/api_statics.go:45:25: undefined: auto.Assets
+
+For details on package patterns, see https://pkg.go.dev/cmd/go#hdr-Package_lists_and_patterns.

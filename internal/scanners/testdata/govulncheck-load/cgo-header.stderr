@@ -1,0 +1,11 @@
+govulncheck: loading packages:
+There are errors with the provided package patterns:
+
+-: # github.com/winfsp/cgofuse/fuse
+{{modcache}}/github.com/winfsp/cgofuse@v1.5.1-0.20230130140708-f87f5db493b5/fuse/host_cgo.go:117:10: fatal error: fuse.h: No such file or directory
+  117 | #include <fuse.h>
+      |          ^~~~~~~~
+compilation terminated.
+{{modcache}}/github.com/winfsp/cgofuse@v1.5.1-0.20230130140708-f87f5db493b5/fuse/fsop_cgo.go:158:8: could not import C (no metadata for C)
+
+For details on package patterns, see https://pkg.go.dev/cmd/go#hdr-Package_lists_and_patterns.

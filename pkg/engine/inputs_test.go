@@ -189,3 +189,27 @@ func TestInputCoverageListsAFileReadInPart(t *testing.T) {
 		t.Errorf("coverage =\n%+v\nwant\n%+v", got, want)
 	}
 }
+
+// A go.mod whose module govulncheck could not load is listed although Trivy read its packages,
+// because reading them is not the analysis. Two components, each with its own repository: in one
+// the module failed, in the other it loaded, and Trivy's read stands there.
+func TestInputCoverageListsAFileAnAnalysisDidNotCover(t *testing.T) {
+	const failed = "not loaded by govulncheck: main.go:3:2: undefined: Assets"
+	byCtl := map[string][]sarif.Report{"sca": {
+		{Inputs: []sarif.Input{
+			{Scanner: "trivy-fs", Component: "api", Repository: "api", Path: "tools/go.mod", Packages: 4},
+			{Scanner: "trivy-fs", Component: "worker", Repository: "worker", Path: "tools/go.mod", Packages: 4},
+		}},
+		{Inputs: []sarif.Input{
+			{Scanner: "govulncheck", Component: "api", Repository: "api", Path: "tools/go.mod", Unread: failed, Analysis: true},
+		}},
+	}}
+	want := []InputCoverage{
+		{Component: "api", Control: "sca", Scanners: []string{"govulncheck", "trivy-fs"}, Read: 1,
+			Unread: []UnreadInput{{Repository: "api", Path: "tools/go.mod", Reason: failed}}},
+		{Component: "worker", Control: "sca", Scanners: []string{"trivy-fs"}, Read: 1},
+	}
+	if got := inputCoverage(byCtl); !reflect.DeepEqual(got, want) {
+		t.Errorf("coverage =\n%+v\nwant\n%+v", got, want)
+	}
+}
