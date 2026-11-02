@@ -85,6 +85,7 @@ func (Licenses) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, 
 		return nil, nil
 	}
 	policy := licensePolicy(model, comp)
+	patterns := scaFilePatterns(model, comp)
 	selections := resolveScanners(model, comp, "licenses", []string{trivyLicenseScanner})
 	// Repositories first, so a component declaring both reports its own tree before what it runs.
 	targets := make([]plugin.Target, 0, len(comp.Repositories)+len(comp.Images))
@@ -118,10 +119,30 @@ func (Licenses) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, 
 					cfg[fromKey] = from
 				}
 			}
+			delete(cfg, filePatternsKey)
+			if _, repo := target.(plugin.RepositoryTarget); repo && sel.Name == trivyLicenseScanner && len(patterns) > 0 {
+				cfg[filePatternsKey] = patterns
+			}
 			jobs = append(jobs, plugin.ScanJob{Scanner: sel.Name, Target: target, Config: cfg})
 		}
 	}
 	return jobs, nil
+}
+
+// filePatternsKey is trivy-fs's setting for the files Trivy reads beyond the names it opens by
+// default, which this control passes to trivy-license too.
+const filePatternsKey = "filePatterns"
+
+// scaFilePatterns reads config.controls.sca.trivyFs.filePatterns for a component, the component's
+// block merged over the project's as sca merges it.
+//
+// Read from sca's setting rather than declared again here, so one setting decides which requirements
+// files Trivy reads for both controls, and a file sca checks for vulnerabilities is never unread for
+// its licenses.
+func scaFilePatterns(model saga.Model, comp *saga.Component) []string {
+	key := configKeyFor(trivyFSScanner)
+	blk := deepMerge(controlBlocks(model.Config.Controls, "sca")[key], controlBlocks(comp.Controls, "sca")[key])
+	return settingStrings(blk, filePatternsKey)
 }
 
 // Aggregate merges the scan reports and summarizes findings by severity.
@@ -219,7 +240,8 @@ func (Licenses) Validate(model saga.Model) []error {
 	return problems
 }
 
-// noPolicySourceKeys refuses a policy-source key in any scanner block of the licenses control.
+// noPolicySourceKeys refuses a policy-source key in any scanner block of the licenses control, and
+// filePatterns in trivy-license's.
 func noPolicySourceKeys(where string, controls map[string]saga.ControllerSettings) []error {
 	blocks := controlBlocks(controls, licensesControl)
 	var problems []error
@@ -230,6 +252,11 @@ func noPolicySourceKeys(where string, controls map[string]saga.ControllerSetting
 					where, licensesControl, name, key))
 			}
 		}
+	}
+	// The patterns come from sca's setting, so a second copy here could only disagree with it.
+	if _, written := blocks[configKeyFor(trivyLicenseScanner)][filePatternsKey]; written {
+		problems = append(problems, fmt.Errorf("%s.%s.%s: %q is set by the control from config.controls.sca.%s.%s and cannot be written here",
+			where, licensesControl, configKeyFor(trivyLicenseScanner), filePatternsKey, configKeyFor(trivyFSScanner), filePatternsKey))
 	}
 	return problems
 }
