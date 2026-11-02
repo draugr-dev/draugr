@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/build"
 	"go/build/constraint"
@@ -82,18 +83,18 @@ func govulncheckLoadFailure(err error) (string, bool) {
 //
 // The action leads, because the console cuts a long reason short. Three causes have one:
 //
-//   - A cgo package whose C header or pkg-config library is not installed. The fix is the library's
-//     development package; building without cgo is not, because the packages behind the cgo files
-//     then fail on identifiers those files declare.
+//   - A cgo package whose C header or pkg-config library is not installed. The fix is the system
+//     package that provides it; building without cgo is not, because the packages behind the cgo
+//     files then fail on identifiers those files declare.
 //   - An identifier a file of the package declares behind a build tag, a stub for generated assets
 //     being the common case. GOFLAGS carries the tag to the go command govulncheck runs.
 //   - An identifier nothing in the checkout declares, which is code the build generates. Draugr
-//     cannot generate it, so the one setting that changes the outcome is the analyzer itself.
+//     cannot generate it; the person reading the caveat can, before the scan.
 //
 // Any other cause is reported as the diagnostic alone: a line that names no action is better than
 // one that names the wrong one.
 func unloadedReason(root, mod, stderr string) string {
-	const lead = "not loaded by govulncheck: "
+	const lead = "govulncheck: "
 	if action, ok := cgoAction(stderr); ok {
 		return lead + action
 	}
@@ -138,11 +139,13 @@ func cgoAction(stderr string) (string, bool) {
 	var what, verb string
 	switch {
 	case header != "":
-		what, verb = "install the development package for "+header, " includes"
+		what, verb = "install the package that provides "+header, " includes"
 	case len(libs) == 1:
-		what, verb = "install the development package for "+libs[0], " needs"
-	case len(libs) > 1:
-		what, verb = "install the development packages for "+strings.Join(libs, ", "), " needs"
+		what, verb = "install the package that provides "+libs[0], " needs"
+	case len(libs) == 2:
+		what, verb = "install the packages that provide "+libs[0]+" and "+libs[1], " needs"
+	case len(libs) > 2:
+		what, verb = fmt.Sprintf("install the packages that provide %s, %s and %d more", libs[0], libs[1], len(libs)-2), " needs"
 	default:
 		return "", false
 	}
@@ -154,26 +157,26 @@ func cgoAction(stderr string) (string, bool) {
 
 // undefinedDiagnostic is a type checker's report of an identifier no file in the build declares, as
 // `file.go:line:col: undefined: pkg.Name` or `undefined: Name`.
-var undefinedDiagnostic = regexp.MustCompile(`(?m)^\s*(\S+\.go):\d+:\d+: undefined: (?:(\w+)\.)?(\w+)\s*$`)
+var undefinedDiagnostic = regexp.MustCompile(`(?m)^\s*(\S+\.go):(\d+):\d+: undefined: (?:(\w+)\.)?(\w+)\s*$`)
 
 // undefinedAction names the build tag that brings in a declaration the build is missing, or, where
-// no file in the checkout declares it behind a tag, offers taking govulncheck out of the analysis.
+// no file in the checkout declares it behind a tag, the identifier to generate and where it is used.
 // False where stderr reports no undefined identifier.
 func undefinedAction(root, mod, stderr string) (string, bool) {
 	first := ""
 	for _, m := range undefinedDiagnostic.FindAllStringSubmatch(stderr, -1) {
-		file, qualifier, name := m[1], m[2], m[3]
+		file, line, qualifier, name := m[1], m[2], m[3], m[4]
 		if !filepath.IsAbs(file) {
 			file = filepath.Join(mod, file)
 		}
+		ident := name
+		if qualifier != "" {
+			ident = qualifier + "." + name
+		}
 		if first == "" {
-			first = trimLoadPaths(root, strings.TrimSpace(m[0]))
+			first = "generate or declare " + ident + ", used at " + trimLoadPaths(root, file) + ":" + line
 		}
 		if decl, tag, ok := taggedDeclaration(root, file, qualifier, name); ok {
-			ident := name
-			if qualifier != "" {
-				ident = qualifier + "." + name
-			}
 			declRel, _ := relSlash(root, decl)
 			return "set GOFLAGS=-tags=" + tag + ", under which " + declRel + " declares " + ident, true
 		}
@@ -181,7 +184,7 @@ func undefinedAction(root, mod, stderr string) (string, bool) {
 	if first == "" {
 		return "", false
 	}
-	return first + "; to stop analyzing Go, remove govulncheck from config.reachability.analyzers", true
+	return first, true
 }
 
 // taggedDeclaration finds the file that declares name in the package file refers to by qualifier,

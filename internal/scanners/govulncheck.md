@@ -53,18 +53,15 @@ only a `//go:build tools` file is the common case, and nothing is reported for i
 **A module govulncheck cannot load is a caveat, and the others keep their verdicts.** A module that
 does not compile, needs a C library the machine lacks, or uses generated code nobody generated fails
 to load. Its `go.mod` is listed under **Caveats** as `unread-files`, and the reason, after
-`not loaded by govulncheck:`, names what to do where govulncheck's diagnostics show what is missing:
+`govulncheck:`, names what to do where govulncheck's diagnostics show what is missing:
 
 | Cause | Reason |
 |---|---|
-| a cgo package's C header is not installed | `install the development package for fuse.h, which github.com/winfsp/cgofuse/fuse includes` |
-| a cgo package's pkg-config library is not installed | `install the development package for <library>, which <package> needs` |
+| a cgo package's C header is not installed | `install the package that provides fuse.h, which github.com/winfsp/cgofuse/fuse includes` |
+| a cgo package's pkg-config library is not installed | `install the package that provides <library>, which <package> needs`, naming two and counting the rest |
 | a file of the package declares the identifier behind a build tag | `set GOFLAGS=-tags=noassets, under which cmd/infra/strelaypoolsrv/auto/noassets.go declares auto.Assets` |
-| nothing in the checkout declares the identifier, usually generated code | the diagnostic, then `to stop analyzing Go, remove govulncheck from config.reachability.analyzers` |
+| nothing in the checkout declares the identifier, usually generated code | `generate or declare pb.PredictOptions, used at pkg/grpc/backend.go:71` |
 | anything else | govulncheck's first diagnostic |
-
-Building without cgo is never suggested, because the packages that use the cgo files then fail on
-the identifiers those files declare.
 
 The module's findings keep the band the manifest scanner gave them and carry no verdict, and an
 advisory only govulncheck reports, such as one in the standard library, was not checked there. A

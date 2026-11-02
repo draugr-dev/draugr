@@ -448,7 +448,7 @@ func parseGovulncheckAt(out []byte, dir string, now time.Time) (sarif.Report, er
 		}
 		coverage := "no go.mod found, so nothing here carries a verdict"
 		if dir != "" && len(goModuleDirs(dir)) > 0 {
-			coverage = "no Go package to build, so nothing here carries a verdict"
+			coverage = "no Go package builds here under the default build tags"
 		}
 		// No module was found, so nothing ran. Reported rather than returned as a clean result:
 		// a tree this analyzer could not answer for must not be indistinguishable from one where

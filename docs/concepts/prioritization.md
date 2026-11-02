@@ -489,14 +489,13 @@ That line is a lead worth following by hand and not a band you can act on, which
 both. An analyzer that does not state its method is read the same way: a tool that will not say how
 it decided has not earned a de-escalation.
 
-**A Go module govulncheck could not load has no verdict.** govulncheck loads a module's packages
-before it analyzes them, so a module that does not compile, needs a C library the machine lacks, or
-uses generated code nobody generated is not analyzed. Its findings keep the band the manifest scanner
-gave them, the other modules keep their verdicts, and its `go.mod` is listed under **Caveats** as
+**A Go module govulncheck could not load has no verdict.** Its findings keep the band the manifest
+scanner gave them, the other modules keep their verdicts, and its `go.mod` is listed under **Caveats** as
 `unread-files` with the reason. Advisories only govulncheck reports, such as the standard library's,
 were not checked in that module. With
 [`config.gate.failOnCaveats: [unread-files]`](../reference/saga-schema.md#configgate), a module that
-did not load fails the run.
+did not load fails the run. [`govulncheck`](../../internal/scanners/govulncheck.md) lists the
+causes and what each caveat tells you to do.
 
 **It never suppresses**, at any strength. Static analysis is defeated by reflection, dynamic
 dispatch and code generation, and a suppression in Draugr records that a person decided, with a name

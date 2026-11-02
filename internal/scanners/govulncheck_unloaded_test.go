@@ -206,7 +206,7 @@ func TestGovulncheckKeepsTheModulesThatLoadedWhenOneDoesNot(t *testing.T) {
 			unread = append(unread, cov.Component+" "+cov.Control+" "+u.Path+": "+u.Reason)
 		}
 	}
-	wantUnread := []string{"api sca fixtures/go.mod: not loaded by govulncheck: set GOFLAGS=-tags=noassets, " +
+	wantUnread := []string{"api sca fixtures/go.mod: govulncheck: set GOFLAGS=-tags=noassets, " +
 		"under which fixtures/cmd/infra/strelaypoolsrv/auto/noassets.go declares auto.Assets"}
 	if !slices.Equal(unread, wantUnread) {
 		t.Errorf("unread = %q, want %q", unread, wantUnread)
@@ -248,16 +248,16 @@ func TestOnUnloadedNamesTheGoModAndTheFirstDiagnostic(t *testing.T) {
 		name, mod, stderr, want string
 	}{
 		{"no packages", filepath.Join(root, "man"), "govulncheck: no packages matched the provided patterns\n",
-			`{"draugrUnloaded":{"goMod":"man/go.mod","reason":"not loaded by govulncheck: no packages matched the provided patterns"}}`},
+			`{"draugrUnloaded":{"goMod":"man/go.mod","reason":"govulncheck: no packages matched the provided patterns"}}`},
 		{"a header with the cause on it", root,
 			"govulncheck: loading packages: err: exit status 1: stderr: go: updates to go.mod needed; to update it:\n\tgo mod tidy\n",
-			`{"draugrUnloaded":{"goMod":"go.mod","reason":"not loaded by govulncheck: err: exit status 1: stderr: go: updates to go.mod needed; to update it:"}}`},
+			`{"draugrUnloaded":{"goMod":"go.mod","reason":"govulncheck: err: exit status 1: stderr: go: updates to go.mod needed; to update it:"}}`},
 		{"a diagnostic in the module cache", root,
 			"govulncheck: loading packages: \nThere are errors with the provided package patterns:\n\n-: # example.com/x\n" +
 				"# [pkg-config --cflags  -- gtk4]\n/home/dev/go/pkg/mod/example.com/x@v1.0.0/x.go:9:8: could not import C (no metadata for C)\n",
-			`{"draugrUnloaded":{"goMod":"go.mod","reason":"not loaded by govulncheck: example.com/x@v1.0.0/x.go:9:8: could not import C (no metadata for C)"}}`},
+			`{"draugrUnloaded":{"goMod":"go.mod","reason":"govulncheck: example.com/x@v1.0.0/x.go:9:8: could not import C (no metadata for C)"}}`},
 		{"nothing past the framing", root, "govulncheck: loading packages: \n",
-			`{"draugrUnloaded":{"goMod":"go.mod","reason":"not loaded by govulncheck: no diagnostic"}}`},
+			`{"draugrUnloaded":{"goMod":"go.mod","reason":"govulncheck: no diagnostic"}}`},
 	} {
 		run := onUnloaded(func(context.Context, string, []string) ([]byte, error) {
 			return []byte(`{"config":{}}`), &exec.ExitError{Stderr: []byte(tc.stderr)}
@@ -276,20 +276,19 @@ func TestOnUnloadedNamesTheGoModAndTheFirstDiagnostic(t *testing.T) {
 // building without cgo.
 func TestUnloadedReasonNamesTheAction(t *testing.T) {
 	t.Setenv("GOFLAGS", "")
-	const lead = "not loaded by govulncheck: "
-	const remove = "; to stop analyzing Go, remove govulncheck from config.reachability.analyzers"
+	const lead = "govulncheck: "
 	for _, tc := range []struct {
 		name, fixture string
 		files         map[string]string
 		want          string
 	}{
 		{name: "a missing header", fixture: "cgo-header.stderr",
-			want: "install the development package for fuse.h, which github.com/winfsp/cgofuse/fuse includes"},
+			want: "install the package that provides fuse.h, which github.com/winfsp/cgofuse/fuse includes"},
 		{name: "a missing header under a directory", fixture: "cgo-header-nested.stderr",
-			want: "install the development package for olm/olm.h, which maunium.net/go/mautrix/crypto/libolm includes"},
+			want: "install the package that provides olm/olm.h, which maunium.net/go/mautrix/crypto/libolm includes"},
 		{name: "missing pkg-config libraries", fixture: "cgo-pkgconfig.stderr",
-			want: "install the development packages for glib-2.0, gobject-2.0, gtk4, webkitgtk-6.0, gio-unix-2.0, " +
-				"libsoup-3.0, which github.com/wailsapp/wails/v3/internal/assetserver/webview needs"},
+			want: "install the packages that provide glib-2.0, gobject-2.0 and 4 more, " +
+				"which github.com/wailsapp/wails/v3/internal/assetserver/webview needs"},
 		{name: "a stub behind a tag", fixture: "undefined-tagged.stderr",
 			files: map[string]string{
 				"go.mod":                                    "module github.com/syncthing/syncthing\n\ngo 1.22\n",
@@ -304,7 +303,7 @@ func TestUnloadedReasonNamesTheAction(t *testing.T) {
 				"pkg/grpc/backend.go":                    "package grpc\n\nimport pb \"github.com/mudler/LocalAI/pkg/grpc/proto\"\n\nvar _ pb.PredictOptions\n",
 				"pkg/grpc/proto/sound_expansion_test.go": "package proto\n",
 			},
-			want: "pkg/grpc/backend.go:71:41: undefined: pb.PredictOptions" + remove},
+			want: "generate or declare pb.PredictOptions, used at pkg/grpc/backend.go:71"},
 		{name: "a cause with no action", fixture: "toolchain-mismatch.stderr",
 			want: "golang.org/toolchain@v0.0.1-go1.27.1.linux-amd64/src/internal/poll/splice_linux.go:237:21: " +
 				"unknown field rfd in struct literal of type splicePipe"},
@@ -329,7 +328,6 @@ func TestUnloadedReasonNamesTheAction(t *testing.T) {
 // never offered, and a file outside the checkout is not read.
 func TestUndefinedActionResolvesThePackage(t *testing.T) {
 	t.Setenv("GOFLAGS", "")
-	const remove = "; to stop analyzing Go, remove govulncheck from config.reachability.analyzers"
 	root := writeTree(t, map[string]string{
 		"go.mod":             "module example.com/m/v2\n\ngo 1.22\n",
 		"web/assets.go":      "package web\n\nvar _ = embedded\n",
@@ -344,9 +342,9 @@ func TestUndefinedActionResolvesThePackage(t *testing.T) {
 		{"web/assets.go:3:9: undefined: embedded\n", "set GOFLAGS=-tags=dev, under which web/stub.go declares embedded"},
 		{root + "/cmd/x/main.go:7:2: undefined: st.Files\n", "set GOFLAGS=-tags=stub, under which gen/static/stub.go declares st.Files"},
 		{root + "/cmd/x/main.go:8:2: undefined: gen.Load\n", "set GOFLAGS=-tags=stub3, under which gen/v3/stub.go declares gen.Load"},
-		{"web/assets.go:3:9: undefined: never\n", "web/assets.go:3:9: undefined: never" + remove},
-		{root + "/cmd/x/main.go:9:2: undefined: other.Thing\n", "cmd/x/main.go:9:2: undefined: other.Thing" + remove},
-		{"/home/dev/go/pkg/mod/example.com/dep@v1.0.0/d.go:3:9: undefined: gen.X\n", "example.com/dep@v1.0.0/d.go:3:9: undefined: gen.X" + remove},
+		{"web/assets.go:3:9: undefined: never\n", "generate or declare never, used at web/assets.go:3"},
+		{root + "/cmd/x/main.go:9:2: undefined: other.Thing\n", "generate or declare other.Thing, used at cmd/x/main.go:9"},
+		{"/home/dev/go/pkg/mod/example.com/dep@v1.0.0/d.go:3:9: undefined: gen.X\n", "generate or declare gen.X, used at example.com/dep@v1.0.0/d.go:3"},
 	} {
 		got, ok := undefinedAction(root, root, "govulncheck: loading packages: \n"+tc.stderr)
 		if !ok || got != tc.want {
@@ -437,7 +435,7 @@ func TestParseGovulncheckWithNothingToBuild(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(report.Provenance) != 1 || report.Provenance[0].Fields[0].Value != "no Go package to build, so nothing here carries a verdict" {
+	if len(report.Provenance) != 1 || report.Provenance[0].Fields[0].Value != "no Go package builds here under the default build tags" {
 		t.Errorf("provenance = %+v, want the tree reported as holding nothing to build", report.Provenance)
 	}
 }
