@@ -88,10 +88,16 @@ cannot be applied on your platform, the install falls back to an unpinned resolv
 because a pin that only holds on the maintainer's machine would make the tool uninstallable
 everywhere else.
 
+**govulncheck has a second pin, the Go that builds it.** A govulncheck binary can only load modules
+whose `go` line is no newer than the Go it was built with, so Draugr builds it with the newer of
+your `go` and a pinned Go release, which `go` downloads when yours is older. `draugr doctor` reads
+which Go built the copy on your `PATH`, and a scan over a module declaring a newer Go fails with the
+module's path and the command that rebuilds the tool.
+
 ## How a pin moves
 
 A scheduled job asks the same question `draugr tools outdated` does, and for each tool that is
-behind it moves the pin, then tries to break it:
+behind it moves the pin, govulncheck's Go included, then tries to break it:
 
 - every tool installed for real at the new version and checksum-verified;
 - a full scan of every control against a live project, **three times against a cold cache**;

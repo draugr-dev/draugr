@@ -105,6 +105,9 @@ type Status struct {
 	DataFound   bool
 	// DataDetail describes what was found, e.g. a template-set version.
 	DataDetail string
+	// BuildGo is the Go release the binary was built with, read for a tool Draugr builds with Go
+	// (GoToolchain). Empty for any other tool, and where the file carries no build information.
+	BuildGo string
 }
 
 // LookPathFunc resolves a binary name to a path (defaults to exec.LookPath).
@@ -275,6 +278,10 @@ func All() []Tool {
 	return out
 }
 
+// readBuildGo reads the Go a binary was built with. A variable so a test can name one for a path
+// that is not a Go binary.
+var readBuildGo = ReadBuildGo
+
 // Detect reports whether a tool is on PATH and, if so, its version. lookPath and run are
 // injectable for testing; nil uses the real environment.
 func Detect(ctx context.Context, t Tool, lookPath LookPathFunc, run RunFunc) Status {
@@ -292,6 +299,9 @@ func Detect(ctx context.Context, t Tool, lookPath LookPathFunc, run RunFunc) Sta
 	}
 	st.Found = true
 	st.Path = path
+	if GoToolchain(t.Binary) != "" {
+		st.BuildGo = readBuildGo(path)
+	}
 
 	if len(t.VersionArgs) == 0 {
 		return st

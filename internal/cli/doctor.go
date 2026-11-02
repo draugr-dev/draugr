@@ -548,12 +548,16 @@ func writeDoctorTable(w io.Writer, statuses []tools.Status, pins map[string]tool
 		// named only when the tool is not at it.
 		target := versionTargetFor(st.Tool.Binary, pins)
 		switch {
-		case target.pin != nil && offTarget(st, target):
+		case target.pin != nil && versionOff(st, target):
 			notes = fmt.Sprintf("%s · pinned to %s in %s", notes, target.version, herePath(target.pin.Path))
 		case target.pin != nil:
 			notes = fmt.Sprintf("%s · pinned in %s", notes, herePath(target.pin.Path))
-		case offTarget(st, target):
+		case versionOff(st, target):
 			notes = fmt.Sprintf("%s · tested against %s", notes, target.version)
+		}
+		if buildGoBehind(st) {
+			notes = fmt.Sprintf("%s · built with %s, older than %s", notes, st.BuildGo,
+				tools.GoToolchain(st.Tool.Binary))
 		}
 		if version == "" {
 			version = "-"
@@ -599,27 +603,41 @@ func versionTargetFor(binary string, pins map[string]toolPin) versionTarget {
 	return versionTarget{version: strings.TrimPrefix(tools.PinnedVersion(binary), "v")}
 }
 
-// offTarget reports whether a found tool runs another version than its target. False when it
+// offTarget reports whether a found tool is not the build an install would fetch: another version
+// than its target, or a Go-built tool built with a Go older than the one Draugr builds it with.
+func offTarget(st tools.Status, target versionTarget) bool {
+	return versionOff(st, target) || buildGoBehind(st)
+}
+
+// versionOff reports whether a found tool runs another version than its target. False when it
 // matches, when there is no target, or when the version could not be read.
 //
 // String equality after dropping a leading v. Not an ordering: "older than tested" and "newer than
 // tested" are both untested, and a comparison that ranked them would have to decide what a version
 // scheme means for eight tools that do not share one.
-func offTarget(st tools.Status, target versionTarget) bool {
+func versionOff(st tools.Status, target versionTarget) bool {
 	if !st.Found || st.Err != nil || st.Version == "" || target.version == "" {
 		return false
 	}
 	return target.version != strings.TrimPrefix(st.Version, "v")
 }
 
+// buildGoBehind reports whether a found Go-built tool was built with a Go older than the release
+// Draugr builds it with. Such a build cannot load a module that declares a newer Go, whatever its
+// own version, and `-version` does not show it, because govulncheck prints the Go on PATH there.
+func buildGoBehind(st tools.Status) bool {
+	return st.Found && tools.GoToolchainBehind(st.Tool.Binary, st.BuildGo)
+}
+
 // offTargetCounts counts the found tools off their target: tested is those held to the version
-// Draugr tests, pinned those held to a configured pin.
+// Draugr tests, pinned those held to a configured pin. A tool at its configured pin and built with
+// an older Go is counted as tested, because the Go is Draugr's to choose and not the pin's.
 func offTargetCounts(statuses []tools.Status, pins map[string]toolPin) (tested, pinned int) {
 	for _, st := range statuses {
 		target := versionTargetFor(st.Tool.Binary, pins)
 		switch {
 		case !offTarget(st, target):
-		case target.pin != nil:
+		case target.pin != nil && versionOff(st, target):
 			pinned++
 		default:
 			tested++
@@ -762,6 +780,11 @@ type toolReport struct {
 	// running it, on the same terms as TestedVersion. PinnedIn is the file that pins it.
 	PinnedVersion string `json:"pinnedVersion,omitempty"`
 	PinnedIn      string `json:"pinnedIn,omitempty"`
+	// BuildGo is the Go release a Go-built tool was built with, where its build information says.
+	// TestedGo is the release Draugr builds it with, present only when BuildGo is older, on the
+	// same terms as TestedVersion.
+	BuildGo  string `json:"buildGo,omitempty"`
+	TestedGo string `json:"testedGo,omitempty"`
 }
 
 // writeDoctorJSON writes the report. missing is the count the exit code is decided on, passed in
@@ -794,13 +817,18 @@ func writeDoctorJSON(
 	}
 
 	for _, st := range statuses {
-		tr := toolReport{Binary: st.Tool.Binary, Found: st.Found, Version: st.Version, Path: st.Path}
-		if target := versionTargetFor(st.Tool.Binary, pins); offTarget(st, target) {
+		tr := toolReport{
+			Binary: st.Tool.Binary, Found: st.Found, Version: st.Version, Path: st.Path, BuildGo: st.BuildGo,
+		}
+		if target := versionTargetFor(st.Tool.Binary, pins); versionOff(st, target) {
 			if target.pin != nil {
 				tr.PinnedVersion, tr.PinnedIn = target.version, target.pin.Path
 			} else {
 				tr.TestedVersion = target.version
 			}
+		}
+		if buildGoBehind(st) {
+			tr.TestedGo = tools.GoToolchain(st.Tool.Binary)
 		}
 		switch {
 		case !st.Found:

@@ -1,17 +1,20 @@
 package tools
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
 )
 
 // fakeGo writes an executable standing in for the Go toolchain. `go version` prints what the test
-// asks for; `go install` writes a binary into GOBIN unless the test wants it to fail, so the
-// verified/fallback split can be exercised without a network.
+// asks for, and so does `go env GOVERSION` when it is asked under GOTOOLCHAIN=local; `go install`
+// writes a binary into GOBIN unless the test wants it to fail, so the verified/fallback split can
+// be exercised without a network. The binary holds the GOTOOLCHAIN the build ran under.
 func fakeGo(t *testing.T, version string, installFails bool) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "go")
@@ -22,13 +25,17 @@ func fakeGo(t *testing.T, version string, installFails bool) string {
 	script := `#!/bin/sh
 case "$1" in
 version) echo ` + strconv.Quote("go version "+version+" linux/amd64") + ` ;;
+env)
+  # Without GOTOOLCHAIN=local the go command reports the toolchain it would switch to, which is
+  # not the Go on PATH, so a question asked the wrong way gets a different answer.
+  if [ "$GOTOOLCHAIN" = "local" ]; then echo ` + strconv.Quote(version) + `; else echo go9.9.9; fi ;;
 install)
   # A verified run is the one this code sets GOSUMDB for. Refuse it when the test asks, so the
   # fallback path is reached the way an unreachable checksum database would reach it.
   if [ "` + fail + `" = "1" ] && [ "$GOSUMDB" = "sum.golang.org" ]; then
     echo "checksum database unreachable" >&2; exit 1
   fi
-  mkdir -p "$GOBIN" && printf 'binary' > "$GOBIN/govulncheck" ;;
+  mkdir -p "$GOBIN" && printf 'GOTOOLCHAIN=%s' "$GOTOOLCHAIN" > "$GOBIN/govulncheck" ;;
 esac
 `
 	if err := os.WriteFile(path, []byte(script), 0o700); err != nil { // #nosec G306 -- must execute
@@ -139,43 +146,144 @@ func TestFindGoExplainsWhatToDo(t *testing.T) {
 	})
 }
 
+// noUserToolchain clears GOTOOLCHAIN for the test. The go command sets it in the environment of a
+// toolchain it switches to, so a test run under a switched toolchain would otherwise inherit one.
+func noUserToolchain(t *testing.T) {
+	t.Helper()
+	t.Setenv("GOTOOLCHAIN", "")
+}
+
+// builtUnder is the GOTOOLCHAIN the fake go install ran under, which it writes into the binary.
+func builtUnder(t *testing.T, path string) string {
+	t.Helper()
+	raw, err := os.ReadFile(path) // #nosec G304 -- a file under the test's own temp dir
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strings.TrimPrefix(string(raw), "GOTOOLCHAIN=")
+}
+
 func TestInstallGoBuildsIntoDraugrsOwnBinAndReportsPinned(t *testing.T) {
+	noUserToolchain(t)
 	goBin := fakeGo(t, "go1.26.6", false)
 	stubLookPath(t, func(string) (string, error) { return goBin, nil })
 
 	root := t.TempDir()
-	path, level, err := installGo(t.Context(), root, "govulncheck",
+	built, err := installGo(t.Context(), root, "govulncheck",
 		goInstallable["govulncheck"], govulncheckVersion)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := filepath.Join(root, "bin", "govulncheck"); path != want {
-		t.Errorf("installed to %q, want %q", path, want)
+	if want := filepath.Join(root, "bin", "govulncheck"); built.path != want {
+		t.Errorf("installed to %q, want %q", built.path, want)
 	}
-	if _, err := os.Stat(path); err != nil {
+	if _, err := os.Stat(built.path); err != nil {
 		t.Errorf("the binary is not where it was reported: %v", err)
 	}
-	if level != LevelPinned {
+	if built.level != LevelPinned {
 		t.Errorf("level = %q, want %q, the checksum database verified this build",
-			level, LevelPinned)
+			built.level, LevelPinned)
+	}
+}
+
+// The Go that builds govulncheck decides which modules it can load, so the build runs under the
+// newer of the Go on PATH and the pin, or under the release the environment names, and reports the
+// release it ran.
+func TestInstallGoBuildsWithTheNewerOfThePinAndTheLocalGo(t *testing.T) {
+	for _, tc := range []struct {
+		name, local, user  string
+		wantEnv, wantBuilt string
+	}{
+		{"the local Go is older than the pin", "go1.26.10", "", govulncheckToolchain, govulncheckToolchain},
+		{"the local Go is the pin", govulncheckToolchain, "", "local", govulncheckToolchain},
+		{"the local Go is newer than the pin", "go1.99.1", "", "local", "go1.99.1"},
+		{"the environment names a release", "go1.26.10", "go1.98.0", "go1.98.0", "go1.98.0"},
+		{"the environment names a policy", "go1.26.10", "local", govulncheckToolchain, govulncheckToolchain},
+		{"the environment names a minimum", "go1.26.10", "go1.98.0+auto", govulncheckToolchain, govulncheckToolchain},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("GOTOOLCHAIN", tc.user)
+			goBin := fakeGo(t, tc.local, false)
+			stubLookPath(t, func(string) (string, error) { return goBin, nil })
+
+			built, err := installGo(t.Context(), t.TempDir(), "govulncheck",
+				goInstallable["govulncheck"], govulncheckVersion)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := builtUnder(t, built.path); got != tc.wantEnv {
+				t.Errorf("built under GOTOOLCHAIN=%q, want %q", got, tc.wantEnv)
+			}
+			if built.toolchain != tc.wantBuilt {
+				t.Errorf("reported %q as the Go that built it, want %q", built.toolchain, tc.wantBuilt)
+			}
+		})
+	}
+}
+
+// A Go whose version cannot be asked is not taken to be new enough, so the build runs under the pin.
+func TestInstallGoBuildsWithThePinWhenTheLocalGoCannotSay(t *testing.T) {
+	noUserToolchain(t)
+	goBin := fakeGo(t, "not-a-version", false)
+	if got, release := buildToolchain(t.Context(), goBin, govulncheckToolchain); got != govulncheckToolchain || release != govulncheckToolchain {
+		t.Errorf("buildToolchain = %q, %q; want the pin", got, release)
+	}
+	if got := localGoVersion(t.Context(), filepath.Join(t.TempDir(), "no-go")); got != "" {
+		t.Errorf("a go that does not run reported %q", got)
 	}
 }
 
 // TestInstallGoDropsToUnverifiedWhenTheChecksumDatabaseIsUnreachable is the honesty check:
 // falling back keeps the tool installable on an air-gapped host, and the level has to say that
-// nothing this code set verified what was built.
+// nothing this code set verified what was built. The fallback builds with the same Go, or it would
+// build with whatever is on PATH and record the pin.
 func TestInstallGoDropsToUnverifiedWhenTheChecksumDatabaseIsUnreachable(t *testing.T) {
+	noUserToolchain(t)
 	goBin := fakeGo(t, "go1.26.6", true)
 	stubLookPath(t, func(string) (string, error) { return goBin, nil })
 
 	root := t.TempDir()
-	_, level, err := installGo(t.Context(), root, "govulncheck",
+	built, err := installGo(t.Context(), root, "govulncheck",
 		goInstallable["govulncheck"], govulncheckVersion)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if level != LevelUnverified {
-		t.Errorf("level = %q, want %q", level, LevelUnverified)
+	if built.level != LevelUnverified {
+		t.Errorf("level = %q, want %q", built.level, LevelUnverified)
+	}
+	if got := builtUnder(t, built.path); got != govulncheckToolchain {
+		t.Errorf("the fallback built under GOTOOLCHAIN=%q, want the pin %q", got, govulncheckToolchain)
+	}
+}
+
+// The verified environment enforces the checksum database and the fallback leaves the ambient
+// settings, and both carry the toolchain and Draugr's bin directory. Later entries win in os/exec,
+// so each is checked by the value it ends on.
+func TestGoInstallEnv(t *testing.T) {
+	t.Setenv("GOTOOLCHAIN", "auto")
+	t.Setenv("GOFLAGS", "-mod=mod")
+	last := func(env []string, key string) string {
+		v := ""
+		for _, kv := range env {
+			if k, val, ok := strings.Cut(kv, "="); ok && k == key {
+				v = val
+			}
+		}
+		return v
+	}
+	verified := goInstallEnv("/bin-dir", "go1.27.3", true)
+	for key, want := range map[string]string{
+		"GOBIN": "/bin-dir", "GOTOOLCHAIN": "go1.27.3", "GOSUMDB": "sum.golang.org", "GOFLAGS": "",
+	} {
+		if got := last(verified, key); got != want {
+			t.Errorf("verified %s = %q, want %q", key, got, want)
+		}
+	}
+	fallback := goInstallEnv("/bin-dir", "local", false)
+	for key, want := range map[string]string{"GOBIN": "/bin-dir", "GOTOOLCHAIN": "local", "GOFLAGS": "-mod=mod"} {
+		if got := last(fallback, key); got != want {
+			t.Errorf("fallback %s = %q, want %q", key, got, want)
+		}
 	}
 }
 
@@ -189,7 +297,7 @@ func TestInstallGoReportsAModuleThatBuildsNothing(t *testing.T) {
 	}
 	stubLookPath(t, func(string) (string, error) { return path, nil })
 
-	_, _, err := installGo(t.Context(), t.TempDir(), "govulncheck",
+	_, err := installGo(t.Context(), t.TempDir(), "govulncheck",
 		goInstallable["govulncheck"], govulncheckVersion)
 	if err == nil {
 		t.Fatal("a build producing no command must be an error")
@@ -302,21 +410,24 @@ func TestInstallGoReportsBothAttemptsFailing(t *testing.T) {
 		t.Fatal(err)
 	}
 	stubLookPath(t, func(string) (string, error) { return path, nil })
+	noUserToolchain(t)
 
-	_, _, err := installGo(t.Context(), t.TempDir(), "govulncheck",
+	_, err := installGo(t.Context(), t.TempDir(), "govulncheck",
 		goInstallable["govulncheck"], govulncheckVersion)
 	if err == nil {
 		t.Fatal("both attempts failing must be an error")
 	}
-	if !strings.Contains(err.Error(), "golang.org/x/vuln/cmd/govulncheck@v"+govulncheckVersion) {
-		t.Errorf("the error should name what it was installing: %v", err)
+	if !strings.Contains(err.Error(), "golang.org/x/vuln/cmd/govulncheck@v"+govulncheckVersion+" with "+govulncheckToolchain) {
+		t.Errorf("the error should name what it was installing and with which Go: %v", err)
 	}
 }
 
 // TestInstallGoToolRecordsWhatEndedUpOnPath is the node/python equivalent for the Go path: an
 // empty version asks for the pinned one, and the binary that lands is the file the attestation is
-// about. Recording a digest of anything else would attest something nobody runs.
+// about. Recording a digest of anything else would attest something nobody runs. The record names
+// the Go that built it, so the next install can tell this build from one made before the pin.
 func TestInstallGoToolRecordsWhatEndedUpOnPath(t *testing.T) {
+	noUserToolchain(t)
 	root := t.TempDir()
 	destDir := filepath.Join(root, "bin")
 	goBin := fakeGo(t, "go1.26.6", false)
@@ -343,6 +454,123 @@ func TestInstallGoToolRecordsWhatEndedUpOnPath(t *testing.T) {
 	}
 	if sum == "" {
 		t.Error("the binary produced no digest, so nothing could attest it")
+	}
+	if got.Toolchain != govulncheckToolchain {
+		t.Errorf("toolchain = %q, want the pin %q", got.Toolchain, govulncheckToolchain)
+	}
+	if rec := loadManifest(destDir)["govulncheck"]; rec.Toolchain != govulncheckToolchain || rec.Version != govulncheckVersion {
+		t.Errorf("record = %+v, want version %s built with %s", rec, govulncheckVersion, govulncheckToolchain)
+	}
+	if v, ok := Current(destDir, "govulncheck", ""); !ok || v != govulncheckVersion {
+		t.Errorf("Current = %q, %v; a build just made at the pins is current", v, ok)
+	}
+}
+
+// A Go-built tool is current when its version is the one asked for and the Go that built it is at
+// least the pin. A record with no toolchain was built by whatever Go was on PATH before the pin
+// existed, so an upgrade rebuilds it; one the user built with a newer Go is left alone.
+func TestAGoBuiltToolIsCurrentOnlyAtOrAboveTheToolchainPin(t *testing.T) {
+	for _, tc := range []struct {
+		name, toolchain string
+		want            bool
+	}{
+		{"no toolchain recorded", "", false},
+		{"a toolchain below the pin", "go1.26.10", false},
+		{"the pin", govulncheckToolchain, true},
+		{"a toolchain above the pin", "go1.99.0", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			destDir := filepath.Join(t.TempDir(), "bin")
+			if err := os.MkdirAll(destDir, 0o750); err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(destDir, "govulncheck")
+			if err := os.WriteFile(path, []byte("binary"), 0o700); err != nil { // #nosec G306 -- stands in for a tool
+				t.Fatal(err)
+			}
+			sum, err := fileSHA256(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			recordInstall(destDir, "govulncheck", installRecord{
+				Version: govulncheckVersion, BinarySHA256: sum, Verified: LevelPinned, Toolchain: tc.toolchain,
+			})
+			if _, ok := Current(destDir, "govulncheck", ""); ok != tc.want {
+				t.Errorf("Current = %v, want %v", ok, tc.want)
+			}
+		})
+	}
+}
+
+// A tool not built with Go has no toolchain to be held to.
+func TestToolchainCurrentIgnoresAToolNotBuiltWithGo(t *testing.T) {
+	if !toolchainCurrent("semgrep", "") {
+		t.Error("a tool not built with Go was held to a toolchain")
+	}
+}
+
+// Doctor flags a build below the pin and nothing else: not the pin, not a newer Go, not a binary
+// whose build Go could not be read, and not a tool that is not built with Go.
+func TestGoToolchainBehind(t *testing.T) {
+	for _, tc := range []struct {
+		name, tool, buildGo string
+		want                bool
+	}{
+		{"below the pin", "govulncheck", "go1.26.10", true},
+		{"the pin", "govulncheck", govulncheckToolchain, false},
+		{"above the pin", "govulncheck", "go1.99.0", false},
+		{"not read", "govulncheck", "", false},
+		{"not a Go version", "govulncheck", "devel", false},
+		{"not built with Go", "trivy", "go1.20.0", false},
+	} {
+		if got := GoToolchainBehind(tc.tool, tc.buildGo); got != tc.want {
+			t.Errorf("%s: GoToolchainBehind(%s, %q) = %v, want %v", tc.name, tc.tool, tc.buildGo, got, tc.want)
+		}
+	}
+}
+
+// Every Go-built tool has a toolchain to be built with, or it would be built with whatever Go is
+// on PATH and never held to anything.
+func TestEveryGoToolHasAToolchainPin(t *testing.T) {
+	for name := range goInstallable {
+		if !strings.HasPrefix(GoToolchain(name), "go") {
+			t.Errorf("%s has no toolchain pin: %q", name, GoToolchain(name))
+		}
+	}
+}
+
+// The test binary is a Go binary, so it reads as the Go that built it; a file that is not one
+// reads as nothing rather than as a version.
+func TestReadBuildGo(t *testing.T) {
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := ReadBuildGo(self), strings.Fields(runtime.Version())[0]; got != want {
+		t.Errorf("ReadBuildGo(test binary) = %q, want %q", got, want)
+	}
+	script := filepath.Join(t.TempDir(), "govulncheck")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\n"), 0o700); err != nil { // #nosec G306 -- stands in for a tool
+		t.Fatal(err)
+	}
+	if got := ReadBuildGo(script); got != "" {
+		t.Errorf("ReadBuildGo(script) = %q, want nothing", got)
+	}
+}
+
+// Detect reads the build Go of a tool Draugr builds with Go, and of no other.
+func TestDetectReadsTheBuildGoOfAGoBuiltTool(t *testing.T) {
+	orig := readBuildGo
+	t.Cleanup(func() { readBuildGo = orig })
+	readBuildGo = func(string) string { return "go1.26.10" }
+	run := func(context.Context, []string, ...string) ([]byte, error) { return []byte("1.0.0"), nil }
+	lookPath := func(name string) (string, error) { return "/bin/" + name, nil }
+
+	if st := Detect(t.Context(), Catalog()["govulncheck"], lookPath, run); st.BuildGo != "go1.26.10" {
+		t.Errorf("govulncheck BuildGo = %q, want go1.26.10", st.BuildGo)
+	}
+	if st := Detect(t.Context(), Catalog()["trivy"], lookPath, run); st.BuildGo != "" {
+		t.Errorf("trivy BuildGo = %q, want nothing", st.BuildGo)
 	}
 }
 

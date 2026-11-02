@@ -1195,6 +1195,59 @@ func TestToolsOutdatedSuggestsTheUpstreamVersion(t *testing.T) {
 	}
 }
 
+// govulncheck at its own pin and built with a Go older than the newest stable one is behind, and
+// the row names both Go releases and the command that builds with the newer one.
+func TestToolsOutdatedNamesTheGoAGoBuiltToolIsBuiltWith(t *testing.T) {
+	pinned, pinnedGo := tools.PinnedVersion("govulncheck"), tools.GoToolchain("govulncheck")
+	client := &http.Client{Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		body := `{"message":"not this one"}`
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/golang/vuln/tags"):
+			body = `[{"name":"v` + pinned + `"}]`
+		case r.URL.Host == "go.dev":
+			body = `[{"version":"go1.99.1","stable":true}]`
+		}
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{},
+			Body: io.NopCloser(strings.NewReader(body)), Request: r}, nil
+	})}
+	var out bytes.Buffer
+	_ = runToolsOutdated(context.Background(), &out, false, client) // the other upstreams answer nothing usable
+	for _, want := range []string{
+		pinned + " · " + pinnedGo, pinned + " · go1.99.1",
+		"GOTOOLCHAIN=go1.99.1 draugr tools install govulncheck --force",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("the table does not say %q:\n%s", want, out.String())
+		}
+	}
+
+	out.Reset()
+	_ = runToolsOutdated(context.Background(), &out, true, client)
+	var rows []struct {
+		Tool     string `json:"tool"`
+		PinnedGo string `json:"pinnedGo"`
+		LatestGo string `json:"latestGo"`
+		Behind   bool   `json:"behind"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &rows); err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range rows {
+		if r.Tool == "govulncheck" && (r.PinnedGo != pinnedGo || r.LatestGo != "go1.99.1" || !r.Behind) {
+			t.Errorf("govulncheck row = %+v", r)
+		}
+	}
+}
+
+// Both halves moved, the tool's release and the Go: the command names both, and --version makes
+// --force unnecessary.
+func TestOutdatedInstallWithBothHalvesMoved(t *testing.T) {
+	d := tools.Drift{Tool: "govulncheck", Pinned: "1.9.0", Latest: "1.10.0", PinnedGo: "go1.27.3", LatestGo: "go1.28.0"}
+	if got, want := outdatedInstall(d), "GOTOOLCHAIN=go1.28.0 draugr tools install govulncheck --version 1.10.0"; got != want {
+		t.Errorf("outdatedInstall = %q, want %q", got, want)
+	}
+}
+
 func unreachableClient() *http.Client {
 	return &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
 		return nil, errors.New("no route to host")

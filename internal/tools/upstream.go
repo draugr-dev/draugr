@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -80,18 +81,26 @@ type Drift struct {
 	Pinned string
 	// Latest is what the upstream publishes now, empty where the question could not be answered.
 	Latest string
-	// Err is why Latest is empty. A network that refused is a different answer from "current",
-	// and reporting the second for the first is how a checker comes to report everything current
-	// while reaching nothing.
+	// PinnedGo is the Go release a Go-built tool is built with (GoToolchain), and LatestGo the
+	// newest stable release go.dev publishes. Both empty for a tool not built with Go.
+	PinnedGo string
+	LatestGo string
+	// Err is why Latest or LatestGo is empty. A network that refused is a different answer from
+	// "current", and reporting the second for the first is how a checker comes to report
+	// everything current while reaching nothing.
 	Err error
 }
 
-// Behind reports whether the upstream has moved past the pin.
+// Behind reports whether the upstream has moved past the pin, or go.dev past the Go a Go-built
+// tool is built with.
 //
 // Only a difference, never an ordering. Version schemes here are not comparable to each other and
 // a pin ahead of its upstream is a real state, a release withdrawn after Draugr pinned it, which
 // somebody needs to see rather than have reported as current.
-func (d Drift) Behind() bool { return d.Err == nil && d.Latest != "" && d.Latest != d.Pinned }
+func (d Drift) Behind() bool {
+	return d.Err == nil &&
+		((d.Latest != "" && d.Latest != d.Pinned) || (d.LatestGo != "" && d.LatestGo != d.PinnedGo))
+}
 
 // PinnedVersion is the version Draugr installs for a tool, whichever way it is packaged.
 func PinnedVersion(name string) string {
@@ -118,14 +127,57 @@ func Outdated(ctx context.Context, client *http.Client) []Drift {
 	}
 	sort.Strings(names)
 
+	// Asked once, and only when a tool is built with Go. Every Go-built tool is held to the same
+	// release list.
+	var latestGo string
+	var goErr error
+	asked := false
+
 	out := make([]Drift, 0, len(names))
 	for _, name := range names {
-		d := Drift{Tool: name, Pinned: PinnedVersion(name)}
+		d := Drift{Tool: name, Pinned: PinnedVersion(name), PinnedGo: GoToolchain(name)}
 		d.Latest, d.Err = Latest(ctx, client, name)
+		if d.PinnedGo != "" {
+			if !asked {
+				latestGo, goErr = LatestGo(ctx, client)
+				asked = true
+			}
+			d.LatestGo = latestGo
+			if d.Err == nil {
+				d.Err = goErr
+			}
+		}
 		out = append(out, d)
 	}
 	return out
 }
+
+// goReleases is go.dev's list of current Go releases, newest first.
+const goReleases = "https://go.dev/dl/?mode=json"
+
+// LatestGo is the newest stable Go release go.dev publishes, as goX.Y.Z.
+func LatestGo(ctx context.Context, client *http.Client) (string, error) {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	var releases []struct {
+		Version string `json:"version"`
+		Stable  bool   `json:"stable"`
+	}
+	if err := getJSON(ctx, client, goReleases, &releases); err != nil {
+		return "", err
+	}
+	for _, r := range releases {
+		// Held to the shape of a release, because it is written into a GOTOOLCHAIN and a constant.
+		if r.Stable && goReleaseLike.MatchString(r.Version) {
+			return r.Version, nil
+		}
+	}
+	return "", errors.New("go.dev names no stable Go release")
+}
+
+// goReleaseLike is the shape of a stable Go release's name.
+var goReleaseLike = regexp.MustCompile(`^go[0-9]+\.[0-9]+\.[0-9]+$`)
 
 // Latest is the newest version an upstream publishes for a tool.
 func Latest(ctx context.Context, client *http.Client, name string) (string, error) {
