@@ -90,9 +90,8 @@ everywhere else.
 
 **govulncheck has a second pin, the Go that builds it.** A govulncheck binary can only load modules
 whose `go` line is no newer than the Go it was built with, so Draugr builds it with the newer of
-your `go` and a pinned Go release, which `go` downloads when yours is older. `draugr doctor` reads
-which Go built the copy on your `PATH`, and a scan over a module declaring a newer Go fails with the
-module's path and the command that rebuilds the tool.
+your `go` and a pinned Go release. `draugr doctor` flags a build from an older Go, and a scan over a
+module declaring a newer Go fails with the module's path and the command that rebuilds the tool.
 
 ## How a pin moves
 

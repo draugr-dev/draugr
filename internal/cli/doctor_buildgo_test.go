@@ -19,8 +19,8 @@ func govulncheckBuiltWith(buildGo string) tools.Status {
 }
 
 // A govulncheck built with a Go older than the pin is off target at its own pinned version, because
-// it cannot load a module declaring a newer Go. The row names both releases and the line under the
-// table counts it with the others.
+// it cannot load a module declaring a newer Go. The row names both releases, and the line under the
+// table counts it apart from the tools off their version, since its version is the tested one.
 func TestDoctorFlagsAGovulncheckBuiltWithAnOlderGo(t *testing.T) {
 	pin := tools.GoToolchain("govulncheck")
 	var buf bytes.Buffer
@@ -28,14 +28,64 @@ func TestDoctorFlagsAGovulncheckBuiltWithAnOlderGo(t *testing.T) {
 	out := buf.String()
 	for _, want := range []string{
 		"/x/govulncheck · built with go1.26.10, older than " + pin,
-		"1 installed tool is not the version Draugr tests. `draugr tools install --force` installs the tested build.",
+		"1 installed tool is built with an older Go than Draugr builds it with. " +
+			"`draugr tools install --force` rebuilds it.",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the table does not say %q:\n%s", want, out)
 		}
 	}
-	if strings.Contains(out, "tested against") {
-		t.Errorf("the version is the pinned one, and the row says otherwise:\n%s", out)
+	for _, not := range []string{"tested against", "not the version"} {
+		if strings.Contains(out, not) {
+			t.Errorf("the version is the pinned one, and the output says %q:\n%s", not, out)
+		}
+	}
+}
+
+// A tool off its version and govulncheck off its Go keep their own clauses, joined, and the fix
+// names both what it installs and what it rebuilds. A govulncheck off both counts in both.
+func TestDoctorCountsAnOldBuildGoBesideAToolOffItsVersion(t *testing.T) {
+	both := govulncheckBuiltWith("go1.26.10")
+	both.Version = "0.0.1"
+	for _, tc := range []struct {
+		name     string
+		statuses []tools.Status
+		want     string
+	}{
+		{"one of each", []tools.Status{toolAt("trivy", "0.1.0"), govulncheckBuiltWith("go1.26.10")},
+			"1 installed tool is not the version Draugr tests and 1 is built with an older Go than Draugr builds it with. " +
+				"`draugr tools install --force` installs the tested build, and rebuilds the one built with an older Go."},
+		{"one tool off both", []tools.Status{both},
+			"1 installed tool is not the version Draugr tests and 1 is built with an older Go than Draugr builds it with. " +
+				"`draugr tools install --force` installs the tested build, and rebuilds the one built with an older Go."},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			writeDoctorTable(&buf, tc.statuses, nil)
+			if !strings.Contains(buf.String(), tc.want) {
+				t.Errorf("want %q in:\n%s", tc.want, buf.String())
+			}
+		})
+	}
+	if c := offTargetCounts([]tools.Status{both}, nil); c.tools != 1 || c.tested != 1 || c.oldGo != 1 {
+		t.Errorf("tally = %+v, want one tool counted once for each", c)
+	}
+}
+
+// Every combination of the three clauses reads as one list, and the plural agrees with its count.
+func TestOffTargetPhraseJoinsEveryClause(t *testing.T) {
+	c := offTargetTally{tested: 2, pinned: 1, oldGo: 2, tools: 4}
+	want := "2 installed tools are not the version Draugr tests, 1 is not at its pinned version and " +
+		"2 are built with an older Go than Draugr builds them with"
+	if got := offTargetPhrase(c); got != want {
+		t.Errorf("phrase = %q, want %q", got, want)
+	}
+	if got, want := forceInstalls(c), "installs the pinned build where there is a pin and the tested build otherwise, "+
+		"and rebuilds the ones built with an older Go"; got != want {
+		t.Errorf("fix = %q, want %q", got, want)
+	}
+	if got := forceInstalls(offTargetTally{oldGo: 2, tools: 2}); got != "rebuilds them" {
+		t.Errorf("fix for two old builds = %q", got)
 	}
 }
 
@@ -50,18 +100,35 @@ func TestDoctorIsSilentAboutAGovulncheckBuiltWithThePinOrNewer(t *testing.T) {
 	}
 }
 
-// A govulncheck at its configured pin and built with an older Go is counted as not the tested
-// build rather than as off its pin, because the pin names the version and the Go is Draugr's.
-func TestDoctorCountsAnOldBuildGoAsTestedWhenTheVersionIsPinned(t *testing.T) {
-	pins := map[string]toolPin{"govulncheck": {Version: tools.PinnedVersion("govulncheck"), Path: "/etc/draugr/ci.yaml"}}
+// A govulncheck at its configured pin and built with an older Go is counted for its Go alone, and
+// the fix is true there too: --force installs the pinned version, which is the one it has, with the
+// Go Draugr builds it with. Off its pin as well, the pinned clause joins the Go one.
+func TestDoctorCountsAnOldBuildGoAtAConfiguredPin(t *testing.T) {
+	pinned := tools.PinnedVersion("govulncheck")
+	pins := map[string]toolPin{"govulncheck": {Version: pinned, Path: "/etc/draugr/ci.yaml"}}
 	var buf bytes.Buffer
 	writeDoctorTable(&buf, []tools.Status{govulncheckBuiltWith("go1.26.10")}, pins)
 	out := buf.String()
-	if !strings.Contains(out, "pinned in /etc/draugr/ci.yaml · built with go1.26.10") {
-		t.Errorf("the row does not name the pin and the build Go:\n%s", out)
+	for _, want := range []string{
+		"pinned in /etc/draugr/ci.yaml · built with go1.26.10",
+		"1 installed tool is built with an older Go than Draugr builds it with. `draugr tools install --force` rebuilds it.",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the table does not say %q:\n%s", want, out)
+		}
 	}
-	if tested, pinned := offTargetCounts([]tools.Status{govulncheckBuiltWith("go1.26.10")}, pins); tested != 1 || pinned != 0 {
-		t.Errorf("counts = %d tested, %d pinned; want 1, 0", tested, pinned)
+	if c := offTargetCounts([]tools.Status{govulncheckBuiltWith("go1.26.10")}, pins); c != (offTargetTally{oldGo: 1, tools: 1}) {
+		t.Errorf("tally = %+v, want the Go alone", c)
+	}
+
+	off := govulncheckBuiltWith("go1.26.10")
+	off.Version = "0.0.1"
+	buf.Reset()
+	writeDoctorTable(&buf, []tools.Status{off}, pins)
+	want := "1 installed tool is not at its pinned version and 1 is built with an older Go than Draugr builds it with. " +
+		"`draugr tools install --force` installs the pinned build, and rebuilds the one built with an older Go."
+	if !strings.Contains(buf.String(), want) {
+		t.Errorf("want %q in:\n%s", want, buf.String())
 	}
 }
 
@@ -76,8 +143,10 @@ func TestDoctorJSONCarriesTheBuildGo(t *testing.T) {
 	}
 	var out bytes.Buffer
 	err := runDoctor(context.Background(), &out, builtins.Registry(), "", doctorRun{json: true, strict: true}, detect, nil)
-	if err == nil || !strings.Contains(err.Error(), "1 installed tool is not the version Draugr tests") {
-		t.Errorf("--strict err = %v, want the old build counted", err)
+	want := "1 installed tool is built with an older Go than Draugr builds it with; " +
+		"run `draugr tools install --force`, or drop --strict to accept it"
+	if err == nil || err.Error() != want {
+		t.Errorf("--strict err = %v, want %q", err, want)
 	}
 	var got struct {
 		Tools []toolReport `json:"tools"`

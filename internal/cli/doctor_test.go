@@ -578,7 +578,7 @@ func TestTheTableNamesTheTestedVersionAndCountsThemOnce(t *testing.T) {
 		"`draugr tools install --force` installs the tested build.") {
 		t.Errorf("the count is missing or does not agree with itself:\n%s", out)
 	}
-	if got := offTargetPhrase(4, 0); got != "4 installed tools are not the version Draugr tests" {
+	if got := offTargetPhrase(offTargetTally{tested: 4}); got != "4 installed tools are not the version Draugr tests" {
 		t.Errorf("plural = %q", got)
 	}
 }

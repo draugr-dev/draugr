@@ -1,1 +1,0 @@
-- **govulncheck loads modules that declare a newer Go than yours.** `draugr tools install` builds it with Go 1.27.3 where your Go is older, and replaces a build from an older Go. `draugr doctor` flags such a build, and a scan names each module that build cannot load, with the command that rebuilds it.

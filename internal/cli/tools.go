@@ -163,8 +163,9 @@ func withGo(v, goRelease string) string {
 
 // outdatedInstall is the command that installs what the upstream publishes for a tool that is
 // behind. Without --version the command installs the pin, which is the version the row says is
-// behind. A newer Go is named as GOTOOLCHAIN, which the install builds with, and needs --force when
-// the tool's own version has not moved, because the build in place is current by the pin.
+// behind. A newer Go minor release is named as GOTOOLCHAIN, which the install builds with, and
+// needs --force when the tool's own version has not moved, because the build in place is current
+// by the pin. A newer Go patch release is not named, because it loads the same modules.
 func outdatedInstall(d tools.Drift) string {
 	cmd := "draugr tools install " + d.Tool
 	if d.Latest != d.Pinned {
@@ -172,7 +173,7 @@ func outdatedInstall(d tools.Drift) string {
 	} else {
 		cmd += " --force"
 	}
-	if d.LatestGo != d.PinnedGo {
+	if d.GoBehind() {
 		cmd = "GOTOOLCHAIN=" + d.LatestGo + " " + cmd
 	}
 	return cmd

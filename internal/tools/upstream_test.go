@@ -100,8 +100,10 @@ func TestBehindIsADifferenceAndNotAComparison(t *testing.T) {
 		{"current", Drift{Pinned: "1.0.0", Latest: "1.0.0"}, false},
 		{"unanswered", Drift{Pinned: "1.0.0", Err: context.Canceled}, false},
 		{"answered with nothing", Drift{Pinned: "1.0.0"}, false},
-		{"the Go it is built with moved", Drift{Pinned: "1.0.0", Latest: "1.0.0", PinnedGo: "go1.27.3", LatestGo: "go1.27.4"}, true},
+		{"a newer Go minor release", Drift{Pinned: "1.0.0", Latest: "1.0.0", PinnedGo: "go1.27.3", LatestGo: "go1.28.0"}, true},
+		{"a newer Go patch release", Drift{Pinned: "1.0.0", Latest: "1.0.0", PinnedGo: "go1.27.3", LatestGo: "go1.27.4"}, false},
 		{"the Go it is built with is current", Drift{Pinned: "1.0.0", Latest: "1.0.0", PinnedGo: "go1.27.3", LatestGo: "go1.27.3"}, false},
+		{"go.dev unanswered", Drift{Pinned: "1.0.0", Latest: "1.0.0", PinnedGo: "go1.27.3"}, false},
 	} {
 		if got := tc.d.Behind(); got != tc.want {
 			t.Errorf("%s: Behind() = %v, want %v", tc.name, got, tc.want)
@@ -259,27 +261,46 @@ func TestOutdatedReportsEveryToolInNameOrder(t *testing.T) {
 const goDL = `[{"version":"go1.28rc1","stable":false,"files":[]},` +
 	`{"version":"go1.27.4","stable":true,"files":[]},{"version":"go1.26.11","stable":true,"files":[]}]`
 
-// govulncheck is behind when go.dev publishes a Go newer than the one it is built with, even where
-// its own release has not moved, and the Go is asked for once however many tools it serves.
-func TestOutdatedHoldsAGoBuiltToolToTheNewestGo(t *testing.T) {
+// govulncheck is behind when go.dev publishes a newer Go minor release than the one it is built
+// with, even where its own release has not moved, and not for a patch release. The Go is asked for
+// once however many tools it serves.
+func TestOutdatedHoldsAGoBuiltToolToTheNewestGoMinor(t *testing.T) {
+	newMinor := `[{"version":"go1.99.0","stable":true,"files":[]}]`
+	for _, tc := range []struct {
+		name, list, latest string
+		behind             bool
+	}{
+		{"a newer minor", newMinor, "go1.99.0", true},
+		{"a newer patch alone", `[{"version":"` + govulncheckToolchain + `9","stable":true}]`, govulncheckToolchain + "9", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tr := &upstreamTransport{routes: map[string]func(http.ResponseWriter, *http.Request){
+				"api.github.com/repos/golang/vuln/tags": serveJSON(`[{"name":"v` + govulncheckVersion + `"}]`),
+				"go.dev/dl/":                            serveJSON(tc.list),
+			}}
+			var d Drift
+			for _, x := range Outdated(context.Background(), &http.Client{Transport: tr}) {
+				if x.Tool == "govulncheck" {
+					d = x
+				}
+				if x.Tool != "govulncheck" && (x.PinnedGo != "" || x.LatestGo != "") {
+					t.Errorf("%s is not built with Go and carries one: %+v", x.Tool, x)
+				}
+			}
+			if d.Err != nil || d.Behind() != tc.behind || d.Latest != govulncheckVersion ||
+				d.LatestGo != tc.latest || d.PinnedGo != govulncheckToolchain {
+				t.Errorf("govulncheck = %+v, want behind %v on the Go alone", d, tc.behind)
+			}
+		})
+	}
+}
+
+// go.dev is asked once, with mode=json, however many Go-built tools there are.
+func TestOutdatedAsksGoDevOnce(t *testing.T) {
 	tr := &upstreamTransport{routes: map[string]func(http.ResponseWriter, *http.Request){
-		"api.github.com/repos/golang/vuln/tags": serveJSON(`[{"name":"v` + govulncheckVersion + `"}]`),
-		"go.dev/dl/":                            serveJSON(goDL),
+		"go.dev/dl/": serveJSON(goDL),
 	}}
-	drift := Outdated(context.Background(), &http.Client{Transport: tr})
-	var d Drift
-	for _, x := range drift {
-		if x.Tool == "govulncheck" {
-			d = x
-		}
-		if x.Tool != "govulncheck" && (x.PinnedGo != "" || x.LatestGo != "") {
-			t.Errorf("%s is not built with Go and carries one: %+v", x.Tool, x)
-		}
-	}
-	if d.Err != nil || !d.Behind() || d.Latest != govulncheckVersion || d.LatestGo != "go1.27.4" ||
-		d.PinnedGo != govulncheckToolchain {
-		t.Errorf("govulncheck = %+v, want behind on the Go alone", d)
-	}
+	_ = Outdated(context.Background(), &http.Client{Transport: tr})
 	asked := 0
 	for _, r := range tr.seen {
 		if r.URL.Host == "go.dev" {

@@ -1239,12 +1239,17 @@ func TestToolsOutdatedNamesTheGoAGoBuiltToolIsBuiltWith(t *testing.T) {
 	}
 }
 
-// Both halves moved, the tool's release and the Go: the command names both, and --version makes
-// --force unnecessary.
+// Both halves moved, the tool's release and the Go minor: the command names both, and --version
+// makes --force unnecessary. A Go patch release beside a new tool release is not named, because it
+// loads the same modules.
 func TestOutdatedInstallWithBothHalvesMoved(t *testing.T) {
 	d := tools.Drift{Tool: "govulncheck", Pinned: "1.9.0", Latest: "1.10.0", PinnedGo: "go1.27.3", LatestGo: "go1.28.0"}
 	if got, want := outdatedInstall(d), "GOTOOLCHAIN=go1.28.0 draugr tools install govulncheck --version 1.10.0"; got != want {
 		t.Errorf("outdatedInstall = %q, want %q", got, want)
+	}
+	d.LatestGo = "go1.27.4"
+	if got, want := outdatedInstall(d), "draugr tools install govulncheck --version 1.10.0"; got != want {
+		t.Errorf("outdatedInstall with a Go patch = %q, want %q", got, want)
 	}
 }
 

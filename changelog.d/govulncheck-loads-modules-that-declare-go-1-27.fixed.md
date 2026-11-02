@@ -1,0 +1,1 @@
+- **govulncheck loads modules that declare Go 1.27.** `draugr tools install` builds it with the newer of your Go and Go 1.27.3 and replaces a build from an older Go. `draugr doctor` flags such a build. A scan names a module govulncheck cannot load, with the command that rebuilds it.

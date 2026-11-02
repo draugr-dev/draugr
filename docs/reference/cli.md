@@ -1443,10 +1443,15 @@ A tool whose version Draugr cannot read, such as a build that reports `dev`, sho
 `? version unknown` instead of `✓ found`, the status [`draugr tools list`](#draugr-tools-list)
 gives it. The line under the table does not count it, and `--strict` does not fail on it.
 
-`govulncheck` is also held to the Go it was built with, read from the binary's build information
-because `govulncheck -version` prints the Go on `PATH`. A build from a Go older than the release
-`draugr tools install` builds it with cannot load a module declaring a newer Go, so its row says
-`built with go1.26.10, older than go1.27.3` and the line under the table counts it.
+`govulncheck` is also held to the Go it was built with, read from the binary's build information.
+A build from a Go older than the release `draugr tools install` builds it with cannot load a module
+declaring a newer Go, so its row says `built with go1.26.10, older than go1.27.3`. The line under
+the table counts it in a clause of its own, joined to the version clauses with `and` when there are
+both:
+
+```
+1 installed tool is built with an older Go than Draugr builds it with. `draugr tools install --force` rebuilds it.
+```
 
 A pinned tool is held to its pin instead. Its row names the file that sets the pin, and the
 version when the tool is not at it. The line under the table counts the two kinds apart:
@@ -1732,8 +1737,9 @@ upstream's version. Without `--version`, `draugr tools install <tool>` installs 
 
 `govulncheck` is also compared on the Go it is built with, against the newest stable release
 `https://go.dev/dl/` lists. Its `Pinned` and `Upstream` cells each name a Go, as in
-`1.9.0 · go1.27.3`. It is behind when either half moved, and its command sets `GOTOOLCHAIN` to the
-newer Go, with `--force` where its own version has not moved.
+`1.9.0 · go1.27.3`. It is behind when its version is newer upstream, or a newer Go minor release is
+out. Its command then sets `GOTOOLCHAIN` to that Go, with `--force` where its own version has not
+moved.
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -1776,13 +1782,12 @@ Each skipped tool gets its own `–` line. A Node older than 18 is a failure rat
 Naming a tool whose runtime is missing, as in `draugr tools install govulncheck` on a host without
 Go, fails and exits non-zero. `draugr tools list` names the runtime each one needs.
 
-**`govulncheck` is built with a pinned Go**, because the Go that builds it decides which modules it
-can load, and a build from Go 1.26 cannot analyze a module declaring `go 1.27.1`. The install uses the
-`go` on PATH where it is at least the pinned release, and otherwise sets `GOTOOLCHAIN` to the pin,
-which `go` downloads and verifies against the Go checksum database. A `GOTOOLCHAIN` in the
-environment that names a release, such as `GOTOOLCHAIN=go1.28.0`, is used instead. A build from a
-Go older than the pin is not current, so the next install replaces it.
-[govulncheck](../../internal/scanners/govulncheck.md) has the scan-time check.
+**`govulncheck` is built with a pinned Go.** The install uses the `go` on PATH where it is at least
+the pinned release, and otherwise sets `GOTOOLCHAIN` to the pin, which `go` downloads and verifies
+against the Go checksum database. A `GOTOOLCHAIN` in the environment that names a release, such as
+`GOTOOLCHAIN=go1.28.0`, is used instead, and one set to `auto` or `local` is replaced. A build from
+a Go older than the pin is not current, so the next install replaces it.
+[govulncheck](../../internal/scanners/govulncheck.md) explains why, and has the scan-time check.
 
 | Flag | Default | Description |
 |------|---------|-------------|

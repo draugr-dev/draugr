@@ -153,7 +153,7 @@ func TestTheTableCountsPinnedAndTestedApart(t *testing.T) {
 	if !strings.Contains(buf.String(), want) {
 		t.Errorf("want %q in:\n%s", want, buf.String())
 	}
-	if got := offTargetPhrase(0, 2); got != "2 installed tools are not at their pinned versions" {
+	if got := offTargetPhrase(offTargetTally{pinned: 2}); got != "2 installed tools are not at their pinned versions" {
 		t.Errorf("plural = %q", got)
 	}
 }

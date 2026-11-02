@@ -70,9 +70,11 @@ func main() {
 	if was == "" {
 		fail("%s: not a tool this build pins", tool)
 	}
-	// A Go-built tool has a second pin, the Go it is built with, which moves to the newest stable
-	// release whether or not the tool's own release has. The Go decides which modules the tool can
-	// load, so a bump that held it back would leave every module on a newer Go unanalyzed.
+	// A Go-built tool has a second pin, the Go it is built with. A new Go minor release is a bump
+	// whether or not the tool's own release has moved, because it decides which modules the tool can
+	// load, and a bump that held it back would leave every module on a newer Go unanalyzed. Whatever
+	// the reason for a bump, the Go moves to the newest stable patch with it. The test for whether
+	// there is a bump is the one `tools outdated` applies, so the two agree.
 	goWas, goNext := "", ""
 	if isGo(tool) {
 		goWas = tools.GoToolchain(tool)
@@ -82,8 +84,8 @@ func main() {
 		}
 		goNext = latest
 	}
-	if was == version && goWas == goNext {
-		fmt.Printf("%s is already at %s\n", tool, withGo(version, goNext))
+	if !(tools.Drift{Pinned: was, Latest: version, PinnedGo: goWas, LatestGo: goNext}).Behind() {
+		fmt.Printf("%s is already at %s\n", tool, withGo(was, goWas))
 		return
 	}
 

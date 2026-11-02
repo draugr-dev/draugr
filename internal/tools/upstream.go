@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/version"
 	"io"
 	"net/http"
 	"os"
@@ -91,15 +92,24 @@ type Drift struct {
 	Err error
 }
 
-// Behind reports whether the upstream has moved past the pin, or go.dev past the Go a Go-built
-// tool is built with.
+// Behind reports whether the upstream has moved past the pin, or go.dev past the Go minor release
+// a Go-built tool is built with.
 //
 // Only a difference, never an ordering. Version schemes here are not comparable to each other and
 // a pin ahead of its upstream is a real state, a release withdrawn after Draugr pinned it, which
 // somebody needs to see rather than have reported as current.
 func (d Drift) Behind() bool {
-	return d.Err == nil &&
-		((d.Latest != "" && d.Latest != d.Pinned) || (d.LatestGo != "" && d.LatestGo != d.PinnedGo))
+	return d.Err == nil && ((d.Latest != "" && d.Latest != d.Pinned) || d.GoBehind())
+}
+
+// GoBehind reports whether go.dev's newest stable Go is another language version than the one a
+// Go-built tool is built with, as go1.28 is to go1.27.3.
+//
+// The language version and not the release, because a Go only changes which modules the tool can
+// load at a new language version. A patch release loads the same modules, and calling the tool
+// behind for one would have it rebuilt for nothing.
+func (d Drift) GoBehind() bool {
+	return d.LatestGo != "" && version.Lang(d.LatestGo) != version.Lang(d.PinnedGo)
 }
 
 // PinnedVersion is the version Draugr installs for a tool, whichever way it is packaged.

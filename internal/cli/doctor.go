@@ -329,9 +329,9 @@ func runDoctor(
 		if !run.strict {
 			return nil
 		}
-		if tested, pinned := offTargetCounts(statuses, run.pins); tested+pinned > 0 {
+		if c := offTargetCounts(statuses, run.pins); c.tools > 0 {
 			return fmt.Errorf("%s; run `draugr tools install --force`, or drop --strict to accept %s",
-				offTargetPhrase(tested, pinned), english.Choose(tested+pinned, "it", "them"))
+				offTargetPhrase(c), english.Choose(c.tools, "it", "them"))
 		}
 		return nil
 	}
@@ -575,9 +575,9 @@ func writeDoctorTable(w io.Writer, statuses []tools.Status, pins map[string]tool
 	// quietly finds fewer things is the failure a security tool must not have, so this says the
 	// count and the command that closes it rather than leaving a reader to compare two columns
 	// fourteen times.
-	if tested, pinned := offTargetCounts(statuses, pins); tested+pinned > 0 {
+	if c := offTargetCounts(statuses, pins); c.tools > 0 {
 		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(tui.StyleAccent, fmt.Sprintf(
-			"%s. `draugr tools install --force` %s.", offTargetPhrase(tested, pinned), forceInstalls(tested, pinned))))
+			"%s. `draugr tools install --force` %s.", offTargetPhrase(c), forceInstalls(c))))
 	}
 }
 
@@ -629,51 +629,92 @@ func buildGoBehind(st tools.Status) bool {
 	return st.Found && tools.GoToolchainBehind(st.Tool.Binary, st.BuildGo)
 }
 
-// offTargetCounts counts the found tools off their target: tested is those held to the version
-// Draugr tests, pinned those held to a configured pin. A tool at its configured pin and built with
-// an older Go is counted as tested, because the Go is Draugr's to choose and not the pin's.
-func offTargetCounts(statuses []tools.Status, pins map[string]toolPin) (tested, pinned int) {
+// offTargetTally counts the found tools off their target, each way apart: tested is those not at
+// the version Draugr tests, pinned those not at a configured pin, and oldGo the Go-built tools built
+// with an older Go than Draugr builds them with. A tool can be counted twice, once for its version
+// and once for its Go, and tools is how many distinct tools that is.
+type offTargetTally struct {
+	tested, pinned, oldGo, tools int
+}
+
+// offTargetCounts tallies the found tools off their target.
+func offTargetCounts(statuses []tools.Status, pins map[string]toolPin) offTargetTally {
+	var c offTargetTally
 	for _, st := range statuses {
 		target := versionTargetFor(st.Tool.Binary, pins)
+		if !offTarget(st, target) {
+			continue
+		}
+		c.tools++
 		switch {
-		case !offTarget(st, target):
-		case target.pin != nil && versionOff(st, target):
-			pinned++
+		case !versionOff(st, target):
+		case target.pin != nil:
+			c.pinned++
 		default:
-			tested++
+			c.tested++
+		}
+		if buildGoBehind(st) {
+			c.oldGo++
 		}
 	}
-	return tested, pinned
+	return c
 }
 
 // offTargetPhrase counts the found tools off their target. "Installed" keeps the count apart from
-// the count of tools that are not installed, which an inventory prints beside it.
-func offTargetPhrase(tested, pinned int) string {
+// the count of tools that are not installed, which an inventory prints beside it. The first clause
+// names the noun, and the ones after it give a number alone.
+func offTargetPhrase(c offTargetTally) string {
 	var parts []string
-	if tested > 0 {
-		parts = append(parts, english.Count(tested, "installed tool")+" "+
-			english.Choose(tested, "is", "are")+" not the version Draugr tests")
-	}
-	if pinned > 0 {
-		subject := english.Count(pinned, "installed tool")
-		if tested > 0 {
-			subject = strconv.Itoa(pinned)
+	subject := func(n int) string {
+		if len(parts) > 0 {
+			return strconv.Itoa(n)
 		}
-		parts = append(parts, subject+" "+english.Choose(pinned, "is", "are")+" not at "+
-			english.Choose(pinned, "its pinned version", "their pinned versions"))
+		return english.Count(n, "installed tool")
 	}
-	return strings.Join(parts, " and ")
+	if c.tested > 0 {
+		parts = append(parts, subject(c.tested)+" "+english.Choose(c.tested, "is", "are")+
+			" not the version Draugr tests")
+	}
+	if c.pinned > 0 {
+		parts = append(parts, subject(c.pinned)+" "+english.Choose(c.pinned, "is", "are")+" not at "+
+			english.Choose(c.pinned, "its pinned version", "their pinned versions"))
+	}
+	if c.oldGo > 0 {
+		parts = append(parts, subject(c.oldGo)+" "+english.Choose(c.oldGo, "is", "are")+
+			" built with an older Go than Draugr builds "+english.Choose(c.oldGo, "it", "them")+" with")
+	}
+	return joinClauses(parts)
 }
 
-// forceInstalls names what `draugr tools install --force` installs for the tools off their target.
-func forceInstalls(tested, pinned int) string {
+// joinClauses joins clauses as a list in a sentence: "a and b", "a, b and c".
+func joinClauses(parts []string) string {
+	if len(parts) < 2 {
+		return strings.Join(parts, "")
+	}
+	return strings.Join(parts[:len(parts)-1], ", ") + " and " + parts[len(parts)-1]
+}
+
+// forceInstalls names what `draugr tools install --force` does for the tools off their target. It
+// installs the pinned version where there is a pin and the tested one otherwise, and builds a
+// Go-built tool with the Go Draugr builds it with in either case, so a tool held back by its Go
+// alone is rebuilt at the version it already has.
+func forceInstalls(c offTargetTally) string {
+	var does string
 	switch {
-	case tested > 0 && pinned > 0:
-		return "installs the pinned build where there is a pin and the tested build otherwise"
-	case pinned > 0:
-		return "installs the pinned build"
+	case c.tested > 0 && c.pinned > 0:
+		does = "installs the pinned build where there is a pin and the tested build otherwise"
+	case c.pinned > 0:
+		does = "installs the pinned build"
+	case c.tested > 0:
+		does = "installs the tested build"
+	}
+	switch {
+	case c.oldGo == 0:
+		return does
+	case does == "":
+		return "rebuilds " + english.Choose(c.oldGo, "it", "them")
 	default:
-		return "installs the tested build"
+		return does + ", and rebuilds " + english.Choose(c.oldGo, "the one", "the ones") + " built with an older Go"
 	}
 }
 
