@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -264,7 +265,10 @@ type retireReport struct {
 		File    string `json:"file"`
 		Results []struct {
 			Component string `json:"component"`
-			Version   string `json:"version"`
+			// NPMName is the library's package name on npm, where retire.js's advisory repository
+			// records one: "dompurify" for the component it calls "DOMPurify".
+			NPMName string `json:"npmname"`
+			Version string `json:"version"`
 			// Detection is how the library was recognized, "filecontent", "filename", "uri".
 			Detection       string             `json:"detection"`
 			Vulnerabilities []retireVulnerable `json:"vulnerabilities"`
@@ -296,21 +300,24 @@ func parseRetireJS(out []byte, _ string, _ plugin.Config) (sarif.Report, error) 
 	var results []sarif.Result
 	for _, entry := range report.Data {
 		for _, found := range entry.Results {
+			name := retirePackageName(found.Component, found.NPMName)
 			for _, v := range found.Vulnerabilities {
 				level, score, hasScore := retireSeverity(v.Severity)
+				rule := retireRuleID(found.Component, v)
 				results = append(results, sarif.Result{
 					Tool:     "retirejs",
-					RuleID:   retireRuleID(found.Component, v),
+					RuleID:   rule,
+					Aliases:  retireAliases(rule, v),
 					Level:    level,
 					Score:    score,
 					HasScore: hasScore,
-					Message:  retireMessage(found.Component, found.Version, found.Detection, v),
+					Message:  retireMessage(name, found.Version, found.Detection, v),
 					Location: sarif.Location{URI: entry.File},
 					Package: &sarif.Package{
-						Name:         found.Component,
+						Name:         name,
 						Version:      found.Version,
 						FixedVersion: v.Below,
-						PURL:         retirePURL(found.Component, found.Version),
+						PURL:         retirePURL(name, found.Version),
 						Ecosystem:    "npm",
 					},
 				})
@@ -318,6 +325,34 @@ func parseRetireJS(out []byte, _ string, _ plugin.Config) (sarif.Report, error) 
 		}
 	}
 	return sarif.Report{Tool: "retirejs", Results: results}, nil
+}
+
+// retirePackageName is the name a library's findings carry: its npm package name where retire.js
+// gives one, and the component name retire.js identifies it by where it does not.
+//
+// The two differ for libraries named one way in their own banner and another on npm, DOMPurify and
+// dompurify, underscore.js and underscore. The npm name is the one a lockfile scanner reports, so a
+// vendored copy and the installed package carry one package URL and correlation can count their
+// shared flaws once.
+func retirePackageName(component, npmName string) string {
+	if npmName != "" {
+		return npmName
+	}
+	return component
+}
+
+// retireAliases are the advisory's identifiers other than the one the rule id carries: each CVE and
+// the GitHub advisory id, in that order. retire.js lists them together on one entry, so they are its
+// statement that the identifiers name one flaw, and correlation matches another scanner's copy keyed
+// on any of them.
+func retireAliases(rule string, v retireVulnerable) []string {
+	var ids []string
+	for _, id := range append(slices.Clone(v.Identifiers.CVE), v.Identifiers.GitHubID) {
+		if id != "" && id != rule && !slices.Contains(ids, id) {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
 
 // retireRuleID picks the most portable identifier the advisory carries.
@@ -342,8 +377,9 @@ func retireRuleID(component string, v retireVulnerable) string {
 	return "retirejs:" + component + ":below-" + v.Below
 }
 
-// retireMessage says what was found, in which library, and what fixes it.
-func retireMessage(component, version, detection string, v retireVulnerable) string {
+// retireMessage says what was found, in which library, and what fixes it. The library is named as
+// its package is, so the message opens with the subject the report draws from the package.
+func retireMessage(name, version, detection string, v retireVulnerable) string {
 	summary := strings.TrimSpace(v.Identifiers.Summary)
 	if summary == "" {
 		summary = "known vulnerability"
@@ -351,7 +387,7 @@ func retireMessage(component, version, detection string, v retireVulnerable) str
 	// The version to move to goes with the library, before the advisory's own words, the same shape
 	// every other dependency finding takes. A line has to fit a column and the advisory decides how
 	// long its half is, so anything after it is the part that gets cut.
-	subject := fmt.Sprintf("%s %s", component, version)
+	subject := fmt.Sprintf("%s %s", name, version)
 	if v.Below != "" {
 		subject += " → " + v.Below
 	} else {
@@ -370,16 +406,16 @@ func retireMessage(component, version, detection string, v retireVulnerable) str
 	return msg
 }
 
-// retirePURL builds the package URL for a library retire.js named.
+// retirePURL builds the package URL for a library retire.js named, from retirePackageName.
 //
 // npm, because that is the ecosystem retire.js identifies against even for a file that was never
 // installed from it, the vendored copy of jQuery and the npm package are the same library, and
 // saying so is what lets a consumer correlate them.
-func retirePURL(component, version string) string {
-	if component == "" {
+func retirePURL(name, version string) string {
+	if name == "" {
 		return ""
 	}
-	purl := "pkg:npm/" + component
+	purl := "pkg:npm/" + name
 	if version != "" {
 		purl += "@" + version
 	}

@@ -2406,20 +2406,25 @@ func recountReachability(controls map[string]plugin.ControlResult, s Reachabilit
 	}
 	var out ReachabilitySummary
 	for _, cr := range controls {
-		// Grouped as applyCorrelation grouped them, per control and by correlationKeyOf.
-		strongest := map[correlationKey]*sarif.Reachability{}
-		for _, res := range cr.Report.Results {
-			if key, ok := correlationKeyOf(res); ok && res.Reachability != nil {
-				strongest[key] = strongerReachability(strongest[key], res.Reachability)
+		// Grouped as applyCorrelation grouped them, per control and by correlationGroups.
+		groups := correlationGroups(cr.Report.Results)
+		strongest := make([]*sarif.Reachability, len(groups))
+		groupOf := map[int]int{}
+		for g, idxs := range groups {
+			for _, i := range idxs {
+				groupOf[i] = g
+				if r := cr.Report.Results[i].Reachability; r != nil {
+					strongest[g] = strongerReachability(strongest[g], r)
+				}
 			}
 		}
-		for _, res := range cr.Report.Results {
+		for i, res := range cr.Report.Results {
 			if res.Correlated() {
 				continue
 			}
 			verdict := res.Reachability
-			if key, ok := correlationKeyOf(res); ok {
-				verdict = strongest[key]
+			if g, ok := groupOf[i]; ok {
+				verdict = strongest[g]
 			}
 			if verdict == nil {
 				continue
@@ -2580,14 +2585,7 @@ func countSilenced(controls map[string]plugin.ControlResult) int {
 // silently stopped working the day a second scanner was added.
 func applyCorrelation(controls map[string]plugin.ControlResult) (groups, extraSuppressed int) {
 	for name, cr := range controls {
-		byFlaw := map[correlationKey][]int{}
-		for i := range cr.Report.Results {
-			if key, ok := correlationKeyOf(cr.Report.Results[i]); ok {
-				byFlaw[key] = append(byFlaw[key], i)
-			}
-		}
-
-		for _, idxs := range byFlaw {
+		for _, idxs := range correlationGroups(cr.Report.Results) {
 			if len(idxs) < 2 {
 				continue
 			}
@@ -2672,6 +2670,107 @@ func correlationKeyOf(res sarif.Result) (correlationKey, bool) {
 		component: res.Component, repository: res.Repository, image: res.Image,
 		pkg: correlationPURL(res.Package.PURL), vuln: vuln,
 	}, true
+}
+
+// correlationGroups sorts a control's findings into the flaws correlation counts once each: the
+// indexes of each flaw's findings, ascending, with the flaws in the order of their first finding. A
+// finding correlationKeyOf has no key for is in none of them.
+//
+// Findings sharing a key are one flaw. Two keys that differ only in the vulnerability are one flaw
+// too where a finding under one of them names the other among its own aliases: retire.js reports an
+// advisory under its CVE and names its GitHub advisory id beside it, where Trivy reports the same
+// advisory under the GitHub id alone. The alias has to come from the finding itself, which is a
+// scanner saying both identifiers name the flaw it found, and never from a database linking two
+// advisories after the fact, which can link two flaws with different affected ranges.
+//
+// Two flaws are not joined where one scanner reported each of them. That scanner has said the two
+// identifiers are two findings, and joining them on another scanner's alias would count one of its
+// findings under the other, taking a flaw out of the count.
+func correlationGroups(results []sarif.Result) [][]int {
+	parent := make([]int, len(results))
+	keys := make([]correlationKey, len(results))
+	keyed := make([]bool, len(results))
+	first := map[correlationKey]int{}
+	root := func(i int) int {
+		for parent[i] != i {
+			parent[i] = parent[parent[i]]
+			i = parent[i]
+		}
+		return i
+	}
+	for i := range results {
+		parent[i] = i
+		keys[i], keyed[i] = correlationKeyOf(results[i])
+		if !keyed[i] {
+			continue
+		}
+		if j, seen := first[keys[i]]; seen {
+			parent[i] = root(j)
+		} else {
+			first[keys[i]] = i
+		}
+	}
+
+	tools := map[int]map[string]bool{}
+	for i := range results {
+		if !keyed[i] {
+			continue
+		}
+		r := root(i)
+		if tools[r] == nil {
+			tools[r] = map[string]bool{}
+		}
+		tools[r][results[i].Tool] = true
+	}
+	for i := range results {
+		if !keyed[i] {
+			continue
+		}
+		for _, id := range results[i].AliasVulnerabilityIDs() {
+			other := keys[i]
+			other.vuln = id
+			j, seen := first[other]
+			if !seen {
+				continue
+			}
+			a, b := root(i), root(j)
+			if a == b || sharesTool(tools[a], tools[b]) {
+				continue
+			}
+			parent[b] = a
+			for tool := range tools[b] {
+				tools[a][tool] = true
+			}
+			delete(tools, b)
+		}
+	}
+
+	var groups [][]int
+	at := map[int]int{}
+	for i := range results {
+		if !keyed[i] {
+			continue
+		}
+		r := root(i)
+		g, ok := at[r]
+		if !ok {
+			g = len(groups)
+			at[r] = g
+			groups = append(groups, nil)
+		}
+		groups[g] = append(groups[g], i)
+	}
+	return groups
+}
+
+// sharesTool reports whether any scanner reported findings in both sets.
+func sharesTool(a, b map[string]bool) bool {
+	for tool := range a {
+		if b[tool] {
+			return true
+		}
+	}
+	return false
 }
 
 // correlationPURL is a package URL as two scanners' reports of one dependency agree on it.
