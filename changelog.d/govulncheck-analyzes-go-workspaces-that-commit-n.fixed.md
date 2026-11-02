@@ -1,0 +1,1 @@
+- **govulncheck analyzes Go workspaces that commit no `go.work.sum`.** A repository committing `go.work` without `go.work.sum` no longer fails with `permission denied`, and nothing is written into the checkout. A module the workspace does not use is analyzed on its own, as `go build` in its directory builds it.
