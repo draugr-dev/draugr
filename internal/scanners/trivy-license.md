@@ -36,6 +36,11 @@ differ by where the code happens to sit and `doctor` names one tool. `--license-
 in both modes behind `full: true`. It reads `LICENSE` files and source headers instead of only
 package metadata, which finds licenses no manifest declares and costs a walk of every file.
 
+A repository is read with the same `--file-patterns` as `trivy-fs`, taken from
+`config.controls.sca.trivyFs.filePatterns` and a component's own `trivyFs` block, so a
+requirements file under another name, such as `requirements_all.txt`, is read by both controls.
+The patterns have no key under `licenses`, and a descriptor that writes one there is refused.
+
 **JSON rather than SARIF, and that is the whole reason this scanner exists separately.** Trivy's
 SARIF output contains no license findings at all. They live only under `Results[].Licenses[]` in
 the JSON. So this is the first scanner here that doesn't consume SARIF; the conversion is ours.

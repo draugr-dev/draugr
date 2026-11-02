@@ -89,6 +89,59 @@ func TestRepoScanAccountsForWhatItReadInEachRepository(t *testing.T) {
 	}
 }
 
+// A requirements file the scanner took some packages from is read in part, and its input says
+// which requirements it did not take. Two repositories, each with its own requirements.txt: a
+// partly pinned one beside an unpinned one, and a fully pinned one, so the reason belongs to the
+// file in its own repository.
+func TestRepoScanSaysWhatItLeftInARequirementsFile(t *testing.T) {
+	trees := map[string]string{
+		"https://example.com/api.git": writeTree(t, map[string]string{
+			"requirements.txt":     "requests==2.25.0\nurllib3>=1.0\n",
+			"requirements-dev.txt": "pytest>=8\n",
+		}),
+		"https://example.com/web.git": writeTree(t, map[string]string{
+			"requirements.txt": "requests==2.25.0\nurllib3==1.26.4\n",
+		}),
+	}
+	pinned := map[string]int{"https://example.com/api.git": 1, "https://example.com/web.git": 2}
+	s := repoScanner{
+		info:     plugin.ScannerInfo{Name: "trivy-fs", Controls: []string{"sca"}},
+		args:     func(dir string, _ plugin.Config) []string { return []string{"trivy", "fs", dir} },
+		checkout: checkoutOf(trees),
+		run:      func(context.Context, string, []string) ([]byte, error) { return []byte(`{}`), nil },
+		parse: func(_ []byte, dir string, _ plugin.Config) (sarif.Report, error) {
+			for url, d := range trees {
+				if d == dir {
+					return sarif.Report{Inputs: []sarif.Input{{Path: "requirements.txt", Packages: pinned[url]}}}, nil
+				}
+			}
+			return sarif.Report{}, nil
+		},
+		accounts: true,
+	}
+
+	want := map[string][]sarif.Input{
+		"https://example.com/api.git": {
+			{Scanner: "trivy-fs", Repository: "https://example.com/api", Path: "requirements.txt", Packages: 1,
+				Unread: "1 requirement not pinned: urllib3"},
+			{Scanner: "trivy-fs", Repository: "https://example.com/api", Path: "requirements-dev.txt",
+				Unread: "no pinned versions"},
+		},
+		"https://example.com/web.git": {
+			{Scanner: "trivy-fs", Repository: "https://example.com/web", Path: "requirements.txt", Packages: 2},
+		},
+	}
+	for url, inputs := range want {
+		rep, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: url}, plugin.Config{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(rep.Inputs, inputs) {
+			t.Errorf("%s inputs =\n%+v\nwant\n%+v", url, rep.Inputs, inputs)
+		}
+	}
+}
+
 // bunLockOf is a bun.lock as Bun 1.4.2 writes it, pinning lodash at resolved.
 func bunLockOf(resolved string) string {
 	return `{

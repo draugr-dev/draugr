@@ -29,6 +29,52 @@ func TestTrivyLicenseArgs(t *testing.T) {
 	}
 }
 
+// The repository mode passes the patterns the licenses control copied from sca's trivyFs block,
+// one flag each and before the directory, exactly as trivy-fs passes them. Two repositories, each
+// with its own patterns, so neither job's flags come from the other's config.
+func TestTrivyLicenseReadsWhatTrivyFSReadsThroughFilePatterns(t *testing.T) {
+	repo, _ := NewTrivyLicense().(licenseScanner).repo.(repoScanner)
+	fs, _ := NewTrivyFS().(repoScanner)
+	for dir, patterns := range map[string][]string{
+		"/work/api":    {`pip:requirements[^/]*\.txt$`},
+		"/work/worker": {`pip:requirements[^/]*\.txt$`, `pip:(^|/)requirements/[^/]+\.txt$`},
+	} {
+		cfg := plugin.Config{"filePatterns": patterns}
+		got := repo.args(dir, cfg)
+		if got[len(got)-1] != dir {
+			t.Fatalf("argv = %v, want the directory last", got)
+		}
+		if want := patternFlags(fs.args(dir, cfg)); !reflect.DeepEqual(patternFlags(got), want) || len(want) != 2*len(patterns) {
+			t.Errorf("%s: trivy-license passes %v, want trivy-fs's %v", dir, patternFlags(got), want)
+		}
+		if err := plugin.ValidateConfig(NewTrivyLicense().Info().ConfigSchema, cfg); err != nil {
+			t.Errorf("the job config the control writes is refused: %v", err)
+		}
+	}
+	// Set by the control, so not offered to a descriptor.
+	for _, opt := range plugin.Options(NewTrivyLicense().Info().ConfigSchema) {
+		if opt.Name == "filePatterns" {
+			t.Error("filePatterns is offered as a trivy-license option; it is copied from sca's")
+		}
+	}
+	// An image has no checkout for a pattern to match in.
+	argv, err := trivyLicenseImageArgv(plugin.ImageTarget{Ref: "alpine:3.19"}, plugin.Config{"filePatterns": []string{"pip:x"}})
+	if err != nil || slices.Contains(argv, "--file-patterns") {
+		t.Errorf("image argv = %v, %v; want no --file-patterns", argv, err)
+	}
+}
+
+// patternFlags is every --file-patterns flag in argv with its value.
+func patternFlags(argv []string) []string {
+	var out []string
+	for i, a := range argv {
+		if a == "--file-patterns" && i+1 < len(argv) {
+			out = append(out, a, argv[i+1])
+		}
+	}
+	return out
+}
+
 func TestParseTrivyLicensesReportsOnlyObligations(t *testing.T) {
 	rep, err := parseTrivyLicenses([]byte(licenseJSON), t.TempDir(), nil)
 	if err != nil {

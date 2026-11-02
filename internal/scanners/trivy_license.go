@@ -47,7 +47,7 @@ const trivyLicenseConfigSchema = `{
       "type": "array",
       "items": { "type": "string" },
       "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"]. \"unknown\" matches any license the scanner could not identify."
-    },` + licensePolicySourceProperties + `
+    },` + licensePolicySourceProperties + trivyLicenseReadOnlyProperties + `
   }
 }`
 
@@ -64,6 +64,17 @@ const licensePolicySourceProperties = `
       "type": "object",
       "readOnly": true,
       "description": "Set by the control: the settings that list each flagged SPDX identifier."
+    }`
+
+// trivyLicenseReadOnlyProperties declares the key the licenses control copies from
+// config.controls.sca.trivyFs.filePatterns, so one setting decides which requirements files Trivy
+// reads for both controls.
+const trivyLicenseReadOnlyProperties = `,
+    "filePatterns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "readOnly": true,
+      "description": "Set by the control from config.controls.sca.trivyFs.filePatterns: more files for an analyzer to read, each analyzer:regex."
     }`
 
 // NewTrivyLicense returns a Scanner that reports licenses carrying an obligation, in a
@@ -90,7 +101,7 @@ func NewTrivyLicense() plugin.Scanner {
 		ConfigSchema: json.RawMessage(trivyLicenseConfigSchema),
 	}
 
-	repo := newRepoScannerWithParser(info, trivyLicenseArgs, parseTrivyLicenses)
+	repo := newRepoScannerWithParser(info, trivyLicenseRepoArgs, parseTrivyLicenses)
 	repo.cacheVersion = sharedTrivyVersion.cacheVersion
 	repo.run = retryingRunInDir("trivy", repo.run)
 	repo.accounts = true
@@ -166,6 +177,14 @@ func (s licenseScanner) DataState(ctx context.Context) []plugin.DataState {
 func trivyLicenseArgs(dir string, cfg plugin.Config) []string {
 	argv := []string{"trivy", "fs", "--quiet", "--scanners", "license", "--format", "json"}
 	return offlineTrivyArgs(append(showSuppressedArgs(licenseFullArg(argv, cfg)), dir))
+}
+
+// trivyLicenseRepoArgs is trivyLicenseArgs with a --file-patterns for each pattern the control
+// passed, the ones sca's trivy-fs reads the same repository with, so a requirements file under
+// another name is read for its licenses as well as for its vulnerabilities.
+func trivyLicenseRepoArgs(dir string, cfg plugin.Config) []string {
+	argv := trivyLicenseArgs(dir, cfg)
+	return slices.Insert(argv, len(argv)-1, filePatternArgs(nil, cfg)...)
 }
 
 // trivyLicenseImageArgv builds `trivy image --quiet --scanners license --format json <ref>`.

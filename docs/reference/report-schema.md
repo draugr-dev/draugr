@@ -34,10 +34,11 @@ pipeline should do about it. One is broken infrastructure, the other is work.
 | `dependencyFiles[].unread[]`, `iac` | a Terraform file calling a module Trivy could not load, with a reason such as `module "vpc" not loaded`, or a Terraform root module directory with module calls Trivy skipped, with a reason such as `32 of 33 module calls checked; "zbad" skipped`. The resources those modules define were not checked. An `iac` entry has `read` at 0. |
 | `dependencyFiles[].unread[]`, `secrets` | a file Gitleaks skipped without reading it, with the reason `name has an archive extension`, or the repository root `.` with `no files read` where Gitleaks read nothing from a tree holding a file with content. A secret in it was not looked for. A `secrets` entry has `read` at 0. |
 | `dependencyFiles[].unread[]`, `sast` | a source file Semgrep did not check in full, with a reason such as `over 1 MB, not scanned` or `1 rule timed out, not checked: "x"`. The file contents, or the rules, Semgrep did not run were not checked. A `sast` entry has `read` at 0 and appears only when a file is unread. |
+| `dependencyFiles[].unread[]`, a requirements file read in part | a requirements file a scanner took packages from that holds requirements with no exact `==` version. The reason names them, such as `1 requirement not pinned: urllib3`, or counts them past three, such as `29 requirements not pinned`. Under Trivy's `detectionPriority: comprehensive`, which takes a range at its minimum version, the reason counts the requirements Trivy did not take, such as `2 requirements not read`. The file is counted in `read` as well, and the requirements the reason covers were not checked. |
 
 `scanErrors`, `reported`, `notMeasured[]` and `scanners[].failed[]` are omitted when there is nothing to report, so a clean run's
 document is unchanged. `targets[]` is omitted when the run planned no target. `dependencyFiles[]` is present whenever a scanner that lists its inputs ran,
-and an entry with no `unread` means every dependency file was read.
+and an entry with no `unread` means every dependency file was read in full.
 
 ```bash
 draugr scan draugr.saga.yaml -o out/

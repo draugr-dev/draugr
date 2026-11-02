@@ -141,10 +141,7 @@ func trivyFSArgs(dir string, cfg plugin.Config) []string {
 // trivyFSOptions adds the options that decide which dependencies a filesystem scan reads. Each
 // widens what Trivy examines; none drops a finding.
 func trivyFSOptions(argv []string, cfg plugin.Config) []string {
-	// One flag per pattern: a regex may hold a comma, which a joined value would split.
-	for _, p := range stringList(cfg, "filePatterns") {
-		argv = append(argv, "--file-patterns", p)
-	}
+	argv = filePatternArgs(argv, cfg)
 	if on, _ := cfg["includeDevDeps"].(bool); on {
 		argv = append(argv, "--include-dev-deps")
 	}
@@ -153,6 +150,20 @@ func trivyFSOptions(argv []string, cfg plugin.Config) []string {
 	}
 	return argv
 }
+
+// filePatternArgs adds one --file-patterns per pattern in the config's filePatterns, the files an
+// analyzer reads beyond the names it opens by default. One flag per pattern: a regex may hold a
+// comma, which a joined value would split.
+func filePatternArgs(argv []string, cfg plugin.Config) []string {
+	for _, p := range stringList(cfg, filePatternsKey) {
+		argv = append(argv, "--file-patterns", p)
+	}
+	return argv
+}
+
+// filePatternsKey is the config key holding Trivy's --file-patterns: written in the descriptor for
+// trivy-fs, and set by the licenses control from that setting for trivy-license.
+const filePatternsKey = "filePatterns"
 
 // showSuppressedArgs asks Trivy for what it excluded, where the Trivy that will run can answer.
 //

@@ -42,6 +42,17 @@ The console names three files per component and counts the rest; `--top 0` names
 `report.json` carries the count of files read and every unread file under `dependencyFiles`, see
 the [report schema](../../docs/reference/report-schema.md).
 
+A requirements file is **read in part** when a scanner took packages from its pinned requirements
+and none from the requirements with no exact `==` version. The file counts as read, and the report
+lists it under **Caveats** as `unread-files` with a reason naming the requirements not checked, as
+`1 requirement not pinned: urllib3`, or counting them past three, as `29 requirements not pinned`.
+Under `detectionPriority: comprehensive`, Trivy takes a range at its minimum version, and the reason
+counts the requirements it did not take, as `2 requirements not read`. A scanner that took a package
+for every requirement clears the row. This holds for every requirements file the walk recognizes:
+`requirements.txt`, a `.txt` whose name contains `requirements`, such as `requirements-dev.txt`, and
+any `.txt` under a `requirements` directory. The fix is the one for `no pinned versions`: pin them,
+or generate the file from a lockfile.
+
 ## Links
 
 - Glossary: [SCA](../../docs/reference/glossary.md#sca-software-composition-analysis)

@@ -163,13 +163,21 @@ func (s repoScanner) runInventoried(ctx context.Context, dir string, argv []stri
 }
 
 // accountInputs adds the dependency files in the tree that no input names, each with the reason
-// it contributed nothing.
+// it contributed nothing, and gives a requirements file read in part the reason for the rest.
 func accountInputs(dir string, read []sarif.Input) []sarif.Input {
 	names := make(map[string]bool, len(read))
 	for _, in := range read {
 		names[in.Path] = true
 	}
 	out := slices.Clone(read)
+	for i, in := range out {
+		if in.Unread != "" {
+			continue
+		}
+		if reason, ok := manifests.PartlyPinned(dir, in.Path, in.Packages); ok {
+			out[i].Unread = string(reason)
+		}
+	}
 	for _, u := range manifests.Account(dir, names) {
 		out = append(out, sarif.Input{Path: u.Path, Unread: string(u.Reason)})
 	}

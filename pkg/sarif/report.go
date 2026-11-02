@@ -776,6 +776,9 @@ type Input struct {
 	// secrets, "name has an archive extension", or "no files read" against the repository root.
 	// For a source file, why a SAST scanner did not check all of it, as `over 1 MB, not scanned`
 	// or `1 rule timed out, not checked: "x"`.
+	//
+	// With Packages above zero, the file was read in part and Unread names what was not read, as
+	// `1 requirement not pinned: urllib3` for a requirements file.
 	Unread string `json:"unread,omitempty"`
 }
 

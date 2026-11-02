@@ -21,7 +21,8 @@ type InputCoverage struct {
 	Scanners []string
 	// Read counts the dependency files at least one of them took packages from.
 	Read int
-	// Unread are the files none of them did, by repository and path.
+	// Unread are the files none of them did, by repository and path, and the files they read in
+	// part, which Read counts too.
 	Unread []UnreadInput
 }
 
@@ -36,6 +37,9 @@ type UnreadInput struct {
 	// repository root "no files read". For a source file Semgrep skipped or did not finish,
 	// `over 1 MB, not scanned` or the rules that timed out on it, as `1 rule timed out, not checked:
 	// "x"`.
+	//
+	// For a requirements file read in part, the requirements not read, as `1 requirement not
+	// pinned: urllib3`.
 	Reason string
 }
 
@@ -48,6 +52,8 @@ func inputCoverage(byCtl map[string][]sarif.Report) []InputCoverage {
 		scanners map[string]bool
 		read     map[fileKey]bool
 		unread   map[fileKey]string
+		// partly holds the files a scanner took some packages from, with what it did not take.
+		partly map[fileKey]string
 	}
 	scopes := map[scope]*acc{}
 	for control, reports := range byCtl {
@@ -56,13 +62,22 @@ func inputCoverage(byCtl map[string][]sarif.Report) []InputCoverage {
 				k := scope{in.Component, control}
 				a := scopes[k]
 				if a == nil {
-					a = &acc{scanners: map[string]bool{}, read: map[fileKey]bool{}, unread: map[fileKey]string{}}
+					a = &acc{scanners: map[string]bool{}, read: map[fileKey]bool{}, unread: map[fileKey]string{},
+						partly: map[fileKey]string{}}
 					scopes[k] = a
 				}
 				a.scanners[in.Scanner] = true
 				f := fileKey{in.Repository, in.Path}
 				if in.Unread == "" {
 					a.read[f] = true
+					continue
+				}
+				if in.Packages > 0 {
+					// Read in part, so counted as read, and listed with what was not read unless
+					// another scanner read all of it.
+					if r, ok := a.partly[f]; !ok || in.Unread < r {
+						a.partly[f] = in.Unread
+					}
 					continue
 				}
 				// Every scanner states the reason from the same recognizer, so the first is the
@@ -84,6 +99,16 @@ func inputCoverage(byCtl map[string][]sarif.Report) []InputCoverage {
 			if a.read[f] {
 				continue
 			}
+			if _, some := a.partly[f]; some {
+				continue
+			}
+			cov.Unread = append(cov.Unread, UnreadInput{Repository: f.repository, Path: f.path, Reason: reason})
+		}
+		for f, reason := range a.partly {
+			if a.read[f] {
+				continue
+			}
+			cov.Read++
 			cov.Unread = append(cov.Unread, UnreadInput{Repository: f.repository, Path: f.path, Reason: reason})
 		}
 		slices.SortFunc(cov.Unread, func(x, y UnreadInput) int {

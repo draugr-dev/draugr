@@ -331,6 +331,94 @@ func TestLicensesPlanNamesWhereEachLicenseWasListed(t *testing.T) {
 	}
 }
 
+// trivy-license reads every repository with the patterns sca's trivy-fs reads it with, so a
+// requirements file under another name is read by both controls. Two components with two
+// repositories each: one takes the project's pattern, the other adds its own, and neither collapses
+// into the other's.
+func TestLicensesReadTheFilesScaReadsThroughFilePatterns(t *testing.T) {
+	project := []any{`pip:requirements[^/]*\.txt$`}
+	own := []any{`pip:requirements[^/]*\.txt$`, `pip:(^|/)requirements/[^/]+\.txt$`}
+	model := saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
+		"sca":      {"enabled": true, "trivyFs": map[string]any{"filePatterns": project}},
+		"licenses": {"enabled": true, "mendLicenses": map[string]any{"enabled": true}},
+	}}}
+	api := &saga.Component{Name: "api",
+		Repositories: []saga.Repository{{URL: "https://git/api"}, {URL: "https://git/api-shared"}},
+		Images:       []saga.Image{{Image: "ghcr.io/acme/api:1.0"}}}
+	worker := &saga.Component{Name: "worker",
+		Repositories: []saga.Repository{{URL: "https://git/worker"}, {URL: "https://git/worker-jobs"}},
+		Controls: map[string]saga.ControllerSettings{
+			"sca": {"trivyFs": map[string]any{"filePatterns": own}},
+		}}
+
+	for _, comp := range []*saga.Component{api, worker} {
+		sca, err := SCA{}.Plan(model, comp)
+		if err != nil {
+			t.Fatal(err)
+		}
+		readBySCA := map[string][]string{}
+		for _, j := range sca {
+			if j.Scanner == trivyFSScanner {
+				readBySCA[j.Target.(plugin.RepositoryTarget).URL] = settingStrings(saga.ControllerSettings(j.Config), "filePatterns")
+			}
+		}
+		licenses, err := Licenses{}.Plan(model, comp)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var repos int
+		for _, j := range licenses {
+			got := j.Config["filePatterns"]
+			repo, isRepo := j.Target.(plugin.RepositoryTarget)
+			switch {
+			case !isRepo || j.Scanner != trivyLicenseScanner:
+				// An image is not read through sca's patterns, and Mend has no use for Trivy's.
+				if got != nil {
+					t.Errorf("%s: %s on %v carries filePatterns %v, want none", comp.Name, j.Scanner, j.Target, got)
+				}
+			default:
+				repos++
+				if want := readBySCA[repo.URL]; len(want) == 0 || !reflect.DeepEqual(got, want) {
+					t.Errorf("%s: trivy-license on %s reads %v, want trivy-fs's %v", comp.Name, repo.URL, got, want)
+				}
+			}
+		}
+		if repos != len(comp.Repositories) {
+			t.Errorf("%s: %d trivy-license repository jobs, want %d", comp.Name, repos, len(comp.Repositories))
+		}
+	}
+
+	// With no patterns, a job carries none rather than an empty list.
+	jobs, _ := Licenses{}.Plan(saga.Model{}, &saga.Component{Name: "c", Repositories: []saga.Repository{{URL: "https://git/a"}}})
+	if _, ok := jobs[0].Config["filePatterns"]; ok {
+		t.Errorf("config = %v, want no filePatterns", jobs[0].Config)
+	}
+}
+
+// Patterns written under licenses would be a second copy of sca's, so the descriptor is refused and
+// told where the setting lives.
+func TestLicensesValidateRefusesItsOwnFilePatterns(t *testing.T) {
+	model := saga.Model{
+		Config: saga.Config{Controls: map[string]saga.ControllerSettings{
+			"licenses": {"trivyLicense": map[string]any{"filePatterns": []any{"pip:x"}}},
+		}},
+		Components: []saga.Component{{Name: "api", Controls: map[string]saga.ControllerSettings{
+			"licenses": {"trivyLicense": map[string]any{"filePatterns": []any{"pip:y"}}},
+		}}},
+	}
+	var got []string
+	for _, err := range (Licenses{}).Validate(model) {
+		got = append(got, err.Error())
+	}
+	want := []string{
+		`config.controls.licenses.trivyLicense: "filePatterns" is set by the control from config.controls.sca.trivyFs.filePatterns and cannot be written here`,
+		`components["api"].controls.licenses.trivyLicense: "filePatterns" is set by the control from config.controls.sca.trivyFs.filePatterns and cannot be written here`,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("problems = %q, want %q", got, want)
+	}
+}
+
 func TestLicensesValidateRefusesAPolicySourceKey(t *testing.T) {
 	model := saga.Model{
 		Config: saga.Config{Controls: map[string]saga.ControllerSettings{
