@@ -45,6 +45,9 @@
       "highestPriority": "P1",
       "name": "sca",
       "notes": 0,
+      "reported": [
+        "trivy-fs"
+      ],
       "scanErrors": [
         "trivy-fs: paths \"services/wbe\": not in the repository at 2278d40c2894"
       ],
@@ -58,12 +61,15 @@
       "highest": "",
       "name": "secrets",
       "notes": 0,
+      "reported": [
+        "gitleaks"
+      ],
       "scanErrors": [
         "gitleaks: paths \"services/wbe\": not in the repository at 2278d40c2894"
       ],
       "threshold": "",
       "total": 0,
-      "verdict": "pass",
+      "verdict": "fail",
       "warnings": 0
     }
   ],
