@@ -16,15 +16,13 @@ _Nothing yet._
 
 ### Fixed
 
-- **A control with a failed scanner errors in JUnit.** Where any of a control's scanners failed, its suite now holds a test in error carrying the scanner's message, instead of a passing test, so a CI test panel no longer shows it green.
+- **A control with a failed scanner no longer passes.** In `report.json` its `verdict` is `fail` even where another scanner found nothing, and `controls[].reported` lists the scanners that returned a report. In JUnit its suite holds a test in error carrying the scanner's message. A run with no findings ends on `A control marked ERROR checked less than it was asked to`.
 
-- **A control with a failed scanner fails in `report.json`.** Where one scanner failed and another found nothing, the control now has `"verdict": "fail"`, and `controls[].reported` lists the scanners that returned a report. A run with no findings and a control in ERROR closes on `A control marked ERROR checked less than it was asked to`.
+- **A vendored JavaScript library and the same version in a lockfile are one finding.** retire.js now reports the npm package name (`dompurify`, not `DOMPurify`), and matches an advisory Trivy or Grype report under its CVE or its GitHub advisory ID. The fix list proposes one upgrade naming both files.
 
-- **A vendored JavaScript library and the same version in a lockfile count as one finding.** retire.js findings now use the npm package name, such as dompurify for DOMPurify, and match Trivy's or Grype's copy of an advisory whether it is reported under its CVE or its GitHub advisory ID, so the fix list proposes one upgrade naming both files.
+- **An `NSWG-ECO` advisory in several lockfiles of a repository is one finding.** Trivy's advisory for an npm package is counted once, with the other lockfiles' copies recorded under it, as a CVE already is. A VEX statement for one of these advisories, or for a Debian `TEMP` or `DLA` advisory in an image, now applies to the finding, and the VEX document lists it.
 
-- **An NSWG-ECO advisory counts once per repository.** Trivy's `NSWG-ECO` advisory in an npm package pinned in several lockfiles is one finding, with the other lockfiles' copies behind it, as a CVE is. These advisories, and Debian's `TEMP` and `DLA` ones in images, are matched by VEX statements and written to the VEX document.
-
-- **`report.json` lists every scanner that ran.** A scanner that succeeded without reporting a version is now in `scanners`, without a `version`, instead of being left out.
+- **`scanners` in `report.json` includes a scanner that reports no version.** Its entry has no `version` field.
 
 ## [0.165.3] - 2026-11-02
 
