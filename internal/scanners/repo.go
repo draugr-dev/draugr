@@ -513,6 +513,12 @@ var execArgvInDir = func(ctx context.Context, dir string, argv []string) ([]byte
 	return toolexec.Run(ctx, dir, argv)
 }
 
+// execArgvInDirWithEnv is execArgvInDir with variables layered over the environment, each "K=V",
+// for a tool whose environment differs from one run to the next.
+var execArgvInDirWithEnv = func(ctx context.Context, dir string, argv, env []string) ([]byte, error) {
+	return toolexec.RunWithEnv(ctx, dir, argv, env)
+}
+
 // execArgvCombined runs a tool and reads both streams, for a command whose answer is a message
 // rather than a report, several tools write those to stderr.
 func execArgvCombined(ctx context.Context, argv []string) ([]byte, error) {

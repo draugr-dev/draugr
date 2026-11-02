@@ -73,9 +73,9 @@ func TestGovulncheckRefusesAModuleNewerThanItsBuildGoAndAnalyzesTheOther(t *test
 	}
 	var mu sync.Mutex
 	var ran []string
-	origExec := execArgvInDir
-	t.Cleanup(func() { execArgvInDir = origExec })
-	execArgvInDir = func(_ context.Context, _ string, argv []string) ([]byte, error) {
+	origExec := execArgvInDirWithEnv
+	t.Cleanup(func() { execArgvInDirWithEnv = origExec })
+	execArgvInDirWithEnv = func(_ context.Context, _ string, argv, _ []string) ([]byte, error) {
 		mod := argv[slices.Index(argv, "-C")+1]
 		mu.Lock()
 		ran = append(ran, mod)

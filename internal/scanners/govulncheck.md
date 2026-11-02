@@ -41,8 +41,9 @@ another missed is exactly the one that must not disappear in a deduplication.
 and each verdict is located at that module's `go.mod`. Two modules requiring the same dependency
 each get a verdict. The module that calls the vulnerable function is `reachable`, and the one that
 only requires it is not lent that call path. Two components sharing a repository, each scoped by
-`paths:` or `ignore:`, each get the verdict for their own code. A module inside a `go.work` workspace is analyzed as
-the workspace builds it, which is the build `go build` in that directory produces.
+`paths:` or `ignore:`, each get the verdict for their own code. A module a `go.work` workspace uses
+is analyzed as the workspace builds it, which is the build `go build` in that directory produces,
+and a module the workspace does not use is analyzed on its own.
 
 **Components carved out of one module** are each analyzed from their own code. The checkout holds
 the whole module, as [Scoping a repository](../../docs/reference/saga-schema.md#scoping-a-repository)
@@ -165,6 +166,19 @@ access to that host, or a local copy fetched with `draugr feeds update govulndb`
   Where the module declares a newer Go than the pin, the command names that Go as `GOTOOLCHAIN`, or
   a newer Draugr. The `go.work` read is the one `GOWORK` names, or the nearest one above the module
   inside the checkout, and none under `GOWORK=off`.
+
+  **A workspace is read from a copy.** The checkout is read-only, and in workspace mode the go
+  command writes any checksum it lacks to the `go.work.sum` beside `go.work`, so a repository that
+  commits `go.work` without a complete `go.work.sum` would fail with `permission denied`. For a
+  module listed under `use` in the governing `go.work`, govulncheck runs with `GOWORK` naming a copy
+  of that `go.work` in a temporary directory, beside a copy of `go.work.sum` where the repository
+  commits one. The copy's `use` paths and relative `replace` paths are absolute, so they name the
+  checkout's modules. The go command writes its checksums beside the copy, the copy is removed when
+  the run ends, and nothing in the checkout changes. A module the `go.work` does not list runs with
+  `GOWORK=off`, the only setting under which the go command builds it. A workspace with
+  `vendor/modules.txt` beside a `go.work` declaring go 1.22 or later is built from `vendor/`, reads
+  no checksums, and runs from the checkout without a copy. A `GOWORK` already set in your
+  environment is used as it is.
 
   `draugr doctor` asks for it whenever a descriptor names it under `config.reachability`, so a
   missing analyzer is reported before a scan rather than by one. It is not required when the `sca`
