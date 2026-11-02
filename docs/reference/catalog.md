@@ -111,7 +111,7 @@ Scan results render in any of these formats, selected with `draugr scan --format
 | `evidence` | The console report plus what makes it defensible: tools, revisions, and what each control measured against. |
 | `markdown` | The report as prose and tables, for a merge request comment or a wiki. |
 | `html` | A self-contained page, for attaching to a ticket or an audit. |
-| `junit` | One failed test per finding, for a CI test panel. |
+| `junit` | One failed test per finding, and one test in error per control with a scan error, for a CI test panel. |
 | `json` | The whole run as one document, for a platform or a script. |
 | `sarif` | SARIF 2.1.0, which code scanning and editors read. |
 | `vex` | An OpenVEX document saying which vulnerabilities apply to this product. |

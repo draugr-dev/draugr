@@ -159,9 +159,12 @@ type scannerFailure struct {
 
 // scannersOf lists the scanners this run used, sorted, one entry per tool however many jobs it ran.
 //
-// Read back from the provenance each scan recorded and from the jobs that failed, rather than from
-// the registry, so the list is what executed rather than what was available. A scanner whose
-// control was planned and then skipped is not here, and neither is one the descriptor never reached.
+// Read back from what the engine recorded as having run, the scanners each control reported from
+// and the jobs that failed, rather than from the registry, so the list is what executed rather than
+// what was available. A scanner whose control was planned and then skipped is not here, and neither
+// is one the descriptor never reached. The version comes from the provenance a scan recorded, and a
+// scanner that reported none is still listed, without one: provenance alone would leave it out, and
+// a scanner that ran and found nothing would read as one nobody configured.
 func scannersOf(run engine.Result) []scannerUsed {
 	used := map[string]*scannerUsed{}
 	entry := func(name string) *scannerUsed {
@@ -169,6 +172,11 @@ func scannersOf(run engine.Result) []scannerUsed {
 			used[name] = &scannerUsed{Name: name}
 		}
 		return used[name]
+	}
+	for _, scanners := range run.Reported {
+		for _, s := range scanners {
+			entry(s)
+		}
 	}
 	for _, name := range sortedControlNames(run) {
 		for _, p := range run.Controls[name].Report.Provenance {

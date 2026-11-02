@@ -169,6 +169,47 @@ func TestTheReportNamesAScannerThatFailedWhereItFailed(t *testing.T) {
 	}
 }
 
+// Two components in two repositories, where gitleaks reads both and reports no version: a scan
+// leaves no provenance for it, and it is listed all the same, without a version, beside trivy-fs at
+// the version it reported. retirejs, which reports no version either, read api and failed on web, so
+// it is listed once with the failure.
+func TestAScannerThatReportsNoVersionIsListed(t *testing.T) {
+	const (
+		api = "https://github.com/acme/api"
+		web = "https://github.com/acme/web"
+	)
+	repos := map[string]string{"api": api, "web": web}
+	reg := engine.NewRegistry()
+	reg.RegisterController(repoController{name: "sca", scanner: "trivy-fs", repos: repos})
+	reg.RegisterController(repoController{name: "secrets", scanner: "gitleaks", repos: repos})
+	reg.RegisterController(repoController{name: "js", scanner: "retirejs", repos: repos})
+	reg.RegisterScanner(repoScanner{name: "trivy-fs", version: "trivy@0.76.1"})
+	reg.RegisterScanner(repoScanner{name: "gitleaks"})
+	reg.RegisterScanner(repoScanner{name: "retirejs", failOn: web})
+	on := map[string]saga.ControllerSettings{"sca": {}, "secrets": {}, "js": {}}
+	run, err := engine.New(reg).Run(context.Background(), saga.Model{
+		Release:    saga.Release{Version: "1"},
+		Components: []saga.Component{{Name: "api", Controls: on}, {Name: "web", Controls: on}},
+	})
+	if err == nil {
+		t.Fatal("want the run to report retirejs's failure")
+	}
+
+	raw, _ := renderProduced(t, run, Provenance{})["scanners"].([]any)
+	got, _ := json.Marshal(raw)
+	want, _ := json.Marshal([]any{
+		map[string]any{"name": "gitleaks"},
+		map[string]any{"name": "retirejs", "failed": []any{map[string]any{
+			"control": "js", "component": "web", "kind": "repository", "target": web + "@main",
+			"detail": "run retirejs: exit status 2: no packages matched the provided patterns",
+		}}},
+		map[string]any{"name": "trivy-fs", "version": "trivy@0.76.1"},
+	})
+	if string(got) != string(want) {
+		t.Errorf("scanners =\n %s\nwant\n %s", got, want)
+	}
+}
+
 // A scanner whose every job failed is still listed, with the version it reported.
 func TestAScannerThatOnlyFailedIsListed(t *testing.T) {
 	run := engine.Result{FailedScans: []engine.FailedScan{
