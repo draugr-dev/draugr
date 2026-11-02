@@ -33,7 +33,7 @@ var benchLadders = []benchLadder{
 // name one of the ladder's releases as the fix, mostly the older ones, as a library some years out of
 // date carries, with one in five naming a fix on two release lines.
 func manyFixableFindings(components, packages, perPackage, steps int) []sarif.Result {
-	rng := rand.New(rand.NewPCG(1748, 1748))
+	rng := rand.New(rand.NewPCG(1748, 1748)) // #nosec G404 -- seeded so every run builds the same findings
 	var out []sarif.Result
 	n := 0
 	for c := range components {

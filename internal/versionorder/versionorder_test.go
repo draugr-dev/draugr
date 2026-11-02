@@ -76,7 +76,7 @@ func TestParsedVersionsOrderAsCompareDoes(t *testing.T) {
 				va, okA := Parse(e, a)
 				vb, okB := Parse(e, b)
 				got, ok := va.Compare(vb)
-				if got != want || ok != wantOK || (ok && !(okA && okB)) {
+				if got != want || ok != wantOK || (ok && (!okA || !okB)) {
 					t.Errorf("%s: Parse(%q).Compare(Parse(%q)) = %d, %v; Compare = %d, %v", e, a, b, got, ok, want, wantOK)
 				}
 			}

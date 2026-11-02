@@ -210,7 +210,7 @@ func randomFindings(rng *rand.Rand, pkg randomPackage) []finding {
 // The target is the one the reference names, on inputs drawn to repeat versions many times over, to
 // mix ecosystems, and to carry versions that do not parse.
 func TestUpgradeTargetNamesTheReferencesRelease(t *testing.T) {
-	rng := rand.New(rand.NewPCG(1748, 2026))
+	rng := rand.New(rand.NewPCG(1748, 2026)) // #nosec G404 -- seeded so a failing trial reproduces
 	named := 0
 	for trial := range 5000 {
 		pkg := randomPackages[rng.IntN(len(randomPackages))]
@@ -232,7 +232,7 @@ func TestUpgradeTargetNamesTheReferencesRelease(t *testing.T) {
 
 // The release within an upgrade policy is the one the reference names.
 func TestLowestWithinNamesTheReferencesRelease(t *testing.T) {
-	rng := rand.New(rand.NewPCG(1748, 2027))
+	rng := rand.New(rand.NewPCG(1748, 2027)) // #nosec G404 -- seeded so a failing trial reproduces
 	named := 0
 	for trial := range 5000 {
 		pkg := randomPackages[rng.IntN(len(randomPackages))]
