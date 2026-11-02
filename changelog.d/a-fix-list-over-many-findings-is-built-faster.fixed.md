@@ -1,1 +1,0 @@
-- **A fix list over many findings is built faster.** Naming the release each upgrade moves to now compares each distinct pair of installed and fixed versions once, rather than once per finding. On 64,000 findings the fix list takes about a third of the time and half the memory.

@@ -1,1 +1,0 @@
-- **`report.json` lists the scanners that failed.** Each scanner a scan ran appears in `scanners` with its version, including one whose jobs returned an error, and its `failed` list names the control, component and target of each failure with the scanner's error.

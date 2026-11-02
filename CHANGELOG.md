@@ -12,6 +12,22 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.165.3] - 2026-11-02
+
+### Fixed
+
+- **A critical finding on KEV leads its band.** The action that clears a finding on KEV ranks first in its band even where the scanner already rated the finding critical. `report.json` marks each finding KEV lists as `exploited`, and the `KEV` line under `SIGNALS` reads `N findings listed`, with `· M raised` when KEV raised any.
+
+- **A fix list over many findings is built faster.** Naming the release each upgrade moves to now compares each distinct pair of installed and fixed versions once, rather than once per finding. On 64,000 findings the fix list takes about a third of the time and half the memory.
+
+- **A fixed version that names no release no longer stops the fix list.** A finding whose fixed version is only separators or a bound, such as `,` or `>=`, made the fix list fail with an index error. It now takes no part in choosing the release, as a finding with no fixed version does.
+
+- **`draugr init <dir>` writes the Saga into `<dir>`.** It wrote `draugr.saga.yaml` into the working directory with `url: .`, so the suggested scan read the working directory. The `Next:` commands now `cd <dir>` first, and a `<dir>` that does not exist is refused.
+
+- **govulncheck analyzes Go workspaces that commit no `go.work.sum`.** A repository committing `go.work` without `go.work.sum` no longer fails with `permission denied`, and nothing is written into the checkout. A module the workspace does not use is analyzed on its own, as `go build` in its directory builds it.
+
+- **`report.json` lists the scanners that failed.** Each scanner a scan ran appears in `scanners` with its version, including one whose jobs returned an error, and its `failed` list names the control, component and target of each failure with the scanner's error.
+
 ## [0.165.2] - 2026-11-02
 
 ### Fixed
@@ -6725,7 +6741,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.165.2...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.165.3...HEAD
+[0.165.3]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.3
 [0.165.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.2
 [0.165.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.1
 [0.165.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.0

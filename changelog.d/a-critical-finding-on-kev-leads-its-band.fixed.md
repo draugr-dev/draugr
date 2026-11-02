@@ -1,1 +1,0 @@
-- **A critical finding on KEV leads its band.** The action that clears a finding on KEV ranks first in its band even where the scanner already rated the finding critical. `report.json` marks each finding KEV lists as `exploited`, and the `KEV` line under `SIGNALS` reads `N findings listed`, with `· M raised` when KEV raised any.
