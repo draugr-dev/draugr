@@ -462,6 +462,9 @@ type Installed struct {
 	ProvenanceNote string
 	// AlreadyPresent is true when the requested build was already installed and left untouched.
 	AlreadyPresent bool
+	// Toolchain is the Go release a Go-built tool was built with, as goX.Y.Z. Empty for every other
+	// tool.
+	Toolchain string
 }
 
 // Notes for an install checked less strongly than its plan.
@@ -566,7 +569,7 @@ func recordManaged(destDir string, res Installed) (Installed, error) {
 		return Installed{}, err
 	}
 	recordInstall(destDir, res.Name, installRecord{
-		Version: res.Version, BinarySHA256: sum, Verified: res.Verified,
+		Version: res.Version, BinarySHA256: sum, Verified: res.Verified, Toolchain: res.Toolchain,
 	})
 	return res, nil
 }
@@ -592,13 +595,16 @@ func installNodeTool(ctx context.Context, name, version, destDir string, spec No
 func installGoTool(ctx context.Context, name, version, destDir string, spec GoSpec) (Installed, error) {
 	version = managedVersion(name, version)
 	root := filepath.Dir(destDir)
-	path, level, err := installGo(ctx, root, name, spec, version)
+	built, err := installGo(ctx, root, name, spec, version)
 	if err != nil {
 		return Installed{}, err
 	}
-	res := Installed{Name: name, Version: version, Path: path, Verified: level, Checked: CheckGoSumDB}
+	res := Installed{
+		Name: name, Version: version, Path: built.path, Verified: built.level, Checked: CheckGoSumDB,
+		Toolchain: built.toolchain,
+	}
 	switch {
-	case level != LevelPinned:
+	case built.level != LevelPinned:
 		res.Checked, res.ProvenanceNote = CheckNone, noteGoFallback
 	case version != ManagedVersion(name):
 		// The checksum database answers for any version, so the check is the same one. The level is
@@ -693,6 +699,7 @@ func InstallVersion(ctx context.Context, name, version, destDir string, client *
 		if rec, path, ok := currentManaged(destDir, name, version); ok {
 			return Installed{
 				Name: name, Version: rec.Version, Path: path, Verified: rec.Verified, AlreadyPresent: true,
+				Toolchain: rec.Toolchain,
 			}, nil
 		}
 	}
@@ -1014,6 +1021,10 @@ type installRecord struct {
 	// the evidence exists: the checksums file and the signature are not kept, so a later reader
 	// asking "how well do we know this binary" has nothing else to go on.
 	Verified Level `json:"verified,omitempty"`
+	// Toolchain is the Go release a Go-built tool was built with, as goX.Y.Z. Apart from Version,
+	// which names the tool's own release, because the two move independently and a reader of either
+	// needs the other unchanged.
+	Toolchain string `json:"toolchain,omitempty"`
 }
 
 func manifestPath(destDir string) string { return filepath.Join(destDir, manifestName) }
@@ -1090,10 +1101,12 @@ func managed(name string) bool { return ManagedVersion(name) != "" }
 //
 // The file compared is the one on PATH, the shim or the built binary, because it is the one the
 // record describes. The entry point a shim runs is checked as well: a shim whose environment was
-// removed matches its record and runs nothing.
+// removed matches its record and runs nothing. A Go-built tool is also held to the toolchain it is
+// built with, so a build from an older Go is replaced when the pin moves past it.
 func currentManaged(destDir, name, version string) (installRecord, string, bool) {
 	rec, ok := loadManifest(destDir)[name]
-	if !ok || rec.Version != managedVersion(name, version) || rec.BinarySHA256 == "" {
+	if !ok || rec.Version != managedVersion(name, version) || rec.BinarySHA256 == "" ||
+		!toolchainCurrent(name, rec.Toolchain) {
 		return installRecord{}, "", false
 	}
 	root := filepath.Dir(destDir)

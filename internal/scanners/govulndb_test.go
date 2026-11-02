@@ -22,6 +22,9 @@ func TestMain(m *testing.M) {
 	findLocalGoVulnDB = func(time.Time, time.Duration) (feeds.LocalGoVulnDB, error) {
 		return feeds.LocalGoVulnDB{}, feeds.ErrNoLocalGoVulnDB
 	}
+	// Nor the developer's own govulncheck: the Go it was built with would decide which test modules
+	// a scan refuses. A test that is about that names a build Go itself.
+	govulncheckBuildGo = func() string { return "" }
 	os.Exit(m.Run())
 }
 

@@ -100,6 +100,10 @@ func TestBehindIsADifferenceAndNotAComparison(t *testing.T) {
 		{"current", Drift{Pinned: "1.0.0", Latest: "1.0.0"}, false},
 		{"unanswered", Drift{Pinned: "1.0.0", Err: context.Canceled}, false},
 		{"answered with nothing", Drift{Pinned: "1.0.0"}, false},
+		{"a newer Go minor release", Drift{Pinned: "1.0.0", Latest: "1.0.0", PinnedGo: "go1.27.3", LatestGo: "go1.28.0"}, true},
+		{"a newer Go patch release", Drift{Pinned: "1.0.0", Latest: "1.0.0", PinnedGo: "go1.27.3", LatestGo: "go1.27.4"}, false},
+		{"the Go it is built with is current", Drift{Pinned: "1.0.0", Latest: "1.0.0", PinnedGo: "go1.27.3", LatestGo: "go1.27.3"}, false},
+		{"go.dev unanswered", Drift{Pinned: "1.0.0", Latest: "1.0.0", PinnedGo: "go1.27.3"}, false},
 	} {
 		if got := tc.d.Behind(); got != tc.want {
 			t.Errorf("%s: Behind() = %v, want %v", tc.name, got, tc.want)
@@ -246,6 +250,91 @@ func TestOutdatedReportsEveryToolInNameOrder(t *testing.T) {
 	}
 	if d := byTool["syft"]; d.Err == nil || d.Behind() {
 		t.Errorf("an unreachable upstream reads as current: %+v", d)
+	}
+	if d := byTool["govulncheck"]; d.Err == nil || d.Behind() || d.PinnedGo != govulncheckToolchain {
+		t.Errorf("govulncheck with go.dev unreachable: %+v", d)
+	}
+}
+
+// go.dev's release list, newest first, with a release candidate ahead of the stable releases as it
+// is while one is out.
+const goDL = `[{"version":"go1.28rc1","stable":false,"files":[]},` +
+	`{"version":"go1.27.4","stable":true,"files":[]},{"version":"go1.26.11","stable":true,"files":[]}]`
+
+// govulncheck is behind when go.dev publishes a newer Go minor release than the one it is built
+// with, even where its own release has not moved, and not for a patch release. The Go is asked for
+// once however many tools it serves.
+func TestOutdatedHoldsAGoBuiltToolToTheNewestGoMinor(t *testing.T) {
+	newMinor := `[{"version":"go1.99.0","stable":true,"files":[]}]`
+	for _, tc := range []struct {
+		name, list, latest string
+		behind             bool
+	}{
+		{"a newer minor", newMinor, "go1.99.0", true},
+		{"a newer patch alone", `[{"version":"` + govulncheckToolchain + `9","stable":true}]`, govulncheckToolchain + "9", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tr := &upstreamTransport{routes: map[string]func(http.ResponseWriter, *http.Request){
+				"api.github.com/repos/golang/vuln/tags": serveJSON(`[{"name":"v` + govulncheckVersion + `"}]`),
+				"go.dev/dl/":                            serveJSON(tc.list),
+			}}
+			var d Drift
+			for _, x := range Outdated(context.Background(), &http.Client{Transport: tr}) {
+				if x.Tool == "govulncheck" {
+					d = x
+				}
+				if x.Tool != "govulncheck" && (x.PinnedGo != "" || x.LatestGo != "") {
+					t.Errorf("%s is not built with Go and carries one: %+v", x.Tool, x)
+				}
+			}
+			if d.Err != nil || d.Behind() != tc.behind || d.Latest != govulncheckVersion ||
+				d.LatestGo != tc.latest || d.PinnedGo != govulncheckToolchain {
+				t.Errorf("govulncheck = %+v, want behind %v on the Go alone", d, tc.behind)
+			}
+		})
+	}
+}
+
+// go.dev is asked once, with mode=json, however many Go-built tools there are.
+func TestOutdatedAsksGoDevOnce(t *testing.T) {
+	tr := &upstreamTransport{routes: map[string]func(http.ResponseWriter, *http.Request){
+		"go.dev/dl/": serveJSON(goDL),
+	}}
+	_ = Outdated(context.Background(), &http.Client{Transport: tr})
+	asked := 0
+	for _, r := range tr.seen {
+		if r.URL.Host == "go.dev" {
+			asked++
+			if r.URL.RawQuery != "mode=json" {
+				t.Errorf("go.dev asked without mode=json: %s", r.URL)
+			}
+		}
+	}
+	if asked != 1 {
+		t.Errorf("go.dev asked %d times, want once", asked)
+	}
+}
+
+// The newest stable release is the answer, a release candidate is skipped, and a list with no
+// stable release or a name not shaped like one is an error rather than a toolchain.
+func TestLatestGo(t *testing.T) {
+	for _, tc := range []struct {
+		name, body, want, err string
+	}{
+		{"skips a release candidate", goDL, "go1.27.4", ""},
+		{"no stable release", `[{"version":"go1.28rc1","stable":false}]`, "", "go.dev names no stable Go release"},
+		{"a name that is not a release", `[{"version":"go1.27.4; rm -rf /","stable":true}]`, "", "go.dev names no stable Go release"},
+		{"not a list", `{}`, "", "cannot unmarshal"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			client := &http.Client{Transport: &upstreamTransport{routes: map[string]func(http.ResponseWriter, *http.Request){
+				"go.dev/dl/": serveJSON(tc.body),
+			}}}
+			got, err := LatestGo(context.Background(), client)
+			if got != tc.want || (tc.err == "") != (err == nil) || (err != nil && !strings.Contains(err.Error(), tc.err)) {
+				t.Errorf("LatestGo = %q, %v; want %q, %q", got, err, tc.want, tc.err)
+			}
+		})
 	}
 }
 

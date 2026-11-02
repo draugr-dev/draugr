@@ -1443,6 +1443,16 @@ A tool whose version Draugr cannot read, such as a build that reports `dev`, sho
 `? version unknown` instead of `✓ found`, the status [`draugr tools list`](#draugr-tools-list)
 gives it. The line under the table does not count it, and `--strict` does not fail on it.
 
+`govulncheck` is also held to the Go it was built with, read from the binary's build information.
+A build from a Go older than the release `draugr tools install` builds it with cannot load a module
+declaring a newer Go, so its row says `built with go1.26.10, older than go1.27.3`. The line under
+the table counts it in a clause of its own, joined to the version clauses with `and` when there are
+both:
+
+```
+1 installed tool is built with an older Go than Draugr builds it with. `draugr tools install --force` rebuilds it.
+```
+
 A pinned tool is held to its pin instead. Its row names the file that sets the pin, and the
 version when the tool is not at it. The line under the table counts the two kinds apart:
 
@@ -1605,9 +1615,9 @@ The list is **reported, not failed**, unless `--fail-on-uncovered` is passed or
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--json` | `false` | Emit the report as JSON instead of tables. A tool not at the version Draugr tests carries `testedVersion`; a tool not at its configured pin carries `pinnedVersion` and `pinnedIn`, the file that pins it, in its place |
+| `--json` | `false` | Emit the report as JSON instead of tables. A tool not at the version Draugr tests carries `testedVersion`; a tool not at its configured pin carries `pinnedVersion` and `pinnedIn`, the file that pins it, in its place. `govulncheck` carries `buildGo`, the Go it was built with, and `testedGo` where that Go is older than the one Draugr builds it with |
 | `--fail-on-uncovered` | `false` | Exit non-zero when the descriptor declares a surface no enabled control looks at. Also the behavior when [`config.gate.failOnCaveats`](saga-schema.md#configgate) lists `not-checked` |
-| `--strict` | `false` | Exit non-zero when a tool is not at its configured pin, or not the version Draugr tests where it has none, with or without a descriptor. With one, a missing tool's message comes first |
+| `--strict` | `false` | Exit non-zero when a tool is not at its configured pin, or not the version Draugr tests where it has none, or is a `govulncheck` built with an older Go than Draugr builds it with, with or without a descriptor. With one, a missing tool's message comes first |
 | `--policy` | `false` | Ask the `draugr-api` server for the organization's policy, sending the token. Exit non-zero when it could not be checked, as well as when a scan would be refused or fail by it |
 | `--offline` | `false` | Make no network call: skips the release check, the policy check, remote fragments and every target check that needs the network. `DRAUGR_NO_UPDATE_CHECK=1` skips only the release check |
 | `--components` | - | Check only the targets of these components |
@@ -1725,6 +1735,12 @@ A tool whose upstream could not be asked shows `?` and `could not ask:` with the
 last line adds how many could not be asked. The command beside a tool that is behind installs the
 upstream's version. Without `--version`, `draugr tools install <tool>` installs the pinned one.
 
+`govulncheck` is also compared on the Go it is built with, against the newest stable release
+`https://go.dev/dl/` lists. Its `Pinned` and `Upstream` cells each name a Go, as in
+`1.9.0 · go1.27.3`. It is behind when its version is newer upstream, or a newer Go minor release is
+out. Its command then sets `GOTOOLCHAIN` to that Go, with `--force` where its own version has not
+moved.
+
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--json` | `false` | Write the comparison as JSON, for a pipeline proposing a bump |
@@ -1732,9 +1748,9 @@ upstream's version. Without `--version`, `draugr tools install <tool>` installs 
 Being behind does not fail the command. It exits non-zero only when a tool could not be asked, in
 both output modes.
 
-In the JSON, each tool has `tool`, `pinned`, `latest` and `behind`. A tool that could not be asked
-carries `error` and has `behind: false`, the same value a current tool has, so check `error` or the
-exit code rather than `behind` alone.
+In the JSON, each tool has `tool`, `pinned`, `latest` and `behind`, and `govulncheck` also has
+`pinnedGo` and `latestGo`. A tool that could not be asked carries `error` and has `behind: false`,
+the same value a current tool has, so check `error` or the exit code rather than `behind` alone.
 
 ### `draugr tools install [tool...]`
 
@@ -1765,6 +1781,13 @@ missing, is **skipped and named** with the command to run once it is there, and 
 Each skipped tool gets its own `–` line. A Node older than 18 is a failure rather than a skip.
 Naming a tool whose runtime is missing, as in `draugr tools install govulncheck` on a host without
 Go, fails and exits non-zero. `draugr tools list` names the runtime each one needs.
+
+**`govulncheck` is built with a pinned Go.** The install uses the `go` on PATH where it is at least
+the pinned release, and otherwise sets `GOTOOLCHAIN` to the pin, which `go` downloads and verifies
+against the Go checksum database. A `GOTOOLCHAIN` in the environment that names a release, such as
+`GOTOOLCHAIN=go1.28.0`, is used instead, and one set to `auto` or `local` is replaced. A build from
+a Go older than the pin is not current, so the next install replaces it.
+[govulncheck](../../internal/scanners/govulncheck.md) explains why, and has the scan-time check.
 
 | Flag | Default | Description |
 |------|---------|-------------|

@@ -132,16 +132,39 @@ access to that host, or a local copy fetched with `draugr feeds update govulndb`
   produces a finding a developer cannot act on, which is the kind that teaches people to stop
   reading the report.
 - **Requires a Go module, and a Go toolchain to install and to run.** `draugr tools install govulncheck`
-  provisions it at the pinned version, building it with the `go` on PATH, govulncheck publishes
-  no release binary, so there is no archive to download. The build is verified against the Go
-  checksum database, which covers every module it is built from and not only the tool; an install
-  that could not reach the database still succeeds and is recorded as `unverified`, because
-  reporting otherwise would claim evidence nobody gathered. With no Go on PATH, the error names
-  the toolchain and the `go install` line that does the same job by hand.
+  provisions it at the pinned version with `go install`, because govulncheck publishes no release
+  binary, so there is no archive to download. The build is verified against the Go checksum
+  database, which covers every module it is built from and not only the tool; an install that
+  could not reach the database still succeeds and is recorded as `unverified`, because reporting
+  otherwise would claim evidence nobody gathered. With no Go on PATH, the error names the toolchain
+  and the `go install` line that does the same job by hand.
+
+  **The Go that builds govulncheck is pinned beside it.** The go/types package compiled into
+  govulncheck refuses a package whose `go` line names a newer language version than the Go that
+  built it, so a govulncheck built with Go 1.26 reports `package requires newer Go version go1.27`
+  for a module declaring `go 1.27.1`. The install builds with the `go` on PATH where it is at least
+  the pin, and otherwise sets `GOTOOLCHAIN` to the pin, which `go` downloads and checks against the
+  same checksum database. A `GOTOOLCHAIN` in your environment that names a release, such as
+  `go1.28.0`, is used instead. The install record names the Go that built the binary, and a build
+  from a Go older than the pin is not current, so the next `draugr tools install` replaces it.
+  `draugr doctor` reads that Go from the binary's build information, because `govulncheck -version`
+  prints the Go on PATH instead, and flags a build older than the pin.
 
   govulncheck loads a module's packages with `go`. A scan over a module with no `go` on PATH fails
   with ``govulncheck needs Go, and no `go` is on PATH``, where govulncheck itself would report
   `no go.mod file`. A tree holding no module runs nothing and needs no Go.
+
+  Draugr does not run govulncheck over a module whose `go` line, or the `go` line of the `go.work`
+  governing it, names a newer language version than the Go govulncheck was built with. The
+  repository's job fails with the file, both versions and the command that rebuilds the tool:
+
+  ```console
+  govulncheck was built with go1.26.10 and cannot load services/api/go.mod, which declares go 1.27.1. Run draugr tools install govulncheck --force.
+  ```
+
+  Where the module declares a newer Go than the pin, the command names that Go as `GOTOOLCHAIN`, or
+  a newer Draugr. The `go.work` read is the one `GOWORK` names, or the nearest one above the module
+  inside the checkout, and none under `GOWORK=off`.
 
   `draugr doctor` asks for it whenever a descriptor names it under `config.reachability`, so a
   missing analyzer is reported before a scan rather than by one. It is not required when the `sca`

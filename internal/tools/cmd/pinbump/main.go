@@ -70,8 +70,22 @@ func main() {
 	if was == "" {
 		fail("%s: not a tool this build pins", tool)
 	}
-	if was == version {
-		fmt.Printf("%s is already at %s\n", tool, version)
+	// A Go-built tool has a second pin, the Go it is built with. A new Go minor release is a bump
+	// whether or not the tool's own release has moved, because it decides which modules the tool can
+	// load, and a bump that held it back would leave every module on a newer Go unanalyzed. Whatever
+	// the reason for a bump, the Go moves to the newest stable patch with it. The test for whether
+	// there is a bump is the one `tools outdated` applies, so the two agree.
+	goWas, goNext := "", ""
+	if isGo(tool) {
+		goWas = tools.GoToolchain(tool)
+		latest, err := tools.LatestGo(ctx, nil)
+		if err != nil {
+			fail("the newest Go: %v", err)
+		}
+		goNext = latest
+	}
+	if !(tools.Drift{Pinned: was, Latest: version, PinnedGo: goWas, LatestGo: goNext}).Behind() {
+		fmt.Printf("%s is already at %s\n", tool, withGo(was, goWas))
 		return
 	}
 
@@ -84,8 +98,7 @@ func main() {
 	case isBinary(tool):
 		err = bumpBinary(ctx, root, tool, was, version)
 	case isGo(tool):
-		err = bumpConst(filepath.Join(root, "internal/tools/gotool.go"),
-			"govulncheckVersion", was, version)
+		err = bumpGo(filepath.Join(root, "internal/tools/gotool.go"), was, version, goWas, goNext)
 	case isPython(tool):
 		err = bumpPython(root, tool, was, version)
 	case isNode(tool):
@@ -96,7 +109,29 @@ func main() {
 	if err != nil {
 		fail("%v", err)
 	}
-	fmt.Printf("%s: %s to %s\n", tool, was, version)
+	fmt.Printf("%s: %s to %s\n", tool, withGo(was, goWas), withGo(version, goNext))
+}
+
+// withGo is a version and, for a Go-built tool, the Go it is built with.
+func withGo(v, goRelease string) string {
+	if goRelease == "" {
+		return v
+	}
+	return v + " built with " + goRelease
+}
+
+// bumpGo moves a Go-built tool's two pins in gotool.go, each only where it moved: the tool's
+// release and the Go it is built with.
+func bumpGo(path, was, version, goWas, goNext string) error {
+	if was != version {
+		if err := bumpConst(path, "govulncheckVersion", was, version); err != nil {
+			return err
+		}
+	}
+	if goWas != goNext {
+		return bumpConst(path, "govulncheckToolchain", goWas, goNext)
+	}
+	return nil
 }
 
 // versionLike is what a pinned version may look like. Every upstream here publishes dotted

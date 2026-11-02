@@ -1,7 +1,6 @@
 # Example Saga, reachability for Go.
 # Run it with:  draugr scan examples/reachability.saga.yaml
-# (Requires Trivy and govulncheck on your PATH: `draugr tools install trivy`, then
-#  `go install golang.org/x/vuln/cmd/govulncheck@latest`. `draugr doctor` will tell you.)
+# (Requires Trivy and govulncheck on your PATH: `draugr tools install trivy govulncheck`. `draugr doctor` will tell you.)
 #
 # Every other sca scanner reads a manifest and tells you which dependencies have known
 # vulnerabilities. govulncheck builds a call graph from the packages actually in the build and

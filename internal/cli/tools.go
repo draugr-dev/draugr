@@ -79,13 +79,20 @@ func runToolsOutdated(ctx context.Context, w io.Writer, asJSON bool, client *htt
 			Tool   string `json:"tool"`
 			Pinned string `json:"pinned"`
 			Latest string `json:"latest,omitempty"`
-			Behind bool   `json:"behind"`
-			Error  string `json:"error,omitempty"`
+			// PinnedGo and LatestGo are the Go a Go-built tool is built with and the newest stable
+			// Go, for the one tool whose build Go decides what it can read.
+			PinnedGo string `json:"pinnedGo,omitempty"`
+			LatestGo string `json:"latestGo,omitempty"`
+			Behind   bool   `json:"behind"`
+			Error    string `json:"error,omitempty"`
 		}
 		out := make([]row, 0, len(drift))
 		var unreachable int
 		for _, d := range drift {
-			r := row{Tool: d.Tool, Pinned: d.Pinned, Latest: d.Latest, Behind: d.Behind()}
+			r := row{
+				Tool: d.Tool, Pinned: d.Pinned, Latest: d.Latest, PinnedGo: d.PinnedGo, LatestGo: d.LatestGo,
+				Behind: d.Behind(),
+			}
 			if d.Err != nil {
 				r.Error = d.Err.Error()
 				unreachable++
@@ -111,22 +118,21 @@ func runToolsOutdated(ctx context.Context, w io.Writer, asJSON bool, client *htt
 	table := tui.NewTable(col, "Tool", "Pinned", "Upstream", "")
 	var behind, unknown int
 	for _, d := range drift {
+		pinned, latest := withGo(d.Pinned, d.PinnedGo), withGo(d.Latest, d.LatestGo)
 		switch {
 		case d.Err != nil:
 			unknown++
-			table.Row(tui.Styled(tui.StyleStrong, d.Tool), tui.PlainCell(d.Pinned),
+			table.Row(tui.Styled(tui.StyleStrong, d.Tool), tui.PlainCell(pinned),
 				tui.Styled(tui.StyleMuted, "?"),
 				tui.Styled(tui.StyleMuted, "could not ask: "+d.Err.Error()))
 		case d.Behind():
 			behind++
-			// The upstream's version, named. Without --version the command installs the pin, which
-			// is the version this row says is behind.
-			table.Row(tui.Styled(tui.StyleStrong, d.Tool), tui.PlainCell(d.Pinned),
-				tui.Styled(tui.StyleAccent, d.Latest),
-				tui.Styled(tui.StyleMuted, "draugr tools install "+d.Tool+" --version "+d.Latest))
+			table.Row(tui.Styled(tui.StyleStrong, d.Tool), tui.PlainCell(pinned),
+				tui.Styled(tui.StyleAccent, latest),
+				tui.Styled(tui.StyleMuted, outdatedInstall(d)))
 		default:
-			table.Row(tui.Styled(tui.StyleStrong, d.Tool), tui.PlainCell(d.Pinned),
-				tui.Styled(tui.StyleMuted, d.Latest), tui.Styled(tui.StyleMuted, "current"))
+			table.Row(tui.Styled(tui.StyleStrong, d.Tool), tui.PlainCell(pinned),
+				tui.Styled(tui.StyleMuted, latest), tui.Styled(tui.StyleMuted, "current"))
 		}
 	}
 	table.Render(w)
@@ -145,6 +151,32 @@ func runToolsOutdated(ctx context.Context, w io.Writer, asJSON bool, client *htt
 		return fmt.Errorf("%s could not be compared", english.Count(unknown, "tool"))
 	}
 	return nil
+}
+
+// withGo is a version and, for a Go-built tool, the Go it is built with, as "1.9.0 · go1.27.3".
+func withGo(v, goRelease string) string {
+	if goRelease == "" {
+		return v
+	}
+	return v + " · " + goRelease
+}
+
+// outdatedInstall is the command that installs what the upstream publishes for a tool that is
+// behind. Without --version the command installs the pin, which is the version the row says is
+// behind. A newer Go minor release is named as GOTOOLCHAIN, which the install builds with, and
+// needs --force when the tool's own version has not moved, because the build in place is current
+// by the pin. A newer Go patch release is not named, because it loads the same modules.
+func outdatedInstall(d tools.Drift) string {
+	cmd := "draugr tools install " + d.Tool
+	if d.Latest != d.Pinned {
+		cmd += " --version " + d.Latest
+	} else {
+		cmd += " --force"
+	}
+	if d.GoBehind() {
+		cmd = "GOTOOLCHAIN=" + d.LatestGo + " " + cmd
+	}
+	return cmd
 }
 
 type toolsInstallOptions struct {
