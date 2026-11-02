@@ -12,6 +12,16 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.165.6] - 2026-11-02
+
+### Fixed
+
+- **A Go module govulncheck cannot load names the fix.** Its `unread-files` caveat starts `govulncheck:` and names the system package that provides a missing C header or pkg-config library and the Go package needing it, the `GOFLAGS=-tags=` value where a file behind a build tag declares a missing identifier, or the identifier to generate or declare and where it is used.
+
+- **A Go module that fails to load no longer hides the verdicts of the modules that loaded.** Those modules keep their reachability. The failed module's `go.mod` is reported as an `unread-files` caveat, and `gate.failOnCaveats: [unread-files]` fails the run on it. A module that holds only build-tagged files, such as a tools module, is skipped and raises no caveat.
+
+- **Standard-library advisories follow each Go module's own Go version.** With govulncheck in `config.reachability.analyzers`, govulncheck runs in each module's directory, so the Go version its `go.mod` or `go.work` declares decides which standard-library advisories apply, rather than the checkout root's.
+
 ## [0.165.5] - 2026-11-02
 
 ### Fixed
@@ -6761,7 +6771,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.165.5...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.165.6...HEAD
+[0.165.6]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.6
 [0.165.5]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.5
 [0.165.4]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.4
 [0.165.3]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.3
