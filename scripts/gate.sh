@@ -5,6 +5,18 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# tool finds a Go tool on PATH or where `go install` puts it, which is often not on PATH. A tool
+# found in neither is skipped, and the last line names every check skipped, so a run missing the
+# linter cannot end on the same line as a run that linted.
+skipped=()
+tool() {
+	command -v "$1" 2>/dev/null && return
+	local bin
+	bin="$(go env GOBIN)"
+	[ -n "$bin" ] || bin="$(go env GOPATH)/bin"
+	[ -x "$bin/$1" ] && echo "$bin/$1"
+}
+
 echo "▶ gofmt"
 unformatted="$(./scripts/gofiles.sh | xargs gofmt -l)"
 if [ -n "$unformatted" ]; then
@@ -36,10 +48,11 @@ go vet -tags integration ./...
 echo "▶ golangci-lint"
 # Always use a fresh cache: the persistent golangci-lint cache can report false
 # passes locally that then fail in CI (e.g. staticcheck SA4000/QF1001).
-if command -v golangci-lint >/dev/null 2>&1; then
-	GOLANGCI_LINT_CACHE="$(mktemp -d)" golangci-lint run ./...
+if lint="$(tool golangci-lint)"; then
+	GOLANGCI_LINT_CACHE="$(mktemp -d)" "$lint" run ./...
 else
 	echo "  golangci-lint not installed, skipping (CI still enforces it)"
+	skipped+=(golangci-lint)
 fi
 
 echo "▶ go test (race + coverage)"
@@ -120,10 +133,15 @@ if base=$(git merge-base origin/main HEAD 2>/dev/null); then
 fi
 
 echo "▶ govulncheck"
-if command -v govulncheck >/dev/null 2>&1; then
-	govulncheck ./...
+if vulncheck="$(tool govulncheck)"; then
+	"$vulncheck" ./...
 else
 	echo "  govulncheck not installed, skipping (CI still enforces it)"
+	skipped+=(govulncheck)
 fi
 
-echo "✓ gate passed"
+if [ ${#skipped[@]} -gt 0 ]; then
+	echo "✓ gate passed without ${skipped[*]}: install them, or CI runs what this did not"
+else
+	echo "✓ gate passed"
+fi
