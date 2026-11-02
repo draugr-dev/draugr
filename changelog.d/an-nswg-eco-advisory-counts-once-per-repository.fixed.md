@@ -1,1 +1,0 @@
-- **An NSWG-ECO advisory counts once per repository.** Trivy's `NSWG-ECO` advisory in an npm package pinned in several lockfiles is one finding, with the other lockfiles' copies behind it, as a CVE is. These advisories, and Debian's `TEMP` and `DLA` ones in images, are matched by VEX statements and written to the VEX document.

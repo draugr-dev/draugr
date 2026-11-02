@@ -12,6 +12,18 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.165.4] - 2026-11-02
+
+### Fixed
+
+- **A control with a failed scanner no longer passes.** In `report.json` its `verdict` is `fail` even where another scanner found nothing, and `controls[].reported` lists the scanners that returned a report. In JUnit its suite holds a test in error carrying the scanner's message. A run with no findings ends on `A control marked ERROR checked less than it was asked to`.
+
+- **A vendored JavaScript library and the same version in a lockfile are one finding.** retire.js now reports the npm package name (`dompurify`, not `DOMPurify`), and matches an advisory Trivy or Grype report under its CVE or its GitHub advisory ID. The fix list proposes one upgrade naming both files.
+
+- **An `NSWG-ECO` advisory in several lockfiles of a repository is one finding.** Trivy's advisory for an npm package is counted once, with the other lockfiles' copies recorded under it, as a CVE already is. A VEX statement for one of these advisories, or for a Debian `TEMP` or `DLA` advisory in an image, now applies to the finding, and the VEX document lists it.
+
+- **`scanners` in `report.json` includes a scanner that reports no version.** Its entry has no `version` field.
+
 ## [0.165.3] - 2026-11-02
 
 ### Fixed
@@ -6741,7 +6753,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.165.3...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.165.4...HEAD
+[0.165.4]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.4
 [0.165.3]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.3
 [0.165.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.2
 [0.165.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.1

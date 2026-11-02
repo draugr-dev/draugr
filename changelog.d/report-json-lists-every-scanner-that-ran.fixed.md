@@ -1,1 +1,0 @@
-- **`report.json` lists every scanner that ran.** A scanner that succeeded without reporting a version is now in `scanners`, without a `version`, instead of being left out.
