@@ -1,1 +1,0 @@
-- **A package Trivy and Grype both report is one upgrade in the fix list.** The two name some ecosystems differently, `gomod` and `go-module` for Go, `pip` and `python` for PyPI, and the list held an action per name. A second report of a flaw now adds its file to the action whichever name it carries.

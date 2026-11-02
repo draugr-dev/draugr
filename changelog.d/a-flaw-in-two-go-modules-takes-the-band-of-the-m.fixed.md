@@ -1,1 +1,0 @@
-- **A flaw in two Go modules takes the band of the module that reaches it.** Where `go.mod` calls the vulnerable function and `tools/go.mod` only requires it, the bands, the fix list and the gate read the reachable finding's band, whichever module the scanner listed first, and the reachability summary counts the flaw once, as reachable.

@@ -12,6 +12,18 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.165.2] - 2026-11-02
+
+### Fixed
+
+- **A flaw in two Go modules takes the band of the module that reaches it.** When `go.mod` calls the vulnerable function and `tools/go.mod` only requires it, the bands, fix list and gate now use the `go.mod` finding, whatever order the scanner listed them in. The reachability summary counts the flaw once, as reachable.
+
+- **A package Trivy and Grype both report is one upgrade in the fix list.** The two scanners spell some ecosystems differently, `gomod` and `go-module` for Go, `pip` and `python` for PyPI, and the fix list produced one action per spelling. It now produces one action, listing every file.
+
+- **govulncheck loads modules that declare Go 1.27.** `draugr tools install` builds it with the newer of your Go and Go 1.27.3 and replaces a build from an older Go. `draugr doctor` flags such a build. A scan names a module govulncheck cannot load, with the command that rebuilds it.
+
+- **Grype findings carry their own package version.** Where one advisory matches a package at several versions, each Grype finding names its own version, fixed version and package URL. The fix list targets the right upgrade, VEX statements match the right copy, and each finding is counted once with Trivy's copy of the same version.
+
 ## [0.165.1] - 2026-11-01
 
 ### Fixed
@@ -6713,7 +6725,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.165.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.165.2...HEAD
+[0.165.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.2
 [0.165.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.1
 [0.165.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.0
 [0.164.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.164.1
