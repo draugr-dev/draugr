@@ -1,0 +1,1 @@
+- **A control with a failed scanner errors in JUnit.** Where any of a control's scanners failed, its suite now holds a test in error carrying the scanner's message, instead of a passing test, so a CI test panel no longer shows it green.
