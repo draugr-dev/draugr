@@ -17,10 +17,12 @@ order: 180
 ## What it does
 
 Checks out the component's repository, then runs
-`trivy fs --quiet --scanners vuln --format json --list-all-pkgs --offline-scan <dir>` to find known
+`trivy fs --debug --scanners vuln --format json --list-all-pkgs --offline-scan <dir>` to find known
 vulnerabilities in the project's dependencies (Software Composition Analysis), and converts the
 result to SARIF. Trivy's JSON names the package as a field, where its SARIF names it only in prose,
-and `--list-all-pkgs` records the line of each package's entry in its manifest. See the [SCA
+and `--list-all-pkgs` records the line of each package's entry in its manifest. `--debug` keeps the
+log line naming a dependency file Trivy failed to parse, which Draugr reports as
+[unread](../controllers/sca.md#unread) with the parser's error; the JSON is the same either way. See the [SCA
 glossary entry](../../docs/reference/glossary.md#sca-software-composition-analysis).
 
 ## Links

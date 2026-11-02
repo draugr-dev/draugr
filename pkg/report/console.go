@@ -2565,6 +2565,13 @@ func writeEvidence(w io.Writer, col tui.Painter, d Data, indent string) {
 		}
 		add(label, strings.TrimSpace(r[0]+"  "+r[1]))
 	}
+	for i, l := range missedLines(d.Run.Inputs, d.Run.Targets) {
+		label := "missed"
+		if i > 0 {
+			label = ""
+		}
+		add(label, l)
+	}
 	// What the run wrote, where the rest of what it did is. Not beside the findings: Draugr writes
 	// a report, a SARIF file and whatever else the descriptor asked for without announcing any of
 	// them, and one artifact naming itself there reads as the important one.

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
 // Two components, one of them drawing on two repositories that each hold a package.json, and one
@@ -153,6 +154,82 @@ func TestUnreadNamesTheRepositoryWhereTheComponentScansTwo(t *testing.T) {
 		md := "- `unread-files` · `" + c.label + "` · no packages read (sca)"
 		if out := renderWith(t, markdownReporter{}, d); !strings.Contains(out, md) {
 			t.Errorf("%s: markdown is missing %q:\n%s", name, md, out)
+		}
+	}
+}
+
+// A file one scanner of a control read and another did not is a line of the evidence naming the
+// scanner and its reason, and neither a caveat nor something the gate fails on. A file no scanner of
+// a control read stays a caveat, with Trivy's parse error cut to the column and the control after it
+// kept. Two components over two repositories: the shared repository's file is named under both,
+// with its repository where the component scans two.
+func TestAFileAnotherScannerReadIsEvidenceAndNotACaveat(t *testing.T) {
+	const (
+		gradle   = "https://github.com/acme/gradle"
+		bun      = "https://github.com/acme/bun"
+		notReadT = `not parsed: JSON decode error: json: cannot unmarshal JSON string into Go map[string]interface {} within "/packages/left-pad"`
+	)
+	buildscript := engine.MissedInput{Repository: gradle, Path: "buildscript-gradle.lockfile",
+		Scanner: "grype-fs", Reason: "no packages read"}
+	inputs := []engine.InputCoverage{
+		{Component: "android", Control: "sca", Scanners: []string{"grype-fs", "trivy-fs"}, Read: 2,
+			Missed: []engine.MissedInput{buildscript}},
+		{Component: "web", Control: "licenses", Scanners: []string{"trivy-license"}, Read: 1,
+			Unread: []engine.UnreadInput{{Repository: bun, Path: "app/bun.lock", Reason: notReadT}}},
+		{Component: "web", Control: "sca", Scanners: []string{"grype-fs", "trivy-fs"}, Read: 3,
+			Missed: []engine.MissedInput{
+				{Repository: bun, Path: "app/bun.lock", Scanner: "trivy-fs", Reason: notReadT},
+				buildscript,
+			}},
+	}
+	d := goldenGroupedData()
+	d.Run.Inputs = inputs
+	d.Run.Targets = append(repositoryTargets("android", gradle), repositoryTargets("web", gradle, bun)...)
+	d.TopN = -1
+	d.FailOnCaveats = []saga.CaveatKind{saga.CaveatUnreadFiles}
+
+	out := renderWith(t, consoleReporter{}, d)
+	if want := "web        acme/bun:app/bun.lock  ✗ unread-files  not parsed: JSON decode error: json: cannot unmarshal JSON string in… (licenses)"; !strings.Contains(out, want) {
+		t.Errorf("console is missing %q:\n%s", want, out)
+	}
+	if strings.Contains(out, "buildscript-gradle.lockfile") {
+		t.Errorf("the default view names a file another scanner read:\n%s", out)
+	}
+	if failed := FailedCaveats(d); len(failed) != 1 || failed[0].What != "acme/bun:app/bun.lock" {
+		t.Errorf("the gate fails on %+v, want the file no licenses scanner read alone", failed)
+	}
+	md := renderWith(t, markdownReporter{}, d)
+	if strings.Contains(md, "buildscript-gradle.lockfile") || !strings.Contains(md, notReadT+" (licenses)") {
+		t.Errorf("markdown lists a file another scanner read, or not the one none read:\n%s", md)
+	}
+
+	d.Evidence = true
+	evidence := strings.Join(strings.Fields(renderWith(t, consoleReporter{}, d)), " ")
+	for _, want := range []string{
+		"missed sca: grype-fs · android · buildscript-gradle.lockfile · no packages read",
+		"sca: trivy-fs · web · acme/bun:app/bun.lock · not parsed: JSON decode error:",
+		"sca: grype-fs · web · acme/gradle:buildscript-gradle.lockfile · no packages read",
+	} {
+		if !strings.Contains(evidence, want) {
+			t.Errorf("the evidence is missing %q:\n%s", want, evidence)
+		}
+	}
+}
+
+// A reason that fits is printed whole, and a caveat that names no control is cut at the column.
+func TestCaveatWhyKeepsWhatItClosesWith(t *testing.T) {
+	long := strings.Repeat("x", 100)
+	for _, c := range []struct {
+		c    caveat
+		want string
+	}{
+		{caveat{detail: "no lockfile (sca)", by: "sca"}, "no lockfile (sca)"},
+		{caveat{detail: long + " (licenses, sca)", by: "licenses, sca"}, strings.Repeat("x", 23) + "… (licenses, sca)"},
+		{caveat{detail: long}, strings.Repeat("x", 39) + "…"},
+		{caveat{detail: long + " (" + long + ")", by: long}, strings.Repeat("x", 39) + "…"},
+	} {
+		if got := c.c.why(40); got != c.want {
+			t.Errorf("why(%q) = %q, want %q", c.c.detail, got, c.want)
 		}
 	}
 }

@@ -1,0 +1,222 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.76.1"
+  },
+  "ReportID": "01a19bdb-88b7-766f-9393-cd125ae9b65b",
+  "CreatedAt": "2026-11-02T04:43:38.295422371-06:00",
+  "ArtifactName": "/checkout",
+  "ArtifactType": "filesystem",
+  "Results": [
+    {
+      "Target": "buildscript-gradle.lockfile",
+      "Class": "lang-pkgs",
+      "Type": "gradle",
+      "Packages": [
+        {
+          "ID": "org.yaml:snakeyaml:1.33",
+          "Name": "org.yaml:snakeyaml",
+          "Identifier": {
+            "PURL": "pkg:maven/org.yaml/snakeyaml@1.33",
+            "UID": "6141be8383ce229"
+          },
+          "Version": "1.33",
+          "Locations": [
+            {
+              "StartLine": 4,
+              "EndLine": 4
+            }
+          ],
+          "AnalyzedBy": "gradle-lockfile"
+        }
+      ],
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-2022-1471",
+          "VendorIDs": [
+            "GHSA-mjmj-j48q-9wg2"
+          ],
+          "PkgID": "org.yaml:snakeyaml:1.33",
+          "PkgName": "org.yaml:snakeyaml",
+          "PkgIdentifier": {
+            "PURL": "pkg:maven/org.yaml/snakeyaml@1.33",
+            "UID": "6141be8383ce229"
+          },
+          "InstalledVersion": "1.33",
+          "FixedVersion": "2.0",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2022-1471",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory Maven",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Amaven"
+          },
+          "Fingerprint": "sha256:7359539b1a11d00fdec7e41b64240ff395a48d3feeab297cd81e029552086aae",
+          "Title": "SnakeYaml: Constructor Deserialization Remote Code Execution",
+          "Description": "SnakeYaml's Constructor() class does not restrict types which can be instantiated during deserialization. Deserializing yaml content provided by an attacker can lead to remote code execution. We recommend using SnakeYaml's SafeConsturctor when parsing untrusted content to restrict deserialization. We recommend upgrading to version 2.0 and beyond.",
+          "Severity": "HIGH",
+          "CweIDs": [
+            "CWE-20",
+            "CWE-502"
+          ],
+          "VendorSeverity": {
+            "alma": 3,
+            "ghsa": 3,
+            "nvd": 4,
+            "oracle-oval": 3,
+            "redhat": 3,
+            "rocky": 3
+          },
+          "CVSS": {
+            "ghsa": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:L",
+              "V3Score": 8.3
+            },
+            "nvd": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+              "V3Score": 9.8
+            },
+            "redhat": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+              "V3Score": 9.8
+            }
+          },
+          "References": [
+            "http://packetstormsecurity.com/files/175095/PyTorch-Model-Server-Registration-Deserialization-Remote-Code-Execution.html",
+            "http://www.openwall.com/lists/oss-security/2023/11/19/1",
+            "https://access.redhat.com/errata/RHSA-2022:9058",
+            "https://access.redhat.com/security/cve/CVE-2022-1471",
+            "https://advisory.echohq.com/cve/CVE-2022-1471",
+            "https://bitbucket.org/snakeyaml/snakeyaml",
+            "https://bitbucket.org/snakeyaml/snakeyaml/commits/5014df1a36f50aca54405bb8433bc99a8847f758",
+            "https://bitbucket.org/snakeyaml/snakeyaml/commits/acc44099f5f4af26ff86b4e4e4cc1c874e2dc5c4",
+            "https://bitbucket.org/snakeyaml/snakeyaml/issues/561/cve-2022-1471-vulnerability-in#comment-64581479",
+            "https://bitbucket.org/snakeyaml/snakeyaml/issues/561/cve-2022-1471-vulnerability-in#comment-64634374",
+            "https://bitbucket.org/snakeyaml/snakeyaml/issues/561/cve-2022-1471-vulnerability-in#comment-64876314",
+            "https://bitbucket.org/snakeyaml/snakeyaml/wiki/CVE-2022-1471",
+            "https://bugzilla.redhat.com/2150009",
+            "https://bugzilla.redhat.com/show_bug.cgi?id=2150009",
+            "https://confluence.atlassian.com/security/cve-2022-1471-snakeyaml-library-rce-vulnerability-in-multiple-products-1296171009.html",
+            "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-1471",
+            "https://errata.almalinux.org/8/ALSA-2022-9058.html",
+            "https://errata.rockylinux.org/RLSA-2022:9058",
+            "https://github.com/advisories/GHSA-mjmj-j48q-9wg2",
+            "https://github.com/google/security-research/security/advisories/GHSA-mjmj-j48q-9wg2",
+            "https://github.com/mbechler/marshalsec",
+            "https://groups.google.com/g/kubernetes-security-announce/c/mwrakFaEdnc",
+            "https://infosecwriteups.com/%EF%B8%8F-inside-the-160-comment-fight-to-fix-snakeyamls-rce-default-1a20c5ca4d4c",
+            "https://linux.oracle.com/cve/CVE-2022-1471.html",
+            "https://linux.oracle.com/errata/ELSA-2022-9058-1.html",
+            "https://nvd.nist.gov/vuln/detail/CVE-2022-1471",
+            "https://security.netapp.com/advisory/ntap-20230818-0015",
+            "https://security.netapp.com/advisory/ntap-20230818-0015/",
+            "https://security.netapp.com/advisory/ntap-20240621-0006",
+            "https://security.netapp.com/advisory/ntap-20240621-0006/",
+            "https://snyk.io/blog/unsafe-deserialization-snakeyaml-java-cve-2022-1471",
+            "https://www.cve.org/CVERecord?id=CVE-2022-1471",
+            "https://www.github.com/mbechler/marshalsec/blob/master/marshalsec.pdf?raw=true"
+          ],
+          "PublishedDate": "2022-12-01T11:15:10.553Z",
+          "LastModifiedDate": "2026-06-17T04:22:30.807Z"
+        }
+      ]
+    },
+    {
+      "Target": "gradle.lockfile",
+      "Class": "lang-pkgs",
+      "Type": "gradle",
+      "Packages": [
+        {
+          "ID": "org.apache.commons:commons-text:1.9",
+          "Name": "org.apache.commons:commons-text",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.commons/commons-text@1.9",
+            "UID": "73800dc24bd51aa6"
+          },
+          "Version": "1.9",
+          "Locations": [
+            {
+              "StartLine": 4,
+              "EndLine": 4
+            }
+          ],
+          "AnalyzedBy": "gradle-lockfile"
+        }
+      ],
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-2022-42889",
+          "VendorIDs": [
+            "GHSA-599f-7c49-w659"
+          ],
+          "PkgID": "org.apache.commons:commons-text:1.9",
+          "PkgName": "org.apache.commons:commons-text",
+          "PkgIdentifier": {
+            "PURL": "pkg:maven/org.apache.commons/commons-text@1.9",
+            "UID": "73800dc24bd51aa6"
+          },
+          "InstalledVersion": "1.9",
+          "FixedVersion": "1.10.0",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2022-42889",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory Maven",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Amaven"
+          },
+          "Fingerprint": "sha256:ac0807b7cf474a82587c04d62234b3202c738533d83cabfec31cb5029642621f",
+          "Title": "apache-commons-text: variable interpolation RCE",
+          "Description": "Apache Commons Text performs variable interpolation, allowing properties to be dynamically evaluated and expanded. The standard format for interpolation is \"${prefix:name}\", where \"prefix\" is used to locate an instance of org.apache.commons.text.lookup.StringLookup that performs the interpolation. Starting with version 1.5 and continuing through 1.9, the set of default Lookup instances included interpolators that could result in arbitrary code execution or contact with remote servers. These lookups are: - \"script\" - execute expressions using the JVM script execution engine (javax.script) - \"dns\" - resolve dns records - \"url\" - load values from urls, including from remote servers Applications using the interpolation defaults in the affected versions may be vulnerable to remote code execution or unintentional contact with remote servers if untrusted configuration values are used. Users are recommended to upgrade to Apache Commons Text 1.10.0, which disables the problematic interpolators by default.",
+          "Severity": "CRITICAL",
+          "CweIDs": [
+            "CWE-94"
+          ],
+          "VendorSeverity": {
+            "ghsa": 4,
+            "nvd": 4,
+            "redhat": 4,
+            "ubuntu": 2
+          },
+          "CVSS": {
+            "ghsa": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+              "V3Score": 9.8
+            },
+            "nvd": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+              "V3Score": 9.8
+            },
+            "redhat": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+              "V3Score": 9.8
+            }
+          },
+          "References": [
+            "http://packetstormsecurity.com/files/171003/OX-App-Suite-Cross-Site-Scripting-Server-Side-Request-Forgery.html",
+            "http://packetstormsecurity.com/files/176650/Apache-Commons-Text-1.9-Remote-Code-Execution.html",
+            "http://seclists.org/fulldisclosure/2023/Feb/3",
+            "http://www.openwall.com/lists/oss-security/2022/10/13/4",
+            "http://www.openwall.com/lists/oss-security/2022/10/18/1",
+            "https://access.redhat.com/security/cve/CVE-2022-42889",
+            "https://arxiv.org/pdf/2306.05534",
+            "https://blogs.apache.org/security/entry/cve-2022-42889",
+            "https://github.com/apache/commons-text",
+            "https://lists.apache.org/thread/n2bd4vdsgkqh2tm14l1wyc3jyol7s1om",
+            "https://nvd.nist.gov/vuln/detail/CVE-2022-42889",
+            "https://psirt.global.sonicwall.com/vuln-detail/SNWLID-2022-0022",
+            "https://seclists.org/oss-sec/2022/q4/22",
+            "https://security.gentoo.org/glsa/202301-05",
+            "https://security.netapp.com/advisory/ntap-20221020-0004",
+            "https://security.netapp.com/advisory/ntap-20221020-0004/",
+            "https://securitylab.github.com/advisories/GHSL-2022-018_Apache_Commons_Text",
+            "https://www.cve.org/CVERecord?id=CVE-2022-42889"
+          ],
+          "PublishedDate": "2022-10-13T13:15:10.113Z",
+          "LastModifiedDate": "2026-06-17T05:05:31.85Z"
+        }
+      ]
+    }
+  ]
+}

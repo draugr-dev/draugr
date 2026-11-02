@@ -1,0 +1,1 @@
+- **A dependency file one `sca` scanner missed while another read it is recorded with that scanner.** `--evidence` and `report.json` (`dependencyFiles[].missed`) name the scanner and its reason. A file Trivy failed to parse gives the parser's error, as `not parsed: …`, in place of `no packages read`.

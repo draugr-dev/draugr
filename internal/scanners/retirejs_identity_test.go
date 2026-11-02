@@ -143,7 +143,9 @@ func TestAVendoredCopyAndItsLockfileAreOneUpgrade(t *testing.T) {
 	}
 	trivy := NewTrivyFS().(repoScanner)
 	trivy.checkout, trivy.prewarm, trivy.cacheVersion, trivy.dataState = checkout, nil, nil, nil
-	trivy.run = func(context.Context, string, []string) ([]byte, error) { return []byte(trivyNamedOutput), nil }
+	trivy.runLogged = trivyFSRun(func(context.Context, string, []string) ([]byte, []byte, error) {
+		return []byte(trivyNamedOutput), nil, nil
+	})
 
 	reg := engine.NewRegistry()
 	reg.RegisterController(matchController{control: "sca", scanners: []string{"retirejs", "trivy-fs"}})

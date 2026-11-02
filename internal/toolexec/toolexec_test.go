@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -729,5 +730,42 @@ func TestGovulncheckLoadingErrorKeepsItsCause(t *testing.T) {
 				t.Errorf("firstLine =\n %q\nwant\n %q", got, tc.want)
 			}
 		})
+	}
+}
+
+// Under --debug, Trivy 0.76.1 logs a failure as `FATAL Fatal error` and then the wrapped chain, one
+// link per line with the stack frame that wrapped it. The fixture is what it wrote for `trivy fs
+// --debug --skip-db-update` against an empty cache, with the cache path trimmed. The error reads as
+// it does without --debug, where the chain follows the message on one line.
+func TestFirstLineReadsTrivysDebugErrorChain(t *testing.T) {
+	t.Parallel()
+	raw, err := os.ReadFile(filepath.Join("testdata", "trivy-debug-no-db.log"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = "run error: init error: DB error: database error: --skip-db-update cannot be specified on the first run"
+	if got := firstLine(string(raw)); got != want {
+		t.Errorf("firstLine =\n %q\nwant\n %q", got, want)
+	}
+	quiet := "2026-11-02T16:41:01-06:00\tFATAL\tFatal error\t" + want + "\n"
+	if got := firstLine(quiet); got != want {
+		t.Errorf("without --debug, firstLine = %q, want %q", got, want)
+	}
+}
+
+func TestErrorChainStopsWhereTheListEnds(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		rest []string
+		want []string
+	}{
+		{nil, nil},
+		{[]string{"github.com/x/y.Run"}, nil},
+		{[]string{"- run error:", "github.com/x/y.Run", "/src/y/run.go:4", "- cause:", "unrelated words"}, []string{"run error", "cause"}},
+		{[]string{"- not a link", "- run error:"}, nil},
+	} {
+		if got := errorChain(c.rest); !slices.Equal(got, c.want) {
+			t.Errorf("errorChain(%q) = %q, want %q", c.rest, got, c.want)
+		}
 	}
 }

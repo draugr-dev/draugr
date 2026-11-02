@@ -128,13 +128,34 @@ const (
  {"Name":"org.apache.commons:commons-lang3","Version":"3.11","Relationship":"indirect"}]}]}`
 )
 
+// unparsedLockLog is the debug line Trivy logs for a bun.lock it failed to parse, which the scan
+// reads beside the report.
+const unparsedLockLog = "2026-11-02T04:43:38-06:00\tDEBUG\tWalk error\tfile_path=\"bun.lock\" err=\"parse error: " +
+	"failed to parse bun.lock: unexpected end of JSON input\"\n"
+
 // trivyLike answers as Trivy does: the resolved tree without --offline-scan, the declared
-// dependencies with it.
-func trivyLike(_ context.Context, _ string, argv []string) ([]byte, error) {
+// dependencies with it, and in either case a log naming a bun.lock it could not parse.
+func trivyLike(_ context.Context, _ string, argv []string) ([]byte, []byte, error) {
 	if slices.Contains(argv, "--offline-scan") {
-		return []byte(pomOffline), nil
+		return []byte(pomOffline), []byte(unparsedLockLog), nil
 	}
-	return []byte(pomResolved), nil
+	return []byte(pomResolved), []byte(unparsedLockLog), nil
+}
+
+// lockInput is the bun.lock input a scan of one repository reported.
+func lockInput(t *testing.T, s repoScanner, target plugin.RepositoryTarget, cfg plugin.Config) sarif.Input {
+	t.Helper()
+	rep, err := s.Scan(context.Background(), target, cfg)
+	if err != nil {
+		t.Fatalf("%s: %v", target.URL, err)
+	}
+	for _, in := range rep.Inputs {
+		if in.Path == "bun.lock" {
+			return in
+		}
+	}
+	t.Fatalf("%s: no bun.lock input in %+v", target.URL, rep.Inputs)
+	return sarif.Input{}
 }
 
 // pomInput is the pom.xml input a scan of one repository reported.
@@ -159,13 +180,17 @@ func pomInput(t *testing.T, s repoScanner, target plugin.RepositoryTarget, cfg p
 func TestOfflineScannedPomIsReadInPart(t *testing.T) {
 	pom := `<project><dependencies><dependency><groupId>org.apache.commons</groupId>` +
 		`<artifactId>commons-text</artifactId><version>1.9</version></dependency></dependencies></project>`
+	lock := `{"lockfileVersion": 1, "packages": {`
 	trees := map[string]string{
-		apiRepo.URL: writeTree(t, map[string]string{"pom.xml": pom}),
-		webRepo.URL: writeTree(t, map[string]string{"pom.xml": pom}),
+		apiRepo.URL: writeTree(t, map[string]string{"pom.xml": pom, "bun.lock": lock}),
+		webRepo.URL: writeTree(t, map[string]string{"pom.xml": pom, "bun.lock": lock}),
 	}
+	// The pom's reason and the unparsed lockfile's are two files' answers from one run, and both
+	// are reported.
+	const notParsed = "not parsed: unexpected end of JSON input"
 	fs, _ := NewTrivyFS().(repoScanner)
 	fs.checkout = checkoutOf(trees)
-	fs.run = trivyLike
+	fs.runLogged = trivyFSRun(trivyLike)
 
 	if in := pomInput(t, fs, apiRepo, apiCfg); in.Unread != "" || in.Packages != 3 {
 		t.Errorf("api, resolved: pom.xml = %+v, want read in full", in)
@@ -173,17 +198,28 @@ func TestOfflineScannedPomIsReadInPart(t *testing.T) {
 	if in := pomInput(t, fs, webRepo, webCfg); in.Unread != unresolvedPom || in.Packages != 2 {
 		t.Errorf("web, offline-scan: pom.xml = %+v, want read in part with %q", in, unresolvedPom)
 	}
+	for _, tc := range []struct {
+		target plugin.RepositoryTarget
+		cfg    plugin.Config
+	}{{apiRepo, apiCfg}, {webRepo, webCfg}} {
+		if in := lockInput(t, fs, tc.target, tc.cfg); in.Unread != notParsed {
+			t.Errorf("trivy-fs %s: bun.lock = %+v, want %q", tc.target.URL, in, notParsed)
+		}
+	}
 
 	// trivy-license never resolves, so both components' poms carry the reason.
 	lic, _ := NewTrivyLicense().(licenseScanner).repo.(repoScanner)
 	lic.checkout = checkoutOf(trees)
-	lic.run = trivyLike
+	lic.runLogged = trivyFSRun(trivyLike)
 	for _, tc := range []struct {
 		target plugin.RepositoryTarget
 		cfg    plugin.Config
 	}{{apiRepo, apiCfg}, {webRepo, webCfg}} {
 		if in := pomInput(t, lic, tc.target, tc.cfg); in.Unread != unresolvedPom {
 			t.Errorf("trivy-license %s: pom.xml = %+v, want %q", tc.target.URL, in, unresolvedPom)
+		}
+		if in := lockInput(t, lic, tc.target, tc.cfg); in.Unread != notParsed {
+			t.Errorf("trivy-license %s: bun.lock = %+v, want %q", tc.target.URL, in, notParsed)
 		}
 	}
 }
@@ -220,13 +256,13 @@ func TestPomWithUnresolvedVersionsIsReadInPart(t *testing.T) {
 	}
 	answers := map[string]string{apiRepo.URL: pomRemoteParent, webRepo.URL: pomMixed}
 	dirs := map[string]string{trees[apiRepo.URL]: apiRepo.URL, trees[webRepo.URL]: webRepo.URL}
-	run := func(_ context.Context, dir string, _ []string) ([]byte, error) {
-		return []byte(answers[dirs[dir]]), nil
-	}
+	run := trivyFSRun(func(_ context.Context, dir string, _ []string) ([]byte, []byte, error) {
+		return []byte(answers[dirs[dir]]), nil, nil
+	})
 	fs, _ := NewTrivyFS().(repoScanner)
-	fs.checkout, fs.run = checkoutOf(trees), run
+	fs.checkout, fs.runLogged = checkoutOf(trees), run
 	lic, _ := NewTrivyLicense().(licenseScanner).repo.(repoScanner)
-	lic.checkout, lic.run = checkoutOf(trees), run
+	lic.checkout, lic.runLogged = checkoutOf(trees), run
 
 	for _, s := range []repoScanner{fs, lic} {
 		for _, tc := range []struct {
