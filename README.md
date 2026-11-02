@@ -1,6 +1,6 @@
 # Draugr
 
-> Know which security findings to fix first, from the scanners Draugr runs for you. SAST, SCA, secrets, IaC and containers, every finding ranked by exposure, criticality, exploitability and, for Go, reachability.
+> Know which security findings to fix first, across the scanners you already run. SAST, SCA, secrets, IaC and containers, every finding ranked by exposure, criticality, exploitability and, for Go, reachability.
 
 [![CI](https://github.com/draugr-dev/draugr/actions/workflows/ci.yml/badge.svg)](https://github.com/draugr-dev/draugr/actions/workflows/ci.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/draugr-dev/draugr/badge)](https://scorecard.dev/viewer/?uri=github.com/draugr-dev/draugr)
