@@ -303,7 +303,7 @@ that change clears.
 | `clears` | how many findings the action resolves |
 | `severity` | the worst severity among the findings after KEV, EPSS and reachability analysis adjusted them, the severity the band was computed from |
 | `severityFrom` | the worst severity as the scanners reported it. Present only where KEV, EPSS or reachability analysis changed the worst |
-| `exploitation` | the strongest exploitation evidence among the findings: a finding's `exploited` listing, whether or not KEV raised it, else the `escalation` of a finding EPSS raised. `signal` (`kev` or `epss`), `ruleId` (the CVE), `detail` (`on KEV`, `EPSS 0.87`) and `asOf`. KEV outranks EPSS. Absent where no finding is on KEV and EPSS raised none |
+| `exploitation` | the strongest exploitation evidence among the findings, KEV outranking EPSS. Taken from a finding's `exploited` where KEV lists it, else from the `escalation` of a finding EPSS raised. Fields: `signal` (`kev` or `epss`), `ruleId` (the CVE), `detail` (`on KEV`, `EPSS 0.87`) and `asOf`. Absent where no finding is on KEV and EPSS raised none |
 | `upstream` | `true` where the unit of work is something somebody else publishes, such as an image |
 | `ecosystem`, `package`, `from` | the package's ecosystem, its name and the version installed, for an action that upgrades or replaces a dependency |
 | `versioning` | the ecosystem whose rules order the package's versions, in lower case, such as `debian`, `red hat`, `maven`, `pypi` or `npm`. `ecosystem` is the scanner's own name, which can differ, as `pip` does from `pypi` |

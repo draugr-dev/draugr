@@ -121,9 +121,9 @@ To order two rows in one list, compare them key by key from the top. The first k
 1. **Priority.** The highest band among the findings the action clears. An action clearing one P1
    outranks one clearing forty P4s, and an action with no band comes after every action with one.
 2. **Exploitation.** An action clearing a finding on CISA's Known Exploited Vulnerabilities (KEV)
-   catalog comes first in its band, whether or not KEV raised that finding's severity, then one
-   clearing a finding that EPSS, a daily estimate of how likely a flaw is to be exploited in the
-   next 30 days, raised past its threshold. Both apply only where
+   catalog comes first in its band, whether or not KEV raised that finding. Next comes an action
+   clearing a finding that EPSS raised past its threshold. EPSS is a daily estimate of how likely a
+   flaw is to be exploited in the next 30 days. Both apply only where
    [`config.exploitability`](prioritization.md#exploitability-kev-and-epss) turns them on.
 3. **Severity.** The highest severity among its findings, after adjustment:
    - the severity KEV or EPSS raised it to, where one did;

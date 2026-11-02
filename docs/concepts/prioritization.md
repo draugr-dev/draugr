@@ -342,8 +342,8 @@ EPSS threshold the run used.
 scanner already rated critical is listed and not raised, and the action that clears it still comes
 [first in its band](what-to-fix-first.md#how-the-list-is-ordered).
 
-**"nothing raised" is printed when nothing moved**, and "nothing listed" when KEV lists none of the
-run's findings, because each is a result rather than an absence. Without them, the only way to learn
+**A row that moved nothing says so.** KEV prints `nothing listed` when none of the run's findings is
+on the catalog, and every other signal prints `nothing raised`. Without them, the only way to learn
 that a feed changed nothing is to read every finding looking for a mark that is not there, and then
 wonder whether you missed one.
 
@@ -491,7 +491,7 @@ it decided has not earned a de-escalation.
 
 **It never suppresses**, at any strength. Static analysis is defeated by reflection, dynamic
 dispatch and code generation, and a suppression in Draugr records that a person decided, with a name
-attached. Where exploitability has already raised a finding, that wins: observed exploitation
+attached. Where KEV lists a finding, or EPSS has raised one, that wins: observed exploitation
 outranks any analysis's failure to find a path.
 
 ## The component is part of the finding
