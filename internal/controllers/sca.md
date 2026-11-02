@@ -53,15 +53,21 @@ for every requirement clears the row. This holds for every requirements file the
 any `.txt` under a `requirements` directory. The fix is the one for `no pinned versions`: pin them,
 or generate the file from a lockfile.
 
-A `pom.xml` is **read in part** when Trivy took its declared dependencies and none of theirs.
-Every Trivy run passes `--offline-scan`, so Trivy finds a dependency's own dependencies, and its
-license, only in the local Maven repository, and a pom that resolves there is read in full.
-Otherwise the report lists it under **Caveats** as `unread-files`, for `sca` and for
-[`licenses`](licenses.md), with the reason `transitive dependencies not resolved, run mvn
-dependency:resolve`. Running `mvn dependency:resolve` before the scan fills the local repository and
-clears the row for both controls, sending nothing beyond what the build already fetches. Setting
+A `pom.xml` is **read in part** when Trivy left some of its dependencies unchecked. Every Trivy run
+passes `--offline-scan`, so Trivy reads a parent POM, an imported BOM, and a dependency's own pom
+only from the checkout or the local Maven repository, and a pom that resolves there is read in
+full. Otherwise the report lists it under **Caveats** as `unread-files`, for `sca` and for
+[`licenses`](licenses.md), with one of two reasons:
+
+| Reason | What Trivy could not read |
+|---|---|
+| `2 dependency versions not resolved, run mvn dependency:resolve` | the version of a direct dependency that takes it from a parent POM, an imported BOM, or a property one of them defines. The dependency, and everything below it, was not checked. A version written in the pom, or in a property the pom defines, is read. |
+| `transitive dependencies not resolved, run mvn dependency:resolve` | the dependencies of its dependencies, every direct one having a version |
+
+Running `mvn dependency:resolve` before the scan fills the local repository and clears the row for
+both controls, sending nothing beyond what the build already fetches. Setting
 [`config.controls.sca.trivyFs.resolveMaven`](../scanners/trivy-fs.md#saga-options) to `true` has
-`trivy-fs` fetch each dependency's pom from Maven Central and the repositories the pom names, which
+`trivy-fs` fetch each pom it needs from Maven Central and the repositories the pom names, which
 clears the row for `sca` only, since `trivy-license` never resolves.
 
 ## Links

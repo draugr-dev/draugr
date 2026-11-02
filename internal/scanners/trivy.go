@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -244,34 +246,59 @@ func trivyNetworkArgs(argv []string, resolvePoms bool) []string {
 }
 
 // unresolvedPom is the reason a pom.xml read with --offline-scan is listed with the dependency
-// files read in part.
+// files read in part, when every direct dependency has a version and none of theirs was read.
 //
-// It names the act that clears the row for both sca and licenses and sends nothing to a third
-// party: a Maven build filling the local repository, which Trivy reads under --offline-scan.
+// Both pom reasons name the act that clears the row for sca and licenses and sends nothing to a
+// third party: a Maven build filling the local repository, which Trivy reads under --offline-scan.
+// Each fits the console's caveat column, 80 characters, with ` (licenses, sca)` after it.
 const unresolvedPom = "transitive dependencies not resolved, run mvn dependency:resolve"
 
-// pomUnresolved reports whether a result set Trivy read from a pom.xml under --offline-scan left
-// out the dependencies of its dependencies: it holds a direct dependency and no indirect one.
+// unversionedPom is the reason for a pom.xml with direct dependencies Trivy read no version for,
+// counted: `2 dependency versions not resolved, run mvn dependency:resolve`.
+const unversionedPom = " not resolved, run mvn dependency:resolve"
+
+// pomUnread is why a result set Trivy read from a pom.xml left dependencies unchecked, or false
+// where it read them all. offlineScan says the scan ran with --offline-scan.
 //
-// Trivy finds a dependency's own dependencies in that dependency's pom, which --offline-scan lets
-// it read only from the local Maven repository. A Maven build fills that repository with the whole
-// tree, so one indirect dependency means the pom was resolved locally; none, beside a direct one,
-// means nothing was. Trivy's JSON says no more than that, and its log, which names each fetch it
-// skipped, is not read for this scan.
-func pomUnresolved(typ string, pkgs []trivyPackage) bool {
+// Two gaps, the first reported over the second because it is the wider:
+//
+//   - A direct dependency with no version. Its version comes from a parent POM, an imported BOM,
+//     or a property one of them defines, and Trivy reads those only from the checkout or the
+//     local Maven repository under --offline-scan, or not at all where no repository has them.
+//     Trivy lists the dependency without a version and checks nothing for it, so the dependency
+//     and everything below it went unread. Counted whether or not the scan resolved, because a
+//     version no repository answered for is as unread online as offline. A version written in
+//     the pom, or in a property the pom or a parent in the checkout defines, is read.
+//   - A direct dependency and no indirect one, under --offline-scan. Trivy finds a dependency's
+//     own dependencies in that dependency's pom, which it then reads only from the local Maven
+//     repository. A Maven build fills that repository with the whole tree, so one indirect
+//     dependency means the pom resolved locally; none, beside a direct one, means nothing did.
+//
+// Trivy's JSON says no more than that, and its log, which names each fetch it skipped, is not read
+// for this scan.
+func pomUnread(typ string, pkgs []trivyPackage, offlineScan bool) (string, bool) {
 	if typ != "pom" {
-		return false
+		return "", false
 	}
-	direct := false
+	direct, indirect, unversioned := false, false, 0
 	for _, p := range pkgs {
 		switch p.Relationship {
 		case "indirect":
-			return false
+			indirect = true
 		case "direct":
 			direct = true
+			if p.Version == "" || strings.Contains(p.Version, "${") {
+				unversioned++
+			}
 		}
 	}
-	return direct
+	switch {
+	case unversioned > 0:
+		return english.Count(unversioned, "dependency version") + unversionedPom, true
+	case offlineScan && direct && !indirect:
+		return unresolvedPom, true
+	}
+	return "", false
 }
 
 // trivyArgv builds `trivy image --quiet --format json <ref>` for an image target.

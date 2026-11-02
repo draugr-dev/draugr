@@ -300,8 +300,8 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 		if in, ok := trivyInput(dir, res.Class, res.Target, len(res.Packages)); ok {
 			// Always under --offline-scan, so a dependency's license is read only where its pom is in
 			// the local Maven repository, and its own dependencies with it.
-			if pomUnresolved(res.Type, res.Packages) {
-				in.Unread = unresolvedPom
+			if reason, ok := pomUnread(res.Type, res.Packages, true); ok {
+				in.Unread = reason
 			}
 			report.Inputs = append(report.Inputs, in)
 		}

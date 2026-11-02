@@ -2,9 +2,11 @@ package scanners
 
 import (
 	"context"
+	"encoding/json"
 	"slices"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -186,24 +188,103 @@ func TestOfflineScannedPomIsReadInPart(t *testing.T) {
 	}
 }
 
-// Only a pom with a direct dependency and no indirect one is caveated: a pom declaring nothing has
-// nothing to resolve, one with an indirect dependency was resolved from the local Maven repository,
-// and a file of another ecosystem is not a pom.
-func TestPomUnresolved(t *testing.T) {
-	pkg := func(rel string) trivyPackage { return trivyPackage{Relationship: rel} }
+// The package lists Trivy 0.76.1 reports for a pom.xml under --offline-scan with an empty local
+// Maven repository, one per way a direct dependency gets its version. A dependency Trivy could not
+// version is listed with none.
+const (
+	// A remote <parent> (spring-boot-starter-parent) and two dependencies taking their versions
+	// from it.
+	pomRemoteParent = `{"Results":[{"Target":"pom.xml","Class":"lang-pkgs","Type":"pom","Packages":[
+ {"Name":"dev.example:remote-parent","Version":"1.0.0","Relationship":"root"},
+ {"Name":"com.fasterxml.jackson.core:jackson-databind","Relationship":"direct"},
+ {"Name":"org.springframework.boot:spring-boot-starter-web","Relationship":"direct"}]}]}`
+	// One pinned dependency and one taking its version from the remote parent.
+	pomMixed = `{"Results":[{"Target":"pom.xml","Class":"lang-pkgs","Type":"pom","Packages":[
+ {"Name":"dev.example:mixed","Version":"1.0.0","Relationship":"root"},
+ {"Name":"com.fasterxml.jackson.core:jackson-databind","Relationship":"direct"},
+ {"Name":"org.apache.commons:commons-text","Version":"1.9","Relationship":"direct"}]}]}`
+	// A version from a property the pom defines itself.
+	pomLocalProperty = `{"Results":[{"Target":"pom.xml","Class":"lang-pkgs","Type":"pom","Packages":[
+ {"Name":"dev.example:local-property","Version":"1.0.0","Relationship":"root"},
+ {"Name":"org.apache.commons:commons-text","Version":"1.9","Relationship":"direct"}]}]}`
+)
+
+// A pom whose direct dependencies took their versions from a remote parent, a BOM or a property one
+// of them defines is listed with a count of the versions not resolved; one whose versions are all
+// in the pom is listed for its transitive dependencies alone. Two components in two repositories,
+// one per shape, so neither file's reason can come from the other's.
+func TestPomWithUnresolvedVersionsIsReadInPart(t *testing.T) {
+	trees := map[string]string{
+		apiRepo.URL: writeTree(t, map[string]string{"pom.xml": "<project/>"}),
+		webRepo.URL: writeTree(t, map[string]string{"pom.xml": "<project/>"}),
+	}
+	answers := map[string]string{apiRepo.URL: pomRemoteParent, webRepo.URL: pomMixed}
+	dirs := map[string]string{trees[apiRepo.URL]: apiRepo.URL, trees[webRepo.URL]: webRepo.URL}
+	run := func(_ context.Context, dir string, _ []string) ([]byte, error) {
+		return []byte(answers[dirs[dir]]), nil
+	}
+	fs, _ := NewTrivyFS().(repoScanner)
+	fs.checkout, fs.run = checkoutOf(trees), run
+	lic, _ := NewTrivyLicense().(licenseScanner).repo.(repoScanner)
+	lic.checkout, lic.run = checkoutOf(trees), run
+
+	for _, s := range []repoScanner{fs, lic} {
+		for _, tc := range []struct {
+			target plugin.RepositoryTarget
+			cfg    plugin.Config
+			want   string
+		}{
+			// resolveMaven does not clear it: no repository answered for the version.
+			{apiRepo, apiCfg, "2 dependency versions not resolved, run mvn dependency:resolve"},
+			{webRepo, webCfg, "1 dependency version not resolved, run mvn dependency:resolve"},
+		} {
+			if in := pomInput(t, s, tc.target, tc.cfg); in.Unread != tc.want {
+				t.Errorf("%s %s: pom.xml = %+v, want %q", s.info.Name, tc.target.URL, in, tc.want)
+			}
+		}
+	}
+}
+
+// Every pom reason fits the console's caveat column with both controls named after it.
+func TestPomReasonsFitTheCaveatColumn(t *testing.T) {
+	for _, reason := range []string{unresolvedPom, english.Count(999, "dependency version") + unversionedPom} {
+		if n := len(reason + " (licenses, sca)"); n > 80 {
+			t.Errorf("%q with its controls is %d characters, over 80", reason, n)
+		}
+	}
+}
+
+// pomUnread over Trivy's own package lists and the shapes around them.
+func TestPomUnread(t *testing.T) {
+	pkgsOf := func(doc string) []trivyPackage {
+		var d trivyVulnDoc
+		if err := json.Unmarshal([]byte(doc), &d); err != nil {
+			t.Fatal(err)
+		}
+		return d.Results[0].Packages
+	}
+	pkg := func(rel, version string) trivyPackage { return trivyPackage{Relationship: rel, Version: version} }
+	const versions = "dependency version"
 	for name, tc := range map[string]struct {
-		typ  string
-		pkgs []trivyPackage
-		want bool
+		typ         string
+		pkgs        []trivyPackage
+		offlineScan bool
+		want        string
 	}{
-		"declared only":    {"pom", []trivyPackage{pkg("root"), pkg("direct")}, true},
-		"resolved locally": {"pom", []trivyPackage{pkg("root"), pkg("direct"), pkg("indirect")}, false},
-		"no dependencies":  {"pom", []trivyPackage{pkg("root")}, false},
-		"module only":      {"pom", []trivyPackage{pkg("root"), pkg("workspace")}, false},
-		"another manifest": {"npm", []trivyPackage{pkg("root"), pkg("direct")}, false},
+		"remote parent":            {"pom", pkgsOf(pomRemoteParent), true, "2 " + versions + "s" + unversionedPom},
+		"remote parent, resolved":  {"pom", pkgsOf(pomRemoteParent), false, "2 " + versions + "s" + unversionedPom},
+		"pinned and parent":        {"pom", pkgsOf(pomMixed), true, "1 " + versions + unversionedPom},
+		"local property":           {"pom", pkgsOf(pomLocalProperty), true, unresolvedPom},
+		"local property, resolved": {"pom", pkgsOf(pomLocalProperty), false, ""},
+		"unexpanded property":      {"pom", []trivyPackage{pkg("root", "1"), pkg("direct", "${jackson.version}")}, true, "1 " + versions + unversionedPom},
+		"resolved locally":         {"pom", []trivyPackage{pkg("root", "1"), pkg("direct", "1.9"), pkg("indirect", "3.11")}, true, ""},
+		"no dependencies":          {"pom", []trivyPackage{pkg("root", "1")}, true, ""},
+		"module only":              {"pom", []trivyPackage{pkg("root", "1"), pkg("workspace", "1")}, true, ""},
+		"another manifest":         {"npm", []trivyPackage{pkg("root", "1"), pkg("direct", "")}, true, ""},
 	} {
-		if got := pomUnresolved(tc.typ, tc.pkgs); got != tc.want {
-			t.Errorf("%s: pomUnresolved = %v, want %v", name, got, tc.want)
+		got, ok := pomUnread(tc.typ, tc.pkgs, tc.offlineScan)
+		if got != tc.want || ok != (tc.want != "") {
+			t.Errorf("%s: pomUnread = %q, %v, want %q", name, got, ok, tc.want)
 		}
 	}
 }

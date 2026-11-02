@@ -253,8 +253,8 @@ func parseTrivyVulns(out []byte, dir string, cfg plugin.Config) (sarif.Report, e
 	}
 	for _, res := range doc.Results {
 		if in, ok := trivyInput(dir, res.Class, res.Target, len(res.Packages)); ok && !slices.Contains(trivyListOnly, res.Type) {
-			if !resolvesPoms(cfg) && pomUnresolved(res.Type, res.Packages) {
-				in.Unread = unresolvedPom
+			if reason, ok := pomUnread(res.Type, res.Packages, !resolvesPoms(cfg)); ok {
+				in.Unread = reason
 			}
 			rep.Inputs = append(rep.Inputs, in)
 		}

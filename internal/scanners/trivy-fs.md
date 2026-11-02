@@ -66,8 +66,8 @@ tool, where a suppression cannot be recorded or reviewed. Use `config.exclude` i
 - Each `lang-pkgs` result in Trivy's JSON names a file it took packages from. Those are the files
   the report counts as read; every other dependency file in the checkout is listed as unread, see
   [`sca`](../controllers/sca.md#unread).
-- A `pom.xml` whose transitive dependencies Trivy did not resolve is listed as read in part, see
-  [`sca`](../controllers/sca.md#unread).
+- A `pom.xml` whose dependency versions or transitive dependencies Trivy did not resolve is listed
+  as read in part, see [`sca`](../controllers/sca.md#unread).
 
 ## Data
 
