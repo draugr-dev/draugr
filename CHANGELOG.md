@@ -16,9 +16,9 @@ _Nothing yet._
 
 ### Fixed
 
-- **A flaw in two Go modules takes the band of the module that reaches it.** Where `go.mod` calls the vulnerable function and `tools/go.mod` only requires it, the bands, the fix list and the gate read the reachable finding's band, whichever module the scanner listed first, and the reachability summary counts the flaw once, as reachable.
+- **A flaw in two Go modules takes the band of the module that reaches it.** When `go.mod` calls the vulnerable function and `tools/go.mod` only requires it, the bands, fix list and gate now use the `go.mod` finding, whatever order the scanner listed them in. The reachability summary counts the flaw once, as reachable.
 
-- **A package Trivy and Grype both report is one upgrade in the fix list.** The two name some ecosystems differently, `gomod` and `go-module` for Go, `pip` and `python` for PyPI, and the list held an action per name. A second report of a flaw now adds its file to the action whichever name it carries.
+- **A package Trivy and Grype both report is one upgrade in the fix list.** The two scanners spell some ecosystems differently, `gomod` and `go-module` for Go, `pip` and `python` for PyPI, and the fix list produced one action per spelling. It now produces one action, listing every file.
 
 - **govulncheck loads modules that declare Go 1.27.** `draugr tools install` builds it with the newer of your Go and Go 1.27.3 and replaces a build from an older Go. `draugr doctor` flags such a build. A scan names a module govulncheck cannot load, with the command that rebuilds it.
 
