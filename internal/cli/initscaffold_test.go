@@ -87,7 +87,7 @@ func TestInitPrintsWhatItFoundAndWhatIsUnread(t *testing.T) {
 		"  Terraform ", "  Helm ", "iac · images, commented",
 		"  OpenAPI ", "hosts spec, commented",
 		"UNREAD  " + initUnreadNote + "\n  web/package.json  no lockfile\n",
-		"Next:\n  draugr doctor ",
+		"\n  draugr doctor draugr.saga.yaml   # check the scanners it needs\n",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("console missing %q:\n%s", want, got)
