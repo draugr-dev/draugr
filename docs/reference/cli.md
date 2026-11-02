@@ -195,13 +195,9 @@ each with a comment naming the files behind it. Edit it, then `draugr scan`.
 The console lists what was found under `FOUND` and the dependency files no scanner can take
 packages from under `UNREAD`.
 
-The descriptor is written to `[dir]/draugr.saga.yaml`. A relative repository `url` resolves against
-the directory Draugr runs in, so the `url` depends on where the file goes:
-
-| Written to | `url` | `Next:` commands run from |
-|---|---|---|
-| `[dir]` or a directory below it (the default, or `-o [dir]/.draugr/self.saga.yaml`) | `.` | `[dir]`, after the `cd [dir]` it prints |
-| A path outside `[dir]` (`-o`), or stdout (`-o -`) | `[dir]` as given on the command line | the working directory |
+The descriptor is written to `[dir]/draugr.saga.yaml`, with `url: .`, and its `Next:` commands
+`cd [dir]` first when it is not the working directory. With `-o` outside `[dir]`, or `-o -`, the
+`url` is `[dir]` as given and the `Next:` commands run from the working directory.
 
 A directory below the root that holds its own dependency file or `go.mod` is a part of the
 repository. By default the descriptor has one component and names the parts in a comment;
@@ -225,7 +221,7 @@ lockfile of its own, or a dependency file of another ecosystem, is still a part.
 draugr init                 # write draugr.saga.yaml for the current project
 draugr init -o - | less     # preview without writing
 draugr init --per-directory # one component per directory with its own dependency file
-draugr init services/api    # write services/api/draugr.saga.yaml, with url: .
+draugr init services/api    # write services/api/draugr.saga.yaml
 draugr init services/payments --fragment    # a Saga fragment, component named for the directory
 ```
 

@@ -1,1 +1,1 @@
-- **`draugr init <dir>` writes the Saga into `<dir>`.** It wrote `draugr.saga.yaml` into the working directory with `url: .`, so the scan it suggested read the working directory instead of `<dir>`. A Saga written outside `<dir>` with `-o` names `<dir>` as given, and the `Next:` commands it prints scan `<dir>`.
+- **`draugr init <dir>` writes the Saga into `<dir>`.** It wrote `draugr.saga.yaml` into the working directory with `url: .`, so the suggested scan read the working directory. The `Next:` commands now `cd <dir>` first, and a `<dir>` that does not exist is refused.
