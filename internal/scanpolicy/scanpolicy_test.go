@@ -44,6 +44,56 @@ func TestDefaultPrioritizerRecordsWhy(t *testing.T) {
 	}
 }
 
+// A finding the scanner already rated critical is on KEV and KEV raises nothing. The prioritizer
+// records the listing apart from the escalation, and keeps recording both for a finding KEV raised.
+func TestDefaultPrioritizerRecordsAListingThatRaisedNothing(t *testing.T) {
+	src := exploit.New(map[string]bool{"CVE-2026-111497": true, "CVE-2024-3094": true}, nil, 0)
+	p := DefaultPrioritizer(src)
+
+	critical := p("images", saga.ExposurePublic, saga.CriticalityCritical,
+		sarif.Result{RuleID: "CVE-2026-111497", Level: sarif.LevelError, Score: 9.8, HasScore: true})
+	if critical.Escalation != nil {
+		t.Errorf("escalation %+v on a finding KEV did not move", critical.Escalation)
+	}
+	if critical.Exploited == nil || critical.Exploited.Signal != exploit.SignalKEV {
+		t.Errorf("exploited = %+v, want the KEV listing", critical.Exploited)
+	}
+
+	raised := p("images", saga.ExposurePublic, saga.CriticalityCritical,
+		sarif.Result{RuleID: "CVE-2024-3094", Level: sarif.LevelWarning, Score: 5.0, HasScore: true})
+	if raised.Escalation == nil || raised.Escalation.Signal != exploit.SignalKEV || raised.Exploited == nil {
+		t.Errorf("escalation %+v exploited %+v, want both on a finding KEV raised", raised.Escalation, raised.Exploited)
+	}
+
+	unlisted := p("images", saga.ExposurePublic, saga.CriticalityCritical,
+		sarif.Result{RuleID: "CVE-2019-20477", Level: sarif.LevelError, Score: 9.8, HasScore: true})
+	if unlisted.Exploited != nil {
+		t.Errorf("exploited = %+v on a CVE KEV does not list", unlisted.Exploited)
+	}
+}
+
+// A listing stands against an unreachable verdict whether or not it raised the finding: a call
+// graph that finds no path does not rank down a flaw somebody is exploiting.
+func TestAListingThatRaisedNothingStillOverrulesUnreachable(t *testing.T) {
+	kev := exploit.New(map[string]bool{"CVE-2026-111497": true}, nil, 0)
+	res := sarif.Result{
+		RuleID: "CVE-2026-111497", Level: sarif.LevelError, Score: 9.8, HasScore: true,
+		Reachability: &sarif.Reachability{State: sarif.ReachabilityUnreachable, Method: sarif.MethodCallGraph},
+	}
+	band, ranked := bandFor(res, kev)
+	if ranked != "" {
+		t.Errorf("rankedAs = %q, a finding on KEV must not be lowered", ranked)
+	}
+	listedOnly := res
+	listedOnly.Reachability = nil
+	if want, _ := bandFor(listedOnly, kev); band != want {
+		t.Errorf("band = %q, want %q; reachability lowered a finding on KEV", band, want)
+	}
+	if _, ranked := bandFor(res, nil); ranked == "" {
+		t.Error("without KEV the same finding should be lowered, or this test proves nothing")
+	}
+}
+
 func TestDefaultPrioritizerAppliesTheControlFloor(t *testing.T) {
 	// secrets has a severity floor: a scanner that under-rates a leaked key must not be able to
 	// rank it low. Checked here because the floor is applied before enrichment, and swapping the

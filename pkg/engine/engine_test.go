@@ -113,7 +113,7 @@ func TestWithPrioritizationStampsFindings(t *testing.T) {
 		if control == "images" && e == saga.ExposurePublic && c == saga.CriticalityCritical {
 			return Priority{Band: "P1", Escalation: &sarif.Escalation{
 				From: sarif.SeverityHigh, Signal: "kev", Detail: "on KEV", AsOf: "2026-08-01",
-			}}
+			}, Exploited: &sarif.Match{Signal: "kev", Detail: "on KEV", AsOf: "2026-08-01"}}
 		}
 		return Priority{Band: "P4"}
 	}
@@ -130,6 +130,10 @@ func TestWithPrioritizationStampsFindings(t *testing.T) {
 	esc := report.Results[0].Escalation
 	if esc == nil || esc.Signal != "kev" || esc.From != sarif.SeverityHigh || esc.AsOf != "2026-08-01" {
 		t.Errorf("escalation did not reach the result: %+v", esc)
+	}
+	// The listing travels apart from the escalation, because the fix list ranks by it.
+	if ex := report.Results[0].Exploited; ex == nil || ex.Signal != "kev" || ex.AsOf != "2026-08-01" {
+		t.Errorf("the KEV listing did not reach the result: %+v", ex)
 	}
 }
 

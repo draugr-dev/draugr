@@ -227,7 +227,7 @@ COMPONENTS
   platform    pass   3 P3 18 P4
 
 SIGNALS
-  KEV           2 findings raised
+  KEV           2 findings listed · 2 raised
   EPSS          3 findings raised
   floor         nothing raised
   reachability  govulncheck · 2 reachable, 3 unreachable

@@ -293,6 +293,10 @@ type sarifProperties struct {
 	// not something a reader can check; "on KEV, as of 2026-08-22" is. A consumer that can see the
 	// band and not the reason has to take the band on trust.
 	Escalation *Escalation `json:"escalation,omitempty"`
+	// Exploited is the catalog of observed exploitation that lists the finding's CVE, whether or not
+	// the listing moved its band. It survives the file because the fix list ranks by it, and a report
+	// read back from this file has to order its actions the way the run did.
+	Exploited *Match `json:"exploited,omitempty"`
 	// Correlation says another scanner reported this same flaw: on the finding that is counted it
 	// names who else found it, and on the others it names the one they are counted under.
 	//
@@ -513,7 +517,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		// Image and OperatingSystem are in the condition because they are the whole content of a
 		// container-scanning finding: writing the block only for a tool, a score or a priority
 		// would drop them for any finding carrying nothing else.
-		if tool != "" || res.Control != "" || res.Escalation != nil || res.Rating != nil || res.PriorityFloor != "" || res.HasScore ||
+		if tool != "" || res.Control != "" || res.Escalation != nil || res.Exploited != nil || res.Rating != nil || res.PriorityFloor != "" || res.HasScore ||
 			res.Priority != "" || res.Image != "" || res.Correlation != nil ||
 			res.OperatingSystem != "" || res.Layer != nil || res.OSEndOfLife ||
 			res.ProviderOperated || res.BuiltUpstream || res.Historical || len(res.Labels) > 0 {
@@ -523,6 +527,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 				Fingerprint:   res.Fingerprint(),
 				UpgradePolicy: res.UpgradePolicy,
 				Escalation:    res.Escalation,
+				Exploited:     res.Exploited,
 				Rating:        res.Rating,
 				PriorityFloor: res.PriorityFloor,
 				Repository:    res.Repository, Package: res.Package,
@@ -820,6 +825,7 @@ func FromSARIF(data []byte) (Report, error) {
 				res.Reachability = sr.Properties.Reachability
 				res.Correlation = sr.Properties.Correlation
 				res.Escalation = sr.Properties.Escalation
+				res.Exploited = sr.Properties.Exploited
 				res.Rating = sr.Properties.Rating
 				res.PriorityFloor = sr.Properties.PriorityFloor
 			}

@@ -121,9 +121,10 @@ To order two rows in one list, compare them key by key from the top. The first k
 1. **Priority.** The highest band among the findings the action clears. An action clearing one P1
    outranks one clearing forty P4s, and an action with no band comes after every action with one.
 2. **Exploitation.** An action clearing a finding on CISA's Known Exploited Vulnerabilities (KEV)
-   catalog comes first in its band, then one clearing a finding that EPSS, a daily estimate of how
-   likely a flaw is to be exploited in the next 30 days, raised past its threshold. Both apply only
-   where [`config.exploitability`](prioritization.md#exploitability-kev-and-epss) turns them on.
+   catalog comes first in its band, whether or not KEV raised that finding. Next comes an action
+   clearing a finding that EPSS raised past its threshold. EPSS is a daily estimate of how likely a
+   flaw is to be exploited in the next 30 days. Both apply only where
+   [`config.exploitability`](prioritization.md#exploitability-kev-and-epss) turns them on.
 3. **Severity.** The highest severity among its findings, after adjustment:
    - the severity KEV or EPSS raised it to, where one did;
    - else the severity reachability analysis lowered it to, where the vulnerable code is never
@@ -143,10 +144,11 @@ finding per advisory per package counts an old base image in hundreds, and ranke
 image would outrank a single flaw on KEV.
 
 **Where each key comes from.** Each action in `report.json` and in `fix_list` carries the keys it
-was ranked by: `priority`, `exploitation` with the CVE KEV or EPSS raised, `severity` with
-`severityFrom` where an adjustment moved it, and `clears`. The band, the escalation naming `kev` or
-`epss` with the date its data was fetched, and the severity with what adjusted it are also on each
-finding in `report.json` and `results.sarif`. `fixes.upgrade` is in the descriptor.
+was ranked by: `priority`, `exploitation` with the CVE on KEV or the CVE EPSS raised, `severity`
+with `severityFrom` where an adjustment moved it, and `clears`. The band, the KEV listing as
+`exploited`, the escalation naming `kev` or `epss` with the date its data was fetched, and the
+severity with what adjusted it are also on each finding in `report.json` and `results.sarif`.
+`fixes.upgrade` is in the descriptor.
 
 ## Two descriptor fields change what is recommended
 

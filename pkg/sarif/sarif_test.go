@@ -983,6 +983,30 @@ func TestEscalationSurvivesTheFile(t *testing.T) {
 	}
 }
 
+// A listing that raised nothing is the only record the finding is on KEV, and the fix list read
+// back from the file ranks by it.
+func TestAListingSurvivesTheFile(t *testing.T) {
+	rep := Report{Results: []Result{{
+		RuleID: "CVE-2026-111497", Level: LevelError, Message: "brotli",
+		Exploited: &Match{Signal: "kev", Detail: "on KEV", AsOf: "2026-10-30"},
+	}}}
+	encoded, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := FromSARIF(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := back.Results[0]
+	if got.Exploited == nil || *got.Exploited != *rep.Results[0].Exploited {
+		t.Errorf("exploited = %+v, want the listing as written", got.Exploited)
+	}
+	if got.Escalation != nil {
+		t.Errorf("escalation = %+v, want none; the listing moved nothing", got.Escalation)
+	}
+}
+
 func TestWhatElseMatchedSurvivesTheFile(t *testing.T) {
 	// The record of a dataset that applied and did not win is only worth writing if it reaches
 	// whatever reads the file. It travels inside the escalation rather than beside it, so this is

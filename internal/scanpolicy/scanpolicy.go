@@ -41,10 +41,16 @@ func PrioritizerWith(expl *exploit.Source, health *dephealth.Source) engine.Prio
 		// nil-safe on both: a no-op when no source is loaded, and the escalation is nil unless
 		// something actually moved.
 		sev, esc := expl.Explain(sev, res.RuleID)
+		// Read apart from the escalation, because a finding the scanner already rated critical is on
+		// KEV, raises nothing, and is still the one to fix first in its band.
+		exploited := expl.Exploited(res.RuleID)
 		// Whether anything so far stands against an unreachable verdict, read from the table that
 		// every signal has to declare itself in. Recorded as we go, because a later signal can
-		// replace the escalation that carries the answer.
-		overrules := esc != nil && OverrulesUnreachable[esc.Signal]
+		// replace the escalation that carries the answer. A listing stands whether or not it raised
+		// anything, or a critical finding on KEV would be the one exploited flaw a call graph could
+		// rank down.
+		overrules := (esc != nil && OverrulesUnreachable[esc.Signal]) ||
+			(exploited != nil && OverrulesUnreachable[exploited.Signal])
 
 		// Keyed on the package rather than on the rule, which is the difference from
 		// exploitability: the subject is the dependency, and the finding is only how it came to
@@ -108,6 +114,7 @@ func PrioritizerWith(expl *exploit.Source, health *dephealth.Source) engine.Prio
 		return engine.Priority{
 			Band:       string(band),
 			Escalation: esc,
+			Exploited:  exploited,
 			Floor:      floorReason,
 			RankedAs:   rankedAs,
 		}

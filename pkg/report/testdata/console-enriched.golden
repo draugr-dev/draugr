@@ -6,7 +6,7 @@ CONTROLS
   sca  FAIL   2 P1 1 P2
 
 SIGNALS
-  KEV   1 finding raised
+  KEV   1 finding listed · 1 raised
   EPSS  1 finding raised
 
 FIX FIRST  all 3, by priority

@@ -208,6 +208,9 @@ type findingReport struct {
 	// Escalation says why this finding's severity was raised, when exploitability data raised
 	// it. A consumer acting on the priority can then say what the priority rests on.
 	Escalation *sarif.Escalation `json:"escalation,omitempty"`
+	// Exploited names the catalog of observed exploitation that lists this finding, whether or not
+	// the listing raised its severity. The action that clears it ranks first in its band on it.
+	Exploited *sarif.Match `json:"exploited,omitempty"`
 	// Reachability says whether this project's code can reach the vulnerable code, and carries
 	// the call path when it can. Same reason as Escalation, in the other direction: a consumer
 	// acting on a band that reachability lowered can say what lowered it.
@@ -1031,6 +1034,7 @@ func toFinding(control string, res sarif.Result) findingReport {
 		Location:     loc,
 		Fingerprint:  res.Fingerprint(),
 		Escalation:   res.Escalation,
+		Exploited:    res.Exploited,
 		Reachability: res.Reachability,
 		Rating:       res.Rating,
 		Historical:   res.Historical,

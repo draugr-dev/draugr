@@ -80,7 +80,7 @@ var signalKinds = []signalKind{
 			return signalMove{Up: true, Change: "severity to critical",
 				Condition: "when it is on CISA's Known Exploited Vulnerabilities catalog"}
 		},
-		did: feedDid(exploit.SignalKEV),
+		did: kevDid,
 	},
 	{name: "EPSS", moves: epssMoves, did: feedDid(exploit.SignalEPSS)},
 	{
@@ -153,6 +153,27 @@ func feedDid(name string) func(Data, summary) ([]string, []string) {
 		}
 		return []string{raisedCount(n, "")}, nil
 	}
+}
+
+// kevDid is what the KEV catalog did: how many findings it lists, and how many of those it raised.
+// Listed whenever the run consulted it.
+//
+// Listed first because a listed finding's fix comes first in its band whether or not KEV raised
+// it, and one the scanner already rated critical raises nothing. A count of raised findings alone
+// reads "nothing raised" over a run whose most urgent finding is on the catalog.
+func kevDid(d Data, s summary) ([]string, []string) {
+	// A finding KEV raised is one it lists, so a raise is never counted without a listing.
+	if s.onKEV == 0 {
+		if !consulted(d, exploit.SignalKEV) {
+			return nil, nil
+		}
+		return []string{"nothing listed"}, nil
+	}
+	line := english.Count(s.onKEV, "finding") + " listed"
+	if raised := s.bySignal[exploit.SignalKEV]; raised > 0 {
+		line += fmt.Sprintf(" · %d raised", raised)
+	}
+	return []string{line}, nil
 }
 
 // healthDid is what one of dependency health's two signals did: listed whenever the lookup answered,

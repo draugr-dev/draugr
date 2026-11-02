@@ -226,6 +226,14 @@ type Result struct {
 	// conclusion and withholds its premise is a hint rather than evidence, and "critical because CISA
 	// observed this being exploited, as of a date you can check" is the premise.
 	Escalation *Escalation `json:"escalation,omitempty"`
+	// Exploited is the catalog of observed exploitation that lists this finding's CVE, CISA's KEV,
+	// with the day it was fetched. Set whether or not the listing moved the severity. Nil where the
+	// CVE is not listed or no catalog was consulted.
+	//
+	// Kept apart from Escalation, which records that a band moved. A finding the scanner already
+	// rated critical is listed and moves nothing, and the fix list still orders the action that
+	// clears it first in its band.
+	Exploited *Match `json:"exploited,omitempty"`
 	// Reachability is set when a reachability analyzer covered this finding's dependency, and
 	// says whether this project's code can actually reach the vulnerable code. Nil when no
 	// analyzer ran; ReachabilityUnknown when one ran but could not tell.

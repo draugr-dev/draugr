@@ -114,6 +114,9 @@ type Priority struct {
 	// Escalation is set when exploitability data raised the severity the band was computed
 	// from. Nil when the scanner's own rating stood.
 	Escalation *sarif.Escalation
+	// Exploited is the catalog of observed exploitation that lists the finding, whether or not it
+	// raised the severity. Nil where none does.
+	Exploited *sarif.Match
 	// Floor explains a band that the component's classification alone does not account for,
 	// because the control declared that exposure does not bound its findings. Empty when the
 	// matrices' own answer stood.
@@ -1693,6 +1696,7 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 			p := e.prioritize(pj.Control, pj.Exposure, pj.Criticality, out.Results[i])
 			out.Results[i].Priority = p.Band
 			out.Results[i].Escalation = p.Escalation
+			out.Results[i].Exploited = p.Exploited
 			out.Results[i].PriorityFloor = p.Floor
 		}
 	}
@@ -2463,6 +2467,7 @@ func (e *Engine) reband(res *sarif.Result, control string, model saga.Model) {
 	p := e.prioritize(control, exposure, criticality, *res)
 	res.Priority = p.Band
 	res.Escalation = p.Escalation
+	res.Exploited = p.Exploited
 	res.PriorityFloor = p.Floor
 	if res.Reachability != nil {
 		res.Reachability.RankedAs = p.RankedAs

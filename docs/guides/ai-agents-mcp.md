@@ -321,9 +321,9 @@ newer image. It returns the lists `draugr scan --view actions` prints, one per
 [kind of work](../concepts/what-to-fix-first.md), from the same grouping, so an assistant and a
 terminal cannot describe the same report differently. Each row is an
 [action as `report.json` carries it](../reference/report-schema.md#what-each-action-carries), without
-the list of findings under it, and carries the keys it ranks by: `exploitation`, the KEV or EPSS
-evidence and the CVE it raised, and `severity`, with `severityFrom` where KEV, EPSS or reachability
-analysis moved it.
+the list of findings under it, and carries the keys it ranks by: `exploitation`, the CVE on KEV
+whether or not KEV raised it, or else the CVE EPSS raised, and `severity`, with `severityFrom` where
+KEV, EPSS or reachability analysis moved it.
 
 The lists are in a fixed order of kind, which [says nothing about
 urgency](../concepts/what-to-fix-first.md), so a reply names the head of each list that applies.

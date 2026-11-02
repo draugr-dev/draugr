@@ -81,7 +81,7 @@ func TestTheHTMLSignalsSayHowEachOneMovesAFinding(t *testing.T) {
 	for _, want := range []string{
 		`<th scope="col">Signal</th><th scope="col">How it moves a finding</th><th scope="col">This run</th>`,
 		`<td><code>KEV</code></td><td class="how"><span class="moved up"><span class="g">↑</span>severity to critical</span> ` +
-			`when it is on CISA&#39;s Known Exploited Vulnerabilities catalog</td><td>1 finding raised</td>`,
+			`when it is on CISA&#39;s Known Exploited Vulnerabilities catalog</td><td>1 finding listed · 1 raised</td>`,
 		`<td><code>EPSS</code></td><td class="how"><span class="moved up"><span class="g">↑</span>severity one band</span> ` +
 			`when its predicted exploitation is at or above <code>0.5</code>, this run&#39;s threshold</td><td>1 finding raised</td>`,
 		`<td><code>floor</code></td><td class="how"><span class="moved up"><span class="g">↑</span>priority to P1</span> ` +
@@ -108,7 +108,7 @@ func TestTheMarkdownSignalsSayHowEachOneMovesAFinding(t *testing.T) {
 	want := "### Signals\n\n" +
 		"| Signal | How it moves a finding | This run |\n" +
 		"|---|---|---|\n" +
-		"| KEV | **↑ severity to critical** when it is on CISA's Known Exploited Vulnerabilities catalog | 1 finding raised |\n" +
+		"| KEV | **↑ severity to critical** when it is on CISA's Known Exploited Vulnerabilities catalog | 1 finding listed · 1 raised |\n" +
 		"| EPSS | **↑ severity one band** when its predicted exploitation is at or above `0.5`, this run's threshold | 1 finding raised |\n" +
 		"| floor | **↑ priority to P1** for a leaked credential, whatever its component declares; severity unchanged | 1 finding raised by a control's own rule |\n" +
 		"| reachability | **↓ severity one band** when analysis finds no path from your code to it | govulncheck · 2 reachable, 3 unreachable, 1 unknown |\n" +

@@ -124,6 +124,7 @@ Draugr reports as one SARIF tool, so every finding keeps its own attribution in 
 | `security-severity` | The numeric score, where the scanner gave one |
 | `draugr/rating` | The scanner's own rating, set where it decided the severity: `severity`, `detail` (the line the report prints) and `fields` (the scanner's own names and values). Set for Semgrep (`impact`, `likelihood`, `confidence`, `subcategory`) and for an imported Bandit file (`issue_severity`, `issue_confidence`). The result's `level` stays the scanner's, and each entry in `report.json`'s `findings` carries the same object as `rating` |
 | `escalation` | Why the band is higher than the severity: the dataset, the fact, and the day it was fetched |
+| `exploited` | The KEV listing of the finding's CVE, whether or not it raised the severity: `signal` (`kev`), `detail` (`on KEV`) and `asOf`. Absent where KEV does not list the CVE or was not consulted. Each entry in `report.json`'s `findings` carries the same object |
 | `reachability` | Whether your code can reach the vulnerable code, which analyzer decided, and how |
 | `historical` | `true` on a finding from a commit in the repository's history. Absent on a finding from the current tree. The location is the path the file had in that commit |
 | `fingerprint` | The finding's identity, a hash of its tool, rule, level, message, location, component and repository. `report.json` names findings by it in `actions[].findings[]`, and in `findings[].fingerprint` when `--min-priority` lists them |
@@ -302,7 +303,7 @@ that change clears.
 | `clears` | how many findings the action resolves |
 | `severity` | the worst severity among the findings after KEV, EPSS and reachability analysis adjusted them, the severity the band was computed from |
 | `severityFrom` | the worst severity as the scanners reported it. Present only where KEV, EPSS or reachability analysis changed the worst |
-| `exploitation` | the strongest exploitation evidence among the findings, from one finding's `escalation`: `signal` (`kev` or `epss`), `ruleId` (the CVE it raised), `detail` (`on KEV`, `EPSS 0.87`) and `asOf`. KEV outranks EPSS. Absent where neither raised a finding |
+| `exploitation` | the strongest exploitation evidence among the findings, KEV outranking EPSS. Taken from a finding's `exploited` where KEV lists it, else from the `escalation` of a finding EPSS raised. Fields: `signal` (`kev` or `epss`), `ruleId` (the CVE), `detail` (`on KEV`, `EPSS 0.87`) and `asOf`. Absent where no finding is on KEV and EPSS raised none |
 | `upstream` | `true` where the unit of work is something somebody else publishes, such as an image |
 | `ecosystem`, `package`, `from` | the package's ecosystem, its name and the version installed, for an action that upgrades or replaces a dependency |
 | `versioning` | the ecosystem whose rules order the package's versions, in lower case, such as `debian`, `red hat`, `maven`, `pypi` or `npm`. `ecosystem` is the scanner's own name, which can differ, as `pip` does from `pypi` |
@@ -473,7 +474,8 @@ own property bag:
 looked."** A scanner that reports nothing about a control has either examined it and been
 satisfied or never examined it; `escalation` appears on a finding only when a signal *raised* it,
 so its absence covers a CVE that is not listed, one that is listed but was already at the top
-band, and a dataset nobody loaded at all.
+band, and a dataset nobody loaded at all. `exploited` is on every finding KEV lists, raised or not,
+which tells the second case from the other two.
 
 Without `consulted`, anything explaining a priority, a dashboard, a pull-request comment, a person
 reading the file, cannot tell *not on KEV* from *KEV was not consulted*, and silence reads as the

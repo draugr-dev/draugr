@@ -741,6 +741,8 @@ type finding struct {
 	justification string
 	// escalation is why this finding's severity was raised, if it was.
 	escalation *sarif.Escalation
+	// exploited is the KEV listing of this finding's CVE, whether or not it raised the severity.
+	exploited *sarif.Match
 	// rating is the scanner's own rating where it decided the severity, so the severity column can
 	// be checked against what the scanner said.
 	rating *sarif.Rating
@@ -827,6 +829,9 @@ type summary struct {
 	// rather than nothing on this page.
 	bySignal map[string]int
 	floored  int
+	// onKEV is how many findings KEV lists, whether or not it raised them. Counted over every
+	// finding, for the reason bySignal is.
+	onKEV int
 
 	// What the run could not do, and what it set aside. A report that omits these describes a thinner
 	// run rather than a broken one. And a reader cannot tell the difference, which is the reading that
@@ -927,6 +932,9 @@ func summarize(d Data) summary {
 				}
 				s.bySignal[res.Escalation.Signal]++
 			}
+			if exploitedOf(res) != nil {
+				s.onKEV++
+			}
 			if res.PriorityFloor != "" {
 				s.floored++
 			}
@@ -968,6 +976,7 @@ func findingOf(control string, rep sarif.Report, res sarif.Result) finding {
 		control: control, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
 		fingerprint:   res.Fingerprint(),
 		escalation:    res.Escalation,
+		exploited:     exploitedOf(res),
 		rating:        res.Rating,
 		reachability:  res.Reachability,
 		alsoFoundBy:   alsoFoundBy(res),
