@@ -46,7 +46,7 @@ var byReported = map[string]string{
 	"redhat": "Red Hat", "centos": "Red Hat", "rocky": "Red Hat", "alma": "Red Hat",
 	"amazon": "Red Hat", "oracle": "Red Hat", "suse": "Red Hat", "rpm": "Red Hat",
 	"npm": "npm", "yarn": "npm", "pnpm": "npm", "bun": "npm", "node-pkg": "npm",
-	"pip": "PyPI", "pipenv": "PyPI", "poetry": "PyPI", "uv": "PyPI", "python-pkg": "PyPI", "python": "PyPI",
+	"pip": "PyPI", "pipenv": "PyPI", "poetry": "PyPI", "uv": "PyPI", "pylock": "PyPI", "python-pkg": "PyPI", "python": "PyPI",
 	"gem": "RubyGems", "gemspec": "RubyGems", "bundler": "RubyGems",
 	"gomod": "Go", "gobinary": "Go", "go-module": "Go",
 	"cargo": "crates.io", "rust-crate": "crates.io", "rustbinary": "crates.io",

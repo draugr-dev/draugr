@@ -88,3 +88,28 @@ func TestEcosystemPrefersThePackageURL(t *testing.T) {
 		}
 	}
 }
+
+// The fix list keys an upgrade on the ecosystem this names, so every name scanners write for one
+// ecosystem has to give the same answer, or a package two scanners report is two upgrades. Each list
+// holds the result types Trivy writes for the ecosystem and the package type Grype writes.
+func TestEveryScannersSpellingNamesOneEcosystem(t *testing.T) {
+	for want, spellings := range map[string][]string{
+		"Go":        {"gomod", "go-module", "gobinary"},
+		"npm":       {"npm", "yarn", "pnpm", "bun", "node-pkg"},
+		"PyPI":      {"pip", "pipenv", "poetry", "uv", "pylock", "python", "python-pkg"},
+		"Maven":     {"pom", "gradle", "java-archive", "jar"},
+		"crates.io": {"cargo", "rust-crate", "rustbinary"},
+		"RubyGems":  {"bundler", "gem", "gemspec"},
+		"Packagist": {"composer", "php-composer"},
+		"NuGet":     {"nuget", "dotnet", "dotnet-core"},
+		"Debian":    {"debian", "ubuntu", "deb"},
+		"Alpine":    {"alpine", "apk"},
+		"Red Hat":   {"redhat", "rpm"},
+	} {
+		for _, s := range spellings {
+			if got := Ecosystem("", s); got != want {
+				t.Errorf("Ecosystem(%q) = %q, want %q", s, got, want)
+			}
+		}
+	}
+}
