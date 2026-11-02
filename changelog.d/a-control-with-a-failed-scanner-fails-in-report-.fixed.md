@@ -1,1 +1,0 @@
-- **A control with a failed scanner fails in `report.json`.** Where one scanner failed and another found nothing, the control now has `"verdict": "fail"`, and `controls[].reported` lists the scanners that returned a report. A run with no findings and a control in ERROR closes on `A control marked ERROR checked less than it was asked to`.

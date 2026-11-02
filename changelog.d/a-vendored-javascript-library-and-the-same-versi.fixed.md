@@ -1,1 +1,0 @@
-- **A vendored JavaScript library and the same version in a lockfile count as one finding.** retire.js findings now use the npm package name, such as dompurify for DOMPurify, and match Trivy's or Grype's copy of an advisory whether it is reported under its CVE or its GitHub advisory ID, so the fix list proposes one upgrade naming both files.

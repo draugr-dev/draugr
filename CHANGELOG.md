@@ -12,6 +12,20 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.165.4] - 2026-11-02
+
+### Fixed
+
+- **A control with a failed scanner errors in JUnit.** Where any of a control's scanners failed, its suite now holds a test in error carrying the scanner's message, instead of a passing test, so a CI test panel no longer shows it green.
+
+- **A control with a failed scanner fails in `report.json`.** Where one scanner failed and another found nothing, the control now has `"verdict": "fail"`, and `controls[].reported` lists the scanners that returned a report. A run with no findings and a control in ERROR closes on `A control marked ERROR checked less than it was asked to`.
+
+- **A vendored JavaScript library and the same version in a lockfile count as one finding.** retire.js findings now use the npm package name, such as dompurify for DOMPurify, and match Trivy's or Grype's copy of an advisory whether it is reported under its CVE or its GitHub advisory ID, so the fix list proposes one upgrade naming both files.
+
+- **An NSWG-ECO advisory counts once per repository.** Trivy's `NSWG-ECO` advisory in an npm package pinned in several lockfiles is one finding, with the other lockfiles' copies behind it, as a CVE is. These advisories, and Debian's `TEMP` and `DLA` ones in images, are matched by VEX statements and written to the VEX document.
+
+- **`report.json` lists every scanner that ran.** A scanner that succeeded without reporting a version is now in `scanners`, without a `version`, instead of being left out.
+
 ## [0.165.3] - 2026-11-02
 
 ### Fixed
@@ -6741,7 +6755,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.165.3...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.165.4...HEAD
+[0.165.4]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.4
 [0.165.3]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.3
 [0.165.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.2
 [0.165.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.1
