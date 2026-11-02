@@ -1,0 +1,36 @@
+govulncheck: loading packages:
+There are errors with the provided package patterns:
+
+-: # github.com/wailsapp/wails/v3/internal/assetserver/webview
+# [pkg-config --cflags  -- glib-2.0 glib-2.0 gobject-2.0 gtk4 webkitgtk-6.0 gio-unix-2.0 gtk4 webkitgtk-6.0 gtk4 webkitgtk-6.0 libsoup-3.0 gio-unix-2.0]
+Package glib-2.0 was not found in the pkg-config search path.
+Perhaps you should add the directory containing `glib-2.0.pc'
+to the PKG_CONFIG_PATH environment variable
+Package 'glib-2.0', required by 'virtual:world', not found
+Package 'glib-2.0', required by 'virtual:world', not found
+Package 'gobject-2.0', required by 'virtual:world', not found
+Package 'gtk4', required by 'virtual:world', not found
+Package 'webkitgtk-6.0', required by 'virtual:world', not found
+Package 'gio-unix-2.0', required by 'virtual:world', not found
+Package 'gtk4', required by 'virtual:world', not found
+Package 'webkitgtk-6.0', required by 'virtual:world', not found
+Package 'gtk4', required by 'virtual:world', not found
+Package 'webkitgtk-6.0', required by 'virtual:world', not found
+Package 'libsoup-3.0', required by 'virtual:world', not found
+Package 'gio-unix-2.0', required by 'virtual:world', not found
+{{modcache}}/github.com/netbirdio/wails/v3@v3.0.0-beta.3.0.20261028091752-cfa103160796/internal/assetserver/webview/mainthread_linux.go:113:8: could not import C (no metadata for C)
+-: # github.com/wailsapp/wails/v3/internal/operatingsystem
+# [pkg-config --cflags  -- gtk4 webkitgtk-6.0]
+Package gtk4 was not found in the pkg-config search path.
+Perhaps you should add the directory containing `gtk4.pc'
+to the PKG_CONFIG_PATH environment variable
+Package 'gtk4', required by 'virtual:world', not found
+Package 'webkitgtk-6.0', required by 'virtual:world', not found
+{{modcache}}/github.com/netbirdio/wails/v3@v3.0.0-beta.3.0.20261028091752-cfa103160796/internal/operatingsystem/webkit_linux.go:9:8: could not import C (no metadata for C)
+{{modcache}}/github.com/netbirdio/wails/v3@v3.0.0-beta.3.0.20261028091752-cfa103160796/pkg/application/application_linux.go:15:8: could not import C (no metadata for C)
+{{modcache}}/github.com/netbirdio/wails/v3@v3.0.0-beta.3.0.20261028091752-cfa103160796/pkg/application/application_linux.go:158:28: cannot convert window (variable of Pointer type pointer) to type windowPointer
+{{modcache}}/github.com/netbirdio/wails/v3@v3.0.0-beta.3.0.20261028091752-cfa103160796/pkg/application/linux_cgo.go:863:56: cannot convert w.window (variable of Pointer type pointer) to type windowPointer
+{{module}}/client/ui/services/appappearance_linux_gtk.go:39:8: could not import C (no metadata for C)
+{{module}}/client/ui/xembed_host_linux.go:13:8: could not import C (no metadata for C)
+
+For details on package patterns, see https://pkg.go.dev/cmd/go#hdr-Package_lists_and_patterns.

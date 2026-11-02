@@ -1,0 +1,11 @@
+govulncheck: loading packages:
+There are errors with the provided package patterns:
+
+-: # maunium.net/go/mautrix/crypto/libolm
+{{modcache}}/maunium.net/go/mautrix@v0.27.0/crypto/libolm/inboundgroupsession.go:4:11: fatal error: olm/olm.h: No such file or directory
+    4 | // #include <olm/olm.h>
+      |           ^~~~~~~~~~~
+compilation terminated.
+{{modcache}}/maunium.net/go/mautrix@v0.27.0/crypto/libolm/account.go:5:8: could not import C (no metadata for C)
+
+For details on package patterns, see https://pkg.go.dev/cmd/go#hdr-Package_lists_and_patterns.

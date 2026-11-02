@@ -1,0 +1,7 @@
+govulncheck: loading packages:
+There are errors with the provided package patterns:
+
+{{modcache}}/golang.org/toolchain@v0.0.1-go1.27.1.linux-amd64/src/internal/poll/splice_linux.go:237:21: unknown field rfd in struct literal of type splicePipe
+{{modcache}}/golang.org/toolchain@v0.0.1-go1.27.1.linux-amd64/src/internal/poll/splice_linux.go:237:34: unknown field wfd in struct literal of type splicePipe
+
+For details on package patterns, see https://pkg.go.dev/cmd/go#hdr-Package_lists_and_patterns.
