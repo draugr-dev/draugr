@@ -163,13 +163,7 @@
             "component": "worker",
             "control": "sca",
             "correlation": {
-              "alsoFoundBy": [
-                {
-                  "ruleId": "CVE-2020-36067",
-                  "severity": "high",
-                  "tool": "trivy"
-                }
-              ]
+              "countedUnder": "trivy"
             },
             "fingerprint": "<cleared>",
             "package": {
@@ -283,7 +277,13 @@
             "component": "worker",
             "control": "sca",
             "correlation": {
-              "countedUnder": "trivy"
+              "alsoFoundBy": [
+                {
+                  "ruleId": "CVE-2020-36067",
+                  "severity": "high",
+                  "tool": "trivy"
+                }
+              ]
             },
             "fingerprint": "<cleared>",
             "package": {

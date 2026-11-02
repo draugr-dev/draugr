@@ -137,6 +137,121 @@ func TestEachModuleKeepsItsVerdictThroughCorrelation(t *testing.T) {
 	}
 }
 
+// moduleFlaw is one advisory in golang.org/x/net as Trivy reports it in one Go module, and the
+// analyzer's verdict on the same module.
+func moduleFlaw(component, repo, manifest string, state sarif.ReachabilityState) (scanner, verdict sarif.Result) {
+	scanner = xnet("trivy", "CVE-2026-78663", component, repo, sarif.LevelWarning)
+	scanner.Location = sarif.Location{URI: manifest}
+	verdict = in(analyzed(repo, "CVE-2026-78663", "golang.org/x/net", state), manifest)
+	verdict.Component = component
+	return scanner, verdict
+}
+
+// bandByVerdict is a prioritizer that ranks an unreachable finding one band down.
+func bandByVerdict(_ string, _ saga.Exposure, _ saga.Criticality, res sarif.Result) Priority {
+	if res.Reachability != nil && res.Reachability.State == sarif.ReachabilityUnreachable {
+		return Priority{Band: "P2"}
+	}
+	return Priority{Band: "P1"}
+}
+
+// One scanner reports the flaw in two Go modules of api: go.mod calls the vulnerable function and
+// tools/go.mod only requires it. Correlation makes the two one flaw, and the copy it counts is the
+// reachable P1 one in either result order, so the bands, the fix list and the gate read P1. The
+// unreachable copy keeps its own P2 as evidence. web holds only the unreachable module, in another
+// repository, and keeps its own P2, counted in its own right.
+func TestCorrelationCountsTheMostExposedModule(t *testing.T) {
+	mainMod, mainVerdict := moduleFlaw("api", "repo-api", "go.mod", sarif.ReachabilityReachable)
+	toolsMod, toolsVerdict := moduleFlaw("api", "repo-api", "tools/go.mod", sarif.ReachabilityUnreachable)
+	webMod, webVerdict := moduleFlaw("web", "repo-web", "tools/go.mod", sarif.ReachabilityUnreachable)
+	for _, order := range []struct {
+		name    string
+		results []sarif.Result
+	}{
+		{"go.mod first", []sarif.Result{mainMod, toolsMod, webMod, mainVerdict, toolsVerdict, webVerdict}},
+		{"tools/go.mod first", []sarif.Result{toolsVerdict, webVerdict, mainVerdict, webMod, toolsMod, mainMod}},
+	} {
+		t.Run(order.name, func(t *testing.T) {
+			ctrls := controlsWith(order.results...)
+			e := &Engine{prioritize: bandByVerdict}
+			summary := e.applyReachability(ctrls, saga.Model{})
+			if groups, _ := applyCorrelation(ctrls); groups != 1 {
+				t.Fatalf("groups = %d, want api's two modules as one flaw", groups)
+			}
+			summary = recountReachability(ctrls, summary)
+
+			type where struct{ component, manifest string }
+			want := map[where]struct {
+				band    string
+				counted bool
+			}{
+				{"api", "go.mod"}:       {"P1", true},
+				{"api", "tools/go.mod"}: {"P2", false},
+				{"web", "tools/go.mod"}: {"P2", true},
+			}
+			got := ctrls["sca"].Report.Results
+			if len(got) != len(want) {
+				t.Fatalf("results = %d, want one per module: the analyzer's copies fold", len(got))
+			}
+			for _, r := range got {
+				w := want[where{r.Component, r.Location.URI}]
+				if r.Priority != w.band {
+					t.Errorf("%s %s is %s, want %s, the band its own verdict sets", r.Component, r.Location.URI, r.Priority, w.band)
+				}
+				if counted := !r.Correlated(); counted != w.counted {
+					t.Errorf("%s %s counted = %v, want %v", r.Component, r.Location.URI, counted, w.counted)
+				}
+			}
+			if n := ctrls["sca"].Report.Counts().Total(); n != 2 {
+				t.Errorf("counted %d findings, want one flaw in each component", n)
+			}
+			if summary.Reachable != 1 || summary.Unreachable != 1 {
+				t.Errorf("summary = %+v, want api's flaw reachable and web's unreachable", summary)
+			}
+		})
+	}
+}
+
+// Where the two modules' bands tie, the counted copy's own verdict can say less than the other's,
+// as the unreachable module's does when nothing is prioritized and as a module the analyzer did not
+// rule on does when both stay at P1. The flaw is reachable from go.mod in both cases, and the
+// summary counts it reachable once, whichever copy carries the count.
+func TestTheSummaryCountsAFlawReachableIfAnyModuleReachesIt(t *testing.T) {
+	mainMod, mainVerdict := moduleFlaw("api", "repo-api", "go.mod", sarif.ReachabilityReachable)
+	toolsMod, toolsVerdict := moduleFlaw("api", "repo-api", "tools/go.mod", sarif.ReachabilityUnreachable)
+	// A run stamps every finding's band before reachability, and a copy no verdict reaches keeps it,
+	// so the copy is stamped here as the run would stamp it.
+	stampedTools := toolsMod
+	stampedTools.Priority = "P1"
+	for _, c := range []struct {
+		name    string
+		engine  *Engine
+		results []sarif.Result
+	}{
+		{"the unreachable module is counted", &Engine{}, []sarif.Result{toolsMod, mainMod, mainVerdict, toolsVerdict}},
+		{"a module with no verdict is counted", &Engine{prioritize: bandByVerdict}, []sarif.Result{stampedTools, mainMod, mainVerdict}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			ctrls := controlsWith(c.results...)
+			summary := c.engine.applyReachability(ctrls, saga.Model{})
+			applyCorrelation(ctrls)
+			summary = recountReachability(ctrls, summary)
+
+			for _, r := range ctrls["sca"].Report.Results {
+				if !r.Correlated() && r.Location.URI != "tools/go.mod" {
+					t.Fatalf("counted %s; this case needs tools/go.mod counted, which the tie leaves first", r.Location.URI)
+				}
+			}
+			if summary.Reachable != 1 || summary.Unreachable != 0 {
+				t.Errorf("summary = %+v, want one reachable flaw and nothing unreachable", summary)
+			}
+			if len(summary.Analyzers) != 1 || summary.Analyzers[0].Reachable != 1 || summary.Analyzers[0].Unreachable != 0 {
+				t.Errorf("analyzers = %+v, want govulncheck credited with one reachable flaw", summary.Analyzers)
+			}
+		})
+	}
+}
+
 // A summary from a run where no analyzer ran is left as it is, and an analyzer that appears only
 // on a finding is still counted.
 func TestRecountReachability(t *testing.T) {
