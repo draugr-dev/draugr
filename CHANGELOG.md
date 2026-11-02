@@ -12,6 +12,14 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.165.5] - 2026-11-02
+
+### Fixed
+
+- **A partly pinned requirements file is a caveat.** Trivy and Grype read only `==` pins, so the range requirements in a file with some pins were checked by nothing. The file is now listed under `unread-files` with the requirements not checked, as `1 requirement not pinned: urllib3`. A file with no pin stays `no pinned versions`.
+
+- **`licenses` reads the requirements files `sca` reads through `trivyFs.filePatterns`.** A file such as `requirements_all.txt`, which `sca` reads through the patterns `draugr init` writes, was listed as unread for `licenses`. `trivy-license` now passes the same `--file-patterns` for each repository, so one setting covers both controls.
+
 ## [0.165.4] - 2026-11-02
 
 ### Fixed
@@ -6753,7 +6761,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.165.4...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.165.5...HEAD
+[0.165.5]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.5
 [0.165.4]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.4
 [0.165.3]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.3
 [0.165.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.2

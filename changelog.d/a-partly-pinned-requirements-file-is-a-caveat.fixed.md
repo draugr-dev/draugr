@@ -1,1 +1,0 @@
-- **A partly pinned requirements file is a caveat.** Trivy and Grype read only `==` pins, so the range requirements in a file with some pins were checked by nothing. The file is now listed under `unread-files` with the requirements not checked, as `1 requirement not pinned: urllib3`. A file with no pin stays `no pinned versions`.

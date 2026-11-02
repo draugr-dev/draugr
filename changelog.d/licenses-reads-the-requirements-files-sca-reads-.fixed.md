@@ -1,1 +1,0 @@
-- **`licenses` reads the requirements files `sca` reads through `trivyFs.filePatterns`.** A file such as `requirements_all.txt`, which `sca` reads through the patterns `draugr init` writes, was listed as unread for `licenses`. `trivy-license` now passes the same `--file-patterns` for each repository, so one setting covers both controls.
