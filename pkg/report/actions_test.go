@@ -890,6 +890,59 @@ func TestTwoInstalledVersionsAreTwoActions(t *testing.T) {
 	}
 }
 
+// TestEachScannersNameForAnEcosystemIsOneUpgrade: Trivy writes the first name of each pair for a
+// package's ecosystem and Grype the second. A package both report, each with an advisory the other
+// did not, is one upgrade with one versioning, whichever scanner's finding is first.
+func TestEachScannersNameForAnEcosystemIsOneUpgrade(t *testing.T) {
+	for _, c := range []struct{ trivy, grype, versioning, name string }{
+		{"gomod", "go-module", "go", "golang.org/x/text"},
+		{"pip", "python", "pypi", "pyyaml"},
+		{"pipenv", "python", "pypi", "pyyaml"},
+		{"poetry", "python", "pypi", "pyyaml"},
+		{"uv", "python", "pypi", "pyyaml"},
+		{"pylock", "python", "pypi", "pyyaml"},
+		{"python-pkg", "python", "pypi", "pyyaml"},
+		{"yarn", "npm", "npm", "lodash"},
+		{"pnpm", "npm", "npm", "lodash"},
+		{"bun", "npm", "npm", "lodash"},
+		{"pom", "java-archive", "maven", "jackson-databind"},
+		{"gradle", "java-archive", "maven", "jackson-databind"},
+		{"cargo", "rust-crate", "crates.io", "time"},
+		{"bundler", "gem", "rubygems", "nokogiri"},
+		{"composer", "php-composer", "packagist", "guzzlehttp/guzzle"},
+		{"nuget", "dotnet", "nuget", "Newtonsoft.Json"},
+		{"debian", "deb", "debian", "libssl3"},
+	} {
+		dep := func(ecosystem, rule, priority, fixed string) finding {
+			f := pkgFinding("sca", rule, priority, "lock:3", c.name, "1.0.0", fixed)
+			f.component, f.pkg.Ecosystem = "api", ecosystem
+			return f
+		}
+		var keys []string
+		for _, first := range []string{c.trivy, c.grype} {
+			second := c.grype
+			if first == c.grype {
+				second = c.trivy
+			}
+			got, _ := groupActions([]finding{dep(first, "CVE-1", "P1", "1.0.1"), dep(second, "CVE-2", "P2", "1.1.0")}, nil)
+			if len(got) != 1 || got[0].count() != 2 {
+				t.Errorf("%s and %s, %s first: %d actions, want one clearing both", c.trivy, c.grype, first, len(got))
+				continue
+			}
+			if v := ecosystemName(got[0]); v != c.versioning {
+				t.Errorf("%s and %s, %s first: versioning %q, want %q", c.trivy, c.grype, first, v, c.versioning)
+			}
+			keys = append(keys, got[0].key)
+		}
+		if len(keys) == 2 && keys[0] != keys[1] {
+			t.Errorf("%s and %s: the key depends on which finding is first: %q, %q", c.trivy, c.grype, keys[0], keys[1])
+		}
+	}
+	if v := ecosystemName(action{findings: []finding{{}}}); v != "unknown" {
+		t.Errorf("a finding with no package: versioning %q, want unknown", v)
+	}
+}
+
 // TestTheSamePathInTwoRepositoriesIsTwoPlaces: paths are repository-relative, so two
 // repositories' lockfiles share a path and are still two files to edit.
 func TestTheSamePathInTwoRepositoriesIsTwoPlaces(t *testing.T) {

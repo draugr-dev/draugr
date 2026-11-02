@@ -124,22 +124,45 @@ func (a action) repositories() map[string]bool {
 // copy in a file none of those is in.
 //
 // A copy is compared by its file without the line, because two scanners reading one go.mod can write
-// the line differently or not at all, and a copy there names the same edit twice.
+// the line differently or not at all, and a copy there names the same edit twice. Where several
+// copies share a file, the file is named by the one from the scanner of the earliest finding, so its
+// line is written as that scanner writes the findings' lines. Grype writes line 1 for every package,
+// and Trivy the line that requires it.
 func (a action) places() []finding {
 	if len(a.copies) == 0 {
 		return a.findings
 	}
 	files := map[string]bool{}
-	for _, f := range a.findings {
+	scanner := map[string]int{}
+	for i, f := range a.findings {
 		files[fileKey(f)] = true
+		if _, seen := scanner[f.tool]; !seen {
+			scanner[f.tool] = i
+		}
+	}
+	rank := func(c finding) int {
+		if i, ok := scanner[c.tool]; ok {
+			return i
+		}
+		return len(a.findings)
 	}
 	out := slices.Clone(a.findings)
+	var order []string
+	named := map[string]finding{}
 	for _, c := range a.copies {
-		if c.location == "" || files[fileKey(c)] {
+		k := fileKey(c)
+		if c.location == "" || files[k] {
 			continue
 		}
-		files[fileKey(c)] = true
-		out = append(out, c)
+		if b, ok := named[k]; !ok {
+			order = append(order, k)
+		} else if rank(c) >= rank(b) {
+			continue
+		}
+		named[k] = c
+	}
+	for _, k := range order {
+		out = append(out, named[k])
 	}
 	return out
 }
@@ -1289,8 +1312,14 @@ func actionFindings(fs []finding) []ActionFinding {
 
 // packageUnit is what makes two dependency findings one action: the same component, ecosystem,
 // package and installed version.
+//
+// The ecosystem is its versioning rather than the name its scanner wrote, because scanners spell one
+// ecosystem differently. Trivy writes gomod for a Go module where Grype writes go-module, and pip for
+// a PyPI package where Grype writes python. Keyed on the spelling, one package two scanners report would be an action per
+// spelling, each with its own upgrade, and a copy would add its file only to an action spelled as it
+// is. The finding keeps the name its scanner wrote.
 func packageUnit(f finding) string {
-	return f.component + "\x00" + f.pkg.Ecosystem + "\x00" + f.pkg.Name + "\x00" + f.pkg.Version
+	return f.component + "\x00" + versioning(f.pkg) + "\x00" + f.pkg.Name + "\x00" + f.pkg.Version
 }
 
 // upstreamUnit names the thing a reader would have to take a newer version of.

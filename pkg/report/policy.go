@@ -10,6 +10,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/versionorder"
 	"github.com/draugr-dev/draugr/pkg/saga"
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 // policyStep is where an upgrade action stands against its component's fixes.upgrade.
@@ -315,19 +316,27 @@ func policyNotes(actions []action) []string {
 	return out
 }
 
-// ecosystemName is what a policy note calls an action's ecosystem: the one whose rules order its
-// versions, else the one the scanner reported, in lower case.
+// ecosystemName is what a policy note calls an action's ecosystem, its versioning, or "unknown".
 func ecosystemName(a action) string {
-	f := a.findings[0]
-	if f.pkg == nil {
-		return "unknown"
+	if name := versioning(a.findings[0].pkg); name != "" {
+		return name
 	}
-	name := versionorder.Ecosystem(f.pkg.PURL, f.pkg.Ecosystem)
-	if name == "" {
-		name = f.pkg.Ecosystem
+	return "unknown"
+}
+
+// versioning is the ecosystem whose rules order a package's versions, else the one its scanner
+// reported, in lower case. Empty for no package, or one with neither.
+//
+// Every scanner's spelling of one ecosystem gives the same answer: Trivy's gomod and Grype's
+// go-module are both go. An upgrade is keyed on it, so the two scanners' findings in one package are
+// one action, and the action's Versioning is the same whichever finding is first.
+func versioning(p *sarif.Package) string {
+	if p == nil {
+		return ""
 	}
+	name := versionorder.Ecosystem(p.PURL, p.Ecosystem)
 	if name == "" {
-		return "unknown"
+		name = p.Ecosystem
 	}
 	return strings.ToLower(name)
 }

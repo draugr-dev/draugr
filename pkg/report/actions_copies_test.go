@@ -138,6 +138,84 @@ func TestACopyOnlyAddsAFile(t *testing.T) {
 	}
 }
 
+// text is an advisory in golang.org/x/text v0.3.6 at a component's go.mod, as Trivy or Grype reports
+// it: Trivy as gomod at the line that requires it, Grype as go-module at line 1, with its rule
+// suffixed by the package and its fix without the "v".
+func text(tool, component, cve, priority, fixed string) sarif.Result {
+	rule, ecosystem, line := cve, "gomod", 5
+	if tool == "grype" {
+		rule, ecosystem, line, fixed = cve+"-golang.org/x/text", "go-module", 1, strings.TrimPrefix(fixed, "v")
+	}
+	return sarif.Result{
+		Tool: tool, RuleID: rule, Level: sarif.LevelError, Priority: priority,
+		Component: component, Repository: "repo-" + component,
+		Location: sarif.Location{URI: "go.mod", StartLine: line},
+		Package: &sarif.Package{Name: "golang.org/x/text", Version: "v0.3.6", FixedVersion: fixed,
+			Ecosystem: ecosystem, PURL: "pkg:golang/golang.org/x/text@v0.3.6"},
+	}
+}
+
+// Trivy and Grype each report an advisory in one Go module the other does not, and name its
+// ecosystem differently. Each component is one upgrade clearing both, to the release that clears
+// both, whichever scanner's finding ranks first. The action keeps that scanner's name for the
+// ecosystem, and its versioning is the same either way.
+func TestTwoScannersAdvisoriesInOneGoModuleAreOneUpgrade(t *testing.T) {
+	got := ActionsFor(map[string]sarif.Report{"sca": {Results: []sarif.Result{
+		text("trivy", "api", "CVE-2021-38561", "P1", "v0.3.7"),
+		text("grype", "api", "CVE-2022-32149", "P2", "v0.3.8"),
+		text("grype", "worker", "CVE-2022-32149", "P1", "v0.3.8"),
+		text("trivy", "worker", "CVE-2021-38561", "P2", "v0.3.7"),
+	}}})
+	if len(got) != 2 {
+		t.Fatalf("actions = %+v, want one per component", got)
+	}
+	for _, a := range got {
+		want := map[string]struct {
+			rules     []string
+			ecosystem string
+		}{
+			"api":    {[]string{"CVE-2021-38561", "CVE-2022-32149-golang.org/x/text"}, "gomod"},
+			"worker": {[]string{"CVE-2022-32149-golang.org/x/text", "CVE-2021-38561"}, "go-module"},
+		}[a.Component]
+		if a.Title != "Upgrade golang.org/x/text v0.3.6" || a.Target != "v0.3.8" || a.Clears != 2 {
+			t.Errorf("%s: %q → %q clearing %d, want one upgrade to v0.3.8 clearing both", a.Component, a.Title, a.Target, a.Clears)
+		}
+		if !reflect.DeepEqual(a.RuleIDs, want.rules) {
+			t.Errorf("%s: rules = %q, want %q", a.Component, a.RuleIDs, want.rules)
+		}
+		if a.Ecosystem != want.ecosystem || a.Versioning != "go" {
+			t.Errorf("%s: ecosystem %q, versioning %q, want %q and go", a.Component, a.Ecosystem, a.Versioning, want.ecosystem)
+		}
+	}
+	if n := Cleared(got); n != 4 {
+		t.Errorf("cleared = %d, want both advisories in both components", n)
+	}
+}
+
+// A copy written in the other scanner's name for the ecosystem still adds its file, and where both
+// scanners' copies are in it, the file is named with the line the counted scanner gives.
+func TestACopyInTheOtherScannersNameAddsItsFile(t *testing.T) {
+	got := ActionsFor(map[string]sarif.Report{"sca": {Results: []sarif.Result{
+		gjson("trivy", "api", "repo-api", "go.mod", 5, ""),
+		gjson("grype", "api", "repo-api", "tools/go.mod", 1, "trivy"),
+		gjson("grype", "worker", "repo-worker", "go.mod", 1, ""),
+		gjson("trivy", "worker", "repo-worker", "tools/go.mod", 5, "grype"),
+		gjson("grype", "worker", "repo-worker", "tools/go.mod", 1, "grype"),
+	}}})
+	if len(got) != 2 {
+		t.Fatalf("actions = %+v, want one per component", got)
+	}
+	for _, a := range got {
+		want := map[string][]string{
+			"api":    {"go.mod:5", "tools/go.mod:1"},
+			"worker": {"go.mod:1", "tools/go.mod:1"},
+		}[a.Component]
+		if !reflect.DeepEqual(a.Where, want) || a.Clears != 1 {
+			t.Errorf("%s: where = %q clearing %d, want %q clearing 1", a.Component, a.Where, a.Clears, want)
+		}
+	}
+}
+
 // A copy goes with the step of a split upgrade its own fixes put it in, as the finding it repeats
 // does, and with the step within the policy where there is no other.
 func TestAPolicySplitSendsEachCopyWithItsStep(t *testing.T) {
