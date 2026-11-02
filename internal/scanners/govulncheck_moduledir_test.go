@@ -15,6 +15,9 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
+// goMain is a Go file a module builds, so govulncheck has a package to run over.
+const goMain = "package main\n\nfunc main() {}\n"
+
 // Two components in two repositories, with modules declaring different Go versions: a root module
 // and a nested one in the first, and a module a go.work uses in the second. Each run of govulncheck
 // has its module as the working directory, which is where it runs `go env GOVERSION`, so the go
@@ -26,12 +29,15 @@ func TestGovulncheckRunsInEachModuleSoItsOwnGoVersionDecides(t *testing.T) {
 
 	dirs := map[string]string{
 		"one": writeTree(t, map[string]string{
-			"go.mod":     "module example.com/api\n\ngo 1.22\n",
-			"svc/go.mod": "module example.com/svc\n\ngo 1.24\n",
+			"go.mod":      "module example.com/api\n\ngo 1.22\n",
+			"main.go":     goMain,
+			"svc/go.mod":  "module example.com/svc\n\ngo 1.24\n",
+			"svc/main.go": goMain,
 		}),
 		"two": writeTree(t, map[string]string{
-			"go.work":       "go 1.23\n\nuse ./worker\n",
-			"worker/go.mod": "module example.com/worker\n\ngo 1.23\n",
+			"go.work":        "go 1.23\n\nuse ./worker\n",
+			"worker/go.mod":  "module example.com/worker\n\ngo 1.23\n",
+			"worker/main.go": goMain,
 		}),
 	}
 

@@ -775,11 +775,16 @@ type Input struct {
 	// that the scanner could not load, as `module "vpc" not loaded`. For a file searched for
 	// secrets, "name has an archive extension", or "no files read" against the repository root.
 	// For a source file, why a SAST scanner did not check all of it, as `over 1 MB, not scanned`
-	// or `1 rule timed out, not checked: "x"`.
+	// or `1 rule timed out, not checked: "x"`. For a go.mod, why govulncheck could not load the
+	// module, as `not loaded by govulncheck: main.go:5:2: undefined: Assets`.
 	//
 	// With Packages above zero, the file was read in part and Unread names what was not read, as
 	// `1 requirement not pinned: urllib3` for a requirements file.
 	Unread string `json:"unread,omitempty"`
+	// Analysis says Unread is why an analysis of the code the file declares did not run, as for a Go
+	// module govulncheck could not load, rather than why its packages were not read. Another scanner
+	// reading the file's packages does not answer for it.
+	Analysis bool `json:"analysis,omitempty"`
 }
 
 // Consulted is one exploitability dataset a run had available.

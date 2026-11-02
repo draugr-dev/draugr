@@ -68,8 +68,8 @@ func TestGovulncheckRefusesAModuleNewerThanItsBuildGoAndAnalyzesTheOther(t *test
 	lookRuntime = func(name string) (string, error) { return "/usr/bin/" + name, nil }
 
 	dirs := map[string]string{
-		"one": writeTree(t, map[string]string{"services/api/go.mod": "module example.com/api\n\ngo 1.27.1\n"}),
-		"two": writeTree(t, map[string]string{"go.mod": "module example.com/worker\n\ngo 1.26\n"}),
+		"one": writeTree(t, map[string]string{"services/api/go.mod": "module example.com/api\n\ngo 1.27.1\n", "services/api/main.go": goMain}),
+		"two": writeTree(t, map[string]string{"go.mod": "module example.com/worker\n\ngo 1.26\n", "main.go": goMain}),
 	}
 	var mu sync.Mutex
 	var ran []string

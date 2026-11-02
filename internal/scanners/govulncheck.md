@@ -45,6 +45,22 @@ only requires it is not lent that call path. Two components sharing a repository
 is analyzed as the workspace builds it, which is the build `go build` in that directory produces,
 and a module the workspace does not use is analyzed on its own.
 
+**A module with nothing to build is passed by.** A `go.mod` whose module holds no Go file in the
+build, under the default build constraints for the machine and any `-tags` your `GOFLAGS` sets, has
+no code to start a call graph from, and govulncheck does not run over it. A `tools` module holding
+only a `//go:build tools` file is the common case, and nothing is reported for it.
+
+**A module govulncheck cannot load is a caveat, and the others keep their verdicts.** A module that
+does not compile, needs a C library the machine lacks, or uses generated code nobody generated fails
+to load. Its `go.mod` is listed under **Caveats** as `unread-files`, with govulncheck's first
+diagnostic as the reason, such as
+`not loaded by govulncheck: cmd/infra/strelaypoolsrv/main.go:294:17: undefined: auto.Assets`. Its
+findings keep the band the manifest scanner gave them and carry no verdict, and an advisory only
+govulncheck reports, such as one in the standard library, was not checked there. A failure that
+holds for every module, such as a database govulncheck cannot reach, still fails the repository's
+job. To fail the run on a module that did not load, set
+[`config.gate.failOnCaveats: [unread-files]`](../../docs/reference/saga-schema.md#configgate).
+
 **Standard-library advisories follow each module's Go.** govulncheck runs with the module as its
 working directory, where it reads `go env GOVERSION`, so the standard library is checked at the
 version the go command builds that module with: the toolchain its `go` or `toolchain` line, or its

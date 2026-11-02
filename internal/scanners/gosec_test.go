@@ -36,6 +36,9 @@ func twoGoModules(t *testing.T) string {
 		if err := os.WriteFile(filepath.Join(dir, m, "go.mod"), []byte(body), 0o600); err != nil {
 			t.Fatal(err)
 		}
+		if err := os.WriteFile(filepath.Join(dir, m, "main.go"), []byte(goMain), 0o600); err != nil {
+			t.Fatal(err)
+		}
 	}
 	return dir
 }
