@@ -1,1 +1,0 @@
-- **`draugr init <dir>` writes the Saga into `<dir>`.** It wrote `draugr.saga.yaml` into the working directory with `url: .`, so the suggested scan read the working directory. The `Next:` commands now `cd <dir>` first, and a `<dir>` that does not exist is refused.

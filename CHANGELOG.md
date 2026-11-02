@@ -12,6 +12,22 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.165.3] - 2026-11-02
+
+### Fixed
+
+- **A fix for a finding on KEV comes first in its priority band, including where the scanner already rated the finding critical.** It came first only when KEV raised the finding's severity. `report.json` marks each finding KEV lists as `exploited`, and the `KEV` line under `SIGNALS` reads `N findings listed`, followed by `· M raised` when KEV raised any.
+
+- **A fix list over many findings is built faster.** On 64,000 findings it takes about a third of the time and half the memory.
+
+- **A fixed version that names no release no longer stops the fix list.** A finding whose fixed version is only separators or a bound, such as `,` or `>=`, made the fix list fail. It now takes no part in choosing the release, as a finding with no fixed version does.
+
+- **`draugr init <dir>` writes `draugr.saga.yaml` into `<dir>`.** It wrote the file into the working directory, so the suggested scan read the working directory. The `Next:` commands now `cd <dir>` first, and a `<dir>` that does not exist is refused.
+
+- **govulncheck analyzes Go workspaces that commit no `go.work.sum`.** A repository committing `go.work` without `go.work.sum` no longer fails with `permission denied`, and nothing is written into the checkout. A module not listed in `go.work` is analyzed as a standalone module.
+
+- **`report.json` lists every scanner a scan ran, including one whose jobs failed.** Each entry in `scanners` carries the scanner's version, and a `failed` list names the control, component and target of each failure, with the scanner's error.
+
 ## [0.165.2] - 2026-11-02
 
 ### Fixed
@@ -6725,7 +6741,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.165.2...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.165.3...HEAD
+[0.165.3]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.3
 [0.165.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.2
 [0.165.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.1
 [0.165.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.0
