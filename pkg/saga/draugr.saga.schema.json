@@ -943,6 +943,21 @@
       "additionalProperties": false,
       "description": "Find known flaws in the libraries a repo depends on (software composition analysis).",
       "properties": {
+        "devDependencies": {
+          "anyOf": [
+            {
+              "const": "suppress",
+              "description": "Each finding in a development dependency stays in the report, suppressed with the reason development dependency, and out of the counts and the gate. The default."
+            },
+            {
+              "const": "report",
+              "description": "Each finding in a development dependency is counted, marked dev."
+            }
+          ],
+          "default": "suppress",
+          "description": "Whether findings in development dependencies count. A component's setting replaces the project's.",
+          "type": "string"
+        },
         "enabled": {
           "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
           "type": "boolean"
@@ -1043,7 +1058,8 @@
             },
             "includeDevDeps": {
               "default": false,
-              "description": "Report development dependencies too. Trivy leaves them out by default. Applies to npm, Yarn and Gradle.",
+              "deprecated": true,
+              "description": "Deprecated: write config.controls.sca.devDependencies instead. true is read as devDependencies: report. Trivy reads development dependencies on every run.",
               "type": "boolean"
             },
             "pkgTypes": {

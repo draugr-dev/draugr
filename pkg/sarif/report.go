@@ -344,6 +344,10 @@ type Package struct {
 	// "npm", "gem". A name alone is ambiguous. There is a `request` on npm and a `requests` on PyPI,
 	// and neither is the other.
 	Ecosystem string `json:"ecosystem,omitempty"`
+	// Dev says the manifest declares the package as a development dependency only: a test runner, a
+	// build tool, a linter. False where the scanner reported it as a runtime dependency, and where
+	// the scanner cannot tell the two apart, so false is not a claim that it ships.
+	Dev bool `json:"dev,omitempty"`
 }
 
 // Escalation records that exploitability data raised a finding's severity, and on what grounds.
@@ -637,10 +641,27 @@ const (
 	// SARIF calls this kind `external`, which is also what Draugr writes for its own; ours are told
 	// apart by the record they carry, never by the kind.
 	OriginScanner = "scanner"
+	// OriginSetting is a class of findings a control's setting sets aside, such as
+	// config.controls.sca.devDependencies setting aside the findings in development dependencies.
+	//
+	// Apart from OriginSaga because nobody judged the finding: the setting names a kind of
+	// finding, and Source names the setting rather than a file. It still lives in the descriptor or
+	// is the setting's default, so it is answerable here, and a reader changes it by editing the key.
+	OriginSetting = "setting"
 )
+
+// JustificationDevDependency is the reason recorded on a finding that
+// config.controls.sca.devDependencies set aside.
+const JustificationDevDependency = "development dependency"
 
 // Suppressed reports whether this finding was excluded, by a Saga rule or by an imported claim.
 func (r Result) Suppressed() bool { return r.Suppression != nil }
+
+// SetAsideBySetting reports whether a control's setting set this finding aside rather than a rule
+// naming it: OriginSetting.
+func (r Result) SetAsideBySetting() bool {
+	return r.Suppression != nil && r.Suppression.Origin == OriginSetting
+}
 
 // SilencedInSource reports whether a suppression came from a directive in the code rather than
 // from a decision anybody recorded.

@@ -1,6 +1,6 @@
-# trivyFs.includeDevDeps reports minimist, a devDependency. Without it Trivy leaves development
-# dependencies out and the scan reports nothing.
-proves: [trivy-fs.includeDevDeps]
+# sca.devDependencies: report counts minimist, a devDependency. Trivy reads development dependencies
+# on every run, and under the default the finding stays in the report suppressed.
+proves: [sca.devDependencies]
 
 init:
   controls: [sca, secrets, sast, iac]
@@ -15,6 +15,6 @@ findings:
     location: package-lock.json:15
     package: npm minimist 1.2.5
 
-# init leaves includeDevDeps at its default, so its descriptor does not report the devDependency.
+# init leaves devDependencies at its default, so its descriptor reports the devDependency suppressed.
 initScan:
-  unreported: [CVE-2021-44906]
+  setAside: [CVE-2021-44906]

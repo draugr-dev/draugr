@@ -278,6 +278,9 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	cacheOptionsFrom(&opts, cfg.Cache)
 	outputOptionsFrom(&opts, cfg.Output)
 	scanSettingsFrom(&opts, cfg.Scan)
+	// After the defaults are merged, so a deprecated setting the configuration file supplied is named
+	// as well as one the descriptor wrote.
+	writeControlWarnings(os.Stderr, reg, model)
 
 	// Validated before anything runs, and against this descriptor. A misspelled name matches
 	// nothing, scans nothing, and passes. The "we did not look" verdict the scope is otherwise

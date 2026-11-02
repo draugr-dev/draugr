@@ -264,6 +264,10 @@ type findingReport struct {
 	// location the checkout lacks as a finding already fixed, when a credential in history is still
 	// readable by anyone who can clone.
 	Historical bool `json:"historical,omitempty"`
+	// Dev says the finding's package is a development dependency, as a scanner that tells the two
+	// apart reported it. Absent on a runtime dependency and wherever no scanner said, so absence is
+	// not a claim the package ships.
+	Dev bool `json:"dev,omitempty"`
 	// Suppressed says a config.exclude rule set this finding aside, with the reason somebody gave.
 	//
 	// Kept in the list rather than filtered out of it, which is what "suppress, don't delete"
@@ -277,8 +281,9 @@ type findingReport struct {
 type suppressionNote struct {
 	Justification string `json:"justification,omitempty"`
 	// Origin says whose decision this was: empty or "saga" for this project's own rule, "vex" for a
-	// supplier's claim it accepted, "tool" for a directive written beside the line, and "scanner"
-	// for an entry in the scanner's own ignore file (sarif.OriginSaga and the rest).
+	// supplier's claim it accepted, "tool" for a directive written beside the line, "scanner" for
+	// an entry in the scanner's own ignore file, and "setting" for a control's setting such as
+	// config.controls.sca.devDependencies, which Source then names (sarif.OriginSaga and the rest).
 	Origin string `json:"origin,omitempty"`
 	// Author, Asserted, Source, StatementID and Digest say where an imported claim came from: who
 	// asserted it and when, the document, the statement within it, and the sha256 of the document as
@@ -1102,6 +1107,7 @@ func toFinding(control string, res sarif.Result) findingReport {
 		Reachability: res.Reachability,
 		Rating:       res.Rating,
 		Historical:   res.Historical,
+		Dev:          res.Package != nil && res.Package.Dev,
 	}
 }
 

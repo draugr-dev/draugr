@@ -12,6 +12,10 @@ import (
 // on the default ruleset, which is what a descriptor naming no ruleset asks for.
 const SemgrepDefaultRefusal = "cannot run offline: config.controls.sast.semgrep.config is unset"
 
+// settingOrigin is the origin a suppression carries when a control's setting set the finding aside,
+// sarif.OriginSetting.
+const settingOrigin = "setting"
+
 // InitScanExpectation is where a scan with the descriptor `draugr init` wrote departs from the
 // scenario's findings and errors. Every scenario is scanned both ways, so a finding that depends
 // on a descriptor option init does not write has to be named here, and a default that stops
@@ -23,6 +27,11 @@ type InitScanExpectation struct {
 	// Unreported are rules from findings that init's descriptor does not report, because they
 	// need an option the hand-written descriptor sets and init leaves at its default.
 	Unreported []string `yaml:"unreported"`
+	// SetAside are rules from findings that init's descriptor reports suppressed by a setting's
+	// default, origin `setting`, where the hand-written descriptor sets that setting to count them:
+	// a development dependency under config.controls.sca.devDependencies, which init leaves at
+	// suppress.
+	SetAside []string `yaml:"setAside"`
 	// Errors replace the scenario's errors for this scan, where init enables a different set of
 	// controls from the ones the scenario's failure reaches. Unset keeps the scenario's; empty
 	// means every control runs. Semgrep's offline refusal is added to either, where
@@ -40,8 +49,8 @@ func (e Expected) InitRefusesSemgrep() bool {
 
 // ForInitScan is e as a scan with init's descriptor must match it.
 func (e Expected) ForInitScan() (Expected, error) {
-	if e.InitScan.Skip != "" && (e.InitScan.Unreported != nil || e.InitScan.Errors != nil) {
-		return Expected{}, fmt.Errorf("initScan.skip is set, so its unreported and errors would never be checked")
+	if e.InitScan.Skip != "" && (e.InitScan.Unreported != nil || e.InitScan.SetAside != nil || e.InitScan.Errors != nil) {
+		return Expected{}, fmt.Errorf("initScan.skip is set, so its unreported, setAside and errors would never be checked")
 	}
 	refused := e.InitRefusesSemgrep()
 	out := e
@@ -55,11 +64,15 @@ func (e Expected) ForInitScan() (Expected, error) {
 		if refused && f.Tool == "semgrep" {
 			continue
 		}
+		if slices.Contains(e.InitScan.SetAside, f.Rule) {
+			matched[f.Rule] = true
+			f.Suppressed = settingOrigin
+		}
 		out.Findings = append(out.Findings, f)
 	}
-	for _, rule := range e.InitScan.Unreported {
+	for _, rule := range slices.Concat(e.InitScan.Unreported, e.InitScan.SetAside) {
 		if !matched[rule] {
-			return Expected{}, fmt.Errorf("initScan.unreported names %s, which no finding in expected.yaml reports", rule)
+			return Expected{}, fmt.Errorf("initScan names %s, which no finding in expected.yaml reports", rule)
 		}
 	}
 	if e.InitScan.Errors != nil {

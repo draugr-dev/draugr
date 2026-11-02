@@ -1330,6 +1330,67 @@ func silencedLine(d Data) string {
 	return fmt.Sprintf("scanner exclusions: %s suppressed", english.Count(n, "finding"))
 }
 
+// settingRow is what one setting set aside: the key that decided, the reason each finding carries,
+// and how many.
+type settingRow struct {
+	key, reason string
+	n           int
+}
+
+// said is the row's statement, in the words the other rows use.
+func (r settingRow) said() string {
+	return fmt.Sprintf("%s suppressed · %s", english.Count(r.n, "finding"), r.reason)
+}
+
+// where is the row's key with the value it holds, `config.controls.sca.devDependencies: suppress`,
+// which is what a reader reads to see why these were set aside and edits to count them again.
+func (r settingRow) where() string {
+	return r.key + ": " + settingValue(r.key)
+}
+
+// settingValue is the value a setting holds when it sets findings aside. A setting that counts them
+// sets nothing aside, so the row only ever states the one value: suppress, or false for the
+// deprecated includeDevDeps it is read from.
+func settingValue(key string) string {
+	if strings.HasSuffix(key, ".includeDevDeps") {
+		return "false"
+	}
+	return "suppress"
+}
+
+// settingRows counts the findings a control's setting set aside, one row per key and reason, most
+// first, then by key so a report is reproducible.
+//
+// A row per key because the key is what a reader edits, and a component that set its own is a
+// different line from the project's. Every scanner's copy is counted, as config.exclude's row
+// counts them.
+func settingRows(d Data) []settingRow {
+	type at struct{ key, reason string }
+	counts := map[at]int{}
+	for _, cr := range d.Run.Controls {
+		for _, res := range cr.Report.Results {
+			if !res.SetAsideBySetting() {
+				continue
+			}
+			counts[at{res.Suppression.Source, res.Suppression.Justification}]++
+		}
+	}
+	out := make([]settingRow, 0, len(counts))
+	for k, n := range counts {
+		out = append(out, settingRow{key: k.key, reason: k.reason, n: n})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].n != out[j].n {
+			return out[i].n > out[j].n
+		}
+		if out[i].key != out[j].key {
+			return out[i].key < out[j].key
+		}
+		return out[i].reason < out[j].reason
+	})
+	return out
+}
+
 // alsoFoundBy is what the other scanners said about this same flaw.
 func alsoFoundBy(res sarif.Result) []sarif.Observation {
 	if res.Correlation == nil {
@@ -1539,7 +1600,9 @@ func suppressionSources(d Data) []sourceCount {
 			// The scanner's own carry a file too, and it is the scanner's file rather than a
 			// fragment of this descriptor. Counted here it read as a `config.exclude` rule, which
 			// says this project signed something it never saw.
-			if res.Imported() || res.SetAsideByScanner() {
+			//
+			// A setting's Source is the key that decided, not a file, and settingRows counts it.
+			if res.Imported() || res.SetAsideByScanner() || res.SetAsideBySetting() {
 				continue
 			}
 			counts[res.Suppression.Source]++
@@ -1738,6 +1801,9 @@ func acceptedVia(res sarif.Result) string {
 		return "source directive"
 	case res.SetAsideByScanner():
 		return "scanner config"
+	case res.SetAsideBySetting():
+		// The key, because it is what a reader changes to count these again.
+		return res.Suppression.Source
 	default:
 		return "config.exclude"
 	}
@@ -1765,7 +1831,8 @@ func decisions(d Data) []decision {
 	var order []*decision
 	for _, cr := range d.Run.Controls {
 		for _, res := range cr.Report.Results {
-			if !res.Suppressed() || res.Imported() || res.SetAsideByScanner() {
+			// Nor a setting, which names a kind of finding and has no line anybody wrote about this one.
+			if !res.Suppressed() || res.Imported() || res.SetAsideByScanner() || res.SetAsideBySetting() {
 				continue
 			}
 			sup := res.Suppression

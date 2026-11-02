@@ -14,6 +14,24 @@ Plans one scan per repository declared on a component (each is checked out and s
 dependency vulnerabilities), then aggregates + deduplicates findings into a per-control
 result with a severity summary.
 
+## Development dependencies
+
+`devDependencies` decides whether a finding in a development dependency counts. `suppress`, the
+default, keeps each in the report suppressed with the reason `development dependency`; `report`
+counts each, with `dev` beside its package. A component's setting replaces the project's.
+
+```yaml
+config:
+  controls:
+    sca:
+      devDependencies: report
+```
+
+`trivyFs.includeDevDeps` is the deprecated spelling: `true` is read as `devDependencies: report`
+and `false` as `suppress`, with a warning naming the key to write.
+[Development dependencies](../../docs/reference/saga-schema.md#development-dependencies) in the Saga
+reference says which scanner marks a development dependency and how the others take the mark.
+
 ## Unread
 
 A dependency file is **unread** when no scanner serving the control took packages from it. The

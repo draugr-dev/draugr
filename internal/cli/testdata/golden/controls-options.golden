@@ -154,7 +154,7 @@ What each scanner accepts in its Saga block:
     dbRepository       array    OCI repositories to pull the vulnerability database from, in priority order. Point it at an internal mirror where the runner cannot reach a public registry.
     detectionPriority  string   How Trivy decides which version of a dependency is installed. One of: precise, comprehensive.
     filePatterns       array    More files for an analyzer to read, each analyzer:regex, e.g. ["pip:requirements-.*\\.txt"]. Trivy's pip analyzer reads only requirements.txt.
-    includeDevDeps     boolean  Report development dependencies too. Trivy leaves them out by default. Applies to npm, Yarn and Gradle.
+    includeDevDeps     boolean  Deprecated: write config.controls.sca.devDependencies instead. true is read as devDependencies: report. Trivy reads development dependencies on every run.
     pkgTypes           array    Which package types to analyze. Defaults to both. Narrow it to ["library"] when the OS layer is somebody else's responsibility, a base image maintained by a platform team, so the report covers what this component controls. One of: os, library.
 
   trivy-license

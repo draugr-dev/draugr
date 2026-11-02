@@ -5,8 +5,7 @@ config:
   controls:
     sca:
       enabled: true
-      trivyFs:
-        includeDevDeps: true
+      devDependencies: report
 components:
   - name: js-npm-dev
     repositories:

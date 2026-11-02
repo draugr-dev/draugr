@@ -605,6 +605,10 @@ type Result struct {
 	// auditor's question differently: one says we accepted this, the other says our supplier states
 	// it does not apply, and a single total can only report the weaker of the two.
 	Imported int
+	// DevDependencies counts findings in development dependencies that a component's
+	// config.controls.sca.devDependencies set aside. Apart from Suppressed because nobody judged
+	// these findings: the setting names a kind of finding, and each carries OriginSetting.
+	DevDependencies int
 	// VEX is the supplier documents this run read, with what each contributed. Present even when
 	// a document excused nothing, which is the case worth seeing: a document matching no finding
 	// looks exactly like one that was never configured.
@@ -1612,6 +1616,10 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// an excused finding still carries the evidence about whether anything could reach it.
 	res.Reachability = e.applyReachability(res.Controls, model)
 
+	// Every scanner's copy of a package in a file takes the development mark one of them carries,
+	// before anything decides what to set aside, so the decision reads the same mark on each copy.
+	markDevCopies(res.Controls)
+
 	// Exclusions apply after aggregation, to what every consumer will see. Doing it here rather than
 	// per scanner means one syntax covers every tool, including ones added later. And it is what
 	// makes suppress-rather-than-delete possible at all: a finding a scanner never produced cannot be
@@ -1629,6 +1637,8 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// reason this project gave. A supplier's claim is additional evidence, not an override: where
 	// both have something to say, the local decision is the one whose author can be asked about it.
 	res.Imported, res.VEX, res.UnmatchedClaims = applyVEX(res.Controls, e.vex, covered)
+	// After both, so a finding somebody decided about keeps their reason rather than the setting's.
+	res.DevDependencies = e.applyDevDependencies(res.Controls, model)
 	// Last, so exclusions and supplier claims match exactly what they matched before a second
 	// scanner was added, and a decision about a flaw reaches every scanner's copy of it.
 	correlated, alsoSuppressed := applyCorrelation(res.Controls)
@@ -2862,9 +2872,19 @@ func correlationPURL(purl string) string {
 // undecorated one is what a reader can look up, what an exclusion is most likely already written
 // against, and what another tool will call it. Tool name is the last resort, so the same run twice
 // produces the same report.
+//
+// Before all of that, a copy over one a setting set aside. A setting sets a copy aside for what it
+// is in its own file and does not reach the others (see suppressionIn), so where one copy is a
+// development dependency and another is not, the flaw is counted under the one that ships.
 func strongestOf(results []sarif.Result, idxs []int) int {
 	best := idxs[0]
 	for _, i := range idxs[1:] {
+		if a, b := results[i].SetAsideBySetting(), results[best].SetAsideBySetting(); a != b {
+			if !a {
+				best = i
+			}
+			continue
+		}
 		if strongerFinding(results[i], results[best]) {
 			best = i
 		}
@@ -2893,9 +2913,13 @@ func strongerFinding(a, b sarif.Result) bool {
 }
 
 // suppressionIn returns the decision already made about this flaw, or nil when none was.
+//
+// A setting's is not one. It sets a copy aside for what that copy is, a development dependency in
+// its own file, and the same package can be a runtime dependency in another file the group holds.
+// Spread to that copy it would take a shipped flaw out of the count.
 func suppressionIn(results []sarif.Result, idxs []int) *sarif.Suppression {
 	for _, i := range idxs {
-		if results[i].Suppression != nil {
+		if results[i].Suppression != nil && !results[i].SetAsideBySetting() {
 			return results[i].Suppression
 		}
 	}

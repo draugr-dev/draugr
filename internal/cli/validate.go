@@ -239,7 +239,31 @@ func loadAndWarn(path string) ([]string, error) {
 		return nil, nil
 	}
 	warnings := append(res.Model.ExcludeWarnings(filepath.Dir(path)), res.Model.ClusterWarnings()...)
-	return append(warnings, res.Model.AccountWarnings()...), nil
+	warnings = append(warnings, res.Model.AccountWarnings()...)
+	return append(warnings, controlWarnings(builtins.Registry(), res.Model)...), nil
+}
+
+// controlWarnings collects what each control says about a valid descriptor that still works and
+// should be written differently: a deprecated setting, and the key that replaces it.
+func controlWarnings(reg *engine.Registry, model *saga.Model) []string {
+	if model == nil {
+		return nil
+	}
+	var out []string
+	for _, c := range reg.Controllers() {
+		if w, ok := c.(plugin.Warner); ok {
+			out = append(out, w.Warnings(*model)...)
+		}
+	}
+	return out
+}
+
+// writeControlWarnings writes them to w a line each, before a scan, where w is stderr so a machine
+// format on stdout stays one document.
+func writeControlWarnings(w io.Writer, reg *engine.Registry, model *saga.Model) {
+	for _, warning := range controlWarnings(reg, model) {
+		_, _ = fmt.Fprintln(w, warning)
+	}
 }
 
 // explanations collects what each control has to say about a descriptor that has already

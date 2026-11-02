@@ -606,6 +606,17 @@ func packageFix(f finding, installed bool) (name, fixed string) {
 	return name, fixed
 }
 
+// devLabel and devLabelFull mark a package the manifest declares as a development dependency,
+// wherever a finding names its package: the short form in the compact Fix cell, the full one on a
+// block's facts line.
+const (
+	devLabel     = "dev"
+	devLabelFull = "dev dependency"
+)
+
+// isDev reports whether the finding's package is a development dependency.
+func isDev(f finding) bool { return f.pkg != nil && f.pkg.Dev }
+
 // compactFix is the Fix cell of the compact listing: the package and the release to move to, the
 // package and why there is none, or the phrase for a finding that is not about a package.
 //
@@ -615,6 +626,9 @@ func packageFix(f finding, installed bool) (name, fixed string) {
 // so a long name costs the summary rather than the fix.
 func compactFix(f finding) string {
 	name, fixed := packageFix(f, false)
+	if name != "" && isDev(f) {
+		name = devLabel + " " + name
+	}
 	switch {
 	case fixed != "":
 		return name + " → " + fixed
@@ -1969,6 +1983,12 @@ func writeAccepted(w io.Writer, col tui.Painter, d Data, full bool) {
 	// project is the case where seeing it matters most.
 	if line := importedLine(d, full); line != "" {
 		rows = append(rows, acceptedRow{where: "VEX", said: []string{strings.TrimPrefix(line, "VEX: ")}})
+	}
+
+	// A setting that sets a kind of finding aside, named by its key, which is what a reader changes
+	// to count them again.
+	for _, r := range settingRows(d) {
+		rows = append(rows, acceptedRow{where: r.where(), said: []string{r.said()}})
 	}
 
 	// A comment in the code. Without this a `nosem` is the one form of acceptance that leaves no
