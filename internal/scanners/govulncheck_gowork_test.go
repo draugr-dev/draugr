@@ -178,7 +178,7 @@ func TestGoWorkEnvCopiesTheWorkspaceWithAbsolutePaths(t *testing.T) {
 		t.Fatalf("env = %q", env)
 	}
 	copied := strings.TrimPrefix(env[0], "GOWORK=")
-	raw, err := os.ReadFile(copied)
+	raw, err := os.ReadFile(copied) // #nosec G304 -- the copy the code under test wrote
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +197,8 @@ func TestGoWorkEnvCopiesTheWorkspaceWithAbsolutePaths(t *testing.T) {
 			t.Errorf("copied go.work lacks %q:\n%s", want, got)
 		}
 	}
-	if sum, err := os.ReadFile(copied + ".sum"); err != nil || string(sum) != "example.com/dep v1.0.0/go.mod h1:AAAA=\n" {
+	sum, err := os.ReadFile(copied + ".sum") // #nosec G304 -- the copy the code under test wrote
+	if err != nil || string(sum) != "example.com/dep v1.0.0/go.mod h1:AAAA=\n" {
 		t.Errorf("go.work.sum = %q, %v, want the checkout's", sum, err)
 	}
 	cleanup()

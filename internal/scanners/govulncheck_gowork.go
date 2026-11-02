@@ -86,12 +86,12 @@ func goWorkEnv(root string, argv []string) (env []string, cleanup func(), err er
 	}
 	cleanup = func() { _ = os.RemoveAll(tmp) }
 	copied := filepath.Join(tmp, "go.work")
-	if err := os.WriteFile(copied, modfile.Format(wf.Syntax), 0o600); err != nil {
+	if err := os.WriteFile(copied, modfile.Format(wf.Syntax), 0o600); err != nil { // #nosec G703 -- a file in the directory MkdirTemp just made
 		cleanup()
 		return nil, func() {}, err
 	}
 	if sum != nil {
-		if err := os.WriteFile(copied+".sum", sum, 0o600); err != nil {
+		if err := os.WriteFile(copied+".sum", sum, 0o600); err != nil { // #nosec G703 -- a file in the directory MkdirTemp just made
 			cleanup()
 			return nil, func() {}, err
 		}
