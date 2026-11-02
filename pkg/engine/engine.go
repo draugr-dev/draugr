@@ -33,6 +33,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/cache"
 	"github.com/draugr-dev/draugr/pkg/dephealth"
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/prioritization"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/sbom"
@@ -2320,6 +2321,12 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 // once, so a flaw two scanners reported is one finding in the summary, as it is in the priority
 // bands and the fix list beside it. Each analyzer's Contributed is kept as applyReachability
 // counted it.
+//
+// A flaw is counted once, under the strongest verdict among its copies. Verdicts are per manifest
+// and correlation is not, so one flaw can be reachable from go.mod and unreachable from
+// tools/go.mod, and the summary counts that flaw reachable because something in the component
+// calls it. The counted copy's own verdict is not enough, because where the two bands tie it can be
+// the unreachable copy, and where only one module was analyzed it can carry no verdict.
 func recountReachability(controls map[string]plugin.ControlResult, s ReachabilitySummary) ReachabilitySummary {
 	if !s.Ran() {
 		return s
@@ -2330,16 +2337,30 @@ func recountReachability(controls map[string]plugin.ControlResult, s Reachabilit
 	}
 	var out ReachabilitySummary
 	for _, cr := range controls {
+		// Grouped as applyCorrelation grouped them, per control and by correlationKeyOf.
+		strongest := map[correlationKey]*sarif.Reachability{}
 		for _, res := range cr.Report.Results {
-			if res.Reachability == nil || res.Correlated() {
+			if key, ok := correlationKeyOf(res); ok && res.Reachability != nil {
+				strongest[key] = strongerReachability(strongest[key], res.Reachability)
+			}
+		}
+		for _, res := range cr.Report.Results {
+			if res.Correlated() {
 				continue
 			}
-			a, ok := analyzers[res.Reachability.Analyzer]
+			verdict := res.Reachability
+			if key, ok := correlationKeyOf(res); ok {
+				verdict = strongest[key]
+			}
+			if verdict == nil {
+				continue
+			}
+			a, ok := analyzers[verdict.Analyzer]
 			if !ok {
-				a = &AnalyzerReachability{Analyzer: res.Reachability.Analyzer}
+				a = &AnalyzerReachability{Analyzer: verdict.Analyzer}
 				analyzers[a.Analyzer] = a
 			}
-			switch res.Reachability.State {
+			switch verdict.State {
 			case sarif.ReachabilityReachable:
 				a.Reachable++
 				out.Reachable++
@@ -2599,8 +2620,16 @@ func correlationPURL(purl string) string {
 
 // strongestOf picks the finding a group is counted under: the one claiming most exposure.
 //
-// Severity first, because that is the number a reader acts on, and reporting the lower of two
-// disagreeing opinions would be the report arguing itself down.
+// The band first, because the bands, the fix list and the gate read the counted finding's, and a
+// band already holds every enrichment's judgment of its copy, exploitation raising it and an
+// unreachable verdict lowering it. One group can span Go modules, one calling the vulnerable
+// function and another only requiring it, and counting the second module's lowered copy would rank
+// the flaw below the module that reaches it. Every enrichment that moves a band runs before
+// correlation, so the band compared here is the one the report shows.
+//
+// Severity next, because that is the number a reader acts on, and reporting the lower of two
+// disagreeing opinions would be the report arguing itself down. Without prioritization every band
+// is empty and severity decides.
 //
 // Ties break toward the finding reported under the **canonical identifier**, the one whose rule id
 // is the advisory and nothing else. Scanners decorate: Grype reports CVE-2018-1000656-flask
@@ -2620,6 +2649,9 @@ func strongestOf(results []sarif.Result, idxs []int) int {
 
 // strongerFinding reports whether a should be counted in preference to b.
 func strongerFinding(a, b sarif.Result) bool {
+	if pa, pb := prioritization.Priority(a.Priority).Rank(), prioritization.Priority(b.Priority).Rank(); pa != pb {
+		return pa > pb
+	}
 	if ra, rb := a.Severity("").Rank(), b.Severity("").Rank(); ra != rb {
 		return ra > rb
 	}
