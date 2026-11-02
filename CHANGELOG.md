@@ -16,11 +16,11 @@ _Nothing yet._
 
 ### Fixed
 
-- **A Go module govulncheck cannot load says what to do.** The caveat names the C header or pkg-config library to install and the package needing it, the build tag to set through `GOFLAGS=-tags=` where a stub declares a missing identifier, or removing govulncheck from `config.reachability.analyzers` where nothing in the checkout declares it.
+- **A Go module govulncheck cannot load names the fix.** Its `unread-files` caveat starts `govulncheck:` and names the system package that provides a missing C header or pkg-config library and the Go package needing it, the `GOFLAGS=-tags=` value where a file behind a build tag declares a missing identifier, or the identifier to generate or declare and where it is used.
 
-- **One Go module that fails to load no longer discards govulncheck's other verdicts.** The modules that loaded keep their reachability, and the failed module's `go.mod` is an `unread-files` caveat; `gate.failOnCaveats: [unread-files]` fails the run on it. A module holding only build-tagged files, such as a tools module, is skipped.
+- **A Go module that fails to load no longer hides the verdicts of the modules that loaded.** Those modules keep their reachability. The failed module's `go.mod` is reported as an `unread-files` caveat, and `gate.failOnCaveats: [unread-files]` fails the run on it. A module that holds only build-tagged files, such as a tools module, is skipped and raises no caveat.
 
-- **Standard-library advisories follow each Go module's own Go version.** With govulncheck in `config.reachability.analyzers`, each module is checked against the Go its own `go.mod` or `go.work` builds with, rather than the checkout root's.
+- **Standard-library advisories follow each Go module's own Go version.** With govulncheck in `config.reachability.analyzers`, govulncheck runs in each module's directory, so the Go version its `go.mod` or `go.work` declares decides which standard-library advisories apply, rather than the checkout root's.
 
 ## [0.165.5] - 2026-11-02
 
