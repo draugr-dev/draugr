@@ -76,10 +76,13 @@ CONTROLS
   sca  ERROR  trivy not installed
   draugr tools install trivy  installs what sca needs
 
-No findings from the controls that ran. A control marked ERROR did not report.
+No findings. A control marked ERROR checked less than it was asked to.
 
 draugr: scan incomplete: sca could not run (use --allow-scan-errors to accept partial results)
 ```
+
+When one of a control's scanners fails beside another that reported, the control is still `ERROR`
+and fails in `report.json`, and `controls[].reported` lists the scanners that reported.
 
 A missing tool that `draugr tools install` fetches is named on its control's row, and one command
 installs all of them. A tool it does not fetch keeps its full error, which ends by pointing to

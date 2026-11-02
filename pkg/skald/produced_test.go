@@ -187,6 +187,48 @@ func TestAScannerThatOnlyFailedIsListed(t *testing.T) {
 	}
 }
 
+// A control with a scan error fails whatever the scanners that ran found, and names them: sca, where
+// trivy-fs failed and grype-fs found nothing, fails as secrets, whose every scanner failed, does. A
+// clean control keeps the verdict it was judged and names no scanners, so its entry is unchanged.
+func TestAControlWithAFailedScannerFails(t *testing.T) {
+	run := engine.Result{
+		Controls: map[string]plugin.ControlResult{
+			"sca":  {Control: "sca"},
+			"sast": {Control: "sast"},
+		},
+		ScanErrors: map[string][]string{"sca": {"run trivy-fs: boom"}, "secrets": {"run gitleaks: boom"}},
+		Reported:   map[string][]string{"sca": {"grype-fs"}, "sast": {"semgrep"}},
+		FailedScans: []engine.FailedScan{
+			{Scanner: "gitleaks", Control: "secrets", Component: "api"},
+			{Scanner: "trivy-fs", Control: "sca", Component: "api"},
+		},
+	}
+	verdict := norn.Result{Verdict: norn.Fail, Controls: []norn.ControlOutcome{
+		{Control: "sast", Verdict: norn.Pass}, {Control: "sca", Verdict: norn.Pass},
+	}}
+	var b bytes.Buffer
+	if err := RenderJSON(&b, saga.Release{Version: "1"}, run, verdict, ""); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Controls []struct {
+			Name     string   `json:"name"`
+			Verdict  string   `json:"verdict"`
+			Reported []string `json:"reported"`
+		} `json:"controls"`
+	}
+	if err := json.Unmarshal(b.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := json.Marshal(doc.Controls)
+	want := `[{"name":"sast","verdict":"pass","reported":null},` +
+		`{"name":"sca","verdict":"fail","reported":["grype-fs"]},` +
+		`{"name":"secrets","verdict":"fail","reported":null}]`
+	if string(got) != want {
+		t.Errorf("controls =\n %s\nwant\n %s", got, want)
+	}
+}
+
 // A run that scanned nothing lists no scanners, rather than an empty array a consumer would read
 // as "asked and none ran".
 func TestARunWithNoScannersListsNone(t *testing.T) {

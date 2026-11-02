@@ -8,12 +8,15 @@
       "highest": "",
       "name": "sca",
       "notes": 0,
+      "reported": [
+        "trivy-fs"
+      ],
       "scanErrors": [
         "govulncheck: cannot run offline: local Go vulnerability database fetched <fetched>, older than 24h; run `draugr feeds update govulndb`"
       ],
       "threshold": "",
       "total": 0,
-      "verdict": "pass",
+      "verdict": "fail",
       "warnings": 0
     }
   ],
