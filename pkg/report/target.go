@@ -18,11 +18,16 @@ import (
 //
 // A finding may name one fix per release line, as Trivy's "2.3.2, 2.2.5" does for Flask. A release
 // clears it when it is at or past the highest of them, or at or past one of them on that one's line.
+//
+// Whether a release clears a finding depends only on the version installed and the fixes it names,
+// so each candidate is checked once against each distinct pair rather than once per finding. A large
+// repository's upgrade carries thousands of findings over a handful of versions.
 func upgradeTarget(findings []finding) string {
 	var (
-		ecosystem  string
-		candidates []string
-		mixed      bool
+		ecosystem string
+		mixed     bool
+		pairs     []fixPair
+		seen      = map[fixPair]bool{}
 	)
 	for _, f := range findings {
 		if f.pkg == nil || f.pkg.FixedVersion == "" {
@@ -33,7 +38,16 @@ func upgradeTarget(findings []finding) string {
 			mixed = true
 		}
 		ecosystem = e
-		for _, v := range fixesOf(f) {
+		if p := (fixPair{installed: f.pkg.Version, fixed: f.pkg.FixedVersion}); !seen[p] {
+			seen[p] = true
+			pairs = append(pairs, p)
+		}
+	}
+	var candidates []string
+	fixes := make([][]string, len(pairs))
+	for i, p := range pairs {
+		fixes[i] = splitFixes(p.fixed)
+		for _, v := range fixes[i] {
 			if !slices.Contains(candidates, v) {
 				candidates = append(candidates, v)
 			}
@@ -49,17 +63,15 @@ func upgradeTarget(findings []finding) string {
 		}
 		return ""
 	}
-	sorted, ok := sortVersions(ecosystem, candidates)
+	vs := newVersions(ecosystem)
+	sorted, ok := sortVersions(vs, candidates)
 	if !ok {
 		return ""
 	}
 	for _, c := range sorted {
 		all := true
-		for _, f := range findings {
-			if f.pkg == nil || f.pkg.FixedVersion == "" {
-				continue
-			}
-			cleared, known := releaseClears(ecosystem, c, f.pkg.Version, fixesOf(f))
+		for i, p := range pairs {
+			cleared, known := releaseClears(vs, c, p.installed, fixes[i])
 			if !known {
 				return ""
 			}
@@ -75,11 +87,22 @@ func upgradeTarget(findings []finding) string {
 	return ""
 }
 
+// fixPair is the version a finding's package is installed at and the fixes its advisory names, as
+// the scanner wrote them: all that decides whether a release clears the finding.
+type fixPair struct {
+	installed, fixed string
+}
+
 // fixesOf is the releases one finding names as fixing it. A scanner that writes the fix as a bound,
 // ">=1.9.0", means the release it names.
 func fixesOf(f finding) []string {
+	return splitFixes(f.pkg.FixedVersion)
+}
+
+// splitFixes is the releases a package's fixed version names, one per release line.
+func splitFixes(fixed string) []string {
 	var out []string
-	for _, v := range strings.Split(f.pkg.FixedVersion, ",") {
+	for _, v := range strings.Split(fixed, ",") {
 		v = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(v), ">="))
 		if v != "" {
 			out = append(out, v)
@@ -88,12 +111,69 @@ func fixesOf(f finding) []string {
 	return out
 }
 
+// versions orders the versions of one ecosystem, parsing each string and comparing each pair once
+// for the length of one call. Working out a target compares a handful of versions many times over,
+// and some ecosystems' comparisons, Debian's among them, allocate on every call.
+type versions struct {
+	ecosystem string
+	parsed    map[string]parsedVersion
+	orders    map[[2]string]versionOrder
+}
+
+// parsedVersion is one string as versions read it, and whether it parsed.
+type parsedVersion struct {
+	v  versionorder.Version
+	ok bool
+}
+
+// versionOrder is the order of one pair of versions, and whether it is known.
+type versionOrder struct {
+	order int
+	ok    bool
+}
+
+func newVersions(ecosystem string) *versions {
+	return &versions{ecosystem: ecosystem, parsed: map[string]parsedVersion{}, orders: map[[2]string]versionOrder{}}
+}
+
+// compare is versionorder.Compare under the ecosystem vs orders.
+func (vs *versions) compare(a, b string) (order int, ok bool) {
+	key := [2]string{a, b}
+	if o, seen := vs.orders[key]; seen {
+		return o.order, o.ok
+	}
+	order, ok = vs.compareParsed(a, b)
+	vs.orders[key] = versionOrder{order: order, ok: ok}
+	return order, ok
+}
+
+func (vs *versions) compareParsed(a, b string) (order int, ok bool) {
+	va, ok := vs.parse(a)
+	if !ok {
+		return 0, false
+	}
+	vb, ok := vs.parse(b)
+	if !ok {
+		return 0, false
+	}
+	return va.Compare(vb)
+}
+
+func (vs *versions) parse(s string) (versionorder.Version, bool) {
+	if p, seen := vs.parsed[s]; seen {
+		return p.v, p.ok
+	}
+	v, ok := versionorder.Parse(vs.ecosystem, s)
+	vs.parsed[s] = parsedVersion{v: v, ok: ok}
+	return v, ok
+}
+
 // sortVersions orders versions oldest first, or reports that two of them have no known order.
-func sortVersions(ecosystem string, versions []string) ([]string, bool) {
-	out := slices.Clone(versions)
+func sortVersions(vs *versions, list []string) ([]string, bool) {
+	out := slices.Clone(list)
 	known := true
 	slices.SortStableFunc(out, func(a, b string) int {
-		order, ok := versionorder.Compare(ecosystem, a, b)
+		order, ok := vs.compare(a, b)
 		if !ok {
 			known = false
 		}
@@ -104,10 +184,10 @@ func sortVersions(ecosystem string, versions []string) ([]string, bool) {
 
 // releaseClears reports whether moving to release c resolves a finding at installed that names fixes, and
 // whether that could be decided.
-func releaseClears(ecosystem, c, installed string, fixes []string) (cleared, known bool) {
+func releaseClears(vs *versions, c, installed string, fixes []string) (cleared, known bool) {
 	// Never a release at or below what is installed: that is a downgrade, whatever line it is on.
 	if installed != "" {
-		order, ok := versionorder.Compare(ecosystem, c, installed)
+		order, ok := vs.compare(c, installed)
 		if !ok {
 			return false, false
 		}
@@ -115,15 +195,15 @@ func releaseClears(ecosystem, c, installed string, fixes []string) (cleared, kno
 			return false, true
 		}
 	}
-	sorted, ok := sortVersions(ecosystem, fixes)
+	sorted, ok := sortVersions(vs, fixes)
 	if !ok {
 		return false, false
 	}
-	if order, _ := versionorder.Compare(ecosystem, c, sorted[len(sorted)-1]); order >= 0 {
+	if order, _ := vs.compare(c, sorted[len(sorted)-1]); order >= 0 {
 		return true, true
 	}
 	for _, fix := range sorted[:len(sorted)-1] {
-		if order, _ := versionorder.Compare(ecosystem, c, fix); order >= 0 && releaseLine(c) == releaseLine(fix) {
+		if order, _ := vs.compare(c, fix); order >= 0 && releaseLine(c) == releaseLine(fix) {
 			return true, true
 		}
 	}

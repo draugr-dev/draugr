@@ -162,23 +162,42 @@ func fitsPolicy(ecosystem, installed string, fixes []string, policy saga.Upgrade
 }
 
 // lowestWithin is the lowest release the policy allows that clears every finding given, or "".
+//
+// The findings share installed, so whether a release clears one depends only on the fixes it names,
+// and each candidate is checked once against each distinct fixed version.
 func lowestWithin(ecosystem, installed string, findings []finding, policy saga.UpgradeStep) string {
-	var candidates []string
-	for _, f := range findings {
-		for _, fix := range fixesOf(f) {
-			if step, ok := stepOf(ecosystem, installed, fix); ok && allows(policy, step) {
-				candidates = append(candidates, fix)
-			}
-		}
+	type named struct {
+		fixes, allowed []string
 	}
-	sorted, ok := sortVersions(ecosystem, candidates)
+	var (
+		candidates []string
+		distinct   []named
+		byFixed    = map[string]int{}
+	)
+	for _, f := range findings {
+		i, seen := byFixed[f.pkg.FixedVersion]
+		if !seen {
+			n := named{fixes: fixesOf(f)}
+			for _, fix := range n.fixes {
+				if step, ok := stepOf(ecosystem, installed, fix); ok && allows(policy, step) {
+					n.allowed = append(n.allowed, fix)
+				}
+			}
+			i = len(distinct)
+			byFixed[f.pkg.FixedVersion] = i
+			distinct = append(distinct, n)
+		}
+		candidates = append(candidates, distinct[i].allowed...)
+	}
+	vs := newVersions(ecosystem)
+	sorted, ok := sortVersions(vs, candidates)
 	if !ok {
 		return ""
 	}
 	for _, c := range sorted {
 		all := true
-		for _, f := range findings {
-			cleared, known := releaseClears(ecosystem, c, installed, fixesOf(f))
+		for _, n := range distinct {
+			cleared, known := releaseClears(vs, c, installed, n.fixes)
 			if !known || !cleared {
 				all = false
 				break
