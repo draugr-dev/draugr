@@ -157,6 +157,87 @@ func TestUnreadNamesTheRepositoryWhereTheComponentScansTwo(t *testing.T) {
 	}
 }
 
+// A file one scanner of a control read and another did not names the scanner that missed it, beside
+// a control none of whose scanners read it. Two components over two repositories: the shared
+// repository's file is named under both, with its repository where the component scans two.
+func TestUnreadNamesTheScannerThatMissedAFileAnotherRead(t *testing.T) {
+	const (
+		gradle   = "https://github.com/acme/gradle"
+		bun      = "https://github.com/acme/bun"
+		notReadT = `not parsed: JSON decode error: json: cannot unmarshal JSON string into Go map[string]interface {} within "/packages/left-pad"`
+	)
+	buildscript := engine.UnreadInput{Repository: gradle, Path: "buildscript-gradle.lockfile",
+		Scanners: []string{"grype-fs"}, Reason: "no packages read"}
+	inputs := []engine.InputCoverage{
+		{Component: "android", Control: "sca", Scanners: []string{"grype-fs", "trivy-fs"}, Read: 2,
+			Unread: []engine.UnreadInput{buildscript}},
+		{Component: "web", Control: "licenses", Scanners: []string{"trivy-license"}, Read: 1,
+			Unread: []engine.UnreadInput{{Repository: bun, Path: "app/bun.lock", Reason: notReadT}}},
+		{Component: "web", Control: "sca", Scanners: []string{"grype-fs", "trivy-fs"}, Read: 3,
+			Unread: []engine.UnreadInput{
+				{Repository: bun, Path: "app/bun.lock", Scanners: []string{"trivy-fs"}, Reason: notReadT},
+				buildscript,
+			}},
+	}
+	d := goldenGroupedData()
+	d.Run.Inputs = inputs
+	d.Run.Targets = append(repositoryTargets("android", gradle), repositoryTargets("web", gradle, bun)...)
+	d.TopN = -1
+	out := renderWith(t, consoleReporter{}, d)
+	// The parser's error is cut to the column, and the controls and scanner after it are kept.
+	for _, want := range []string{
+		"android    buildscript-gradle.lockfile              unread-files  no packages read (sca: grype-fs)",
+		"web        acme/bun:app/bun.lock                    unread-files  not parsed: JSON decode error: json: cannot unmarshal… (licenses, sca: trivy-fs)",
+		"web        acme/gradle:buildscript-gradle.lockfile  unread-files  no packages read (sca: grype-fs)",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("console is missing %q:\n%s", want, out)
+		}
+	}
+	md := renderWith(t, markdownReporter{}, d)
+	for _, want := range []string{
+		"- `unread-files` · `buildscript-gradle.lockfile` · no packages read (sca: grype-fs)",
+		"- `unread-files` · `acme/bun:app/bun.lock` · " + notReadT + " (licenses, sca: trivy-fs)",
+	} {
+		if !strings.Contains(md, want) {
+			t.Errorf("markdown is missing %q:\n%s", want, md)
+		}
+	}
+}
+
+// A reason that fits is printed whole, and a caveat that names no control is cut at the column.
+func TestCaveatWhyKeepsWhatItClosesWith(t *testing.T) {
+	long := strings.Repeat("x", 100)
+	for _, c := range []struct {
+		c    caveat
+		want string
+	}{
+		{caveat{detail: "no lockfile (sca)", by: "sca"}, "no lockfile (sca)"},
+		{caveat{detail: long + " (sca: trivy-fs)", by: "sca: trivy-fs"}, strings.Repeat("x", 23) + "… (sca: trivy-fs)"},
+		{caveat{detail: long}, strings.Repeat("x", 39) + "…"},
+		{caveat{detail: long + " (" + long + ")", by: long}, strings.Repeat("x", 39) + "…"},
+	} {
+		if got := c.c.why(40); got != c.want {
+			t.Errorf("why(%q) = %q, want %q", c.c.detail, got, c.want)
+		}
+	}
+}
+
+func TestMissedByNamesEveryScannerThatMissed(t *testing.T) {
+	for _, c := range []struct {
+		scanners []string
+		want     string
+	}{
+		{nil, "sca"},
+		{[]string{"grype-fs"}, "sca: grype-fs"},
+		{[]string{"grype-fs", "osv"}, "sca: grype-fs and osv"},
+	} {
+		if got := missedBy("sca", c.scanners); got != c.want {
+			t.Errorf("missedBy(%v) = %q, want %q", c.scanners, got, c.want)
+		}
+	}
+}
+
 // A target another component declared does not make this one's repositories several.
 func TestRepositoriesAreCountedPerComponent(t *testing.T) {
 	targets := append(repositoryTargets("api", "https://github.com/acme/api"),

@@ -747,15 +747,15 @@ type ScanOutput struct {
 	SummarizeOutput
 }
 
-// UnreadFile is a dependency file no scanner serving a control took packages from, a file calling
+// UnreadFile is a dependency file a scanner serving a control took no packages from, a file calling
 // a Terraform module no scanner loaded, a file the secrets scan skipped, or a source file Semgrep
 // skipped or did not finish.
 type UnreadFile struct {
 	Component  string   `json:"component"`
 	Repository string   `json:"repository,omitempty"`
 	Path       string   `json:"path"`
-	Reason     string   `json:"reason" jsonschema:"no lockfile, no pinned versions, no packages read, modules not loaded, name has an archive extension, no files read, 'over 1 MB, not scanned', or a count of rules that timed out with their ids"`
-	Controls   []string `json:"controls" jsonschema:"the controls whose scanners did not read it"`
+	Reason     string   `json:"reason" jsonschema:"no lockfile, no pinned versions, no packages read, 'not parsed:' and the parser's error, modules not loaded, name has an archive extension, no files read, 'over 1 MB, not scanned', or a count of rules that timed out with their ids"`
+	Controls   []string `json:"controls" jsonschema:"the controls whose scanners did not read it: the control alone where none of its scanners read it, or the control and the scanners that missed it where another read it, as 'sca: grype-fs'"`
 }
 
 // unreadFiles lists each unread file once per component, with every control that missed it.
@@ -771,7 +771,11 @@ func unreadFiles(inputs []engine.InputCoverage) []UnreadFile {
 				index[k] = i
 				out = append(out, UnreadFile{Component: c.Component, Repository: u.Repository, Path: u.Path, Reason: u.Reason})
 			}
-			out[i].Controls = append(out[i].Controls, c.Control)
+			control := c.Control
+			if len(u.Scanners) > 0 {
+				control += ": " + strings.Join(u.Scanners, " and ")
+			}
+			out[i].Controls = append(out[i].Controls, control)
 		}
 	}
 	return out

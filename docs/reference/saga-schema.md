@@ -1320,7 +1320,7 @@ in what the run covered, listed under **Caveats** in the report:
 |---|---|
 | `not-checked` | a part of the component the run did not examine: a surface it declares that no enabled control looks at, or, on a scan with no descriptor, a file whose scanner could not run on this machine |
 | `not-measured` | a scanner that cannot honor a component's scope, so it did not run for that component |
-| `unread-files` | a file whose contents no scanner read in full, in a repository that was read: a dependency file, a Terraform file calling a module that was not loaded or not evaluated, a file the secrets scan skipped, or a source file Semgrep skipped or did not finish |
+| `unread-files` | a file whose contents a scanner did not read in full, in a repository that was read: a dependency file, a Terraform file calling a module that was not loaded or not evaluated, a file the secrets scan skipped, or a source file Semgrep skipped or did not finish |
 | `unread-checks` | a cloud check the scan could not evaluate, because a read it needs was denied |
 | `unbound-imports` | an imported SARIF file that names no commit, so nothing ties its findings to the code being scanned |
 

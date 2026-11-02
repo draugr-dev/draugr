@@ -138,6 +138,9 @@ type caveat struct {
 	// key is the kind as gate.failOnCaveats names it, and the word the Caveat column prints, so a
 	// reader who wants a kind to fail the run copies it from the row into the setting.
 	key saga.CaveatKind
+	// by is what detail closes with in parentheses: the controls, and the scanners, whose reason it
+	// is. Empty for a caveat that names none.
+	by string
 }
 
 // caveats gathers what was declared and not checked, the files whose scanner could not run, what
@@ -145,35 +148,47 @@ type caveat struct {
 func caveats(d Data) []caveat {
 	var out []caveat
 	for _, g := range d.Uncovered {
-		out = append(out, caveat{g.Component, g.Surface, strings.Join(g.Controls, ", ") + " off",
-			saga.CaveatNotChecked})
+		out = append(out, caveat{component: g.Component, what: g.Surface,
+			detail: strings.Join(g.Controls, ", ") + " off", key: saga.CaveatNotChecked})
 	}
 	for _, u := range d.Unexamined {
-		out = append(out, caveat{u.Component, u.Files, u.Why, saga.CaveatNotChecked})
+		out = append(out, caveat{component: u.Component, what: u.Files, detail: u.Why, key: saga.CaveatNotChecked})
 	}
 	for _, sk := range d.Run.Skipped {
-		out = append(out, caveat{sk.Component, sk.Scanner, sk.Reason, saga.CaveatNotMeasured})
+		out = append(out, caveat{component: sk.Component, what: sk.Scanner, detail: sk.Reason, key: saga.CaveatNotMeasured})
 	}
 	// A service's checks the scan could not evaluate, one row per service, because one granted
 	// permission clears all of them. The control is not named: the service says which one it is.
 	for _, g := range d.Run.UnreadChecks {
-		out = append(out, caveat{g.Component, g.Group,
-			english.Count(len(g.Checks), "check") + " · " + g.Reason, saga.CaveatUnreadChecks})
+		out = append(out, caveat{component: g.Component, what: g.Group,
+			detail: english.Count(len(g.Checks), "check") + " · " + g.Reason, key: saga.CaveatUnreadChecks})
 	}
 	// An imported file that names no revision: read, but nothing shows it describes the code this
 	// run scanned.
 	for _, u := range unboundImports(d) {
-		out = append(out, caveat{u.component, u.file, "names no commit, so nothing ties its findings to this code",
-			saga.CaveatUnboundImports})
+		out = append(out, caveat{component: u.component, what: u.file,
+			detail: "names no commit, so nothing ties its findings to this code", key: saga.CaveatUnboundImports})
 	}
 	for _, g := range unreadByComponent(d.Run.Inputs, d.Run.Targets) {
 		for _, f := range g.files {
-			out = append(out, caveat{g.component, f.label,
-				fmt.Sprintf("%s (%s)", f.reason, strings.Join(f.controls, ", ")), saga.CaveatUnreadFiles})
+			by := strings.Join(f.controls, ", ")
+			out = append(out, caveat{component: g.component, what: f.label,
+				detail: fmt.Sprintf("%s (%s)", f.reason, by), key: saga.CaveatUnreadFiles, by: by})
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].component < out[j].component })
 	return out
+}
+
+// why is detail cut to width, with what it closes with in parentheses kept whole: a parser's error
+// can run past the column, and the controls and scanners after it say which scanner to look at.
+func (c caveat) why(width int) string {
+	tail := " (" + c.by + ")"
+	reason, ok := strings.CutSuffix(c.detail, tail)
+	if c.by == "" || !ok || len([]rune(tail)) > width/2 {
+		return truncate(c.detail, width)
+	}
+	return truncate(reason, width-len([]rune(tail))) + tail
 }
 
 // fails reports whether the gate lists this caveat's kind in failOnCaveats.
@@ -387,7 +402,7 @@ func writeCaveats(w io.Writer, col tui.Painter, d Data) {
 			}
 		}
 		t.Row(tui.Styled(tui.StyleStrong, c.component), tui.Styled(tui.StyleStrong, c.what),
-			kind, tui.Styled(cDim, truncate(c.detail, whyWidth)))
+			kind, tui.Styled(cDim, c.why(whyWidth)))
 	}
 	t.Render(w)
 	if capped {

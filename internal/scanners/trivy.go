@@ -123,18 +123,20 @@ func NewTrivyFS() plugin.Scanner {
 	s.cacheVersion = sharedTrivyVersion.cacheVersion
 	s.prewarm = sharedTrivyDB.warm
 	s.dataState = sharedTrivyData.database
-	s.run = retryingRunInDir("trivy", s.run)
+	s.runLogged = trivyFSRun(trivyFSExec)
 	s.accounts = true
 	return s
 }
 
-// trivyFSArgs builds `trivy fs --quiet --scanners vuln --format json --list-all-pkgs <dir>`.
+// trivyFSArgs builds `trivy fs --debug --scanners vuln --format json --list-all-pkgs <dir>`.
 //
 // JSON rather than SARIF because the SARIF says which package only in prose. See
 // trivy_vuln_json.go for what that costs and what it buys. --list-all-pkgs because the package
-// list is where Trivy records the line of each package's entry in its manifest.
+// list is where Trivy records the line of each package's entry in its manifest. --debug, and not
+// --quiet, because the debug log is the only place Trivy names a file it could not parse (see
+// trivyUnparsedFiles). The log goes to stderr, which is read and never printed.
 func trivyFSArgs(dir string, cfg plugin.Config) []string {
-	argv := showSuppressedArgs([]string{"trivy", "fs", "--quiet", "--scanners", "vuln", "--format", "json", "--list-all-pkgs"})
+	argv := showSuppressedArgs([]string{"trivy", "fs", "--debug", "--scanners", "vuln", "--format", "json", "--list-all-pkgs"})
 	return offlineTrivyArgs(append(trivyFSOptions(trivyOptions(argv, cfg), cfg), dir))
 }
 

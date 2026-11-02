@@ -1451,7 +1451,8 @@ func TestSurveyIsNotServedWithoutSurveyors(t *testing.T) {
 }
 
 // Two components, and a file two controls missed: named once per component with both controls,
-// and the same path in the other component kept apart.
+// and the same path in the other component kept apart. A file one scanner of a control missed
+// names that scanner beside the control.
 func TestUnreadFilesNamesEachFileOncePerComponent(t *testing.T) {
 	lock := engine.UnreadInput{Repository: "https://example.com/api", Path: "pyproject.toml", Reason: "no lockfile"}
 	got := unreadFiles([]engine.InputCoverage{
@@ -1459,10 +1460,14 @@ func TestUnreadFilesNamesEachFileOncePerComponent(t *testing.T) {
 		{Component: "api", Control: "sca", Read: 1, Unread: []engine.UnreadInput{lock}},
 		{Component: "worker", Control: "sca", Read: 2, Unread: []engine.UnreadInput{lock}},
 		{Component: "web", Control: "sca", Read: 1},
+		{Component: "android", Control: "sca", Read: 2, Unread: []engine.UnreadInput{{Repository: "https://example.com/app",
+			Path: "buildscript-gradle.lockfile", Scanners: []string{"grype-fs"}, Reason: "no packages read"}}},
 	})
 	want := []UnreadFile{
 		{Component: "api", Repository: lock.Repository, Path: "pyproject.toml", Reason: "no lockfile", Controls: []string{"licenses", "sca"}},
 		{Component: "worker", Repository: lock.Repository, Path: "pyproject.toml", Reason: "no lockfile", Controls: []string{"sca"}},
+		{Component: "android", Repository: "https://example.com/app", Path: "buildscript-gradle.lockfile", Reason: "no packages read",
+			Controls: []string{"sca: grype-fs"}},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("unreadFiles =\n%+v\nwant\n%+v", got, want)

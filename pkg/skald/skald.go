@@ -756,6 +756,9 @@ type unreadFileReport struct {
 	Repository string `json:"repository,omitempty"`
 	Path       string `json:"path"`
 	Reason     string `json:"reason"`
+	// Scanners are the scanners that read no packages from the file where another scanner of the
+	// control did. Absent when no scanner of the control read it.
+	Scanners []string `json:"scanners,omitempty"`
 }
 
 type statsInfo struct {
@@ -984,7 +987,9 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 			Component: cov.Component, Control: cov.Control, Scanners: cov.Scanners, Read: cov.Read,
 		}
 		for _, u := range cov.Unread {
-			files.Unread = append(files.Unread, unreadFileReport{Repository: u.Repository, Path: u.Path, Reason: u.Reason})
+			files.Unread = append(files.Unread, unreadFileReport{
+				Repository: u.Repository, Path: u.Path, Reason: u.Reason, Scanners: u.Scanners,
+			})
 		}
 		doc.DependencyFiles = append(doc.DependencyFiles, files)
 	}

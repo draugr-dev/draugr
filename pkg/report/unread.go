@@ -49,7 +49,7 @@ func unreadByComponent(inputs []engine.InputCoverage, targets []engine.TargetOut
 				files[c.Component][k] = j
 				out[i].files = append(out[i].files, unreadFile{label: u.Repository + "\x00" + u.Path, reason: u.Reason})
 			}
-			out[i].files[j].controls = append(out[i].files[j].controls, c.Control)
+			out[i].files[j].controls = append(out[i].files[j].controls, missedBy(c.Control, u.Scanners))
 		}
 	}
 	planned := repositoriesByComponent(targets)
@@ -64,6 +64,16 @@ func unreadByComponent(inputs []engine.InputCoverage, targets []engine.TargetOut
 		}
 	}
 	return out
+}
+
+// missedBy names what left a file unread for one control: the control alone when none of its
+// scanners read the file, as `sca`, or the control and the scanners that missed it when another of
+// its scanners read it, as `sca: grype-fs`.
+func missedBy(control string, scanners []string) string {
+	if len(scanners) == 0 {
+		return control
+	}
+	return control + ": " + strings.Join(scanners, " and ")
 }
 
 // repositoriesByComponent counts the distinct repositories the run planned for each component. One

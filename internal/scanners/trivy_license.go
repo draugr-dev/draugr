@@ -92,7 +92,7 @@ func NewTrivyLicense() plugin.Scanner {
 
 	repo := newRepoScannerWithParser(info, trivyLicenseArgs, parseTrivyLicenses)
 	repo.cacheVersion = sharedTrivyVersion.cacheVersion
-	repo.run = retryingRunInDir("trivy", repo.run)
+	repo.runLogged = trivyFSRun(trivyFSExec)
 	repo.accounts = true
 
 	image := tooladapter.New(tooladapter.Config{
@@ -159,12 +159,12 @@ func (s licenseScanner) DataState(ctx context.Context) []plugin.DataState {
 	return sharedTrivyData.database(ctx)
 }
 
-// trivyLicenseArgs builds `trivy fs --quiet --scanners license --format json <dir>`.
+// trivyLicenseArgs builds `trivy fs --debug --scanners license --format json <dir>`.
 //
 // JSON rather than SARIF because Trivy's SARIF output contains no license findings at all. They
-// exist only under Results[].Licenses[] in the JSON.
+// exist only under Results[].Licenses[] in the JSON. --debug for the reason trivyFSArgs gives.
 func trivyLicenseArgs(dir string, cfg plugin.Config) []string {
-	argv := []string{"trivy", "fs", "--quiet", "--scanners", "license", "--format", "json"}
+	argv := []string{"trivy", "fs", "--debug", "--scanners", "license", "--format", "json"}
 	return offlineTrivyArgs(append(showSuppressedArgs(licenseFullArg(argv, cfg)), dir))
 }
 

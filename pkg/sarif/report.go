@@ -771,7 +771,8 @@ type Input struct {
 	// Packages is how many packages the scanner read from the file.
 	Packages int `json:"packages,omitempty"`
 	// Unread is why the file contributed no packages, and empty when it was read: "no lockfile",
-	// "no pinned versions" or "no packages read". For a Terraform file, the module blocks it calls
+	// "no pinned versions", "no packages read", or "not parsed: " and the parser's error. For a
+	// Terraform file, the module blocks it calls
 	// that the scanner could not load, as `module "vpc" not loaded`. For a file searched for
 	// secrets, "name has an archive extension", or "no files read" against the repository root.
 	// For a source file, why a SAST scanner did not check all of it, as `over 1 MB, not scanned`

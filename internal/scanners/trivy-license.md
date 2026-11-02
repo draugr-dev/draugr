@@ -19,8 +19,11 @@ order: 190
 Two modes, chosen by the target it is handed. A repository is checked out and read in place:
 
 ```
-trivy fs --quiet --scanners license --format json <dir>
+trivy fs --debug --scanners license --format json <dir>
 ```
+
+`--debug` keeps the log line naming a dependency file Trivy failed to parse, which Draugr reports
+as unread with the parser's error.
 
 An image is named rather than fetched by us, and Trivy pulls it:
 

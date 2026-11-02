@@ -256,13 +256,15 @@ func TestRetryLockedCacheExplainsItselfAtDebug(t *testing.T) {
 func TestEveryTrivyScannerRetriesALockedCache(t *testing.T) {
 	fastBackoff(t)
 	image := plugin.ImageTarget{Ref: "registry.example/app:1.0"}
+	// A repository scan runs Trivy through the exec that keeps its log, so the retry is reached
+	// through that.
 	inDir := func(t *testing.T, s plugin.Scanner) error {
 		t.Helper()
 		r, ok := s.(repoScanner)
-		if !ok {
-			t.Fatalf("%s is not a repoScanner", s.Info().Name)
+		if !ok || r.runLogged == nil {
+			t.Fatalf("%s is not a repoScanner that reads Trivy's log", s.Info().Name)
 		}
-		_, err := r.run(t.Context(), t.TempDir(), []string{"trivy"})
+		_, _, err := r.runLogged(t.Context(), t.TempDir(), []string{"trivy"})
 		return err
 	}
 	for _, tc := range []struct {
@@ -294,9 +296,12 @@ func TestEveryTrivyScannerRetriesALockedCache(t *testing.T) {
 				}
 				return []byte(`{}`), nil
 			}
-			priorInDir, prior := execArgvInDir, execArgv
-			t.Cleanup(func() { execArgvInDir, execArgv = priorInDir, prior })
-			execArgvInDir = func(context.Context, string, []string) ([]byte, error) { return contended() }
+			priorLogged, prior := execWithStderr, execArgv
+			t.Cleanup(func() { execWithStderr, execArgv = priorLogged, prior })
+			execWithStderr = func(context.Context, string, []string, []string) ([]byte, []byte, error) {
+				out, err := contended()
+				return out, nil, err
+			}
 			execArgv = func(context.Context, []string) ([]byte, error) { return contended() }
 
 			if err := tc.scan(t); err != nil {

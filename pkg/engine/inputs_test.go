@@ -57,8 +57,9 @@ func (c inputController) Aggregate(reports []sarif.Report) (plugin.ControlResult
 }
 
 // Two components, two repositories each side of a shared one, and two scanners. Every way the
-// coverage could collapse is present: a file one scanner read and the other did not, the same
-// path in two repositories, and one repository scanned once for two components.
+// coverage could collapse is present: a file one scanner read and the other did not, which is
+// listed with the scanner that missed it, the same path in two repositories, and one repository
+// scanned once for two components.
 func TestRunReportsWhatNoScanOfAComponentRead(t *testing.T) {
 	trivy := inputScanner{name: "trivy-fs", inputs: map[string][]sarif.Input{
 		"api": {
@@ -95,7 +96,10 @@ func TestRunReportsWhatNoScanOfAComponentRead(t *testing.T) {
 	want := []InputCoverage{
 		{
 			Component: "backend", Control: "sca", Scanners: []string{"grype-fs", "trivy-fs"}, Read: 3,
-			Unread: []UnreadInput{{Repository: "api", Path: "pyproject.toml", Reason: "no lockfile"}},
+			Unread: []UnreadInput{
+				{Repository: "api", Path: "pyproject.toml", Reason: "no lockfile"},
+				{Repository: "api", Path: "requirements-dev.txt", Scanners: []string{"trivy-fs"}, Reason: "no packages read"},
+			},
 		},
 		{
 			Component: "frontend", Control: "sca", Scanners: []string{"grype-fs", "trivy-fs"}, Read: 1,
@@ -138,6 +142,28 @@ func TestStampingInputsLeavesTheCachedReportAlone(t *testing.T) {
 	}
 	if cached.Inputs[0].Component != "" {
 		t.Errorf("the cached report was mutated: %+v", cached.Inputs[0])
+	}
+}
+
+// A scanner that read a file in one pass and listed it unread in another read it; only another
+// scanner's miss is a gap. Among one scanner's reasons for a file, the lower is kept.
+func TestInputCoverageCountsAScannerThatReadAFileAsHavingReadIt(t *testing.T) {
+	byCtl := map[string][]sarif.Report{"sca": {
+		{Inputs: []sarif.Input{
+			{Scanner: "a", Component: "c", Repository: "r", Path: "x", Packages: 2},
+			{Scanner: "a", Component: "c", Repository: "r", Path: "x", Unread: "not parsed: y"},
+			{Scanner: "a", Component: "c", Repository: "r", Path: "z", Packages: 1},
+		}},
+		{Inputs: []sarif.Input{
+			{Scanner: "b", Component: "c", Repository: "r", Path: "x", Packages: 2},
+			{Scanner: "b", Component: "c", Repository: "r", Path: "z", Unread: "no packages read"},
+			{Scanner: "b", Component: "c", Repository: "r", Path: "z", Unread: "not parsed: y"},
+		}},
+	}}
+	want := []InputCoverage{{Component: "c", Control: "sca", Scanners: []string{"a", "b"}, Read: 2,
+		Unread: []UnreadInput{{Repository: "r", Path: "z", Scanners: []string{"b"}, Reason: "no packages read"}}}}
+	if got := inputCoverage(byCtl); !reflect.DeepEqual(got, want) {
+		t.Errorf("coverage =\n%+v\nwant\n%+v", got, want)
 	}
 }
 

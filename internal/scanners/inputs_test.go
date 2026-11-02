@@ -109,9 +109,10 @@ func bunLockOf(resolved string) string {
 `
 }
 
-// Trivy 0.74.0 reads a bun.lock pinning a registry package and reports nothing at all for one
-// pinning a git repository. The second is reported unread in its own repository, and the first,
-// scanned by the same scanner, is not.
+// Trivy reads a bun.lock pinning a registry package and reports nothing at all for one pinning a
+// git repository. The second is reported unread in its own repository, and the first, scanned by
+// the same scanner, is not. Where Trivy's log names the parse failure, as 0.76.1's does, the reason
+// is the parser's error; where it says nothing, as 0.74.0's did, the file is still reported.
 func TestTrivyFSReportsABunLockItReadNothingFrom(t *testing.T) {
 	trees := map[string]string{
 		"https://example.com/registry.git": writeTree(t, map[string]string{
@@ -122,18 +123,28 @@ func TestTrivyFSReportsABunLockItReadNothingFrom(t *testing.T) {
 			"package.json": npmManifest,
 			"bun.lock":     bunLockOf("lodash@github:lodash/lodash#ded9bc6"),
 		}),
+		"https://example.com/logged.git": writeTree(t, map[string]string{
+			"package.json": npmManifest,
+			"bun.lock":     bunLockOf("lodash@github:lodash/lodash#ded9bc6"),
+		}),
 	}
 	read := `{"SchemaVersion":2,"Results":[{"Target":"bun.lock","Class":"lang-pkgs","Type":"bun",
 		"Packages":[{"ID":"lodash@4.17.20","Name":"lodash","Version":"4.17.20",
 		"Identifier":{"PURL":"pkg:npm/lodash@4.17.20","UID":"d6cb8fa6ce9ce546"}}]}]}`
+	walkError := "2026-11-02T04:43:38-06:00\tDEBUG\tWalk error\tfile_path=\"bun.lock\" err=\"parse error: " +
+		"failed to parse bun.lock: JSON decode error: json: cannot unmarshal JSON string into Go " +
+		"map[string]interface {} within \\\"/packages/lodash\\\"\"\n"
 	s, _ := NewTrivyFS().(repoScanner)
 	s.checkout = checkoutOf(trees)
-	s.run = func(_ context.Context, dir string, _ []string) ([]byte, error) {
-		if dir == trees["https://example.com/registry.git"] {
-			return []byte(read), nil
+	s.runLogged = trivyFSRun(func(_ context.Context, dir string, _ []string) ([]byte, []byte, error) {
+		switch dir {
+		case trees["https://example.com/registry.git"]:
+			return []byte(read), nil, nil
+		case trees["https://example.com/logged.git"]:
+			return []byte(`{"SchemaVersion":2,"ArtifactType":"filesystem"}`), []byte(walkError), nil
 		}
-		return []byte(`{"SchemaVersion":2,"ArtifactType":"filesystem"}`), nil
-	}
+		return []byte(`{"SchemaVersion":2,"ArtifactType":"filesystem"}`), nil, nil
+	})
 
 	want := map[string][]sarif.Input{
 		"https://example.com/registry.git": {
@@ -141,6 +152,10 @@ func TestTrivyFSReportsABunLockItReadNothingFrom(t *testing.T) {
 		},
 		"https://example.com/remote.git": {
 			{Scanner: "trivy-fs", Repository: "https://example.com/remote", Path: "bun.lock", Unread: "no packages read"},
+		},
+		"https://example.com/logged.git": {
+			{Scanner: "trivy-fs", Repository: "https://example.com/logged", Path: "bun.lock",
+				Unread: `not parsed: JSON decode error: json: cannot unmarshal JSON string into Go map[string]interface {} within "/packages/lodash"`},
 		},
 	}
 	for url, inputs := range want {

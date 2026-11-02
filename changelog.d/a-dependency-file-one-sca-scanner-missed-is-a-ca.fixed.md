@@ -1,0 +1,1 @@
+- **A dependency file one `sca` scanner missed is a caveat even where another scanner read it.** The row names that scanner, as `no packages read (sca: grype-fs)`, and a file Trivy failed to parse gives the parser's error, as `not parsed: …`, in place of `no packages read`.
