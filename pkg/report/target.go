@@ -30,7 +30,9 @@ func upgradeTarget(findings []finding) string {
 		seen      = map[fixPair]bool{}
 	)
 	for _, f := range findings {
-		if f.pkg == nil || f.pkg.FixedVersion == "" {
+		// A fixed version that names no release, "" or "," or ">=", says nothing a candidate could
+		// be checked against, so the finding takes no part in choosing one.
+		if f.pkg == nil || len(splitFixes(f.pkg.FixedVersion)) == 0 {
 			continue
 		}
 		e := versionorder.Ecosystem(f.pkg.PURL, f.pkg.Ecosystem)
@@ -196,7 +198,7 @@ func releaseClears(vs *versions, c, installed string, fixes []string) (cleared, 
 		}
 	}
 	sorted, ok := sortVersions(vs, fixes)
-	if !ok {
+	if !ok || len(sorted) == 0 {
 		return false, false
 	}
 	if order, _ := vs.compare(c, sorted[len(sorted)-1]); order >= 0 {

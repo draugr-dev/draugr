@@ -1,0 +1,1 @@
+- **A fixed version that names no release no longer stops the fix list.** A finding whose fixed version is only separators or a bound, such as `,` or `>=`, made the fix list fail with an index error. It now takes no part in choosing the release, as a finding with no fixed version does.

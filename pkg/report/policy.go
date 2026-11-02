@@ -178,6 +178,10 @@ func lowestWithin(ecosystem, installed string, findings []finding, policy saga.U
 		i, seen := byFixed[f.pkg.FixedVersion]
 		if !seen {
 			n := named{fixes: fixesOf(f)}
+			if len(n.fixes) == 0 {
+				// Names no release, so there is nothing to clear it with or check a candidate against.
+				continue
+			}
 			for _, fix := range n.fixes {
 				if step, ok := stepOf(ecosystem, installed, fix); ok && allows(policy, step) {
 					n.allowed = append(n.allowed, fix)
