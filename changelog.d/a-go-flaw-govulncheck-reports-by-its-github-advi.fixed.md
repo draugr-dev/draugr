@@ -1,1 +1,0 @@
-- **A Go flaw govulncheck reports by its GitHub advisory and Grype by its Go ID counts once, ranked by govulncheck's verdict.** Grype's copy now carries the reachability verdict and the band it sets, so a flaw with no call path no longer fails the gate. Grype findings also correlate through the identifiers Grype relates to each match.
