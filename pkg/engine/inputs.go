@@ -115,7 +115,7 @@ func inputCoverage(byCtl map[string][]sarif.Report) []InputCoverage {
 				if in.Packages > 0 {
 					// Read in part, so counted as read, and listed with what was not read unless
 					// another scanner read all of it.
-					if r, ok := a.partly[f]; !ok || in.Unread < r {
+					if r, ok := a.partly[f]; !ok || betterPartReason(in.Unread, r) {
 						a.partly[f] = in.Unread
 					}
 					addTo(a.partlyBy, f, in.Scanner)
@@ -200,6 +200,16 @@ func betterReason(a, b string) bool {
 	generic := string(manifests.NotRead)
 	if (a == generic) != (b == generic) {
 		return b == generic
+	}
+	return a < b
+}
+
+// betterPartReason reports whether reason a, for a file a scanner read in part, is the one to show
+// over b. A reason that names a scanner's own limit (manifests.ScannerLimit) gives way to one the
+// reader can act on; otherwise the lower is kept, so the reason is stable across runs.
+func betterPartReason(a, b string) bool {
+	if la, lb := manifests.ScannerLimit(a), manifests.ScannerLimit(b); la != lb {
+		return lb
 	}
 	return a < b
 }

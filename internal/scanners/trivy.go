@@ -276,6 +276,8 @@ func trivyNoticeArgs() []string {
 
 // unresolvedPom is the reason a pom.xml read with --offline-scan is listed with the dependency
 // files read in part, when every direct dependency has a version and none of theirs was read.
+// Where grype-fs read the same pom in part too, the row shows this reason in place of Grype's,
+// which names no action (see manifests.ScannerLimit).
 //
 // Both pom reasons name the act that clears the row for sca and licenses and sends nothing to a
 // third party: a Maven build filling the local repository, which Trivy reads under --offline-scan.

@@ -73,6 +73,15 @@ finding, so the scan also asks for `-o cyclonedx-json` into a temporary file and
 dependency file in the checkout is listed as unread, see [`sca`](../controllers/sca.md#unread).
 A run that writes no inventory is an error rather than a scan that read nothing.
 
+**Every `pom.xml` it reads is read in part.** Grype reads the dependencies a pom declares and none
+of their own poms, and its configuration has no setting that changes this. A dependency whose
+version comes from a parent POM or BOM that Grype could not read is left out of the inventory, so
+the inventory cannot show a pom read in full. Each pom is listed as `transitive dependencies not
+read by Grype`, a reason that names no action because none clears it. Where
+[`trivy-fs`](trivy-fs.md) read the same pom in part, the row shows Trivy's reason instead, which
+names the action that clears it, and where Trivy read the pom in full the row clears, see
+[`sca`](../controllers/sca.md#unread).
+
 **Each finding's package is read from Grype's JSON report.** Grype's SARIF states a package once
 per advisory and package name, and a lockfile often holds one package at several versions, each a
 match of the same advisory. The version, fixed version and package URL therefore come from the

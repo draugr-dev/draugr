@@ -65,6 +65,34 @@ func TestConsoleNamesUnreadFilesOncePerComponent(t *testing.T) {
 	}
 }
 
+// One file two controls give different reasons for keeps a row per reason, since each reason names
+// what clears it for its own controls. Two components in two repositories, so the rows of one cannot
+// stand for the other's.
+func TestConsoleKeepsARowPerReasonForOneFile(t *testing.T) {
+	const resolve = "transitive dependencies not resolved, run mvn dependency:resolve"
+	const grype = "transitive dependencies not read by Grype"
+	d := goldenGroupedData()
+	d.Run.Inputs = []engine.InputCoverage{
+		{Component: "api", Control: "licenses", Unread: []engine.UnreadInput{{Repository: "api", Path: "pom.xml", Reason: resolve}}},
+		{Component: "api", Control: "sca", Unread: []engine.UnreadInput{{Repository: "api", Path: "pom.xml", Reason: grype}}},
+		{Component: "worker", Control: "licenses", Unread: []engine.UnreadInput{{Repository: "worker", Path: "pom.xml", Reason: resolve}}},
+		{Component: "worker", Control: "sca", Unread: []engine.UnreadInput{{Repository: "worker", Path: "pom.xml", Reason: resolve}}},
+	}
+	out := renderWith(t, consoleReporter{}, d)
+	for _, want := range []*regexp.Regexp{
+		regexp.MustCompile(`api +pom\.xml  unread-files  ` + regexp.QuoteMeta(resolve+" (licenses)")),
+		regexp.MustCompile(`api +pom\.xml  unread-files  ` + regexp.QuoteMeta(grype+" (sca)")),
+		regexp.MustCompile(`worker +pom\.xml  unread-files  ` + regexp.QuoteMeta(resolve+" (licenses, sca)")),
+	} {
+		if !want.MatchString(out) {
+			t.Errorf("console is missing %q:\n%s", want, out)
+		}
+	}
+	if n := strings.Count(out, "pom.xml"); n != 3 {
+		t.Errorf("console names pom.xml %d times, want 3:\n%s", n, out)
+	}
+}
+
 func TestConsoleSaysNothingWhenEveryFileWasRead(t *testing.T) {
 	d := goldenGroupedData()
 	d.Run.Inputs = []engine.InputCoverage{{Component: "payments", Control: "sca", Scanners: []string{"trivy-fs"}, Read: 3}}

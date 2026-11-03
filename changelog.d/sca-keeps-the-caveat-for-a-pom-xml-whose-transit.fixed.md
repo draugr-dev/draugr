@@ -1,0 +1,1 @@
+- **`sca` keeps the caveat for a `pom.xml` whose transitive dependencies went unread when `grype-fs` runs.** With `trivy-fs` beside it, the row shows Trivy's reason and the command that clears it. With `grype-fs` alone, it reads `transitive dependencies not read by Grype`. A file whose controls give different reasons gets one row per reason.

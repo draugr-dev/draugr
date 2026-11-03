@@ -97,6 +97,13 @@ both controls, sending nothing beyond what the build already fetches. Setting
 `trivy-fs` fetch each pom it needs from Maven Central and the repositories the pom names, which
 clears the row for `sca` only, since `trivy-license` never resolves.
 
+[`grype-fs`](../scanners/grype-fs.md) lists every `pom.xml` it read as `transitive dependencies not
+read by Grype`. Grype reads no dependency's own pom whatever the local repository holds, so no
+action clears the row and the reason names none. With `trivy-fs` beside it, the row shows Trivy's
+reason where Trivy read the pom in part, and clears where Trivy read it in full. A file two controls
+give different reasons for is listed once per reason, so with `grype-fs` alone under `sca` a pom
+can have a `licenses` row that `mvn dependency:resolve` clears and an `sca` row that stays.
+
 ## Links
 
 - Glossary: [SCA](../../docs/reference/glossary.md#sca-software-composition-analysis)

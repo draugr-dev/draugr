@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/manifests"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -217,6 +218,31 @@ func TestInputCoverageListsAFileReadInPart(t *testing.T) {
 	}
 	if got := inputCoverage(byCtl); !reflect.DeepEqual(got, want) {
 		t.Errorf("coverage =\n%+v\nwant\n%+v", got, want)
+	}
+}
+
+// Where two scanners read one pom.xml in part, the reason naming what clears it is shown over
+// Grype's, which names none, whichever scanner reported first and whichever sorts lower. Two
+// components in two repositories, one per order; a third has Grype's reason alone, and keeps it.
+func TestInputCoveragePrefersAReasonTheReaderCanAct(t *testing.T) {
+	const trivy = "transitive dependencies not resolved, run mvn dependency:resolve"
+	grype := string(manifests.TransitiveNotReadByGrype)
+	pom := func(scanner, comp, reason string) sarif.Input {
+		return sarif.Input{Scanner: scanner, Component: comp, Repository: comp, Path: "pom.xml", Packages: 2, Unread: reason}
+	}
+	byCtl := map[string][]sarif.Report{"sca": {
+		{Inputs: []sarif.Input{pom("grype-fs", "api", grype), pom("trivy-fs", "worker", trivy), pom("grype-fs", "web", grype)}},
+		{Inputs: []sarif.Input{pom("trivy-fs", "api", trivy), pom("grype-fs", "worker", grype)}},
+	}}
+	got := inputCoverage(byCtl)
+	want := map[string]string{"api": trivy, "worker": trivy, "web": grype}
+	for _, c := range got {
+		if len(c.Unread) != 1 || c.Unread[0].Reason != want[c.Component] {
+			t.Errorf("%s: unread %+v, want %q", c.Component, c.Unread, want[c.Component])
+		}
+	}
+	if len(got) != len(want) {
+		t.Errorf("coverage for %d components, want %d: %+v", len(got), len(want), got)
 	}
 }
 

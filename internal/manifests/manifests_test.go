@@ -612,3 +612,17 @@ func TestPartlyPinnedNamesTheRequirementsNoScannerTook(t *testing.T) {
 		}
 	}
 }
+
+// Grype's pom reason is a scanner's limit; a reason naming what the reader can do is not.
+func TestScannerLimit(t *testing.T) {
+	for reason, want := range map[string]bool{
+		string(TransitiveNotReadByGrype):                                   true,
+		"transitive dependencies not resolved, run mvn dependency:resolve": false,
+		string(NotRead): false,
+		"":              false,
+	} {
+		if got := ScannerLimit(reason); got != want {
+			t.Errorf("ScannerLimit(%q) = %v, want %v", reason, got, want)
+		}
+	}
+}

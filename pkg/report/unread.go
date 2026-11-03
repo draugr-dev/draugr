@@ -6,7 +6,8 @@ import (
 	"github.com/draugr-dev/draugr/pkg/engine"
 )
 
-// unreadGroup is one component's unread files, each named once however many controls missed it.
+// unreadGroup is one component's unread files, each named once however many controls missed it
+// for the same reason.
 type unreadGroup struct {
 	component string
 	files     []unreadFile
@@ -20,15 +21,17 @@ type unreadFile struct {
 // unreadByComponent folds per-control coverage into one entry per component.
 //
 // Per component because the fix is per file: a pyproject.toml with no lockfile is one lockfile to
-// commit, whether one control or two passed it by, and a block per control would print it twice. A
-// path is named with its repository where the component scans more than one, because two
+// commit, whether one control or two passed it by, and a block per control would print it twice.
+// Two controls that give one file different reasons keep a row each, because a reason names what
+// clears it for the controls beside it: a pom.xml Trivy did not resolve clears for licenses with
+// `mvn dependency:resolve`, while under sca with grype-fs alone nothing clears it. A path is named with its repository where the component scans more than one, because two
 // repositories can each hold a package.json. That is decided by the repositories the run planned
 // for the component, not only by the ones holding an unread file: with one of two repositories'
 // files unread, a bare path does not say which repository to open.
 func unreadByComponent(inputs []engine.InputCoverage, targets []engine.TargetOutcome) []unreadGroup {
 	var out []unreadGroup
 	index := map[string]int{}
-	type fileKey struct{ repository, path string }
+	type fileKey struct{ repository, path, reason string }
 	files := map[string]map[fileKey]int{}
 	repos := map[string]map[string]bool{}
 	for _, c := range inputs {
@@ -42,7 +45,7 @@ func unreadByComponent(inputs []engine.InputCoverage, targets []engine.TargetOut
 				repos[c.Component] = map[string]bool{}
 			}
 			repos[c.Component][u.Repository] = true
-			k := fileKey{u.Repository, u.Path}
+			k := fileKey{u.Repository, u.Path, u.Reason}
 			j, seen := files[c.Component][k]
 			if !seen {
 				j = len(out[i].files)

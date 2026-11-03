@@ -52,7 +52,19 @@ const (
 	// NotRead is a file the scan read no packages from: a name its scanner does not read, or a
 	// format it does not support.
 	NotRead Reason = "no packages read"
+	// TransitiveNotReadByGrype is a pom.xml Grype read in part. Grype reads no dependency's own pom
+	// whatever the local Maven repository holds, so no action of the reader's clears it, and it names
+	// none. Another scanner's reason for the same file is shown in its place (see ScannerLimit).
+	TransitiveNotReadByGrype Reason = "transitive dependencies not read by Grype"
 )
+
+// ScannerLimit reports whether reason describes what a scanner cannot read under any setting,
+// rather than something the reader can change. Where several scanners read one file in part,
+// another scanner's reason is shown in place of such a reason, since it can name the act that
+// clears the row.
+func ScannerLimit(reason string) bool {
+	return reason == string(TransitiveNotReadByGrype)
+}
 
 // Unread is a dependency file a scan did not read, and why.
 type Unread struct {
