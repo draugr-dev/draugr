@@ -1484,6 +1484,12 @@ func (r *Reachability) RankAt(base Severity) Severity {
 // `TEMP-0628843-DBAD28` and a Debian LTS advisory's `DLA-4867-1` for an operating-system package. A
 // scheme missing here is not a vulnerability to anything that asks, so its findings go uncorrelated,
 // unmatched by VEX and absent from the VEX document.
+//
+// The retire.js scanner does the same for an advisory with neither a CVE nor a GitHub advisory id:
+// `retirejs:<component>:<id>`, the component as retire.js's advisory repository names it (`jquery`,
+// `DOMPurify`, `@angular/core`) and the advisory's own number, its issue or bug number, a vendor
+// advisory id such as `SNYK-JS-ALASQL-1082932`, or, where it has none of those, `below-` and the
+// version that fixes it.
 var vulnerabilityID = regexp.MustCompile(
 	`^(CVE-\d{4}-\d{4,}` +
 		`|GHSA-[2-9cfghjmpqrvwx]{4}-[2-9cfghjmpqrvwx]{4}-[2-9cfghjmpqrvwx]{4}` +
@@ -1492,7 +1498,8 @@ var vulnerabilityID = regexp.MustCompile(
 		`|GO-\d{4}-\d{4,}` +
 		`|NSWG-ECO-\d+` +
 		`|TEMP-\d{7}-[0-9A-F]{6}` +
-		`|DLA-\d+-\d+)`)
+		`|DLA-\d+-\d+` +
+		`|retirejs:[@A-Za-z0-9][@/\w.-]*:(?:\d+|[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+|below-\d[\w.+-]*))`)
 
 // VulnerabilityID is the vulnerability this finding is about, or "" when it is not about one.
 //

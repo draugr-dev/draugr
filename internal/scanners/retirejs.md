@@ -64,6 +64,14 @@ instead.
 the GitHub advisory id, and only then retire.js's own identifier, prefixed `retirejs:` so it cannot
 be mistaken for a CVE, and stable so a suppression written against it keeps working.
 
+retire.js's own identifier is `retirejs:<component>:<id>`, the component as retire.js names it and
+the retire.js, issue or bug id its advisory repository records, as in `retirejs:jquery:11974`. An
+advisory with none of those is `retirejs:<component>:below-<fixed version>`. Draugr reads it as a
+vulnerability identifier, as it reads a CVE. Two vendored copies of one library version in one
+repository count the advisory once, the VEX document carries a statement under it, and a
+supplier's statement matches it when it names `retirejs:jquery:11974` as the vulnerability and
+`pkg:npm/jquery@1.11.2` as a product or a subcomponent.
+
 **The finding keeps the advisory's other identifiers**, each CVE and the GitHub advisory id the
 rule id does not carry. retire.js lists them on one advisory entry, so they name one flaw.
 

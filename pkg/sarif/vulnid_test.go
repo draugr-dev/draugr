@@ -18,6 +18,17 @@ func TestVulnerabilityIDIgnoresWhatAScannerAppends(t *testing.T) {
 		{"TEMP-0628843-DBAD28", "TEMP-0628843-DBAD28"},
 		{"TEMP-0000000-153207", "TEMP-0000000-153207"},
 		{"DLA-4867-1", "DLA-4867-1"},
+		// The retire.js scanner's identifiers for advisories with neither a CVE nor a GitHub
+		// advisory id: an issue number, retire.js's own number, a vendor's advisory id, and the
+		// fix boundary where the advisory carries none of them.
+		{"retirejs:jquery:11974", "retirejs:jquery:11974"},
+		{"retirejs:jquery:73", "retirejs:jquery:73"},
+		{"retirejs:AlaSQL:SNYK-JS-ALASQL-1082932", "retirejs:AlaSQL:SNYK-JS-ALASQL-1082932"},
+		{"retirejs:jquery-mobile:below-1.0RC2", "retirejs:jquery-mobile:below-1.0RC2"},
+		{"retirejs:jquery-validation:below-1.20.0", "retirejs:jquery-validation:below-1.20.0"},
+		{"retirejs:@angular/core:44", "retirejs:@angular/core:44"},
+		{"retirejs:jquery.prettyPhoto:1", "retirejs:jquery.prettyPhoto:1"},
+		{"retirejs:jquery:73 jquery@1.11.2", "retirejs:jquery:73"},
 	} {
 		if got := (Result{RuleID: tc.ruleID}).VulnerabilityID(); got != tc.want {
 			t.Errorf("%q → %q, want %q", tc.ruleID, got, tc.want)
@@ -38,6 +49,17 @@ func TestVulnerabilityIDIsEmptyForFindingsThatAreNotVulnerabilities(t *testing.T
 		"KSV-0012",
 		"DS-0002",
 		"AZU-0001",
+		"CWE-79",
+		// Near misses of the retire.js scanner's identifier: no advisory, an empty one, no
+		// component, an empty fix boundary, another prefix, and a message that only starts with
+		// the scanner's name.
+		"retirejs:jquery",
+		"retirejs:jquery:",
+		"retirejs::73",
+		"retirejs:jquery:below-",
+		"retire:jquery:73",
+		"RETIREJS:jquery:73",
+		"retirejs: not a git repository",
 		"",
 	} {
 		if got := (Result{RuleID: ruleID}).VulnerabilityID(); got != "" {
@@ -50,7 +72,7 @@ func TestVulnerabilityIDIsEmptyForFindingsThatAreNotVulnerabilities(t *testing.T
 // the rule id's own and anything that is not a vulnerability identifier.
 func TestAliasVulnerabilityIDs(t *testing.T) {
 	r := Result{RuleID: "CVE-2026-1", Aliases: []string{
-		"CVE-2026-1", "GHSA-cg2g-xh64-v4q7", "retirejs:x:1", "GHSA-cg2g-xh64-v4q7", "",
+		"CVE-2026-1", "GHSA-cg2g-xh64-v4q7", "CWE-79", "GHSA-cg2g-xh64-v4q7", "",
 	}}
 	if got := r.AliasVulnerabilityIDs(); len(got) != 1 || got[0] != "GHSA-cg2g-xh64-v4q7" {
 		t.Errorf("ids = %q, want the GitHub advisory id once", got)

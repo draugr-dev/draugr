@@ -125,6 +125,34 @@ func TestRetireRuleIDPrefersThePortableIdentifier(t *testing.T) {
 	}
 }
 
+// TestRetireRuleIDIsAVulnerability covers every way the fallback forms a rule id, over component
+// names as retire.js's advisory repository spells them. A rule id the vulnerability pattern does not
+// recognize goes uncorrelated, so one advisory counts once per vendored copy, and is left out of the
+// VEX document.
+func TestRetireRuleIDIsAVulnerability(t *testing.T) {
+	for _, tc := range []struct {
+		component              string
+		retid, issue, bug, fix string
+	}{
+		{component: "jquery", retid: "73", issue: "162"},
+		{component: "jquery", issue: "11974"},
+		{component: "AlaSQL", bug: "SNYK-JS-ALASQL-1082932"},
+		{component: "jquery-mobile", fix: "1.0RC2"},
+		{component: "jquery-validation", fix: "1.20.0"},
+		{component: "DOMPurify", retid: "24"},
+		{component: "jquery.prettyPhoto", retid: "1"},
+		{component: "@angular/core", retid: "44"},
+	} {
+		var v retireVulnerable
+		v.Below = tc.fix
+		v.Identifiers.RetID, v.Identifiers.Issue, v.Identifiers.Bug = tc.retid, tc.issue, tc.bug
+		rule := retireRuleID(tc.component, v)
+		if got := (sarif.Result{RuleID: rule}).VulnerabilityID(); got != rule {
+			t.Errorf("%q is vulnerability %q, want the whole rule id", rule, got)
+		}
+	}
+}
+
 func TestRetireJSSeverities(t *testing.T) {
 	for _, c := range []struct {
 		in    string

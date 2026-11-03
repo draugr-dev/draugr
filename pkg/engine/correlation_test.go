@@ -300,6 +300,59 @@ func TestCorrelationCountsAnNSWGAdvisoryOncePerRepository(t *testing.T) {
 	}
 }
 
+// A retire.js advisory with neither a CVE nor a GitHub advisory id is one flaw per repository however
+// many vendored copies of the library hold it, as its CVE advisories are. Two components in two
+// repositories, each vendoring one jQuery bundle twice: each repository counts each advisory once,
+// with the other copy behind it, and the two retire.js advisories stay two.
+func TestCorrelationCountsARetireJSAdvisoryOncePerRepository(t *testing.T) {
+	in := func(rule, component, repo, file string) sarif.Result {
+		return sarif.Result{
+			Tool: "retirejs", RuleID: rule, Level: sarif.LevelWarning,
+			Component: component, Repository: repo,
+			Location: sarif.Location{URI: file},
+			Package:  &sarif.Package{Name: "jquery", Version: "1.11.2", PURL: "pkg:npm/jquery@1.11.2"},
+		}
+	}
+	rules := []string{"CVE-2015-9251", "retirejs:jquery:11974", "retirejs:jquery:73"}
+	var results []sarif.Result
+	for _, subject := range []struct{ component, repo string }{{"shop", "repo-shop"}, {"blog", "repo-blog"}} {
+		for _, file := range []string{"site/apache-maven-fluido-1.5.min.js", "docs/apache-maven-fluido-1.5.min.js"} {
+			for _, rule := range rules {
+				results = append(results, in(rule, subject.component, subject.repo, file))
+			}
+		}
+	}
+	ctrls := controlsWith(results...)
+
+	if groups, _ := applyCorrelation(ctrls); groups != 6 {
+		t.Fatalf("groups = %d, want one per advisory per repository", groups)
+	}
+	counted := map[string]int{}
+	behind := map[string]int{}
+	for _, r := range ctrls["sca"].Report.Results {
+		key := r.Repository + " " + r.RuleID
+		if r.Correlated() {
+			behind[key]++
+			continue
+		}
+		counted[key]++
+		if len(r.Correlation.AlsoFoundBy) != 1 || r.Correlation.AlsoFoundBy[0].RuleID != r.RuleID {
+			t.Errorf("%s: alsoFoundBy = %+v, want the other copy", key, r.Correlation.AlsoFoundBy)
+		}
+	}
+	for _, repo := range []string{"repo-shop", "repo-blog"} {
+		for _, rule := range rules {
+			key := repo + " " + rule
+			if counted[key] != 1 || behind[key] != 1 {
+				t.Errorf("%s: counted %d, behind %d; want 1 and 1", key, counted[key], behind[key])
+			}
+		}
+	}
+	if n := ctrls["sca"].Report.Counts().Total(); n != 6 {
+		t.Errorf("counted %d, want 6: three advisories in each of two repositories", n)
+	}
+}
+
 // Trivy and Grype reading one image report one flaw, and the same flaw in a second image of the same
 // component is a second one. An image finding carries no repository, so the image is what keeps two
 // images of one component apart.
