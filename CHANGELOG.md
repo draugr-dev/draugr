@@ -12,6 +12,20 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.166.1] - 2026-11-03
+
+### Fixed
+
+- **A Helm chart Trivy cannot render is reported.** A chart Trivy skipped, for a dependency missing from `charts/`, an unset value or an invalid `Chart.yaml`, is an `unread-files` caveat on its `Chart.yaml` that says what to do. A run with no findings and a caveat closes on `No findings. The run did not check what its caveats name.`
+
+- **A retire.js advisory without a CVE counts once per repository.** An advisory retire.js reports under its own ID, such as `retirejs:jquery:11974`, is one finding however many vendored copies of the library a repository holds, as a CVE is, and it now appears in the VEX document.
+
+- **`licenses` no longer passes on a lockfile that records no licenses.** A `Cargo.lock`, `Gemfile.lock` or NuGet file whose packages Trivy read without a license is a caveat, as `Cargo.lock ×3 · records no licenses for 8 packages`, or `licenses of 3 packages not read, run dotnet restore`. Each control's row counts the files it did not read.
+
+- **`sca` keeps the caveat for a `pom.xml` whose transitive dependencies went unread when `grype-fs` runs.** With `trivy-fs` beside it, the row shows Trivy's reason and the command that clears it. With `grype-fs` alone, it reads `transitive dependencies not read by Grype`. A file whose controls give different reasons gets one row per reason.
+
+- **Trivy and Syft no longer contact their vendors for update checks or telemetry.** Every Trivy run passes `--skip-version-check` and `--disable-telemetry` (Trivy 0.63.0 and later), and Syft runs with `SYFT_CHECK_FOR_APP_UPDATE=false`, with or without `--offline`, so an offline scan makes no network call through either.
+
 ## [0.166.0] - 2026-11-03
 
 ### Changed
@@ -6791,7 +6805,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.166.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.166.1...HEAD
+[0.166.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.166.1
 [0.166.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.166.0
 [0.165.6]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.6
 [0.165.5]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.5
