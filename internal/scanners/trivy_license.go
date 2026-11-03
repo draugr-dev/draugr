@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/tooladapter"
@@ -302,6 +303,8 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 			// the local Maven repository, and its own dependencies with it.
 			if reason, ok := pomUnread(res.Type, res.Packages, true); ok {
 				in.Unread = reason
+			} else if reason, ok := licenseUnread(res.Type, res.Packages); ok {
+				in.Unread = reason
 			}
 			report.Inputs = append(report.Inputs, in)
 		}
@@ -336,6 +339,49 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 		}
 	}
 	return report, nil
+}
+
+// unlicensedRemedy is the act that fills the cache Trivy reads a dependency's license from, by
+// Trivy's type for the file, for the types whose licenses come from outside the checkout.
+//
+// A lockfile that records no license, such as a Cargo.lock or a Gemfile.lock, has nothing to run,
+// and Trivy reads no installed copy for it. The node_modules a pnpm-lock.yaml or a yarn.lock takes its licenses from is
+// never in what Draugr scans: a clone holds none, and a working-tree copy leaves out what git
+// ignores. A NuGet restore and a Go module download land in the home directory, where Trivy looks.
+var unlicensedRemedy = map[string]string{
+	"nuget": "dotnet restore",  // the .nuspec files in ~/.nuget/packages
+	"gomod": "go mod download", // the module cache under $GOPATH/pkg/mod
+}
+
+// licenseUnread is why a result set Trivy read packages from had none of their licenses checked,
+// or false where at least one package carries a license.
+//
+// Trivy lists a lockfile's packages under the license scan whether or not it found a license for
+// any, and a file of packages none of which carries one is a file whose licenses were not
+// checked, though its packages were read. The project's own entries, root and workspace, are left
+// out of both the count and the test: a workspace's package.json carries its own license beside a
+// yarn.lock that records none for its dependencies.
+//
+// A file where some packages carry a license and others do not is not reported here.
+func licenseUnread(typ string, pkgs []trivyPackage) (string, bool) {
+	deps := 0
+	for _, p := range pkgs {
+		if p.Relationship == "root" || p.Relationship == "workspace" {
+			continue
+		}
+		if len(p.Licenses) > 0 {
+			return "", false
+		}
+		deps++
+	}
+	if deps == 0 {
+		return "", false
+	}
+	reason := "no license recorded for " + english.Count(deps, "package")
+	if act, ok := unlicensedRemedy[typ]; ok {
+		reason += ", run " + act
+	}
+	return reason, true
 }
 
 // unknownLicense is the id a license takes when the scanner could not identify it, and the value a

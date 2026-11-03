@@ -1,0 +1,81 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.76.1"
+  },
+  "ReportID": "01a1a19d-88f7-7b47-bd5a-413c719f1b85",
+  "CreatedAt": "2026-11-03T07:33:38.42373979-06:00",
+  "ArtifactName": "mixed",
+  "ArtifactType": "filesystem",
+  "Results": [
+    {
+      "Target": "cs/packages.lock.json",
+      "Class": "lang-pkgs",
+      "Type": "nuget",
+      "Packages": [
+        {
+          "ID": "MySql.Data@8.0.33",
+          "Name": "MySql.Data",
+          "Identifier": {
+            "PURL": "pkg:nuget/MySql.Data@8.0.33",
+            "UID": "4dc0fe4ac3b37478"
+          },
+          "Version": "8.0.33",
+          "Relationship": "direct",
+          "Locations": [
+            {
+              "StartLine": 5,
+              "EndLine": 10
+            }
+          ],
+          "AnalyzedBy": "nuget"
+        }
+      ]
+    },
+    {
+      "Target": "php/composer.lock",
+      "Class": "lang-pkgs",
+      "Type": "composer",
+      "Packages": [
+        {
+          "ID": "monolog/monolog@3.7.0",
+          "Name": "monolog/monolog",
+          "Identifier": {
+            "PURL": "pkg:composer/monolog/monolog@3.7.0",
+            "UID": "1853c206128258f1"
+          },
+          "Version": "3.7.0",
+          "Licenses": [
+            "MIT"
+          ],
+          "Locations": [
+            {
+              "StartLine": 7,
+              "EndLine": 19
+            }
+          ],
+          "AnalyzedBy": "composer"
+        },
+        {
+          "ID": "phpmailer/phpmailer@v6.9.1",
+          "Name": "phpmailer/phpmailer",
+          "Identifier": {
+            "PURL": "pkg:composer/phpmailer/phpmailer@v6.9.1",
+            "UID": "a27bf12feef1a694"
+          },
+          "Version": "v6.9.1",
+          "Licenses": [
+            "LGPL-2.1-only"
+          ],
+          "Locations": [
+            {
+              "StartLine": 20,
+              "EndLine": 27
+            }
+          ],
+          "AnalyzedBy": "composer"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,118 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.76.1"
+  },
+  "ReportID": "01a1a19d-88d2-74e3-be5a-39b2a28ca9f2",
+  "CreatedAt": "2026-11-03T07:33:38.386321066-06:00",
+  "ArtifactName": "native",
+  "ArtifactType": "filesystem",
+  "Results": [
+    {
+      "Target": "rb/Gemfile.lock",
+      "Class": "lang-pkgs",
+      "Type": "bundler",
+      "Packages": [
+        {
+          "ID": "gpgme@2.0.24",
+          "Name": "gpgme",
+          "Identifier": {
+            "PURL": "pkg:gem/gpgme@2.0.24",
+            "UID": "1610e0c925f406dc"
+          },
+          "Version": "2.0.24",
+          "Relationship": "direct",
+          "DependsOn": [
+            "mini_portile2@2.8.7"
+          ],
+          "Locations": [
+            {
+              "StartLine": 4,
+              "EndLine": 4
+            }
+          ],
+          "AnalyzedBy": "bundler"
+        },
+        {
+          "ID": "mini_portile2@2.8.7",
+          "Name": "mini_portile2",
+          "Identifier": {
+            "PURL": "pkg:gem/mini_portile2@2.8.7",
+            "UID": "7295e00b9e780a0a"
+          },
+          "Version": "2.8.7",
+          "Indirect": true,
+          "Relationship": "indirect",
+          "Locations": [
+            {
+              "StartLine": 6,
+              "EndLine": 6
+            }
+          ],
+          "AnalyzedBy": "bundler"
+        }
+      ]
+    },
+    {
+      "Target": "rs/Cargo.lock",
+      "Class": "lang-pkgs",
+      "Type": "cargo",
+      "Packages": [
+        {
+          "ID": "demo@0.1.0",
+          "Name": "demo",
+          "Identifier": {
+            "PURL": "pkg:cargo/demo@0.1.0",
+            "UID": "94ab497cb152e947"
+          },
+          "Version": "0.1.0",
+          "DependsOn": [
+            "gmp-mpfr-sys@1.6.4"
+          ],
+          "Locations": [
+            {
+              "StartLine": 5,
+              "EndLine": 10
+            }
+          ],
+          "AnalyzedBy": "cargo"
+        },
+        {
+          "ID": "gmp-mpfr-sys@1.6.4",
+          "Name": "gmp-mpfr-sys",
+          "Identifier": {
+            "PURL": "pkg:cargo/gmp-mpfr-sys@1.6.4",
+            "UID": "8c7d75cc0ec0b2df"
+          },
+          "Version": "1.6.4",
+          "DependsOn": [
+            "libc@0.2.155"
+          ],
+          "Locations": [
+            {
+              "StartLine": 12,
+              "EndLine": 20
+            }
+          ],
+          "AnalyzedBy": "cargo"
+        },
+        {
+          "ID": "libc@0.2.155",
+          "Name": "libc",
+          "Identifier": {
+            "PURL": "pkg:cargo/libc@0.2.155",
+            "UID": "82f30dfc6bbb9335"
+          },
+          "Version": "0.2.155",
+          "Locations": [
+            {
+              "StartLine": 22,
+              "EndLine": 26
+            }
+          ],
+          "AnalyzedBy": "cargo"
+        }
+      ]
+    }
+  ]
+}

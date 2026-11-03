@@ -362,6 +362,8 @@ func TestTrivyParsersRecordTheFilesTheyRead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Neither package carries a license, so the license scan read the file and checked none.
+	want[0].Unread = "no license recorded for 2 packages"
 	if !reflect.DeepEqual(licenses.Inputs, want) {
 		t.Errorf("trivy-license inputs = %+v, want %+v", licenses.Inputs, want)
 	}

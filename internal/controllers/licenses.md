@@ -126,6 +126,33 @@ combined, and whether the package ships at all. A copyleft formatter that never 
 artifact carries no distribution obligation however alarming the row looks. The descriptor states
 none of those, which is why copyleft warns rather than fails by default.
 
+## Sources
+
+A dependency's license comes from the lockfile where the format records one, and otherwise from an
+installed copy of the package that Trivy finds. A scan reads a clone of the repository, or a copy of
+a local working tree without what git ignores, so an installed copy inside the repository, such as
+`node_modules`, is read only where it is committed. A cache in the home directory is read wherever
+the scan runs.
+
+| File | Where Trivy reads each package's license |
+|---|---|
+| `composer.lock` | the lockfile |
+| `package-lock.json` | the lockfile, from `lockfileVersion` 2; an entry without one, from `node_modules` beside it |
+| `yarn.lock`, `pnpm-lock.yaml`, `bun.lock` | `node_modules` beside the lockfile, or `.yarn` for Yarn 2 and later |
+| `go.mod` | the Go module cache, filled by `go mod download`; `vendor/` where it is committed |
+| `packages.lock.json`, `packages.config` | the `.nuspec` files in `~/.nuget/packages` or `NUGET_PACKAGES`, filled by `dotnet restore` |
+| `pom.xml` | the poms in the local Maven repository, filled by `mvn dependency:resolve` |
+| `*gradle.lockfile` | the poms in `~/.gradle/caches` or `GRADLE_USER_HOME` |
+| `conan.lock` | the `conanfile.py` files in the Conan cache |
+| `requirements.txt` | the `METADATA` files in the `site-packages` of `VIRTUAL_ENV`, or of the `python` on `PATH` |
+| `Cargo.lock`, `Gemfile.lock`, `poetry.lock`, `uv.lock`, `Pipfile.lock`, `pylock.toml`, `*Packages.props`, `*.deps.json`, `*.sbt.lock`, `pubspec.lock`, `mix.lock`, `Podfile.lock`, `Package.resolved`, `Manifest.toml` | none: the format records no license, and Trivy reads none for it |
+
+A dependency file whose packages Trivy read with no license for any of them is listed as read in
+part, as `no license recorded for 12 packages`. For a `go.mod` or a NuGet lockfile the reason
+names the command that fills the cache, as `no license recorded for 12 packages, run dotnet
+restore`. The packages were read, so the file is counted as read, and none of their licenses was
+checked. The project's own entries, the root and its workspaces, are left out of the count.
+
 ## Links
 
 - Saga reference: [`docs/reference/saga-schema.md`](../../docs/reference/saga-schema.md)
@@ -136,7 +163,8 @@ none of those, which is why copyleft warns rather than fails by default.
 
 - A dependency file `trivy-license` took no packages from is listed as unread, with the
   same reasons as [`sca`](sca.md#unread). Its packages' licenses were not checked. A requirements
-  file it read in part is listed with the requirements it did not read, as for `sca`.
+  file it read in part is listed with the requirements it did not read, as for `sca`, and a file
+  whose packages carry no license is listed with the reason given under Sources.
 - `trivy-license` reads a repository with the `filePatterns` set for `sca`'s `trivyFs`, so a
   requirements file `sca` reads under another name is read here too.
 - Findings are **not** legal advice. Trivy's categories are a starting point for a conversation;
