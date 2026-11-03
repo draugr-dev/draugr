@@ -345,9 +345,9 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 // Trivy's type for the file, for the types whose licenses come from outside the checkout.
 //
 // A lockfile that records no license, such as a Cargo.lock or a Gemfile.lock, has nothing to run,
-// and Trivy reads no installed copy for it. The node_modules a pnpm-lock.yaml or a yarn.lock takes its licenses from is
-// never in what Draugr scans: a clone holds none, and a working-tree copy leaves out what git
-// ignores. A NuGet restore and a Go module download land in the home directory, where Trivy looks.
+// and Trivy reads no installed copy for it. The node_modules a pnpm-lock.yaml or a yarn.lock takes
+// its licenses from is never in what Draugr scans: a clone holds none, and a working-tree copy
+// leaves out what git ignores. A NuGet restore and a Go module download land in the home directory, where Trivy looks.
 var unlicensedRemedy = map[string]string{
 	"nuget": "dotnet restore",  // the .nuspec files in ~/.nuget/packages
 	"gomod": "go mod download", // the module cache under $GOPATH/pkg/mod
@@ -377,11 +377,13 @@ func licenseUnread(typ string, pkgs []trivyPackage) (string, bool) {
 	if deps == 0 {
 		return "", false
 	}
-	reason := "no license recorded for " + english.Count(deps, "package")
+	// With a command, the licenses are somewhere Trivy looks once it has run. Without one, the file
+	// is all Trivy reads, and it records none: a Cargo.lock never does, and a package-lock.json at
+	// lockfileVersion 1 does not, while the node_modules Trivy would fall back to is never scanned.
 	if act, ok := unlicensedRemedy[typ]; ok {
-		reason += ", run " + act
+		return english.Noun(deps, "license") + " of " + english.Count(deps, "package") + " not read, run " + act, true
 	}
-	return reason, true
+	return "records no " + english.Noun(deps, "license") + " for " + english.Count(deps, "package"), true
 }
 
 // unknownLicense is the id a license takes when the scanner could not identify it, and the value a

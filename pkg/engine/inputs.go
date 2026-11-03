@@ -56,8 +56,8 @@ type UnreadInput struct {
 	// pinned: urllib3`, and for a pom.xml Trivy did not resolve, `2 dependency versions not
 	// resolved, run mvn dependency:resolve` or `transitive dependencies not resolved, run mvn
 	// dependency:resolve`. For a file whose packages the license scan read with no license for any,
-	// `no license recorded for 12 packages`, with `, run dotnet restore` or `, run go mod download`
-	// where that fills the cache the licenses are read from.
+	// `records no licenses for 12 packages`, or `licenses of 12 packages not read, run dotnet
+	// restore` (or `run go mod download`) where a command fills the cache the licenses are read from.
 	Reason string
 }
 

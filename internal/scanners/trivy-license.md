@@ -121,6 +121,6 @@ has neither flag and makes no such request.
 Trivy lists every package it read from a dependency file, with the licenses it found for each, and
 reads a license from the file itself or from a copy of the package installed where it looks, such
 as the Go module cache or `~/.nuget/packages`. A file whose packages carry no license at all, a
-`Cargo.lock` or a `Gemfile.lock` always, is listed as read in part with `no license recorded for 3
-packages`, and with `, run go mod download` or `, run dotnet restore` after it for a `go.mod` or a
-NuGet lockfile. [`licenses`](../controllers/licenses.md) lists where each format's licenses come from.
+`Cargo.lock` or a `Gemfile.lock` always, is listed as read in part with `records no licenses for 3
+packages`. A `go.mod` or a NuGet lockfile is listed as `licenses of 3 packages not read, run go mod
+download` or `…, run dotnet restore`. [`licenses`](../controllers/licenses.md) lists where each format's licenses come from.

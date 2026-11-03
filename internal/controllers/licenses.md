@@ -148,10 +148,12 @@ the scan runs.
 | `Cargo.lock`, `Gemfile.lock`, `poetry.lock`, `uv.lock`, `Pipfile.lock`, `pylock.toml`, `*Packages.props`, `*.deps.json`, `*.sbt.lock`, `pubspec.lock`, `mix.lock`, `Podfile.lock`, `Package.resolved`, `Manifest.toml` | none: the format records no license, and Trivy reads none for it |
 
 A dependency file whose packages Trivy read with no license for any of them is listed as read in
-part, as `no license recorded for 12 packages`. For a `go.mod` or a NuGet lockfile the reason
-names the command that fills the cache, as `no license recorded for 12 packages, run dotnet
+part, as `records no licenses for 12 packages`. For a `go.mod` or a NuGet lockfile the reason
+names the command that fills the cache, as `licenses of 12 packages not read, run dotnet
 restore`. The packages were read, so the file is counted as read, and none of their licenses was
-checked. The project's own entries, the root and its workspaces, are left out of the count.
+checked. The project's own entries, the root and its workspaces, are left out of the count. The
+control's row counts these files with every other file it did not read in full, as `11 files
+unread`.
 
 ## Links
 

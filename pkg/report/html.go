@@ -227,6 +227,8 @@ type htmlControl struct {
 	Fail     bool
 	Errored  bool // its scanner failed: whatever it reported is partial
 	NoReport bool // it produced nothing at all, so has no counts to show
+	// Unread counts the files its scans did not read in full, as `11 files unread`, empty for none.
+	Unread string
 	// Bands are how many findings landed in each priority, which is the vocabulary the verdict, the
 	// components and the gate all speak. The severities stay for a run that ranked nothing, where
 	// they are all there is.
@@ -456,6 +458,7 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 			Prioritized: s.prioritized,
 			P1:          at[0], P2: at[1], P3: at[2], P4: at[3],
 			Critical: b.critical, High: b.high, Medium: b.medium, Low: b.low,
+			Unread: unreadNote(d.Run.Inputs, c.Control),
 		})
 	}
 	// Controls that produced no report at all have no verdict entry. Omitting them is how a
@@ -1756,6 +1759,7 @@ the component is, so the same issue ranks differently on a public API than on an
     <span class="sev s-medium{{if not .Medium}} off{{end}}">{{.Medium}} medium</span>
     <span class="sev s-low{{if not .Low}} off{{end}}">{{.Low}} low</span>
   </span>{{end}}
+  {{if .Unread}}<span class="ctl-none">{{.Unread}}</span>{{end}}
 </li>{{end}}
 </ul>
 </details>

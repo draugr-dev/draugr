@@ -2,6 +2,7 @@ package scanners
 
 import (
 	"context"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -102,12 +103,12 @@ func TestLockfileWithNoLicenseIsReadInPartForLicenses(t *testing.T) {
 		unread    []engine.UnreadInput
 	}{
 		{"native", []engine.UnreadInput{
-			{Repository: "native", Path: "rb/Gemfile.lock", Reason: "no license recorded for 2 packages"},
-			{Repository: "native", Path: "rs/Cargo.lock", Reason: "no license recorded for 3 packages"},
+			{Repository: "native", Path: "rb/Gemfile.lock", Reason: "records no licenses for 2 packages"},
+			{Repository: "native", Path: "rs/Cargo.lock", Reason: "records no licenses for 3 packages"},
 		}},
 		{"mixed", []engine.UnreadInput{
 			{Repository: "mixed", Path: "cs/packages.lock.json",
-				Reason: "no license recorded for 1 package, run dotnet restore"},
+				Reason: "license of 1 package not read, run dotnet restore"},
 		}},
 	} {
 		lic := inputsOf(t, res, tc.component, "licenses")
@@ -144,14 +145,14 @@ func TestLicenseUnread(t *testing.T) {
 		pkgs []trivyPackage
 		want string
 	}{
-		"none carries one":   {"cargo", []trivyPackage{pkg(""), pkg("")}, "no license recorded for 2 packages"},
+		"none carries one":   {"cargo", []trivyPackage{pkg(""), pkg("")}, "records no licenses for 2 packages"},
 		"one carries one":    {"npm", []trivyPackage{pkg("direct"), pkg("indirect", "MIT")}, ""},
 		"all carry one":      {"composer", []trivyPackage{pkg("", "MIT")}, ""},
-		"go module cache":    {"gomod", []trivyPackage{pkg("root"), pkg("direct")}, "no license recorded for 1 package, run go mod download"},
-		"nuget packages":     {"nuget", []trivyPackage{pkg("direct"), pkg("indirect")}, "no license recorded for 2 packages, run dotnet restore"},
+		"go module cache":    {"gomod", []trivyPackage{pkg("root"), pkg("direct")}, "license of 1 package not read, run go mod download"},
+		"nuget packages":     {"nuget", []trivyPackage{pkg("direct"), pkg("indirect")}, "licenses of 2 packages not read, run dotnet restore"},
 		"only the project":   {"gomod", []trivyPackage{pkg("root", "MIT")}, ""},
 		"no packages":        {"cargo", nil, ""},
-		"workspace licensed": {"yarn", []trivyPackage{pkg("root", "MIT"), pkg("workspace", "MIT"), pkg("")}, "no license recorded for 1 package"},
+		"workspace licensed": {"yarn", []trivyPackage{pkg("root", "MIT"), pkg("workspace", "MIT"), pkg("")}, "records no license for 1 package"},
 	} {
 		got, ok := licenseUnread(tc.typ, tc.pkgs)
 		if got != tc.want || ok != (tc.want != "") {
@@ -162,10 +163,10 @@ func TestLicenseUnread(t *testing.T) {
 
 // Every reason fits the console's caveat column with its control named after it.
 func TestLicenseReasonsFitTheCaveatColumn(t *testing.T) {
-	for typ := range unlicensedRemedy {
-		pkgs := make([]trivyPackage, 99999)
+	pkgs := make([]trivyPackage, 99999)
+	for _, typ := range append(slices.Collect(maps.Keys(unlicensedRemedy)), "cargo") {
 		reason, _ := licenseUnread(typ, pkgs)
-		if !strings.HasPrefix(reason, "no license recorded for "+english.Count(99999, "package")) {
+		if !strings.Contains(reason, english.Count(99999, "package")) {
 			t.Fatalf("%s: reason %q", typ, reason)
 		}
 		if n := len(reason + " (licenses)"); n > 80 {

@@ -3,6 +3,7 @@ package report
 import (
 	"strings"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/engine"
 )
 
@@ -99,6 +100,21 @@ func missedLines(inputs []engine.InputCoverage, targets []engine.TargetOutcome) 
 		}
 	}
 	return out
+}
+
+// unreadNote is what a control's row says about the files its scans did not read in full, across
+// every component, as `11 files unread`, and empty where there are none. The caveats name them.
+func unreadNote(inputs []engine.InputCoverage, control string) string {
+	n := 0
+	for _, c := range inputs {
+		if c.Control == control {
+			n += len(c.Unread)
+		}
+	}
+	if n == 0 {
+		return ""
+	}
+	return english.Count(n, "file") + " unread"
 }
 
 // repositoriesByComponent counts the distinct repositories the run planned for each component. One
