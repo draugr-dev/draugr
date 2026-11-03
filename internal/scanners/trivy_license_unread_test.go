@@ -2,6 +2,7 @@ package scanners
 
 import (
 	"context"
+	"errors"
 	"maps"
 	"os"
 	"path/filepath"
@@ -58,21 +59,30 @@ func runUnlicensed(t *testing.T) engine.Result {
 		}
 	}
 
+	// The process-wide version probe answers once and keeps the answer, and a later test reading it
+	// would build another command line. A probe of this test's own fails it if anything asks.
+	was := sharedTrivyVersion
+	t.Cleanup(func() { sharedTrivyVersion = was })
+	sharedTrivyVersion = &trivyVersionProbe{run: func(context.Context, []string) ([]byte, error) {
+		t.Error("the scan asked Trivy its version, and the process keeps the answer")
+		return nil, errors.New("no Trivy in this test")
+	}}
+
 	fs := NewTrivyFS().(repoScanner)
 	fs.checkout, fs.prewarm, fs.cacheVersion, fs.dataState = checkout, nil, nil, nil
 	fs.runLogged = trivyFSRun(replay("vuln"))
 
-	whole := NewTrivyLicense().(licenseScanner)
-	lic := whole.repo.(repoScanner)
+	// The repository mode alone, as the pom tests register it. The dispatcher's CacheVersion,
+	// Prewarm and DataState call the process-wide Trivy, whatever the repository mode was given.
+	lic := NewTrivyLicense().(licenseScanner).repo.(repoScanner)
 	lic.checkout, lic.prewarm, lic.cacheVersion, lic.dataState = checkout, nil, nil, nil
 	lic.runLogged = trivyFSRun(replay("license"))
-	whole.repo = lic
 
 	reg := engine.NewRegistry()
 	reg.RegisterController(controllers.NewSCA())
 	reg.RegisterController(controllers.NewLicenses())
 	reg.RegisterScanner(fs)
-	reg.RegisterScanner(whole)
+	reg.RegisterScanner(lic)
 
 	model := saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 		"sca": {"enabled": true}, "licenses": {"enabled": true},
