@@ -2126,7 +2126,9 @@ config:
 
 Produces one [Software Bill of Materials](glossary.md#sbom-software-bill-of-materials) per distinct
 repository and image in the Saga, an inventory of what each one contains. Requires
-[Syft](https://github.com/anchore/syft) (`draugr tools install syft`).
+[Syft](https://github.com/anchore/syft) (`draugr tools install syft`). Syft runs with
+`SYFT_CHECK_FOR_APP_UPDATE=false`, so it does not ask `toolbox-data.anchore.io` whether a newer Syft
+exists.
 
 **Choosing a format.** Both open specifications, each in both of its standard encodings, pick
 whichever the thing consuming the document reads:
