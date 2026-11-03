@@ -12,6 +12,26 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.166.0] - 2026-11-03
+
+### Changed
+
+- **Findings in development dependencies are suppressed by default, whatever the lockfile.** Trivy now reads development dependencies and marks each, and a Grype finding about the same package takes the mark. Each such finding stays in the report suppressed, with `dev` beside its package. Set `config.controls.sca.devDependencies: report` to count them.
+
+- **Trivy no longer looks up a `pom.xml`'s dependencies in Maven Central.** Every Trivy run passes `--offline-scan`. A pom whose dependency versions or transitive dependencies are not in the local Maven repository is listed under `unread-files`. Run `mvn dependency:resolve` before scanning, or set `config.controls.sca.trivyFs.resolveMaven: true`, which declares the `disclosure` effect.
+
+### Deprecated
+
+- **`config.controls.sca.trivyFs.includeDevDeps` is deprecated and stops being read in the next release.** Until then `true` is read as `devDependencies: report` and `false` as `suppress`, and `draugr validate` and `draugr scan` warn with what to write instead. Replace it with `config.controls.sca.devDependencies`.
+
+### Fixed
+
+- **A dependency file one `sca` scanner missed while another read it is recorded with that scanner.** `--evidence` and `report.json` (`dependencyFiles[].missed`) name the scanner and its reason. A file Trivy failed to parse gives the parser's error, as `not parsed: …`, in place of `no packages read`.
+
+- **A failed Trivy misconfiguration scan names its cause.** The `iac` error read `Fatal error`; it now carries Trivy's own chain, as `run error: init error: … --skip-db-update cannot be specified on the first run`.
+
+- **A Go flaw govulncheck reports by its GitHub advisory and Grype by its Go ID counts once, ranked by govulncheck's verdict.** Grype's copy now carries the reachability verdict and the band it sets, so a flaw with no call path no longer fails the gate. Grype findings also correlate through the identifiers Grype relates to each match.
+
 ## [0.165.6] - 2026-11-02
 
 ### Fixed
@@ -6771,7 +6791,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.165.6...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.166.0...HEAD
+[0.166.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.166.0
 [0.165.6]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.6
 [0.165.5]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.5
 [0.165.4]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.4
