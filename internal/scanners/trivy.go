@@ -238,6 +238,8 @@ func trivyOptions(argv []string, cfg plugin.Config) []string {
 // so without them an offline run still reaches out, several times, once per job. With them, Trivy
 // uses its local cache and says plainly when there isn't one, which is a better message than
 // anything Draugr could write on its behalf.
+//
+// trivyNoticeArgs on every run, offline or not.
 func trivyNetworkArgs(argv []string, resolvePoms bool) []string {
 	var flags []string
 	if netpolicy.Offline() {
@@ -246,11 +248,30 @@ func trivyNetworkArgs(argv []string, resolvePoms bool) []string {
 	if !resolvePoms || netpolicy.Offline() {
 		flags = append(flags, "--offline-scan")
 	}
+	flags = append(flags, trivyNoticeArgs()...)
 	// Before the positional argument: Trivy takes flags ahead of the target.
 	out := make([]string, 0, len(argv)+len(flags))
 	out = append(out, argv[:len(argv)-1]...)
 	out = append(out, flags...)
 	return append(out, argv[len(argv)-1])
+}
+
+// trivyNoticeArgs turns off the request a Trivy artifact command sends to check.trivy.dev, which
+// asks for the latest version and reports anonymous usage. Every Trivy scan and warm Draugr starts
+// takes these flags from here.
+//
+// Both flags, on every run and not only offline: Trivy sends the request unless it has both, and a
+// scan sends nothing to a third party unless the descriptor says it may. Draugr reads Trivy's
+// version from `trivy version` and has no use for the notice. The request carries an identifier
+// Trivy keeps for the machine, the command, and the flags it ran with.
+//
+// None for a Trivy older than noticeFlagsSince, which sends no such request and refuses both
+// flags, or one whose version is not known, which runs the command Draugr has always run.
+func trivyNoticeArgs() []string {
+	if !sharedTrivyVersion.skipsNotices() {
+		return nil
+	}
+	return []string{"--skip-version-check", "--disable-telemetry"}
 }
 
 // unresolvedPom is the reason a pom.xml read with --offline-scan is listed with the dependency

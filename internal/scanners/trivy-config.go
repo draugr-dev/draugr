@@ -93,5 +93,6 @@ func trivyConfigArgs(dir string, cfg plugin.Config) []string {
 	if netpolicy.Offline() {
 		argv = append(argv, "--skip-check-update")
 	}
+	argv = append(argv, trivyNoticeArgs()...)
 	return append(argv, dir)
 }

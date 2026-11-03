@@ -113,3 +113,7 @@ defaults in that order. The same copy the other Trivy-backed scanners read, warm
 Every run passes `--offline-scan`, and this scanner has no setting that removes it, so it contacts
 no Maven repository. A `pom.xml` whose dependencies Trivy did not resolve is listed as read in part,
 see [`sca`](../controllers/sca.md#unread).
+
+Every run, and the database warm, passes `--skip-version-check` and `--disable-telemetry`, so
+Trivy makes no version-check or telemetry request to `check.trivy.dev`. A Trivy older than 0.63.0
+has neither flag and makes no such request.

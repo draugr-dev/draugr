@@ -90,6 +90,10 @@ from Maven Central and the repositories the pom and `settings.xml` name. `resolv
 resolution on for `trivy-fs` alone. Maven Central rate-limits repeated lookups from one address,
 and every Trivy scanner of a run repeats them.
 
+Every run, and the database warm, passes `--skip-version-check` and `--disable-telemetry`, so
+Trivy makes no version-check or telemetry request to `check.trivy.dev`. A Trivy older than 0.63.0
+has neither flag and makes no such request.
+
 `config.controls.sca.trivyFs.dbRepository` replaces both database hosts with an internal mirror.
 
 ## What is sent
