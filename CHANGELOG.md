@@ -16,15 +16,17 @@ _Nothing yet._
 
 ### Fixed
 
-- **A Helm chart Trivy cannot render is reported.** A chart Trivy skipped, for a dependency missing from `charts/`, an unset value or an invalid `Chart.yaml`, is an `unread-files` caveat on its `Chart.yaml` that says what to do. A run with no findings and a caveat closes on `No findings. The run did not check what its caveats name.`
+- **A run with no findings and a caveat no longer ends `No findings. ✓`.** It ends `No findings. The run did not check what its caveats name.`
 
-- **A retire.js advisory without a CVE counts once per repository.** An advisory retire.js reports under its own ID, such as `retirejs:jquery:11974`, is one finding however many vendored copies of the library a repository holds, as a CVE is, and it now appears in the VEX document.
+- **`licenses` reports a lockfile that records no licenses.** A `Cargo.lock`, `Gemfile.lock` or NuGet lockfile whose packages Trivy read without a license is now an `unread-files` caveat, as `Cargo.lock ×3 · records no licenses for 8 packages` or `licenses of 3 packages not read, run dotnet restore`, and each control's row counts the files it did not read. This caveat, like the Helm chart and `pom.xml` caveats in this release, can fail a gate on `unread-files` (`config.gate.failOnCaveats`) where the run passed.
 
-- **`licenses` no longer passes on a lockfile that records no licenses.** A `Cargo.lock`, `Gemfile.lock` or NuGet file whose packages Trivy read without a license is a caveat, as `Cargo.lock ×3 · records no licenses for 8 packages`, or `licenses of 3 packages not read, run dotnet restore`. Each control's row counts the files it did not read.
+- **A Helm chart Trivy skips is an `unread-files` caveat.** A chart with a dependency missing from `charts/`, an unset value or an invalid `Chart.yaml` is listed on its `Chart.yaml` with what to do.
 
-- **`sca` keeps the caveat for a `pom.xml` whose transitive dependencies went unread when `grype-fs` runs.** With `trivy-fs` beside it, the row shows Trivy's reason and the command that clears it. With `grype-fs` alone, it reads `transitive dependencies not read by Grype`. A file whose controls give different reasons gets one row per reason.
+- **`sca` reports a `pom.xml` whose transitive dependencies went unread when `grype-fs` runs beside `trivy-fs`.** The caveat had been dropped because Grype counted the pom as read in full; the row now shows Trivy's reason and the command that clears it. With `grype-fs` alone it reads `transitive dependencies not read by Grype`.
 
-- **Trivy and Syft no longer contact their vendors for update checks or telemetry.** Every Trivy run passes `--skip-version-check` and `--disable-telemetry` (Trivy 0.63.0 and later), and Syft runs with `SYFT_CHECK_FOR_APP_UPDATE=false`, with or without `--offline`, so an offline scan makes no network call through either.
+- **A retire.js advisory without a CVE counts once per repository.** An advisory retire.js reports under its own ID, such as `retirejs:jquery:11974`, is one finding per repository, however many vendored copies it holds, and it now appears in the VEX document.
+
+- **Trivy and Syft make no update-check or telemetry request.** Every Trivy run passes `--skip-version-check` and `--disable-telemetry` (Trivy 0.63.0 and later; an older Trivy makes no such request), and Syft runs with `SYFT_CHECK_FOR_APP_UPDATE=false`.
 
 ## [0.166.0] - 2026-11-03
 
