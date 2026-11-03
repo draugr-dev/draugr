@@ -147,26 +147,33 @@ the scan runs.
 | `requirements.txt` | the `METADATA` files in the `site-packages` of `VIRTUAL_ENV`, or of the `python` on `PATH` |
 | `Cargo.lock`, `Gemfile.lock`, `poetry.lock`, `uv.lock`, `Pipfile.lock`, `pylock.toml`, `*Packages.props`, `*.deps.json`, `*.sbt.lock`, `pubspec.lock`, `mix.lock`, `Podfile.lock`, `Package.resolved`, `Manifest.toml` | none: the format records no license, and Trivy reads none for it |
 
-A dependency file whose packages Trivy read with no license for any of them is listed as read in
-part, as `records no licenses for 12 packages`. For a `go.mod` or a NuGet lockfile the reason
-names the command that fills the cache, as `licenses of 12 packages not read, run dotnet
-restore`. The packages were read, so the file is counted as read, and none of their licenses was
-checked. The project's own entries, the root and its workspaces, are left out of the count. The
-control's row counts these files with every other file it did not read in full, as `11 files
-unread`.
+A dependency file whose packages Trivy read with no license for any of them is **unread** for
+`licenses`: none of its licenses was checked. The control's row counts it with the other files it
+did not read, as `11 files unread`, and **Caveats** lists it as `unread-files` with one of two
+reasons:
 
-A component's files of one format with the same reason share one caveat row, the files counted in
-What and the packages in Why:
+- `records no licenses for 12 packages`: the file records none, and Trivy reads them from nowhere
+  else.
+- `licenses of 12 packages not read, run dotnet restore` for a NuGet file, or `…, run go mod
+  download` for a `go.mod`: the licenses are in a cache that command fills. After it runs, the next
+  scan reads the licenses.
 
-```
-  api        Cargo.lock ×3          unread-files  records no licenses for 8 packages (licenses)
-  api        NuGet files ×2         unread-files  licenses of 5 packages not read, run dotnet restore (licenses)
-  api        web/package-lock.json  unread-files  records no licenses for 2 packages (licenses)
-```
+The count leaves out the project's own entries, the root and its workspaces.
 
-The format is Trivy's: a `packages.lock.json` and a `packages.config` are both NuGet. A row names
-the files' shared name, or the format where their names differ, and a format with one file keeps its
-path. `--evidence` lists each folded file under `unread`.
+A component's files of one format with the same kind of reason share one row. The name shows the
+file count; the reason shows the package total. For a component holding three `Cargo.lock` files,
+two `packages.lock.json` files and one `package-lock.json`, the rows read:
+
+| What | Why |
+|---|---|
+| `Cargo.lock ×3` | `records no licenses for 8 packages (licenses)` |
+| `packages.lock.json ×2` | `licenses of 3 packages not read, run dotnet restore (licenses)` |
+| `web/package-lock.json` | `records no licenses for 2 packages (licenses)` |
+
+The format is Trivy's: a `packages.lock.json` and a `packages.config` are both NuGet, and a row
+holding both names the format, as `NuGet files ×2`. A format with one file keeps its path.
+`--evidence` lists each file a row stands for under `unread`, and where there is such a row the
+**Caveats** heading ends `· --evidence names each file`.
 
 ## Links
 
@@ -179,7 +186,7 @@ path. `--evidence` lists each folded file under `unread`.
 - A dependency file `trivy-license` took no packages from is listed as unread, with the
   same reasons as [`sca`](sca.md#unread). Its packages' licenses were not checked. A requirements
   file it read in part is listed with the requirements it did not read, as for `sca`, and a file
-  whose packages carry no license is listed with the reason given under Sources.
+  whose packages carry no license is unread, with a reason Sources explains.
 - `trivy-license` reads a repository with the `filePatterns` set for `sca`'s `trivyFs`, so a
   requirements file `sca` reads under another name is read here too.
 - Findings are **not** legal advice. Trivy's categories are a starting point for a conversation;
