@@ -117,3 +117,7 @@ see [`sca`](../controllers/sca.md#unread).
 Every run, and the database warm, passes `--skip-version-check` and `--disable-telemetry`, so
 Trivy makes no version-check or telemetry request to `check.trivy.dev`. A Trivy older than 0.63.0
 has neither flag and makes no such request.
+
+A dependency file whose packages Trivy read with no license for any of them is unread for
+`licenses`; [`licenses`](../controllers/licenses.md#sources) says where each format's licenses come
+from and what each reason asks of you.

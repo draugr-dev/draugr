@@ -185,10 +185,16 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 				// It produced findings *and* something failed: what it did report is partial.
 				v, vc = "ERROR", cFail
 			}
+			// The files the control did not read in full, counted on its own row: a pass over files
+			// it could not read is a pass over less than the tree, and the caveats below name them.
+			counts := controlCounts(col, s, c.Control)
+			if note := unreadNote(d.Run.Inputs, c.Control); note != "" {
+				counts += col.Paint(cDim, " · "+note)
+			}
 			_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
 				fmt.Sprintf("%-*s", width, c.Control),
 				col.Paint(vc, fmt.Sprintf("%-5s", v)),
-				controlCounts(col, s, c.Control))
+				counts)
 			why(c.Control, false)
 		}
 		// Controls that produced nothing at all have no verdict entry, so they're listed here.
@@ -2594,6 +2600,14 @@ func writeEvidence(w io.Writer, col tui.Painter, d Data, indent string) {
 	}
 	for i, l := range missedLines(d.Run.Inputs, d.Run.Targets) {
 		label := "missed"
+		if i > 0 {
+			label = ""
+		}
+		add(label, l)
+	}
+	// The files a caveat row folded together, each by its path, which the row does not name.
+	for i, l := range foldedLines(unreadByComponent(d.Run.Inputs, d.Run.Targets)) {
+		label := "unread"
 		if i > 0 {
 			label = ""
 		}

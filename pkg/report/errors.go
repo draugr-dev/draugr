@@ -141,6 +141,8 @@ type caveat struct {
 	// by is what detail closes with in parentheses: the controls whose reason it is. Empty for a
 	// caveat that names none.
 	by string
+	// folded says the row stands for several files, which --evidence names one by one.
+	folded bool
 }
 
 // caveats gathers what was declared and not checked, the files whose scanner could not run, what
@@ -170,10 +172,11 @@ func caveats(d Data) []caveat {
 			detail: "names no commit, so nothing ties its findings to this code", key: saga.CaveatUnboundImports})
 	}
 	for _, g := range unreadByComponent(d.Run.Inputs, d.Run.Targets) {
-		for _, f := range g.files {
-			by := strings.Join(f.controls, ", ")
-			out = append(out, caveat{component: g.component, what: f.label,
-				detail: fmt.Sprintf("%s (%s)", f.reason, by), key: saga.CaveatUnreadFiles, by: by})
+		for _, r := range unreadRows(g) {
+			by := strings.Join(r.controls, ", ")
+			out = append(out, caveat{component: g.component, what: r.what,
+				detail: fmt.Sprintf("%s (%s)", r.reason, by), key: saga.CaveatUnreadFiles, by: by,
+				folded: len(r.files) > 0})
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].component < out[j].component })
@@ -387,6 +390,10 @@ func writeCaveats(w io.Writer, col tui.Painter, d Data) {
 		if d.AcceptedErrors {
 			note = col.Paint(cAccent, fmt.Sprintf("%d accepted by --allow-scan-errors · %s", len(failing), setting))
 		}
+	}
+	// A row standing for several files names none of them; the evidence lists each.
+	if slices.ContainsFunc(cs, func(c caveat) bool { return c.folded }) {
+		note += col.Paint(cDim, " · --evidence names each file")
 	}
 	_, _ = fmt.Fprintf(w, "%s  %s\n", heading(col, "Caveats"), note)
 	t := tui.NewTable(col, "Component", "What", "Caveat", "Why").Indent("  ")

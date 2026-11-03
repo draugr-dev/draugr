@@ -16,6 +16,7 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/english"
@@ -64,6 +65,37 @@ const (
 // clears the row.
 func ScannerLimit(reason string) bool {
 	return reason == string(TransitiveNotReadByGrype)
+}
+
+// LicensesNotRead is the reason for a dependency file whose packages a license scan read with none
+// of their licenses. With no command, the file is all the scanner reads and it records none, as
+// `records no licenses for 3 packages`. With one, the licenses are in a cache the command fills, as
+// `licenses of 3 packages not read, run dotnet restore`.
+func LicensesNotRead(packages int, command string) string {
+	if command != "" {
+		return english.Noun(packages, "license") + " of " + english.Count(packages, "package") +
+			" not read, run " + command
+	}
+	return "records no " + english.Noun(packages, "license") + " for " + english.Count(packages, "package")
+}
+
+// ParseLicensesNotRead reads a reason LicensesNotRead wrote back into its packages and command, and
+// reports false for any other reason. A reason for several files is the same sentence over their
+// packages, so a report that folds them into one row reads each one's count here.
+func ParseLicensesNotRead(reason string) (packages int, command string, ok bool) {
+	if _, after, found := strings.Cut(reason, " not read, run "); found {
+		command = after
+	}
+	for _, word := range strings.Fields(reason) {
+		if n, err := strconv.Atoi(word); err == nil {
+			packages = n
+			break
+		}
+	}
+	if packages == 0 || LicensesNotRead(packages, command) != reason {
+		return 0, "", false
+	}
+	return packages, command, true
 }
 
 // Unread is a dependency file a scan did not read, and why.

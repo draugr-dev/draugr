@@ -162,6 +162,12 @@ CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that d
 A [scan with no descriptor](../reference/cli.md#draugr-scan-sagayaml--dir) uses the same kind for a
 file whose scanner could not run on the machine, such as `govulncheck` for a `go.mod` without Go.
 
+A dependency file a control did not read in full is unread: an `unread-files` caveat, one row per
+file, counted on the control's own row, as `licenses  pass   no findings · 11 files unread`. A
+component's files of one format whose licenses were not read share one row, as `Cargo.lock ×3`
+beside `records no licenses for 8 packages`, and `--evidence` names each file under `unread`.
+[`licenses`](../../internal/controllers/licenses.md#sources) explains the reasons.
+
 [`draugr doctor`](../reference/cli.md#draugr-doctor-sagayaml) says the same thing **before** the
 scan, which is usually where you want to hear it, and `--fail-on-uncovered` turns it into a
 failure for a descriptor that is meant to be complete:

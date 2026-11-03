@@ -66,6 +66,9 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 			if _, bad := s.scanErrors[c.Control]; bad {
 				v = "**ERROR**"
 			}
+			if note := unreadNote(d.Run.Inputs, c.Control); note != "" {
+				v += " · " + note
+			}
 			_, _ = fmt.Fprintf(w, "| %s | %s | %s |\n", c.Control, v, cells(c.Control))
 		}
 		// A control that produced nothing at all has no verdict row, and leaving it out

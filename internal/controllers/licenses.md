@@ -126,6 +126,55 @@ combined, and whether the package ships at all. A copyleft formatter that never 
 artifact carries no distribution obligation however alarming the row looks. The descriptor states
 none of those, which is why copyleft warns rather than fails by default.
 
+## Sources
+
+A dependency's license comes from the lockfile where the format records one, and otherwise from an
+installed copy of the package that Trivy finds. A scan reads a clone of the repository, or a copy of
+a local working tree without what git ignores, so an installed copy inside the repository, such as
+`node_modules`, is read only where it is committed. A cache in the home directory is read wherever
+the scan runs.
+
+| File | Where Trivy reads each package's license |
+|---|---|
+| `composer.lock` | the lockfile |
+| `package-lock.json` | the lockfile, from `lockfileVersion` 2; an entry without one, from `node_modules` beside it |
+| `yarn.lock`, `pnpm-lock.yaml`, `bun.lock` | `node_modules` beside the lockfile, or `.yarn` for Yarn 2 and later |
+| `go.mod` | the Go module cache, filled by `go mod download`; `vendor/` where it is committed |
+| `packages.lock.json`, `packages.config` | the `.nuspec` files in `~/.nuget/packages` or `NUGET_PACKAGES`, filled by `dotnet restore` |
+| `pom.xml` | the poms in the local Maven repository, filled by `mvn dependency:resolve` |
+| `*gradle.lockfile` | the poms in `~/.gradle/caches` or `GRADLE_USER_HOME` |
+| `conan.lock` | the `conanfile.py` files in the Conan cache |
+| `requirements.txt` | the `METADATA` files in the `site-packages` of `VIRTUAL_ENV`, or of the `python` on `PATH` |
+| `Cargo.lock`, `Gemfile.lock`, `poetry.lock`, `uv.lock`, `Pipfile.lock`, `pylock.toml`, `*Packages.props`, `*.deps.json`, `*.sbt.lock`, `pubspec.lock`, `mix.lock`, `Podfile.lock`, `Package.resolved`, `Manifest.toml` | none: the format records no license, and Trivy reads none for it |
+
+A dependency file whose packages Trivy read with no license for any of them is **unread** for
+`licenses`: none of its licenses was checked. The control's row counts it with the other files it
+did not read, as `11 files unread`, and **Caveats** lists it as `unread-files` with one of two
+reasons:
+
+- `records no licenses for 12 packages`: the file records none, and Trivy reads them from nowhere
+  else.
+- `licenses of 12 packages not read, run dotnet restore` for a NuGet file, or `…, run go mod
+  download` for a `go.mod`: the licenses are in a cache that command fills. After it runs, the next
+  scan reads the licenses.
+
+The count leaves out the project's own entries, the root and its workspaces.
+
+A component's files of one format with the same kind of reason share one row. The name shows the
+file count; the reason shows the package total. For a component holding three `Cargo.lock` files,
+two `packages.lock.json` files and one `package-lock.json`, the rows read:
+
+| What | Why |
+|---|---|
+| `Cargo.lock ×3` | `records no licenses for 8 packages (licenses)` |
+| `packages.lock.json ×2` | `licenses of 3 packages not read, run dotnet restore (licenses)` |
+| `web/package-lock.json` | `records no licenses for 2 packages (licenses)` |
+
+The format is Trivy's: a `packages.lock.json` and a `packages.config` are both NuGet, and a row
+holding both names the format, as `NuGet files ×2`. A format with one file keeps its path.
+`--evidence` lists each file a row stands for under `unread`, and where there is such a row the
+**Caveats** heading ends `· --evidence names each file`.
+
 ## Links
 
 - Saga reference: [`docs/reference/saga-schema.md`](../../docs/reference/saga-schema.md)
@@ -136,7 +185,8 @@ none of those, which is why copyleft warns rather than fails by default.
 
 - A dependency file `trivy-license` took no packages from is listed as unread, with the
   same reasons as [`sca`](sca.md#unread). Its packages' licenses were not checked. A requirements
-  file it read in part is listed with the requirements it did not read, as for `sca`.
+  file it read in part is listed with the requirements it did not read, as for `sca`, and a file
+  whose packages carry no license is unread, with a reason Sources explains.
 - `trivy-license` reads a repository with the `filePatterns` set for `sca`'s `trivyFs`, so a
   requirements file `sca` reads under another name is read here too.
 - Findings are **not** legal advice. Trivy's categories are a starting point for a conversation;

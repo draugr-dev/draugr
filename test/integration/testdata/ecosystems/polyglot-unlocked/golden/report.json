@@ -95,6 +95,11 @@
           "repository": "./polyglot-unlocked"
         },
         {
+          "path": "requirements.txt",
+          "reason": "records no license for 1 package",
+          "repository": "./polyglot-unlocked"
+        },
+        {
           "path": "svc/App.csproj",
           "reason": "no lockfile",
           "repository": "./polyglot-unlocked"

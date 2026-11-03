@@ -126,6 +126,9 @@ type trivyPackage struct {
 	// Relationship is where the package sits in its manifest's tree: root, workspace, direct or
 	// indirect, and empty where the parser records none.
 	Relationship string `json:"Relationship"`
+	// Licenses are the package's licenses as Trivy found them, in the lockfile or in an installed
+	// copy of the package, and empty where it found none.
+	Licenses []string `json:"Licenses"`
 }
 
 // line is the first line of the package's own entry in its manifest, or 0 where Trivy's parser

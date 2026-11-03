@@ -1,0 +1,158 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.76.1"
+  },
+  "ReportID": "01a1a209-f1ba-7ea2-be31-2feeed4bf4a4",
+  "CreatedAt": "2026-11-03T09:32:03.13096047-06:00",
+  "ArtifactName": "mixed",
+  "ArtifactType": "filesystem",
+  "Results": [
+    {
+      "Target": "cs/App/packages.lock.json",
+      "Class": "lang-pkgs",
+      "Type": "nuget",
+      "Packages": [
+        {
+          "ID": "MySql.Data@8.0.33",
+          "Name": "MySql.Data",
+          "Identifier": {
+            "PURL": "pkg:nuget/MySql.Data@8.0.33",
+            "UID": "84145dc09c92ca40"
+          },
+          "Version": "8.0.33",
+          "Relationship": "direct",
+          "Locations": [
+            {
+              "StartLine": 5,
+              "EndLine": 10
+            }
+          ],
+          "AnalyzedBy": "nuget"
+        },
+        {
+          "ID": "Newtonsoft.Json@13.0.3",
+          "Name": "Newtonsoft.Json",
+          "Identifier": {
+            "PURL": "pkg:nuget/Newtonsoft.Json@13.0.3",
+            "UID": "2d9c32c5d1f89054"
+          },
+          "Version": "13.0.3",
+          "Relationship": "direct",
+          "Locations": [
+            {
+              "StartLine": 11,
+              "EndLine": 16
+            }
+          ],
+          "AnalyzedBy": "nuget"
+        }
+      ]
+    },
+    {
+      "Target": "cs/Legacy/packages.config",
+      "Class": "lang-pkgs",
+      "Type": "nuget",
+      "Packages": [
+        {
+          "Name": "MySql.Data",
+          "Identifier": {
+            "PURL": "pkg:nuget/MySql.Data@8.0.33",
+            "UID": "f06fefc7f98907b2"
+          },
+          "Version": "8.0.33",
+          "AnalyzedBy": "nuget"
+        },
+        {
+          "Name": "Newtonsoft.Json",
+          "Identifier": {
+            "PURL": "pkg:nuget/Newtonsoft.Json@13.0.3",
+            "UID": "266f81e22745c1f2"
+          },
+          "Version": "13.0.3",
+          "AnalyzedBy": "nuget"
+        },
+        {
+          "Name": "Serilog",
+          "Identifier": {
+            "PURL": "pkg:nuget/Serilog@3.1.1",
+            "UID": "9994ce34c6eff8f5"
+          },
+          "Version": "3.1.1",
+          "AnalyzedBy": "nuget"
+        }
+      ]
+    },
+    {
+      "Target": "php/composer.lock",
+      "Class": "lang-pkgs",
+      "Type": "composer",
+      "Packages": [
+        {
+          "ID": "monolog/monolog@3.7.0",
+          "Name": "monolog/monolog",
+          "Identifier": {
+            "PURL": "pkg:composer/monolog/monolog@3.7.0",
+            "UID": "1853c206128258f1"
+          },
+          "Version": "3.7.0",
+          "Licenses": [
+            "MIT"
+          ],
+          "Locations": [
+            {
+              "StartLine": 7,
+              "EndLine": 19
+            }
+          ],
+          "AnalyzedBy": "composer"
+        },
+        {
+          "ID": "phpmailer/phpmailer@v6.9.1",
+          "Name": "phpmailer/phpmailer",
+          "Identifier": {
+            "PURL": "pkg:composer/phpmailer/phpmailer@v6.9.1",
+            "UID": "a27bf12feef1a694"
+          },
+          "Version": "v6.9.1",
+          "Licenses": [
+            "LGPL-2.1-only"
+          ],
+          "Locations": [
+            {
+              "StartLine": 20,
+              "EndLine": 27
+            }
+          ],
+          "AnalyzedBy": "composer"
+        }
+      ]
+    },
+    {
+      "Target": "php/composer.lock",
+      "Class": "license",
+      "Licenses": [
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "monolog/monolog",
+          "FilePath": "php/composer.lock",
+          "Name": "MIT",
+          "Text": "",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "HIGH",
+          "Category": "restricted",
+          "PkgName": "phpmailer/phpmailer",
+          "FilePath": "php/composer.lock",
+          "Name": "LGPL-2.1-only",
+          "Text": "",
+          "Confidence": 1,
+          "Link": ""
+        }
+      ]
+    }
+  ]
+}
