@@ -71,6 +71,29 @@ func TestASuppliersClaimSuppressesAndSaysWhose(t *testing.T) {
 	}
 }
 
+// A retire.js advisory with no CVE or GitHub advisory id is named in a statement as the finding's
+// rule id, with the library's package URL, and the statement reaches every vendored copy of it.
+func TestAClaimNamesARetireJSAdvisoryByItsRuleID(t *testing.T) {
+	site := finding("api", "retirejs:jquery:11974", "pkg:npm/jquery@1.11.2")
+	site.Location.URI = "site/apache-maven-fluido-1.5.min.js"
+	docs := site
+	docs.Location.URI = "docs/apache-maven-fluido-1.5.min.js"
+	other := finding("api", "CVE-2015-9251", "pkg:npm/jquery@1.11.2")
+	controls := controlsWith(site, docs, other)
+	set := vex.Set{ByComponent: map[string][]vex.Resolved{
+		"api": {resolved("Acme Ltd", "retirejs:jquery:11974", "pkg:npm/jquery@1.11.2", "not_affected", "vendor/acme.json")},
+	}}
+
+	if n, _, unmatched := applyVEX(controls, set, all); n != 2 || len(unmatched) != 0 {
+		t.Fatalf("imported = %d, unmatched = %+v; want both copies and no unmatched claim", n, unmatched)
+	}
+	for _, res := range controls["sca"].Report.Results {
+		if want := res.RuleID == "retirejs:jquery:11974"; res.Suppressed() != want {
+			t.Errorf("%s in %s: suppressed = %v, want %v", res.RuleID, res.Location.URI, res.Suppressed(), want)
+		}
+	}
+}
+
 // The standing rule for anything keyed per component, and the failure that would turn one
 // vendor's assurance into a silent suppression somewhere nobody was looking.
 func TestOneSuppliersClaimDoesNotReachAnotherComponent(t *testing.T) {

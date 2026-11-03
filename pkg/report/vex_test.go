@@ -198,10 +198,15 @@ func TestVEXOnlyVulnerabilityFindingsBecomeStatements(t *testing.T) {
 	for _, id := range []string{
 		"CVE-2024-0001", "CVE-2024-12345", "GHSA-jfh8-c2jp-5v3q",
 		"OSV-2023-1", "RUSTSEC-2021-0079", "GO-2024-1234",
+		"NSWG-ECO-408", "retirejs:jquery:11974",
 	} {
 		doc := buildVEX(vexData(vexResult(id, nil)))
 		if len(doc.Statements) != 1 {
 			t.Errorf("%q produced no statement; it is a vulnerability identifier", id)
+			continue
+		}
+		if name := doc.Statements[0].Vulnerability.Name; name != id {
+			t.Errorf("%q became a statement about %q, want the rule id", id, name)
 		}
 	}
 }
