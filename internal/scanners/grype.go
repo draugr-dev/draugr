@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/draugr-dev/draugr/internal/manifests"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -97,11 +98,28 @@ func grypeInventoryArgs(path string) []string {
 	return []string{"-o", "cyclonedx-json=" + path}
 }
 
+// grypePomCataloger is the Syft cataloger that reads a pom.xml, as the inventory's
+// syft:package:foundBy names it.
+const grypePomCataloger = "java-pom-cataloger"
+
 // parseGrypeInventory counts the packages Grype read from each file.
 //
 // Syft records where it found a package as properties numbered from zero, rooted at the scanned
 // directory as the SARIF paths are. A component of type file is a file Syft cataloged, not a
 // package read from one, and is not counted.
+//
+// A pom.xml Grype read packages from is read in part, as manifests.TransitiveNotReadByGrype. Syft
+// reads the dependencies a pom declares and fetches none of their poms: resolving them is Syft's
+// resolve-transitive-dependencies, off by default, and Grype's configuration has no setting for
+// it, so a direct dependency's own dependencies are never read, whatever the local Maven
+// repository holds. A direct dependency whose version comes from a parent POM or BOM that Syft
+// could not read is left out of the inventory with no trace, so the inventory cannot tell a pom
+// that declares no dependency from one whose every dependency went unread, and no pom's reading is
+// known to be complete.
+//
+// The reason names no action, because none clears it. Where Trivy read the same pom in part, the
+// row shows Trivy's reason, which names the one that clears Trivy's; where Trivy read all of it,
+// the row clears.
 func parseGrypeInventory(out []byte, dir string) ([]sarif.Input, error) {
 	var doc struct {
 		Components []struct {
@@ -116,19 +134,35 @@ func parseGrypeInventory(out []byte, dir string) ([]sarif.Input, error) {
 		return nil, err
 	}
 	counts := map[string]int{}
+	poms := map[string]bool{}
 	for _, c := range doc.Components {
 		if c.Type == "file" {
 			continue
 		}
+		var paths []string
+		pom := false
 		for _, p := range c.Properties {
-			if strings.HasPrefix(p.Name, "syft:location:") && strings.HasSuffix(p.Name, ":path") && p.Value != "" {
-				counts[grypeRepoPath(dir, p.Value)]++
+			switch {
+			case strings.HasPrefix(p.Name, "syft:location:") && strings.HasSuffix(p.Name, ":path") && p.Value != "":
+				paths = append(paths, grypeRepoPath(dir, p.Value))
+			case p.Name == "syft:package:foundBy" && p.Value == grypePomCataloger:
+				pom = true
+			}
+		}
+		for _, path := range paths {
+			counts[path]++
+			if pom {
+				poms[path] = true
 			}
 		}
 	}
 	inputs := make([]sarif.Input, 0, len(counts))
 	for path, n := range counts {
-		inputs = append(inputs, sarif.Input{Path: path, Packages: n})
+		in := sarif.Input{Path: path, Packages: n}
+		if poms[path] {
+			in.Unread = string(manifests.TransitiveNotReadByGrype)
+		}
+		inputs = append(inputs, in)
 	}
 	slices.SortFunc(inputs, func(a, b sarif.Input) int { return strings.Compare(a.Path, b.Path) })
 	return inputs, nil
