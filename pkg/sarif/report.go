@@ -792,6 +792,9 @@ type Input struct {
 	Path string `json:"path"`
 	// Packages is how many packages the scanner read from the file.
 	Packages int `json:"packages,omitempty"`
+	// Kind is the scanner's name for the file's format, such as Trivy's `cargo` or `nuget`, which
+	// covers both a packages.lock.json and a packages.config. Empty where the scanner does not say.
+	Kind string `json:"kind,omitempty"`
 	// Unread is why the file contributed no packages, and empty when it was read: "no lockfile",
 	// "no pinned versions", "no packages read", or "not parsed: " and the parser's error. For a
 	// Terraform file, the module blocks it calls that the scanner could not load, as `module "vpc"

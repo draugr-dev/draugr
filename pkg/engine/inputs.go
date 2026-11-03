@@ -59,6 +59,8 @@ type UnreadInput struct {
 	// `records no licenses for 12 packages`, or `licenses of 12 packages not read, run dotnet
 	// restore` (or `run go mod download`) where a command fills the cache the licenses are read from.
 	Reason string
+	// Kind is the scanner's name for the file's format (sarif.Input.Kind), empty where none said.
+	Kind string
 }
 
 // MissedInput is a dependency file one scanner of a control read no packages from while another
@@ -92,6 +94,8 @@ func inputCoverage(byCtl map[string][]sarif.Report) []InputCoverage {
 		// missed holds, for each file, the scanners that took no package from it and their reasons.
 		// A file another scanner read is a record of that scanner's gap, and not a caveat.
 		missed map[fileKey]map[string]string
+		// kinds holds the format a scanner named for each file.
+		kinds map[fileKey]string
 	}
 	scopes := map[scope]*acc{}
 	for control, reports := range byCtl {
@@ -102,11 +106,14 @@ func inputCoverage(byCtl map[string][]sarif.Report) []InputCoverage {
 				if a == nil {
 					a = &acc{scanners: map[string]bool{}, read: map[fileKey]map[string]bool{}, unread: map[fileKey]string{},
 						partly: map[fileKey]string{}, partlyBy: map[fileKey]map[string]bool{}, analysis: map[fileKey]bool{},
-						missed: map[fileKey]map[string]string{}}
+						missed: map[fileKey]map[string]string{}, kinds: map[fileKey]string{}}
 					scopes[k] = a
 				}
 				a.scanners[in.Scanner] = true
 				f := fileKey{in.Repository, in.Path}
+				if in.Kind != "" && a.kinds[f] == "" {
+					a.kinds[f] = in.Kind
+				}
 				if in.Analysis && in.Unread != "" {
 					a.analysis[f] = true
 				}
@@ -152,14 +159,14 @@ func inputCoverage(byCtl map[string][]sarif.Report) []InputCoverage {
 			if _, some := a.partly[f]; some {
 				continue
 			}
-			cov.Unread = append(cov.Unread, UnreadInput{Repository: f.repository, Path: f.path, Reason: reason})
+			cov.Unread = append(cov.Unread, UnreadInput{Repository: f.repository, Path: f.path, Reason: reason, Kind: a.kinds[f]})
 		}
 		for f, reason := range a.partly {
 			if len(a.read[f]) > 0 {
 				continue
 			}
 			cov.Read++
-			cov.Unread = append(cov.Unread, UnreadInput{Repository: f.repository, Path: f.path, Reason: reason})
+			cov.Unread = append(cov.Unread, UnreadInput{Repository: f.repository, Path: f.path, Reason: reason, Kind: a.kinds[f]})
 		}
 		for f, byScanner := range a.missed {
 			if len(a.read[f]) == 0 && len(a.partlyBy[f]) == 0 {

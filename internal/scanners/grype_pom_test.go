@@ -174,9 +174,11 @@ func checkPomCoverage(t *testing.T, got, want map[string]engine.InputCoverage, c
 func TestAPomGrypeReadIsCaveatedBesideTrivy(t *testing.T) {
 	got, console := runPomScan(t, "grype-fs", "trivy-fs")
 	shopPom := []engine.UnreadInput{{Repository: "shop", Path: "pom.xml", Reason: unresolvedPom}}
+	// trivy-license names the file's format, which the report folds a component's files by.
+	shopLicensePom := []engine.UnreadInput{{Repository: "shop", Path: "pom.xml", Reason: unresolvedPom, Kind: "pom"}}
 	checkPomCoverage(t, got, map[string]engine.InputCoverage{
 		"shop/sca":         {Component: "shop", Control: "sca", Scanners: []string{"grype-fs", "trivy-fs"}, Read: 1, Unread: shopPom},
-		"shop/licenses":    {Component: "shop", Control: "licenses", Scanners: []string{"trivy-license"}, Read: 1, Unread: shopPom},
+		"shop/licenses":    {Component: "shop", Control: "licenses", Scanners: []string{"trivy-license"}, Read: 1, Unread: shopLicensePom},
 		"billing/sca":      {Component: "billing", Control: "sca", Scanners: []string{"grype-fs", "trivy-fs"}, Read: 1},
 		"billing/licenses": {Component: "billing", Control: "licenses", Scanners: []string{"trivy-license"}, Read: 1},
 	}, console,
@@ -194,7 +196,7 @@ func TestAPomGrypeReadAloneNamesNoAction(t *testing.T) {
 		"shop/sca": {Component: "shop", Control: "sca", Scanners: []string{"grype-fs"}, Read: 1,
 			Unread: []engine.UnreadInput{{Repository: "shop", Path: "pom.xml", Reason: grypeReason}}},
 		"shop/licenses": {Component: "shop", Control: "licenses", Scanners: []string{"trivy-license"}, Read: 1,
-			Unread: []engine.UnreadInput{{Repository: "shop", Path: "pom.xml", Reason: unresolvedPom}}},
+			Unread: []engine.UnreadInput{{Repository: "shop", Path: "pom.xml", Reason: unresolvedPom, Kind: "pom"}}},
 		"billing/sca": {Component: "billing", Control: "sca", Scanners: []string{"grype-fs"}, Read: 1,
 			Unread: []engine.UnreadInput{{Repository: "billing", Path: "pom.xml", Reason: grypeReason}}},
 		"billing/licenses": {Component: "billing", Control: "licenses", Scanners: []string{"trivy-license"}, Read: 1},

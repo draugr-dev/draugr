@@ -3,13 +3,13 @@
   "Trivy": {
     "Version": "0.76.1"
   },
-  "ReportID": "01a1a19d-88f7-7b47-bd5a-413c719f1b85",
-  "CreatedAt": "2026-11-03T07:33:38.42373979-06:00",
+  "ReportID": "01a1a209-f22e-75e6-92b0-005eb8b87ae8",
+  "CreatedAt": "2026-11-03T09:32:03.246387266-06:00",
   "ArtifactName": "mixed",
   "ArtifactType": "filesystem",
   "Results": [
     {
-      "Target": "cs/packages.lock.json",
+      "Target": "cs/App/packages.lock.json",
       "Class": "lang-pkgs",
       "Type": "nuget",
       "Packages": [
@@ -18,7 +18,7 @@
           "Name": "MySql.Data",
           "Identifier": {
             "PURL": "pkg:nuget/MySql.Data@8.0.33",
-            "UID": "4dc0fe4ac3b37478"
+            "UID": "84145dc09c92ca40"
           },
           "Version": "8.0.33",
           "Relationship": "direct",
@@ -28,6 +28,57 @@
               "EndLine": 10
             }
           ],
+          "AnalyzedBy": "nuget"
+        },
+        {
+          "ID": "Newtonsoft.Json@13.0.3",
+          "Name": "Newtonsoft.Json",
+          "Identifier": {
+            "PURL": "pkg:nuget/Newtonsoft.Json@13.0.3",
+            "UID": "2d9c32c5d1f89054"
+          },
+          "Version": "13.0.3",
+          "Relationship": "direct",
+          "Locations": [
+            {
+              "StartLine": 11,
+              "EndLine": 16
+            }
+          ],
+          "AnalyzedBy": "nuget"
+        }
+      ]
+    },
+    {
+      "Target": "cs/Legacy/packages.config",
+      "Class": "lang-pkgs",
+      "Type": "nuget",
+      "Packages": [
+        {
+          "Name": "MySql.Data",
+          "Identifier": {
+            "PURL": "pkg:nuget/MySql.Data@8.0.33",
+            "UID": "f06fefc7f98907b2"
+          },
+          "Version": "8.0.33",
+          "AnalyzedBy": "nuget"
+        },
+        {
+          "Name": "Newtonsoft.Json",
+          "Identifier": {
+            "PURL": "pkg:nuget/Newtonsoft.Json@13.0.3",
+            "UID": "266f81e22745c1f2"
+          },
+          "Version": "13.0.3",
+          "AnalyzedBy": "nuget"
+        },
+        {
+          "Name": "Serilog",
+          "Identifier": {
+            "PURL": "pkg:nuget/Serilog@3.1.1",
+            "UID": "9994ce34c6eff8f5"
+          },
+          "Version": "3.1.1",
           "AnalyzedBy": "nuget"
         }
       ]

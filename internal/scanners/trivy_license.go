@@ -11,7 +11,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/draugr-dev/draugr/internal/english"
+	"github.com/draugr-dev/draugr/internal/manifests"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/tooladapter"
@@ -299,6 +299,9 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 
 	for _, res := range doc.Results {
 		if in, ok := trivyInput(dir, res.Class, res.Target, len(res.Packages)); ok {
+			// Trivy's type, so the report can fold a component's files of one format into one row
+			// whatever each is named: nuget covers a packages.lock.json and a packages.config.
+			in.Kind = res.Type
 			// Always under --offline-scan, so a dependency's license is read only where its pom is in
 			// the local Maven repository, and its own dependencies with it.
 			if reason, ok := pomUnread(res.Type, res.Packages, true); ok {
@@ -380,10 +383,7 @@ func licenseUnread(typ string, pkgs []trivyPackage) (string, bool) {
 	// With a command, the licenses are somewhere Trivy looks once it has run. Without one, the file
 	// is all Trivy reads, and it records none: a Cargo.lock never does, and a package-lock.json at
 	// lockfileVersion 1 does not, while the node_modules Trivy would fall back to is never scanned.
-	if act, ok := unlicensedRemedy[typ]; ok {
-		return english.Noun(deps, "license") + " of " + english.Count(deps, "package") + " not read, run " + act, true
-	}
-	return "records no " + english.Noun(deps, "license") + " for " + english.Count(deps, "package"), true
+	return manifests.LicensesNotRead(deps, unlicensedRemedy[typ]), true
 }
 
 // unknownLicense is the id a license takes when the scanner could not identify it, and the value a

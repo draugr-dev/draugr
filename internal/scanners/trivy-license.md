@@ -123,4 +123,6 @@ reads a license from the file itself or from a copy of the package installed whe
 as the Go module cache or `~/.nuget/packages`. A file whose packages carry no license at all, a
 `Cargo.lock` or a `Gemfile.lock` always, is listed as read in part with `records no licenses for 3
 packages`. A `go.mod` or a NuGet lockfile is listed as `licenses of 3 packages not read, run go mod
-download` or `…, run dotnet restore`. [`licenses`](../controllers/licenses.md) lists where each format's licenses come from.
+download` or `…, run dotnet restore`. Each file is recorded with Trivy's type for it, such as
+`cargo` or `nuget`, which is how the report folds a component's files of one format into one
+caveat row. [`licenses`](../controllers/licenses.md) lists where each format's licenses come from.

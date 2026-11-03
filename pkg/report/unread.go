@@ -1,9 +1,14 @@
 package report
 
 import (
+	"cmp"
+	"fmt"
+	"path"
+	"slices"
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/english"
+	"github.com/draugr-dev/draugr/internal/manifests"
 	"github.com/draugr-dev/draugr/pkg/engine"
 )
 
@@ -17,6 +22,8 @@ type unreadGroup struct {
 type unreadFile struct {
 	label, reason string
 	controls      []string
+	// path and kind are the file's path in its repository and the scanner's name for its format.
+	path, kind string
 }
 
 // unreadByComponent folds per-control coverage into one entry per component.
@@ -51,7 +58,8 @@ func unreadByComponent(inputs []engine.InputCoverage, targets []engine.TargetOut
 			if !seen {
 				j = len(out[i].files)
 				files[c.Component][k] = j
-				out[i].files = append(out[i].files, unreadFile{label: u.Repository + "\x00" + u.Path, reason: u.Reason})
+				out[i].files = append(out[i].files, unreadFile{label: u.Repository + "\x00" + u.Path, reason: u.Reason,
+					path: u.Path, kind: u.Kind})
 			}
 			out[i].files[j].controls = append(out[i].files[j].controls, c.Control)
 		}
@@ -64,6 +72,93 @@ func unreadByComponent(inputs []engine.InputCoverage, targets []engine.TargetOut
 			out[i].files[j].label = path
 			if several {
 				out[i].files[j].label = shortRepository(repo) + ":" + path
+			}
+		}
+	}
+	return out
+}
+
+// unreadRow is one caveat row for a component's unread files: one file, or several folded into one.
+type unreadRow struct {
+	what, reason string
+	controls     []string
+	// files are the files a folded row stands for, which --evidence lists; nil for a row of one.
+	files []unreadFile
+}
+
+// unreadRows is a component's caveat rows, one per file except where files are folded.
+//
+// Folded only where the license scan read a file's packages and none of their licenses, and only
+// with the component's other files of the same format whose licenses are cleared by the same command
+// or by none. Those rows differ in nothing but a count, and a workspace of forty crates otherwise
+// prints forty of them. Every other reason names something about its own file, a dependency, a
+// module, a parser's error, and keeps its row.
+func unreadRows(g unreadGroup) []unreadRow {
+	type key struct{ kind, command string }
+	var out []unreadRow
+	at := map[key]int{}
+	packages := map[key]int{}
+	for _, f := range g.files {
+		n, command, ok := manifests.ParseLicensesNotRead(f.reason)
+		if !ok || !slices.Equal(f.controls, []string{"licenses"}) {
+			out = append(out, unreadRow{what: f.label, reason: f.reason, controls: f.controls})
+			continue
+		}
+		k := key{cmp.Or(f.kind, path.Base(f.path)), command}
+		i, seen := at[k]
+		if !seen {
+			at[k] = len(out)
+			packages[k] = n
+			out = append(out, unreadRow{what: f.label, reason: f.reason, controls: f.controls, files: []unreadFile{f}})
+			continue
+		}
+		packages[k] += n
+		out[i].files = append(out[i].files, f)
+		out[i].what = foldedName(k.kind, out[i].files)
+		out[i].reason = manifests.LicensesNotRead(packages[k], command)
+	}
+	for i := range out {
+		if len(out[i].files) < 2 {
+			out[i].files = nil
+		}
+	}
+	return out
+}
+
+// kindNames are the formats whose files go by more than one name, by the scanner's name for the
+// format, as a folded row of mixed names calls them.
+var kindNames = map[string]string{
+	"nuget":          "NuGet files",
+	"pip":            "requirements files",
+	"gradle":         "Gradle lockfiles",
+	"dotnet-core":    ".deps.json files",
+	"packages-props": "Packages.props files",
+	"bundler":        "Bundler lockfiles",
+}
+
+// foldedName is what a folded row names: the files' own name and how many, as `Cargo.lock ×3`,
+// where they share one, which is the name a reader searches the tree for. Where the names differ,
+// a packages.lock.json beside a packages.config, the format's name, as `NuGet files ×2`.
+func foldedName(kind string, files []unreadFile) string {
+	name := path.Base(files[0].path)
+	for _, f := range files[1:] {
+		if path.Base(f.path) != name {
+			name = cmp.Or(kindNames[kind], kind+" files")
+			break
+		}
+	}
+	return fmt.Sprintf("%s ×%d", name, len(files))
+}
+
+// foldedLines are the evidence rows for the files a folded caveat row stands for, one per file, as
+// `licenses · api · crates/cli/Cargo.lock · records no licenses for 3 packages`. A row of one file
+// already names its path, and is not repeated here.
+func foldedLines(groups []unreadGroup) []string {
+	var out []string
+	for _, g := range groups {
+		for _, r := range unreadRows(g) {
+			for _, f := range r.files {
+				out = append(out, strings.Join([]string{strings.Join(f.controls, ", "), g.component, f.label, f.reason}, " · "))
 			}
 		}
 	}

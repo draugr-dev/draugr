@@ -155,6 +155,19 @@ checked. The project's own entries, the root and its workspaces, are left out of
 control's row counts these files with every other file it did not read in full, as `11 files
 unread`.
 
+A component's files of one format with the same reason share one caveat row, the files counted in
+What and the packages in Why:
+
+```
+  api        Cargo.lock ×3          unread-files  records no licenses for 8 packages (licenses)
+  api        NuGet files ×2         unread-files  licenses of 5 packages not read, run dotnet restore (licenses)
+  api        web/package-lock.json  unread-files  records no licenses for 2 packages (licenses)
+```
+
+The format is Trivy's: a `packages.lock.json` and a `packages.config` are both NuGet. A row names
+the files' shared name, or the format where their names differ, and a format with one file keeps its
+path. `--evidence` lists each folded file under `unread`.
+
 ## Links
 
 - Saga reference: [`docs/reference/saga-schema.md`](../../docs/reference/saga-schema.md)

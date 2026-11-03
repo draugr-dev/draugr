@@ -3,8 +3,8 @@
   "Trivy": {
     "Version": "0.76.1"
   },
-  "ReportID": "01a1a19d-88d2-74e3-be5a-39b2a28ca9f2",
-  "CreatedAt": "2026-11-03T07:33:38.386321066-06:00",
+  "ReportID": "01a1a209-f1f6-79b7-b8d3-4914351f4fd0",
+  "CreatedAt": "2026-11-03T09:32:03.190638886-06:00",
   "ArtifactName": "native",
   "ArtifactType": "filesystem",
   "Results": [
@@ -54,16 +54,16 @@
       ]
     },
     {
-      "Target": "rs/Cargo.lock",
+      "Target": "rs/codec/Cargo.lock",
       "Class": "lang-pkgs",
       "Type": "cargo",
       "Packages": [
         {
-          "ID": "demo@0.1.0",
-          "Name": "demo",
+          "ID": "codec@0.1.0",
+          "Name": "codec",
           "Identifier": {
-            "PURL": "pkg:cargo/demo@0.1.0",
-            "UID": "94ab497cb152e947"
+            "PURL": "pkg:cargo/codec@0.1.0",
+            "UID": "7d224bc275a52f4a"
           },
           "Version": "0.1.0",
           "DependsOn": [
@@ -82,7 +82,7 @@
           "Name": "gmp-mpfr-sys",
           "Identifier": {
             "PURL": "pkg:cargo/gmp-mpfr-sys@1.6.4",
-            "UID": "8c7d75cc0ec0b2df"
+            "UID": "d2fbcf0cf746bc54"
           },
           "Version": "1.6.4",
           "DependsOn": [
@@ -91,7 +91,7 @@
           "Locations": [
             {
               "StartLine": 12,
-              "EndLine": 20
+              "EndLine": 19
             }
           ],
           "AnalyzedBy": "cargo"
@@ -101,13 +101,55 @@
           "Name": "libc",
           "Identifier": {
             "PURL": "pkg:cargo/libc@0.2.155",
-            "UID": "82f30dfc6bbb9335"
+            "UID": "a35d14e8d7d87c22"
           },
           "Version": "0.2.155",
           "Locations": [
             {
-              "StartLine": 22,
-              "EndLine": 26
+              "StartLine": 21,
+              "EndLine": 25
+            }
+          ],
+          "AnalyzedBy": "cargo"
+        }
+      ]
+    },
+    {
+      "Target": "rs/store/Cargo.lock",
+      "Class": "lang-pkgs",
+      "Type": "cargo",
+      "Packages": [
+        {
+          "ID": "libc@0.2.155",
+          "Name": "libc",
+          "Identifier": {
+            "PURL": "pkg:cargo/libc@0.2.155",
+            "UID": "ab2e9cace4156c65"
+          },
+          "Version": "0.2.155",
+          "Locations": [
+            {
+              "StartLine": 5,
+              "EndLine": 9
+            }
+          ],
+          "AnalyzedBy": "cargo"
+        },
+        {
+          "ID": "store@0.1.0",
+          "Name": "store",
+          "Identifier": {
+            "PURL": "pkg:cargo/store@0.1.0",
+            "UID": "8e2907ad00642776"
+          },
+          "Version": "0.1.0",
+          "DependsOn": [
+            "libc@0.2.155"
+          ],
+          "Locations": [
+            {
+              "StartLine": 11,
+              "EndLine": 16
             }
           ],
           "AnalyzedBy": "cargo"

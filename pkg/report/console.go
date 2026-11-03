@@ -2605,6 +2605,14 @@ func writeEvidence(w io.Writer, col tui.Painter, d Data, indent string) {
 		}
 		add(label, l)
 	}
+	// The files a caveat row folded together, each by its path, which the row does not name.
+	for i, l := range foldedLines(unreadByComponent(d.Run.Inputs, d.Run.Targets)) {
+		label := "unread"
+		if i > 0 {
+			label = ""
+		}
+		add(label, l)
+	}
 	// What the run wrote, where the rest of what it did is. Not beside the findings: Draugr writes
 	// a report, a SARIF file and whatever else the descriptor asked for without announcing any of
 	// them, and one artifact naming itself there reads as the important one.
