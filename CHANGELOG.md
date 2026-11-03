@@ -16,21 +16,21 @@ _Nothing yet._
 
 ### Changed
 
-- **Findings in development dependencies are suppressed by default, whatever the lockfile.** Trivy now reads development dependencies and marks each, and a Grype finding about the same package takes the mark. Each such finding stays in the report suppressed, with `dev` beside its package. Set `config.controls.sca.devDependencies: report` to count them.
+- **Findings in development dependencies are suppressed by default.** Trivy now reads development dependencies in every lockfile format and marks them, and a Grype finding about the same package takes the mark. These findings leave the counts and the gate, and appear under ACCEPTED as `config.controls.sca.devDependencies: suppress  N findings suppressed · development dependency`. Set `config.controls.sca.devDependencies: report` to count them, each row marked `dev dependency`; Trivy used to leave them out, and Grype counted them only from pnpm, Yarn, uv and Poetry lockfiles.
 
-- **Trivy no longer looks up a `pom.xml`'s dependencies in Maven Central.** Every Trivy run passes `--offline-scan`. A pom whose dependency versions or transitive dependencies are not in the local Maven repository is listed under `unread-files`. Run `mvn dependency:resolve` before scanning, or set `config.controls.sca.trivyFs.resolveMaven: true`, which declares the `disclosure` effect.
+- **Trivy no longer looks up a `pom.xml`'s dependencies in Maven Central.** Every Trivy run passes `--offline-scan` by default and reads only dependencies already in the local Maven repository. A pom with others is listed under `unread-files` as `N dependency versions not resolved, run mvn dependency:resolve` or `transitive dependencies not resolved, run mvn dependency:resolve`, and those dependencies get no findings until it is run. To resolve them as before for `sca`, set `config.controls.sca.trivyFs.resolveMaven: true`; trivy-fs then contacts Maven Central and declares the `disclosure` effect.
 
 ### Deprecated
 
-- **`config.controls.sca.trivyFs.includeDevDeps` is deprecated and stops being read in the next release.** Until then `true` is read as `devDependencies: report` and `false` as `suppress`, and `draugr validate` and `draugr scan` warn with what to write instead. Replace it with `config.controls.sca.devDependencies`.
+- **`config.controls.sca.trivyFs.includeDevDeps` is deprecated and stops being read in the next release.** Replace it with `config.controls.sca.devDependencies`. Until then `true` is read as `report` and `false` as `suppress`, and `draugr validate` and `draugr scan` warn with the line to write.
 
 ### Fixed
 
-- **A dependency file one `sca` scanner missed while another read it is recorded with that scanner.** `--evidence` and `report.json` (`dependencyFiles[].missed`) name the scanner and its reason. A file Trivy failed to parse gives the parser's error, as `not parsed: …`, in place of `no packages read`.
+- **A dependency file one `sca` scanner missed while another read it is recorded with that scanner.** `--evidence` and `report.json` (`dependencyFiles[].missed`) name the scanner and its reason. A file Trivy failed to parse gives the parser's error, as `not parsed: <cause>`, in place of `no packages read`.
 
-- **A failed Trivy misconfiguration scan names its cause.** The `iac` error read `Fatal error`; it now carries Trivy's own chain, as `run error: init error: … --skip-db-update cannot be specified on the first run`.
+- **A failed Trivy misconfiguration scan names its cause.** The `iac` error read `Fatal error`; it now carries Trivy's own cause, such as `--skip-db-update cannot be specified on the first run`.
 
-- **A Go flaw govulncheck reports by its GitHub advisory and Grype by its Go ID counts once, ranked by govulncheck's verdict.** Grype's copy now carries the reachability verdict and the band it sets, so a flaw with no call path no longer fails the gate. Grype findings also correlate through the identifiers Grype relates to each match.
+- **A Go flaw reported by both govulncheck and Grype is one finding.** Where govulncheck names it by its GitHub advisory ID and Grype by its Go ID, the report counts it once and ranks it by govulncheck's reachability verdict, so a flaw with no call path no longer fails the gate through Grype's copy. Grype findings also match other scanners' findings through the identifiers Grype lists as related to each match.
 
 ## [0.165.6] - 2026-11-02
 
