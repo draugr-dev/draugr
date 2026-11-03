@@ -63,4 +63,8 @@ reaching out once per job.
 Every run passes `--offline-scan`, so no Trivy run resolves a `pom.xml` against a remote Maven
 repository.
 
+Every run, and the database warm, passes `--skip-version-check` and `--disable-telemetry`, so
+Trivy makes no version-check or telemetry request to `check.trivy.dev`. A Trivy older than 0.63.0
+has neither flag and makes no such request.
+
 `config.controls.images.trivy.dbRepository` replaces both with an internal mirror.

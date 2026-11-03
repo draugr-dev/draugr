@@ -35,7 +35,18 @@ type Generator struct {
 
 // New returns a Generator that shells out to Syft and clones with git.
 func New() *Generator {
-	return &Generator{run: toolexec.Run, checkout: git.Checkout}
+	return &Generator{run: runSyft, checkout: git.Checkout}
+}
+
+// syftEnv is the environment Syft runs with, layered over the parent's. Syft otherwise asks
+// toolbox-data.anchore.io whether a newer Syft exists on every run, offline too; the version is
+// Draugr's pin, so the answer changes nothing, and a scan sends nothing to a third party unless
+// configured to.
+var syftEnv = []string{"SYFT_CHECK_FOR_APP_UPDATE=false"}
+
+// runSyft runs Syft with syftEnv.
+func runSyft(ctx context.Context, dir string, argv []string) ([]byte, error) {
+	return toolexec.RunWithEnv(ctx, dir, argv, syftEnv)
 }
 
 // Binary is the tool Generate requires on PATH.

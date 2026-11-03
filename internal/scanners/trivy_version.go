@@ -61,6 +61,17 @@ func (p *trivyVersionProbe) showsSuppressed() bool {
 // showSuppressedSince is the first Trivy carrying `--show-suppressed` and the findings it reports.
 const showSuppressedSince = "0.53.0"
 
+// skipsNotices reports whether the Trivy that will run has `--skip-version-check` and
+// `--disable-telemetry`. Read from the memoized probe for the reason showsSuppressed gives.
+func (p *trivyVersionProbe) skipsNotices() bool {
+	return trivyAtLeast(p.val, noticeFlagsSince)
+}
+
+// noticeFlagsSince is the first Trivy carrying `--skip-version-check` and `--disable-telemetry`,
+// and the first to send the request they turn off: both flags and the request arrived together in
+// 0.63.0. An older Trivy sends nothing and refuses either flag.
+const noticeFlagsSince = "0.63.0"
+
 // trivyAtLeast compares the probe's `trivy@X.Y.Z;db@...` against a floor, field by field.
 //
 // Its own comparison rather than a semver dependency: three integers, and the answer where any of
@@ -97,20 +108,34 @@ type trivyDBWarmer struct {
 	once sync.Once
 	err  error
 	run  func(ctx context.Context, argv []string) ([]byte, error)
+	// version resolves the shared probe before the command line is built, because a warm runs
+	// ahead of every scan and so ahead of the cache key that otherwise resolves it first. Nil
+	// leaves the probe as it is.
+	version func(ctx context.Context) string
 }
 
 // warm runs `trivy image --download-db-only` at most once and returns any error (best-effort:
 // callers treat failure as non-fatal, a real problem resurfaces at scan time).
 func (w *trivyDBWarmer) warm(ctx context.Context) error {
 	w.once.Do(func() {
-		_, w.err = w.run(ctx, []string{"trivy", "image", "--download-db-only"})
+		resolveTrivyVersion(ctx, w.version)
+		argv := append([]string{"trivy", "image", "--download-db-only"}, trivyNoticeArgs()...)
+		_, w.err = w.run(ctx, argv)
 	})
 	return w.err
 }
 
+// resolveTrivyVersion runs version, when there is one, so trivyNoticeArgs answers for the Trivy
+// that will run rather than for one not yet asked.
+func resolveTrivyVersion(ctx context.Context, version func(context.Context) string) {
+	if version != nil {
+		version(ctx)
+	}
+}
+
 // sharedTrivyDB pre-warms the vuln DB once per process for all Trivy-backed scanners (they
 // share Trivy's on-disk cache), so one download serves image, fs, and config scans.
-var sharedTrivyDB = &trivyDBWarmer{run: execArgv}
+var sharedTrivyDB = &trivyDBWarmer{run: execArgv, version: sharedTrivyVersion.cacheVersion}
 
 // trivyChecksWarmer fetches Trivy's checks bundle once, before a run's concurrent config scans
 // can each try to.
@@ -130,6 +155,8 @@ type trivyChecksWarmer struct {
 	run  func(ctx context.Context, argv []string) ([]byte, error)
 	// dir makes an empty directory to scan. Injectable so a test need not touch a filesystem.
 	dir func() (string, func(), error)
+	// version resolves the shared probe first, as trivyDBWarmer's does.
+	version func(ctx context.Context) string
 }
 
 // warm fetches the checks bundle at most once. Best-effort, like the database: a real problem
@@ -142,7 +169,9 @@ func (w *trivyChecksWarmer) warm(ctx context.Context) error {
 			return
 		}
 		defer cleanup()
-		_, w.err = w.run(ctx, []string{"trivy", "config", "--quiet", dir})
+		resolveTrivyVersion(ctx, w.version)
+		argv := append(append([]string{"trivy", "config", "--quiet"}, trivyNoticeArgs()...), dir)
+		_, w.err = w.run(ctx, argv)
 	})
 	return w.err
 }
@@ -158,4 +187,4 @@ func emptyDir() (string, func(), error) {
 
 // sharedTrivyChecks pre-warms the checks bundle once per process, for the one scanner that reads
 // it.
-var sharedTrivyChecks = &trivyChecksWarmer{run: execArgv, dir: emptyDir}
+var sharedTrivyChecks = &trivyChecksWarmer{run: execArgv, dir: emptyDir, version: sharedTrivyVersion.cacheVersion}

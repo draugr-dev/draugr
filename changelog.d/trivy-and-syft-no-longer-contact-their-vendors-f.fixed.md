@@ -1,0 +1,1 @@
+- **Trivy and Syft no longer contact their vendors for update checks or telemetry.** Every Trivy run passes `--skip-version-check` and `--disable-telemetry` (Trivy 0.63.0 and later), and Syft runs with `SYFT_CHECK_FOR_APP_UPDATE=false`, with or without `--offline`, so an offline scan makes no network call through either.

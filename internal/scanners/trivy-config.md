@@ -131,6 +131,10 @@ into the pinned release. Misconfiguration scanning reads no vulnerability databa
 Every `trivy fs` run passes `--offline-scan`, so this scanner resolves no `pom.xml` against a
 remote Maven repository; see [`sca`](../controllers/sca.md#unread) for what Trivy then reads.
 
+Every run, and the checks warm, passes `--skip-version-check` and `--disable-telemetry`, so Trivy
+makes no version-check or telemetry request to `check.trivy.dev`. A Trivy older than 0.63.0 has
+neither flag and makes no such request.
+
 **Terraform modules**, from the host each `module` block's `source` names: `registry.terraform.io`
 for a registry address, or the git host for a `git::` or GitHub source. Trivy downloads them into
 `.aqua/cache` under the system temporary directory. A module with a local `source` path is read from the checkout.
