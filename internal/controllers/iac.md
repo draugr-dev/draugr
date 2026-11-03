@@ -50,6 +50,19 @@ Split the root module, or group its calls into fewer modules. To fail the run on
 `config.gate.failOnCaveats: [unread-files]`, or pass `--fail-on-caveats unread-files` for one run.
 [`trivy-config`](../scanners/trivy-config.md#what-it-does) has how Trivy evaluates module calls.
 
+A Helm chart Trivy could not render gets an `unread-files` caveat on its `Chart.yaml`, with what
+stopped the render. None of the chart's templates were checked:
+
+```
+CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
+  Component  What        Caveat        Why
+  app        Chart.yaml  unread-files  run helm dependency build; redis not in charts/ (iac)
+```
+
+Build the chart's dependencies into `charts/` before the scan, give the value a default in the
+chart's `values.yaml`, or fix the `Chart.yaml`, as the reason says.
+[`trivy-config`](../scanners/trivy-config.md#what-it-does) lists every reason.
+
 `report.json` carries every unread file under `dependencyFiles`, see the
 [report schema](../../docs/reference/report-schema.md).
 

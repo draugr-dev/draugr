@@ -273,6 +273,8 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		// the ERROR row exists to prevent.
 		if len(errored) > 0 {
 			_, _ = fmt.Fprintln(w, col.Paint(cDim, noFindingsWithErrors))
+		} else if len(caveats(d)) > 0 {
+			_, _ = fmt.Fprintln(w, col.Paint(cDim, noFindingsWithCaveats))
 		} else {
 			_, _ = fmt.Fprintln(w, col.Paint(cPass, "No findings. ✓"))
 		}
@@ -314,6 +316,11 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 // reported: the CONTROLS row already names the scanner that failed and why, and report.json lists
 // the ones that reported under controls[].reported.
 const noFindingsWithErrors = "No findings. A control marked ERROR checked less than it was asked to."
+
+// noFindingsWithCaveats is what a run with no findings, no control in error and a caveat closes on,
+// in every human format. A caveat is a part of the run that was not checked, such as a file no
+// scanner could read, and a tick after it would read as a clean result for that part too.
+const noFindingsWithCaveats = "No findings. The run did not check what its caveats name."
 
 // writeVerdictLine is the report's first line: the verdict, what was scanned, what qualifies the
 // verdict, and what the run cost. note is printed after the qualifiers, empty for none.

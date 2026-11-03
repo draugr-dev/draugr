@@ -207,16 +207,22 @@ func TestJUnitKeepsFindingsBesideAScanError(t *testing.T) {
 }
 
 // TestEveryHumanFormatClosesOnTheSameLine: the console, markdown and HTML reports of a run with a
-// control in error and no findings close on one sentence, so the formats cannot drift apart.
+// control in error and no findings close on one sentence, so the formats cannot drift apart. A
+// caveat beside the error leaves the error's line, which says more.
 func TestEveryHumanFormatClosesOnTheSameLine(t *testing.T) {
 	d := twoScannerRun(t)
-	for name, r := range map[string]Reporter{"markdown": markdownReporter{}, "html": htmlReporter{}} {
+	d.Run.Inputs = []engine.InputCoverage{{Component: "api", Control: "sca", Scanners: []string{"grype-fs"},
+		Unread: []engine.UnreadInput{{Repository: "https://github.com/acme/api", Path: "package.json", Reason: "no lockfile"}}}}
+	for name, r := range map[string]Reporter{"console": consoleReporter{}, "markdown": markdownReporter{}, "html": htmlReporter{}} {
 		var buf strings.Builder
 		if err := r.Render(&buf, d); err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		if !strings.Contains(buf.String(), noFindingsWithErrors) {
-			t.Errorf("%s does not close on %q", name, noFindingsWithErrors)
+		if !strings.Contains(buf.String(), "package.json") {
+			t.Errorf("%s does not list the caveat", name)
+		}
+		if !strings.Contains(buf.String(), noFindingsWithErrors) || strings.Contains(buf.String(), noFindingsWithCaveats) {
+			t.Errorf("%s does not close on %q alone", name, noFindingsWithErrors)
 		}
 	}
 }

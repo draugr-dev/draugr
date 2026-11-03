@@ -234,6 +234,33 @@ func TestCaveatWhyKeepsWhatItClosesWith(t *testing.T) {
 	}
 }
 
+// A run with no findings closes on a tick only where it has no caveat, in every human format: a file
+// nothing read has nothing found in it because nothing looked. Two components over two repositories,
+// one with a file unread and one without.
+func TestNoFindingsWithACaveatIsNotATick(t *testing.T) {
+	inputs := []engine.InputCoverage{
+		{Component: "shop", Control: "iac", Scanners: []string{"trivy-config"},
+			Unread: []engine.UnreadInput{{Repository: "app", Path: "charts/app/Chart.yaml",
+				Reason: "run helm dependency build; redis not in charts/"}}},
+		{Component: "billing", Control: "iac", Scanners: []string{"trivy-config"}, Read: 1},
+	}
+	for _, format := range []string{"console", "markdown", "html"} {
+		r, err := For(format)
+		if err != nil {
+			t.Fatal(err)
+		}
+		d := Data{Project: "p", Run: engine.Result{Inputs: inputs, Targets: append(repositoryTargets("shop", "app"),
+			repositoryTargets("billing", "web")...)}}
+		if out := renderWith(t, r, d); strings.Contains(out, "No findings. ✓") || !strings.Contains(out, noFindingsWithCaveats) {
+			t.Errorf("%s: a run with a caveat closes as clean:\n%s", format, out)
+		}
+		d.Run.Inputs = inputs[1:]
+		if out := renderWith(t, r, d); !strings.Contains(out, "No findings. ✓") {
+			t.Errorf("%s: a run that read every file has no tick:\n%s", format, out)
+		}
+	}
+}
+
 // A target another component declared does not make this one's repositories several.
 func TestRepositoriesAreCountedPerComponent(t *testing.T) {
 	targets := append(repositoryTargets("api", "https://github.com/acme/api"),

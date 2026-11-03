@@ -44,7 +44,9 @@ type UnreadInput struct {
 	// `not parsed: JSON decode error: json: cannot unmarshal JSON string into Go
 	// map[string]interface {} within "/packages/left-pad"`. For a Terraform file the module blocks
 	// not loaded, as `module "vpc" not loaded`, and for a Terraform root module the calls not
-	// evaluated, as `32 of 33 module calls checked; "zbad" skipped`. For a file searched for
+	// evaluated, as `32 of 33 module calls checked; "zbad" skipped`. For a Helm chart's Chart.yaml,
+	// what stopped Trivy rendering the chart, as `run helm dependency build; redis not in
+	// charts/`. For a file searched for
 	// secrets, "name has an archive extension", or at the repository root "no files read". For a
 	// source file Semgrep skipped or did not finish, `over 1 MB, not scanned` or the rules that
 	// timed out on it, as `1 rule timed out, not checked: "x"`. For a go.mod, why govulncheck could
