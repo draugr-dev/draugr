@@ -1,1 +1,0 @@
-- **`licenses` no longer passes on a lockfile that records no licenses.** A `Cargo.lock`, `Gemfile.lock` or NuGet file whose packages Trivy read without a license is a caveat, as `Cargo.lock ×3 · records no licenses for 8 packages`, or `licenses of 3 packages not read, run dotnet restore`. Each control's row counts the files it did not read.

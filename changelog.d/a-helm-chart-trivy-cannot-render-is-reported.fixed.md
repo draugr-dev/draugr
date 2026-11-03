@@ -1,1 +1,0 @@
-- **A Helm chart Trivy cannot render is reported.** A chart Trivy skipped, for a dependency missing from `charts/`, an unset value or an invalid `Chart.yaml`, is an `unread-files` caveat on its `Chart.yaml` that says what to do. A run with no findings and a caveat closes on `No findings. The run did not check what its caveats name.`

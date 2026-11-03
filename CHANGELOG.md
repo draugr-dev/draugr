@@ -12,6 +12,22 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.166.1] - 2026-11-03
+
+### Fixed
+
+- **A run with no findings and a caveat no longer ends `No findings. ✓`.** It ends `No findings. The run did not check what its caveats name.`
+
+- **`licenses` reports a lockfile that records no licenses.** A `Cargo.lock`, `Gemfile.lock` or NuGet lockfile whose packages Trivy read without a license is now an `unread-files` caveat, as `Cargo.lock ×3 · records no licenses for 8 packages` or `licenses of 3 packages not read, run dotnet restore`, and each control's row counts the files it did not read. This caveat, like the Helm chart and `pom.xml` caveats in this release, can fail a gate on `unread-files` (`config.gate.failOnCaveats`) where the run passed.
+
+- **A Helm chart Trivy skips is an `unread-files` caveat.** A chart with a dependency missing from `charts/`, an unset value or an invalid `Chart.yaml` is listed on its `Chart.yaml` with what to do.
+
+- **`sca` reports a `pom.xml` whose transitive dependencies went unread when `grype-fs` runs beside `trivy-fs`.** The caveat had been dropped because Grype counted the pom as read in full; the row now shows Trivy's reason and the command that clears it. With `grype-fs` alone it reads `transitive dependencies not read by Grype`.
+
+- **A retire.js advisory without a CVE counts once per repository.** An advisory retire.js reports under its own ID, such as `retirejs:jquery:11974`, is one finding per repository, however many vendored copies it holds, and it now appears in the VEX document.
+
+- **Trivy and Syft make no update-check or telemetry request.** Every Trivy run passes `--skip-version-check` and `--disable-telemetry` (Trivy 0.63.0 and later; an older Trivy makes no such request), and Syft runs with `SYFT_CHECK_FOR_APP_UPDATE=false`.
+
 ## [0.166.0] - 2026-11-03
 
 ### Changed
@@ -6791,7 +6807,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.166.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.166.1...HEAD
+[0.166.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.166.1
 [0.166.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.166.0
 [0.165.6]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.6
 [0.165.5]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.5
