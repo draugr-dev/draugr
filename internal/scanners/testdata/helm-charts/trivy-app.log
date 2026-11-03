@@ -1,0 +1,14 @@
+2026-11-03T07:33:32-06:00	DEBUG	Default config file "file_path=trivy.yaml" not found, using built in values
+2026-11-03T07:33:32-06:00	DEBUG	Parsed severities	severities=[UNKNOWN LOW MEDIUM HIGH CRITICAL]
+2026-11-03T07:33:32-06:00	DEBUG	Ignore statuses	statuses=[]
+2026-11-03T07:33:32-06:00	INFO	[misconfig] Misconfiguration scanning is enabled
+2026-11-03T07:33:33-06:00	DEBUG	[rego] Embedded checks are loaded	count=563
+2026-11-03T07:33:33-06:00	DEBUG	Enabling misconfiguration scanners	scanners=[azure-arm cloudformation dockerfile helm kubernetes terraform terraformplan-json terraformplan-snapshot ansible]
+2026-11-03T07:33:33-06:00	DEBUG	Initializing scan cache...	type="memory"
+2026-11-03T07:33:33-06:00	DEBUG	Skipping path	path=".git"
+2026-11-03T07:33:33-06:00	DEBUG	[misconfig] Scanning files for misconfigurations...	scanner="Helm"
+2026-11-03T07:33:33-06:00	WARN	[helm scanner] Skipping chart	file_path="charts/app" err="parse chart: found in Chart.yaml, but missing in charts/ directory: redis"
+2026-11-03T07:33:33-06:00	DEBUG	[misconfig] Scanning files for misconfigurations...	scanner="Ansible"
+2026-11-03T07:33:33-06:00	INFO	Number of language-specific files	num=0
+2026-11-03T07:33:33-06:00	INFO	Detected config files	num=0
+2026-11-03T07:33:33-06:00	DEBUG	Specified ignore file does not exist	file=".trivyignore"

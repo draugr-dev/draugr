@@ -30,10 +30,10 @@ The scan writes JSON because only the JSON lists what Trivy excluded, and `trivy
 the SARIF from that report without scanning again. On a Trivy older than 0.53.0, which has no
 `--show-suppressed`, the scan is `trivy config --debug --format sarif <dir>`.
 
-Trivy reports two Terraform shortfalls only in its log, and exits 0 after either. Draugr reads
-the log for both and reports each as [unread](../controllers/iac.md#unread):
+Trivy reports these shortfalls only in its log, and exits 0 after each. Draugr reads the log for
+them and reports each as [unread](../controllers/iac.md#unread):
 
-| Shortfall | Reported against | Reason |
+| Terraform shortfall | Reported against | Reason |
 |---|---|---|
 | A module Trivy could not load | the file that calls it | `module "vpc" not loaded` |
 | Module calls Trivy loaded and did not evaluate | the root module's directory | `32 of 33 module calls checked; "zbad" skipped` |
@@ -44,6 +44,21 @@ one call that no earlier round did, and a call evaluated again after another cha
 spends a round too, so a module with fewer than 33 calls can reach the limit. The count of calls
 includes any module Trivy could not load. A module below the root is named by its address, as in
 `in module.wrap`.
+
+Trivy renders a Helm chart with the chart's own values before checking it, and checks none of its
+templates when the render fails:
+
+| Helm shortfall | Reason |
+|---|---|
+| A dependency missing from `charts/` | `run helm dependency build; redis not in charts/` |
+| A template reading a value the chart's values do not set | `set image.repository in values.yaml; read at templates/deployment.yaml:14` |
+| A template's `required` or `fail` call | `templates/deployment.yaml:14: image.repository is required` |
+| A `Chart.yaml` missing a field Helm requires | `add version` |
+| A `Chart.yaml` that is not valid YAML | `not parsed: yaml: line 4: did not find expected ',' or ']'` |
+| Any other error | `not rendered: ` and Helm's error |
+| No error logged | `not rendered: no error given`; `helm template <chart>` prints why |
+
+A chart's shortfall is reported against its Chart.yaml; a packaged chart against its archive.
 
 ## Saga options
 

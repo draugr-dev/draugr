@@ -29,14 +29,16 @@ const trivyConfigExclusionsArg = "--show-suppressed"
 // trivyConfigRun wraps the run of a misconfiguration scan. A command asking for what Trivy excluded
 // writes JSON, which is converted to SARIF with the exclusions added; any other command's output is
 // returned as it was. Either way the Terraform modules Trivy's log says it could not load or did not
-// evaluate are returned beside it (see trivyUnloadedModules and trivyUnevaluatedModules).
+// evaluate, and the Helm charts it could not render, are returned beside it (see
+// trivyUnloadedModules, trivyUnevaluatedModules and trivySkippedCharts).
 func trivyConfigRun(run func(ctx context.Context, dir string, argv []string) (stdout, stderr []byte, err error)) func(context.Context, string, []string) ([]byte, []sarif.Input, error) {
 	return func(ctx context.Context, dir string, argv []string) ([]byte, []sarif.Input, error) {
 		out, stderr, err := run(ctx, dir, argv)
 		if err != nil {
 			return nil, nil, err
 		}
-		unread := mergeUnread(append(trivyUnloadedModules(stderr, dir), trivyUnevaluatedModules(stderr, dir)...))
+		unread := mergeUnread(slices.Concat(trivyUnloadedModules(stderr, dir), trivyUnevaluatedModules(stderr, dir),
+			trivySkippedCharts(stderr, dir)))
 		if !slices.Contains(argv, trivyConfigExclusionsArg) {
 			return out, unread, nil
 		}

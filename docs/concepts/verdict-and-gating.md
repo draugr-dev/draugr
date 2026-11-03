@@ -81,6 +81,10 @@ No findings. A control marked ERROR checked less than it was asked to.
 draugr: scan incomplete: sca could not run (use --allow-scan-errors to accept partial results)
 ```
 
+A run with no findings and at least one caveat closes on
+`No findings. The run did not check what its caveats name.` in place of `No findings. ✓`. With an
+ERROR and a caveat, the ERROR line is printed.
+
 When one of a control's scanners fails beside another that reported, the control is still `ERROR`
 and fails in `report.json`, and `controls[].reported` lists the scanners that reported.
 

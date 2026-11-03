@@ -1,0 +1,9 @@
+2026-11-03T07:29:20-06:00	DEBUG	Enabling misconfiguration scanners	scanners=[azure-arm cloudformation dockerfile helm kubernetes terraform terraformplan-json terraformplan-snapshot ansible]
+2026-11-03T07:29:20-06:00	DEBUG	[misconfig] Scanning files for misconfigurations...	scanner="Helm"
+2026-11-03T07:29:20-06:00	WARN	[helm scanner] Skipping chart	file_path="charts/badyaml" err="parse chart: cannot load Chart.yaml: error converting YAML to JSON: yaml: line 4: did not find expected ',' or ']'"
+2026-11-03T07:29:20-06:00	DEBUG	number of dependencies in the chart	chart="ok" dependencies=0
+2026-11-03T07:29:20-06:00	DEBUG	[helm scanner] Processing rendered chart file	file_path="templates/deployment.yaml"
+2026-11-03T07:29:20-06:00	WARN	[helm scanner] Skipping chart	file_path="charts/two" err="parse chart: found in Chart.yaml, but missing in charts/ directory: redis, postgresql"
+2026-11-03T07:29:20-06:00	DEBUG	Scanned config file	file_path="charts/ok/templates/deployment.yaml"
+2026-11-03T07:28:46-06:00	WARN	[helm scanner] Skipping chart	file_path="charts/api" err="parse chart: validation: chart.metadata.version is required"
+2026-11-03T07:29:00-06:00	WARN	[helm scanner] Skipping chart	file_path="charts/web" err="parse chart: execution error at (web/templates/deployment.yaml:14:20): image.repository is required"

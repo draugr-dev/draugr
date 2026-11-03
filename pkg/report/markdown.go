@@ -85,6 +85,8 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 	if len(s.findings) == 0 {
 		if len(s.scanErrors) > 0 {
 			_, _ = fmt.Fprintln(w, noFindingsWithErrors)
+		} else if len(caveats(d)) > 0 {
+			_, _ = fmt.Fprintln(w, noFindingsWithCaveats)
 		} else {
 			_, _ = fmt.Fprintln(w, "No findings. ✓")
 		}

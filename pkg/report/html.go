@@ -1935,6 +1935,8 @@ what it would have found. For each scanner's whole output, re-run with
 {{template "nomatch"}}
 {{else if .Errors}}
 <p>No findings. A control marked ERROR checked less than it was asked to.</p>
+{{else if .Caveats.Groups}}
+<p>No findings. The run did not check what its caveats name.</p>
 {{else}}
 <p>No findings. ✓</p>
 {{end}}
