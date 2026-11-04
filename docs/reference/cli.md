@@ -585,10 +585,10 @@ tool's own parallelism*. The run's JSON `stats` reports the effective `concurren
 
 It also reports where the time went, in milliseconds: `durationMs` (wall-clock), `byControlMs` (each
 control's job time, summed across its jobs), `toolWaitsMs` (time spent queueing for a tool's own
-cache rather than scanning) and `orderWaitsMs` (per scanner, time its jobs waited before starting
-for other scanners' jobs on the same repository to finish, or for another Go package load to end). Jobs run concurrently, so the
-per-control times add up to more than the wall-clock. They are absent, not zero, when a run recorded no timings. `dataRefresh` lists
-each scanner's data refresh before the jobs started, in milliseconds. The console puts the total
+cache rather than scanning) and `orderWaitsMs` (per scanner, time its jobs waited before starting:
+for another scanner's job on the same repository to finish, or for their turn at a Go package
+load). Jobs run concurrently, so the per-control times add up to more than the wall-clock. They are
+absent, not zero, when a run recorded no timings. `dataRefresh` lists each scanner's data refresh before the jobs started, in milliseconds. The console puts the total
 beside the duration when it is five seconds or more and at least a quarter of the run, and
 `--evidence` names each refresh of a second or more.
 
@@ -597,8 +597,10 @@ beside the duration when it is five seconds or more and at least a quarter of th
 build it starts, such as govulncheck's package load, runs at most n compile processes. To use a
 different bound, set `GOMAXPROCS`, or `-p=<n>` in `GOFLAGS`, before running `draugr scan`; Draugr
 passes either one on unchanged. `-j` does not change n: each of the jobs running at once starts
-its tools under n. Go package loads, by govulncheck and gosec on any repository, run one at a
-time, so their compile processes stay within n for the whole run.
+its tools under n. govulncheck and gosec load Go packages one at a time across the run, on any
+number of repositories, so their compile processes stay within n for the whole run. A run with
+several such loads takes longer than loads in parallel would, and each job's wait is in
+`stats.orderWaitsMs`.
 
 n is half the CPUs or one per 4 GiB of memory, whichever is fewer, and at least 1. The CPUs are
 the ones Draugr may use after a container's CPU limit. The memory is the lower of the machine's and
