@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -42,15 +41,7 @@ func Run(ctx context.Context, dir string, argv []string) ([]byte, error) {
 // separate from Run is deliberate: a scanner's stdout is a report to be parsed, and folding stderr
 // into it would corrupt the parse for every tool that logs while it works.
 func RunCombined(ctx context.Context, dir string, argv []string) ([]byte, error) {
-	if len(argv) == 0 {
-		return nil, errors.New("empty command")
-	}
-	started := time.Now()
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) // #nosec G204 -- configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	log(ctx, argv, dir, started, out, err)
-	return out, explain(argv[0], err)
+	return RunCombinedWithEnv(ctx, dir, argv, nil)
 }
 
 // RunCombinedWithEnv is RunCombined with extra environment variables layered over the parent's.
@@ -63,12 +54,7 @@ func RunCombinedWithEnv(ctx context.Context, dir string, argv, env []string) ([]
 		return nil, errors.New("empty command")
 	}
 	started := time.Now()
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) // #nosec G204 -- configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
-	cmd.Dir = dir
-	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), env...)
-	}
-	out, err := cmd.CombinedOutput()
+	out, err := command(ctx, dir, argv, env).CombinedOutput()
 	log(ctx, argv, dir, started, out, err)
 	return out, explain(argv[0], err)
 }
@@ -84,14 +70,19 @@ func RunWithEnv(ctx context.Context, dir string, argv, env []string) ([]byte, er
 		return nil, errors.New("empty command")
 	}
 	started := time.Now()
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) // #nosec G204 -- configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
-	cmd.Dir = dir
-	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), env...)
-	}
-	out, err := cmd.Output()
+	out, err := command(ctx, dir, argv, env).Output()
 	log(ctx, argv, dir, started, out, err)
 	return out, explain(argv[0], err)
+}
+
+// command is the process for argv: run in dir, with the caller's environment, env layered over it,
+// and the parallelism bound wherever neither chose it. Every entry point builds its process here,
+// so no tool runs unbounded.
+func command(ctx context.Context, dir string, argv, env []string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) // #nosec G204 -- configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
+	cmd.Dir = dir
+	cmd.Env = environ(env)
+	return cmd
 }
 
 // RunWithStderr is RunWithEnv returning the tool's stderr beside its stdout, kept apart.
@@ -118,11 +109,7 @@ func RunWithStderrShown(ctx context.Context, dir string, argv, env []string, sho
 		shown = func(b []byte) []byte { return b }
 	}
 	started := time.Now()
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) // #nosec G204 -- configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
-	cmd.Dir = dir
-	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), env...)
-	}
+	cmd := command(ctx, dir, argv, env)
 	var errBuf bytes.Buffer
 	cmd.Stderr = &errBuf
 	out, err := cmd.Output()

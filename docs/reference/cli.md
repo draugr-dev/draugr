@@ -590,6 +590,16 @@ each scanner's data refresh before the jobs started, in milliseconds. The consol
 beside the duration when it is five seconds or more and at least a quarter of the run, and
 `--evidence` names each refresh of a second or more.
 
+**Each tool's own parallelism.** Draugr runs every external tool under one bound, n, which is half
+the CPUs or one per 4 GiB of memory, whichever is fewer, and at least 1. Where the operating system
+does not report its memory, n is half the CPUs. The tool's environment sets `GOMAXPROCS=n` and adds
+`-p=n` to `GOFLAGS` after the flags already there, so a Go tool runs Go code on at most n threads
+and a Go build it starts, such as govulncheck's package load, runs at most n compile processes.
+A `GOMAXPROCS` set in the environment Draugr runs in is passed on unchanged, and so is a `GOFLAGS`
+that already holds `-p`. The ceiling for a run is the `-j` jobs times n. `stats.peakToolMemoryBytes`
+records the largest resident memory any one tool process reached; see the [report
+schema](report-schema.md#tool-memory).
+
 **Severity bands.** The console reports each finding's severity band (critical, high, medium or
 low), derived from its CVSS score where the scanner supplies one, and `--fail-on` takes the same
 words:

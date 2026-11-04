@@ -809,6 +809,9 @@ type statsInfo struct {
 	// durationMs, and on a run that downloaded a database usually most of what it took beyond the
 	// run before.
 	DataRefresh []dataRefresh `json:"dataRefresh,omitempty"`
+	// PeakToolMemoryBytes is the largest resident memory any single tool process reached, not a
+	// sum. Omitted where the platform does not report it.
+	PeakToolMemoryBytes uint64 `json:"peakToolMemoryBytes,omitempty"`
 }
 
 // dataRefresh is one scanner's data refresh: the data, how long it took, and whether it failed.
@@ -950,6 +953,8 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 			ByControlMs: millisBy(run.Stats.ByControl),
 			ToolWaitsMs: millisBy(run.Stats.ToolWaits),
 			DataRefresh: dataRefreshFrom(run.Stats.DataRefresh),
+
+			PeakToolMemoryBytes: run.Stats.PeakToolMemory,
 		},
 	}
 	seen := make(map[string]bool, len(verdict.Controls))

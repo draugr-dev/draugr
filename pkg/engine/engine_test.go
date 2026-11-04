@@ -368,6 +368,36 @@ func TestWithConcurrencySerialStillCompletes(t *testing.T) {
 	}
 }
 
+// The run records the largest tool process the operating system reports once its jobs are done,
+// and records nothing where it reports none.
+func TestRunRecordsThePeakToolMemory(t *testing.T) {
+	orig := peakToolMemory
+	t.Cleanup(func() { peakToolMemory = orig })
+	for _, tc := range []struct {
+		name string
+		peak uint64
+		ok   bool
+		want uint64
+	}{
+		{"reported", 6 << 30, true, 6 << 30},
+		{"not reported", 0, false, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			peakToolMemory = func() (uint64, bool) { return tc.peak, tc.ok }
+			reg := NewRegistry()
+			reg.RegisterController(fakeController{name: "images", scope: plugin.ScopeComponent, scanner: "s"})
+			reg.RegisterScanner(&fakeScanner{name: "s"})
+			res, err := New(reg).Run(context.Background(), model())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if res.Stats.PeakToolMemory != tc.want {
+				t.Errorf("PeakToolMemory = %d, want %d", res.Stats.PeakToolMemory, tc.want)
+			}
+		})
+	}
+}
+
 // A scan that couldn't run has to be attributable, or the report can't name it and the gate
 // can't distinguish "clean" from "unchecked".
 func TestRunAttributesScanErrorsToTheirControl(t *testing.T) {

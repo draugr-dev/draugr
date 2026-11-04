@@ -29,6 +29,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/draugr-dev/draugr/internal/english"
+	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/pkg/cache"
@@ -383,6 +384,10 @@ func New(reg *Registry, opts ...Option) *Engine {
 	}
 	return e
 }
+
+// peakToolMemory reads Stats.PeakToolMemory. A variable so a test can give it a value of its own
+// rather than whatever processes the test binary has run.
+var peakToolMemory = toolexec.PeakMemory
 
 func defaultConcurrency() int {
 	if n := runtime.NumCPU(); n > 0 {
@@ -764,6 +769,13 @@ type Stats struct {
 	// Concurrency is the maximum number of scan jobs run in parallel for this run (the
 	// effective value after applying WithConcurrency or the NumCPU default).
 	Concurrency int
+	// PeakToolMemory is the largest resident memory, in bytes, that any single tool process
+	// reached, read from the operating system once the jobs and SBOMs are done. One process, not a
+	// sum across those that ran at once. Zero where the platform does not report it.
+	//
+	// Recorded because a run that came close to exhausting the machine otherwise finishes looking
+	// like any other, and the next, larger one is the run that fails.
+	PeakToolMemory uint64
 	// Duration is wall-clock for the whole run, and ByControl is how long each control's jobs
 	// took summed across them. Reported because "why is this slow" is a question a job count
 	// cannot answer: with concurrency the parts do not add up to the whole, and the control
@@ -1554,6 +1566,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	}
 
 	stats.Duration = time.Since(runStart)
+	stats.PeakToolMemory, _ = peakToolMemory()
 	stats.ToolWaits = waits.Totals()
 	stats.DataRefresh = refreshed
 	stats.Data = dataStates(ctx, e.reg, planned)
