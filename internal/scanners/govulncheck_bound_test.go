@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -18,7 +19,8 @@ import (
 // Two components in two Go repositories, planned to run at once. Each govulncheck run goes through
 // the same runner it would in a scan, with `env` standing in for govulncheck, and each one starts
 // with GOMAXPROCS at the bound and -p in GOFLAGS after the caller's own tags, which the scanner
-// still reads as the build tags.
+// still reads as the build tags. The two runs take turns, so their compile processes together stay
+// within the bound rather than reaching twice it.
 func TestEachConcurrentGovulncheckRunCarriesTheBound(t *testing.T) {
 	useGoVulnDB(t, noCopy)
 	builtWith(t, "go1.26.10")
@@ -35,14 +37,27 @@ func TestEachConcurrentGovulncheckRunCarriesTheBound(t *testing.T) {
 	}
 	var mu sync.Mutex
 	environments := map[string]string{}
+	// running is how many runs are in progress, and most the largest it reached.
+	running, most := 0, 0
 	origExec := execArgvInDirWithEnv
 	t.Cleanup(func() { execArgvInDirWithEnv = origExec })
 	execArgvInDirWithEnv = func(ctx context.Context, dir string, argv, env []string) ([]byte, error) {
+		mu.Lock()
+		running++
+		most = max(most, running)
+		mu.Unlock()
+		defer func() {
+			mu.Lock()
+			running--
+			mu.Unlock()
+		}()
 		mod := argv[slices.Index(argv, "-C")+1]
 		out, err := origExec(ctx, dir, []string{"env"}, env)
 		if err != nil {
 			return nil, err
 		}
+		// Long enough that two runs started together would be seen in progress together.
+		time.Sleep(50 * time.Millisecond)
 		mu.Lock()
 		environments[mod] = string(out)
 		mu.Unlock()
@@ -64,6 +79,9 @@ func TestEachConcurrentGovulncheckRunCarriesTheBound(t *testing.T) {
 	}
 	if _, err := engine.New(reg, engine.WithConcurrency(2)).Run(context.Background(), model); err != nil {
 		t.Fatalf("run: %v", err)
+	}
+	if most != 1 {
+		t.Errorf("%d govulncheck runs were in progress at once, want 1 so the run stays within one bound", most)
 	}
 
 	n := strconv.Itoa(toolexec.Parallelism())

@@ -46,6 +46,9 @@ func NewGovulncheck() plugin.Scanner {
 			TargetKinds:    []plugin.TargetKind{plugin.TargetRepository},
 			ConfigSchema:   json.RawMessage(noScannerOptions),
 			ModuleManifest: "go.mod",
+			// govulncheck loads a module's packages with `go`, whose compile processes fill the
+			// bound each tool runs under, so it takes its turn with every other Go package load.
+			Exclusive: plugin.ExclusiveGoPackageLoad,
 		},
 		govulncheckArgs,
 		parseGovulncheck,

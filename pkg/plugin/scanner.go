@@ -152,6 +152,11 @@ type DataStater interface {
 // tool's. It is the value the registry stamps on every built-in native scanner.
 const OriginDraugr = "draugr"
 
+// ExclusiveGoPackageLoad is the ScannerInfo.Exclusive resource of a scanner that loads a Go
+// module's packages with the go command, which compiles them with as many processes as the
+// per-tool bound allows.
+const ExclusiveGoPackageLoad = "go-package-load"
+
 // ScannerInfo describes a scanner and its capabilities.
 type ScannerInfo struct {
 	// Name is the scanner identifier, e.g. "trivy".
@@ -232,6 +237,22 @@ type ScannerInfo struct {
 	// under this scanner's name with the run's other waits. The declarations across a registry
 	// must not form a cycle; a run that plans one reports it and orders nothing.
 	ReadsAfter []string
+	// Exclusive names a resource this scanner's jobs use whole. Jobs of every scanner declaring the
+	// same name never run at the same time in one run, on any target. Empty for a scanner whose
+	// jobs may run beside each other.
+	//
+	// It exists for a tool whose own parallelism already fills the bound Draugr gives each tool.
+	// Loading a Go module's packages starts up to that bound in compile processes, so two loads at
+	// once take twice the bound, and a run over many Go repositories takes memory in proportion to
+	// how many it loads together. One load at a time keeps the run within the bound.
+	//
+	// Declared rather than coded into one scanner so the engine can schedule it. A job takes the
+	// resource after the jobs it reads after have finished and before its concurrency slot, so a
+	// job waiting for the resource holds no slot, and a job holding it releases it when it ends,
+	// however it ends. The time spent waiting is reported under this scanner's name with the run's
+	// other ordering waits. Use a declared constant, such as ExclusiveGoPackageLoad, so scanners
+	// that share a resource name it the same way.
+	Exclusive string
 	// ConfigSchema is a JSON Schema for Config; it drives validation and the config wizard.
 	ConfigSchema json.RawMessage
 	// Effects declare what this scanner does to a target beyond reading it. Empty. The common case.

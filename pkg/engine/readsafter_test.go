@@ -43,16 +43,17 @@ func (l *eventLog) String() string {
 // stepScanner logs "start <name> <repo>" and "end <name> <repo>" around each job, and runs hold in
 // between, so a test decides how long a job takes and what it waits for.
 type stepScanner struct {
-	name  string
-	after []string
-	log   *eventLog
-	hold  func(ctx context.Context, repo string) error
-	fail  bool
+	name      string
+	after     []string
+	exclusive string
+	log       *eventLog
+	hold      func(ctx context.Context, repo string) error
+	fail      bool
 }
 
 func (s *stepScanner) Info() plugin.ScannerInfo {
 	return plugin.ScannerInfo{
-		Name: s.name, ReadsAfter: s.after,
+		Name: s.name, ReadsAfter: s.after, Exclusive: s.exclusive,
 		TargetKinds: []plugin.TargetKind{plugin.TargetRepository},
 	}
 }

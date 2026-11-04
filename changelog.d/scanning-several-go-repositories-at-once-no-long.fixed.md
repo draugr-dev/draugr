@@ -1,0 +1,1 @@
+- **Scanning several Go repositories at once no longer starts a Go package load per repository.** `govulncheck` and `gosec` now take turns, one load at a time across the run, each at the full per-tool parallelism bound. A run with several loads can take longer; each job's wait is in `stats.orderWaitsMs`.

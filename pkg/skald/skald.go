@@ -805,8 +805,9 @@ type statsInfo struct {
 	DurationMs  int64            `json:"durationMs,omitempty"`
 	ByControlMs map[string]int64 `json:"byControlMs,omitempty"`
 	ToolWaitsMs map[string]int64 `json:"toolWaitsMs,omitempty"`
-	// OrderWaitsMs is time each scanner's jobs waited for other scanners' jobs on the same target
-	// to finish before starting, in milliseconds, keyed by the scanner that waited.
+	// OrderWaitsMs is time each scanner's jobs waited for other jobs before starting, in
+	// milliseconds, keyed by the scanner that waited: for other scanners' jobs on the same target to
+	// finish (ReadsAfter), or for another job to release a resource both use whole (Exclusive).
 	OrderWaitsMs map[string]int64 `json:"orderWaitsMs,omitempty"`
 	// DataRefresh is each scanner's data refresh before the jobs started, in milliseconds. Part of
 	// durationMs, and on a run that downloaded a database usually most of what it took beyond the
