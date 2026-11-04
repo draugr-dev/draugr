@@ -33,6 +33,9 @@ func (r *WaitRecorder) Totals() map[string]time.Duration {
 	return maps.Clone(r.byTool)
 }
 
+// Add attributes d to tool, for a caller that holds the recorder rather than a context carrying it.
+func (r *WaitRecorder) Add(tool string, d time.Duration) { r.add(tool, d) }
+
 // add records a wait against a tool.
 func (r *WaitRecorder) add(tool string, d time.Duration) {
 	r.mu.Lock()

@@ -800,10 +800,13 @@ type Stats struct {
 	// summed per tool. Reported because a run that took three times as long deserves a reason,
 	// and because these waits are Draugr's own doing: it plans concurrent jobs that share one
 	// tool cache, so the contention is a cost of the scheduling rather than a fault of the tool.
-	//
-	// It also holds the time a scanner's jobs spent waiting for another scanner's jobs on the same
-	// target to finish (ScannerInfo.ReadsAfter), under the name of the scanner that waited.
 	ToolWaits map[string]time.Duration
+
+	// OrderWaits is time a scanner's jobs spent waiting for other scanners' jobs on the same target
+	// to finish (ScannerInfo.ReadsAfter), summed per waiting scanner. Kept apart from ToolWaits,
+	// which the console words as a wait for that tool's own cache: an ordering wait is for other
+	// scanners' work, and the waiting scanner has no cache of its own being contended.
+	OrderWaits map[string]time.Duration
 
 	// DataRefresh is how long each scanner took to refresh its data before the jobs started, in
 	// the order the scanners were warmed. The run's duration includes it, and on a run that
@@ -1145,6 +1148,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// once against the run rather than a line per wait. Installed per run, so a second Run in
 	// the same process starts from zero.
 	waits := &plugin.WaitRecorder{}
+	orderWaits := &plugin.WaitRecorder{}
 	ctx = plugin.WithWaitRecorder(ctx, waits)
 
 	var (
@@ -1346,7 +1350,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			// waited out first: a waiting job holding a slot can starve the job it waits for, and
 			// under `-j 1` it would wait forever.
 			if after != nil {
-				waitToRead(ctx, pj.Job.Scanner, after[jobIndex], finished)
+				waitToRead(ctx, orderWaits, pj.Job.Scanner, after[jobIndex], finished)
 			}
 
 			// A scanner's rate limit is waited out *before* a concurrency slot is taken, and
@@ -1595,6 +1599,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	stats.Duration = time.Since(runStart)
 	stats.PeakToolMemory, _ = peakToolMemory()
 	stats.ToolWaits = waits.Totals()
+	stats.OrderWaits = orderWaits.Totals()
 	stats.DataRefresh = refreshed
 	stats.Data = dataStates(ctx, e.reg, planned)
 	stats.Unscanned = trulyUnscanned(unscanned, examined)

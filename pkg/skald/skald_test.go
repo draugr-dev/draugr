@@ -301,7 +301,8 @@ func TestRenderJSONReportsWhereTheTimeWent(t *testing.T) {
 			"sca":  61*time.Second + 200*time.Millisecond,
 			"sast": 4 * time.Second,
 		},
-		ToolWaits: map[string]time.Duration{"trivy": 51 * time.Second},
+		ToolWaits:  map[string]time.Duration{"trivy": 51 * time.Second},
+		OrderWaits: map[string]time.Duration{"trivy-license": 7 * time.Second},
 	}
 	var buf bytes.Buffer
 	if err := RenderJSON(&buf, saga.Release{Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
@@ -309,9 +310,10 @@ func TestRenderJSONReportsWhereTheTimeWent(t *testing.T) {
 	}
 	var doc struct {
 		Stats struct {
-			DurationMs  int64            `json:"durationMs"`
-			ByControlMs map[string]int64 `json:"byControlMs"`
-			ToolWaitsMs map[string]int64 `json:"toolWaitsMs"`
+			DurationMs   int64            `json:"durationMs"`
+			ByControlMs  map[string]int64 `json:"byControlMs"`
+			ToolWaitsMs  map[string]int64 `json:"toolWaitsMs"`
+			OrderWaitsMs map[string]int64 `json:"orderWaitsMs"`
 		} `json:"stats"`
 	}
 	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
@@ -331,6 +333,14 @@ func TestRenderJSONReportsWhereTheTimeWent(t *testing.T) {
 	// contended one.
 	if got := doc.Stats.ToolWaitsMs["trivy"]; got != 51_000 {
 		t.Errorf("toolWaitsMs[trivy] = %d, want 51000", got)
+	}
+	// An ordering wait is reported beside the cache waits and never among them, which the console
+	// words as contention for the named tool's own cache.
+	if got := doc.Stats.OrderWaitsMs["trivy-license"]; got != 7_000 {
+		t.Errorf("orderWaitsMs[trivy-license] = %d, want 7000", got)
+	}
+	if _, ok := doc.Stats.ToolWaitsMs["trivy-license"]; ok {
+		t.Errorf("toolWaitsMs holds the ordering wait: %v", doc.Stats.ToolWaitsMs)
 	}
 }
 

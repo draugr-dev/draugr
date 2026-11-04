@@ -114,17 +114,17 @@ func (r *Registry) CheckReadsAfter() error {
 }
 
 // waitToRead blocks until every job at the positions in deps has finished, however it finished,
-// or ctx is done. Time spent blocked is recorded against scanner with the run's other waits; a job
-// whose predecessors had all finished by the time it looked records nothing.
+// or ctx is done. Time spent blocked is added to waits against scanner; a job whose predecessors
+// had all finished by the time it looked records nothing.
 //
 // Called before the job takes a concurrency slot, which is what keeps `-j 1` from deadlocking: a
 // job holding the only slot while it waits for one that needs it would wait forever.
-func waitToRead(ctx context.Context, scanner string, deps []int, finished []chan struct{}) {
+func waitToRead(ctx context.Context, waits *plugin.WaitRecorder, scanner string, deps []int, finished []chan struct{}) {
 	began := time.Now()
 	blocked := false
 	defer func() {
 		if blocked {
-			plugin.RecordWait(ctx, scanner, time.Since(began))
+			waits.Add(scanner, time.Since(began))
 		}
 	}()
 	for _, j := range deps {

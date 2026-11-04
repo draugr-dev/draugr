@@ -187,8 +187,8 @@ func TestAReaderStartsAfterTheFillerOnItsOwnRepository(t *testing.T) {
 			}
 			// With four slots every job starts at once, so each reader finds its filler still
 			// running, and the time it waited is the run's to report.
-			if jobs > 1 && res.Stats.ToolWaits["reader"] <= 0 {
-				t.Errorf("ToolWaits = %v, want the reader's wait recorded under its name", res.Stats.ToolWaits)
+			if jobs > 1 && res.Stats.OrderWaits["reader"] <= 0 {
+				t.Errorf("OrderWaits = %v, want the reader's wait recorded under its name", res.Stats.OrderWaits)
 			}
 		})
 	}
@@ -218,8 +218,8 @@ func TestAReaderIsNotDelayedWhereNoFillerIsPlanned(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Run: %v (events: %s)", err, log)
 		}
-		if _, ok := res.Stats.ToolWaits["reader"]; ok {
-			t.Errorf("ToolWaits = %v, want no wait for a reader with no filler on its repository", res.Stats.ToolWaits)
+		if _, ok := res.Stats.OrderWaits["reader"]; ok {
+			t.Errorf("OrderWaits = %v, want no wait for a reader with no filler on its repository", res.Stats.OrderWaits)
 		}
 	})
 	t.Run("no filler planned", func(t *testing.T) {
@@ -231,8 +231,8 @@ func TestAReaderIsNotDelayedWhereNoFillerIsPlanned(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Run: %v", err)
 		}
-		if res.Stats.ToolWaits != nil {
-			t.Errorf("ToolWaits = %v, want none", res.Stats.ToolWaits)
+		if res.Stats.OrderWaits != nil {
+			t.Errorf("OrderWaits = %v, want none", res.Stats.OrderWaits)
 		}
 		if got := len(res.Controls["licenses"].Report.Results); got != 2 {
 			t.Errorf("licenses results = %d, want 2", got)

@@ -1,0 +1,1 @@
+- **Two scans of one Go repository report the same `licenses` result.** `trivy-license` now starts after `govulncheck` and `gosec` finish on that repository, so it reads the Go module cache after they fill it. The wait is reported as `stats.orderWaitsMs` in `report.json`.
