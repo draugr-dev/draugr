@@ -36,15 +36,6 @@ var stableStats = []string{
 	"dataRefresh.*.failed",
 }
 
-// unnormalizedStats are the keys under stats whose value or presence depends on the machine or the
-// moment, and which ReportNormalizer does not yet clear or drop. No golden holds one today. Each
-// entry is one the normalizer should take, and the test fails once it does so the entry goes too.
-var unnormalizedStats = []string{
-	// Written only when a Trivy job waited for the scanner cache another job held, so whether it
-	// appears depends on which job finished first, as for orderWaitsMs.
-	"toolWaitsMs",
-}
-
 // Every key the report can write under stats is either normalized for the sealed scenarios or pinned
 // by their goldens on purpose. A key that is neither, and whose value differs between runs, fails
 // every scenario in the integration job and nothing before it.
@@ -57,7 +48,7 @@ func TestEveryStatsKeyIsNormalizedOrStable(t *testing.T) {
 		}
 	}
 	listed := map[string]bool{}
-	for _, key := range slices.Concat(stableStats, unnormalizedStats) {
+	for _, key := range stableStats {
 		listed[key] = false
 	}
 

@@ -96,9 +96,9 @@ func ReportNormalizer(replace map[string]string) Normalizer {
 			{"scannerData", "*", "version"}, {"scannerData", "*", "published"},
 			{"scannerData", "*", "downloaded"}, {"scannerData", "*", "tooOld"},
 		},
-		// Written only when a job had to wait for another scanner's job on its repository, which
-		// depends on which finished first.
-		Drop:    [][]string{{"stats", "orderWaitsMs"}},
+		// Written only when a job had to wait, for another job's work or for a tool cache another
+		// job held, which depends on which job finished first.
+		Drop:    [][]string{{"stats", "orderWaitsMs"}, {"stats", "toolWaitsMs"}},
 		Sort:    [][]string{{"scanners"}},
 		Replace: replace,
 	}
