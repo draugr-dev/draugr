@@ -1,0 +1,1 @@
+- **Scanning the same Go repository twice gives the same `licenses` result.** `trivy-license` starts after `govulncheck` and `gosec` finish on that repository, so the Go module cache is in the same state every time. A scan can take longer by that wait, which `report.json` reports as `stats.orderWaitsMs`.

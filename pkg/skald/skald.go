@@ -805,6 +805,9 @@ type statsInfo struct {
 	DurationMs  int64            `json:"durationMs,omitempty"`
 	ByControlMs map[string]int64 `json:"byControlMs,omitempty"`
 	ToolWaitsMs map[string]int64 `json:"toolWaitsMs,omitempty"`
+	// OrderWaitsMs is time each scanner's jobs waited for other scanners' jobs on the same target
+	// to finish before starting, in milliseconds, keyed by the scanner that waited.
+	OrderWaitsMs map[string]int64 `json:"orderWaitsMs,omitempty"`
 	// DataRefresh is each scanner's data refresh before the jobs started, in milliseconds. Part of
 	// durationMs, and on a run that downloaded a database usually most of what it took beyond the
 	// run before.
@@ -943,16 +946,17 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 		FailedCaveats:   prov.FailedCaveats,
 		ScannerData:     ScannerDataFrom(run.Stats.Data),
 		Stats: statsInfo{
-			Jobs:        run.Stats.Jobs,
-			Scans:       run.Stats.Scans,
-			CacheHits:   run.Stats.CacheHits,
-			Cache:       cacheInfoFrom(run.Stats),
-			Deduped:     run.Stats.Deduped,
-			Concurrency: run.Stats.Concurrency,
-			DurationMs:  millis(run.Stats.Duration),
-			ByControlMs: millisBy(run.Stats.ByControl),
-			ToolWaitsMs: millisBy(run.Stats.ToolWaits),
-			DataRefresh: dataRefreshFrom(run.Stats.DataRefresh),
+			Jobs:         run.Stats.Jobs,
+			Scans:        run.Stats.Scans,
+			CacheHits:    run.Stats.CacheHits,
+			Cache:        cacheInfoFrom(run.Stats),
+			Deduped:      run.Stats.Deduped,
+			Concurrency:  run.Stats.Concurrency,
+			DurationMs:   millis(run.Stats.Duration),
+			ByControlMs:  millisBy(run.Stats.ByControl),
+			ToolWaitsMs:  millisBy(run.Stats.ToolWaits),
+			OrderWaitsMs: millisBy(run.Stats.OrderWaits),
+			DataRefresh:  dataRefreshFrom(run.Stats.DataRefresh),
 
 			PeakToolMemoryBytes: run.Stats.PeakToolMemory,
 		},

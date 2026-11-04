@@ -100,6 +100,11 @@ func NewTrivyLicense() plugin.Scanner {
 			plugin.TargetRepository, plugin.TargetImage,
 		},
 		ConfigSchema: json.RawMessage(trivyLicenseConfigSchema),
+		// A Go dependency's license is read from the module cache, and each of these loads a
+		// module's packages with `go`, which downloads every module it needs into that cache. Read
+		// after both, a repository's licenses come from the same cache state on every run rather
+		// than from whatever had landed by the time this job looked.
+		ReadsAfter: []string{govulncheckScanner, gosecScannerName},
 	}
 
 	repo := newRepoScannerWithParser(info, trivyLicenseRepoArgs, parseTrivyLicenses)

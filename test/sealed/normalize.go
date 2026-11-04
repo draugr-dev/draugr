@@ -37,6 +37,9 @@ type Normalizer struct {
 	// ClearPresent are paths cleared where they exist and passed over where they do not, for a field
 	// only a run with findings writes.
 	ClearPresent [][]string
+	// Drop are paths removed where they exist, for a field whose presence, not only its value,
+	// depends on timing: cleared, it would still appear in one run and not the next.
+	Drop [][]string
 }
 
 // SARIFNormalizer is the normalizer for Draugr's results.sarif.
@@ -93,6 +96,9 @@ func ReportNormalizer(replace map[string]string) Normalizer {
 			{"scannerData", "*", "version"}, {"scannerData", "*", "published"},
 			{"scannerData", "*", "downloaded"}, {"scannerData", "*", "tooOld"},
 		},
+		// Written only when a job had to wait for another scanner's job on its repository, which
+		// depends on which finished first.
+		Drop:    [][]string{{"stats", "orderWaitsMs"}},
 		Sort:    [][]string{{"scanners"}},
 		Replace: replace,
 	}
@@ -112,6 +118,9 @@ func (n Normalizer) Apply(raw []byte) ([]byte, error) {
 	}
 	for _, path := range n.ClearPresent {
 		visit(doc, path, func(parent map[string]any, key string) { parent[key] = Cleared })
+	}
+	for _, path := range n.Drop {
+		visit(doc, path, func(parent map[string]any, key string) { delete(parent, key) })
 	}
 	for _, path := range n.Sort {
 		visit(doc, path, func(parent map[string]any, key string) {

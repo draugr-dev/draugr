@@ -43,6 +43,9 @@ const gosecConfigSchema = `{
   }
 }`
 
+// gosecScannerName is the gosec scanner's registered name.
+const gosecScannerName = "gosec"
+
 // NewGosec returns a Scanner that runs gosec, a Go-specialized static analyzer, over a
 // checked-out repository. It is an optional second scanner for the "sast" control (alongside
 // Semgrep); it only makes sense on Go components, so it is opt-in via
@@ -50,7 +53,7 @@ const gosecConfigSchema = `{
 func NewGosec() plugin.Scanner {
 	s := newRepoScannerPerModule(
 		plugin.ScannerInfo{
-			Name:           "gosec",
+			Name:           gosecScannerName,
 			Origin:         "securego",
 			Binary:         "gosec",
 			Controls:       []string{"sast"},

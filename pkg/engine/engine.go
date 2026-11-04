@@ -802,6 +802,12 @@ type Stats struct {
 	// tool cache, so the contention is a cost of the scheduling rather than a fault of the tool.
 	ToolWaits map[string]time.Duration
 
+	// OrderWaits is time a scanner's jobs spent waiting for other scanners' jobs on the same target
+	// to finish (ScannerInfo.ReadsAfter), summed per waiting scanner. Kept apart from ToolWaits,
+	// which the console words as a wait for that tool's own cache: an ordering wait is for other
+	// scanners' work, and the waiting scanner has no cache of its own being contended.
+	OrderWaits map[string]time.Duration
+
 	// DataRefresh is how long each scanner took to refresh its data before the jobs started, in
 	// the order the scanners were warmed. The run's duration includes it, and on a run that
 	// downloaded a database it is most of the difference from the run before, so a reader asking
@@ -1142,6 +1148,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// once against the run rather than a line per wait. Installed per run, so a second Run in
 	// the same process starts from zero.
 	waits := &plugin.WaitRecorder{}
+	orderWaits := &plugin.WaitRecorder{}
 	ctx = plugin.WithWaitRecorder(ctx, waits)
 
 	var (
@@ -1200,6 +1207,19 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		// Planning failures aren't attributable to one control, but they still mean the run is
 		// incomplete, so they need somewhere to be reported from.
 		ctlErrs[planningPseudoControl] = append(ctlErrs[planningPseudoControl], planErr.Error()) // nosem: trailofbits.go.racy-append-to-slice.racy-append-to-slice
+	}
+
+	// after is, per job, the jobs it waits for before it starts (ScannerInfo.ReadsAfter), and
+	// finished[i] closes once job i has stopped, however it stopped.
+	after, orderErr := readsAfter(e.reg, planned)
+	if orderErr != nil {
+		// Before any worker goroutine starts; see above.
+		errs = append(errs, orderErr)                                                             // nosem: trailofbits.go.racy-append-to-slice.racy-append-to-slice
+		ctlErrs[planningPseudoControl] = append(ctlErrs[planningPseudoControl], orderErr.Error()) // nosem: trailofbits.go.racy-append-to-slice.racy-append-to-slice
+	}
+	finished := make([]chan struct{}, len(planned))
+	for i := range finished {
+		finished[i] = make(chan struct{})
 	}
 
 	// A run with nothing to do is not a clean run.
@@ -1321,6 +1341,17 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		wg.Add(1)
 		go func(pj PlannedJob, jobIndex int) {
 			defer wg.Done()
+			// Deferred before the job's other steps, so it runs after all of them: a job waiting to
+			// read after this one starts once this one's slot is free and its outcome recorded.
+			defer close(finished[jobIndex])
+
+			// A job that reads what another job on its target leaves behind waits for it here,
+			// before the rate limit and before a slot, for the same reason the rate limit is
+			// waited out first: a waiting job holding a slot can starve the job it waits for, and
+			// under `-j 1` it would wait forever.
+			if after != nil {
+				waitToRead(ctx, orderWaits, pj.Job.Scanner, after[jobIndex], finished)
+			}
 
 			// A scanner's rate limit is waited out *before* a concurrency slot is taken, and
 			// that ordering is the whole design. A hosted API allowing four calls a minute means
@@ -1568,6 +1599,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	stats.Duration = time.Since(runStart)
 	stats.PeakToolMemory, _ = peakToolMemory()
 	stats.ToolWaits = waits.Totals()
+	stats.OrderWaits = orderWaits.Totals()
 	stats.DataRefresh = refreshed
 	stats.Data = dataStates(ctx, e.reg, planned)
 	stats.Unscanned = trulyUnscanned(unscanned, examined)

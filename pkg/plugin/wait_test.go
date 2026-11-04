@@ -52,3 +52,12 @@ func TestWaitRecorderTotalsIsACopy(t *testing.T) {
 		t.Error("an empty recorder should report nothing, not an empty map to check")
 	}
 }
+
+func TestWaitRecorderAddSumsPerTool(t *testing.T) {
+	r := &WaitRecorder{}
+	r.Add("trivy-license", time.Second)
+	r.Add("trivy-license", 2*time.Second)
+	if got := r.Totals()["trivy-license"]; got != 3*time.Second {
+		t.Errorf("Totals()[trivy-license] = %v, want 3s", got)
+	}
+}
