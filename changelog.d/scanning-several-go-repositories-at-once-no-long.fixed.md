@@ -1,0 +1,1 @@
+- **Scanning several Go repositories at once no longer multiplies memory by the number of repositories.** `govulncheck` and `gosec` load one Go module's packages at a time across the run, each at the full per-tool bound. A job's wait for its turn is reported in `stats.orderWaitsMs`.
