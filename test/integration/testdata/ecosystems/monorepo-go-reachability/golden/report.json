@@ -182,6 +182,7 @@
     "deduped": 0,
     "durationMs": "<cleared>",
     "jobs": 4,
+    "peakToolMemoryBytes": "<cleared>",
     "scans": 4
   },
   "targets": [

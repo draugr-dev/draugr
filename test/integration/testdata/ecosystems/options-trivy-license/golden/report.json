@@ -274,6 +274,7 @@
     "deduped": 0,
     "durationMs": "<cleared>",
     "jobs": 8,
+    "peakToolMemoryBytes": "<cleared>",
     "scans": 8
   },
   "suppressed": {

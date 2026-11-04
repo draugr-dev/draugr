@@ -334,6 +334,28 @@ func TestRenderJSONReportsWhereTheTimeWent(t *testing.T) {
 	}
 }
 
+// The largest tool process is what says a run came close to the machine's memory, and the
+// document is what CI keeps of the run.
+func TestRenderJSONReportsThePeakToolMemory(t *testing.T) {
+	run := sampleRun()
+	run.Stats = engine.Stats{Jobs: 2, Scans: 2, Concurrency: 2, PeakToolMemory: 6 << 30}
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Stats struct {
+			PeakToolMemoryBytes uint64 `json:"peakToolMemoryBytes"`
+		} `json:"stats"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatalf("not JSON: %v", err)
+	}
+	if doc.Stats.PeakToolMemoryBytes != 6<<30 {
+		t.Errorf("peakToolMemoryBytes = %d, want %d", doc.Stats.PeakToolMemoryBytes, uint64(6<<30))
+	}
+}
+
 // A control faster than a millisecond is measured, not missing. Truncating it to 0 puts a
 // "took no time" in a map whose every other entry is a real figure, and the entry that reads as
 // a bug is the one nobody trusts the rest of the map after seeing.
@@ -376,7 +398,7 @@ func TestUnrecordedTimingsAreAbsentRatherThanZero(t *testing.T) {
 	if err := RenderJSON(&buf, saga.Release{Version: "1.0"}, run, sampleVerdict(), ""); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"durationMs", "byControlMs", "toolWaitsMs"} {
+	for _, key := range []string{"durationMs", "byControlMs", "toolWaitsMs", "peakToolMemoryBytes"} {
 		if strings.Contains(buf.String(), key) {
 			t.Errorf("%s present with nothing recorded:\n%s", key, buf.String())
 		}

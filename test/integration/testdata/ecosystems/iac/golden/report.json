@@ -227,6 +227,7 @@
     "deduped": 0,
     "durationMs": "<cleared>",
     "jobs": 1,
+    "peakToolMemoryBytes": "<cleared>",
     "scans": 1
   },
   "targets": [

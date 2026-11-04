@@ -375,6 +375,22 @@ A gate that re-runs when results are too old has everything it needs here:
 jq -e '.stats.cache.enabled and (.stats.cache.unpinned // [] | length == 0)' out/report.json
 ```
 
+## Tool memory
+
+`stats.peakToolMemoryBytes` is the largest resident memory, in bytes, that any single process
+reached among the tools Draugr ran and the processes those tools started and waited for, such as
+the compile processes of a Go build. It is the largest one process, not the sum of the processes
+that ran at the same time. The operating system keeps the figure for the life of the Draugr
+process, so under `draugr mcp`, which runs several scans in one process, it covers every scan since
+the server started. Absent where the operating system does not report it, which is the case on
+Windows. A figure near the memory of the machine or container sets the bound too high for it; a
+lower `GOMAXPROCS`, and `-p` in `GOFLAGS`, set the bound for the next run, as the [CLI
+reference](cli.md) describes under *Each tool's own parallelism*.
+
+```bash
+jq '.stats.peakToolMemoryBytes / 1073741824' out/report.json   # in GiB
+```
+
 ## Effects
 
 `effects` records the [scanner effects](../trust-and-operations/what-a-scan-does.md) the run
