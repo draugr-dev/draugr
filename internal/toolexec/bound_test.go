@@ -159,7 +159,7 @@ func TestTheGoCommandAcceptsTheBound(t *testing.T) {
 
 // The bound on this machine is the formula over what the operating system reports.
 func TestParallelismReadsThisMachine(t *testing.T) {
-	if got, want := Parallelism(), bound(runtime.NumCPU(), totalMemory()); got != want {
+	if got, want := Parallelism(), bound(runtime.GOMAXPROCS(0), totalMemory()); got != want {
 		t.Errorf("Parallelism() = %d, want %d", got, want)
 	}
 	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {

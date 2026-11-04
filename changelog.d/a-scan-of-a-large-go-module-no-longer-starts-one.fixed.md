@@ -1,0 +1,1 @@
+- **A scan of a large Go module no longer starts one compile process per CPU.** Every tool Draugr runs gets `GOMAXPROCS` and a `GOFLAGS` `-p` of half the CPUs or one per 4 GiB of memory, whichever is fewer, within container and cgroup limits. Setting either variable yourself overrides it. `stats.peakToolMemoryBytes` in `report.json` records the largest tool process's memory.

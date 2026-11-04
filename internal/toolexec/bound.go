@@ -24,8 +24,10 @@ import (
 // module's build together with the share of the tool that started it.
 const memoryPerUnit = 4 << 30
 
-// parallelism is the bound for this process, computed once from the machine.
-var parallelism = sync.OnceValue(func() int { return bound(runtime.NumCPU(), totalMemory()) })
+// parallelism is the bound for this process, computed once from the machine. The cores are this
+// process's GOMAXPROCS, which the Go runtime lowers to a container's CPU limit, so a tool in a
+// container limited to two CPUs is not given half of the host's.
+var parallelism = sync.OnceValue(func() int { return bound(runtime.GOMAXPROCS(0), totalMemory()) })
 
 // Parallelism is the bound every tool run is given as GOMAXPROCS and as -p in GOFLAGS, where the
 // caller set neither, computed once per process from the machine's cores and memory.

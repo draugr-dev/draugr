@@ -383,7 +383,9 @@ the compile processes of a Go build. It is the largest one process, not the sum 
 that ran at the same time. The operating system keeps the figure for the life of the Draugr
 process, so under `draugr mcp`, which runs several scans in one process, it covers every scan since
 the server started. Absent where the operating system does not report it, which is the case on
-Windows.
+Windows. A figure near the memory of the machine or container sets the bound too high for it; a
+lower `GOMAXPROCS`, and `-p` in `GOFLAGS`, set the bound for the next run, as the [CLI
+reference](cli.md) describes under *Each tool's own parallelism*.
 
 ```bash
 jq '.stats.peakToolMemoryBytes / 1073741824' out/report.json   # in GiB

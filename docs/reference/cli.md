@@ -579,7 +579,8 @@ available fields). `html`, `junit` and the GitLab formats are files, written wit
 
 **Tuning parallelism (`-j`/`--jobs`).** By default Draugr runs up to one scan job per CPU. Trivy and
 Semgrep are multi-threaded themselves, so on a small or busy machine a lower `-j` can finish
-sooner; `-j 1` runs serially. The run's JSON `stats` reports the effective `concurrency` alongside
+sooner; `-j 1` runs serially. Each tool's own threads have a bound of their own, under *Each
+tool's own parallelism*. The run's JSON `stats` reports the effective `concurrency` alongside
 `jobs` (total jobs), `scans`, `cacheHits` and `deduped`.
 
 It also reports where the time went, in milliseconds: `durationMs` (wall-clock), `byControlMs` (each
@@ -590,13 +591,17 @@ each scanner's data refresh before the jobs started, in milliseconds. The consol
 beside the duration when it is five seconds or more and at least a quarter of the run, and
 `--evidence` names each refresh of a second or more.
 
-**Each tool's own parallelism.** Draugr runs every external tool under one bound, n, which is half
-the CPUs or one per 4 GiB of memory, whichever is fewer, and at least 1. Where the operating system
-does not report its memory, n is half the CPUs. The tool's environment sets `GOMAXPROCS=n` and adds
-`-p=n` to `GOFLAGS` after the flags already there, so a Go tool runs Go code on at most n threads
-and a Go build it starts, such as govulncheck's package load, runs at most n compile processes.
-A `GOMAXPROCS` set in the environment Draugr runs in is passed on unchanged, and so is a `GOFLAGS`
-that already holds `-p`. The ceiling for a run is the `-j` jobs times n. `stats.peakToolMemoryBytes`
+**Each tool's own parallelism.** Draugr starts every external tool with `GOMAXPROCS=n` and with
+`-p=n` added after the flags already in `GOFLAGS`, so a Go tool runs on at most n threads and a Go
+build it starts, such as govulncheck's package load, runs at most n compile processes. To use a
+different bound, set `GOMAXPROCS`, or `-p=<n>` in `GOFLAGS`, before running `draugr scan`; Draugr
+passes either one on unchanged. `-j` does not change n: each of the jobs running at once starts
+its tools under n.
+
+n is half the CPUs or one per 4 GiB of memory, whichever is fewer, and at least 1. The CPUs are
+the ones Draugr may use after a container's CPU limit. The memory is the lower of the machine's and
+any cgroup v2 `memory.max` on Draugr's group or a parent, such as a container's limit or a systemd
+scope's `MemoryMax`. Where neither reports memory, n is half the CPUs. `stats.peakToolMemoryBytes`
 records the largest resident memory any one tool process reached; see the [report
 schema](report-schema.md#tool-memory).
 
