@@ -88,6 +88,8 @@ func ReportNormalizer(replace map[string]string) Normalizer {
 		ClearPresent: [][]string{
 			{"actions", "*", "findings"}, {"findings", "*", "fingerprint"},
 			{"stats", "dataRefresh", "*", "ms"},
+			// The machine's memory use, written where the operating system reports it.
+			{"stats", "peakToolMemoryBytes"},
 			{"scannerData", "*", "version"}, {"scannerData", "*", "published"},
 			{"scannerData", "*", "downloaded"}, {"scannerData", "*", "tooOld"},
 		},
