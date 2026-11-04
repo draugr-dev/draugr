@@ -122,7 +122,7 @@ A dependency file whose packages Trivy read with no license for any of them is u
 `licenses`; [`licenses`](../controllers/licenses.md#sources) says where each format's licenses come
 from and what each reason asks of you.
 
-A Go dependency's license is read from the module cache, which [`govulncheck`](govulncheck.md) and
-[`gosec`](gosec.md) fill as they load a module's packages. On a repository either of them also
-scans, this scanner's job starts after theirs have finished, so the cache is in the same state on
-every run and two scans of one tree report the same licenses.
+On a Go repository that [`govulncheck`](govulncheck.md) or [`gosec`](gosec.md) also scans, this
+scanner's job starts after theirs finish, because it reads each module's license from the Go module
+cache they fill. Two scans of one tree then report the same licenses. The time spent waiting is
+`stats.orderWaitsMs["trivy-license"]` in `report.json`.

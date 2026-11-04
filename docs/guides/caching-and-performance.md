@@ -311,18 +311,20 @@ Read it in this order:
    may use it at a time. Time recorded there was spent queueing rather than scanning, so raising
    `-j` will not recover it. The key is absent in this run because Draugr warms shared scanner
    state once before the fan-out; if you see it, the warm-up did not cover that tool, and the
-   fix is a warm cache rather than more parallelism. `orderWaitsMs` is a different wait: under
-   `trivy-license`, the time it waited for `govulncheck` and `gosec` to finish on the same
-   repository, so that it reads the Go module cache after they have filled it.
-4. **`cache.enabled` is what tells you which kind of zero you are looking at.** A run given no
+   fix is a warm cache rather than more parallelism.
+4. **`orderWaitsMs` is time a job waited for another scanner's work.** On a Go repository,
+   `trivy-license` starts after `govulncheck` and `gosec` finish, because it reads licenses from
+   the Go module cache they fill. A `licenses` control that runs longer than its own scan is
+   usually this wait, and raising `-j` does not recover it.
+5. **`cache.enabled` is what tells you which kind of zero you are looking at.** A run given no
    `--cache-dir` and a run whose every entry had expired both report `cacheHits: 0`, and they are
    not the same run. With a cache in use and no hits, the cache was there and nothing matched:
    entries are keyed on content, and for a repository that includes the revision, so a run on a
    new commit is *expected* to miss for whatever that commit changed.
-5. **`cache.oldestHit` is how stale the oldest reused answer is.** Twelve results reused is a
+6. **`cache.oldestHit` is how stale the oldest reused answer is.** Twelve results reused is a
    different statement an hour old and a day old. An instant rather than an age, because a report
    is read later than it is written; the console prints the age, because it is read now.
-6. **`dataRefresh` is the time each scanner spent refreshing its data, such as a vulnerability
+7. **`dataRefresh` is the time each scanner spent refreshing its data, such as a vulnerability
    database or a checks bundle, before the jobs started**, in milliseconds. It is included in
    `durationMs`. A cold run of draugr-demo spent 10,450 ms of 22,436 on Trivy's vulnerability
    database, and the next run spent 32 ms on it. A refresh that is long on every run means the
