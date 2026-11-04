@@ -585,7 +585,8 @@ tool's own parallelism*. The run's JSON `stats` reports the effective `concurren
 
 It also reports where the time went, in milliseconds: `durationMs` (wall-clock), `byControlMs` (each
 control's job time, summed across its jobs) and `toolWaitsMs` (time spent queueing for a tool's own
-cache rather than scanning). Jobs run concurrently, so the per-control times add up to more than
+cache rather than scanning, and time a scanner's job spent waiting for another scanner's jobs on the
+same repository to finish, under the waiting scanner's name). Jobs run concurrently, so the per-control times add up to more than
 the wall-clock. They are absent, not zero, when a run recorded no timings. `dataRefresh` lists
 each scanner's data refresh before the jobs started, in milliseconds. The console puts the total
 beside the duration when it is five seconds or more and at least a quarter of the run, and

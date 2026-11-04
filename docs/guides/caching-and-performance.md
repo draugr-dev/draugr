@@ -311,7 +311,9 @@ Read it in this order:
    may use it at a time. Time recorded there was spent queueing rather than scanning, so raising
    `-j` will not recover it. The key is absent in this run because Draugr warms shared scanner
    state once before the fan-out; if you see it, the warm-up did not cover that tool, and the
-   fix is a warm cache rather than more parallelism.
+   fix is a warm cache rather than more parallelism. An entry under `trivy-license` is different:
+   it is the time that scanner waited for `govulncheck` and `gosec` to finish on the same
+   repository, so that it reads the Go module cache after they have filled it.
 4. **`cache.enabled` is what tells you which kind of zero you are looking at.** A run given no
    `--cache-dir` and a run whose every entry had expired both report `cacheHits: 0`, and they are
    not the same run. With a cache in use and no hits, the cache was there and nothing matched:

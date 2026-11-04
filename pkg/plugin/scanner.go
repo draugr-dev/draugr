@@ -217,6 +217,21 @@ type ScannerInfo struct {
 	// many components share it; a Reachability analyzer is run once per component, starting from
 	// the component's own paths (RepositoryTarget.Entry).
 	ModuleManifest string
+	// ReadsAfter names the scanners whose jobs on a target must finish before this scanner's job on
+	// the same target starts. A repository is the same target whatever paths each job reads. Empty
+	// for a scanner whose result depends on nothing another scanner leaves behind.
+	//
+	// It exists for state outside the target that one tool fills and another reads. Loading a Go
+	// module's packages downloads the modules it needs into the shared module cache, and a license
+	// read from that cache depends on whether the download had finished. Run concurrently, the
+	// reader sees whatever had landed when it looked, and two scans of one tree disagree.
+	//
+	// Declared rather than coded into one scanner so the engine can schedule it. Only jobs planned
+	// in the same run are waited for, a job that fails releases its readers as surely as one that
+	// succeeds, a waiting job holds no concurrency slot, and the time spent waiting is reported
+	// under this scanner's name with the run's other waits. The declarations across a registry
+	// must not form a cycle; a run that plans one reports it and orders nothing.
+	ReadsAfter []string
 	// ConfigSchema is a JSON Schema for Config; it drives validation and the config wizard.
 	ConfigSchema json.RawMessage
 	// Effects declare what this scanner does to a target beyond reading it. Empty. The common case.

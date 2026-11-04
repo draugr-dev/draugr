@@ -1,6 +1,7 @@
 package builtins
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -28,6 +29,34 @@ func TestSurveyorRegistryHasDefaults(t *testing.T) {
 	} {
 		if _, ok := reg.Get(name); !ok {
 			t.Errorf("%s surveyor should be registered", name)
+		}
+	}
+}
+
+// TestScannersReadAfterRegisteredScannersWithoutACycle holds every ReadsAfter declaration to a
+// scanner that exists and to an order that can be kept. A name nothing registers orders nothing,
+// so the result it was meant to make stable stays unstable, and a cycle is two jobs a run can only
+// report and leave unordered.
+func TestScannersReadAfterRegisteredScannersWithoutACycle(t *testing.T) {
+	t.Parallel()
+	if err := Registry().CheckReadsAfter(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// trivy-license reads a Go dependency's license from the module cache, and each of these scanners
+// fills that cache as it loads a module's packages. A scanner added to the list of those that load
+// Go packages belongs here too.
+func TestTheLicenseScannerReadsAfterTheGoModuleLoaders(t *testing.T) {
+	t.Parallel()
+	sc, ok := Registry().Scanner("trivy-license")
+	if !ok {
+		t.Fatal("trivy-license is not registered")
+	}
+	got := sc.Info().ReadsAfter
+	for _, want := range []string{"govulncheck", "gosec"} {
+		if !slices.Contains(got, want) {
+			t.Errorf("trivy-license ReadsAfter = %v, want it to include %s", got, want)
 		}
 	}
 }

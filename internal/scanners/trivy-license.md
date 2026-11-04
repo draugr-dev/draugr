@@ -121,3 +121,8 @@ has neither flag and makes no such request.
 A dependency file whose packages Trivy read with no license for any of them is unread for
 `licenses`; [`licenses`](../controllers/licenses.md#sources) says where each format's licenses come
 from and what each reason asks of you.
+
+A Go dependency's license is read from the module cache, which [`govulncheck`](govulncheck.md) and
+[`gosec`](gosec.md) fill as they load a module's packages. On a repository either of them also
+scans, this scanner's job starts after theirs have finished, so the cache is in the same state on
+every run and two scans of one tree report the same licenses.
