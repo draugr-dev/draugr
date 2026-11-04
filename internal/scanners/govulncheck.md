@@ -191,7 +191,10 @@ access to that host, or a local copy fetched with `draugr feeds update govulndb`
 
   govulncheck loads a module's packages with `go`. A scan over a module with no `go` on PATH fails
   with ``govulncheck needs Go, and no `go` is on PATH``, where govulncheck itself would report
-  `no go.mod file`. A tree holding no module runs nothing and needs no Go.
+  `no go.mod file`. A tree holding no module runs nothing and needs no Go. A run loads one Go
+  module's packages at a time, across govulncheck and gosec on every repository, so the compile
+  processes of a load stay within the bound each tool runs under for the whole run rather than for
+  each repository.
 
   Draugr does not run govulncheck over a module whose `go` line, or the `go` line of the `go.work`
   governing it, names a newer language version than the Go govulncheck was built with. The

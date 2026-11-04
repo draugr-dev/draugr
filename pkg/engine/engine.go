@@ -802,10 +802,12 @@ type Stats struct {
 	// tool cache, so the contention is a cost of the scheduling rather than a fault of the tool.
 	ToolWaits map[string]time.Duration
 
-	// OrderWaits is time a scanner's jobs spent waiting for other scanners' jobs on the same target
-	// to finish (ScannerInfo.ReadsAfter), summed per waiting scanner. Kept apart from ToolWaits,
-	// which the console words as a wait for that tool's own cache: an ordering wait is for other
-	// scanners' work, and the waiting scanner has no cache of its own being contended.
+	// OrderWaits is time a scanner's jobs spent waiting for other jobs' work, summed per waiting
+	// scanner: for the jobs it reads after on the same target to finish (ScannerInfo.ReadsAfter),
+	// and for the job holding a resource it uses whole to end (ScannerInfo.Exclusive), which may be
+	// a job of the same scanner on another target. Kept apart from ToolWaits, which the console
+	// words as a wait for that tool's own cache: an ordering wait is for other jobs' work, and the
+	// waiting scanner has no cache of its own being contended.
 	OrderWaits map[string]time.Duration
 
 	// DataRefresh is how long each scanner took to refresh its data before the jobs started, in
@@ -1221,6 +1223,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	for i := range finished {
 		finished[i] = make(chan struct{})
 	}
+	// exclusive is a lock per resource the planned scanners declare (ScannerInfo.Exclusive), held by
+	// one job at a time across every target.
+	exclusive := newExclusiveLocks(e.reg, planned)
 
 	// A run with nothing to do is not a clean run.
 	//
@@ -1351,6 +1356,18 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			// under `-j 1` it would wait forever.
 			if after != nil {
 				waitToRead(ctx, orderWaits, pj.Job.Scanner, after[jobIndex], finished)
+			}
+
+			// A job whose scanner uses a resource whole (ScannerInfo.Exclusive) takes it here: after
+			// the jobs it reads after have finished, so it never holds the resource while waiting
+			// for them, and before the rate limit and a slot, so a job waiting for it holds no slot
+			// the job holding it needs. Released when the job ends, however it ends.
+			if sc, ok := e.reg.Scanner(pj.Job.Scanner); ok {
+				release, ok := exclusive.acquire(ctx, orderWaits, pj.Job.Scanner, sc.Info().Exclusive)
+				if !ok {
+					return // the run was canceled while waiting
+				}
+				defer release()
 			}
 
 			// A scanner's rate limit is waited out *before* a concurrency slot is taken, and

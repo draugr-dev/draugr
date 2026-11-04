@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/internal/controllers"
+	"github.com/draugr-dev/draugr/pkg/plugin"
 )
 
 func TestRegistryHasDefaults(t *testing.T) {
@@ -41,6 +42,33 @@ func TestScannersReadAfterRegisteredScannersWithoutACycle(t *testing.T) {
 	t.Parallel()
 	if err := Registry().CheckReadsAfter(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestScannersAreExclusiveOnDeclaredResources holds every Exclusive declaration to a declared
+// resource constant. A misspelled name is a lock of its own, and the scanner declaring it runs
+// beside the ones it was meant to take turns with.
+func TestScannersAreExclusiveOnDeclaredResources(t *testing.T) {
+	t.Parallel()
+	if err := Registry().CheckExclusive(plugin.ExclusiveGoPackageLoad); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Each of these scanners loads a module's packages with `go`, and the compile processes of one load
+// fill the bound each tool runs under, so they take turns. A scanner added to the list of those
+// that load Go packages belongs here too.
+func TestTheGoPackageLoadersTakeTurns(t *testing.T) {
+	t.Parallel()
+	reg := Registry()
+	for _, name := range []string{"govulncheck", "gosec"} {
+		sc, ok := reg.Scanner(name)
+		if !ok {
+			t.Fatalf("%s is not registered", name)
+		}
+		if got := sc.Info().Exclusive; got != plugin.ExclusiveGoPackageLoad {
+			t.Errorf("%s Exclusive = %q, want %q", name, got, plugin.ExclusiveGoPackageLoad)
+		}
 	}
 }
 

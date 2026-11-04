@@ -60,6 +60,9 @@ func NewGosec() plugin.Scanner {
 			TargetKinds:    []plugin.TargetKind{plugin.TargetRepository},
 			ConfigSchema:   json.RawMessage(gosecConfigSchema),
 			ModuleManifest: "go.mod",
+			// gosec loads a module's packages with `go`, whose compile processes fill the bound
+			// each tool runs under, so it takes its turn with every other Go package load.
+			Exclusive: plugin.ExclusiveGoPackageLoad,
 		},
 		// gosec reads every file of the module, so where an analysis starts (the target's Entry)
 		// changes nothing it reports.

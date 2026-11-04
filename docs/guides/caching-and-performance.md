@@ -312,10 +312,11 @@ Read it in this order:
    `-j` will not recover it. The key is absent in this run because Draugr warms shared scanner
    state once before the fan-out; if you see it, the warm-up did not cover that tool, and the
    fix is a warm cache rather than more parallelism.
-4. **`orderWaitsMs` is time a job waited for another scanner's work.** On a Go repository,
+4. **`orderWaitsMs` is time a job waited for another job's work.** On a Go repository,
    `trivy-license` starts after `govulncheck` and `gosec` finish, because it reads licenses from
    the Go module cache they fill. A `licenses` control that runs longer than its own scan is
-   usually this wait, and raising `-j` does not recover it.
+   usually this wait, and raising `-j` does not recover it. The key also counts `govulncheck` and
+   `gosec` jobs waiting for each other's package loads, which run one at a time.
 5. **`cache.enabled` is what tells you which kind of zero you are looking at.** A run given no
    `--cache-dir` and a run whose every entry had expired both report `cacheHits: 0`, and they are
    not the same run. With a cache in use and no hits, the cache was there and nothing matched:
