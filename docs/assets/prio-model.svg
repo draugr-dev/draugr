@@ -1,0 +1,54 @@
+<svg viewBox="0 0 720 400" width="720" height="400" role="img" aria-label="The ledger CVE in four steps: the scanner rates it high, KEV raises it to critical, ledger's declaration gives tier C2, and C2 crossed with critical is P1." xmlns="http://www.w3.org/2000/svg">
+  <title>The model, carried by one finding</title>
+  <desc>The ledger CVE is a CVSS 7.5 flaw in a Go module the ledger component depends on. Step 1, rating: trivy-fs rates it high, in run phase 2. Step 2, signals: with config.exploitability.kev set and the CVE on the catalog, KEV raises it to critical, marked KEV, as it is ranked. Step 3, tier: ledger declares exposure internal and criticality critical, which step 1 of the matrices reads as tier C2. Step 4, band: step 2 of the matrices crosses C2 with critical into P1, which fails the default --fail-on P1 gate. The report shows P1, critical and the KEV mark; report.json keeps the scanner's rating, high, as escalation.from.</desc>
+  <defs>
+    <style>
+      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:14px}
+      .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;letter-spacing:1px;fill:#7CA6B8}
+      .mu{fill:#9AA4AE}.sm{font-size:12.5px}.b{font-weight:700}.c{text-anchor:middle}.big{font-size:16px}
+      .sev{fill:none;stroke-width:1}.s1{stroke:#E5534B}.s2{stroke:#E8B84B}
+      .ar{stroke:#9AA4AE;stroke-width:1.5;fill:none}
+      .up{stroke:#E9635B;stroke-width:2;fill:none}
+      .g{stroke:#232A31;stroke-width:1}
+      .tu{fill:#E9635B}
+    </style>
+    <marker id="h" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L8 4L0 8z" fill="#9AA4AE"/></marker>
+    <marker id="u" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L8 4L0 8z" fill="#E9635B"/></marker>
+  </defs>
+  <rect width="720" height="400" rx="12" fill="#0B0E11"/>
+  <text class="e" x="20" y="28">THE LEDGER CVE · FROM RATING TO BAND</text>
+  <text class="sm mu" x="20" y="50">CVSS 7.5 in a Go module · component ledger, internal, critical</text>
+
+  <text class="e" x="20" y="92">1 RATING</text>
+  <rect class="sev s2" x="130" y="70" width="100" height="34" rx="6"/>
+  <text class="m b c big" x="180" y="93">high</text>
+  <text x="252" y="84">CVSS 7.5, from trivy-fs</text>
+  <text class="m sm mu" x="252" y="104">phase 2 · scan</text>
+  <path class="up" d="M180 106V138" marker-end="url(#u)"/>
+  <text class="m sm" x="190" y="128"><tspan class="tu">↑</tspan> KEV</text>
+
+  <text class="e" x="20" y="166">2 SIGNALS</text>
+  <rect class="sev s1" x="130" y="144" width="100" height="34" rx="6"/>
+  <text class="m b c big" x="180" y="167">critical</text>
+  <text x="252" y="158">the CVE is on the KEV catalog</text>
+  <text class="m sm mu" x="252" y="178">phase 2 · config.exploitability.kev</text>
+  <path class="ar" d="M180 180V212" marker-end="url(#h)"/>
+
+  <text class="e" x="20" y="240">3 TIER</text>
+  <rect x="130" y="218" width="100" height="34" rx="6" fill="#2A333C"/>
+  <text class="m b c big" x="180" y="241">C2</text>
+  <text x="252" y="232">internal × critical, step 1 matrix</text>
+  <text class="m sm mu" x="252" y="252">components[] · read at ranking</text>
+  <path class="ar" d="M180 254V286" marker-end="url(#h)"/>
+
+  <text class="e" x="20" y="314">4 BAND</text>
+  <rect x="130" y="292" width="100" height="34" rx="6" fill="#E5534B"/>
+  <text class="m b c big" x="180" y="315" style="fill:#0B0E11">P1</text>
+  <text x="252" y="306">C2 × critical, step 2 matrix</text>
+  <text class="m sm mu" x="252" y="326">fails the default --fail-on P1</text>
+
+  <path class="g" d="M20 346H700"/>
+  <text class="e" x="20" y="372">KEPT</text>
+  <text class="sm" x="84" y="372">The report shows P1, critical and ↑ KEV; report.json keeps high as escalation.from.</text>
+</svg>

@@ -25,8 +25,9 @@ type signalRow struct {
 // signalMove is how one signal moves a finding: the change, in the outlined mark a finding row
 // wears, and then the condition it applies under.
 //
-// The words are the ones docs/concepts/prioritization.md and docs/concepts/reducing-the-noise.md
-// use for the same signals, so the report and the concept cannot describe one rule two ways.
+// The words are the ones the Signals table in docs/concepts/prioritization.md uses for the same
+// signals, so the report and the concept cannot describe one rule two ways. A signal moves severity
+// by a level, "severity one level"; "band" is kept for P1 to P4.
 type signalMove struct {
 	// Up is a signal that raises a finding; the rest lower one.
 	Up bool
@@ -95,7 +96,7 @@ var signalKinds = []signalKind{
 	{
 		name: "deprecated",
 		moves: func(Data) signalMove {
-			return signalMove{Up: true, Change: "severity one band",
+			return signalMove{Up: true, Change: "severity one level",
 				Condition: "when the publisher has marked the version as no longer supported"}
 		},
 		did: healthDid(dephealth.SignalDeprecated),
@@ -118,7 +119,7 @@ var signalKinds = []signalKind{
 		// whose name they have no reason to know.
 		name: "reachability",
 		moves: func(Data) signalMove {
-			return signalMove{Change: "severity one band",
+			return signalMove{Change: "severity one level",
 				Condition: "when analysis finds no path from your code to it"}
 		},
 		did: reachabilityDid,
@@ -244,7 +245,7 @@ func reachabilityDid(d Data, _ summary) ([]string, []string) {
 // run with a different threshold would explain a band by a rule the run did not apply. A run that
 // did not record one says "this run's threshold" without a number.
 func epssMoves(d Data) signalMove {
-	m := signalMove{Up: true, Change: "severity one band",
+	m := signalMove{Up: true, Change: "severity one level",
 		Condition: "when its predicted exploitation is at or above this run's threshold"}
 	for _, c := range d.Run.Consulted {
 		if c.Signal != exploit.SignalEPSS {

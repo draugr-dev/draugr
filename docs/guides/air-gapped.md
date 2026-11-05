@@ -185,6 +185,6 @@ about releases but is otherwise online.
 ## Related
 
 - [Caching and performance](caching-and-performance.md), what a scan reuses between runs.
-- [Prioritization](../concepts/prioritization.md#exploitability-kev-and-epss), KEV and EPSS, and
+- [Prioritization](../concepts/prioritization.md#exploitability), KEV and EPSS, and
   what a stale feed costs you.
 - [CLI reference](../reference/cli.md), every flag, including `draugr feeds`.

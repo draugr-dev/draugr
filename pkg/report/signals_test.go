@@ -12,7 +12,7 @@ import (
 
 // A signal listed without its rule is a count a reader cannot interpret: "2 findings raised" says
 // nothing to somebody who does not know KEV takes a finding straight to critical while EPSS raises
-// it one band. Every report draws its Signals rows from signalKinds, so holding every entry there to
+// it one level. Every report draws its Signals rows from signalKinds, so holding every entry there to
 // a movement and a condition is what keeps a new signal from shipping without one.
 func TestEverySignalSaysHowItMovesAFinding(t *testing.T) {
 	runs := map[string]Data{
@@ -82,12 +82,12 @@ func TestTheHTMLSignalsSayHowEachOneMovesAFinding(t *testing.T) {
 		`<th scope="col">Signal</th><th scope="col">How it moves a finding</th><th scope="col">This run</th>`,
 		`<td><code>KEV</code></td><td class="how"><span class="moved up"><span class="g">↑</span>severity to critical</span> ` +
 			`when it is on CISA&#39;s Known Exploited Vulnerabilities catalog</td><td>1 finding listed · 1 raised</td>`,
-		`<td><code>EPSS</code></td><td class="how"><span class="moved up"><span class="g">↑</span>severity one band</span> ` +
+		`<td><code>EPSS</code></td><td class="how"><span class="moved up"><span class="g">↑</span>severity one level</span> ` +
 			`when its predicted exploitation is at or above <code>0.5</code>, this run&#39;s threshold</td><td>1 finding raised</td>`,
 		`<td><code>floor</code></td><td class="how"><span class="moved up"><span class="g">↑</span>priority to P1</span> ` +
 			`for a leaked credential, whatever its component declares; severity unchanged</td>` +
 			`<td>1 finding raised by a control&#39;s own rule</td>`,
-		`<td><code>reachability</code></td><td class="how"><span class="moved down"><span class="g">↓</span>severity one band</span> ` +
+		`<td><code>reachability</code></td><td class="how"><span class="moved down"><span class="g">↓</span>severity one level</span> ` +
 			`when analysis finds no path from your code to it</td><td>govulncheck · 2 reachable, 3 unreachable, 1 unknown</td>`,
 		// The qualifier the console prints under the rows, which the page prints under its table.
 		`<p class="note">Unknown means no analyzer covered it. Those are ranked as reported.</p>`,
@@ -109,9 +109,9 @@ func TestTheMarkdownSignalsSayHowEachOneMovesAFinding(t *testing.T) {
 		"| Signal | How it moves a finding | This run |\n" +
 		"|---|---|---|\n" +
 		"| KEV | **↑ severity to critical** when it is on CISA's Known Exploited Vulnerabilities catalog | 1 finding listed · 1 raised |\n" +
-		"| EPSS | **↑ severity one band** when its predicted exploitation is at or above `0.5`, this run's threshold | 1 finding raised |\n" +
+		"| EPSS | **↑ severity one level** when its predicted exploitation is at or above `0.5`, this run's threshold | 1 finding raised |\n" +
 		"| floor | **↑ priority to P1** for a leaked credential, whatever its component declares; severity unchanged | 1 finding raised by a control's own rule |\n" +
-		"| reachability | **↓ severity one band** when analysis finds no path from your code to it | govulncheck · 2 reachable, 3 unreachable, 1 unknown |\n" +
+		"| reachability | **↓ severity one level** when analysis finds no path from your code to it | govulncheck · 2 reachable, 3 unreachable, 1 unknown |\n" +
 		"\n_Unknown means no analyzer covered it. Those are ranked as reported._\n"
 	if !strings.Contains(b.String(), want) {
 		t.Errorf("markdown signals:\n%s\nwant:\n%s", b.String(), want)
@@ -275,7 +275,7 @@ func TestDependencyHealthIsListedWheneverItsLookupAnswered(t *testing.T) {
 	for _, want := range []string{
 		`<td><code>malicious</code></td><td class="how"><span class="moved up"><span class="g">↑</span>severity to critical</span> ` +
 			`when the package is in the OSSF Malicious Packages Project</td><td>nothing raised</td>`,
-		`<td><code>deprecated</code></td><td class="how"><span class="moved up"><span class="g">↑</span>severity one band</span> ` +
+		`<td><code>deprecated</code></td><td class="how"><span class="moved up"><span class="g">↑</span>severity one level</span> ` +
 			`when the publisher has marked the version as no longer supported</td><td>1 finding raised</td>`,
 	} {
 		if !strings.Contains(page.String(), want) {
@@ -284,7 +284,7 @@ func TestDependencyHealthIsListedWheneverItsLookupAnswered(t *testing.T) {
 	}
 	for _, want := range []string{
 		"| malicious | **↑ severity to critical** when the package is in the OSSF Malicious Packages Project | nothing raised |\n",
-		"| deprecated | **↑ severity one band** when the publisher has marked the version as no longer supported | 1 finding raised |\n",
+		"| deprecated | **↑ severity one level** when the publisher has marked the version as no longer supported | 1 finding raised |\n",
 	} {
 		if !strings.Contains(md.String(), want) {
 			t.Errorf("markdown signals want %q:\n%s", want, md.String())

@@ -38,7 +38,7 @@ var semgrepRatingFields = []string{"impact", "likelihood", "confidence", "subcat
 // its impact and its likelihood, which keeps the level Semgrep wrote.
 //
 // A rule that expects false positives, by confidence LOW, or that flags a pattern for review, by
-// subcategory audit, is one band lower than its impact and likelihood give. Once, where it is both:
+// subcategory audit, is one level lower than its impact and likelihood give. Once, where it is both:
 // Semgrep defines the two in the same words, a result to look at rather than a flaw it confirmed,
 // and lowering twice would count one fact two bands. A secure-default rule is not lowered. It names
 // a safer default, and its impact and likelihood say how much the current choice matters.

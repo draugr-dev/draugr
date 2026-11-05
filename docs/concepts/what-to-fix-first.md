@@ -124,7 +124,7 @@ To order two rows in one list, compare them key by key from the top. The first k
    catalog comes first in its band, whether or not KEV raised that finding. Next comes an action
    clearing a finding that EPSS raised past its threshold. EPSS is a daily estimate of how likely a
    flaw is to be exploited in the next 30 days. Both apply only where
-   [`config.exploitability`](prioritization.md#exploitability-kev-and-epss) turns them on.
+   [`config.exploitability`](prioritization.md#exploitability) turns them on.
 3. **Severity.** The highest severity among its findings, after adjustment:
    - the severity KEV or EPSS raised it to, where one did;
    - else the severity reachability analysis lowered it to, where the vulnerable code is never

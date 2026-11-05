@@ -147,7 +147,7 @@ func moduleFlaw(component, repo, manifest string, state sarif.ReachabilityState)
 	return scanner, verdict
 }
 
-// bandByVerdict is a prioritizer that ranks an unreachable finding one band down.
+// bandByVerdict is a prioritizer that ranks an unreachable finding one severity level down.
 func bandByVerdict(_ string, _ saga.Exposure, _ saga.Criticality, res sarif.Result) Priority {
 	if res.Reachability != nil && res.Reachability.State == sarif.ReachabilityUnreachable {
 		return Priority{Band: "P2"}

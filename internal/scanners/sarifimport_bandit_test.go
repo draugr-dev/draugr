@@ -103,7 +103,7 @@ func TestSARIFImportRatesRecordedBanditDemo(t *testing.T) {
 }
 
 // Recorded with Bandit 1.9.4 over files written to reach the combinations the demo does not, `bandit
-// -f sarif -o bandit-corpus.sarif -r corpus corpus3`. A result rated confidence LOW is one band below
+// -f sarif -o bandit-corpus.sarif -r corpus corpus3`. A result rated confidence LOW is one level below
 // its severity; none of Bandit's own plugins reached here rates HIGH with LOW confidence, which the
 // table test covers.
 func TestSARIFImportRatesRecordedBanditCorpus(t *testing.T) {

@@ -1,0 +1,94 @@
+<svg viewBox="0 0 720 420" width="720" height="420" role="img" aria-label="The two matrices with the ledger CVE's cells ringed: internal and critical give C2, and C2 with high gives P2, or P1 once KEV raises it to critical." xmlns="http://www.w3.org/2000/svg">
+  <title>The two matrices, read for the ledger CVE</title>
+  <desc>The ledger component declares exposure internal and criticality critical, ringed in step 1 as tier C2. In step 2 the ledger CVE, rated high, is ringed at C2 and high, P2; with KEV it is critical, ringed with a dashed line at C2 and critical, P1. Step 1, tier. Rows are exposure, columns are criticality critical, important, supporting. public: C1, C1, C2. authenticated: C1, C2, C3. internal: C2, C3, C4. restricted: C3, C4, C4. Step 2, band. Rows are the tier, columns are severity critical, high, medium, low. C1: P1, P1, P2, P3. C2: P1, P2, P2, P3. C3: P2, P3, P3, P4. C4: P2, P3, P4, P4. criticality: critical describes the component, an outage or data loss if it fails. severity: critical describes the flaw, the harm it could cause if exploited. Both matrices are read for every finding as it is ranked.</desc>
+  <defs>
+    <style>
+      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:14px}
+      .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;letter-spacing:1px;fill:#7CA6B8}
+      .mu{fill:#9AA4AE}.sm{font-size:12.5px}.h{font-size:12.5px}.b{font-weight:700}.c{text-anchor:middle}.r{text-anchor:end}
+      .t1{fill:#3A4550}.t2{fill:#2A333C}.t3{fill:#1C232A}.t4{fill:#12161B;stroke:#2F3841;stroke-width:1}
+      .p1{fill:#E5534B}.p2{fill:#E8B84B}.p3{fill:#7CA6B8}.p4{fill:#6B7680}
+      .i1{fill:#0B0E11}.i2{fill:#16110A}.i3{fill:#0A1116}.i4{fill:#FFFFFF}
+      .box{fill:#12161B;stroke:#2F3841;stroke-width:1.5}
+    </style>
+    <marker id="h" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L8 4L0 8z" fill="#9AA4AE"/></marker>
+  </defs>
+  <rect width="720" height="420" rx="12" fill="#0B0E11"/>
+
+  <text class="e" x="20" y="28">STEP 1 · TIER</text>
+  <text class="mu sm" x="20" y="50">rows exposure · columns criticality</text>
+  <text class="m h c" x="159" y="86">critical</text>
+  <text class="m h c" x="233" y="86">important</text>
+  <text class="m h c" x="307" y="86">supporting</text>
+  <text class="m h r" x="118" y="116">public</text>
+  <text class="m h r" x="118" y="150">authenticated</text>
+  <text class="m h r" x="118" y="184">internal</text>
+  <text class="m h r" x="118" y="218">restricted</text>
+  <rect class="t1" x="124" y="96" width="70" height="30" rx="4"/><text class="m b c" x="159" y="116">C1</text>
+  <rect class="t1" x="198" y="96" width="70" height="30" rx="4"/><text class="m b c" x="233" y="116">C1</text>
+  <rect class="t2" x="272" y="96" width="70" height="30" rx="4"/><text class="m b c" x="307" y="116">C2</text>
+  <rect class="t1" x="124" y="130" width="70" height="30" rx="4"/><text class="m b c" x="159" y="150">C1</text>
+  <rect class="t2" x="198" y="130" width="70" height="30" rx="4"/><text class="m b c" x="233" y="150">C2</text>
+  <rect class="t3" x="272" y="130" width="70" height="30" rx="4"/><text class="m b c" x="307" y="150">C3</text>
+  <rect class="t2" x="124" y="164" width="70" height="30" rx="4"/><text class="m b c" x="159" y="184">C2</text>
+  <rect class="t3" x="198" y="164" width="70" height="30" rx="4"/><text class="m b c" x="233" y="184">C3</text>
+  <rect class="t4" x="272" y="164" width="70" height="30" rx="4"/><text class="m b c" x="307" y="184">C4</text>
+  <rect class="t3" x="124" y="198" width="70" height="30" rx="4"/><text class="m b c" x="159" y="218">C3</text>
+  <rect class="t4" x="198" y="198" width="70" height="30" rx="4"/><text class="m b c" x="233" y="218">C4</text>
+  <rect class="t4" x="272" y="198" width="70" height="30" rx="4"/><text class="m b c" x="307" y="218">C4</text>
+
+  <path d="M350 162H390" stroke="#9AA4AE" stroke-width="1.5" marker-end="url(#h)"/>
+  <text class="mu sm c" x="370" y="154">tier</text>
+
+  <text class="e" x="424" y="28">STEP 2 · BAND</text>
+  <text class="mu sm" x="424" y="50">rows tier · columns severity</text>
+  <rect x="424" y="70" width="66" height="22" rx="4" fill="none" stroke="#E5534B" stroke-width="1"/>
+  <rect x="494" y="70" width="66" height="22" rx="4" fill="none" stroke="#E8B84B" stroke-width="1"/>
+  <rect x="564" y="70" width="66" height="22" rx="4" fill="none" stroke="#7CA6B8" stroke-width="1"/>
+  <rect x="634" y="70" width="66" height="22" rx="4" fill="none" stroke="#6B7680" stroke-width="1"/>
+  <text class="m h c" x="457" y="86">critical</text>
+  <text class="m h c" x="527" y="86">high</text>
+  <text class="m h c" x="597" y="86">medium</text>
+  <text class="m h c" x="667" y="86">low</text>
+  <text class="m h b r" x="418" y="116">C1</text>
+  <text class="m h b r" x="418" y="150">C2</text>
+  <text class="m h b r" x="418" y="184">C3</text>
+  <text class="m h b r" x="418" y="218">C4</text>
+  <rect class="p1" x="424" y="96" width="66" height="30" rx="4"/><text class="m b c i1" x="457" y="116">P1</text>
+  <rect class="p1" x="494" y="96" width="66" height="30" rx="4"/><text class="m b c i1" x="527" y="116">P1</text>
+  <rect class="p2" x="564" y="96" width="66" height="30" rx="4"/><text class="m b c i2" x="597" y="116">P2</text>
+  <rect class="p3" x="634" y="96" width="66" height="30" rx="4"/><text class="m b c i3" x="667" y="116">P3</text>
+  <rect class="p1" x="424" y="130" width="66" height="30" rx="4"/><text class="m b c i1" x="457" y="150">P1</text>
+  <rect class="p2" x="494" y="130" width="66" height="30" rx="4"/><text class="m b c i2" x="527" y="150">P2</text>
+  <rect class="p2" x="564" y="130" width="66" height="30" rx="4"/><text class="m b c i2" x="597" y="150">P2</text>
+  <rect class="p3" x="634" y="130" width="66" height="30" rx="4"/><text class="m b c i3" x="667" y="150">P3</text>
+  <rect class="p2" x="424" y="164" width="66" height="30" rx="4"/><text class="m b c i2" x="457" y="184">P2</text>
+  <rect class="p3" x="494" y="164" width="66" height="30" rx="4"/><text class="m b c i3" x="527" y="184">P3</text>
+  <rect class="p3" x="564" y="164" width="66" height="30" rx="4"/><text class="m b c i3" x="597" y="184">P3</text>
+  <rect class="p4" x="634" y="164" width="66" height="30" rx="4"/><text class="m b c i4" x="667" y="184">P4</text>
+  <rect class="p2" x="424" y="198" width="66" height="30" rx="4"/><text class="m b c i2" x="457" y="218">P2</text>
+  <rect class="p3" x="494" y="198" width="66" height="30" rx="4"/><text class="m b c i3" x="527" y="218">P3</text>
+  <rect class="p4" x="564" y="198" width="66" height="30" rx="4"/><text class="m b c i4" x="597" y="218">P4</text>
+  <rect class="p4" x="634" y="198" width="66" height="30" rx="4"/><text class="m b c i4" x="667" y="218">P4</text>
+
+  <rect x="121" y="161" width="76" height="36" rx="6" fill="none" stroke="#E6E8EA" stroke-width="2.5"/>
+  <rect x="491" y="127" width="72" height="36" rx="6" fill="none" stroke="#E6E8EA" stroke-width="2.5"/>
+  <rect x="421" y="127" width="72" height="36" rx="6" fill="none" stroke="#E6E8EA" stroke-width="2.5" stroke-dasharray="5 4"/>
+  <text class="m sm b" x="20" y="254">ledger: internal × critical = C2</text>
+  <rect x="424" y="241" width="26" height="16" rx="3" fill="none" stroke="#E6E8EA" stroke-width="2"/>
+  <text class="sm" x="458" y="254">as scanned: high, P2</text>
+  <rect x="424" y="265" width="26" height="16" rx="3" fill="none" stroke="#E6E8EA" stroke-width="2" stroke-dasharray="4 3"/>
+  <text class="sm" x="458" y="278">with ↑ KEV: critical, P1</text>
+
+  <rect class="box" x="20" y="296" width="330" height="62" rx="8"/>
+  <text class="m b" x="34" y="320">ledger · criticality: critical</text>
+  <text class="sm mu" x="34" y="342">the component: outage or data loss if it fails</text>
+  <rect class="box" x="370" y="296" width="330" height="62" rx="8"/>
+  <text class="m b" x="384" y="320">ledger CVE · severity: high</text>
+  <text class="sm mu" x="384" y="342">the flaw: the harm it could cause if exploited</text>
+
+  <text class="e" x="20" y="388">WHEN</text>
+  <text class="sm" x="84" y="388">Both are read for every finding as it is ranked.</text>
+  <text class="sm" x="84" y="406">Exposure and criticality come from components[] in the descriptor.</text>
+</svg>

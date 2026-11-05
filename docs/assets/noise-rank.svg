@@ -1,0 +1,95 @@
+<svg viewBox="0 0 720 604" width="720" height="604" role="img" aria-label="The ledger CVE under four ranking levers: declaring ledger moves it from P1 to P2, KEV raises it back to P1, --min-priority P1 leaves it out at P2, and --fail-on P1 fails the run on it only once KEV lists it." xmlns="http://www.w3.org/2000/svg">
+  <title>Levers that rank, on the ledger CVE</title>
+  <desc>Three findings: a leaked token, the ledger CVE and a web XSS, with the ledger CVE outlined. Declaring exposure and criticality, KEV off: unclassified, the list is P1 leaked token, P1 ledger CVE, P2 web XSS; declared, it is P1 leaked token marked floor, P2 ledger CVE, P2 web XSS. Turning on KEV with config.exploitability.kev: the ledger CVE rises from P2 to P1, marked KEV. --min-priority P1 with KEV off: only the leaked token is listed, and the ledger CVE is one of the two left out. --fail-on P1: with KEV off the ledger CVE at P2 passes the gate; with KEV on it is P1 and fails the run.</desc>
+  <defs>
+    <style>
+      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:14px}
+      .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;letter-spacing:1px;fill:#7CA6B8}
+      .mu{fill:#9AA4AE}.sm{font-size:12.5px}.k{font-size:12px}.t{font-size:14px}.b{font-weight:700}
+      .pan{fill:none;stroke:#232A31;stroke-width:1.5}
+      .ar{stroke:#9AA4AE;stroke-width:1.5;fill:none}
+      .hl{fill:none;stroke:#E6E8EA;stroke-width:1.2}
+      .tu{fill:#E9635B}
+      .cut{stroke:#E6E8EA;stroke-width:2}
+    </style>
+    <symbol id="c1" viewBox="0 0 32 19" width="32" height="19"><rect width="32" height="19" rx="3" fill="#E5534B"/><text x="16" y="14" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="12" font-weight="700" fill="#0B0E11">P1</text></symbol>
+    <symbol id="c2" viewBox="0 0 32 19" width="32" height="19"><rect width="32" height="19" rx="3" fill="#E8B84B"/><text x="16" y="14" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="12" font-weight="700" fill="#16110A">P2</text></symbol>
+    <marker id="h" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#9AA4AE"/></marker>
+  </defs>
+  <rect width="720" height="604" rx="12" fill="#0B0E11"/>
+  <text class="e" x="20" y="28">LEVERS THAT RANK · THE LEDGER CVE OUTLINED</text>
+
+  <g transform="translate(12 44)">
+    <rect class="pan" width="696" height="128" rx="10"/>
+    <text class="m b t" x="14" y="28">declare</text>
+    <text class="m k mu" x="14" y="48">exposure, criticality</text>
+    <text class="sm mu" x="14" y="78">Unclassified reads as C1;</text>
+    <text class="sm mu" x="14" y="96">ledger declared is C2.</text>
+    <text class="sm mu" x="228" y="24">unclassified, KEV off</text><text class="sm mu" x="448" y="24">ledger declared, KEV off</text>
+    <use href="#c1" x="228" y="38"/><text x="268" y="52">leaked token</text>
+    <rect class="hl" x="222" y="59" width="150" height="25" rx="4"/>
+    <use href="#c1" x="228" y="62"/><text class="b" x="268" y="76">ledger CVE</text>
+    <use href="#c2" x="228" y="88"/><text x="268" y="102">web XSS</text>
+    <path class="ar" d="M396 72H432" marker-end="url(#h)"/>
+    <use href="#c1" x="448" y="38"/><text x="488" y="52">leaked token <tspan class="m sm"><tspan class="tu">↑</tspan> floor</tspan></text>
+    <rect class="hl" x="442" y="59" width="150" height="25" rx="4"/>
+    <use href="#c2" x="448" y="62"/><text class="b" x="488" y="76">ledger CVE</text>
+    <use href="#c2" x="448" y="88"/><text x="488" y="102">web XSS</text>
+  </g>
+
+  <g transform="translate(12 182)">
+    <rect class="pan" width="696" height="128" rx="10"/>
+    <text class="m b t" x="14" y="28">turn on a signal</text>
+    <text class="m k mu" x="14" y="48">exploitability.kev</text>
+    <text class="sm mu" x="14" y="78">Read at the start; the</text>
+    <text class="sm mu" x="14" y="96">raise lands at ranking.</text>
+    <text class="sm mu" x="228" y="24">KEV off</text><text class="sm mu" x="448" y="24">KEV on, the CVE listed</text>
+    <use href="#c1" x="228" y="38"/><text x="268" y="52">leaked token</text>
+    <rect class="hl" x="222" y="59" width="150" height="25" rx="4"/>
+    <use href="#c2" x="228" y="62"/><text class="b" x="268" y="76">ledger CVE</text>
+    <use href="#c2" x="228" y="88"/><text x="268" y="102">web XSS</text>
+    <path class="ar" d="M396 72H432" marker-end="url(#h)"/>
+    <use href="#c1" x="448" y="38"/><text x="488" y="52">leaked token</text>
+    <rect class="hl" x="442" y="59" width="186" height="25" rx="4"/>
+    <use href="#c1" x="448" y="62"/><text class="b" x="488" y="76">ledger CVE <tspan class="m sm"><tspan class="tu">↑</tspan> KEV</tspan></text>
+    <use href="#c2" x="448" y="88"/><text x="488" y="102">web XSS</text>
+  </g>
+
+  <g transform="translate(12 320)">
+    <rect class="pan" width="696" height="128" rx="10"/>
+    <text class="m b t" x="14" y="28">--min-priority P1</text>
+    <text class="m k mu" x="14" y="48">scan flag · report</text>
+    <text class="sm mu" x="14" y="78">Narrows the listing only;</text>
+    <text class="sm mu" x="14" y="96">counts and the gate read it.</text>
+    <text class="sm mu" x="228" y="24">KEV off, every band</text><text class="sm mu" x="448" y="24">KEV off, P1 only</text>
+    <use href="#c1" x="228" y="38"/><text x="268" y="52">leaked token</text>
+    <rect class="hl" x="222" y="59" width="150" height="25" rx="4"/>
+    <use href="#c2" x="228" y="62"/><text class="b" x="268" y="76">ledger CVE</text>
+    <use href="#c2" x="228" y="88"/><text x="268" y="102">web XSS</text>
+    <path class="ar" d="M396 72H432" marker-end="url(#h)"/>
+    <use href="#c1" x="448" y="38"/><text x="488" y="52">leaked token</text>
+    <text class="sm mu" x="448" y="76">2 not listed,</text>
+    <text class="sm mu" x="448" y="94">the ledger CVE among them</text>
+  </g>
+
+  <g transform="translate(12 458)">
+    <rect class="pan" width="696" height="134" rx="10"/>
+    <text class="m b t" x="14" y="28">--fail-on P1</text>
+    <text class="m k mu" x="14" y="48">config.gate.failOn</text>
+    <text class="sm mu" x="14" y="78">The default. Rows above</text>
+    <text class="sm mu" x="14" y="96">the line fail the run.</text>
+    <text class="sm mu" x="228" y="24">KEV off</text><text class="sm mu" x="448" y="24">KEV on</text>
+    <use href="#c1" x="228" y="38"/><text x="268" y="52">leaked token</text>
+    <path class="cut" d="M228 64H356"/><text class="m sm" x="362" y="68">fail ↑</text>
+    <rect class="hl" x="222" y="71" width="150" height="25" rx="4"/>
+    <use href="#c2" x="228" y="74"/><text class="b" x="268" y="88">ledger CVE</text>
+    <use href="#c2" x="228" y="100"/><text x="268" y="114">web XSS</text>
+    <path class="ar" d="M404 108H436" marker-end="url(#h)"/>
+    <use href="#c1" x="448" y="38"/><text x="488" y="52">leaked token</text>
+    <rect class="hl" x="442" y="59" width="150" height="25" rx="4"/>
+    <use href="#c1" x="448" y="62"/><text class="b" x="488" y="76">ledger CVE</text>
+    <path class="cut" d="M448 90H576"/><text class="m sm" x="582" y="94">fail ↑</text>
+    <use href="#c2" x="448" y="100"/><text x="488" y="114">web XSS</text>
+  </g>
+</svg>

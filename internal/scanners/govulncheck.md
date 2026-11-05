@@ -115,8 +115,8 @@ sees the manifest.
 ## What a verdict does to a finding
 
 It feeds the priority band and never rewrites the severity the scanner reported, exactly as
-exploitability enrichment does in the other direction. An `unreachable` finding is ranked one band
-down; a `reachable` one is unchanged, because severity already assumes the code runs.
+exploitability enrichment does in the other direction. An `unreachable` finding is ranked one severity
+level down; a `reachable` one is unchanged, because severity already assumes the code runs.
 
 The band moves because of **how** this scanner decided, not because it decided. It records
 `method: call-graph`, which Draugr treats as evidence that the vulnerable code does not run; an

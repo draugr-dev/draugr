@@ -3,7 +3,7 @@ package sarif
 import "testing"
 
 func TestDeescalateStopsAtLow(t *testing.T) {
-	// One band down, and never to nothing. A call graph is evidence about how the code is called
+	// One level down, and never to nothing. A call graph is evidence about how the code is called
 	// today, not a proof the flaw cannot be triggered.
 	for _, tc := range []struct{ from, want Severity }{
 		{SeverityCritical, SeverityHigh},

@@ -145,7 +145,7 @@ func TestALiveLookupRanksAFinding(t *testing.T) {
 		t.Fatalf("a deprecated package did not move a medium finding: %s", to)
 	}
 	if to != sarif.SeverityHigh {
-		t.Errorf("ranked %s, wanted one band above medium", to)
+		t.Errorf("ranked %s, wanted one level above medium", to)
 	}
 	if why.Signal != dephealth.SignalDeprecated {
 		t.Errorf("recorded signal %q", why.Signal)

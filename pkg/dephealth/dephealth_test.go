@@ -30,9 +30,10 @@ func TestMaliciousGoesStraightToCritical(t *testing.T) {
 	}
 }
 
-// Deprecation is a statement by the publisher and moves one band, the way EPSS does. It is not the
-// top band: an abandoned package is a reason to act sooner, not evidence that this flaw is worse.
-func TestDeprecatedRaisesOneBandAndQuotesThePublisher(t *testing.T) {
+// Deprecation is a statement by the publisher and moves severity one level, the way EPSS does. It
+// is not the top level: an abandoned package is a reason to act sooner, not evidence that this flaw
+// is worse.
+func TestDeprecatedRaisesOneLevelAndQuotesThePublisher(t *testing.T) {
 	s := source(t, map[string]dephealth.Package{
 		"pkg:npm/jquery@1.8.3": {Findings: []dephealth.Finding{{
 			Kind:   dephealth.KindDeprecated,
@@ -41,7 +42,7 @@ func TestDeprecatedRaisesOneBandAndQuotesThePublisher(t *testing.T) {
 	})
 	got, why := s.Explain(sarif.SeverityMedium, "pkg:npm/jquery@1.8.3")
 	if got != sarif.SeverityHigh {
-		t.Errorf("deprecated ranked %s, wanted one band up from medium", got)
+		t.Errorf("deprecated ranked %s, wanted one level up from medium", got)
 	}
 	if why == nil {
 		t.Fatal("no escalation recorded")

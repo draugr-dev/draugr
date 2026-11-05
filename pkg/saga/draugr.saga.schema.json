@@ -1317,7 +1317,7 @@
     },
     "exploitabilityConfig": {
       "additionalProperties": false,
-      "description": "Severity enrichment from real-world exploitability signals: CISA's Known Exploited Vulnerabilities catalog and FIRST's EPSS scores. A CVE on KEV becomes critical; a CVE at or above the EPSS threshold is raised one band. Applied before ranking, so priority reflects what is being exploited rather than only what could be. Either signal works without the other. Fetch the data with `draugr feeds update`.",
+      "description": "Severity enrichment from real-world exploitability signals: CISA's Known Exploited Vulnerabilities catalog and FIRST's EPSS scores. A CVE on KEV becomes critical; a CVE at or above the EPSS threshold is raised one level. Applied before ranking, so priority reflects what is being exploited rather than only what could be. Either signal works without the other. Fetch the data with `draugr feeds update`.",
       "properties": {
         "epss": {
           "description": "Where the EPSS scores come from: a file path, \"cache\", or \"auto\" — the same three choices as kev. Omit to leave EPSS off.",
@@ -1333,7 +1333,7 @@
           ]
         },
         "epssThreshold": {
-          "description": "EPSS probability at or above which a finding's severity is raised one band. Defaults to 0.5 — a coin-flip chance of exploitation within 30 days. Scores are heavily skewed, so lowering this widens the net faster than the number suggests. Zero disables the EPSS bump while leaving KEV in force.",
+          "description": "EPSS probability at or above which a finding's severity is raised one level. Defaults to 0.5 — a coin-flip chance of exploitation within 30 days. Scores are heavily skewed, so lowering this widens the net faster than the number suggests. Zero disables the EPSS bump while leaving KEV in force.",
           "maximum": 1,
           "minimum": 0,
           "type": "number"

@@ -15,7 +15,7 @@
 #   * The severity column does not change. Reachability feeds the priority band; the report still
 #     shows what the scanner said, the same way exploitability enrichment works in reverse.
 #
-#   * Findings nothing can reach drop one band and stay in the report. Nothing is suppressed,
+#   * Findings nothing can reach drop one severity level and stay in the report. Nothing is suppressed,
 #     a call graph does not see reflection or dynamic dispatch, and an inference is not a
 #     decision. To excuse a finding, use config.exclude or a VEX document, which carry an author.
 #
