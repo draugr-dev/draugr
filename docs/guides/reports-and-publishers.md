@@ -908,7 +908,7 @@ is kept for the next report opened in the same browser.
 
 A value with no findings is listed with a zero. A finding moved by two inputs matches both values,
 so the counts can add up to more than the list, and its row's
-[mark](../concepts/reducing-the-noise.md#what-the-marks-in-the-output-mean) names the first of them
+[mark](../concepts/reducing-the-noise.md#marks) names the first of them
 in the table's order. `lowered as unreachable` counts a verdict only where it lowered the band, so a
 verdict a signal overruled, or one on a finding already at the lowest band, does not count.
 `↩ history` is not a value, because a path in a commit moves no band.

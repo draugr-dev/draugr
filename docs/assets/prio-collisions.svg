@@ -7,7 +7,7 @@
       .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
       .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;letter-spacing:1px;fill:#7CA6B8}
       .mu{fill:#9AA4AE}.sm{font-size:12.5px}.h{font-size:13px}.b{font-weight:700}.c{text-anchor:middle}
-      .sev{fill:#12161B;stroke:#9AA4AE;stroke-width:1.5}
+      .sev{fill:none;stroke-width:1}.s1{stroke:#E5534B}.s2{stroke:#E8B84B}.s3{stroke:#7CA6B8}.s4{stroke:#6B7680}
       .g{stroke:#232A31;stroke-width:1}
       .tu{fill:#E9635B}.td{fill:#7CA6B8}
     </style>
@@ -26,12 +26,12 @@
   <text class="e" x="20" y="92">TWO RAISES</text>
   <text class="m h" x="20" y="120"><tspan class="tu">↑</tspan> EPSS 0.62 + <tspan class="tu">↑</tspan> deprecated</text>
   <text x="258" y="120">tie: exploitability takes it</text>
-  <rect class="sev" x="464" y="103" width="76" height="24" rx="5"/><text class="m h b c" x="502" y="120">critical</text>
+  <rect class="sev s1" x="464" y="103" width="76" height="24" rx="5"/><text class="m h c" x="502" y="120">critical</text>
   <use href="#c1" x="550" y="103"/>
   <text class="m sm" x="600" y="120"><tspan class="tu">↑</tspan> EPSS 0.62</text>
   <text class="m h" x="20" y="154"><tspan class="tu">↑</tspan> KEV + <tspan class="tu">↑</tspan> malicious</text>
   <text x="258" y="154">tie: exploitability takes it</text>
-  <rect class="sev" x="464" y="137" width="76" height="24" rx="5"/><text class="m h b c" x="502" y="154">critical</text>
+  <rect class="sev s1" x="464" y="137" width="76" height="24" rx="5"/><text class="m h c" x="502" y="154">critical</text>
   <use href="#c1" x="550" y="137"/>
   <text class="m sm" x="600" y="154"><tspan class="tu">↑</tspan> KEV</text>
   <path class="g" d="M20 172H700"/>
@@ -39,22 +39,22 @@
   <text class="e" x="20" y="196">A RAISE AGAINST ↓ UNREACHABLE</text>
   <text class="m h" x="20" y="224"><tspan class="tu">↑</tspan> KEV + <tspan class="td">↓</tspan> unreachable</text>
   <text x="258" y="224"><tspan class="tu">↑</tspan> KEV overrules</text>
-  <rect class="sev" x="464" y="207" width="76" height="24" rx="5"/><text class="m h b c" x="502" y="224">critical</text>
+  <rect class="sev s1" x="464" y="207" width="76" height="24" rx="5"/><text class="m h c" x="502" y="224">critical</text>
   <use href="#c1" x="550" y="207"/>
   <text class="m sm" x="600" y="224"><tspan class="tu">↑</tspan> KEV</text>
   <text class="m h" x="20" y="258"><tspan class="tu">↑</tspan> EPSS 0.62 + <tspan class="td">↓</tspan> unreachable</text>
   <text x="258" y="258"><tspan class="tu">↑</tspan> EPSS overrules</text>
-  <rect class="sev" x="464" y="241" width="76" height="24" rx="5"/><text class="m h b c" x="502" y="258">critical</text>
+  <rect class="sev s1" x="464" y="241" width="76" height="24" rx="5"/><text class="m h c" x="502" y="258">critical</text>
   <use href="#c1" x="550" y="241"/>
   <text class="m sm" x="600" y="258"><tspan class="tu">↑</tspan> EPSS 0.62</text>
   <text class="m h" x="20" y="292"><tspan class="tu">↑</tspan> malicious + <tspan class="td">↓</tspan> unreachable</text>
   <text x="258" y="292"><tspan class="tu">↑</tspan> malicious overrules</text>
-  <rect class="sev" x="464" y="275" width="76" height="24" rx="5"/><text class="m h b c" x="502" y="292">critical</text>
+  <rect class="sev s1" x="464" y="275" width="76" height="24" rx="5"/><text class="m h c" x="502" y="292">critical</text>
   <use href="#c1" x="550" y="275"/>
   <text class="m sm" x="600" y="292"><tspan class="tu">↑</tspan> malicious</text>
   <text class="m h" x="20" y="326"><tspan class="tu">↑</tspan> deprecated + <tspan class="td">↓</tspan> unreachable</text>
   <text x="258" y="326"><tspan class="td">↓</tspan> deprecated yields</text>
-  <rect class="sev" x="464" y="309" width="76" height="24" rx="5"/><text class="m h c" x="502" y="326">medium</text>
+  <rect class="sev s3" x="464" y="309" width="76" height="24" rx="5"/><text class="m h c" x="502" y="326">medium</text>
   <use href="#c2" x="550" y="309"/>
   <text class="m sm" x="600" y="326"><tspan class="td">↓</tspan> unreachable</text>
   <path class="g" d="M20 344H700"/>
@@ -62,7 +62,7 @@
   <text class="e" x="20" y="368">A MEDIUM FINDING IN THE SAME MODULE</text>
   <text class="m h" x="20" y="396"><tspan class="tu">↑</tspan> EPSS + <tspan class="tu">↑</tspan> malicious</text>
   <text x="258" y="396">the higher result wins</text>
-  <rect class="sev" x="464" y="379" width="76" height="24" rx="5"/><text class="m h b c" x="502" y="396">critical</text>
+  <rect class="sev s1" x="464" y="379" width="76" height="24" rx="5"/><text class="m h c" x="502" y="396">critical</text>
   <use href="#c1" x="550" y="379"/>
   <text class="m sm" x="600" y="396"><tspan class="tu">↑</tspan> malicious</text>
   <path class="g" d="M20 414H700"/>

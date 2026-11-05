@@ -199,7 +199,7 @@ origin, and the answer is worth having on its own terms.
 
 Statements about the world that move a finding's severity before it is ranked. Each is produced
 outside the code being scanned, which is why no scanner can compute one. See
-[how each signal is produced](../concepts/prioritization.md#how-each-signal-is-produced).
+[how each signal is produced](../concepts/prioritization.md#sources).
 
 - **KEV**, Known Exploited Vulnerabilities: CISA's catalog of CVEs with reliable evidence of
   exploitation in the wild. A finding on it is ranked critical.

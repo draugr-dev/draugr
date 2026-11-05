@@ -1,6 +1,6 @@
-<svg viewBox="0 0 720 380" width="720" height="380" role="img" aria-label="Step 1 crosses exposure with criticality into a tier, C1 to C4. Step 2 crosses the tier with severity into a band, P1 to P4." xmlns="http://www.w3.org/2000/svg">
-  <title>The two matrices</title>
-  <desc>Step 1, tier. Rows are exposure, columns are criticality critical, important, supporting. public: C1, C1, C2. authenticated: C1, C2, C3. internal: C2, C3, C4. restricted: C3, C4, C4. Step 2, band. Rows are the tier, columns are severity critical, high, medium, low. C1: P1, P1, P2, P3. C2: P1, P2, P2, P3. C3: P2, P3, P3, P4. C4: P2, P3, P4, P4. criticality: critical describes the component, an outage or data loss if it fails. severity: critical describes the flaw, the harm it could cause if exploited. Both matrices are read for every finding as it is ranked.</desc>
+<svg viewBox="0 0 720 420" width="720" height="420" role="img" aria-label="The two matrices with the ledger CVE's cells ringed: internal and critical give C2, and C2 with high gives P2, or P1 once KEV raises it to critical." xmlns="http://www.w3.org/2000/svg">
+  <title>The two matrices, read for the ledger CVE</title>
+  <desc>The ledger component declares exposure internal and criticality critical, ringed in step 1 as tier C2. In step 2 the ledger CVE, rated high, is ringed at C2 and high, P2; with KEV it is critical, ringed with a dashed line at C2 and critical, P1. Step 1, tier. Rows are exposure, columns are criticality critical, important, supporting. public: C1, C1, C2. authenticated: C1, C2, C3. internal: C2, C3, C4. restricted: C3, C4, C4. Step 2, band. Rows are the tier, columns are severity critical, high, medium, low. C1: P1, P1, P2, P3. C2: P1, P2, P2, P3. C3: P2, P3, P3, P4. C4: P2, P3, P4, P4. criticality: critical describes the component, an outage or data loss if it fails. severity: critical describes the flaw, the harm it could cause if exploited. Both matrices are read for every finding as it is ranked.</desc>
   <defs>
     <style>
       text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:14px}
@@ -14,7 +14,7 @@
     </style>
     <marker id="h" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L8 4L0 8z" fill="#9AA4AE"/></marker>
   </defs>
-  <rect width="720" height="380" rx="12" fill="#0B0E11"/>
+  <rect width="720" height="420" rx="12" fill="#0B0E11"/>
 
   <text class="e" x="20" y="28">STEP 1 · TIER</text>
   <text class="mu sm" x="20" y="50">rows exposure · columns criticality</text>
@@ -43,6 +43,10 @@
 
   <text class="e" x="424" y="28">STEP 2 · BAND</text>
   <text class="mu sm" x="424" y="50">rows tier · columns severity</text>
+  <rect x="424" y="70" width="66" height="22" rx="4" fill="none" stroke="#E5534B" stroke-width="1"/>
+  <rect x="494" y="70" width="66" height="22" rx="4" fill="none" stroke="#E8B84B" stroke-width="1"/>
+  <rect x="564" y="70" width="66" height="22" rx="4" fill="none" stroke="#7CA6B8" stroke-width="1"/>
+  <rect x="634" y="70" width="66" height="22" rx="4" fill="none" stroke="#6B7680" stroke-width="1"/>
   <text class="m h c" x="457" y="86">critical</text>
   <text class="m h c" x="527" y="86">high</text>
   <text class="m h c" x="597" y="86">medium</text>
@@ -68,14 +72,23 @@
   <rect class="p4" x="564" y="198" width="66" height="30" rx="4"/><text class="m b c i4" x="597" y="218">P4</text>
   <rect class="p4" x="634" y="198" width="66" height="30" rx="4"/><text class="m b c i4" x="667" y="218">P4</text>
 
-  <rect class="box" x="20" y="250" width="330" height="62" rx="8"/>
-  <text class="m b" x="34" y="274">criticality: critical</text>
-  <text class="sm mu" x="34" y="296">the component: outage or data loss if it fails</text>
-  <rect class="box" x="370" y="250" width="330" height="62" rx="8"/>
-  <text class="m b" x="384" y="274">severity: critical</text>
-  <text class="sm mu" x="384" y="296">the flaw: the harm it could cause if exploited</text>
+  <rect x="121" y="161" width="76" height="36" rx="6" fill="none" stroke="#E6E8EA" stroke-width="2.5"/>
+  <rect x="491" y="127" width="72" height="36" rx="6" fill="none" stroke="#E6E8EA" stroke-width="2.5"/>
+  <rect x="421" y="127" width="72" height="36" rx="6" fill="none" stroke="#E6E8EA" stroke-width="2.5" stroke-dasharray="5 4"/>
+  <text class="m sm b" x="20" y="254">ledger: internal × critical = C2</text>
+  <rect x="424" y="241" width="26" height="16" rx="3" fill="none" stroke="#E6E8EA" stroke-width="2"/>
+  <text class="sm" x="458" y="254">as scanned: high, P2</text>
+  <rect x="424" y="265" width="26" height="16" rx="3" fill="none" stroke="#E6E8EA" stroke-width="2" stroke-dasharray="4 3"/>
+  <text class="sm" x="458" y="278">with ↑ KEV: critical, P1</text>
 
-  <text class="e" x="20" y="340">WHEN</text>
-  <text class="sm" x="84" y="340">Both are read for every finding as it is ranked.</text>
-  <text class="sm" x="84" y="360">Exposure and criticality come from components[] in the descriptor.</text>
+  <rect class="box" x="20" y="296" width="330" height="62" rx="8"/>
+  <text class="m b" x="34" y="320">ledger · criticality: critical</text>
+  <text class="sm mu" x="34" y="342">the component: outage or data loss if it fails</text>
+  <rect class="box" x="370" y="296" width="330" height="62" rx="8"/>
+  <text class="m b" x="384" y="320">ledger CVE · severity: high</text>
+  <text class="sm mu" x="384" y="342">the flaw: the harm it could cause if exploited</text>
+
+  <text class="e" x="20" y="388">WHEN</text>
+  <text class="sm" x="84" y="388">Both are read for every finding as it is ranked.</text>
+  <text class="sm" x="84" y="406">Exposure and criticality come from components[] in the descriptor.</text>
 </svg>

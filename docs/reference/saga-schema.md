@@ -609,7 +609,7 @@ again as `GO-2022-1059`. A vulnerability only it reports is kept.
 **What a verdict does.** A finding nothing can reach is ranked one band down when the analyzer says
 it followed calls or data to get there, and the report says why. A verdict reached any other way is
 reported and moves nothing;
-[prioritization](../concepts/prioritization.md#reachability-what-lowers-a-band) has the methods and
+[prioritization](../concepts/prioritization.md#reachability) has the methods and
 what each one earns. The severity the scanner reported is unchanged either way: reachability feeds
 the [priority](../concepts/prioritization.md) matrix, exactly as exploitability enrichment does in
 the other direction, and where exploitability has already raised a finding that wins.
@@ -1985,7 +1985,7 @@ the `draugr feeds update` command that fetches it.
 Raise `maxAge` on a runner deliberately pinned to a known copy of the data, reproducing last
 quarter's verdict requires last quarter's feed.
 
-See [prioritization](../concepts/prioritization.md#exploitability-kev-and-epss) for what the
+See [prioritization](../concepts/prioritization.md#exploitability) for what the
 signals mean and how to choose a threshold.
 
 ## VEX (`config.vex`)

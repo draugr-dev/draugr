@@ -43,7 +43,7 @@ has, with optional per-control overrides. Setting both is refused rather than co
 verdict with two possible reasons cannot be read back to the rule that produced it.
 
 A severity gate reads a finding's **ranked severity**: the scanner's rating held at
-the control's [severity floor](prioritization.md#where-the-severity-in-step-2-comes-from) and then moved by every signal, the severity the report prints for the finding. A `high`
+the control's [severity floor](prioritization.md#where-severity-comes-from) and then moved by every signal, the severity the report prints for the finding. A `high`
 on KEV is printed `critical ↑ KEV` and fails `--fail-on critical`. An unreachable `critical` is
 printed `high ↓ unreachable`, passes `--fail-on critical` and fails `--fail-on high`. In
 `report.json`, `controls[].highest` is the severity each control was judged on.

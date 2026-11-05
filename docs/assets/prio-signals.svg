@@ -7,7 +7,7 @@
       .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
       .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;letter-spacing:1px;fill:#7CA6B8}
       .mu{fill:#9AA4AE}.sm{font-size:12.5px}.k{font-size:12px}.h{font-size:13px}.b{font-weight:700}.c{text-anchor:middle}
-      .sev{fill:#12161B;stroke:#9AA4AE;stroke-width:1.5}
+      .sev{fill:none;stroke-width:1}.s1{stroke:#E5534B}.s2{stroke:#E8B84B}.s3{stroke:#7CA6B8}.s4{stroke:#6B7680}
       .up{stroke:#E9635B;stroke-width:2;fill:none}
       .dn{stroke:#7CA6B8;stroke-width:2;fill:none;stroke-dasharray:6 4}
       .g{stroke:#232A31;stroke-width:1}
@@ -27,47 +27,47 @@
 
   <text class="m b" x="20" y="96">none</text>
   <text class="sm mu" x="20" y="114">nothing configured</text>
-  <rect class="sev" x="330" y="86" width="74" height="26" rx="5"/><text class="m h c" x="367" y="104">high</text>
+  <rect class="sev s2" x="330" y="86" width="74" height="26" rx="5"/><text class="m h c" x="367" y="104">high</text>
   <use href="#c2" x="580" y="86"/>
   <path class="g" d="M20 128H700"/>
 
   <text class="m b" x="20" y="154"><tspan class="tu">↑</tspan> KEV</text>
   <text class="m k mu" x="20" y="172">config.exploitability.kev</text>
-  <rect class="sev" x="330" y="144" width="74" height="26" rx="5"/><text class="m h c" x="367" y="162">high</text>
+  <rect class="sev s2" x="330" y="144" width="74" height="26" rx="5"/><text class="m h c" x="367" y="162">high</text>
   <path class="up" d="M408 157H444" marker-end="url(#u)"/>
-  <rect class="sev" x="450" y="144" width="84" height="26" rx="5" style="stroke:#E6E8EA;stroke-width:2"/><text class="m h b c" x="492" y="162">critical</text>
+  <rect class="sev s1" x="450" y="144" width="84" height="26" rx="5"/><text class="m h c" x="492" y="162">critical</text>
   <use href="#c1" x="580" y="144"/>
   <path class="g" d="M20 186H700"/>
 
   <text class="m b" x="20" y="212"><tspan class="tu">↑</tspan> EPSS 0.62</text>
   <text class="m k mu" x="20" y="230">config.exploitability.epss</text>
-  <rect class="sev" x="330" y="202" width="74" height="26" rx="5"/><text class="m h c" x="367" y="220">high</text>
+  <rect class="sev s2" x="330" y="202" width="74" height="26" rx="5"/><text class="m h c" x="367" y="220">high</text>
   <path class="up" d="M408 215H444" marker-end="url(#u)"/>
-  <rect class="sev" x="450" y="202" width="84" height="26" rx="5" style="stroke:#E6E8EA;stroke-width:2"/><text class="m h b c" x="492" y="220">critical</text>
+  <rect class="sev s1" x="450" y="202" width="84" height="26" rx="5"/><text class="m h c" x="492" y="220">critical</text>
   <use href="#c1" x="580" y="202"/>
   <path class="g" d="M20 244H700"/>
 
   <text class="m b" x="20" y="270"><tspan class="tu">↑</tspan> malicious</text>
   <text class="m k mu" x="20" y="288">config.dependencyHealth.enabled</text>
-  <rect class="sev" x="330" y="260" width="74" height="26" rx="5"/><text class="m h c" x="367" y="278">high</text>
+  <rect class="sev s2" x="330" y="260" width="74" height="26" rx="5"/><text class="m h c" x="367" y="278">high</text>
   <path class="up" d="M408 273H444" marker-end="url(#u)"/>
-  <rect class="sev" x="450" y="260" width="84" height="26" rx="5" style="stroke:#E6E8EA;stroke-width:2"/><text class="m h b c" x="492" y="278">critical</text>
+  <rect class="sev s1" x="450" y="260" width="84" height="26" rx="5"/><text class="m h c" x="492" y="278">critical</text>
   <use href="#c1" x="580" y="260"/>
   <path class="g" d="M20 302H700"/>
 
   <text class="m b" x="20" y="328"><tspan class="tu">↑</tspan> deprecated</text>
   <text class="m k mu" x="20" y="346">config.dependencyHealth.enabled</text>
-  <rect class="sev" x="330" y="318" width="74" height="26" rx="5"/><text class="m h c" x="367" y="336">high</text>
+  <rect class="sev s2" x="330" y="318" width="74" height="26" rx="5"/><text class="m h c" x="367" y="336">high</text>
   <path class="up" d="M408 331H444" marker-end="url(#u)"/>
-  <rect class="sev" x="450" y="318" width="84" height="26" rx="5" style="stroke:#E6E8EA;stroke-width:2"/><text class="m h b c" x="492" y="336">critical</text>
+  <rect class="sev s1" x="450" y="318" width="84" height="26" rx="5"/><text class="m h c" x="492" y="336">critical</text>
   <use href="#c1" x="580" y="318"/>
   <path class="g" d="M20 360H700"/>
 
   <text class="m b" x="20" y="386"><tspan class="td">↓</tspan> unreachable</text>
   <text class="m k mu" x="20" y="404">config.reachability.analyzers</text>
-  <rect class="sev" x="330" y="376" width="74" height="26" rx="5"/><text class="m h c" x="367" y="394">high</text>
+  <rect class="sev s2" x="330" y="376" width="74" height="26" rx="5"/><text class="m h c" x="367" y="394">high</text>
   <path class="dn" d="M408 389H444" marker-end="url(#d)"/>
-  <rect class="sev" x="450" y="376" width="84" height="26" rx="5"/><text class="m h c" x="492" y="394">medium</text>
+  <rect class="sev s3" x="450" y="376" width="84" height="26" rx="5"/><text class="m h c" x="492" y="394">medium</text>
   <use href="#c2" x="580" y="376"/>
   <text class="sm mu" x="634" y="394">holds</text>
   <path class="g" d="M20 418H700"/>

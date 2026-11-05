@@ -8,7 +8,7 @@
       .l{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;font-weight:700}
       .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;letter-spacing:1px;fill:#7CA6B8}
       .mu{fill:#9AA4AE}.sm{font-size:12.5px}.b{font-weight:700}.c{text-anchor:middle}
-      .sev{fill:#12161B;stroke:#9AA4AE;stroke-width:1.5}
+      .sev{fill:none;stroke-width:1}.s1{stroke:#E5534B}.s2{stroke:#E8B84B}
       .key{fill:#12161B;stroke:#2F3841;stroke-width:1.2}
       .sep{stroke:#232A31;stroke-width:1}
       .tu{fill:#E9635B}
@@ -30,9 +30,9 @@
   <text class="l" x="20" y="144">2 scan</text>
   <text class="mu sm" x="20" y="162">ranked on arrival</text>
   <rect class="key" x="150" y="130" width="212" height="28" rx="5"/><text class="m" x="160" y="149">trivy-fs grype-fs <tspan class="tu">↑</tspan> KEV</text>
-  <rect class="sev" x="378" y="132" width="52" height="23" rx="4"/><text class="m c" x="404" y="148">high</text>
+  <rect class="sev s2" x="378" y="132" width="52" height="23" rx="4"/><text class="m c" x="404" y="148">high</text>
   <text class="m" x="436" y="148"><tspan class="tu">→</tspan></text>
-  <rect class="sev" x="452" y="132" width="72" height="23" rx="4" style="stroke:#E6E8EA;stroke-width:2"/><text class="m b c" x="488" y="148">critical</text>
+  <rect class="sev s1" x="452" y="132" width="72" height="23" rx="4"/><text class="m c" x="488" y="148">critical</text>
   <use href="#c1" x="534" y="133"/>
   <text class="m" x="576" y="148"><tspan class="tu">↑</tspan> KEV</text>
   <text class="mu sm" x="378" y="168">two copies, tier C2</text>

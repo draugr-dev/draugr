@@ -7,7 +7,7 @@
       .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
       .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;letter-spacing:1px;fill:#7CA6B8}
       .mu{fill:#9AA4AE}.sm{font-size:12.5px}.h{font-size:13px}.b{font-weight:700}.c{text-anchor:middle}
-      .sev{fill:#12161B;stroke:#9AA4AE;stroke-width:1.5}
+      .sev{fill:none;stroke-width:1}.s1{stroke:#E5534B}.s2{stroke:#E8B84B}.s3{stroke:#7CA6B8}.s4{stroke:#6B7680}
       .tier{fill:#2A333C}
       .box{fill:#12161B;stroke:#2F3841;stroke-width:1.5}
       .bfl{fill:#12161B;stroke:#E9635B;stroke-width:1.5;stroke-dasharray:2 4}
@@ -29,7 +29,7 @@
 
   <text class="m b" x="20" y="124">ledger CVE</text>
   <text class="sm mu" x="20" y="142">sca</text>
-  <rect class="sev" x="180" y="108" width="74" height="26" rx="5"/><text class="m h c" x="217" y="126">high</text>
+  <rect class="sev s2" x="180" y="108" width="74" height="26" rx="5"/><text class="m h c" x="217" y="126">high</text>
   <rect class="tier" x="290" y="108" width="52" height="26" rx="5"/><text class="m b c" x="316" y="126">C2</text>
   <text class="sm mu" x="354" y="126">declared</text>
   <use href="#c2" x="520" y="108"/>
@@ -37,7 +37,7 @@
 
   <text class="m b" x="20" y="186">leaked token</text>
   <text class="sm mu" x="20" y="204">secrets</text>
-  <rect class="sev" x="180" y="170" width="74" height="26" rx="5"/><text class="m h c" x="217" y="188">high</text>
+  <rect class="sev s2" x="180" y="170" width="74" height="26" rx="5"/><text class="m h c" x="217" y="188">high</text>
   <text class="sm mu" x="180" y="214">severity floor</text>
   <rect class="tier" x="290" y="170" width="52" height="26" rx="5" opacity=".5"/><text class="m c mu" x="316" y="188">C2</text>
   <path d="M346 183H392" stroke="#E9635B" stroke-width="2" stroke-dasharray="2 4" fill="none" marker-end="url(#u)"/>

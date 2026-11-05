@@ -2087,7 +2087,7 @@ is nothing to read.
 descriptor saying `0.1`, although 0.5 is also the flag's default; leaving it off keeps the
 descriptor's value.
 
-See [prioritization](../concepts/prioritization.md#exploitability-kev-and-epss) for what the
+See [prioritization](../concepts/prioritization.md#exploitability) for what the
 signals mean and how to choose a threshold.
 
 ---

@@ -7,7 +7,7 @@
       .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
       .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;letter-spacing:1px;fill:#7CA6B8}
       .mu{fill:#9AA4AE}.sm{font-size:12.5px}.b{font-weight:700}.c{text-anchor:middle}.big{font-size:16px}
-      .sev{fill:#12161B;stroke:#9AA4AE;stroke-width:1.5}
+      .sev{fill:none;stroke-width:1}.s1{stroke:#E5534B}.s2{stroke:#E8B84B}
       .ar{stroke:#9AA4AE;stroke-width:1.5;fill:none}
       .up{stroke:#E9635B;stroke-width:2;fill:none}
       .g{stroke:#232A31;stroke-width:1}
@@ -21,7 +21,7 @@
   <text class="sm mu" x="20" y="50">CVSS 7.5 in a Go module · component ledger, internal, critical</text>
 
   <text class="e" x="20" y="92">1 RATING</text>
-  <rect class="sev" x="130" y="70" width="100" height="34" rx="6"/>
+  <rect class="sev s2" x="130" y="70" width="100" height="34" rx="6"/>
   <text class="m b c big" x="180" y="93">high</text>
   <text x="252" y="84">CVSS 7.5, from trivy-fs</text>
   <text class="m sm mu" x="252" y="104">phase 2 · scan</text>
@@ -29,7 +29,7 @@
   <text class="m sm" x="190" y="128"><tspan class="tu">↑</tspan> KEV</text>
 
   <text class="e" x="20" y="166">2 SIGNALS</text>
-  <rect class="sev" x="130" y="144" width="100" height="34" rx="6" style="stroke:#E6E8EA;stroke-width:2.5"/>
+  <rect class="sev s1" x="130" y="144" width="100" height="34" rx="6"/>
   <text class="m b c big" x="180" y="167">critical</text>
   <text x="252" y="158">the CVE is on the KEV catalog</text>
   <text class="m sm mu" x="252" y="178">phase 2 · config.exploitability.kev</text>

@@ -34,8 +34,11 @@ func section(t *testing.T, heading string) string {
 	return rest
 }
 
-// rows returns the cells of each body row of the first markdown table in text, with backticks
-// and bold marks removed.
+// inlineTag matches an inline HTML tag, such as the spans that color a band or a severity.
+var inlineTag = regexp.MustCompile(`<[^>]+>`)
+
+// rows returns the cells of each body row of the first markdown table in text, with inline HTML
+// tags, backticks and bold marks removed.
 func rows(text string) [][]string {
 	var out [][]string
 	for line := range strings.SplitSeq(text, "\n") {
@@ -45,6 +48,7 @@ func rows(text string) [][]string {
 		}
 		var cells []string
 		for c := range strings.SplitSeq(strings.Trim(line, "|"), "|") {
+			c = inlineTag.ReplaceAllString(c, "")
 			cells = append(cells, strings.Trim(strings.TrimSpace(c), "`*"))
 		}
 		out = append(out, cells)
@@ -57,7 +61,7 @@ func rows(text string) [][]string {
 
 func TestTheDocumentedContextTableIsTheShippedOne(t *testing.T) {
 	m := DefaultMatrices()
-	got := rows(section(t, "### Step 1, the component's context tier"))
+	got := rows(section(t, "### Step 1, tier"))
 	if len(got) != len(saga.Exposures) {
 		t.Fatalf("step 1 table has %d rows, want one per exposure (%d)", len(got), len(saga.Exposures))
 	}
@@ -73,7 +77,7 @@ func TestTheDocumentedContextTableIsTheShippedOne(t *testing.T) {
 
 func TestTheDocumentedBandTableIsTheShippedOne(t *testing.T) {
 	m := DefaultMatrices()
-	got := rows(section(t, "### Step 2, the band"))
+	got := rows(section(t, "### Step 2, band"))
 	if len(got) != 4 {
 		t.Fatalf("step 2 table has %d rows, want one per tier", len(got))
 	}
@@ -87,8 +91,10 @@ func TestTheDocumentedBandTableIsTheShippedOne(t *testing.T) {
 	}
 }
 
-func TestTheExploitabilityWorkedExampleLandsWhereTheTablesPutIt(t *testing.T) {
-	text := section(t, "### A worked example")
+// The worked example's band cell carries the mark beside the band, `P1 ↑ KEV`, so the band is
+// the cell's first field.
+func TestTheLedgerExampleLandsWhereTheTablesPutIt(t *testing.T) {
+	text := section(t, "### The ledger CVE")
 	cls := regexp.MustCompile("classified `(\\w+)` /\\s*`(\\w+)`").FindStringSubmatch(text)
 	if cls == nil {
 		t.Fatal("the worked example no longer names the component's exposure and criticality as `x` / `y`")
@@ -101,8 +107,9 @@ func TestTheExploitabilityWorkedExampleLandsWhereTheTablesPutIt(t *testing.T) {
 	m := DefaultMatrices()
 	for _, r := range got {
 		severity := sarif.Severity(strings.Fields(r[1])[0])
-		if want := m.Prioritize(exposure, criticality, severity); r[2] != string(want) {
-			t.Errorf("worked example %q: %s on %s / %s is %s, not %s", r[0], severity, exposure, criticality, want, r[2])
+		band := strings.Fields(r[2])[0]
+		if want := m.Prioritize(exposure, criticality, severity); band != string(want) {
+			t.Errorf("worked example %q: %s on %s / %s is %s, not %s", r[0], severity, exposure, criticality, want, band)
 		}
 	}
 }
