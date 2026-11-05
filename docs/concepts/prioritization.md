@@ -109,7 +109,7 @@ The ledger CVE's high comes from its CVSS score, 7.5.
 
 A Semgrep finding prints its rating beside it, `impact high · likelihood high`. A control may hold
 its findings at a minimum, its **severity floor**: a `secrets` finding is never below `high`,
-whatever its scanner called it. The severity floor draws no mark.
+whatever its scanner called it. A severity the floor raised is marked `↑ minimum`.
 
 ## Signals
 
@@ -128,10 +128,14 @@ P1, and the lowering leaves P2 in place.
 | <span class="dr-up">↑ deprecated</span> | the publisher marked the version deprecated | up one level | `config.dependencyHealth.enabled` | after every scanner finishes |
 | <span class="dr-down">↓ unreachable</span> | `govulncheck` found no call path to the flaw, Go only | down one level | `config.reachability.analyzers` | after every scanner finishes |
 
-Two more marks share the line under a finding. `↑ floor` means a leaked credential, ranked at C1
-whatever its component declares, as [Context floor](#context-floor) describes. `↩ history` means the
-finding describes a commit rather than the current tree, so its path may be gone; it moves nothing.
-A finding with no mark was ranked by exposure, criticality and severity alone.
+Other marks share the line under a finding. `↑ floor` means a leaked credential, ranked at C1
+whatever its component declares, as [Context floor](#context-floor) describes. `↑ minimum` means a
+leaked credential, held at high whatever its scanner rated it, by the severity floor in
+[Where severity comes from](#where-severity-comes-from); a finding both floors moved is marked
+`↑ floor`. `↩ history` means the finding describes a commit rather than the current tree, so its
+path may be gone; it moves nothing. A finding a signal raised and an unreachable verdict then lowered
+shows only the mark that decided its severity, `↓ unreachable`, and `report.json` keeps the raise
+under `escalation`. A finding with no mark was ranked by exposure, criticality and severity alone.
 
 KEV and EPSS reach only findings whose rule id holds a CVE, which is `sca` and `images`; dependency
 health reaches only findings about a package. Absence never lowers a band: a CVE missing from KEV, a

@@ -932,16 +932,28 @@ func band(f finding, marked bool) tui.Cell {
 // Exploitation first because it is the only one that can overrule another: an analyzer finding no
 // route does not lower a finding that is being exploited. The same order, and the same glyphs, as
 // the dashboard.
+//
+// A raise the verdict then lowered is not the mark. The severity beside the mark is the lowered
+// one, sarif.Result.RankedSeverity, so the move that decided it is the verdict, and "low ↑
+// deprecated" would name a raise the row does not show. The raise stays in report.json's escalation.
+// A raise that overruled the verdict leaves no RankedAs, so it is still the mark.
 func movedBy(f finding) *movement {
-	if e := f.escalation; e != nil {
+	lowered := loweredAsUnreachable(f)
+	if e := f.escalation; e != nil && !lowered {
 		return &movement{glyph: "↑", label: signalLabel(e), style: signalColor(e.Signal)}
 	}
 	// A control that declares its findings are not bounded by where the component sits.
 	if f.priorityFloor != "" {
 		return &movement{glyph: "↑", label: "floor", style: cHigh}
 	}
-	if loweredAsUnreachable(f) {
+	if lowered {
 		return &movement{glyph: "↓", label: "unreachable", style: cInfo}
+	}
+	// The control's severity floor raised the scanner's rating, and nothing above moved it further.
+	// Named apart from the context floor's "floor": that one moves the tier and leaves severity
+	// alone, this one moves the severity printed beside the mark.
+	if f.severityFloor != "" {
+		return &movement{glyph: "↑", label: "minimum", style: cHigh}
 	}
 	// Not a band that moved, and marked here for the same reason the others are: the location is a
 	// path in a commit rather than in the tree, and a reader who takes it for the current tree
