@@ -22,14 +22,14 @@ func codeFinding(tool, rule, prio string, level sarif.Level, loc, msg string) fi
 	if level == sarif.LevelError {
 		sev = sarif.SeverityHigh
 	}
-	return finding{control: "sast", tool: tool, ruleID: rule, priority: prio, level: level, severity: sev,
+	return finding{control: "sast", tool: tool, ruleID: rule, priority: prio, level: level, severity: sev, ranked: sev,
 		component: "api", repository: demoRepository, location: loc, message: msg,
 		fingerprint: tool + "|" + rule + "|" + loc}
 }
 
 // rated is f with the severity the scanner's own rating gave it.
 func rated(f finding, sev sarif.Severity) finding {
-	f.severity = sev
+	f.severity, f.ranked = sev, sev
 	return f
 }
 
@@ -226,7 +226,7 @@ func TestTheTitlingRuleTakesItsStepsInOrder(t *testing.T) {
 	long := "A rather longer description of the same flaw."
 	cut := "A description long enough that a title quoting it cannot hold it whole, which is too long."
 	base := func(rule, prio string, sev sarif.Severity, msg string) finding {
-		return finding{control: "sast", ruleID: rule, priority: prio, severity: sev, location: "a.py:1", message: msg}
+		return finding{control: "sast", ruleID: rule, priority: prio, severity: sev, ranked: sev, location: "a.py:1", message: msg}
 	}
 	scored := base("scored", "P2", sarif.SeverityHigh, short)
 	scored.score, scored.hasScore = 8.1, true

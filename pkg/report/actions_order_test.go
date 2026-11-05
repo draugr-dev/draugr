@@ -15,9 +15,10 @@ import (
 // when signal is not empty.
 func ratedDep(rule, name string, sev sarif.Severity, signal string) finding {
 	f := pkgFinding("sca", rule, "P1", "go.mod", name, "1.0", "1.1")
-	f.severity = sev
+	f.severity, f.ranked = sev, sev
 	if signal != "" {
 		f.escalation = &sarif.Escalation{From: sev, To: sev.Escalate(), Signal: signal}
+		f.ranked = sev.Escalate()
 	}
 	return f
 }
@@ -64,6 +65,7 @@ func TestActionsRankInsideABandByEvidenceThenSeverityThenCount(t *testing.T) {
 func TestActionsRankBySeverityTheBandCameFrom(t *testing.T) {
 	lowered := ratedDep("CVE-1", "lowered", sarif.SeverityCritical, "")
 	lowered.reachability = &sarif.Reachability{State: sarif.ReachabilityUnreachable, RankedAs: sarif.SeverityMedium}
+	lowered.ranked = sarif.SeverityMedium
 	in := []finding{lowered, ratedDep("CVE-2", "high", sarif.SeverityHigh, "")}
 	got, _ := groupActions(in, nil)
 	if order := packages(got); !reflect.DeepEqual(order, []string{"high", "lowered"}) {

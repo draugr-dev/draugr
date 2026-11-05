@@ -33,12 +33,14 @@ const (
 //
 // So FailOn and FailOnPriority are exclusive. The zero value gates on **P1**, which is the
 // product's own ranking rather than the scanner's, and setting FailOn is how a caller says it
-// wants the scanner's number instead.
+// wants a severity instead.
 //
-// Thresholds are severity bands, the ladder the report prints, rather than SARIF levels. The two
-// are not interchangeable: a finding with a CVSS score takes its band from the score, so one a
-// scanner emitted as `warning` can be `high`. Gating on the level let such a finding pass a gate
-// its reader believed was set to catch it, with the report beside it saying `high`.
+// Thresholds are severity bands, the ladder the report prints, rather than SARIF levels, and the
+// severity judged is each finding's RankedSeverity: the one printed beside its band, after the
+// control's severity floor and every signal. A finding with a CVSS score takes its band from the
+// score, so one a scanner emitted as `warning` can be `high`; a `high` on KEV is printed
+// `critical`; an unreachable `critical` is printed `high`. Judging anything else lets a finding
+// pass, or fail, a gate its reader set against the severity on the page.
 //
 // FailOnPriority adds component-aware gating: when set (e.g. "P1"), a control also fails if
 // any of its findings has a priority band at least that urgent. Because a finding's priority
@@ -118,8 +120,10 @@ func (p Policy) thresholdFor(control string) sarif.Severity {
 
 // ControlOutcome is the verdict for a single control.
 type ControlOutcome struct {
-	Control         string
-	Verdict         Verdict
+	Control string
+	Verdict Verdict
+	// Highest is the most severe ranked severity among the control's judged findings, the value a
+	// severity gate compared against Threshold.
 	Highest         sarif.Severity
 	HighestPriority string
 	Counts          sarif.Counts
@@ -188,7 +192,7 @@ func (p Policy) FindingFails(control string, res sarif.Result) bool {
 		return false
 	}
 	if threshold := p.thresholdFor(control); threshold != "" {
-		sev := res.Severity("")
+		sev := res.RankedSeverity()
 		return sev.AtLeast(threshold) && sev.Rank() > 0
 	}
 	return !res.Correlated() && p.priorityFails(control, res.Priority)

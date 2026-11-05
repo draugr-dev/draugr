@@ -83,6 +83,16 @@ type Result struct {
 	// Set only when the floor actually raised the band, so a reader asking "why is this P2 on a
 	// supporting internal component" has the answer in the report rather than in the source.
 	PriorityFloor string `json:"priorityFloor,omitempty"`
+	// SeverityFloor is the minimum severity the finding's control holds its findings at, recorded
+	// only where it raised the rating the band was computed from. A `secrets` finding its scanner
+	// rated medium carries `high` here; one the scanner already rated high or critical carries
+	// nothing, because the floor moved nothing.
+	//
+	// Recorded on the finding so RankedSeverity can be computed from the finding alone. A report
+	// read back from results.sarif, by `draugr diff` or a gate on new findings, has no control
+	// table to consult, and judging it without the floor gives a different verdict from the run
+	// that wrote it.
+	SeverityFloor Severity `json:"severityFloor,omitempty"`
 	// Control names the check this finding came from, sca, sast, secrets. Stamped when a run's
 	// per-control reports are merged into one document.
 	//
@@ -1077,14 +1087,16 @@ func (r Report) Highest() Level {
 	return highest
 }
 
-// HighestSeverity returns the most severe band present, or an empty severity when there are no
-// results to judge.
+// HighestSeverity returns the most severe ranked severity present, or an empty severity when there
+// are no results to judge.
 //
-// This is what the gate compares, and it is deliberately the same number the report prints. The
-// SARIF level and the severity band are two different ladders: a finding carrying a CVSS score
-// takes its band from the score, so a scanner that reports a 7.8 as `warning` still shows as
-// `high`. Judging the level instead lets a finding the report calls high pass a gate the reader
-// believes is set to catch it, the verdict and the page disagreeing about the same finding.
+// This is what a severity gate compares, and it is deliberately the same number the report prints
+// beside the band: each finding's RankedSeverity, after the control's severity floor and every
+// signal. Two ladders sit underneath it and neither is the gate's. The SARIF level is the wire
+// value, and a scanner that reports a 7.8 as `warning` still shows as `high`. The scanner's own
+// rating is the input to ranking rather than its outcome: a `high` on KEV is printed `critical`, and
+// an unreachable `critical` is printed `high`. Judging either lets a gate and the report it ends
+// disagree about the same finding.
 func (r Report) HighestSeverity() Severity {
 	highest := Severity("")
 	for _, res := range r.Results {
@@ -1092,7 +1104,7 @@ func (r Report) HighestSeverity() Severity {
 		if res.Suppressed() {
 			continue
 		}
-		if sev := res.Severity(""); sev.Rank() > highest.Rank() {
+		if sev := res.RankedSeverity(); sev.Rank() > highest.Rank() {
 			highest = sev
 		}
 	}

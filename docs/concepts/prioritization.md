@@ -438,8 +438,9 @@ incomparable.
 - **Severity, not priority, directly.** Enrichment raises severity; priority is then recomputed
   from severity × exposure × criticality. An escalated CVE on a `restricted`, `supporting`
   component may still not be P1, which is the point: exploitability matters *in context*.
-- **The gate follows automatically.** Because both bands and levels derive from severity,
-  `--fail-on` sees the enriched values with no extra configuration.
+- **The gate follows automatically.** A severity gate (`--fail-on critical`, `high`, `medium` or
+  `low`) reads the severity printed beside the band, after the severity floor and every signal, so
+  KEV can raise a finding past it and an unreachable verdict can lower one below it.
 
 ### A worked example
 
