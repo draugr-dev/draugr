@@ -1,0 +1,71 @@
+<svg viewBox="0 0 900 430" width="900" height="430" role="img" aria-label="The ledger CVE with two signals at once: ties between raises go to exploitability, KEV, EPSS and malicious overrule unreachable, and deprecated yields to it." xmlns="http://www.w3.org/2000/svg">
+  <title>Two signals on the ledger CVE</title>
+  <desc>The ledger CVE is rated high on tier C2. EPSS 0.62 and deprecated both raise it to critical, a tie that goes to exploitability: critical, P1, marked EPSS 0.62. KEV and malicious both raise it to critical, a tie that goes to KEV: P1, marked KEV. KEV against unreachable: KEV overrules, critical, P1, marked KEV. EPSS against unreachable: EPSS overrules, P1. Malicious against unreachable: malicious overrules, P1. Deprecated against unreachable: deprecated yields, so the finding is lowered to medium, P2, marked unreachable. A medium finding in the same module that EPSS raises to high and malicious raises to critical ends at critical, P1, marked malicious, because the higher result wins. Both rules are settled in run phase 3.</desc>
+  <defs>
+    <style>
+      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:13px}
+      .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:1.2px;fill:#7CA6B8}
+      .mu{fill:#9AA4AE}.sm{font-size:11px}.h{font-size:12px}.b{font-weight:700}.c{text-anchor:middle}
+      .scr{fill:#E9635B}.sme{fill:#7CA6B8}
+      .ccr{fill:#12161B;stroke:#E9635B;stroke-width:1.5}
+      .cme{fill:#12161B;stroke:#7CA6B8;stroke-width:1.5;stroke-dasharray:5 3}
+      .g{stroke:#232A31;stroke-width:1}
+      .tu{fill:#E9635B}.td{fill:#7CA6B8}
+    </style>
+    <symbol id="c1" viewBox="0 0 44 24" width="44" height="24"><rect width="44" height="24" rx="5" fill="#E5534B"/><text x="22" y="17" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="12" font-weight="700" fill="#0B0E11">P1</text></symbol>
+    <symbol id="c2" viewBox="0 0 44 24" width="44" height="24"><rect width="44" height="24" rx="5" fill="#E8B84B"/><text x="22" y="17" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="12" font-weight="700" fill="#16110A">P2</text></symbol>
+  </defs>
+  <rect width="900" height="430" rx="12" fill="#0B0E11"/>
+  <text class="e" x="24" y="30">COLLISIONS · TWO SIGNALS ON THE LEDGER CVE, RATED HIGH</text>
+  <text class="sm mu" x="24" y="64">signals</text>
+  <text class="sm mu" x="270" y="64">rule</text>
+  <text class="sm mu" x="560" y="64">ranked at</text>
+  <text class="sm mu" x="666" y="64">band</text>
+  <text class="sm mu" x="730" y="64">mark</text>
+  <path class="g" d="M24 74H876"/>
+
+  <text class="e" x="24" y="96">TWO RAISES</text>
+  <text class="m h" x="24" y="122"><tspan class="tu">↑</tspan> EPSS 0.62 + <tspan class="tu">↑</tspan> deprecated</text>
+  <text class="h" x="270" y="122">tie: exploitability takes it</text>
+  <rect class="ccr" x="560" y="106" width="76" height="24" rx="5"/><text class="m h c scr" x="598" y="123">critical</text>
+  <use href="#c1" x="666" y="106"/>
+  <text class="m h" x="730" y="122"><tspan class="tu">↑</tspan> EPSS 0.62</text>
+  <text class="m h" x="24" y="156"><tspan class="tu">↑</tspan> KEV + <tspan class="tu">↑</tspan> malicious</text>
+  <text class="h" x="270" y="156">tie: exploitability takes it</text>
+  <rect class="ccr" x="560" y="140" width="76" height="24" rx="5"/><text class="m h c scr" x="598" y="157">critical</text>
+  <use href="#c1" x="666" y="140"/>
+  <text class="m h" x="730" y="156"><tspan class="tu">↑</tspan> KEV</text>
+  <path class="g" d="M24 174H876"/>
+
+  <text class="e" x="24" y="196">A RAISE AGAINST ↓ UNREACHABLE</text>
+  <text class="m h" x="24" y="222"><tspan class="tu">↑</tspan> KEV + <tspan class="td">↓</tspan> unreachable</text>
+  <text class="h" x="270" y="222"><tspan class="tu">↑</tspan> KEV overrules</text>
+  <rect class="ccr" x="560" y="206" width="76" height="24" rx="5"/><text class="m h c scr" x="598" y="223">critical</text>
+  <use href="#c1" x="666" y="206"/>
+  <text class="m h" x="730" y="222"><tspan class="tu">↑</tspan> KEV</text>
+  <text class="m h" x="24" y="256"><tspan class="tu">↑</tspan> EPSS 0.62 + <tspan class="td">↓</tspan> unreachable</text>
+  <text class="h" x="270" y="256"><tspan class="tu">↑</tspan> EPSS overrules</text>
+  <rect class="ccr" x="560" y="240" width="76" height="24" rx="5"/><text class="m h c scr" x="598" y="257">critical</text>
+  <use href="#c1" x="666" y="240"/>
+  <text class="m h" x="730" y="256"><tspan class="tu">↑</tspan> EPSS 0.62</text>
+  <text class="m h" x="24" y="290"><tspan class="tu">↑</tspan> malicious + <tspan class="td">↓</tspan> unreachable</text>
+  <text class="h" x="270" y="290"><tspan class="tu">↑</tspan> malicious overrules</text>
+  <rect class="ccr" x="560" y="274" width="76" height="24" rx="5"/><text class="m h c scr" x="598" y="291">critical</text>
+  <use href="#c1" x="666" y="274"/>
+  <text class="m h" x="730" y="290"><tspan class="tu">↑</tspan> malicious</text>
+  <text class="m h" x="24" y="324"><tspan class="tu">↑</tspan> deprecated + <tspan class="td">↓</tspan> unreachable</text>
+  <text class="h" x="270" y="324"><tspan class="td">↓</tspan> deprecated yields</text>
+  <rect class="cme" x="560" y="308" width="76" height="24" rx="5"/><text class="m h c sme" x="598" y="325">medium</text>
+  <use href="#c2" x="666" y="308"/>
+  <text class="m h" x="730" y="324"><tspan class="td">↓</tspan> unreachable</text>
+  <path class="g" d="M24 342H876"/>
+
+  <text class="e" x="24" y="364">A MEDIUM FINDING IN THE SAME MODULE</text>
+  <text class="m h" x="24" y="390"><tspan class="tu">↑</tspan> EPSS + <tspan class="tu">↑</tspan> malicious</text>
+  <text class="h" x="270" y="390">high against critical: the higher wins</text>
+  <rect class="ccr" x="560" y="374" width="76" height="24" rx="5"/><text class="m h c scr" x="598" y="391">critical</text>
+  <use href="#c1" x="666" y="374"/>
+  <text class="m h" x="730" y="390"><tspan class="tu">↑</tspan> malicious</text>
+  <text class="sm mu" x="24" y="418">Settled in run phase 3, once every scanner has finished and the finding is ranked again.</text>
+</svg>

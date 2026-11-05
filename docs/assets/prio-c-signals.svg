@@ -1,0 +1,84 @@
+<svg viewBox="0 0 900 400" width="900" height="400" role="img" aria-label="The ledger CVE under each signal on its own: four raise it from high to critical and P2 to P1, and unreachable lowers it to medium with the band held at P2." xmlns="http://www.w3.org/2000/svg">
+  <title>Each signal on the ledger CVE</title>
+  <desc>The ledger CVE is rated high on tier C2, P2, with no signal. KEV, turned on by config.exploitability.kev and applied as it is ranked in run phase 2, raises it to critical, P1. EPSS with a score of 0.62 against the default threshold 0.5, config.exploitability.epss, phase 2, raises it one band to critical, P1. Malicious, config.dependencyHealth.enabled, phase 3, raises it to critical, P1. Deprecated, the same key, phase 3, raises it one band to critical, P1. Unreachable, config.reachability.analyzers, phase 3, lowers it one band to medium; C2 puts medium in P2, so the band holds.</desc>
+  <defs>
+    <style>
+      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:13px}
+      .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:1.2px;fill:#7CA6B8}
+      .mu{fill:#9AA4AE}.sm{font-size:11px}.h{font-size:12px}.b{font-weight:700}.c{text-anchor:middle}
+      .scr{fill:#E9635B}.shi{fill:#E8B84B}.sme{fill:#7CA6B8}
+      .ccr{fill:#12161B;stroke:#E9635B;stroke-width:1.5}
+      .chi{fill:#12161B;stroke:#E8B84B;stroke-width:1.5}
+      .cme{fill:#12161B;stroke:#7CA6B8;stroke-width:1.5;stroke-dasharray:5 3}
+      .up{stroke:#E9635B;stroke-width:2;fill:none}
+      .dn{stroke:#7CA6B8;stroke-width:2;fill:none;stroke-dasharray:6 4}
+      .g{stroke:#232A31;stroke-width:1}
+      .tu{fill:#E9635B}.td{fill:#7CA6B8}
+    </style>
+    <symbol id="c1" viewBox="0 0 44 24" width="44" height="24"><rect width="44" height="24" rx="5" fill="#E5534B"/><text x="22" y="17" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="12" font-weight="700" fill="#0B0E11">P1</text></symbol>
+    <symbol id="c2" viewBox="0 0 44 24" width="44" height="24"><rect width="44" height="24" rx="5" fill="#E8B84B"/><text x="22" y="17" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="12" font-weight="700" fill="#16110A">P2</text></symbol>
+    <marker id="u" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#E9635B"/></marker>
+    <marker id="d" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#7CA6B8"/></marker>
+  </defs>
+  <rect width="900" height="400" rx="12" fill="#0B0E11"/>
+  <text class="e" x="24" y="30">SIGNALS · EACH ONE ON THE LEDGER CVE</text>
+  <text class="sm mu" x="24" y="64">signal</text>
+  <text class="sm mu" x="180" y="64">turned on by · applied</text>
+  <text class="sm mu" x="520" y="64">severity</text>
+  <text class="sm mu" x="744" y="64">band on C2</text>
+  <path class="g" d="M24 74H876"/>
+
+  <text class="m b" x="24" y="102">none</text>
+  <text class="sm mu" x="180" y="102">nothing configured</text>
+  <rect class="chi" x="520" y="86" width="76" height="24" rx="5"/><text class="m h c shi" x="558" y="103">high</text>
+  <use href="#c2" x="744" y="86"/>
+  <path class="g" d="M24 122H876"/>
+
+  <text class="m b" x="24" y="150"><tspan class="tu">↑</tspan> KEV</text>
+  <text class="m sm" x="180" y="146">config.exploitability.kev</text>
+  <text class="sm mu" x="180" y="162">phase 2 · as it is ranked</text>
+  <rect class="chi" x="520" y="134" width="76" height="24" rx="5"/><text class="m h c shi" x="558" y="151">high</text>
+  <path class="up" d="M600 146H632" marker-end="url(#u)"/>
+  <rect class="ccr" x="638" y="134" width="76" height="24" rx="5"/><text class="m h c scr" x="676" y="151">critical</text>
+  <use href="#c1" x="744" y="134"/>
+  <path class="g" d="M24 170H876"/>
+
+  <text class="m b" x="24" y="198"><tspan class="tu">↑</tspan> EPSS 0.62</text>
+  <text class="m sm" x="180" y="194">config.exploitability.epss</text>
+  <text class="sm mu" x="180" y="210">phase 2 · score 0.62, threshold 0.5</text>
+  <rect class="chi" x="520" y="182" width="76" height="24" rx="5"/><text class="m h c shi" x="558" y="199">high</text>
+  <path class="up" d="M600 194H632" marker-end="url(#u)"/>
+  <rect class="ccr" x="638" y="182" width="76" height="24" rx="5"/><text class="m h c scr" x="676" y="199">critical</text>
+  <use href="#c1" x="744" y="182"/>
+  <path class="g" d="M24 218H876"/>
+
+  <text class="m b" x="24" y="246"><tspan class="tu">↑</tspan> malicious</text>
+  <text class="m sm" x="180" y="242">config.dependencyHealth.enabled</text>
+  <text class="sm mu" x="180" y="258">phase 3 · after every scanner</text>
+  <rect class="chi" x="520" y="230" width="76" height="24" rx="5"/><text class="m h c shi" x="558" y="247">high</text>
+  <path class="up" d="M600 242H632" marker-end="url(#u)"/>
+  <rect class="ccr" x="638" y="230" width="76" height="24" rx="5"/><text class="m h c scr" x="676" y="247">critical</text>
+  <use href="#c1" x="744" y="230"/>
+  <path class="g" d="M24 266H876"/>
+
+  <text class="m b" x="24" y="294"><tspan class="tu">↑</tspan> deprecated</text>
+  <text class="m sm" x="180" y="290">config.dependencyHealth.enabled</text>
+  <text class="sm mu" x="180" y="306">phase 3 · after every scanner</text>
+  <rect class="chi" x="520" y="278" width="76" height="24" rx="5"/><text class="m h c shi" x="558" y="295">high</text>
+  <path class="up" d="M600 290H632" marker-end="url(#u)"/>
+  <rect class="ccr" x="638" y="278" width="76" height="24" rx="5"/><text class="m h c scr" x="676" y="295">critical</text>
+  <use href="#c1" x="744" y="278"/>
+  <path class="g" d="M24 314H876"/>
+
+  <text class="m b" x="24" y="342"><tspan class="td">↓</tspan> unreachable</text>
+  <text class="m sm" x="180" y="338">config.reachability.analyzers</text>
+  <text class="sm mu" x="180" y="354">phase 3 · govulncheck, Go only</text>
+  <rect class="chi" x="520" y="326" width="76" height="24" rx="5"/><text class="m h c shi" x="558" y="343">high</text>
+  <path class="dn" d="M600 338H632" marker-end="url(#d)"/>
+  <rect class="cme" x="638" y="326" width="76" height="24" rx="5"/><text class="m h c sme" x="676" y="343">medium</text>
+  <use href="#c2" x="744" y="326"/>
+  <text class="sm mu" x="796" y="343">band holds</text>
+  <path class="g" d="M24 362H876"/>
+  <text class="sm mu" x="24" y="386">Absence moves nothing: off the catalog, a score below 0.5 or an unflagged package leaves the ledger CVE at high, P2.</text>
+</svg>

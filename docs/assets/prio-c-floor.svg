@@ -1,0 +1,62 @@
+<svg viewBox="0 0 900 310" width="900" height="310" role="img" aria-label="On the ledger component, the ledger CVE ranks at its declared tier C2 and lands in P2, while a leaked token there ranks at C1 under the context floor and lands in P1." xmlns="http://www.w3.org/2000/svg">
+  <title>The context floor beside the ledger CVE</title>
+  <desc>Two findings on the ledger component, which declares exposure internal and criticality critical, tier C2. The ledger CVE, from the sca control, is rated high and ranked at C2, P2; no floor applies to it. A leaked token, from the secrets control, is held at high by the severity floor and ranked at C1 by the context floor, marked floor, so it lands in P1 with its severity unchanged. The severity floor moves severity and draws no mark; the context floor moves the tier and draws the floor mark. Both are always on, with no key, and apply as each secrets finding is ranked in run phase 2.</desc>
+  <defs>
+    <style>
+      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:13px}
+      .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:1.2px;fill:#7CA6B8}
+      .mu{fill:#9AA4AE}.sm{font-size:11px}.h{font-size:12px}.b{font-weight:700}.c{text-anchor:middle}
+      .shi{fill:#E8B84B}
+      .chi{fill:#12161B;stroke:#E8B84B;stroke-width:1.5}
+      .tier{fill:#2A333C}
+      .box{fill:#12161B;stroke:#2F3841;stroke-width:1.5}
+      .bfl{fill:#12161B;stroke:#E9635B;stroke-width:1.5;stroke-dasharray:2 4}
+      .g{stroke:#232A31;stroke-width:1}
+      .tu{fill:#E9635B}
+    </style>
+    <symbol id="c1" viewBox="0 0 44 24" width="44" height="24"><rect width="44" height="24" rx="5" fill="#E5534B"/><text x="22" y="17" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="12" font-weight="700" fill="#0B0E11">P1</text></symbol>
+    <symbol id="c2" viewBox="0 0 44 24" width="44" height="24"><rect width="44" height="24" rx="5" fill="#E8B84B"/><text x="22" y="17" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="12" font-weight="700" fill="#16110A">P2</text></symbol>
+    <marker id="u" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#E9635B"/></marker>
+  </defs>
+  <rect width="900" height="310" rx="12" fill="#0B0E11"/>
+  <text class="e" x="24" y="30">CONTEXT FLOOR · TWO FINDINGS ON LEDGER</text>
+  <text class="sm mu" x="24" y="50">ledger declares exposure: internal · criticality: critical, tier C2</text>
+  <text class="sm mu" x="24" y="80">finding</text>
+  <text class="sm mu" x="250" y="80">severity</text>
+  <text class="sm mu" x="380" y="80">tier</text>
+  <text class="sm mu" x="580" y="80">band</text>
+  <path class="g" d="M24 90H640"/>
+
+  <text class="m b" x="24" y="122">ledger CVE</text>
+  <text class="sm mu" x="24" y="138">sca</text>
+  <rect class="chi" x="250" y="106" width="76" height="24" rx="5"/><text class="m h c shi" x="288" y="123">high</text>
+  <rect class="tier" x="380" y="106" width="52" height="24" rx="5"/><text class="m b c" x="406" y="123">C2</text>
+  <text class="sm mu" x="444" y="123">declared</text>
+  <use href="#c2" x="580" y="106"/>
+  <path class="g" d="M24 150H640"/>
+
+  <text class="m b" x="24" y="182">leaked token</text>
+  <text class="sm mu" x="24" y="198">secrets</text>
+  <rect class="chi" x="250" y="166" width="76" height="24" rx="5"/><text class="m h c shi" x="288" y="183">high</text>
+  <text class="sm mu" x="250" y="206">severity floor</text>
+  <rect class="tier" x="380" y="166" width="52" height="24" rx="5" opacity=".5"/><text class="m c mu" x="406" y="183">C2</text>
+  <path d="M436 178H478" stroke="#E9635B" stroke-width="2" stroke-dasharray="2 4" fill="none" marker-end="url(#u)"/>
+  <rect x="484" y="166" width="52" height="24" rx="5" fill="#3A4550" stroke="#E9635B" stroke-width="1.5" stroke-dasharray="2 3"/><text class="m b c" x="510" y="183">C1</text>
+  <text class="m sm" x="436" y="206"><tspan class="tu">↑</tspan> floor</text>
+  <use href="#c1" x="580" y="166"/>
+
+  <rect class="box" x="660" y="72" width="216" height="64" rx="8"/>
+  <text class="m b" x="674" y="94">severity floor</text>
+  <text class="sm" x="674" y="112">secrets never below high</text>
+  <text class="sm mu" x="674" y="128">moves severity · no mark</text>
+  <rect class="bfl" x="660" y="148" width="216" height="64" rx="8"/>
+  <text class="m b" x="674" y="170">context floor</text>
+  <text class="sm" x="674" y="188">secrets ranked at C1</text>
+  <text class="sm mu" x="674" y="204">moves the tier · <tspan class="tu">↑</tspan> floor</text>
+
+  <path d="M24 240H876" stroke="#232A31" stroke-width="1"/>
+  <text class="e" x="24" y="266">WHEN</text>
+  <text class="sm" x="90" y="266">Always on, with no key: applied as each secrets finding is ranked, in run phase 2. Severity is unchanged.</text>
+  <text class="sm mu" x="90" y="286">The ledger CVE keeps C2: a dependency CVE is bounded by where the component sits.</text>
+</svg>
