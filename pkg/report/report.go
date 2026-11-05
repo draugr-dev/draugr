@@ -780,9 +780,13 @@ type finding struct {
 	// occurrence, which is what a row standing for several of them needs.
 	ruleSummary string
 	level       sarif.Level
-	severity    sarif.Severity
-	score       float64
-	hasScore    bool
+	// severity is the scanner's own rating, before the control's floor and any signal.
+	severity sarif.Severity
+	// ranked is the severity the band was computed from, sarif.Result.RankedSeverity, and the one
+	// every human format prints beside the band.
+	ranked   sarif.Severity
+	score    float64
+	hasScore bool
 }
 
 // sevCounts tallies findings by normalized severity band.
@@ -894,6 +898,7 @@ func summarize(d Data) summary {
 					repository: res.Repository,
 					location:   locationOf(res), message: res.Message,
 					severity:      res.Severity(""),
+					ranked:        res.RankedSeverity(),
 					acceptedVia:   acceptedVia(res),
 					justification: res.Suppression.Justification,
 					helpURI:       rep.HelpURI(res.RuleID),
@@ -924,7 +929,7 @@ func summarize(d Data) summary {
 			}
 			s.controlFindings[name]++
 			b := s.bands[name]
-			b.add(res.Severity(""))
+			b.add(res.RankedSeverity())
 			s.bands[name] = b
 			if res.Escalation != nil {
 				if s.bySignal == nil {
@@ -985,7 +990,7 @@ func findingOf(control string, rep sarif.Report, res sarif.Result) finding {
 		component:     res.Component,
 		repository:    res.Repository,
 		location:      locationOf(res), message: res.Message,
-		level: res.Level, severity: res.Severity(""),
+		level: res.Level, severity: res.Severity(""), ranked: res.RankedSeverity(),
 		helpURI: rep.HelpURI(res.RuleID),
 		score:   res.Score, hasScore: res.HasScore,
 		remediation:     res.Remediation(),

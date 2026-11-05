@@ -99,6 +99,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./python-pip",
+            "severityFloor": "high",
             "tool": "gitleaks"
           },
           "ruleId": "aws-access-token"

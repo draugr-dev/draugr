@@ -152,7 +152,7 @@ func (r gitlabSecurityReporter) vulnerabilities(d Data) ([]glVuln, error) {
 			ID:          f.res.Fingerprint(),
 			Name:        f.res.RuleID,
 			Description: f.res.Message,
-			Severity:    gitlabSeverity(f.res.Severity("")),
+			Severity:    gitlabSeverity(f.res.RankedSeverity()),
 			Identifiers: []glIdentifier{gitlabIdentifier(f.res, f.helpURI)},
 			Location: glLocation{
 				File:      f.res.Location.URI,
@@ -250,7 +250,7 @@ func gitlabFindings(d Data, controls []string) []glFinding {
 // truncated read of either report starts at the same place the console does.
 func gitlabRank(res sarif.Result) int {
 	band := map[string]int{"P1": 4, "P2": 3, "P3": 2, "P4": 1}[res.Priority]
-	return band*10 + res.Severity("").Rank()
+	return band*10 + res.RankedSeverity().Rank()
 }
 
 var cveID = regexp.MustCompile(`^CVE-\d{4}-\d{4,}$`)
@@ -279,6 +279,11 @@ func gitlabIdentifier(res sarif.Result, helpURI string) glIdentifier {
 // The flaw's severity, not its Draugr priority. GitLab's merge-request approval policies gate on
 // this field, and a priority has already folded in the component's exposure and criticality.
 // Feeding it here would have those policies apply that context a second time.
+//
+// The caller passes the ranked severity, the one Draugr's own severity gate judges. It folds in
+// nothing about the component: the control's floor, exploitation and reachability are facts about
+// the flaw. A policy set to Critical then blocks what `--fail-on critical` fails, where the
+// scanner's rating would let a finding on KEV through, with no field in this schema to say why.
 func gitlabSeverity(s sarif.Severity) string {
 	switch s {
 	case sarif.SeverityCritical:
@@ -404,7 +409,7 @@ func gitlabCodeQualitySeverity(priority string) string {
 // what was found and keeps the severity the priority was computed from.
 func gitlabCodeQualityDescription(res sarif.Result) string {
 	parts := []string{}
-	if sev := res.Severity(""); sev != "" {
+	if sev := res.RankedSeverity(); sev != "" {
 		parts = append(parts, strings.ToUpper(string(sev)))
 	}
 	if res.Message != "" {

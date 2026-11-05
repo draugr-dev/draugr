@@ -52,6 +52,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./negative-secrets-archive-name",
+            "severityFloor": "high",
             "tool": "gitleaks"
           },
           "ruleId": "aws-access-token"

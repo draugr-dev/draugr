@@ -70,6 +70,8 @@ top-level `verdict` is the whole run's outcome and `gate.wholeRun` is absent.
 | `gate.failOnPriority` | the band a control fails at, on a run that gates on the band. The default, `P1`, is written out |
 | `gate.threshold` | the severity a control fails at, on a run that gates on severity. Exactly one of `threshold` and `failOnPriority` is present |
 | `gate.perControl` | the controls judged against a threshold of their own, in the gate's vocabulary |
+| `controls[].highest` | the most severe ranked severity among the control's findings, after the control's `severityFloor`, `escalation` and `reachability`. A severity gate compares it with `controls[].threshold`. Suppressed findings are left out |
+| `controls[].highestPriority` | the most urgent band among the control's findings, which a band gate compares with `gate.failOnPriority`. Suppressed findings and a second scanner's copy of a finding already counted are left out |
 | `gate.disabled` | `true` under `--no-gate`: the verdicts stand and the command exited 0 |
 | `gate.failOnCaveats` | the kinds of caveat that fail the run, from [`config.gate.failOnCaveats`](saga-schema.md#configgate) or `--fail-on-caveats` |
 | `gate.failOnNew` | the gate on new findings in force, from [`config.gate.failOnNew`](saga-schema.md#configgate) or `--fail-on-new`. Absent when neither set one |
@@ -131,6 +133,7 @@ Draugr reports as one SARIF tool, so every finding keeps its own attribution in 
 | `exposure`, `criticality` | That component's declared classification, the two inputs to the band that do not come from the scanner |
 | `security-severity` | The numeric score, where the scanner gave one |
 | `draugr/rating` | The scanner's own rating, set where it decided the severity: `severity`, `detail` (the line the report prints) and `fields` (the scanner's own names and values). Set for Semgrep (`impact`, `likelihood`, `confidence`, `subcategory`) and for an imported Bandit file (`issue_severity`, `issue_confidence`). The result's `level` stays the scanner's, and each entry in `report.json`'s `findings` carries the same object as `rating` |
+| `severityFloor` | The minimum severity the finding's control holds its findings at, present only where it raised the scanner's rating, such as `high` on a `secrets` finding rated `medium` or `low`. Each entry in `report.json`'s `findings` carries the same value |
 | `escalation` | Why the band is higher than the severity: the dataset, the fact, and the day it was fetched |
 | `exploited` | The KEV listing of the finding's CVE, whether or not it raised the severity: `signal` (`kev`), `detail` (`on KEV`) and `asOf`. Absent where KEV does not list the CVE or was not consulted. Each entry in `report.json`'s `findings` carries the same object |
 | `reachability` | Whether your code can reach the vulnerable code, which analyzer decided, and how |
@@ -155,6 +158,13 @@ moves a finding up and one moves it down, and both carry the evidence rather tha
 the analyzer and method for reachability, the dataset and the date for escalation. A reader is told
 to reject a reachability claim that does not say how it was reached; the same standard applies to a
 claim that something is more urgent than its score.
+
+**The ranked severity is computed from these fields, in this order.** Start from the score, the
+`draugr/rating` severity, or the level (`error` high, `warning` medium, `note` low), in that order.
+Raise it to `severityFloor` where present. Where `escalation` is present, take `escalation.to`, which
+was raised from that floored severity. Where `reachability` found no path and carries `rankedAs`,
+take `rankedAs`, which was lowered from the severity before it. The result is the ranked severity a
+severity gate judges and `controls[].highest` reports.
 
 **`historical: true` marks a finding from the repository's commit history.** Its location is the
 path the file had in the commit that introduced the secret, which a file renamed or deleted since

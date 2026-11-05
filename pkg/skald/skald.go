@@ -259,6 +259,10 @@ type findingReport struct {
 	// wrote them beside the severity they gave. `level` stays the scanner's word, and without this
 	// a consumer holding a P1 on a `warning` has nothing to account for it.
 	Rating *sarif.Rating `json:"rating,omitempty"`
+	// SeverityFloor is the minimum severity the control holds its findings at, where it raised this
+	// one's rating. With escalation and reachability it is the rest of what a consumer needs to
+	// recompute the severity the band, and a severity gate, read.
+	SeverityFloor sarif.Severity `json:"severityFloor,omitempty"`
 	// Historical says the finding comes from a commit rather than the current tree, so its
 	// location is the path the file had in that commit. A consumer without the mark reads a
 	// location the checkout lacks as a finding already fixed, when a credential in history is still
@@ -689,8 +693,11 @@ type releaseInfo struct {
 }
 
 type controlReport struct {
-	Name            string `json:"name"`
-	Verdict         string `json:"verdict"`
+	Name    string `json:"name"`
+	Verdict string `json:"verdict"`
+	// Highest is the most severe ranked severity among the control's judged findings: the severity
+	// printed beside each band, after the control's severity floor and every signal, and the value
+	// a severity gate compared against threshold.
 	Highest         string `json:"highest"`
 	HighestPriority string `json:"highestPriority,omitempty"`
 	Threshold       string `json:"threshold"`
@@ -1119,22 +1126,23 @@ func toFinding(control string, res sarif.Result) findingReport {
 		loc = fmt.Sprintf("%s:%d", loc, res.Location.StartLine)
 	}
 	return findingReport{
-		Suppressed:   suppressionOf(res),
-		Priority:     res.Priority,
-		Level:        string(res.Level),
-		Score:        res.Score,
-		Control:      control,
-		Tool:         res.Tool,
-		RuleID:       res.RuleID,
-		Message:      res.Message,
-		Location:     loc,
-		Fingerprint:  res.Fingerprint(),
-		Escalation:   res.Escalation,
-		Exploited:    res.Exploited,
-		Reachability: res.Reachability,
-		Rating:       res.Rating,
-		Historical:   res.Historical,
-		Dev:          res.Package != nil && res.Package.Dev,
+		Suppressed:    suppressionOf(res),
+		Priority:      res.Priority,
+		Level:         string(res.Level),
+		Score:         res.Score,
+		Control:       control,
+		Tool:          res.Tool,
+		RuleID:        res.RuleID,
+		Message:       res.Message,
+		Location:      loc,
+		Fingerprint:   res.Fingerprint(),
+		Escalation:    res.Escalation,
+		Exploited:     res.Exploited,
+		Reachability:  res.Reachability,
+		Rating:        res.Rating,
+		SeverityFloor: res.SeverityFloor,
+		Historical:    res.Historical,
+		Dev:           res.Package != nil && res.Package.Dev,
 	}
 }
 

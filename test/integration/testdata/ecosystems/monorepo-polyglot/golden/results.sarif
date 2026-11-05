@@ -237,6 +237,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-polyglot",
+            "severityFloor": "high",
             "tool": "gitleaks"
           },
           "ruleId": "aws-access-token"

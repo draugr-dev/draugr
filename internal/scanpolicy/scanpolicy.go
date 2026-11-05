@@ -37,7 +37,14 @@ func DefaultPrioritizer(expl *exploit.Source) engine.Prioritizer {
 func PrioritizerWith(expl *exploit.Source, health *dephealth.Source) engine.Prioritizer {
 	matrices := prioritization.DefaultMatrices()
 	return func(control string, exposure saga.Exposure, criticality saga.Criticality, res sarif.Result) engine.Priority {
-		sev := res.Severity(controllers.SeverityFloor(control))
+		floor := controllers.SeverityFloor(control)
+		sev := res.Severity(floor)
+		// Recorded only where it moved the rating, so the finding carries what it was ranked on and
+		// RankedSeverity read back from a report agrees with the band without the control table.
+		var held sarif.Severity
+		if sev != res.Severity("") {
+			held = floor
+		}
 		// nil-safe on both: a no-op when no source is loaded, and the escalation is nil unless
 		// something actually moved.
 		sev, esc := expl.Explain(sev, res.RuleID)
@@ -63,7 +70,7 @@ func PrioritizerWith(expl *exploit.Source, health *dephealth.Source) engine.Prio
 		// Deprecated is a claim about who is maintaining it, which says nothing about whether this
 		// flaw can fire in this codebase, so a proof that nothing reaches it still stands.
 		if res.Package != nil && res.Package.PURL != "" {
-			base := res.Severity(controllers.SeverityFloor(control))
+			base := res.Severity(floor)
 			// hesc is the escalation health.Explain found, not an error, so reading hsev beside it is
 			// the point rather than a value used after a failure.
 			// nosemgrep: trailofbits.go.invalid-usage-of-modified-variable.invalid-usage-of-modified-variable
@@ -112,11 +119,12 @@ func PrioritizerWith(expl *exploit.Source, health *dephealth.Source) engine.Prio
 		}
 		band := matrices.PriorityOf(tier, sev)
 		return engine.Priority{
-			Band:       string(band),
-			Escalation: esc,
-			Exploited:  exploited,
-			Floor:      floorReason,
-			RankedAs:   rankedAs,
+			Band:          string(band),
+			Escalation:    esc,
+			Exploited:     exploited,
+			Floor:         floorReason,
+			RankedAs:      rankedAs,
+			SeverityFloor: held,
 		}
 	}
 }
