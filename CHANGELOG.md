@@ -18,9 +18,9 @@ _Nothing yet._
 
 - **A scan of a large Go module no longer starts one compile process per CPU.** Every tool Draugr runs gets `GOMAXPROCS` and a `GOFLAGS` `-p` of half the CPUs or one per 4 GiB of memory, whichever is fewer, within container and cgroup limits. Setting either variable yourself overrides it. `stats.peakToolMemoryBytes` in `report.json` records the largest tool process's memory.
 
-- **Scanning several Go repositories at once no longer starts a Go package load per repository.** `govulncheck` and `gosec` now take turns, one load at a time across the run, each at the full per-tool parallelism bound. A run with several loads can take longer; each job's wait is in `stats.orderWaitsMs`.
+- **Scanning several Go repositories at once no longer starts a Go package load per repository.** `govulncheck` and `gosec` now take turns, one load at a time across the run, each at the full per-tool parallelism bound. A run with several loads can take longer; `stats.orderWaitsMs` in `report.json` records each wait.
 
-- **Scanning the same Go repository twice gives the same `licenses` result.** `trivy-license` starts after `govulncheck` and `gosec` finish on that repository, so the Go module cache is in the same state every time. A scan can take longer by that wait, which `report.json` reports as `stats.orderWaitsMs`.
+- **Scanning the same Go repository twice gives the same `licenses` result.** `trivy-license` starts after `govulncheck` and `gosec` finish on that repository, so the Go module cache is in the same state every time. A scan can take longer by that wait; `stats.orderWaitsMs` in `report.json` records it.
 
 ## [0.166.1] - 2026-11-03
 
