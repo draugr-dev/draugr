@@ -147,12 +147,20 @@ your verdict, and spends its attention on the design questions no scanner comput
 
 ## Evidence
 
-Each finding from `scan`, `summarize_report` and `diff_reports` carries the evidence behind its
-rank as fields: the exploitability signal that raised it, a reachability analyzer's verdict with
-one call path, and the other scanners that reported the same flaw. A finding that a recorded
-decision took out of the ranking comes back in `accepted`, never in `findings`, with why, until
-when, the file and line that record the decision, and whether the analysis was this project's or a
-supplier's VEX statement. The git history of a descriptor rule's line records who wrote it, and
+Each finding from `scan`, `summarize_report` and `diff_reports` carries two severities.
+`rankedSeverity` is the severity the finding was ranked at, after the control's severity floor and
+every signal, which the report prints and a severity gate such as `--fail-on high` or `failOnNew`
+judges ([how the gate decides](../concepts/verdict-and-gating.md)). `severity` is the scanner's own
+rating, before anything moved it. A leaked credential its scanner rated `medium` carries
+`severity: medium`, `severityFloor: high` and `rankedSeverity: high`, and fails a gate set to
+`high`. `counts` tallies findings by `rankedSeverity`.
+
+A finding also carries the evidence behind its rank as fields: `severityFloor` where the control's
+floor raised the scanner's rating, the exploitability signal that raised it, a reachability
+analyzer's verdict with one call path, and the other scanners that reported the same flaw. A
+finding that a recorded decision took out of the ranking comes back in `accepted`, never in
+`findings`, with why, until when, the file and line that record the decision, and whether the
+analysis was this project's or a supplier's VEX statement. The git history of a descriptor rule's line records who wrote it, and
 `report.json` carries that history in `descriptor.exclusions[].gitHistory`. `suppressed` is the
 full count and `accepted` is capped at `limit`. `feeds` names the exploitability datasets the scan
 consulted, dated, and marks any older than the scan's `maxAge`.
@@ -168,14 +176,14 @@ exploitation signal comes from KEV or EPSS, `next` ends with `and leads because 
 ```json
 {
   "findings": [{
-    "priority": "P1", "severity": "high", "ruleId": "CVE-2021-44228",
+    "priority": "P1", "severity": "high", "rankedSeverity": "critical", "ruleId": "CVE-2021-44228",
     "location": "api/pom.xml:12", "action": "upgrade", "fixedVersion": "2.17.1",
     "escalation": {"from": "high", "to": "critical", "signal": "kev",
                    "detail": "on KEV", "asOf": "2026-09-24"},
     "alsoFoundBy": ["grype"]
   }],
   "accepted": [{
-    "ruleId": "CVE-2023-0001", "severity": "medium", "location": "api/pom.xml",
+    "ruleId": "CVE-2023-0001", "severity": "medium", "rankedSeverity": "medium", "location": "api/pom.xml",
     "justification": "test scope only", "expires": "2026-12-31",
     "origin": "saga", "source": "fragments/api.saga.yaml"
   }],
@@ -322,8 +330,8 @@ newer image. It returns the lists `draugr scan --view actions` prints, one per
 terminal cannot describe the same report differently. Each row is an
 [action as `report.json` carries it](../reference/report-schema.md#what-each-action-carries), without
 the list of findings under it, and carries the keys it ranks by: `exploitation`, the CVE on KEV
-whether or not KEV raised it, or else the CVE EPSS raised, and `severity`, with `severityFrom` where
-KEV, EPSS or reachability analysis moved it.
+whether or not KEV raised it, or else the CVE EPSS raised, and `severity`, the worst ranked severity,
+with `severityFrom` where a severity floor, KEV, EPSS or reachability analysis moved it.
 
 The lists are in a fixed order of kind, which [says nothing about
 urgency](../concepts/what-to-fix-first.md), so a reply names the head of each list that applies.

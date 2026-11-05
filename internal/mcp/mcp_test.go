@@ -389,13 +389,15 @@ func TestScanToolSaysWhatItDidNotLookAt(t *testing.T) {
 
 func TestSortFindingsBreaksTies(t *testing.T) {
 	fs := []Finding{
-		{Priority: "P1", Severity: "high", Score: 7},
-		{Priority: "P1", Severity: "high", Score: 9}, // same priority and severity, higher score
-		{Priority: "P1", Severity: "critical"},       // same priority, worse severity
+		{Priority: "P1", Severity: "high", RankedSeverity: "high", Score: 7},
+		{Priority: "P1", Severity: "high", RankedSeverity: "high", Score: 9}, // same priority and severity, higher score
+		// Same priority, worse ranked severity, and a scanner's rating below both: the order is the
+		// report's, which reads the ranked one.
+		{Priority: "P1", Severity: "medium", RankedSeverity: "critical"},
 	}
 	sortFindings(fs)
-	if fs[0].Severity != "critical" {
-		t.Errorf("severity should break a priority tie: %+v", fs)
+	if fs[0].RankedSeverity != "critical" {
+		t.Errorf("ranked severity should break a priority tie: %+v", fs)
 	}
 	if fs[1].Score != 9 {
 		t.Errorf("score should break a severity tie: %+v", fs)

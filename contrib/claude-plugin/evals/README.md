@@ -38,7 +38,7 @@ PATH="$(git rev-parse --show-toplevel)/bin:$HOME/.draugr/bin:$PATH" claude plugi
 ```
 
 `--case <name>` runs one case, which is the usual way to check a change. On an API key, one run per
-case costs about US$2.20 for the suite and `--runs 3`, the default, about US$6.60. The `Evals`
+case costs about US$2.31 for the suite and `--runs 3`, the default, about US$6.92. The `Evals`
 workflow runs the same suite on GitHub with the repository's key, dispatched by hand:
 `gh workflow run Evals --ref <branch> -f ref=<commit>`. `KUBECONFIG` names a file that does not exist, so survey-no-cluster finds
 no cluster whatever this machine is configured for. Results go to `evals/results/`, which is
