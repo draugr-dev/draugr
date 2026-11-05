@@ -6,9 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -49,8 +51,9 @@ func TestGosecArgsRunsOncePerModule(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("runs = %v, want one per module", got)
 	}
+	loads := strconv.Itoa(min(gosecLoads, toolexec.Parallelism()))
 	for i, m := range []string{"service", "tools"} {
-		want := []string{"gosec", "-fmt", "sarif", "-no-fail", "-track-suppressions", filepath.Join(dir, m, "...")}
+		want := []string{"gosec", "-fmt", "sarif", "-no-fail", "-track-suppressions", "-concurrency", loads, filepath.Join(dir, m, "...")}
 		if !slices.Equal(got[i], want) {
 			t.Errorf("run %d = %v, want %v", i, got[i], want)
 		}

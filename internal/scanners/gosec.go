@@ -2,13 +2,16 @@ package scanners
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
 	"slices"
+	"strconv"
 
+	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -72,8 +75,42 @@ func NewGosec() plugin.Scanner {
 	s.cacheVersion = sharedGosecVersion.version
 	// gosec loads a module's packages with `go`. Without it, gosec exits 0 having analyzed
 	// nothing, and the control would read as a clean pass.
-	s.run = onRuntime(s.info.Binary, s.run)
+	s.run = onRuntime(s.info.Binary, gosecBounded(execArgvInDirWithEnv))
 	return s
+}
+
+// gosecLoads is how many packages gosec loads and analyzes at once, its `-concurrency`, before the
+// bound lowers it (toolexec.Divide).
+//
+// In gosec 2.30.0 (analyzer.go, Analyzer.Process) `-concurrency` is the number of workers, each
+// taking one package at a time: it loads the package with go/packages, which runs one
+// `go list -export` that compiles whatever of the package's dependencies the build cache lacks,
+// and then analyzes it. The same number also limits how many of gosec's SSA analyzers run at once
+// over one package. Its default is GOMAXPROCS, which Draugr sets to the whole bound, and each of
+// those `go list` commands builds with the whole bound as its -p, so one gosec run could start the
+// bound's square in compile processes.
+//
+// Two workers, each with half the bound as its -p, keep the compile processes within the bound
+// and divide it as evenly as two can, leaving at most one unit unused. The first loads compile
+// most of the module's dependencies, and a larger -p is what shortens those; later loads find
+// them cached and spend their time in analysis, which the second worker overlaps with the first's
+// load. Each worker also holds its package's syntax, types and SSA in memory while it analyzes,
+// so fewer workers keep gosec's own memory down as well.
+//
+// Every gosec since 2.10.0 has `-concurrency`, and Draugr installs 2.30.0. The releases that
+// accept the `-track-suppressions` Draugr already passes and lack it are 2.9.x, built against
+// golang.org/x/tools 0.1.8, which predates the export data Go has written since 1.20, so they
+// load no package with a Go toolchain Draugr supports.
+const gosecLoads = 2
+
+// gosecBounded runs gosec with the bound divided among the packages it loads at once: GOFLAGS
+// with -p at the bound over gosecLoads, as toolexec.Divide gives it, layered over the caller's
+// environment.
+func gosecBounded(run func(ctx context.Context, dir string, argv, env []string) ([]byte, error)) func(ctx context.Context, dir string, argv []string) ([]byte, error) {
+	return func(ctx context.Context, dir string, argv []string) ([]byte, error) {
+		_, env := toolexec.Divide(gosecLoads)
+		return run(ctx, dir, argv, env)
+	}
 }
 
 // gosecArgs builds `gosec -fmt sarif -no-fail ./...`. gosec loads Go packages relative to the
@@ -89,8 +126,11 @@ func NewGosec() plugin.Scanner {
 //     excluded is indistinguishable from one nobody ever made: the report reads clean, and the
 //     question asked of an exclusion later, who decided this was acceptable, has nothing to
 //     answer from.
+//   - -concurrency is how many packages gosec loads at once, from the same division of the bound
+//     as the -p its run is given (gosecLoads).
 func gosecArgs(dir string, cfg plugin.Config) [][]string {
-	base := []string{"gosec", "-fmt", "sarif", "-no-fail", "-track-suppressions"}
+	loads, _ := toolexec.Divide(gosecLoads)
+	base := []string{"gosec", "-fmt", "sarif", "-no-fail", "-track-suppressions", "-concurrency", strconv.Itoa(loads)}
 	if v := commaList(cfg, "include"); v != "" {
 		base = append(base, "-include="+v)
 	}
