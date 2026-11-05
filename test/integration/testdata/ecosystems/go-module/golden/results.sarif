@@ -91,6 +91,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./go-module",
+            "severityFloor": "high",
             "tool": "gitleaks"
           },
           "ruleId": "aws-access-token"
