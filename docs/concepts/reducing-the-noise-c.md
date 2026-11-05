@@ -5,16 +5,16 @@ section: Core concepts
 order: 35
 ---
 
-<!-- menu: Ranking · Removal · Narrowing · Marks · Counts -->
-
 # Reducing the noise
+
+<!-- menu: Ranking · Removal · Narrowing · Gate · Marks · Counts -->
 
 A scan of a real project returns hundreds of findings. Most are true, and few are yours to fix this
 week. A **lever** is a descriptor key or a flag that closes that gap, and each one acts at a fixed
 phase of a run.
 
 This page follows the **ledger CVE** from [Prioritization](prioritization-c.md#model): a CVSS 7.5
-flaw, `high`, in a Go module that the `ledger` component depends on. `ledger` declares
+flaw, high, in a Go module that the `ledger` component depends on. `ledger` declares
 `exposure: internal` and `criticality: critical`, tier C2, so the CVE ranks at P2 until a lever
 moves it.
 
@@ -26,9 +26,8 @@ set aside and why, and narrowing changes only what is shown. Start by declaring 
 
 ## Ranking
 
-A **ranking lever** changes a finding's band, or what the band does, and keeps every finding in the
-count. How a band is decided is in [Prioritization](prioritization-c.md#model); the levers here are
-the ones you pull.
+A **ranking lever** changes a finding's band and keeps every finding in the count. How a band is
+decided is in [Prioritization](prioritization-c.md#model); the levers here are the ones you pull.
 
 ![The ledger CVE under four ranking levers: declaring ledger, turning on KEV, --min-priority P1 and --fail-on P1](../assets/noise-c-rank.svg)
 
@@ -46,7 +45,6 @@ components:
 | `config.dependencyHealth` | turns on <span class="dr-up">↑ malicious</span> and <span class="dr-up">↑ deprecated</span>, after every scanner finishes | <span class="dr-p1">P1</span> if its package is flagged | [Dependency health](prioritization-c.md#dependency-health) |
 | `config.reachability` | turns on <span class="dr-down">↓ unreachable</span>, Go only, after every scanner finishes | <span class="dr-p2">P2</span> <span class="dr-down">↓ unreachable</span>, band held | [Reachability](prioritization-c.md#reachability) |
 | `--min-priority P1` | lists only P1; counts and the gate still read every finding | not listed at <span class="dr-p2">P2</span> | [`--min-priority`](../reference/cli.md#what---min-priority-narrows) |
-| `--fail-on`, `config.gate.failOn` | sets the band that fails the run, default P1 | passes at <span class="dr-p2">P2</span>, fails at <span class="dr-p1">P1</span> | [`config.gate`](../reference/saga-schema.md#configgate) |
 
 The two fields are facts about your architecture and your business, which no scanner can compute,
 and they sit in the descriptor where a reviewer sees them. A component that declares neither is
@@ -99,31 +97,54 @@ run, and the report says when a listing is filtered.
 | `--components`, `--controls` | scan one part of the application | start | found when `ledger` and `sca` are in scope |
 | `--exposure`, `--criticality`, `--labels` | scan the components matching a classification | start | found when the filter matches `ledger` |
 | `draugr diff` | only what a change introduced, against a report from before it | after the run | left out once it is in the earlier report |
-| `config.gate.controls` | a band threshold per control | gate | judged by the threshold for `sca` |
 
 A pull request that adds no findings needs no report read, whatever the project's standing total,
-which makes `draugr diff` the narrowing lever with the largest effect. With KEV on, the ledger CVE
-fails the gate of the full scan, and a diff on the next pull request leaves it out because it is not
-new.
+which makes `draugr diff` the narrowing lever with the largest effect.
+
+## Gate
+
+The **gate** is the threshold that fails a run: any finding at or above it sets the verdict to
+`FAIL` and the exit code to non-zero. It reads every finding the run kept, after ranking and
+removal; narrowing does not change it.
+
+| setting | fails the run on |
+|---|---|
+| `--fail-on P1`, the default | a finding in P1 |
+| `--fail-on P2`, or `config.gate.failOn: P2` | a finding in P1 or P2 |
+| `--fail-on high` | a finding whose severity is high or critical |
+| `config.gate.controls` | a threshold per control, in the gate's own vocabulary |
+| `--fail-on-new P2`, or `config.gate.failOnNew` | a finding new since `--base`, in P1 or P2; this gate alone then decides |
+
+The ledger CVE's list, plus one finding the current change introduced:
+
+| finding | band | `--fail-on P1` | `--fail-on P2` | `--fail-on-new P2` |
+|---|---|---|---|---|
+| leaked token | <span class="dr-p1">P1</span> <span class="dr-up">↑ floor</span> | fails | fails | passes, not new |
+| ledger CVE, KEV off | <span class="dr-p2">P2</span> | passes | fails | passes, not new |
+| ledger CVE, KEV on | <span class="dr-p1">P1</span> <span class="dr-up">↑ KEV</span> | fails | fails | passes, not new |
+| web XSS | <span class="dr-p2">P2</span> | passes | fails | passes, not new |
+| api CVE, new | <span class="dr-p2">P2</span> | passes | fails | fails |
+
+`--min-priority` leaves every verdict in the table as it is. A ledger CVE accepted through
+`config.exclude` or VEX no longer counts toward any gate. The flags are in
+[`scan` flags](../reference/cli.md#gating-on-new-findings), the descriptor block is
+[`config.gate`](../reference/saga-schema.md#configgate), and how the verdict and exit code are
+reached is in [Verdict & gating](verdict-and-gating.md).
 
 ## Marks
 
-A **mark** names the lever that moved a finding's band, on the line under the finding. A finding with
-no mark was ranked by exposure, criticality and severity alone. The ledger CVE carries one of these
-when a signal moves it.
+A **mark** names the lever that moved a finding's band, on the line under the finding. Each mark is
+defined in [Signals](prioritization-c.md#signals), with what it moves and the key that turns it on.
 
-| mark | means | rule |
-|---|---|---|
-| <span class="dr-up">↑ KEV</span> | on CISA's Known Exploited Vulnerabilities catalog | [Signals](prioritization-c.md#signals) |
-| <span class="dr-up">↑ EPSS 0.62</span> | an EPSS score at or above the run's threshold, printed to two places | [Signals](prioritization-c.md#signals) |
-| <span class="dr-up">↑ malicious</span> | the package is in the OSSF Malicious Packages Project | [Signals](prioritization-c.md#signals) |
-| <span class="dr-up">↑ deprecated</span> | the publisher marked the version deprecated | [Signals](prioritization-c.md#signals) |
-| <span class="dr-up">↑ floor</span> | a leaked credential, ranked at C1 whatever its component declares | [Context floor](prioritization-c.md#context-floor) |
-| <span class="dr-down">↓ unreachable</span> | analysis found no path from your code to it | [Reachability](prioritization-c.md#reachability) |
-| ↩ history | describes a commit rather than the current tree, so its path may be gone | |
-
-A finding KEV lists that was already `critical` carries no mark and is recorded as `exploited`, as
-[Already critical](prioritization-c.md#already-critical) describes.
+| mark | means |
+|---|---|
+| <span class="dr-up">↑ KEV</span> | the CVE is on CISA's Known Exploited Vulnerabilities catalog |
+| <span class="dr-up">↑ EPSS 0.62</span> | the EPSS score, printed to two places, is at or above `epssThreshold`, default 0.5 |
+| <span class="dr-up">↑ malicious</span> | the package is in the OSSF Malicious Packages Project |
+| <span class="dr-up">↑ deprecated</span> | the publisher marked the version deprecated |
+| <span class="dr-down">↓ unreachable</span> | govulncheck found no call path to the flaw, Go only |
+| <span class="dr-up">↑ floor</span> | a leaked credential, ranked at C1 whatever its component declares |
+| ↩ history | the finding describes a commit rather than the current tree, so its path may be gone |
 
 ## Counts
 

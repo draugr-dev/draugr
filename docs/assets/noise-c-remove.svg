@@ -1,96 +1,96 @@
-<svg viewBox="0 0 900 420" width="900" height="420" role="img" aria-label="The ledger CVE under each removal lever: correlation makes two copies one row, an exclusion or a VEX statement marks it and keeps it, an action folds it into one upgrade, and an unreachable verdict keeps it in the count." xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 720 620" width="720" height="620" role="img" aria-label="The ledger CVE under each removal lever: correlation makes two copies one row, an exclusion or a VEX statement marks it and keeps it, an action folds it into one upgrade, and an unreachable verdict keeps it in the count." xmlns="http://www.w3.org/2000/svg">
   <title>Levers that remove, on the ledger CVE</title>
-  <desc>Correlation, always on in run phase 4: the ledger CVE reported by trivy-fs and by grype-fs becomes one row naming grype-fs. config.exclude, phase 4: accepted with a reason and an expiry, it stays in the report marked accepted and leaves the count and the gate. VEX, phase 4: the module's supplier states it does not affect their product, and it stays marked VEX. Actions, at report time with --view actions: the ledger CVE and two more CVEs in the same module become one upgrade that clears three, at P2. Scanner exclusions and builtBy or operatedBy do not reach it: it carries no directive, and ledger is built by you. An unreachable verdict is not a removal: the ledger CVE stays in the count at P2, marked unreachable.</desc>
+  <desc>The ledger CVE with KEV off, at P2. Correlation, always on in run phase 4: the ledger CVE reported by trivy-fs and by grype-fs becomes one row naming grype-fs. config.exclude, phase 4: accepted with a reason and an expiry, it stays in the report marked accepted and leaves the count and the gate. VEX, phase 4: the module's supplier states it does not affect their product, and it stays marked VEX. Actions, at report time with --view actions: the ledger CVE and two more CVEs in the same module become one upgrade that clears three, at P2. Scanner exclusions and builtBy or operatedBy do not reach it: it carries no directive, and ledger is built by you. An unreachable verdict is not a removal: the ledger CVE stays in the count at P2, marked unreachable.</desc>
   <defs>
     <style>
-      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:11.5px}
+      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:14px}
       .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:1.2px;fill:#7CA6B8}
-      .mu{fill:#9AA4AE}.sm{font-size:10.5px}.t{font-size:12px}.b{font-weight:700}
+      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;letter-spacing:1px;fill:#7CA6B8}
+      .mu{fill:#9AA4AE}.sm{font-size:12.5px}.k{font-size:12px}.t{font-size:14px}.b{font-weight:700}
       .pan{fill:none;stroke:#232A31;stroke-width:1.5}
       .ar{stroke:#9AA4AE;stroke-width:1.5;fill:none}
       .tag{fill:none;stroke:#7CA6B8;stroke-width:1.2;stroke-dasharray:4 3}
       .tg{fill:#7CA6B8}.td{fill:#7CA6B8}
     </style>
-    <symbol id="c2" viewBox="0 0 26 15" width="26" height="15"><rect width="26" height="15" rx="3" fill="#E8B84B"/><text x="13" y="11.5" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="10" font-weight="700" fill="#16110A">P2</text></symbol>
-    <symbol id="c3" viewBox="0 0 26 15" width="26" height="15"><rect width="26" height="15" rx="3" fill="#7CA6B8"/><text x="13" y="11.5" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="10" font-weight="700" fill="#0A1116">P3</text></symbol>
+    <symbol id="c2" viewBox="0 0 32 19" width="32" height="19"><rect width="32" height="19" rx="3" fill="#E8B84B"/><text x="16" y="14" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="12" font-weight="700" fill="#16110A">P2</text></symbol>
+    <symbol id="c3" viewBox="0 0 32 19" width="32" height="19"><rect width="32" height="19" rx="3" fill="#7CA6B8"/><text x="16" y="14" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="12" font-weight="700" fill="#0A1116">P3</text></symbol>
     <marker id="h" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#9AA4AE"/></marker>
   </defs>
-  <rect width="900" height="420" rx="12" fill="#0B0E11"/>
-  <text class="e" x="24" y="32">LEVERS THAT REMOVE · THE LEDGER CVE, P2</text>
+  <rect width="720" height="620" rx="12" fill="#0B0E11"/>
+  <text class="e" x="20" y="28">LEVERS THAT REMOVE · THE LEDGER CVE, KEV OFF, P2</text>
 
-  <g transform="translate(16 48)">
-    <rect class="pan" width="280" height="172" rx="10"/>
-    <text class="m b t" x="12" y="22">correlation</text>
-    <text class="m sm mu" x="12" y="38">always on · phase 4</text>
-    <use href="#c2" x="12" y="66"/><text class="b" x="42" y="78">ledger CVE</text>
-    <text class="sm mu" x="42" y="92">trivy-fs</text>
-    <use href="#c2" x="12" y="102"/><text class="b" x="42" y="114">ledger CVE</text>
-    <text class="sm mu" x="42" y="128">grype-fs</text>
-    <path class="ar" d="M120 100H146" marker-end="url(#h)"/>
-    <use href="#c2" x="154" y="84"/><text class="b" x="184" y="96">ledger CVE</text>
-    <text class="sm mu" x="184" y="110">also grype-fs</text>
-    <text class="sm mu" x="12" y="160">One flaw, one row, naming the other scanner.</text>
+  <g transform="translate(12 44)">
+    <rect class="pan" width="340" height="180" rx="10"/>
+    <text class="m b t" x="14" y="26">correlation</text>
+    <text class="m k mu" x="14" y="46">always on · phase 4</text>
+    <use href="#c2" x="14" y="62"/><text class="b" x="54" y="76">ledger CVE</text>
+    <text class="sm mu" x="54" y="94">trivy-fs</text>
+    <use href="#c2" x="14" y="104"/><text class="b" x="54" y="118">ledger CVE</text>
+    <text class="sm mu" x="54" y="136">grype-fs</text>
+    <path class="ar" d="M144 100H170" marker-end="url(#h)"/>
+    <use href="#c2" x="178" y="84"/><text class="b" x="218" y="98">ledger CVE</text>
+    <text class="sm mu" x="218" y="116">also grype-fs</text>
+    <text class="sm mu" x="14" y="164">One flaw, one row, naming the other scanner.</text>
   </g>
 
-  <g transform="translate(310 48)">
-    <rect class="pan" width="280" height="172" rx="10"/>
-    <text class="m b t" x="12" y="22">config.exclude</text>
-    <text class="m sm mu" x="12" y="38">reason · expiry · phase 4</text>
-    <use href="#c2" x="12" y="92"/><text class="b" x="42" y="104">ledger CVE</text>
-    <path class="ar" d="M120 100H146" marker-end="url(#h)"/>
-    <g opacity=".5"><use href="#c2" x="154" y="84"/><text class="b" x="184" y="96">ledger CVE</text></g>
-    <rect class="tag" x="184" y="102" width="62" height="17" rx="4"/><text class="sm tg" x="191" y="114">accepted</text>
-    <text class="sm mu" x="12" y="146">Kept and marked; out of counts and gate.</text>
-    <text class="sm mu" x="12" y="160">The line's git history names who.</text>
+  <g transform="translate(368 44)">
+    <rect class="pan" width="340" height="180" rx="10"/>
+    <text class="m b t" x="14" y="26">config.exclude</text>
+    <text class="m k mu" x="14" y="46">reason · expiry · phase 4</text>
+    <use href="#c2" x="14" y="88"/><text class="b" x="54" y="102">ledger CVE</text>
+    <path class="ar" d="M144 98H170" marker-end="url(#h)"/>
+    <g opacity=".5"><use href="#c2" x="178" y="78"/><text class="b" x="218" y="92">ledger CVE</text></g>
+    <rect class="tag" x="218" y="100" width="72" height="20" rx="4"/><text class="m k tg" x="226" y="115">accepted</text>
+    <text class="sm mu" x="14" y="146">Kept and marked; out of counts and the gate.</text>
+    <text class="sm mu" x="14" y="164">The line's git history names who.</text>
   </g>
 
-  <g transform="translate(604 48)">
-    <rect class="pan" width="280" height="172" rx="10"/>
-    <text class="m b t" x="12" y="22">VEX</text>
-    <text class="m sm mu" x="12" y="38">config.vexSources · phase 4</text>
-    <use href="#c2" x="12" y="92"/><text class="b" x="42" y="104">ledger CVE</text>
-    <path class="ar" d="M120 100H146" marker-end="url(#h)"/>
-    <g opacity=".5"><use href="#c2" x="154" y="84"/><text class="b" x="184" y="96">ledger CVE</text></g>
-    <rect class="tag" x="184" y="102" width="36" height="17" rx="4"/><text class="sm tg" x="191" y="114">VEX</text>
-    <text class="sm mu" x="12" y="146">The module's supplier states it does not</text>
-    <text class="sm mu" x="12" y="160">affect their product; the author can be asked.</text>
+  <g transform="translate(12 234)">
+    <rect class="pan" width="340" height="180" rx="10"/>
+    <text class="m b t" x="14" y="26">VEX</text>
+    <text class="m k mu" x="14" y="46">config.vexSources · phase 4</text>
+    <use href="#c2" x="14" y="88"/><text class="b" x="54" y="102">ledger CVE</text>
+    <path class="ar" d="M144 98H170" marker-end="url(#h)"/>
+    <g opacity=".5"><use href="#c2" x="178" y="78"/><text class="b" x="218" y="92">ledger CVE</text></g>
+    <rect class="tag" x="218" y="100" width="40" height="20" rx="4"/><text class="m k tg" x="226" y="115">VEX</text>
+    <text class="sm mu" x="14" y="146">The module's supplier states it does not affect</text>
+    <text class="sm mu" x="14" y="164">their product; its author can be asked.</text>
   </g>
 
-  <g transform="translate(16 232)">
-    <rect class="pan" width="280" height="172" rx="10"/>
-    <text class="m b t" x="12" y="22">actions</text>
-    <text class="m sm mu" x="12" y="38">--view actions · report</text>
-    <use href="#c2" x="12" y="72"/><text class="b" x="42" y="84">ledger CVE</text>
-    <use href="#c3" x="12" y="92"/><text x="42" y="104">module CVE</text>
-    <use href="#c3" x="12" y="112"/><text x="42" y="124">module CVE</text>
-    <path class="ar" d="M120 100H146" marker-end="url(#h)"/>
-    <use href="#c2" x="154" y="84"/><text x="184" y="96">upgrade module</text>
-    <text class="sm mu" x="184" y="110">clears 3</text>
-    <text class="sm mu" x="12" y="146">One row per thing to do, at the highest</text>
-    <text class="sm mu" x="12" y="160">band among what it clears.</text>
+  <g transform="translate(368 234)">
+    <rect class="pan" width="340" height="180" rx="10"/>
+    <text class="m b t" x="14" y="26">actions</text>
+    <text class="m k mu" x="14" y="46">--view actions · report</text>
+    <use href="#c2" x="14" y="62"/><text class="b" x="54" y="76">ledger CVE</text>
+    <use href="#c3" x="14" y="86"/><text x="54" y="100">module CVE</text>
+    <use href="#c3" x="14" y="110"/><text x="54" y="124">module CVE</text>
+    <path class="ar" d="M144 96H170" marker-end="url(#h)"/>
+    <use href="#c2" x="178" y="84"/><text x="218" y="98">upgrade module</text>
+    <text class="sm mu" x="218" y="116">clears 3</text>
+    <text class="sm mu" x="14" y="152">One row per thing to do, at the highest band</text>
+    <text class="sm mu" x="14" y="170">among what it clears.</text>
   </g>
 
-  <g transform="translate(310 232)">
-    <rect class="pan" width="280" height="172" rx="10" stroke-dasharray="4 4"/>
-    <text class="m b t" x="12" y="22">not on the ledger CVE</text>
-    <text class="m sm" x="12" y="50">scanner exclusions</text>
-    <text class="sm mu" x="12" y="66">a directive in the code or a rule in the</text>
-    <text class="sm mu" x="12" y="80">scanner's config; the CVE carries none</text>
-    <text class="m sm" x="12" y="108">builtBy · operatedBy</text>
-    <text class="sm mu" x="12" y="124">an image or cluster somebody else runs;</text>
-    <text class="sm mu" x="12" y="138">ledger is built by you</text>
+  <g transform="translate(12 424)">
+    <rect class="pan" width="340" height="180" rx="10" stroke-dasharray="4 4"/>
+    <text class="m b t" x="14" y="26">not on the ledger CVE</text>
+    <text class="m sm" x="14" y="58">scanner exclusions</text>
+    <text class="sm mu" x="14" y="78">a directive in the code or a rule in the</text>
+    <text class="sm mu" x="14" y="96">scanner's config; the CVE carries none</text>
+    <text class="m sm" x="14" y="128">builtBy · operatedBy</text>
+    <text class="sm mu" x="14" y="148">an image or cluster somebody else runs;</text>
+    <text class="sm mu" x="14" y="166">ledger is built by you</text>
   </g>
 
-  <g transform="translate(604 232)">
-    <rect class="pan" width="280" height="172" rx="10"/>
-    <text class="m b t" x="12" y="22">↓ unreachable is not removal</text>
-    <text class="m sm mu" x="12" y="38">config.reachability · phase 3</text>
-    <use href="#c2" x="12" y="92"/><text class="b" x="42" y="104">ledger CVE</text>
-    <path class="ar" d="M120 100H146" marker-end="url(#h)"/>
-    <use href="#c2" x="154" y="84"/><text class="b" x="184" y="96">ledger CVE</text>
-    <text class="m sm" x="184" y="112"><tspan class="td">↓</tspan> unreachable</text>
-    <text class="sm mu" x="12" y="146">Still counted, one severity lower; only a</text>
-    <text class="sm mu" x="12" y="160">person's decision suppresses.</text>
+  <g transform="translate(368 424)">
+    <rect class="pan" width="340" height="180" rx="10"/>
+    <text class="m b t" x="14" y="26">↓ unreachable is not removal</text>
+    <text class="m k mu" x="14" y="46">config.reachability · phase 3</text>
+    <use href="#c2" x="14" y="88"/><text class="b" x="54" y="102">ledger CVE</text>
+    <path class="ar" d="M144 98H170" marker-end="url(#h)"/>
+    <use href="#c2" x="178" y="84"/><text class="b" x="218" y="98">ledger CVE</text>
+    <text class="m sm" x="218" y="118"><tspan class="td">↓</tspan> unreachable</text>
+    <text class="sm mu" x="14" y="152">Still counted, one severity level lower; only</text>
+    <text class="sm mu" x="14" y="170">a person's decision suppresses.</text>
   </g>
 </svg>

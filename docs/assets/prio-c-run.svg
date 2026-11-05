@@ -1,83 +1,76 @@
-<svg viewBox="0 0 900 430" width="900" height="430" role="img" aria-label="The ledger CVE through each phase of a run with KEV on, from the feeds being read to a later diff, with its state and the lever acting at each phase." xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 720 460" width="720" height="460" role="img" aria-label="The ledger CVE through each phase of a run with KEV on, from the feeds being read to a later diff, with its state and the lever acting at each phase." xmlns="http://www.w3.org/2000/svg">
   <title>The ledger CVE through a run</title>
-  <desc>Phase 1, start: the KEV feed named in config.exploitability.kev is read from the cache; the ledger CVE is not found yet. Phase 2, scan: trivy-fs and grype-fs each report it, rated high; KEV raises each copy to critical, and tier C2 puts it in P1, marked KEV. Phase 3, enrich: govulncheck, named in config.reachability, finds it reachable, and dependency health flags nothing, so it stays at P1. Phase 4, decide: correlation makes the two copies one row naming grype-fs; no config.exclude rule or VEX statement matches it. Phase 5, gate: --fail-on P1 fails the run on it. Phase 6, report: its upgrade is listed first in P1 because KEV lists it, and --min-priority P2 still lists it. Phase 7, later: draugr diff against this report leaves it out, because it is not new.</desc>
+  <desc>Phase 1, start: the KEV feed named in config.exploitability.kev is read from the cache; the ledger CVE is not found yet. Phase 2, scan: trivy-fs and grype-fs each report it, rated high; KEV raises each copy to critical, and tier C2 puts it in P1, marked KEV. Phase 3, enrich: govulncheck, named in config.reachability, finds it reachable, so it stays at P1. Phase 4, decide: correlation makes the two copies one row naming grype-fs; no config.exclude rule or VEX statement matches it. Phase 5, gate: --fail-on P1 fails the run on it. Phase 6, report: under --view actions its upgrade is listed first in P1 because KEV lists it. Phase 7, later: draugr diff against this report leaves it out, because it is not new.</desc>
   <defs>
     <style>
-      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:12.5px}
-      .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
-      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:1.2px;fill:#7CA6B8}
-      .mu{fill:#9AA4AE}.sm{font-size:11px}.b{font-weight:700}.c{text-anchor:middle}
-      .scr{fill:#E9635B}.shi{fill:#E8B84B}
-      .ccr{fill:#12161B;stroke:#E9635B;stroke-width:1.5}
-      .chi{fill:#12161B;stroke:#E8B84B;stroke-width:1.5}
+      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:14px}
+      .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+      .l{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;font-weight:700}
+      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;letter-spacing:1px;fill:#7CA6B8}
+      .mu{fill:#9AA4AE}.sm{font-size:12.5px}.b{font-weight:700}.c{text-anchor:middle}
+      .sev{fill:#12161B;stroke:#9AA4AE;stroke-width:1.5}
       .key{fill:#12161B;stroke:#2F3841;stroke-width:1.2}
       .sep{stroke:#232A31;stroke-width:1}
       .tu{fill:#E9635B}
     </style>
-    <symbol id="c1" viewBox="0 0 34 20" width="34" height="20"><rect width="34" height="20" rx="4" fill="#E5534B"/><text x="17" y="14.5" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="11" font-weight="700" fill="#0B0E11">P1</text></symbol>
+    <symbol id="c1" viewBox="0 0 34 21" width="34" height="21"><rect width="34" height="21" rx="4" fill="#E5534B"/><text x="17" y="15" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="12.5" font-weight="700" fill="#0B0E11">P1</text></symbol>
   </defs>
-  <rect width="900" height="430" rx="12" fill="#0B0E11"/>
-  <text class="e" x="24" y="32">THE LEDGER CVE THROUGH A RUN · KEV ON</text>
-  <text class="sm mu" x="190" y="62">lever acting</text>
-  <text class="sm mu" x="470" y="62">the ledger CVE</text>
-  <path d="M176 100V382" stroke="#2F3841" stroke-width="2"/>
+  <rect width="720" height="460" rx="12" fill="#0B0E11"/>
+  <text class="e" x="20" y="28">THE LEDGER CVE THROUGH A RUN · KEV ON</text>
+  <text class="sm mu" x="150" y="56">lever acting</text>
+  <text class="sm mu" x="378" y="56">the ledger CVE</text>
 
-  <path class="sep" d="M24 76H876"/>
-  <circle cx="176" cy="99" r="4" fill="#7CA6B8"/>
-  <text class="m b" x="24" y="97">1 start</text>
-  <text class="mu sm" x="24" y="112">feeds load</text>
-  <rect class="key" x="190" y="85" width="250" height="26" rx="5"/><text class="m" x="200" y="103">config.exploitability.kev</text>
-  <text class="mu" x="470" y="103">not found yet</text>
+  <path class="sep" d="M20 66H700"/>
+  <text class="l" x="20" y="90">1 start</text>
+  <text class="mu sm" x="20" y="108">feeds load</text>
+  <rect class="key" x="150" y="76" width="212" height="28" rx="5"/><text class="m" x="160" y="95">config.exploitability.kev</text>
+  <text class="mu" x="378" y="95">not found yet</text>
 
-  <path class="sep" d="M24 122H876"/>
-  <circle cx="176" cy="145" r="4" fill="#7CA6B8"/>
-  <text class="m b" x="24" y="143">2 scan</text>
-  <text class="mu sm" x="24" y="158">ranked as it arrives</text>
-  <rect class="key" x="190" y="131" width="250" height="26" rx="5"/><text class="m" x="200" y="149">trivy-fs · grype-fs · <tspan class="tu">↑</tspan> KEV</text>
-  <rect class="chi" x="470" y="134" width="50" height="20" rx="4"/><text class="m sm c shi" x="495" y="148">high</text>
-  <text class="m sm" x="528" y="148"><tspan class="tu">→</tspan></text>
-  <rect class="ccr" x="544" y="134" width="64" height="20" rx="4"/><text class="m sm c scr" x="576" y="148">critical</text>
-  <use href="#c1" x="618" y="134"/>
-  <text class="m sm" x="660" y="148"><tspan class="tu">↑</tspan> KEV</text>
-  <text class="sm mu" x="710" y="148">two copies, tier C2</text>
+  <path class="sep" d="M20 120H700"/>
+  <text class="l" x="20" y="144">2 scan</text>
+  <text class="mu sm" x="20" y="162">ranked on arrival</text>
+  <rect class="key" x="150" y="130" width="212" height="28" rx="5"/><text class="m" x="160" y="149">trivy-fs grype-fs <tspan class="tu">↑</tspan> KEV</text>
+  <rect class="sev" x="378" y="132" width="52" height="23" rx="4"/><text class="m c" x="404" y="148">high</text>
+  <text class="m" x="436" y="148"><tspan class="tu">→</tspan></text>
+  <rect class="sev" x="452" y="132" width="72" height="23" rx="4" style="stroke:#E6E8EA;stroke-width:2"/><text class="m b c" x="488" y="148">critical</text>
+  <use href="#c1" x="534" y="133"/>
+  <text class="m" x="576" y="148"><tspan class="tu">↑</tspan> KEV</text>
+  <text class="mu sm" x="378" y="168">two copies, tier C2</text>
 
-  <path class="sep" d="M24 168H876"/>
-  <circle cx="176" cy="191" r="4" fill="#7CA6B8"/>
-  <text class="m b" x="24" y="189">3 enrich</text>
-  <text class="mu sm" x="24" y="204">ranked again</text>
-  <rect class="key" x="190" y="177" width="250" height="26" rx="5"/><text class="m" x="200" y="195">config.reachability</text>
-  <use href="#c1" x="470" y="180"/>
-  <text x="514" y="195">reachable: stays at P1</text>
+  <path class="sep" d="M20 174H700"/>
+  <text class="l" x="20" y="198">3 enrich</text>
+  <text class="mu sm" x="20" y="216">ranked again</text>
+  <rect class="key" x="150" y="184" width="212" height="28" rx="5"/><text class="m" x="160" y="203">config.reachability</text>
+  <use href="#c1" x="378" y="187"/>
+  <text x="420" y="203">reachable: stays at P1</text>
 
-  <path class="sep" d="M24 214H876"/>
-  <circle cx="176" cy="237" r="4" fill="#7CA6B8"/>
-  <text class="m b" x="24" y="235">4 decide</text>
-  <text class="mu sm" x="24" y="250">what is set aside</text>
-  <rect class="key" x="190" y="223" width="250" height="26" rx="5"/><text class="m" x="200" y="241">correlation</text>
-  <use href="#c1" x="470" y="226"/>
-  <text x="514" y="241">one row, also grype-fs; no exclusion or VEX matches</text>
+  <path class="sep" d="M20 228H700"/>
+  <text class="l" x="20" y="252">4 decide</text>
+  <text class="mu sm" x="20" y="270">set aside</text>
+  <rect class="key" x="150" y="238" width="212" height="28" rx="5"/><text class="m" x="160" y="257">correlation</text>
+  <use href="#c1" x="378" y="241"/>
+  <text x="420" y="257">one row, also grype-fs</text>
+  <text class="mu sm" x="420" y="275">no exclusion or VEX matches</text>
 
-  <path class="sep" d="M24 260H876"/>
-  <circle cx="176" cy="283" r="4" fill="#7CA6B8"/>
-  <text class="m b" x="24" y="281">5 gate</text>
-  <text class="mu sm" x="24" y="296">what fails the run</text>
-  <rect class="key" x="190" y="269" width="250" height="26" rx="5" style="stroke:#E6E8EA;stroke-width:2"/><text class="m" x="200" y="287">--fail-on P1</text>
-  <use href="#c1" x="470" y="272"/>
-  <text x="514" y="287">fails the run</text>
+  <path class="sep" d="M20 282H700"/>
+  <text class="l" x="20" y="306">5 gate</text>
+  <text class="mu sm" x="20" y="324">fails the run</text>
+  <rect class="key" x="150" y="292" width="212" height="28" rx="5" style="stroke:#E6E8EA;stroke-width:2"/><text class="m" x="160" y="311">--fail-on P1</text>
+  <use href="#c1" x="378" y="295"/>
+  <text x="420" y="311">fails the run</text>
 
-  <path class="sep" d="M24 306H876"/>
-  <circle cx="176" cy="329" r="4" fill="#7CA6B8"/>
-  <text class="m b" x="24" y="327">6 report</text>
-  <text class="mu sm" x="24" y="342">what is shown</text>
-  <rect class="key" x="190" y="315" width="250" height="26" rx="5"/><text class="m" x="200" y="333">--view actions · --min-priority</text>
-  <use href="#c1" x="470" y="318"/>
-  <text x="514" y="333">its upgrade first in P1, because KEV lists it</text>
+  <path class="sep" d="M20 336H700"/>
+  <text class="l" x="20" y="360">6 report</text>
+  <text class="mu sm" x="20" y="378">what is shown</text>
+  <rect class="key" x="150" y="346" width="212" height="28" rx="5"/><text class="m" x="160" y="365">--view actions</text>
+  <use href="#c1" x="378" y="349"/>
+  <text x="420" y="365">its upgrade first in P1</text>
+  <text class="mu sm" x="420" y="383">because KEV lists it</text>
 
-  <path class="sep" d="M24 352H876"/>
-  <circle cx="176" cy="375" r="4" fill="#7CA6B8"/>
-  <text class="m b" x="24" y="373">7 later</text>
-  <text class="mu sm" x="24" y="388">the next pull request</text>
-  <rect class="key" x="190" y="361" width="250" height="26" rx="5"/><text class="m" x="200" y="379">draugr diff</text>
-  <text class="mu" x="470" y="379">not listed: it is not new</text>
-  <path class="sep" d="M24 398H876"/>
+  <path class="sep" d="M20 390H700"/>
+  <text class="l" x="20" y="414">7 later</text>
+  <text class="mu sm" x="20" y="432">next pull request</text>
+  <rect class="key" x="150" y="400" width="212" height="28" rx="5"/><text class="m" x="160" y="419">draugr diff</text>
+  <text class="mu" x="378" y="419">not listed: it is not new</text>
+  <path class="sep" d="M20 444H700"/>
 </svg>

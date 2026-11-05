@@ -1,61 +1,45 @@
-<svg viewBox="0 0 900 330" width="900" height="330" role="img" aria-label="The three descriptor blocks that turn signals on, when each applies in a run, what each reads or sends, and what each can do to the ledger CVE." xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 720 400" width="720" height="400" role="img" aria-label="The three descriptor blocks that turn signals on, when each applies in a run, what each reads or sends, and what each can do to the ledger CVE." xmlns="http://www.w3.org/2000/svg">
   <title>Turning signals on, read for the ledger CVE</title>
-  <desc>config.exploitability with kev and epss set to cache: the feeds are read from ~/.draugr/feeds at the start of the run and applied as each finding is ranked; the scan reaches no network, and draugr feeds update fills the cache. It can raise the ledger CVE from high to critical. config.dependencyHealth with enabled true: applied once every scanner has finished; it sends the list of packages to deps.dev during the scan. It can raise the ledger CVE to critical if its package is malicious or its version deprecated. config.reachability with analyzers govulncheck: govulncheck runs with the sca control and its verdict applies once every scanner has finished; Go only, and it needs a Go toolchain. It can lower the ledger CVE from high to medium, which leaves it in P2.</desc>
+  <desc>config.exploitability with kev and epss set to cache: the feeds are read from ~/.draugr/feeds at the start of the run and applied as each finding is ranked, in phase 2; the scan reaches no network. It can raise the ledger CVE from high to critical, P1. config.dependencyHealth with enabled true: applied once every scanner has finished, in phase 3; it sends deps.dev the list of packages during the scan. It can raise the ledger CVE to critical, P1, if its package is malicious or its version deprecated. config.reachability with analyzers govulncheck: govulncheck runs in phase 2 and its verdict applies in phase 3; Go only, and it needs a Go toolchain. It can lower the ledger CVE one level to medium, which leaves it in P2.</desc>
   <defs>
     <style>
-      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:12px}
-      .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px}
-      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:1.2px;fill:#7CA6B8}
-      .mu{fill:#9AA4AE}.sm{font-size:11px}.b{font-weight:700}.c{text-anchor:middle}
-      .scr{fill:#E9635B}.shi{fill:#E8B84B}.sme{fill:#7CA6B8}
+      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:14px}
+      .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;letter-spacing:1px;fill:#7CA6B8}
+      .mu{fill:#9AA4AE}.sm{font-size:12.5px}.b{font-weight:700}
       .code{fill:#12161B;stroke:#2F3841;stroke-width:1.2}
       .g{stroke:#232A31;stroke-width:1}
       .tu{fill:#E9635B}.td{fill:#7CA6B8}
     </style>
   </defs>
-  <rect width="900" height="330" rx="12" fill="#0B0E11"/>
-  <text class="e" x="24" y="30">CONFIGURATION · WHAT EACH BLOCK CAN DO TO THE LEDGER CVE</text>
-  <text class="sm mu" x="24" y="60">in the descriptor</text>
-  <text class="sm mu" x="300" y="60">applies</text>
-  <text class="sm mu" x="500" y="60">reads or sends</text>
-  <text class="sm mu" x="700" y="60">the ledger CVE</text>
-  <path class="g" d="M24 70H876"/>
+  <rect width="720" height="400" rx="12" fill="#0B0E11"/>
+  <text class="e" x="20" y="28">CONFIGURATION · WHAT EACH BLOCK CAN DO TO THE LEDGER CVE</text>
 
-  <rect class="code" x="24" y="82" width="256" height="70" rx="6"/>
-  <text class="m" x="36" y="100">config:</text>
-  <text class="m" x="50" y="116">exploitability:</text>
-  <text class="m" x="64" y="132">kev: cache</text>
-  <text class="m" x="64" y="146">epss: cache</text>
-  <text x="300" y="104">feeds read at start</text>
-  <text class="sm mu" x="300" y="122">applied as each finding</text>
-  <text class="sm mu" x="300" y="136">is ranked · phase 2</text>
-  <text x="500" y="104">~/.draugr/feeds</text>
-  <text class="sm mu" x="500" y="122">no network in the scan;</text>
-  <text class="sm mu" x="500" y="136">draugr feeds update fills it</text>
-  <text class="m" x="700" y="110"><tspan class="shi">high</tspan> <tspan class="tu">↑</tspan> <tspan class="scr">critical</tspan></text>
-  <text class="sm mu" x="700" y="128">on KEV, or EPSS ≥ 0.5 · P1</text>
-  <path class="g" d="M24 164H876"/>
+  <rect class="code" x="20" y="44" width="250" height="96" rx="6"/>
+  <text class="m" x="34" y="68">config:</text>
+  <text class="m" x="50" y="88">exploitability:</text>
+  <text class="m" x="66" y="108">kev: cache</text>
+  <text class="m" x="66" y="128">epss: cache</text>
+  <text class="sm mu" x="290" y="66">applies</text><text x="390" y="66">read at start, applied at ranking</text>
+  <text class="sm mu" x="290" y="92">reads</text><text x="390" y="92">~/.draugr/feeds; no network</text>
+  <text class="sm mu" x="290" y="118">ledger CVE</text><text class="m" x="390" y="118">high <tspan class="tu">↑</tspan> critical · P1</text>
+  <path class="g" d="M20 156H700"/>
 
-  <rect class="code" x="24" y="176" width="256" height="54" rx="6"/>
-  <text class="m" x="36" y="194">config:</text>
-  <text class="m" x="50" y="210">dependencyHealth:</text>
-  <text class="m" x="64" y="224">enabled: true</text>
-  <text x="300" y="198">after every scanner</text>
-  <text class="sm mu" x="300" y="216">phase 3 · off by default</text>
-  <text x="500" y="198">sends to deps.dev</text>
-  <text class="sm mu" x="500" y="216">the package list, nothing else</text>
-  <text class="m" x="700" y="204"><tspan class="shi">high</tspan> <tspan class="tu">↑</tspan> <tspan class="scr">critical</tspan></text>
-  <text class="sm mu" x="700" y="222">malicious or deprecated · P1</text>
-  <path class="g" d="M24 242H876"/>
+  <rect class="code" x="20" y="172" width="250" height="76" rx="6"/>
+  <text class="m" x="34" y="196">config:</text>
+  <text class="m" x="50" y="216">dependencyHealth:</text>
+  <text class="m" x="66" y="236">enabled: true</text>
+  <text class="sm mu" x="290" y="194">applies</text><text x="390" y="194">after every scanner, phase 3</text>
+  <text class="sm mu" x="290" y="220">sends</text><text x="390" y="220">the package list to deps.dev</text>
+  <text class="sm mu" x="290" y="246">ledger CVE</text><text class="m" x="390" y="246">high <tspan class="tu">↑</tspan> critical · P1</text>
+  <path class="g" d="M20 264H700"/>
 
-  <rect class="code" x="24" y="254" width="256" height="54" rx="6"/>
-  <text class="m" x="36" y="272">config:</text>
-  <text class="m" x="50" y="288">reachability:</text>
-  <text class="m" x="64" y="302">analyzers: [govulncheck]</text>
-  <text x="300" y="276">runs in phase 2</text>
-  <text class="sm mu" x="300" y="294">verdict applied in phase 3</text>
-  <text x="500" y="276">your Go code</text>
-  <text class="sm mu" x="500" y="294">Go only; needs a toolchain</text>
-  <text class="m" x="700" y="282"><tspan class="shi">high</tspan> <tspan class="td">↓</tspan> <tspan class="sme">medium</tspan></text>
-  <text class="sm mu" x="700" y="300">unreachable · P2 holds</text>
+  <rect class="code" x="20" y="280" width="250" height="76" rx="6"/>
+  <text class="m" x="34" y="304">config:</text>
+  <text class="m" x="50" y="324">reachability:</text>
+  <text class="m" x="66" y="344">analyzers: [govulncheck]</text>
+  <text class="sm mu" x="290" y="302">applies</text><text x="390" y="302">runs in phase 2, applied in phase 3</text>
+  <text class="sm mu" x="290" y="328">reads</text><text x="390" y="328">your Go code; needs a toolchain</text>
+  <text class="sm mu" x="290" y="354">ledger CVE</text><text class="m" x="390" y="354">high <tspan class="td">↓</tspan> medium · P2 holds</text>
+  <text class="sm mu" x="20" y="386">Dependency health is off by default. Reachability is Go only.</text>
 </svg>
