@@ -426,7 +426,7 @@ type ExploitabilityConfig struct {
 	KEV  string `yaml:"kev,omitempty"`
 	EPSS string `yaml:"epss,omitempty"`
 	// EPSSThreshold is the EPSS probability (0–1) at or above which a finding's severity is
-	// raised one band. Zero means the CLI default.
+	// raised one level. Zero means the CLI default.
 	//
 	// A pointer so "not set" and "deliberately zero" stay distinguishable: zero disables the
 	// EPSS bump entirely, which is a thing someone might mean.

@@ -89,8 +89,8 @@ reads the metadata from the JSON report the same run writes.
 | `MEDIUM` | low | medium | high |
 | `LOW` | low | low | medium |
 
-- **One band lower**, never below low, for a rule with confidence `LOW` or subcategory `audit`, and
-  one band where it is both. Semgrep defines a `LOW` confidence rule as one that expects a fair
+- **One level lower**, never below low, for a rule with confidence `LOW` or subcategory `audit`, and
+  one level where it is both. Semgrep defines a `LOW` confidence rule as one that expects a fair
   amount of false positives, and an audit rule as one for code auditors.
 - **No change** for confidence `MEDIUM` or `HIGH`, or subcategory `vuln` or `secure default`.
 - **The level** for a rule that does not state both impact and likelihood, which a rule written by

@@ -606,7 +606,7 @@ It adds no findings of its own. Its verdicts are folded onto the findings the ma
 already produced, so a Go vulnerability is still reported once, not once as `CVE-2022-32149` and
 again as `GO-2022-1059`. A vulnerability only it reports is kept.
 
-**What a verdict does.** A finding nothing can reach is ranked one band down when the analyzer says
+**What a verdict does.** A finding nothing can reach is ranked one severity level down when the analyzer says
 it followed calls or data to get there, and the report says why. A verdict reached any other way is
 reported and moves nothing;
 [prioritization](../concepts/prioritization.md#reachability) has the methods and
@@ -664,7 +664,7 @@ of packages the run found. Nothing else leaves the machine: no source, no findin
 | Signal | What it means | What it does |
 |---|---|---|
 | Malicious | the package is in the [OSSF Malicious Packages Project](https://github.com/ossf/malicious-packages) | ranks it critical |
-| Deprecated | the publisher marked this version as no longer supported | ranks it one band higher |
+| Deprecated | the publisher marked this version as no longer supported | raises its severity one level |
 
 Everything else the service reports is read and deliberately ignored. A newer version existing is
 true of nearly every dependency, and a vulnerability it knows about is one your scanners already
@@ -1955,7 +1955,7 @@ config:
 | Key | Meaning |
 |-----|---------|
 | `kev` | CISA's Known Exploited Vulnerabilities catalog. A CVE on it becomes **critical**, whatever it was. |
-| `epss` | FIRST's EPSS scores. A CVE at or above `epssThreshold` is raised **one band**. |
+| `epss` | FIRST's EPSS scores. A CVE at or above `epssThreshold` is raised **one level**. |
 | `epssThreshold` | The EPSS probability (0–1) that triggers the bump. Zero disables it while leaving KEV in force. |
 | `maxAge` | How old a cached feed may be before `auto` refetches it and a scan warns, and before govulncheck stops reading the local Go vulnerability database. `draugr feeds status --saga` and `feeds update --saga` apply the same limit. A Go duration; `0s` never expires a copy. |
 

@@ -39,8 +39,8 @@ func (s Severity) Rank() int {
 // AtLeast reports whether s is at least as severe as other.
 func (s Severity) AtLeast(other Severity) bool { return s.Rank() >= other.Rank() }
 
-// Escalate returns the next-higher severity band; critical is already the maximum. Used by
-// exploitability enrichment to bump a finding one band.
+// Escalate returns the next-higher severity level; critical is already the maximum. Used by
+// exploitability enrichment to bump a finding one level.
 func (s Severity) Escalate() Severity {
 	switch s {
 	case SeverityLow:
@@ -52,10 +52,10 @@ func (s Severity) Escalate() Severity {
 	}
 }
 
-// Deescalate returns the next-lower severity band; low is already the minimum. Used by
-// reachability analysis to rank a finding one band down when nothing can reach it.
+// Deescalate returns the next-lower severity level; low is already the minimum. Used by
+// reachability analysis to rank a finding one level down when nothing can reach it.
 //
-// One band, not several, and never to nothing. A call graph is evidence about how the code is
+// One level, not several, and never to nothing. A call graph is evidence about how the code is
 // called today, not a proof that the flaw cannot be triggered. Reflection and dynamic dispatch
 // are invisible to it, and the call that makes it reachable can be written tomorrow. Ranking it
 // below the things that are reachable is the useful part; making it disappear would be a

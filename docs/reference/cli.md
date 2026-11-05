@@ -491,7 +491,7 @@ The flag tables below follow the groups in `draugr scan --help`.
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--kev` | - | CISA KEV catalog: a file path, or `cache`/`auto` to read `~/.draugr/feeds`. A CVE on it is escalated to critical. Overrides `config.exploitability.kev` |
-| `--epss` | - | FIRST EPSS scores: a file path, or `cache`/`auto` to read `~/.draugr/feeds`. A CVE at/above `--epss-threshold` is bumped one band. Overrides `config.exploitability.epss` |
+| `--epss` | - | FIRST EPSS scores: a file path, or `cache`/`auto` to read `~/.draugr/feeds`. A CVE at/above `--epss-threshold` is bumped one level. Overrides `config.exploitability.epss` |
 | `--epss-threshold` | `0.5` | EPSS probability (0–1) that triggers a severity bump. Overrides `config.exploitability.epssThreshold` |
 
 **Output**
@@ -644,7 +644,7 @@ either, the console says so. See [prioritization](../concepts/prioritization.md)
 **Exploitability (`--kev`/`--epss`)** raises a finding's severity by real-world signals. A CVE on
 CISA's [KEV catalog](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) (confirmed
 exploited) becomes critical; a CVE at or above the [EPSS](https://www.first.org/epss/) threshold
-(predicted likely) is bumped one band. Both are optional and only affect findings whose rule id is
+(predicted likely) is bumped one level. Both are optional and only affect findings whose rule id is
 a CVE. [Using the cache in a scan](#using-the-cache-in-a-scan) says where the data comes from.
 
 ### Scanners that do more than read

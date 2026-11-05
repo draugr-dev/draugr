@@ -88,9 +88,9 @@ func TestSemgrepRatingTable(t *testing.T) {
 		{"low low", meta("LOW", "LOW", "MEDIUM", vuln), sarif.SeverityLow, "impact low · likelihood low"},
 
 		{"high confidence changes nothing", meta("HIGH", "HIGH", "HIGH", vuln), sarif.SeverityCritical, "impact high · likelihood high"},
-		{"low confidence lowers one band", meta("HIGH", "HIGH", "LOW", vuln), sarif.SeverityHigh,
+		{"low confidence lowers one level", meta("HIGH", "HIGH", "LOW", vuln), sarif.SeverityHigh,
 			"impact high · likelihood high · confidence low"},
-		{"audit lowers one band", meta("HIGH", "HIGH", "MEDIUM", []any{"audit"}), sarif.SeverityHigh,
+		{"audit lowers one level", meta("HIGH", "HIGH", "MEDIUM", []any{"audit"}), sarif.SeverityHigh,
 			"impact high · likelihood high · subcategory audit"},
 		{"both lower once", meta("HIGH", "HIGH", "LOW", []any{"audit"}), sarif.SeverityHigh,
 			"impact high · likelihood high · confidence low · subcategory audit"},
@@ -186,7 +186,7 @@ func TestParseSemgrepRatesRecordedRegistryOutput(t *testing.T) {
 		// A secure default keeps its cell.
 		"python.lang.security.audit.subprocess-shell-true.subprocess-shell-true": {"error", sarif.SeverityMedium,
 			"impact low · likelihood high"},
-		// Lowered one band: by audit, by confidence LOW, and by both at once.
+		// Lowered one level: by audit, by confidence LOW, and by both at once.
 		"python.flask.security.injection.os-system-injection.os-system-injection": {"error", sarif.SeverityMedium,
 			"impact high · likelihood medium · subcategory audit"},
 		"javascript.lang.security.audit.dangerous-spawn-shell.dangerous-spawn-shell": {"error", sarif.SeverityMedium,

@@ -25,7 +25,7 @@ var banditRatingFields = []string{"issue_severity", "issue_confidence"}
 // banditRating is the rating a Bandit result's properties give, or nil for one with no
 // issue_severity Draugr has a row for, which keeps its level.
 //
-// A result Bandit rates confidence LOW is one band lower than its severity. Bandit's level already
+// A result Bandit rates confidence LOW is one level lower than its severity. Bandit's level already
 // follows issue_severity, so the confidence is what the level loses.
 //
 // The detail names Bandit's own properties. Printed as "severity medium" beside a finding Draugr

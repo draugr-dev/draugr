@@ -62,7 +62,7 @@ below.
 | `LOW` | low | low |
 
 Bandit already writes the level from `issue_severity`, so the rating differs from the level only for
-a result Bandit rates `LOW` confidence, which is one band lower. Bandit has no rung above `HIGH`, so
+a result Bandit rates `LOW` confidence, which is one level lower. Bandit has no rung above `HIGH`, so
 nothing it reports is critical. A result with an `issue_severity` outside the three, such as
 `UNDEFINED`, keeps its level, and a result carrying a `security-severity` keeps that.
 
