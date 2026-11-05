@@ -12,6 +12,16 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.166.2] - 2026-11-05
+
+### Fixed
+
+- **A scan of a large Go module no longer starts one compile process per CPU.** Every tool Draugr runs gets `GOMAXPROCS` and a `GOFLAGS` `-p` of half the CPUs or one per 4 GiB of memory, whichever is fewer, within container and cgroup limits. Setting either variable yourself overrides it. `stats.peakToolMemoryBytes` in `report.json` records the largest tool process's memory.
+
+- **Scanning several Go repositories at once no longer starts a Go package load per repository.** `govulncheck` and `gosec` now take turns, one load at a time across the run, each at the full per-tool parallelism bound. A run with several loads can take longer; each job's wait is in `stats.orderWaitsMs`.
+
+- **Scanning the same Go repository twice gives the same `licenses` result.** `trivy-license` starts after `govulncheck` and `gosec` finish on that repository, so the Go module cache is in the same state every time. A scan can take longer by that wait, which `report.json` reports as `stats.orderWaitsMs`.
+
 ## [0.166.1] - 2026-11-03
 
 ### Fixed
@@ -6807,7 +6817,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.166.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.166.2...HEAD
+[0.166.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.166.2
 [0.166.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.166.1
 [0.166.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.166.0
 [0.165.6]: https://github.com/draugr-dev/draugr/releases/tag/v0.165.6
