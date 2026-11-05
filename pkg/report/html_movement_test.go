@@ -10,13 +10,14 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
-// A finding's movement is every input that moved its band. The cases that look like a movement and
-// are not matter as much as the ones that are: a verdict exploitation outranked, a verdict on a
-// finding with nowhere lower to go, and a path in a commit all leave the band where severity put
-// it.
+// A finding's movement is every mark standing on it. The cases that look like a movement and are
+// not matter as much as the ones that are: a verdict exploitation outranked and a verdict on a
+// finding with nowhere lower to go leave the band where severity put it, and a raise the verdict
+// then lowered does not stand.
 func TestAFindingHoldsEveryInputThatMovedItsBand(t *testing.T) {
 	kev := &sarif.Escalation{Signal: "kev", From: "high", To: "critical"}
 	epss := &sarif.Escalation{Signal: "epss", From: "medium", To: "high", Detail: "EPSS 0.87"}
+	deprecated := &sarif.Escalation{Signal: "deprecated", From: "low", To: "medium"}
 	lowered := &sarif.Reachability{State: sarif.ReachabilityUnreachable, RankedAs: "low"}
 	// No RankedAs: the verdict was recorded and changed nothing, either because a signal outranked
 	// it or because the finding was already as low as it goes.
@@ -33,6 +34,16 @@ func TestAFindingHoldsEveryInputThatMovedItsBand(t *testing.T) {
 		{"raised and floored", "escalation floor", "KEV", finding{escalation: kev, priorityFloor: "floor"}},
 		{"floored and lowered", "floor unreachable", "floor", finding{priorityFloor: "floor", reachability: lowered}},
 		{"found in history and nothing else", "untouched", "history", finding{historical: true}},
+		{"raised by KEV, found in history", "escalation", "KEV", finding{escalation: kev, historical: true}},
+		{"held at the minimum", "minimum", "minimum", finding{severityFloor: "high"}},
+		{"held at the minimum and floored", "floor minimum", "floor",
+			finding{severityFloor: "high", priorityFloor: "floor"}},
+		{"held at the minimum, then raised", "escalation", "EPSS 0.87", finding{severityFloor: "high", escalation: epss}},
+		{"held at the minimum, then lowered", "unreachable", "unreachable",
+			finding{severityFloor: "high", reachability: lowered}},
+		{"raised by deprecation, then lowered", "unreachable", "unreachable",
+			finding{escalation: deprecated, reachability: lowered}},
+		{"raised by KEV over a verdict it outranked", "escalation", "KEV", finding{escalation: kev, reachability: standing}},
 		{"moved by nothing", "untouched", "", finding{}},
 	} {
 		got := toHTMLFinding(c.f)
@@ -43,6 +54,16 @@ func TestAFindingHoldsEveryInputThatMovedItsBand(t *testing.T) {
 		// only the filter holds all of them.
 		if got.MovedLabel != c.mark {
 			t.Errorf("%s: mark %q, want %q", c.name, got.MovedLabel, c.mark)
+		}
+		// The row's mark is the first value the filter holds, and a row with no mark, or only
+		// ↩ history, which moves no band, is untouched.
+		first := strings.Fields(got.Movement)[0]
+		m := movedBy(c.f)
+		if m != nil && m.key == moveHistory {
+			m = nil
+		}
+		if m == nil && first != moveUntouched || m != nil && m.key != first {
+			t.Errorf("%s: the mark and the filter disagree: mark %+v, movement %q", c.name, m, got.Movement)
 		}
 	}
 }
@@ -132,14 +153,15 @@ func TestTheMovementMenuCountsEveryFindingUnderEachInputThatMovedIt(t *testing.T
 		}
 	}
 	// The values in the order the menu offers them everywhere else.
-	order := []string{"raised by a signal", "floored by a control", "lowered as unreachable", "ranked from severity alone"}
+	order := []string{"raised by a signal", "floored by a control", "lowered as unreachable",
+		"raised to a minimum severity", "ranked from severity alone"}
+	if strings.Contains(menu, "history") {
+		t.Error("history is offered as a movement, and it moves no band")
+	}
 	for i := 1; i < len(order); i++ {
 		if strings.Index(menu, order[i-1]) > strings.Index(menu, order[i]) {
 			t.Errorf("%q is offered after %q", order[i-1], order[i])
 		}
-	}
-	if strings.Contains(menu, "history") {
-		t.Error("history is offered as a movement, and it moves no band")
 	}
 
 	// Folded with the secondary menus, after Severity, and marked as holding a set per row.
@@ -168,6 +190,8 @@ func TestTheMovementMenuOffersEveryValueWithAZero(t *testing.T) {
 		`value="floor" data-label="floored by a control" disabled>floored by a control</span>
         <span class="c">0</span>`,
 		`value="unreachable" data-label="lowered as unreachable" disabled>lowered as unreachable</span>
+        <span class="c">0</span>`,
+		`value="minimum" data-label="raised to a minimum severity" disabled>raised to a minimum severity</span>
         <span class="c">0</span>`,
 		`value="untouched" data-label="ranked from severity alone">ranked from severity alone</span>
         <span class="c">2</span>`,

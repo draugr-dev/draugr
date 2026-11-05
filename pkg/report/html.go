@@ -127,9 +127,9 @@ type htmlView struct {
 	// Fixes and Scanners are the project's too: which kinds of work this run needs, and which
 	// tools reported anything.
 	Fixes, Scanners []htmlFacet
-	// Movements offers what moved each finding's band, in the labels Draugr uses wherever it lists
-	// findings. Every value is offered because the vocabulary is Draugr's own, and a finding two
-	// inputs moved counts under both, so the counts can add up to more than the list.
+	// Movements offers each mark a finding can carry, in the labels Draugr uses wherever it lists
+	// findings. Every value is offered because the vocabulary is Draugr's own, and a finding carrying
+	// two marks counts under both, so the counts can add up to more than the list.
 	Movements []htmlFacet
 	// SARIFHref and TSVHref are data: URIs. Downloads that work with no JavaScript and under any
 	// content-security policy.
@@ -375,7 +375,7 @@ type htmlFinding struct {
 	// uses. MovedDir is "up" or "down" where the band moved, and empty for a mark that moved nothing,
 	// so the chip can wear the color of the direction rather than of whatever raised it.
 	MovedGlyph, MovedLabel, MovedDir string
-	// Movement is every input that moved the band, as space-separated keys from movements, which
+	// Movement is every mark standing on the finding, as space-separated keys from movements, which
 	// the Movement menu matches against. MovedLabel names one of them, and this holds them all.
 	Movement string
 	// HelpURI documents the rule. Rendered as a link because this is the one format where a
@@ -844,6 +844,7 @@ var movementMenu = []struct{ key, label string }{
 	{moveEscalation, "raised by a signal"},
 	{moveFloor, "floored by a control"},
 	{moveUnreachable, "lowered as unreachable"},
+	{moveMinimum, "raised to a minimum severity"},
 	{moveUntouched, "ranked from severity alone"},
 }
 

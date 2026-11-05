@@ -151,6 +151,7 @@ defined in [Signals](prioritization.md#signals), with what it moves and the key 
 | <span class="dr-up">↑ deprecated</span> | the publisher marked the version deprecated |
 | <span class="dr-down">↓ unreachable</span> | `govulncheck` found no call path to the flaw, Go only |
 | <span class="dr-up">↑ floor</span> | a leaked credential, ranked at C1 whatever its component declares |
+| <span class="dr-up">↑ minimum</span> | a leaked credential, held at high whatever its scanner rated it |
 | ↩ history | the finding describes a commit rather than the current tree, so its path may be gone |
 
 ## Counts
