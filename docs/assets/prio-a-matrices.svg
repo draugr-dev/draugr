@@ -1,81 +1,81 @@
-<svg viewBox="0 0 900 360" width="900" height="360" role="img" aria-label="Step 1 crosses exposure with criticality into a tier, C1 to C4. Step 2 crosses the tier with severity into a band, P1 to P4." xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 720 380" width="720" height="380" role="img" aria-label="Step 1 crosses exposure with criticality into a tier, C1 to C4. Step 2 crosses the tier with severity into a band, P1 to P4." xmlns="http://www.w3.org/2000/svg">
   <title>The two matrices</title>
-  <desc>Step 1, tier. Rows are exposure, columns are criticality critical, important, supporting. public: C1, C1, C2. authenticated: C1, C2, C3. internal: C2, C3, C4. restricted: C3, C4, C4. Step 2, band. Rows are the tier, columns are severity critical, high, medium, low. C1: P1, P1, P2, P3. C2: P1, P2, P2, P3. C3: P2, P3, P3, P4. C4: P2, P3, P4, P4. criticality: critical describes the component, an outage or data loss for the business if it fails. severity: critical describes the flaw, the harm it could cause if exploited. Both matrices are read for every finding when it is ranked.</desc>
+  <desc>Step 1, tier. Rows are exposure, columns are criticality critical, important, supporting. public: C1, C1, C2. authenticated: C1, C2, C3. internal: C2, C3, C4. restricted: C3, C4, C4. Step 2, band. Rows are the tier, columns are severity critical, high, medium, low. C1: P1, P1, P2, P3. C2: P1, P2, P2, P3. C3: P2, P3, P3, P4. C4: P2, P3, P4, P4. criticality: critical describes the component, an outage or data loss if it fails. severity: critical describes the flaw, the harm it could cause if exploited. Both matrices are read for every finding as it is ranked.</desc>
   <defs>
     <style>
-      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:13px}
+      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:14px}
       .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:1.2px;fill:#7CA6B8}
-      .mu{fill:#9AA4AE}.sm{font-size:11px}.h{font-size:11.5px}.b{font-weight:700}.c{text-anchor:middle}.r{text-anchor:end}
+      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;letter-spacing:1px;fill:#7CA6B8}
+      .mu{fill:#9AA4AE}.sm{font-size:12.5px}.h{font-size:12.5px}.b{font-weight:700}.c{text-anchor:middle}.r{text-anchor:end}
       .t1{fill:#3A4550}.t2{fill:#2A333C}.t3{fill:#1C232A}.t4{fill:#12161B;stroke:#2F3841;stroke-width:1}
       .p1{fill:#E5534B}.p2{fill:#E8B84B}.p3{fill:#7CA6B8}.p4{fill:#6B7680}
       .i1{fill:#0B0E11}.i2{fill:#16110A}.i3{fill:#0A1116}.i4{fill:#FFFFFF}
-      .scr{fill:#E9635B}.shi{fill:#E8B84B}.sme{fill:#7CA6B8}.slo{fill:#859198}
       .box{fill:#12161B;stroke:#2F3841;stroke-width:1.5}
     </style>
     <marker id="h" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L8 4L0 8z" fill="#9AA4AE"/></marker>
   </defs>
-  <rect width="900" height="360" rx="12" fill="#0B0E11"/>
+  <rect width="720" height="380" rx="12" fill="#0B0E11"/>
 
-  <text class="e" x="24" y="30">STEP 1 · TIER</text>
-  <text class="mu sm" x="24" y="50">rows exposure · columns criticality</text>
-  <text class="m h c" x="172" y="84">critical</text>
-  <text class="m h c" x="248" y="84">important</text>
-  <text class="m h c" x="324" y="84">supporting</text>
-  <text class="m h r" x="128" y="118">public</text>
-  <text class="m h r" x="128" y="152">authenticated</text>
-  <text class="m h r" x="128" y="186">internal</text>
-  <text class="m h r" x="128" y="220">restricted</text>
-  <rect class="t1" x="136" y="98" width="72" height="30" rx="4"/><text class="m b c" x="172" y="118">C1</text>
-  <rect class="t1" x="212" y="98" width="72" height="30" rx="4"/><text class="m b c" x="248" y="118">C1</text>
-  <rect class="t2" x="288" y="98" width="72" height="30" rx="4"/><text class="m b c" x="324" y="118">C2</text>
-  <rect class="t1" x="136" y="132" width="72" height="30" rx="4"/><text class="m b c" x="172" y="152">C1</text>
-  <rect class="t2" x="212" y="132" width="72" height="30" rx="4"/><text class="m b c" x="248" y="152">C2</text>
-  <rect class="t3" x="288" y="132" width="72" height="30" rx="4"/><text class="m b c" x="324" y="152">C3</text>
-  <rect class="t2" x="136" y="166" width="72" height="30" rx="4"/><text class="m b c" x="172" y="186">C2</text>
-  <rect class="t3" x="212" y="166" width="72" height="30" rx="4"/><text class="m b c" x="248" y="186">C3</text>
-  <rect class="t4" x="288" y="166" width="72" height="30" rx="4"/><text class="m b c" x="324" y="186">C4</text>
-  <rect class="t3" x="136" y="200" width="72" height="30" rx="4"/><text class="m b c" x="172" y="220">C3</text>
-  <rect class="t4" x="212" y="200" width="72" height="30" rx="4"/><text class="m b c" x="248" y="220">C4</text>
-  <rect class="t4" x="288" y="200" width="72" height="30" rx="4"/><text class="m b c" x="324" y="220">C4</text>
+  <text class="e" x="20" y="28">STEP 1 · TIER</text>
+  <text class="mu sm" x="20" y="50">rows exposure · columns criticality</text>
+  <text class="m h c" x="159" y="86">critical</text>
+  <text class="m h c" x="233" y="86">important</text>
+  <text class="m h c" x="307" y="86">supporting</text>
+  <text class="m h r" x="118" y="116">public</text>
+  <text class="m h r" x="118" y="150">authenticated</text>
+  <text class="m h r" x="118" y="184">internal</text>
+  <text class="m h r" x="118" y="218">restricted</text>
+  <rect class="t1" x="124" y="96" width="70" height="30" rx="4"/><text class="m b c" x="159" y="116">C1</text>
+  <rect class="t1" x="198" y="96" width="70" height="30" rx="4"/><text class="m b c" x="233" y="116">C1</text>
+  <rect class="t2" x="272" y="96" width="70" height="30" rx="4"/><text class="m b c" x="307" y="116">C2</text>
+  <rect class="t1" x="124" y="130" width="70" height="30" rx="4"/><text class="m b c" x="159" y="150">C1</text>
+  <rect class="t2" x="198" y="130" width="70" height="30" rx="4"/><text class="m b c" x="233" y="150">C2</text>
+  <rect class="t3" x="272" y="130" width="70" height="30" rx="4"/><text class="m b c" x="307" y="150">C3</text>
+  <rect class="t2" x="124" y="164" width="70" height="30" rx="4"/><text class="m b c" x="159" y="184">C2</text>
+  <rect class="t3" x="198" y="164" width="70" height="30" rx="4"/><text class="m b c" x="233" y="184">C3</text>
+  <rect class="t4" x="272" y="164" width="70" height="30" rx="4"/><text class="m b c" x="307" y="184">C4</text>
+  <rect class="t3" x="124" y="198" width="70" height="30" rx="4"/><text class="m b c" x="159" y="218">C3</text>
+  <rect class="t4" x="198" y="198" width="70" height="30" rx="4"/><text class="m b c" x="233" y="218">C4</text>
+  <rect class="t4" x="272" y="198" width="70" height="30" rx="4"/><text class="m b c" x="307" y="218">C4</text>
 
-  <path d="M376 164H424" stroke="#9AA4AE" stroke-width="1.5" marker-end="url(#h)"/>
-  <text class="mu sm c" x="400" y="156">tier</text>
+  <path d="M350 162H390" stroke="#9AA4AE" stroke-width="1.5" marker-end="url(#h)"/>
+  <text class="mu sm c" x="370" y="154">tier</text>
 
-  <text class="e" x="440" y="30">STEP 2 · BAND</text>
-  <text class="mu sm" x="440" y="50">rows tier · columns severity</text>
-  <text class="m h c scr" x="524" y="84">critical</text>
-  <text class="m h c shi" x="600" y="84">high</text>
-  <text class="m h c sme" x="676" y="84">medium</text>
-  <text class="m h c slo" x="752" y="84">low</text>
-  <text class="m h b r" x="480" y="118">C1</text>
-  <text class="m h b r" x="480" y="152">C2</text>
-  <text class="m h b r" x="480" y="186">C3</text>
-  <text class="m h b r" x="480" y="220">C4</text>
-  <rect class="p1" x="488" y="98" width="72" height="30" rx="4"/><text class="m b c i1" x="524" y="118">P1</text>
-  <rect class="p1" x="564" y="98" width="72" height="30" rx="4"/><text class="m b c i1" x="600" y="118">P1</text>
-  <rect class="p2" x="640" y="98" width="72" height="30" rx="4"/><text class="m b c i2" x="676" y="118">P2</text>
-  <rect class="p3" x="716" y="98" width="72" height="30" rx="4"/><text class="m b c i3" x="752" y="118">P3</text>
-  <rect class="p1" x="488" y="132" width="72" height="30" rx="4"/><text class="m b c i1" x="524" y="152">P1</text>
-  <rect class="p2" x="564" y="132" width="72" height="30" rx="4"/><text class="m b c i2" x="600" y="152">P2</text>
-  <rect class="p2" x="640" y="132" width="72" height="30" rx="4"/><text class="m b c i2" x="676" y="152">P2</text>
-  <rect class="p3" x="716" y="132" width="72" height="30" rx="4"/><text class="m b c i3" x="752" y="152">P3</text>
-  <rect class="p2" x="488" y="166" width="72" height="30" rx="4"/><text class="m b c i2" x="524" y="186">P2</text>
-  <rect class="p3" x="564" y="166" width="72" height="30" rx="4"/><text class="m b c i3" x="600" y="186">P3</text>
-  <rect class="p3" x="640" y="166" width="72" height="30" rx="4"/><text class="m b c i3" x="676" y="186">P3</text>
-  <rect class="p4" x="716" y="166" width="72" height="30" rx="4"/><text class="m b c i4" x="752" y="186">P4</text>
-  <rect class="p2" x="488" y="200" width="72" height="30" rx="4"/><text class="m b c i2" x="524" y="220">P2</text>
-  <rect class="p3" x="564" y="200" width="72" height="30" rx="4"/><text class="m b c i3" x="600" y="220">P3</text>
-  <rect class="p4" x="640" y="200" width="72" height="30" rx="4"/><text class="m b c i4" x="676" y="220">P4</text>
-  <rect class="p4" x="716" y="200" width="72" height="30" rx="4"/><text class="m b c i4" x="752" y="220">P4</text>
+  <text class="e" x="424" y="28">STEP 2 · BAND</text>
+  <text class="mu sm" x="424" y="50">rows tier · columns severity</text>
+  <text class="m h c" x="457" y="86">critical</text>
+  <text class="m h c" x="527" y="86">high</text>
+  <text class="m h c" x="597" y="86">medium</text>
+  <text class="m h c" x="667" y="86">low</text>
+  <text class="m h b r" x="418" y="116">C1</text>
+  <text class="m h b r" x="418" y="150">C2</text>
+  <text class="m h b r" x="418" y="184">C3</text>
+  <text class="m h b r" x="418" y="218">C4</text>
+  <rect class="p1" x="424" y="96" width="66" height="30" rx="4"/><text class="m b c i1" x="457" y="116">P1</text>
+  <rect class="p1" x="494" y="96" width="66" height="30" rx="4"/><text class="m b c i1" x="527" y="116">P1</text>
+  <rect class="p2" x="564" y="96" width="66" height="30" rx="4"/><text class="m b c i2" x="597" y="116">P2</text>
+  <rect class="p3" x="634" y="96" width="66" height="30" rx="4"/><text class="m b c i3" x="667" y="116">P3</text>
+  <rect class="p1" x="424" y="130" width="66" height="30" rx="4"/><text class="m b c i1" x="457" y="150">P1</text>
+  <rect class="p2" x="494" y="130" width="66" height="30" rx="4"/><text class="m b c i2" x="527" y="150">P2</text>
+  <rect class="p2" x="564" y="130" width="66" height="30" rx="4"/><text class="m b c i2" x="597" y="150">P2</text>
+  <rect class="p3" x="634" y="130" width="66" height="30" rx="4"/><text class="m b c i3" x="667" y="150">P3</text>
+  <rect class="p2" x="424" y="164" width="66" height="30" rx="4"/><text class="m b c i2" x="457" y="184">P2</text>
+  <rect class="p3" x="494" y="164" width="66" height="30" rx="4"/><text class="m b c i3" x="527" y="184">P3</text>
+  <rect class="p3" x="564" y="164" width="66" height="30" rx="4"/><text class="m b c i3" x="597" y="184">P3</text>
+  <rect class="p4" x="634" y="164" width="66" height="30" rx="4"/><text class="m b c i4" x="667" y="184">P4</text>
+  <rect class="p2" x="424" y="198" width="66" height="30" rx="4"/><text class="m b c i2" x="457" y="218">P2</text>
+  <rect class="p3" x="494" y="198" width="66" height="30" rx="4"/><text class="m b c i3" x="527" y="218">P3</text>
+  <rect class="p4" x="564" y="198" width="66" height="30" rx="4"/><text class="m b c i4" x="597" y="218">P4</text>
+  <rect class="p4" x="634" y="198" width="66" height="30" rx="4"/><text class="m b c i4" x="667" y="218">P4</text>
 
-  <rect class="box" x="24" y="254" width="410" height="58" rx="8"/>
-  <text class="m b" x="40" y="277">criticality: critical</text>
-  <text class="sm mu" x="40" y="298">the component · an outage or data loss for the business</text>
-  <rect class="box" x="446" y="254" width="430" height="58" rx="8"/>
-  <text class="m b" x="462" y="277">severity: <tspan class="scr">critical</tspan></text>
-  <text class="sm mu" x="462" y="298">the flaw · the harm it could cause if exploited</text>
+  <rect class="box" x="20" y="250" width="330" height="62" rx="8"/>
+  <text class="m b" x="34" y="274">criticality: critical</text>
+  <text class="sm mu" x="34" y="296">the component: outage or data loss if it fails</text>
+  <rect class="box" x="370" y="250" width="330" height="62" rx="8"/>
+  <text class="m b" x="384" y="274">severity: critical</text>
+  <text class="sm mu" x="384" y="296">the flaw: the harm it could cause if exploited</text>
 
-  <text class="e" x="24" y="340">WHEN</text>
-  <text class="sm" x="90" y="340">Both are read for every finding as it is ranked. Exposure and criticality come from components[] in the descriptor.</text>
+  <text class="e" x="20" y="340">WHEN</text>
+  <text class="sm" x="84" y="340">Both are read for every finding as it is ranked.</text>
+  <text class="sm" x="84" y="360">Exposure and criticality come from components[] in the descriptor.</text>
 </svg>

@@ -5,9 +5,9 @@ section: Core concepts
 order: 30
 ---
 
-<!-- menu: Model · Matrices · Signals · Collisions · Context floor · Examples · Configuration · Components -->
-
 # Prioritization
+
+<!-- menu: Model · Matrices · Signals · Collisions · Context floor · Examples · Configuration · Components -->
 
 ## Model
 
@@ -29,8 +29,10 @@ it. The scanner's rating is never rewritten; `report.json` and the SARIF carry i
 | <span class="dr-p3">P3</span> | backlog |
 | <span class="dr-p4">P4</span> | track |
 
-The levers that act on a band, declaring a component, turning on a signal, `--min-priority` and
-`--fail-on`, are in [Reducing the noise](reducing-the-noise-a.md#ranking).
+The levers that act on a band, declaring a component, turning on a signal and `--min-priority`, are
+in [Reducing the noise](reducing-the-noise-a.md#ranking). Which bands fail a build is the
+[Gate](reducing-the-noise-a.md#gate); how the verdict and exit code are reached is in
+[Verdict & gating](verdict-and-gating.md).
 
 ## Matrices
 
@@ -64,15 +66,15 @@ component is P3.
 
 | the scanner reports | severity |
 |---|---|
-| CVSS 9.0 to 10.0 | <span class="dr-crit">critical</span> |
-| CVSS 7.0 to 8.9 | <span class="dr-high">high</span> |
-| CVSS 4.0 to 6.9 | <span class="dr-med">medium</span> |
-| CVSS below 4.0 | <span class="dr-low">low</span> |
+| CVSS 9.0 to 10.0 | **critical** |
+| CVSS 7.0 to 8.9 | high |
+| CVSS 4.0 to 6.9 | medium |
+| CVSS below 4.0 | low |
 | a Semgrep rule's impact and likelihood | by the table in [`semgrep`](../../internal/scanners/semgrep.md#severity) |
 | a Bandit finding's severity and confidence | by the table in [`sarif-import`](../../internal/scanners/sarif-import.md#bandit) |
-| no score or rating: SARIF level `error` | <span class="dr-high">high</span> |
-| SARIF level `warning` | <span class="dr-med">medium</span> |
-| SARIF level `note` or `none` | <span class="dr-low">low</span> |
+| no score or rating: SARIF level `error` | high |
+| SARIF level `warning` | medium |
+| SARIF level `note` or `none` | low |
 
 A Semgrep finding prints its rating beside it, `impact high · likelihood high`. A control may hold
 its findings at a minimum, its **severity floor**: a `secrets` finding is never below `high`,
@@ -81,42 +83,47 @@ whatever its scanner called it. The severity floor draws no mark.
 ## Signals
 
 A **signal** is a published statement about a flaw or a package that moves the finding's severity
-before the band is read. Each is off until it is turned on, and each names itself on the finding it
-moved.
+one or more levels before the band is read. Each is off until it is turned on, and each names
+itself on the finding it moved with a **mark**.
 
 ![Each signal drawn as a move along the severity ladder, with its condition and the key that turns it on](../assets/prio-a-signals.svg)
 
-| mark | moves severity | when | turned on by | applied |
+| mark | means | moves severity | turned on by | applied |
 |---|---|---|---|---|
-| <span class="dr-up">↑ KEV</span> | to <span class="dr-crit">critical</span> | the CVE is on CISA's Known Exploited Vulnerabilities catalog | `config.exploitability.kev` | as the finding is ranked |
-| <span class="dr-up">↑ EPSS 0.62</span> | <span class="dr-up">↑</span> one band | the EPSS score is at or above `epssThreshold`, default 0.5 | `config.exploitability.epss` | as the finding is ranked |
-| <span class="dr-up">↑ malicious</span> | to <span class="dr-crit">critical</span> | the package is in the OSSF Malicious Packages Project | `config.dependencyHealth.enabled` | after every scanner finishes |
-| <span class="dr-up">↑ deprecated</span> | <span class="dr-up">↑</span> one band | the publisher marked the version deprecated | `config.dependencyHealth.enabled` | after every scanner finishes |
-| <span class="dr-down">↓ unreachable</span> | <span class="dr-down">↓</span> one band | govulncheck found no call path to the flaw, Go only | `config.reachability.analyzers` | after every scanner finishes |
+| <span class="dr-up">↑ KEV</span> | the CVE is on CISA's Known Exploited Vulnerabilities catalog | to **critical** | `config.exploitability.kev` | as the finding is ranked |
+| <span class="dr-up">↑ EPSS 0.62</span> | the EPSS score, printed to two places, is at or above `epssThreshold`, default 0.5 | up one level | `config.exploitability.epss` | as the finding is ranked |
+| <span class="dr-up">↑ malicious</span> | the package is in the OSSF Malicious Packages Project | to **critical** | `config.dependencyHealth.enabled` | after every scanner finishes |
+| <span class="dr-up">↑ deprecated</span> | the publisher marked the version deprecated | up one level | `config.dependencyHealth.enabled` | after every scanner finishes |
+| <span class="dr-down">↓ unreachable</span> | govulncheck found no call path to the flaw, Go only | down one level | `config.reachability.analyzers` | after every scanner finishes |
 
-The EPSS mark carries the score, two decimal places. KEV and EPSS reach only findings whose rule id
-holds a CVE, which is `sca` and `images`; dependency health reaches only findings about a package.
-Absence never lowers a band: a CVE missing from KEV, a low EPSS score and a package nobody has
-flagged rank as they would with no signal at all. Only reachability lowers, and only from an
-analyzer that shows its method, as [Reachability](#reachability) describes.
+Two more marks share the line under a finding. `↑ floor` means a leaked credential, ranked at C1
+whatever its component declares, as [Context floor](#context-floor) describes. `↩ history` means the
+finding describes a commit rather than the current tree, so its path may be gone; it moves nothing.
+A finding with no mark was ranked by exposure, criticality and severity alone.
 
-Which signals to turn on, and what each costs, is in [Configuration](#configuration). The concepts
-behind them: [EPSS & KEV](/learn/epss-and-kev/), [dependency health](/learn/dependency-health/),
-[reachability](/learn/reachability/).
+KEV and EPSS reach only findings whose rule id holds a CVE, which is `sca` and `images`; dependency
+health reaches only findings about a package. Absence never lowers a band: a CVE missing from KEV, a
+low EPSS score and a package nobody has flagged rank as they would with no signal at all. Only
+reachability lowers, and only from an analyzer that shows its method, as
+[Reachability](#reachability) describes. Turning each signal on is the second lever in
+[Reducing the noise](reducing-the-noise-a.md#ranking).
 
 ### Sources
 
-| signal | produced by | how | refreshed | cannot tell you |
-|---|---|---|---|---|
-| KEV | CISA | a CVE is added on reliable evidence of exploitation in the wild, attempted or successful, with a clear remediation. Scanning, research and a proof of concept do not count | continuously | whether an attack will reach you |
-| EPSS | FIRST | a model trained on observed exploitation scores every published CVE. Its inputs include public exploit code (Metasploit modules, GitHub exploit repositories weighted by use, Nuclei templates), discussion of the flaw and the CVE's CVSS metrics | daily | whether a CVE with a low score is safe |
-| malicious | the OSSF Malicious Packages Project, via deps.dev | reports from researchers and automated detectors, published in OSV format. A confirmed false positive is withdrawn rather than deleted | as reports arrive | whether a package it has not seen is safe |
-| deprecated | the package's publisher, via deps.dev | the publisher marks a version deprecated in its registry, with a reason Draugr carries into `report.json` | when the publisher acts | whether the flaw can fire in your code |
-| unreachable | govulncheck | builds a call graph of your code and its dependencies and looks for a path to the function an advisory names | every scan | what the analysis could not see: reflection, dynamic dispatch, generated code |
+| signal | produced by | refreshed | cannot tell you |
+|---|---|---|---|
+| KEV | CISA, on reliable evidence of exploitation in the wild | continuously | whether an attack will reach you |
+| EPSS | FIRST, a model trained on observed exploitation | daily | whether a CVE with a low score is safe |
+| malicious | the OSSF Malicious Packages Project, via deps.dev | as reports arrive | whether a package it has not seen is safe |
+| deprecated | the package's publisher, via deps.dev | when the publisher acts | whether the flaw can fire in your code |
+| unreachable | govulncheck's call graph of your code and its dependencies | every scan | what the analysis could not see: reflection, dynamic dispatch, generated code |
+
+How each source decides is on the learn pages: [EPSS & KEV](/learn/epss-and-kev/),
+[dependency health](/learn/dependency-health/), [reachability](/learn/reachability/).
 
 ### Already critical
 
-A signal that matches a finding already at `critical` raises nothing. A KEV listing still counts:
+A signal that matches a finding already at **critical** raises nothing. A KEV listing still counts:
 
 - the finding draws no `↑ KEV` mark, because its band did not move;
 - `report.json` and the SARIF record the listing under `exploited`;
@@ -124,7 +131,7 @@ A signal that matches a finding already at `critical` raises nothing. A KEV list
 - the action that clears it comes [first in its band](what-to-fix-first.md#how-the-list-is-ordered);
 - it still overrules an unreachable verdict.
 
-EPSS, malicious and deprecated on a finding already at `critical` record nothing, and `SIGNALS`
+EPSS, malicious and deprecated on a finding already at **critical** record nothing, and `SIGNALS`
 counts only the findings they raised.
 
 ## Collisions
@@ -171,9 +178,9 @@ often readable by more people than the service is reachable by, so `internal` ca
 can obtain it.
 
 With the severity floor at `high`, C1 puts every leaked credential in P1, the band the default
-`--fail-on P1` gate fails on. A band short of P1 would pass the gate on priority while failing it on
-severity. The floor sets a tier rather than a band so severity stays the scanner's and the severity
-floor's answer: a critical credential and a high one keep separate rows.
+[gate](reducing-the-noise-a.md#gate) fails on. A band short of P1 would pass the gate on priority
+while failing it on severity. The floor sets a tier rather than a band so severity stays the
+scanner's and the severity floor's answer: a critical credential and a high one keep separate rows.
 
 The report states that the floor applied, with the reason rather than the mechanism, so a band that
 does not follow from the component's classification can still be reconstructed:
@@ -191,31 +198,31 @@ matrices alone.
 ## Examples
 
 The **ledger CVE** is the finding this page and [Reducing the noise](reducing-the-noise-a.md) both
-follow: a CVSS 7.5 flaw, so `high`, in a Go module that the `ledger` component depends on. `ledger`
+follow: a CVSS 7.5 flaw, so high, in a Go module that the `ledger` component depends on. `ledger`
 declares `exposure: internal` and `criticality: critical`, tier C2.
 
 ![The ledger CVE from rating to band: P2 with no signal on, P1 once KEV lists it](../assets/prio-a-example.svg)
 
 | finding | component, tier | rating | signals | ranked at | band |
 |---|---|---|---|---|---|
-| CVE-2021-44228, CVSS 10.0 | public, critical · C1 | <span class="dr-crit">critical</span> | none | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> |
-| CVE-2021-44228, CVSS 10.0 | internal, important · C3 | <span class="dr-crit">critical</span> | none | <span class="dr-crit">critical</span> | <span class="dr-p2">P2</span> |
-| ledger CVE | ledger · C2 | <span class="dr-high">high</span> | none | <span class="dr-high">high</span> | <span class="dr-p2">P2</span> |
-| ledger CVE | ledger · C2 | <span class="dr-high">high</span> | on KEV | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> <span class="dr-up">↑ KEV</span> |
-| ledger CVE | ledger · C2 | <span class="dr-high">high</span> | EPSS 0.62, threshold 0.5 | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> <span class="dr-up">↑ EPSS 0.62</span> |
-| ledger CVE | ledger · C2 | <span class="dr-high">high</span> | package flagged malicious | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> <span class="dr-up">↑ malicious</span> |
-| ledger CVE | ledger · C2 | <span class="dr-high">high</span> | version deprecated | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> <span class="dr-up">↑ deprecated</span> |
-| ledger CVE | ledger · C2 | <span class="dr-high">high</span> | unreachable | <span class="dr-med">medium</span> | <span class="dr-p2">P2</span> <span class="dr-down">↓ unreachable</span> |
-| ledger CVE | public, important · C1 | <span class="dr-high">high</span> | unreachable | <span class="dr-med">medium</span> | <span class="dr-p2">P2</span> <span class="dr-down">↓ unreachable</span> |
-| ledger CVE | ledger · C2 | <span class="dr-high">high</span> | on KEV, unreachable | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> <span class="dr-up">↑ KEV</span> |
-| ledger CVE | ledger · C2 | <span class="dr-high">high</span> | deprecated, unreachable | <span class="dr-med">medium</span> | <span class="dr-p2">P2</span> <span class="dr-down">↓ unreachable</span> |
-| CVE-2021-44228, CVSS 10.0 | ledger · C2 | <span class="dr-crit">critical</span> | on KEV | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span>, no mark |
-| leaked token | batch: internal, supporting · C4 | <span class="dr-high">high</span>, severity floor | context floor | <span class="dr-high">high</span> at C1 | <span class="dr-p1">P1</span> <span class="dr-up">↑ floor</span> |
-| ledger CVE | ledger, unclassified · C1 | <span class="dr-high">high</span> | none | <span class="dr-high">high</span> | <span class="dr-p1">P1</span> |
+| CVE-2021-44228, CVSS 10.0 | public, critical · C1 | **critical** | none | **critical** | <span class="dr-p1">P1</span> |
+| CVE-2021-44228, CVSS 10.0 | internal, important · C3 | **critical** | none | **critical** | <span class="dr-p2">P2</span> |
+| ledger CVE | ledger · C2 | high | none | high | <span class="dr-p2">P2</span> |
+| ledger CVE | ledger · C2 | high | on KEV | **critical** | <span class="dr-p1">P1</span> <span class="dr-up">↑ KEV</span> |
+| ledger CVE | ledger · C2 | high | EPSS 0.62, threshold 0.5 | **critical** | <span class="dr-p1">P1</span> <span class="dr-up">↑ EPSS 0.62</span> |
+| ledger CVE | ledger · C2 | high | package flagged malicious | **critical** | <span class="dr-p1">P1</span> <span class="dr-up">↑ malicious</span> |
+| ledger CVE | ledger · C2 | high | version deprecated | **critical** | <span class="dr-p1">P1</span> <span class="dr-up">↑ deprecated</span> |
+| ledger CVE | ledger · C2 | high | unreachable | medium | <span class="dr-p2">P2</span> <span class="dr-down">↓ unreachable</span> |
+| ledger CVE | public, important · C1 | high | unreachable | medium | <span class="dr-p2">P2</span> <span class="dr-down">↓ unreachable</span> |
+| ledger CVE | ledger · C2 | high | on KEV, unreachable | **critical** | <span class="dr-p1">P1</span> <span class="dr-up">↑ KEV</span> |
+| ledger CVE | ledger · C2 | high | deprecated, unreachable | medium | <span class="dr-p2">P2</span> <span class="dr-down">↓ unreachable</span> |
+| CVE-2021-44228, CVSS 10.0 | ledger · C2 | **critical** | on KEV | **critical** | <span class="dr-p1">P1</span>, no mark |
+| leaked token | batch: internal, supporting · C4 | high, severity floor | context floor | high at C1 | <span class="dr-p1">P1</span> <span class="dr-up">↑ floor</span> |
+| ledger CVE | ledger, unclassified · C1 | high | none | high | <span class="dr-p1">P1</span> |
 
-On the unreachable `ledger` row the severity drops and the band holds, because C2 puts `high` and
-`medium` in the same band; on the C1 row the same verdict moves the band. The CVE-2021-44228 row on
-`ledger` is the case in [Already critical](#already-critical): no mark, an `exploited` record, a
+On the unreachable `ledger` row the severity drops a level and the band holds, because C2 puts high
+and medium in the same band; on the C1 row the same verdict moves the band. The CVE-2021-44228 row
+on `ledger` is the case in [Already critical](#already-critical): no mark, an `exploited` record, a
 listed count on `SIGNALS`, and its fix first in P1.
 
 ## Configuration
@@ -280,21 +287,18 @@ KEV wins where both match. A finding KEV raised keeps what EPSS said about the s
 #### Staleness
 
 A stale feed ranks findings lower than today's data would and fails nothing, so a scan reading a
-feed older than `maxAge` warns, names the age, and marks the feed stale in the report:
-
-```
-WARN using a stale exploitability feed feed=epss fetched_at=2026-07-29T08:55:00Z age="3 days"
-```
-
-A daily `draugr feeds update` keeps EPSS current. Raise `maxAge` on a runner pinned to a known copy:
-reproducing last quarter's verdict needs last quarter's feed.
+feed older than `maxAge` logs a warning naming the feed, the time it was fetched and its age, and the
+report marks the feed stale. A daily `draugr feeds update` keeps EPSS current. Raise `maxAge` on a
+runner pinned to a known copy: reproducing last quarter's verdict needs last quarter's feed.
 
 #### Bring your own file
 
 ```bash
 curl -fsSL -o kev.json \
   https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
-curl -fsSL https://epss.empiricalsecurity.com/epss_scores-current.csv.gz | gunzip > epss.csv
+curl -fsSL \
+  https://epss.empiricalsecurity.com/epss_scores-current.csv.gz \
+  | gunzip > epss.csv
 
 draugr scan draugr.saga.yaml --kev kev.json --epss epss.csv
 ```
@@ -365,15 +369,15 @@ config:
     analyzers: [govulncheck]   # Go only; needs a Go toolchain
 ```
 
-Only a method that follows the code can lower a band, because a verdict of no path is worth what the
-analysis could not see:
+Only a method that follows the code can lower severity, because a verdict of no path is worth what
+the analysis could not see:
 
 | method | did | an unreachable verdict |
 |---|---|---|
-| `call-graph` | followed calls from an entry point to the vulnerable symbol | lowers the band |
-| `data-flow` | followed the data as well as the calls | lowers the band |
-| `framework-heuristic` | read a framework's conventions about wired handlers | reported, band unchanged |
-| `import-check` | saw whether the vulnerable package is referenced | reported, band unchanged |
+| `call-graph` | followed calls from an entry point to the vulnerable symbol | lowers severity one level |
+| `data-flow` | followed the data as well as the calls | lowers severity one level |
+| `framework-heuristic` | read a framework's conventions about wired handlers | reported, nothing moves |
+| `import-check` | saw whether the vulnerable package is referenced | reported, nothing moves |
 
 govulncheck follows the call graph. A verdict from a weaker method, such as a SARIF import, travels
 in the report and says it moved nothing:

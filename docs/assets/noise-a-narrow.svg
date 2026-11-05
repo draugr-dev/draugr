@@ -1,89 +1,100 @@
-<svg viewBox="0 0 900 452" width="900" height="452" role="img" aria-label="Four levers that change what is shown without changing what was found, each shown as a list before and after." xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 720 774" width="720" height="774" role="img" aria-label="Four levers that change what is shown without changing what was found, each shown as a list before and after, with KEV on in every list." xmlns="http://www.w3.org/2000/svg">
   <title>Levers that narrow, before and after</title>
-  <desc>--top 3, at report time: the listing shows the first three of five findings and says two are not listed; --top 0 lists every row. --view compact, at report time: each finding takes one line instead of two. --components ledger, at the start of the run: only the ledger component is scanned, so only the ledger CVE is found. draugr diff, after the run, against an earlier report: of six findings, only the one this change introduced, a new P2 api CVE, is shown.</desc>
+  <desc>All lists have KEV on. --top 3, at report time: the listing shows the first three of five findings and says two are not listed; --top 0 lists every row. --view compact, at report time: each finding takes one line instead of two. --components ledger, at the start of the run: only the ledger component is scanned, so only the ledger CVE is found and four components are not scanned. draugr diff, after the run, against an earlier report: of six findings, only the one this change introduced, a new P2 api CVE, is shown.</desc>
   <defs>
     <style>
-      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:12px}
+      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:14px}
       .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:1.2px;fill:#7CA6B8}
-      .mu{fill:#9AA4AE}.sm{font-size:11px}.xs{font-size:10px}.t{font-size:12.5px}.b{font-weight:700}
+      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;letter-spacing:1px;fill:#7CA6B8}
+      .mu{fill:#9AA4AE}.sm{font-size:12.5px}.k{font-size:12px}.t{font-size:14px}.b{font-weight:700}
       .pan{fill:none;stroke:#232A31;stroke-width:1.5}
       .ar{stroke:#9AA4AE;stroke-width:1.5;fill:none}
       .tag{fill:none;stroke:#E8B84B;stroke-width:1.2}
       .tg{fill:#E8B84B}
     </style>
-    <symbol id="c1" viewBox="0 0 26 15" width="26" height="15"><rect width="26" height="15" rx="3" fill="#E5534B"/><text x="13" y="11.5" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="10" font-weight="700" fill="#0B0E11">P1</text></symbol>
-    <symbol id="c2" viewBox="0 0 26 15" width="26" height="15"><rect width="26" height="15" rx="3" fill="#E8B84B"/><text x="13" y="11.5" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="10" font-weight="700" fill="#16110A">P2</text></symbol>
-    <symbol id="c3" viewBox="0 0 26 15" width="26" height="15"><rect width="26" height="15" rx="3" fill="#7CA6B8"/><text x="13" y="11.5" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="10" font-weight="700" fill="#0A1116">P3</text></symbol>
-    <symbol id="c4" viewBox="0 0 26 15" width="26" height="15"><rect width="26" height="15" rx="3" fill="#6B7680"/><text x="13" y="11.5" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="10" font-weight="700" fill="#FFFFFF">P4</text></symbol>
+    <symbol id="c1" viewBox="0 0 32 19" width="32" height="19"><rect width="32" height="19" rx="3" fill="#E5534B"/><text x="16" y="14" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="12" font-weight="700" fill="#0B0E11">P1</text></symbol>
+    <symbol id="c2" viewBox="0 0 32 19" width="32" height="19"><rect width="32" height="19" rx="3" fill="#E8B84B"/><text x="16" y="14" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="12" font-weight="700" fill="#16110A">P2</text></symbol>
+    <symbol id="c3" viewBox="0 0 32 19" width="32" height="19"><rect width="32" height="19" rx="3" fill="#7CA6B8"/><text x="16" y="14" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="12" font-weight="700" fill="#0A1116">P3</text></symbol>
+    <symbol id="c4" viewBox="0 0 32 19" width="32" height="19"><rect width="32" height="19" rx="3" fill="#6B7680"/><text x="16" y="14" text-anchor="middle" font-family="'JetBrains Mono',ui-monospace,monospace" font-size="12" font-weight="700" fill="#FFFFFF">P4</text></symbol>
     <marker id="h" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#9AA4AE"/></marker>
   </defs>
-  <rect width="900" height="452" rx="12" fill="#0B0E11"/>
-  <text class="e" x="24" y="32">LEVERS THAT NARROW · WHAT WAS FOUND IS UNCHANGED</text>
+  <rect width="720" height="774" rx="12" fill="#0B0E11"/>
+  <text class="e" x="20" y="28">LEVERS THAT NARROW · WHAT WAS FOUND IS UNCHANGED</text>
 
-  <g transform="translate(16 48)">
-    <rect class="pan" width="426" height="190" rx="10"/>
-    <text class="m b t" x="14" y="24">--top 3</text>
-    <text class="m sm mu" x="14" y="41">scan flag · default 10 · report</text>
-    <use href="#c1" x="14" y="72"/><text x="46" y="84">leaked token</text>
-    <use href="#c1" x="14" y="92"/><text x="46" y="104">ledger CVE</text>
-    <use href="#c2" x="14" y="112"/><text x="46" y="124">web XSS</text>
-    <use href="#c3" x="14" y="132"/><text x="46" y="144">admin SAST</text>
-    <use href="#c4" x="14" y="152"/><text x="46" y="164">reports CVE</text>
-    <path class="ar" d="M190 120H220" marker-end="url(#h)"/>
-    <use href="#c1" x="232" y="72"/><text x="264" y="84">leaked token</text>
-    <use href="#c1" x="232" y="92"/><text x="264" y="104">ledger CVE</text>
-    <use href="#c2" x="232" y="112"/><text x="264" y="124">web XSS</text>
-    <text class="sm mu" x="232" y="144">2 not listed</text>
-    <text class="sm mu" x="14" y="182">The first rows, in band order. --top 0 lists every row.</text>
+  <g transform="translate(12 44)">
+    <rect class="pan" width="696" height="170" rx="10"/>
+    <text class="m b t" x="14" y="28">--top 3</text>
+    <text class="m k mu" x="14" y="48">default 10 · report</text>
+    <text class="sm mu" x="14" y="78">The first rows in band</text>
+    <text class="sm mu" x="14" y="96">order. --top 0 lists</text>
+    <text class="sm mu" x="14" y="114">every row.</text>
+    <text class="sm mu" x="228" y="24">KEV on, every row</text><text class="sm mu" x="452" y="24">KEV on, first 3</text>
+    <use href="#c1" x="228" y="34"/><text x="268" y="48">leaked token</text>
+    <use href="#c1" x="228" y="58"/><text x="268" y="72">ledger CVE</text>
+    <use href="#c2" x="228" y="82"/><text x="268" y="96">web XSS</text>
+    <use href="#c3" x="228" y="106"/><text x="268" y="120">admin SAST</text>
+    <use href="#c4" x="228" y="130"/><text x="268" y="144">reports CVE</text>
+    <path class="ar" d="M410 90H442" marker-end="url(#h)"/>
+    <use href="#c1" x="452" y="34"/><text x="492" y="48">leaked token</text>
+    <use href="#c1" x="452" y="58"/><text x="492" y="72">ledger CVE</text>
+    <use href="#c2" x="452" y="82"/><text x="492" y="96">web XSS</text>
+    <text class="sm mu" x="452" y="120">2 not listed</text>
   </g>
 
-  <g transform="translate(458 48)">
-    <rect class="pan" width="426" height="190" rx="10"/>
-    <text class="m b t" x="14" y="24">--view compact</text>
-    <text class="m sm mu" x="14" y="41">scan flag · report</text>
-    <use href="#c1" x="14" y="66"/><text x="46" y="78">leaked token</text>
-    <text class="xs mu" x="46" y="92">scanner · location · fix</text>
-    <use href="#c1" x="14" y="100"/><text x="46" y="112">ledger CVE</text>
-    <text class="xs mu" x="46" y="126">scanner · location · fix</text>
-    <use href="#c2" x="14" y="134"/><text x="46" y="146">web XSS</text>
-    <text class="xs mu" x="46" y="160">scanner · location · fix</text>
-    <path class="ar" d="M190 120H220" marker-end="url(#h)"/>
-    <use href="#c1" x="232" y="82"/><text x="264" y="94">leaked token</text>
-    <use href="#c1" x="232" y="102"/><text x="264" y="114">ledger CVE</text>
-    <use href="#c2" x="232" y="122"/><text x="264" y="134">web XSS</text>
-    <text class="sm mu" x="14" y="182">One line each, to see how much there is.</text>
+  <g transform="translate(12 224)">
+    <rect class="pan" width="696" height="170" rx="10"/>
+    <text class="m b t" x="14" y="28">--view compact</text>
+    <text class="m k mu" x="14" y="48">report</text>
+    <text class="sm mu" x="14" y="78">One line each, to see</text>
+    <text class="sm mu" x="14" y="96">how much there is.</text>
+    <text class="sm mu" x="228" y="24">KEV on, findings view</text><text class="sm mu" x="452" y="24">KEV on, compact</text>
+    <use href="#c1" x="228" y="34"/><text x="268" y="48">leaked token</text>
+    <text class="sm mu" x="268" y="66">scanner · location · fix</text>
+    <use href="#c1" x="228" y="78"/><text x="268" y="92">ledger CVE</text>
+    <text class="sm mu" x="268" y="110">scanner · location · fix</text>
+    <use href="#c2" x="228" y="122"/><text x="268" y="136">web XSS</text>
+    <text class="sm mu" x="268" y="154">scanner · location · fix</text>
+    <path class="ar" d="M420 90H442" marker-end="url(#h)"/>
+    <use href="#c1" x="452" y="58"/><text x="492" y="72">leaked token</text>
+    <use href="#c1" x="452" y="82"/><text x="492" y="96">ledger CVE</text>
+    <use href="#c2" x="452" y="106"/><text x="492" y="120">web XSS</text>
   </g>
 
-  <g transform="translate(16 250)">
-    <rect class="pan" width="426" height="190" rx="10"/>
-    <text class="m b t" x="14" y="24">--components ledger</text>
-    <text class="m sm mu" x="14" y="41">also --controls · --exposure · --labels · start</text>
-    <use href="#c1" x="14" y="72"/><text x="46" y="84">leaked token</text><text class="xs mu" x="140" y="84">batch</text>
-    <use href="#c1" x="14" y="92"/><text x="46" y="104">ledger CVE</text><text class="xs mu" x="140" y="104">ledger</text>
-    <use href="#c2" x="14" y="112"/><text x="46" y="124">web XSS</text><text class="xs mu" x="140" y="124">web</text>
-    <use href="#c3" x="14" y="132"/><text x="46" y="144">admin SAST</text><text class="xs mu" x="140" y="144">admin</text>
-    <use href="#c4" x="14" y="152"/><text x="46" y="164">reports CVE</text><text class="xs mu" x="140" y="164">reports</text>
-    <path class="ar" d="M190 120H220" marker-end="url(#h)"/>
-    <use href="#c1" x="232" y="92"/><text x="264" y="104">ledger CVE</text><text class="xs mu" x="358" y="104">ledger</text>
-    <text class="sm mu" x="232" y="124">4 components not scanned</text>
-    <text class="sm mu" x="14" y="182">Scans one part of the application; the rest is not run.</text>
+  <g transform="translate(12 404)">
+    <rect class="pan" width="696" height="170" rx="10"/>
+    <text class="m b t" x="14" y="28">--components</text>
+    <text class="m k mu" x="14" y="48">also --controls, --labels</text>
+    <text class="sm mu" x="14" y="78">Applied at the start: the</text>
+    <text class="sm mu" x="14" y="96">rest of the application</text>
+    <text class="sm mu" x="14" y="114">is not run.</text>
+    <text class="sm mu" x="228" y="24">KEV on, every component</text><text class="sm mu" x="452" y="24">--components ledger</text>
+    <use href="#c1" x="228" y="34"/><text x="268" y="48">leaked token</text><text class="sm mu" x="370" y="48">batch</text>
+    <use href="#c1" x="228" y="58"/><text x="268" y="72">ledger CVE</text><text class="sm mu" x="370" y="72">ledger</text>
+    <use href="#c2" x="228" y="82"/><text x="268" y="96">web XSS</text><text class="sm mu" x="370" y="96">web</text>
+    <use href="#c3" x="228" y="106"/><text x="268" y="120">admin SAST</text><text class="sm mu" x="370" y="120">admin</text>
+    <use href="#c4" x="228" y="130"/><text x="268" y="144">reports CVE</text><text class="sm mu" x="370" y="144">reports</text>
+    <path class="ar" d="M420 90H442" marker-end="url(#h)"/>
+    <use href="#c1" x="452" y="58"/><text x="492" y="72">ledger CVE</text>
+    <text class="sm mu" x="452" y="96">4 components not scanned</text>
   </g>
 
-  <g transform="translate(458 250)">
-    <rect class="pan" width="426" height="190" rx="10"/>
-    <text class="m b t" x="14" y="24">draugr diff</text>
-    <text class="m sm mu" x="14" y="41">against an earlier report · after the run</text>
-    <use href="#c1" x="14" y="66"/><text x="46" y="78">leaked token</text>
-    <use href="#c1" x="14" y="84"/><text x="46" y="96">ledger CVE</text>
-    <use href="#c2" x="14" y="102"/><text x="46" y="114">web XSS</text>
-    <use href="#c2" x="14" y="120"/><text x="46" y="132">api CVE</text>
-    <rect class="tag" x="102" y="120" width="32" height="15" rx="3"/><text class="xs tg" x="108" y="131">new</text>
-    <use href="#c3" x="14" y="138"/><text x="46" y="150">admin SAST</text>
-    <use href="#c4" x="14" y="156"/><text x="46" y="168">reports CVE</text>
-    <path class="ar" d="M190 120H220" marker-end="url(#h)"/>
-    <use href="#c2" x="232" y="112"/><text x="264" y="124">api CVE</text>
-    <rect class="tag" x="320" y="112" width="32" height="15" rx="3"/><text class="xs tg" x="326" y="123">new</text>
-    <text class="sm mu" x="14" y="184">Only what this change introduced.</text>
+  <g transform="translate(12 584)">
+    <rect class="pan" width="696" height="176" rx="10"/>
+    <text class="m b t" x="14" y="28">draugr diff</text>
+    <text class="m k mu" x="14" y="48">after the run</text>
+    <text class="sm mu" x="14" y="78">Against an earlier</text>
+    <text class="sm mu" x="14" y="96">report: only what this</text>
+    <text class="sm mu" x="14" y="114">change introduced.</text>
+    <text class="sm mu" x="228" y="24">KEV on, this run</text><text class="sm mu" x="452" y="24">new since the earlier report</text>
+    <use href="#c1" x="228" y="34"/><text x="268" y="48">leaked token</text>
+    <use href="#c1" x="228" y="56"/><text x="268" y="70">ledger CVE</text>
+    <use href="#c2" x="228" y="78"/><text x="268" y="92">web XSS</text>
+    <use href="#c2" x="228" y="100"/><text x="268" y="114">api CVE</text>
+    <rect class="tag" x="332" y="100" width="38" height="19" rx="3"/><text class="m k tg" x="338" y="114">new</text>
+    <use href="#c3" x="228" y="122"/><text x="268" y="136">admin SAST</text>
+    <use href="#c4" x="228" y="144"/><text x="268" y="158">reports CVE</text>
+    <path class="ar" d="M410 110H442" marker-end="url(#h)"/>
+    <use href="#c2" x="452" y="100"/><text x="492" y="114">api CVE</text>
+    <rect class="tag" x="556" y="100" width="38" height="19" rx="3"/><text class="m k tg" x="562" y="114">new</text>
   </g>
 </svg>

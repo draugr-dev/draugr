@@ -1,15 +1,13 @@
-<svg viewBox="0 0 900 270" width="900" height="270" role="img" aria-label="The ledger CVE from scanner rating to band: high, tier C2, P2 with no signal on; with KEV on and the CVE listed it is raised to critical and lands in P1." xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 720 300" width="720" height="300" role="img" aria-label="The ledger CVE from scanner rating to band: high, tier C2, P2 with no signal on; with KEV on and the CVE listed it is raised to critical and lands in P1." xmlns="http://www.w3.org/2000/svg">
   <title>One finding from rating to band</title>
   <desc>The ledger CVE is a CVSS 7.5 flaw in a Go module the ledger component depends on. ledger declares exposure internal and criticality critical, tier C2. With no signal turned on, the scanner's rating high stays high, and C2 crossed with high is P2. With config.exploitability.kev set and the CVE on the catalog, KEV raises it to critical in run phase 2, and C2 crossed with critical is P1, marked KEV.</desc>
   <defs>
     <style>
-      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:13px}
+      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:14px}
       .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:1.2px;fill:#7CA6B8}
-      .mu{fill:#9AA4AE}.sm{font-size:11px}.h{font-size:12px}.b{font-weight:700}.c{text-anchor:middle}
-      .scr{fill:#E9635B}.shi{fill:#E8B84B}
-      .ccr{fill:#12161B;stroke:#E9635B;stroke-width:1.5}
-      .chi{fill:#12161B;stroke:#E8B84B;stroke-width:1.5}
+      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;letter-spacing:1px;fill:#7CA6B8}
+      .mu{fill:#9AA4AE}.sm{font-size:12.5px}.h{font-size:13px}.b{font-weight:700}.c{text-anchor:middle}
+      .sev{fill:#12161B;stroke:#9AA4AE;stroke-width:1.5}
       .tier{fill:#2A333C}
       .ar{stroke:#9AA4AE;stroke-width:1.5;fill:none}
       .up{stroke:#E9635B;stroke-width:2;fill:none}
@@ -19,38 +17,39 @@
     <marker id="h" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#9AA4AE"/></marker>
     <marker id="u" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#E9635B"/></marker>
   </defs>
-  <rect width="900" height="270" rx="12" fill="#0B0E11"/>
-  <text class="e" x="24" y="30">ONE FINDING · THE LEDGER CVE</text>
-  <text class="sm mu" x="24" y="50">CVSS 7.5 in a Go module · component ledger · exposure: internal · criticality: critical</text>
+  <rect width="720" height="300" rx="12" fill="#0B0E11"/>
+  <text class="e" x="20" y="28">ONE FINDING · THE LEDGER CVE</text>
+  <text class="sm mu" x="20" y="50">CVSS 7.5 in a Go module · component ledger, internal, critical</text>
 
-  <text class="sm mu c" x="270" y="84">scanner's rating</text>
-  <text class="sm mu c" x="450" y="84">after signals</text>
-  <text class="sm mu c" x="630" y="84">tier</text>
-  <text class="sm mu c" x="790" y="84">band</text>
-  <path class="g" d="M24 94H876"/>
+  <text class="sm mu c" x="220" y="84">rating</text>
+  <text class="sm mu c" x="352" y="84">after signals</text>
+  <text class="sm mu c" x="474" y="84">tier</text>
+  <text class="sm mu c" x="578" y="84">band</text>
+  <path class="g" d="M20 94H700"/>
 
-  <text class="m b" x="24" y="128">no signal</text>
-  <text class="sm mu" x="24" y="146">nothing configured</text>
-  <rect class="chi" x="230" y="112" width="80" height="28" rx="5"/><text class="m h c shi" x="270" y="131">high</text>
-  <path class="ar" d="M314 126H406" marker-end="url(#h)"/>
-  <rect class="chi" x="410" y="112" width="80" height="28" rx="5"/><text class="m h c shi" x="450" y="131">high</text>
-  <path class="ar" d="M494 126H586" marker-end="url(#h)"/>
-  <rect class="tier" x="590" y="112" width="80" height="28" rx="5"/><text class="m b c" x="630" y="131">C2</text>
-  <path class="ar" d="M674 126H762" marker-end="url(#h)"/>
-  <rect x="766" y="112" width="48" height="28" rx="5" fill="#E8B84B"/><text class="m b c" x="790" y="131" style="fill:#16110A">P2</text>
+  <text class="m b" x="20" y="128">no signal</text>
+  <text class="sm mu" x="20" y="148">nothing configured</text>
+  <rect class="sev" x="180" y="112" width="80" height="30" rx="5"/><text class="m h c" x="220" y="132">high</text>
+  <path class="ar" d="M264 127H306" marker-end="url(#h)"/>
+  <rect class="sev" x="310" y="112" width="84" height="30" rx="5"/><text class="m h c" x="352" y="132">high</text>
+  <path class="ar" d="M398 127H440" marker-end="url(#h)"/>
+  <rect class="tier" x="444" y="112" width="60" height="30" rx="5"/><text class="m b c" x="474" y="132">C2</text>
+  <path class="ar" d="M508 127H552" marker-end="url(#h)"/>
+  <rect x="556" y="112" width="44" height="30" rx="5" fill="#E8B84B"/><text class="m b c" x="578" y="132" style="fill:#16110A">P2</text>
 
-  <path class="g" d="M24 166H876"/>
-  <text class="m b" x="24" y="200">KEV on, listed</text>
-  <text class="m sm mu" x="24" y="218">config.exploitability.kev</text>
-  <rect class="chi" x="230" y="184" width="80" height="28" rx="5"/><text class="m h c shi" x="270" y="203">high</text>
-  <path class="up" d="M314 198H406" marker-end="url(#u)"/>
-  <text class="m sm c" x="360" y="190"><tspan class="tu">↑</tspan> KEV</text>
-  <rect class="ccr" x="410" y="184" width="80" height="28" rx="5"/><text class="m h c scr" x="450" y="203">critical</text>
-  <path class="ar" d="M494 198H586" marker-end="url(#h)"/>
-  <rect class="tier" x="590" y="184" width="80" height="28" rx="5"/><text class="m b c" x="630" y="203">C2</text>
-  <path class="ar" d="M674 198H762" marker-end="url(#h)"/>
-  <rect x="766" y="184" width="48" height="28" rx="5" fill="#E5534B"/><text class="m b c" x="790" y="203" style="fill:#0B0E11">P1</text>
-  <text class="m sm" x="822" y="203"><tspan class="tu">↑</tspan> KEV</text>
-  <path class="g" d="M24 236H876"/>
-  <text class="sm mu" x="24" y="256">KEV applies in run phase 2, as the finding is ranked. The tier comes from what ledger declares, so it holds in both rows.</text>
+  <path class="g" d="M20 168H700"/>
+  <text class="m b" x="20" y="202">KEV on, listed</text>
+  <text class="m sm mu" x="20" y="222">exploitability.kev</text>
+  <rect class="sev" x="180" y="186" width="80" height="30" rx="5"/><text class="m h c" x="220" y="206">high</text>
+  <path class="up" d="M264 201H306" marker-end="url(#u)"/>
+  <text class="m sm c" x="285" y="180"><tspan class="tu">↑</tspan> KEV</text>
+  <rect class="sev" x="310" y="186" width="84" height="30" rx="5" style="stroke:#E6E8EA;stroke-width:2"/><text class="m h b c" x="352" y="206">critical</text>
+  <path class="ar" d="M398 201H440" marker-end="url(#h)"/>
+  <rect class="tier" x="444" y="186" width="60" height="30" rx="5"/><text class="m b c" x="474" y="206">C2</text>
+  <path class="ar" d="M508 201H552" marker-end="url(#h)"/>
+  <rect x="556" y="186" width="44" height="30" rx="5" fill="#E5534B"/><text class="m b c" x="578" y="206" style="fill:#0B0E11">P1</text>
+  <text class="m sm" x="612" y="206"><tspan class="tu">↑</tspan> KEV</text>
+  <path class="g" d="M20 242H700"/>
+  <text class="sm mu" x="20" y="266">KEV applies in run phase 2, as the finding is ranked. The tier comes from</text>
+  <text class="sm mu" x="20" y="286">what ledger declares, so it holds in both rows.</text>
 </svg>
