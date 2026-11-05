@@ -993,16 +993,18 @@ func movedBy(f finding) *movement {
 // A set where movedBy is one, because the two answer different questions: the row shows the first
 // mark, and the filter finds a finding by any of them. A finding a signal raised and a control
 // floored carries the signal's mark, and a filter reading only the mark would leave it out of the
-// floored ones. Both read marks, so the row's mark is always in the set and the set holds nothing
-// the row could not have shown.
+// floored ones. Both read marks, so the row's mark is in the set and the set holds nothing the row
+// could not have shown, with one exception: ↩ history is a mark and not a value, because a path in a
+// commit moves no band, so a finding marked only that is untouched.
 func movements(f finding) []string {
-	m := marks(f)
-	if len(m) == 0 {
-		return []string{moveUntouched}
+	out := []string{}
+	for _, mv := range marks(f) {
+		if mv.key != moveHistory {
+			out = append(out, mv.key)
+		}
 	}
-	out := make([]string, 0, len(m))
-	for _, mv := range m {
-		out = append(out, mv.key)
+	if len(out) == 0 {
+		return []string{moveUntouched}
 	}
 	return out
 }

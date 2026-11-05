@@ -905,14 +905,14 @@ is kept for the next report opened in the same browser.
 | `floored by a control` | a leaked credential, ranked P1 whatever its component declares |
 | `lowered as unreachable` | analysis found no path from your code to it |
 | `raised to a minimum severity` | a leaked credential, held at high whatever its scanner rated it |
-| `found in history` | the finding describes a commit rather than the current tree, so its path may be gone |
 | `ranked from severity alone` | none of the others |
 
 A value with no findings is listed with a zero. A finding carrying two marks matches both values,
 so the counts can add up to more than the list, and its row shows the first of them in the table's
 order. `lowered as unreachable` counts a verdict only where it lowered the band, so a verdict a
 signal overruled, or one on a finding already at the lowest band, does not count. A raise that an
-unreachable verdict then lowered counts under `lowered as unreachable` only.
+unreachable verdict then lowered counts under `lowered as unreachable` only. `↩ history` is not a
+value, because a path in a commit moves no band.
 
 **Tabs, search and paging are progressive enhancement.** The page renders complete without
 JavaScript: every section in order, every row, and both downloads. The script adds the tabs and

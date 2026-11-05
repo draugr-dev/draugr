@@ -845,7 +845,6 @@ var movementMenu = []struct{ key, label string }{
 	{moveFloor, "floored by a control"},
 	{moveUnreachable, "lowered as unreachable"},
 	{moveMinimum, "raised to a minimum severity"},
-	{moveHistory, "found in history"},
 	{moveUntouched, "ranked from severity alone"},
 }
 
