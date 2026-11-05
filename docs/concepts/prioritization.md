@@ -11,7 +11,8 @@ order: 30
 
 ## Model
 
-A **band**, P1 to P4, is the order in which to fix findings. Draugr reads it from two inputs: the
+A scan of a real project returns hundreds of findings, and their severity alone does not say which
+to fix first. A **band**, P1 to P4, is the order in which to fix findings. Draugr reads it from two inputs: the
 **tier** of the component a finding is in, from its declared `exposure` and `criticality`, and the
 finding's **severity**. Severity starts as the scanner's rating, and **signals** from outside the
 code move it before the band is read: KEV, EPSS and dependency health raise it, reachability lowers
@@ -24,9 +25,10 @@ that the `ledger` component depends on; `ledger` declares `exposure: internal` a
 
 ![The ledger CVE in four steps: rated high, raised to critical by KEV, tier C2 from ledger's declaration, band P1](../assets/prio-model.svg)
 
-The severity the band is read from, after the severity floor and every signal, is the finding's
-[ranked severity](verdict-and-gating.md#verdict--exit-code). The report prints the band, the ranked
-severity and a mark naming the signal that moved it, and a severity gate judges the ranked severity.
+A finding's **ranked severity** is the scanner's rating held at the control's severity floor and
+then moved by every signal, the severity the report prints for the finding. The band is read from
+it, the report prints it with the band and a mark naming the signal that moved it, and a severity
+gate judges it, as [Verdict & gating](verdict-and-gating.md#verdict--exit-code) describes.
 The scanner's rating is never rewritten; `report.json` and the SARIF carry it unchanged.
 
 | band | act |
@@ -182,8 +184,9 @@ critical, so every pair of raises is a tie.
 
 **A raise against an unreachable verdict: it depends on what the raise claims.** An unreachable
 verdict says analysis found no route today, on one revision; reflection, dynamic dispatch and code
-generation defeat a call graph, and the route appears the day somebody writes the call. A signal
-saying the flaw is dangerous now overrules it.
+generation defeat a call graph, and the route appears the day somebody writes the call. So the
+verdict lowers severity one level and never removes the finding, and a signal saying the flaw is
+dangerous now overrules it.
 
 | signal | against `↓ unreachable` | because |
 |---|---|---|
@@ -214,8 +217,7 @@ often readable by more people than the service is reachable by, so `internal` ca
 can obtain it.
 
 With the severity floor at `high`, C1 puts every leaked credential in P1, the band the default
-[gate](reducing-the-noise.md#gate) fails on. A band short of P1 would pass a band gate while a
-`--fail-on high` gate failed the same finding on its ranked severity. The floor sets a tier rather
+[gate](reducing-the-noise.md#gate) fails on. The floor sets a tier rather
 than a band so severity stays the scanner's and the severity floor's answer: a critical credential
 and a high one keep separate rows.
 
@@ -340,9 +342,9 @@ finding past `--fail-on critical`.
 
 #### Staleness
 
-A stale feed ranks findings lower than today's data would and fails nothing, so a scan reading a
-feed older than `maxAge` logs a warning naming the feed, the time it was fetched and its age, and the
-report marks the feed stale. A daily `draugr feeds update` keeps EPSS current. Raise `maxAge` on a
+A stale feed ranks findings lower than today's data would and fails nothing. A scan reading a feed
+older than `maxAge` logs a warning naming the feed, its fetch time and its age, and the report marks
+the feed stale. A daily `draugr feeds update` keeps EPSS current. Raise `maxAge` on a
 runner pinned to a known copy: reproducing last quarter's verdict needs last quarter's feed.
 
 #### Bring your own file
@@ -467,6 +469,10 @@ P1. One that declares a single field is ranked at the most concerning level of t
 Components table in the HTML and markdown reports shows the level each component was ranked with and
 marks an undeclared one `assumed`. Declaring the missing field is the first lever in
 [Reducing the noise](reducing-the-noise.md#ranking).
+
+**Next:** the [quickstart](../getting-started/quickstart.md) runs a first scan and prints every
+finding's band; declaring `exposure` and `criticality` and turning signals on are the
+[levers](reducing-the-noise.md#ranking) that move those bands.
 
 **Related:** [EPSS & KEV explained](/learn/epss-and-kev/) ·
 [Vulnerability prioritization](/learn/vulnerability-prioritization/) ·

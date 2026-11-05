@@ -106,8 +106,7 @@ which makes `draugr diff` the narrowing lever with the largest effect.
 The **gate** is the threshold that fails a run: any finding at or above it sets the verdict to
 `FAIL` and the exit code to non-zero. It reads every finding the run kept, after ranking and
 removal; narrowing does not change it. A band gate compares a finding's band; a severity gate
-compares its [ranked severity](verdict-and-gating.md#verdict--exit-code), the severity after the
-severity floor and every signal, which the report prints beside the band.
+compares its [ranked severity](prioritization.md#model).
 
 | setting | fails the run on |
 |---|---|
@@ -140,7 +139,8 @@ exit code are reached is in [Verdict & gating](verdict-and-gating.md).
 
 ## Marks
 
-A **mark** names the lever that moved a finding's band, on the line under the finding. Each mark is
+A **mark** is the label on the line under a finding that names what moved its ranking, or, for
+`↩ history`, where the finding came from. Each mark is
 defined in [Signals](prioritization.md#signals), with what it moves and the key that turns it on.
 
 | mark | means |
