@@ -173,6 +173,54 @@ func TestTheHTMLReportMarksTheMoveThatDecidedTheSeverity(t *testing.T) {
 	}
 }
 
+// The Movement menu files each finding under the mark its row shows: a raise the verdict lowered
+// under the lowering only, a severity the control's floor raised under the minimum, and a finding
+// both floors moved under both, with the context floor first because that is the row's mark.
+func TestTheMovementMenuFilesAFindingUnderTheMarkItsRowShows(t *testing.T) {
+	page := renderHTML(t, marksData())
+	rows := map[string]string{}
+	for _, m := range findingRow.FindAllStringSubmatch(page, -1) {
+		rows[m[3]] = m[1]
+	}
+	for rule, want := range map[string]string{
+		"floored-key":    "minimum",
+		"rated-key":      "untouched",
+		"tiered-key":     "floor minimum",
+		"cve-2099-0003":  "unreachable",
+		"cve-2021-44228": "escalation",
+	} {
+		if got, ok := rows[rule]; !ok {
+			t.Errorf("%s: no row", rule)
+		} else if got != want {
+			t.Errorf("%s: movement %q, want %q", rule, got, want)
+		}
+	}
+	menu := movementMenuOf(t, page)
+	for _, want := range []string{
+		`value="escalation" data-label="raised by a signal">raised by a signal</span>
+        <span class="c">1</span>`,
+		`value="floor" data-label="floored by a control">floored by a control</span>
+        <span class="c">1</span>`,
+		`value="unreachable" data-label="lowered as unreachable">lowered as unreachable</span>
+        <span class="c">1</span>`,
+		`value="minimum" data-label="raised to a minimum severity">raised to a minimum severity</span>
+        <span class="c">2</span>`,
+		`value="untouched" data-label="ranked from severity alone">ranked from severity alone</span>
+        <span class="c">1</span>`,
+	} {
+		if !strings.Contains(menu, want) {
+			t.Errorf("the Movement menu is missing\n%s\nin\n%s", want, menu)
+		}
+	}
+	// Every row's mark is the first value it is filed under.
+	for _, f := range summarize(marksData()).findings {
+		m, set := movedBy(f), movements(f)
+		if m == nil && set[0] != moveUntouched || m != nil && m.key != set[0] {
+			t.Errorf("%s: mark %+v, movement %q", f.ruleID, m, set)
+		}
+	}
+}
+
 // The same choice, read from the finding the renderers share, for the cases a fixture of whole
 // results does not reach.
 func TestTheMarkIsTheMoveThatDecidedTheSeverity(t *testing.T) {

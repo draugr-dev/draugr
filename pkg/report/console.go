@@ -870,9 +870,10 @@ func blobBase(repo string) (string, bool) {
 	return "", false
 }
 
-// movement is the one mark on a row whose band was argued with: which way it went, what argued,
-// and the sentence behind it.
+// movement is one mark on a row whose band was argued with: which way it went, what argued, and
+// the Movement menu's value for it.
 type movement struct {
+	key   string
 	glyph string
 	label string
 	style tui.Style
@@ -922,76 +923,86 @@ func band(f finding, marked bool) tui.Cell {
 	return c
 }
 
-// movedBy is what moved this finding's band, in the order the engine applies them.
-//
-// One mark, not one per input. A row has space for the answer and not for the working, and every
-// input still states itself in full on the line underneath; the mark is what makes a listing of
-// several hundred readable, because how much of a backlog has been argued with is then visible
-// without reading a single row.
+// The Movement menu's values, one per mark. Untouched is a finding that carries none.
+const (
+	moveEscalation  = "escalation"
+	moveFloor       = "floor"
+	moveUnreachable = "unreachable"
+	moveMinimum     = "minimum"
+	moveHistory     = "history"
+	moveUntouched   = "untouched"
+)
+
+// marks is every mark that stands on this finding, in the order the engine applies them. The one
+// rule list behind both the row's mark, movedBy, and the Movement menu's set, movements, so the two
+// cannot disagree about a finding.
 //
 // Exploitation first because it is the only one that can overrule another: an analyzer finding no
 // route does not lower a finding that is being exploited. The same order, and the same glyphs, as
 // the dashboard.
 //
-// A raise the verdict then lowered is not the mark. The severity beside the mark is the lowered
-// one, sarif.Result.RankedSeverity, so the move that decided it is the verdict, and "low ↑
-// deprecated" would name a raise the row does not show. The raise stays in report.json's escalation.
-// A raise that overruled the verdict leaves no RankedAs, so it is still the mark.
-func movedBy(f finding) *movement {
+// A raise the verdict then lowered does not stand. The severity beside the mark is the lowered one,
+// sarif.Result.RankedSeverity, so the move that decided it is the verdict, and "low ↑ deprecated"
+// would name a raise the row does not show. The raise stays in report.json's escalation. A raise
+// that overruled the verdict leaves no RankedAs, so it stands.
+func marks(f finding) []movement {
+	var out []movement
 	lowered := loweredAsUnreachable(f)
 	if e := f.escalation; e != nil && !lowered {
-		return &movement{glyph: "↑", label: signalLabel(e), style: signalColor(e.Signal)}
+		out = append(out, movement{key: moveEscalation, glyph: "↑", label: signalLabel(e), style: signalColor(e.Signal)})
 	}
 	// A control that declares its findings are not bounded by where the component sits.
 	if f.priorityFloor != "" {
-		return &movement{glyph: "↑", label: "floor", style: cHigh}
+		out = append(out, movement{key: moveFloor, glyph: "↑", label: "floor", style: cHigh})
 	}
 	if lowered {
-		return &movement{glyph: "↓", label: "unreachable", style: cInfo}
+		out = append(out, movement{key: moveUnreachable, glyph: "↓", label: "unreachable", style: cInfo})
 	}
-	// The control's severity floor raised the scanner's rating, and nothing above moved it further.
-	// Named apart from the context floor's "floor": that one moves the tier and leaves severity
-	// alone, this one moves the severity printed beside the mark.
-	if f.severityFloor != "" {
-		return &movement{glyph: "↑", label: "minimum", style: cHigh}
+	// The control's severity floor raised the scanner's rating, and the floored rating is the one
+	// printed: no signal raised it further and no verdict lowered it. Named apart from the context
+	// floor's "floor": that one moves the tier and leaves severity alone, this one moves the severity
+	// printed beside the mark.
+	if f.severityFloor != "" && f.escalation == nil && !lowered {
+		out = append(out, movement{key: moveMinimum, glyph: "↑", label: "minimum", style: cHigh})
 	}
-	// Not a band that moved, and marked here for the same reason the others are: the location is a
-	// path in a commit rather than in the tree, and a reader who takes it for the current tree
-	// reads a finding that is still live as one already cleaned up.
+	// Not a band that moved, and marked for the same reason the others are: the location is a path in
+	// a commit rather than in the tree, and a reader who takes it for the current tree reads a finding
+	// that is still live as one already cleaned up.
 	if f.historical {
-		return &movement{glyph: "↩", label: "history", style: cAccent}
+		out = append(out, movement{key: moveHistory, glyph: "↩", label: "history", style: cAccent})
+	}
+	return out
+}
+
+// movedBy is the row's one mark: the first of marks.
+//
+// One mark, not one per input. A row has space for the answer and not for the working, and every
+// input still states itself in full on the line underneath; the mark is what makes a listing of
+// several hundred readable, because how much of a backlog has been argued with is then visible
+// without reading a single row.
+func movedBy(f finding) *movement {
+	if m := marks(f); len(m) > 0 {
+		return &m[0]
 	}
 	return nil
 }
 
-// The inputs that can move a band, as movements names them. Untouched is a finding none of them
-// moved.
-const (
-	moveEscalation  = "escalation"
-	moveFloor       = "floor"
-	moveUnreachable = "unreachable"
-	moveUntouched   = "untouched"
-)
-
-// movements is every input that moved this finding's band, in movedBy's order, or untouched where
-// none did.
+// movements is every mark standing on this finding, by its Movement menu value, or untouched where
+// none does.
 //
-// movedBy picks one of these for the row's mark. A finding a signal raised and a control floored
-// carries the signal's mark, and a filter reading the mark would leave it out of the floored ones.
-// History is not among them, because a path in a commit moves no band.
+// A set where movedBy is one, because the two answer different questions: the row shows the first
+// mark, and the filter finds a finding by any of them. A finding a signal raised and a control
+// floored carries the signal's mark, and a filter reading only the mark would leave it out of the
+// floored ones. Both read marks, so the row's mark is always in the set and the set holds nothing
+// the row could not have shown.
 func movements(f finding) []string {
-	var out []string
-	if f.escalation != nil {
-		out = append(out, moveEscalation)
-	}
-	if f.priorityFloor != "" {
-		out = append(out, moveFloor)
-	}
-	if loweredAsUnreachable(f) {
-		out = append(out, moveUnreachable)
-	}
-	if len(out) == 0 {
+	m := marks(f)
+	if len(m) == 0 {
 		return []string{moveUntouched}
+	}
+	out := make([]string, 0, len(m))
+	for _, mv := range m {
+		out = append(out, mv.key)
 	}
 	return out
 }
