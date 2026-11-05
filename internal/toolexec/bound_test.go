@@ -67,6 +67,53 @@ func TestBoundEnvKeepsWhatTheCallerChose(t *testing.T) {
 	}
 }
 
+// A tool running several `go` commands at once runs no more of them than the bound, and each one's
+// -p is the bound divided among them, so together they stay within it. The caller's other GOFLAGS
+// stay, and a caller's -p is kept while the count of commands is still bounded.
+func TestDivideKeepsTheCommandsTogetherWithinTheBound(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		env       []string
+		n, asked  int
+		wantCount int
+		wantEnv   []string
+	}{
+		{"two commands share the bound", nil, 10, 2, 2, []string{"GOFLAGS=-p=5"}},
+		{"an odd bound rounds down", []string{"GOFLAGS=-tags=aaa"}, 9, 2, 2, []string{"GOFLAGS=-tags=aaa -p=4"}},
+		{"fewer units than commands", nil, 1, 2, 1, []string{"GOFLAGS=-p=1"}},
+		{"four commands", nil, 10, 4, 4, []string{"GOFLAGS=-p=2"}},
+		{"no commands asked for runs one", nil, 4, 0, 1, []string{"GOFLAGS=-p=4"}},
+		{"the caller's -p kept", []string{"GOFLAGS=-mod=mod -p=3"}, 10, 2, 2, nil},
+		{"GOMAXPROCS is not divided", []string{"GOMAXPROCS=3"}, 8, 2, 2, []string{"GOFLAGS=-p=4"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			count, env := divide(tc.env, tc.n, tc.asked)
+			if count != tc.wantCount || !slices.Equal(env, tc.wantEnv) {
+				t.Errorf("divide(%q, %d, %d) = %d, %q, want %d, %q", tc.env, tc.n, tc.asked, count, env, tc.wantCount, tc.wantEnv)
+			}
+		})
+	}
+}
+
+// A tool's run passing what Divide gives it starts with the divided -p after the caller's flags
+// and GOMAXPROCS at the whole bound.
+func TestADividedRunStartsWithItsShare(t *testing.T) {
+	t.Setenv("GOMAXPROCS", "")
+	t.Setenv("GOFLAGS", "-tags=aaa")
+	n := Parallelism()
+	count, env := Divide(2)
+	if want := min(2, n); count != want {
+		t.Errorf("Divide(2) runs %d commands, want %d", count, want)
+	}
+	got := envOf(t, func(argv []string) ([]byte, error) { return RunWithEnv(context.Background(), "", argv, env) }, "GOMAXPROCS", "GOFLAGS")
+	if want := "-tags=aaa -p=" + strconv.Itoa(max(1, n/count)); got["GOFLAGS"] != want {
+		t.Errorf("GOFLAGS = %q, want %q", got["GOFLAGS"], want)
+	}
+	if got["GOMAXPROCS"] != strconv.Itoa(n) {
+		t.Errorf("GOMAXPROCS = %q, want the whole bound %d", got["GOMAXPROCS"], n)
+	}
+}
+
 // envOf runs `env` through one entry point and returns the value each of keys had in the child.
 func envOf(t *testing.T, run func(argv []string) ([]byte, error), keys ...string) map[string]string {
 	t.Helper()

@@ -17,7 +17,7 @@ order: 50
 
 A **Go-specialized** static analyzer that complements the polyglot [Semgrep](semgrep.md) with
 deeper Go-specific rules (AST/SSA). Checks out the component's repository and runs
-`gosec -fmt sarif -no-fail -track-suppressions <module>/...` **once per Go module**, for every
+`gosec -fmt sarif -no-fail -track-suppressions -concurrency 2 <module>/...` **once per Go module**, for every
 directory holding a `go.mod` outside `vendor/` and `testdata/`. A module below the root and a
 module nested inside another are each analyzed, and each finding is located under its own
 module's directory. A tree with no `go.mod` is reported as analyzed by nothing, never as clean.
@@ -34,6 +34,10 @@ no component names.
   excluded reads as a finding nobody ever made.
 - `-quiet` is deliberately **not** used: it suppresses all output on a clean scan, which would
   leave no SARIF to parse.
+- `-concurrency 2` loads two packages at once, each building with `-p` at half of each tool's
+  [parallelism bound](../../docs/reference/cli.md#draugr-scan-sagayaml--dir) n, rounded down, so
+  the compile processes of both loads together stay within n. Where n is 1, gosec loads one
+  package at a time. A `-p` already in your `GOFLAGS` is kept.
 
 ## Severity
 

@@ -598,7 +598,9 @@ build it starts, such as govulncheck's package load, runs at most n compile proc
 different bound, set `GOMAXPROCS`, or `-p=<n>` in `GOFLAGS`, before running `draugr scan`; Draugr
 passes either one on unchanged. `-j` does not change n: each of the jobs running at once starts
 its tools under n. govulncheck and gosec load Go packages one at a time across the run, on any
-number of repositories, so their compile processes stay within n for the whole run. A run with
+number of repositories, so their compile processes stay within n for the whole run. gosec divides
+n between the two packages it loads at once, each load building with `-p` at half of n, rounded
+down, so one gosec run also stays within n. A run with
 several such loads takes longer than loads in parallel would, and each job's wait is in
 `stats.orderWaitsMs`.
 
