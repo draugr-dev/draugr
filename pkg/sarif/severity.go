@@ -123,6 +123,31 @@ func (r Result) Severity(floor Severity) Severity {
 	return base
 }
 
+// RankedSeverity is the severity the finding's priority band was computed from: its own rating
+// held at the control's severity floor, then moved by every signal that argued with it.
+//
+// The order is the prioritizer's, read back from what it recorded on the finding:
+//
+//  1. the rating, the score, the scanner's rating or the SARIF level as Severity resolves it, held
+//     at SeverityFloor where the control's floor raised it;
+//  2. Escalation.To, where exploitability data or dependency health raised it;
+//  3. Reachability.RankedAs, where an unreachable verdict lowered it. Last because reachability is
+//     applied last: a deprecated package can raise a low finding to medium and a proof that nothing
+//     reaches it can then lower it back, and the band was computed from the lowered value.
+//
+// This is the severity the console, markdown and HTML print beside the band, and the one a
+// severity gate judges. The machine formats carry the scanner's own rating unchanged beside the
+// records that moved it, so a reader can check this value against them.
+func (r Result) RankedSeverity() Severity {
+	if r.Reachability != nil && r.Reachability.State == ReachabilityUnreachable && r.Reachability.RankedAs != "" {
+		return r.Reachability.RankedAs
+	}
+	if r.Escalation != nil && r.Escalation.To != "" {
+		return r.Escalation.To
+	}
+	return r.Severity(r.SeverityFloor)
+}
+
 // legacyLevelWords maps the SARIF level a gate used to be set to onto the band it means.
 //
 // The two ladders are not the same length. SARIF has three rungs and severity four. So this is

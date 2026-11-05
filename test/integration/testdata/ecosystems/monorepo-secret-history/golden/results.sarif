@@ -53,6 +53,7 @@
             "historical": true,
             "priority": "P1",
             "repository": "./monorepo-secret-history",
+            "severityFloor": "high",
             "tool": "gitleaks"
           },
           "ruleId": "aws-access-token"
@@ -85,6 +86,7 @@
             "historical": true,
             "priority": "P1",
             "repository": "./monorepo-secret-history",
+            "severityFloor": "high",
             "tool": "gitleaks"
           },
           "ruleId": "aws-access-token"

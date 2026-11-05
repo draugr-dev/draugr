@@ -141,7 +141,7 @@ func writeMoved(w io.Writer, col tui.Painter, r Result, opts Options) {
 	for _, m := range shown {
 		cells := []tui.Cell{
 			tui.Styled(tui.PriorityStyle(m.Priority), movePriority(m)),
-			tui.PlainCell(string(m.Severity(""))),
+			tui.PlainCell(string(m.RankedSeverity())),
 			{Text: m.RuleID, URL: r.HelpURI(m.RuleID)},
 			tui.PlainCell(dash(m.Tool)),
 			tui.PlainCell(dash(m.Was.Component) + " → " + dash(m.Component)),
@@ -185,7 +185,7 @@ func writeMarkdownMoved(w io.Writer, r Result, opts Options) {
 		if u := r.HelpURI(m.RuleID); u != "" {
 			id = "[" + id + "](" + u + ")"
 		}
-		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %s | %s → %s | %s |\n", movePriority(m), m.Severity(""), id,
+		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %s | %s → %s | %s |\n", movePriority(m), m.RankedSeverity(), id,
 			dash(m.Tool), dash(m.Was.Component), dash(m.Component), loc(m.Location.URI, m.Location.StartLine))
 	}
 	if len(shown) < len(re) {

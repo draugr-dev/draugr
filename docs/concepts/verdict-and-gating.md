@@ -38,10 +38,15 @@ pipeline directly.
 **band** a finding landed in for the component it was found in, failing on `P1`. That band folds
 in the exposure and criticality the descriptor declares, which is context no scanner can compute.
 
-`--fail-on` (or `config.gate.failOn`) asks the other question instead: what **severity** the
-scanner gave the flaw on its own terms, with optional per-control overrides. Setting both is
-refused rather than combined, because a verdict with two possible reasons cannot be read back to
-the rule that produced it.
+`--fail-on` (or `config.gate.failOn`) asks the other question instead: what **severity** the flaw
+has, with optional per-control overrides. Setting both is refused rather than combined, because a
+verdict with two possible reasons cannot be read back to the rule that produced it.
+
+A severity gate reads a finding's **ranked severity**: the scanner's rating held at
+the control's [severity floor](prioritization.md#where-the-severity-in-step-2-comes-from) and then moved by every signal, the severity the report prints for the finding. A `high`
+on KEV is printed `critical ↑ KEV` and fails `--fail-on critical`. An unreachable `critical` is
+printed `high ↓ unreachable`, passes `--fail-on critical` and fails `--fail-on high`. In
+`report.json`, `controls[].highest` is the severity each control was judged on.
 
 Which of the two catches more depends on the component, so neither is the stricter one. On a
 component that declares nothing, `P1` means critical or high, the same findings `--fail-on high`
@@ -204,12 +209,12 @@ A finding is described on **three related axes**. Knowing which is which removes
 | Axis | Values | What it is | Where it shows |
 |------|--------|------------|----------------|
 | **Priority** | P1 · P2 · P3 · P4 | Draugr's headline ranking: **severity × the component's exposure & criticality**. "What to fix first." | the band counts under the verdict, and the order of "fix first" |
-| **Severity** | critical · high · medium · low | Normalized impact, from the first of: the **CVSS score** (`security-severity`); the scanner's own **rating** (Semgrep's impact and likelihood, Bandit's severity and confidence); the finding's level (error→high, warning→medium, note→low). | the per-control counts and the "fix first" severity column |
-| **Level** | error · warning · note | The raw **SARIF** value each scanner maps into, the lowest common denominator. | the machine formats (`--format json`/`sarif`) and the gate (`--fail-on`) |
+| **Severity** | critical · high · medium · low | Normalized impact, from the first of: the **CVSS score** (`security-severity`); the scanner's own **rating** (Semgrep's impact and likelihood, Bandit's severity and confidence); the finding's level (error→high, warning→medium, note→low). Then held at the control's severity floor and moved by every signal: KEV, EPSS and dependency health raise it, an unreachable verdict lowers it. | the per-control counts, the "fix first" severity column, and a severity gate (`--fail-on high`) |
+| **Level** | error · warning · note | The raw **SARIF** value each scanner maps into, the lowest common denominator. | the machine formats (`--format json`/`sarif`) |
 
 So the same CVE can be **critical** severity but **P3** priority on an internal tool, or **P1** on a
 public, business-critical service. The human report (console/markdown/html) speaks **priority +
-severity**; `level` stays for the gate and machine output. The console view is **color-coded** on a
+severity**; `level` stays for machine output. The console view is **color-coded** on a
 terminal (verdict, priorities, severities) and honors `NO_COLOR`.
 
 A worked example:

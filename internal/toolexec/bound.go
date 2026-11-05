@@ -19,6 +19,8 @@ import (
 //
 // So every tool run is given one bound, n, as GOMAXPROCS and as -p in GOFLAGS, unless the caller
 // already chose either. A run of -j jobs then has at most -j × n threads and compile processes.
+// A tool that runs several `go` commands at once divides n among them (Divide), since each
+// command would otherwise build with all of it.
 
 // memoryPerUnit is the memory each unit of the bound is allowed: one compile process of a large
 // module's build together with the share of the tool that started it.
@@ -60,10 +62,38 @@ func boundEnv(env []string, n int) []string {
 	if lookup(env, "GOMAXPROCS") == "" {
 		add = append(add, "GOMAXPROCS="+strconv.Itoa(n))
 	}
-	if goflags := lookup(env, "GOFLAGS"); !setsBuildParallelism(goflags) {
-		add = append(add, "GOFLAGS="+strings.TrimSpace(goflags+" -p="+strconv.Itoa(n)))
+	return append(add, buildBound(env, n)...)
+}
+
+// buildBound is the GOFLAGS entry that gives a run whose environment is env the build parallelism
+// p: its existing flags, then -p=p. Nothing where those flags already hold a -p.
+func buildBound(env []string, p int) []string {
+	goflags := lookup(env, "GOFLAGS")
+	if setsBuildParallelism(goflags) {
+		return nil
 	}
-	return add
+	return []string{"GOFLAGS=" + strings.TrimSpace(goflags+" -p="+strconv.Itoa(p))}
+}
+
+// Divide shares the bound among the `go` commands one tool runs at once, for a tool that runs up to
+// commands of them. It returns how many the tool should run at once, commands or the bound where
+// that is fewer and at least one, and the environment that tool runs with: GOFLAGS with -p at the
+// bound divided by that many, rounded down and at least one, after the caller's other flags. Each
+// command then builds with at most that -p, so together they run at most the bound's compile
+// processes rather than the bound's for each.
+//
+// The environment is for the tool's run to pass as its own, which the bound is layered over:
+// GOMAXPROCS stays the whole bound, because it sizes the tool's own threads and not its builds. A
+// caller whose GOFLAGS sets -p keeps it, and the environment is then empty: that caller chose each
+// command's parallelism, and the count returned still bounds how many commands run.
+func Divide(commands int) (concurrent int, env []string) {
+	return divide(os.Environ(), parallelism(), commands)
+}
+
+// divide is Divide for a run whose environment is env under the bound n.
+func divide(env []string, n, commands int) (int, []string) {
+	c := max(1, min(commands, n))
+	return c, buildBound(env, max(1, n/c))
 }
 
 // lookup is the value of key in env, from its last entry, or empty where env has none.

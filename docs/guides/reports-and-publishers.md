@@ -783,11 +783,14 @@ found is invisible, whatever plan you are on.
 
 The security reports carry the **flaw's** severity. GitLab's merge-request approval policies gate on
 that field, and a Draugr priority has already folded in the component's exposure and criticality.
-Handing one over would have those policies apply that context a second time.
+Handing one over would have those policies apply that context a second time. The severity is the
+one Draugr's own severity gate judges, after the control's severity floor and every signal, so a
+policy set to Critical blocks a CVE on KEV that its scanner scored high, as `--fail-on critical`
+does.
 
 Code Quality carries the **priority**, because it has no policy engine behind it. It is a list a
 reviewer reads in order, and the useful order is the one that accounts for what the component is
-exposed to. The flaw's severity leads the description, so nothing is lost.
+exposed to. The flaw's severity, the same one, leads the description, so nothing is lost.
 
 | Priority | Code Quality severity |
 |---|---|

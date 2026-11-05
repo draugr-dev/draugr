@@ -127,6 +127,10 @@ type Priority struct {
 	// Empty when nothing lowered it, which is every finding that is reachable, unanalyzed, or
 	// already at the bottom band.
 	RankedAs sarif.Severity
+	// SeverityFloor is the control's minimum severity, set only where it raised the rating the band
+	// was computed from. Empty where the control declares no floor or the rating was already at or
+	// above it.
+	SeverityFloor sarif.Severity
 }
 
 // Option configures an Engine.
@@ -1894,6 +1898,7 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 			out.Results[i].Escalation = p.Escalation
 			out.Results[i].Exploited = p.Exploited
 			out.Results[i].PriorityFloor = p.Floor
+			out.Results[i].SeverityFloor = p.SeverityFloor
 		}
 	}
 	return out
@@ -2735,6 +2740,7 @@ func (e *Engine) reband(res *sarif.Result, control string, model saga.Model) {
 	res.Escalation = p.Escalation
 	res.Exploited = p.Exploited
 	res.PriorityFloor = p.Floor
+	res.SeverityFloor = p.SeverityFloor
 	if res.Reachability != nil {
 		res.Reachability.RankedAs = p.RankedAs
 	}

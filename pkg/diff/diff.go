@@ -300,8 +300,8 @@ func moreUrgent(a, b sarif.Result) bool {
 	}
 	// Severity before the number behind it. The rating is the comparable thing; the score
 	// refines it where both have one, and a finding raised to critical by an exploitation
-	// catalog usually carries no score at all.
-	if sa, sb := a.Severity("").Rank(), b.Severity("").Rank(); sa != sb {
+	// catalog usually carries no score at all. Ranked, as the column beside the band prints it.
+	if sa, sb := a.RankedSeverity().Rank(), b.RankedSeverity().Rank(); sa != sb {
 		return sa > sb
 	}
 	if a.Score != b.Score {
@@ -325,11 +325,12 @@ type SeverityCounts struct {
 	Low      int `json:"low"`
 }
 
-// countSeverities tallies a finding slice by severity band.
+// countSeverities tallies a finding slice by ranked severity, the value the scan report prints
+// beside each band and a severity gate on new findings judges.
 func countSeverities(rs []sarif.Result) SeverityCounts {
 	var c SeverityCounts
 	for _, r := range rs {
-		switch r.Severity("") {
+		switch r.RankedSeverity() {
 		case sarif.SeverityCritical:
 			c.Critical++
 		case sarif.SeverityHigh:
@@ -420,9 +421,13 @@ func (r Result) OnlyRepository(ref string) Result {
 	return r
 }
 
-// GateNew returns the new findings that meet the differential gate: level at or above failOn
-// (when set) OR priority at or above failOnPriority (when set). An empty threshold disables
+// GateNew returns the new findings that meet the differential gate: ranked severity at or above
+// failOn (when set) OR priority at or above failOnPriority (when set). An empty threshold disables
 // that dimension. With both empty, nothing is returned.
+//
+// The ranked severity is the one the scan's own severity gate judges and its report prints, after
+// the control's severity floor and every signal, read from what results.sarif recorded. A gate on
+// new findings that read the scanner's rating would pass a raised finding the scan itself fails.
 func (r Result) GateNew(failOn sarif.Severity, failOnPriority string) []sarif.Result {
 	var tripped []sarif.Result
 	wantSeverity := failOn != ""
@@ -437,7 +442,7 @@ func (r Result) GateNew(failOn sarif.Severity, failOnPriority string) []sarif.Re
 		if f.Correlated() {
 			continue
 		}
-		if wantSeverity && f.Severity("").AtLeast(failOn) {
+		if wantSeverity && f.RankedSeverity().AtLeast(failOn) {
 			tripped = append(tripped, f)
 			continue
 		}
@@ -523,7 +528,7 @@ func (r Result) Changed() []Entry {
 		if aw, bw := a.Change.NeedsSomebody(), b.Change.NeedsSomebody(); aw != bw {
 			return aw
 		}
-		if sa, sb := a.Severity("").Rank(), b.Severity("").Rank(); sa != sb {
+		if sa, sb := a.RankedSeverity().Rank(), b.RankedSeverity().Rank(); sa != sb {
 			return sa > sb
 		}
 		return a.RuleID < b.RuleID

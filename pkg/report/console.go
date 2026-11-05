@@ -879,24 +879,17 @@ type movement struct {
 }
 
 // rankedSeverity is the rating the band was computed from, which is the scanner's own only where
-// nothing argued with it.
+// nothing argued with it: sarif.Result.RankedSeverity, taken when the finding was built.
 //
-// The column used to show the scanner's word whatever happened to it, so a finding on KEV read
-// "P1 · high" with "ranked as critical" three lines below, and the reader had to assemble one fact
-// out of a value in one place and its history in another. Worse, the row read as a contradiction
-// first and resolved itself second, which is the order that costs trust.
+// Read from the one accessor rather than worked out here, because a severity gate judges the same
+// value. Two derivations of it are two answers to "which severity failed this run", and the
+// report printing one while the gate read the other is the disagreement this exists to prevent.
 //
 // What the scanner said is not lost: the row is marked, and the line underneath says what it was
 // raised or lowered from and what did it. The machine formats carry the scanner's rating
 // unchanged, because that is what the scanner claimed.
 func rankedSeverity(f finding) sarif.Severity {
-	if f.escalation != nil && f.escalation.To != "" {
-		return f.escalation.To
-	}
-	if loweredAsUnreachable(f) {
-		return f.reachability.RankedAs
-	}
-	return f.severity
+	return f.ranked
 }
 
 // loweredAsUnreachable reports whether a reachability verdict moved this finding's band down.

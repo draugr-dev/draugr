@@ -60,6 +60,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-root-files",
+            "severityFloor": "high",
             "tool": "gitleaks"
           },
           "ruleId": "aws-access-token"
@@ -167,6 +168,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-root-files",
+            "severityFloor": "high",
             "tool": "gitleaks"
           },
           "ruleId": "aws-access-token"
@@ -198,6 +200,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-root-files",
+            "severityFloor": "high",
             "tool": "gitleaks"
           },
           "ruleId": "aws-access-token"

@@ -68,6 +68,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-paths",
+            "severityFloor": "high",
             "tool": "gitleaks"
           },
           "ruleId": "aws-access-token"
@@ -168,6 +169,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-paths",
+            "severityFloor": "high",
             "tool": "gitleaks"
           },
           "ruleId": "aws-access-token"

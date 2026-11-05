@@ -312,7 +312,7 @@ func writeChanged(w io.Writer, col tui.Painter, r Result, entries []Entry, opts 
 		cells := []tui.Cell{
 			mark,
 			tui.Styled(tui.PriorityStyle(e.Priority), dash(e.Priority)),
-			tui.PlainCell(string(e.Severity(""))),
+			tui.PlainCell(string(e.RankedSeverity())),
 			{Text: e.RuleID, URL: r.HelpURI(e.RuleID)},
 			tui.PlainCell(dash(e.Tool)),
 		}
@@ -826,7 +826,7 @@ func renderMarkdownTable(w io.Writer, r Result, opts Options) error {
 			up = " " + dash(label) + " |"
 		}
 		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %s | %s |%s %s |%s\n",
-			change, dash(e.Priority), e.Severity(""), id, dash(e.Tool), component,
+			change, dash(e.Priority), e.RankedSeverity(), id, dash(e.Tool), component,
 			loc(e.Location.URI, e.Location.StartLine), up)
 	}
 	if len(shown) < len(entries) {
