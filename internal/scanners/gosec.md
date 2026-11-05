@@ -34,7 +34,7 @@ no component names.
   excluded reads as a finding nobody ever made.
 - `-quiet` is deliberately **not** used: it suppresses all output on a clean scan, which would
   leave no SARIF to parse.
-- `-concurrency 2` loads two packages at once, each building with `-p` at half of each tool's
+- `-concurrency 2` loads two packages at once, each building with `-p` at half of the
   [parallelism bound](../../docs/reference/cli.md#draugr-scan-sagayaml--dir) n, rounded down, so
   the compile processes of both loads together stay within n. Where n is 1, gosec loads one
   package at a time. A `-p` already in your `GOFLAGS` is kept.
