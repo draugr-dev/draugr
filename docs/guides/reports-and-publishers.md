@@ -902,7 +902,7 @@ is kept for the next report opened in the same browser.
 | Value | Means |
 |---|---|
 | `raised by a signal` | on CISA's Known Exploited Vulnerabilities catalog, predicted exploitation at or above your EPSS threshold, or a malicious or deprecated package |
-| `floored by a control` | a leaked credential, ranked P1 whatever its component declares |
+| `floored by a control` | a leaked credential, ranked at C1 whatever its component declares |
 | `lowered as unreachable` | analysis found no path from your code to it |
 | `raised to a minimum severity` | a leaked credential, held at high whatever its scanner rated it |
 | `ranked from severity alone` | none of the others |
