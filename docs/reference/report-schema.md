@@ -70,7 +70,7 @@ top-level `verdict` is the whole run's outcome and `gate.wholeRun` is absent.
 | `gate.failOnPriority` | the band a control fails at, on a run that gates on the band. The default, `P1`, is written out |
 | `gate.threshold` | the severity a control fails at, on a run that gates on severity. Exactly one of `threshold` and `failOnPriority` is present |
 | `gate.perControl` | the controls judged against a threshold of their own, in the gate's vocabulary |
-| `controls[].highest` | the most severe severity among the control's findings as the report prints it beside the band, after the control's `severityFloor`, `escalation` and `reachability`. A severity gate compares it with `controls[].threshold`. Suppressed findings are left out |
+| `controls[].highest` | the most severe ranked severity among the control's findings, after the control's `severityFloor`, `escalation` and `reachability`. A severity gate compares it with `controls[].threshold`. Suppressed findings are left out |
 | `controls[].highestPriority` | the most urgent band among the control's findings, which a band gate compares with `gate.failOnPriority`. Suppressed findings and a second scanner's copy of a finding already counted are left out |
 | `gate.disabled` | `true` under `--no-gate`: the verdicts stand and the command exited 0 |
 | `gate.failOnCaveats` | the kinds of caveat that fail the run, from [`config.gate.failOnCaveats`](saga-schema.md#configgate) or `--fail-on-caveats` |
@@ -159,11 +159,12 @@ the analyzer and method for reachability, the dataset and the date for escalatio
 to reject a reachability claim that does not say how it was reached; the same standard applies to a
 claim that something is more urgent than its score.
 
-**The severity printed beside the band is computed from these fields.** Start from the score, the
+**The ranked severity is computed from these fields, in this order.** Start from the score, the
 `draugr/rating` severity, or the level (`error` high, `warning` medium, `note` low), in that order.
-Raise it to `severityFloor` where present, replace it with `escalation.to` where present, and
-replace that with `reachability.rankedAs` where present. The result is the severity a severity gate
-judges and `controls[].highest` reports.
+Raise it to `severityFloor` where present. Where `escalation` is present, take `escalation.to`, which
+was raised from that floored severity. Where `reachability` found no path and carries `rankedAs`,
+take `rankedAs`, which was lowered from the severity before it. The result is the ranked severity a
+severity gate judges and `controls[].highest` reports.
 
 **`historical: true` marks a finding from the repository's commit history.** Its location is the
 path the file had in the commit that introduced the secret, which a file renamed or deleted since

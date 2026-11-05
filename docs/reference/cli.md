@@ -478,7 +478,7 @@ The flag tables below follow the groups in `draugr scan --help`.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--fail-on` | `P1` | What fails the gate, in either vocabulary: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`). A severity is compared with the one printed beside each band, after the control's floor and every signal. Overrides [`config.gate`](saga-schema.md#configgate); `P1` applies when neither sets one |
+| `--fail-on` | `P1` | What fails the gate, in either vocabulary: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`). A severity is compared with each finding's [ranked severity](../concepts/verdict-and-gating.md), after the control's floor and every signal. Overrides [`config.gate`](saga-schema.md#configgate); `P1` applies when neither sets one |
 | `--fail-on-priority` | - | Deprecated: write the band in `--fail-on`. Refused together with `--fail-on` |
 | `--fail-on-caveats` | - | Kinds of caveat that fail the run as an error does: `not-checked`, `not-measured`, `unread-files`, `unread-checks`, `unbound-imports`, or `none`. Overrides [`config.gate.failOnCaveats`](saga-schema.md#configgate) |
 | `--base` | - | The `results.sarif` of a scan to compare this one against, by the comparison [`draugr diff`](#draugr-diff-basesarif-headsarif) makes. With a gate on new findings set, the verdict and the exit code come from what this scan reports and the base does not. See [below](#gating-on-new-findings) |
@@ -629,7 +629,7 @@ that is neither a band nor a severity is **rejected**:
 draugr: --fail-on: "severe" is neither a priority band (P1, P2, P3, P4) nor a severity (critical, high, medium, low)
 ```
 
-A severity gate judges the severity the report prints beside the band, not the SARIF level, so a
+A severity gate judges each finding's ranked severity, not the SARIF level, so a
 CVSS 7.8 a scanner emits as `warning` is `high` for the gate as it is in the report. A finding with
 no CVSS score takes its band from the level its scanner assigned. A control may hold its findings
 at a **floor** (a `secrets` finding is never below `high`, however the scanner scored it), and

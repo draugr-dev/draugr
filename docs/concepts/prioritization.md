@@ -439,7 +439,7 @@ incomparable.
   from severity × exposure × criticality. An escalated CVE on a `restricted`, `supporting`
   component may still not be P1, which is the point: exploitability matters *in context*.
 - **The gate follows automatically.** A severity gate (`--fail-on critical`, `high`, `medium` or
-  `low`) reads the severity printed beside the band, after the severity floor and every signal, so
+  `low`) reads each finding's ranked severity, after the severity floor and every signal, so
   KEV can raise a finding past it and an unreachable verdict can lower one below it.
 
 ### A worked example
