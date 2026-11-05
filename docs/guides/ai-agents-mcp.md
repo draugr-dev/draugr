@@ -151,7 +151,7 @@ Each finding from `scan`, `summarize_report` and `diff_reports` carries two seve
 `rankedSeverity` is the severity the finding was ranked at, after the control's severity floor and
 every signal, which the report prints and a severity gate such as `--fail-on high` or `failOnNew`
 judges ([how the gate decides](../concepts/verdict-and-gating.md)). `severity` is the scanner's own
-rating, before anything moved it. A leaked credential its scanner rated `medium` carries
+rating, before the control's severity floor or any signal moved it. A leaked credential its scanner rated `medium` carries
 `severity: medium`, `severityFloor: high` and `rankedSeverity: high`, and fails a gate set to
 `high`. `counts` tallies findings by `rankedSeverity`.
 
