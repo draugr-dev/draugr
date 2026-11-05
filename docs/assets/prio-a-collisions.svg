@@ -1,0 +1,81 @@
+<svg viewBox="0 0 900 350" width="900" height="350" role="img" aria-label="Two rules for two signals on one finding: between two raises the higher severity wins, and against an unreachable verdict KEV, EPSS and malicious overrule while deprecated yields." xmlns="http://www.w3.org/2000/svg">
+  <title>When two signals hit one finding</title>
+  <desc>Left, two raises. A medium finding that EPSS raises to high and a malicious package raises to critical ends at critical, marked malicious, because the higher resulting severity wins. A high finding that EPSS and deprecated both raise to critical is a tie, and a tie goes to exploitability, so it is marked EPSS. Right, a raise against an unreachable verdict on a high finding. KEV overrules and the finding is critical. EPSS overrules, critical. Malicious overrules, critical. Deprecated yields, and the finding is lowered to medium, marked unreachable. A KEV listing on a finding already critical raised nothing and still overrules, so the finding stays critical with no mark. Both rules are settled in run phase 3, once every scanner has finished.</desc>
+  <defs>
+    <style>
+      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:13px}
+      .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:1.2px;fill:#7CA6B8}
+      .mu{fill:#9AA4AE}.sm{font-size:11px}.h{font-size:12px}.b{font-weight:700}.c{text-anchor:middle}
+      .scr{fill:#E9635B}.shi{fill:#E8B84B}.sme{fill:#7CA6B8}.slo{fill:#859198}
+      .ccr{fill:#12161B;stroke:#E9635B;stroke-width:1.5}
+      .chi{fill:#12161B;stroke:#E8B84B;stroke-width:1.5}
+      .cme{fill:#12161B;stroke:#7CA6B8;stroke-width:1.5}
+      .up{stroke:#E9635B;stroke-width:1.8;fill:none}
+      .ar{stroke:#9AA4AE;stroke-width:1.5;fill:none}
+      .box{fill:none;stroke:#232A31;stroke-width:1.5}
+      .g{stroke:#232A31;stroke-width:1}
+      .tu{fill:#E9635B}.td{fill:#7CA6B8}
+    </style>
+    <marker id="u" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#E9635B"/></marker>
+    <marker id="h" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#9AA4AE"/></marker>
+  </defs>
+  <rect width="900" height="350" rx="12" fill="#0B0E11"/>
+
+  <rect class="box" x="16" y="16" width="424" height="280" rx="10"/>
+  <text class="e" x="32" y="40">TWO RAISES · THE HIGHER WINS</text>
+
+  <rect class="cme" x="32" y="94" width="76" height="26" rx="5"/><text class="m h c sme" x="70" y="112">medium</text>
+  <path class="up" d="M108 100L214 74" marker-end="url(#u)"/>
+  <path class="up" d="M108 114L214 140" marker-end="url(#u)"/>
+  <text class="m sm" x="128" y="76"><tspan class="tu">↑</tspan> EPSS</text>
+  <text class="m sm" x="118" y="148"><tspan class="tu">↑</tspan> malicious</text>
+  <rect class="chi" x="218" y="58" width="76" height="26" rx="5" stroke-dasharray="3 3"/><text class="m h c shi" x="256" y="76">high</text>
+  <rect class="ccr" x="218" y="128" width="76" height="26" rx="5"/><text class="m h c scr" x="256" y="146">critical</text>
+  <path class="ar" d="M294 141L330 115" marker-end="url(#h)"/>
+  <rect class="ccr" x="334" y="94" width="92" height="26" rx="5" style="stroke-width:2.5"/><text class="m h b c scr" x="380" y="112">critical</text>
+  <text class="m sm c" x="380" y="138"><tspan class="tu">↑</tspan> malicious</text>
+
+  <path class="g" d="M32 172H424"/>
+
+  <rect class="chi" x="32" y="222" width="76" height="26" rx="5"/><text class="m h c shi" x="70" y="240">high</text>
+  <path class="up" d="M108 228L214 202" marker-end="url(#u)"/>
+  <path class="up" d="M108 242L214 268" marker-end="url(#u)"/>
+  <text class="m sm" x="128" y="204"><tspan class="tu">↑</tspan> EPSS</text>
+  <text class="m sm" x="114" y="276"><tspan class="tu">↑</tspan> deprecated</text>
+  <rect class="ccr" x="218" y="186" width="76" height="26" rx="5"/><text class="m h c scr" x="256" y="204">critical</text>
+  <rect class="ccr" x="218" y="256" width="76" height="26" rx="5" stroke-dasharray="3 3"/><text class="m h c scr" x="256" y="274">critical</text>
+  <path class="ar" d="M294 199L330 228" marker-end="url(#h)"/>
+  <rect class="ccr" x="334" y="222" width="92" height="26" rx="5" style="stroke-width:2.5"/><text class="m h b c scr" x="380" y="240">critical</text>
+  <text class="m sm c" x="380" y="266"><tspan class="tu">↑</tspan> EPSS</text>
+  <text class="sm mu c" x="380" y="282">tie: exploitability</text>
+
+  <rect class="box" x="456" y="16" width="428" height="280" rx="10"/>
+  <text class="e" x="472" y="40">A RAISE AGAINST ↓ UNREACHABLE</text>
+  <text class="sm mu" x="472" y="62">a high finding nothing can reach</text>
+  <text class="sm mu" x="472" y="86">signal</text>
+  <text class="sm mu" x="640" y="86">verdict</text>
+  <text class="sm mu" x="760" y="86">ranked at</text>
+  <path class="g" d="M472 94H868"/>
+
+  <text class="m h b" x="472" y="120"><tspan class="tu">↑</tspan> KEV</text>
+  <text class="m h" x="640" y="120"><tspan class="tu">↑</tspan> overrules</text>
+  <rect class="ccr" x="760" y="104" width="76" height="24" rx="5"/><text class="m h c scr" x="798" y="121">critical</text>
+  <text class="m h b" x="472" y="156"><tspan class="tu">↑</tspan> EPSS</text>
+  <text class="m h" x="640" y="156"><tspan class="tu">↑</tspan> overrules</text>
+  <rect class="ccr" x="760" y="140" width="76" height="24" rx="5"/><text class="m h c scr" x="798" y="157">critical</text>
+  <text class="m h b" x="472" y="192"><tspan class="tu">↑</tspan> malicious</text>
+  <text class="m h" x="640" y="192"><tspan class="tu">↑</tspan> overrules</text>
+  <rect class="ccr" x="760" y="176" width="76" height="24" rx="5"/><text class="m h c scr" x="798" y="193">critical</text>
+  <text class="m h b" x="472" y="228"><tspan class="tu">↑</tspan> deprecated</text>
+  <text class="m h" x="640" y="228"><tspan class="td">↓</tspan> yields</text>
+  <rect class="cme" x="760" y="212" width="76" height="24" rx="5" stroke-dasharray="6 4"/><text class="m h c sme" x="798" y="229">medium</text>
+  <path class="g" d="M472 246H868"/>
+  <text class="m h b" x="472" y="270">KEV, already critical</text>
+  <text class="m h" x="640" y="270"><tspan class="tu">↑</tspan> overrules</text>
+  <rect class="ccr" x="760" y="254" width="76" height="24" rx="5"/><text class="m h c scr" x="798" y="271">critical</text>
+  <text class="sm mu" x="472" y="287">no mark: it raised nothing</text>
+
+  <text class="e" x="24" y="328">WHEN</text>
+  <text class="sm" x="90" y="328">Both rules are settled in run phase 3, once every scanner has finished and the finding is ranked again.</text>
+</svg>

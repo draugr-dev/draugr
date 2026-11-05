@@ -1,0 +1,76 @@
+<svg viewBox="0 0 900 410" width="900" height="410" role="img" aria-label="Each signal drawn as a move along the severity ladder from low to critical, with the condition that triggers it and the key that turns it on." xmlns="http://www.w3.org/2000/svg">
+  <title>What each signal does to severity</title>
+  <desc>The severity ladder runs low, medium, high, critical. KEV moves a finding to critical from any severity when its CVE is on CISA's Known Exploited Vulnerabilities catalog; turned on by config.exploitability.kev; applied in run phase 2, scan. EPSS moves it up one band when the score is at or above epssThreshold, default 0.5; config.exploitability.epss; phase 2. Malicious moves it to critical when the package is in the OSSF Malicious Packages Project; config.dependencyHealth.enabled; phase 3, enrich. Deprecated moves it up one band when the publisher has marked the version deprecated; config.dependencyHealth.enabled; phase 3. Unreachable moves it down one band when govulncheck finds no call path to the vulnerable code; config.reachability.analyzers; phase 3. Absence never lowers a band.</desc>
+  <defs>
+    <style>
+      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:13px}
+      .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:1.2px;fill:#7CA6B8}
+      .mu{fill:#9AA4AE}.sm{font-size:11px}.h{font-size:11.5px}.b{font-weight:700}.c{text-anchor:middle}
+      .scr{fill:#E9635B}.shi{fill:#E8B84B}.sme{fill:#7CA6B8}.slo{fill:#859198}
+      .up{stroke:#E9635B;stroke-width:2.5;fill:none}
+      .dn{stroke:#7CA6B8;stroke-width:2.5;fill:none;stroke-dasharray:7 5}
+      .g{stroke:#232A31;stroke-width:1}
+      .tu{fill:#E9635B}.td{fill:#7CA6B8}
+    </style>
+    <marker id="u" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#E9635B"/></marker>
+    <marker id="d" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#7CA6B8"/></marker>
+  </defs>
+  <rect width="900" height="410" rx="12" fill="#0B0E11"/>
+  <text class="e" x="24" y="30">SIGNALS · WHAT MOVES SEVERITY</text>
+
+  <text class="m h c slo" x="235" y="62">low</text>
+  <text class="m h c sme" x="325" y="62">medium</text>
+  <text class="m h c shi" x="415" y="62">high</text>
+  <text class="m h c scr" x="505" y="62">critical</text>
+  <path class="g" d="M235 72V346M325 72V346M415 72V346M505 72V346"/>
+  <path class="g" d="M24 74H876"/>
+
+  <text class="m b" x="24" y="104"><tspan class="tu">↑</tspan> KEV</text>
+  <text class="sm mu" x="24" y="121">phase 2 · scan</text>
+  <circle cx="235" cy="104" r="4" fill="#E9635B"/>
+  <path class="up" d="M239 104H498" marker-end="url(#u)"/>
+  <text class="sm c" x="370" y="96">from any severity to critical</text>
+  <text class="sm" x="572" y="100">CVE on CISA's Known Exploited catalog</text>
+  <text class="m sm mu" x="572" y="118">config.exploitability.kev</text>
+
+  <path class="g" d="M24 132H876"/>
+  <text class="m b" x="24" y="160"><tspan class="tu">↑</tspan> EPSS</text>
+  <text class="sm mu" x="24" y="177">phase 2 · scan</text>
+  <circle cx="325" cy="160" r="4" fill="#E9635B"/>
+  <path class="up" d="M329 160H408" marker-end="url(#u)"/>
+  <text class="sm c" x="370" y="152">one band</text>
+  <text class="sm" x="572" y="156">score at or above epssThreshold, default 0.5</text>
+  <text class="m sm mu" x="572" y="174">config.exploitability.epss</text>
+
+  <path class="g" d="M24 188H876"/>
+  <text class="m b" x="24" y="216"><tspan class="tu">↑</tspan> malicious</text>
+  <text class="sm mu" x="24" y="233">phase 3 · enrich</text>
+  <circle cx="235" cy="216" r="4" fill="#E9635B"/>
+  <path class="up" d="M239 216H498" marker-end="url(#u)"/>
+  <text class="sm c" x="370" y="208">from any severity to critical</text>
+  <text class="sm" x="572" y="212">package in OSSF Malicious Packages, via deps.dev</text>
+  <text class="m sm mu" x="572" y="230">config.dependencyHealth.enabled</text>
+
+  <path class="g" d="M24 244H876"/>
+  <text class="m b" x="24" y="272"><tspan class="tu">↑</tspan> deprecated</text>
+  <text class="sm mu" x="24" y="289">phase 3 · enrich</text>
+  <circle cx="325" cy="272" r="4" fill="#E9635B"/>
+  <path class="up" d="M329 272H408" marker-end="url(#u)"/>
+  <text class="sm c" x="370" y="264">one band</text>
+  <text class="sm" x="572" y="268">version marked deprecated by its publisher</text>
+  <text class="m sm mu" x="572" y="286">config.dependencyHealth.enabled</text>
+
+  <path class="g" d="M24 300H876"/>
+  <text class="m b" x="24" y="328"><tspan class="td">↓</tspan> unreachable</text>
+  <text class="sm mu" x="24" y="345">phase 3 · enrich</text>
+  <circle cx="415" cy="328" r="4" fill="#7CA6B8"/>
+  <path class="dn" d="M411 328H332" marker-end="url(#d)"/>
+  <text class="sm c" x="370" y="320">one band down</text>
+  <text class="sm" x="572" y="324">govulncheck finds no call path to the flaw; Go only</text>
+  <text class="m sm mu" x="572" y="342">config.reachability.analyzers</text>
+  <path class="g" d="M24 356H876"/>
+
+  <text class="e" x="24" y="382">ABSENT</text>
+  <text class="sm" x="90" y="382">A CVE missing from KEV, a low EPSS score and an unflagged package move nothing. Only unreachable lowers.</text>
+</svg>

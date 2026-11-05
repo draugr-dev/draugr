@@ -1,0 +1,55 @@
+<svg viewBox="0 0 900 290" width="900" height="290" role="img" aria-label="A secrets finding on a component declared internal and supporting is ranked at tier C1 instead of C4, so its band is P1 instead of P3, with its severity unchanged." xmlns="http://www.w3.org/2000/svg">
+  <title>The context floor</title>
+  <desc>A component named batch declares exposure internal and criticality supporting, tier C4. A leaked credential found on it has severity high, the secrets control's severity floor. The context floor ranks the finding at tier C1 instead of C4, marked floor, so its band is P1, C1 crossed with high, instead of P3, C4 crossed with high. The severity floor moves severity: a secrets finding is never below high, and it draws no mark. The context floor moves the tier: a secrets finding is ranked at C1, its severity unchanged, and it draws the floor mark. Both are always on, with no key, and apply as each secrets finding is ranked in run phase 2.</desc>
+  <defs>
+    <style>
+      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:13px}
+      .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:1.2px;fill:#7CA6B8}
+      .mu{fill:#9AA4AE}.sm{font-size:11px}.h{font-size:12px}.b{font-weight:700}.c{text-anchor:middle}
+      .shi{fill:#E8B84B}
+      .box{fill:#12161B;stroke:#2F3841;stroke-width:1.5}
+      .bfl{fill:#12161B;stroke:#E9635B;stroke-width:1.5;stroke-dasharray:2 4}
+      .tier{fill:#12161B;stroke:#2F3841;stroke-width:1}
+      .tu{fill:#E9635B}
+    </style>
+    <marker id="u" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#E9635B"/></marker>
+  </defs>
+  <rect width="900" height="290" rx="12" fill="#0B0E11"/>
+  <text class="e" x="24" y="30">CONTEXT FLOOR · A TIER FOR THE CONTROL</text>
+
+  <rect class="box" x="24" y="52" width="210" height="84" rx="8"/>
+  <text class="m b" x="40" y="76">batch</text>
+  <text class="m sm mu" x="40" y="98">exposure: internal</text>
+  <text class="m sm mu" x="40" y="118">criticality: supporting</text>
+  <rect class="box" x="24" y="152" width="210" height="44" rx="8"/>
+  <text class="m sm" x="40" y="179">secrets finding</text>
+  <rect x="160" y="162" width="60" height="24" rx="5" fill="#12161B" stroke="#E8B84B" stroke-width="1.5"/>
+  <text class="m h c shi" x="190" y="179">high</text>
+
+  <rect class="bfl" x="270" y="52" width="64" height="30" rx="5" style="stroke-width:2"/><text class="m b c" x="302" y="72">C1</text>
+  <rect class="tier" x="270" y="90" width="64" height="30" rx="5"/><text class="m c mu" x="302" y="110">C2</text>
+  <rect class="tier" x="270" y="128" width="64" height="30" rx="5"/><text class="m c mu" x="302" y="148">C3</text>
+  <rect class="box" x="270" y="166" width="64" height="30" rx="5" style="stroke:#9AA4AE"/><text class="m b c" x="302" y="186">C4</text>
+  <text class="sm mu c" x="302" y="214">declared</text>
+  <path d="M334 181C372 181 372 67 340 67" fill="none" stroke="#E9635B" stroke-width="2" stroke-dasharray="2 4" marker-end="url(#u)"/>
+  <text class="m b" x="370" y="128"><tspan class="tu">↑</tspan> floor</text>
+
+  <rect x="440" y="52" width="44" height="30" rx="5" fill="#E5534B"/><text class="m b c" x="462" y="72" style="fill:#0B0E11">P1</text>
+  <text class="sm" x="494" y="72">C1 × high</text>
+  <rect x="440" y="166" width="44" height="30" rx="5" fill="none" stroke="#7CA6B8" stroke-width="1.5" stroke-dasharray="4 3"/><text class="m b c" x="462" y="186" style="fill:#7CA6B8">P3</text>
+  <text class="sm mu" x="494" y="186">C4 × high, without it</text>
+
+  <rect class="box" x="626" y="52" width="250" height="68" rx="8"/>
+  <text class="m b" x="642" y="76">severity floor</text>
+  <text class="sm" x="642" y="96">secrets never below high</text>
+  <text class="sm mu" x="642" y="112">moves severity · no mark</text>
+  <rect class="bfl" x="626" y="132" width="250" height="68" rx="8"/>
+  <text class="m b" x="642" y="156">context floor</text>
+  <text class="sm" x="642" y="176">secrets ranked at C1</text>
+  <text class="sm mu" x="642" y="192">moves the tier · mark <tspan class="tu">↑</tspan> floor</text>
+
+  <path d="M24 232H876" stroke="#232A31" stroke-width="1"/>
+  <text class="e" x="24" y="258">WHEN</text>
+  <text class="sm" x="90" y="258">Always on, with no key: applied as each secrets finding is ranked, in run phase 2. Severity is unchanged.</text>
+</svg>

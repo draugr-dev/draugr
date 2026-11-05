@@ -1,0 +1,96 @@
+<svg viewBox="0 0 900 430" width="900" height="430" role="img" aria-label="The phases of a run, from start to a later diff, with each lever placed at the phase where Draugr applies it." xmlns="http://www.w3.org/2000/svg">
+  <title>When each lever applies in a run</title>
+  <desc>Seven phases of a run, each with the levers that act there. Start: the feeds named in config.exploitability are read, and the scope flags --components, --controls and --labels choose what runs. Scan: each finding is ranked as it arrives, with the KEV, EPSS and floor raises; govulncheck runs when config.reachability names it; scanner exclusions arrive already set aside. Enrich: once every scanner has finished, the malicious and deprecated raises from config.dependencyHealth and the unreachable lowering rank findings again. Decide: config.exclude, a supplier's VEX and correlation set findings aside. Gate: --fail-on or config.gate decides what fails the run. Report: --min-priority, --top and --view narrow what is shown, and actions and builtBy or operatedBy group and assign what is left. Later: draugr diff compares against an earlier report. Each lever is drawn as one of four kinds: ranks, removes, narrows, gates.</desc>
+  <defs>
+    <style>
+      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:13px}
+      .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:1.2px;fill:#7CA6B8}
+      .mu{fill:#9AA4AE}.sm{font-size:11px}.b{font-weight:700}
+      .kr{fill:#12161B;stroke:#E8B84B;stroke-width:1.5}
+      .kx{fill:#12161B;stroke:#7CA6B8;stroke-width:1.5;stroke-dasharray:6 4}
+      .kn{fill:#12161B;stroke:#9AA4AE;stroke-width:1.5;stroke-dasharray:2 3}
+      .kg{fill:#12161B;stroke:#E6E8EA;stroke-width:2.5}
+      .tu{fill:#E9635B}.td{fill:#7CA6B8}
+      .sep{stroke:#232A31;stroke-width:1}
+    </style>
+  </defs>
+  <rect width="900" height="430" rx="12" fill="#0B0E11"/>
+  <text class="e" x="24" y="32">A RUN · WHEN EACH LEVER APPLIES</text>
+  <rect class="kr" x="210" y="46" width="64" height="22" rx="5"/><text class="sm" x="222" y="61">ranks</text>
+  <rect class="kx" x="282" y="46" width="76" height="22" rx="5"/><text class="sm" x="294" y="61">removes</text>
+  <rect class="kn" x="366" y="46" width="72" height="22" rx="5"/><text class="sm" x="378" y="61">narrows</text>
+  <rect class="kg" x="446" y="46" width="60" height="22" rx="5"/><text class="sm" x="458" y="61">gates</text>
+
+  <path d="M190 100V382" stroke="#2F3841" stroke-width="2"/>
+
+  <path class="sep" d="M24 84H876"/>
+  <circle cx="190" cy="107" r="4" fill="#7CA6B8"/>
+  <text class="m b" x="24" y="105">1 start</text>
+  <text class="mu sm" x="24" y="120">descriptor and feeds load</text>
+  <rect class="kr" x="210" y="92" width="258" height="30" rx="6"/>
+  <text class="m" x="222" y="112"><tspan class="b">feeds read</tspan><tspan class="mu">  config.exploitability</tspan></text>
+  <rect class="kn" x="476" y="92" width="279" height="30" rx="6"/>
+  <text class="m" x="488" y="112">--components  --controls  --labels</text>
+
+  <path class="sep" d="M24 130H876"/>
+  <circle cx="190" cy="153" r="4" fill="#7CA6B8"/>
+  <text class="m b" x="24" y="151">2 scan</text>
+  <text class="mu sm" x="24" y="166">ranked as each arrives</text>
+  <rect class="kr" x="210" y="138" width="178" height="30" rx="6"/>
+  <text class="m b" x="222" y="158"><tspan class="tu">↑</tspan> KEV  <tspan class="tu">↑</tspan> EPSS  <tspan class="tu">↑</tspan> floor</text>
+  <rect class="kr" x="396" y="138" width="250" height="30" rx="6"/>
+  <text class="m" x="408" y="158"><tspan class="b">govulncheck</tspan><tspan class="mu">  config.reachability</tspan></text>
+  <rect class="kx" x="654" y="138" width="150" height="30" rx="6"/>
+  <text class="m" x="666" y="158">scanner exclusions</text>
+
+  <path class="sep" d="M24 176H876"/>
+  <circle cx="190" cy="199" r="4" fill="#7CA6B8"/>
+  <text class="m b" x="24" y="197">3 enrich</text>
+  <text class="mu sm" x="24" y="212">ranked again at the end</text>
+  <rect class="kr" x="210" y="184" width="373" height="30" rx="6"/>
+  <text class="m" x="222" y="204"><tspan class="b"><tspan class="tu">↑</tspan> malicious  <tspan class="tu">↑</tspan> deprecated</tspan><tspan class="mu">  config.dependencyHealth</tspan></text>
+  <rect class="kr" x="591" y="184" width="114" height="30" rx="6"/>
+  <text class="m b" x="603" y="204"><tspan class="td">↓</tspan> unreachable</text>
+
+  <path class="sep" d="M24 222H876"/>
+  <circle cx="190" cy="245" r="4" fill="#7CA6B8"/>
+  <text class="m b" x="24" y="243">4 decide</text>
+  <text class="mu sm" x="24" y="258">what is set aside</text>
+  <rect class="kx" x="210" y="230" width="121" height="30" rx="6"/>
+  <text class="m" x="222" y="250">config.exclude</text>
+  <rect class="kx" x="339" y="230" width="171" height="30" rx="6"/>
+  <text class="m" x="351" y="250"><tspan class="b">VEX</tspan><tspan class="mu">  components[].vex</tspan></text>
+  <rect class="kx" x="518" y="230" width="99" height="30" rx="6"/>
+  <text class="m" x="530" y="250">correlation</text>
+
+  <path class="sep" d="M24 268H876"/>
+  <circle cx="190" cy="291" r="4" fill="#7CA6B8"/>
+  <text class="m b" x="24" y="289">5 gate</text>
+  <text class="mu sm" x="24" y="304">what fails the run</text>
+  <rect class="kg" x="210" y="276" width="178" height="30" rx="6"/>
+  <text class="m" x="222" y="296"><tspan class="b">--fail-on</tspan><tspan class="mu">  config.gate</tspan></text>
+
+  <path class="sep" d="M24 314H876"/>
+  <circle cx="190" cy="337" r="4" fill="#7CA6B8"/>
+  <text class="m b" x="24" y="335">6 report</text>
+  <text class="mu sm" x="24" y="350">what is shown</text>
+  <rect class="kn" x="210" y="322" width="121" height="30" rx="6"/>
+  <text class="m" x="222" y="342">--min-priority</text>
+  <rect class="kn" x="339" y="322" width="56" height="30" rx="6"/>
+  <text class="m" x="351" y="342">--top</text>
+  <rect class="kn" x="403" y="322" width="63" height="30" rx="6"/>
+  <text class="m" x="415" y="342">--view</text>
+  <rect class="kx" x="474" y="322" width="70" height="30" rx="6"/>
+  <text class="m" x="486" y="342">actions</text>
+  <rect class="kx" x="552" y="322" width="164" height="30" rx="6"/>
+  <text class="m" x="564" y="342">builtBy · operatedBy</text>
+
+  <path class="sep" d="M24 360H876"/>
+  <circle cx="190" cy="383" r="4" fill="#7CA6B8"/>
+  <text class="m b" x="24" y="381">7 later</text>
+  <text class="mu sm" x="24" y="396">against an earlier report</text>
+  <rect class="kn" x="210" y="368" width="99" height="30" rx="6"/>
+  <text class="m" x="222" y="388">draugr diff</text>
+  <path class="sep" d="M24 406H876"/>
+</svg>

@@ -1,0 +1,74 @@
+<svg viewBox="0 0 900 350" width="900" height="350" role="img" aria-label="A band is the tier crossed with the severity. Signals move the severity, the context floor moves the tier, and the scanner's rating is kept." xmlns="http://www.w3.org/2000/svg">
+  <title>How Draugr decides a band</title>
+  <desc>Top lane, severity: the scanner's rating passes through three signals in order. KEV and EPSS raise it, turned on by config.exploitability. Malicious and deprecated raise it, turned on by config.dependencyHealth. Unreachable lowers it, turned on by config.reachability. Bottom lane, tier: the component's declared exposure crossed with its criticality gives a tier from C1 to C4 in the step 1 matrix, and the context floor sets the tier of a secrets finding to C1. Both lanes meet in the band, P1 to P4, the step 2 matrix, which the gate reads through --fail-on, default P1. Each finding is ranked as its scanner's results arrive, against the feeds read at the start of the run; dependency health and reachability rank it again once every scanner has finished. The scanner's rating is kept unchanged in report.json and the SARIF.</desc>
+  <defs>
+    <style>
+      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:13px}
+      .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:1.2px;fill:#7CA6B8}
+      .mu{fill:#9AA4AE}.sm{font-size:11px}.b{font-weight:700}.c{text-anchor:middle}
+      .box{fill:#12161B;stroke:#2F3841;stroke-width:1.5}
+      .bup{fill:#12161B;stroke:#E9635B;stroke-width:1.5}
+      .bdn{fill:#12161B;stroke:#7CA6B8;stroke-width:1.5;stroke-dasharray:6 4}
+      .bfl{fill:#12161B;stroke:#E9635B;stroke-width:1.5;stroke-dasharray:2 4}
+      .ar{stroke:#9AA4AE;stroke-width:1.5;fill:none}
+      .tu{fill:#E9635B}.td{fill:#7CA6B8}
+    </style>
+    <marker id="h" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L8 4L0 8z" fill="#9AA4AE"/></marker>
+  </defs>
+  <rect width="900" height="350" rx="12" fill="#0B0E11"/>
+
+  <text class="e" x="24" y="32">SEVERITY · WHAT THE FLAW IS RANKED AT</text>
+  <rect class="box" x="24" y="48" width="116" height="64" rx="8"/>
+  <text class="m b" x="38" y="75">rating</text>
+  <text class="mu sm" x="38" y="96">from the scanner</text>
+  <path class="ar" d="M140 80H154" marker-end="url(#h)"/>
+  <rect class="bup" x="158" y="48" width="170" height="64" rx="8"/>
+  <text class="m b" x="172" y="75"><tspan class="tu">↑</tspan> KEV · EPSS</text>
+  <text class="m sm mu" x="172" y="96">config.exploitability</text>
+  <path class="ar" d="M328 80H342" marker-end="url(#h)"/>
+  <rect class="bup" x="346" y="48" width="216" height="64" rx="8"/>
+  <text class="m b" x="360" y="75"><tspan class="tu">↑</tspan> malicious · deprecated</text>
+  <text class="m sm mu" x="360" y="96">config.dependencyHealth</text>
+  <path class="ar" d="M562 80H576" marker-end="url(#h)"/>
+  <rect class="bdn" x="580" y="48" width="160" height="64" rx="8"/>
+  <text class="m b" x="594" y="75"><tspan class="td">↓</tspan> unreachable</text>
+  <text class="m sm mu" x="594" y="96">config.reachability</text>
+  <path class="ar" d="M740 80H754" marker-end="url(#h)"/>
+
+  <text class="e" x="24" y="150">TIER · WHERE THE COMPONENT SITS</text>
+  <rect class="box" x="24" y="166" width="210" height="64" rx="8"/>
+  <text class="m b" x="38" y="193">exposure × criticality</text>
+  <text class="mu sm" x="38" y="214">declared on the component</text>
+  <path class="ar" d="M234 198H248" marker-end="url(#h)"/>
+  <rect class="box" x="252" y="166" width="110" height="64" rx="8"/>
+  <text class="m b" x="266" y="193">C1 … C4</text>
+  <text class="mu sm" x="266" y="214">step 1 matrix</text>
+  <path class="ar" d="M362 198H576" marker-end="url(#h)"/>
+  <rect class="bfl" x="580" y="166" width="160" height="64" rx="8"/>
+  <text class="m b" x="594" y="193"><tspan class="tu">↑</tspan> floor</text>
+  <text class="m sm mu" x="594" y="214">secrets → C1</text>
+  <path class="ar" d="M740 198H754" marker-end="url(#h)"/>
+
+  <rect class="box" x="758" y="48" width="126" height="182" rx="8"/>
+  <text class="e" x="772" y="72">BAND</text>
+  <text class="mu sm" x="772" y="92">tier × severity</text>
+  <text class="mu sm" x="772" y="108">step 2 matrix</text>
+  <rect x="772" y="122" width="44" height="26" rx="5" fill="#E5534B"/>
+  <text class="m b c" x="794" y="140" style="fill:#0B0E11">P1</text>
+  <rect x="822" y="122" width="44" height="26" rx="5" fill="#E8B84B"/>
+  <text class="m b c" x="844" y="140" style="fill:#16110A">P2</text>
+  <rect x="772" y="156" width="44" height="26" rx="5" fill="#7CA6B8"/>
+  <text class="m b c" x="794" y="174" style="fill:#0A1116">P3</text>
+  <rect x="822" y="156" width="44" height="26" rx="5" fill="#6B7680"/>
+  <text class="m b c" x="844" y="174" style="fill:#FFFFFF">P4</text>
+  <text class="m sm mu" x="772" y="204">--fail-on</text>
+  <text class="mu sm" x="772" y="220">default P1</text>
+
+  <path d="M24 256H876" stroke="#232A31" stroke-width="1"/>
+  <text class="e" x="24" y="280">WHEN</text>
+  <text class="sm" x="90" y="280">Ranked as each scanner's results arrive, against the feeds read at the start of the run.</text>
+  <text class="sm" x="90" y="300">Dependency health and reachability rank it again once every scanner has finished. The floor is always on.</text>
+  <text class="e" x="24" y="328">KEPT</text>
+  <text class="sm" x="90" y="328">The scanner's rating is never rewritten: report.json and the SARIF carry it unchanged beside the band.</text>
+</svg>
