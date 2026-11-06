@@ -1,1 +1,0 @@
-- **gosec's findings survive a Go module with no Go code.** A module holding only a `go.mod`, such as a Hugo docs site, is an `unread-files` caveat with the reason `no Go packages`, and `sast` keeps gosec's findings from the other modules. A module gosec fails on otherwise still fails `sast`, names its `go.mod`, and keeps the rest.
