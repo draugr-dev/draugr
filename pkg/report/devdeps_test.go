@@ -118,3 +118,23 @@ func TestADevelopmentDependencyIsLabeledWhereItsPackageIsNamed(t *testing.T) {
 		t.Errorf("compact fix %q", got)
 	}
 }
+
+// A dependency the runtime provides is labeled in the same two places, and one marked both
+// development and provided wears the development label.
+func TestAProvidedDependencyIsLabeledWhereItsPackageIsNamed(t *testing.T) {
+	provided := finding{tool: "grype", pkg: &sarif.Package{Name: "commons-collections", Version: "3.2.1",
+		FixedVersion: "3.2.2", Provided: true}}
+	both := finding{tool: "grype", pkg: &sarif.Package{Name: "junit", FixedVersion: "4.13.1", Dev: true, Provided: true}}
+
+	var buf bytes.Buffer
+	writeBlockFacts(&buf, tui.Plain(), provided, 120, false, false)
+	if got := buf.String(); got != "      scanner grype · provided dependency commons-collections 3.2.1 → 3.2.2\n" {
+		t.Errorf("facts %q, want the package labeled provided dependency", got)
+	}
+	if got := compactFix(provided); got != "provided commons-collections → 3.2.2" {
+		t.Errorf("compact fix %q, want the package labeled provided", got)
+	}
+	if got := compactFix(both); got != "dev junit → 4.13.1" {
+		t.Errorf("compact fix %q, want the development label", got)
+	}
+}

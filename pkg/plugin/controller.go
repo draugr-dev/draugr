@@ -102,6 +102,15 @@ type DevDependencyPolicy interface {
 	ReportsDevDependencies(model saga.Model, component string) (report bool, source string)
 }
 
+// ProvidedDependencyPolicy is an optional interface a Controller may implement to decide whether
+// the findings in dependencies the runtime provides count, per component.
+//
+// Asked as DevDependencyPolicy is, for the findings whose package carries the provided mark.
+// Source names the setting that decided, which the suppression records.
+type ProvidedDependencyPolicy interface {
+	ReportsProvidedDependencies(model saga.Model, component string) (report bool, source string)
+}
+
 // ScanJob is a unit of scan work produced by a controller's Plan.
 type ScanJob struct {
 	Scanner  string

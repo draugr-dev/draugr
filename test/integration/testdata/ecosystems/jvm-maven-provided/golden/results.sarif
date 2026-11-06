@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "jvm-maven-provided/"
+      },
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "fields": {
+              "repository": "./jvm-maven-provided",
+              "revision": "<cleared>"
+            },
+            "tool": "grype-fs",
+            "version": "<cleared>"
+          },
+          {
+            "fields": {
+              "repository": "./jvm-maven-provided",
+              "revision": "<cleared>"
+            },
+            "tool": "trivy-fs",
+            "version": "<cleared>"
+          }
+        ]
+      },
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "default/pom.xml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A critical vulnerability in java-archive package: log4j-core, version 2.14.1 was found at: /default/pom.xml"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "a7e99e48da432665702529411ec1298ed77598d203cd93fbe642d39ce17b88ad:1",
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "default",
+            "control": "sca",
+            "fingerprint": "<cleared>",
+            "package": {
+              "ecosystem": "java-archive",
+              "fixedVersion": "2.15.0",
+              "name": "log4j-core",
+              "provided": true,
+              "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1",
+              "version": "2.14.1"
+            },
+            "priority": "P1",
+            "repository": "./jvm-maven-provided",
+            "security-severity": "9",
+            "tool": "grype"
+          },
+          "ruleId": "CVE-2021-44228-log4j-core",
+          "suppressions": [
+            {
+              "justification": "provided by the runtime",
+              "kind": "external",
+              "properties": {
+                "origin": "setting",
+                "source": "config.controls.sca.providedDependencies"
+              }
+            }
+          ]
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "report/pom.xml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A critical vulnerability in java-archive package: log4j-core, version 2.14.1 was found at: /report/pom.xml"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "101808a3b70b5eb01199e41fefe973fef4525e657aa71bf23353d0571a9abba6:1",
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "report",
+            "control": "sca",
+            "fingerprint": "<cleared>",
+            "package": {
+              "ecosystem": "java-archive",
+              "fixedVersion": "2.15.0",
+              "name": "log4j-core",
+              "provided": true,
+              "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1",
+              "version": "2.14.1"
+            },
+            "priority": "P1",
+            "repository": "./jvm-maven-provided",
+            "security-severity": "9",
+            "tool": "grype"
+          },
+          "ruleId": "CVE-2021-44228-log4j-core"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Fixture: remote code execution through JNDI lookups in log messages"
+              },
+              "help": {
+                "text": "Vulnerability CVE-2021-44228\nSeverity: critical\nPackage: log4j-core\nVersion: 2.14.1\nFix Version: 2.15.0\nType: java-archive\nLocation: /default/pom.xml\nData Namespace: github:language:java\nLink: [CVE-2021-44228](https://nvd.nist.gov/vuln/detail/CVE-2021-44228)"
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2021-44228",
+              "id": "CVE-2021-44228-log4j-core",
+              "name": "JavaMatcherExactDirectMatch",
+              "properties": {
+                "tags": [
+                  "scanner:grype"
+                ]
+              },
+              "shortDescription": {
+                "text": "CVE-2021-44228 critical vulnerability for log4j-core package"
+              }
+            }
+          ],
+          "version": "<cleared>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

@@ -147,6 +147,106 @@ func TestApplyDevDependenciesAsksEachComponent(t *testing.T) {
 	}
 }
 
+// providedPolicyController is an sca control with both policies, each answer fixed per component.
+type providedPolicyController struct {
+	devPolicyController
+	provided map[string]bool
+}
+
+func (c providedPolicyController) ReportsProvidedDependencies(_ saga.Model, component string) (bool, string) {
+	return c.provided[component], "provided-key-for-" + component
+}
+
+// providedFinding is one finding about commons-collections 3.2.1 in a pom.
+func providedFinding(tool, component, location, vuln string, provided bool) sarif.Result {
+	return sarif.Result{
+		Tool: tool, RuleID: vuln, Level: sarif.LevelError, Component: component, Repository: "one",
+		Location: sarif.Location{URI: location},
+		Package: &sarif.Package{Name: "commons-collections", Version: "3.2.1",
+			PURL: "pkg:maven/commons-collections/commons-collections@3.2.1", Provided: provided},
+	}
+}
+
+// The provided mark travels between copies of a package in one file as the development mark does,
+// and a finding carrying one mark keeps it while taking the other.
+func TestMarkDevCopiesCarriesTheProvidedMark(t *testing.T) {
+	both := providedFinding("trivy", "web", "pom.xml", "CVE-1", false)
+	both.Package.Dev = true
+	results := []sarif.Result{
+		providedFinding("grype", "web", "pom.xml", "CVE-1", true),
+		providedFinding("trivy", "web", "pom.xml", "CVE-2", false),     // takes it
+		providedFinding("trivy", "web", "app/pom.xml", "CVE-1", false), // another file
+		providedFinding("trivy", "api", "pom.xml", "CVE-1", false),     // another component
+		both, // dev, takes provided
+		providedFinding("mend", "web", "pom.xml", "CVE-3", true), // already marked
+	}
+	controls := map[string]plugin.ControlResult{"sca": {Report: sarif.Report{Results: results}}}
+	markDevCopies(controls)
+	got := controls["sca"].Report.Results
+	for i, want := range []struct{ dev, provided bool }{
+		{true, true}, {true, true}, {}, {}, {true, true}, {true, true},
+	} {
+		if p := got[i].Package; p.Dev != want.dev || p.Provided != want.provided {
+			t.Errorf("result %d (%s %s): dev %v provided %v, want %+v", i, got[i].Component, got[i].Location.URI, p.Dev, p.Provided, want)
+		}
+	}
+}
+
+// Each component's providedDependencies decides its own provided findings, with the reason provided
+// by the runtime; a finding the development setting already set aside keeps that reason, and a
+// control whose controller has no provided policy is left alone.
+func TestApplyProvidedDependenciesAsksEachComponent(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(providedPolicyController{provided: map[string]bool{"api": true}})
+	reg.RegisterController(namedDevPolicy{name: "licenses"})
+	e := New(reg)
+
+	devAndProvided := providedFinding("grype", "web", "pom.xml", "CVE-4", true)
+	devAndProvided.Package.Dev = true
+	controls := map[string]plugin.ControlResult{
+		"sca": {Report: sarif.Report{Results: []sarif.Result{
+			providedFinding("grype", "web", "pom.xml", "CVE-1", true),
+			providedFinding("grype", "api", "pom.xml", "CVE-1", true),
+			providedFinding("grype", "web", "pom.xml", "CVE-2", false),
+			devAndProvided,
+		}}},
+		"licenses": {Report: sarif.Report{Results: []sarif.Result{providedFinding("grype", "web", "pom.xml", "CVE-1", true)}}},
+	}
+	if n := e.applyDevDependencies(controls, saga.Model{}); n != 1 {
+		t.Errorf("development setting set aside %d, want 1", n)
+	}
+	if n := e.applyProvidedDependencies(controls, saga.Model{}); n != 1 {
+		t.Errorf("provided setting set aside %d, want 1", n)
+	}
+	got := controls["sca"].Report.Results
+	if s := got[0].Suppression; s == nil || s.Origin != sarif.OriginSetting || s.Source != "provided-key-for-web" ||
+		s.Justification != sarif.JustificationProvidedByRuntime {
+		t.Errorf("web's provided finding: suppression %+v, want the provided setting's", s)
+	}
+	if got[1].Suppressed() {
+		t.Error("api reports provided dependencies, and its finding was set aside")
+	}
+	if got[2].Suppressed() {
+		t.Error("a finding the application ships was set aside")
+	}
+	if s := got[3].Suppression; s == nil || s.Justification != sarif.JustificationDevDependency {
+		t.Errorf("a finding marked both: suppression %+v, want the development reason", s)
+	}
+	if controls["licenses"].Report.Results[0].Suppressed() {
+		t.Error("a control with no provided policy had a finding set aside")
+	}
+}
+
+// namedDevPolicy is a control with only the development policy, under the name given.
+type namedDevPolicy struct {
+	devPolicyController
+	name string
+}
+
+func (c namedDevPolicy) Info() plugin.ControllerInfo {
+	return plugin.ControllerInfo{Name: c.name, Scope: plugin.ScopeComponent}
+}
+
 // One flaw in one package, a development dependency in one lockfile of a repository and a runtime
 // one in another. The setting sets the development copy aside and the flaw is still counted, under
 // the copy that ships, which is not set aside by the other's suppression.

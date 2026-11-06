@@ -1,0 +1,29 @@
+# sca.providedDependencies, on one component beside a default one with the same pom.xml: log4j-core
+# in provided scope. Trivy's pom parser leaves a provided dependency out, so both findings are
+# Grype's. default/ keeps its finding suppressed by the setting's default; report/ sets
+# providedDependencies: report and counts it.
+proves: [sca.providedDependencies]
+
+initScan:
+  skip: the options proves names are the subject, and init writes none of them
+
+init:
+  controls: [iac, sast, sca, secrets]
+  components:
+    - name: jvm-maven-provided
+      repositories: ["."]
+
+findings:
+  - control: sca
+    tool: grype
+    rule: CVE-2021-44228-log4j-core
+    location: default/pom.xml:1
+    package: java-archive log4j-core 2.14.1
+    component: default
+    suppressed: setting
+  - control: sca
+    tool: grype
+    rule: CVE-2021-44228-log4j-core
+    location: report/pom.xml:1
+    package: java-archive log4j-core 2.14.1
+    component: report

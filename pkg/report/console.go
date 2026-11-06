@@ -627,8 +627,27 @@ const (
 	devLabelFull = "dev dependency"
 )
 
+// providedLabel and providedLabelFull mark a package the runtime provides, in the same two places.
+const (
+	providedLabel     = "provided"
+	providedLabelFull = "provided dependency"
+)
+
 // isDev reports whether the finding's package is a development dependency.
 func isDev(f finding) bool { return f.pkg != nil && f.pkg.Dev }
+
+// packageKind is the label a finding's package wears for the kind of dependency it is, short and
+// in full, or empty for one the application ships. A package marked both is labeled dev, the
+// reason its suppression records.
+func packageKind(f finding) (short, full string) {
+	switch {
+	case isDev(f):
+		return devLabel, devLabelFull
+	case f.pkg != nil && f.pkg.Provided:
+		return providedLabel, providedLabelFull
+	}
+	return "", ""
+}
 
 // compactFix is the Fix cell of the compact listing: the package and the release to move to, the
 // package and why there is none, or the phrase for a finding that is not about a package.
@@ -639,8 +658,8 @@ func isDev(f finding) bool { return f.pkg != nil && f.pkg.Dev }
 // so a long name costs the summary rather than the fix.
 func compactFix(f finding) string {
 	name, fixed := packageFix(f, false)
-	if name != "" && isDev(f) {
-		name = devLabel + " " + name
+	if short, _ := packageKind(f); name != "" && short != "" {
+		name = short + " " + name
 	}
 	switch {
 	case fixed != "":

@@ -514,7 +514,8 @@ value rather than a block (`gosec: true` enables nothing, because only a block i
 misspelled setting. Each produced a descriptor that claimed a decision it was not making.
 
 `licenses` takes settings of its own, `deny` and `warn`, and `sca` takes
-[`devDependencies`](#development-dependencies).
+[`devDependencies`](#development-dependencies) and
+[`providedDependencies`](#provided-dependencies).
 
 **Which scanners take options, and which take only `enabled`:**
 
@@ -569,6 +570,10 @@ and Poetry lockfiles. Grype marks none, so a Grype finding takes the mark from T
 the same package in the same file. A Grype finding with no matching Trivy finding carries no mark and
 is counted, including every Grype finding when `trivyFs` is off.
 
+A `pom.xml` dependency in `test` scope is a development dependency too. Draugr reads the scope from
+the pom in the checkout and marks every finding about that dependency in that pom. Trivy's pom
+parser leaves test-scoped dependencies out, so their findings come from `grypeFs`.
+
 The suppression's `origin` is `setting` and its `source` is the key that decided, so the report
 lists it apart from `config.exclude`. A setting sets aside only the copy of a flaw it applies to. A
 package that is a development dependency in one lockfile and a runtime one in another is counted
@@ -577,6 +582,40 @@ for the runtime copy.
 **`trivyFs.includeDevDeps` is deprecated.** It is read for one release where `devDependencies` is
 not written beside it, `true` as `report` and `false` as `suppress`, and `draugr validate` and
 `draugr scan` print a warning naming the key to write.
+
+### Provided dependencies
+
+`config.controls.sca.providedDependencies` decides whether a finding in a dependency the runtime
+provides counts. A provided dependency is one a `pom.xml` declares in `provided` or `system` scope.
+The application compiles against it and leaves it out of what it packages, and the server or
+platform it is deployed into supplies the copy that runs.
+
+| Value | Each finding in a provided dependency |
+|---|---|
+| `suppress`, the default | Stays in the report and in `report.json`, suppressed with the reason `provided by the runtime`, and out of the counts and the gate |
+| `report` | Is counted, with `provided` beside its package |
+
+```yaml
+config:
+  controls:
+    sca:
+      providedDependencies: report       # count findings in provided dependencies
+components:
+  - name: batch
+    controls:
+      sca:
+        providedDependencies: suppress   # replaces the project's setting for this component
+```
+
+Draugr reads the scope from the pom in the checkout and marks every finding about that dependency
+in that pom, whichever scanner reported it. Trivy's pom parser leaves provided and system
+dependencies out, so their findings come from `grypeFs`. A dependency with no scope of its own takes
+the one the same pom's `dependencyManagement` gives it. A scope the pom leaves to a parent POM or an
+imported BOM is not read, and the dependency is counted as one the application ships. An
+`<optional>true</optional>` dependency is on the application's own classpath and is counted.
+
+The suppression's `origin` is `setting` and its `source` is the key that decided, as for
+development dependencies.
 
 ### Reachability for Go
 

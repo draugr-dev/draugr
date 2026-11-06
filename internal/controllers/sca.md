@@ -30,7 +30,27 @@ config:
 `trivyFs.includeDevDeps` is the deprecated spelling: `true` is read as `devDependencies: report`
 and `false` as `suppress`, with a warning naming the key to write.
 [Development dependencies](../../docs/reference/saga-schema.md#development-dependencies) in the Saga
-reference says which scanner marks a development dependency and how the others take the mark.
+reference says which scanner marks a development dependency and how the others take the mark. A
+`pom.xml` dependency in `test` scope is one, read from the pom.
+
+## Provided dependencies
+
+`providedDependencies` decides whether a finding in a dependency the runtime provides counts, which
+is a `pom.xml` dependency in `provided` or `system` scope. `suppress`, the default, keeps each in the
+report suppressed with the reason `provided by the runtime`; `report` counts each, with `provided`
+beside its package. A component's setting replaces the project's.
+
+```yaml
+config:
+  controls:
+    sca:
+      providedDependencies: report
+```
+
+Draugr reads the scope from the pom, whichever scanner reported the finding. Trivy's pom parser
+leaves these dependencies out, so their findings come from [`grype-fs`](../scanners/grype-fs.md).
+[Provided dependencies](../../docs/reference/saga-schema.md#provided-dependencies) in the Saga
+reference says how far the scope is read.
 
 ## Unread
 

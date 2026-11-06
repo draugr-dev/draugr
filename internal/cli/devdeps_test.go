@@ -56,6 +56,28 @@ func TestValidateHoldsDevDependenciesToItsValues(t *testing.T) {
 	}
 }
 
+// validate accepts providedDependencies at the project and on a component, and refuses a value it
+// does not take at either.
+func TestValidateHoldsProvidedDependenciesToItsValues(t *testing.T) {
+	good := strings.Replace(sagaWithIncludeDevDeps, "      trivyFs:\n        includeDevDeps: true\n", "      providedDependencies: report\n", 1)
+	good = strings.Replace(good, "      - url: ./web\n", "      - url: ./web\n    controls:\n      sca:\n        providedDependencies: suppress\n", 1)
+	var out bytes.Buffer
+	if err := runValidate([]string{writeSaga(t, good)}, &out); err != nil {
+		t.Fatalf("providedDependencies refused: %v", err)
+	}
+	if strings.Contains(out.String(), "!") {
+		t.Errorf("a descriptor with nothing deprecated drew a warning:\n%s", out.String())
+	}
+	for _, bad := range []string{
+		strings.Replace(good, "providedDependencies: report", "providedDependencies: include", 1),
+		strings.Replace(good, "providedDependencies: suppress", "providedDependencies: true", 1),
+	} {
+		if err := runValidate([]string{writeSaga(t, bad)}, &bytes.Buffer{}); err == nil || !strings.Contains(err.Error(), "providedDependencies") {
+			t.Errorf("err %v, want a refusal naming providedDependencies for\n%s", err, bad)
+		}
+	}
+}
+
 // Before a scan the same line goes to the writer it is given, which is stderr, one line each.
 func TestScanWritesControlWarnings(t *testing.T) {
 	model := &saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{

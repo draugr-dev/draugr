@@ -42,6 +42,9 @@ config:
       enabled: true
       devDependencies: report                        # suppress (default) | report: whether a
                                                      # finding in a development dependency counts
+      providedDependencies: report                   # suppress (default) | report: whether a
+                                                     # finding in a pom.xml dependency in provided
+                                                     # or system scope counts
       trivyFs:
         filePatterns:                                # more files for an analyzer to read, each
           - "pip:requirements-.*\\.txt"              # analyzer:regex. pip reads only
