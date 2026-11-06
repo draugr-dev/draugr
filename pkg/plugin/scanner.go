@@ -11,10 +11,31 @@ import (
 // Scanner wraps a single security tool and runs one kind of scan. It is the atomic unit
 // of work. Implementations must be side-effect-free with respect to the target and must
 // honor ctx cancellation. Output is normalized to SARIF.
+//
+// A scan that read part of its target and failed on the rest returns a *PartialScanError holding
+// what it read.
 type Scanner interface {
 	Info() ScannerInfo
 	Scan(ctx context.Context, target Target, cfg Config) (sarif.Report, error)
 }
+
+// PartialScanError is the error of a scan that read part of its target and failed on the rest, such
+// as a tool run once per module whose run over one module failed. Report holds what the scan read.
+//
+// The engine records Err against the control as it records any failed scan, so the control is in
+// error and the run is incomplete, and keeps Report beside it. A failure on one module then costs the
+// findings of that module and not those of every other. The report is not cached, so the next run
+// scans the target again.
+type PartialScanError struct {
+	Report sarif.Report
+	Err    error
+}
+
+// Error is Err's message.
+func (e *PartialScanError) Error() string { return e.Err.Error() }
+
+// Unwrap returns Err.
+func (e *PartialScanError) Unwrap() error { return e.Err }
 
 // DataSource is reference data a scanner reads to do its work: a vulnerability database, a rule
 // pack, a template set. Fetched independently of any target, which is what separates it from the

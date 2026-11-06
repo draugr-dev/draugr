@@ -316,7 +316,11 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		}
 	}
 	report, err := s.decode(out, dir, cfg)
-	if err != nil {
+	failures, partial := errors.AsType[*moduleFailures](err)
+	switch {
+	case partial && !failures.read:
+		return sarif.Report{}, fmt.Errorf("run %s %w", s.info.Name, failures)
+	case err != nil && !partial:
 		return sarif.Report{}, err
 	}
 	switch {
@@ -378,8 +382,24 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	stampLineHashes(report.Results, dir)
 	markPomScopes(report.Results, dir)
 	report.Provenance = append(report.Provenance, repoProvenance(s.info.Name, repo.Source(), tree))
+	if partial {
+		return report, &plugin.PartialScanError{Report: report, Err: fmt.Errorf("run %s %w", s.info.Name, failures)}
+	}
 	return report, nil
 }
+
+// moduleFailures is the error a per-module parser returns for the modules whose runs failed, beside
+// the report of the modules whose runs did not. Its message names each failed module's go.mod and
+// the run's error, as `over tools/go.mod: exit status 1: …`, and follows `run <scanner>`.
+type moduleFailures struct {
+	// failed holds one entry per failed module, `over <go.mod>: <error>`.
+	failed []string
+	// read says at least one module's run wrote a report, so the report returned beside this error
+	// holds findings to keep. Without one, the scan read nothing and fails as any other.
+	read bool
+}
+
+func (e *moduleFailures) Error() string { return strings.Join(e.failed, "; ") }
 
 // repoProvenance records which repository this scanner read, and at which commit.
 //
@@ -406,6 +426,9 @@ func repoProvenance(scanner, url string, tree git.Tree) sarif.Provenance {
 func (s repoScanner) decode(out []byte, dir string, cfg plugin.Config) (sarif.Report, error) {
 	if s.parse != nil {
 		report, err := s.parse(out, dir, cfg)
+		if _, ok := errors.AsType[*moduleFailures](err); ok {
+			return report, err
+		}
 		if err != nil {
 			return sarif.Report{}, fmt.Errorf("parse %s output: %w", s.info.Name, err)
 		}

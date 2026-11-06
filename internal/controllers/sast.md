@@ -27,8 +27,9 @@ and likelihood, by the table in [`semgrep.md`](../scanners/semgrep.md#severity).
 ## Unread
 
 A source file is **unread** when Semgrep left it out of the scan or stopped checking it before
-every rule had run. Semgrep exits 0 either way and reports findings only from what it checked, so
-the report lists each such file under **Caveats** as `unread-files`, with a reason:
+every rule had run, and a `go.mod` is unread when gosec found no Go package in its module. Semgrep
+exits 0 either way and reports findings only from what it checked, so the report lists each such
+file under **Caveats** as `unread-files`, with a reason:
 
 ```console
 $ draugr scan --no-publish
@@ -44,6 +45,7 @@ CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that d
 | `over 1 MB, not scanned` | the file is over Semgrep's size limit, and no rule ran on it | exclude it with `ignore:` (usually generated or minified), or split it |
 | `1 rule timed out, not checked: "x"` | the rule ran out of time on the file; the other rules ran | split the file, or set `config` to a ruleset without the rule |
 | `3 rules timed out, other rules not run: "x", "y", "z"` | three rules timed out, and Semgrep ran no further rule on the file | as above; the rules not run were not checked |
+| `no Go packages` | a `go.mod` gosec found no Go package under, such as a documentation site built with Hugo; gosec analyzed the repository's other modules | expected for a module with no Go code; add its directory to `ignore:` to hide it |
 
 A file over the limit is listed only where a configured rule reads its language. Draugr cannot read
 a ruleset Semgrep fetches, such as `p/default`, and takes it to read every file, so with one every

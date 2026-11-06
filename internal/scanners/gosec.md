@@ -22,6 +22,16 @@ directory holding a `go.mod` outside `vendor/` and `testdata/`. A module below t
 module nested inside another are each analyzed, and each finding is located under its own
 module's directory. A tree with no `go.mod` is reported as analyzed by nothing, never as clean.
 
+Each module's run stands on its own:
+
+- **A module with no Go package**, such as a documentation site built with Hugo that has its own
+  `go.mod`, makes gosec exit 1 with `No packages found`. Its `go.mod` is an `unread-files` caveat
+  with the reason `no Go packages`, and the findings from the other modules are kept. The control
+  is not in error because of it.
+- **A module whose run fails for any other reason** puts the control in error and the run is
+  incomplete, with the module named in the error, as `run gosec over tools/go.mod: exit status 1: …`.
+  The findings from the modules gosec did read are kept in the report beside the error.
+
 A component scoped by `paths` to part of a module shares an analysis of the whole module, and keeps
 only the findings in its own files. [Scoping a
 repository](../../docs/reference/saga-schema.md#scoping-a-repository) has the rule for shared code
@@ -72,8 +82,8 @@ config:
         enabled: true
 ```
 
-The same key works as a per-component override. Only enable gosec for Go components. It errors
-on repositories with no Go packages.
+The same key works as a per-component override. Only enable gosec for Go components: a repository
+whose every module holds no Go package is a caveat for each `go.mod` and nothing analyzed.
 
 ## Saga options
 

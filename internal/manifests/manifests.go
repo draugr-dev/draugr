@@ -57,6 +57,9 @@ const (
 	// whatever the local Maven repository holds, so no action of the reader's clears it, and it names
 	// none. Another scanner's reason for the same file is shown in its place (see ScannerLimit).
 	TransitiveNotReadByGrype Reason = "transitive dependencies not read by Grype"
+	// NoGoPackages is a go.mod whose module holds no Go package, such as a documentation site built
+	// with Hugo, so an analysis of the module's Go code had nothing to load.
+	NoGoPackages Reason = "no Go packages"
 )
 
 // ScannerLimit reports whether reason describes what a scanner cannot read under any setting,

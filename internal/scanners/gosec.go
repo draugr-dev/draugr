@@ -7,10 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 
+	"github.com/draugr-dev/draugr/internal/manifests"
 	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -75,9 +78,81 @@ func NewGosec() plugin.Scanner {
 	s.cacheVersion = sharedGosecVersion.version
 	// gosec loads a module's packages with `go`. Without it, gosec exits 0 having analyzed
 	// nothing, and the control would read as a clean pass.
-	s.run = onRuntime(s.info.Binary, gosecBounded(execArgvInDirWithEnv))
+	s.run = onRuntime(s.info.Binary, onGosecModule(gosecBounded(execArgvInDirWithEnv)))
 	return s
 }
+
+// gosecRecord is a line Draugr writes into gosec's output in place of a run over one module that
+// wrote no report, so the output still holds one document per module, in the order gosecArgs ran
+// them.
+type gosecRecord struct {
+	// Module is Draugr's, never gosec's: a SARIF document has no such key.
+	Module *gosecModule `json:"draugrModule,omitempty"`
+}
+
+// gosecModule is one module gosec wrote no report for, and why.
+type gosecModule struct {
+	// GoMod is the module's go.mod, relative to the checkout.
+	GoMod string `json:"goMod"`
+	// NoPackages says gosec found no Go package in the module.
+	NoPackages bool `json:"noPackages,omitempty"`
+	// Failed is the error of a run that failed for any other reason.
+	Failed string `json:"failed,omitempty"`
+}
+
+// onGosecModule turns a run of gosec over one module that exited non-zero into a record of that
+// module, so the runs over the other modules keep their findings.
+//
+// A module that holds no Go package, a documentation site with its own go.mod being the common case,
+// makes gosec exit 1 with `No packages found`, and says nothing about the modules beside it. It is
+// recorded as a go.mod gosec did not analyze. Any other exit is recorded as a failure of that module,
+// which parseGosec reports as the scan's error beside the other modules' findings.
+//
+// Only an exit of gosec itself is recorded. An error that holds for every module, gosec not installed
+// or the run canceled, still fails the job as it is.
+func onGosecModule(run func(ctx context.Context, root string, argv []string) ([]byte, error)) func(ctx context.Context, root string, argv []string) ([]byte, error) {
+	return func(ctx context.Context, root string, argv []string) ([]byte, error) {
+		out, err := run(ctx, root, argv)
+		exit, ok := errors.AsType[*exec.ExitError](err)
+		if !ok || ctx.Err() != nil || len(argv) == 0 {
+			return out, err
+		}
+		mod := strings.TrimSuffix(argv[len(argv)-1], string(filepath.Separator)+"...")
+		rec := gosecModule{GoMod: "go.mod"}
+		if rel, ok := relSlash(root, mod); ok && rel != "." {
+			rec.GoMod = rel + "/go.mod"
+		}
+		if gosecFoundNoPackages(exit) {
+			rec.NoPackages = true
+		} else {
+			rec.Failed = stripCheckoutDir(root, err.Error())
+		}
+		// The run's own output is left out: a run that exited non-zero wrote no report to read.
+		msg, err := json.Marshal(gosecRecord{Module: &rec})
+		if err != nil {
+			return nil, err
+		}
+		return append(msg, '\n'), nil
+	}
+}
+
+// gosecFoundNoPackages reports whether exit is gosec's exit over a module that holds no Go package:
+// status 1, with `No packages found` as the message of a line of its log. gosec logs it, and exits 1,
+// where no directory under the path it was given holds a .go file.
+func gosecFoundNoPackages(exit *exec.ExitError) bool {
+	if exit.ExitCode() != 1 {
+		return false
+	}
+	for _, line := range strings.Split(string(exit.Stderr), "\n") {
+		if line = strings.TrimSpace(line); line == gosecNoPackages || strings.HasSuffix(line, " "+gosecNoPackages) {
+			return true
+		}
+	}
+	return false
+}
+
+// gosecNoPackages is what gosec logs before it exits over a module that holds no Go package.
+const gosecNoPackages = "No packages found"
 
 // gosecLoads is how many packages gosec loads and analyzes at once, its `-concurrency`, before the
 // bound lowers it (toolexec.Divide).
@@ -157,6 +232,10 @@ func gosecArgs(dir string, cfg plugin.Config) [][]string {
 // gosec names a file relative to the module it analyzed, so each document's locations are put back
 // under that module's directory: `main.go` in the module at service/ is service/main.go.
 //
+// A record onGosecModule wrote in place of a module's report stands for that module. A module with
+// no Go package is an input gosec did not analyze, with the reason manifests.NoGoPackages. A module
+// whose run failed is named in a *moduleFailures returned beside the report of the other modules.
+//
 // No output means no module was found, and the report says so rather than passing: a tree gosec
 // could not analyze must not read like one it analyzed and found clean.
 func parseGosec(out []byte, dir string, cfg plugin.Config) (sarif.Report, error) {
@@ -178,6 +257,9 @@ func parseGosec(out []byte, dir string, cfg plugin.Config) (sarif.Report, error)
 	selected := commaList(cfg, "include") != "" || commaList(cfg, "exclude") != ""
 	dec := json.NewDecoder(bytes.NewReader(out))
 	var reports []sarif.Report
+	var inputs []sarif.Input
+	var failed []string
+	docs := 0
 	for {
 		var doc json.RawMessage
 		err := dec.Decode(&doc)
@@ -187,6 +269,18 @@ func parseGosec(out []byte, dir string, cfg plugin.Config) (sarif.Report, error)
 		if err != nil {
 			return sarif.Report{}, fmt.Errorf("read gosec SARIF: %w", err)
 		}
+		i := docs
+		docs++
+		// A module gosec wrote no report for (see onGosecModule).
+		var rec gosecRecord
+		if json.Unmarshal(doc, &rec) == nil && rec.Module != nil {
+			if rec.Module.NoPackages {
+				inputs = append(inputs, sarif.Input{Path: rec.Module.GoMod, Unread: string(manifests.NoGoPackages), Analysis: true})
+			} else {
+				failed = append(failed, "over "+rec.Module.GoMod+": "+rec.Module.Failed)
+			}
+			continue
+		}
 		rep, err := sarif.FromSARIF(doc)
 		if err != nil {
 			return sarif.Report{}, err
@@ -194,7 +288,7 @@ func parseGosec(out []byte, dir string, cfg plugin.Config) (sarif.Report, error)
 		if err := rateByGosecSeverity(&rep, doc); err != nil {
 			return sarif.Report{}, err
 		}
-		if i := len(reports); dir != "" && i < len(modules) {
+		if dir != "" && i < len(modules) {
 			underModule(&rep, dir, modules[i])
 		}
 		if selected {
@@ -202,10 +296,15 @@ func parseGosec(out []byte, dir string, cfg plugin.Config) (sarif.Report, error)
 		}
 		reports = append(reports, rep)
 	}
-	if dir != "" && len(reports) != len(modules) {
-		return sarif.Report{}, fmt.Errorf("gosec wrote %d reports for %d modules", len(reports), len(modules))
+	if dir != "" && docs != len(modules) {
+		return sarif.Report{}, fmt.Errorf("gosec wrote %d reports for %d modules", docs, len(modules))
 	}
-	return sarif.Merge(reports...), nil
+	merged := sarif.Merge(reports...)
+	merged.Inputs = append(merged.Inputs, inputs...)
+	if len(failed) > 0 {
+		return merged, &moduleFailures{failed: failed, read: len(reports) > 0}
+	}
+	return merged, nil
 }
 
 // gosecSeverityLevel is the SARIF level each of gosec's severity ratings means.
