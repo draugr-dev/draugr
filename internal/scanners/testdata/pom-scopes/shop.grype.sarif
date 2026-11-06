@@ -1,0 +1,525 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "grype",
+          "version": "0.121.0",
+          "informationUri": "https://github.com/anchore/grype",
+          "rules": [
+            {
+              "id": "CVE-2022-42889-commons-text",
+              "name": "JavaMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "CVE-2022-42889 critical vulnerability for commons-text package"
+              },
+              "fullDescription": {
+                "text": "Arbitrary code execution in Apache Commons Text"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-599f-7c49-w659",
+              "help": {
+                "text": "Vulnerability CVE-2022-42889\nSeverity: critical\nPackage: commons-text\nVersion: 1.9\nFix Version: 1.10.0\nType: java-archive\nLocation: /pom.xml\nData Namespace: github:language:java\nLink: [CVE-2022-42889](https://github.com/advisories/GHSA-599f-7c49-w659)",
+                "markdown": "**Vulnerability CVE-2022-42889**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| critical  | commons-text  | 1.9  | 1.10.0  | java-archive  | /pom.xml  | github:language:java  | [CVE-2022-42889](https://github.com/advisories/GHSA-599f-7c49-w659)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:maven/org.apache.commons/commons-text@1.9"
+                ],
+                "security-severity": "9.8"
+              }
+            },
+            {
+              "id": "CVE-2015-7501-commons-collections",
+              "name": "JavaMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "CVE-2015-7501 critical vulnerability for commons-collections package"
+              },
+              "fullDescription": {
+                "text": "Deserialization of Untrusted Data in Apache commons collections"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-fjq5-5j5f-mvxh",
+              "help": {
+                "text": "Vulnerability CVE-2015-7501\nSeverity: critical\nPackage: commons-collections\nVersion: 3.2.1\nFix Version: 3.2.2\nType: java-archive\nLocation: /pom.xml\nData Namespace: github:language:java\nLink: [CVE-2015-7501](https://github.com/advisories/GHSA-fjq5-5j5f-mvxh)",
+                "markdown": "**Vulnerability CVE-2015-7501**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| critical  | commons-collections  | 3.2.1  | 3.2.2  | java-archive  | /pom.xml  | github:language:java  | [CVE-2015-7501](https://github.com/advisories/GHSA-fjq5-5j5f-mvxh)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:maven/commons-collections/commons-collections@3.2.1"
+                ],
+                "security-severity": "9.8"
+              }
+            },
+            {
+              "id": "CVE-2022-1471-snakeyaml",
+              "name": "JavaMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "CVE-2022-1471 high vulnerability for snakeyaml package"
+              },
+              "fullDescription": {
+                "text": "SnakeYaml Constructor Deserialization Remote Code Execution"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-mjmj-j48q-9wg2",
+              "help": {
+                "text": "Vulnerability CVE-2022-1471\nSeverity: high\nPackage: snakeyaml\nVersion: 1.33\nFix Version: 2.0\nType: java-archive\nLocation: /pom.xml\nData Namespace: github:language:java\nLink: [CVE-2022-1471](https://github.com/advisories/GHSA-mjmj-j48q-9wg2)",
+                "markdown": "**Vulnerability CVE-2022-1471**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | snakeyaml  | 1.33  | 2.0  | java-archive  | /pom.xml  | github:language:java  | [CVE-2022-1471](https://github.com/advisories/GHSA-mjmj-j48q-9wg2)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:maven/org.yaml/snakeyaml@1.33"
+                ],
+                "security-severity": "8.3"
+              }
+            },
+            {
+              "id": "CVE-2023-24998-commons-fileupload",
+              "name": "JavaMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "CVE-2023-24998 high vulnerability for commons-fileupload package"
+              },
+              "fullDescription": {
+                "text": "Apache Commons FileUpload denial of service vulnerability"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-hfrx-6qgj-fp6c",
+              "help": {
+                "text": "Vulnerability CVE-2023-24998\nSeverity: high\nPackage: commons-fileupload\nVersion: 1.3.1\nFix Version: 1.5\nType: java-archive\nLocation: /pom.xml\nData Namespace: github:language:java\nLink: [CVE-2023-24998](https://github.com/advisories/GHSA-hfrx-6qgj-fp6c)",
+                "markdown": "**Vulnerability CVE-2023-24998**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | commons-fileupload  | 1.3.1  | 1.5  | java-archive  | /pom.xml  | github:language:java  | [CVE-2023-24998](https://github.com/advisories/GHSA-hfrx-6qgj-fp6c)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:maven/commons-fileupload/commons-fileupload@1.3.1"
+                ],
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "CVE-2016-1000031-commons-fileupload",
+              "name": "JavaMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "CVE-2016-1000031 critical vulnerability for commons-fileupload package"
+              },
+              "fullDescription": {
+                "text": "Improper Access Control in commons-fileupload"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-7x9j-7223-rg5m",
+              "help": {
+                "text": "Vulnerability CVE-2016-1000031\nSeverity: critical\nPackage: commons-fileupload\nVersion: 1.3.1\nFix Version: 1.3.3\nType: java-archive\nLocation: /pom.xml\nData Namespace: github:language:java\nLink: [CVE-2016-1000031](https://github.com/advisories/GHSA-7x9j-7223-rg5m)",
+                "markdown": "**Vulnerability CVE-2016-1000031**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| critical  | commons-fileupload  | 1.3.1  | 1.3.3  | java-archive  | /pom.xml  | github:language:java  | [CVE-2016-1000031](https://github.com/advisories/GHSA-7x9j-7223-rg5m)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:maven/commons-fileupload/commons-fileupload@1.3.1"
+                ],
+                "security-severity": "9.8"
+              }
+            },
+            {
+              "id": "CVE-2016-3092-commons-fileupload",
+              "name": "JavaMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "CVE-2016-3092 high vulnerability for commons-fileupload package"
+              },
+              "fullDescription": {
+                "text": "High severity vulnerability that affects commons-fileupload:commons-fileupload"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-fvm3-cfvj-gxqq",
+              "help": {
+                "text": "Vulnerability CVE-2016-3092\nSeverity: high\nPackage: commons-fileupload\nVersion: 1.3.1\nFix Version: 1.3.2\nType: java-archive\nLocation: /pom.xml\nData Namespace: github:language:java\nLink: [CVE-2016-3092](https://github.com/advisories/GHSA-fvm3-cfvj-gxqq)",
+                "markdown": "**Vulnerability CVE-2016-3092**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | commons-fileupload  | 1.3.1  | 1.3.2  | java-archive  | /pom.xml  | github:language:java  | [CVE-2016-3092](https://github.com/advisories/GHSA-fvm3-cfvj-gxqq)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:maven/commons-fileupload/commons-fileupload@1.3.1"
+                ],
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "CVE-2025-48976-commons-fileupload",
+              "name": "JavaMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "CVE-2025-48976 high vulnerability for commons-fileupload package"
+              },
+              "fullDescription": {
+                "text": "Apache Commons FileUpload, Apache Commons FileUpload: FileUpload DoS via part headers"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-vv7r-c36w-3prj",
+              "help": {
+                "text": "Vulnerability CVE-2025-48976\nSeverity: high\nPackage: commons-fileupload\nVersion: 1.3.1\nFix Version: 1.6.0\nType: java-archive\nLocation: /pom.xml\nData Namespace: github:language:java\nLink: [CVE-2025-48976](https://github.com/advisories/GHSA-vv7r-c36w-3prj)",
+                "markdown": "**Vulnerability CVE-2025-48976**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | commons-fileupload  | 1.3.1  | 1.6.0  | java-archive  | /pom.xml  | github:language:java  | [CVE-2025-48976](https://github.com/advisories/GHSA-vv7r-c36w-3prj)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:maven/commons-fileupload/commons-fileupload@1.3.1"
+                ],
+                "security-severity": "8.7"
+              }
+            },
+            {
+              "id": "CVE-2015-6420-commons-collections",
+              "name": "JavaMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "CVE-2015-6420 high vulnerability for commons-collections package"
+              },
+              "fullDescription": {
+                "text": "Insecure Deserialization in Apache Commons Collection"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-6hgm-866r-3cjv",
+              "help": {
+                "text": "Vulnerability CVE-2015-6420\nSeverity: high\nPackage: commons-collections\nVersion: 3.2.1\nFix Version: 3.2.2\nType: java-archive\nLocation: /pom.xml\nData Namespace: github:language:java\nLink: [CVE-2015-6420](https://github.com/advisories/GHSA-6hgm-866r-3cjv)",
+                "markdown": "**Vulnerability CVE-2015-6420**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | commons-collections  | 3.2.1  | 3.2.2  | java-archive  | /pom.xml  | github:language:java  | [CVE-2015-6420](https://github.com/advisories/GHSA-6hgm-866r-3cjv)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:maven/commons-collections/commons-collections@3.2.1"
+                ],
+                "security-severity": "7.0"
+              }
+            },
+            {
+              "id": "CVE-2021-29425-commons-io",
+              "name": "JavaMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "CVE-2021-29425 medium vulnerability for commons-io package"
+              },
+              "fullDescription": {
+                "text": "Path Traversal and Improper Input Validation in Apache Commons IO"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-gwrp-pvrq-jmwv",
+              "help": {
+                "text": "Vulnerability CVE-2021-29425\nSeverity: medium\nPackage: commons-io\nVersion: 2.6\nFix Version: 2.7\nType: java-archive\nLocation: /pom.xml\nData Namespace: github:language:java\nLink: [CVE-2021-29425](https://github.com/advisories/GHSA-gwrp-pvrq-jmwv)",
+                "markdown": "**Vulnerability CVE-2021-29425**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| medium  | commons-io  | 2.6  | 2.7  | java-archive  | /pom.xml  | github:language:java  | [CVE-2021-29425](https://github.com/advisories/GHSA-gwrp-pvrq-jmwv)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:maven/commons-io/commons-io@2.6"
+                ],
+                "security-severity": "4.8"
+              }
+            },
+            {
+              "id": "CVE-2024-47554-commons-io",
+              "name": "JavaMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "CVE-2024-47554 high vulnerability for commons-io package"
+              },
+              "fullDescription": {
+                "text": "Apache Commons IO: Possible denial of service attack on untrusted input to XmlStreamReader"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-78wr-2p64-hpwj",
+              "help": {
+                "text": "Vulnerability CVE-2024-47554\nSeverity: high\nPackage: commons-io\nVersion: 2.6\nFix Version: 2.14.0\nType: java-archive\nLocation: /pom.xml\nData Namespace: github:language:java\nLink: [CVE-2024-47554](https://github.com/advisories/GHSA-78wr-2p64-hpwj)",
+                "markdown": "**Vulnerability CVE-2024-47554**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | commons-io  | 2.6  | 2.14.0  | java-archive  | /pom.xml  | github:language:java  | [CVE-2024-47554](https://github.com/advisories/GHSA-78wr-2p64-hpwj)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:maven/commons-io/commons-io@2.6"
+                ],
+                "security-severity": "8.7"
+              }
+            },
+            {
+              "id": "CVE-2020-15250-junit",
+              "name": "JavaMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "CVE-2020-15250 medium vulnerability for junit package"
+              },
+              "fullDescription": {
+                "text": "TemporaryFolder on unix-like systems does not limit access to created files"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-269g-pwp5-87pp",
+              "help": {
+                "text": "Vulnerability CVE-2020-15250\nSeverity: medium\nPackage: junit\nVersion: 4.12\nFix Version: 4.13.1\nType: java-archive\nLocation: /pom.xml\nData Namespace: github:language:java\nLink: [CVE-2020-15250](https://github.com/advisories/GHSA-269g-pwp5-87pp)",
+                "markdown": "**Vulnerability CVE-2020-15250**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| medium  | junit  | 4.12  | 4.13.1  | java-archive  | /pom.xml  | github:language:java  | [CVE-2020-15250](https://github.com/advisories/GHSA-269g-pwp5-87pp)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:maven/junit/junit@4.12"
+                ],
+                "security-severity": "4.4"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CVE-2022-42889-commons-text",
+          "level": "error",
+          "message": {
+            "text": "A critical vulnerability in java-archive package: commons-text, version 1.9 was found at: /pom.xml"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/pom.xml"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "925eeb10a73098c76824fbbbe39d5cbf81c9b697004fe370ac6d1191209bf23d:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2015-7501-commons-collections",
+          "level": "error",
+          "message": {
+            "text": "A critical vulnerability in java-archive package: commons-collections, version 3.2.1 was found at: /pom.xml"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/pom.xml"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "c2e0d625cf9487718eb718561ab6a9321fa01c213432b0f72bab84cb20df634c:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2022-1471-snakeyaml",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in java-archive package: snakeyaml, version 1.33 was found at: /pom.xml"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/pom.xml"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "cd48902698dbb1d2952e66dfdf90c3ecd85dded28ea2b3036ba12419405a4aa8:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2023-24998-commons-fileupload",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in java-archive package: commons-fileupload, version 1.3.1 was found at: /pom.xml"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/pom.xml"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "7a8027dad22c4d2678bdd2f2d1a458c2b7adcae28ef3eb9e0c935a440455b5ee:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2016-1000031-commons-fileupload",
+          "level": "error",
+          "message": {
+            "text": "A critical vulnerability in java-archive package: commons-fileupload, version 1.3.1 was found at: /pom.xml"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/pom.xml"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "7a8027dad22c4d2678bdd2f2d1a458c2b7adcae28ef3eb9e0c935a440455b5ee:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2016-3092-commons-fileupload",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in java-archive package: commons-fileupload, version 1.3.1 was found at: /pom.xml"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/pom.xml"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "7a8027dad22c4d2678bdd2f2d1a458c2b7adcae28ef3eb9e0c935a440455b5ee:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2025-48976-commons-fileupload",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in java-archive package: commons-fileupload, version 1.3.1 was found at: /pom.xml"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/pom.xml"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "7a8027dad22c4d2678bdd2f2d1a458c2b7adcae28ef3eb9e0c935a440455b5ee:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2015-6420-commons-collections",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in java-archive package: commons-collections, version 3.2.1 was found at: /pom.xml"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/pom.xml"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "c2e0d625cf9487718eb718561ab6a9321fa01c213432b0f72bab84cb20df634c:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2021-29425-commons-io",
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in java-archive package: commons-io, version 2.6 was found at: /pom.xml"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/pom.xml"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "454420850ca87a6c7b6c80d0ee077a3411fdc49b859b87a19822c88e6a846e0e:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2024-47554-commons-io",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in java-archive package: commons-io, version 2.6 was found at: /pom.xml"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/pom.xml"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "454420850ca87a6c7b6c80d0ee077a3411fdc49b859b87a19822c88e6a846e0e:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2020-15250-junit",
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in java-archive package: junit, version 4.12 was found at: /pom.xml"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/pom.xml"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "85568522ac4f29ed0a59c6db9a1d41e4baba24b9c206ca6e6c6871f1a2c702bd:1"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -37,18 +37,23 @@ const (
 	scaControl = "sca"
 	// devDependenciesKey decides whether the findings in development dependencies count.
 	devDependenciesKey = "devDependencies"
-	// devSuppress and devReport are its two values.
+	// devSuppress and devReport are its two values, and providedDependencies'.
 	devSuppress = "suppress"
 	devReport   = "report"
 	// includeDevDepsKey is trivy-fs's deprecated spelling of devDependencies: true is report.
 	includeDevDepsKey = "includeDevDeps"
+	// providedDependenciesKey decides whether the findings in dependencies the runtime provides
+	// count.
+	providedDependenciesKey = "providedDependencies"
 )
 
-// scaOptionSchema describes devDependencies where it sits, under the control.
+// scaOptionSchema describes devDependencies and providedDependencies where they sit, under the
+// control.
 //
 // The control's rather than a scanner's, because the answer is the same whichever scanner found
 // the flaw: a development dependency Grype reported takes its mark from Trivy's copy of the same
-// package, and one setting then decides both.
+// package, a provided one takes its mark from the pom whichever scanner read it, and one setting
+// then decides each.
 var scaOptionSchema = json.RawMessage(`{
   "type": "object",
   "properties": {
@@ -60,9 +65,34 @@ var scaOptionSchema = json.RawMessage(`{
         { "const": "report", "description": "Each finding in a development dependency is counted, marked dev." }
       ],
       "description": "Whether findings in development dependencies count. A component's setting replaces the project's."
+    },
+    "providedDependencies": {
+      "type": "string",
+      "default": "suppress",
+      "anyOf": [
+        { "const": "suppress", "description": "Each finding in a dependency the runtime provides stays in the report, suppressed with the reason provided by the runtime, and out of the counts and the gate. The default." },
+        { "const": "report", "description": "Each finding in a dependency the runtime provides is counted, marked provided." }
+      ],
+      "description": "Whether findings in a pom.xml dependency in provided or system scope, which the runtime supplies, count. A component's setting replaces the project's."
     }
   }
 }`)
+
+// ReportsProvidedDependencies resolves providedDependencies for one component, and names the key
+// that decided it: the component's setting first, then the project's, and with neither written the
+// default, suppress, named by the project's key.
+func (SCA) ReportsProvidedDependencies(model saga.Model, component string) (bool, string) {
+	project := "config.controls." + scaControl + "." + providedDependenciesKey
+	if comp := componentNamed(model, component); comp != nil {
+		if v, written := comp.Controls[scaControl][providedDependenciesKey].(string); written {
+			return v == devReport, fmt.Sprintf("components[%q].controls.%s.%s", comp.Name, scaControl, providedDependenciesKey)
+		}
+	}
+	if v, written := model.Config.Controls[scaControl][providedDependenciesKey].(string); written {
+		return v == devReport, project
+	}
+	return false, project
+}
 
 // ReportsDevDependencies resolves devDependencies for one component, and names the key that
 // decided it.

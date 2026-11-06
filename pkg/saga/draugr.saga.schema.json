@@ -1007,6 +1007,21 @@
           },
           "type": "object"
         },
+        "providedDependencies": {
+          "anyOf": [
+            {
+              "const": "suppress",
+              "description": "Each finding in a dependency the runtime provides stays in the report, suppressed with the reason provided by the runtime, and out of the counts and the gate. The default."
+            },
+            {
+              "const": "report",
+              "description": "Each finding in a dependency the runtime provides is counted, marked provided."
+            }
+          ],
+          "default": "suppress",
+          "description": "Whether findings in a pom.xml dependency in provided or system scope, which the runtime supplies, count. A component's setting replaces the project's.",
+          "type": "string"
+        },
         "retirejs": {
           "additionalProperties": false,
           "description": "retirejs, published by RetireJS.",

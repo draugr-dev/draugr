@@ -1,0 +1,21 @@
+project: jvm-maven-provided
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+      grypeFs:
+        enabled: true
+components:
+  - name: default
+    repositories:
+      - url: ./jvm-maven-provided
+        paths: [default]
+  - name: report
+    repositories:
+      - url: ./jvm-maven-provided
+        paths: [report]
+    controls:
+      sca:
+        providedDependencies: report

@@ -53,3 +53,47 @@ func TestReportJSONFindingSaysItIsADevelopmentDependency(t *testing.T) {
 		t.Errorf("a runtime finding is suppressed: %v", runtime)
 	}
 }
+
+// A finding in a dependency the runtime provides says so in report.json, and one the setting set
+// aside carries the provided reason and its key. A finding the application ships carries neither.
+func TestReportJSONFindingSaysTheRuntimeProvidesIt(t *testing.T) {
+	collections := &sarif.Package{Name: "commons-collections", Version: "3.2.1",
+		PURL: "pkg:maven/commons-collections/commons-collections@3.2.1", Provided: true}
+	run := engine.Result{
+		Controls: map[string]plugin.ControlResult{"sca": {Control: "sca", Report: sarif.Report{
+			Tool: "grype", Results: []sarif.Result{{
+				RuleID: "CVE-2015-7501", Level: sarif.LevelError, Priority: "P1", Component: "shop",
+				Location: sarif.Location{URI: "pom.xml", StartLine: 1}, Package: collections,
+				Suppression: &sarif.Suppression{Kind: "external", Origin: sarif.OriginSetting,
+					Justification: sarif.JustificationProvidedByRuntime, Source: "config.controls.sca.providedDependencies"},
+			}, {
+				RuleID: "CVE-2022-42889", Level: sarif.LevelError, Priority: "P1", Component: "shop",
+				Location: sarif.Location{URI: "pom.xml", StartLine: 2},
+				Package: &sarif.Package{Name: "commons-text", Version: "1.9",
+					PURL: "pkg:maven/org.apache.commons/commons-text@1.9"},
+			}},
+		}}},
+	}
+	findings, ok := renderJSON(t, run, "P4")["findings"].([]any)
+	if !ok || len(findings) != 2 {
+		t.Fatalf("findings = %v", findings)
+	}
+	byLocation := map[string]map[string]any{}
+	for _, f := range findings {
+		m := f.(map[string]any)
+		byLocation[m["location"].(string)] = m
+	}
+	provided := byLocation["pom.xml:1"]
+	if provided["provided"] != true {
+		t.Errorf("the provided finding is not marked provided: %v", provided)
+	}
+	sup, _ := provided["suppressed"].(map[string]any)
+	if sup["origin"] != "setting" || sup["justification"] != "provided by the runtime" ||
+		sup["source"] != "config.controls.sca.providedDependencies" {
+		t.Errorf("suppressed = %v, want the setting, its reason and its key", sup)
+	}
+	shipped := byLocation["pom.xml:2"]
+	if _, present := shipped["provided"]; present {
+		t.Errorf("a shipped finding carries the provided mark: %v", shipped)
+	}
+}

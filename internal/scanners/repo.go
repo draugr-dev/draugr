@@ -376,6 +376,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	// the fingerprint is looked up by the path a consumer will see, and the file it hashes is only
 	// on disk until this function returns.
 	stampLineHashes(report.Results, dir)
+	markPomScopes(report.Results, dir)
 	report.Provenance = append(report.Provenance, repoProvenance(s.info.Name, repo.Source(), tree))
 	return report, nil
 }

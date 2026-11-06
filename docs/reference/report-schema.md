@@ -139,6 +139,7 @@ Draugr reports as one SARIF tool, so every finding keeps its own attribution in 
 | `reachability` | Whether your code can reach the vulnerable code, which analyzer decided, and how |
 | `historical` | `true` on a finding from a commit in the repository's history. Absent on a finding from the current tree. The location is the path the file had in that commit |
 | `package.dev` | `true` on a finding in a development dependency, a package the manifest declares for development only. Absent on a runtime dependency and where no scanner could tell. Each entry in `report.json`'s `findings` carries it as `dev`, where `dev: true` means a development dependency. [Development dependencies](saga-schema.md#development-dependencies) says which scanner marks one |
+| `package.provided` | `true` on a finding in a dependency the runtime provides, one a `pom.xml` declares in `provided` or `system` scope. Absent on a dependency the application ships and where no manifest said. Each entry in `report.json`'s `findings` carries it as `provided`. [Provided dependencies](saga-schema.md#provided-dependencies) says how the scope is read |
 | `fingerprint` | The finding's identity, a hash of its tool, rule, level, message, location, component and repository. `report.json` names findings by it in `actions[].findings[]`, and in `findings[].fingerprint` when `--min-priority` lists them |
 
 `control` and `tool` answer different questions, and both matter to anything grouping findings:

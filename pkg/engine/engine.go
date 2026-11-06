@@ -621,6 +621,10 @@ type Result struct {
 	// config.controls.sca.devDependencies set aside. Apart from Suppressed because nobody judged
 	// these findings: the setting names a kind of finding, and each carries OriginSetting.
 	DevDependencies int
+	// ProvidedDependencies counts findings in dependencies the runtime provides that a component's
+	// config.controls.sca.providedDependencies set aside, apart from Suppressed for the reason
+	// DevDependencies is.
+	ProvidedDependencies int
 	// VEX is the supplier documents this run read, with what each contributed. Present even when
 	// a document excused nothing, which is the case worth seeing: a document matching no finding
 	// looks exactly like one that was never configured.
@@ -1685,8 +1689,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// an excused finding still carries the evidence about whether anything could reach it.
 	res.Reachability = e.applyReachability(res.Controls, model)
 
-	// Every scanner's copy of a package in a file takes the development mark one of them carries,
-	// before anything decides what to set aside, so the decision reads the same mark on each copy.
+	// Every scanner's copy of a package in a file takes the development and provided marks one of
+	// them carries, before anything decides what to set aside, so the decision reads the same mark on
+	// each copy.
 	markDevCopies(res.Controls)
 
 	// Exclusions apply after aggregation, to what every consumer will see. Doing it here rather than
@@ -1708,6 +1713,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	res.Imported, res.VEX, res.UnmatchedClaims = applyVEX(res.Controls, e.vex, covered)
 	// After both, so a finding somebody decided about keeps their reason rather than the setting's.
 	res.DevDependencies = e.applyDevDependencies(res.Controls, model)
+	res.ProvidedDependencies = e.applyProvidedDependencies(res.Controls, model)
 	// Last, so exclusions and supplier claims match exactly what they matched before a second
 	// scanner was added, and a decision about a flaw reaches every scanner's copy of it.
 	correlated, alsoSuppressed := applyCorrelation(res.Controls)

@@ -1,0 +1,297 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.76.1"
+  },
+  "ReportID": "01a1aec4-63d3-74b1-983d-f759dc2969a6",
+  "CreatedAt": "2026-11-05T20:51:08.627308683-06:00",
+  "ArtifactName": "/checkout",
+  "ArtifactType": "filesystem",
+  "Results": [
+    {
+      "Target": "service/pom.xml",
+      "Class": "lang-pkgs",
+      "Type": "pom",
+      "Packages": [
+        {
+          "ID": "com.example:billing:1.0.0::3a36cdd3",
+          "Name": "com.example:billing",
+          "Identifier": {
+            "PURL": "pkg:maven/com.example/billing@1.0.0",
+            "UID": "5462762b0a55acb3"
+          },
+          "Version": "1.0.0",
+          "Relationship": "root",
+          "DependsOn": [
+            "commons-collections:commons-collections:3.2.1::9aaf637c",
+            "org.apache.commons:commons-text:1.9::980b309f"
+          ],
+          "AnalyzedBy": "pom"
+        },
+        {
+          "ID": "commons-collections:commons-collections:3.2.1::9aaf637c",
+          "Name": "commons-collections:commons-collections",
+          "Identifier": {
+            "PURL": "pkg:maven/commons-collections/commons-collections@3.2.1",
+            "UID": "2da36f411ee16fe0"
+          },
+          "Version": "3.2.1",
+          "Relationship": "direct",
+          "Locations": [
+            {
+              "StartLine": 26,
+              "EndLine": 30
+            }
+          ],
+          "AnalyzedBy": "pom"
+        },
+        {
+          "ID": "org.apache.commons:commons-text:1.9::980b309f",
+          "Name": "org.apache.commons:commons-text",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.commons/commons-text@1.9",
+            "UID": "6c847d40d3b1c240"
+          },
+          "Version": "1.9",
+          "Relationship": "direct",
+          "Locations": [
+            {
+              "StartLine": 21,
+              "EndLine": 25
+            }
+          ],
+          "AnalyzedBy": "pom"
+        }
+      ],
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-2015-7501",
+          "VendorIDs": [
+            "GHSA-fjq5-5j5f-mvxh"
+          ],
+          "PkgID": "commons-collections:commons-collections:3.2.1::9aaf637c",
+          "PkgName": "commons-collections:commons-collections",
+          "PkgIdentifier": {
+            "PURL": "pkg:maven/commons-collections/commons-collections@3.2.1",
+            "UID": "2da36f411ee16fe0"
+          },
+          "InstalledVersion": "3.2.1",
+          "FixedVersion": "3.2.2",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2015-7501",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory Maven",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Amaven"
+          },
+          "Fingerprint": "sha256:3ba2b54550b2ce24ff5d2d74f45477eaf2148d73b7e919bf53e662218a1868ca",
+          "Description": "Red Hat JBoss A-MQ 6.x; BPM Suite (BPMS) 6.x; BRMS 6.x and 5.x; Data Grid (JDG) 6.x; Data Virtualization (JDV) 6.x and 5.x; Enterprise Application Platform 6.x, 5.x, and 4.3.x; Fuse 6.x; Fuse Service Works (FSW) 6.x; Operations Network (JBoss ON) 3.x; Portal 6.x; SOA Platform (SOA-P) 5.x; Web Server (JWS) 3.x; Red Hat OpenShift/xPAAS 3.x; and Red Hat Subscription Asset Manager 1.3 allow remote attackers to execute arbitrary commands via a crafted serialized Java object, related to the Apache Commons Collections (ACC) library.",
+          "Severity": "CRITICAL",
+          "CweIDs": [
+            "CWE-502"
+          ],
+          "VendorSeverity": {
+            "amazon": 3,
+            "ghsa": 4,
+            "nvd": 4,
+            "oracle-oval": 3,
+            "redhat": 4
+          },
+          "CVSS": {
+            "ghsa": {
+              "V3Vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+              "V3Score": 9.8
+            },
+            "nvd": {
+              "V2Vector": "AV:N/AC:L/Au:N/C:C/I:C/A:C",
+              "V3Vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+              "V2Score": 10,
+              "V3Score": 9.8
+            },
+            "redhat": {
+              "V2Vector": "AV:N/AC:L/Au:N/C:P/I:P/A:P",
+              "V2Score": 7.5
+            }
+          },
+          "References": [
+            "http://foxglovesecurity.com/2015/11/06/what-do-weblogic-websphere-jboss-jenkins-opennms-and-your-application-have-in-common-this-vulnerability/",
+            "http://rhn.redhat.com/errata/RHSA-2015-2500.html",
+            "http://rhn.redhat.com/errata/RHSA-2015-2501.html",
+            "http://rhn.redhat.com/errata/RHSA-2015-2502.html",
+            "http://rhn.redhat.com/errata/RHSA-2015-2514.html",
+            "http://rhn.redhat.com/errata/RHSA-2015-2516.html",
+            "http://rhn.redhat.com/errata/RHSA-2015-2517.html",
+            "http://rhn.redhat.com/errata/RHSA-2015-2521.html",
+            "http://rhn.redhat.com/errata/RHSA-2015-2522.html",
+            "http://rhn.redhat.com/errata/RHSA-2015-2524.html",
+            "http://rhn.redhat.com/errata/RHSA-2015-2670.html",
+            "http://rhn.redhat.com/errata/RHSA-2015-2671.html",
+            "http://rhn.redhat.com/errata/RHSA-2016-0040.html",
+            "http://rhn.redhat.com/errata/RHSA-2016-1773.html",
+            "http://www.oracle.com/technetwork/security-advisory/cpuapr2018-3678067.html",
+            "http://www.oracle.com/technetwork/security-advisory/cpujan2018-3236628.html",
+            "http://www.oracle.com/technetwork/security-advisory/cpujul2018-4258247.html",
+            "http://www.oracle.com/technetwork/security-advisory/cpuoct2018-4428296.html",
+            "http://www.securityfocus.com/bid/78215",
+            "http://www.securitytracker.com/id/1034097",
+            "http://www.securitytracker.com/id/1037052",
+            "http://www.securitytracker.com/id/1037053",
+            "http://www.securitytracker.com/id/1037640",
+            "https://access.redhat.com/security/cve/CVE-2015-7501",
+            "https://access.redhat.com/security/vulnerabilities/2059393",
+            "https://access.redhat.com/solutions/2045023",
+            "https://arxiv.org/pdf/2306.05534.pdf",
+            "https://bugzilla.redhat.com/show_bug.cgi?id=1279330",
+            "https://commons.apache.org/proper/commons-collections/release_4_1.html",
+            "https://foxglovesecurity.com/2015/11/06/what-do-weblogic-websphere-jboss-jenkins-opennms-and-your-application-have-in-common-this-vulnerability",
+            "https://github.com/apache/commons-collections",
+            "https://github.com/jensdietrich/xshady-release/tree/main/CVE-2015-7501",
+            "https://issues.apache.org/jira/browse/COLLECTIONS-580.",
+            "https://linux.oracle.com/cve/CVE-2015-7501.html",
+            "https://linux.oracle.com/errata/ELSA-2015-2671.html",
+            "https://nvd.nist.gov/vuln/detail/CVE-2015-7501",
+            "https://rhn.redhat.com/errata/RHSA-2015-2536.html",
+            "https://security.netapp.com/advisory/ntap-20240216-0010/",
+            "https://sourceforge.net/p/collections/code/HEAD/tree",
+            "https://www.cve.org/CVERecord?id=CVE-2015-7501",
+            "https://www.oracle.com/security-alerts/cpujul2020.html"
+          ],
+          "PublishedDate": "2017-11-09T17:29:00.203Z",
+          "LastModifiedDate": "2025-04-20T01:37:25.86Z"
+        },
+        {
+          "VulnerabilityID": "CVE-2015-6420",
+          "VendorIDs": [
+            "GHSA-6hgm-866r-3cjv"
+          ],
+          "PkgID": "commons-collections:commons-collections:3.2.1::9aaf637c",
+          "PkgName": "commons-collections:commons-collections",
+          "PkgIdentifier": {
+            "PURL": "pkg:maven/commons-collections/commons-collections@3.2.1",
+            "UID": "2da36f411ee16fe0"
+          },
+          "InstalledVersion": "3.2.1",
+          "FixedVersion": "3.2.2",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2015-6420",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory Maven",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Amaven"
+          },
+          "Fingerprint": "sha256:4f56c64b1ef1d21e10976903c273834a7e153002c1ae6df05a2bb4a47a678ed2",
+          "Title": "Insecure Deserialization in Apache Commons Collection",
+          "Description": "Serialized-object interfaces in certain Cisco Collaboration and Social Media; Endpoint Clients and Client Software; Network Application, Service, and Acceleration; Network and Content Security Devices; Network Management and Provisioning; Routing and Switching - Enterprise and Service Provider; Unified Computing; Voice and Unified Communications Devices; Video, Streaming, TelePresence, and Transcoding Devices; Wireless; and Cisco Hosted Services products allow remote attackers to execute arbitrary commands via a crafted serialized Java object, related to the Apache Commons Collections (ACC) library.",
+          "Severity": "HIGH",
+          "CweIDs": [
+            "CWE-502"
+          ],
+          "VendorSeverity": {
+            "ghsa": 3,
+            "nvd": 4
+          },
+          "CVSS": {
+            "nvd": {
+              "V2Vector": "AV:N/AC:L/Au:N/C:P/I:P/A:P",
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+              "V2Score": 7.5,
+              "V3Score": 9.8
+            }
+          },
+          "References": [
+            "http://tools.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-20151209-java-deserialization",
+            "http://www.oracle.com/technetwork/security-advisory/cpujul2018-4258247.html",
+            "http://www.securityfocus.com/bid/78872",
+            "https://arxiv.org/pdf/2306.05534",
+            "https://foxglovesecurity.com/2015/11/06/what-do-weblogic-websphere-jboss-jenkins-opennms-and-your-application-have-in-common-this-vulnerability/",
+            "https://github.com/apache/commons-collections",
+            "https://h20566.www2.hpe.com/portal/site/hpsc/public/kb/docDisplay?docId=emr_na-c05376917",
+            "https://h20566.www2.hpe.com/portal/site/hpsc/public/kb/docDisplay?docId=emr_na-c05390722",
+            "https://lists.apache.org/thread.html/r352e40ca9874d1beb4ad95403792adca7eb295e6bc3bd7b65fabcc21@%3Ccommits.samza.apache.org%3E",
+            "https://news.apache.org/foundation/entry/apache_commons_statement_to_widespread",
+            "https://nvd.nist.gov/vuln/detail/CVE-2015-6420",
+            "https://www.kb.cert.org/vuls/id/576313",
+            "https://www.kb.cert.org/vuls/id/581311",
+            "https://www.tenable.com/security/research/tra-2017-14",
+            "https://www.tenable.com/security/research/tra-2017-23"
+          ],
+          "PublishedDate": "2015-12-15T05:59:07.823Z",
+          "LastModifiedDate": "2026-10-07T18:17:07.41Z"
+        },
+        {
+          "VulnerabilityID": "CVE-2022-42889",
+          "VendorIDs": [
+            "GHSA-599f-7c49-w659"
+          ],
+          "PkgID": "org.apache.commons:commons-text:1.9::980b309f",
+          "PkgName": "org.apache.commons:commons-text",
+          "PkgIdentifier": {
+            "PURL": "pkg:maven/org.apache.commons/commons-text@1.9",
+            "UID": "6c847d40d3b1c240"
+          },
+          "InstalledVersion": "1.9",
+          "FixedVersion": "1.10.0",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2022-42889",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory Maven",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Amaven"
+          },
+          "Fingerprint": "sha256:69bf6805e8a561f4aa9de717c88a2e14e9adec98d0cb00e0e2c83954d2ea6345",
+          "Title": "apache-commons-text: variable interpolation RCE",
+          "Description": "Apache Commons Text performs variable interpolation, allowing properties to be dynamically evaluated and expanded. The standard format for interpolation is \"${prefix:name}\", where \"prefix\" is used to locate an instance of org.apache.commons.text.lookup.StringLookup that performs the interpolation. Starting with version 1.5 and continuing through 1.9, the set of default Lookup instances included interpolators that could result in arbitrary code execution or contact with remote servers. These lookups are: - \"script\" - execute expressions using the JVM script execution engine (javax.script) - \"dns\" - resolve dns records - \"url\" - load values from urls, including from remote servers Applications using the interpolation defaults in the affected versions may be vulnerable to remote code execution or unintentional contact with remote servers if untrusted configuration values are used. Users are recommended to upgrade to Apache Commons Text 1.10.0, which disables the problematic interpolators by default.",
+          "Severity": "CRITICAL",
+          "CweIDs": [
+            "CWE-94"
+          ],
+          "VendorSeverity": {
+            "ghsa": 4,
+            "nvd": 4,
+            "redhat": 4,
+            "ubuntu": 2
+          },
+          "CVSS": {
+            "ghsa": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+              "V3Score": 9.8
+            },
+            "nvd": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+              "V3Score": 9.8
+            },
+            "redhat": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+              "V3Score": 9.8
+            }
+          },
+          "References": [
+            "http://packetstormsecurity.com/files/171003/OX-App-Suite-Cross-Site-Scripting-Server-Side-Request-Forgery.html",
+            "http://packetstormsecurity.com/files/176650/Apache-Commons-Text-1.9-Remote-Code-Execution.html",
+            "http://seclists.org/fulldisclosure/2023/Feb/3",
+            "http://www.openwall.com/lists/oss-security/2022/10/13/4",
+            "http://www.openwall.com/lists/oss-security/2022/10/18/1",
+            "https://access.redhat.com/security/cve/CVE-2022-42889",
+            "https://arxiv.org/pdf/2306.05534",
+            "https://blogs.apache.org/security/entry/cve-2022-42889",
+            "https://github.com/apache/commons-text",
+            "https://lists.apache.org/thread/n2bd4vdsgkqh2tm14l1wyc3jyol7s1om",
+            "https://nvd.nist.gov/vuln/detail/CVE-2022-42889",
+            "https://psirt.global.sonicwall.com/vuln-detail/SNWLID-2022-0022",
+            "https://seclists.org/oss-sec/2022/q4/22",
+            "https://security.gentoo.org/glsa/202301-05",
+            "https://security.netapp.com/advisory/ntap-20221020-0004",
+            "https://security.netapp.com/advisory/ntap-20221020-0004/",
+            "https://securitylab.github.com/advisories/GHSL-2022-018_Apache_Commons_Text",
+            "https://www.cve.org/CVERecord?id=CVE-2022-42889"
+          ],
+          "PublishedDate": "2022-10-13T13:15:10.113Z",
+          "LastModifiedDate": "2026-06-17T05:05:31.85Z"
+        }
+      ]
+    }
+  ]
+}

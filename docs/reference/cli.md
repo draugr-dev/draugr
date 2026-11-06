@@ -2213,12 +2213,14 @@ $ draugr config keys controls.sca
 Key                                     Accepts                               Default
 controls.sca.enabled                    true or false                         off unless the descriptor turns it on
 controls.sca.devDependencies            suppress or report                    suppress
+controls.sca.providedDependencies       suppress or report                    suppress
 controls.sca.trivyFs.enabled            true or false                         true
 controls.sca.trivyFs.dbRepository       a list                                -
 controls.sca.trivyFs.detectionPriority  precise or comprehensive              precise
 controls.sca.trivyFs.filePatterns       a list                                -
 controls.sca.trivyFs.includeDevDeps     true or false                         false
 controls.sca.trivyFs.pkgTypes           a list of os, library                 os, library
+controls.sca.trivyFs.resolveMaven       true or false                         false
 controls.sca.grypeFs.enabled            true or false                         false
 controls.sca.grypeFs.byCve              true or false                         true
 controls.sca.mendSca.enabled            true or false                         false

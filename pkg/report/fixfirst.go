@@ -112,10 +112,10 @@ func writeBlockFacts(w io.Writer, col tui.Painter, f finding, width int, withCom
 	//
 	// A development dependency is labeled the way the scanner is, the kind dimmed before the value:
 	// `dev dependency nanoid 3.3.7`. In full here, where the line has room; the compact cell
-	// shortens it to `dev`.
+	// shortens it to `dev`. A dependency the runtime provides is labeled the same way.
 	name, fixed := packageFix(f, true)
-	if name != "" && isDev(f) {
-		name = col.Paint(cDim, devLabelFull) + " " + name
+	if _, full := packageKind(f); name != "" && full != "" {
+		name = col.Paint(cDim, full) + " " + name
 	}
 	if fixed != "" {
 		parts = append(parts, name+" "+col.Paint(tui.StyleFixed, "→ "+fixed))

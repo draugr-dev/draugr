@@ -89,21 +89,59 @@ func TestSCAWarnsOfEachIncludeDevDeps(t *testing.T) {
 	}
 }
 
-// The setting is declared, so validate and the schema know it.
+// Both settings are declared, so validate and the schema know them, and each takes suppress or
+// report and nothing else.
 func TestSCADeclaresDevDependencies(t *testing.T) {
 	var names []string
 	for _, o := range plugin.Options(NewSCA().Info().OptionSchema) {
 		names = append(names, o.Name)
 	}
-	if !slices.Equal(names, []string{"devDependencies"}) {
-		t.Errorf("options %v, want devDependencies", names)
+	slices.Sort(names)
+	if !slices.Equal(names, []string{"devDependencies", "providedDependencies"}) {
+		t.Errorf("options %v, want devDependencies and providedDependencies", names)
 	}
-	for _, v := range []string{"suppress", "report"} {
-		if err := plugin.ValidateConfig(NewSCA().Info().OptionSchema, plugin.Config{"devDependencies": v}); err != nil {
-			t.Errorf("%s: %v", v, err)
+	for _, key := range []string{"devDependencies", "providedDependencies"} {
+		for _, v := range []string{"suppress", "report"} {
+			if err := plugin.ValidateConfig(NewSCA().Info().OptionSchema, plugin.Config{key: v}); err != nil {
+				t.Errorf("%s: %s: %v", key, v, err)
+			}
+		}
+		for _, v := range []any{"include", "", true} {
+			if err := plugin.ValidateConfig(NewSCA().Info().OptionSchema, plugin.Config{key: v}); err == nil {
+				t.Errorf("%s: %v was accepted", key, v)
+			}
 		}
 	}
-	if err := plugin.ValidateConfig(NewSCA().Info().OptionSchema, plugin.Config{"devDependencies": "include"}); err == nil {
-		t.Error("devDependencies: include was accepted")
+}
+
+// The component's setting before the project's, and suppress where nothing is written, named by
+// the project's key.
+func TestReportsProvidedDependenciesResolvesPerComponent(t *testing.T) {
+	policy := NewSCA().(plugin.ProvidedDependencyPolicy)
+	const project = "config.controls.sca.providedDependencies"
+	report := saga.ControllerSettings{"providedDependencies": "report"}
+	suppress := saga.ControllerSettings{"providedDependencies": "suppress"}
+	for _, tc := range []struct {
+		name        string
+		model       saga.Model
+		component   string
+		report      bool
+		decidedFrom string
+	}{
+		{"default", devModel(nil, nil, nil), "web", false, project},
+		{"project", devModel(report, nil, nil), "web", true, project},
+		{"component over project", devModel(report, suppress, nil), "web", false,
+			`components["web"].controls.sca.providedDependencies`},
+		{"other component keeps the project's", devModel(report, suppress, nil), "tools", true, project},
+		{"component alone", devModel(nil, nil, report), "tools", true,
+			`components["tools"].controls.sca.providedDependencies`},
+		{"devDependencies decides nothing here", devModel(saga.ControllerSettings{"devDependencies": "report"}, nil, nil),
+			"web", false, project},
+		{"unknown component", devModel(report, nil, nil), "", true, project},
+	} {
+		report, from := policy.ReportsProvidedDependencies(tc.model, tc.component)
+		if report != tc.report || from != tc.decidedFrom {
+			t.Errorf("%s: (%v, %q), want (%v, %q)", tc.name, report, from, tc.report, tc.decidedFrom)
+		}
 	}
 }

@@ -359,6 +359,11 @@ type Package struct {
 	// build tool, a linter. False where the scanner reported it as a runtime dependency, and where
 	// the scanner cannot tell the two apart, so false is not a claim that it ships.
 	Dev bool `json:"dev,omitempty"`
+	// Provided says the manifest declares the package as supplied by the runtime the application is
+	// deployed into: a pom.xml dependency in Maven's provided or system scope, which is compiled
+	// against and left out of what is packaged. False where the manifest puts it on the
+	// application's own classpath, and where nothing read the manifest's scope.
+	Provided bool `json:"provided,omitempty"`
 }
 
 // Escalation records that exploitability data raised a finding's severity, and on what grounds.
@@ -664,6 +669,10 @@ const (
 // JustificationDevDependency is the reason recorded on a finding that
 // config.controls.sca.devDependencies set aside.
 const JustificationDevDependency = "development dependency"
+
+// JustificationProvidedByRuntime is the reason recorded on a finding that
+// config.controls.sca.providedDependencies set aside.
+const JustificationProvidedByRuntime = "provided by the runtime"
 
 // Suppressed reports whether this finding was excluded, by a Saga rule or by an imported claim.
 func (r Result) Suppressed() bool { return r.Suppression != nil }
