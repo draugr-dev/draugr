@@ -109,11 +109,11 @@ Plans one scan per repository declared on a component (each is checked out and s
 leaked credentials), then aggregates + deduplicates findings into a per-control result.
 
 **Every finding is reported at the SARIF level `error`, and held at a minimum severity of
-`high`.** A leaked secret should fail the gate regardless of how the scanner rated it. The level
-is what GitHub code scanning reads as the alert's severity and what JUnit writes as the failure
-type, so a secret is an error in both. The gate reads the severity and the band, which the minimum
-severity and the control's context tier decide, as
-[prioritization](../../docs/concepts/prioritization.md) describes.
+`high`.** A leaked secret should fail the gate regardless of how the scanner rated it, as
+[prioritization](../../docs/concepts/prioritization.md) describes. The level is what GitHub code
+scanning reads as the alert's severity and what JUnit writes as the failure type, so a secret is an
+error in both. The gate reads the severity and the band, which the minimum severity and the
+control's context floor decide.
 
 The scanner's own answer is kept. Gitleaks writes no level, which SARIF reads as `warning`, so a
 Gitleaks finding reports `severity: medium`, `severityFloor: high` and a ranked severity of
