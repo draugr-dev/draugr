@@ -1,0 +1,169 @@
+{
+  "actions": [
+    {
+      "clears": 1,
+      "component": "report",
+      "control": "sca",
+      "ecosystem": "java-archive",
+      "findings": "<cleared>",
+      "fixedVersions": [
+        "2.15.0"
+      ],
+      "from": "2.14.1",
+      "id": "494f2b425d89b268",
+      "kind": "bump",
+      "locations": [
+        {
+          "kind": "manifest",
+          "line": 1,
+          "path": "report/pom.xml",
+          "repository": "./jvm-maven-provided"
+        }
+      ],
+      "package": "log4j-core",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2021-44228-log4j-core"
+      ],
+      "severity": "critical",
+      "target": "2.15.0",
+      "title": "Upgrade log4j-core 2.14.1",
+      "versioning": "maven",
+      "where": [
+        "report/pom.xml:1"
+      ]
+    }
+  ],
+  "componentLabels": {
+    "default": {},
+    "report": {}
+  },
+  "controls": [
+    {
+      "errors": 1,
+      "highest": "critical",
+      "highestPriority": "P1",
+      "name": "sca",
+      "notes": 0,
+      "threshold": "",
+      "total": 1,
+      "verdict": "fail",
+      "warnings": 0
+    }
+  ],
+  "dependencyFiles": [
+    {
+      "component": "default",
+      "control": "sca",
+      "read": 1,
+      "scanners": [
+        "grype-fs",
+        "trivy-fs"
+      ]
+    },
+    {
+      "component": "report",
+      "control": "sca",
+      "read": 1,
+      "scanners": [
+        "grype-fs",
+        "trivy-fs"
+      ]
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:a7ca928c5c7512c43581b2c0b1007fe7abbf564c8084d17fa7cf59ba2845ea1e",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "effects": {
+    "allowed": [],
+    "declared": [],
+    "used": []
+  },
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 1,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0
+  },
+  "project": "jvm-maven-provided",
+  "release": {
+    "version": "1.0"
+  },
+  "repositories": [
+    {
+      "revision": "<cleared>",
+      "url": "./jvm-maven-provided"
+    }
+  ],
+  "scannerData": [
+    {
+      "data": "vulnerability database",
+      "downloaded": "<cleared>",
+      "published": "<cleared>",
+      "tool": "trivy",
+      "version": "<cleared>"
+    },
+    {
+      "data": "vulnerability database",
+      "downloaded": "<cleared>",
+      "published": "<cleared>",
+      "tool": "grype",
+      "version": "<cleared>"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "grype-fs",
+      "version": "<cleared>"
+    },
+    {
+      "name": "trivy-fs",
+      "version": "<cleared>"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 4,
+    "peakToolMemoryBytes": "<cleared>",
+    "scans": 4
+  },
+  "suppressed": {
+    "p1": 1,
+    "p2": 0,
+    "p3": 0,
+    "p4": 0,
+    "total": 1
+  },
+  "targets": [
+    {
+      "components": [
+        "default",
+        "report"
+      ],
+      "kind": "repository",
+      "status": "reached",
+      "target": "./jvm-maven-provided"
+    }
+  ],
+  "verdict": "fail"
+}
