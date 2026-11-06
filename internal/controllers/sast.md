@@ -45,7 +45,7 @@ CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that d
 | `over 1 MB, not scanned` | the file is over Semgrep's size limit, and no rule ran on it | exclude it with `ignore:` (usually generated or minified), or split it |
 | `1 rule timed out, not checked: "x"` | the rule ran out of time on the file; the other rules ran | split the file, or set `config` to a ruleset without the rule |
 | `3 rules timed out, other rules not run: "x", "y", "z"` | three rules timed out, and Semgrep ran no further rule on the file | as above; the rules not run were not checked |
-| `no Go packages` | a `go.mod` gosec found no Go package under, such as a documentation site built with Hugo; gosec analyzed the repository's other modules | none where the module holds no Go code; list its directory under the repository's `ignore:` to drop the row |
+| `no Go packages` | a `go.mod` gosec found no Go package under, such as a documentation site built with Hugo; gosec analyzed the repository's other modules | expected for a module with no Go code; add its directory to `ignore:` to hide it |
 
 A file over the limit is listed only where a configured rule reads its language. Draugr cannot read
 a ruleset Semgrep fetches, such as `p/default`, and takes it to read every file, so with one every
