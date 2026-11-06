@@ -79,11 +79,11 @@ func TestSummarizeReturnsEachAcceptedFindingWithItsDecision(t *testing.T) {
 	}
 	// Most severe first: the error-level VEX claim before the warning-level descriptor rule.
 	want := []Accepted{
-		{RuleID: "CVE-2023-0002", Severity: "high", Component: "worker", Package: "openssl",
+		{RuleID: "CVE-2023-0002", Severity: "high", RankedSeverity: "high", Component: "worker", Package: "openssl",
 			Version: "3.0.1", Justification: "vulnerable_code_not_in_execute_path", Origin: "vex",
 			Author: "Example Inc", Asserted: "2026-06-01", Source: "vex/worker.openvex.json",
 			VEXStatus: "not_affected", VEXJustification: "vulnerable_code_not_in_execute_path"},
-		{RuleID: "CVE-2023-0001", Severity: "medium", Component: "api", Location: "api/pom.xml",
+		{RuleID: "CVE-2023-0001", Severity: "medium", RankedSeverity: "medium", Component: "api", Location: "api/pom.xml",
 			Justification: "test scope only", Expires: "2026-12-31",
 			Origin: "saga", Source: "fragments/api.saga.yaml", Line: 7},
 	}
@@ -209,7 +209,8 @@ func TestFindingsCarryReachabilityAndEscalation(t *testing.T) {
 // named on it rather than dropped.
 func TestACorrelatedCopyIsCountedOnceAndNamed(t *testing.T) {
 	out := summarized(decisionsReport(), "", 20)
-	if out.Total != 2 || out.Counts.High != 1 {
+	// Under critical, the severity KEV raised log4j to, which is the one the report counts it at.
+	if out.Total != 2 || out.Counts.Critical != 1 {
 		t.Errorf("total=%d counts=%+v, want the grype copy counted under trivy-fs", out.Total, out.Counts)
 	}
 	for _, f := range out.Findings {

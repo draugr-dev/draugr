@@ -251,14 +251,16 @@ func NewServer(opts Options) (*mcp.Server, error) {
 			"resolved. Ask this rather than summarize_report when the question is whether a " +
 			"change made things worse: a project with inherited findings answers 'what is " +
 			"wrong' the same way before and after, which says nothing about the change. Give " +
-			"failOnNew to learn whether a pull request gate would fail.",
+			"failOnNew to learn whether a pull request gate would fail. A severity in failOnNew " +
+			"is compared with each new finding's rankedSeverity, not its severity.",
 	}, DiffReportsTool)
 	mcp.AddTool(s, &mcp.Tool{
 		Name: "summarize_report",
 		Description: "Read the results.sarif an earlier draugr scan wrote and return " +
 			"its findings ranked by priority, deduplicated, with the rule documentation link " +
 			"for each. Answers 'what should I fix first?' from a scan that already ran, without " +
-			"starting a new one. A finding the project " +
+			"starting a new one. A severity gate such as --fail-on high judges each finding's " +
+			"rankedSeverity, not its severity, which is the scanner's rating. A finding the project " +
 			"accepted comes back in accepted, with why, until when and the file and line that " +
 			"record the decision; report it as a decision and do not propose fixing it. The " +
 			"git history of a descriptor rule's line records who wrote it, and report.json " +
@@ -286,7 +288,8 @@ func NewServer(opts Options) (*mcp.Server, error) {
 		desc := "Run a scan for a Saga descriptor and return the verdict with findings " +
 			"ranked by priority. This is expensive and has side effects: it clones " +
 			"repositories, executes external scanners and reaches the network. Prefer " +
-			"summarize_report when a recent report already exists. The scan merges " +
+			"summarize_report when a recent report already exists. A severity gate in the " +
+			"verdict judges each finding's rankedSeverity, not its severity. The scan merges " +
 			"draugr.config.yaml from the server's working directory, as `draugr scan` does.\n\n" +
 			"Scope: this runs the controls the descriptor declares over the components it " +
 			"declares, and nothing else. It is a reproducible floor, not a substitute for " +

@@ -1,0 +1,1 @@
+- **An assistant can explain a severity gate from the finding that tripped it.** Every finding from `scan`, `summarize_report` and `diff_reports` carries `rankedSeverity`, the severity a gate judges, beside the scanner's `severity`, plus `severityFloor` where the control raised it. Their severity `counts` and ordering now follow the ranked severity, as the report does.
