@@ -25,7 +25,7 @@ that the `ledger` component depends on; `ledger` declares `exposure: internal` a
 
 ![The ledger CVE in four steps: rated high, raised to critical by KEV, tier C2 from ledger's declaration, band P1](../assets/prio-model.svg)
 
-A finding's **ranked severity** is the scanner's rating held at the control's severity floor and
+A finding's **ranked severity** is the scanner's rating held at the control's minimum severity and
 then moved by every signal, the severity the report prints for the finding. The band is read from
 it, the report prints it with the band and a mark naming the signal that moved it, and a severity
 gate judges it, as [Verdict & gating](verdict-and-gating.md#verdict--exit-code) describes.
@@ -108,8 +108,8 @@ The ledger CVE's high comes from its CVSS score, 7.5.
 | SARIF level `note` or `none` | <span class="dr-low">low</span> |
 
 A Semgrep finding prints its rating beside it, `impact high · likelihood high`. A control may hold
-its findings at a minimum, its **severity floor**: a `secrets` finding is never below `high`,
-whatever its scanner called it. A severity the floor raised is marked `↑ minimum`.
+its findings at a **minimum severity**: a `secrets` finding is never below `high`, whatever its
+scanner called it. A severity the minimum raised is marked `↑ minimum`.
 
 ## Signals
 
@@ -122,15 +122,15 @@ P1, and the lowering leaves P2 in place.
 
 | mark | means | moves severity | turned on by | applied |
 |---|---|---|---|---|
-| <span class="dr-up">↑ KEV</span> | the CVE is on CISA's Known Exploited Vulnerabilities catalog | to <span class="dr-crit">critical</span> | `config.exploitability.kev` | as the finding is ranked |
-| <span class="dr-up">↑ EPSS 0.62</span> | the EPSS score, printed to two places, is at or above `epssThreshold`, default 0.5 | up one level | `config.exploitability.epss` | as the finding is ranked |
-| <span class="dr-up">↑ malicious</span> | the package is in the OSSF Malicious Packages Project | to <span class="dr-crit">critical</span> | `config.dependencyHealth.enabled` | after every scanner finishes |
-| <span class="dr-up">↑ deprecated</span> | the publisher marked the version deprecated | up one level | `config.dependencyHealth.enabled` | after every scanner finishes |
-| <span class="dr-down">↓ unreachable</span> | `govulncheck` found no call path to the flaw, Go only | down one level | `config.reachability.analyzers` | after every scanner finishes |
+| `↑ KEV` | the CVE is on CISA's Known Exploited Vulnerabilities catalog | to <span class="dr-crit">critical</span> | `config.exploitability.kev` | as the finding is ranked |
+| `↑ EPSS 0.62` | the EPSS score, printed to two places, is at or above `epssThreshold`, default 0.5 | up one level | `config.exploitability.epss` | as the finding is ranked |
+| `↑ malicious` | the package is in the OSSF Malicious Packages Project | to <span class="dr-crit">critical</span> | `config.dependencyHealth.enabled` | after every scanner finishes |
+| `↑ deprecated` | the publisher marked the version deprecated | up one level | `config.dependencyHealth.enabled` | after every scanner finishes |
+| `↓ unreachable` | `govulncheck` found no call path to the flaw, Go only | down one level | `config.reachability.analyzers` | after every scanner finishes |
 
 Other marks share the line under a finding. `↑ floor` means a leaked credential, ranked at C1
 whatever its component declares, as [Context floor](#context-floor) describes. `↑ minimum` means a
-leaked credential, held at high whatever its scanner rated it, by the severity floor in
+leaked credential, held at high whatever its scanner rated it, by the minimum severity in
 [Where severity comes from](#where-severity-comes-from); a finding both floors moved is marked
 `↑ floor`. `↩ history` means the finding describes a commit rather than the current tree, so its
 path may be gone; it moves nothing. A finding a signal raised and an unreachable verdict then lowered
@@ -194,10 +194,10 @@ dangerous now overrules it.
 
 | signal | against `↓ unreachable` | because |
 |---|---|---|
-| KEV | <span class="dr-up">↑ overrules</span> | somebody is exploiting it; a missed route is the expensive mistake |
-| EPSS | <span class="dr-up">↑ overrules</span> | the same question, answered by prediction |
-| malicious | <span class="dr-up">↑ overrules</span> | a hostile package is a problem whichever function anybody calls |
-| deprecated | <span class="dr-down">↓ yields</span> | it says who maintains the package, not whether this flaw can fire |
+| KEV | ↑ overrules | somebody is exploiting it; a missed route is the expensive mistake |
+| EPSS | ↑ overrules | the same question, answered by prediction |
+| malicious | ↑ overrules | a hostile package is a problem whichever function anybody calls |
+| deprecated | ↓ yields | it says who maintains the package, not whether this flaw can fire |
 
 A deprecated package with a flaw nothing reaches still ranks down. The deprecation is an argument
 for replacing the dependency, and `report.json` carries it either way. A KEV listing overrules even
@@ -220,9 +220,9 @@ valid wherever it is valid, a cloud account, a registry, an artifact store, and 
 often readable by more people than the service is reachable by, so `internal` can understate who
 can obtain it.
 
-With the severity floor at `high`, C1 puts every leaked credential in P1, the band the default
+With the minimum severity at `high`, C1 puts every leaked credential in P1, the band the default
 [gate](reducing-the-noise.md#gate) fails on. The floor sets a tier rather
-than a band so severity stays the scanner's and the severity floor's answer: a critical credential
+than a band so severity stays the scanner's and the minimum severity's answer: a critical credential
 and a high one keep separate rows.
 
 The report states that the floor applied, with the reason rather than the mechanism, so a band that
@@ -252,13 +252,13 @@ Each row is the ledger CVE, rated high, on `ledger`, classified `internal` / `cr
 | signals | ranked severity | band |
 |---|---|---|
 | none | <span class="dr-high">high</span> | <span class="dr-p2">P2</span> |
-| on KEV | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> <span class="dr-up">↑ KEV</span> |
-| EPSS 0.62, threshold 0.5 | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> <span class="dr-up">↑ EPSS 0.62</span> |
-| package flagged malicious | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> <span class="dr-up">↑ malicious</span> |
-| version deprecated | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> <span class="dr-up">↑ deprecated</span> |
-| unreachable | <span class="dr-med">medium</span> | <span class="dr-p2">P2</span> <span class="dr-down">↓ unreachable</span> |
-| on KEV, unreachable | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> <span class="dr-up">↑ KEV</span> |
-| deprecated, unreachable | <span class="dr-med">medium</span> | <span class="dr-p2">P2</span> <span class="dr-down">↓ unreachable</span> |
+| on KEV | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> `↑ KEV` |
+| EPSS 0.62, threshold 0.5 | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> `↑ EPSS 0.62` |
+| package flagged malicious | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> `↑ malicious` |
+| version deprecated | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> `↑ deprecated` |
+| unreachable | <span class="dr-med">medium</span> | <span class="dr-p2">P2</span> `↓ unreachable` |
+| on KEV, unreachable | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> `↑ KEV` |
+| deprecated, unreachable | <span class="dr-med">medium</span> | <span class="dr-p2">P2</span> `↓ unreachable` |
 
 An unreachable verdict lowers the ledger CVE a level and holds the band, because C2 puts high and
 medium in the same band.
@@ -270,12 +270,12 @@ The cases the ledger CVE cannot show:
 | finding | component, tier | rating | signals | ranked severity | band |
 |---|---|---|---|---|---|
 | ledger CVE | `ledger`, unclassified · C1 | <span class="dr-high">high</span> | none | <span class="dr-high">high</span> | <span class="dr-p1">P1</span> |
-| ledger CVE | public, important · C1 | <span class="dr-high">high</span> | unreachable | <span class="dr-med">medium</span> | <span class="dr-p2">P2</span> <span class="dr-down">↓ unreachable</span> |
+| ledger CVE | public, important · C1 | <span class="dr-high">high</span> | unreachable | <span class="dr-med">medium</span> | <span class="dr-p2">P2</span> `↓ unreachable` |
 | `CVE-2021-44228`, CVSS 10.0 | public, critical · C1 | <span class="dr-crit">critical</span> | none | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> |
 | `CVE-2021-44228`, CVSS 10.0 | internal, important · C3 | <span class="dr-crit">critical</span> | none | <span class="dr-crit">critical</span> | <span class="dr-p2">P2</span> |
 | `CVE-2021-44228`, CVSS 10.0 | `ledger` · C2 | <span class="dr-crit">critical</span> | on KEV | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span>, no mark |
-| leaked token | `ledger` · C2 | <span class="dr-high">high</span>, severity floor | context floor | <span class="dr-high">high</span> at C1 | <span class="dr-p1">P1</span> <span class="dr-up">↑ floor</span> |
-| leaked token | `batch`: internal, supporting · C4 | <span class="dr-high">high</span>, severity floor | context floor | <span class="dr-high">high</span> at C1 | <span class="dr-p1">P1</span> <span class="dr-up">↑ floor</span> |
+| leaked token | `ledger` · C2 | <span class="dr-high">high</span>, minimum severity | context floor | <span class="dr-high">high</span> at C1 | <span class="dr-p1">P1</span> `↑ floor` |
+| leaked token | `batch`: internal, supporting · C4 | <span class="dr-high">high</span>, minimum severity | context floor | <span class="dr-high">high</span> at C1 | <span class="dr-p1">P1</span> `↑ floor` |
 
 On a public, important component the unreachable verdict moves the band from P1 to P2, where on
 `ledger` it held. The `CVE-2021-44228` row on `ledger` is the case in

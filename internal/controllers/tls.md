@@ -42,7 +42,7 @@ certificate-expiry windows tuned. See [`draugr-tls.md`](../scanners/draugr-tls.m
 - Distinct from [`headers`](headers.md), which checks HTTP **response headers** on the same
   hosts (including HSTS). `tls` looks a layer below, at the transport itself.
 - Findings carry their own severities (an expired certificate is critical; a missing TLS 1.3 is
-  a note), so no severity floor is applied.
+  a note), so no minimum severity is applied.
 - The host must be reachable from wherever the scan runs. An endpoint that can't be connected to
   at all is a scan **error**, not a silent pass, except when the failure is itself a
   certificate problem or a legacy-only TLS stack, which are reported as findings.

@@ -43,7 +43,7 @@ has, with optional per-control overrides. Setting both is refused rather than co
 verdict with two possible reasons cannot be read back to the rule that produced it.
 
 A severity gate reads a finding's **ranked severity**: the scanner's rating held at
-the control's [severity floor](prioritization.md#where-severity-comes-from) and then moved by every signal, the severity the report prints for the finding. A `high`
+the control's [minimum severity](prioritization.md#where-severity-comes-from) and then moved by every signal, the severity the report prints for the finding. A `high`
 on KEV is printed `critical ↑ KEV` and fails `--fail-on critical`. An unreachable `critical` is
 printed `high ↓ unreachable`, passes `--fail-on critical` and fails `--fail-on high`. In
 `report.json`, `controls[].highest` is the severity each control was judged on.
@@ -209,7 +209,7 @@ A finding is described on **three related axes**. Knowing which is which removes
 | Axis | Values | What it is | Where it shows |
 |------|--------|------------|----------------|
 | **Priority** | P1 · P2 · P3 · P4 | Draugr's headline ranking: **severity × the component's exposure & criticality**. "What to fix first." | the band counts under the verdict, and the order of "fix first" |
-| **Severity** | critical · high · medium · low | Normalized impact, from the first of: the **CVSS score** (`security-severity`); the scanner's own **rating** (Semgrep's impact and likelihood, Bandit's severity and confidence); the finding's level (error→high, warning→medium, note→low). Then held at the control's severity floor and moved by every signal: KEV, EPSS and dependency health raise it, an unreachable verdict lowers it. | the per-control counts, the "fix first" severity column, and a severity gate (`--fail-on high`) |
+| **Severity** | critical · high · medium · low | Normalized impact, from the first of: the **CVSS score** (`security-severity`); the scanner's own **rating** (Semgrep's impact and likelihood, Bandit's severity and confidence); the finding's level (error→high, warning→medium, note→low). Then held at the control's minimum severity and moved by every signal: KEV, EPSS and dependency health raise it, an unreachable verdict lowers it. | the per-control counts, the "fix first" severity column, and a severity gate (`--fail-on high`) |
 | **Level** | error · warning · note | The raw **SARIF** value each scanner maps into, the lowest common denominator. | the machine formats (`--format json`/`sarif`) |
 
 So the same CVE can be **critical** severity but **P3** priority on an internal tool, or **P1** on a
