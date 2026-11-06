@@ -696,7 +696,7 @@ type controlReport struct {
 	Name    string `json:"name"`
 	Verdict string `json:"verdict"`
 	// Highest is the most severe ranked severity among the control's judged findings: the severity
-	// printed beside each band, after the control's severity floor and every signal, and the value
+	// printed beside each band, after the control's minimum severity and every signal, and the value
 	// a severity gate compared against threshold.
 	Highest         string `json:"highest"`
 	HighestPriority string `json:"highestPriority,omitempty"`

@@ -426,7 +426,7 @@ func (r Result) OnlyRepository(ref string) Result {
 // that dimension. With both empty, nothing is returned.
 //
 // The ranked severity is the one the scan's own severity gate judges and its report prints, after
-// the control's severity floor and every signal, read from what results.sarif recorded. A gate on
+// the control's minimum severity and every signal, read from what results.sarif recorded. A gate on
 // new findings that read the scanner's rating would pass a raised finding the scan itself fails.
 func (r Result) GateNew(failOn sarif.Severity, failOnPriority string) []sarif.Result {
 	var tripped []sarif.Result

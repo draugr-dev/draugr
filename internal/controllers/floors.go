@@ -25,9 +25,9 @@ func SeverityFloor(control string) sarif.Severity {
 // findings, so they are ranked as though the component were the most exposed and most critical
 // one in the descriptor.
 //
-// It exists because a severity floor alone does not survive the priority model, and the two then
+// It exists because a minimum severity alone does not survive the priority model, and the two then
 // reach opposite conclusions about the same finding. `secrets` declares that a credential is
-// serious whatever the scanner rated it. That is the severity floor above. Priority then applies
+// serious whatever the scanner rated it. That is the minimum severity above. Priority then applies
 // exposure and criticality, which are premised on seriousness varying with context, and damps it
 // to P3 or P4. The report tells a reader that nothing is urgent and that they cannot ship, in the
 // same six lines, from the same finding.
@@ -40,7 +40,7 @@ func SeverityFloor(control string) sarif.Severity {
 //
 // A context tier rather than a fixed band, because the claim is about **exposure**, not about
 // urgency. Pinning a band would also decide the severity question, and severity is still the
-// scanner's and the severity floor's to answer: a critical finding and a high one should not
+// scanner's and the minimum severity's to answer: a critical finding and a high one should not
 // collapse into the same row because they happen to share a control.
 //
 // Ranking rather than gating. A finding somebody has judged belongs in `config.exclude`, where it

@@ -958,7 +958,7 @@ func marks(f finding) []movement {
 	if lowered {
 		out = append(out, movement{key: moveUnreachable, glyph: "↓", label: "unreachable", style: cInfo})
 	}
-	// The control's severity floor raised the scanner's rating, and the floored rating is the one
+	// The control's minimum severity raised the scanner's rating, and the floored rating is the one
 	// printed: no signal raised it further and no verdict lowered it. Named apart from the context
 	// floor's "floor": that one moves the tier and leaves severity alone, this one moves the severity
 	// printed beside the mark.

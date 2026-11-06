@@ -1091,7 +1091,7 @@ func (r Report) Highest() Level {
 // are no results to judge.
 //
 // This is what a severity gate compares, and it is deliberately the same number the report prints
-// beside the band: each finding's RankedSeverity, after the control's severity floor and every
+// beside the band: each finding's RankedSeverity, after the control's minimum severity and every
 // signal. Two ladders sit underneath it and neither is the gate's. The SARIF level is the wire
 // value, and a scanner that reports a 7.8 as `warning` still shows as `high`. The scanner's own
 // rating is the input to ranking rather than its outcome: a `high` on KEV is printed `critical`, and
