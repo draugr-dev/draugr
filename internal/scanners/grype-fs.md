@@ -95,7 +95,7 @@ finding takes the `dev` mark from [`trivy-fs`](trivy-fs.md)'s finding about the 
 same file, and `config.controls.sca.devDependencies` decides whether it counts; see
 [Development dependencies](../../docs/reference/saga-schema.md#development-dependencies).
 
-**A pom's scope comes from the pom.** Grype reports every dependency a `pom.xml` declares, with no
+**Draugr reads each dependency's scope from the `pom.xml`.** Grype reports every dependency a `pom.xml` declares, with no
 scope. Draugr reads the scope from the pom: a finding on a `test` dependency is marked `dev`, and one
 on a `provided` or `system` dependency is marked `provided`, which
 `config.controls.sca.providedDependencies` decides; see

@@ -73,7 +73,7 @@ var scaOptionSchema = json.RawMessage(`{
         { "const": "suppress", "description": "Each finding in a dependency the runtime provides stays in the report, suppressed with the reason provided by the runtime, and out of the counts and the gate. The default." },
         { "const": "report", "description": "Each finding in a dependency the runtime provides is counted, marked provided." }
       ],
-      "description": "Whether findings in a pom.xml dependency in provided or system scope, which the runtime supplies, count. A component's setting replaces the project's."
+      "description": "Whether findings in provided and system dependencies, which the runtime supplies, count. A component's setting replaces the project's."
     }
   }
 }`)

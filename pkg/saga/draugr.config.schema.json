@@ -618,7 +618,7 @@
             }
           ],
           "default": "suppress",
-          "description": "Whether findings in a pom.xml dependency in provided or system scope, which the runtime supplies, count. A component's setting replaces the project's.",
+          "description": "Whether findings in provided and system dependencies, which the runtime supplies, count. A component's setting replaces the project's.",
           "type": "string"
         },
         "retirejs": {
