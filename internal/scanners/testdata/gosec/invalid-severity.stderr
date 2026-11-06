@@ -1,0 +1,1 @@
+[gosec] 2026/11/05 21:35:16 Invalid severity value: provided value 'bogus' not valid. Valid options: low, medium, high

@@ -1012,6 +1012,9 @@ type scanOutcome struct {
 	storedAt time.Time
 	// version is what the scanner reported, carried on a failure, which has no report to stamp it on.
 	version string
+	// partial marks a failed scan that read part of its target (plugin.PartialScanError): report is
+	// what it read, kept beside the failure.
+	partial bool
 }
 
 // cacheGet reads an entry and, where the cache can say, when it was written.
@@ -1501,6 +1504,13 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				rep, err := scanner.Scan(jobCtx, pj.Job.Target, pj.Job.Config)
 				scanDuration.Record(jobCtx, time.Since(start).Seconds(),
 					metric.WithAttributes(attribute.String("scanner", pj.Job.Scanner)))
+				if partial, ok := errors.AsType[*plugin.PartialScanError](err); ok {
+					// What the scan read is kept beside its failure, and not cached: the next run
+					// scans the target again rather than reusing a report known to be incomplete.
+					rep = partial.Report
+					recordProvenance(&rep, pj.Job.Scanner, version)
+					return scanOutcome{report: rep, version: version, partial: true}, err
+				}
 				if err != nil {
 					// The version goes with the failure: a report naming the scanner that failed has to
 					// be able to say which build of it did.
@@ -1523,6 +1533,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				scanCounter.Add(jobCtx, 1, metric.WithAttributes(attribute.String("scanner", pj.Job.Scanner)))
 				return scanOutcome{report: rep}, nil
 			})
+			failedOut, _ := out.(scanOutcome)
 			if scanErr != nil {
 				span.RecordError(scanErr)
 				span.SetStatus(codes.Error, "scan failed")
@@ -1544,12 +1555,17 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				// has had that image examined no more than the one whose job ran it. Recorded only
 				// for the job that ran, the other would pass with its image unread, and which one
 				// that was would depend on which job reached the scan first.
-				unscanned = append(unscanned, unscannedFor(pj, scanErr))
+				//
+				// A scan that read part of the target examined it, and what it missed is in its error.
+				if !failedOut.partial {
+					unscanned = append(unscanned, unscannedFor(pj, scanErr))
+				}
 				// Per job for the same reason: each component's job names the scanner that failed it.
-				failedOut, _ := out.(scanOutcome)
 				failedScans = append(failedScans, failedScanFor(pj, failedOut.version, scanErr))
 				mu.Unlock()
-				return
+				if !failedOut.partial {
+					return
+				}
 			}
 			res := out.(scanOutcome)
 			mu.Lock()
