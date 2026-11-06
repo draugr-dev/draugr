@@ -1,1 +1,0 @@
-- **The console's SIGNALS legend and the glossary say a signal moves severity one level.** They said EPSS, a deprecated package and an unreachable verdict move a finding "one band", while band names the P1 to P4 priority, which may or may not move as a result. The rules are unchanged.

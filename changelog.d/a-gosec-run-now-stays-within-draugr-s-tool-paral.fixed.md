@@ -1,1 +1,0 @@
-- **A gosec run now stays within Draugr's tool parallelism bound.** gosec loaded as many packages at once as the bound allowed, each building with the whole bound. It now loads two at a time, each with half the bound. A `-p` you set in `GOFLAGS` is kept.
