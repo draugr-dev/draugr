@@ -1,0 +1,1 @@
+- **A leaked secret's severity is the one its scanner gave.** A Gitleaks finding read `severity: high` in `results.sarif` and the MCP tools, beside a `severityFloor` recording a raise that never showed. It now reads `medium`, held at high by the minimum severity, and `draugr/rating` keeps the scanner's level. Its `error` level, priority and gate result are unchanged.
