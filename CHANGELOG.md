@@ -12,6 +12,18 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.167.0] - 2026-11-06
+
+### Changed
+
+- **Findings on a `pom.xml` dependency in `provided` or `system` scope are suppressed by default**, with the reason `provided by the runtime`, and stay in the report. Set `config.controls.sca.providedDependencies: report` to count them again. A `test`-scoped dependency is a development dependency under `devDependencies`, whichever scanner reported it.
+
+### Fixed
+
+- **A leaked secret's severity is the one its scanner gave.** A Gitleaks finding now reads `severity: medium` in `results.sarif` and the MCP tools, from the level Gitleaks leaves unset, held at `high` by the minimum severity, and `draugr/rating` keeps the scanner's level. Its `error` level, priority and gate result are unchanged.
+
+- **gosec's findings survive a Go module with no Go code.** A module holding only a `go.mod`, such as a Hugo docs site, is an `unread-files` caveat with the reason `no Go packages`, and `sast` keeps gosec's findings from the other modules. A module gosec fails on otherwise still fails `sast`, names its `go.mod`, and keeps the rest.
+
 ## [0.166.3] - 2026-11-06
 
 ### Fixed
@@ -6833,7 +6845,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.166.3...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.167.0...HEAD
+[0.167.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.167.0
 [0.166.3]: https://github.com/draugr-dev/draugr/releases/tag/v0.166.3
 [0.166.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.166.2
 [0.166.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.166.1

@@ -1,1 +1,0 @@
-- **Findings on a `pom.xml` dependency in `provided` or `system` scope are suppressed by default**, with the reason `provided by the runtime`, and stay in the report. Set `config.controls.sca.providedDependencies: report` to count them again. A `test`-scoped dependency is a development dependency under `devDependencies`, whichever scanner reported it.
