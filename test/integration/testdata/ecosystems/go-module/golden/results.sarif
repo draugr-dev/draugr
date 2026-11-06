@@ -88,6 +88,12 @@
           "properties": {
             "component": "go-module",
             "control": "secrets",
+            "draugr/rating": {
+              "fields": {
+                "level": "warning"
+              },
+              "severity": "medium"
+            },
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./go-module",

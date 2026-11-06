@@ -57,6 +57,12 @@
           "properties": {
             "component": "api",
             "control": "secrets",
+            "draugr/rating": {
+              "fields": {
+                "level": "warning"
+              },
+              "severity": "medium"
+            },
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-root-files",
@@ -165,6 +171,12 @@
           "properties": {
             "component": "api",
             "control": "secrets",
+            "draugr/rating": {
+              "fields": {
+                "level": "warning"
+              },
+              "severity": "medium"
+            },
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-root-files",
@@ -197,6 +209,12 @@
           "properties": {
             "component": "web",
             "control": "secrets",
+            "draugr/rating": {
+              "fields": {
+                "level": "warning"
+              },
+              "severity": "medium"
+            },
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-root-files",

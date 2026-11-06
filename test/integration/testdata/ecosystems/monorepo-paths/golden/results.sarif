@@ -65,6 +65,12 @@
           "properties": {
             "component": "api",
             "control": "secrets",
+            "draugr/rating": {
+              "fields": {
+                "level": "warning"
+              },
+              "severity": "medium"
+            },
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-paths",
@@ -166,6 +172,12 @@
           "properties": {
             "component": "web",
             "control": "secrets",
+            "draugr/rating": {
+              "fields": {
+                "level": "warning"
+              },
+              "severity": "medium"
+            },
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-paths",

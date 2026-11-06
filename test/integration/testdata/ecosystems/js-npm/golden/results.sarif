@@ -81,6 +81,12 @@
           "properties": {
             "component": "js-npm",
             "control": "secrets",
+            "draugr/rating": {
+              "fields": {
+                "level": "warning"
+              },
+              "severity": "medium"
+            },
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./js-npm",

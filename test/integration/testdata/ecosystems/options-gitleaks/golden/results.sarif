@@ -49,6 +49,12 @@
           "properties": {
             "component": "options-gitleaks",
             "control": "secrets",
+            "draugr/rating": {
+              "fields": {
+                "level": "warning"
+              },
+              "severity": "medium"
+            },
             "fingerprint": "<cleared>",
             "historical": true,
             "priority": "P1",
@@ -82,6 +88,12 @@
           "properties": {
             "component": "options-gitleaks",
             "control": "secrets",
+            "draugr/rating": {
+              "fields": {
+                "level": "warning"
+              },
+              "severity": "medium"
+            },
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./options-gitleaks",
@@ -114,6 +126,12 @@
           "properties": {
             "component": "options-gitleaks",
             "control": "secrets",
+            "draugr/rating": {
+              "fields": {
+                "level": "warning"
+              },
+              "severity": "medium"
+            },
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./options-gitleaks",

@@ -20,6 +20,7 @@
         "aws-access-token"
       ],
       "severity": "high",
+      "severityFrom": "medium",
       "summary": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms",
       "title": "Remove and rotate aws-access-token",
       "where": [
@@ -46,6 +47,7 @@
         "draugr-fixture-token"
       ],
       "severity": "high",
+      "severityFrom": "medium",
       "summary": "Sealed-tier fixture token",
       "title": "Remove and rotate draugr-fixture-token",
       "where": [
