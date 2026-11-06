@@ -312,7 +312,8 @@ type sarifProperties struct {
 	Correlation *Correlation `json:"correlation,omitempty"`
 	// Rating is the scanner's own rating of the finding, where it decided the severity: the fields as
 	// the scanner wrote them and the severity Draugr's table gives them. The level beside it stays
-	// the scanner's, so a consumer reading both can see what each said.
+	// the scanner's, so a consumer reading both can see what each said, except on a `secrets`
+	// finding, whose level is `error` and whose rating holds the level the scanner wrote.
 	//
 	// Namespaced, unlike its neighbors, because this bag is also read from files other tools wrote,
 	// and a key as plain as "rating" is one a tool may well use for something else. A string where

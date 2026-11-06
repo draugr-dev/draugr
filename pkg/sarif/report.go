@@ -401,12 +401,16 @@ type Escalation struct {
 // The scanner's words are kept beside the conclusion, the way Escalation keeps From beside To: the
 // level stays what the scanner wrote, and a reader can check the severity against the fields it was
 // read from. Deliberately not part of Fingerprint, for the reason Escalation is not.
+//
+// One control replaces the level: `secrets` reports every finding at `error`, the value code
+// scanning and JUnit read. Where the scanner's level was what rated the finding, the control keeps
+// it here first, as the severity that level gives and the field "level", with no Detail.
 type Rating struct {
 	// Severity is the band the scanner's table gives the rating.
 	Severity Severity `json:"severity"`
 	// Detail is the part of the rating that decided Severity, as the report prints it:
-	// "impact high · likelihood high".
-	Detail string `json:"detail"`
+	// "impact high · likelihood high". Empty for a level kept by the control that replaced it.
+	Detail string `json:"detail,omitempty"`
 	// Fields are the rating fields the scanner published, under the scanner's own names and
 	// with the scanner's own values: "impact": "HIGH".
 	Fields map[string]string `json:"fields,omitempty"`

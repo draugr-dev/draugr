@@ -1,0 +1,1 @@
+- **A leaked secret's severity is the one its scanner gave.** A Gitleaks finding now reads `severity: medium` in `results.sarif` and the MCP tools, from the level Gitleaks leaves unset, held at `high` by the minimum severity, and `draugr/rating` keeps the scanner's level. Its `error` level, priority and gate result are unchanged.

@@ -59,7 +59,8 @@ component's business, so they stay in the report marked suppressed rather than d
 
 Product tokens, project tokens, tenant and workspace ids are commonly 64 hex characters, which is
 also what an API key looks like. Gitleaks' `generic-api-key` rule reports them, and this control
-escalates every finding to `error`, so one of these in a committed descriptor fails the gate.
+holds every finding at a minimum severity of `high` and ranks it P1, so one of these in a
+committed descriptor fails the gate.
 
 **The answer is an exclusion, not relocation.** A Mend product token names which product a
 component reports into, may differ per component, and grants no access. That is configuration, and
@@ -107,9 +108,17 @@ Rename `notes.zip.txt` to `notes.txt` and it is read. To fail the run on a skipp
 Plans one scan per repository declared on a component (each is checked out and scanned for
 leaked credentials), then aggregates + deduplicates findings into a per-control result.
 
-**Every finding is escalated to `error` severity.** A leaked secret should fail the gate
-regardless of how the scanner rated it, so the controller normalizes severity rather than
-trusting the scanner's own level (Gitleaks, in fact, emits none).
+**Every finding is reported at the SARIF level `error`, and held at a minimum severity of
+`high`.** A leaked secret should fail the gate regardless of how the scanner rated it, as
+[prioritization](../../docs/concepts/prioritization.md) describes. The level is what GitHub code
+scanning reads as the alert's severity and what JUnit writes as the failure type, so a secret is an
+error in both. The gate reads the severity and the band, which the minimum severity and the
+control's context floor decide.
+
+The scanner's own answer is kept. Gitleaks writes no level, which SARIF reads as `warning`, so a
+Gitleaks finding reports `severity: medium`, `severityFloor: high` and a ranked severity of
+`high`, and its `draugr/rating` holds that `warning`. A finding a scanner scored keeps its score as
+its severity.
 
 ## Links
 

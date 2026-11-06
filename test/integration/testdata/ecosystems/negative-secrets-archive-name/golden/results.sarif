@@ -49,6 +49,12 @@
           "properties": {
             "component": "negative-secrets-archive-name",
             "control": "secrets",
+            "draugr/rating": {
+              "fields": {
+                "level": "warning"
+              },
+              "severity": "medium"
+            },
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./negative-secrets-archive-name",

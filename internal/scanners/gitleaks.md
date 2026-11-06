@@ -156,8 +156,9 @@ Draugr does not relay Gitleaks' trace or debug lines, which can hold candidate s
 
 - Integration mode: **exec** over a local checkout; Gitleaks + `git` must be on `PATH`.
 - Gitleaks' SARIF output omits `level` on results. Draugr's SARIF parser defaults an absent
-  level to `warning` (per the SARIF 2.1.0 spec), and the `secrets` controller then escalates
-  every finding to `error`. A leaked secret is always gate-failing.
+  level to `warning` (per the SARIF 2.1.0 spec). The `secrets` controller reports every finding
+  at `error` and keeps that `warning` as the finding's rating, so its severity reads `medium` and
+  the control's minimum severity holds it at `high`. A leaked secret is always gate-failing.
 - Module path caveat: install via `github.com/zricethezav/gitleaks/v8` (the module's declared
   path), not `github.com/gitleaks/gitleaks/v8`.
 

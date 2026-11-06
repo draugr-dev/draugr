@@ -257,7 +257,8 @@ type findingReport struct {
 	Reachability *sarif.Reachability `json:"reachability,omitempty"`
 	// Rating is the scanner's own rating where it decided the severity, the fields as the scanner
 	// wrote them beside the severity they gave. `level` stays the scanner's word, and without this
-	// a consumer holding a P1 on a `warning` has nothing to account for it.
+	// a consumer holding a P1 on a `warning` has nothing to account for it. A `secrets` finding's
+	// level is `error`, and its rating holds the level the scanner wrote.
 	Rating *sarif.Rating `json:"rating,omitempty"`
 	// SeverityFloor is the minimum severity the control holds its findings at, where it raised this
 	// one's rating. With escalation and reachability it is the rest of what a consumer needs to
