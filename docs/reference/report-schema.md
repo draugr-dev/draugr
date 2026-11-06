@@ -321,7 +321,7 @@ that change clears.
 | `control`, `priority` | the control the findings came from, and the highest band among them |
 | `clears` | how many findings the action resolves |
 | `severity` | the worst ranked severity among the findings, after the control's `severityFloor`, KEV, EPSS and reachability analysis, the severity the band was computed from |
-| `severityFrom` | the worst severity as the scanners reported it. Present only where a severity floor, KEV, EPSS or reachability analysis changed the worst |
+| `severityFrom` | the worst severity as the scanners reported it. Present only where a minimum severity, KEV, EPSS or reachability analysis changed the worst |
 | `exploitation` | the strongest exploitation evidence among the findings, KEV outranking EPSS. Taken from a finding's `exploited` where KEV lists it, else from the `escalation` of a finding EPSS raised. Fields: `signal` (`kev` or `epss`), `ruleId` (the CVE), `detail` (`on KEV`, `EPSS 0.87`) and `asOf`. Absent where no finding is on KEV and EPSS raised none |
 | `upstream` | `true` where the unit of work is something somebody else publishes, such as an image |
 | `ecosystem`, `package`, `from` | the package's ecosystem, its name and the version installed, for an action that upgrades or replaces a dependency |

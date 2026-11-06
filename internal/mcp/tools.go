@@ -234,8 +234,8 @@ type Finding struct {
 	// explains the other. RankedSeverity is what the report prints and what a severity gate judges;
 	// Severity is the input to that ranking, kept so a reader can see what moved it. A client that
 	// read Severity before RankedSeverity existed keeps reading the same value.
-	Severity       string  `json:"severity" jsonschema:"the scanner's own rating (critical, high, medium or low), before the control's severity floor or any signal moved it; a severity gate reads rankedSeverity, not this"`
-	RankedSeverity string  `json:"rankedSeverity" jsonschema:"the severity this finding was ranked at (critical, high, medium or low), after the control's severity floor and every signal; the one the report prints and a severity gate such as --fail-on high or failOnNew judges"`
+	Severity       string  `json:"severity" jsonschema:"the scanner's own rating (critical, high, medium or low), before the control's minimum severity or any signal moved it; a severity gate reads rankedSeverity, not this"`
+	RankedSeverity string  `json:"rankedSeverity" jsonschema:"the severity this finding was ranked at (critical, high, medium or low), after the control's minimum severity and every signal; the one the report prints and a severity gate such as --fail-on high or failOnNew judges"`
 	Score          float64 `json:"score,omitempty" jsonschema:"CVSS-style numeric severity, when the scanner gave one"`
 	RuleID         string  `json:"ruleId"`
 	Scanner        string  `json:"scanner,omitempty"`
@@ -304,8 +304,8 @@ type Escalation struct {
 // reading this beside report.json or results.sarif finds one value under one key.
 type Accepted struct {
 	RuleID           string `json:"ruleId"`
-	Severity         string `json:"severity" jsonschema:"the scanner's own rating, before the control's severity floor or any signal moved it"`
-	RankedSeverity   string `json:"rankedSeverity" jsonschema:"the severity this finding was ranked at, after the control's severity floor and every signal; the one the report prints. A suppressed finding fails no gate"`
+	Severity         string `json:"severity" jsonschema:"the scanner's own rating, before the control's minimum severity or any signal moved it"`
+	RankedSeverity   string `json:"rankedSeverity" jsonschema:"the severity this finding was ranked at, after the control's minimum severity and every signal; the one the report prints. A suppressed finding fails no gate"`
 	Location         string `json:"location,omitempty"`
 	Component        string `json:"component,omitempty"`
 	Package          string `json:"package,omitempty"`

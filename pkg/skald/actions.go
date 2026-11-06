@@ -33,12 +33,12 @@ type Action struct {
 	// the two steps of an upgrade split by Policy they are the package's, because both steps rank
 	// together, so the values always account for the order the actions are in.
 	//
-	// Severity is the worst ranked severity among the findings: held at the control's severity floor,
+	// Severity is the worst ranked severity among the findings: held at the control's minimum severity,
 	// raised where KEV or EPSS raised one, lowered where reachability analysis lowered one.
-	Severity sarif.Severity `json:"severity,omitempty" jsonschema:"the worst ranked severity among the findings it clears, after the control's severity floor, KEV, EPSS and reachability analysis: critical, high, medium or low"`
+	Severity sarif.Severity `json:"severity,omitempty" jsonschema:"the worst ranked severity among the findings it clears, after the control's minimum severity, KEV, EPSS and reachability analysis: critical, high, medium or low"`
 	// SeverityFrom is the worst severity as the scanners reported it, where the floor or an
 	// adjustment changed the worst. Absent where Severity is the scanners' own.
-	SeverityFrom sarif.Severity `json:"severityFrom,omitempty" jsonschema:"the worst severity the scanners reported, present where the control's severity floor, KEV, EPSS or reachability analysis changed it"`
+	SeverityFrom sarif.Severity `json:"severityFrom,omitempty" jsonschema:"the worst severity the scanners reported, present where the control's minimum severity, KEV, EPSS or reachability analysis changed it"`
 	// Exploitation is the strongest exploitation evidence among the findings: a KEV listing, whether
 	// or not it raised the finding, then an EPSS score that raised one. KEV outranks EPSS. Nil where
 	// no finding is on KEV and EPSS raised none.
