@@ -41,9 +41,9 @@ components:
 | lever | does | the ledger CVE | how it works |
 |---|---|---|---|
 | `exposure`, `criticality` | sets the component's tier, as each finding is ranked | <span class="dr-p1">P1</span> unclassified, <span class="dr-p2">P2</span> declared | [Matrices](prioritization.md#matrices) |
-| `config.exploitability` | turns on <span class="dr-up">↑ KEV</span> and <span class="dr-up">↑ EPSS</span>; feeds read at start, applied as each finding is ranked | <span class="dr-p1">P1</span> <span class="dr-up">↑ KEV</span> once listed | [Exploitability](prioritization.md#exploitability) |
-| `config.dependencyHealth` | turns on <span class="dr-up">↑ malicious</span> and <span class="dr-up">↑ deprecated</span>, after every scanner finishes | <span class="dr-p1">P1</span> if its package is flagged | [Dependency health](prioritization.md#dependency-health) |
-| `config.reachability` | turns on <span class="dr-down">↓ unreachable</span>, Go only, after every scanner finishes | <span class="dr-p2">P2</span> <span class="dr-down">↓ unreachable</span>, band held | [Reachability](prioritization.md#reachability) |
+| `config.exploitability` | turns on `↑ KEV` and `↑ EPSS`; feeds read at start, applied as each finding is ranked | <span class="dr-p1">P1</span> `↑ KEV` once listed | [Exploitability](prioritization.md#exploitability) |
+| `config.dependencyHealth` | turns on `↑ malicious` and `↑ deprecated`, after every scanner finishes | <span class="dr-p1">P1</span> if its package is flagged | [Dependency health](prioritization.md#dependency-health) |
+| `config.reachability` | turns on `↓ unreachable`, Go only, after every scanner finishes | <span class="dr-p2">P2</span> `↓ unreachable`, band held | [Reachability](prioritization.md#reachability) |
 | `--min-priority P1` | lists only P1; counts and the gate still read every finding | not listed at <span class="dr-p2">P2</span> | [`--min-priority`](../reference/cli.md#what---min-priority-narrows) |
 
 The two fields are facts about your architecture and your business, which no scanner can compute,
@@ -121,9 +121,9 @@ The ledger CVE's list, plus one finding the current change introduced:
 
 | finding | ranked severity | band | `--fail-on P1` | `--fail-on P2` | `--fail-on critical` | `--fail-on-new P2` |
 |---|---|---|---|---|---|---|
-| leaked token | <span class="dr-high">high</span> | <span class="dr-p1">P1</span> <span class="dr-up">↑ floor</span> | fails | fails | passes | passes, not new |
+| leaked token | <span class="dr-high">high</span> | <span class="dr-p1">P1</span> `↑ floor` | fails | fails | passes | passes, not new |
 | ledger CVE, KEV off | <span class="dr-high">high</span> | <span class="dr-p2">P2</span> | passes | fails | passes | passes, not new |
-| ledger CVE, KEV on | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> <span class="dr-up">↑ KEV</span> | fails | fails | fails | passes, not new |
+| ledger CVE, KEV on | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> `↑ KEV` | fails | fails | fails | passes, not new |
 | web XSS | <span class="dr-med">medium</span> | <span class="dr-p2">P2</span> | passes | fails | passes | passes, not new |
 | api CVE, new | <span class="dr-med">medium</span> | <span class="dr-p2">P2</span> | passes | fails | passes | fails |
 
@@ -145,13 +145,13 @@ defined in [Signals](prioritization.md#signals), with what it moves and the key 
 
 | mark | means |
 |---|---|
-| <span class="dr-up">↑ KEV</span> | the CVE is on CISA's Known Exploited Vulnerabilities catalog |
-| <span class="dr-up">↑ EPSS 0.62</span> | the EPSS score, printed to two places, is at or above `epssThreshold`, default 0.5 |
-| <span class="dr-up">↑ malicious</span> | the package is in the OSSF Malicious Packages Project |
-| <span class="dr-up">↑ deprecated</span> | the publisher marked the version deprecated |
-| <span class="dr-down">↓ unreachable</span> | `govulncheck` found no call path to the flaw, Go only |
-| <span class="dr-up">↑ floor</span> | a leaked credential, ranked at C1 whatever its component declares |
-| <span class="dr-up">↑ minimum</span> | a leaked credential, held at high whatever its scanner rated it |
+| `↑ KEV` | the CVE is on CISA's Known Exploited Vulnerabilities catalog |
+| `↑ EPSS 0.62` | the EPSS score, printed to two places, is at or above `epssThreshold`, default 0.5 |
+| `↑ malicious` | the package is in the OSSF Malicious Packages Project |
+| `↑ deprecated` | the publisher marked the version deprecated |
+| `↓ unreachable` | `govulncheck` found no call path to the flaw, Go only |
+| `↑ floor` | a leaked credential, ranked at C1 whatever its component declares |
+| `↑ minimum` | a leaked credential, held at high whatever its scanner rated it |
 | ↩ history | the finding describes a commit rather than the current tree, so its path may be gone |
 
 ## Counts

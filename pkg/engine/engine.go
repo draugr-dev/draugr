@@ -103,7 +103,7 @@ type Engine struct {
 
 // Prioritizer computes a finding's priority band from its control and its component's risk
 // classification. Injected via WithPrioritization so the engine stays decoupled from the
-// prioritization matrices and per-control severity floors; nil disables priority stamping.
+// prioritization matrices and per-control minimum severities; nil disables priority stamping.
 type Prioritizer func(control string, exposure saga.Exposure, criticality saga.Criticality, res sarif.Result) Priority
 
 // Priority is what a Prioritizer decided, and why where there is a why.

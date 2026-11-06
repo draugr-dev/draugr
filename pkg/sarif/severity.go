@@ -124,7 +124,7 @@ func (r Result) Severity(floor Severity) Severity {
 }
 
 // RankedSeverity is the severity the finding's priority band was computed from: its own rating
-// held at the control's severity floor, then moved by every signal that argued with it.
+// held at the control's minimum severity, then moved by every signal that argued with it.
 //
 // The order is the prioritizer's, read back from what it recorded on the finding:
 //

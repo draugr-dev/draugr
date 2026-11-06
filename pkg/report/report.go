@@ -753,7 +753,7 @@ type finding struct {
 	// priorityFloor is why this finding outranks what the component's classification alone would
 	// give it. Empty when the classification accounts for the band.
 	priorityFloor string
-	// severityFloor is the control's severity floor where it raised the scanner's rating, and empty
+	// severityFloor is the control's minimum severity where it raised the scanner's rating, and empty
 	// where the rating was at or above it.
 	severityFloor sarif.Severity
 	// historical marks a finding that describes a commit rather than the current tree, so its

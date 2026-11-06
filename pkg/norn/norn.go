@@ -37,7 +37,7 @@ const (
 //
 // Thresholds are severity bands, the ladder the report prints, rather than SARIF levels, and the
 // severity judged is each finding's RankedSeverity: the one printed beside its band, after the
-// control's severity floor and every signal. A finding with a CVSS score takes its band from the
+// control's minimum severity and every signal. A finding with a CVSS score takes its band from the
 // score, so one a scanner emitted as `warning` can be `high`; a `high` on KEV is printed
 // `critical`; an unreachable `critical` is printed `high`. Judging anything else lets a finding
 // pass, or fail, a gate its reader set against the severity on the page.

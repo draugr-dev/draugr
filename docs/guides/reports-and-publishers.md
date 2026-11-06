@@ -784,7 +784,7 @@ found is invisible, whatever plan you are on.
 The security reports carry the **flaw's** severity. GitLab's merge-request approval policies gate on
 that field, and a Draugr priority has already folded in the component's exposure and criticality.
 Handing one over would have those policies apply that context a second time. The severity is the
-one Draugr's own severity gate judges, after the control's severity floor and every signal, so a
+one Draugr's own severity gate judges, after the control's minimum severity and every signal, so a
 policy set to Critical blocks a CVE on KEV that its scanner scored high, as `--fail-on critical`
 does.
 

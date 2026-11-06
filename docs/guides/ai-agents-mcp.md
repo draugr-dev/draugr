@@ -148,10 +148,10 @@ your verdict, and spends its attention on the design questions no scanner comput
 ## Evidence
 
 Each finding from `scan`, `summarize_report` and `diff_reports` carries two severities.
-`rankedSeverity` is the severity the finding was ranked at, after the control's severity floor and
+`rankedSeverity` is the severity the finding was ranked at, after the control's minimum severity and
 every signal, which the report prints and a severity gate such as `--fail-on high` or `failOnNew`
 judges ([how the gate decides](../concepts/verdict-and-gating.md)). `severity` is the scanner's own
-rating, before the control's severity floor or any signal moved it. A leaked credential its scanner rated `medium` carries
+rating, before the control's minimum severity or any signal moved it. A leaked credential its scanner rated `medium` carries
 `severity: medium`, `severityFloor: high` and `rankedSeverity: high`, and fails a gate set to
 `high`. `counts` tallies findings by `rankedSeverity`.
 
@@ -331,7 +331,7 @@ terminal cannot describe the same report differently. Each row is an
 [action as `report.json` carries it](../reference/report-schema.md#what-each-action-carries), without
 the list of findings under it, and carries the keys it ranks by: `exploitation`, the CVE on KEV
 whether or not KEV raised it, or else the CVE EPSS raised, and `severity`, the worst ranked severity,
-with `severityFrom` where a severity floor, KEV, EPSS or reachability analysis moved it.
+with `severityFrom` where a minimum severity, KEV, EPSS or reachability analysis moved it.
 
 The lists are in a fixed order of kind, which [says nothing about
 urgency](../concepts/what-to-fix-first.md), so a reply names the head of each list that applies.

@@ -103,7 +103,7 @@ var signalKinds = []signalKind{
 	},
 	{
 		name: "floor",
-		// The context floor, which the `↑ floor` mark counts, and not the severity floor, which
+		// The context floor, which the `↑ floor` mark counts, and not the minimum severity, which
 		// draws no mark. P1 because it ranks a finding at the tier of a public, critical component
 		// and the only control that declares one holds every finding at high or above;
 		// TestEveryFlooredFindingIsP1 in internal/scanpolicy fails the day that stops being true.
