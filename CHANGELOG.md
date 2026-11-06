@@ -12,6 +12,22 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.166.3] - 2026-11-06
+
+### Fixed
+
+- **A gosec run now stays within Draugr's tool parallelism bound.** gosec loaded as many packages at once as the bound allowed, each building with the whole bound. It now loads two at a time, each with half the bound. A `-p` you set in `GOFLAGS` is kept.
+
+- **A severity gate now judges the ranked severity, the severity the report prints for a finding.** `--fail-on critical|high|medium|low`, `config.gate.failOn`, per-control thresholds and `--fail-on-new` read it after the control's minimum severity, KEV, EPSS and reachability apply. Verdicts change both ways: a high on KEV now fails `--fail-on critical`, and an unreachable critical now passes it.
+
+- **An assistant can explain a severity gate from the finding that tripped it.** Every finding from `scan`, `summarize_report` and `diff_reports` carries `rankedSeverity`, the ranked severity, and `severity`, the scanner's rating, plus `severityFloor` where the control raised it. Their severity `counts` and ordering now follow the ranked severity, as the report does.
+
+- **Every mark matches its finding's ranked severity.** A severity the control's minimum severity raised is marked `↑ minimum`, and a finding a signal raised and an unreachable verdict lowered is marked `↓ unreachable`. The HTML report's Movement menu files each finding under the same marks and offers `raised to a minimum severity`.
+
+- **GitLab security reports and `draugr diff` JSON now carry the ranked severity.** A GitLab report's `severity`, which approval policies read, and the diff's `newBySeverity` and `fixedBySeverity` counts match it, so a policy or a script reading them sees the same moves the gate does.
+
+- **The console's SIGNALS legend and the glossary say a signal moves severity one level.** They said EPSS, a deprecated package and an unreachable verdict move a finding "one band", while band names the P1 to P4 priority, which may or may not move as a result. The rules are unchanged.
+
 ## [0.166.2] - 2026-11-05
 
 ### Fixed
@@ -6817,7 +6833,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.166.2...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.166.3...HEAD
+[0.166.3]: https://github.com/draugr-dev/draugr/releases/tag/v0.166.3
 [0.166.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.166.2
 [0.166.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.166.1
 [0.166.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.166.0

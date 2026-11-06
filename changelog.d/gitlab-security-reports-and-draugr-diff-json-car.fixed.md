@@ -1,1 +1,0 @@
-- **GitLab security reports and `draugr diff` JSON carry the severity a finding was ranked at.** A GitLab report's `severity`, which approval policies read, and the diff's `newBySeverity` and `fixedBySeverity` counts now match the severity the console prints, so a policy or a script reading them sees the same moves the gate does.

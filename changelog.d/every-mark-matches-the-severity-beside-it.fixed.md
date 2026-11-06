@@ -1,1 +1,0 @@
-- **Every mark matches the severity beside it.** A severity the control's minimum severity raised is marked `↑ minimum`, and a finding a signal raised and an unreachable verdict lowered is marked `↓ unreachable`. The HTML report's Movement menu files each finding under the same marks and offers `raised to a minimum severity`.
