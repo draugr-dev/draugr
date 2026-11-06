@@ -18,13 +18,13 @@ _Nothing yet._
 
 - **A gosec run now stays within Draugr's tool parallelism bound.** gosec loaded as many packages at once as the bound allowed, each building with the whole bound. It now loads two at a time, each with half the bound. A `-p` you set in `GOFLAGS` is kept.
 
-- **A severity gate now judges the severity the report prints for the finding.** `--fail-on critical|high|medium|low`, `config.gate.failOn`, per-control thresholds and `--fail-on-new` read it after the control's minimum severity, KEV, EPSS and reachability. Verdicts change both ways: a high on KEV now fails `--fail-on critical`, and an unreachable critical now passes it.
+- **A severity gate now judges the ranked severity, the severity the report prints for a finding.** `--fail-on critical|high|medium|low`, `config.gate.failOn`, per-control thresholds and `--fail-on-new` read it after the control's minimum severity, KEV, EPSS and reachability apply. Verdicts change both ways: a high on KEV now fails `--fail-on critical`, and an unreachable critical now passes it.
 
-- **An assistant can explain a severity gate from the finding that tripped it.** Every finding from `scan`, `summarize_report` and `diff_reports` carries `rankedSeverity`, the severity a gate judges, beside the scanner's `severity`, plus `severityFloor` where the control raised it. Their severity `counts` and ordering now follow the ranked severity, as the report does.
+- **An assistant can explain a severity gate from the finding that tripped it.** Every finding from `scan`, `summarize_report` and `diff_reports` carries `rankedSeverity`, the ranked severity, and `severity`, the scanner's rating, plus `severityFloor` where the control raised it. Their severity `counts` and ordering now follow the ranked severity, as the report does.
 
-- **Every mark matches the severity beside it.** A severity the control's minimum severity raised is marked `↑ minimum`, and a finding a signal raised and an unreachable verdict lowered is marked `↓ unreachable`. The HTML report's Movement menu files each finding under the same marks and offers `raised to a minimum severity`.
+- **Every mark matches its finding's ranked severity.** A severity the control's minimum severity raised is marked `↑ minimum`, and a finding a signal raised and an unreachable verdict lowered is marked `↓ unreachable`. The HTML report's Movement menu files each finding under the same marks and offers `raised to a minimum severity`.
 
-- **GitLab security reports and `draugr diff` JSON carry the severity a finding was ranked at.** A GitLab report's `severity`, which approval policies read, and the diff's `newBySeverity` and `fixedBySeverity` counts now match the severity the console prints, so a policy or a script reading them sees the same moves the gate does.
+- **GitLab security reports and `draugr diff` JSON now carry the ranked severity.** A GitLab report's `severity`, which approval policies read, and the diff's `newBySeverity` and `fixedBySeverity` counts match it, so a policy or a script reading them sees the same moves the gate does.
 
 - **The console's SIGNALS legend and the glossary say a signal moves severity one level.** They said EPSS, a deprecated package and an unreachable verdict move a finding "one band", while band names the P1 to P4 priority, which may or may not move as a result. The rules are unchanged.
 
