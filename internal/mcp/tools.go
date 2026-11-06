@@ -229,14 +229,19 @@ type SummarizeInput struct {
 
 // Finding is one prioritized result, flattened to what a reader needs to act.
 type Finding struct {
-	Priority string  `json:"priority,omitempty" jsonschema:"P1 (act now) through P4 (lowest)"`
-	Severity string  `json:"severity" jsonschema:"critical, high, medium or low"`
-	Score    float64 `json:"score,omitempty" jsonschema:"CVSS-style numeric severity, when the scanner gave one"`
-	RuleID   string  `json:"ruleId"`
-	Scanner  string  `json:"scanner,omitempty"`
-	Location string  `json:"location,omitempty" jsonschema:"file:line, image reference, or endpoint"`
-	Message  string  `json:"message"`
-	HelpURI  string  `json:"helpUri,omitempty" jsonschema:"where the rule is documented, for background beyond the remediation below"`
+	Priority string `json:"priority,omitempty" jsonschema:"P1 (act now) through P4 (lowest)"`
+	// Severity and RankedSeverity are two different answers, and both are returned because each
+	// explains the other. RankedSeverity is what the report prints and what a severity gate judges;
+	// Severity is the input to that ranking, kept so a reader can see what moved it. A client that
+	// read Severity before RankedSeverity existed keeps reading the same value.
+	Severity       string  `json:"severity" jsonschema:"the scanner's own rating (critical, high, medium or low), before the control's severity floor or any signal moved it; a severity gate reads rankedSeverity, not this"`
+	RankedSeverity string  `json:"rankedSeverity" jsonschema:"the severity this finding was ranked at (critical, high, medium or low), after the control's severity floor and every signal; the one the report prints and a severity gate such as --fail-on high or failOnNew judges"`
+	Score          float64 `json:"score,omitempty" jsonschema:"CVSS-style numeric severity, when the scanner gave one"`
+	RuleID         string  `json:"ruleId"`
+	Scanner        string  `json:"scanner,omitempty"`
+	Location       string  `json:"location,omitempty" jsonschema:"file:line, image reference, or endpoint"`
+	Message        string  `json:"message"`
+	HelpURI        string  `json:"helpUri,omitempty" jsonschema:"where the rule is documented, for background beyond the remediation below"`
 
 	// What follows is what turns a report into work. Without it an assistant can say a finding is
 	// critical and cannot say what to do about it, so it either guesses a fix or sends the reader to
@@ -262,9 +267,10 @@ type Finding struct {
 
 	// The evidence behind the rank, as fields rather than a sentence, so an assistant asked "why is
 	// this P1" or "can we even reach it" answers from what Draugr decided rather than guessing.
-	Reachability *Reachability `json:"reachability,omitempty" jsonschema:"whether this project's code reaches the vulnerable code, when a reachability analyzer ran"`
-	Escalation   *Escalation   `json:"escalation,omitempty" jsonschema:"the exploitability signal that raised this finding's severity, when one did"`
-	AlsoFoundBy  []string      `json:"alsoFoundBy,omitempty" jsonschema:"other scanners that reported the same flaw; counted once, under this finding"`
+	SeverityFloor string        `json:"severityFloor,omitempty" jsonschema:"the minimum severity this finding's control holds its findings at, present only where it raised the scanner's rating"`
+	Reachability  *Reachability `json:"reachability,omitempty" jsonschema:"whether this project's code reaches the vulnerable code, when a reachability analyzer ran"`
+	Escalation    *Escalation   `json:"escalation,omitempty" jsonschema:"the exploitability signal that raised this finding's severity, when one did"`
+	AlsoFoundBy   []string      `json:"alsoFoundBy,omitempty" jsonschema:"other scanners that reported the same flaw; counted once, under this finding"`
 }
 
 // Reachability is a reachability analyzer's verdict on one dependency finding.
@@ -279,8 +285,8 @@ type Reachability struct {
 
 // Escalation is an exploitability signal that raised a finding's severity.
 type Escalation struct {
-	From   string `json:"from" jsonschema:"the severity the scanner reported"`
-	To     string `json:"to" jsonschema:"the severity the finding was ranked at"`
+	From   string `json:"from" jsonschema:"the severity before this signal raised it: the scanner's rating, held at severityFloor where that is present"`
+	To     string `json:"to" jsonschema:"the severity this signal raised it to"`
 	Signal string `json:"signal" jsonschema:"kev (observed exploitation) or epss (predicted probability of exploitation)"`
 	Detail string `json:"detail"`
 	AsOf   string `json:"asOf,omitempty" jsonschema:"the day the dataset was obtained, YYYY-MM-DD"`
@@ -298,7 +304,8 @@ type Escalation struct {
 // reading this beside report.json or results.sarif finds one value under one key.
 type Accepted struct {
 	RuleID           string `json:"ruleId"`
-	Severity         string `json:"severity"`
+	Severity         string `json:"severity" jsonschema:"the scanner's own rating, before the control's severity floor or any signal moved it"`
+	RankedSeverity   string `json:"rankedSeverity" jsonschema:"the severity this finding was ranked at, after the control's severity floor and every signal; the one the report prints. A suppressed finding fails no gate"`
 	Location         string `json:"location,omitempty"`
 	Component        string `json:"component,omitempty"`
 	Package          string `json:"package,omitempty"`
@@ -330,7 +337,7 @@ type SummarizeOutput struct {
 	// made cannot tell an accepted risk from one nobody has looked at.
 	Suppressed int        `json:"suppressed,omitempty" jsonschema:"findings a recorded decision took out of the ranking; not part of total"`
 	Returned   int        `json:"returned"`
-	Counts     Counts     `json:"counts"`
+	Counts     Counts     `json:"counts" jsonschema:"every finding total counts, by rankedSeverity, before any priority filter"`
 	Findings   []Finding  `json:"findings"`
 	Accepted   []Accepted `json:"accepted,omitempty" jsonschema:"the suppressed findings with why, until when and where each decision is written, most severe first, capped at limit; report each as a decision, never as work to fix"`
 	// Feeds is empty when no exploitability data was loaded, which is the answer to "was this
@@ -400,8 +407,10 @@ func summarize(rep sarif.Report, actions []report.Action, minPriority string, li
 			accepted = append(accepted, acceptedFrom(res))
 			continue
 		}
-		sev := res.Severity("")
-		switch sev {
+		// Counted by the severity the finding was ranked at, as the report's bands count it and the
+		// gate judges it. Counted by the scanner's rating, a floored secret would sit under medium in
+		// the same answer whose verdict failed on it at high.
+		switch res.RankedSeverity() {
 		case sarif.SeverityCritical:
 			out.Counts.Critical++
 		case sarif.SeverityHigh:
@@ -556,7 +565,8 @@ func placesOf(a report.Action) string {
 func acceptedFrom(res sarif.Result) Accepted {
 	s := res.Suppression
 	a := Accepted{
-		RuleID: res.RuleID, Severity: string(res.Severity("")), Location: locationOf(res),
+		RuleID: res.RuleID, Severity: string(res.Severity("")), RankedSeverity: string(res.RankedSeverity()),
+		Location:  locationOf(res),
 		Component: res.Component, Justification: s.Justification,
 		Expires: s.Expires, Origin: s.Origin, Author: s.Author, Asserted: s.Asserted, Source: s.Source,
 		Line: s.Line, VEXStatus: s.VEXStatus, VEXJustification: s.VEXJustification,
@@ -567,13 +577,12 @@ func acceptedFrom(res sarif.Result) Accepted {
 	return a
 }
 
-// sortAccepted puts the most severe first, then orders by rule and location so two runs over one
-// report list the decisions in the same order.
+// sortAccepted puts the most severe first, by the severity the report prints for each, then orders by
+// rule and location so two runs over one report list the decisions in the same order.
 func sortAccepted(as []Accepted) {
-	sev := map[string]int{"critical": 4, "high": 3, "medium": 2, "low": 1}
 	sort.SliceStable(as, func(i, j int) bool {
 		a, b := as[i], as[j]
-		if sa, sb := sev[a.Severity], sev[b.Severity]; sa != sb {
+		if sa, sb := sarif.Severity(a.RankedSeverity).Rank(), sarif.Severity(b.RankedSeverity).Rank(); sa != sb {
 			return sa > sb
 		}
 		if a.RuleID != b.RuleID {
@@ -610,19 +619,21 @@ func gatePriority(g *saga.GateConfig) string {
 func findingFrom(rep sarif.Report, res sarif.Result) Finding {
 	loc := locationOf(res)
 	f := Finding{
-		Priority:    res.Priority,
-		Severity:    string(res.Severity("")),
-		Score:       res.Score,
-		RuleID:      res.RuleID,
-		Scanner:     res.Tool,
-		Location:    loc,
-		Message:     res.Message,
-		HelpURI:     rep.HelpURI(res.RuleID),
-		Remediation: remediationText(rep, res),
-		Action:      string(res.Remediation()),
-		Component:   res.Component,
-		Image:       res.Image,
-		OSEndOfLife: res.OSEndOfLife,
+		Priority:       res.Priority,
+		Severity:       string(res.Severity("")),
+		RankedSeverity: string(res.RankedSeverity()),
+		SeverityFloor:  string(res.SeverityFloor),
+		Score:          res.Score,
+		RuleID:         res.RuleID,
+		Scanner:        res.Tool,
+		Location:       loc,
+		Message:        res.Message,
+		HelpURI:        rep.HelpURI(res.RuleID),
+		Remediation:    remediationText(rep, res),
+		Action:         string(res.Remediation()),
+		Component:      res.Component,
+		Image:          res.Image,
+		OSEndOfLife:    res.OSEndOfLife,
 	}
 	if p := res.Package; p != nil {
 		f.Package, f.Version = p.Name, p.Version
@@ -697,16 +708,17 @@ func atOrAbove(got, want string) bool {
 		prioritization.Priority(strings.ToUpper(want)).Rank()
 }
 
-// sortFindings puts the most urgent first: priority, then severity, then score.
+// sortFindings puts the most urgent first: priority, then ranked severity, then score. Ranked
+// severity is what the report orders a band by, so a floored secret sorts beside the highs it was
+// ranked with rather than among the mediums its scanner put it with.
 func sortFindings(fs []Finding) {
 	rank := map[string]int{"P1": 4, "P2": 3, "P3": 2, "P4": 1}
-	sev := map[string]int{"critical": 4, "high": 3, "medium": 2, "low": 1}
 	sort.SliceStable(fs, func(i, j int) bool {
 		a, b := fs[i], fs[j]
 		if ra, rb := rank[strings.ToUpper(a.Priority)], rank[strings.ToUpper(b.Priority)]; ra != rb {
 			return ra > rb
 		}
-		if sa, sb := sev[a.Severity], sev[b.Severity]; sa != sb {
+		if sa, sb := sarif.Severity(a.RankedSeverity).Rank(), sarif.Severity(b.RankedSeverity).Rank(); sa != sb {
 			return sa > sb
 		}
 		return a.Score > b.Score
@@ -1313,7 +1325,7 @@ type DiffInput struct {
 	HeadPath string `json:"headPath" jsonschema:"path to the results.sarif from the revision being proposed"`
 	// FailOnNew mirrors the flag CI uses, so an assistant can ask the question the pipeline
 	// will ask rather than a different one.
-	FailOnNew string `json:"failOnNew,omitempty" jsonschema:"report whether a new finding at or above this would fail a gate, in either vocabulary: a priority band (P1-P4), which folds in the component's declared exposure and criticality, or a severity (critical, high, medium, low)"`
+	FailOnNew string `json:"failOnNew,omitempty" jsonschema:"report whether a new finding at or above this would fail a gate, in either vocabulary: a priority band (P1-P4), which folds in the component's declared exposure and criticality, or a severity (critical, high, medium, low), compared with each new finding's rankedSeverity"`
 	Limit     int    `json:"limit,omitempty" jsonschema:"maximum new findings to return; defaults to 20"`
 }
 
