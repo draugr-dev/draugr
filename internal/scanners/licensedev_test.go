@@ -2,6 +2,7 @@ package scanners
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -39,8 +40,17 @@ func runLicenseDev(t *testing.T, project saga.ControllerSettings, components map
 	checkout := func(_ context.Context, url, _ string, _ git.Scope) (git.Tree, func(), error) {
 		return git.Tree{Dir: dirs[url]}, func() {}, nil
 	}
-	scanner := NewTrivyLicense().(licenseScanner)
-	repo := scanner.repo.(repoScanner)
+	// The process-wide version probe answers once and keeps the answer, and a later test reading it
+	// would build another command line. A probe of this test's own fails it if anything asks.
+	was := sharedTrivyVersion
+	t.Cleanup(func() { sharedTrivyVersion = was })
+	sharedTrivyVersion = &trivyVersionProbe{run: func(context.Context, []string) ([]byte, error) {
+		t.Error("the scan asked Trivy its version, and the process keeps the answer")
+		return nil, errors.New("no Trivy in this test")
+	}}
+	// The repository mode alone: the dispatcher's CacheVersion, Prewarm and DataState call the
+	// process-wide Trivy, whatever the repository mode was given.
+	repo := NewTrivyLicense().(licenseScanner).repo.(repoScanner)
 	repo.checkout, repo.prewarm, repo.cacheVersion, repo.dataState = checkout, nil, nil, nil
 	repo.runLogged = trivyFSRun(func(_ context.Context, dir string, argv []string) ([]byte, []byte, error) {
 		if !slices.Contains(argv, "--include-dev-deps") {
@@ -49,11 +59,9 @@ func runLicenseDev(t *testing.T, project saga.ControllerSettings, components map
 		b, err := os.ReadFile(filepath.Join("testdata", "licensedev", repoOf[dir]+".trivy.json")) // #nosec G304 -- under testdata
 		return b, nil, err
 	})
-	scanner.repo = repo
-
 	reg := engine.NewRegistry()
 	reg.RegisterController(controllers.NewLicenses())
-	reg.RegisterScanner(scanner)
+	reg.RegisterScanner(repo)
 
 	settings := saga.ControllerSettings{"enabled": true}
 	for k, v := range project {
