@@ -1,0 +1,1 @@
+- **A finding with no location says the scanner gave none.** Where a scanner reports a finding without a location, as gosec does inside cgo-generated code, the console, markdown and HTML reports show `no location from the scanner`, and `report.json` sets `noLocation: true`.

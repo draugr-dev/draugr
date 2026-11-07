@@ -67,7 +67,7 @@ func buildTSVDownload(s summary) template.URL {
 func writeTSVRow(sb *strings.Builder, f finding, prefix string) {
 	fields := []string{
 		dash(f.priority), string(f.severity), scoreStr(f), f.ruleID, f.control, dash(f.tool),
-		dash(f.location), prefix + f.message, f.helpURI,
+		whereShown(f.location), prefix + f.message, f.helpURI,
 	}
 	for i, v := range fields {
 		if i > 0 {

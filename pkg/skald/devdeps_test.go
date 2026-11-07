@@ -138,3 +138,27 @@ func TestReportJSONFindingSaysItWasMatchedByCPE(t *testing.T) {
 		t.Errorf("a match in the package's ecosystem carries the mark: %v", byLocation["pubspec.lock:1"])
 	}
 }
+
+// A finding the scanner gave no location says so in report.json, and one with a location does not.
+func TestReportJSONFindingSaysTheScannerGaveNoLocation(t *testing.T) {
+	run := engine.Result{
+		Controls: map[string]plugin.ControlResult{"sast": {Control: "sast", Report: sarif.Report{
+			Tool: "gosec", Results: []sarif.Result{
+				{RuleID: "G115", Level: sarif.LevelError, Priority: "P1", Component: "api"},
+				{RuleID: "G204", Level: sarif.LevelError, Priority: "P1", Component: "api",
+					Location: sarif.Location{URI: "main.go", StartLine: 8}},
+			},
+		}}},
+	}
+	findings, ok := renderJSON(t, run, "P4")["findings"].([]any)
+	if !ok || len(findings) != 2 {
+		t.Fatalf("findings = %v", findings)
+	}
+	for _, f := range findings {
+		m := f.(map[string]any)
+		_, located := m["location"]
+		if m["noLocation"] == located {
+			t.Errorf("finding %v: location present %v, noLocation %v", m["ruleId"], located, m["noLocation"])
+		}
+	}
+}
