@@ -1837,9 +1837,9 @@ as the run.</p>
 
 {{if or .Errors .Registries .Unreached}}
 <h3 id="errors" class="err">Errors</h3>
-<p class="note">{{with .NotReached}}{{.}}. {{end}}A check that did not complete says nothing about
-what it would have found. For each scanner's whole output, re-run with
-<code class="cmd">--log-level trace</code>.</p>
+<p class="note">{{with .NotReached}}{{.}}. {{end}}A control in this list stopped before it finished,
+and none of its findings are in this report. Scanning again with <code class="cmd">--log-level trace</code>
+prints each scanner's full output.</p>
 <pre class="cmd">draugr scan &lt;saga.yaml&gt; --log-level trace</pre>
 <ul class="errors">
 {{range .Registries}}<li><strong>{{.Host}}</strong> · {{.Said}}
