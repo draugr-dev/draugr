@@ -138,3 +138,22 @@ func TestAProvidedDependencyIsLabeledWhereItsPackageIsNamed(t *testing.T) {
 		t.Errorf("compact fix %q, want the development label", got)
 	}
 }
+
+// A package matched only by CPE is labeled in the same two places, and one that is also a
+// development dependency wears the development label.
+func TestACPEMatchIsLabeledWhereItsPackageIsNamed(t *testing.T) {
+	cpe := finding{tool: "grype", pkg: &sarif.Package{Name: "Flutter", Version: "1.0.0", FixedVersion: "3.3.3", CPEMatch: true}}
+	devToo := finding{tool: "grype", pkg: &sarif.Package{Name: "sentry", FixedVersion: "23.6.2", Dev: true, CPEMatch: true}}
+
+	var buf bytes.Buffer
+	writeBlockFacts(&buf, tui.Plain(), cpe, 120, false, false)
+	if got := buf.String(); got != "      scanner grype · CPE match Flutter 1.0.0 → 3.3.3\n" {
+		t.Errorf("facts %q, want the package labeled CPE match", got)
+	}
+	if got := compactFix(cpe); got != "cpe Flutter → 3.3.3" {
+		t.Errorf("compact fix %q, want the package labeled cpe", got)
+	}
+	if got := compactFix(devToo); got != "dev sentry → 23.6.2" {
+		t.Errorf("compact fix %q, want the development label", got)
+	}
+}

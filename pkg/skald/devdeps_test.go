@@ -97,3 +97,44 @@ func TestReportJSONFindingSaysTheRuntimeProvidesIt(t *testing.T) {
 		t.Errorf("a shipped finding carries the provided mark: %v", shipped)
 	}
 }
+
+// A finding matched only by CPE says so in report.json, and one the setting set aside carries the
+// reason and its key. A finding matched in the package's own ecosystem carries neither.
+func TestReportJSONFindingSaysItWasMatchedByCPE(t *testing.T) {
+	run := engine.Result{
+		Controls: map[string]plugin.ControlResult{"sca": {Control: "sca", Report: sarif.Report{
+			Tool: "grype", Results: []sarif.Result{{
+				RuleID: "CVE-2022-3095-Flutter", Level: sarif.LevelError, Priority: "P1", Component: "app",
+				Location: sarif.Location{URI: "ios/Podfile.lock", StartLine: 1},
+				Package:  &sarif.Package{Name: "Flutter", Version: "1.0.0", Ecosystem: "pod", CPEMatch: true},
+				Suppression: &sarif.Suppression{Kind: "external", Origin: sarif.OriginSetting,
+					Justification: sarif.JustificationCPEMatch, Source: "config.controls.sca.cpeMatches"},
+			}, {
+				RuleID: "CVE-2020-35669-http", Level: sarif.LevelWarning, Priority: "P2", Component: "app",
+				Location: sarif.Location{URI: "pubspec.lock", StartLine: 1},
+				Package:  &sarif.Package{Name: "http", Version: "0.13.2", Ecosystem: "dart-pub"},
+			}},
+		}}},
+	}
+	findings, ok := renderJSON(t, run, "P4")["findings"].([]any)
+	if !ok || len(findings) != 2 {
+		t.Fatalf("findings = %v", findings)
+	}
+	byLocation := map[string]map[string]any{}
+	for _, f := range findings {
+		m := f.(map[string]any)
+		byLocation[m["location"].(string)] = m
+	}
+	matched := byLocation["ios/Podfile.lock:1"]
+	if matched["cpeMatch"] != true {
+		t.Errorf("the CPE match is not marked: %v", matched)
+	}
+	sup, _ := matched["suppressed"].(map[string]any)
+	if sup["origin"] != "setting" || sup["justification"] != "matched by CPE only" ||
+		sup["source"] != "config.controls.sca.cpeMatches" {
+		t.Errorf("suppressed = %v, want the setting, its reason and its key", sup)
+	}
+	if _, present := byLocation["pubspec.lock:1"]["cpeMatch"]; present {
+		t.Errorf("a match in the package's ecosystem carries the mark: %v", byLocation["pubspec.lock:1"])
+	}
+}

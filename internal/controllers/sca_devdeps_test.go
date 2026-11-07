@@ -89,7 +89,7 @@ func TestSCAWarnsOfEachIncludeDevDeps(t *testing.T) {
 	}
 }
 
-// Both settings are declared, so validate and the schema know them, and each takes suppress or
+// Each setting is declared, so validate and the schema know them, and each takes suppress or
 // report and nothing else.
 func TestSCADeclaresDevDependencies(t *testing.T) {
 	var names []string
@@ -97,10 +97,10 @@ func TestSCADeclaresDevDependencies(t *testing.T) {
 		names = append(names, o.Name)
 	}
 	slices.Sort(names)
-	if !slices.Equal(names, []string{"devDependencies", "providedDependencies"}) {
-		t.Errorf("options %v, want devDependencies and providedDependencies", names)
+	if !slices.Equal(names, []string{"cpeMatches", "devDependencies", "providedDependencies"}) {
+		t.Errorf("options %v, want cpeMatches, devDependencies and providedDependencies", names)
 	}
-	for _, key := range []string{"devDependencies", "providedDependencies"} {
+	for _, key := range []string{"cpeMatches", "devDependencies", "providedDependencies"} {
 		for _, v := range []string{"suppress", "report"} {
 			if err := plugin.ValidateConfig(NewSCA().Info().OptionSchema, plugin.Config{key: v}); err != nil {
 				t.Errorf("%s: %s: %v", key, v, err)
@@ -142,6 +142,33 @@ func TestReportsProvidedDependenciesResolvesPerComponent(t *testing.T) {
 		report, from := policy.ReportsProvidedDependencies(tc.model, tc.component)
 		if report != tc.report || from != tc.decidedFrom {
 			t.Errorf("%s: (%v, %q), want (%v, %q)", tc.name, report, from, tc.report, tc.decidedFrom)
+		}
+	}
+}
+
+// cpeMatches resolves as providedDependencies does, and neither decides the other.
+func TestReportsCPEMatchesResolvesPerComponent(t *testing.T) {
+	policy := NewSCA().(plugin.CPEMatchPolicy)
+	const project = "config.controls.sca.cpeMatches"
+	report := saga.ControllerSettings{"cpeMatches": "report"}
+	suppress := saga.ControllerSettings{"cpeMatches": "suppress"}
+	for _, tc := range []struct {
+		name        string
+		model       saga.Model
+		component   string
+		report      bool
+		decidedFrom string
+	}{
+		{"default", devModel(nil, nil, nil), "web", false, project},
+		{"project", devModel(report, nil, nil), "web", true, project},
+		{"component over project", devModel(report, suppress, nil), "web", false, `components["web"].controls.sca.cpeMatches`},
+		{"other component keeps the project's", devModel(report, suppress, nil), "tools", true, project},
+		{"providedDependencies decides nothing here", devModel(saga.ControllerSettings{"providedDependencies": "report"}, nil, nil),
+			"web", false, project},
+	} {
+		got, from := policy.ReportsCPEMatches(tc.model, tc.component)
+		if got != tc.report || from != tc.decidedFrom {
+			t.Errorf("%s: (%v, %q), want (%v, %q)", tc.name, got, from, tc.report, tc.decidedFrom)
 		}
 	}
 }

@@ -633,18 +633,28 @@ const (
 	providedLabelFull = "provided dependency"
 )
 
+// cpeLabel and cpeLabelFull mark a package a scanner matched to the advisory only through a CPE, in
+// the same two places.
+const (
+	cpeLabel     = "cpe"
+	cpeLabelFull = "CPE match"
+)
+
 // isDev reports whether the finding's package is a development dependency.
 func isDev(f finding) bool { return f.pkg != nil && f.pkg.Dev }
 
-// packageKind is the label a finding's package wears for the kind of dependency it is, short and
-// in full, or empty for one the application ships. A package marked both is labeled dev, the
-// reason its suppression records.
+// packageKind is the label a finding's package wears for the kind of dependency it is, or for a
+// match made only through a CPE, short and in full, or empty for a dependency the application ships
+// that was matched in its own ecosystem. A package with more than one mark wears the first of dev,
+// provided and cpe, the reason its suppression records.
 func packageKind(f finding) (short, full string) {
 	switch {
 	case isDev(f):
 		return devLabel, devLabelFull
 	case f.pkg != nil && f.pkg.Provided:
 		return providedLabel, providedLabelFull
+	case f.pkg != nil && f.pkg.CPEMatch:
+		return cpeLabel, cpeLabelFull
 	}
 	return "", ""
 }

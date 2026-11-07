@@ -52,6 +52,25 @@ leaves these dependencies out, so their findings come from [`grype-fs`](../scann
 [Provided dependencies](../../docs/reference/saga-schema.md#provided-dependencies) in the Saga
 reference says how far the scope is read.
 
+## CPE matches
+
+`cpeMatches` decides whether a finding counts when [`grype-fs`](../scanners/grype-fs.md) matched it
+only through a CPE, a product identifier Grype builds from the package's name and version. Grype
+does that for a package type with no matcher of its own, such as `dart-pub` and `pod`, so a package
+named like a product takes that product's advisories. `suppress`, the default, keeps each in the report suppressed with the reason `matched by
+CPE only`; `report` counts each, with `cpe` beside its package. A component's setting replaces the
+project's.
+
+```yaml
+config:
+  controls:
+    sca:
+      cpeMatches: report
+```
+
+[CPE matches](../../docs/reference/saga-schema.md#cpe-matches) in the Saga reference says which
+matches are marked.
+
 ## Unread
 
 A dependency file is **unread** when no scanner serving the control took packages from it. The

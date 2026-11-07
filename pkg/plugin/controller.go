@@ -111,6 +111,15 @@ type ProvidedDependencyPolicy interface {
 	ReportsProvidedDependencies(model saga.Model, component string) (report bool, source string)
 }
 
+// CPEMatchPolicy is an optional interface a Controller may implement to decide whether the findings
+// a scanner matched only through a CPE count, per component.
+//
+// Asked as DevDependencyPolicy is, for the findings whose package carries the CPE match mark.
+// Source names the setting that decided, which the suppression records.
+type CPEMatchPolicy interface {
+	ReportsCPEMatches(model saga.Model, component string) (report bool, source string)
+}
+
 // ScanJob is a unit of scan work produced by a controller's Plan.
 type ScanJob struct {
 	Scanner  string

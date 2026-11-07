@@ -542,6 +542,21 @@
       "additionalProperties": false,
       "description": "Find known flaws in the libraries a repo depends on (software composition analysis).",
       "properties": {
+        "cpeMatches": {
+          "anyOf": [
+            {
+              "const": "suppress",
+              "description": "Each finding matched only by CPE stays in the report, suppressed with the reason matched by CPE only, and out of the counts and the gate. The default."
+            },
+            {
+              "const": "report",
+              "description": "Each finding matched only by CPE is counted, marked cpe."
+            }
+          ],
+          "default": "suppress",
+          "description": "Whether findings Grype matched only through a CPE built from the package's name, on a package type it has no matcher for, such as dart-pub and pod, count. A component's setting replaces the project's.",
+          "type": "string"
+        },
         "devDependencies": {
           "anyOf": [
             {

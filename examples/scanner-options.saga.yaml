@@ -45,6 +45,9 @@ config:
       providedDependencies: report                   # suppress (default) | report: whether a
                                                      # finding in a pom.xml dependency in provided
                                                      # or system scope counts
+      cpeMatches: report                             # suppress (default) | report: whether a
+                                                     # finding Grype matched only by CPE, on a
+                                                     # package type such as dart-pub or pod, counts
       trivyFs:
         filePatterns:                                # more files for an analyzer to read, each
           - "pip:requirements-.*\\.txt"              # analyzer:regex. pip reads only

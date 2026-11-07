@@ -119,6 +119,20 @@ var providedDependencySetting = settingPolicy{
 	justification: sarif.JustificationProvidedByRuntime,
 }
 
+// cpeMatchSetting is config.controls.sca.cpeMatches. The mark is the scanner's own, about one
+// match, so no other scanner's copy carries it to this one.
+var cpeMatchSetting = settingPolicy{
+	covers: func(p *sarif.Package) bool { return p.CPEMatch },
+	decide: func(c plugin.Controller) (func(saga.Model, string) (bool, string), bool) {
+		p, ok := c.(plugin.CPEMatchPolicy)
+		if !ok {
+			return nil, false
+		}
+		return p.ReportsCPEMatches, true
+	},
+	justification: sarif.JustificationCPEMatch,
+}
+
 // applyDevDependencies sets aside each finding in a development dependency whose component's
 // control says not to count them, and returns how many it set aside.
 //
@@ -137,6 +151,13 @@ func (e *Engine) applyDevDependencies(controls map[string]plugin.ControlResult, 
 // applyDevDependencies, so a package marked both keeps the development reason.
 func (e *Engine) applyProvidedDependencies(controls map[string]plugin.ControlResult, model saga.Model) (suppressed int) {
 	return e.applySetting(controls, model, providedDependencySetting)
+}
+
+// applyCPEMatches sets aside each finding a scanner matched only through a CPE whose component's
+// control says not to count them, and returns how many it set aside. After the dependency settings,
+// so a finding in a development or provided dependency keeps that reason.
+func (e *Engine) applyCPEMatches(controls map[string]plugin.ControlResult, model saga.Model) (suppressed int) {
+	return e.applySetting(controls, model, cpeMatchSetting)
 }
 
 // applySetting sets aside each finding the setting covers whose component's control says not to
