@@ -386,3 +386,42 @@ func TestTheUnverifiedToolTipWaitsForMissingToolsToBeInstalled(t *testing.T) {
 		}
 	}
 }
+
+// Each control off beside another that examines the surface is a row with the key that turns it
+// on and what the control finds, after the capped tips and outside their count. --no-tips takes
+// these off with the rest.
+func TestEveryControlOffIsSuggested(t *testing.T) {
+	model := &saga.Model{
+		Config: saga.Config{Controls: map[string]saga.ControllerSettings{
+			"headers": {"enabled": true}, "sca": {"enabled": true}, "secrets": {"enabled": true},
+			"sast": {"enabled": true}, "iac": {"enabled": true},
+		}},
+		Components: []saga.Component{
+			{Name: "api", Hosts: []saga.Host{{URL: "a"}}, Repositories: []saga.Repository{{URL: "r"}}},
+			{Name: "web", Hosts: []saga.Host{{URL: "w"}}},
+		},
+	}
+	got := map[string]string{}
+	for _, s := range scanSuggestions(tips(model, engine.Result{}, nil)) {
+		got[s.What] = s.Why
+	}
+	// Every component declaring hosts has dast and tls off, so neither row names one.
+	for what, why := range map[string]string{
+		"config.controls.dast.enabled: true": "find problems only visible from outside a running app (dynamic testing)",
+		"config.controls.tls.enabled: true":  "check the certificates and encryption a component's running endpoints offer visitors",
+	} {
+		if got[what] != why {
+			t.Errorf("%s: why %q, want the control's summary alone (all: %v)", what, got[what], got)
+		}
+	}
+	// With tls on for web, its row names the component that still has it off.
+	model.Components[1].Controls = map[string]saga.ControllerSettings{"tls": {"enabled": true}}
+	for _, s := range scanSuggestions(tips(model, engine.Result{}, nil)) {
+		if s.What == "config.controls.tls.enabled: true" && !strings.HasSuffix(s.Why, ", for api") {
+			t.Errorf("tls on for web: %q, want it to name api", s.Why)
+		}
+	}
+	if got := scanSuggestions(tips(model, engine.Result{}, &scanOptions{noTips: true})); got != nil {
+		t.Errorf("--no-tips left %v", got)
+	}
+}

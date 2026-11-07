@@ -282,8 +282,18 @@ A caveat fails the run only when `--fail-on-caveats` or
 | `draugr controls` | A declared surface has no enabled control |
 | `draugr tools install <tool>` | A scanner that ran is on `PATH`, was not installed by Draugr, and is one Draugr can install |
 
+Beside those, `TRY` has a row for each control that is off for a surface another enabled control
+already examines, such as `tls` with `headers` on for a host, or `secrets` with `sca` on for a
+repository. The row is the key that turns it on and what the control finds, and it names the
+components that have it off where others have it on. These rows are not capped:
+
+```
+  config.controls.sast.enabled: true     find patterns in a repo's own code that let somebody in (static analysis)
+  config.controls.secrets.enabled: true  find passwords and keys committed by accident, history included
+```
+
 `--no-tips`, `DRAUGR_NO_TIPS=1` or `output.tips: false` in [`draugr.config.yaml`](#draugr-config)
-turns them off.
+turns all of them off.
 
 ### Installing a missing scanner
 

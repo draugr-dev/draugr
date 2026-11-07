@@ -168,6 +168,10 @@ A host counts as examined when `headers` or `tls` is on. `dast` does not count, 
 the service for vulnerabilities and leaves the response headers and the TLS configuration to those
 two controls. A host with `dast` on and both of them off reads `controls off: headers, tls`.
 
+A control off for a surface that another control does examine is no caveat. The scan suggests it
+under `TRY` instead, as the key that turns it on, so a run that leaves one off on purpose is never
+failed for it.
+
 A [scan with no descriptor](../reference/cli.md#draugr-scan-sagayaml--dir) uses the same kind for a
 file whose scanner could not run on the machine, such as `govulncheck` for a `go.mod` without Go.
 
