@@ -1,1 +1,0 @@
-- **Grype findings matched only by CPE are suppressed by default.** For package types Grype has no matcher for, such as Dart and CocoaPods, Grype builds a CPE from the package name, so a package named like a product takes that product's advisories. `config.controls.sca.cpeMatches: report` counts them again.

@@ -1,1 +1,0 @@
-- **`dast` reports an endpoint it could not reach as an error.** A host with no DNS record, a closed port or a failed handshake passed with `no findings`, because Nuclei exits 0 with no output when it cannot connect. Draugr now asks the endpoint first, and an endpoint that does not answer ends `dast` in an error naming the cause.
