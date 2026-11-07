@@ -1,0 +1,259 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.7.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "serialNumber": "urn:uuid:2b9ef25a-35ab-49ef-9fa2-eba5ee431807",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-07T13:22:56-06:00",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "author": "anchore",
+          "name": "grype",
+          "version": "0.121.0"
+        }
+      ]
+    },
+    "component": {
+      "bom-ref": "e358ae28b4d50bb0",
+      "type": "file",
+      "name": "/checkout"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg:maven/org.apache.commons/commons-text@1.9?package-id=6344316977cd9fd1",
+      "type": "library",
+      "group": "org.apache.commons",
+      "name": "commons-text",
+      "version": "1.9",
+      "cpe": "cpe:2.3:a:apache:commons-text:1.9:*:*:*:*:*:*:*",
+      "purl": "pkg:maven/org.apache.commons/commons-text@1.9",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "java-pom-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "java"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "java-archive"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "java-archive"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:apache:commons_text:1.9:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:apache:commons:1.9:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/web/pom.xml"
+        },
+        {
+          "name": "syft:metadata:-:artifactID",
+          "value": "commons-text"
+        },
+        {
+          "name": "syft:metadata:-:groupID",
+          "value": "org.apache.commons"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:maven/ex/web@1.0?package-id=50d45297fc4b81a3",
+      "type": "library",
+      "name": "web",
+      "version": "1.0",
+      "cpe": "cpe:2.3:a:web:web:1.0:*:*:*:*:*:*:*",
+      "purl": "pkg:maven/ex/web@1.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "java-pom-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "java"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "java-archive"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "java-archive"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/web/pom.xml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:maven/ex/worker@1.0?package-id=8d6e2cf6271d80ff",
+      "type": "library",
+      "name": "worker",
+      "version": "1.0",
+      "cpe": "cpe:2.3:a:worker:worker:1.0:*:*:*:*:*:*:*",
+      "purl": "pkg:maven/ex/worker@1.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "java-pom-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "java"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "java-archive"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "java-archive"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/worker/pom.xml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "137106b143725a00",
+      "type": "file",
+      "name": "/checkout/web/pom.xml",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1890523f4effb1700525bd788a8cacc9f6f17e3682d81d565ab858736fefaa57"
+        }
+      ]
+    },
+    {
+      "bom-ref": "6d9f5bf41587a4bd",
+      "type": "file",
+      "name": "/checkout/worker/pom.xml",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1c39822becdb24255f24b83a047b6fb3591fd084d309841fe9362d74ab59a450"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:maven/ex/web@1.0?package-id=50d45297fc4b81a3",
+      "dependsOn": [
+        "pkg:maven/org.apache.commons/commons-text@1.9?package-id=6344316977cd9fd1"
+      ]
+    },
+    {
+      "ref": "pkg:maven/ex/worker@1.0?package-id=8d6e2cf6271d80ff",
+      "dependsOn": [
+        "pkg:maven/org.apache.commons/commons-text@1.9?package-id=6344316977cd9fd1"
+      ]
+    }
+  ],
+  "vulnerabilities": [
+    {
+      "bom-ref": "urn:uuid:3ebdac24-4758-4aab-8760-1ece31bd66d4",
+      "id": "CVE-2022-42889",
+      "source": {
+        "name": "github-language-java",
+        "url": "https://github.com/advisories/GHSA-599f-7c49-w659"
+      },
+      "references": [
+        {
+          "id": "CVE-2022-42889",
+          "source": {
+            "name": "github-language-java",
+            "url": "https://github.com/advisories/GHSA-599f-7c49-w659"
+          }
+        }
+      ],
+      "ratings": [
+        {
+          "score": 9.8,
+          "severity": "critical",
+          "method": "CVSSv31",
+          "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+        },
+        {
+          "source": {
+            "name": "FIRST",
+            "url": "https://www.first.org/epss/"
+          },
+          "score": 0.99931,
+          "method": "other"
+        }
+      ],
+      "description": "Arbitrary code execution in Apache Commons Text",
+      "advisories": [
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-42889"
+        },
+        {
+          "url": "https://lists.apache.org/thread/n2bd4vdsgkqh2tm14l1wyc3jyol7s1om"
+        },
+        {
+          "url": "http://www.openwall.com/lists/oss-security/2022/10/13/4"
+        },
+        {
+          "url": "https://securitylab.github.com/advisories/GHSL-2022-018_Apache_Commons_Text"
+        },
+        {
+          "url": "http://www.openwall.com/lists/oss-security/2022/10/18/1"
+        },
+        {
+          "url": "https://security.netapp.com/advisory/ntap-20221020-0004/"
+        },
+        {
+          "url": "https://psirt.global.sonicwall.com/vuln-detail/SNWLID-2022-0022"
+        },
+        {
+          "url": "https://security.gentoo.org/glsa/202301-05"
+        },
+        {
+          "url": "http://seclists.org/fulldisclosure/2023/Feb/3"
+        },
+        {
+          "url": "http://packetstormsecurity.com/files/171003/OX-App-Suite-Cross-Site-Scripting-Server-Side-Request-Forgery.html"
+        },
+        {
+          "url": "https://arxiv.org/pdf/2306.05534"
+        },
+        {
+          "url": "http://packetstormsecurity.com/files/176650/Apache-Commons-Text-1.9-Remote-Code-Execution.html"
+        }
+      ],
+      "affects": [
+        {
+          "ref": "pkg:maven/org.apache.commons/commons-text@1.9?package-id=6344316977cd9fd1",
+          "versions": [
+            {
+              "version": "1.9",
+              "status": "affected"
+            },
+            {
+              "range": "vers:maven/>=1.10.0",
+              "status": "unaffected"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

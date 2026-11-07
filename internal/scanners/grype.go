@@ -89,6 +89,7 @@ func NewGrypeFS() plugin.Scanner {
 		return runGrypeRecordingExclusions(func(a []string) ([]byte, error) { return grypeRunInDir(ctx, dir, a) }, dir, argv)
 	}
 	s.inventory = &inventoryOutput{args: grypeInventoryArgs, parse: parseGrypeInventory}
+	s.spreadPoms = true
 	return s
 }
 

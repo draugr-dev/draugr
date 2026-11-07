@@ -3,6 +3,7 @@ package manifests
 import (
 	"encoding/xml"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -27,15 +28,18 @@ const (
 type pomDependency struct {
 	GroupID    string `xml:"groupId"`
 	ArtifactID string `xml:"artifactId"`
+	Version    string `xml:"version"`
 	Scope      string `xml:"scope"`
 }
 
-// pomProject is the part of a pom.xml that decides a dependency's scope.
+// pomProject is the part of a pom.xml that decides a dependency's scope and version.
 type pomProject struct {
 	GroupID    string `xml:"groupId"`
 	ArtifactID string `xml:"artifactId"`
+	Version    string `xml:"version"`
 	Parent     struct {
 		GroupID string `xml:"groupId"`
+		Version string `xml:"version"`
 	} `xml:"parent"`
 	Properties struct {
 		Entries []struct {
@@ -64,27 +68,11 @@ var pomProperty = regexp.MustCompile(`\$\{([^}]+)\}`)
 // reaches furthest into production: runtime over provided, provided over test. One copy that ships
 // is enough for its flaws to ship.
 func PomScopes(data []byte) (map[string]Scope, error) {
-	var p pomProject
-	if err := xml.Unmarshal(data, &p); err != nil {
+	p, props, err := parsePom(data)
+	if err != nil {
 		return nil, err
 	}
-	group := firstOf(p.GroupID, p.Parent.GroupID)
-	props := map[string]string{
-		"project.groupId":        group,
-		"pom.groupId":            group,
-		"project.parent.groupId": strings.TrimSpace(p.Parent.GroupID),
-		"project.artifactId":     strings.TrimSpace(p.ArtifactID),
-	}
-	for _, e := range p.Properties.Entries {
-		props[e.XMLName.Local] = strings.TrimSpace(e.Value)
-	}
-	key := func(d pomDependency) (string, bool) {
-		g, a := expandPom(d.GroupID, props), expandPom(d.ArtifactID, props)
-		if g == "" || a == "" || strings.Contains(g+a, "${") {
-			return "", false
-		}
-		return g + ":" + a, true
-	}
+	key := func(d pomDependency) (string, bool) { return pomKey(d, props) }
 	managed := map[string]string{}
 	for _, d := range p.Managed {
 		if k, ok := key(d); ok && d.Scope != "" {
@@ -108,6 +96,78 @@ func PomScopes(data []byte) (map[string]Scope, error) {
 		scopes[k] = s
 	}
 	return scopes, nil
+}
+
+// PomVersions reads the versions a pom.xml declares for its direct dependencies, keyed by
+// groupId:artifactId, each with every version declared for it.
+//
+// A version written as a property is resolved from the pom's own properties and its project and
+// parent coordinates, and a dependency written with no version takes the one the same pom's
+// dependencyManagement gives it. A version this file cannot answer, one a parent POM or an imported
+// BOM manages or a property only a parent defines, is left out rather than guessed.
+func PomVersions(data []byte) (map[string][]string, error) {
+	p, props, err := parsePom(data)
+	if err != nil {
+		return nil, err
+	}
+	managed := map[string]string{}
+	for _, d := range p.Managed {
+		if k, ok := pomKey(d, props); ok {
+			if v := expandPom(d.Version, props); v != "" && !strings.Contains(v, "${") {
+				managed[k] = v
+			}
+		}
+	}
+	versions := map[string][]string{}
+	for _, d := range p.Dependencies {
+		k, ok := pomKey(d, props)
+		if !ok {
+			continue
+		}
+		v := expandPom(d.Version, props)
+		if v == "" {
+			v = managed[k]
+		}
+		if v == "" || strings.Contains(v, "${") || slices.Contains(versions[k], v) {
+			continue
+		}
+		versions[k] = append(versions[k], v)
+	}
+	return versions, nil
+}
+
+// parsePom decodes a pom.xml and the properties a value in it may refer to: its own, and its
+// project and parent coordinates.
+func parsePom(data []byte) (pomProject, map[string]string, error) {
+	var p pomProject
+	if err := xml.Unmarshal(data, &p); err != nil {
+		return pomProject{}, nil, err
+	}
+	group := firstOf(p.GroupID, p.Parent.GroupID)
+	version := firstOf(p.Version, p.Parent.Version)
+	props := map[string]string{
+		"project.groupId":        group,
+		"pom.groupId":            group,
+		"project.parent.groupId": strings.TrimSpace(p.Parent.GroupID),
+		"project.artifactId":     strings.TrimSpace(p.ArtifactID),
+		"project.version":        version,
+		"pom.version":            version,
+		"project.parent.version": strings.TrimSpace(p.Parent.Version),
+	}
+	for _, e := range p.Properties.Entries {
+		props[e.XMLName.Local] = strings.TrimSpace(e.Value)
+	}
+	return p, props, nil
+}
+
+// pomKey is a dependency's groupId:artifactId with its properties resolved, or false where either
+// is empty or names a property this pom does not define.
+func pomKey(d pomDependency, props map[string]string) (string, bool) {
+	g, a := expandPom(d.GroupID, props), expandPom(d.ArtifactID, props)
+	if g == "" || a == "" || strings.Contains(g+a, "${") {
+		return "", false
+	}
+	return g + ":" + a, true
 }
 
 // scopeOf folds a Maven scope into a Scope. An unknown word is runtime, as Maven itself treats a

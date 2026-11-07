@@ -75,6 +75,9 @@ type repoScanner struct {
 	// inventory, when set, asks the tool for a second report, beside its findings, that names the
 	// files it read packages from. For a tool whose findings format has nowhere to say so.
 	inventory *inventoryOutput
+	// spreadPoms gives each pom.xml that declares a vulnerable Maven package the finding the tool
+	// reported in another pom only (see spreadPomFindings).
+	spreadPoms bool
 }
 
 // inventoryOutput is a second report a tool writes to a file, listing what it read.
@@ -379,6 +382,9 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	// After the paths are repository-relative, and while the checkout still exists. Both matter:
 	// the fingerprint is looked up by the path a consumer will see, and the file it hashes is only
 	// on disk until this function returns.
+	if s.spreadPoms {
+		spreadPomFindings(&report, dir)
+	}
 	stampLineHashes(report.Results, dir)
 	markPomScopes(report.Results, dir)
 	report.Provenance = append(report.Provenance, repoProvenance(s.info.Name, repo.Source(), tree))
