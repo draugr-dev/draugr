@@ -1562,7 +1562,8 @@ network and credentials:
 | `image` | the local Docker daemon, then the registry's manifest, with the credential `docker login` stored | either one has the image |
 | `host` | opens a TCP connection, and completes the TLS handshake for `https` | the connection opens |
 | `cluster` | resolves the kubeconfig context the cluster names, or the current one, and asks its API server for its version | the API server answers |
-| `account` | on Google Cloud, asks whether the Application Default Credentials can read the project; on AWS, asks STS which identity the default credential chain resolves to | Google Cloud: they hold `resourcemanager.projects.get` on it. AWS: the identity is in the declared account |
+| `account` on Google Cloud | asks whether the Application Default Credentials can read the project | they hold `resourcemanager.projects.get` on it |
+| `account` on AWS | asks STS which identity the default credential chain resolves to | the identity is in the declared account |
 | `file` | reads each file in `components[].imports` | it opens and is SARIF 2.1.0 |
 
 A target two components share is checked once. A certificate this machine does not trust still

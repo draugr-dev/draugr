@@ -231,10 +231,10 @@ config:
     # cloud:
     #   enabled: true
     #   prowler:
-    #     compliance: cis_4.0_gcp                    # a Prowler framework, applied to the accounts
-    #                                                # of the cloud its suffix names; the others keep
-    #                                                # cis_5.0_gcp or cis_7.0_aws. `prowler gcp
-    #                                                # --list-compliance` names them
+    #     compliance: cis_4.0_gcp                    # a Prowler framework; its _gcp or _aws suffix
+    #                                                # picks the accounts it applies to. Defaults:
+    #                                                # cis_5.0_gcp, cis_7.0_aws. List them with
+    #                                                # prowler gcp|aws --list-compliance
 
     # dast:
     #   enabled: true                                # sends real requests to a live endpoint, so

@@ -192,7 +192,7 @@ accounts:
     project: acme-data-prod      # the project ID, as `gcloud projects list` prints it
   web-prod:
     provider: aws
-    account: "123456789012"      # the 12-digit account ID, quoted so no reader drops a leading zero
+    account: "123456789012"      # the 12-digit account ID, quoted
 
 components:
   # A public web app: source, the image it builds, and the endpoint it serves.

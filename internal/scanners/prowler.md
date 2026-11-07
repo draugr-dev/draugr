@@ -55,9 +55,7 @@ coverage figure counts the checks the installed Prowler runs.
 2. **The mutelist is emptied.** Given none, Prowler mutes the resources AWS Control Tower creates.
    The scanner passes a mutelist holding `Mutelist: {}`, so every finding reaches the report, where
    Draugr's excludes suppress one with a reason.
-3. **No permission preflight yet.** A check whose reads are denied counts as whatever Prowler made
-   of it: a pass, a fail or no result. The measured-against line says `permissions: not checked`,
-   and the report holds what Prowler could read.
+3. **No permission preflight yet.** See `permissions: not checked` in the measured-against line.
 
 Findings in a component's claimed regions are kept, matching zones of a region; a component that
 claims the whole account gets every finding, including those with no region. On AWS, Prowler files a
@@ -95,8 +93,7 @@ what it cannot read is reported unread rather than passed. Credentials of a pers
 service account need a quota project: `gcloud auth application-default set-quota-project <project>`.
 
 **AWS.** Prowler documents the `SecurityAudit` and `ViewOnlyAccess` managed policies, plus its own
-`prowler-additions-policy`. A narrower grant is not detected: what it cannot read is reported as
-Prowler reported it.
+`prowler-additions-policy`.
 
 ## Links
 
@@ -112,8 +109,8 @@ Prowler reported it.
   account: Application Default Credentials on Google Cloud, the AWS SDK's default chain on AWS
   (`AWS_PROFILE`, the shared config and credentials files, an SSO session, or an instance or task
   role).
-- The caller check uses the AWS SDK for Go v2 (Apache-2.0), linked into Draugr. It reads the same
-  credential chain Prowler does and calls STS alone.
+- Draugr's own AWS call is STS `GetCallerIdentity`, made with the same credential chain Prowler
+  reads.
 - Prowler's version is read with its update check unable to connect: `prowler --version` otherwise
   asks api.github.com for the newest release on every scan.
 - Prowler sends no telemetry. Its integrations with a hosted dashboard, Shodan and Slack are opt-in,
@@ -126,9 +123,8 @@ target rather than a data source: on Google Cloud, `cloudresourcemanager.googlea
 preflight and each service's API for its checks; on AWS, `sts.<region>.amazonaws.com` for the caller
 and each service's endpoint for its checks.
 
-Some AWS checks contact other hosts on every scan. None of them is in a CIS framework, so a scan on
-the default framework contacts the AWS APIs alone, and a `compliance` framework holding these
-checks contacts these hosts too:
+A `compliance` framework that includes the checks below makes the scan contact these hosts as well.
+The default framework includes none of them.
 
 | Host | Check | What it reads |
 |---|---|---|

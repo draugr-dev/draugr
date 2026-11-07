@@ -1,5 +1,8 @@
 package awsaccess
 
+// The AWS SDK for Go v2 (Apache-2.0) is linked into Draugr for this one call. It reads the same
+// credential chain Prowler does, so the identity checked is the one Prowler scans as.
+
 import (
 	"context"
 	"fmt"

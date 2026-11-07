@@ -172,12 +172,19 @@ as most editors do, drops a leading zero.
 A component's `cloud:` entry names an account with `account:` and may narrow it to the regions its
 resources are in. Findings that belong to no region, such as the project's IAM policy, go to the
 component that declares the whole account, on AWS whatever region Prowler files them under. A
-component runs in one account. `draugr
-validate` refuses a name nothing declares, a provider other than `gcp` or `aws`, an account with no
-ID, an AWS ID that is not 12 digits, and the other provider's ID field on an account, and warns about
-a declared account no component uses. A fragment may declare accounts on the rule clusters follow.
-`draugr doctor` asks Google whether the credentials in the environment can read each project, and
-AWS whether they are an identity in each account.
+component runs in one account.
+
+`draugr validate` refuses:
+
+- a name nothing declares
+- a provider other than `gcp` or `aws`
+- an account with no ID
+- an AWS ID that is not 12 digits
+- the other provider's ID field on an account
+
+It warns about a declared account no component uses. A fragment may declare accounts on the rule
+clusters follow. `draugr doctor` asks Google whether the credentials in the environment can read each
+project, and asks AWS whether they are an identity in each account.
 
 ## `components`
 

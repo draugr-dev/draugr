@@ -13,9 +13,8 @@ reading the live account through the provider's APIs. Where the [`iac`](iac.md) 
 Terraform that describes an account, this one reads what the account is.
 
 **Each account is declared once, under `accounts:`**, with its provider and its identifier there:
-`project` for a Google Cloud project, `account` for an AWS account's 12-digit ID. Quote an AWS
-account ID: a YAML reader that takes it as a number drops a leading zero. Components refer to an
-account by name:
+`project` for a Google Cloud project, `account` for an AWS account's 12-digit ID. Components refer to
+an account by name:
 
 ```yaml
 accounts:
@@ -55,8 +54,9 @@ go to the component claiming the whole account, whatever region Prowler files th
   `roles/serviceusage.serviceUsageConsumer` on the project, and `storage.buckets.getIamPolicy`,
   which Viewer lacks, cover every check.
 - **AWS:** the default credential chain every AWS SDK reads, `AWS_PROFILE`, the shared config and
-  credentials files, an SSO session, or an instance or task role. Prowler documents the
-  `SecurityAudit` and `ViewOnlyAccess` managed policies and its own `prowler-additions-policy`.
+  credentials files, an SSO session, or an instance or task role. Attach the `SecurityAudit` and
+  `ViewOnlyAccess` managed policies and Prowler's `prowler-additions-policy`. Draugr does not yet
+  detect a missing permission on AWS.
 
 `draugr doctor` checks each declared account: on Google Cloud that the credentials can read the
 project, on AWS that they are an identity in the declared account.
@@ -113,7 +113,5 @@ them.
 
 ## Notes
 
-- `validate` accepts `provider: gcp` with `project:` and `provider: aws` with `account:`, and refuses
-  either ID field on the other provider.
 - The scanner reports a Prowler check as `prowler/<check>`, with the benchmark's requirement IDs as
   its taxa.
