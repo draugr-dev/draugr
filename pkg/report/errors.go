@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"slices"
 	"sort"
@@ -373,6 +374,15 @@ func componentsLabel(cs []string) string {
 // change.
 func writeCaveats(w io.Writer, col tui.Painter, d Data) {
 	cs := caveats(d)
+	if reviewCaveats() == "c" {
+		var rest []caveat
+		for _, c := range cs {
+			if c.by == "" {
+				rest = append(rest, c)
+			}
+		}
+		cs = rest
+	}
 	if len(cs) == 0 {
 		return
 	}
@@ -392,10 +402,20 @@ func writeCaveats(w io.Writer, col tui.Painter, d Data) {
 		}
 	}
 	// A row standing for several files names none of them; the evidence lists each.
-	if slices.ContainsFunc(cs, func(c caveat) bool { return c.folded }) {
+	if slices.ContainsFunc(cs, func(c caveat) bool { return c.folded }) && reviewCaveats() == "" {
 		note += col.Paint(cDim, " · --evidence names each file")
 	}
 	_, _ = fmt.Fprintf(w, "%s  %s\n", heading(col, "Caveats"), note)
+	switch reviewCaveats() {
+	case "a":
+		writeCaveatsUnderHeadings(w, col, d, cs, len(failing) > 0)
+		_, _ = fmt.Fprintln(w)
+		return
+	case "b":
+		writeCaveatsDittoed(w, col, d, cs, len(failing) > 0)
+		_, _ = fmt.Fprintln(w)
+		return
+	}
 	t := tui.NewTable(col, "Component", "What", "Caveat", "Why").Indent("  ")
 	n, capped := shownRows(d, len(cs))
 	for _, c := range cs[:n] {
@@ -481,4 +501,121 @@ func unboundImports(d Data) []unboundImport {
 		}
 	}
 	return out
+}
+
+// REVIEW ONLY: three layouts of the caveats block for a design review, chosen by
+// DRAUGR_REVIEW_CAVEATS. Never merged.
+func reviewCaveats() string { return os.Getenv("DRAUGR_REVIEW_CAVEATS") }
+
+// caveatGroupKey is the facts every row of a run shares: the kind and the controls.
+func caveatGroupKey(c caveat) string {
+	if c.by == "" {
+		return string(c.key) + " · " + c.component
+	}
+	return string(c.key) + " · " + c.by + " · " + c.component
+}
+
+func caveatReason(c caveat) string {
+	if c.by == "" {
+		return c.detail
+	}
+	r, _ := strings.CutSuffix(c.detail, " ("+c.by+")")
+	return r
+}
+
+func sortedByGroup(cs []caveat) []caveat {
+	out := slices.Clone(cs)
+	sort.SliceStable(out, func(i, j int) bool { return caveatGroupKey(out[i]) < caveatGroupKey(out[j]) })
+	return out
+}
+
+// Variant A: a sub-heading per kind and controls, the rows under it saying what and why.
+func writeCaveatsUnderHeadings(w io.Writer, col tui.Painter, d Data, cs []caveat, marking bool) {
+	cs = sortedByGroup(cs)
+	for i := 0; i < len(cs); {
+		key := caveatGroupKey(cs[i])
+		mark := ""
+		if marking {
+			mark = "  "
+			if cs[i].fails(d) {
+				mark = col.Paint(cFail, "✗ ")
+			}
+		}
+		_, _ = fmt.Fprintf(w, "  %s%s\n", mark, col.Paint(cAccent, key))
+		t := tui.NewTable(col).Indent("    ")
+		for ; i < len(cs) && caveatGroupKey(cs[i]) == key; i++ {
+			c := cs[i]
+			t.Row(tui.Styled(tui.StyleStrong, c.what), tui.Styled(cDim, truncate(caveatReason(c), whyWidth)))
+		}
+		t.Render(w)
+	}
+}
+
+// Variant B: a table per group, the kind and controls in a left column on the group's first row
+// only, aligned across groups.
+func writeCaveatsDittoed(w io.Writer, col tui.Painter, d Data, cs []caveat, marking bool) {
+	cs = sortedByGroup(cs)
+	labelWidth := 0
+	for _, c := range cs {
+		if n := len([]rune(caveatGroupKey(c))) + 2; n > labelWidth {
+			labelWidth = n
+		}
+	}
+	for i := 0; i < len(cs); {
+		key := caveatGroupKey(cs[i])
+		label := key
+		if marking {
+			if cs[i].fails(d) {
+				label = "✗ " + key
+			} else {
+				label = "  " + key
+			}
+		}
+		style := cAccent
+		if cs[i].fails(d) {
+			style = cFail
+		}
+		first := true
+		t := tui.NewTable(col).Indent("  ")
+		for ; i < len(cs) && caveatGroupKey(cs[i]) == key; i++ {
+			c := cs[i]
+			shown := ""
+			if first {
+				shown = label
+				first = false
+			}
+			t.Row(tui.Styled(style, fmt.Sprintf("%-*s", labelWidth, shown)),
+				tui.Styled(tui.StyleStrong, c.what), tui.Styled(cDim, truncate(caveatReason(c), whyWidth)))
+		}
+		t.Render(w)
+	}
+}
+
+// Variant C: a control's file caveats under its own row in the CONTROLS block, the kind beside
+// the reason. Caveats with no control stay in the CAVEATS block.
+func writeControlCaveats(w io.Writer, col tui.Painter, d Data, control string, width int) {
+	_ = width
+	byComponent := map[string][]caveat{}
+	var order []string
+	for _, c := range caveats(d) {
+		if c.by == "" || !slices.Contains(strings.Split(c.by, ", "), control) {
+			continue
+		}
+		if _, ok := byComponent[c.component]; !ok {
+			order = append(order, c.component)
+		}
+		byComponent[c.component] = append(byComponent[c.component], c)
+	}
+	for _, comp := range order {
+		_, _ = fmt.Fprintf(w, "    %s\n", col.Paint(tui.StyleStrong, comp))
+		t := tui.NewTable(col).Indent("      ")
+		for _, c := range byComponent[comp] {
+			mark := ""
+			if c.fails(d) {
+				mark = "✗ "
+			}
+			t.Row(tui.Styled(cFail, mark), tui.Styled(tui.StyleStrong, c.what), tui.Styled(cDim, truncate(caveatReason(c), whyWidth)))
+		}
+		t.Render(w)
+	}
 }

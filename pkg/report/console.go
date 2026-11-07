@@ -189,6 +189,10 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 			// it could not read is a pass over less than the tree, and the caveats below name them.
 			counts := controlCounts(col, s, c.Control)
 			if note := unreadNote(d.Run.Inputs, c.Control); note != "" {
+				if reviewCaveats() == "c" {
+					note = strings.Replace(note, " files unread", "", 1)
+					note = "unread-files " + note
+				}
 				counts += col.Paint(cDim, " · "+note)
 			}
 			_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
@@ -196,6 +200,9 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 				col.Paint(vc, fmt.Sprintf("%-5s", v)),
 				counts)
 			why(c.Control, false)
+			if reviewCaveats() == "c" {
+				writeControlCaveats(w, col, d, c.Control, width)
+			}
 		}
 		// Controls that produced nothing at all have no verdict entry, so they're listed here.
 		// Between them these two loops cover every key in errored, so no failure loses its
