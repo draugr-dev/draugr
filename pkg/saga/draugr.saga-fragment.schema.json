@@ -3,8 +3,64 @@
   "$defs": {
     "account": {
       "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "provider": {
+                "const": "gcp"
+              }
+            },
+            "required": [
+              "provider"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "account"
+              ]
+            },
+            "required": [
+              "project"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "provider": {
+                "const": "aws"
+              }
+            },
+            "required": [
+              "provider"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "project"
+              ]
+            },
+            "required": [
+              "account"
+            ]
+          }
+        }
+      ],
       "description": "A cloud account's own facts, declared once and shared by every component whose cloud: entry names it.",
       "properties": {
+        "account": {
+          "description": "The AWS account's 12-digit ID, as aws sts get-caller-identity prints it. Quote it: a YAML reader that takes it as a number drops a leading zero.",
+          "maximum": 999999999999,
+          "minimum": 100000000000,
+          "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[0-9]{12})$",
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
         "project": {
           "description": "The Google Cloud project's ID, as gcloud projects list prints it.",
           "minLength": 1,
@@ -19,6 +75,10 @@
             {
               "const": "gcp",
               "description": "Google Cloud, where the account is a project named by project:."
+            },
+            {
+              "const": "aws",
+              "description": "Amazon Web Services, where the account is named by its 12-digit ID in account:."
             }
           ],
           "description": "The cloud the account belongs to.",
@@ -26,8 +86,7 @@
         }
       },
       "required": [
-        "provider",
-        "project"
+        "provider"
       ],
       "type": "object"
     },
@@ -415,9 +474,8 @@
           "description": "prowler, published by prowler-cloud.",
           "properties": {
             "compliance": {
-              "default": "cis_5.0_gcp",
-              "description": "The Prowler compliance framework to run, such as cis_4.0_gcp. Defaults to cis_5.0_gcp. `prowler gcp --list-compliance` lists them.",
-              "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9_.]+_gcp)$",
+              "description": "The Prowler compliance framework to run, such as cis_4.0_gcp or cis_6.0_aws. It applies to the accounts of the cloud its suffix names; the others are checked against cis_5.0_gcp on Google Cloud and cis_7.0_aws on AWS. `prowler \u003cgcp|aws\u003e --list-compliance` lists them.",
+              "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9_.]+_(gcp|aws))$",
               "type": "string"
             },
             "enabled": {

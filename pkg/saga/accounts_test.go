@@ -32,6 +32,30 @@ components:
 	}
 }
 
+// An AWS account is named by its 12-digit ID. Unquoted, YAML reads one as a number, and the text as
+// written is what Draugr keeps, leading zero included.
+func TestAnAWSAccountIsNamedByItsID(t *testing.T) {
+	m, err := Load([]byte(clusterHeader + `
+accounts:
+  web-prod: {provider: aws, account: "111111111111"}
+  web-data: {provider: aws, account: 011111111111}
+components:
+  - name: web
+    cloud: [{account: web-prod, regions: [us-east-1]}]
+  - name: data
+    cloud: [{account: web-data}]
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := m.Accounts["web-prod"]; got.Provider != ProviderAWS || got.ID() != "111111111111" {
+		t.Errorf("web-prod = %+v", got)
+	}
+	if got := m.Accounts["web-data"].ID(); got != "011111111111" {
+		t.Errorf("an unquoted ID with a leading zero = %q", got)
+	}
+}
+
 func TestAccountsAreRefusedWhereTheyCannotBeScanned(t *testing.T) {
 	for name, tc := range map[string]struct{ body, want string }{
 		"an undeclared name": {`
@@ -71,12 +95,28 @@ components:
 `, `cloud[0].regions[0] is empty`},
 		"a provider Draugr does not check": {`
 accounts:
-  prod: {provider: aws, project: p-1}
-`, `accounts.prod.provider "aws" is not gcp`},
+  prod: {provider: azure, project: p-1}
+`, `accounts.prod.provider "azure" is not gcp or aws`},
 		"a project with no ID": {`
 accounts:
   prod: {provider: gcp}
 `, `accounts.prod.project is required for provider gcp`},
+		"an AWS account with no ID": {`
+accounts:
+  prod: {provider: aws}
+`, `accounts.prod.account is required for provider aws: the 12-digit account ID`},
+		"an AWS account ID of eleven digits": {`
+accounts:
+  prod: {provider: aws, account: "11111111111"}
+`, `accounts.prod.account "11111111111" is not an AWS account ID`},
+		"a Google Cloud field on an AWS account": {`
+accounts:
+  prod: {provider: aws, account: "111111111111", project: p-1}
+`, `accounts.prod.project is a field of provider gcp, and this account's provider is aws, whose ID goes in account`},
+		"an AWS field on a Google Cloud account": {`
+accounts:
+  prod: {provider: gcp, project: p-1, account: "111111111111"}
+`, `accounts.prod.account is a field of provider aws, and this account's provider is gcp, whose ID goes in project`},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := Load([]byte(clusterHeader + tc.body))

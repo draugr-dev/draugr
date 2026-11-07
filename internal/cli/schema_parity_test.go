@@ -207,6 +207,46 @@ func TestTheEditorHoldsItemFieldsToTheKind(t *testing.T) {
 	}
 }
 
+// TestTheEditorAndDraugrHoldAccountIDsToTheirProvider sets each provider's ID field on each
+// provider's account, which a one-field mutation of an example never does, and requires both readers
+// to accept an account named by its own provider's field and nothing else.
+func TestTheEditorAndDraugrHoldAccountIDsToTheirProvider(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "draugr.saga.yaml")
+	for _, c := range []struct {
+		name    string
+		account map[string]any
+		ok      bool
+	}{
+		{"a Google Cloud project", map[string]any{"provider": "gcp", "project": "shop-prod-4821"}, true},
+		{"an AWS account", map[string]any{"provider": "aws", "account": "011111111111"}, true},
+		{"an AWS account written as a number", map[string]any{"provider": "aws", "account": 111111111111}, true},
+		{"an AWS account of eleven digits", map[string]any{"provider": "aws", "account": "11111111111"}, false},
+		{"a project on AWS", map[string]any{"provider": "aws", "account": "111111111111", "project": "p-1"}, false},
+		{"an account on Google Cloud", map[string]any{"provider": "gcp", "project": "p-1", "account": "111111111111"}, false},
+		{"an AWS account with no ID", map[string]any{"provider": "aws"}, false},
+		{"a project's field alone on AWS", map[string]any{"provider": "aws", "project": "p-1"}, false},
+	} {
+		doc := map[string]any{
+			"project":    "shop",
+			"accounts":   map[string]any{"prod": c.account},
+			"components": []any{map[string]any{"name": "web", "cloud": []any{map[string]any{"account": "prod"}}}},
+		}
+		b, err := yaml.Marshal(doc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, b, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		_, loadErr := loadAndWarn(path)
+		schemaErr := sagatest.SchemaError(t, doc, false)
+		if (loadErr == nil) != c.ok || (schemaErr == nil) != c.ok {
+			t.Errorf("%s: draugr validate accepts=%v, the schema accepts=%v, want %v\n  validate: %v\n  schema: %v",
+				c.name, loadErr == nil, schemaErr == nil, c.ok, loadErr, schemaErr)
+		}
+	}
+}
+
 // TestTheEditorAndDraugrHoldEveryPublisherFieldToItsKind sets every publisher field on every kind,
 // one at a time, and requires the JSON Schema and `draugr validate` to accept it exactly where
 // pkg/publish says the kind reads it. A one-field mutation of an example never moves a field onto

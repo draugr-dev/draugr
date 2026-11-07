@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/draugr-dev/draugr/internal/awsaccess"
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/gcpaccess"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -25,9 +26,29 @@ const prowlerScannerName = "prowler"
 // prowlerRulePrefix namespaces Prowler's check identifiers among every other scanner's rules.
 const prowlerRulePrefix = "prowler/"
 
-// prowlerDefaultCompliance is the framework a Google Cloud account is checked against: the newest
-// CIS Google Cloud Platform Foundation Benchmark Prowler maps.
-const prowlerDefaultCompliance = "cis_5.0_gcp"
+// prowlerCloud is what differs between the clouds Prowler checks.
+type prowlerCloud struct {
+	// name is Prowler's word for the cloud: its subcommand, the suffix of its frameworks and the
+	// key of its check list.
+	name string
+	// label is the cloud's name in a message.
+	label string
+	// unit is what the cloud calls an account.
+	unit string
+	// compliance is the framework an account is checked against unless `compliance` names another
+	// of the same cloud's: the newest CIS foundations benchmark Prowler maps.
+	compliance string
+	// taxonomy names the benchmark a check's requirement belongs to.
+	taxonomy string
+}
+
+// prowlerClouds are the clouds the scanner checks, by the descriptor's `provider:`.
+var prowlerClouds = map[string]prowlerCloud{
+	"gcp": {name: "gcp", label: "Google Cloud", unit: "project", compliance: "cis_5.0_gcp",
+		taxonomy: "CIS Google Cloud Platform Foundation Benchmark"},
+	"aws": {name: "aws", label: "AWS", unit: "account", compliance: "cis_7.0_aws",
+		taxonomy: "CIS Amazon Web Services Foundations Benchmark"},
+}
 
 // prowlerConfigSchema is the JSON Schema for the scanner's Saga config.
 const prowlerConfigSchema = `{
@@ -36,31 +57,75 @@ const prowlerConfigSchema = `{
   "properties": {
     "compliance": {
       "type": "string",
-      "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9_.]+_gcp)$",
-      "default": "cis_5.0_gcp",
-      "description": "The Prowler compliance framework to run, such as cis_4.0_gcp. Defaults to cis_5.0_gcp. ` +
-	"`prowler gcp --list-compliance`" + ` lists them."
+      "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9_.]+_(gcp|aws))$",
+      "description": "The Prowler compliance framework to run, such as cis_4.0_gcp or cis_6.0_aws. It applies to the accounts of the cloud its suffix names; the others are checked against cis_5.0_gcp on Google Cloud and cis_7.0_aws on AWS. ` +
+	"`prowler <gcp|aws> --list-compliance`" + ` lists them."
     }
   }
 }`
+
+// framework is the compliance framework an account is checked against: the configured one when it
+// is the account's cloud's, the cloud's default otherwise.
+func (c prowlerCloud) framework(cfg plugin.Config) string {
+	if v, _ := cfg["compliance"].(string); strings.HasSuffix(v, "_"+c.name) {
+		return v
+	}
+	return c.compliance
+}
 
 // permissionTester asks which permissions the credentials hold on a project.
 type permissionTester interface {
 	Granted(ctx context.Context, project string, perms []string) ([]string, error)
 }
 
+// prowlerMutelist replaces the mutelist Prowler applies when given none, which mutes the resources
+// AWS Control Tower creates. A muted finding never reaches the report, and Draugr's own excludes
+// are where a finding is suppressed, with a reason somebody gave.
+const prowlerMutelist = "Mutelist: {}\n"
+
 // prowlerScanner checks a live cloud account by running Prowler against it.
 //
 // Prowler is the operator's to install: Draugr runs the `prowler` on PATH, and `draugr tools
 // install` does not fetch it.
-// Before it runs, the scanner asks the provider which of the permissions Prowler's checks read the
-// credentials hold, because a denied read is the one failure Prowler does not report. Depending
-// on the check it passes, fails or disappears. A check that reads a service the credentials cannot
-// is reported unread rather than taken from Prowler's output either way.
+// On Google Cloud, before it runs, the scanner asks the provider which of the permissions Prowler's
+// checks read the credentials hold, because a denied read is the one failure Prowler does not
+// report. Depending on the check it passes, fails or disappears. A check that reads a service the
+// credentials cannot is reported unread rather than taken from Prowler's output either way.
+//
+// On AWS, before it runs, the scanner asks STS which identity the credentials are and refuses one in
+// another account. No permission preflight is made there yet, so a denied read is reported as
+// whatever Prowler made of it, and the measured-against line says so.
 type prowlerScanner struct {
-	info   plugin.ScannerInfo
-	run    func(ctx context.Context, argv []string) ([]byte, error)
-	access func(ctx context.Context) (permissionTester, error)
+	info     plugin.ScannerInfo
+	run      func(ctx context.Context, argv []string) ([]byte, error)
+	access   func(ctx context.Context) (permissionTester, error)
+	identify func(ctx context.Context) (awsaccess.Identifier, error)
+}
+
+// prowlerData is what Prowler contacts besides the APIs of the account it checks. None of it is in
+// a CIS framework's checks, so a scan against the default frameworks contacts the cloud's APIs
+// alone; a `compliance` framework that includes the checks below contacts these too.
+var prowlerData = []plugin.DataSource{
+	{
+		// codepipeline_project_repo_private asks, without credentials, whether a pipeline's source
+		// repository answers to anybody.
+		Name:    "AWS CodePipeline source repositories, outside the CIS checks",
+		Hosts:   []string{"github.com", "gitlab.com"},
+		PerScan: true,
+	},
+	{
+		// route53_dangling_ip_subdomain_takeover compares records with the addresses AWS owns.
+		Name:    "AWS IP address ranges, outside the CIS checks",
+		Hosts:   []string{"ip-ranges.amazonaws.com"},
+		PerScan: true,
+	},
+	{
+		// The Lambda and ECR checks that read code or image layers follow the presigned link the API
+		// returns, to a bucket AWS runs in the function's or repository's region.
+		Name:    "AWS Lambda code and ECR image layers, outside the CIS checks",
+		Hosts:   []string{"*.s3.<region>.amazonaws.com"},
+		PerScan: true,
+	},
 }
 
 // NewProwler returns the scanner for the "cloud" control.
@@ -73,10 +138,14 @@ func NewProwler() plugin.Scanner {
 			Controls:     []string{"cloud"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetAccount},
 			ConfigSchema: json.RawMessage(prowlerConfigSchema),
+			Data:         prowlerData,
 		},
 		run: execArgv,
 		access: func(ctx context.Context) (permissionTester, error) {
 			return gcpaccess.New(ctx)
+		},
+		identify: func(ctx context.Context) (awsaccess.Identifier, error) {
+			return awsaccess.New(ctx)
 		},
 	}
 }
@@ -99,21 +168,25 @@ func (s prowlerScanner) Scan(ctx context.Context, target plugin.Target, cfg plug
 	if !ok {
 		return sarif.Report{}, fmt.Errorf("prowler: unsupported target %T (want a cloud account)", target)
 	}
-	if account.Provider != "gcp" {
-		return sarif.Report{}, fmt.Errorf("prowler: Draugr checks Google Cloud accounts, not %q", account.Provider)
+	cloud, ok := prowlerClouds[account.Provider]
+	if !ok {
+		return sarif.Report{}, fmt.Errorf("prowler: Draugr checks Google Cloud and AWS accounts, not %q", account.Provider)
 	}
-	compliance := prowlerDefaultCompliance
-	if v, _ := cfg["compliance"].(string); v != "" {
-		compliance = v
-	}
+	compliance := cloud.framework(cfg)
 
 	// The check list first: it needs only Prowler, so a machine without it is told that before
 	// anything about its credentials.
-	checks, err := s.frameworkChecks(ctx, compliance)
+	checks, err := s.frameworkChecks(ctx, cloud, compliance)
 	if err != nil {
 		return sarif.Report{}, err
 	}
-	denied, err := s.preflight(ctx, account.ID)
+	denied := map[string]string{}
+	switch cloud.name {
+	case "gcp":
+		denied, err = s.preflight(ctx, account.ID)
+	case "aws":
+		err = s.confirmCaller(ctx, account.ID)
+	}
 	if err != nil {
 		return sarif.Report{}, err
 	}
@@ -123,13 +196,9 @@ func (s prowlerScanner) Scan(ctx context.Context, target plugin.Target, cfg plug
 		return sarif.Report{}, fmt.Errorf("prowler: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(dir) }()
-	argv := []string{
-		"prowler", "gcp", "--project-id", account.ID, "--compliance", compliance,
-		"--output-formats", "json-ocsf", "--output-directory", dir, "--output-filename", "scan",
-		"--log-level", "ERROR", "--log-file", filepath.Join(dir, "prowler.log"), "--only-logs",
-		"--no-color",
-		// Exit 3 means "found something". Findings are the report's to judge, not an error.
-		"--ignore-exit-code-3",
+	argv, err := prowlerArgv(cloud, account, compliance, dir)
+	if err != nil {
+		return sarif.Report{}, err
 	}
 	if _, err := s.run(ctx, argv); err != nil {
 		return sarif.Report{}, fmt.Errorf("run prowler: %w", err)
@@ -142,22 +211,77 @@ func (s prowlerScanner) Scan(ctx context.Context, target plugin.Target, cfg plug
 	// account with nothing at all to check still has an IAM policy and audit settings. A changed
 	// output name or a run that stopped early lands here, and must not read as a clean account.
 	if len(findings) == 0 && len(checks) > 0 {
-		return sarif.Report{}, fmt.Errorf("prowler: no result for any of the %d %s checks on project %s",
-			len(checks), compliance, account.ID)
+		return sarif.Report{}, fmt.Errorf("prowler: no result for any of the %d %s checks on %s %s",
+			len(checks), compliance, cloud.unit, account.ID)
 	}
-	// The log is the backstop: a read the preflight could not foresee, denied mid-scan.
-	logged, above := loggedDenials(filepath.Join(dir, "prowler.log"))
-	for service, reason := range logged {
-		if _, known := denied[service]; !known {
-			denied[service] = reason
+	var above []string
+	if cloud.name == "gcp" {
+		// The log is the backstop: a read the preflight could not foresee, denied mid-scan. Its
+		// patterns are Google's error text and API hosts, which an AWS log does not contain.
+		var logged map[string]string
+		logged, above = loggedDenials(filepath.Join(dir, "prowler.log"))
+		for service, reason := range logged {
+			if _, known := denied[service]; !known {
+				denied[service] = reason
+			}
 		}
 	}
-	report := prowlerReport(account, compliance, checks, findings, denied)
+	report := prowlerReport(account, cloud, compliance, checks, findings, denied)
 	if len(above) > 0 {
 		report.Provenance[0].Fields = append(report.Provenance[0].Fields,
 			sarif.Field{Key: "organization", Value: "not read, " + strings.Join(above, ", ")})
 	}
+	if cloud.name == "aws" {
+		// TODO(https://github.com/draugr-dev/draugr/issues/1385): a permission preflight, and the
+		// log read for denials, once recordings show the IAM actions each check needs and how
+		// Prowler logs a denied one.
+		report.Provenance[0].Fields = append(report.Provenance[0].Fields,
+			sarif.Field{Key: "permissions", Value: "not checked; a denied read counts as Prowler reported it"})
+	}
 	return report, nil
+}
+
+// prowlerArgv is the scan's command line. The findings go to dir as OCSF, the log beside them.
+func prowlerArgv(cloud prowlerCloud, account plugin.AccountTarget, compliance, dir string) ([]string, error) {
+	argv := []string{"prowler", cloud.name}
+	switch cloud.name {
+	case "gcp":
+		argv = append(argv, "--project-id", account.ID)
+	case "aws":
+		mutelist := filepath.Join(dir, "mutelist.yaml")
+		if err := os.WriteFile(mutelist, []byte(prowlerMutelist), 0o600); err != nil {
+			return nil, fmt.Errorf("prowler: %w", err)
+		}
+		argv = append(argv, "--mutelist-file", mutelist)
+		if len(account.Regions) > 0 {
+			// Prowler knows each region's name and refuses one it does not, in lower case.
+			argv = append(argv, "--region")
+			for _, r := range account.Regions {
+				argv = append(argv, strings.ToLower(r))
+			}
+		}
+	}
+	return append(argv, "--compliance", compliance,
+		"--output-formats", "json-ocsf", "--output-directory", dir, "--output-filename", "scan",
+		"--log-level", "ERROR", "--log-file", filepath.Join(dir, "prowler.log"), "--only-logs",
+		"--no-color",
+		// Exit 3 means "found something". Findings are the report's to judge, not an error.
+		"--ignore-exit-code-3",
+	), nil
+}
+
+// confirmCaller asks STS which identity the credentials are, and refuses one outside the declared
+// account: Prowler reads whichever account the credentials reach and names it in its output, so a
+// wrong profile is a complete report about another account.
+func (s prowlerScanner) confirmCaller(ctx context.Context, account string) error {
+	id, err := s.identify(ctx)
+	if err != nil {
+		return fmt.Errorf("prowler: %w", err)
+	}
+	if _, err := awsaccess.Confirm(ctx, id, account); err != nil {
+		return fmt.Errorf("prowler: %w", err)
+	}
+	return nil
 }
 
 // preflight asks which services' reads the credentials are denied, by service, with the first
@@ -181,8 +305,8 @@ func (s prowlerScanner) preflight(ctx context.Context, project string) (map[stri
 
 // frameworkChecks lists the checks the framework maps, from the installed Prowler, so the count of
 // what was decided is out of the checks this release runs.
-func (s prowlerScanner) frameworkChecks(ctx context.Context, compliance string) ([]string, error) {
-	out, err := s.run(ctx, []string{"prowler", "gcp", "--list-checks-json", "--compliance", compliance})
+func (s prowlerScanner) frameworkChecks(ctx context.Context, cloud prowlerCloud, compliance string) ([]string, error) {
+	out, err := s.run(ctx, []string{"prowler", cloud.name, "--list-checks-json", "--compliance", compliance})
 	if err != nil {
 		return nil, fmt.Errorf("run prowler: list the checks of %s: %w", compliance, err)
 	}
@@ -190,10 +314,10 @@ func (s prowlerScanner) frameworkChecks(ctx context.Context, compliance string) 
 	if err := json.Unmarshal(lastJSON(out), &listed); err != nil {
 		return nil, fmt.Errorf("prowler: unreadable check list for %s: %w", compliance, err)
 	}
-	checks := listed["gcp"]
+	checks := listed[cloud.name]
 	if len(checks) == 0 {
-		return nil, fmt.Errorf("prowler: compliance framework %s maps no Google Cloud checks; "+
-			"`prowler gcp --list-compliance` lists the ones that do", compliance)
+		return nil, fmt.Errorf("prowler: compliance framework %s maps no %s checks; "+
+			"`prowler %s --list-compliance` lists the ones that do", compliance, cloud.label, cloud.name)
 	}
 	slices.Sort(checks)
 	return checks, nil
@@ -341,8 +465,8 @@ func deniedIn(line string) []string {
 
 // prowlerReport turns Prowler's findings into SARIF, setting aside every check a denied service
 // leaves unread.
-func prowlerReport(account plugin.AccountTarget, compliance string, checks []string, findings []ocsfFinding,
-	denied map[string]string,
+func prowlerReport(account plugin.AccountTarget, cloud prowlerCloud, compliance string, checks []string,
+	findings []ocsfFinding, denied map[string]string,
 ) sarif.Report {
 	report := sarif.Report{Tool: prowlerScannerName, Rules: map[string]sarif.Rule{}}
 	unread := map[string]bool{}
@@ -372,7 +496,7 @@ func prowlerReport(account plugin.AccountTarget, compliance string, checks []str
 		if status == "PASS" || status == "FAIL" {
 			decided[check] = true
 		}
-		if status != "FAIL" || !inRegions(f, account.Regions) {
+		if status != "FAIL" || !inRegions(account.Provider, f, account.Regions) {
 			continue
 		}
 		level, score := prowlerSeverity(f.Severity)
@@ -396,7 +520,7 @@ func prowlerReport(account plugin.AccountTarget, compliance string, checks []str
 			rule.HelpURI = f.Remediation.References[0]
 		}
 		for _, id := range f.Unmapped.Compliance[taxonomy] {
-			rule.Taxa = append(rule.Taxa, sarif.Taxon{Taxonomy: cisGCPTaxonomy, ID: id, Version: version})
+			rule.Taxa = append(rule.Taxa, sarif.Taxon{Taxonomy: cloud.taxonomy, ID: id, Version: version})
 		}
 		report.Rules[ruleID] = rule
 	}
@@ -419,14 +543,17 @@ func prowlerReport(account plugin.AccountTarget, compliance string, checks []str
 	return report
 }
 
-// prowlerLocation is where a finding is: the account for a finding about the project itself,
-// otherwise the resource's path when Prowler gives one, and its identifier when it does not. A
-// project's name is its display name, "draugr cloud fixture", which locates nothing.
+// prowlerLocation is where a finding is: the account for a finding about the account itself,
+// otherwise the resource's ARN on AWS, its path when Prowler gives one, and its identifier when it
+// does not. A project's name is its display name, "draugr cloud fixture", which locates nothing.
 func prowlerLocation(account plugin.AccountTarget, f ocsfFinding) string {
 	if len(f.Resources) > 0 {
 		r := f.Resources[0]
 		switch {
 		case r.UID == account.ID || (r.UID == "" && r.Name == ""):
+		case strings.HasPrefix(r.UID, "arn:"):
+			// An ARN names one resource in every AWS account and region, which a name does not.
+			return r.UID
 		case strings.Contains(r.Name, "/"):
 			return r.Name
 		case r.UID == "" || allDigits(r.UID):
@@ -443,8 +570,30 @@ func allDigits(s string) bool {
 	return s != "" && strings.Trim(s, "0123456789") == ""
 }
 
-// cisGCPTaxonomy names the benchmark a check's requirement belongs to.
-const cisGCPTaxonomy = "CIS Google Cloud Platform Foundation Benchmark"
+// awsAccountWide are the prefixes of the AWS checks about the account as a whole. Prowler files
+// their findings under the region it audited first, the profile's on a full scan and the first
+// claimed one on a narrowed scan, so their region says where Prowler asked rather than where the
+// thing is. Read from Prowler 5.48.0 runs against one account, whole and narrowed to a region: the
+// IAM, account and Organizations findings, and the CloudWatch metric-filter alarms over the
+// account's trail, moved to the narrowed region, while CloudTrail's stayed in the trail's home
+// region and are regional.
+var awsAccountWide = []string{
+	"iam_",
+	"account_",
+	"organizations_",
+	"cloudwatch_log_metric_filter_",
+	"cloudwatch_changes_",
+}
+
+// awsIsAccountWide reports whether an AWS check is about the account as a whole.
+func awsIsAccountWide(check string) bool {
+	for _, prefix := range awsAccountWide {
+		if strings.HasPrefix(check, prefix) {
+			return true
+		}
+	}
+	return false
+}
 
 // cisTaxonomy is the key Prowler files a framework's requirement IDs under in a finding, and the
 // framework's version: "CIS-5.0" and "5.0" for cis_5.0_gcp.
@@ -458,12 +607,13 @@ func cisTaxonomy(compliance string) (key, version string) {
 
 // inRegions reports whether a finding belongs to a component claiming regions: every finding when
 // it claims the whole account, and only those in a claimed region, or a zone of one, when it
-// narrows. A finding with no region, or a global or multi-region one, is the whole account's.
-func inRegions(f ocsfFinding, regions []string) bool {
+// narrows. A finding with no region, or a global or multi-region one, is the whole account's, and so
+// is an AWS finding awsAccountWide names, whatever region it carries.
+func inRegions(provider string, f ocsfFinding, regions []string) bool {
 	if len(regions) == 0 {
 		return true
 	}
-	if len(f.Resources) == 0 {
+	if len(f.Resources) == 0 || (provider == "aws" && awsIsAccountWide(f.Metadata.EventCode)) {
 		return false
 	}
 	at := strings.ToLower(f.Resources[0].Region)

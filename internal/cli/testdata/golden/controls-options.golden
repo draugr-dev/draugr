@@ -142,7 +142,7 @@ What each scanner accepts in its Saga block:
 
   prowler
     Option      Type    What it does
-    compliance  string  The Prowler compliance framework to run, such as cis_4.0_gcp. Defaults to cis_5.0_gcp. `prowler gcp --list-compliance` lists them.
+    compliance  string  The Prowler compliance framework to run, such as cis_4.0_gcp or cis_6.0_aws. It applies to the accounts of the cloud its suffix names; the others are checked against cis_5.0_gcp on Google Cloud and cis_7.0_aws on AWS. `prowler <gcp|aws> --list-compliance` lists them.
 
   retirejs
     no options, configured by choosing it; any other key is an error
