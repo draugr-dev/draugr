@@ -236,14 +236,17 @@ jq -r '.descriptor.contributed // {} | to_entries[] | "\(.key)  \(.value | join(
 
 `report.json` lists the merged descriptor's [`config.exclude`](saga-schema.md#configexclude)
 entries as `descriptor.exclusions[]`, in the order `descriptor.effective` lists them. Each entry
-names the file and line it is written at, and the last commit to change that line, as `git blame`
-names it.
+carries every field it sets, the file and line it is written at, and the last commit to change
+that line, as `git blame` names it.
 
 | Field | Meaning |
 |---|---|
 | `source` | the descriptor or fragment: the descriptor's path as `draugr scan` was given it, a local fragment's path joined to the descriptor's directory, or `<url>@<revision> <path>` for a fragment fetched from another repository, with the commit the revision resolved to in parentheses after it when the two differ |
 | `line` | the line the entry starts at |
+| `rules`, `paths` | the entry's `rules` and `paths` as written, wildcards and trailing slashes kept. Absent where the entry sets none |
 | `reason` | the entry's `reason` |
+| `expires` | the entry's `expires`, `YYYY-MM-DD`. Absent where the entry sets none |
+| `vex.status`, `vex.justification` | the entry's [`vex`](saga-schema.md#configexclude) claim. Absent where the entry makes none; `justification` is absent where the claim gives none |
 | `gitHistory.path` | the file's path in the repository that holds it. Absent where no git repository holds the file |
 | `gitHistory.commit`, `gitHistory.author`, `gitHistory.date` | the last commit to change the line, its author's name, and its author date in RFC 3339 with the author's offset. Present only where the history is reliable |
 | `gitHistory.unavailable` | why no commit is reported. Present exactly where `commit` is absent |

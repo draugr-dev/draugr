@@ -185,9 +185,9 @@ func TestRenderedReportsAccountForEachDecision(t *testing.T) {
 	}
 	html := page.String()
 	for _, want := range []string{
-		"<th scope=\"col\">Git history</th>", "<code>draugr.saga.yaml:12</code>",
-		"<td>4f2a9c1e0b3d by Ada Lovelace, 2026-09-14</td>",
-		`<span class="err">unavailable: the line is not committed</span>`,
+		`written in <code>draugr.saga.yaml:12</code>`,
+		`<dt>Last changed</dt><dd>4f2a9c1e0b3d by Ada Lovelace, 2026-09-14</dd>`,
+		`<dt>Last changed</dt><dd><span class="err">unavailable: the line is not committed</span></dd>`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("html is missing %q", want)

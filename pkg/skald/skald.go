@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -597,23 +598,41 @@ type DescriptorRef struct {
 	Exclusions []Exclusion `json:"exclusions,omitempty"`
 }
 
-// Exclusion is one config.exclude entry: the file and line it is written at, and git's record of
-// that line.
+// Exclusion is one config.exclude entry: every field it sets, the file and line it is written at,
+// and git's record of that line.
 //
 // The record of who set a finding aside is the repository's history of the line, which a reviewer
 // reads with git blame. The report carries it where the history is reliable and says why where it
 // is not, so a platform reading the report can show it without the checkout.
+//
+// The entry's own fields travel with it because a reason is only auditable against what it
+// matches: "fixtures hold fake credentials" is a claim about some paths and some rules, and a
+// reader holding the report and not the descriptor has no other way to see which.
 type Exclusion struct {
 	// Source is the descriptor or fragment, named as results.sarif's suppression `source` names it,
 	// and Line the line the entry starts at. Together they match a suppressed finding's `source`
 	// and `line`.
 	Source string `json:"source"`
 	Line   int    `json:"line,omitempty"`
+	// Rules and Paths are the entry's matchers as written, wildcards and trailing slashes kept.
+	Rules []string `json:"rules,omitempty"`
+	Paths []string `json:"paths,omitempty"`
 	// Reason is the entry's reason, so a reader can tell one entry from the next.
 	Reason string `json:"reason"`
+	// Expires is the entry's expiry date, YYYY-MM-DD, absent where it sets none.
+	Expires string `json:"expires,omitempty"`
+	// VEX is the claim the entry makes for `--report vex`, absent where it makes none.
+	VEX *ExclusionVEX `json:"vex,omitempty"`
 	// GitHistory is what `git blame` says about Line. Absent where nobody asked, as a caller
 	// building a report from a model does.
 	GitHistory *saga.LineHistory `json:"gitHistory,omitempty"`
+}
+
+// ExclusionVEX is an exclusion's `vex` block: the status it claims, and the justification from
+// VEX's vocabulary where it gives one.
+type ExclusionVEX struct {
+	Status        string `json:"status"`
+	Justification string `json:"justification,omitempty"`
 }
 
 // DescriptorSource is one file a descriptor was assembled from.
@@ -674,7 +693,13 @@ func ExclusionsFrom(rules []saga.ExcludeRule) []Exclusion {
 	}
 	out := make([]Exclusion, 0, len(rules))
 	for _, r := range rules {
-		e := Exclusion{Source: r.Source, Line: r.Line, Reason: r.Reason}
+		e := Exclusion{
+			Source: r.Source, Line: r.Line, Reason: r.Reason, Expires: r.Expires,
+			Rules: slices.Clone(r.Rules), Paths: slices.Clone(r.Paths),
+		}
+		if r.VEX != nil {
+			e.VEX = &ExclusionVEX{Status: r.VEX.Status, Justification: r.VEX.Justification}
+		}
 		if r.History != nil {
 			h := *r.History
 			e.GitHistory = &h

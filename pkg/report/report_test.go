@@ -847,7 +847,10 @@ func acceptedSection(html string) string {
 	if i < 0 {
 		return "(no Accepted section at all)"
 	}
-	end := strings.Index(html[i:], "</section>")
+	end := strings.Index(html[i:], `<details class="fold" open><summary id=`)
+	if end < 0 {
+		end = strings.Index(html[i:], "<footer")
+	}
 	if end < 0 {
 		end = len(html) - i
 	}

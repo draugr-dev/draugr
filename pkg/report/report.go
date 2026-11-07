@@ -739,6 +739,10 @@ type finding struct {
 	acceptedVia string
 	// justification is why a suppressed finding was set aside. Empty for an active finding.
 	justification string
+	// decision is decisionKey of a suppressed finding, so the HTML report lists it under the
+	// decision that covers it. recorded is recordedIn, and expires when its suppression lapses.
+	// All three empty for an active finding.
+	decision, recorded, expires string
 	// escalation is why this finding's severity was raised, if it was.
 	escalation *sarif.Escalation
 	// exploited is the KEV listing of this finding's CVE, whether or not it raised the severity.
@@ -904,7 +908,11 @@ func summarize(d Data) summary {
 					ranked:        res.RankedSeverity(),
 					acceptedVia:   acceptedVia(res),
 					justification: res.Suppression.Justification,
+					decision:      decisionKey(res),
+					recorded:      recordedIn(res),
+					expires:       res.Suppression.Expires,
 					helpURI:       rep.HelpURI(res.RuleID),
+					pkg:           res.Package,
 				})
 				continue
 			}
@@ -1778,6 +1786,11 @@ func (g GateSettings) chosen() bool {
 // decision is one acceptance: where it is written, git's record of that line, why, when it lapses,
 // and how many findings it covers.
 type decision struct {
+	// key is decisionKey of every finding this decision covers.
+	key string
+	// entry is the exclusion as the report's descriptor block records it, every field it set, nil
+	// where the block holds no entry at this file and line, as in a report built from a model.
+	entry *skald.Exclusion
 	// where is the exclusion's file and line as `file:line`, its file alone where the line is not
 	// known, or empty where the suppression names neither.
 	where string
@@ -1835,18 +1848,16 @@ func acceptedVia(res sarif.Result) string {
 // reasons a finding stopped counting, and neither is a decision anybody here recorded: counting
 // either among them answers the auditor's question with the wrong name.
 func decisions(d Data) []decision {
-	histories := exclusionHistories(d)
+	entries := exclusionEntries(d)
 	index := map[string]*decision{}
 	var order []*decision
 	for _, cr := range d.Run.Controls {
 		for _, res := range cr.Report.Results {
-			// Nor a setting, which names a kind of finding and has no line anybody wrote about this one.
-			if !res.Suppressed() || res.Imported() || res.SetAsideByScanner() || res.SetAsideBySetting() {
+			key := decisionKey(res)
+			if key == "" {
 				continue
 			}
 			sup := res.Suppression
-			where := whereWritten(sup.Source, sup.Line)
-			key := where + "\x00" + sup.Justification + "\x00" + sup.Expires
 			if got, ok := index[key]; ok {
 				got.n++
 				if !slices.Contains(got.rules, res.RuleID) && res.RuleID != "" {
@@ -1855,8 +1866,11 @@ func decisions(d Data) []decision {
 				continue
 			}
 			dec := &decision{
-				where: where, history: histories[exclusionKey{sup.Source, sup.Line}],
+				key: key, where: whereWritten(sup.Source, sup.Line),
 				reason: sup.Justification, expires: sup.Expires, n: 1,
+			}
+			if e := entries[exclusionKey{sup.Source, sup.Line}]; e != nil {
+				dec.entry, dec.history = e, e.GitHistory
 			}
 			if res.RuleID != "" {
 				dec.rules = []string{res.RuleID}
@@ -1892,16 +1906,53 @@ type exclusionKey struct {
 	line   int
 }
 
-// exclusionHistories indexes the git history the report's descriptor block carries for each
-// exclusion, by where the exclusion is written.
-func exclusionHistories(d Data) map[exclusionKey]*saga.LineHistory {
-	out := map[exclusionKey]*saga.LineHistory{}
+// decisionKey names the decision a finding was set aside by, or nothing for a finding no decision
+// of this project's set aside: an open one, a supplier's claim, a scanner's own exclusion, or a
+// setting, which names a kind of finding and has no line anybody wrote about this one.
+//
+// Where the exclusion is written, why and until when together, for the reason decisions gives. One
+// function, so a finding and the decision it is listed under cannot disagree about which that is.
+func decisionKey(res sarif.Result) string {
+	if !res.Suppressed() || res.Imported() || res.SetAsideByScanner() || res.SetAsideBySetting() {
+		return ""
+	}
+	sup := res.Suppression
+	return whereWritten(sup.Source, sup.Line) + "\x00" + sup.Justification + "\x00" + sup.Expires
+}
+
+// Where a suppression is recorded, as the Accepted tab's Recorded in menu offers it. The four
+// authorities the console's ACCEPTED block counts apart.
+const (
+	recordedExclude = "exclude"
+	recordedVEX     = "vex"
+	recordedScanner = "scanner"
+	recordedSetting = "setting"
+)
+
+// recordedIn names where a suppressed finding's suppression is recorded. A directive in the source
+// and a scanner's own ignore file are both the scanner's, as the console counts them.
+func recordedIn(res sarif.Result) string {
+	switch {
+	case res.Imported():
+		return recordedVEX
+	case res.SetAsideByScanner():
+		return recordedScanner
+	case res.SetAsideBySetting():
+		return recordedSetting
+	}
+	return recordedExclude
+}
+
+// exclusionEntries indexes the report's descriptor block by where each exclusion is written: its
+// fields as the descriptor wrote them, and git's record of its line.
+func exclusionEntries(d Data) map[exclusionKey]*skald.Exclusion {
+	out := map[exclusionKey]*skald.Exclusion{}
 	if d.Descriptor == nil {
 		return out
 	}
-	for _, e := range d.Descriptor.Exclusions {
-		if e.GitHistory != nil && e.Line > 0 {
-			out[exclusionKey{e.Source, e.Line}] = e.GitHistory
+	for i, e := range d.Descriptor.Exclusions {
+		if e.Line > 0 {
+			out[exclusionKey{e.Source, e.Line}] = &d.Descriptor.Exclusions[i]
 		}
 	}
 	return out
