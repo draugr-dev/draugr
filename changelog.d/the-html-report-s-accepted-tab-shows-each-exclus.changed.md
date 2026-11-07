@@ -1,1 +1,0 @@
-- **The HTML report's Accepted tab shows each exclusion whole.** A decision opens to every field its `config.exclude` entry sets, git's record of its line and the findings it covers. A search box and menus for priority, where a suppression is recorded and when it ends narrow both its lists, and `report.json` carries each entry's `rules`, `paths`, `expires` and `vex`.

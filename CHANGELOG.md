@@ -12,6 +12,30 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.168.0] - 2026-11-07
+
+### Added
+
+- **Each count in the HTML report's Signals section opens the findings it counts.** Following `3 findings raised` beside EPSS lists those three findings, with a token that removes the narrowing. The same holds for KEV, deprecated, malicious, the control floor and each reachability verdict.
+
+- **The scan suggests each control that is off beside one that is on.** A host with `headers` on and `tls` off, or a repository with `sca` on and `secrets` off, gets a `TRY` row with the key that turns the control on and what it finds.
+
+### Changed
+
+- **A host with `headers` and `tls` off is listed as not checked when `dast` is on.** `dast` leaves response headers and TLS to those two controls, so turning it on no longer hides the gap. Every `not-checked` caveat now reads `controls off: …`.
+
+- **`dast` skips Nuclei's intrusive templates by default, and declares its callback traffic.** Intrusive templates can write to the endpoint; `intrusive: true`, with `mutate` in `allowEffects`, runs them. Out-of-band templates contact ProjectDiscovery's public servers, now declared as a `disclosure` and skipped under `--offline` or with `interactsh: false`. The `nuclei` block also takes `rateLimit`, `concurrency`, `timeout`, `retries`, `tags`, `excludeTags` and `templates`.
+
+- **Grype findings matched only by CPE are suppressed by default.** For package types Grype has no matcher for, such as Dart and CocoaPods, Grype builds a CPE from the package name, so a package named like a product takes that product's advisories. `config.controls.sca.cpeMatches: report` counts them again.
+
+- **The HTML report's Accepted tab shows each exclusion whole.** A decision opens to every field its `config.exclude` entry sets, git's record of its line and the findings it covers. A search box and menus for priority, where a suppression is recorded and when it ends narrow both its lists, and `report.json` carries each entry's `rules`, `paths`, `expires` and `vex`.
+
+### Fixed
+
+- **A malformed package no longer stops `iac`.** When a repository's dependency files gave Trivy a package it could not convert, such as a Swift `Package.resolved` pin whose location ends in `/`, `iac` failed and every misconfiguration was lost. Draugr now removes packages from the report before converting it.
+
+- **`dast` reports an endpoint it could not reach as an error.** A host with no DNS record, a closed port or a failed handshake passed with `no findings`, because Nuclei exits 0 with no output when it cannot connect. Draugr now asks the endpoint first, and an endpoint that does not answer ends `dast` in an error naming the cause.
+
 ## [0.167.0] - 2026-11-06
 
 ### Changed
@@ -6845,7 +6869,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.167.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.168.0...HEAD
+[0.168.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.168.0
 [0.167.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.167.0
 [0.166.3]: https://github.com/draugr-dev/draugr/releases/tag/v0.166.3
 [0.166.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.166.2
