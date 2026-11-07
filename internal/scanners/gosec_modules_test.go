@@ -24,6 +24,9 @@ import (
 // no-packages.stderr its log over the module at docs/, which holds a go.mod and a hugo.toml and no
 // Go file, after which it exited 1. invalid-severity.stderr is its log from `-severity bogus`, which
 // also exits 1, standing for a module whose run fails for a reason other than holding no package.
+// no-rules.stderr is its log from `-fmt sarif -no-fail -concurrency 2 -include G101 -exclude G101`,
+// which prints its rule settings and then the reason it exits 1, the shape a failure after gosec's
+// banner takes.
 
 // gosecMain is the root module's main.go in the recorded tree.
 const gosecMain = "package main\n\nimport (\n\t\"os\"\n\t\"os/exec\"\n)\n\nfunc main() { _ = exec.Command(\"sh\", \"-c\", os.Args[1]) }\n"
@@ -276,5 +279,23 @@ func TestOnGosecModulePassesOnWhatIsNotAnExit(t *testing.T) {
 	ok := onGosecModule(func(context.Context, string, []string) ([]byte, error) { return []byte("{}"), nil })
 	if out, err := ok(context.Background(), "/repo", []string{"gosec", "/repo/..."}); err != nil || string(out) != "{}" {
 		t.Errorf("out %q, err %v, want the run's own output", out, err)
+	}
+}
+
+// A gosec failure that logs its rule settings before the reason names the reason, without gosec's
+// log prefix, in each of two repositories.
+func TestAGosecFailureNamesItsCauseAfterTheBanner(t *testing.T) {
+	trees := map[string]string{"one": gosecRepository(t, true), "two": gosecRepository(t, true)}
+	res := runGosec(t, gosecReplaying(t, trees, map[string]string{
+		"docs": "no-packages.stderr", "tools": "no-rules.stderr",
+	}))
+	errs := res.ScanErrors["sast"]
+	if len(errs) != 2 {
+		t.Fatalf("sast errors %q, want one per repository", errs)
+	}
+	for _, e := range errs {
+		if want := "run gosec over tools/go.mod: exit status 1: No rules/analyzers are configured"; e != want {
+			t.Errorf("error %q, want %q", e, want)
+		}
 	}
 }

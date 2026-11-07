@@ -1,0 +1,5 @@
+[gosec] 2026/11/07 01:09:03 Including rules: G101
+[gosec] 2026/11/07 01:09:03 Excluding rules: G101
+[gosec] 2026/11/07 01:09:03 Including analyzers: G101
+[gosec] 2026/11/07 01:09:03 Excluding analyzers: G101
+[gosec] 2026/11/07 01:09:03 No rules/analyzers are configured

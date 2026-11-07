@@ -171,13 +171,25 @@ func explain(tool string, err error) error {
 // is true of every run, and the line that ended this one comes after it at FATAL.
 func firstLine(s string) string {
 	var lines []string
+	prefixed := 0
 	for _, line := range strings.Split(s, "\n") {
-		if line = tabbed(strings.TrimSpace(ansiEscape.ReplaceAllString(line, ""))); line != "" {
+		line = strings.TrimSpace(ansiEscape.ReplaceAllString(line, ""))
+		if m := goLogPrefix.FindStringSubmatch(line); m != nil {
+			line = strings.TrimSpace(m[1])
+			prefixed++
+		}
+		if line = tabbed(line); line != "" {
 			lines = append(lines, line)
 		}
 	}
 	if len(lines) == 0 {
 		return ""
+	}
+	// A tool logging through Go's log package with a prefix, as gosec does, writes every line the
+	// same way and names no level: its settings first, `Including rules: default`, then the reason it
+	// stopped. The last line is the one that ended the run.
+	if prefixed == len(lines) {
+		return shorten(lines[len(lines)-1])
 	}
 	// A Python tool that crashed prints its traceback, and the line that says what went wrong is
 	// the last one, after the frames: "Traceback (most recent call last):" says only that it died.
@@ -381,6 +393,10 @@ func message(line string) string {
 	}
 	return line
 }
+
+// goLogPrefix is the preamble Go's log package writes with a prefix set: the bracketed tool name,
+// then the date and time, as in `[gosec] 2026/11/07 01:07:06 No rules/analyzers are configured`.
+var goLogPrefix = regexp.MustCompile(`^\[[A-Za-z0-9_.-]+\] \d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)? (.*)$`)
 
 // ansiEscape is a terminal color sequence. Grype colors its log whether or not stderr is a
 // terminal, and a color code left in the error reaches the report as literal bytes.
