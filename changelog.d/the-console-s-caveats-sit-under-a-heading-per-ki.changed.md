@@ -1,0 +1,1 @@
+- **The console's caveats sit under a heading per kind, controls and component**, as `unread-files · licenses · api`, so each row says only what and why and a block fits a terminal. When the console cuts a block short, `TRY` offers `--report html` for every row, and `--evidence` for a row that stands for several files.
