@@ -135,7 +135,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 			sev += " " + m.glyph + " " + m.label
 		}
 		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %s |%s %s | %s | %s |\n",
-			dash(f.priority), sev, ruleLink(f), f.tool, component, dash(f.location),
+			dash(f.priority), sev, ruleLink(f), f.tool, component, whereShown(f.location),
 			dash(upgradeLabel(f)), findingTitle(f))
 	}
 	if len(s.findings) > markdownTopN {

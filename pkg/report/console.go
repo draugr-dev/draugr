@@ -589,7 +589,7 @@ func renderFixFirst(w io.Writer, col tui.Painter, fs []finding, compact bool, bl
 		cells = append(cells,
 			// The same shortening the actions view has always used: one image carrying a
 			// 71-character digest would otherwise set a width every other row pays for.
-			tui.Cell{Text: dash(displayLocation(f)), URL: blobs.forFinding(f)},
+			tui.Cell{Text: whereShown(displayLocation(f)), URL: blobs.forFinding(f)},
 			tui.Styled(tui.StyleFixed, compactFix(f)))
 		if has("Summary") {
 			// The explanation on the row rather than under it. That is what this view buys: one
@@ -1291,6 +1291,20 @@ func severityColor(s sarif.Severity) tui.Style {
 	default:
 		return cLow
 	}
+}
+
+// noLocation is what a finding the scanner gave no location shows where its location would be.
+//
+// Said rather than left as a dash, because a dash reads as a value lost on the way, and the reader
+// deciding whether to open the scanner's own output needs to know the scanner wrote none.
+const noLocation = "no location from the scanner"
+
+// whereShown is a location as a reader sees it: the location, or noLocation where there is none.
+func whereShown(loc string) string {
+	if loc == "" {
+		return noLocation
+	}
+	return loc
 }
 
 func dash(s string) string {

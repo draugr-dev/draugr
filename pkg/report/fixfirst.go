@@ -131,7 +131,7 @@ func writeBlockFacts(w io.Writer, col tui.Painter, f finding, width int, withCom
 
 // writeBlockWhere is the third line: where the finding is, and anything standing behind it.
 func writeBlockWhere(w io.Writer, col tui.Painter, f finding, width int, blobs blobLinker) {
-	where := dash(displayLocation(f))
+	where := whereShown(displayLocation(f))
 	linked := col.Paint(cDim, col.Link(blobs.forFinding(f), where))
 
 	// The working behind the mark on the line above: which analyzer, which floor, what else found

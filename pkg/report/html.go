@@ -944,7 +944,7 @@ func toHTMLFinding(f finding) htmlFinding {
 		Priority: dash(f.priority), Severity: string(sev), SevClass: "sev-" + string(sev),
 		Score: scoreStr(f), RuleID: f.ruleID, Control: f.control, Tool: dash(f.tool),
 		Component: dash(f.component),
-		Location:  dash(f.location), Message: title, Full: full, HelpURI: f.helpURI,
+		Location:  whereShown(f.location), Message: title, Full: full, HelpURI: f.helpURI,
 		Upgrade:       upgradeLabel(f),
 		Fix:           fix,
 		FixKind:       kind,
