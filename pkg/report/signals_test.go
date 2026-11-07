@@ -2,6 +2,9 @@ package report
 
 import (
 	"bytes"
+	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -81,14 +84,20 @@ func TestTheHTMLSignalsSayHowEachOneMovesAFinding(t *testing.T) {
 	for _, want := range []string{
 		`<th scope="col">Signal</th><th scope="col">How it moves a finding</th><th scope="col">This run</th>`,
 		`<td><code>KEV</code></td><td class="how"><span class="moved up"><span class="g">↑</span>severity to critical</span> ` +
-			`when it is on CISA&#39;s Known Exploited Vulnerabilities catalog</td><td>1 finding listed · 1 raised</td>`,
+			`when it is on CISA&#39;s Known Exploited Vulnerabilities catalog</td><td>` +
+			`<a class="sig-go" href="#findings-h" data-sig="kev-listed" data-title="on the KEV catalog">1 finding listed</a> · ` +
+			`<a class="sig-go" href="#findings-h" data-sig="raised-kev" data-title="raised by KEV">1 raised</a></td>`,
 		`<td><code>EPSS</code></td><td class="how"><span class="moved up"><span class="g">↑</span>severity one level</span> ` +
-			`when its predicted exploitation is at or above <code>0.5</code>, this run&#39;s threshold</td><td>1 finding raised</td>`,
+			`when its predicted exploitation is at or above <code>0.5</code>, this run&#39;s threshold</td>` +
+			`<td><a class="sig-go" href="#findings-h" data-sig="raised-epss" data-title="raised by EPSS">1 finding raised</a></td>`,
 		`<td><code>floor</code></td><td class="how"><span class="moved up"><span class="g">↑</span>priority to P1</span> ` +
 			`for a leaked credential, whatever its component declares; severity unchanged</td>` +
-			`<td>1 finding raised by a control&#39;s own rule</td>`,
+			`<td><a class="sig-go" href="#findings-h" data-sig="floor" data-title="floored by a control">1 finding raised</a> by a control&#39;s own rule</td>`,
 		`<td><code>reachability</code></td><td class="how"><span class="moved down"><span class="g">↓</span>severity one level</span> ` +
-			`when analysis finds no path from your code to it</td><td>govulncheck · 2 reachable, 3 unreachable, 1 unknown</td>`,
+			`when analysis finds no path from your code to it</td><td>govulncheck · ` +
+			`<a class="sig-go" href="#findings-h" data-sig="reach-reachable-govulncheck" data-title="reachable per govulncheck">2 reachable</a>, ` +
+			`<a class="sig-go" href="#findings-h" data-sig="reach-unreachable-govulncheck" data-title="unreachable per govulncheck">3 unreachable</a>, ` +
+			`<a class="sig-go" href="#findings-h" data-sig="reach-unknown-govulncheck" data-title="unknown per govulncheck">1 unknown</a></td>`,
 		// The qualifier the console prints under the rows, which the page prints under its table.
 		`<p class="note">Unknown means no analyzer covered it. Those are ranked as reported.</p>`,
 	} {
@@ -276,7 +285,8 @@ func TestDependencyHealthIsListedWheneverItsLookupAnswered(t *testing.T) {
 		`<td><code>malicious</code></td><td class="how"><span class="moved up"><span class="g">↑</span>severity to critical</span> ` +
 			`when the package is in the OSSF Malicious Packages Project</td><td>nothing raised</td>`,
 		`<td><code>deprecated</code></td><td class="how"><span class="moved up"><span class="g">↑</span>severity one level</span> ` +
-			`when the publisher has marked the version as no longer supported</td><td>1 finding raised</td>`,
+			`when the publisher has marked the version as no longer supported</td>` +
+			`<td><a class="sig-go" href="#findings-h" data-sig="raised-deprecated" data-title="raised as deprecated">1 finding raised</a></td>`,
 	} {
 		if !strings.Contains(page.String(), want) {
 			t.Errorf("the html report is missing\n%s", want)
@@ -313,5 +323,62 @@ func TestDependencyHealthIsLeftOutWhenNothingSaysItRan(t *testing.T) {
 	}
 	if got := names(healthData(false)); got["deprecated"] != "1 finding raised" || got["malicious"] != "" {
 		t.Errorf("an unrecorded lookup that raised one finding: %v", got)
+	}
+}
+
+// Each count the Signals section links names exactly the findings that carry its key, so following
+// it lists as many findings as it says. Reachability is left out here: signalData's analyzer counts
+// are a summary with no findings behind them, and TestSignalKeys covers its keys.
+func TestEachSignalLinkNamesTheFindingsItCounts(t *testing.T) {
+	var b bytes.Buffer
+	if err := (htmlReporter{}).Render(&b, signalData(0.5)); err != nil {
+		t.Fatal(err)
+	}
+	page := b.String()
+	links := regexp.MustCompile(`<a class="sig-go" href="#findings-h" data-sig="([^"]+)" data-title="[^"]+">(\d+) `).FindAllStringSubmatch(page, -1)
+	rows := regexp.MustCompile(`<div class="f" [^>]*data-sig="([^"]*)"`).FindAllStringSubmatch(page, -1)
+	checked := 0
+	for _, l := range links {
+		if strings.HasPrefix(l[1], "reach-") {
+			continue
+		}
+		n := 0
+		for _, r := range rows {
+			if slices.Contains(strings.Fields(r[1]), l[1]) {
+				n++
+			}
+		}
+		if strconv.Itoa(n) != l[2] {
+			t.Errorf("%s says %s findings, and %d rows carry the key", l[1], l[2], n)
+		}
+		checked++
+	}
+	if checked < 4 {
+		t.Errorf("checked %d links, want KEV listed and raised, EPSS and floor: %q", checked, links)
+	}
+}
+
+func TestSignalKeys(t *testing.T) {
+	f := finding{
+		exploited:     &sarif.Match{},
+		escalation:    &sarif.Escalation{Signal: "kev"},
+		priorityFloor: "a leaked credential",
+		reachability:  &sarif.Reachability{State: sarif.ReachabilityUnreachable, Analyzer: "govulncheck"},
+	}
+	if got := strings.Join(signalKeys(f), " "); got != "kev-listed raised-kev floor reach-unreachable-govulncheck" {
+		t.Errorf("keys %q", got)
+	}
+	if got := signalKeys(finding{}); len(got) != 0 {
+		t.Errorf("a finding no signal moved carries %q", got)
+	}
+}
+
+// A link's words are escaped like the rest of the line, and a link whose words are not in the line
+// is left out rather than drawn elsewhere.
+func TestDidHTML(t *testing.T) {
+	r := signalRow{Did: "2 <b> raised", Links: []signalLink{{Text: "2 <b>", Key: `k"`, Title: "t&"}, {Text: "absent", Key: "x"}}}
+	want := `<a class="sig-go" href="#findings-h" data-sig="k&#34;" data-title="t&amp;">2 &lt;b&gt;</a> raised`
+	if got := string(r.DidHTML()); got != want {
+		t.Errorf("got %s\nwant %s", got, want)
 	}
 }

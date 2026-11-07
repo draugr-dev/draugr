@@ -2,12 +2,14 @@ package report
 
 import (
 	"fmt"
+	"html/template"
 	"strconv"
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/dephealth"
 	"github.com/draugr-dev/draugr/pkg/exploit"
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 // signalRow is one row of the Signals section: something that argued with this run's ranking, how
@@ -20,6 +22,43 @@ type signalRow struct {
 	Moves signalMove
 	// Did is what the signal did in this run, as the console prints it.
 	Did string
+	// Links are the counts in Did that name findings in the list, each with the narrowing that
+	// shows them. The HTML report makes each one a link to the findings it counts.
+	Links []signalLink
+}
+
+// signalLink is one count in a row's Did: the words as Did holds them, the key a finding carries in
+// its data-sig when the count includes it (see signalKeys), and the title of the narrowing it opens.
+type signalLink struct {
+	Text, Key, Title string
+}
+
+// didLine is one line a signal contributes to the section, and the counts in it that name findings.
+type didLine struct {
+	text  string
+	links []signalLink
+}
+
+// plainDid is a line with no count to follow.
+func plainDid(text string) didLine { return didLine{text: text} }
+
+// DidHTML is Did with each of its links drawn as a link into the findings list. A link whose words
+// are not in Did is left out rather than drawn somewhere else.
+func (r signalRow) DidHTML() template.HTML {
+	var b strings.Builder
+	rest := r.Did
+	for _, l := range r.Links {
+		i := strings.Index(rest, l.Text)
+		if i < 0 {
+			continue
+		}
+		b.WriteString(template.HTMLEscapeString(rest[:i]))
+		fmt.Fprintf(&b, `<a class="sig-go" href="#findings-h" data-sig="%s" data-title="%s">%s</a>`,
+			template.HTMLEscapeString(l.Key), template.HTMLEscapeString(l.Title), template.HTMLEscapeString(l.Text))
+		rest = rest[i+len(l.Text):]
+	}
+	b.WriteString(template.HTMLEscapeString(rest))
+	return template.HTML(b.String()) // #nosec G203 -- every piece is escaped above
 }
 
 // signalMove is how one signal moves a finding: the change, in the outlined mark a finding row
@@ -65,7 +104,7 @@ type signalKind struct {
 	moves func(d Data) signalMove
 	// did is one line per row the signal contributes, and the notes that qualify them. No lines
 	// leaves the signal out of the section.
-	did func(d Data, s summary) (did []string, notes []string)
+	did func(d Data, s summary) (did []didLine, notes []string)
 }
 
 // signalKinds is every signal the Signals section can list, in the order it lists them: the ones
@@ -83,7 +122,7 @@ var signalKinds = []signalKind{
 		},
 		did: kevDid,
 	},
-	{name: "EPSS", moves: epssMoves, did: feedDid(exploit.SignalEPSS)},
+	{name: "EPSS", moves: epssMoves, did: feedDid(exploit.SignalEPSS, "raised by EPSS")},
 	{
 		// Named as a finding's mark names them, so a reader can match the row to the marks it counts.
 		name: "malicious",
@@ -91,7 +130,7 @@ var signalKinds = []signalKind{
 			return signalMove{Up: true, Change: "severity to critical",
 				Condition: "when the package is in the OSSF Malicious Packages Project"}
 		},
-		did: healthDid(dephealth.SignalMalicious),
+		did: healthDid(dephealth.SignalMalicious, "raised as malicious"),
 	},
 	{
 		name: "deprecated",
@@ -99,7 +138,7 @@ var signalKinds = []signalKind{
 			return signalMove{Up: true, Change: "severity one level",
 				Condition: "when the publisher has marked the version as no longer supported"}
 		},
-		did: healthDid(dephealth.SignalDeprecated),
+		did: healthDid(dephealth.SignalDeprecated, "raised as deprecated"),
 	},
 	{
 		name: "floor",
@@ -135,7 +174,7 @@ func signals(d Data, s summary) (rows []signalRow, notes []string) {
 	for _, k := range signalKinds {
 		did, n := k.did(d, s)
 		for _, line := range did {
-			rows = append(rows, signalRow{Name: k.name, Moves: k.moves(d), Did: line})
+			rows = append(rows, signalRow{Name: k.name, Moves: k.moves(d), Did: line.text, Links: line.links})
 		}
 		notes = append(notes, n...)
 	}
@@ -146,13 +185,13 @@ func signals(d Data, s summary) (rows []signalRow, notes []string) {
 //
 // "nothing raised" is a result rather than an absence. Without it the only way to learn a feed
 // changed nothing is to read every finding looking for a mark that is not there.
-func feedDid(name string) func(Data, summary) ([]string, []string) {
-	return func(d Data, s summary) ([]string, []string) {
+func feedDid(name, title string) func(Data, summary) ([]didLine, []string) {
+	return func(d Data, s summary) ([]didLine, []string) {
 		n := s.bySignal[name]
 		if n == 0 && !consulted(d, name) {
 			return nil, nil
 		}
-		return []string{raisedCount(n, "")}, nil
+		return []didLine{raisedLine(n, "", raisedKey(name), title)}, nil
 	}
 }
 
@@ -162,30 +201,33 @@ func feedDid(name string) func(Data, summary) ([]string, []string) {
 // Listed first because a listed finding's fix comes first in its band whether or not KEV raised
 // it, and one the scanner already rated critical raises nothing. A count of raised findings alone
 // reads "nothing raised" over a run whose most urgent finding is on the catalog.
-func kevDid(d Data, s summary) ([]string, []string) {
+func kevDid(d Data, s summary) ([]didLine, []string) {
 	// A finding KEV raised is one it lists, so a raise is never counted without a listing.
 	if s.onKEV == 0 {
 		if !consulted(d, exploit.SignalKEV) {
 			return nil, nil
 		}
-		return []string{"nothing listed"}, nil
+		return []didLine{plainDid("nothing listed")}, nil
 	}
-	line := english.Count(s.onKEV, "finding") + " listed"
-	if raised := s.bySignal[exploit.SignalKEV]; raised > 0 {
-		line += fmt.Sprintf(" · %d raised", raised)
+	listed := english.Count(s.onKEV, "finding") + " listed"
+	line := didLine{text: listed, links: []signalLink{{Text: listed, Key: signalKeyKEVListed, Title: "on the KEV catalog"}}}
+	if n := s.bySignal[exploit.SignalKEV]; n > 0 {
+		raised := fmt.Sprintf("%d raised", n)
+		line.text += " · " + raised
+		line.links = append(line.links, signalLink{Text: raised, Key: raisedKey(exploit.SignalKEV), Title: "raised by KEV"})
 	}
-	return []string{line}, nil
+	return []didLine{line}, nil
 }
 
 // healthDid is what one of dependency health's two signals did: listed whenever the lookup answered,
 // for the reason a feed is listed when it raised nothing.
-func healthDid(signal string) func(Data, summary) ([]string, []string) {
-	return func(d Data, s summary) ([]string, []string) {
+func healthDid(signal, title string) func(Data, summary) ([]didLine, []string) {
+	return func(d Data, s summary) ([]didLine, []string) {
 		n := s.bySignal[signal]
 		if n == 0 && !healthConsulted(d) {
 			return nil, nil
 		}
-		return []string{raisedCount(n, "")}, nil
+		return []didLine{raisedLine(n, "", raisedKey(signal), title)}, nil
 	}
 }
 
@@ -202,19 +244,21 @@ func healthConsulted(d Data) bool {
 
 // floorDid is what the control floor did: listed whenever a control that declares one ran, for the
 // reason a feed is listed when it raised nothing.
-func floorDid(d Data, s summary) ([]string, []string) {
+func floorDid(d Data, s summary) ([]didLine, []string) {
 	if s.floored == 0 && !floorApplied(d) {
 		return nil, nil
 	}
-	return []string{raisedCount(s.floored, " by a control's own rule")}, nil
+	return []didLine{raisedLine(s.floored, " by a control's own rule", signalKeyFloor, "floored by a control")}, nil
 }
 
-// raisedCount is a signal's count in the words every row uses.
-func raisedCount(n int, by string) string {
+// raisedLine is a signal's count in the words every row uses, with the count linked to the findings
+// it names. Nothing raised names none, and links nowhere.
+func raisedLine(n int, by, key, title string) didLine {
 	if n == 0 {
-		return "nothing raised"
+		return plainDid("nothing raised")
 	}
-	return fmt.Sprintf("%s raised%s", english.Count(n, "finding"), by)
+	count := english.Count(n, "finding") + " raised"
+	return didLine{text: count + by, links: []signalLink{{Text: count, Key: key, Title: title}}}
 }
 
 // floorApplied reports whether a control that declares a context floor ran in this run.
@@ -228,12 +272,32 @@ func floorApplied(d Data) bool {
 }
 
 // reachabilityDid is a row per analyzer that ran, and the note that qualifies them.
-func reachabilityDid(d Data, _ summary) ([]string, []string) {
+//
+// Each verdict's count links to the findings the analyzer gave that verdict.
+func reachabilityDid(d Data, _ summary) ([]didLine, []string) {
 	rows, notes := reachabilityBlock(d)
-	did := make([]string, 0, len(rows))
+	did := make([]didLine, 0, len(rows))
+	byName := map[string]AnalyzerCounts{}
+	for _, a := range d.Run.Reachability.Analyzers {
+		byName[a.Analyzer] = AnalyzerCounts{a.Reachable, a.Unreachable, a.Unknown}
+	}
 	for _, row := range rows {
 		analyzer, said, _ := strings.Cut(row, "  ")
-		did = append(did, strings.TrimSpace(analyzer)+" · "+strings.TrimSpace(said))
+		analyzer = strings.TrimSpace(analyzer)
+		line := didLine{text: analyzer + " · " + strings.TrimSpace(said)}
+		c := byName[analyzer]
+		for _, v := range []struct {
+			n     int
+			state sarif.ReachabilityState
+		}{{c.Reachable, sarif.ReachabilityReachable}, {c.Unreachable, sarif.ReachabilityUnreachable}, {c.Unknown, sarif.ReachabilityUnknown}} {
+			if v.n == 0 {
+				continue
+			}
+			words := fmt.Sprintf("%d %s", v.n, v.state)
+			line.links = append(line.links, signalLink{Text: words, Key: reachKey(v.state, analyzer),
+				Title: fmt.Sprintf("%s per %s", v.state, analyzer)})
+		}
+		did = append(did, line)
 	}
 	return did, notes
 }
@@ -261,4 +325,42 @@ func epssMoves(d Data) signalMove {
 		}
 	}
 	return m
+}
+
+// AnalyzerCounts is one analyzer's verdicts in this run, by state.
+type AnalyzerCounts struct{ Reachable, Unreachable, Unknown int }
+
+// The keys a finding carries in the HTML report's data-sig, one for each count in the Signals
+// section that includes it, so a count followed from there narrows the list to exactly those.
+const (
+	signalKeyKEVListed = "kev-listed"
+	signalKeyFloor     = "floor"
+)
+
+// raisedKey is the key of a finding a signal raised.
+func raisedKey(signal string) string { return "raised-" + signal }
+
+// reachKey is the key of a finding an analyzer gave a verdict.
+func reachKey(state sarif.ReachabilityState, analyzer string) string {
+	return "reach-" + string(state) + "-" + analyzer
+}
+
+// signalKeys is every key a finding carries, counted as the Signals section counts: on the KEV
+// catalog whether or not that raised it, raised by the signal its escalation names, floored by a
+// control, and the verdict an analyzer gave it.
+func signalKeys(f finding) []string {
+	var keys []string
+	if f.exploited != nil {
+		keys = append(keys, signalKeyKEVListed)
+	}
+	if f.escalation != nil {
+		keys = append(keys, raisedKey(f.escalation.Signal))
+	}
+	if f.priorityFloor != "" {
+		keys = append(keys, signalKeyFloor)
+	}
+	if r := f.reachability; r != nil {
+		keys = append(keys, reachKey(r.State, r.Analyzer))
+	}
+	return keys
 }
