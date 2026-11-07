@@ -1,0 +1,47 @@
+project: options-nuclei
+release:
+  version: "1.0"
+config:
+  allowEffects: [mutate]
+  controls:
+    dast:
+      enabled: true
+components:
+  - name: default
+    repositories:
+      - url: ./options-nuclei
+    hosts:
+      - name: site
+        url: http://127.0.0.1:18080
+  - name: intrusive
+    hosts:
+      - name: site
+        url: http://127.0.0.1:18080
+    controls:
+      dast:
+        nuclei:
+          intrusive: true
+  - name: exclude
+    hosts:
+      - name: site
+        url: http://127.0.0.1:18080
+    controls:
+      dast:
+        nuclei:
+          excludeTags: [sealed-extra]
+  - name: tagged
+    hosts:
+      - name: site
+        url: http://127.0.0.1:18080
+    controls:
+      dast:
+        nuclei:
+          tags: [sealed-extra]
+  - name: custom
+    hosts:
+      - name: site
+        url: http://127.0.0.1:18080
+    controls:
+      dast:
+        nuclei:
+          templates: [./custom/sealed-custom.yaml]

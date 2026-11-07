@@ -33,11 +33,17 @@ func TestNucleiInfo(t *testing.T) {
 	}
 }
 
+// A block that sets nothing skips the headers templates, which the headers control owns, and the
+// intrusive ones, which need intrusive: true.
 func TestNucleiArgv(t *testing.T) {
-	got := nucleiArgv("https://app.example.com", "")
+	options, err := nucleiOptionArgs(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := nucleiArgv("https://app.example.com", "", options)
 	want := []string{
 		"nuclei", "-u", "https://app.example.com",
-		"-jsonl", "-silent", "-nc", "-duc", "-etags", "headers",
+		"-jsonl", "-silent", "-nc", "-duc", "-etags", "headers,intrusive",
 	}
 	if len(got) != len(want) {
 		t.Fatalf("argv = %v, want %v", got, want)
@@ -597,7 +603,7 @@ func TestNucleiProvenanceNamesTheVariableNotTheValue(t *testing.T) {
 }
 
 func TestNucleiSpecArgv(t *testing.T) {
-	argv := nucleiSpecArgv("/tmp/prepared.yaml", "")
+	argv := nucleiSpecArgv("/tmp/prepared.yaml", "", nil)
 	for _, want := range [][2]string{{"-l", "/tmp/prepared.yaml"}, {"-im", "openapi"}} {
 		i := slices.Index(argv, want[0])
 		if i < 0 || argv[i+1] != want[1] {

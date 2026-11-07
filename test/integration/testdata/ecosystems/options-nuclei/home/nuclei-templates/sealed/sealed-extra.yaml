@@ -1,0 +1,18 @@
+id: sealed-extra
+
+info:
+  name: Sealed fixture marker at /extra
+  author: draugr
+  severity: low
+  description: The page carries the marker the sealed fixture plants at /extra.
+  tags: sealed-extra
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/extra"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "sealed-extra-marker"

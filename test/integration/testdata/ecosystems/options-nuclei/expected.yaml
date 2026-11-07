@@ -1,0 +1,73 @@
+# nuclei's options, one component each, beside a default component, all against the sealed server.
+# The template set in home/nuclei-templates/sealed holds three templates, tagged sealed-plain,
+# sealed-extra and intrusive, each matching a page in served/.
+#
+# - default runs sealed-plain and sealed-extra, and skips intrusive, which is excluded by default.
+# - intrusive sets intrusive: true, which the descriptor's allowEffects accepts, and runs all three.
+# - exclude adds sealed-extra to the exclusions and runs sealed-plain alone.
+# - tagged selects sealed-extra and runs it alone.
+# - custom names one template file from workdir/ and runs it instead of the set. A file, because
+#   Nuclei's flag parser reads an existing file given to -t as a list of paths unless Draugr quotes
+#   it, so this is the case that proves the quoting.
+proves: [nuclei.intrusive, nuclei.excludeTags, nuclei.tags, nuclei.templates]
+
+initScan:
+  skip: the options proves names are the subject, and init writes none of them
+
+init:
+  controls: [iac, sast, sca, secrets]
+  components:
+    - name: options-nuclei
+      repositories: ["."]
+
+requests:
+  - GET /plain
+  - GET /extra
+  - GET /intrusive
+  - GET /custom
+
+findings:
+  - control: dast
+    tool: nuclei
+    rule: sealed-plain
+    location: http://127.0.0.1:18080/plain
+    component: default
+  - control: dast
+    tool: nuclei
+    rule: sealed-extra
+    location: http://127.0.0.1:18080/extra
+    component: default
+
+  - control: dast
+    tool: nuclei
+    rule: sealed-plain
+    location: http://127.0.0.1:18080/plain
+    component: intrusive
+  - control: dast
+    tool: nuclei
+    rule: sealed-extra
+    location: http://127.0.0.1:18080/extra
+    component: intrusive
+  - control: dast
+    tool: nuclei
+    rule: sealed-intrusive
+    location: http://127.0.0.1:18080/intrusive
+    component: intrusive
+
+  - control: dast
+    tool: nuclei
+    rule: sealed-plain
+    location: http://127.0.0.1:18080/plain
+    component: exclude
+
+  - control: dast
+    tool: nuclei
+    rule: sealed-extra
+    location: http://127.0.0.1:18080/extra
+    component: tagged
+
+  - control: dast
+    tool: nuclei
+    rule: sealed-custom
+    location: http://127.0.0.1:18080/custom
+    component: custom

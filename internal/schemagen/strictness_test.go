@@ -42,6 +42,7 @@ var openStrings = map[string]string{
 	"$defs.control_licenses.properties.trivyLicense.properties.deny.items":                                               "a license identifier, SPDX or as a scanner reports it",
 	"$defs.control_licenses.properties.trivyLicense.properties.warn.items":                                               "a license identifier, SPDX or as a scanner reports it",
 	"$defs.control_sast.properties.gosec.properties.tags.items":                                                          "a Go build tag the project defines",
+	"$defs.control_dast.properties.nuclei.properties.templates.items":                                                    "a path to a Nuclei template file or directory the organization writes",
 	"$defs.control_provenance.properties.signers.items.properties.name":                                                  "the name somebody gave one of their signers",
 	"$defs.fragmentControls.properties.provenance.properties.signers.items.properties.name":                              "the name somebody gave one of their signers",
 	"$defs.control_provenance.properties.signers.items.properties.images.items":                                          "an image reference, with * matching a run of characters",

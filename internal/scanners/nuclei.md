@@ -21,8 +21,10 @@ Runs Nuclei against each running host URL and converts its findings to SARIF. Th
 is:
 
 ```
-nuclei -u <url> -jsonl -silent -nc -duc -etags headers
+nuclei -u <url> -jsonl -silent -nc -duc -etags headers,intrusive
 ```
+
+followed by the flags any [options](#options) set.
 
 - `-jsonl` writes one finding per line to stdout, which Draugr parses itself (rather than
   Nuclei's SARIF export, whose severity mapping, location, and missing CWE don't fit Draugr's
@@ -31,11 +33,12 @@ nuclei -u <url> -jsonl -silent -nc -duc -etags headers
 - `-duc` disables the update-check network call, keeping runs deterministic. **Only on the
   scan.** On `nuclei -update-templates` the same flag disables the update itself, the command
   exits 0, downloads nothing, and leaves you with an engine and no templates.
-- `-etags headers` **excludes header-tagged templates** so the native
-  [`headers`](../controllers/headers.md) control owns HTTP security-header findings, `dast`
-  covers what `headers` doesn't (exposures, misconfigurations, info disclosure, outdated
-  libraries, default creds). Only `headers` is excluded; never `http`, which would suppress
-  almost every template.
+- `-etags headers,intrusive` excludes two tags. `headers` templates are left to the native
+  [`headers`](../controllers/headers.md) control, so `dast` covers what `headers` does not
+  (exposures, misconfigurations, info disclosure, outdated libraries, default creds). `intrusive`
+  templates can change the endpoint, and run only with
+  [`intrusive: true`](#intrusive-templates). Never `http`, which would suppress almost every
+  template.
 
 Each finding maps to a SARIF result: `template-id` → rule id; `matched-at` (falling back to
 `host`) → location; `info.name` + description + any CWEs → message; and `info.severity` sets
@@ -61,6 +64,108 @@ To fetch them by hand, useful on an air-gapped runner, or to see why an automati
 nuclei -update-templates      # not -duc; that cancels it
 nuclei -templates-version     # a blank version means none are installed
 ```
+
+## Options
+
+Set under `config.controls.dast.nuclei`, or under a component's own `controls.dast.nuclei`.
+
+```yaml
+config:
+  controls:
+    dast:
+      enabled: true
+      nuclei:
+        rateLimit: 50
+        timeout: 30s
+        excludeTags: [wordpress]
+        interactsh: false
+```
+
+| Option | Flag | Accepts | Default |
+|---|---|---|---|
+| `rateLimit` | `-rl` | requests per second, 1 to 10000 | 150 |
+| `concurrency` | `-c` | templates run at once, 1 to 1000 | 25 |
+| `timeout` | `-timeout` | wait per response, whole seconds from `1s` to `10m` | `10s` |
+| `retries` | `-retries` | resends of a failed request, 0 to 10 | 1 |
+| `tags` | `-tags` | run only the templates carrying one of these tags | every template |
+| `excludeTags` | `-etags` | tags to skip, added to `headers` and `intrusive` | none |
+| `templates` | `-t` | template files or directories, run instead of the community set | the community set |
+| `interactsh` | `-ni` when `false` | `false` skips the templates that need an out-of-band callback | `true` |
+| `intrusive` | removes `intrusive` from `-etags` | see [Intrusive templates](#intrusive-templates) | `false` |
+
+Tags are lowercase. Nuclei lowercases a tag and splits a value on commas, so the schema refuses
+both. An unset option passes no flag, and Nuclei's own default applies.
+
+**`tags` cannot undo an exclusion.** `headers` in `tags` is refused, because the `headers` control
+runs those checks. `intrusive` in `tags` is refused unless `intrusive: true` is set. A tag listed in
+both `tags` and `excludeTags` is refused, because Nuclei would select those templates and then skip
+every one of them. In Nuclei 3.11.1 only `-itags` and `-it` lift an `-etags` exclusion, and Draugr
+passes neither.
+
+**`excludeTags` adds to the built-in exclusions.** `headers` stays excluded whatever the list says,
+and `intrusive` stays excluded until `intrusive: true`.
+
+**`templates` replaces the community set**, and the tag exclusions still apply to it. Nuclei
+matches `-etags` against every template it loads, including those named with `-t`. A template you
+write that changes the endpoint therefore needs the `intrusive` tag; without the tag, nothing tells
+Draugr or Nuclei what it does. Each path resolves relative to where Draugr runs. A URL is refused,
+because Nuclei would download it.
+
+**`interactsh: false`** passes `-ni`. A template that needs an out-of-band callback makes the
+endpoint call one of Nuclei's public interactsh servers (`oast.pro`, `oast.live`, `oast.site`,
+`oast.online`, `oast.fun`, `oast.me`), and Nuclei polls that server for the call. Behind an egress
+allowlist that admits none of those hosts, those templates cannot report anything. `false` skips
+them and contacts none of the servers.
+
+Out of scope, each for its own reason:
+
+- `-s` and `-es` filter findings by severity, which [no scanner option may
+  do](../../docs/reference/saga-schema.md).
+- `-itags` and `-it` lift an exclusion, so they would run `headers` or `intrusive` templates past
+  the refusals above.
+- `-fr` makes every HTTP template follow redirects, which can send probe traffic to a host the
+  descriptor does not name.
+- `-p` puts a proxy URL, often holding a credential, in the process list.
+- `-mt` stops the scan at a deadline and exits as if it had finished, so a partial scan would read
+  as a complete one.
+- `-code`, `-headless`, `-dast` and `-lfa` run commands on the machine running Draugr, drive a
+  browser, fuzz every parameter or read local files.
+- `-jsonl`, `-silent`, `-nc`, `-duc` and `-H` keep the output parseable, the run deterministic and
+  the credential out of argv.
+
+## Intrusive templates
+
+Nuclei tags a template `intrusive` when it does more than read, and several of those templates
+write to the endpoint. `put-method-enabled` uploads a file with `PUT` and checks whether it stays;
+`mingyu-xmlrpc-sock-adduser` adds a user. Nuclei's own ignore list skips `dos`, `fuzz`,
+`bruteforce`, `local` and `txt-service`, and lets the `intrusive` templates run. Draugr adds
+`intrusive` to `-etags`, so a default `dast` run skips them.
+
+`intrusive: true` runs them. The job then declares the `mutate` effect, and the run stops before
+any request unless the descriptor accepts it:
+
+```yaml
+config:
+  allowEffects: [mutate]
+  controls:
+    dast:
+      enabled: true
+      nuclei:
+        intrusive: true
+```
+
+A run without `mutate` accepted is refused at plan time, here for a component named `api`:
+
+```
+dast/api/nuclei: this scanner has an effect that has not been accepted: mutate (runs the templates
+tagged intrusive, some of which change the endpoint, such as creating a user or uploading a file
+with PUT). Add it to config.allowEffects in your Saga, or pass --allow-effects mutate
+```
+
+The effect belongs to each job whose block sets the option, so only a component that sets
+`intrusive: true` needs `mutate` accepted. The scan's provenance records `intrusive`, with any
+`tags`, `excludeTags`, `templates` and `interactsh: false`, so a report says which templates ran.
+Run it against an environment you can restore.
 
 
 ## Scanning from an OpenAPI specification
@@ -190,11 +295,11 @@ them rather than reusing them.
 
 - Integration mode: **exec**. Install the pinned build with `draugr tools install nuclei`;
   `draugr doctor` checks for it when the `dast` control is enabled.
-- Templates are prewarmed once per run (`nuclei -update-templates -duc`) before the concurrent
-  host fan-out, so parallel scans don't each cold-start the download. This is best-effort, a
-  failure is non-fatal and resurfaces at scan time.
-- **Active/attack scanning stays out of scope**. `dast` runs Nuclei's default (safe) template
-  set. Intrusive testing is a deliberate, authorized opt-in, never a default gate.
+- Templates are prewarmed once per run (`nuclei -update-templates`, without `-duc`) before the
+  concurrent host fan-out, so parallel scans don't each cold-start the download. This is
+  best-effort, a failure is non-fatal and resurfaces at scan time.
+- A default run skips the `intrusive` templates. [`intrusive: true`](#intrusive-templates) runs
+  them, per component, and needs `mutate` accepted. Fuzzing (`-dast`) stays out of scope.
 - The control can be served by another engine without changing anything that calls it, which is
   what the scanner boundary is for.
 
@@ -204,3 +309,8 @@ The **template set**, from `github.com`. Warmed once before the jobs fan out, be
 republished daily and it is the template version rather than the binary that decides what a scan
 finds. A populated template directory is read without asking, which is how an offline runner is
 prepared.
+
+**Nuclei's public interactsh servers**, `oast.pro`, `oast.live`, `oast.site`, `oast.online`,
+`oast.fun` and `oast.me`, by a scan that loads an out-of-band template, which the community set
+holds, unless [`interactsh: false`](#options) is set. Nuclei polls one of them, and the template
+makes the endpoint call it.

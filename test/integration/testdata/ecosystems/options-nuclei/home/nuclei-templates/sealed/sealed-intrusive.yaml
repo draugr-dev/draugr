@@ -1,0 +1,18 @@
+id: sealed-intrusive
+
+info:
+  name: Sealed fixture marker at /intrusive
+  author: draugr
+  severity: medium
+  description: The page carries the marker the sealed fixture plants at /intrusive. Tagged intrusive so a default scan skips it; it sends a GET like the others.
+  tags: intrusive
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/intrusive"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "sealed-intrusive-marker"
