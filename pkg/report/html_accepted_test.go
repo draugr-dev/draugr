@@ -119,7 +119,7 @@ func TestTheAcceptedTabDrawsOneRowPerDecision(t *testing.T) {
 		}
 	}
 	// The bands of the findings each decision covers, and none on an entry that covers nothing.
-	for _, want := range []string{`<span class="sev s-p1">2 P1</span>`, `<span class="sev s-p2">1 P2</span>`, `<span class="sev s-p3 off">0 P3</span>`} {
+	for _, want := range []string{`<span class="sev s-p1">2 P1</span>`, `<span class="sev s-p2">1 P2</span>`, `<span class="sev s-p3 zero">0 P3</span>`} {
 		if !strings.Contains(rows[0], want) {
 			t.Errorf("the first decision's bands are missing %s", want)
 		}
