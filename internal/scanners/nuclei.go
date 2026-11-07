@@ -36,7 +36,7 @@ type nucleiScanner struct {
 	templates *nucleiTemplateWarmer
 	// reach checks the endpoint answers before Nuclei runs (see nucleiReach). Nil skips the check,
 	// for a test that fakes run against an address nothing listens on.
-	reach func(ctx context.Context, url string) error
+	reach func(ctx context.Context, url, header string) error
 }
 
 // NewNuclei returns a Scanner that runs Nuclei for the "dast" control. Nuclei is a single Go
@@ -73,7 +73,8 @@ func NewNuclei() plugin.Scanner {
 // nucleiReachTimeout bounds the check that the endpoint answers.
 const nucleiReachTimeout = 15 * time.Second
 
-// nucleiReach sends one GET to the endpoint and reports whether anything answered.
+// nucleiReach sends one GET to the endpoint, with the scan's header line where it has one, and
+// reports whether anything answered.
 //
 // Nuclei exits 0 and writes nothing when it cannot reach its target: a name with no DNS record, a
 // port nothing listens on, a handshake that fails. Its empty output is then the same bytes as a
@@ -86,12 +87,15 @@ const nucleiReachTimeout = 15 * time.Second
 // after it: Nuclei does not verify certificates and speaks older TLS than this client offers, so an
 // internal service with a self-signed certificate is one it scans, and a handshake failing here
 // says nothing about whether Nuclei reaches it.
-func nucleiReach(ctx context.Context, url string) error {
+func nucleiReach(ctx context.Context, url, header string) error {
 	ctx, cancel := context.WithTimeout(ctx, nucleiReachTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err
+	}
+	if name, value, ok := strings.Cut(header, ":"); ok {
+		req.Header.Set(strings.TrimSpace(name), strings.TrimSpace(value))
 	}
 	var connected atomic.Bool
 	var dialer net.Dialer
@@ -274,14 +278,16 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, _ plugin.
 			return sarif.Report{}, fmt.Errorf("nuclei has no templates: %w", err)
 		}
 	}
-	if s.reach != nil {
-		if err := s.reach(ctx, host.URL); err != nil {
-			return sarif.Report{}, fmt.Errorf("nuclei: %s did not answer, so nothing was scanned: %w", host.URL, err)
-		}
-	}
 	header, err := authHeader(host.Auth)
 	if err != nil {
 		return sarif.Report{}, err
+	}
+	// After the credential is resolved, so a scan that cannot authenticate sends nothing at all, and
+	// with it, so a scan that can sends no anonymous request either.
+	if s.reach != nil {
+		if err := s.reach(ctx, host.URL, header); err != nil {
+			return sarif.Report{}, fmt.Errorf("nuclei: %s did not answer, so nothing was scanned: %w", host.URL, err)
+		}
 	}
 	var headerFile string
 	if header != "" {

@@ -24,7 +24,7 @@ func TestNucleiRefusesAnEndpointThatDidNotAnswer(t *testing.T) {
 			ran = append(ran, argv[2])
 			return []byte(`{"template-id":"t","matched-at":"https://shop.example/a","info":{"name":"T","severity":"high"}}`), nil
 		},
-		reach: func(_ context.Context, url string) error {
+		reach: func(_ context.Context, url, _ string) error {
 			if url == gone {
 				return cause
 			}
@@ -78,7 +78,7 @@ func TestNucleiReach(t *testing.T) {
 		"a redirect to nothing":     redirect.URL,
 		"a self-signed certificate": tlsSrv.URL,
 	} {
-		if err := nucleiReach(context.Background(), url); err != nil {
+		if err := nucleiReach(context.Background(), url, ""); err != nil {
 			t.Errorf("%s: %v, want it to count as an answer", name, err)
 		}
 	}
@@ -86,8 +86,38 @@ func TestNucleiReach(t *testing.T) {
 		"a closed port": closed,
 		"no scheme":     "::not a url",
 	} {
-		if err := nucleiReach(context.Background(), url); err == nil {
+		if err := nucleiReach(context.Background(), url, ""); err == nil {
 			t.Errorf("%s: counted as an answer", name)
 		}
+	}
+}
+
+// The probe carries the scan's credential, so an authenticated scan sends no anonymous request.
+func TestNucleiReachSendsTheHeader(t *testing.T) {
+	var got string
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { got = r.Header.Get("Authorization") }))
+	t.Cleanup(srv.Close)
+	if err := nucleiReach(context.Background(), srv.URL, "Authorization: Bearer aaaa"); err != nil {
+		t.Fatal(err)
+	}
+	if got != "Bearer aaaa" {
+		t.Errorf("Authorization = %q", got)
+	}
+}
+
+// A credential that cannot be resolved stops the scan before the probe, so nothing is sent.
+func TestNucleiSendsNothingWithoutItsCredential(t *testing.T) {
+	t.Setenv("DRAUGR_TOKEN_ENVS", "DRAUGR_TEST_ABSENT")
+	t.Setenv("DRAUGR_TEST_ABSENT", "")
+	probed := false
+	s := nucleiScanner{
+		info:  NewNuclei().Info(),
+		run:   func(context.Context, []string) ([]byte, error) { t.Error("nuclei ran"); return nil, nil },
+		reach: func(context.Context, string, string) error { probed = true; return nil },
+	}
+	_, err := s.Scan(context.Background(), plugin.HostTarget{URL: "https://shop.example",
+		Auth: &plugin.HostAuth{Kind: "bearer", TokenEnv: "DRAUGR_TEST_ABSENT"}}, nil) // #nosec G101 -- the name of an environment variable, which is the point: no credential is expressible here
+	if err == nil || probed {
+		t.Errorf("err %v, probed %v: want an error and no request", err, probed)
 	}
 }
