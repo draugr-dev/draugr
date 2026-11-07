@@ -378,6 +378,9 @@ type htmlFinding struct {
 	// Movement is every mark standing on the finding, as space-separated keys from movements, which
 	// the Movement menu matches against. MovedLabel names one of them, and this holds them all.
 	Movement string
+	// Signals is every key from signalKeys the finding carries, space-separated, which a count
+	// followed from the Signals section narrows the list to.
+	Signals string
 	// HelpURI documents the rule. Rendered as a link because this is the one format where a
 	// link costs nothing, and a rule id names a finding without explaining it.
 	HelpURI string
@@ -708,6 +711,7 @@ func toHTMLFinding(f finding) htmlFinding {
 		MovedLabel:    label,
 		MovedDir:      dir,
 		Movement:      strings.Join(movements(f), " "),
+		Signals:       strings.Join(signalKeys(f), " "),
 		AcceptedVia:   f.acceptedVia,
 		Justification: f.justification,
 		ActionKey:     actionKeyFor(f),
@@ -1736,7 +1740,7 @@ the component is, so the same issue ranks differently on a public API than on an
 <p class="note">What argued with this run's ranking, and how many findings each one moved.</p>
 <table class="provenance signals">
 <thead><tr><th scope="col">Signal</th><th scope="col">How it moves a finding</th><th scope="col">This run</th></tr></thead>
-{{range .Signals}}<tr><td><code>{{.Name}}</code></td><td class="how"><span class="moved {{.Moves.Dir}}"><span class="g">{{.Moves.Glyph}}</span>{{.Moves.Change}}</span> {{.Moves.Condition}}{{with .Moves.Value}} <code>{{.}}</code>{{end}}{{.Moves.Rest}}</td><td>{{.Did}}</td></tr>{{end}}
+{{range .Signals}}<tr><td><code>{{.Name}}</code></td><td class="how"><span class="moved {{.Moves.Dir}}"><span class="g">{{.Moves.Glyph}}</span>{{.Moves.Change}}</span> {{.Moves.Condition}}{{with .Moves.Value}} <code>{{.}}</code>{{end}}{{.Moves.Rest}}</td><td>{{.DidHTML}}</td></tr>{{end}}
 </table>
 {{range .SignalNotes}}<p class="note">{{.}}</p>{{end}}
 </details>
@@ -1927,7 +1931,7 @@ what it would have found. For each scanner's whole output, re-run with
 {{if .Findings}}
 {{template "listbar"}}
 <div class="rows" id="findings">
-{{range .Findings}}<div class="f" data-p="{{.Priority}}" data-s="{{.Severity}}" data-movement="{{.Movement}}" data-c="{{.Control}}" data-m="{{.Component}}" data-fix="{{.FixKind}}" data-sc="{{.Tool}}" data-a="{{.ActionKey}}" data-q="{{.Search}}">
+{{range .Findings}}<div class="f" data-p="{{.Priority}}" data-s="{{.Severity}}" data-movement="{{.Movement}}" data-sig="{{.Signals}}" data-c="{{.Control}}" data-m="{{.Component}}" data-fix="{{.FixKind}}" data-sc="{{.Tool}}" data-a="{{.ActionKey}}" data-q="{{.Search}}">
   <span class="chips"><span class="pri {{.Priority}}">{{.Priority}}</span><span class="sevchip {{.SevClass}}">{{.Severity}}</span></span>
   <div class="what">
     {{if .Full}}<details class="more"><summary class="rule">{{template "rule" .}}<span class="hint" aria-hidden="true">more</span></summary><p class="full">{{.Full}}</p></details>
@@ -2313,7 +2317,7 @@ what it would have found. For each scanner's whole output, re-run with
   // A narrowing set by following an action rather than by a menu. Held apart from the menus
   // because it is not a dimension somebody browses: it is one row of the fix list, and the way
   // out of it is the token it leaves in the row above.
-  var state = { q: "", act: "", actTitle: "", open: false, cap: {}, size: 50 };
+  var state = { q: "", act: "", actTitle: "", sig: "", sigTitle: "", open: false, cap: {}, size: 50 };
   try { state.size = Number(localStorage.getItem("draugr-report-page-size")) || 50; } catch (e) { /* the default */ }
 
   function ticked(d) {
@@ -2336,8 +2340,9 @@ what it would have found. For each scanner's whole output, re-run with
   }
   function searched(r) { return !state.q || r.d.q.indexOf(state.q) >= 0; }
   function inAction(r) { return !state.act || r.d.a === state.act; }
+  function inSignal(r) { return !state.sig || (" " + (r.d.sig || "") + " ").indexOf(" " + state.sig + " ") >= 0; }
   function narrowed() {
-    return state.q || state.act || dims.some(function (d) { return ticked(d).length; });
+    return state.q || state.act || state.sig || dims.some(function (d) { return ticked(d).length; });
   }
 
   function closeMenus() {
@@ -2414,6 +2419,18 @@ what it would have found. For each scanner's whole output, re-run with
       window.scrollTo(0, 0);
     });
     return a;
+  });
+
+  // A count in the Signals section is the way into the findings it counts. Following it opens the
+  // list narrowed to them, and the token it leaves is how a reader gets back. The link's address
+  // opens the Findings section, so it still goes somewhere without this.
+  Array.prototype.forEach.call(document.querySelectorAll("a.sig-go"), function (el) {
+    el.addEventListener("click", function () {
+      state.sig = el.dataset.sig;
+      state.sigTitle = el.dataset.title || "";
+      showView("all");
+      reset();
+    });
   });
 
   // The count over each list, the page size beside it, and paging in the panel's foot.
@@ -2498,12 +2515,12 @@ what it would have found. For each scanner's whole output, re-run with
   }
 
   function render() {
-    rows.forEach(function (r) { r.ok = passes(r) && searched(r) && inAction(r); });
+    rows.forEach(function (r) { r.ok = passes(r) && searched(r) && inAction(r) && inSignal(r); });
     // Under a narrowing each action says how many of its findings are left, and one with none
     // left goes. A search that names the action keeps all of its findings.
     acts.forEach(function (a) {
       var titled = state.q && a.title.indexOf(state.q) >= 0, n = 0;
-      (byAct[a.key] || []).forEach(function (r) { if (passes(r) && (titled || searched(r))) n++; });
+      (byAct[a.key] || []).forEach(function (r) { if (passes(r) && inSignal(r) && (titled || searched(r))) n++; });
       a.ok = n > 0;
       a.count.textContent = (n === a.total ? "" : n + " of ") + counted(a.total, "finding");
     });
@@ -2544,6 +2561,9 @@ what it would have found. For each scanner's whole output, re-run with
         if (b.checked) token(name.toLowerCase(), "Stop filtering by " + name, function () { b.checked = false; });
       });
     });
+    if (state.sig) {
+      token(state.sigTitle, "Show every finding again", function () { state.sig = ""; state.sigTitle = ""; });
+    }
     if (state.act) {
       token(state.actTitle.toLowerCase(), "Show every finding again", function () { state.act = ""; state.actTitle = ""; });
     }
@@ -2559,7 +2579,7 @@ what it would have found. For each scanner's whole output, re-run with
       clear.addEventListener("click", function () {
         dims.forEach(function (d) { d.boxes.forEach(function (b) { b.checked = false; }); });
         q.value = "";
-        state.q = state.act = state.actTitle = "";
+        state.q = state.act = state.actTitle = state.sig = state.sigTitle = "";
         reset();
       });
       tokenBox.appendChild(clear);

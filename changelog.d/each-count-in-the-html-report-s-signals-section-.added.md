@@ -1,0 +1,1 @@
+- **Each count in the HTML report's Signals section opens the findings it counts.** Following `3 findings raised` beside EPSS lists those three findings, with a token that removes the narrowing. The same holds for KEV, deprecated, malicious, the control floor and each reachability verdict.
