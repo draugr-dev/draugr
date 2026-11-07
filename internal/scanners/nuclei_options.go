@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -22,9 +23,10 @@ import (
 // these to run. Running them is the `intrusive` option, which declares the mutate effect so that a
 // run has to accept it.
 const (
-	nucleiHeadersTag   = "headers"
-	nucleiIntrusiveTag = "intrusive"
-	nucleiIntrusiveKey = "intrusive"
+	nucleiHeadersTag    = "headers"
+	nucleiIntrusiveTag  = "intrusive"
+	nucleiIntrusiveKey  = "intrusive"
+	nucleiInteractshKey = "interactsh"
 )
 
 // nucleiConfigSchema is the JSON Schema for the nuclei block (controllers.dast.nuclei).
@@ -91,7 +93,7 @@ const nucleiConfigSchema = `{
     "interactsh": {
       "type": "boolean",
       "default": true,
-      "description": "Run the templates that detect out-of-band callbacks. They have the endpoint contact Nuclei's public interactsh servers (oast.pro, oast.live, oast.site, oast.online, oast.fun, oast.me), and Nuclei polls them. false skips those templates and contacts none of them."
+      "description": "Whether to run the templates that need Nuclei's public callback servers (oast.pro, oast.live, oast.site, oast.online, oast.fun, oast.me). false skips them and contacts none of the servers."
     }
   }
 }`
@@ -192,7 +194,9 @@ func nucleiOptionArgs(cfg plugin.Config) ([]string, error) {
 		args = append(args, "-timeout", strconv.Itoa(int(d/time.Second)))
 	}
 
-	if on, set := cfg["interactsh"].(bool); set && !on {
+	// Offline, the callback templates are skipped too: registering with the servers and polling
+	// them is the network an offline run does not use.
+	if on, set := cfg[nucleiInteractshKey].(bool); (set && !on) || netpolicy.Offline() {
 		args = append(args, "-ni")
 	}
 	return args, nil
@@ -216,8 +220,7 @@ func nucleiTemplateArg(path string) (string, error) {
 		return "", fmt.Errorf("nuclei: templates: %q is a URL; templates are read from disk, so "+
 			"download it beside the descriptor and name the file", path)
 	case strings.ContainsAny(path, "'\"`"):
-		return "", fmt.Errorf("nuclei: templates: %q holds a quote, which Nuclei's flag parser cannot "+
-			"take in a path", path)
+		return "", fmt.Errorf("nuclei: templates: %q holds a quote; rename the file or directory without one", path)
 	}
 	return "'" + absPath(path) + "'", nil
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
@@ -346,17 +347,31 @@ type Effect struct {
 	// not have the effect. Declared here rather than decided inside the scanner, so a listing can
 	// say which option turns it on before any descriptor is read.
 	Option string
+	// Default is the Option's value where the config leaves it unset: true for an option that is on
+	// unless somebody turns it off.
+	Default bool
+	// Online marks an effect that happens only by reaching the internet, which a run under
+	// --offline does not do, so an offline job does not have it.
+	Online bool
 }
 
 // EffectsFor is the effects a job of the scanner described by info has under cfg: every effect
-// with no Option, and each one whose Option cfg sets to true.
+// with no Option, and each one whose Option is true, as cfg sets it or as its Default leaves it,
+// less any Online effect when this process is offline.
 func EffectsFor(info ScannerInfo, cfg Config) []Effect {
 	var out []Effect
 	for _, e := range info.Effects {
 		if e.Option != "" {
-			if on, _ := cfg[e.Option].(bool); !on {
+			on, set := cfg[e.Option].(bool)
+			if !set {
+				on = e.Default
+			}
+			if !on {
 				continue
 			}
+		}
+		if e.Online && netpolicy.Offline() {
+			continue
 		}
 		out = append(out, e)
 	}

@@ -223,8 +223,7 @@ config:
     #   enabled: true                                # sends real requests to a live endpoint, so
     #   nuclei:                                      # point it at staging and nothing else
     #     enabled: true
-    #     rateLimit: 50                              # requests per second, 150 by default. Lower
-    #                                                # it for a service that sheds load
+    #     rateLimit: 50                              # requests per second, 150 by default
     #     concurrency: 10                            # templates run at once, 25 by default
     #     timeout: 30s                               # per response, 10s by default, in whole
     #                                                # seconds
@@ -235,8 +234,7 @@ config:
     #     templates: [.draugr/nuclei]                # your own templates instead of the community
     #                                                # set, relative to where Draugr runs
     #     interactsh: false                          # skip the templates that need a callback to
-    #                                                # Nuclei's public oast.* servers, for an
-    #                                                # endpoint behind an egress allowlist
+    #                                                # Nuclei's public oast.* servers
     #     intrusive: true                            # also run the templates tagged intrusive,
     #                                                # some of which write to the endpoint. Needs
     #                                                # mutate in allowEffects

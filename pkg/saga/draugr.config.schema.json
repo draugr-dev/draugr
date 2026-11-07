@@ -60,7 +60,7 @@
             },
             "interactsh": {
               "default": true,
-              "description": "Run the templates that detect out-of-band callbacks. They have the endpoint contact Nuclei's public interactsh servers (oast.pro, oast.live, oast.site, oast.online, oast.fun, oast.me), and Nuclei polls them. false skips those templates and contacts none of them.",
+              "description": "Whether to run the templates that need Nuclei's public callback servers (oast.pro, oast.live, oast.site, oast.online, oast.fun, oast.me). false skips them and contacts none of the servers.",
               "type": "boolean"
             },
             "intrusive": {

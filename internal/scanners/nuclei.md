@@ -37,8 +37,7 @@ followed by the flags any [options](#options) set.
   [`headers`](../controllers/headers.md) control, so `dast` covers what `headers` does not
   (exposures, misconfigurations, info disclosure, outdated libraries, default creds). `intrusive`
   templates can change the endpoint, and run only with
-  [`intrusive: true`](#intrusive-templates). Never `http`, which would suppress almost every
-  template.
+  [`intrusive: true`](#intrusive-templates).
 
 Each finding maps to a SARIF result: `template-id` → rule id; `matched-at` (falling back to
 `host`) → location; `info.name` + description + any CWEs → message; and `info.severity` sets
@@ -117,21 +116,8 @@ endpoint call one of Nuclei's public interactsh servers (`oast.pro`, `oast.live`
 allowlist that admits none of those hosts, those templates cannot report anything. `false` skips
 them and contacts none of the servers.
 
-Out of scope, each for its own reason:
-
-- `-s` and `-es` filter findings by severity, which [no scanner option may
-  do](../../docs/reference/saga-schema.md).
-- `-itags` and `-it` lift an exclusion, so they would run `headers` or `intrusive` templates past
-  the refusals above.
-- `-fr` makes every HTTP template follow redirects, which can send probe traffic to a host the
-  descriptor does not name.
-- `-p` puts a proxy URL, often holding a credential, in the process list.
-- `-mt` stops the scan at a deadline and exits as if it had finished, so a partial scan would read
-  as a complete one.
-- `-code`, `-headless`, `-dast` and `-lfa` run commands on the machine running Draugr, drive a
-  browser, fuzz every parameter or read local files.
-- `-jsonl`, `-silent`, `-nc`, `-duc` and `-H` keep the output parseable, the run deterministic and
-  the credential out of argv.
+Nuclei's `-code`, `-headless`, `-dast` and `-lfa` run commands on the machine running Draugr,
+drive a browser, fuzz every parameter or read local files, and are not options.
 
 ## Intrusive templates
 
@@ -302,6 +288,21 @@ them rather than reusing them.
   them, per component, and needs `mutate` accepted. Fuzzing (`-dast`) stays out of scope.
 - The control can be served by another engine without changing anything that calls it, which is
   what the scanner boundary is for.
+
+## What is sent
+
+Unless [`interactsh: false`](#options) is set or the run is `--offline`, Nuclei registers with one
+of ProjectDiscovery's public interactsh servers, `oast.pro`, `oast.live`, `oast.site`,
+`oast.online`, `oast.fun` or `oast.me`, and polls it for the length of the scan. The out-of-band
+templates put a hostname under that server into their requests. An endpoint that acts on one makes
+a DNS lookup or an HTTP, SMTP or LDAP request to it, and the server receives that request with its
+source address, headers and body. The interactsh
+[README](https://github.com/projectdiscovery/interactsh) describes the servers as "AES encryption
+with zero logging". Nothing from the repository or the descriptor is sent.
+
+ProjectDiscovery publishes no terms of use or privacy notice for the public servers, and says they
+may change or go down at any time. An organization that needs either runs its own
+`interactsh-server` or sets `interactsh: false`.
 
 ## Data
 

@@ -199,8 +199,10 @@ func TestEffectsModeAsksWhenAnyComponentPlansAnEffect(t *testing.T) {
 	if !needsApproval(ScanEffects, p) {
 		t.Fatalf("a plan with dast against a host should ask: %+v", p)
 	}
-	if len(p.effects) != 1 || !strings.HasPrefix(p.effects[0], "nuclei (network)") {
-		t.Errorf("effects = %v, want the one nuclei declares", p.effects)
+	// The probe traffic, and the out-of-band callbacks interactsh: false would turn off.
+	if len(p.effects) != 2 || !strings.HasPrefix(p.effects[0], "nuclei (disclosure)") ||
+		!strings.HasPrefix(p.effects[1], "nuclei (network)") {
+		t.Errorf("effects = %v, want the two nuclei declares", p.effects)
 	}
 	if p.components != 2 {
 		t.Errorf("components = %d, want 2", p.components)

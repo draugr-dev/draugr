@@ -535,7 +535,7 @@ misspelled setting. Each produced a descriptor that claimed a decision it was no
 | `semgrep` | `config`, a registry ref, path or URL |
 | `gitleaks` | `config`, a rules file shared across repositories; `history`, scan commit history too, keeping findings whose path is inside the component's [`paths` and `ignore`](#scoping-a-repository) and reporting a secret still in the tree once, as the tree finding |
 | `virustotal` | `requestsPerMinute` |
-| `nuclei` | `intrusive`, run the templates tagged intrusive, declares [`mutate`](../../internal/scanners/nuclei.md#intrusive-templates); `rateLimit`, `concurrency`, `timeout`, `retries`; `tags`, `excludeTags`, added to `headers` and `intrusive`; `templates`, paths to your own; `interactsh`, `false` skips the templates that need Nuclei's public callback servers |
+| `nuclei` | `intrusive`, run the templates that may write to the endpoint, declares [`mutate`](../../internal/scanners/nuclei.md#intrusive-templates); `rateLimit`, `concurrency`, `timeout`, `retries`, the scan's pace; `tags`, `excludeTags`, `templates`, which templates run; `interactsh`, the callback templates. [Options](../../internal/scanners/nuclei.md#options) |
 | `draugr-headers`, `draugr-k8s-policies`, `urlhaus`, `retirejs`, `cosign`, `notation` | `enabled` only |
 
 

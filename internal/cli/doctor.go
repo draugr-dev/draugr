@@ -903,6 +903,9 @@ var disclosedTo = map[string]struct{ Host, What, Option string }{
 	"mend-licenses": {"$MEND_URL", "learns the dependency inventory", ""},
 	"cosign":        {"rekor.sigstore.dev", "learns an image digest, for a signature with no inclusion proof", ""},
 	"notation":      {},
+	"nuclei": {"oast.*",
+		"oast.pro, oast.live, oast.site, oast.online, oast.fun and oast.me learn where each out-of-band " +
+			"callback came from and what it sent, unless interactsh: false", "interactsh"},
 	"trivy-fs": {"repo.maven.apache.org",
 		"learns each Maven dependency's coordinates, with resolveMaven: true", "resolveMaven"},
 }

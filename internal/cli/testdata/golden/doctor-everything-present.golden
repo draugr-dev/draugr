@@ -21,6 +21,7 @@ trivy        ✓ found  0.76.1   /somewhere/trivy
 NETWORK  (besides its targets · --offline stops all of it)
   draugr scan
     dast        github.com                 template set · before the scan
+                oast.*                     oast.pro, oast.live, oast.site, oast.online, oast.fun and oast.me learn where each out-of-band callback came from and what it sent, unless interactsh: false
     iac         mirror.gcr.io              checks bundle · before the scan
     images      ghcr.io                    vulnerability database · before the scan
                 grype.anchore.io           vulnerability database · before the scan

@@ -57,6 +57,14 @@ func NewNuclei() plugin.Scanner {
 				Option: nucleiIntrusiveKey,
 				Detail: "runs the templates tagged intrusive, some of which change the endpoint, " +
 					"such as creating a user or uploading a file with PUT",
+			}, {
+				Kind:    plugin.EffectDisclosure,
+				Option:  nucleiInteractshKey,
+				Default: true,
+				Online:  true,
+				Detail: "the templates that detect out-of-band callbacks have the endpoint contact " +
+					"ProjectDiscovery's public interactsh servers, which see where each callback came " +
+					"from and what it sent",
 			}},
 		},
 		run:       execArgv,

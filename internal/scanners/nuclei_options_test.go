@@ -72,6 +72,7 @@ func TestNucleiOptionsBecomeFlags(t *testing.T) {
 // Unset options pass no flag, so Nuclei's own defaults apply, and interactsh: true is the default
 // rather than a flag.
 func TestNucleiUnsetOptionsPassNoFlag(t *testing.T) {
+	t.Setenv("DRAUGR_OFFLINE", "0")
 	for name, cfg := range map[string]plugin.Config{
 		"nil":             nil,
 		"empty":           {},
@@ -252,8 +253,10 @@ func TestNucleiSchemaUsesTheSharedPatterns(t *testing.T) {
 	}
 }
 
-// A job declares mutate only where its block sets intrusive: true.
-func TestNucleiDeclaresMutateOnlyWithIntrusive(t *testing.T) {
+// A job declares mutate only where its block sets intrusive: true, and disclosure unless its block
+// sets interactsh: false or the run is offline.
+func TestNucleiDeclaresItsEffectsByOption(t *testing.T) {
+	t.Setenv("DRAUGR_OFFLINE", "0")
 	info := NewNuclei().Info()
 	kinds := func(cfg plugin.Config) []plugin.EffectKind {
 		var out []plugin.EffectKind
@@ -262,17 +265,36 @@ func TestNucleiDeclaresMutateOnlyWithIntrusive(t *testing.T) {
 		}
 		return out
 	}
-	for name, cfg := range map[string]plugin.Config{
-		"unset": nil, "false": {"intrusive": false}, "tags only": {"tags": []any{"cve"}},
-		"templates only": {"templates": []any{"./t"}},
+	network, disclosure, mutate := plugin.EffectNetwork, plugin.EffectDisclosure, plugin.EffectMutate
+	for name, c := range map[string]struct {
+		cfg  plugin.Config
+		want []plugin.EffectKind
+	}{
+		"unset":            {nil, []plugin.EffectKind{network, disclosure}},
+		"intrusive false":  {plugin.Config{"intrusive": false}, []plugin.EffectKind{network, disclosure}},
+		"tags only":        {plugin.Config{"tags": []any{"cve"}}, []plugin.EffectKind{network, disclosure}},
+		"templates only":   {plugin.Config{"templates": []any{"./t"}}, []plugin.EffectKind{network, disclosure}},
+		"intrusive true":   {plugin.Config{"intrusive": true}, []plugin.EffectKind{network, mutate, disclosure}},
+		"interactsh false": {plugin.Config{"interactsh": false}, []plugin.EffectKind{network}},
 	} {
-		if got := kinds(cfg); !slices.Equal(got, []plugin.EffectKind{plugin.EffectNetwork}) {
-			t.Errorf("%s: effects = %v, want network alone", name, got)
+		if got := kinds(c.cfg); !slices.Equal(got, c.want) {
+			t.Errorf("%s: effects = %v, want %v", name, got, c.want)
 		}
 	}
-	if got := kinds(plugin.Config{"intrusive": true}); !slices.Equal(got,
-		[]plugin.EffectKind{plugin.EffectNetwork, plugin.EffectMutate}) {
-		t.Errorf("intrusive: true: effects = %v, want network and mutate", got)
+	t.Setenv("DRAUGR_OFFLINE", "1")
+	if got := kinds(nil); !slices.Equal(got, []plugin.EffectKind{network}) {
+		t.Errorf("offline: effects = %v, want network alone", got)
+	}
+}
+
+// Offline, the callback templates are skipped whatever interactsh says.
+func TestNucleiSkipsCallbacksOffline(t *testing.T) {
+	t.Setenv("DRAUGR_OFFLINE", "1")
+	for _, cfg := range []plugin.Config{nil, {"interactsh": true}} {
+		args, err := nucleiOptionArgs(cfg)
+		if err != nil || !slices.Contains(args, "-ni") {
+			t.Errorf("%v: args %v (%v), want -ni", cfg, args, err)
+		}
 	}
 }
 
