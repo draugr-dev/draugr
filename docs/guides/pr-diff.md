@@ -470,6 +470,11 @@ step; see [Azure Pipelines](azure-pipelines.md#a-sticky-comment). GitLab needs a
 scope, because the `CI_JOB_TOKEN` in every job cannot post notes; see [reports &
 publishers](reports-and-publishers.md#gitlab).
 
+GitHub gives a fork's pull request a read-only `GITHUB_TOKEN`, so the comment cannot be posted there,
+and `--publish` then exits non-zero after reporting the gate. The [Action](github-action.md) leaves
+`--publish` off for a fork and writes the diff to the job summary. A workflow that runs `draugr
+diff` itself passes the flag only when `github.event.pull_request.head.repo.fork` is false.
+
 The diff keeps its **own** sticky comment, separate from the one a Saga's PR-comment publisher
 maintains. A pipeline can run both, the state of the branch, and what this pull request changed, and
 get two comments rather than one overwriting the other.
