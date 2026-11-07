@@ -103,6 +103,14 @@ on a `provided` or `system` dependency is marked `provided`, which
 [`trivy-fs`](trivy-fs.md) reports none of these dependencies, because Trivy's pom parser leaves them
 out.
 
+**Draugr marks a match Grype made only through a CPE.** For a package type with no matcher of its
+own, such as `dart-pub` and `pod`, Grype matches a CPE built from the package's name and version, so
+a package named like a product takes that product's advisories. Draugr reads the match details from
+Grype's JSON report and marks a finding whose every match is such a CPE match `cpe`, which
+`config.controls.sca.cpeMatches` decides; see
+[CPE matches](../../docs/reference/saga-schema.md#cpe-matches). A binary Grype identified by its
+contents is not marked.
+
 **One scan per repository.** A component may hold several, and each is scanned and attributed
 separately, findings from two repositories that share a path stay two findings.
 

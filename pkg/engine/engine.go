@@ -625,6 +625,10 @@ type Result struct {
 	// config.controls.sca.providedDependencies set aside, apart from Suppressed for the reason
 	// DevDependencies is.
 	ProvidedDependencies int
+	// CPEMatches counts findings a scanner matched only through a CPE that a component's
+	// config.controls.sca.cpeMatches set aside, apart from Suppressed for the reason DevDependencies
+	// is.
+	CPEMatches int
 	// VEX is the supplier documents this run read, with what each contributed. Present even when
 	// a document excused nothing, which is the case worth seeing: a document matching no finding
 	// looks exactly like one that was never configured.
@@ -1730,6 +1734,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// After both, so a finding somebody decided about keeps their reason rather than the setting's.
 	res.DevDependencies = e.applyDevDependencies(res.Controls, model)
 	res.ProvidedDependencies = e.applyProvidedDependencies(res.Controls, model)
+	res.CPEMatches = e.applyCPEMatches(res.Controls, model)
 	// Last, so exclusions and supplier claims match exactly what they matched before a second
 	// scanner was added, and a decision about a flaw reaches every scanner's copy of it.
 	correlated, alsoSuppressed := applyCorrelation(res.Controls)

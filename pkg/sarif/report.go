@@ -364,6 +364,12 @@ type Package struct {
 	// against and left out of what is packaged. False where the manifest puts it on the
 	// application's own classpath, and where nothing read the manifest's scope.
 	Provided bool `json:"provided,omitempty"`
+	// CPEMatch says the scanner matched the package to the advisory only through a CPE, a product
+	// identifier it built from the package's name and version, and found no advisory for the package
+	// in its own ecosystem. A package named like a product then inherits that product's advisories at
+	// whatever version it carries. False where any match of the finding used the package's ecosystem,
+	// and on a binary the scanner identified by its contents, where the CPE is the only identifier.
+	CPEMatch bool `json:"cpeMatch,omitempty"`
 }
 
 // Escalation records that exploitability data raised a finding's severity, and on what grounds.
@@ -677,6 +683,10 @@ const JustificationDevDependency = "development dependency"
 // JustificationProvidedByRuntime is the reason recorded on a finding that
 // config.controls.sca.providedDependencies set aside.
 const JustificationProvidedByRuntime = "provided by the runtime"
+
+// JustificationCPEMatch is the reason recorded on a finding that config.controls.sca.cpeMatches set
+// aside.
+const JustificationCPEMatch = "matched by CPE only"
 
 // Suppressed reports whether this finding was excluded, by a Saga rule or by an imported claim.
 func (r Result) Suppressed() bool { return r.Suppression != nil }

@@ -117,6 +117,7 @@ var optionExceptions = map[string]string{
 	"mend-licenses.warn":           "Mend is a hosted service; the sealed tier has no network",
 	"virustotal.requestsPerMinute": "VirusTotal is a hosted API; the sealed tier has no network",
 	"prowler.compliance":           "Prowler reads a live cloud account; the sealed tier has no network",
+	"sca.cpeMatches":               "the sealed Grype database holds no CPE entries; internal/scanners' TestCPEOnlyMatchesAreSuppressedByDefault proves it on Grype 0.121.0's recorded output; https://github.com/draugr-dev/draugr/issues/1837",
 
 	"trivy.dbRepository":    "a database mirror is fetched over the network, and the sealed tier writes the database in place",
 	"trivy-fs.dbRepository": "a database mirror is fetched over the network, and the sealed tier writes the database in place",

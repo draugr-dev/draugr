@@ -514,8 +514,8 @@ value rather than a block (`gosec: true` enables nothing, because only a block i
 misspelled setting. Each produced a descriptor that claimed a decision it was not making.
 
 `licenses` takes settings of its own, `deny` and `warn`, and `sca` takes
-[`devDependencies`](#development-dependencies) and
-[`providedDependencies`](#provided-dependencies).
+[`devDependencies`](#development-dependencies),
+[`providedDependencies`](#provided-dependencies) and [`cpeMatches`](#cpe-matches).
 
 **Which scanners take options, and which take only `enabled`:**
 
@@ -613,6 +613,43 @@ dependencies out, so their findings come from `grypeFs`. A dependency with no sc
 the one the same pom's `dependencyManagement` gives it. A scope the pom leaves to a parent POM or an
 imported BOM is not read, and the dependency is counted as one the application ships. An
 `<optional>true</optional>` dependency is on the application's own classpath and is counted.
+
+The suppression's `origin` is `setting` and its `source` is the key that decided, as for
+development dependencies.
+
+### CPE matches
+
+`config.controls.sca.cpeMatches` decides whether a finding Grype matched only through a CPE counts.
+A CPE is a product identifier, such as `cpe:2.3:a:ffmpeg:ffmpeg:0.0.1`. For a package type with no
+matcher of its own, such as Dart's `dart-pub` and CocoaPods' `pod`, Grype builds a CPE from the
+package's name and version and matches it against advisories for the product of that name. A package
+named like a product then takes that product's advisories, whatever it is. A project's own Dart
+package named `ffmpeg` gets every FFmpeg advisory, and the `Flutter` pod a Flutter app holds at
+version `1.0.0` gets the Flutter SDK's.
+
+| Value | Each finding matched only by CPE |
+|---|---|
+| `suppress`, the default | Stays in the report and in `report.json`, suppressed with the reason `matched by CPE only`, and out of the counts and the gate |
+| `report` | Is counted, with `cpe` beside its package |
+
+```yaml
+config:
+  controls:
+    sca:
+      cpeMatches: report       # count findings Grype matched only by CPE
+components:
+  - name: mobile
+    controls:
+      sca:
+        cpeMatches: suppress   # replaces the project's setting for this component
+```
+
+A finding is matched only by CPE when every match Grype made for it is a CPE match by its stock
+matcher, the one it uses for a package type with no matcher of its own. A finding Grype matched in
+the package's own ecosystem, such as a Dart advisory for a `pubspec.lock` package, is counted. A
+binary Grype identified by its contents keeps its CPE matches, because the CPE is the only
+identifier it has. A package type with a matcher of its own is matched by CPE only where Grype's
+configuration turns that on, and its findings are counted.
 
 The suppression's `origin` is `setting` and its `source` is the key that decided, as for
 development dependencies.

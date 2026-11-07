@@ -348,7 +348,30 @@ func grypeMatchPackage(m grypeMatch) sarif.Package {
 		FixedVersion: strings.Join(m.Vulnerability.Fix.Versions, ","),
 		Ecosystem:    m.Artifact.Type,
 		PURL:         m.Artifact.PURL,
+		CPEMatch:     grypeCPEOnly(m),
 	}
+}
+
+// grypeCPEOnly reports whether Grype made a match only through a CPE: every detail of it is a
+// cpe-match by the stock matcher, on a package that is not a binary.
+//
+// The stock matcher is the one Grype falls back to for a package type with no matcher of its own,
+// such as Dart's dart-pub and CocoaPods' pod, and it matches by CPE by default. A CPE is built from
+// the package's name, so a project's own package named after what it wraps, or the Flutter pod
+// every Flutter app holds at version 1.0.0, inherits every advisory of the product it is named
+// like. A package type with its own matcher matches by CPE only where somebody turned that on in
+// Grype's configuration, and is left as Grype reported it. A binary Grype identified by its
+// contents has no other identifier, so its CPE match is the only one it can make.
+func grypeCPEOnly(m grypeMatch) bool {
+	if len(m.MatchDetails) == 0 || m.Artifact.Type == "binary" {
+		return false
+	}
+	for _, d := range m.MatchDetails {
+		if d.Type != "cpe-match" || d.Matcher != "stock-matcher" {
+			return false
+		}
+	}
+	return true
 }
 
 // withGrypeMatchPackages writes onto each result of Grype's SARIF the package of the match it
@@ -471,9 +494,14 @@ func (x grypeMatchIndex) find(ruleID, message, uri string) (sarif.Package, []str
 	}
 	pkg, aliases := grypeMatchPackage(best[0]), grypeMatchAliases(best[0])
 	for _, m := range best[1:] {
-		if grypeMatchPackage(m) != pkg {
+		// The same package matched two ways is one package, matched by CPE only if every match was.
+		other := grypeMatchPackage(m)
+		cpe := pkg.CPEMatch && other.CPEMatch
+		pkg.CPEMatch, other.CPEMatch = false, false
+		if other != pkg {
 			return sarif.Package{}, nil, false
 		}
+		pkg.CPEMatch = cpe
 		if !slices.Equal(grypeMatchAliases(m), aliases) {
 			aliases = nil
 		}

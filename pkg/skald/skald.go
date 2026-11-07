@@ -277,6 +277,9 @@ type findingReport struct {
 	// into, as its pom.xml declares it in provided or system scope. Absent on a dependency the
 	// application ships and wherever no manifest said.
 	Provided bool `json:"provided,omitempty"`
+	// CPEMatch says the scanner matched the finding's package to the advisory only through a CPE
+	// built from its name and version. Absent wherever any match used the package's own ecosystem.
+	CPEMatch bool `json:"cpeMatch,omitempty"`
 	// Suppressed says a config.exclude rule set this finding aside, with the reason somebody gave.
 	//
 	// Kept in the list rather than filtered out of it, which is what "suppress, don't delete"
@@ -1149,6 +1152,7 @@ func toFinding(control string, res sarif.Result) findingReport {
 		Historical:    res.Historical,
 		Dev:           res.Package != nil && res.Package.Dev,
 		Provided:      res.Package != nil && res.Package.Provided,
+		CPEMatch:      res.Package != nil && res.Package.CPEMatch,
 	}
 }
 

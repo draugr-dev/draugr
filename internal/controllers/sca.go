@@ -37,7 +37,7 @@ const (
 	scaControl = "sca"
 	// devDependenciesKey decides whether the findings in development dependencies count.
 	devDependenciesKey = "devDependencies"
-	// devSuppress and devReport are its two values, and providedDependencies'.
+	// devSuppress and devReport are its two values, and providedDependencies' and cpeMatches'.
 	devSuppress = "suppress"
 	devReport   = "report"
 	// includeDevDepsKey is trivy-fs's deprecated spelling of devDependencies: true is report.
@@ -45,10 +45,12 @@ const (
 	// providedDependenciesKey decides whether the findings in dependencies the runtime provides
 	// count.
 	providedDependenciesKey = "providedDependencies"
+	// cpeMatchesKey decides whether the findings a scanner matched only through a CPE count.
+	cpeMatchesKey = "cpeMatches"
 )
 
-// scaOptionSchema describes devDependencies and providedDependencies where they sit, under the
-// control.
+// scaOptionSchema describes devDependencies, providedDependencies and cpeMatches where they sit,
+// under the control.
 //
 // The control's rather than a scanner's, because the answer is the same whichever scanner found
 // the flaw: a development dependency Grype reported takes its mark from Trivy's copy of the same
@@ -74,6 +76,15 @@ var scaOptionSchema = json.RawMessage(`{
         { "const": "report", "description": "Each finding in a dependency the runtime provides is counted, marked provided." }
       ],
       "description": "Whether findings in provided and system dependencies, which the runtime supplies, count. A component's setting replaces the project's."
+    },
+    "cpeMatches": {
+      "type": "string",
+      "default": "suppress",
+      "anyOf": [
+        { "const": "suppress", "description": "Each finding matched only by CPE stays in the report, suppressed with the reason matched by CPE only, and out of the counts and the gate. The default." },
+        { "const": "report", "description": "Each finding matched only by CPE is counted, marked cpe." }
+      ],
+      "description": "Whether findings Grype matched only through a CPE built from the package's name, on a package type it has no matcher for, such as dart-pub and pod, count. A component's setting replaces the project's."
     }
   }
 }`)
@@ -82,16 +93,29 @@ var scaOptionSchema = json.RawMessage(`{
 // that decided it: the component's setting first, then the project's, and with neither written the
 // default, suppress, named by the project's key.
 func (SCA) ReportsProvidedDependencies(model saga.Model, component string) (bool, string) {
-	project := "config.controls." + scaControl + "." + providedDependenciesKey
+	return scaSetting(model, component, providedDependenciesKey)
+}
+
+// scaSetting resolves one of the control's suppress-or-report settings for one component, and names
+// the key that decided it: the component's setting first, then the project's, and with neither
+// written the default, suppress, named by the project's key.
+func scaSetting(model saga.Model, component, key string) (bool, string) {
+	project := "config.controls." + scaControl + "." + key
 	if comp := componentNamed(model, component); comp != nil {
-		if v, written := comp.Controls[scaControl][providedDependenciesKey].(string); written {
-			return v == devReport, fmt.Sprintf("components[%q].controls.%s.%s", comp.Name, scaControl, providedDependenciesKey)
+		if v, written := comp.Controls[scaControl][key].(string); written {
+			return v == devReport, fmt.Sprintf("components[%q].controls.%s.%s", comp.Name, scaControl, key)
 		}
 	}
-	if v, written := model.Config.Controls[scaControl][providedDependenciesKey].(string); written {
+	if v, written := model.Config.Controls[scaControl][key].(string); written {
 		return v == devReport, project
 	}
 	return false, project
+}
+
+// ReportsCPEMatches resolves cpeMatches for one component, and names the key that decided it, as
+// ReportsProvidedDependencies does.
+func (SCA) ReportsCPEMatches(model saga.Model, component string) (bool, string) {
+	return scaSetting(model, component, cpeMatchesKey)
 }
 
 // ReportsDevDependencies resolves devDependencies for one component, and names the key that
