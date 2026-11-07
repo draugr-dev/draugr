@@ -46,9 +46,9 @@ file under **Caveats** as `unread-files`, with a reason:
 $ draugr scan --no-publish
 …
 CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
-  Component  What         Caveat        Why
-  app        src/big.js   unread-files  over 1 MB, not scanned (sast)
-  app        src/slow.js  unread-files  1 rule timed out, not checked: "slow-0" (sast)
+  unread-files · sast · app
+    src/big.js   over 1 MB, not scanned
+    src/slow.js  1 rule timed out, not checked: "slow-0"
 ```
 
 | Reason | What happened | Fix |

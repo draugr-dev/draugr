@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -79,7 +81,7 @@ func TestACaveatTheGateListsFailsTheRun(t *testing.T) {
 	out := console.String()
 	for _, want := range []string{
 		"CAVEATS  1 fails the run · config.gate.failOnCaveats: not-checked",
-		"✗ not-checked",
+		"\n  ✗ not-checked · web\n      hosts  ",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q:\n%s", want, out)
@@ -87,6 +89,59 @@ func TestACaveatTheGateListsFailsTheRun(t *testing.T) {
 	}
 	if !strings.Contains(out, "web  ERROR") || !strings.Contains(out, "api  pass") {
 		t.Errorf("want web ERROR and api pass:\n%s", out)
+	}
+}
+
+// A run whose caveats the console cuts short is offered the HTML report, with -o where it writes no
+// report files and with the formats it already writes where it does, and not offered it where it
+// already writes one. Twelve components each declaring a host no enabled control looks at, past the
+// block's ten rows.
+func TestACutCaveatsBlockOffersTheHTMLReport(t *testing.T) {
+	root := gitRepo(t, "api")
+	body := "project: shop\nconfig:\n  controls:\n    secrets: {}\ncomponents:\n" +
+		"  - name: api\n    repositories: [{url: \"" + filepath.Join(root, "api") + "\"}]\n"
+	for i := range 12 {
+		body += fmt.Sprintf("  - name: web%02d\n    hosts: [{url: \"https://web%02d.example.com\"}]\n", i, i)
+	}
+	path := writeSaga(t, body)
+	for _, c := range []struct {
+		name string
+		opts scanOptions
+		want string
+	}{
+		{"no report files", scanOptions{format: "console"}, "--report html -o <dir>"},
+		{"the default reports", scanOptions{format: "console", outputDir: t.TempDir()}, "--report json,sarif,html "},
+		{"named reports", scanOptions{format: "console", outputDir: t.TempDir(), reports: []string{"junit"}}, "--report junit,html "},
+		{"an HTML report", scanOptions{format: "console", outputDir: t.TempDir(), reports: []string{"html"}}, ""},
+	} {
+		var buf bytes.Buffer
+		if err := runScan(context.Background(), path, c.opts, caveatRegistry(), &buf); err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		out := buf.String()
+		if !strings.Contains(out, "… and 2 more · --top 0 lists every one") {
+			t.Fatalf("%s: the caveats block was not cut, so this test checks nothing:\n%s", c.name, out)
+		}
+		offered := strings.Contains(out, "every row the console cut, in one searchable page")
+		if c.want == "" && offered || c.want != "" && !strings.Contains(out, "\n  "+c.want) {
+			t.Errorf("%s: want %q offered:\n%s", c.name, c.want, out)
+		}
+	}
+}
+
+func TestReportFormatsAreWhatDashOWrites(t *testing.T) {
+	for _, c := range []struct {
+		opts scanOptions
+		want []string
+	}{
+		{scanOptions{}, nil},
+		{scanOptions{reports: []string{"html"}}, nil},
+		{scanOptions{outputDir: "out"}, []string{"json", "sarif"}},
+		{scanOptions{outputDir: "out", reports: []string{"html"}}, []string{"html"}},
+	} {
+		if got := reportFormats(&c.opts); !slices.Equal(got, c.want) {
+			t.Errorf("reportFormats(%+v) = %v, want %v", c.opts, got, c.want)
+		}
 	}
 }
 

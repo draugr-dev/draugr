@@ -102,10 +102,11 @@ FIX FIRST  top 3 of 11, by priority
 … and 8 findings not listed.
 
 TRY
-  --top 0                every one of them, not the first three
-  --view compact         one line each, to see how much there is
-  --view actions         the same findings as a list of things to do
-  draugr explain <rule>  what a rule means and how to fix it
+  --top 0                 every one of them, not the first three
+  --report html -o <dir>  every row the console cut, in one searchable page
+  --view compact          one line each, to see how much there is
+  --view actions          the same findings as a list of things to do
+  draugr explain <rule>   what a rule means and how to fix it
 draugr: policy verdict: fail
 ```
 

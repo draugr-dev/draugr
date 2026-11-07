@@ -2,8 +2,11 @@ package report
 
 import (
 	"fmt"
+	"reflect"
+	"slices"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
@@ -144,8 +147,53 @@ func TestAcceptedErrorsMarkTheVerdictPartial(t *testing.T) {
 	}
 }
 
+// consoleCaveatGroup is a heading of the console's caveats block, whether it carries the mark, and
+// the rows under it with their runs of spaces closed up.
+type consoleCaveatGroup struct {
+	heading string
+	marked  bool
+	rows    []string
+}
+
+// consoleCaveats reads the console's caveats block back into its header, its groups, and the line
+// counting what it left out, which is empty where it left nothing out. A row not indented past its
+// heading fails the test, because without color the indent is all that puts it under the heading.
+func consoleCaveats(t *testing.T, out string) (header string, groups []consoleCaveatGroup, more string) {
+	t.Helper()
+	_, block, ok := strings.Cut(out, "\nCAVEATS  ")
+	if !ok {
+		t.Fatalf("no CAVEATS block:\n%s", out)
+	}
+	block, _, _ = strings.Cut(block, "\n\n")
+	lines := strings.Split(block, "\n")
+	header = "CAVEATS  " + lines[0]
+	indent := -1
+	for _, l := range lines[1:] {
+		marked := strings.HasPrefix(l, "  ✗ ")
+		plain := l
+		if marked {
+			plain = "    " + strings.TrimPrefix(l, "  ✗ ")
+		}
+		text := strings.TrimLeft(plain, " ")
+		n := len(plain) - len(text)
+		switch {
+		case strings.HasPrefix(text, "… and "):
+			more = text
+		case indent < 0 || n == indent:
+			indent = n
+			groups = append(groups, consoleCaveatGroup{heading: text, marked: marked})
+		case n < indent+2:
+			t.Errorf("row %q is not indented under its heading:\n%s", l, out)
+		default:
+			g := &groups[len(groups)-1]
+			g.rows = append(g.rows, strings.Join(strings.Fields(text), " "))
+		}
+	}
+	return header, groups, more
+}
+
 // What was declared and never looked at, what a scanner could not measure and what was not read
-// are one block, by component, each saying which of the three it is.
+// are one block, grouped by kind, controls and component, each heading saying which it is.
 func TestCaveatsGatherEveryShortfallThatDoesNotFail(t *testing.T) {
 	d := Data{
 		Uncovered: []Gap{{Component: "web", Surface: "hosts", Controls: []string{"dast", "headers", "tls"}}},
@@ -160,19 +208,182 @@ func TestCaveatsGatherEveryShortfallThatDoesNotFail(t *testing.T) {
 		},
 	}
 	out := renderWith(t, consoleReporter{}, d)
-	for _, want := range []string{
-		"CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do",
-		"api        go.mod          unread-files   no packages read (sca)",
-		"payments   kube-bench-job  not-measured   audits the whole cluster and cannot be narrowed to namespace payments",
-		"platform   compute         unread-checks  2 checks · denied compute.instances.list",
-		"web        hosts           not-checked    controls off: dast, headers, tls",
-	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("missing %q:\n%s", want, out)
-		}
+	header, groups, more := consoleCaveats(t, out)
+	if want := "CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do"; header != want {
+		t.Errorf("header = %q, want %q", header, want)
+	}
+	want := []consoleCaveatGroup{
+		{heading: "not-checked · web", rows: []string{"hosts controls off: dast, headers, tls"}},
+		{heading: "not-measured · payments", rows: []string{"kube-bench-job audits the whole cluster and cannot be narrowed to namespace payments"}},
+		{heading: "unread-files · sca · api", rows: []string{"go.mod no packages read"}},
+		{heading: "unread-checks · platform", rows: []string{"compute 2 checks · denied compute.instances.list"}},
+	}
+	if !reflect.DeepEqual(groups, want) || more != "" {
+		t.Errorf("groups = %+v, more %q\nwant %+v:\n%s", groups, more, want, out)
 	}
 	if strings.Contains(out, "ERRORS") {
 		t.Errorf("a caveat is listed as an error:\n%s", out)
+	}
+}
+
+// Caveats sharing a kind, controls and component sit under one heading, the kinds in the order the
+// setting lists them, then by controls and component. Two components and two sets of controls, so
+// neither can be folded into the other's group, and a run past the cap draws no heading whose rows
+// all fall beyond it. --top 0 draws every row and heading.
+func TestCaveatsGroupByKindControlsAndComponent(t *testing.T) {
+	unread := func(component, control string, paths ...string) engine.InputCoverage {
+		in := engine.InputCoverage{Component: component, Control: control}
+		for _, p := range paths {
+			in.Unread = append(in.Unread, engine.UnreadInput{Repository: component, Path: p, Reason: "no lockfile"})
+		}
+		return in
+	}
+	d := Data{
+		Uncovered: []Gap{{Component: "web", Surface: "hosts", Controls: []string{"dast"}}},
+		Run: engine.Result{Inputs: []engine.InputCoverage{
+			unread("web", "sca", "a/package.json", "b/package.json"),
+			unread("api", "sca", "c/package.json"),
+			unread("api", "licenses", "d/pyproject.toml", "e/pyproject.toml", "f/pyproject.toml", "g/pyproject.toml",
+				"h/pyproject.toml", "i/pyproject.toml"),
+			unread("worker", "sca", "j/package.json", "k/package.json"),
+		}},
+	}
+	out := renderWith(t, consoleReporter{}, d)
+	_, groups, more := consoleCaveats(t, out)
+	want := []consoleCaveatGroup{
+		{heading: "not-checked · web", rows: []string{"hosts controls off: dast"}},
+		{heading: "unread-files · licenses · api", rows: []string{
+			"d/pyproject.toml no lockfile", "e/pyproject.toml no lockfile", "f/pyproject.toml no lockfile",
+			"g/pyproject.toml no lockfile", "h/pyproject.toml no lockfile", "i/pyproject.toml no lockfile"}},
+		{heading: "unread-files · sca · api", rows: []string{"c/package.json no lockfile"}},
+		{heading: "unread-files · sca · web", rows: []string{"a/package.json no lockfile", "b/package.json no lockfile"}},
+	}
+	if !reflect.DeepEqual(groups, want) || more != "… and 2 more · --top 0 lists every one" {
+		t.Errorf("groups = %+v, more %q\nwant %+v:\n%s", groups, more, want, out)
+	}
+	if strings.Contains(out, "worker") {
+		t.Errorf("a heading is drawn for rows past the cap:\n%s", out)
+	}
+
+	d.TopN = -1
+	out = renderWith(t, consoleReporter{}, d)
+	_, groups, more = consoleCaveats(t, out)
+	want = append(want, consoleCaveatGroup{heading: "unread-files · sca · worker",
+		rows: []string{"j/package.json no lockfile", "k/package.json no lockfile"}})
+	if !reflect.DeepEqual(groups, want) || more != "" {
+		t.Errorf("--top 0: groups = %+v, more %q\nwant %+v:\n%s", groups, more, want, out)
+	}
+}
+
+// tryRows is the console's TRY block, a row each with its runs of spaces closed up, and nil where
+// the console has no such block.
+func tryRows(out string) []string {
+	_, block, ok := strings.Cut(out, "\nTRY\n")
+	if !ok {
+		return nil
+	}
+	var rows []string
+	for _, l := range strings.Split(strings.TrimRight(block, "\n"), "\n") {
+		if !strings.HasPrefix(l, "  ") {
+			break
+		}
+		rows = append(rows, strings.Join(strings.Fields(l), " "))
+	}
+	return rows
+}
+
+// TRY offers the HTML report wherever the console cut a block short and the run writes no HTML
+// report: the caveats past their ten rows, the targets not reached past theirs, or the findings
+// past the list's. Nothing cut, or an HTML report already written, and it is not offered. Two
+// components, each with its own caveats, so the cut is counted across them.
+func TestTheHTMLReportIsOfferedWhereTheConsoleCutABlock(t *testing.T) {
+	unread := func(component string, n int) engine.InputCoverage {
+		in := engine.InputCoverage{Component: component, Control: "sca"}
+		for i := range n {
+			in.Unread = append(in.Unread, engine.UnreadInput{Repository: component, Path: fmt.Sprintf("m%02d/go.mod", i), Reason: "no packages read"})
+		}
+		return in
+	}
+	cutCaveats := Data{Run: engine.Result{Inputs: []engine.InputCoverage{unread("api", 6), unread("web", 6)}}}
+	var targets []engine.TargetOutcome
+	for i := range errorRowsShown + 1 {
+		targets = append(targets, failedRepository(fmt.Sprintf("https://github.com/acme/r%02d", i), "api", "web"))
+	}
+	cutErrors := Data{Run: engine.Result{Targets: targets}}
+	whole := Data{Run: engine.Result{Inputs: []engine.InputCoverage{unread("api", 5), unread("web", 5)}}}
+
+	const why = "every row the console cut, in one searchable page"
+	for _, c := range []struct {
+		name string
+		d    Data
+		want []string
+	}{
+		{"caveats cut, no reports", cutCaveats, []string{"--report html -o <dir> " + why}},
+		{"targets cut, no reports", cutErrors, []string{"--report html -o <dir> " + why}},
+		{"caveats cut, json and sarif written", withReports(cutCaveats, "out", "json", "sarif"), []string{"--report json,sarif,html " + why}},
+		{"caveats cut, an HTML report written", withReports(cutCaveats, "out", "html"), nil},
+		{"nothing cut", whole, nil},
+		{"caveats cut, compact", withView(cutCaveats, ViewCompact), nil},
+	} {
+		if got := tryRows(renderWith(t, consoleReporter{}, c.d)); !slices.Equal(got, c.want) {
+			t.Errorf("%s: TRY = %q, want %q", c.name, got, c.want)
+		}
+	}
+	// --top 0 draws every row, so nothing is cut.
+	all := cutCaveats
+	all.TopN = -1
+	if got := tryRows(renderWith(t, consoleReporter{}, all)); got != nil {
+		t.Errorf("--top 0: TRY = %q, want none", got)
+	}
+}
+
+func withReports(d Data, dir string, formats ...string) Data {
+	d.ReportsDir, d.Reports = dir, formats
+	return d
+}
+
+func withView(d Data, v View) Data {
+	d.View = v
+	return d
+}
+
+// A caveat row standing for several files sends a reader to --evidence for their names, from TRY,
+// unless the run is under --evidence already or the row falls past the cut.
+func TestAFoldedCaveatRowOffersEvidence(t *testing.T) {
+	cargo := func(component string) engine.InputCoverage {
+		return engine.InputCoverage{Component: component, Control: "licenses", Unread: []engine.UnreadInput{
+			{Repository: component, Path: "a/Cargo.lock", Reason: "records no licenses for 2 packages", Kind: "cargo"},
+			{Repository: component, Path: "b/Cargo.lock", Reason: "records no licenses for 3 packages", Kind: "cargo"},
+		}}
+	}
+	d := Data{Run: engine.Result{Inputs: []engine.InputCoverage{cargo("api"), cargo("web")}}}
+	want := []string{"--evidence each file behind a caveat row such as Cargo.lock ×2"}
+	if got := tryRows(renderWith(t, consoleReporter{}, d)); !slices.Equal(got, want) {
+		t.Errorf("TRY = %q, want %q", got, want)
+	}
+	d.Evidence = true
+	if got := tryRows(renderWith(t, consoleReporter{}, d)); got != nil {
+		t.Errorf("under --evidence, TRY = %q, want none", got)
+	}
+
+	// Ten rows of another kind ahead of it, so the folded row is past the cut.
+	d.Evidence = false
+	for i := range errorRowsShown {
+		d.Uncovered = append(d.Uncovered, Gap{Component: fmt.Sprintf("c%02d", i), Surface: "hosts", Controls: []string{"tls"}})
+	}
+	if got := tryRows(renderWith(t, consoleReporter{}, d)); slices.ContainsFunc(got, func(r string) bool { return strings.HasPrefix(r, "--evidence") }) {
+		t.Errorf("a folded row past the cut is offered --evidence: %q", got)
+	}
+}
+
+// The block's header fits in a hundred columns whatever the gate says, and no longer points at
+// --evidence, which TRY offers where a row stands for several files.
+func TestCaveatsHeaderFitsAHundredColumns(t *testing.T) {
+	for name, d := range map[string]Data{"nothing fails": {Uncovered: failingCaveatData().Uncovered}, "failing": failingCaveatData()} {
+		header, _, _ := consoleCaveats(t, renderWith(t, consoleReporter{}, d))
+		if n := utf8.RuneCountInString(header); n > 100 || strings.Contains(header, "--evidence") {
+			t.Errorf("%s: header is %d columns: %q", name, n, header)
+		}
 	}
 }
 
@@ -221,15 +432,23 @@ func failingCaveatData() Data {
 // how many and under which setting. The others line up under them unmarked.
 func TestCaveatsTheGateFailsOnAreMarkedWhereTheySit(t *testing.T) {
 	out := renderWith(t, consoleReporter{}, failingCaveatData())
-	for _, want := range []string{
-		"CAVEATS  2 fail the run · config.gate.failOnCaveats: unread-checks, unread-files",
-		"api        go.mod          ✗ unread-files   no packages read (sca)",
-		"payments   kube-bench-job    not-measured   audits the whole cluster",
-		"platform   compute         ✗ unread-checks  1 check · denied compute.instances.list",
-		"web        hosts             not-checked    controls off: dast, headers, tls",
-	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("missing %q:\n%s", want, out)
+	header, groups, _ := consoleCaveats(t, out)
+	if want := "CAVEATS  2 fail the run · config.gate.failOnCaveats: unread-checks, unread-files"; header != want {
+		t.Errorf("header = %q, want %q", header, want)
+	}
+	want := []consoleCaveatGroup{
+		{heading: "not-checked · web", rows: []string{"hosts controls off: dast, headers, tls"}},
+		{heading: "not-measured · payments", rows: []string{"kube-bench-job audits the whole cluster and cannot be narrowed to namespace payments"}},
+		{heading: "unread-files · sca · api", marked: true, rows: []string{"go.mod no packages read"}},
+		{heading: "unread-checks · platform", marked: true, rows: []string{"compute 1 check · denied compute.instances.list"}},
+	}
+	if !reflect.DeepEqual(groups, want) {
+		t.Errorf("groups = %+v\nwant %+v:\n%s", groups, want, out)
+	}
+	// The unmarked headings keep the mark's two columns, so every kind starts in one column.
+	for _, line := range []string{"\n    not-checked · web\n", "\n  ✗ unread-files · sca · api\n", "\n      go.mod  no packages read\n"} {
+		if !strings.Contains(out, line) {
+			t.Errorf("missing the line %q:\n%s", line, out)
 		}
 	}
 	if strings.Contains(out, "ERRORS") {

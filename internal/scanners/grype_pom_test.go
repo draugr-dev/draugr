@@ -150,16 +150,21 @@ func runPomScan(t *testing.T, sca ...string) (map[string]engine.InputCoverage, s
 }
 
 // checkPomCoverage compares each component's coverage with want, and the console's caveat rows with
-// rows, which are every row naming a pom.xml.
+// rows, which are every row naming a pom.xml, each after the heading it sits under and a slash,
+// with its runs of spaces closed up.
 func checkPomCoverage(t *testing.T, got, want map[string]engine.InputCoverage, console string, rows ...string) {
 	t.Helper()
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("inputs\n%+v\nwant\n%+v", got, want)
 	}
 	var pomRows []string
+	heading := ""
 	for _, line := range strings.Split(console, "\n") {
+		if strings.HasPrefix(line, "  unread-files · ") {
+			heading = strings.TrimSpace(line)
+		}
 		if strings.Contains(line, " pom.xml ") {
-			pomRows = append(pomRows, strings.TrimSpace(line))
+			pomRows = append(pomRows, heading+" / "+strings.Join(strings.Fields(line), " "))
 		}
 	}
 	if !reflect.DeepEqual(pomRows, rows) {
@@ -182,7 +187,7 @@ func TestAPomGrypeReadIsCaveatedBesideTrivy(t *testing.T) {
 		"billing/sca":      {Component: "billing", Control: "sca", Scanners: []string{"grype-fs", "trivy-fs"}, Read: 1},
 		"billing/licenses": {Component: "billing", Control: "licenses", Scanners: []string{"trivy-license"}, Read: 1},
 	}, console,
-		"shop       pom.xml  unread-files  transitive dependencies not resolved, run mvn dependency:resolve (licenses, sca)")
+		"unread-files · licenses, sca · shop / pom.xml transitive dependencies not resolved, run mvn dependency:resolve")
 }
 
 // With grype-fs alone under sca, both poms are read in part under sca with Grype's reason, which
@@ -201,15 +206,16 @@ func TestAPomGrypeReadAloneNamesNoAction(t *testing.T) {
 			Unread: []engine.UnreadInput{{Repository: "billing", Path: "pom.xml", Reason: grypeReason}}},
 		"billing/licenses": {Component: "billing", Control: "licenses", Scanners: []string{"trivy-license"}, Read: 1},
 	}, console,
-		"billing    pom.xml  unread-files  transitive dependencies not read by Grype (sca)",
-		"shop       pom.xml  unread-files  transitive dependencies not resolved, run mvn dependency:resolve (licenses)",
-		"shop       pom.xml  unread-files  transitive dependencies not read by Grype (sca)")
+		"unread-files · licenses · shop / pom.xml transitive dependencies not resolved, run mvn dependency:resolve",
+		"unread-files · sca · billing / pom.xml transitive dependencies not read by Grype",
+		"unread-files · sca · shop / pom.xml transitive dependencies not read by Grype")
 }
 
-// Grype's reason fits the console's caveat column with both controls named after it.
+// Grype's reason fits the console's caveat column, which the console cuts at 80 characters. The
+// controls are in the group's heading.
 func TestGrypePomReasonFitsTheCaveatColumn(t *testing.T) {
-	if n := len(string(manifests.TransitiveNotReadByGrype) + " (licenses, sca)"); n > 80 {
-		t.Errorf("%q with its controls is %d characters, over 80", manifests.TransitiveNotReadByGrype, n)
+	if n := len(string(manifests.TransitiveNotReadByGrype)); n > 80 {
+		t.Errorf("%q is %d characters, over 80", manifests.TransitiveNotReadByGrype, n)
 	}
 }
 

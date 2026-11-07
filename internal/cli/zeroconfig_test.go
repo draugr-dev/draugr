@@ -410,8 +410,9 @@ func TestZeroConfigScanReportsAScannerItCannotRunAsACaveat(t *testing.T) {
 			for _, want := range []string{
 				"FOUND  read from the tree · `draugr init` writes them to draugr.saga.yaml\n",
 				"  go  " + modules + "  sca · gosec off · govulncheck off\n",
-				modules + "  not-checked  gosec needs Go\n",
-				modules + "  not-checked  govulncheck needs Go\n",
+				"\n  not-checked · ",
+				"    " + modules + "  gosec needs Go\n",
+				"    " + modules + "  govulncheck needs Go\n",
 			} {
 				if !strings.Contains(got, want) {
 					t.Errorf("console missing %q:\n%s", want, got)

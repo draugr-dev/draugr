@@ -771,7 +771,7 @@ func fencedConsole(doc string) bool {
 
 // printedPlaceholders are angle-bracketed words the renderer itself prints, so a real run carries
 // them and they say nothing about whether a block is a schematic.
-var printedPlaceholders = []string{"draugr explain <rule>"}
+var printedPlaceholders = []string{"draugr explain <rule>", "--report html -o <dir>"}
 
 func pastesARun(fence []string, placeholder *regexp.Regexp) bool {
 	carries := false

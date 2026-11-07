@@ -19,9 +19,9 @@ FOUND  read from the tree · `draugr init` writes them to draugr.saga.yaml
   Dockerfile         app/Dockerfile                                             iac · images off
 
 CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
-  Component  What             Caveat       Why
-  demo       checkout/go.mod  not-checked  gosec needs Go
-  demo       checkout/go.mod  not-checked  govulncheck needs Go
+  not-checked · demo
+    checkout/go.mod  gosec needs Go
+    checkout/go.mod  govulncheck needs Go
 
 FIX FIRST  all 2, by priority
   P1  critical  CVE-2019-20477 · PyYAML: command execution through python/object/apply constructor in…

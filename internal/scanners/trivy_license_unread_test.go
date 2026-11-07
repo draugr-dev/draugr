@@ -158,9 +158,10 @@ func TestLockfileWithNoLicenseIsReadInPartForLicenses(t *testing.T) {
 }
 
 // The console folds a component's files of one format into one caveat row, counting the files in
-// What and the packages in Why: two Cargo.lock files by their shared name, a packages.lock.json and
-// a packages.config by the format they share. A format with one file keeps its path. The licenses
-// row counts every file it did not read, and --evidence names the files a folded row stands for.
+// the row's name and the packages in its reason: two Cargo.lock files by their shared name, a
+// packages.lock.json and a packages.config by the format they share. A format with one file keeps
+// its path. Each component's rows sit under their own heading. The licenses row counts every file
+// it did not read, TRY offers --evidence, and --evidence names the files a folded row stands for.
 func TestConsoleFoldsUnreadLicensesByComponentAndFormat(t *testing.T) {
 	res := runUnlicensed(t)
 	d := report.Data{Project: "p", Run: res, Verdict: norn.Result{Verdict: norn.Pass, Controls: []norn.ControlOutcome{
@@ -170,10 +171,10 @@ func TestConsoleFoldsUnreadLicensesByComponentAndFormat(t *testing.T) {
 	for _, row := range []string{
 		`^  licenses\s+pass\s+.* · 5 files unread$`,
 		`^  sca\s+pass\s+no findings$`,
-		`^CAVEATS\s+.* · --evidence names each file$`,
-		`^  mixed\s+NuGet files ×2\s+unread-files\s+licenses of 5 packages not read, run dotnet restore \(licenses\)$`,
-		`^  native\s+rb/Gemfile\.lock\s+unread-files\s+records no licenses for 2 packages \(licenses\)$`,
-		`^  native\s+Cargo\.lock ×2\s+unread-files\s+records no licenses for 5 packages \(licenses\)$`,
+		`^CAVEATS  do not fail the run · config\.gate\.failOnCaveats lists the kinds that do$`,
+		`^  unread-files · licenses · mixed\n    NuGet files ×2  licenses of 5 packages not read, run dotnet restore$`,
+		`^  unread-files · licenses · native\n    rb/Gemfile\.lock\s+records no licenses for 2 packages\n    Cargo\.lock ×2\s+records no licenses for 5 packages$`,
+		`^  --evidence\s+each file behind a caveat row such as NuGet files ×2$`,
 	} {
 		if !regexp.MustCompile(`(?m)` + row).MatchString(console) {
 			t.Errorf("console has no line matching %s:\n%s", row, console)
@@ -195,6 +196,9 @@ func TestConsoleFoldsUnreadLicensesByComponentAndFormat(t *testing.T) {
 	}
 	if !regexp.MustCompile(`(?m)^  unread\s+licenses · mixed · cs/App/packages\.lock\.json · `).MatchString(evidence) {
 		t.Errorf("--evidence has no unread row for cs/App/packages.lock.json:\n%s", evidence)
+	}
+	if regexp.MustCompile(`(?m)^  --evidence\s`).MatchString(evidence) {
+		t.Errorf("a run under --evidence is offered --evidence:\n%s", evidence)
 	}
 }
 

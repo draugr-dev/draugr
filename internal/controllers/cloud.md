@@ -55,8 +55,8 @@ that read it and the permission that was missing:
 
 ```
 CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
-  Component  What     Caveat         Why
-  api        compute  unread-checks  16 checks · denied compute.instances.list
+  unread-checks · api
+    compute  16 checks · denied compute.instances.list
 ```
 
 Prowler's result for an unread check is discarded, whatever it was. Prowler does not separate a check
