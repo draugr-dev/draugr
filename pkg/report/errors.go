@@ -135,11 +135,12 @@ func targetError(d Data, control, msg string) bool {
 // key in failOnCaveats.
 type caveat struct {
 	component, what, detail string
-	// key is the kind as gate.failOnCaveats names it, and the word the Caveat column prints, so a
-	// reader who wants a kind to fail the run copies it from the row into the setting.
+	// key is the kind as gate.failOnCaveats names it, and the word the console's group heading
+	// opens with, so a reader who wants a kind to fail the run copies it from there into the setting.
 	key saga.CaveatKind
 	// by is what detail closes with in parentheses: the controls whose reason it is. Empty for a
-	// caveat that names none.
+	// caveat that names none. The console says it once, in the group heading, and drops it from
+	// each row.
 	by string
 	// folded says the row stands for several files, which --evidence names one by one.
 	folded bool
@@ -183,15 +184,51 @@ func caveats(d Data) []caveat {
 	return out
 }
 
-// why is detail cut to width, with what it closes with in parentheses kept whole: a parser's error
-// can run past the column, and the controls after it say which control's scanners to look at.
-func (c caveat) why(width int) string {
-	tail := " (" + c.by + ")"
-	reason, ok := strings.CutSuffix(c.detail, tail)
-	if c.by == "" || !ok || len([]rune(tail)) > width/2 {
-		return truncate(c.detail, width)
+// reason is detail without the controls it closes with, which the console's group heading names.
+func (c caveat) reason() string {
+	if c.by == "" {
+		return c.detail
 	}
-	return truncate(reason, width-len([]rune(tail))) + tail
+	r, _ := strings.CutSuffix(c.detail, " ("+c.by+")")
+	return r
+}
+
+// heading is what every caveat in a console group shares: its kind, its controls where it names
+// any, and its component, as `unread-files · licenses, sca · server`. A caveat no component claims
+// is headed `no component`, as the HTML report groups it.
+func (c caveat) heading() string {
+	parts := []string{string(c.key)}
+	if c.by != "" {
+		parts = append(parts, c.by)
+	}
+	return strings.Join(append(parts, cmp.Or(c.component, "no component")), " · ")
+}
+
+// sameGroup reports whether two caveats sit under one heading.
+func sameGroup(a, b caveat) bool { return compareGroups(a, b) == 0 }
+
+// compareGroups orders caveats by kind, in the order the setting lists the kinds, then by
+// controls, then by component.
+func compareGroups(a, b caveat) int {
+	return cmp.Or(cmp.Compare(kindRank(a.key), kindRank(b.key)), cmp.Compare(a.by, b.by),
+		cmp.Compare(a.component, b.component))
+}
+
+// kindRank is a kind's place in saga.CaveatKinds, with an unknown kind last.
+func kindRank(k saga.CaveatKind) int {
+	if i := slices.Index(saga.CaveatKinds, k); i >= 0 {
+		return i
+	}
+	return len(saga.CaveatKinds)
+}
+
+// shownCaveats is the run's caveats in the order the console groups them, cut to the rows the
+// block draws, and how many it leaves out. The cut counts rows, not headings.
+func shownCaveats(d Data) (shown []caveat, left int) {
+	cs := caveats(d)
+	slices.SortStableFunc(cs, compareGroups)
+	n, _ := shownRows(d, len(cs))
+	return cs[:n], len(cs) - n
 }
 
 // fails reports whether the gate lists this caveat's kind in failOnCaveats.
@@ -364,16 +401,21 @@ func componentsLabel(cs []string) string {
 	return english.Choose(len(cs), "component", "components") + " " + strings.Join(cs, ", ")
 }
 
-// writeCaveats draws a row per shortfall in what the run covered.
+// writeCaveats draws a row per shortfall in what the run covered, under a heading per kind,
+// controls and component.
 //
 // One block for every caveat, the ones the gate fails on among them, each marked where it sits.
 // Moving those into the errors would put two kinds of row under one heading, a target no scanner
 // read beside a file no scanner read, and split a component's caveats across two blocks. The
 // heading says how many fail the run and which setting made them, so a reader can find the line to
 // change.
+//
+// The kind, the controls and the component are the same on every row of a group, so they are said
+// once above it and each row says only what and why. Repeated on every row, they take a quarter of
+// the line, and a block of file caveats runs past a terminal's width and wraps.
 func writeCaveats(w io.Writer, col tui.Painter, d Data) {
-	cs := caveats(d)
-	if len(cs) == 0 {
+	shown, left := shownCaveats(d)
+	if len(shown) == 0 {
 		return
 	}
 	failing, _ := splitCaveats(d)
@@ -391,32 +433,62 @@ func writeCaveats(w io.Writer, col tui.Painter, d Data) {
 			note = col.Paint(cAccent, fmt.Sprintf("%d accepted by --allow-scan-errors · %s", len(failing), setting))
 		}
 	}
-	// A row standing for several files names none of them; the evidence lists each.
-	if slices.ContainsFunc(cs, func(c caveat) bool { return c.folded }) {
-		note += col.Paint(cDim, " · --evidence names each file")
-	}
 	_, _ = fmt.Fprintf(w, "%s  %s\n", heading(col, "Caveats"), note)
-	t := tui.NewTable(col, "Component", "What", "Caveat", "Why").Indent("  ")
-	n, capped := shownRows(d, len(cs))
-	for _, c := range cs[:n] {
-		kind := tui.Styled(cAccent, string(c.key))
-		// The mark only where something is marked, so a run with nothing failing reads as it always
-		// did, and the kinds stay aligned under one another when something is.
-		if len(failing) > 0 {
-			kind = tui.Styled(cAccent, "  "+string(c.key))
-			if c.fails(d) {
-				kind = tui.Styled(cFail, "✗ "+string(c.key))
+	// The mark only where something is marked, so a run with nothing failing reads as it always did,
+	// and the kinds stay aligned under one another when something is. The rows sit two columns in
+	// from the heading's text either way, so they read as under it without color.
+	marking := len(failing) > 0
+	indent := "    "
+	if marking {
+		indent = "      "
+	}
+	// The cut is in rows, so a group whose rows all fall past it has no heading either.
+	for i := 0; i < len(shown); {
+		first := shown[i]
+		mark := ""
+		if marking {
+			mark = "  "
+			if first.fails(d) {
+				mark = col.Paint(cFail, "✗ ")
 			}
 		}
-		t.Row(tui.Styled(tui.StyleStrong, c.component), tui.Styled(tui.StyleStrong, c.what),
-			kind, tui.Styled(cDim, c.why(whyWidth)))
+		_, _ = fmt.Fprintf(w, "  %s%s\n", mark, col.Paint(cAccent, first.heading()))
+		t := tui.NewTable(col).Indent(indent)
+		for ; i < len(shown) && sameGroup(shown[i], first); i++ {
+			t.Row(tui.Styled(tui.StyleStrong, shown[i].what), tui.Styled(cDim, truncate(shown[i].reason(), whyWidth)))
+		}
+		t.Render(w)
 	}
-	t.Render(w)
-	if capped {
+	if left > 0 {
 		_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim,
-			fmt.Sprintf("… and %d more · --top 0 lists every one", len(cs)-n)))
+			fmt.Sprintf("… and %d more · --top 0 lists every one", left)))
 	}
 	_, _ = fmt.Fprintln(w)
+}
+
+// foldedCaveat is the first caveat row the console draws that stands for several files, which
+// --evidence names one by one, and false where it draws none.
+func foldedCaveat(d Data) (caveat, bool) {
+	shown, _ := shownCaveats(d)
+	for _, c := range shown {
+		if c.folded {
+			return c, true
+		}
+	}
+	return caveat{}, false
+}
+
+// cutShort reports whether the console left rows out of a block it drew: the errors, the caveats,
+// or a list of findings or actions, which listed says it cut.
+func cutShort(d Data, listed int) bool {
+	if listed > 0 {
+		return true
+	}
+	if _, capped := shownRows(d, len(notReached(d))); capped {
+		return true
+	}
+	_, left := shownCaveats(d)
+	return left > 0
 }
 
 // failedCaveatNote is what a component's row says about its caveats the gate fails on: each one's

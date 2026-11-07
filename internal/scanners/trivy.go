@@ -281,7 +281,7 @@ func trivyNoticeArgs() []string {
 //
 // Both pom reasons name the act that clears the row for sca and licenses and sends nothing to a
 // third party: a Maven build filling the local repository, which Trivy reads under --offline-scan.
-// Each fits the console's caveat column, 80 characters, with ` (licenses, sca)` after it.
+// Each fits the console's caveat column, 80 characters.
 const unresolvedPom = "transitive dependencies not resolved, run mvn dependency:resolve"
 
 // unversionedPom is the reason for a pom.xml with direct dependencies Trivy read no version for,

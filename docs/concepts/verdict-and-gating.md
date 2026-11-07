@@ -159,9 +159,9 @@ So by default it is reported rather than enforced. Every scan says what it did n
 
 ```
 CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
-  Component  What    Caveat       Why
-  api        hosts   not-checked  controls off: dast, headers, tls
-  api        images  not-checked  controls off: images
+  not-checked · api
+    hosts   controls off: dast, headers, tls
+    images  controls off: images
 ```
 
 A host counts as examined when `headers` or `tls` is on. `dast` does not count, because it probes
@@ -195,9 +195,9 @@ listed kind fails the run as an error does, and is marked where it sits:
 
 ```
 CAVEATS  2 fail the run · config.gate.failOnCaveats: not-checked
-  Component  What    Caveat         Why
-  api        hosts   ✗ not-checked  controls off: dast, headers, tls
-  api        images  ✗ not-checked  controls off: images
+  ✗ not-checked · api
+      hosts   controls off: dast, headers, tls
+      images  controls off: images
 ```
 
 `draugr doctor` reads the same list, so the preflight fails where the scan would.

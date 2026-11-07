@@ -26,9 +26,9 @@ that module defines were not checked, and the report lists the calling file unde
 
 ```
 CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
-  Component  What                Caveat        Why
-  infra      infra/mod/main.tf   unread-files  module "sg" not loaded (iac)
-  infra      infra/prod/main.tf  unread-files  modules "vpc", "eks" not loaded (iac)
+  unread-files · iac · infra
+    infra/mod/main.tf   module "sg" not loaded
+    infra/prod/main.tf  modules "vpc", "eks" not loaded
 ```
 
 A module whose `source` is a local path loads when the path is in the checkout. A module from a
@@ -42,8 +42,8 @@ calls are not checked:
 
 ```
 CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
-  Component  What   Caveat        Why
-  infra      infra  unread-files  32 of 33 module calls checked; "zbad" skipped (iac)
+  unread-files · iac · infra
+    infra  32 of 33 module calls checked; "zbad" skipped
 ```
 
 Split the root module, or group its calls into fewer modules. To fail the run on the caveat, set
@@ -55,8 +55,8 @@ stopped the render. None of the chart's templates were checked:
 
 ```
 CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
-  Component  What        Caveat        Why
-  app        Chart.yaml  unread-files  run helm dependency build; redis not in charts/ (iac)
+  unread-files · iac · app
+    Chart.yaml  run helm dependency build; redis not in charts/
 ```
 
 Build the chart's dependencies into `charts/` before the scan, give the value a default in the

@@ -264,8 +264,8 @@ images, hosts, clusters or cloud accounts with every control for that surface of
 
 ```
 CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
-  Component  What   Caveat       Why
-  worker     hosts  not-checked  controls off: dast, headers, tls
+  not-checked · worker
+    hosts  controls off: dast, headers, tls
 ```
 
 A caveat fails the run only when `--fail-on-caveats` or
@@ -294,6 +294,15 @@ components that have it off where others have it on. These rows are not capped:
 
 `--no-tips`, `DRAUGR_NO_TIPS=1` or `output.tips: false` in [`draugr.config.yaml`](#draugr-config)
 turns all of them off.
+
+`TRY` also points at what the console left out. These rows are not capped, and `--no-tips` leaves
+them in place:
+
+| Row | Shown when |
+|---|---|
+| `--top 0` | The ranked table or a list under `--view actions` stopped short |
+| `--report html -o <dir>` | A block stopped short, at `… and 4 more` or `… and 4 findings not listed`, and the run writes no HTML report. With `-o` set, the row is `--report` with the formats the run writes and `html`, such as `--report json,sarif,html`, because `--report` replaces its default |
+| `--evidence` | A caveat row stands for several files, such as `Cargo.lock ×2`, and `--evidence` is off |
 
 ### Installing a missing scanner
 

@@ -1,7 +1,8 @@
 package report
 
 import (
-	"regexp"
+	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -51,13 +52,15 @@ func everyCaveatData() Data {
 var everyCaveat = []struct {
 	component, kind, what, why string
 	fails                      bool
+	// by is the controls the reason closes with, which the console names in the group's heading.
+	by string
 }{
-	{"edge", "not-checked", "hosts", "controls off: dast, headers, tls", false},
-	{"edge", "not-measured", "kube-bench", "audits the whole cluster and cannot be narrowed to namespace edge", false},
-	{"edge", "unread-checks", "compute", "1 check · denied compute.instances.list", false},
-	{"ledger", "not-checked", "checkout/go.mod", "govulncheck needs Go", false},
-	{"ledger", "unbound-imports", "reports/review.sarif", "names no commit, so nothing ties its findings to this code", true},
-	{"ledger", "unread-files", "package.json", "no lockfile (sca)", false},
+	{"edge", "not-checked", "hosts", "controls off: dast, headers, tls", false, ""},
+	{"edge", "not-measured", "kube-bench", "audits the whole cluster and cannot be narrowed to namespace edge", false, ""},
+	{"edge", "unread-checks", "compute", "1 check · denied compute.instances.list", false, ""},
+	{"ledger", "not-checked", "checkout/go.mod", "govulncheck needs Go", false, ""},
+	{"ledger", "unbound-imports", "reports/review.sarif", "names no commit, so nothing ties its findings to this code", true, ""},
+	{"ledger", "unread-files", "package.json", "no lockfile (sca)", false, "sca"},
 }
 
 // caveatsSection is the HTML report's Caveats section, from its heading to the end of its panel.
@@ -71,6 +74,7 @@ func caveatsSection(t *testing.T, doc string) string {
 func TestEveryCaveatIsInEveryReport(t *testing.T) {
 	d := everyCaveatData()
 	console := renderWith(t, consoleReporter{}, d)
+	_, groups, _ := consoleCaveats(t, console)
 	html := caveatsSection(t, renderHTML(t, d))
 	md := renderWith(t, markdownReporter{}, d)
 
@@ -79,14 +83,17 @@ func TestEveryCaveatIsInEveryReport(t *testing.T) {
 	mdEdge := section(t, md, "**edge**", "**ledger**")
 	mdLedger := section(t, md, "**ledger**", "\n\n#")
 	for _, c := range everyCaveat {
-		mark := "  "
-		if c.fails {
-			mark = "✗ "
+		// The console says the kind, the controls and the component once, over the group, and the
+		// row says what and why.
+		heading := c.kind + " · " + c.component
+		why := c.why
+		if c.by != "" {
+			heading = c.kind + " · " + c.by + " · " + c.component
+			why = strings.TrimSuffix(why, " ("+c.by+")")
 		}
-		row := regexp.MustCompile(`(?m)^  ` + c.component + `\s+` + regexp.QuoteMeta(c.what) + `\s+` +
-			regexp.QuoteMeta(mark+c.kind) + `\s+` + regexp.QuoteMeta(c.why) + `$`)
-		if !row.MatchString(console) {
-			t.Errorf("the console has no row for %s %s:\n%s", c.component, c.what, console)
+		want := consoleCaveatGroup{heading: heading, marked: c.fails, rows: []string{c.what + " " + why}}
+		if !slices.ContainsFunc(groups, func(g consoleCaveatGroup) bool { return reflect.DeepEqual(g, want) }) {
+			t.Errorf("the console has no group %+v:\n%s", want, console)
 		}
 
 		chip := `<span class="cvchip">` + c.kind + `</span>`
@@ -316,5 +323,9 @@ func TestACaveatWithNoComponentIsGroupedApart(t *testing.T) {
 	}
 	if md := renderWith(t, markdownReporter{}, d); !strings.Contains(md, "\n_no component_\n\n- `not-checked` · `hosts`") {
 		t.Errorf("want a group for no component in markdown:\n%s", md)
+	}
+	_, groups, _ := consoleCaveats(t, renderWith(t, consoleReporter{}, d))
+	if len(groups) == 0 || groups[0].heading != "not-checked · no component" {
+		t.Errorf("want the console's first group headed for no component: %+v", groups)
 	}
 }
