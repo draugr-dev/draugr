@@ -1,0 +1,1 @@
+- **The scan suggests each control that is off beside one that is on.** A host with `headers` on and `tls` off, or a repository with `sca` on and `secrets` off, gets a `TRY` row with the key that turns the control on and what it finds.

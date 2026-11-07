@@ -95,14 +95,7 @@ func Gaps(model *saga.Model) []Gap {
 			// Partial cover among the controls Controls maps the surface to is still cover: one of them
 			// enabled means someone is looking at what they look at. A NeverSuggested control looks at
 			// something else, so it is named when off and covers nothing when on.
-			covered := false
-			for _, name := range Controls[surface] {
-				if c.ControllerEnabled(name, model.Config) {
-					covered = true
-					break
-				}
-			}
-			if covered {
+			if covered(c, surface, model.Config) {
 				continue
 			}
 			var off []string
@@ -115,6 +108,55 @@ func Gaps(model *saga.Model) []Gap {
 		}
 	}
 	return out
+}
+
+// Off is a control that is off for a surface components declare, where another control examines
+// that surface, so it is no gap. A suggestion rather than a caveat: the surface is being looked at,
+// and the control is one more way of looking.
+type Off struct {
+	Control, Surface string
+	// Components are the components that declare the surface and have the control off, in the
+	// descriptor's order.
+	Components []string
+}
+
+// OffControls names each control that is off for a surface a component declares, beside another
+// control that examines it, grouped by control and surface. A surface no suggested control examines
+// is a gap, which Gaps reports with every control off, and is left out here so a reader is told once.
+func OffControls(model *saga.Model) []Off {
+	var out []Off
+	at := map[string]int{}
+	for i := range model.Components {
+		c := &model.Components[i]
+		for _, surface := range sortedKeys(Controls) {
+			if !ComponentHas(c, surface) || !covered(c, surface, model.Config) {
+				continue
+			}
+			for _, name := range examine(surface) {
+				if c.ControllerEnabled(name, model.Config) {
+					continue
+				}
+				key := name + "\x00" + surface
+				if j, ok := at[key]; ok {
+					out[j].Components = append(out[j].Components, c.Name)
+					continue
+				}
+				at[key] = len(out)
+				out = append(out, Off{Control: name, Surface: surface, Components: []string{c.Name}})
+			}
+		}
+	}
+	return out
+}
+
+// covered reports whether one of the controls Controls maps the surface to is on for the component.
+func covered(c *saga.Component, surface string, cfg saga.Config) bool {
+	for _, name := range Controls[surface] {
+		if c.ControllerEnabled(name, cfg) {
+			return true
+		}
+	}
+	return false
 }
 
 // Uncovered is Gaps as sentences, for a caller with one line to say it in.

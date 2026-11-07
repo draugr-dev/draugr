@@ -201,3 +201,32 @@ func TestEnableControlsLeavesConfiguredControlsAlone(t *testing.T) {
 		t.Errorf("added = %v, want [iac sast]", added)
 	}
 }
+
+// A control off beside another that examines the same surface is named, grouped by control across
+// components, and a surface nothing examines is left to Gaps.
+func TestOffControls(t *testing.T) {
+	model := &saga.Model{
+		Config: saga.Config{Controls: map[string]saga.ControllerSettings{
+			"headers": {"enabled": true}, "sca": {"enabled": true},
+		}},
+		Components: []saga.Component{
+			{Name: "api", Hosts: []saga.Host{{URL: "a"}}, Repositories: []saga.Repository{{URL: "r"}}},
+			{Name: "web", Hosts: []saga.Host{{URL: "w"}},
+				Controls: map[string]saga.ControllerSettings{"tls": {"enabled": true}}},
+			{Name: "edge", Hosts: []saga.Host{{URL: "e"}},
+				Controls: map[string]saga.ControllerSettings{"headers": {"enabled": false}}},
+		},
+	}
+	var got []string
+	for _, o := range OffControls(model) {
+		got = append(got, o.Control+"/"+o.Surface+":"+strings.Join(o.Components, ","))
+	}
+	want := []string{"dast/hosts:api,web", "tls/hosts:api", "iac/repositories:api", "sast/repositories:api", "secrets/repositories:api"}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %v\nwant %v", got, want)
+	}
+	// edge has headers off and no tls, so its host is a gap and has no row here.
+	if gaps := Gaps(model); len(gaps) != 1 || gaps[0].Component != "edge" {
+		t.Errorf("gaps %+v, want edge's host", gaps)
+	}
+}

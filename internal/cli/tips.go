@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/surfaces"
 	"github.com/draugr-dev/draugr/internal/tools"
@@ -253,7 +254,43 @@ func scanSuggestions(c tipContext) []report.Suggestion {
 		}
 		out = append(out, report.Suggestion{What: tip.what(c), Why: tip.why(c)})
 	}
+	return append(out, offControlSuggestions(c.model)...)
+}
+
+// offControlSuggestions is a row for each control that is off for a surface the descriptor
+// declares, beside another control that examines it: the key that turns it on, and what the control
+// finds, in the words `draugr controls` uses. Where some of the components that declare the surface
+// have the control on already, the row names the ones that do not.
+//
+// Outside maxTipsPerRun, because each is about this descriptor rather than a general habit, and a
+// control the cap dropped would be one the reader is never told is off. A surface nothing examines
+// is a caveat instead, and has no row here.
+func offControlSuggestions(model *saga.Model) []report.Suggestion {
+	offs := surfaces.OffControls(model)
+	out := make([]report.Suggestion, 0, len(offs))
+	for _, o := range offs {
+		why := o.Control
+		if ctrl, ok := builtins.Registry().Controller(o.Control); ok && ctrl.Info().Summary != "" {
+			why = strings.TrimSuffix(ctrl.Info().Summary, ".")
+			why = strings.ToLower(why[:1]) + why[1:]
+		}
+		if len(o.Components) < declaring(model, o.Surface) {
+			why += ", for " + english.And(o.Components)
+		}
+		out = append(out, report.Suggestion{What: "config.controls." + o.Control + ".enabled: true", Why: why})
+	}
 	return out
+}
+
+// declaring counts the components that declare a surface.
+func declaring(model *saga.Model, surface string) int {
+	n := 0
+	for i := range model.Components {
+		if surfaces.ComponentHas(&model.Components[i], surface) {
+			n++
+		}
+	}
+	return n
 }
 
 // countAtOrAbove counts findings whose priority is at or above a band.
