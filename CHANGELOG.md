@@ -34,7 +34,7 @@ _Nothing yet._
 
 - **A pull request from a fork no longer fails its Draugr check because the comment cannot be posted.** GitHub gives a fork's workflow a read-only token, so the Action now leaves the comment off, states why in a notice, and writes the diff to the job summary and the log. The step passes or fails on `fail-on-new` alone.
 
-- **Findings about the project's own package are set aside by default.** A `package-lock.json`'s root, a Cargo workspace member, a Dart package with `publish_to: none` and a pod from a local `:path:` were matched against the advisories of published packages with the same name, malware included. They stay in the report marked `own`; `config.controls.sca.ownPackages: report` counts them.
+- **Findings about the project's own package are set aside by default.** A `package-lock.json` root, a Cargo workspace member, a Dart `publish_to: none` package and a local `:path:` pod no longer take the advisories of a published package with the same name. A fork kept under its upstream name is set aside too, even where the advisory applies. Each stays in the report marked `own`; `config.controls.sca.ownPackages: report` counts them.
 
 - **`licenses` reads a lockfile of development dependencies, and sets their licenses aside by default.** Such a lockfile was listed as having no packages read, with no cause given. `trivy-license` now reads development dependencies, and `config.controls.licenses.devDependencies` decides whether their license findings count: `suppress`, the default, keeps them in the report under the reason `development dependency`; `report` counts them, marked `dev`.
 
