@@ -178,12 +178,17 @@ func (s licenseScanner) DataState(ctx context.Context) []plugin.DataState {
 	return sharedTrivyData.database(ctx)
 }
 
-// trivyLicenseArgs builds `trivy fs --debug --scanners license --format json <dir>`.
+// trivyLicenseArgs builds `trivy fs --debug --scanners license --format json --include-dev-deps <dir>`.
 //
 // JSON rather than SARIF because Trivy's SARIF output contains no license findings at all. They
 // exist only under Results[].Licenses[] in the JSON. --debug for the reason trivyFSArgs gives.
+//
+// --include-dev-deps for the reason trivyFSOptions gives it: without it Trivy drops a development
+// dependency inside the tool and reads a lockfile holding nothing else as one with no packages. With
+// it each such package arrives marked `Dev`, the mark reaches its license finding (devLicenses), and
+// config.controls.licenses.devDependencies decides whether the finding counts.
 func trivyLicenseArgs(dir string, cfg plugin.Config) []string {
-	argv := []string{"trivy", "fs", "--debug", "--scanners", "license", "--format", "json"}
+	argv := []string{"trivy", "fs", "--debug", "--scanners", "license", "--format", "json", "--include-dev-deps"}
 	return trivyNetworkArgs(append(showSuppressedArgs(licenseFullArg(argv, cfg)), dir), false)
 }
 
@@ -303,6 +308,7 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 
 	report := sarif.Report{Tool: trivyLicenseScannerName, Rules: map[string]sarif.Rule{}}
 	lineOf := doc.lineFinder(dir)
+	dev := doc.devLicenses()
 
 	for _, res := range doc.Results {
 		if in, ok := trivyInput(dir, res.Class, res.Target, len(res.Packages)); ok {
@@ -323,7 +329,7 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 			if !ok {
 				continue
 			}
-			report.Results = append(report.Results, licenseResult(lic, level, why, lineOf))
+			report.Results = append(report.Results, dev(licenseResult(lic, level, why, lineOf), lic))
 			report.Rules[licenseRuleID(licenseID(lic), lic.PkgName)] = licenseRule(lic)
 		}
 		for _, m := range res.Modified {
@@ -337,7 +343,7 @@ func parseTrivyLicenses(out []byte, dir string, cfg plugin.Config) (sarif.Report
 			if !ok {
 				continue
 			}
-			found := licenseResult(m.Finding, level, why, lineOf)
+			found := dev(licenseResult(m.Finding, level, why, lineOf), m.Finding)
 			found.Suppression = &sarif.Suppression{
 				Kind:          "external",
 				Origin:        sarif.OriginScanner,
@@ -492,6 +498,38 @@ func (d trivyLicenseDoc) lineFinder(dir string) func(trivyLicense) int {
 			return n
 		}
 		return lines.find(lic.FilePath, lic.PkgName, p.Version)
+	}
+}
+
+// devLicenses returns a function that gives a license finding the development mark where every
+// package of its name in its manifest is a development dependency.
+//
+// Trivy reports a license with its package's name and manifest, and the mark only on the package
+// list it reports for the same manifest. Every copy of the name, because a license carries no
+// version: a lockfile can hold one version as a development dependency and another at runtime, and
+// a license read from either is then one the shipped code may carry.
+//
+// The mark travels as a package with no name. The package is already named in the rule and the
+// message, and a name here would make the finding read as a dependency to upgrade, which no license
+// finding is.
+func (d trivyLicenseDoc) devLicenses() func(sarif.Result, trivyLicense) sarif.Result {
+	type key struct{ file, name string }
+	dev := map[key]bool{}
+	for _, res := range d.Results {
+		for _, p := range res.Packages {
+			k := key{res.Target, p.Name}
+			if seen, ok := dev[k]; ok {
+				dev[k] = seen && p.Dev
+				continue
+			}
+			dev[k] = p.Dev
+		}
+	}
+	return func(r sarif.Result, lic trivyLicense) sarif.Result {
+		if lic.PkgName != "" && dev[key{lic.FilePath, lic.PkgName}] {
+			r.Package = &sarif.Package{Dev: true}
+		}
+		return r
 	}
 }
 

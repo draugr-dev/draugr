@@ -32,8 +32,7 @@
       ]
     },
     {
-      "clears": 1,
-      "component": "trivy-license-deny",
+      "clears": 2,
       "control": "licenses",
       "findings": "<cleared>",
       "id": "147a0e4a9dcf3443",
@@ -44,6 +43,12 @@
           "line": 15,
           "path": "trivy-license-deny/package-lock.json",
           "repository": "./options-trivy-license"
+        },
+        {
+          "kind": "lockfile",
+          "line": 15,
+          "path": "licenses-dev-report/package-lock.json",
+          "repository": "./options-trivy-license"
         }
       ],
       "priority": "P1",
@@ -53,7 +58,8 @@
       "severity": "high",
       "title": "Replace or accept ms, licensed MIT",
       "where": [
-        "trivy-license-deny/package-lock.json:15"
+        "trivy-license-deny/package-lock.json:15",
+        "licenses-dev-report/package-lock.json:15"
       ]
     },
     {
@@ -135,6 +141,8 @@
     "default": {},
     "full": {},
     "licenses-deny": {},
+    "licenses-dev-default": {},
+    "licenses-dev-report": {},
     "licenses-warn": {},
     "licenses-warn-isc": {},
     "trivy-license-deny": {},
@@ -149,9 +157,9 @@
       "name": "licenses",
       "notes": 0,
       "threshold": "",
-      "total": 6,
+      "total": 7,
       "verdict": "fail",
-      "warnings": 4
+      "warnings": 5
     }
   ],
   "dependencyFiles": [
@@ -165,6 +173,22 @@
     },
     {
       "component": "licenses-deny",
+      "control": "licenses",
+      "read": 1,
+      "scanners": [
+        "trivy-license"
+      ]
+    },
+    {
+      "component": "licenses-dev-default",
+      "control": "licenses",
+      "read": 1,
+      "scanners": [
+        "trivy-license"
+      ]
+    },
+    {
+      "component": "licenses-dev-report",
       "control": "licenses",
       "read": 1,
       "scanners": [
@@ -217,7 +241,7 @@
     "effective": "<cleared>",
     "sources": [
       {
-        "digest": "sha256:f9ff5ad85153f01e62747bc27c643840f00e28277d45803b0331998dba07813e",
+        "digest": "sha256:8ff5a0ccde8e0550824b23d54cdc3d07d9077db40859eb88f45c68bd7635abed",
         "path": "draugr.saga.yaml",
         "root": true
       }
@@ -234,7 +258,7 @@
   },
   "priorities": {
     "p1": 2,
-    "p2": 4,
+    "p2": 5,
     "p3": 0,
     "p4": 0
   },
@@ -273,16 +297,16 @@
     "concurrency": "<cleared>",
     "deduped": 0,
     "durationMs": "<cleared>",
-    "jobs": 8,
+    "jobs": 10,
     "peakToolMemoryBytes": "<cleared>",
-    "scans": 8
+    "scans": 10
   },
   "suppressed": {
     "p1": 0,
-    "p2": 1,
+    "p2": 2,
     "p3": 0,
     "p4": 0,
-    "total": 1
+    "total": 2
   },
   "targets": [
     {
@@ -290,6 +314,8 @@
         "default",
         "full",
         "licenses-deny",
+        "licenses-dev-default",
+        "licenses-dev-report",
         "licenses-warn",
         "licenses-warn-isc",
         "trivy-license-deny",

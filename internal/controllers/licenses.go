@@ -53,10 +53,24 @@ func (Licenses) Info() plugin.ControllerInfo {
 	}
 }
 
-// licenseOptionSchema describes `deny` and `warn` where they sit, under the control.
+// licenseOptionSchema describes `deny`, `warn` and `devDependencies` where they sit, under the
+// control.
+//
+// devDependencies is the control's own key rather than sca's, as each control that sets a kind of
+// finding aside keeps its own (see nonShippingKey). A team can count the flaws in a test runner and
+// still set aside its license, which nobody distributes.
 var licenseOptionSchema = json.RawMessage(`{
   "type": "object",
   "properties": {
+    "devDependencies": {
+      "type": "string",
+      "default": "suppress",
+      "anyOf": [
+        { "const": "suppress", "description": "Each license finding in a development dependency stays in the report, suppressed with the reason development dependency, and out of the counts and the gate. The default." },
+        { "const": "report", "description": "Each license finding in a development dependency is counted, marked dev." }
+      ],
+      "description": "Whether license findings in development dependencies count. A component's setting replaces the project's."
+    },
     "deny": {
       "type": "array",
       "items": {"type": "string"},
@@ -69,6 +83,13 @@ var licenseOptionSchema = json.RawMessage(`{
     }
   }
 }`)
+
+// ReportsDevDependencies resolves devDependencies for one component, and names the key that decided
+// it: the component's setting first, then the project's, and with neither written the default,
+// suppress, named by the project's key.
+func (Licenses) ReportsDevDependencies(model saga.Model, component string) (bool, string) {
+	return controlSetting(model, component, licensesControl, devDependenciesKey, false)
+}
 
 // Plan produces one scan job per repository and per image, carrying the resolved license policy.
 //

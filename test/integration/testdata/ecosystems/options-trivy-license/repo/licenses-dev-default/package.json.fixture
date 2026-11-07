@@ -1,0 +1,9 @@
+{
+  "name": "sealed-license-licenses-dev-default",
+  "version": "1.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "ms": "2.1.3"
+  }
+}

@@ -91,6 +91,14 @@ A finding names each setting that lists its license: `config.controls.licenses.d
 `components["api"].controls.licenses.deny`, a scanner's own block such as
 `config.controls.licenses.trivyLicense.deny`, or several of them, separated by commas.
 
+## Development dependencies
+
+`trivy-license` runs with `--include-dev-deps`, so a lockfile of development dependencies is read
+and each license found in one carries the development mark. `devDependencies`, under the control,
+decides whether those findings count: `suppress`, the default, keeps them in the report suppressed
+with the reason `development dependency`; `report` counts them. A component's setting replaces the
+project's. See [development dependencies](../../docs/reference/saga-schema.md#licenses-of-development-dependencies).
+
 ## Depth, and who published it
 
 The two questions readers arrive with, and neither has the answer they expect.
