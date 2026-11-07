@@ -61,13 +61,15 @@ func ownedNonShipping(dirs []string, dir string, parts []string) []string {
 	return out
 }
 
-// writeIgnore writes a repository's ignore: list, carving out the parts in carved and proposing
-// a line for each directory of docs, examples and tests in ns. Nothing where both are empty.
+// writeIgnore writes a repository's ignore: list, carving out the parts in carved, and proposes a
+// commented-out line for each directory of docs, examples and tests in ns. Nothing where both are
+// empty.
 //
-// Carved parts alone keep the one-line form init has always written. Proposed lines need a line
-// each, so the list becomes a block where there are any, with a comment saying what they are and
-// what keeping them costs: an ignored directory is read by no control, and a credential committed
-// in a test fixture is as live as one committed beside the code.
+// The proposed lines are commented out. An ignored directory is read by no control, secrets
+// included, and a credential committed in a test fixture is as live as one committed beside the
+// code, so ignoring one is a decision somebody makes by uncommenting it. The scan marks their
+// findings and lists them after the shipped code's either way. Carved parts alone keep the
+// one-line form init has always written.
 func writeIgnore(b *strings.Builder, carved, ns []string) {
 	if len(ns) == 0 {
 		if len(carved) > 0 {
@@ -75,18 +77,24 @@ func writeIgnore(b *strings.Builder, carved, ns []string) {
 		}
 		return
 	}
-	b.WriteString("        ignore:\n")
+	// The key is live only where a carved part gives it an entry; otherwise it is commented too,
+	// because an ignore: with no entry is not valid.
+	key := "        # ignore:\n"
+	if len(carved) > 0 {
+		key = "        ignore:\n"
+	}
+	b.WriteString(key)
 	for _, c := range carved {
 		fmt.Fprintf(b, "          - %s\n", Scalar(c+"/"))
 	}
-	b.WriteString("          # Docs, examples and tests, which do not ship. Delete a line to scan that directory.\n")
-	b.WriteString("          # No control reads an ignored directory, secrets included.\n")
+	b.WriteString("          # Documentation, examples and tests. Their findings are labeled and listed after\n")
+	b.WriteString("          # the shipped code's. Uncommenting a line stops every control reading it, secrets too.\n")
 	entries := nonShippingEntries(ns)
 	width := 0
 	for _, e := range entries {
 		width = max(width, len(Scalar(e.pattern)))
 	}
 	for _, e := range entries {
-		fmt.Fprintf(b, "          - %-*s   # %s\n", width, Scalar(e.pattern), e.comment)
+		fmt.Fprintf(b, "          # - %-*s   # %s\n", width, Scalar(e.pattern), e.comment)
 	}
 }

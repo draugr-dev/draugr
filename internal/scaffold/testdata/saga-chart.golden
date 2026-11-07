@@ -15,12 +15,12 @@ components:
   - name: shop
     repositories:
       - url: .
-        ignore:
-          # Docs, examples and tests, which do not ship. Delete a line to scan that directory.
-          # No control reads an ignored directory, secrets included.
-          - "**/testdata"   # tests · internal/render/testdata · internal/values/testdata
-          - docs/           # documentation
-          - tests/          # tests
+        # ignore:
+          # Documentation, examples and tests. Their findings are labeled and listed after
+          # the shipped code's. Uncommenting a line stops every control reading it, secrets too.
+          # - "**/testdata"   # tests · internal/render/testdata · internal/values/testdata
+          # - docs/           # documentation
+          # - tests/          # tests
     # hosts:            # for the headers/DAST controls
     #   - name: api
     #     url: https://api.example.com

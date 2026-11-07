@@ -698,13 +698,13 @@ The path is read below the repository's [`paths`](#scoping-a-repository), so a c
 is the dependency file, so a `tests/go.mod` for a module only the tests build is marked. A flaw
 another manifest that ships also holds is counted under that manifest's copy.
 
-In the console, the marked total stands beside the band counts, and the Fix first heading says
+In the console, the marked total is printed with the band counts, and the Fix first heading says
 `shipped code first`. `report.json` carries the label on each finding as `nonShipping`.
 
 The suppression's `origin` is `setting` and its `source` is the key that decided, as for
-development dependencies. [`draugr init`](cli.md#draugr-init-dir) writes an `ignore` line for each of
-these directories it finds, which takes them out of the scan altogether. That removes them from every
-control, `secrets` included.
+development dependencies. [`draugr init`](cli.md#draugr-init-dir) proposes an `ignore` line for each of
+these directories it finds, commented out. Uncommented, a line takes that directory out of the scan
+for every control, `secrets` included.
 
 ### Reachability for Go
 

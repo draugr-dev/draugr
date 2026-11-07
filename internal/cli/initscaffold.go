@@ -23,14 +23,15 @@ type foundRow struct {
 	// commented is the block the scaffold writes commented out for these files, and off the
 	// control that block would turn on, which a scan with no descriptor leaves off.
 	commented, off string
-	// ignored marks files the scaffold writes an ignore line for, which no control reads.
+	// ignored marks files the scaffold proposes an ignore line for, commented out, whose findings
+	// the scan marks and lists after the shipped code's.
 	ignored bool
 }
 
 // initSays is what init's FOUND block says the scaffold does with the files.
 func (r foundRow) initSays() string {
 	if r.ignored {
-		return "ignored · a line each"
+		return "ignore lines, commented"
 	}
 	return dotJoin(r.on, r.commented, ", commented")
 }
@@ -40,7 +41,7 @@ func (r foundRow) initSays() string {
 // a scanner as on that the run did not run.
 func (r foundRow) scanSays(turnedOff []string) string {
 	if r.ignored {
-		return "ignored"
+		return "scanned · listed last"
 	}
 	on := make([]string, len(r.on))
 	for i, name := range r.on {

@@ -1,7 +1,6 @@
 package scaffold
 
 import (
-	"slices"
 	"strings"
 	"testing"
 
@@ -30,12 +29,12 @@ func TestSagaProposesAnIgnoreLineForEachNonShippingDirectory(t *testing.T) {
 	t.Parallel()
 	got := scaffoldIn(t, chart, false)
 	want := "      - url: .\n" +
-		"        ignore:\n" +
-		"          # Docs, examples and tests, which do not ship. Delete a line to scan that directory.\n" +
-		"          # No control reads an ignored directory, secrets included.\n" +
-		"          - \"**/testdata\"   # tests · internal/render/testdata · internal/values/testdata\n" +
-		"          - docs/           # documentation\n" +
-		"          - tests/          # tests\n"
+		"        # ignore:\n" +
+		"          # Documentation, examples and tests. Their findings are labeled and listed after\n" +
+		"          # the shipped code's. Uncommenting a line stops every control reading it, secrets too.\n" +
+		"          # - \"**/testdata\"   # tests · internal/render/testdata · internal/values/testdata\n" +
+		"          # - docs/           # documentation\n" +
+		"          # - tests/          # tests\n"
 	if !strings.Contains(got, want) {
 		t.Errorf("descriptor lacks\n%s\nin\n%s", want, got)
 	}
@@ -43,8 +42,9 @@ func TestSagaProposesAnIgnoreLineForEachNonShippingDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ignore := m.Components[0].Repositories[0].Ignore; !slices.Equal(ignore, []string{"**/testdata", "docs/", "tests/"}) {
-		t.Errorf("ignore = %v, want one entry per name", ignore)
+	// Proposed, not applied: an ignored directory is read by no control, secrets included.
+	if ignore := m.Components[0].Repositories[0].Ignore; len(ignore) != 0 {
+		t.Errorf("ignore = %v, want the proposed lines commented out", ignore)
 	}
 }
 
@@ -74,27 +74,27 @@ func TestSagaPerDirectoryProposesWhatEachComponentOwns(t *testing.T) {
 	for _, want := range []string{
 		"  - name: shop\n    repositories:\n      - url: .\n        ignore:\n" +
 			"          - services/api/\n          - services/web/\n          - test/\n" +
-			"          # Docs, examples and tests, which do not ship. Delete a line to scan that directory.\n" +
-			"          # No control reads an ignored directory, secrets included.\n" +
-			"          - docs/   # documentation\n",
-		"        paths: [services/api]\n        ignore:\n" +
-			"          # Docs, examples and tests, which do not ship. Delete a line to scan that directory.\n" +
-			"          # No control reads an ignored directory, secrets included.\n" +
-			"          - services/api/examples/   # examples\n" +
-			"          - services/api/tests/      # tests\n",
+			"          # Documentation, examples and tests. Their findings are labeled and listed after\n" +
+			"          # the shipped code's. Uncommenting a line stops every control reading it, secrets too.\n" +
+			"          # - docs/   # documentation\n",
+		"        paths: [services/api]\n        # ignore:\n" +
+			"          # Documentation, examples and tests. Their findings are labeled and listed after\n" +
+			"          # the shipped code's. Uncommenting a line stops every control reading it, secrets too.\n" +
+			"          # - services/api/examples/   # examples\n" +
+			"          # - services/api/tests/      # tests\n",
 		"        paths: [services/web]\n",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("descriptor lacks\n%s\nin\n%s", want, got)
 		}
 	}
-	if strings.Contains(got, "- test/   #") {
+	if strings.Contains(got, "# - test/   #") {
 		t.Errorf("a part was proposed as a test directory as well as carved out:\n%s", got)
 	}
 }
 
-// The zero-config model is the text read back, so it carries the proposed lines too.
-func TestModelCarriesTheProposedIgnoreLines(t *testing.T) {
+// The zero-config model is the text read back, so the proposed lines, commented out, apply nothing.
+func TestModelLeavesTheProposedIgnoreLinesOff(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	layout(t, dir, chart)
@@ -102,7 +102,9 @@ func TestModelCarriesTheProposedIgnoreLines(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ignore := m.Components[0].Repositories[0].Ignore; len(ignore) != 3 {
-		t.Errorf("ignore = %v, want the three proposed lines", ignore)
+	// A scan with no descriptor runs what init writes, and init writes these commented out, so it
+	// still reads those directories, secrets included.
+	if ignore := m.Components[0].Repositories[0].Ignore; len(ignore) != 0 {
+		t.Errorf("ignore = %v, want none applied", ignore)
 	}
 }

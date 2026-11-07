@@ -95,9 +95,10 @@ func TestInitPrintsWhatItFoundAndWhatIsUnread(t *testing.T) {
 	}
 }
 
-// Docs, examples and tests directories get an ignore line each in the descriptor, and a FOUND row in
-// init's console and in a zero-config scan's report, which reads the same text and ignores them too.
-func TestInitIgnoresDocsExamplesAndTests(t *testing.T) {
+// Docs, examples and tests directories get an ignore line each in the descriptor, commented out, and a
+// FOUND row in init's console and in a zero-config scan's report, which reads the same text and so
+// still scans them, secrets included.
+func TestInitProposesIgnoringDocsExamplesAndTests(t *testing.T) {
 	t.Parallel()
 	files := map[string]string{
 		"go.mod":                        "module shop\n\nrequire golang.org/x/text v0.3.0\n",
@@ -114,16 +115,16 @@ func TestInitIgnoresDocsExamplesAndTests(t *testing.T) {
 		"services/api/tests/Dockerfile": "FROM scratch\n",
 	}
 	got, console := runInitIn(t, files, initOptions{})
-	want := "        ignore:\n" +
-		"          # Docs, examples and tests, which do not ship. Delete a line to scan that directory.\n" +
-		"          # No control reads an ignored directory, secrets included.\n" +
-		"          - \"**/testdata\"         # tests · internal/a/testdata · internal/b/testdata\n" +
-		"          - deploy/fixtures/      # tests\n" +
-		"          - docs/                 # documentation\n" +
-		"          - examples/             # examples\n" +
-		"          - services/api/tests/   # tests\n" +
-		"          - spec/                 # tests\n" +
-		"          - web/__tests__/        # tests\n"
+	want := "        # ignore:\n" +
+		"          # Documentation, examples and tests. Their findings are labeled and listed after\n" +
+		"          # the shipped code's. Uncommenting a line stops every control reading it, secrets too.\n" +
+		"          # - \"**/testdata\"         # tests · internal/a/testdata · internal/b/testdata\n" +
+		"          # - deploy/fixtures/      # tests\n" +
+		"          # - docs/                 # documentation\n" +
+		"          # - examples/             # examples\n" +
+		"          # - services/api/tests/   # tests\n" +
+		"          # - spec/                 # tests\n" +
+		"          # - web/__tests__/        # tests\n"
 	if !strings.Contains(got, want) {
 		t.Errorf("descriptor missing\n%s\nin\n%s", want, got)
 	}
@@ -132,7 +133,7 @@ func TestInitIgnoresDocsExamplesAndTests(t *testing.T) {
 			t.Errorf("descriptor proposes %q:\n%s", absent, got)
 		}
 	}
-	if !strings.Contains(console, "  docs, examples, tests  deploy/fixtures · docs · examples · +5  ignored · a line each\n") {
+	if !strings.Contains(console, "  docs, examples, tests  deploy/fixtures · docs · examples · +5  ignore lines, commented\n") {
 		t.Errorf("console does not list the directories under FOUND:\n%s", console)
 	}
 
@@ -142,12 +143,12 @@ func TestInitIgnoresDocsExamplesAndTests(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ignore := zc.model.Components[0].Repositories[0].Ignore; len(ignore) != 7 {
-		t.Errorf("zero-config ignore = %v, want the seven lines init writes", ignore)
+	if ignore := zc.model.Components[0].Repositories[0].Ignore; len(ignore) != 0 {
+		t.Errorf("zero-config ignore = %v, want none: init writes them commented out", ignore)
 	}
 	found := zc.found()
-	if last := found[len(found)-1]; last.Kind != "docs, examples, tests" || last.Did != "ignored" {
-		t.Errorf("zero-config FOUND ends %+v, want the ignored directories", last)
+	if last := found[len(found)-1]; last.Kind != "docs, examples, tests" || last.Did != "scanned · listed last" {
+		t.Errorf("zero-config FOUND ends %+v, want the directories scanned and listed last", last)
 	}
 }
 
