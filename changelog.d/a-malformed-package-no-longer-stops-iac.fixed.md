@@ -1,0 +1,1 @@
+- **A malformed package no longer stops `iac`.** When a repository's dependency files gave Trivy a package it could not convert, such as a Swift `Package.resolved` pin whose location ends in `/`, `iac` failed and every misconfiguration was lost. Draugr now removes packages from the report before converting it.

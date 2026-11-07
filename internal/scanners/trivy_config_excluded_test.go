@@ -3,8 +3,10 @@ package scanners
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -223,5 +225,106 @@ func TestTrivyMisconfigLevelAndScore(t *testing.T) {
 		if got := [2]string{trivyMisconfigLevel(severity), trivyMisconfigScore(severity)}; got != want {
 			t.Errorf("%q = %v, want %v", severity, got, want)
 		}
+	}
+}
+
+// A package in the misconfiguration report that `trivy convert` cannot decode does not cost iac its
+// findings, over two repositories. testdata/trivy-config-empty-purl.json is Trivy 0.76.1's report
+// over a Package.resolved whose pin location ends in "/", which gives the package a purl with an
+// empty name, beside a Dockerfile with two failed checks; the .sarif beside it is what convert
+// writes from that report with the packages removed. The fake convert refuses any report that still
+// lists packages, with the error Trivy gives for that one.
+func TestAMalformedPackageDoesNotFailTheConversion(t *testing.T) {
+	was := sharedTrivyVersion.val
+	t.Cleanup(func() { sharedTrivyVersion.val = was })
+	sharedTrivyVersion.val = "trivy@0.76.1;db@2026-11-06T00:00:00Z"
+
+	report, err := os.ReadFile("testdata/trivy-config-empty-purl.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	converted, err := os.ReadFile("testdata/trivy-config-empty-purl.sarif")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(report, []byte(`"pkg:swift/github.com/apple/swift-log/@1.5.4"`)) {
+		t.Fatal("the recorded report no longer holds the package with an empty name")
+	}
+	run := func(_ context.Context, _ string, argv []string) ([]byte, []byte, error) {
+		if argv[1] == "fs" {
+			return report, nil, nil
+		}
+		handed, err := os.ReadFile(argv[len(argv)-1])
+		if err != nil {
+			return nil, nil, err
+		}
+		var doc struct {
+			Results []struct {
+				Target            string            `json:"Target"`
+				Packages          []json.RawMessage `json:"Packages"`
+				Misconfigurations []json.RawMessage `json:"Misconfigurations"`
+			} `json:"Results"`
+		}
+		if err := json.Unmarshal(handed, &doc); err != nil {
+			return nil, nil, err
+		}
+		misconfigs := 0
+		for _, res := range doc.Results {
+			if res.Packages != nil {
+				return nil, []byte("FATAL\tFatal error\tjson decode error: purl is missing name"), errors.New("exit status 1")
+			}
+			misconfigs += len(res.Misconfigurations)
+		}
+		if misconfigs == 0 {
+			t.Error("convert was handed a report with its misconfigurations removed")
+		}
+		return converted, nil, nil
+	}
+	for _, repo := range []string{"app-a", "app-b"} {
+		dir := t.TempDir()
+		s := NewTrivyConfig().(repoScanner)
+		s.checkout = func(context.Context, string, string, git.Scope) (git.Tree, func(), error) {
+			return git.Tree{Dir: dir}, func() {}, nil
+		}
+		s.runLogged = trivyConfigRun(run)
+		rep, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: repo}, nil)
+		if err != nil {
+			t.Fatalf("%s: %v", repo, err)
+		}
+		var got []string
+		for _, r := range rep.Results {
+			got = append(got, r.RuleID+"@"+r.Location.URI)
+		}
+		slices.Sort(got)
+		if want := []string{"DS-0002@Dockerfile", "DS-0026@Dockerfile"}; !slices.Equal(got, want) {
+			t.Errorf("%s: results %v, want %v", repo, got, want)
+		}
+	}
+}
+
+// A report with no packages reaches convert byte for byte; one that cannot be read is an error
+// rather than a report with nothing in it.
+func TestTrivyWithoutPackages(t *testing.T) {
+	for _, doc := range []string{trivyMisconfigJSON, `{"SchemaVersion": 2}`} {
+		if out, err := trivyWithoutPackages([]byte(doc)); err != nil || string(out) != doc {
+			t.Errorf("%.40s: rewritten as %.40s (%v)", doc, out, err)
+		}
+	}
+	out, err := trivyWithoutPackages([]byte(`{"SchemaVersion": 2, "Results": [{"Target": "Package.resolved", "Packages": [{"Name": ""}]}, {"Target": "Dockerfile", "Misconfigurations": [{"ID": "DS-0002"}]}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"Results":[{"Target":"Package.resolved"},{"Misconfigurations":[{"ID":"DS-0002"}],"Target":"Dockerfile"}],"SchemaVersion":2}`; string(out) != want {
+		t.Errorf("got %s, want %s", out, want)
+	}
+	for _, doc := range []string{"not json", `{"Results": {}}`} {
+		if _, err := trivyWithoutPackages([]byte(doc)); err == nil {
+			t.Errorf("%s: read as a report", doc)
+		}
+	}
+	argv := []string{"trivy", "fs", "--format", "json", trivyConfigExclusionsArg, "/tree"}
+	unreadable := func(context.Context, string, []string) ([]byte, []byte, error) { return []byte("not json"), nil, nil }
+	if _, _, err := trivyConfigRun(unreadable)(context.Background(), "/tree", argv); err == nil {
+		t.Error("an unreadable report reached convert")
 	}
 }

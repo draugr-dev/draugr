@@ -42,13 +42,17 @@ func trivyConfigRun(run func(ctx context.Context, dir string, argv []string) (st
 		if !slices.Contains(argv, trivyConfigExclusionsArg) {
 			return out, unread, nil
 		}
+		report, err := trivyWithoutPackages(out)
+		if err != nil {
+			return nil, nil, err
+		}
 		f, err := os.CreateTemp("", "draugr-trivy-config-*.json")
 		if err != nil {
 			return nil, nil, err
 		}
 		path := f.Name()
 		defer func() { _ = os.Remove(path) }()
-		if _, err := f.Write(out); err != nil {
+		if _, err := f.Write(report); err != nil {
 			_ = f.Close()
 			return nil, nil, err
 		}
@@ -65,6 +69,42 @@ func trivyConfigRun(run func(ctx context.Context, dir string, argv []string) (st
 		}
 		return out, unread, nil
 	}
+}
+
+// trivyWithoutPackages is Trivy's JSON report with each result's Packages removed, for `trivy
+// convert`. `trivy fs` runs the dependency analyzers whatever --scanners says, so a misconfiguration
+// report lists the repository's packages too, and convert rejects the whole document when one of
+// them is malformed: a Swift Package.resolved pin whose location ends in "/" gives a purl with an
+// empty name, and convert stops at `purl is missing name` with every misconfiguration unread. The
+// SARIF convert writes holds no package, so removing them changes nothing it writes. A report whose
+// results list no packages is returned as it was.
+func trivyWithoutPackages(report []byte) ([]byte, error) {
+	var doc map[string]json.RawMessage
+	if err := json.Unmarshal(report, &doc); err != nil {
+		return nil, fmt.Errorf("read its JSON report: %w", err)
+	}
+	var results []map[string]json.RawMessage
+	if raw, ok := doc["Results"]; ok {
+		if err := json.Unmarshal(raw, &results); err != nil {
+			return nil, fmt.Errorf("read its JSON report: %w", err)
+		}
+	}
+	removed := false
+	for _, res := range results {
+		if _, ok := res["Packages"]; ok {
+			delete(res, "Packages")
+			removed = true
+		}
+	}
+	if !removed {
+		return report, nil
+	}
+	raw, err := json.Marshal(results)
+	if err != nil {
+		return nil, err
+	}
+	doc["Results"] = raw
+	return json.Marshal(doc)
 }
 
 // trivyMisconfigDoc is the slice of Trivy's JSON report that names what it excluded.

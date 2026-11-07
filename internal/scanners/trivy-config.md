@@ -27,7 +27,9 @@ trivy convert --quiet --format sarif <report>
 ```
 
 The scan writes JSON because only the JSON lists what Trivy excluded, and `trivy convert` writes
-the SARIF from that report without scanning again. On a Trivy older than 0.53.0, which has no
+the SARIF from that report without scanning again. `trivy fs` lists the repository's packages in
+that report as well. Draugr removes them before converting, because `trivy convert` rejects the
+whole report when one package is malformed, and `iac` reads no package. On a Trivy older than 0.53.0, which has no
 `--show-suppressed`, the scan is `trivy config --debug --format sarif <dir>`.
 
 Trivy reports these shortfalls only in its log, and exits 0 after each. Draugr reads the log for
