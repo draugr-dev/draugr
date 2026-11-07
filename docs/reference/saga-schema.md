@@ -1431,7 +1431,7 @@ in what the run covered, listed under **Caveats** in the report:
 
 | kind | means |
 |---|---|
-| `not-checked` | a part of the component the run did not examine: a surface it declares that no enabled control looks at, or, on a scan with no descriptor, a file whose scanner could not run on this machine |
+| `not-checked` | a part of the component the run did not examine: a surface it declares that no enabled control looks at (for a host, `headers` or `tls`; `dast` leaves both to them), or, on a scan with no descriptor, a file whose scanner could not run on this machine |
 | `not-measured` | a scanner that cannot honor a component's scope, so it did not run for that component |
 | `unread-files` | a file whose contents no scanner read in full, in a repository that was read: a dependency file, a Terraform file calling a module that was not loaded or not evaluated, a Helm chart that was not rendered, a file the secrets scan skipped, a source file Semgrep skipped or did not finish, or a `go.mod` gosec found no Go package in |
 | `unread-checks` | a cloud check the scan could not evaluate, because a read it needs was denied |

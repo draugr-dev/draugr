@@ -442,6 +442,9 @@ type htmlFinding struct {
 	// Movement is every mark standing on the finding, as space-separated keys from movements, which
 	// the Movement menu matches against. MovedLabel names one of them, and this holds them all.
 	Movement string
+	// Signals is every key from signalKeys the finding carries, space-separated, which a count
+	// followed from the Signals section narrows the list to.
+	Signals string
 	// HelpURI documents the rule. Rendered as a link because this is the one format where a
 	// link costs nothing, and a rule id names a finding without explaining it.
 	HelpURI string
@@ -949,6 +952,7 @@ func toHTMLFinding(f finding) htmlFinding {
 		MovedLabel:    label,
 		MovedDir:      dir,
 		Movement:      strings.Join(movements(f), " "),
+		Signals:       strings.Join(signalKeys(f), " "),
 		AcceptedVia:   f.acceptedVia,
 		Justification: f.justification,
 		Package:       pkgLabel,
@@ -2028,7 +2032,7 @@ the component is, so the same issue ranks differently on a public API than on an
 <p class="note">What argued with this run's ranking, and how many findings each one moved.</p>
 <table class="provenance signals">
 <thead><tr><th scope="col">Signal</th><th scope="col">How it moves a finding</th><th scope="col">This run</th></tr></thead>
-{{range .Signals}}<tr><td><code>{{.Name}}</code></td><td class="how"><span class="moved {{.Moves.Dir}}"><span class="g">{{.Moves.Glyph}}</span>{{.Moves.Change}}</span> {{.Moves.Condition}}{{with .Moves.Value}} <code>{{.}}</code>{{end}}{{.Moves.Rest}}</td><td>{{.Did}}</td></tr>{{end}}
+{{range .Signals}}<tr><td><code>{{.Name}}</code></td><td class="how"><span class="moved {{.Moves.Dir}}"><span class="g">{{.Moves.Glyph}}</span>{{.Moves.Change}}</span> {{.Moves.Condition}}{{with .Moves.Value}} <code>{{.}}</code>{{end}}{{.Moves.Rest}}</td><td>{{.DidHTML}}</td></tr>{{end}}
 </table>
 {{range .SignalNotes}}<p class="note">{{.}}</p>{{end}}
 </details>
@@ -2219,7 +2223,7 @@ what it would have found. For each scanner's whole output, re-run with
 {{if .Findings}}
 {{template "listbar"}}
 <div class="rows" id="findings">
-{{range .Findings}}<div class="f" data-p="{{.Priority}}" data-s="{{.Severity}}" data-movement="{{.Movement}}" data-c="{{.Control}}" data-m="{{.Component}}" data-fix="{{.FixKind}}" data-sc="{{.Tool}}" data-a="{{.ActionKey}}" data-q="{{.Search}}">
+{{range .Findings}}<div class="f" data-p="{{.Priority}}" data-s="{{.Severity}}" data-movement="{{.Movement}}" data-sig="{{.Signals}}" data-c="{{.Control}}" data-m="{{.Component}}" data-fix="{{.FixKind}}" data-sc="{{.Tool}}" data-a="{{.ActionKey}}" data-q="{{.Search}}">
   <span class="chips"><span class="pri {{.Priority}}">{{.Priority}}</span><span class="sevchip {{.SevClass}}">{{.Severity}}</span></span>
   <div class="what">
     {{if .Full}}<details class="more"><summary class="rule">{{template "rule" .}}<span class="hint" aria-hidden="true">more</span></summary><p class="full">{{.Full}}</p></details>
@@ -2885,6 +2889,10 @@ what it would have found. For each scanner's whole output, re-run with
   // because it is not a dimension somebody browses: it is one row of the fix list, and the way
   // out of it is the token it leaves in the row above.
   var act = { key: "", title: "" };
+  // The same for a count followed from the Signals section, which narrows to the findings that carry
+  // its key in data-sig.
+  var sig = { key: "", title: "" };
+  function inSignal(r) { return !sig.key || (" " + (r.d.sig || "") + " ").indexOf(" " + sig.key + " ") >= 0; }
 
   // Two views of one set. What to do leads and the list sits behind the toggle; the headings that
   // separate them without scripts go, because the toggle names them.
@@ -2930,6 +2938,18 @@ what it would have found. For each scanner's whole output, re-run with
     return a;
   });
 
+  // A count in the Signals section is the way into the findings it counts. Following it opens the
+  // list narrowed to them, and the token it leaves is how a reader gets back. The link's address
+  // opens the Findings section, so it still goes somewhere without this.
+  Array.prototype.forEach.call(document.querySelectorAll("a.sig-go"), function (el) {
+    el.addEventListener("click", function () {
+      sig.key = el.dataset.sig;
+      sig.title = el.dataset.title || "";
+      showView("all");
+      findings.reset();
+    });
+  });
+
   // Where fixes.upgrade could not apply, counted over the actions a narrowing leaves, as the list's
   // own count is, and gone when it leaves none.
   var naNote = document.getElementById("policy-na");
@@ -2958,18 +2978,19 @@ what it would have found. For each scanner's whole output, re-run with
   var findings = strip(tools, {
     sets: [rows],
     counted: function () { return rows; },
-    keep: function (r) { return !act.key || r.d.a === act.key; },
-    narrowed: function () { return act.key; },
+    keep: function (r) { return (!act.key || r.d.a === act.key) && inSignal(r); },
+    narrowed: function () { return act.key || sig.key; },
     tokens: function (token) {
+      if (sig.key) token(sig.title, "Show every finding again", function () { sig.key = sig.title = ""; });
       if (act.key) token(act.title.toLowerCase(), "Show every finding again", function () { act.key = act.title = ""; });
     },
-    clear: function () { act.key = act.title = ""; },
+    clear: function () { act.key = act.title = sig.key = sig.title = ""; },
     // Under a narrowing each action says how many of its findings are left, and one with none
     // left goes. A search that names the action keeps all of its findings.
     paint: function () {
       acts.forEach(function (a) {
         var titled = findings.q && a.title.indexOf(findings.q) >= 0, n = 0;
-        (byAct[a.key] || []).forEach(function (r) { if (findings.passes(r) && (titled || findings.searched(r))) n++; });
+        (byAct[a.key] || []).forEach(function (r) { if (findings.passes(r) && inSignal(r) && (titled || findings.searched(r))) n++; });
         a.ok = n > 0;
         a.count.textContent = (n === a.total ? "" : n + " of ") + counted(a.total, "finding");
       });

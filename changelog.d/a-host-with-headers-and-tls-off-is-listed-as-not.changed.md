@@ -1,0 +1,1 @@
+- **A host with `headers` and `tls` off is listed as not checked when `dast` is on.** `dast` leaves response headers and TLS to those two controls, so turning it on no longer hides the gap. Every `not-checked` caveat now reads `controls off: …`.
