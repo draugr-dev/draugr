@@ -237,6 +237,74 @@ func TestApplyProvidedDependenciesAsksEachComponent(t *testing.T) {
 	}
 }
 
+// The own mark travels between copies of a package in one file as the development mark does.
+func TestMarkDevCopiesCarriesTheOwnMark(t *testing.T) {
+	own := providedFinding("trivy", "web", "pom.xml", "CVE-1", false)
+	own.Package.Own = true
+	results := []sarif.Result{
+		own,
+		providedFinding("grype", "web", "pom.xml", "CVE-1", false),     // takes it
+		providedFinding("grype", "web", "app/pom.xml", "CVE-1", false), // another file
+	}
+	controls := map[string]plugin.ControlResult{"sca": {Report: sarif.Report{Results: results}}}
+	markDevCopies(controls)
+	got := controls["sca"].Report.Results
+	for i, want := range []bool{true, true, false} {
+		if got[i].Package.Own != want {
+			t.Errorf("result %d (%s %s): own %v, want %v", i, got[i].Tool, got[i].Location.URI, got[i].Package.Own, want)
+		}
+	}
+}
+
+// ownPolicyController answers ownPackages per component: report where own[component] is true. It
+// has the development policy too, so a finding marked both shows which setting is asked first.
+type ownPolicyController struct {
+	devPolicyController
+	own map[string]bool
+}
+
+func (c ownPolicyController) ReportsOwnPackages(_ saga.Model, component string) (bool, string) {
+	return c.own[component], "own-key-for-" + component
+}
+
+// Each component's ownPackages decides its own findings, with the reason the project's own package,
+// before the development setting is asked, so a finding marked both keeps that reason.
+func TestApplyOwnPackagesAsksEachComponentFirst(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(ownPolicyController{own: map[string]bool{"api": true}})
+	e := New(reg)
+
+	mark := func(component, vuln string, own, dev bool) sarif.Result {
+		r := providedFinding("grype", component, "pom.xml", vuln, false)
+		r.Package.Own, r.Package.Dev = own, dev
+		return r
+	}
+	controls := map[string]plugin.ControlResult{"sca": {Report: sarif.Report{Results: []sarif.Result{
+		mark("web", "CVE-1", true, false),
+		mark("api", "CVE-1", true, false),
+		mark("web", "CVE-2", false, false),
+		mark("web", "CVE-3", true, true),
+	}}}}
+	if n := e.applyOwnPackages(controls, saga.Model{}); n != 2 {
+		t.Errorf("own setting set aside %d, want 2", n)
+	}
+	e.applyDevDependencies(controls, saga.Model{})
+	got := controls["sca"].Report.Results
+	if s := got[0].Suppression; s == nil || s.Origin != sarif.OriginSetting || s.Source != "own-key-for-web" ||
+		s.Justification != sarif.JustificationOwnPackage {
+		t.Errorf("web's own package: suppression %+v, want the own setting's", s)
+	}
+	if got[1].Suppressed() {
+		t.Error("api reports its own packages, and its finding was set aside")
+	}
+	if got[2].Suppressed() {
+		t.Error("a dependency was set aside")
+	}
+	if s := got[3].Suppression; s == nil || s.Justification != sarif.JustificationOwnPackage {
+		t.Errorf("a finding marked own and dev: suppression %+v, want the own reason", s)
+	}
+}
+
 // namedDevPolicy is a control with only the development policy, under the name given.
 type namedDevPolicy struct {
 	devPolicyController

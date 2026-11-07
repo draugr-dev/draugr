@@ -378,6 +378,12 @@ type Package struct {
 	// whatever version it carries. False where any match of the finding used the package's ecosystem,
 	// and on a binary the scanner identified by its contents, where the CPE is the only identifier.
 	CPEMatch bool `json:"cpeMatch,omitempty"`
+	// Own says the package is the project itself rather than a dependency: the root of a
+	// package-lock.json, a Cargo workspace member, a Dart package that is never published, a pod
+	// taken from a directory of the repository. Its name can still be a published package's, and a
+	// scanner then matches it against that package's advisories. False for every package the
+	// project fetches from somewhere else.
+	Own bool `json:"own,omitempty"`
 }
 
 // Escalation records that exploitability data raised a finding's severity, and on what grounds.
@@ -695,6 +701,10 @@ const JustificationProvidedByRuntime = "provided by the runtime"
 // JustificationCPEMatch is the reason recorded on a finding that config.controls.sca.cpeMatches set
 // aside.
 const JustificationCPEMatch = "matched by CPE only"
+
+// JustificationOwnPackage is the reason recorded on a finding that config.controls.sca.ownPackages
+// set aside.
+const JustificationOwnPackage = "the project's own package"
 
 // JustificationNonShipping is the reason recorded on a finding that a control's nonShippingPaths
 // set aside, such as config.controls.iac.nonShippingPaths.

@@ -118,6 +118,8 @@ var optionExceptions = map[string]string{
 	"virustotal.requestsPerMinute": "VirusTotal is a hosted API; the sealed tier has no network",
 	"prowler.compliance":           "Prowler reads a live cloud account; the sealed tier has no network",
 	"sca.cpeMatches":               "the sealed Grype database holds no CPE entries; internal/scanners' TestCPEOnlyMatchesAreSuppressedByDefault proves it on Grype 0.121.0's recorded output; https://github.com/draugr-dev/draugr/issues/1837",
+	"sca.ownPackages": "no sealed scenario's own package shares a name with a package in advisories.yaml; " +
+		"internal/scanners' TestOwnPackagesAreSuppressedByDefault proves it on Grype 0.121.0's and Trivy 0.76.1's recorded output over two components in two repositories",
 	"sast.nonShippingPaths": "decided by Draugr from a finding's path after the scanner has run, changing nothing a scanner is told, and no sealed scenario's repository holds a docs, examples or tests directory; " +
 		"pkg/engine's TestARunMarksAndSetsAsideNonShippingFindingsPerComponent proves it over two components in two repositories",
 	"iac.nonShippingPaths": "decided by Draugr from a finding's path after the scanner has run, changing nothing a scanner is told, and no sealed scenario's repository holds a docs, examples or tests directory; " +

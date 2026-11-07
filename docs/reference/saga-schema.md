@@ -516,7 +516,8 @@ misspelled setting. Each produced a descriptor that claimed a decision it was no
 `licenses` takes settings of its own, `deny`, `warn` and
 [`devDependencies`](#licenses-of-development-dependencies), and `sca` takes
 [`devDependencies`](#development-dependencies),
-[`providedDependencies`](#provided-dependencies) and [`cpeMatches`](#cpe-matches). `sast`, `iac`
+[`providedDependencies`](#provided-dependencies), [`cpeMatches`](#cpe-matches) and
+[`ownPackages`](#own-packages). `sast`, `iac`
 and `sca` each take [`nonShippingPaths`](#non-shipping-paths).
 
 **Which scanners take options, and which take only `enabled`:**
@@ -653,6 +654,56 @@ the package's own ecosystem, such as a Dart advisory for a `pubspec.lock` packag
 binary Grype identified by its contents keeps its CPE matches, because the CPE is the only
 identifier it has. A package type with a matcher of its own is matched by CPE only where Grype's
 configuration turns that on, and its findings are counted.
+
+The suppression's `origin` is `setting` and its `source` is the key that decided, as for
+development dependencies.
+
+### Own packages
+
+`config.controls.sca.ownPackages` decides whether a finding about the project's own package counts.
+The project's own package is a package the repository itself builds, such as a `package-lock.json`'s
+root, a Cargo workspace member, a Dart package with `publish_to: none` or a pod taken from a local
+`:path:`. Scanners read it as they read a dependency and match it against the advisories of a
+published package with the same name: a workspace member named `telemetry` gets the advisories of
+the crates.io crate `telemetry`.
+
+| Value | Each finding about the project's own package |
+|---|---|
+| `suppress`, the default | Stays in the report and in `report.json`, suppressed with the reason `the project's own package`, and out of the counts and the gate |
+| `report` | Is counted, with `own` beside its package |
+
+```yaml
+config:
+  controls:
+    sca:
+      ownPackages: report       # count findings about the project's own package
+components:
+  - name: site
+    controls:
+      sca:
+        ownPackages: suppress   # replaces the project's setting for this component
+```
+
+Draugr reads the project's own packages from the dependency file in the checkout and marks every
+finding about one of them in that file, whichever scanner reported it:
+
+| File | The project's own packages |
+|---|---|
+| `package-lock.json`, `npm-shrinkwrap.json` | The root, named by `packages[""]`, by the lockfile's top-level `name` and `version`, or by the `package.json` beside it, and each workspace member, an entry under `packages` keyed by a folder rather than a path under `node_modules` |
+| `Cargo.lock` | Each `[[package]]` with no `source`: a workspace member, or a crate taken from a path |
+| `pubspec.yaml` | The package it declares, where it says `publish_to: none` |
+| `Podfile.lock` | Each pod under `EXTERNAL SOURCES` with a `:path:` |
+| Any file Trivy reads, such as `go.mod` or `pom.xml` | Each package Trivy reports as `root` or `workspace`: a `go.mod`'s module, a `pom.xml`'s artifact |
+
+A package that is also marked `dev`, `provided` or `cpe` is set aside under `ownPackages`, with the
+reason `the project's own package`.
+
+Set `report` where the repository holds a published package's source under its published name, such
+as a fork of a crate taken by path through `[patch]`. An advisory against that version then describes
+code in the checkout.
+
+Grype gives a Cargo workspace member no package URL, so its finding and Trivy's about the same flaw
+are not counted as one. With `report`, the flaw is counted once for each scanner.
 
 The suppression's `origin` is `setting` and its `source` is the key that decided, as for
 development dependencies.

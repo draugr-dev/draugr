@@ -37,7 +37,8 @@ const (
 	scaControl = "sca"
 	// devDependenciesKey decides whether the findings in development dependencies count.
 	devDependenciesKey = "devDependencies"
-	// devSuppress and devReport are its two values, and providedDependencies' and cpeMatches'.
+	// devSuppress and devReport are its two values, and providedDependencies', cpeMatches' and
+	// ownPackages'.
 	devSuppress = "suppress"
 	devReport   = "report"
 	// includeDevDepsKey is trivy-fs's deprecated spelling of devDependencies: true is report.
@@ -47,10 +48,12 @@ const (
 	providedDependenciesKey = "providedDependencies"
 	// cpeMatchesKey decides whether the findings a scanner matched only through a CPE count.
 	cpeMatchesKey = "cpeMatches"
+	// ownPackagesKey decides whether the findings about the project's own package count.
+	ownPackagesKey = "ownPackages"
 )
 
-// scaOptionSchema describes devDependencies, providedDependencies, cpeMatches and nonShippingPaths
-// where they sit, under the control.
+// scaOptionSchema describes devDependencies, providedDependencies, cpeMatches, ownPackages and
+// nonShippingPaths where they sit, under the control.
 //
 // The control's rather than a scanner's, because the answer is the same whichever scanner found
 // the flaw: a development dependency Grype reported takes its mark from Trivy's copy of the same
@@ -86,6 +89,15 @@ var scaOptionSchema = json.RawMessage(`{
       ],
       "description": "Whether findings Grype matched only through a CPE built from the package's name, on a package type it has no matcher for, such as dart-pub and pod, count. A component's setting replaces the project's."
     },
+    "ownPackages": {
+      "type": "string",
+      "default": "suppress",
+      "anyOf": [
+        { "const": "suppress", "description": "Each finding about the project's own package stays in the report, suppressed with the reason \"the project's own package\", and out of the counts and the gate. The default." },
+        { "const": "report", "description": "Each finding about the project's own package is counted, with own beside its package." }
+      ],
+      "description": "Whether findings about the project's own package count, such as a package-lock.json's root or a Cargo workspace member. A component's setting replaces the project's."
+    },
     ` + nonShippingProperty + `
   }
 }`)
@@ -108,6 +120,12 @@ func scaSetting(model saga.Model, component, key string) (bool, string) {
 // ReportsProvidedDependencies does.
 func (SCA) ReportsCPEMatches(model saga.Model, component string) (bool, string) {
 	return scaSetting(model, component, cpeMatchesKey)
+}
+
+// ReportsOwnPackages resolves ownPackages for one component, and names the key that decided it, as
+// ReportsProvidedDependencies does.
+func (SCA) ReportsOwnPackages(model saga.Model, component string) (bool, string) {
+	return scaSetting(model, component, ownPackagesKey)
 }
 
 // ReportsDevDependencies resolves devDependencies for one component, and names the key that

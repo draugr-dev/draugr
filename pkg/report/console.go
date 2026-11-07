@@ -652,15 +652,24 @@ const (
 	cpeLabelFull = "CPE match"
 )
 
+// ownLabel and ownLabelFull mark a package that is the project itself rather than a dependency, in
+// the same two places.
+const (
+	ownLabel     = "own"
+	ownLabelFull = "own package"
+)
+
 // isDev reports whether the finding's package is a development dependency.
 func isDev(f finding) bool { return f.pkg != nil && f.pkg.Dev }
 
-// packageKind is the label a finding's package wears for the kind of dependency it is, or for a
-// match made only through a CPE, short and in full, or empty for a dependency the application ships
-// that was matched in its own ecosystem. A package with more than one mark wears the first of dev,
-// provided and cpe, the reason its suppression records.
+// packageKind is the label a finding's package wears for the project's own package, for the kind of
+// dependency it is, or for a match made only through a CPE, short and in full, or empty for a
+// dependency the application ships that was matched in its own ecosystem. A package with more than
+// one mark wears the first of own, dev, provided and cpe, the reason its suppression records.
 func packageKind(f finding) (short, full string) {
 	switch {
+	case f.pkg != nil && f.pkg.Own:
+		return ownLabel, ownLabelFull
 	case isDev(f):
 		return devLabel, devLabelFull
 	case f.pkg != nil && f.pkg.Provided:

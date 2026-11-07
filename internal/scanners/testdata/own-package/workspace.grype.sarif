@@ -1,0 +1,62 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "grype",
+          "version": "0.121.0",
+          "informationUri": "https://github.com/anchore/grype",
+          "rules": [
+            {
+              "id": "CVE-2021-29937-telemetry",
+              "name": "RustMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "CVE-2021-29937 critical vulnerability for telemetry package"
+              },
+              "fullDescription": {
+                "text": "Free of uninitialized memory in telemetry"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-hpcx-3pw8-g3j2",
+              "help": {
+                "text": "Vulnerability CVE-2021-29937\nSeverity: critical\nPackage: telemetry\nVersion: 0.1.0\nFix Version: 0.1.3\nType: rust-crate\nLocation: /Cargo.lock\nData Namespace: github:language:rust\nLink: [CVE-2021-29937](https://github.com/advisories/GHSA-hpcx-3pw8-g3j2)",
+                "markdown": "**Vulnerability CVE-2021-29937**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| critical  | telemetry  | 0.1.0  | 0.1.3  | rust-crate  | /Cargo.lock  | github:language:rust  | [CVE-2021-29937](https://github.com/advisories/GHSA-hpcx-3pw8-g3j2)  |\n"
+              },
+              "properties": {
+                "security-severity": "9.8"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CVE-2021-29937-telemetry",
+          "level": "error",
+          "message": {
+            "text": "A critical vulnerability in rust-crate package: telemetry, version 0.1.0 was found at: /Cargo.lock"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/Cargo.lock"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "9472463dc1959771d17b1ae00241b32c6fe80abca37b0b517863c96c3a5188ed:1"
+          }
+        }
+      ]
+    }
+  ]
+}

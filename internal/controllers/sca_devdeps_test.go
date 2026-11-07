@@ -97,10 +97,11 @@ func TestSCADeclaresDevDependencies(t *testing.T) {
 		names = append(names, o.Name)
 	}
 	slices.Sort(names)
-	if !slices.Equal(names, []string{"cpeMatches", "devDependencies", "nonShippingPaths", "providedDependencies"}) {
-		t.Errorf("options %v, want cpeMatches, devDependencies, nonShippingPaths and providedDependencies", names)
+	want := []string{"cpeMatches", "devDependencies", "nonShippingPaths", "ownPackages", "providedDependencies"}
+	if !slices.Equal(names, want) {
+		t.Errorf("options %v, want %v", names, want)
 	}
-	for _, key := range []string{"cpeMatches", "devDependencies", "nonShippingPaths", "providedDependencies"} {
+	for _, key := range want {
 		for _, v := range []string{"suppress", "report"} {
 			if err := plugin.ValidateConfig(NewSCA().Info().OptionSchema, plugin.Config{key: v}); err != nil {
 				t.Errorf("%s: %s: %v", key, v, err)
@@ -167,6 +168,33 @@ func TestReportsCPEMatchesResolvesPerComponent(t *testing.T) {
 			"web", false, project},
 	} {
 		got, from := policy.ReportsCPEMatches(tc.model, tc.component)
+		if got != tc.report || from != tc.decidedFrom {
+			t.Errorf("%s: (%v, %q), want (%v, %q)", tc.name, got, from, tc.report, tc.decidedFrom)
+		}
+	}
+}
+
+// ownPackages resolves as providedDependencies does, and no other setting decides it.
+func TestReportsOwnPackagesResolvesPerComponent(t *testing.T) {
+	policy := NewSCA().(plugin.OwnPackagePolicy)
+	const project = "config.controls.sca.ownPackages"
+	report := saga.ControllerSettings{"ownPackages": "report"}
+	suppress := saga.ControllerSettings{"ownPackages": "suppress"}
+	for _, tc := range []struct {
+		name        string
+		model       saga.Model
+		component   string
+		report      bool
+		decidedFrom string
+	}{
+		{"default", devModel(nil, nil, nil), "web", false, project},
+		{"project", devModel(report, nil, nil), "web", true, project},
+		{"component over project", devModel(report, suppress, nil), "web", false, `components["web"].controls.sca.ownPackages`},
+		{"other component keeps the project's", devModel(report, suppress, nil), "tools", true, project},
+		{"cpeMatches decides nothing here", devModel(saga.ControllerSettings{"cpeMatches": "report"}, nil, nil),
+			"web", false, project},
+	} {
+		got, from := policy.ReportsOwnPackages(tc.model, tc.component)
 		if got != tc.report || from != tc.decidedFrom {
 			t.Errorf("%s: (%v, %q), want (%v, %q)", tc.name, got, from, tc.report, tc.decidedFrom)
 		}

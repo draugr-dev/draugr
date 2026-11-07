@@ -139,6 +139,47 @@ func TestReportJSONFindingSaysItWasMatchedByCPE(t *testing.T) {
 	}
 }
 
+// A finding about the project's own package says so in report.json, with the setting's reason and
+// key, and a finding about a dependency does not.
+func TestReportJSONFindingSaysItIsTheProjectsOwnPackage(t *testing.T) {
+	run := engine.Result{
+		Controls: map[string]plugin.ControlResult{"sca": {Control: "sca", Report: sarif.Report{
+			Tool: "grype", Results: []sarif.Result{{
+				RuleID: "GHSA-69hx-wrc9-h5wq-webpack-json", Level: sarif.LevelError, Priority: "P1", Component: "site",
+				Location: sarif.Location{URI: "package-lock.json", StartLine: 1},
+				Package:  &sarif.Package{Name: "webpack-json", Version: "1.0.0", Ecosystem: "npm", Own: true},
+				Suppression: &sarif.Suppression{Kind: "external", Origin: sarif.OriginSetting,
+					Justification: sarif.JustificationOwnPackage, Source: "config.controls.sca.ownPackages"},
+			}, {
+				RuleID: "CVE-2021-44906-minimist", Level: sarif.LevelError, Priority: "P1", Component: "site",
+				Location: sarif.Location{URI: "package-lock.json", StartLine: 9},
+				Package:  &sarif.Package{Name: "minimist", Version: "1.2.5", Ecosystem: "npm"},
+			}},
+		}}},
+	}
+	findings, ok := renderJSON(t, run, "P4")["findings"].([]any)
+	if !ok || len(findings) != 2 {
+		t.Fatalf("findings = %v", findings)
+	}
+	byLocation := map[string]map[string]any{}
+	for _, f := range findings {
+		m := f.(map[string]any)
+		byLocation[m["location"].(string)] = m
+	}
+	own := byLocation["package-lock.json:1"]
+	if own["own"] != true {
+		t.Errorf("the project's own package is not marked: %v", own)
+	}
+	sup, _ := own["suppressed"].(map[string]any)
+	if sup["origin"] != "setting" || sup["justification"] != "the project's own package" ||
+		sup["source"] != "config.controls.sca.ownPackages" {
+		t.Errorf("suppressed = %v, want the setting, its reason and its key", sup)
+	}
+	if _, present := byLocation["package-lock.json:9"]["own"]; present {
+		t.Errorf("a dependency carries the mark: %v", byLocation["package-lock.json:9"])
+	}
+}
+
 // A finding the scanner gave no location says so in report.json, and one with a location does not.
 func TestReportJSONFindingSaysTheScannerGaveNoLocation(t *testing.T) {
 	run := engine.Result{

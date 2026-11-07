@@ -283,6 +283,9 @@ type findingReport struct {
 	// CPEMatch says the scanner matched the finding's package to the advisory only through a CPE
 	// built from its name and version. Absent wherever any match used the package's own ecosystem.
 	CPEMatch bool `json:"cpeMatch,omitempty"`
+	// Own says the finding's package is the project itself, as the dependency file it was found in
+	// records it, rather than a dependency. Absent on every package fetched from somewhere else.
+	Own bool `json:"own,omitempty"`
 	// NonShipping is the kind of directory the finding's file sits under where it holds
 	// documentation, examples or tests: docs, example or test. Absent for a finding in shipped code
 	// and for a control that does not mark one, such as secrets.
@@ -1185,6 +1188,7 @@ func toFinding(control string, res sarif.Result) findingReport {
 		Dev:           res.Package != nil && res.Package.Dev,
 		Provided:      res.Package != nil && res.Package.Provided,
 		CPEMatch:      res.Package != nil && res.Package.CPEMatch,
+		Own:           res.Package != nil && res.Package.Own,
 		NonShipping:   res.NonShipping,
 	}
 }

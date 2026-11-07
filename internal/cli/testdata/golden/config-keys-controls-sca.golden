@@ -3,6 +3,7 @@ controls.sca.enabled                    true or false                         of
 controls.sca.cpeMatches                 suppress or report                    suppress
 controls.sca.devDependencies            suppress or report                    suppress
 controls.sca.nonShippingPaths           report or suppress                    report
+controls.sca.ownPackages                suppress or report                    suppress
 controls.sca.providedDependencies       suppress or report                    suppress
 controls.sca.trivyFs.enabled            true or false                         true
 controls.sca.trivyFs.dbRepository       a list                                -

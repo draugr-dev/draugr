@@ -18,7 +18,8 @@ import (
 // --by-cve, over two repositories. app is a Flutter app: a pubspec.lock pinning http 0.13.2, which
 // Grype matches to its Dart advisory, and sentry 9.6.0, which it matches by CPE to advisories for
 // the Sentry server, and an ios/Podfile.lock holding the Flutter pod at 1.0.0 from a local path,
-// which it matches by CPE to the Flutter SDK's advisories. lib holds the same pubspec.lock alone.
+// which it matches by CPE to the Flutter SDK's advisories. The pod is the app's own package, so these
+// are also the CocoaPods shape of ownPackages. lib holds the same pubspec.lock alone.
 const (
 	cpePubspecLock = `packages:
   http:
@@ -113,15 +114,20 @@ func runCPEOnly(t *testing.T, sca saga.ControllerSettings, components map[string
 	return res
 }
 
-// cpeOutcome is one component's answer: the findings counted and the findings set aside, each as
-// "<vulnerability> <package>" sorted, with the source of every suppression.
+// cpeOutcome is one component's answer: the findings counted, the findings cpeMatches set aside and
+// the findings ownPackages set aside, each as "<vulnerability> <package>" sorted, with the source of
+// every cpeMatches suppression.
 type cpeOutcome struct {
-	counted, suppressed []string
-	sources             map[string]bool
+	counted, suppressed, own []string
+	sources                  map[string]bool
 }
 
 // cpeMatched is each package Grype matched only by CPE.
 var cpeMatched = map[string]bool{"Flutter": true, "sentry": true}
+
+// cpeOwn is each package that is the app's own: the Flutter pod, which the Podfile.lock takes from a
+// :path:. ownPackages sets its findings aside before cpeMatches is asked, so they keep that reason.
+var cpeOwn = map[string]bool{"Flutter": true}
 
 func cpeOutcomeOf(t *testing.T, res engine.Result, component string) cpeOutcome {
 	t.Helper()
@@ -136,12 +142,23 @@ func cpeOutcomeOf(t *testing.T, res engine.Result, component string) cpeOutcome 
 		if want := cpeMatched[r.Package.Name]; r.Package.CPEMatch != want {
 			t.Errorf("%s %s: cpeMatch %v, want %v", component, r.RuleID, r.Package.CPEMatch, want)
 		}
+		if want := cpeOwn[r.Package.Name]; r.Package.Own != want {
+			t.Errorf("%s %s: own %v, want %v", component, r.RuleID, r.Package.Own, want)
+		}
 		id := r.VulnerabilityID() + " " + r.Package.Name
 		if !r.Suppressed() {
 			out.counted = append(out.counted, id)
 			continue
 		}
 		s := r.Suppression
+		if r.Package.Own {
+			if s.Origin != sarif.OriginSetting || s.Justification != sarif.JustificationOwnPackage ||
+				s.Source != "config.controls.sca.ownPackages" {
+				t.Errorf("%s %s: suppressed as %+v, want by the ownPackages setting", component, id, *s)
+			}
+			out.own = append(out.own, id)
+			continue
+		}
 		if s.Origin != sarif.OriginSetting || s.Justification != sarif.JustificationCPEMatch {
 			t.Errorf("%s %s: suppressed as %+v, want by the cpeMatches setting", component, id, *s)
 		}
@@ -150,40 +167,50 @@ func cpeOutcomeOf(t *testing.T, res engine.Result, component string) cpeOutcome 
 	}
 	slices.Sort(out.counted)
 	slices.Sort(out.suppressed)
+	slices.Sort(out.own)
 	return out
 }
 
 var (
-	cpeAppCPE = []string{"CVE-2022-3095 Flutter", "CVE-2023-36826 sentry", "CVE-2024-24829 sentry", "CVE-2026-27704 Flutter"}
+	cpeAppOwn = []string{"CVE-2022-3095 Flutter", "CVE-2026-27704 Flutter"}
 	cpeLibCPE = []string{"CVE-2023-36826 sentry", "CVE-2024-24829 sentry"}
 	cpeHTTP   = []string{"CVE-2020-35669 http"}
 )
 
+// cpeOwnOf is the findings each component's ownPackages sets aside, whatever cpeMatches says.
+var cpeOwnOf = map[string][]string{"app": cpeAppOwn}
+
 // By default a finding Grype matched only by CPE stays in the report, suppressed by the setting, and
-// the Dart advisory it matched in the package's own ecosystem is counted, in both repositories.
+// the Dart advisory it matched in the package's own ecosystem is counted, in both repositories. The
+// Flutter pod's findings are set aside as the app's own package.
 func TestCPEOnlyMatchesAreSuppressedByDefault(t *testing.T) {
 	res := runCPEOnly(t, nil, nil)
-	for component, cpe := range map[string][]string{"app": cpeAppCPE, "lib": cpeLibCPE} {
+	for _, component := range []string{"app", "lib"} {
 		got := cpeOutcomeOf(t, res, component)
-		if !slices.Equal(got.counted, cpeHTTP) || !slices.Equal(got.suppressed, cpe) {
-			t.Errorf("%s: counted %v and set aside %v, want %v and %v", component, got.counted, got.suppressed, cpeHTTP, cpe)
+		if !slices.Equal(got.counted, cpeHTTP) || !slices.Equal(got.suppressed, cpeLibCPE) || !slices.Equal(got.own, cpeOwnOf[component]) {
+			t.Errorf("%s: counted %v, set aside %v and %v as its own, want %v, %v and %v",
+				component, got.counted, got.suppressed, got.own, cpeHTTP, cpeLibCPE, cpeOwnOf[component])
 		}
 		if !got.sources["config.controls.sca.cpeMatches"] || len(got.sources) != 1 {
 			t.Errorf("%s: sources %v, want the project's key", component, got.sources)
 		}
 	}
-	if res.CPEMatches != len(cpeAppCPE)+len(cpeLibCPE) {
-		t.Errorf("CPEMatches %d, want %d", res.CPEMatches, len(cpeAppCPE)+len(cpeLibCPE))
+	if res.CPEMatches != 2*len(cpeLibCPE) {
+		t.Errorf("CPEMatches %d, want %d", res.CPEMatches, 2*len(cpeLibCPE))
+	}
+	if res.OwnPackages != len(cpeAppOwn) {
+		t.Errorf("OwnPackages %d, want %d", res.OwnPackages, len(cpeAppOwn))
 	}
 }
 
-// cpeMatches: report counts every one of them, still marked.
+// cpeMatches: report counts every one of them, still marked, and leaves the Flutter pod's to
+// ownPackages.
 func TestCPEMatchesReportCountsThem(t *testing.T) {
 	res := runCPEOnly(t, saga.ControllerSettings{"cpeMatches": "report"}, nil)
-	for component, cpe := range map[string][]string{"app": cpeAppCPE, "lib": cpeLibCPE} {
+	for _, component := range []string{"app", "lib"} {
 		got := cpeOutcomeOf(t, res, component)
-		want := slices.Sorted(slices.Values(slices.Concat(cpe, cpeHTTP)))
-		if !slices.Equal(got.counted, want) || len(got.suppressed) != 0 {
+		want := slices.Sorted(slices.Values(slices.Concat(cpeLibCPE, cpeHTTP)))
+		if !slices.Equal(got.counted, want) || len(got.suppressed) != 0 || !slices.Equal(got.own, cpeOwnOf[component]) {
 			t.Errorf("%s: counted %v and set aside %v, want %v counted", component, got.counted, got.suppressed, want)
 		}
 	}

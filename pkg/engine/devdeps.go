@@ -17,7 +17,8 @@ import (
 // whether those findings count.
 //
 // Whether the runtime provides a dependency is the same kind of fact, read from a pom.xml's scope
-// rather than from a scanner, and it travels between copies the same way.
+// rather than from a scanner, and it travels between copies the same way. So is whether the package
+// is the project's own, read from the dependency file or from Trivy's relationship.
 
 // devPackageKey is one package in one manifest of one repository or image, for one component.
 //
@@ -41,9 +42,9 @@ func devPackageKeyOf(res sarif.Result) (devPackageKey, bool) {
 }
 
 // packageMarks are the marks one package carries in one file.
-type packageMarks struct{ dev, provided bool }
+type packageMarks struct{ dev, provided, own bool }
 
-// markDevCopies gives every finding about a package the development and provided marks another
+// markDevCopies gives every finding about a package the development, provided and own marks another
 // scanner's finding about the same package in the same file already carries.
 //
 // A finding no marked finding shares a package and file with keeps what its scanner said. A Grype
@@ -54,12 +55,13 @@ func markDevCopies(controls map[string]plugin.ControlResult) {
 		marked := map[devPackageKey]packageMarks{}
 		for _, res := range cr.Report.Results {
 			key, ok := devPackageKeyOf(res)
-			if !ok || (!res.Package.Dev && !res.Package.Provided) {
+			if !ok || (!res.Package.Dev && !res.Package.Provided && !res.Package.Own) {
 				continue
 			}
 			m := marked[key]
 			m.dev = m.dev || res.Package.Dev
 			m.provided = m.provided || res.Package.Provided
+			m.own = m.own || res.Package.Own
 			marked[key] = m
 		}
 		if len(marked) == 0 {
@@ -72,13 +74,14 @@ func markDevCopies(controls map[string]plugin.ControlResult) {
 				continue
 			}
 			m := marked[key]
-			if (!m.dev || res.Package.Dev) && (!m.provided || res.Package.Provided) {
+			if (!m.dev || res.Package.Dev) && (!m.provided || res.Package.Provided) && (!m.own || res.Package.Own) {
 				continue
 			}
 			// A copy, because a scanner may hand several findings the same package value.
 			pkg := *res.Package
 			pkg.Dev = pkg.Dev || m.dev
 			pkg.Provided = pkg.Provided || m.provided
+			pkg.Own = pkg.Own || m.own
 			res.Package = &pkg
 		}
 		controls[name] = cr
@@ -132,6 +135,27 @@ var cpeMatchSetting = settingPolicy{
 		return p.ReportsCPEMatches, true
 	},
 	justification: sarif.JustificationCPEMatch,
+}
+
+// ownPackageSetting is config.controls.sca.ownPackages.
+var ownPackageSetting = settingPolicy{
+	covers: func(r *sarif.Result) bool { return r.Package != nil && r.Package.Own },
+	decide: func(c plugin.Controller) (func(saga.Model, string) (bool, string), bool) {
+		p, ok := c.(plugin.OwnPackagePolicy)
+		if !ok {
+			return nil, false
+		}
+		return p.ReportsOwnPackages, true
+	},
+	justification: sarif.JustificationOwnPackage,
+}
+
+// applyOwnPackages sets aside each finding about the project's own package whose component's control
+// says not to count them, and returns how many it set aside. Before the dependency settings, so a
+// package that is the project's own keeps that reason over any other mark it carries: it is not a
+// dependency at all.
+func (e *Engine) applyOwnPackages(controls map[string]plugin.ControlResult, model saga.Model) (suppressed int) {
+	return e.applySetting(controls, model, ownPackageSetting)
 }
 
 // applyDevDependencies sets aside each finding in a development dependency whose component's

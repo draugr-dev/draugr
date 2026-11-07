@@ -165,6 +165,18 @@ func (r trivyVulnResult) devPackages() map[string]bool {
 	return out
 }
 
+// ownPackages is the UIDs of the packages Trivy places at the root of their file's tree or among its
+// workspace members: the project itself, which a finding names by the same UID.
+func (r trivyVulnResult) ownPackages() map[string]bool {
+	out := map[string]bool{}
+	for _, p := range r.Packages {
+		if (p.Relationship == "root" || p.Relationship == "workspace") && p.Identifier.UID != "" {
+			out[p.Identifier.UID] = true
+		}
+	}
+	return out
+}
+
 type trivyVuln struct {
 	VulnerabilityID  string `json:"VulnerabilityID"`
 	PkgName          string `json:"PkgName"`
@@ -278,11 +290,12 @@ func parseTrivyVulns(out []byte, dir string, cfg plugin.Config) (sarif.Report, e
 			rep.Inputs = append(rep.Inputs, in)
 		}
 		known := res.packageLines()
-		dev := res.devPackages()
+		dev, own := res.devPackages(), res.ownPackages()
 		for _, v := range res.Vulnerabilities {
 			found := trivyVulnResultOf(doc, res, v, layers)
 			found.Location.StartLine = lineOf(res, known, v)
 			found.Package.Dev = dev[v.PkgIdentifier.UID]
+			found.Package.Own = own[v.PkgIdentifier.UID]
 			rep.Results = append(rep.Results, found)
 			if _, seen := rep.Rules[v.VulnerabilityID]; !seen {
 				rep.Rules[v.VulnerabilityID] = trivyVulnRule(v)
@@ -296,6 +309,7 @@ func parseTrivyVulns(out []byte, dir string, cfg plugin.Config) (sarif.Report, e
 			}
 			found.Location.StartLine = lineOf(res, known, m.Finding)
 			found.Package.Dev = dev[m.Finding.PkgIdentifier.UID]
+			found.Package.Own = own[m.Finding.PkgIdentifier.UID]
 			rep.Results = append(rep.Results, found)
 			if _, seen := rep.Rules[m.Finding.VulnerabilityID]; !seen {
 				rep.Rules[m.Finding.VulnerabilityID] = trivyVulnRule(m.Finding)

@@ -71,6 +71,26 @@ config:
 [CPE matches](../../docs/reference/saga-schema.md#cpe-matches) in the Saga reference says which
 matches are marked.
 
+## Own packages
+
+`ownPackages` decides whether a finding counts when its package is the project itself rather than a
+dependency, such as a `package-lock.json`'s root or a member of a Cargo workspace. A scanner reads
+the project's own package as it reads a dependency, and matches it against the advisories of a
+published package with the same name. `suppress`, the default, keeps each in the report suppressed
+with the reason `the project's own package`; `report` counts each, with `own` beside its package. A
+component's setting replaces the project's.
+
+```yaml
+config:
+  controls:
+    sca:
+      ownPackages: report
+```
+
+Draugr reads which package is the project's own from the dependency file the finding is in,
+whichever scanner reported it. [Own packages](../../docs/reference/saga-schema.md#own-packages) in
+the Saga reference lists the files and what each records.
+
 ## Non-shipping paths
 
 `nonShippingPaths` decides whether a finding counts when its dependency file sits under a directory
