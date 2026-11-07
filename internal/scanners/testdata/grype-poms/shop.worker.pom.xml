@@ -1,0 +1,6 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>ex</groupId>
+<artifactId>worker</artifactId><version>1.0</version>
+<properties><text.version>1.9</text.version></properties>
+<dependencies>
+<dependency><groupId>org.apache.commons</groupId><artifactId>commons-text</artifactId><version>${text.version}</version></dependency>
+</dependencies></project>

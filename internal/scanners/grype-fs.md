@@ -103,6 +103,13 @@ on a `provided` or `system` dependency is marked `provided`, which
 [`trivy-fs`](trivy-fs.md) reports none of these dependencies, because Trivy's pom parser leaves them
 out.
 
+**Draugr names every `pom.xml` that declares a vulnerable package.** Syft, which Grype reads
+packages through, lists a package that several poms declare at one version once, at one of them.
+Draugr reads the version each pom Grype read declares for the package, from the dependency, a
+property, or the same pom's `dependencyManagement`, and gives every pom that declares the same
+version the finding and the package. A pom whose version for the package comes from a parent POM or
+a BOM is not named, because the checkout does not say which version it resolves to.
+
 **Draugr marks a match Grype made only through a CPE.** For a package type with no matcher of its
 own, such as `dart-pub` and `pod`, Grype matches a CPE built from the package's name and version, so
 a package named like a product takes that product's advisories. Draugr reads the match details from

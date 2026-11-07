@@ -1,0 +1,306 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.7.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "serialNumber": "urn:uuid:885ccf87-a12e-42fb-b7cd-62eba8a8e7b5",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-07T13:22:57-06:00",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "author": "anchore",
+          "name": "grype",
+          "version": "0.121.0"
+        }
+      ]
+    },
+    "component": {
+      "bom-ref": "1ec2917483f3dbcd",
+      "type": "file",
+      "name": "/checkout"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg:maven/ex/api@1.0?package-id=ecfe81ea0b289b80",
+      "type": "library",
+      "name": "api",
+      "version": "1.0",
+      "cpe": "cpe:2.3:a:api:api:1.0:*:*:*:*:*:*:*",
+      "purl": "pkg:maven/ex/api@1.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "java-pom-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "java"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "java-archive"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "java-archive"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/api/pom.xml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:maven/ex/batch@1.0?package-id=4b4f7e215e837663",
+      "type": "library",
+      "name": "batch",
+      "version": "1.0",
+      "cpe": "cpe:2.3:a:batch:batch:1.0:*:*:*:*:*:*:*",
+      "purl": "pkg:maven/ex/batch@1.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "java-pom-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "java"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "java-archive"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "java-archive"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/batch/pom.xml"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:maven/org.apache.commons/commons-text@1.10.0?package-id=2969f95a4d0c2514",
+      "type": "library",
+      "group": "org.apache.commons",
+      "name": "commons-text",
+      "version": "1.10.0",
+      "cpe": "cpe:2.3:a:apache:commons-text:1.10.0:*:*:*:*:*:*:*",
+      "purl": "pkg:maven/org.apache.commons/commons-text@1.10.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "java-pom-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "java"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "java-archive"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "java-archive"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:apache:commons_text:1.10.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:apache:commons:1.10.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/batch/pom.xml"
+        },
+        {
+          "name": "syft:metadata:-:artifactID",
+          "value": "commons-text"
+        },
+        {
+          "name": "syft:metadata:-:groupID",
+          "value": "org.apache.commons"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:maven/org.apache.commons/commons-text@1.9?package-id=f1f06609db2e6805",
+      "type": "library",
+      "group": "org.apache.commons",
+      "name": "commons-text",
+      "version": "1.9",
+      "cpe": "cpe:2.3:a:apache:commons-text:1.9:*:*:*:*:*:*:*",
+      "purl": "pkg:maven/org.apache.commons/commons-text@1.9",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "java-pom-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "java"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "java-archive"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "java-archive"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:apache:commons_text:1.9:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:apache:commons:1.9:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/api/pom.xml"
+        },
+        {
+          "name": "syft:metadata:-:artifactID",
+          "value": "commons-text"
+        },
+        {
+          "name": "syft:metadata:-:groupID",
+          "value": "org.apache.commons"
+        }
+      ]
+    },
+    {
+      "bom-ref": "8e657a821b38b105",
+      "type": "file",
+      "name": "/checkout/api/pom.xml",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8c84d1410d400ac31425713f66bf05389c2115db810a8bd4a1fce2552c58bb40"
+        }
+      ]
+    },
+    {
+      "bom-ref": "312ac3e09b37ce36",
+      "type": "file",
+      "name": "/checkout/batch/pom.xml",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "63091bea5e1e5fbb4f383cc9363503184d4218412f3b40eaaa2a1dda4c14c4d1"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:maven/ex/api@1.0?package-id=ecfe81ea0b289b80",
+      "dependsOn": [
+        "pkg:maven/org.apache.commons/commons-text@1.9?package-id=f1f06609db2e6805"
+      ]
+    },
+    {
+      "ref": "pkg:maven/ex/batch@1.0?package-id=4b4f7e215e837663",
+      "dependsOn": [
+        "pkg:maven/org.apache.commons/commons-text@1.10.0?package-id=2969f95a4d0c2514"
+      ]
+    }
+  ],
+  "vulnerabilities": [
+    {
+      "bom-ref": "urn:uuid:5a8c34af-c1be-48c4-837c-2de3869a05f0",
+      "id": "CVE-2022-42889",
+      "source": {
+        "name": "github-language-java",
+        "url": "https://github.com/advisories/GHSA-599f-7c49-w659"
+      },
+      "references": [
+        {
+          "id": "CVE-2022-42889",
+          "source": {
+            "name": "github-language-java",
+            "url": "https://github.com/advisories/GHSA-599f-7c49-w659"
+          }
+        }
+      ],
+      "ratings": [
+        {
+          "score": 9.8,
+          "severity": "critical",
+          "method": "CVSSv31",
+          "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+        },
+        {
+          "source": {
+            "name": "FIRST",
+            "url": "https://www.first.org/epss/"
+          },
+          "score": 0.99931,
+          "method": "other"
+        }
+      ],
+      "description": "Arbitrary code execution in Apache Commons Text",
+      "advisories": [
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-42889"
+        },
+        {
+          "url": "https://lists.apache.org/thread/n2bd4vdsgkqh2tm14l1wyc3jyol7s1om"
+        },
+        {
+          "url": "http://www.openwall.com/lists/oss-security/2022/10/13/4"
+        },
+        {
+          "url": "https://securitylab.github.com/advisories/GHSL-2022-018_Apache_Commons_Text"
+        },
+        {
+          "url": "http://www.openwall.com/lists/oss-security/2022/10/18/1"
+        },
+        {
+          "url": "https://security.netapp.com/advisory/ntap-20221020-0004/"
+        },
+        {
+          "url": "https://psirt.global.sonicwall.com/vuln-detail/SNWLID-2022-0022"
+        },
+        {
+          "url": "https://security.gentoo.org/glsa/202301-05"
+        },
+        {
+          "url": "http://seclists.org/fulldisclosure/2023/Feb/3"
+        },
+        {
+          "url": "http://packetstormsecurity.com/files/171003/OX-App-Suite-Cross-Site-Scripting-Server-Side-Request-Forgery.html"
+        },
+        {
+          "url": "https://arxiv.org/pdf/2306.05534"
+        },
+        {
+          "url": "http://packetstormsecurity.com/files/176650/Apache-Commons-Text-1.9-Remote-Code-Execution.html"
+        }
+      ],
+      "affects": [
+        {
+          "ref": "pkg:maven/org.apache.commons/commons-text@1.9?package-id=f1f06609db2e6805",
+          "versions": [
+            {
+              "version": "1.9",
+              "status": "affected"
+            },
+            {
+              "range": "vers:maven/>=1.10.0",
+              "status": "unaffected"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
