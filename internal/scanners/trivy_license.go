@@ -105,6 +105,8 @@ func NewTrivyLicense() plugin.Scanner {
 		// after both, a repository's licenses come from the same cache state on every run rather
 		// than from whatever had landed by the time this job looked.
 		ReadsAfter: []string{govulncheckScanner, gosecScannerName},
+		// Every repository's, because the module cache is one for the whole run.
+		ReadsAfterRun: true,
 	}
 
 	repo := newRepoScannerWithParser(info, trivyLicenseRepoArgs, parseTrivyLicenses)

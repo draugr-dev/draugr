@@ -76,6 +76,10 @@ tool, where a suppression cannot be recorded or reviewed. Use `config.exclude` i
   [`sca`](../controllers/sca.md#unread).
 - A `pom.xml` whose dependency versions or transitive dependencies Trivy did not resolve is listed
   as read in part, see [`sca`](../controllers/sca.md#unread).
+- For a `go.mod` that declares Go 1.16 or older, Trivy finds the transitive dependencies in the Go
+  module cache, which every repository's Go jobs in a run fill. The packages it reports for such a
+  module can depend on which downloads had finished when it read the cache. A module on Go 1.17 or
+  later lists its dependencies in `go.mod` and is read from the file alone.
 
 ## Data
 

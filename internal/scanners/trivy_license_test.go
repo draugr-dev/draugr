@@ -464,3 +464,12 @@ func TestLicenseSubjectWithNeitherPackageNorFile(t *testing.T) {
 		t.Errorf("subject = %q, want a noun rather than a blank", got)
 	}
 }
+
+// trivy-license reads the module cache every repository's Go loaders fill, so it waits for them on
+// every repository in the run.
+func TestTrivyLicenseReadsAfterTheGoLoadersOfTheWholeRun(t *testing.T) {
+	info := NewTrivyLicense().Info()
+	if !info.ReadsAfterRun || !slices.Equal(info.ReadsAfter, []string{govulncheckScanner, gosecScannerName}) {
+		t.Errorf("ReadsAfter %v, ReadsAfterRun %v, want govulncheck and gosec across the run", info.ReadsAfter, info.ReadsAfterRun)
+	}
+}

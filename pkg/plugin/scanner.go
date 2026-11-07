@@ -259,6 +259,11 @@ type ScannerInfo struct {
 	// under this scanner's name with the run's other waits. The declarations across a registry
 	// must not form a cycle; a run that plans one reports it and orders nothing.
 	ReadsAfter []string
+	// ReadsAfterRun widens ReadsAfter to the whole run: this scanner's job waits for every job of
+	// the named scanners, on any target, rather than only those on its own. For state the run's
+	// targets share, as every repository's Go loaders fill one module cache, so a module another
+	// repository downloads is either in the cache for every read of it or for none.
+	ReadsAfterRun bool
 	// Exclusive names a resource this scanner's jobs use whole. Jobs of every scanner declaring the
 	// same name never run at the same time in one run, on any target. Empty for a scanner whose
 	// jobs may run beside each other.

@@ -46,6 +46,7 @@ type stepScanner struct {
 	name      string
 	after     []string
 	exclusive string
+	runWide   bool
 	log       *eventLog
 	hold      func(ctx context.Context, repo string) error
 	fail      bool
@@ -53,7 +54,7 @@ type stepScanner struct {
 
 func (s *stepScanner) Info() plugin.ScannerInfo {
 	return plugin.ScannerInfo{
-		Name: s.name, ReadsAfter: s.after, Exclusive: s.exclusive,
+		Name: s.name, ReadsAfter: s.after, ReadsAfterRun: s.runWide, Exclusive: s.exclusive,
 		TargetKinds: []plugin.TargetKind{plugin.TargetRepository},
 	}
 }
@@ -351,4 +352,35 @@ func TestCheckReadsAfter(t *testing.T) {
 			t.Errorf("CheckReadsAfter = %v, want the cycle", err)
 		}
 	})
+}
+
+// A reader that reads after the run waits for the filler on every repository, its own and the
+// others', because the state it reads is one for the whole run. Run with one slot and with four.
+func TestAReaderThatReadsAfterTheRunWaitsForEveryRepository(t *testing.T) {
+	for _, jobs := range []int{1, 4} {
+		t.Run(fmt.Sprintf("j%d", jobs), func(t *testing.T) {
+			log := &eventLog{}
+			reader := &stepScanner{name: "reader", after: []string{"filler"}, runWide: true, log: log}
+			filler := &stepScanner{name: "filler", log: log,
+				hold: func(context.Context, string) error { time.Sleep(50 * time.Millisecond); return nil }}
+			reg, m := readerAndFiller(reader, filler,
+				[]string{"repo-a", "repo-b"}, []string{"repo-a", "repo-b", "repo-c"})
+
+			res, err := runBounded(context.Background(), t, New(reg, WithConcurrency(jobs), WithoutPrewarm()), m)
+			if err != nil {
+				t.Fatalf("Run: %v (events: %s)", err, log)
+			}
+			for _, reading := range []string{"repo-a", "repo-b"} {
+				started := log.at("start reader " + reading)
+				for _, filled := range []string{"repo-a", "repo-b", "repo-c"} {
+					if ended := log.at("end filler " + filled); started < 0 || ended < 0 || started < ended {
+						t.Errorf("the reader on %s started before the filler on %s ended: %s", reading, filled, log)
+					}
+				}
+			}
+			if got := len(res.Controls["licenses"].Report.Results); got != 2 {
+				t.Errorf("licenses results = %d, want one per repository", got)
+			}
+		})
+	}
 }

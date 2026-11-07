@@ -12,7 +12,8 @@ import (
 )
 
 // readsAfter returns, for each planned job, the positions in the plan of the jobs it waits for:
-// every job on the same target whose scanner its own scanner names in ScannerInfo.ReadsAfter.
+// every job on the same target whose scanner its own scanner names in ScannerInfo.ReadsAfter, or on
+// any target where it sets ScannerInfo.ReadsAfterRun.
 //
 // A target is the same at the grain outcomeKey uses, a repository by source and revision whatever
 // paths a job reads, because the state being ordered (a tool's cache filled from the repository's
@@ -23,12 +24,16 @@ import (
 // unordered run this falls back to.
 func readsAfter(reg *Registry, planned []PlannedJob) ([][]int, error) {
 	byScannerAndTarget := map[string][]int{}
+	byScanner := map[string][]int{}
 	declared := map[string][]string{}
+	runWide := map[string]bool{}
 	for i, pj := range planned {
 		key := pj.Job.Scanner + "\x00" + outcomeKey(pj.Job.Target)
 		byScannerAndTarget[key] = append(byScannerAndTarget[key], i)
+		byScanner[pj.Job.Scanner] = append(byScanner[pj.Job.Scanner], i)
 		if sc, ok := reg.Scanner(pj.Job.Scanner); ok {
 			declared[pj.Job.Scanner] = sc.Info().ReadsAfter
+			runWide[pj.Job.Scanner] = sc.Info().ReadsAfterRun
 		}
 	}
 	if cycle := readsAfterCycle(declared); cycle != nil {
@@ -39,6 +44,10 @@ func readsAfter(reg *Registry, planned []PlannedJob) ([][]int, error) {
 	for i, pj := range planned {
 		target := outcomeKey(pj.Job.Target)
 		for _, name := range declared[pj.Job.Scanner] {
+			if runWide[pj.Job.Scanner] {
+				out[i] = append(out[i], byScanner[name]...)
+				continue
+			}
 			out[i] = append(out[i], byScannerAndTarget[name+"\x00"+target]...)
 		}
 	}
