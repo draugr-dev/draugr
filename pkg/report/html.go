@@ -1486,7 +1486,7 @@ const htmlDoc = `<!doctype html>
   .sev.s-p2 { background: var(--p2-fill); color: var(--on-p2-fill); }
   .sev.s-p3 { background: var(--p3-fill); color: var(--on-p3-fill); }
   .sev.s-p4 { background: var(--p4-fill); color: var(--on-p4-fill); }
-  .sev.off { background: transparent; color: var(--faint); border-color: var(--line); }
+  .sev.zero { background: transparent; color: var(--faint); border-color: var(--line); }
 
   /* Components as a table, where the controls above them are rows: a reader compares components
    * against each other and a control against the gate, and comparing means a column to run down.
@@ -2053,16 +2053,16 @@ the component is, so the same issue ranks differently on a public API than on an
   <span class="ctl-verdict">{{if .Errored}}<span class="err">ERROR</span>{{else if .Fail}}<span class="err">FAIL</span>{{else}}<span class="ok">pass</span>{{end}}</span>
   {{if .NoReport}}<span class="ctl-none">nothing to report, this control did not run</span>
   {{else if .Prioritized}}<span class="sevs">
-    <span class="sev s-p1{{if not .P1}} off{{end}}">{{.P1}} P1</span>
-    <span class="sev s-p2{{if not .P2}} off{{end}}">{{.P2}} P2</span>
-    <span class="sev s-p3{{if not .P3}} off{{end}}">{{.P3}} P3</span>
-    <span class="sev s-p4{{if not .P4}} off{{end}}">{{.P4}} P4</span>
+    <span class="sev s-p1{{if not .P1}} zero{{end}}">{{.P1}} P1</span>
+    <span class="sev s-p2{{if not .P2}} zero{{end}}">{{.P2}} P2</span>
+    <span class="sev s-p3{{if not .P3}} zero{{end}}">{{.P3}} P3</span>
+    <span class="sev s-p4{{if not .P4}} zero{{end}}">{{.P4}} P4</span>
   </span>
   {{else}}<span class="sevs">
-    <span class="sev s-critical{{if not .Critical}} off{{end}}">{{.Critical}} critical</span>
-    <span class="sev s-high{{if not .High}} off{{end}}">{{.High}} high</span>
-    <span class="sev s-medium{{if not .Medium}} off{{end}}">{{.Medium}} medium</span>
-    <span class="sev s-low{{if not .Low}} off{{end}}">{{.Low}} low</span>
+    <span class="sev s-critical{{if not .Critical}} zero{{end}}">{{.Critical}} critical</span>
+    <span class="sev s-high{{if not .High}} zero{{end}}">{{.High}} high</span>
+    <span class="sev s-medium{{if not .Medium}} zero{{end}}">{{.Medium}} medium</span>
+    <span class="sev s-low{{if not .Low}} zero{{end}}">{{.Low}} low</span>
   </span>{{end}}
   {{if .Unread}}<span class="ctl-none">{{.Unread}}</span>{{end}}
 </li>{{end}}
@@ -2101,10 +2101,10 @@ as the run.</p>
   <td>
     {{if .Skipped}}
     {{else if and .Prioritized .Findings}}<span class="sevs">
-      <span class="sev s-p1{{if not .P1}} off{{end}}">{{.P1}} P1</span>
-      <span class="sev s-p2{{if not .P2}} off{{end}}">{{.P2}} P2</span>
-      <span class="sev s-p3{{if not .P3}} off{{end}}">{{.P3}} P3</span>
-      <span class="sev s-p4{{if not .P4}} off{{end}}">{{.P4}} P4</span>
+      <span class="sev s-p1{{if not .P1}} zero{{end}}">{{.P1}} P1</span>
+      <span class="sev s-p2{{if not .P2}} zero{{end}}">{{.P2}} P2</span>
+      <span class="sev s-p3{{if not .P3}} zero{{end}}">{{.P3}} P3</span>
+      <span class="sev s-p4{{if not .P4}} zero{{end}}">{{.P4}} P4</span>
     </span>
     {{else if .Findings}}{{plural .Findings "finding"}}
     {{else if not .Errored}}<span class="none">no findings</span>{{end}}
@@ -2183,10 +2183,10 @@ prints each scanner's full output.</p>
     <span class="cls">{{template "class" .Exposure}} · {{template "class" .Criticality}}</span>
     <span class="focus-verdict">{{if .Errored}}<span class="err">ERROR</span>{{else if .Fail}}<span class="err">FAIL</span>{{else}}<span class="ok">PASS</span>{{end}}</span>
     {{if and .Prioritized .Findings}}<span class="sevs">
-      <span class="sev s-p1{{if not .P1}} off{{end}}">{{.P1}} P1</span>
-      <span class="sev s-p2{{if not .P2}} off{{end}}">{{.P2}} P2</span>
-      <span class="sev s-p3{{if not .P3}} off{{end}}">{{.P3}} P3</span>
-      <span class="sev s-p4{{if not .P4}} off{{end}}">{{.P4}} P4</span>
+      <span class="sev s-p1{{if not .P1}} zero{{end}}">{{.P1}} P1</span>
+      <span class="sev s-p2{{if not .P2}} zero{{end}}">{{.P2}} P2</span>
+      <span class="sev s-p3{{if not .P3}} zero{{end}}">{{.P3}} P3</span>
+      <span class="sev s-p4{{if not .P4}} zero{{end}}">{{.P4}} P4</span>
     </span>{{end}}
     <span class="focus-facts">
       {{/* The count only where the bands are not shown. With them it is their sum, and the line
@@ -2332,10 +2332,10 @@ prints each scanner's full output.</p>
         {{- if .N}}<span class="faint"> · </span>{{plural .N "finding"}}{{else}}<span class="faint"> · </span>no findings{{end}}</div>
     </div>
     {{if .Prioritized}}<span class="sevs">
-      <span class="sev s-p1{{if not .P1}} off{{end}}">{{.P1}} P1</span>
-      <span class="sev s-p2{{if not .P2}} off{{end}}">{{.P2}} P2</span>
-      <span class="sev s-p3{{if not .P3}} off{{end}}">{{.P3}} P3</span>
-      <span class="sev s-p4{{if not .P4}} off{{end}}">{{.P4}} P4</span>
+      <span class="sev s-p1{{if not .P1}} zero{{end}}">{{.P1}} P1</span>
+      <span class="sev s-p2{{if not .P2}} zero{{end}}">{{.P2}} P2</span>
+      <span class="sev s-p3{{if not .P3}} zero{{end}}">{{.P3}} P3</span>
+      <span class="sev s-p4{{if not .P4}} zero{{end}}">{{.P4}} P4</span>
     </span>{{end}}
   </summary>
   <div class="dec-open">

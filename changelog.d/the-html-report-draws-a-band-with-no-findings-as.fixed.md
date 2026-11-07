@@ -1,0 +1,1 @@
+- **The HTML report draws a band with no findings as a dimmed chip.** The class that marked an empty band was also the one that hides an inactive tab, so `0 P2` was never drawn on the Controls, Components and Accepted tabs, and a reader could not tell an empty band from a missing one.
