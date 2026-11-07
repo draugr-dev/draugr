@@ -2,7 +2,7 @@
 
 - **Industry term:** CSPM / cloud posture
 - **Scope:** component
-- **Status:** ✅ implemented (Google Cloud)
+- **Status:** ✅ implemented (Google Cloud, AWS)
 - **Scanners:** [`prowler`](../scanners/prowler.md) (default)
 - **Resource:** a component's `cloud:` entry, naming an account declared under `accounts:`
 
@@ -12,14 +12,19 @@ Checks the cloud account a component runs in against the provider's CIS foundati
 reading the live account through the provider's APIs. Where the [`iac`](iac.md) control reads the
 Terraform that describes an account, this one reads what the account is.
 
-**Each account is declared once, under `accounts:`**, with its provider and its identifier there.
-Components refer to it by name:
+**Each account is declared once, under `accounts:`**, with its provider and its identifier there:
+`project` for a Google Cloud project, `account` for an AWS account's 12-digit ID. Quote an AWS
+account ID: a YAML reader that takes it as a number drops a leading zero. Components refer to an
+account by name:
 
 ```yaml
 accounts:
   shop-prod:
     provider: gcp
     project: shop-prod-4821
+  web-prod:
+    provider: aws
+    account: "123456789012"
 components:
   - name: platform
     cloud:
@@ -28,6 +33,9 @@ components:
     cloud:
       - account: shop-prod
         regions: [us-central1]
+  - name: web
+    cloud:
+      - account: web-prod
 ```
 
 **Findings that belong to no region go to the component that declares the whole account.** A
@@ -35,22 +43,33 @@ project's IAM policy, its audit logging and its log sinks are about the account,
 once, against `platform` above. A component that names `regions` gets the findings about resources
 in those regions and their zones. A component runs in one account.
 
-**The account is reached with the credentials in the environment**, the Application Default
-Credentials every Google client reads: `GOOGLE_APPLICATION_CREDENTIALS`, `gcloud auth
-application-default login`, or the metadata server of the machine the scan runs on. Read access is
-enough: `roles/viewer` and `roles/serviceusage.serviceUsageConsumer` on the project, and
-`storage.buckets.getIamPolicy`, which Viewer lacks, cover every check. `draugr doctor` checks that
-the credentials can read each declared account.
+On AWS, `regions` also narrows the scan: Prowler reads only those regions. The findings about the
+account itself, IAM, the account's contacts, Organizations and the CloudWatch alarms over its trail,
+go to the component claiming the whole account, whatever region Prowler files them under.
+
+**The account is reached with the credentials in the environment.**
+
+- **Google Cloud:** the Application Default Credentials every Google client reads,
+  `GOOGLE_APPLICATION_CREDENTIALS`, `gcloud auth application-default login`, or the metadata server
+  of the machine the scan runs on. Read access is enough: `roles/viewer` and
+  `roles/serviceusage.serviceUsageConsumer` on the project, and `storage.buckets.getIamPolicy`,
+  which Viewer lacks, cover every check.
+- **AWS:** the default credential chain every AWS SDK reads, `AWS_PROFILE`, the shared config and
+  credentials files, an SSO session, or an instance or task role. Prowler documents the
+  `SecurityAudit` and `ViewOnlyAccess` managed policies and its own `prowler-additions-policy`.
+
+`draugr doctor` checks each declared account: on Google Cloud that the credentials can read the
+project, on AWS that they are an identity in the declared account.
 
 ## What a run reports
 
-**An account the credentials cannot read at all fails the run**, as a target not reached: no
-credentials, a project that does not exist, or one the credentials hold no role on. It is named
-under **Errors** as `account gcp/<project>`.
+**An account the scan cannot reach fails the run**, as a target not reached, named under **Errors**
+as `account gcp/<project>` or `account aws/<id>`: no credentials, a project that does not exist or
+one the credentials hold no role on, or AWS credentials whose identity is in another account.
 
-**A service whose reads are denied leaves its checks unread**, and the run goes on. Before Prowler
-runs, the scanner lists the permissions the checks need and asks Google which of them the
-credentials hold. Each service missing one is a row under **Caveats**, with the number of checks
+**On Google Cloud, a service whose reads are denied leaves its checks unread**, and the run goes on.
+Before Prowler runs, the scanner lists the permissions the checks need and asks Google which of them
+the credentials hold. Each service missing one is a row under **Caveats**, with the number of checks
 that read it and the permission that was missing:
 
 ```
@@ -63,6 +82,10 @@ Prowler's result for an unread check is discarded, whatever it was. Prowler does
 it could not evaluate from one it found clean, so a denied read can come back as a pass.
 `report.json` lists every unread check under `unreadChecks[]`.
 
+**On AWS, permissions are not checked yet.** The report holds what Prowler could read, and a check
+whose reads were denied counts as whatever Prowler made of it. The measured-against line says so, as
+`permissions: not checked`.
+
 **Coverage is stated in the measured-against line**: the framework, how many of its checks were
 decided, and the scope.
 
@@ -74,19 +97,23 @@ config:
     cloud:
       enabled: true
       prowler:
-        compliance: cis_4.0_gcp   # optional; cis_5.0_gcp by default
+        compliance: cis_4.0_gcp   # optional; cis_5.0_gcp and cis_7.0_aws by default
 ```
 
-`compliance` names any framework `prowler gcp --list-compliance` prints. The framework decides which
-checks run, and the coverage figure counts them.
+`compliance` names any framework `prowler gcp --list-compliance` or `prowler aws --list-compliance`
+prints, and applies to the accounts of the cloud its suffix names. Accounts on the other cloud are
+checked against its default. The framework decides which checks run, and the coverage figure counts
+them.
 
 ## Links
 
 - Prowler: https://github.com/prowler-cloud/prowler
 - CIS Google Cloud Platform Foundation Benchmark: https://www.cisecurity.org/benchmark/google_cloud_computing_platform
+- CIS Amazon Web Services Foundations Benchmark: https://www.cisecurity.org/benchmark/amazon_web_services
 
 ## Notes
 
-- Google Cloud is the provider Draugr checks today, so `provider: gcp` is the one `validate` accepts.
+- `validate` accepts `provider: gcp` with `project:` and `provider: aws` with `account:`, and refuses
+  either ID field on the other provider.
 - The scanner reports a Prowler check as `prowler/<check>`, with the benchmark's requirement IDs as
   its taxa.

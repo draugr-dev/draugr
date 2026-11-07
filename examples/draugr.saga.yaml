@@ -141,8 +141,8 @@ config:
                              # is a component that passes without being examined,
                              # `draugr doctor` reports that, and --fail-on-uncovered enforces it
     cloud:
-      enabled: true          # the live Google Cloud project nightly-etl runs in, against the CIS
-                             # benchmark, through Prowler, which you install
+      enabled: true          # the live cloud accounts web and nightly-etl run in, against the
+                             # provider's CIS benchmark, through Prowler, which you install
     # threats:
     #   enabled: true        # whether a component's hosts appear on public lists of known-hostile
     #                        # addresses (URLhaus). It asks about the endpoints declared below
@@ -185,11 +185,14 @@ clusters:
     # yours, and those are usually the findings that matter, so this narrows what it
     # excuses rather than marking the whole cluster somebody else's problem.
 
-# Each cloud account once: a Google Cloud project, by its ID.
+# Each cloud account once, by its ID at its provider.
 accounts:
   data-prod:
-    provider: gcp                # gcp is the provider Draugr checks
+    provider: gcp                # gcp | aws
     project: acme-data-prod      # the project ID, as `gcloud projects list` prints it
+  web-prod:
+    provider: aws
+    account: "123456789012"      # the 12-digit account ID, quoted so no reader drops a leading zero
 
 components:
   # A public web app: source, the image it builds, and the endpoint it serves.
@@ -236,6 +239,8 @@ components:
     imports:
       - control: sast
         file: reports/codeql.sarif
+    cloud:
+      - account: web-prod    # the whole account: every region, and the findings about the account
 
   # An internal API: no image here, and its endpoint is typed `api` so browser-only
   # header checks don't fire.

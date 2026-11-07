@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/draugr-dev/draugr/internal/awsaccess"
 	"github.com/draugr-dev/draugr/internal/gcpaccess"
 )
 
@@ -25,8 +26,25 @@ func reachAccount(ctx context.Context, provider, id string) (string, error) {
 			return "", err
 		}
 		return projectReadable(ctx, tester, id)
+	case "aws":
+		identifier, err := awsaccess.New(ctx)
+		if err != nil {
+			return "", err
+		}
+		return callerInAccount(ctx, identifier, id)
 	}
 	return "", fmt.Errorf("doctor cannot check accounts on %s", provider)
+}
+
+// callerInAccount reports whether the credentials are an identity in the declared AWS account. It
+// is the question a scan asks before Prowler runs; whether that identity can read each service is
+// not asked yet.
+func callerInAccount(ctx context.Context, id awsaccess.Identifier, account string) (string, error) {
+	caller, err := awsaccess.Confirm(ctx, id, account)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("account %s · the credentials are %s", account, caller.ARN), nil
 }
 
 func projectReadable(ctx context.Context, tester *gcpaccess.Tester, project string) (string, error) {

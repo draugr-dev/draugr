@@ -20,26 +20,30 @@ trivy        ✓ found  0.76.1   /somewhere/trivy
 
 NETWORK  (besides its targets · --offline stops all of it)
   draugr scan
-    dast        github.com                 template set · before the scan
-                oast.*                     oast.pro, oast.live, oast.site, oast.online, oast.fun and oast.me learn where each out-of-band callback came from and what it sent, unless interactsh: false
-    iac         mirror.gcr.io              checks bundle · before the scan
-    images      ghcr.io                    vulnerability database · before the scan
-                grype.anchore.io           vulnerability database · before the scan
-                mirror.gcr.io              vulnerability database · before the scan
-    licenses    $MEND_URL                  learns the dependency inventory
-                ghcr.io                    vulnerability database · before the scan
-                mirror.gcr.io              vulnerability database · before the scan
-    provenance  rekor.sigstore.dev         learns an image digest, for a signature with no inclusion proof
-                tuf-repo-cdn.sigstore.dev  Sigstore trust root · before the scan
-    sast        semgrep.dev                rule pack · every scan
-    sca         $MEND_URL                  learns the dependency inventory
-                ghcr.io                    vulnerability database · before the scan
-                grype.anchore.io           vulnerability database · before the scan
-                mirror.gcr.io              vulnerability database · before the scan
-                raw.githubusercontent.com  advisory database · before the scan
-                repo.maven.apache.org      learns each Maven dependency's coordinates, with resolveMaven: true
-                vuln.go.dev                vulnerability database · every scan
-    threats     urlhaus-api.abuse.ch       learns each host's name
-                www.virustotal.com         learns each host's domain
+    cloud       *.s3.<region>.amazonaws.com  AWS Lambda code and ECR image layers, outside the CIS checks · every scan
+                github.com                   AWS CodePipeline source repositories, outside the CIS checks · every scan
+                gitlab.com                   AWS CodePipeline source repositories, outside the CIS checks · every scan
+                ip-ranges.amazonaws.com      AWS IP address ranges, outside the CIS checks · every scan
+    dast        github.com                   template set · before the scan
+                oast.*                       oast.pro, oast.live, oast.site, oast.online, oast.fun and oast.me learn where each out-of-band callback came from and what it sent, unless interactsh: false
+    iac         mirror.gcr.io                checks bundle · before the scan
+    images      ghcr.io                      vulnerability database · before the scan
+                grype.anchore.io             vulnerability database · before the scan
+                mirror.gcr.io                vulnerability database · before the scan
+    licenses    $MEND_URL                    learns the dependency inventory
+                ghcr.io                      vulnerability database · before the scan
+                mirror.gcr.io                vulnerability database · before the scan
+    provenance  rekor.sigstore.dev           learns an image digest, for a signature with no inclusion proof
+                tuf-repo-cdn.sigstore.dev    Sigstore trust root · before the scan
+    sast        semgrep.dev                  rule pack · every scan
+    sca         $MEND_URL                    learns the dependency inventory
+                ghcr.io                      vulnerability database · before the scan
+                grype.anchore.io             vulnerability database · before the scan
+                mirror.gcr.io                vulnerability database · before the scan
+                raw.githubusercontent.com    advisory database · before the scan
+                repo.maven.apache.org        learns each Maven dependency's coordinates, with resolveMaven: true
+                vuln.go.dev                  vulnerability database · every scan
+    threats     urlhaus-api.abuse.ch         learns each host's name
+                www.virustotal.com           learns each host's domain
 
 All required tools present.

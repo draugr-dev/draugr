@@ -11,6 +11,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/awsaccess"
 	"github.com/draugr-dev/draugr/internal/gcpaccess"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 )
@@ -84,12 +85,44 @@ func TestAProjectIsReadableWhenTheCredentialsCanGetIt(t *testing.T) {
 }
 
 func TestReachAccountNamesWhatItCannotCheck(t *testing.T) {
-	if _, err := reachAccount(context.Background(), "aws", "123"); err == nil || !strings.Contains(err.Error(), "cannot check accounts on aws") {
-		t.Errorf("aws = %v", err)
+	if _, err := reachAccount(context.Background(), "azure", "123"); err == nil || !strings.Contains(err.Error(), "cannot check accounts on azure") {
+		t.Errorf("azure = %v", err)
 	}
 	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", t.TempDir()+"/missing.json")
 	if _, err := reachAccount(context.Background(), "gcp", "p"); !errors.Is(err, gcpaccess.ErrNoCredentials) {
 		t.Errorf("no credentials = %v", err)
+	}
+	dir := t.TempDir()
+	for _, k := range []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_PROFILE",
+		"AWS_WEB_IDENTITY_TOKEN_FILE", "AWS_CONTAINER_CREDENTIALS_FULL_URI", "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"} {
+		t.Setenv(k, "")
+	}
+	t.Setenv("AWS_CONFIG_FILE", dir+"/config")
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", dir+"/credentials")
+	t.Setenv("AWS_EC2_METADATA_DISABLED", "true")
+	if _, err := reachAccount(context.Background(), "aws", "111111111111"); !errors.Is(err, awsaccess.ErrNoCredentials) {
+		t.Errorf("no AWS credentials = %v", err)
+	}
+}
+
+// staticCaller is an STS answer naming one identity.
+type staticCaller awsaccess.Caller
+
+func (c staticCaller) CallerIdentity(context.Context) (awsaccess.Caller, error) {
+	return awsaccess.Caller(c), nil
+}
+
+// An AWS account is reachable when the credentials are an identity in it, and doctor names the
+// identity, which is what tells somebody which profile a scan would run as.
+func TestAnAWSAccountIsReachableAsAnIdentityInIt(t *testing.T) {
+	role := staticCaller{Account: "111111111111", ARN: "arn:aws:sts::111111111111:assumed-role/audit/scan"}
+	got, err := callerInAccount(context.Background(), role, "111111111111")
+	if err != nil || got != "account 111111111111 · the credentials are arn:aws:sts::111111111111:assumed-role/audit/scan" {
+		t.Errorf("the declared account = %q, %v", got, err)
+	}
+	if _, err := callerInAccount(context.Background(), role, "222222222222"); err == nil ||
+		!strings.Contains(err.Error(), "in account 111111111111, not the declared account 222222222222") {
+		t.Errorf("another account = %v", err)
 	}
 }
 

@@ -43,7 +43,6 @@ func TestDeclaredOptionDefaultsAreTheOnesTheScannerApplies(t *testing.T) {
 		{NewTLSProbe(), "expiryErrorDays", defaultExpiryErrorDays},
 		{NewTLSProbe(), "expiryWarnDays", defaultExpiryWarnDays},
 		{NewVirusTotal(), "requestsPerMinute", virusTotalFreeRate.Requests},
-		{NewProwler(), "compliance", prowlerDefaultCompliance},
 		{NewSemgrep(), "config", semgrepDefaultRuleset},
 		{NewKubeBench(), "targets", defaultKubeBenchTargets},
 		{NewKubeBenchJob(), "targets", defaultJobTargets},

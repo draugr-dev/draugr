@@ -141,31 +141,43 @@ clusters its components run on; a name two documents declare must carry the same
 
 Each cloud account the components run in, declared once by a name their `cloud:` entries refer to,
 and checked by the [`cloud`](../../internal/controllers/cloud.md) control. An account is the unit a
-provider bills and grants permissions on: a Google Cloud project.
+provider bills and grants permissions on: a Google Cloud project or an AWS account.
 
 ```yaml
 accounts:
   shop-prod:                    # the name components use
-    provider: gcp               # required; Google Cloud is the one Draugr checks today
+    provider: gcp               # required; gcp or aws
     project: shop-prod-4821     # required for gcp, the project ID
+  web-prod:
+    provider: aws
+    account: "123456789012"     # required for aws, the 12-digit account ID, quoted
 components:
   - name: platform
     cloud: [{account: shop-prod}]
   - name: api
     cloud: [{account: shop-prod, regions: [us-central1]}]
+  - name: web
+    cloud: [{account: web-prod}]
 ```
 
 | Field | Description |
 |---|---|
-| `provider` | The cloud the account belongs to: `gcp` |
-| `project` | The Google Cloud project ID, as `gcloud projects list` prints it |
+| `provider` | The cloud the account belongs to: `gcp` or `aws` |
+| `project` | The Google Cloud project ID, as `gcloud projects list` prints it. `gcp` only |
+| `account` | The AWS account's 12-digit ID, as `aws sts get-caller-identity` prints it. `aws` only |
+
+Quote an AWS account ID. Unquoted, a YAML reader takes it as a number, and one that follows YAML 1.2,
+as most editors do, drops a leading zero.
 
 A component's `cloud:` entry names an account with `account:` and may narrow it to the regions its
 resources are in. Findings that belong to no region, such as the project's IAM policy, go to the
-component that declares the whole account. A component runs in one account. `draugr validate`
-refuses a name nothing declares, a provider other than `gcp` and a project with no ID, and warns
-about a declared account no component uses. A fragment may declare accounts on the rule clusters
-follow. `draugr doctor` asks Google whether the credentials in the environment can read each one.
+component that declares the whole account, on AWS whatever region Prowler files them under. A
+component runs in one account. `draugr
+validate` refuses a name nothing declares, a provider other than `gcp` or `aws`, an account with no
+ID, an AWS ID that is not 12 digits, and the other provider's ID field on an account, and warns about
+a declared account no component uses. A fragment may declare accounts on the rule clusters follow.
+`draugr doctor` asks Google whether the credentials in the environment can read each project, and
+AWS whether they are an identity in each account.
 
 ## `components`
 

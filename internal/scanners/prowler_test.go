@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/awsaccess"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -44,6 +45,8 @@ type fakeProwler struct {
 	scanErr  error
 	listErr  error
 	argv     [][]string
+	// mutelist is the mutelist file the scan was given, as it read when the scan ran.
+	mutelist string
 }
 
 func (f *fakeProwler) run(_ context.Context, argv []string) ([]byte, error) {
@@ -52,11 +55,18 @@ func (f *fakeProwler) run(_ context.Context, argv []string) ([]byte, error) {
 		if f.listErr != nil {
 			return nil, f.listErr
 		}
-		out, _ := json.Marshal(map[string][]string{"gcp": f.checks})
+		out, _ := json.Marshal(map[string][]string{argv[1]: f.checks})
 		return append([]byte("_                         _\n"), out...), nil
 	}
 	if f.scanErr != nil {
 		return nil, f.scanErr
+	}
+	if path := argAfter(argv, "--mutelist-file"); path != "" {
+		data, err := os.ReadFile(path) // #nosec G304 -- a file the scanner wrote into its own directory
+		if err != nil {
+			return nil, err
+		}
+		f.mutelist = string(data)
 	}
 	dir := argAfter(argv, "--output-directory")
 	if f.findings != nil {
@@ -95,7 +105,202 @@ func newTestProwler(f *fakeProwler, g *grantAll) prowlerScanner {
 	s := NewProwler().(prowlerScanner)
 	s.run = f.run
 	s.access = func(context.Context) (permissionTester, error) { return g, nil }
+	s.identify = func(context.Context) (awsaccess.Identifier, error) { return callerIn("111111111111"), nil }
 	return s
+}
+
+// callerIn is an STS answer for a role session in account.
+type callerIn string
+
+func (c callerIn) CallerIdentity(context.Context) (awsaccess.Caller, error) {
+	return awsaccess.Caller{Account: string(c), ARN: "arn:aws:sts::" + string(c) + ":assumed-role/audit/scan"}, nil
+}
+
+var webProd = plugin.AccountTarget{Account: "web-prod", Provider: "aws", ID: "111111111111"}
+
+// The scan of an AWS account: the framework's checks listed from Prowler, the caller confirmed to be
+// in the declared account, then one Prowler run with the Control Tower mutelist replaced by an empty
+// one. The finding values are made up for the test, in the shape the scanner reads.
+func TestProwlerChecksAnAWSAccount(t *testing.T) {
+	f := &fakeProwler{
+		checks: []string{"cloudtrail_multi_region_enabled", "s3_bucket_public_access"},
+		findings: []map[string]any{
+			ocsf("s3_bucket_public_access", "FAIL", "critical", "us-east-1", "arn:aws:s3:::shop-assets"),
+			ocsf("cloudtrail_multi_region_enabled", "PASS", "high", "us-east-1", "111111111111"),
+		},
+	}
+	f.findings[0]["unmapped"] = map[string]any{"compliance": map[string][]string{"CIS-7.0": {"2.1.4"}}}
+	report, err := newTestProwler(f, &grantAll{}).Scan(context.Background(), webProd, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"prowler", "aws", "--list-checks-json", "--compliance", "cis_7.0_aws"}; !slices.Equal(f.argv[0], want) {
+		t.Errorf("check list argv = %v, want %v", f.argv[0], want)
+	}
+	scan := f.argv[1]
+	dir := argAfter(scan, "--output-directory")
+	want := []string{
+		"prowler", "aws", "--mutelist-file", filepath.Join(dir, "mutelist.yaml"), "--compliance", "cis_7.0_aws",
+		"--output-formats", "json-ocsf", "--output-directory", dir, "--output-filename", "scan",
+		"--log-level", "ERROR", "--log-file", filepath.Join(dir, "prowler.log"), "--only-logs", "--no-color",
+		"--ignore-exit-code-3",
+	}
+	if !slices.Equal(scan, want) {
+		t.Errorf("scan argv = %v\nwant %v", scan, want)
+	}
+	if f.mutelist != "Mutelist: {}\n" {
+		t.Errorf("mutelist = %q, want an empty one", f.mutelist)
+	}
+	if len(report.Results) != 1 || report.Results[0].Location.URI != "arn:aws:s3:::shop-assets" || report.Results[0].Score != 9.5 {
+		t.Fatalf("results = %+v, want the bucket at its ARN", report.Results)
+	}
+	rule := report.Rules["prowler/s3_bucket_public_access"]
+	if len(rule.Taxa) != 1 || rule.Taxa[0] != (sarif.Taxon{Taxonomy: "CIS Amazon Web Services Foundations Benchmark", ID: "2.1.4", Version: "7.0"}) {
+		t.Errorf("taxa = %+v", rule.Taxa)
+	}
+	got := report.Provenance[0].Describe()
+	for _, part := range []string{"benchmark: cis_7.0_aws", "coverage: 2 of 2 checks decided", "scope: whole account",
+		"permissions: not checked; a denied read counts as Prowler reported it"} {
+		if !strings.Contains(got, part) {
+			t.Errorf("provenance = %q, want %q in it", got, part)
+		}
+	}
+}
+
+// A component claiming regions narrows Prowler to them, in the lower case Prowler's region names
+// take, and a framework named for the account's cloud replaces its default.
+func TestProwlerNarrowsAnAWSScanToTheClaimedRegions(t *testing.T) {
+	f := &fakeProwler{
+		checks: []string{"cloudtrail_multi_region_enabled", "cloudwatch_changes_to_vpcs_alarm_configured",
+			"cloudwatch_log_metric_filter_root_usage", "ec2_instance_public_ip", "iam_root_mfa_enabled"},
+		findings: []map[string]any{
+			ocsf("ec2_instance_public_ip", "FAIL", "medium", "eu-west-1", "arn:aws:ec2:eu-west-1:111111111111:instance/i-1"),
+			ocsf("ec2_instance_public_ip", "FAIL", "medium", "ap-south-1", "arn:aws:ec2:ap-south-1:111111111111:instance/i-2"),
+			ocsf("cloudtrail_multi_region_enabled", "FAIL", "high", "us-east-1", "arn:aws:cloudtrail:us-east-1:111111111111:trail/main"),
+			// About the account, filed under the region Prowler audited first: the whole account's.
+			ocsf("iam_root_mfa_enabled", "FAIL", "critical", "us-east-1", "arn:aws:iam::111111111111:root"),
+			ocsf("cloudwatch_log_metric_filter_root_usage", "FAIL", "medium", "eu-west-1", "111111111111"),
+			ocsf("cloudwatch_changes_to_vpcs_alarm_configured", "FAIL", "medium", "eu-west-1", "111111111111"),
+		},
+	}
+	narrowed := webProd
+	narrowed.Regions = []string{"US-EAST-1", "eu-west-1"}
+	report, err := newTestProwler(f, &grantAll{}).Scan(context.Background(), narrowed,
+		plugin.Config{"compliance": "cis_6.0_aws"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	scan := f.argv[1]
+	at := slices.Index(scan, "--region")
+	if at < 0 || !slices.Equal(scan[at+1:at+3], []string{"us-east-1", "eu-west-1"}) || scan[at+3] != "--compliance" ||
+		argAfter(scan, "--compliance") != "cis_6.0_aws" {
+		t.Errorf("argv = %v", scan)
+	}
+	if got := report.Provenance[0].Describe(); !strings.Contains(got, "scope: 2 regions US-EAST-1, eu-west-1") {
+		t.Errorf("provenance = %q", got)
+	}
+	var located []string
+	for _, r := range report.Results {
+		located = append(located, r.Location.URI)
+	}
+	slices.Sort(located)
+	want := []string{"arn:aws:cloudtrail:us-east-1:111111111111:trail/main", "arn:aws:ec2:eu-west-1:111111111111:instance/i-1"}
+	if !slices.Equal(located, want) {
+		t.Errorf("results at %v\nwant %v: the claimed regions' resources, none of the account's", located, want)
+	}
+
+	// The same findings for a component claiming the whole account: every one.
+	whole, err := newTestProwler(f, &grantAll{}).Scan(context.Background(), webProd, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(whole.Results) != len(f.findings) {
+		t.Errorf("whole account = %d results, want %d", len(whole.Results), len(f.findings))
+	}
+}
+
+func TestAWSAccountWideChecks(t *testing.T) {
+	for check, want := range map[string]bool{
+		"iam_root_mfa_enabled":                                true,
+		"account_maintain_current_contact_details":            true,
+		"organizations_delegated_administrators":              true,
+		"cloudwatch_log_metric_filter_root_usage":             true,
+		"cloudwatch_changes_to_network_acls_alarm_configured": true,
+		"cloudtrail_multi_region_enabled":                     false,
+		"cloudwatch_cross_account_sharing_disabled":           false,
+		"ec2_instance_public_ip":                              false,
+	} {
+		if got := awsIsAccountWide(check); got != want {
+			t.Errorf("%s: account-wide = %v, want %v", check, got, want)
+		}
+	}
+	// A Google Cloud check of the same name keeps its own region rule.
+	f := ocsfFinding{}
+	f.Metadata.EventCode = "iam_sa_no_administrative_privileges"
+	f.Resources = append(f.Resources, struct {
+		UID    string `json:"uid"`
+		Name   string `json:"name"`
+		Region string `json:"region"`
+	}{UID: "sa", Region: "us-central1"})
+	if !inRegions("gcp", f, []string{"us-central1"}) || inRegions("aws", f, []string{"us-central1"}) {
+		t.Error("the account-wide rule is not AWS's alone")
+	}
+}
+
+// One `compliance` serves every account the control checks, so a framework of one cloud applies to
+// that cloud's accounts and the others keep their default; the measured-against line names the one
+// each ran.
+func TestAFrameworkAppliesToItsOwnCloud(t *testing.T) {
+	gcp, aws := prowlerClouds["gcp"], prowlerClouds["aws"]
+	for _, c := range []struct {
+		cloud prowlerCloud
+		set   string
+		want  string
+	}{
+		{aws, "", "cis_7.0_aws"},
+		{aws, "cis_6.0_aws", "cis_6.0_aws"},
+		{aws, "cis_4.0_gcp", "cis_7.0_aws"},
+		{gcp, "cis_6.0_aws", "cis_5.0_gcp"},
+		{gcp, "cis_4.0_gcp", "cis_4.0_gcp"},
+	} {
+		if got := c.cloud.framework(plugin.Config{"compliance": c.set}); got != c.want {
+			t.Errorf("%s with %q = %s, want %s", c.cloud.name, c.set, got, c.want)
+		}
+	}
+	// The option's description is where `draugr controls --options` and an editor say what an
+	// account is checked against when it is unset.
+	for _, cloud := range prowlerClouds {
+		if !strings.Contains(prowlerConfigSchema, cloud.compliance) {
+			t.Errorf("the compliance option does not name %s's default, %s", cloud.label, cloud.compliance)
+		}
+	}
+}
+
+// Credentials that resolve to another account would produce a complete report about that account,
+// so the scan stops before Prowler runs, naming both.
+func TestProwlerRefusesCredentialsForAnotherAWSAccount(t *testing.T) {
+	f := &fakeProwler{checks: []string{"a_b"}}
+	s := newTestProwler(f, &grantAll{})
+	s.identify = func(context.Context) (awsaccess.Identifier, error) { return callerIn("222222222222"), nil }
+	_, err := s.Scan(context.Background(), webProd, nil)
+	if err == nil || !strings.Contains(err.Error(), "in account 222222222222, not the declared account 111111111111") {
+		t.Errorf("err = %v", err)
+	}
+	if len(f.argv) != 1 {
+		t.Errorf("prowler ran %d times, want the check list alone: %v", len(f.argv), f.argv)
+	}
+
+	s.identify = func(context.Context) (awsaccess.Identifier, error) { return nil, awsaccess.ErrNoCredentials }
+	if _, err := s.Scan(context.Background(), webProd, nil); !errors.Is(err, awsaccess.ErrNoCredentials) {
+		t.Errorf("no credentials = %v", err)
+	}
+}
+
+func TestProwlerArgvStopsWhereTheMutelistCannotBeWritten(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "missing")
+	if _, err := prowlerArgv(prowlerClouds["aws"], webProd, "cis_7.0_aws", missing); err == nil {
+		t.Error("a mutelist in a missing directory was accepted")
+	}
 }
 
 // A denied service sets aside every check that reads it, whatever Prowler said about them, and
@@ -254,14 +459,16 @@ func TestProwlerRefusesWhatItCannotCheck(t *testing.T) {
 		access error
 		want   string
 	}{
-		"no credentials":             {shopProd, &fakeProwler{checks: []string{"a_b"}}, &grantAll{}, noCreds, "no Google Cloud credentials found"},
-		"an unreadable project":      {shopProd, &fakeProwler{checks: []string{"a_b"}}, &grantAll{err: errors.New("project shop-prod-4821 does not exist, or the credentials cannot read it")}, nil, "cannot read it"},
-		"no permission at all":       {shopProd, &fakeProwler{checks: []string{"a_b"}}, &grantAll{deny: gcpPermissions()}, nil, "hold none of the permissions the checks read on project shop-prod-4821"},
-		"a framework with no checks": {shopProd, &fakeProwler{}, &grantAll{}, nil, "maps no Google Cloud checks"},
-		"a check list that fails":    {shopProd, &fakeProwler{listErr: errors.New("exit status 2")}, &grantAll{}, nil, "list the checks of cis_5.0_gcp"},
-		"a scan that fails":          {shopProd, &fakeProwler{checks: []string{"a_b"}, scanErr: errors.New("exit status 1")}, &grantAll{}, nil, "run prowler: exit status 1"},
-		"another provider":           {plugin.AccountTarget{Provider: "aws", ID: "1"}, &fakeProwler{}, &grantAll{}, nil, `Draugr checks Google Cloud accounts, not "aws"`},
-		"another kind of target":     {plugin.ImageTarget{Ref: "a:1"}, &fakeProwler{}, &grantAll{}, nil, "unsupported target"},
+		"no credentials":                  {shopProd, &fakeProwler{checks: []string{"a_b"}}, &grantAll{}, noCreds, "no Google Cloud credentials found"},
+		"an unreadable project":           {shopProd, &fakeProwler{checks: []string{"a_b"}}, &grantAll{err: errors.New("project shop-prod-4821 does not exist, or the credentials cannot read it")}, nil, "cannot read it"},
+		"no permission at all":            {shopProd, &fakeProwler{checks: []string{"a_b"}}, &grantAll{deny: gcpPermissions()}, nil, "hold none of the permissions the checks read on project shop-prod-4821"},
+		"a framework with no checks":      {shopProd, &fakeProwler{}, &grantAll{}, nil, "maps no Google Cloud checks"},
+		"a check list that fails":         {shopProd, &fakeProwler{listErr: errors.New("exit status 2")}, &grantAll{}, nil, "list the checks of cis_5.0_gcp"},
+		"a scan that fails":               {shopProd, &fakeProwler{checks: []string{"a_b"}, scanErr: errors.New("exit status 1")}, &grantAll{}, nil, "run prowler: exit status 1"},
+		"another provider":                {plugin.AccountTarget{Provider: "azure", ID: "1"}, &fakeProwler{}, &grantAll{}, nil, `Draugr checks Google Cloud and AWS accounts, not "azure"`},
+		"an AWS framework with no checks": {webProd, &fakeProwler{}, &grantAll{}, nil, "cis_7.0_aws maps no AWS checks; `prowler aws --list-compliance`"},
+		"an AWS scan with no result":      {webProd, &fakeProwler{checks: []string{"a_b"}}, &grantAll{}, nil, "no result for any of the 1 cis_7.0_aws checks on account 111111111111"},
+		"another kind of target":          {plugin.ImageTarget{Ref: "a:1"}, &fakeProwler{}, &grantAll{}, nil, "unsupported target"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			s := newTestProwler(tc.f, tc.g)
@@ -379,6 +586,7 @@ func TestProwlerLocation(t *testing.T) {
 		{finding("default", "default"), "default"},
 		{finding("8814202563123", "draugr-fixture-1-ssh"), "draugr-fixture-1-ssh"},
 		{finding("", "fw-1"), "fw-1"},
+		{finding("arn:aws:iam::111111111111:role/admin", "admin"), "arn:aws:iam::111111111111:role/admin"},
 		{ocsfFinding{}, "gcp/shop-prod-4821"},
 	} {
 		if got := prowlerLocation(shopProd, c.f); got != c.want {
