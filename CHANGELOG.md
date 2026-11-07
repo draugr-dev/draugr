@@ -16,7 +16,7 @@ _Nothing yet._
 
 ### Added
 
-- **Each count in the HTML report's Signals section opens the findings it counts.** Following `3 findings raised` beside EPSS lists those three findings, with a token that removes the narrowing. The same holds for KEV, deprecated, malicious, the control floor and each reachability verdict.
+- **Each count in the HTML report's Signals section opens the findings it counts.** Clicking `3 findings raised` beside EPSS lists those three findings, with a control that clears the filter. The same holds for KEV, deprecated, malicious, the control floor and each reachability verdict.
 
 - **The scan suggests each control that is off beside one that is on.** A host with `headers` on and `tls` off, or a repository with `sca` on and `secrets` off, gets a `TRY` row with the key that turns the control on and what it finds.
 
@@ -28,13 +28,13 @@ _Nothing yet._
 
 - **Grype findings matched only by CPE are suppressed by default.** For package types Grype has no matcher for, such as Dart and CocoaPods, Grype builds a CPE from the package name, so a package named like a product takes that product's advisories. `config.controls.sca.cpeMatches: report` counts them again.
 
-- **The HTML report's Accepted tab shows each exclusion whole.** A decision opens to every field its `config.exclude` entry sets, git's record of its line and the findings it covers. A search box and menus for priority, where a suppression is recorded and when it ends narrow both its lists, and `report.json` carries each entry's `rules`, `paths`, `expires` and `vex`.
+- **The HTML report's Accepted tab shows each exclusion whole.** Clicking an exclusion opens every field its `config.exclude` entry sets, git's record of its line and the findings it covers. A search box and menus for Priority, Recorded in and Ends narrow the list, and `report.json` carries each entry's `rules`, `paths`, `expires` and `vex`.
 
 ### Fixed
 
 - **A malformed package no longer stops `iac`.** When a repository's dependency files gave Trivy a package it could not convert, such as a Swift `Package.resolved` pin whose location ends in `/`, `iac` failed and every misconfiguration was lost. Draugr now removes packages from the report before converting it.
 
-- **`dast` reports an endpoint it could not reach as an error.** A host with no DNS record, a closed port or a failed handshake passed with `no findings`, because Nuclei exits 0 with no output when it cannot connect. Draugr now asks the endpoint first, and an endpoint that does not answer ends `dast` in an error naming the cause.
+- **`dast` reports an endpoint it could not reach as an error.** A host with no DNS record, a closed port or no connection within 15 seconds passed with `no findings`, because Nuclei exits 0 with no output when it cannot connect. Draugr now probes the endpoint first, and an endpoint that does not answer ends `dast` in an error naming the cause.
 
 ## [0.167.0] - 2026-11-06
 
