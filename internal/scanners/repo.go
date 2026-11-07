@@ -387,6 +387,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	}
 	stampLineHashes(report.Results, dir)
 	markPomScopes(report.Results, dir)
+	markOwnPackages(report.Results, dir)
 	report.Provenance = append(report.Provenance, repoProvenance(s.info.Name, repo.Source(), tree))
 	if partial {
 		return report, &plugin.PartialScanError{Report: report, Err: fmt.Errorf("run %s %w", s.info.Name, failures)}

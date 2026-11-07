@@ -120,6 +120,15 @@ type CPEMatchPolicy interface {
 	ReportsCPEMatches(model saga.Model, component string) (report bool, source string)
 }
 
+// OwnPackagePolicy is an optional interface a Controller may implement to decide whether the
+// findings about the project's own package count, per component.
+//
+// Asked as DevDependencyPolicy is, for the findings whose package carries the own mark. Source
+// names the setting that decided, which the suppression records.
+type OwnPackagePolicy interface {
+	ReportsOwnPackages(model saga.Model, component string) (report bool, source string)
+}
+
 // NonShippingPolicy is an optional interface a Controller may implement to have its findings marked
 // where their file sits under documentation, examples or tests, and to decide per component whether
 // those findings count.

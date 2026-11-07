@@ -62,6 +62,12 @@ counts as read. [Development dependencies](../../docs/reference/saga-schema.md#d
 says which lockfiles carry the mark, how other scanners take it, and which setting decides whether
 those findings count.
 
+**The project's own packages are marked.** Trivy marks a lockfile's root `root` and a workspace
+member `workspace`, and matches each against the advisories of a published package with the same
+name. Each finding about such a package carries `own` on its package, and
+`config.controls.sca.ownPackages` decides whether it counts; see
+[Own packages](../../docs/reference/saga-schema.md#own-packages).
+
 Trivy's `--severity` and `--ignorefile` are deliberately absent: both drop findings inside the
 tool, where a suppression cannot be recorded or reviewed. Use `config.exclude` instead.
 

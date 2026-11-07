@@ -118,6 +118,15 @@ Grype's JSON report and marks a finding whose every match is such a CPE match `c
 [CPE matches](../../docs/reference/saga-schema.md#cpe-matches). A binary Grype identified by its
 contents is not marked.
 
+**Grype reports the project's own package as a dependency.** Through Syft, it reports a
+`package-lock.json`'s root and each member of a Cargo workspace, and matches each against the
+advisories of a published package with the same name. Draugr reads the dependency file in the
+checkout and marks each finding about one of the project's own packages `own`, which
+`config.controls.sca.ownPackages` decides; see
+[Own packages](../../docs/reference/saga-schema.md#own-packages). Grype gives a workspace member no
+package URL, so its finding is not counted as one with [`trivy-fs`](trivy-fs.md)'s finding about the
+same flaw.
+
 **One scan per repository.** A component may hold several, and each is scanned and attributed
 separately, findings from two repositories that share a path stay two findings.
 

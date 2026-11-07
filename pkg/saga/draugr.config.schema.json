@@ -735,6 +735,21 @@
           "description": "Whether findings in files under a docs, examples or tests directory count, such as docs/, examples/, tests/ and testdata/ at any depth. A component's setting replaces the project's.",
           "type": "string"
         },
+        "ownPackages": {
+          "anyOf": [
+            {
+              "const": "suppress",
+              "description": "Each finding about the project's own package stays in the report, suppressed with the reason the project's own package, and out of the counts and the gate. The default."
+            },
+            {
+              "const": "report",
+              "description": "Each finding about the project's own package is counted, marked own."
+            }
+          ],
+          "default": "suppress",
+          "description": "Whether findings about the project's own package count, such as a package-lock.json's root or a Cargo workspace member, which a scanner matches against the advisories of a published package with the same name. A component's setting replaces the project's.",
+          "type": "string"
+        },
         "providedDependencies": {
           "anyOf": [
             {

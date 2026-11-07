@@ -157,3 +157,22 @@ func TestACPEMatchIsLabeledWhereItsPackageIsNamed(t *testing.T) {
 		t.Errorf("compact fix %q, want the development label", got)
 	}
 }
+
+// The project's own package is labeled in the same two places, and wears that label over any other
+// mark it carries, the reason its suppression records.
+func TestTheProjectsOwnPackageIsLabeledWhereItIsNamed(t *testing.T) {
+	own := finding{tool: "grype", pkg: &sarif.Package{Name: "telemetry", Version: "0.1.0", FixedVersion: "0.1.3", Own: true}}
+	devToo := finding{tool: "trivy", pkg: &sarif.Package{Name: "Flutter", FixedVersion: "3.3.3", Own: true, Dev: true, CPEMatch: true}}
+
+	var buf bytes.Buffer
+	writeBlockFacts(&buf, tui.Plain(), own, 120, false, false)
+	if got := buf.String(); got != "      scanner grype · own package telemetry 0.1.0 → 0.1.3\n" {
+		t.Errorf("facts %q, want the package labeled own package", got)
+	}
+	if got := compactFix(own); got != "own telemetry → 0.1.3" {
+		t.Errorf("compact fix %q, want the package labeled own", got)
+	}
+	if got := compactFix(devToo); got != "own Flutter → 3.3.3" {
+		t.Errorf("compact fix %q, want the own label", got)
+	}
+}

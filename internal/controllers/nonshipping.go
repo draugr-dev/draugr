@@ -13,7 +13,8 @@ import (
 // committed beside the code.
 //
 // One key per control rather than one for the project, as every setting that sets a kind of finding
-// aside is: devDependencies, providedDependencies and cpeMatches sit under sca for the same reason.
+// aside is: devDependencies, providedDependencies, cpeMatches and ownPackages sit under sca for the
+// same reason.
 // The answer differs by control. A team can set aside ten thousand Helm fixtures under iac and keep
 // counting a SQL injection in a test helper under sast, and a component can answer for itself.
 const nonShippingKey = "nonShippingPaths"

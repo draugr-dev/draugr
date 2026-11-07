@@ -1,0 +1,18 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.76.1"
+  },
+  "ReportID": "01a1b564-5648-7551-9006-5e6aabfc0d9c",
+  "CreatedAt": "2026-11-07T03:43:34.216349255-06:00",
+  "ArtifactID": "sha256:815dbe84f16b67e8380bd3e78cc5de4363161273044e2aeb3d1afd12a4eb68bd",
+  "ArtifactName": "/checkout",
+  "ArtifactType": "repository",
+  "Metadata": {
+    "Branch": "master",
+    "Commit": "3a4dfe3379d81efee235417d34a63e50faee08df",
+    "CommitMsg": "repro",
+    "Author": "repro <repro@example.com>",
+    "Committer": "repro <repro@example.com>"
+  }
+}

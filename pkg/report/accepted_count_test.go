@@ -68,3 +68,30 @@ func TestAcceptedRowsCountFindingsAndTheirLocations(t *testing.T) {
 		t.Errorf("rows sum to %d, report.json counts %d", f+rows, total)
 	}
 }
+
+// A finding ownPackages set aside is listed under its key and reason in the console's ACCEPTED block
+// and in the HTML report's Accepted tab, as a setting rather than a decision in config.exclude.
+func TestAnOwnPackageIsAcceptedUnderItsSetting(t *testing.T) {
+	own := sarif.Result{RuleID: "GHSA-69hx-wrc9-h5wq-webpack-json", Level: sarif.LevelError, Priority: "P1",
+		Component: "site", Tool: "grype", Location: sarif.Location{URI: "package-lock.json", StartLine: 1},
+		Package: &sarif.Package{Name: "webpack-json", Version: "1.0.0", Own: true},
+		Suppression: &sarif.Suppression{Kind: "external", Origin: sarif.OriginSetting,
+			Justification: sarif.JustificationOwnPackage, Source: "config.controls.sca.ownPackages"}}
+	d := Data{Project: "site", Run: engine.Result{OwnPackages: 1, Controls: map[string]plugin.ControlResult{
+		"sca": {Control: "sca", Report: sarif.Report{Tool: "grype", Results: []sarif.Result{own}}},
+	}}}
+	if out := renderWith(t, consoleReporter{}, d); !strings.Contains(out,
+		"config.controls.sca.ownPackages: suppress  1 finding suppressed · the project's own package") {
+		t.Errorf("no ACCEPTED row for ownPackages:\n%s", out)
+	}
+	if recordedIn(own) != recordedSetting || acceptedVia(own) != "config.controls.sca.ownPackages" || decisionKey(own) != "" {
+		t.Errorf("recorded in %q via %q, decision %q; want the setting's key and no decision",
+			recordedIn(own), acceptedVia(own), decisionKey(own))
+	}
+	html := renderWith(t, htmlReporter{}, d)
+	for _, want := range []string{"config.controls.sca.ownPackages", "the project&#39;s own package"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("the HTML report does not show %q", want)
+		}
+	}
+}

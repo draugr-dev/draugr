@@ -629,6 +629,10 @@ type Result struct {
 	// config.controls.sca.cpeMatches set aside, apart from Suppressed for the reason DevDependencies
 	// is.
 	CPEMatches int
+	// OwnPackages counts findings about the project's own package that a component's
+	// config.controls.sca.ownPackages set aside, apart from Suppressed for the reason DevDependencies
+	// is.
+	OwnPackages int
 	// NonShipping counts findings under documentation, examples or tests that a component's
 	// nonShippingPaths, under sast, iac or sca, set aside, apart from Suppressed for the reason
 	// DevDependencies is. The findings it counted are not here: they carry the mark and count.
@@ -1738,6 +1742,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// both have something to say, the local decision is the one whose author can be asked about it.
 	res.Imported, res.VEX, res.UnmatchedClaims = applyVEX(res.Controls, e.vex, covered)
 	// After both, so a finding somebody decided about keeps their reason rather than the setting's.
+	res.OwnPackages = e.applyOwnPackages(res.Controls, model)
 	res.DevDependencies = e.applyDevDependencies(res.Controls, model)
 	res.ProvidedDependencies = e.applyProvidedDependencies(res.Controls, model)
 	res.CPEMatches = e.applyCPEMatches(res.Controls, model)
