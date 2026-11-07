@@ -23,7 +23,7 @@ kube-bench run --json --targets master,node,etcd,controlplane
 ```
 
 Selected with `kubeBenchJob: { enabled: true }` on the control. The default scanner,
-[`kube-bench`](kube-bench.md), stays read-only and covers section 5.
+[`draugr-k8s-policies`](draugr-k8s-policies.md), stays read-only and covers section 5.
 
 ## Why a separate scanner rather than a mode
 

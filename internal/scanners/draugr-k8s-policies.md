@@ -16,15 +16,25 @@ order: 20
 ## What it does
 
 Evaluates the CIS Kubernetes Benchmark's **policies** section against a live cluster using
-`client-go`, as an alternative to [`kube-bench`](kube-bench.md). Opt in with a scanner block:
+`client-go`. It is the `kubernetes` control's default scanner, and needs only the control:
 
 ```yaml
 config:
   controls:
     kubernetes:
       enabled: true
-      kubeBench: { enabled: false }   # stop exec'ing kube-bench for this section
-      draugrK8sPolicies: { enabled: true }
+```
+
+[`kube-bench`](kube-bench.md) answers the same section by running `kubectl`. To run it in this
+scanner's place:
+
+```yaml
+config:
+  controls:
+    kubernetes:
+      enabled: true
+      draugrK8sPolicies: { enabled: false }
+      kubeBench: { enabled: true }
 ```
 
 ## Why not just run kube-bench
