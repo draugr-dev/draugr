@@ -513,7 +513,8 @@ The shapes that used to be accepted and do nothing: a list of scanner names, a s
 value rather than a block (`gosec: true` enables nothing, because only a block is read), and a
 misspelled setting. Each produced a descriptor that claimed a decision it was not making.
 
-`licenses` takes settings of its own, `deny` and `warn`, and `sca` takes
+`licenses` takes settings of its own, `deny`, `warn` and
+[`devDependencies`](#licenses-of-development-dependencies), and `sca` takes
 [`devDependencies`](#development-dependencies),
 [`providedDependencies`](#provided-dependencies) and [`cpeMatches`](#cpe-matches). `sast`, `iac`
 and `sca` each take [`nonShippingPaths`](#non-shipping-paths).
@@ -1386,6 +1387,35 @@ config:
 
 Which is the point. An exemption you have to justify, that stays in the report marked and auditable,
 is a different thing from a list entry nobody has to explain.
+
+### Licenses of development dependencies
+
+`config.controls.licenses.devDependencies` decides whether a license finding in a development
+dependency counts. It is the licenses control's own key, separate from
+[`config.controls.sca.devDependencies`](#development-dependencies), so a component can count the
+flaws in its test runner and set aside that runner's license.
+
+| Value | Each license finding in a development dependency |
+|---|---|
+| `suppress`, the default | Stays in the report and in `report.json`, suppressed with the reason `development dependency`, and out of the counts and the gate |
+| `report` | Is counted, with `dev` beside it |
+
+```yaml
+config:
+  controls:
+    licenses:
+      devDependencies: report       # count licenses in development dependencies
+components:
+  - name: build-tools
+    controls:
+      licenses:
+        devDependencies: suppress   # replaces the project's setting for this component
+```
+
+`trivy-license` reads development dependencies on every run, so a lockfile that holds nothing else
+is read rather than listed as unread. A license finding carries the mark when every package of its
+name in that lockfile is a development dependency. A license names no version, so a package
+declared once for development and once for runtime is counted.
 
 ### Rule ids
 

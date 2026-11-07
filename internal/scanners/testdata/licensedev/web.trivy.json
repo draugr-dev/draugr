@@ -1,0 +1,87 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.76.1"
+  },
+  "ReportID": "01a1b568-c51c-77f1-a100-5b04c46170e0",
+  "CreatedAt": "2026-11-07T03:48:24.732521152-06:00",
+  "ArtifactName": "web",
+  "ArtifactType": "filesystem",
+  "Results": [
+    {
+      "Target": "package-lock.json",
+      "Class": "lang-pkgs",
+      "Type": "npm",
+      "Packages": [
+        {
+          "ID": "chalk@4.1.2",
+          "Name": "chalk",
+          "Identifier": {
+            "PURL": "pkg:npm/chalk@4.1.2",
+            "UID": "6a269b7a62a91703"
+          },
+          "Version": "4.1.2",
+          "Dev": true,
+          "Licenses": [
+            "MIT"
+          ],
+          "Relationship": "direct",
+          "Locations": [
+            {
+              "StartLine": 8,
+              "EndLine": 8
+            }
+          ],
+          "AnalyzedBy": "npm"
+        },
+        {
+          "ID": "ckeditor5@41.4.2",
+          "Name": "ckeditor5",
+          "Identifier": {
+            "PURL": "pkg:npm/ckeditor5@41.4.2",
+            "UID": "1b173f907dfb58e7"
+          },
+          "Version": "41.4.2",
+          "Dev": true,
+          "Licenses": [
+            "GPL-2.0-or-later"
+          ],
+          "Relationship": "direct",
+          "Locations": [
+            {
+              "StartLine": 9,
+              "EndLine": 9
+            }
+          ],
+          "AnalyzedBy": "npm"
+        }
+      ]
+    },
+    {
+      "Target": "package-lock.json",
+      "Class": "license",
+      "Licenses": [
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "chalk",
+          "FilePath": "package-lock.json",
+          "Name": "MIT",
+          "Text": "",
+          "Confidence": 1,
+          "Link": ""
+        },
+        {
+          "Severity": "HIGH",
+          "Category": "restricted",
+          "PkgName": "ckeditor5",
+          "FilePath": "package-lock.json",
+          "Name": "GPL-2.0-or-later",
+          "Text": "",
+          "Confidence": 1,
+          "Link": ""
+        }
+      ]
+    }
+  ]
+}

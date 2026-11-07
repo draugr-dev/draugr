@@ -19,11 +19,13 @@ order: 190
 Two modes, chosen by the target it is handed. A repository is checked out and read in place:
 
 ```
-trivy fs --debug --scanners license --format json --offline-scan <dir>
+trivy fs --debug --scanners license --format json --include-dev-deps --offline-scan <dir>
 ```
 
 `--debug` keeps the log line naming a dependency file Trivy failed to parse, which Draugr reports
-as unread with the parser's error.
+as unread with the parser's error. `--include-dev-deps` reads development dependencies, so a
+lockfile holding nothing else is read, and each license found in one is marked as a development
+dependency for the control's `devDependencies` setting.
 
 An image is named rather than fetched by us, and Trivy pulls it:
 

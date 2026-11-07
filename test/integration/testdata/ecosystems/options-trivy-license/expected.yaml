@@ -13,12 +13,17 @@
 # trivyignore/ locks argparse (Python-2.0) and flags Python-2.0, and the repository's .trivyignore
 # sets that license aside. Trivy drops it from its findings and lists it among what it excluded, so
 # the one result arrives suppressed by the scanner. No other component locks a Python-2.0 package.
+#
+# licenses-dev-default/ and licenses-dev-report/ lock ms (MIT) as a devDependency and flag MIT.
+# Under the default the finding stays in the report, set aside by licenses.devDependencies;
+# licenses-dev-report sets it to report and counts it.
 proves:
   - licenses.deny
   - licenses.warn
   - trivy-license.deny
   - trivy-license.warn
   - trivy-license.full
+  - licenses.devDependencies
 
 initScan:
   skip: the options proves names are the subject, and init writes none of them
@@ -36,4 +41,6 @@ findings:
   - {control: licenses, tool: trivy-license, rule: license/MIT/ms, location: "trivy-license-deny/package-lock.json:15"}
   - {control: licenses, tool: trivy-license, rule: license/BSD-3-Clause/sprintf-js, location: "trivy-license-warn/package-lock.json:15"}
   - {control: licenses, tool: trivy-license, rule: license/LGPL-3.0, location: "full/LICENSE"}
+  - {control: licenses, tool: trivy-license, rule: license/MIT/ms, location: "licenses-dev-default/package-lock.json:15", suppressed: setting}
+  - {control: licenses, tool: trivy-license, rule: license/MIT/ms, location: "licenses-dev-report/package-lock.json:15"}
   - {control: licenses, tool: trivy-license, rule: license/Python-2.0/argparse, location: "trivyignore/package-lock.json:15", suppressed: scanner}

@@ -54,6 +54,21 @@ components:
     controls:
       licenses:
         warn: [Python-2.0]
+  - name: licenses-dev-default
+    repositories:
+      - url: ./options-trivy-license
+        paths: [licenses-dev-default]
+    controls:
+      licenses:
+        warn: [MIT]
+  - name: licenses-dev-report
+    repositories:
+      - url: ./options-trivy-license
+        paths: [licenses-dev-report]
+    controls:
+      licenses:
+        warn: [MIT]
+        devDependencies: report
   - name: full
     repositories:
       - url: ./options-trivy-license

@@ -118,6 +118,86 @@
             {
               "physicalLocation": {
                 "artifactLocation": {
+                  "uri": "licenses-dev-default/package-lock.json",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 15
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "ms is MIT. Flagged by this project's license policy (components[\"licenses-dev-default\"].controls.licenses.warn)."
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "licenses-dev-default",
+            "control": "licenses",
+            "fingerprint": "<cleared>",
+            "package": {
+              "dev": true,
+              "name": ""
+            },
+            "priority": "P2",
+            "repository": "./options-trivy-license",
+            "tool": "trivy-license"
+          },
+          "ruleId": "license/MIT/ms",
+          "suppressions": [
+            {
+              "justification": "development dependency",
+              "kind": "external",
+              "properties": {
+                "origin": "setting",
+                "source": "config.controls.licenses.devDependencies"
+              }
+            }
+          ]
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "licenses-dev-report/package-lock.json",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 15
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "ms is MIT. Flagged by this project's license policy (components[\"licenses-dev-report\"].controls.licenses.warn)."
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "licenses-dev-report",
+            "control": "licenses",
+            "fingerprint": "<cleared>",
+            "package": {
+              "dev": true,
+              "name": ""
+            },
+            "priority": "P2",
+            "repository": "./options-trivy-license",
+            "tool": "trivy-license"
+          },
+          "ruleId": "license/MIT/ms"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
                   "uri": "licenses-warn-isc/package-lock.json",
                   "uriBaseId": "%SRCROOT%"
                 },

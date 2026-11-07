@@ -94,6 +94,8 @@ config:
       deny: ["AGPL-3.0-only", "SSPL-1.0"]            # SPDX ids that fail the gate. The control's
       warn: ["MPL-2.0"]                              # lists, read by every scanner serving it; a
                                                      # component may add to them and not remove
+      devDependencies: suppress                      # suppress (default) | report: whether license
+                                                     # findings in development dependencies count
       trivyLicense:
         full: true                                   # read LICENSE files and source headers as
                                                      # well as package metadata. Markedly slower
