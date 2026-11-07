@@ -1,1 +1,0 @@
-- **A pull request from a fork no longer fails its Draugr check because the comment cannot be posted.** GitHub gives a fork's workflow a read-only token, so the Action now leaves the comment off, states why in a notice, and writes the diff to the job summary and the log. The step passes or fails on `fail-on-new` alone.

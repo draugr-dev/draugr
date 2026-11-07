@@ -1,1 +1,0 @@
-- **`licenses` reads Go licenses after every repository's Go downloads.** The repositories in a run share one Go module cache, so a module another repository downloaded could reach one scan's licenses and not the next. `trivy-license` now waits for `govulncheck` and `gosec` on every repository, not only its own.

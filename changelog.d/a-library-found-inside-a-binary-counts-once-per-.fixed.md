@@ -1,1 +1,0 @@
-- **A library found inside a binary counts once per repository.** Grype reports such a package with no purl, so one flaw counted once for every DLL or executable holding it: two builds of 7-Zip 26.00 read as 20 findings for 10 flaws. It is now counted once, as in a lockfile.

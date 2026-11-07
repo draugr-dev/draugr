@@ -1,1 +1,0 @@
-- **A gosec failure names its cause.** gosec logs its rule settings before the reason it stopped, so the error read `[gosec] … Including rules: default` and the cause never reached the report. Draugr now quotes the line that ended the run, such as `No rules/analyzers are configured`.
