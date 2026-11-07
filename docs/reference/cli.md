@@ -265,7 +265,7 @@ images, hosts, clusters or cloud accounts with every control for that surface of
 ```
 CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
   Component  What   Caveat       Why
-  worker     hosts  not-checked  dast, headers, tls off
+  worker     hosts  not-checked  controls off: dast, headers, tls
 ```
 
 A caveat fails the run only when `--fail-on-caveats` or

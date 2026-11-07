@@ -165,7 +165,7 @@ func TestCaveatsGatherEveryShortfallThatDoesNotFail(t *testing.T) {
 		"api        go.mod          unread-files   no packages read (sca)",
 		"payments   kube-bench-job  not-measured   audits the whole cluster and cannot be narrowed to namespace payments",
 		"platform   compute         unread-checks  2 checks · denied compute.instances.list",
-		"web        hosts           not-checked    dast, headers, tls off",
+		"web        hosts           not-checked    controls off: dast, headers, tls",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q:\n%s", want, out)
@@ -226,7 +226,7 @@ func TestCaveatsTheGateFailsOnAreMarkedWhereTheySit(t *testing.T) {
 		"api        go.mod          ✗ unread-files   no packages read (sca)",
 		"payments   kube-bench-job    not-measured   audits the whole cluster",
 		"platform   compute         ✗ unread-checks  1 check · denied compute.instances.list",
-		"web        hosts             not-checked    dast, headers, tls off",
+		"web        hosts             not-checked    controls off: dast, headers, tls",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q:\n%s", want, out)

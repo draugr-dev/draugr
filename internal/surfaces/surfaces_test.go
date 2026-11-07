@@ -96,6 +96,33 @@ func TestAHostIsCoveredWithoutTheControlNobodyIsOffered(t *testing.T) {
 	}
 }
 
+// dast on covers nothing headers and tls look at, so a host with both off is still a gap, and names
+// only the two that are off. One of headers or tls on covers it.
+func TestDastDoesNotCoverAHost(t *testing.T) {
+	model := func(on ...string) *saga.Model {
+		controls := map[string]saga.ControllerSettings{}
+		for _, name := range on {
+			controls[name] = saga.ControllerSettings{"enabled": true}
+		}
+		return &saga.Model{Config: saga.Config{Controls: controls},
+			Components: []saga.Component{{Name: "web", Hosts: []saga.Host{{URL: "h"}}}, {Name: "api", Hosts: []saga.Host{{URL: "a"}}}}}
+	}
+	gaps := Gaps(model("dast"))
+	if len(gaps) != 2 {
+		t.Fatalf("got %d gaps, want both hosts with dast alone on: %+v", len(gaps), gaps)
+	}
+	for _, g := range gaps {
+		if got := strings.Join(g.Controls, ","); got != "headers,tls" {
+			t.Errorf("%s: controls = %q, want headers,tls", g.Component, got)
+		}
+	}
+	for _, on := range [][]string{{"dast", "headers"}, {"tls"}} {
+		if gaps := Gaps(model(on...)); len(gaps) != 0 {
+			t.Errorf("%v on: gaps %+v, want none", on, gaps)
+		}
+	}
+}
+
 func TestComponentHasRejectsASurfaceThatDoesNotExist(t *testing.T) {
 	// Controls is the only source of surface names; an unknown one must not read as declared,
 	// because a "yes" here would put a component into the uncovered list for a surface it has no

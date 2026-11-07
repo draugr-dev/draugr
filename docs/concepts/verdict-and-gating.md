@@ -160,9 +160,13 @@ So by default it is reported rather than enforced. Every scan says what it did n
 ```
 CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
   Component  What    Caveat       Why
-  api        hosts   not-checked  dast, headers, tls off
-  api        images  not-checked  images off
+  api        hosts   not-checked  controls off: dast, headers, tls
+  api        images  not-checked  controls off: images
 ```
+
+A host counts as examined when `headers` or `tls` is on. `dast` does not count, because it probes
+the service for vulnerabilities and leaves the response headers and the TLS configuration to those
+two controls. A host with `dast` on and both of them off reads `controls off: headers, tls`.
 
 A [scan with no descriptor](../reference/cli.md#draugr-scan-sagayaml--dir) uses the same kind for a
 file whose scanner could not run on the machine, such as `govulncheck` for a `go.mod` without Go.
@@ -188,8 +192,8 @@ listed kind fails the run as an error does, and is marked where it sits:
 ```
 CAVEATS  2 fail the run · config.gate.failOnCaveats: not-checked
   Component  What    Caveat         Why
-  api        hosts   ✗ not-checked  dast, headers, tls off
-  api        images  ✗ not-checked  images off
+  api        hosts   ✗ not-checked  controls off: dast, headers, tls
+  api        images  ✗ not-checked  controls off: images
 ```
 
 `draugr doctor` reads the same list, so the preflight fails where the scan would.
