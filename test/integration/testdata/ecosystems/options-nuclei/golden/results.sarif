@@ -1,0 +1,283 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "options-nuclei/"
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "fields": {
+              "endpoint": "http://127.0.0.1:18080",
+              "excludeTags": "sealed-extra"
+            },
+            "tool": "nuclei"
+          },
+          {
+            "fields": {
+              "endpoint": "http://127.0.0.1:18080",
+              "intrusive": "true"
+            },
+            "tool": "nuclei"
+          },
+          {
+            "fields": {
+              "endpoint": "http://127.0.0.1:18080",
+              "tags": "sealed-extra"
+            },
+            "tool": "nuclei"
+          },
+          {
+            "fields": {
+              "endpoint": "http://127.0.0.1:18080",
+              "templates": "./custom/sealed-custom.yaml"
+            },
+            "tool": "nuclei"
+          },
+          {
+            "fields": {
+              "endpoint": "http://127.0.0.1:18080"
+            },
+            "tool": "nuclei"
+          }
+        ]
+      },
+      "results": [
+        {
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:18080/custom"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Sealed fixture marker at /custom: The page carries the marker the sealed fixture plants at /custom."
+          },
+          "properties": {
+            "component": "custom",
+            "control": "dast",
+            "fingerprint": "<cleared>",
+            "priority": "P3",
+            "security-severity": "2",
+            "tool": "nuclei"
+          },
+          "ruleId": "sealed-custom"
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:18080/extra"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Sealed fixture marker at /extra: The page carries the marker the sealed fixture plants at /extra."
+          },
+          "properties": {
+            "component": "default",
+            "control": "dast",
+            "fingerprint": "<cleared>",
+            "priority": "P3",
+            "security-severity": "2",
+            "tool": "nuclei"
+          },
+          "ruleId": "sealed-extra"
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:18080/extra"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Sealed fixture marker at /extra: The page carries the marker the sealed fixture plants at /extra."
+          },
+          "properties": {
+            "component": "intrusive",
+            "control": "dast",
+            "fingerprint": "<cleared>",
+            "priority": "P3",
+            "security-severity": "2",
+            "tool": "nuclei"
+          },
+          "ruleId": "sealed-extra"
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:18080/extra"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Sealed fixture marker at /extra: The page carries the marker the sealed fixture plants at /extra."
+          },
+          "properties": {
+            "component": "tagged",
+            "control": "dast",
+            "fingerprint": "<cleared>",
+            "priority": "P3",
+            "security-severity": "2",
+            "tool": "nuclei"
+          },
+          "ruleId": "sealed-extra"
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:18080/plain"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Sealed fixture marker at /plain: The page carries the marker the sealed fixture plants at /plain."
+          },
+          "properties": {
+            "component": "default",
+            "control": "dast",
+            "fingerprint": "<cleared>",
+            "priority": "P3",
+            "security-severity": "2",
+            "tool": "nuclei"
+          },
+          "ruleId": "sealed-plain"
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:18080/plain"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Sealed fixture marker at /plain: The page carries the marker the sealed fixture plants at /plain."
+          },
+          "properties": {
+            "component": "exclude",
+            "control": "dast",
+            "fingerprint": "<cleared>",
+            "priority": "P3",
+            "security-severity": "2",
+            "tool": "nuclei"
+          },
+          "ruleId": "sealed-plain"
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:18080/plain"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Sealed fixture marker at /plain: The page carries the marker the sealed fixture plants at /plain."
+          },
+          "properties": {
+            "component": "intrusive",
+            "control": "dast",
+            "fingerprint": "<cleared>",
+            "priority": "P3",
+            "security-severity": "2",
+            "tool": "nuclei"
+          },
+          "ruleId": "sealed-plain"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:18080/intrusive"
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Sealed fixture marker at /intrusive: The page carries the marker the sealed fixture plants at /intrusive. Tagged intrusive so a default scan skips it; it sends a GET like the others."
+          },
+          "properties": {
+            "component": "intrusive",
+            "control": "dast",
+            "fingerprint": "<cleared>",
+            "priority": "P2",
+            "security-severity": "5",
+            "tool": "nuclei"
+          },
+          "ruleId": "sealed-intrusive"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "rules": [
+            {
+              "id": "sealed-custom",
+              "properties": {
+                "tags": [
+                  "scanner:nuclei"
+                ]
+              }
+            },
+            {
+              "id": "sealed-extra",
+              "properties": {
+                "tags": [
+                  "scanner:nuclei"
+                ]
+              }
+            },
+            {
+              "id": "sealed-intrusive",
+              "properties": {
+                "tags": [
+                  "scanner:nuclei"
+                ]
+              }
+            },
+            {
+              "id": "sealed-plain",
+              "properties": {
+                "tags": [
+                  "scanner:nuclei"
+                ]
+              }
+            }
+          ],
+          "version": "<cleared>"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

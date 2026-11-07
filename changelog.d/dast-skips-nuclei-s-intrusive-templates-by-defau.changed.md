@@ -1,0 +1,1 @@
+- **`dast` skips Nuclei's intrusive templates by default.** Some of them write to the endpoint they test. Set `intrusive: true`, and accept `mutate` in `allowEffects`, to run them. The `nuclei` block now also takes `rateLimit`, `concurrency`, `timeout`, `retries`, `tags`, `excludeTags`, `templates` and `interactsh`.
