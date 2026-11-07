@@ -397,6 +397,14 @@ func TestFirstLineKeepsWhatIdentifiesTheFailure(t *testing.T) {
 			want: "crashed: fatal error: fault (SIGBUS: bus error)",
 		},
 		{
+			// gosec logs through Go's log package: its settings, then the reason, all prefixed the
+			// same way and none at a level.
+			name: "a Go log with a prefix",
+			raw: "[gosec] 2026/11/07 01:09:03 Including rules: G101\n[gosec] 2026/11/07 01:09:03 Excluding rules: G101\n" +
+				"[gosec] 2026/11/07 01:09:03 No rules/analyzers are configured\n",
+			want: "No rules/analyzers are configured",
+		},
+		{
 			name: "a Go panic",
 			raw: "panic: runtime error: invalid memory address or nil pointer dereference\n" +
 				"[signal SIGSEGV: segmentation violation code=0x1 addr=0x0 pc=0x1234]\n\n" +
