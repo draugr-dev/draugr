@@ -1,1 +1,0 @@
-- **The ACCEPTED rows count findings as the bands and `report.json` do.** A finding held by two lockfiles was counted once per file, so `4 findings suppressed` stood beside a `suppressed.total` of 2. Each row now counts findings and adds the locations where they differ: `2 findings suppressed at 4 locations`.

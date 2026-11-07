@@ -12,6 +12,38 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.169.0] - 2026-11-07
+
+### Added
+
+- **Findings under docs, examples and tests are marked and listed last.** `sast`, `iac` and `sca` label each such finding `docs`, `example` or `test`, list it after the shipped code's findings and count it with the bands. `nonShippingPaths: suppress` sets them aside; `secrets` never does. `draugr init` proposes an `ignore` line for each such directory, commented out.
+
+### Changed
+
+- **The console's caveats sit under a heading per kind, controls and component**, as `unread-files · licenses · api`, so each row says only what and why and a block fits a terminal. When the console cuts a block short, `TRY` offers `--report html` for every row, and `--evidence` for a row that stands for several files.
+
+### Fixed
+
+- **A finding with no location says the scanner gave none.** Where a scanner reports a finding without a location, as gosec does inside cgo-generated code, the console, markdown and HTML reports show `no location from the scanner`, and `report.json` sets `noLocation: true`.
+
+- **A gosec failure names its cause.** gosec logs its rule settings before the reason it stopped, so the error read `[gosec] … Including rules: default` and the cause never reached the report. Draugr now quotes the line that ended the run, such as `No rules/analyzers are configured`.
+
+- **A Grype finding on a Maven dependency names every `pom.xml` that declares it.** Syft lists a package several poms declare at one version once, so `grype-fs` named one of them. Each pom declaring that version, directly, through a property or through its own `dependencyManagement`, now carries the finding and counts the package as read.
+
+- **A library found inside a binary counts once per repository.** Grype reports such a package with no purl, so one flaw counted once for every DLL or executable holding it: two builds of 7-Zip 26.00 read as 20 findings for 10 flaws. It is now counted once, as in a lockfile.
+
+- **A pull request from a fork no longer fails its Draugr check because the comment cannot be posted.** GitHub gives a fork's workflow a read-only token, so the Action now leaves the comment off, states why in a notice, and writes the diff to the job summary and the log. The step passes or fails on `fail-on-new` alone.
+
+- **Findings about the project's own package are set aside by default.** A `package-lock.json` root, a Cargo workspace member, a Dart `publish_to: none` package and a local `:path:` pod no longer take the advisories of a published package with the same name. A fork kept under its upstream name is set aside too, even where the advisory applies. Each stays in the report marked `own`; `config.controls.sca.ownPackages: report` counts them.
+
+- **`licenses` reads a lockfile of development dependencies, and sets their licenses aside by default.** Such a lockfile was listed as having no packages read, with no cause given. `trivy-license` now reads development dependencies, and `config.controls.licenses.devDependencies` decides whether their license findings count: `suppress`, the default, keeps them in the report under the reason `development dependency`; `report` counts them, marked `dev`.
+
+- **`licenses` reads Go licenses after every repository's Go downloads.** The repositories in a run share one Go module cache, so a module another repository downloaded could reach one scan's licenses and not the next. `trivy-license` now waits for `govulncheck` and `gosec` on every repository, not only its own.
+
+- **The ACCEPTED rows count findings as the bands and `report.json` do.** A finding held by two lockfiles was counted once per file, so `4 findings suppressed` stood beside a `suppressed.total` of 2. Each row now counts findings and adds the locations where they differ: `2 findings suppressed at 4 locations`.
+
+- **The HTML report draws a band with no findings as a dimmed chip.** The class that marked an empty band was also the one that hides an inactive tab, so `0 P2` was never drawn on the Controls, Components and Accepted tabs, and a reader could not tell an empty band from a missing one.
+
 ## [0.168.0] - 2026-11-07
 
 ### Added
@@ -6869,7 +6901,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.168.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.169.0...HEAD
+[0.169.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.169.0
 [0.168.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.168.0
 [0.167.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.167.0
 [0.166.3]: https://github.com/draugr-dev/draugr/releases/tag/v0.166.3

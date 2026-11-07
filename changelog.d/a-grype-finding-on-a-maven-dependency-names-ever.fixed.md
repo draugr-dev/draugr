@@ -1,1 +1,0 @@
-- **A Grype finding on a Maven dependency names every `pom.xml` that declares it.** Syft lists a package several poms declare at one version once, so `grype-fs` named one of them. Each pom declaring that version, directly, through a property or through its own `dependencyManagement`, now carries the finding and counts the package as read.
