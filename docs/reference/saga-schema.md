@@ -515,7 +515,8 @@ misspelled setting. Each produced a descriptor that claimed a decision it was no
 
 `licenses` takes settings of its own, `deny` and `warn`, and `sca` takes
 [`devDependencies`](#development-dependencies),
-[`providedDependencies`](#provided-dependencies) and [`cpeMatches`](#cpe-matches).
+[`providedDependencies`](#provided-dependencies) and [`cpeMatches`](#cpe-matches). `sast`, `iac`
+and `sca` each take [`nonShippingPaths`](#non-shipping-paths).
 
 **Which scanners take options, and which take only `enabled`:**
 
@@ -654,6 +655,56 @@ configuration turns that on, and its findings are counted.
 
 The suppression's `origin` is `setting` and its `source` is the key that decided, as for
 development dependencies.
+
+### Non-shipping paths
+
+`nonShippingPaths` decides whether a finding in a file under a directory of documentation, examples
+or tests counts. `sast`, `iac` and `sca` each take it under the control, and each reads its own.
+`secrets` does not take it, because a credential committed in a test fixture is as live as one
+committed beside the code, so a secrets finding is never marked and never set aside.
+
+| Value | Each finding in a file under one of these directories |
+|---|---|
+| `report`, the default | Is counted, labeled with the kind of directory beside its location, and listed after every finding in shipped code |
+| `suppress` | Stays in the report and in `report.json`, suppressed with the reason `in docs, examples or tests`, and out of the counts and the gate |
+
+```yaml
+config:
+  controls:
+    iac:
+      nonShippingPaths: suppress   # set aside findings in example manifests and test fixtures
+components:
+  - name: chart
+    controls:
+      iac:
+        nonShippingPaths: report   # replaces the project's setting for this component
+```
+
+A directory is matched by its whole name at any depth, so `charts/app/tests/` matches and
+`contest/` and `docsite/` do not. A file's own name is not matched. The kind is the label:
+
+| Directory | Label |
+|---|---|
+| `docs`, `doc` | `docs` |
+| `examples`, `example` | `example` |
+| `test`, `tests`, `testdata`, `__tests__`, `spec`, `fixtures` | `test` |
+
+Names that also hold shipped code in some projects, such as `demo`, `samples`, `testing` and `e2e`,
+are not on the list. Test files beside the code, such as `handler_test.go` or `app.spec.ts`, are not
+matched either.
+
+The path is read below the repository's [`paths`](#scoping-a-repository), so a component scoped to
+`examples/demo` is shipped code, and only a directory beneath it is matched. For `sca` the location
+is the dependency file, so a `tests/go.mod` for a module only the tests build is marked. A flaw
+another manifest that ships also holds is counted under that manifest's copy.
+
+In the console, the marked total stands beside the band counts, and the Fix first heading says
+`shipped code first`. `report.json` carries the label on each finding as `nonShipping`.
+
+The suppression's `origin` is `setting` and its `source` is the key that decided, as for
+development dependencies. [`draugr init`](cli.md#draugr-init-dir) writes an `ignore` line for each of
+these directories it finds, which takes them out of the scan altogether. That removes them from every
+control, `secrets` included.
 
 ### Reachability for Go
 

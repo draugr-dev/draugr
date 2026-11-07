@@ -88,7 +88,13 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	// everything.
 	listed := 0
 	if s.prioritized {
-		_, _ = fmt.Fprintln(w, bandChips(col, s))
+		// How many of the counts are findings under docs, examples or tests, beside the counts they
+		// are part of. The listing labels the ones it shows and cannot say how many it left out.
+		chips := bandChips(col, s)
+		if note := nonShippingNote(s.nonShipping); note != "" {
+			chips += "  " + col.Paint(cDim, note)
+		}
+		_, _ = fmt.Fprintln(w, chips)
 		// Beside the counts, because it is a caveat on every one of them and a caveat printed away
 		// from the thing it qualifies is one the reader meets too late. Not dimmed, for the same
 		// reason: somebody reading these bands as a statement about their application has the
@@ -447,15 +453,21 @@ func fixFirstHeading(col tui.Painter, s summary, shown, total int) string {
 			filter += "; " + english.Count(s.hidden, "lower-priority finding") + " hidden"
 		}
 	}
+	// The order is no longer priority alone where findings under docs, examples or tests are listed
+	// after the rest, and a heading claiming it is would be contradicted by the first P1 below a P3.
+	order := "by priority"
+	if s.nonShipping > 0 && s.nonShipping < len(s.findings)+s.hidden {
+		order = "shipped code first, by priority"
+	}
 	switch {
 	case shown < total:
 		return heading(col, "Fix first") + "  " +
-			col.Paint(cDim, fmt.Sprintf("top %d of %d, by priority%s", shown, total, filter))
+			col.Paint(cDim, fmt.Sprintf("top %d of %d, %s%s", shown, total, order, filter))
 	case total == 1:
-		return heading(col, "The finding") + "  " + col.Paint(cDim, "by priority"+filter)
+		return heading(col, "The finding") + "  " + col.Paint(cDim, order+filter)
 	default:
 		return heading(col, "Fix first") + "  " +
-			col.Paint(cDim, fmt.Sprintf("all %d, by priority%s", total, filter))
+			col.Paint(cDim, fmt.Sprintf("all %d, %s%s", total, order, filter))
 	}
 }
 
@@ -589,7 +601,7 @@ func renderFixFirst(w io.Writer, col tui.Painter, fs []finding, compact bool, bl
 		cells = append(cells,
 			// The same shortening the actions view has always used: one image carrying a
 			// 71-character digest would otherwise set a width every other row pays for.
-			tui.Cell{Text: whereShown(displayLocation(f)), URL: blobs.forFinding(f)},
+			tui.Cell{Text: labeledWhere(f, whereShown(displayLocation(f))), URL: blobs.forFinding(f)},
 			tui.Styled(tui.StyleFixed, compactFix(f)))
 		if has("Summary") {
 			// The explanation on the row rather than under it. That is what this view buys: one
@@ -657,6 +669,25 @@ func packageKind(f finding) (short, full string) {
 		return cpeLabel, cpeLabelFull
 	}
 	return "", ""
+}
+
+// labeledWhere is a finding's location with the kind of directory it sits under beside it,
+// `tests/fixture.yaml · test`, or the location alone for a finding in shipped code. For the compact
+// cell, markdown and the HTML report; the default view paints the two apart.
+func labeledWhere(f finding, where string) string {
+	if f.nonShipping == "" {
+		return where
+	}
+	return where + " · " + f.nonShipping
+}
+
+// nonShippingNote counts the counted findings under docs, examples or tests, in the words their
+// suppression gives as its reason where a setting sets them aside, or "" for none.
+func nonShippingNote(n int) string {
+	if n == 0 {
+		return ""
+	}
+	return english.Count(n, "finding") + " " + sarif.JustificationNonShipping
 }
 
 // compactFix is the Fix cell of the compact listing: the package and the release to move to, the

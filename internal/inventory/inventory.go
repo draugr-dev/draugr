@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/manifests"
+	"github.com/draugr-dev/draugr/internal/nonshipping"
 )
 
 // Tree is what a directory holds. Every path is slash-separated and relative to the root.
@@ -54,6 +55,10 @@ type Tree struct {
 	// or pnpm-workspace.yaml names, is not one by its package.json alone: the lockfile at the
 	// workspace root resolves it, so it stays with that root.
 	Parts []string
+	// NonShipping are the directories holding documentation, examples or tests, by the names
+	// internal/nonshipping lists, outermost only: `test/` and not `test/integration/testdata/` beneath
+	// it. A directory under vendor/ is someone else's and is left out.
+	NonShipping []string
 }
 
 // trivyUnread names the dependency files Trivy's filesystem scan does not parse and Grype's does.
@@ -97,7 +102,7 @@ func Read(root string) Tree {
 	}
 
 	terraform, helm, goMods := map[string]bool{}, map[string]bool{}, map[string]bool{}
-	var yamls []string
+	var yamls, nonShipping []string
 	_ = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil //nolint:nilerr // an unreadable subtree holds nothing init can propose for
@@ -105,6 +110,12 @@ func Read(root string) Tree {
 		if d.IsDir() {
 			if p != root && slices.Contains(skipDirs, d.Name()) {
 				return filepath.SkipDir
+			}
+			// Recorded and still walked: a Dockerfile under tests/ is still something iac reads.
+			if p != root && nonshipping.DirKind(d.Name()) != "" {
+				if rel, err := filepath.Rel(root, p); err == nil {
+					nonShipping = append(nonShipping, filepath.ToSlash(rel))
+				}
 			}
 			return nil
 		}
@@ -143,6 +154,7 @@ func Read(root string) Tree {
 	t.Terraform = sortedKeys(terraform)
 	t.Helm = sortedKeys(helm)
 	t.Go = sortedKeys(goMods)
+	t.NonShipping = outermost(nonShipping)
 
 	// A workspace member's package.json is resolved by the lockfile at the workspace root, so it
 	// makes its directory no part. A lockfile of its own, or a dependency file of another
@@ -176,6 +188,19 @@ func Read(root string) Tree {
 	slices.Sort(t.OpenAPI)
 	slices.Sort(t.Kubernetes)
 	return t
+}
+
+// outermost are the directories not beneath another of them, sorted, and none under vendor/.
+func outermost(dirs []string) []string {
+	slices.Sort(dirs)
+	var out []string
+	for _, d := range dirs {
+		if slices.Contains(strings.Split(d, "/"), "vendor") || insideAny(d, out) {
+			continue
+		}
+		out = append(out, d)
+	}
+	return out
 }
 
 // isDockerfile matches Dockerfile, Dockerfile.prod, api.Dockerfile and Containerfile.

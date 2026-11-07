@@ -271,6 +271,10 @@ type sarifProperties struct {
 	// for one already fixed, when a credential in history is still readable by anyone who can clone
 	// and still needs rotating.
 	Historical bool `json:"historical,omitempty"`
+	// NonShipping is Result.NonShipping: the kind of directory, docs, example or test, the finding's
+	// file sits under. It survives the file because the order a report lists findings in reads it, and
+	// a report read back by `draugr diff` has to list them as the run did.
+	NonShipping string `json:"nonShipping,omitempty"`
 	// ImageBuiltUpstream is what BuiltUpstream was called while it only described images. Read on
 	// input and never written, so a report produced by an older release still loads with the fact
 	// intact, a finding that silently became the reader's to fix is worse than one that fails to
@@ -525,7 +529,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		if tool != "" || res.Control != "" || res.Escalation != nil || res.Exploited != nil || res.Rating != nil || res.PriorityFloor != "" || res.SeverityFloor != "" || res.HasScore ||
 			res.Priority != "" || res.Image != "" || res.Correlation != nil ||
 			res.OperatingSystem != "" || res.Layer != nil || res.OSEndOfLife ||
-			res.ProviderOperated || res.BuiltUpstream || res.Historical || len(res.Labels) > 0 {
+			res.ProviderOperated || res.BuiltUpstream || res.Historical || res.NonShipping != "" || len(res.Labels) > 0 {
 			sr.Properties = &sarifProperties{
 				Tool: tool, Control: res.Control, Priority: res.Priority, Component: res.Component,
 				Exposure: res.Exposure, Criticality: res.Criticality, Labels: res.Labels,
@@ -544,6 +548,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 				ProviderOperated: res.ProviderOperated,
 				BuiltUpstream:    res.BuiltUpstream,
 				Historical:       res.Historical,
+				NonShipping:      res.NonShipping,
 			}
 			if res.HasScore {
 				sr.Properties.SecuritySeverity = strconv.FormatFloat(res.Score, 'f', -1, 64)
@@ -827,6 +832,7 @@ func FromSARIF(data []byte) (Report, error) {
 				res.ProviderOperated = sr.Properties.ProviderOperated
 				res.BuiltUpstream = sr.Properties.BuiltUpstream || sr.Properties.ImageBuiltUpstream
 				res.Historical = sr.Properties.Historical
+				res.NonShipping = sr.Properties.NonShipping
 				res.Package = sr.Properties.Package
 				res.Reachability = sr.Properties.Reachability
 				res.Correlation = sr.Properties.Correlation

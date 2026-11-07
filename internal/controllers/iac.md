@@ -18,6 +18,25 @@ With `trivyConfig.checks` set and `namespaces` unset, the control derives the na
 checks' `package` lines when it plans, and `draugr validate` refuses a check it cannot derive one
 from. [`trivy-config`](../scanners/trivy-config.md) has the rules.
 
+## Non-shipping paths
+
+`nonShippingPaths` decides whether a finding counts when its file sits under a directory of
+documentation, examples or tests, such as a chart's `docs/examples/` or a `tests/` tree of
+fixtures. `report`, the default, counts each, labeled `docs`, `example` or `test` beside its
+location and listed after the shipped code's findings; `suppress` keeps each in the report
+suppressed with the reason `in docs, examples or tests`. A component's setting replaces the
+project's.
+
+```yaml
+config:
+  controls:
+    iac:
+      nonShippingPaths: suppress
+```
+
+[Non-shipping paths](../../docs/reference/saga-schema.md#non-shipping-paths) in the Saga reference
+lists the directories.
+
 ## Unread
 
 A Terraform file is **unread** when it calls a module `trivy-config` could not load. The resources

@@ -85,17 +85,18 @@ func markDevCopies(controls map[string]plugin.ControlResult) {
 	}
 }
 
-// settingPolicy is one control setting that sets aside a kind of dependency: which findings it
-// covers, the control's answer for a component, and the reason each suppression records.
+// settingPolicy is one control setting that sets aside a kind of finding, such as one in a kind of
+// dependency or under a test directory: which findings it covers, the control's answer for a
+// component, and the reason each suppression records.
 type settingPolicy struct {
-	covers        func(*sarif.Package) bool
+	covers        func(*sarif.Result) bool
 	decide        func(plugin.Controller) (func(saga.Model, string) (bool, string), bool)
 	justification string
 }
 
 // devDependencySetting is config.controls.sca.devDependencies.
 var devDependencySetting = settingPolicy{
-	covers: func(p *sarif.Package) bool { return p.Dev },
+	covers: func(r *sarif.Result) bool { return r.Package != nil && r.Package.Dev },
 	decide: func(c plugin.Controller) (func(saga.Model, string) (bool, string), bool) {
 		p, ok := c.(plugin.DevDependencyPolicy)
 		if !ok {
@@ -108,7 +109,7 @@ var devDependencySetting = settingPolicy{
 
 // providedDependencySetting is config.controls.sca.providedDependencies.
 var providedDependencySetting = settingPolicy{
-	covers: func(p *sarif.Package) bool { return p.Provided },
+	covers: func(r *sarif.Result) bool { return r.Package != nil && r.Package.Provided },
 	decide: func(c plugin.Controller) (func(saga.Model, string) (bool, string), bool) {
 		p, ok := c.(plugin.ProvidedDependencyPolicy)
 		if !ok {
@@ -122,7 +123,7 @@ var providedDependencySetting = settingPolicy{
 // cpeMatchSetting is config.controls.sca.cpeMatches. The mark is the scanner's own, about one
 // match, so no other scanner's copy carries it to this one.
 var cpeMatchSetting = settingPolicy{
-	covers: func(p *sarif.Package) bool { return p.CPEMatch },
+	covers: func(r *sarif.Result) bool { return r.Package != nil && r.Package.CPEMatch },
 	decide: func(c plugin.Controller) (func(saga.Model, string) (bool, string), bool) {
 		p, ok := c.(plugin.CPEMatchPolicy)
 		if !ok {
@@ -180,7 +181,7 @@ func (e *Engine) applySetting(controls map[string]plugin.ControlResult, model sa
 		n := 0
 		for i := range cr.Report.Results {
 			res := &cr.Report.Results[i]
-			if res.Suppressed() || res.Package == nil || !s.covers(res.Package) {
+			if res.Suppressed() || !s.covers(res) {
 				continue
 			}
 			a, seen := decided[res.Component]

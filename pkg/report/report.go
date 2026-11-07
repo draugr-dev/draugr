@@ -763,6 +763,10 @@ type finding struct {
 	// historical marks a finding that describes a commit rather than the current tree, so its
 	// location is a path that may no longer exist.
 	historical bool
+	// nonShipping is the kind of directory, docs, example or test, the finding's file sits under,
+	// empty for a finding in shipped code. It is the label the finding wears beside its location, and
+	// it lists the finding after every one in shipped code.
+	nonShipping string
 	// remediation is what kind of action would resolve this, which decides whether it belongs in
 	// a list of things to fix at all.
 	remediation sarif.Remediation
@@ -843,6 +847,10 @@ type summary struct {
 	// onKEV is how many findings KEV lists, whether or not it raised them. Counted over every
 	// finding, for the reason bySignal is.
 	onKEV int
+	// nonShipping is how many counted findings sit under docs, examples or tests. Counted over every
+	// finding, for the reason bySignal is: the listing names the ones it shows, and a cut listing
+	// cannot say how many of the rest there are.
+	nonShipping int
 
 	// What the run could not do, and what it set aside. A report that omits these describes a thinner
 	// run rather than a broken one. And a reader cannot tell the difference, which is the reading that
@@ -954,6 +962,9 @@ func summarize(d Data) summary {
 			if res.PriorityFloor != "" {
 				s.floored++
 			}
+			if res.NonShipping != "" {
+				s.nonShipping++
+			}
 			s.findings = append(s.findings, findingOf(name, rep, res))
 		}
 	}
@@ -999,6 +1010,7 @@ func findingOf(control string, rep sarif.Report, res sarif.Result) finding {
 		priorityFloor: res.PriorityFloor,
 		severityFloor: res.SeverityFloor,
 		historical:    res.Historical,
+		nonShipping:   res.NonShipping,
 		component:     res.Component,
 		repository:    res.Repository,
 		location:      locationOf(res), message: res.Message,
@@ -1026,10 +1038,21 @@ func atOrAbove(got, want string) bool {
 	return g >= order[strings.ToUpper(want)]
 }
 
-// sortFindings orders most-urgent first: by priority, then numeric score, then SARIF level.
+// sortFindings orders most-urgent first: shipped code before docs, examples and tests, then by
+// priority, then numeric score, then SARIF level.
 func sortFindings(fs []finding) {
 	sort.SliceStable(fs, func(i, j int) bool {
 		a, b := fs[i], fs[j]
+		// Every finding in shipped code before any under docs, examples or tests, whatever their bands.
+		//
+		// Not within each band. A band reads the component's exposure and criticality, which describe
+		// what the component ships, so a P1 in a test fixture is ranked for a place it does not run.
+		// Ordered within bands, the fixtures of a chart repository fill every row of the list ten
+		// thousand to one, and the shipped chart's findings are on a page nobody reaches. The band is
+		// unchanged and so is the gate, which counts both.
+		if ma, mb := a.nonShipping != "", b.nonShipping != ""; ma != mb {
+			return mb
+		}
 		if ra, rb := prioritization.Priority(a.priority).Rank(), prioritization.Priority(b.priority).Rank(); ra != rb {
 			return ra > rb
 		}

@@ -283,6 +283,10 @@ type findingReport struct {
 	// CPEMatch says the scanner matched the finding's package to the advisory only through a CPE
 	// built from its name and version. Absent wherever any match used the package's own ecosystem.
 	CPEMatch bool `json:"cpeMatch,omitempty"`
+	// NonShipping is the kind of directory the finding's file sits under where it holds
+	// documentation, examples or tests: docs, example or test. Absent for a finding in shipped code
+	// and for a control that does not mark one, such as secrets.
+	NonShipping string `json:"nonShipping,omitempty"`
 	// Suppressed says a config.exclude rule set this finding aside, with the reason somebody gave.
 	//
 	// Kept in the list rather than filtered out of it, which is what "suppress, don't delete"
@@ -1181,6 +1185,7 @@ func toFinding(control string, res sarif.Result) findingReport {
 		Dev:           res.Package != nil && res.Package.Dev,
 		Provided:      res.Package != nil && res.Package.Provided,
 		CPEMatch:      res.Package != nil && res.Package.CPEMatch,
+		NonShipping:   res.NonShipping,
 	}
 }
 

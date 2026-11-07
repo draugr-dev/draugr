@@ -48,6 +48,9 @@ config:
       cpeMatches: report                             # suppress (default) | report: whether a
                                                      # finding Grype matched only by CPE, on a
                                                      # package type such as dart-pub or pod, counts
+      nonShippingPaths: report                       # report (default) | suppress: whether a
+                                                     # finding in a dependency file under tests/
+                                                     # or examples/ counts
       trivyFs:
         filePatterns:                                # more files for an analyzer to read, each
           - "pip:requirements-.*\\.txt"              # analyzer:regex. pip reads only
@@ -137,6 +140,10 @@ config:
 
     sast:
       enabled: true
+      nonShippingPaths: report                       # report (default) | suppress: whether a
+                                                     # finding under docs/, examples/, tests/ or
+                                                     # testdata/ counts. Counted, it is labeled and
+                                                     # listed after the shipped code's
       semgrep:
         config: p/owasp-top-ten                      # a registry ruleset, or a path or URL to a
                                                      # rules file. p/default when omitted
@@ -152,6 +159,9 @@ config:
 
     iac:
       enabled: true
+      nonShippingPaths: suppress                     # report (default) | suppress: set aside the
+                                                     # findings in example manifests and test
+                                                     # fixtures, with the reason recorded
       # trivyConfig:
       #   checks: [policies/rego]                    # Rego files or directories of them, relative
       #                                              # to where Draugr runs, added to Trivy's own

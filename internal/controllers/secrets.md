@@ -120,6 +120,11 @@ Gitleaks finding reports `severity: medium`, `severityFloor: high` and a ranked 
 `high`, and its `draugr/rating` holds that `warning`. A finding a scanner scored keeps its score as
 its severity.
 
+A finding under `docs/`, `examples/` or `tests/` is counted like any other. A credential committed
+in a test fixture opens whatever it opens, so `secrets` takes no
+[`nonShippingPaths`](../../docs/reference/saga-schema.md#non-shipping-paths) setting and its
+findings carry no label.
+
 ## Links
 
 - Glossary: [Secret detection](../../docs/reference/glossary.md#secret-detection)

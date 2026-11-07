@@ -34,6 +34,10 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintln(w, "| Priority | P1 | P2 | P3 | P4 |")
 		_, _ = fmt.Fprintln(w, "|---|---|---|---|---|")
 		_, _ = fmt.Fprintf(w, "| Findings | %d | %d | %d | %d |\n\n", s.p1, s.p2, s.p3, s.p4)
+		// Beside the counts they are part of, as the console has it.
+		if note := nonShippingNote(s.nonShipping); note != "" {
+			_, _ = fmt.Fprintf(w, "%s, counted and listed after the rest.\n\n", note)
+		}
 	}
 
 	// Beside the bands it qualifies, which is where the console and the page put it.
@@ -135,7 +139,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 			sev += " " + m.glyph + " " + m.label
 		}
 		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %s |%s %s | %s | %s |\n",
-			dash(f.priority), sev, ruleLink(f), f.tool, component, whereShown(f.location),
+			dash(f.priority), sev, ruleLink(f), f.tool, component, labeledWhere(f, whereShown(f.location)),
 			dash(upgradeLabel(f)), findingTitle(f))
 	}
 	if len(s.findings) > markdownTopN {

@@ -109,6 +109,33 @@ func TestReadAnEmptyTree(t *testing.T) {
 	}
 }
 
+// The directories holding docs, examples and tests are listed outermost first and only once, at
+// any depth, with near misses and anything under vendor/ or node_modules/ left out. What they hold
+// is still read.
+func TestReadListsNonShippingDirectories(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	write(t, root, map[string]string{
+		"docs/examples/values.yaml":           "a: 1\n",
+		"test/integration/testdata/x.go":      "",
+		"internal/foo/testdata/in.json":       "{}",
+		"src/__tests__/app.test.js":           "",
+		"contest/main.go":                     "",
+		"docsite/index.js":                    "",
+		"vendor/github.com/x/y/testdata/z.go": "",
+		"web/node_modules/pkg/test/a.js":      "",
+		"tests/Dockerfile":                    "FROM scratch\n",
+	})
+	got := Read(root)
+	want := []string{"docs", "internal/foo/testdata", "src/__tests__", "test", "tests"}
+	if !slices.Equal(got.NonShipping, want) {
+		t.Errorf("NonShipping = %v, want %v", got.NonShipping, want)
+	}
+	if !slices.Equal(got.Dockerfiles, []string{"tests/Dockerfile"}) {
+		t.Errorf("Dockerfiles = %v, want the one under tests/ still read", got.Dockerfiles)
+	}
+}
+
 func TestReadAMissingRoot(t *testing.T) {
 	t.Parallel()
 	if got := Read(filepath.Join(t.TempDir(), "absent")); len(got.Dependencies)+len(got.Dockerfiles) != 0 {

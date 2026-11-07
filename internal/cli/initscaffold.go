@@ -23,15 +23,25 @@ type foundRow struct {
 	// commented is the block the scaffold writes commented out for these files, and off the
 	// control that block would turn on, which a scan with no descriptor leaves off.
 	commented, off string
+	// ignored marks files the scaffold writes an ignore line for, which no control reads.
+	ignored bool
 }
 
 // initSays is what init's FOUND block says the scaffold does with the files.
-func (r foundRow) initSays() string { return dotJoin(r.on, r.commented, ", commented") }
+func (r foundRow) initSays() string {
+	if r.ignored {
+		return "ignored · a line each"
+	}
+	return dotJoin(r.on, r.commented, ", commented")
+}
 
 // scanSays is what a scan's FOUND section says the run did with them. A scanner in turnedOff is
 // written `<name> off`, as the control the scaffold leaves commented out is, so the row never names
 // a scanner as on that the run did not run.
 func (r foundRow) scanSays(turnedOff []string) string {
+	if r.ignored {
+		return "ignored"
+	}
 	on := make([]string, len(r.on))
 	for i, name := range r.on {
 		on[i] = name
@@ -106,6 +116,10 @@ func foundRows(t inventory.Tree) []foundRow {
 		// reads a host's spec.
 		rows = append(rows, foundRow{kind: "OpenAPI", where: scaffold.PathList(t.OpenAPI),
 			commented: "hosts spec", off: "dast"})
+	}
+	if len(t.NonShipping) > 0 {
+		// Last, because it takes files out of what the rows above turn scanners on for.
+		rows = append(rows, foundRow{kind: "docs, examples, tests", where: scaffold.PathList(t.NonShipping), ignored: true})
 	}
 	return rows
 }

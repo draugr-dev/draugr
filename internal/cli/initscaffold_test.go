@@ -95,6 +95,62 @@ func TestInitPrintsWhatItFoundAndWhatIsUnread(t *testing.T) {
 	}
 }
 
+// Docs, examples and tests directories get an ignore line each in the descriptor, and a FOUND row in
+// init's console and in a zero-config scan's report, which reads the same text and ignores them too.
+func TestInitIgnoresDocsExamplesAndTests(t *testing.T) {
+	t.Parallel()
+	files := map[string]string{
+		"go.mod":                        "module shop\n\nrequire golang.org/x/text v0.3.0\n",
+		"docs/examples/values.yaml":     "a: 1\n",
+		"examples/app/main.go":          "package main\n",
+		"internal/a/testdata/in.json":   "{}",
+		"internal/b/testdata/in.json":   "{}",
+		"internal/contest/entry.go":     "package contest\n",
+		"vendor/x/y/testdata/z.go":      "package z\n",
+		"web/__tests__/app.test.js":     "",
+		"web/node_modules/m/test/a.js":  "",
+		"spec/fixtures/values.yaml":     "a: 1\n",
+		"deploy/fixtures/deploy.yaml":   "a: 1\n",
+		"services/api/tests/Dockerfile": "FROM scratch\n",
+	}
+	got, console := runInitIn(t, files, initOptions{})
+	want := "        ignore:\n" +
+		"          # Docs, examples and tests, which do not ship. Delete a line to scan that directory.\n" +
+		"          # No control reads an ignored directory, secrets included.\n" +
+		"          - \"**/testdata\"         # tests · internal/a/testdata · internal/b/testdata\n" +
+		"          - deploy/fixtures/      # tests\n" +
+		"          - docs/                 # documentation\n" +
+		"          - examples/             # examples\n" +
+		"          - services/api/tests/   # tests\n" +
+		"          - spec/                 # tests\n" +
+		"          - web/__tests__/        # tests\n"
+	if !strings.Contains(got, want) {
+		t.Errorf("descriptor missing\n%s\nin\n%s", want, got)
+	}
+	for _, absent := range []string{"contest", "vendor/", "node_modules", "spec/fixtures"} {
+		if strings.Contains(got, absent) {
+			t.Errorf("descriptor proposes %q:\n%s", absent, got)
+		}
+	}
+	if !strings.Contains(console, "  docs, examples, tests  deploy/fixtures · docs · examples · +5  ignored · a line each\n") {
+		t.Errorf("console does not list the directories under FOUND:\n%s", console)
+	}
+
+	dir := t.TempDir()
+	layout(t, dir, files)
+	zc, err := synthesize(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ignore := zc.model.Components[0].Repositories[0].Ignore; len(ignore) != 7 {
+		t.Errorf("zero-config ignore = %v, want the seven lines init writes", ignore)
+	}
+	found := zc.found()
+	if last := found[len(found)-1]; last.Kind != "docs, examples, tests" || last.Did != "ignored" {
+		t.Errorf("zero-config FOUND ends %+v, want the ignored directories", last)
+	}
+}
+
 // --per-directory on a tree with no parts cannot do what it was asked, and says so rather than
 // writing one component in silence.
 func TestInitPerDirectoryWithNoPartsSaysSo(t *testing.T) {
