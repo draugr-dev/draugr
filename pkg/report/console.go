@@ -1900,7 +1900,7 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 		_, _ = fmt.Fprintf(w, "%s\n", heading(col, "Evidence"))
 		writeEvidence(w, col, d, "  ")
 	}
-	if (len(s.findings) == 0 || !listing) && len(d.Suggestions) == 0 || dense(d) {
+	if dense(d) {
 		return
 	}
 	// "Try", because none of it is required and a heading that reads as instructions puts a reader
@@ -1910,8 +1910,15 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 	// scanning for something to type finds it in a column; the same two flags inside a sentence
 	// have to be read whole to find out neither of them applies.
 	t := tui.NewTable(col).Indent("  ")
-	row := func(what, does string) { t.Row(tui.Styled(cDim, what), tui.Styled(cDim, does)) }
-	if listed > 0 {
+	rows := 0
+	row := func(what, does string) {
+		t.Row(tui.Styled(cDim, what), tui.Styled(cDim, does))
+		rows++
+	}
+	// The rows offering another look at the findings, on a run that listed some or that has
+	// something else to suggest.
+	views := len(s.findings) > 0 && listing || len(d.Suggestions) > 0
+	if views && listed > 0 {
 		// Only where something was left out. Offering to show everything below a list that is
 		// already everything is advice that reads as the product not knowing what it printed. The
 		// number is the one printed, which --top sets.
@@ -1921,7 +1928,17 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 			row("--top 0", "every one of them, not the first "+english.Word(listed))
 		}
 	}
-	if listing {
+	// Decided here rather than among the caller's tips, because only the renderer knows which
+	// blocks it cut, and kept under --no-tips with the other rows that describe this report. Not
+	// offered where the run already writes an HTML report, which holds every row.
+	if cutShort(d, listed) && !slices.Contains(d.Reports, "html") {
+		row(htmlReportFlags(d), "every row the console cut, in one searchable page")
+	}
+	// A caveat row standing for several files names none of them; the evidence lists each.
+	if c, ok := foldedCaveat(d); ok && !d.Evidence {
+		row("--evidence", "each file behind a caveat row such as "+c.what)
+	}
+	if views && listing {
 		if d.View != ViewCompact {
 			row("--view compact", "one line each, to see how much there is")
 		}
@@ -1938,8 +1955,21 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 	for _, sug := range d.Suggestions {
 		row(sug.What, sug.Why)
 	}
+	if rows == 0 {
+		return
+	}
 	_, _ = fmt.Fprintln(w, heading(col, "Try"))
 	t.Render(w)
+}
+
+// htmlReportFlags is what to type for an HTML report: -o where the run writes no report files, and
+// otherwise --report with the formats it already writes, because --report replaces the list it is
+// given rather than adding to it.
+func htmlReportFlags(d Data) string {
+	if d.ReportsDir == "" {
+		return "--report html -o <dir>"
+	}
+	return "--report " + strings.Join(append(slices.Clone(d.Reports), "html"), ",")
 }
 
 // foundNote is what the FOUND heading says about its rows, in every format.

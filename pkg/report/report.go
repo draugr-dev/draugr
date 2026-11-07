@@ -126,6 +126,11 @@ type Data struct {
 	// Suggestions are the things this particular run makes worth trying, decided by the caller
 	// because they depend on how it was invoked rather than on what it found.
 	Suggestions []Suggestion
+	// ReportsDir is the directory this run writes its report files into, as -o names it, and empty
+	// where it writes none. Reports are the formats it writes there. The console reads both to offer
+	// the HTML report where it cut a block short, naming only the flags the run lacks.
+	ReportsDir string
+	Reports    []string
 	// Unclassified reports that no component declares exposure or criticality.
 	//
 	// A caveat on every band in the report: with nothing declared, each component is read as public

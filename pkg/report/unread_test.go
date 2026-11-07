@@ -3,7 +3,7 @@ package report
 import (
 	"bytes"
 	"fmt"
-	"regexp"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -42,22 +42,25 @@ func renderWith(t *testing.T, r Reporter, d Data) string {
 	return b.String()
 }
 
-// Each unread file is a caveat row under its component, named once however many controls missed
-// it, and prefixed with its repository where the component draws on two.
+// Each unread file is a caveat row under its component and the controls that missed it, named once
+// however many controls missed it, and prefixed with its repository where the component draws on
+// two.
 func TestConsoleNamesUnreadFilesOncePerComponent(t *testing.T) {
 	for name, d := range map[string]Data{"full": goldenGroupedData(), "compact": goldenCompactData()} {
 		d.Run.Inputs = unreadInputs()
 		out := renderWith(t, consoleReporter{}, d)
-		for _, want := range []string{
-			"CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do",
-			"internal-tool  acme/admin:package.json   unread-files  no lockfile (sca)",
-			"internal-tool  acme/web:package.json     unread-files  no lockfile (sca)",
-			"payments       app/pyproject.toml        unread-files  no lockfile (licenses, sca)",
-			"payments       app/requirements-dev.txt  unread-files  no packages read (licenses)",
-		} {
-			if !strings.Contains(out, want) {
-				t.Errorf("%s view is missing %q:\n%s", name, want, out)
-			}
+		header, groups, _ := consoleCaveats(t, out)
+		if want := "CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do"; header != want {
+			t.Errorf("%s view: header = %q, want %q", name, header, want)
+		}
+		want := []consoleCaveatGroup{
+			{heading: "unread-files · licenses · payments", rows: []string{"app/requirements-dev.txt no packages read"}},
+			{heading: "unread-files · licenses, sca · payments", rows: []string{"app/pyproject.toml no lockfile"}},
+			{heading: "unread-files · sca · internal-tool", rows: []string{
+				"acme/admin:package.json no lockfile", "acme/web:package.json no lockfile"}},
+		}
+		if !reflect.DeepEqual(groups, want) {
+			t.Errorf("%s view: groups = %+v\nwant %+v:\n%s", name, groups, want, out)
 		}
 		if n := strings.Count(out, "app/pyproject.toml"); n != 1 {
 			t.Errorf("%s view names app/pyproject.toml %d times, want once", name, n)
@@ -79,14 +82,14 @@ func TestConsoleKeepsARowPerReasonForOneFile(t *testing.T) {
 		{Component: "worker", Control: "sca", Unread: []engine.UnreadInput{{Repository: "worker", Path: "pom.xml", Reason: resolve}}},
 	}
 	out := renderWith(t, consoleReporter{}, d)
-	for _, want := range []*regexp.Regexp{
-		regexp.MustCompile(`api +pom\.xml  unread-files  ` + regexp.QuoteMeta(resolve+" (licenses)")),
-		regexp.MustCompile(`api +pom\.xml  unread-files  ` + regexp.QuoteMeta(grype+" (sca)")),
-		regexp.MustCompile(`worker +pom\.xml  unread-files  ` + regexp.QuoteMeta(resolve+" (licenses, sca)")),
-	} {
-		if !want.MatchString(out) {
-			t.Errorf("console is missing %q:\n%s", want, out)
-		}
+	_, groups, _ := consoleCaveats(t, out)
+	want := []consoleCaveatGroup{
+		{heading: "unread-files · licenses · api", rows: []string{"pom.xml " + resolve}},
+		{heading: "unread-files · licenses, sca · worker", rows: []string{"pom.xml " + resolve}},
+		{heading: "unread-files · sca · api", rows: []string{"pom.xml " + grype}},
+	}
+	if !reflect.DeepEqual(groups, want) {
+		t.Errorf("groups = %+v\nwant %+v:\n%s", groups, want, out)
 	}
 	if n := strings.Count(out, "pom.xml"); n != 3 {
 		t.Errorf("console names pom.xml %d times, want 3:\n%s", n, out)
@@ -175,8 +178,10 @@ func TestUnreadNamesTheRepositoryWhereTheComponentScansTwo(t *testing.T) {
 		d := goldenGroupedData()
 		d.Run.Inputs = inputs
 		d.Run.Targets = c.targets
-		row := regexp.MustCompile(`(?m)^\s+both\s+` + regexp.QuoteMeta(c.label) + `\s+unread-files\s+no packages read \(sca\)$`)
-		if out := renderWith(t, consoleReporter{}, d); !row.MatchString(out) {
+		out := renderWith(t, consoleReporter{}, d)
+		_, groups, _ := consoleCaveats(t, out)
+		want := []consoleCaveatGroup{{heading: "unread-files · sca · both", rows: []string{c.label + " no packages read"}}}
+		if !reflect.DeepEqual(groups, want) {
 			t.Errorf("%s: console has no row labeling the file %q:\n%s", name, c.label, out)
 		}
 		md := "- `unread-files` · `" + c.label + "` · no packages read (sca)"
@@ -217,8 +222,11 @@ func TestAFileAnotherScannerReadIsEvidenceAndNotACaveat(t *testing.T) {
 	d.FailOnCaveats = []saga.CaveatKind{saga.CaveatUnreadFiles}
 
 	out := renderWith(t, consoleReporter{}, d)
-	if want := "web        acme/bun:app/bun.lock  ✗ unread-files  not parsed: JSON decode error: json: cannot unmarshal JSON string in… (licenses)"; !strings.Contains(out, want) {
-		t.Errorf("console is missing %q:\n%s", want, out)
+	_, groups, _ := consoleCaveats(t, out)
+	want := []consoleCaveatGroup{{heading: "unread-files · licenses · web", marked: true, rows: []string{
+		"acme/bun:app/bun.lock " + string([]rune(notReadT)[:whyWidth-1]) + "…"}}}
+	if !reflect.DeepEqual(groups, want) {
+		t.Errorf("groups = %+v\nwant %+v:\n%s", groups, want, out)
 	}
 	if strings.Contains(out, "buildscript-gradle.lockfile") {
 		t.Errorf("the default view names a file another scanner read:\n%s", out)
@@ -244,21 +252,31 @@ func TestAFileAnotherScannerReadIsEvidenceAndNotACaveat(t *testing.T) {
 	}
 }
 
-// A reason that fits is printed whole, and a caveat that names no control is cut at the column.
-func TestCaveatWhyKeepsWhatItClosesWith(t *testing.T) {
-	long := strings.Repeat("x", 100)
+// A row's reason leaves out the controls its heading names, and a caveat that names none keeps its
+// detail whole. The heading names the controls only where the caveat has some.
+func TestCaveatReasonLeavesTheControlsToItsHeading(t *testing.T) {
 	for _, c := range []struct {
-		c    caveat
-		want string
+		c               caveat
+		reason, heading string
 	}{
-		{caveat{detail: "no lockfile (sca)", by: "sca"}, "no lockfile (sca)"},
-		{caveat{detail: long + " (licenses, sca)", by: "licenses, sca"}, strings.Repeat("x", 23) + "… (licenses, sca)"},
-		{caveat{detail: long}, strings.Repeat("x", 39) + "…"},
-		{caveat{detail: long + " (" + long + ")", by: long}, strings.Repeat("x", 39) + "…"},
+		{caveat{key: saga.CaveatUnreadFiles, component: "api", detail: "no lockfile (sca)", by: "sca"},
+			"no lockfile", "unread-files · sca · api"},
+		{caveat{key: saga.CaveatUnreadFiles, component: "server", detail: "no lockfile (licenses, sca)", by: "licenses, sca"},
+			"no lockfile", "unread-files · licenses, sca · server"},
+		{caveat{key: saga.CaveatNotChecked, component: "web", detail: "controls off: dast (x)"},
+			"controls off: dast (x)", "not-checked · web"},
+		{caveat{key: saga.CaveatUnreadFiles, component: "api", detail: "no lockfile", by: "sca"},
+			"no lockfile", "unread-files · sca · api"},
 	} {
-		if got := c.c.why(40); got != c.want {
-			t.Errorf("why(%q) = %q, want %q", c.c.detail, got, c.want)
+		if got := c.c.reason(); got != c.reason {
+			t.Errorf("reason(%q) = %q, want %q", c.c.detail, got, c.reason)
 		}
+		if got := c.c.heading(); got != c.heading {
+			t.Errorf("heading of %+v = %q, want %q", c.c, got, c.heading)
+		}
+	}
+	if kindRank("unknown") != len(saga.CaveatKinds) {
+		t.Errorf("an unknown kind does not sort last")
 	}
 }
 

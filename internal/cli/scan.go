@@ -594,6 +594,8 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		Suggestions: scanSuggestions(tipContext{
 			model: model, run: run, verdict: verdict, opts: &opts, tools: builds,
 		}),
+		ReportsDir: opts.outputDir,
+		Reports:    reportFormats(&opts),
 		// With nothing declared, every component is read as public and critical, so the bands rank
 		// severity alone. The report says so beside the counts rather than leaving a reader to
 		// take a ranking as a statement about their application.
@@ -864,6 +866,17 @@ func buildCommit() string {
 // defaultArtifacts is what -o writes when --report says nothing: the two a pipeline already
 // depends on.
 var defaultArtifacts = []string{"json", "sarif"}
+
+// reportFormats is what -o writes on this run, and nil where the run writes no report files.
+func reportFormats(opts *scanOptions) []string {
+	switch {
+	case opts.outputDir == "":
+		return nil
+	case len(opts.reports) == 0:
+		return defaultArtifacts
+	}
+	return opts.reports
+}
 
 // declaredBand is the priority band the artifacts were asked to be narrowed to, or "" for the
 // complete set.

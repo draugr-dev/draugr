@@ -162,18 +162,19 @@ The count leaves out the project's own entries, the root and its workspaces.
 
 A component's files of one format with the same kind of reason share one row. The name shows the
 file count; the reason shows the package total. For a component holding three `Cargo.lock` files,
-two `packages.lock.json` files and one `package-lock.json`, the rows read:
+two `packages.lock.json` files and one `package-lock.json`, the rows under the console's
+`unread-files · licenses · <component>` heading read:
 
 | What | Why |
 |---|---|
-| `Cargo.lock ×3` | `records no licenses for 8 packages (licenses)` |
-| `packages.lock.json ×2` | `licenses of 3 packages not read, run dotnet restore (licenses)` |
-| `web/package-lock.json` | `records no licenses for 2 packages (licenses)` |
+| `Cargo.lock ×3` | `records no licenses for 8 packages` |
+| `packages.lock.json ×2` | `licenses of 3 packages not read, run dotnet restore` |
+| `web/package-lock.json` | `records no licenses for 2 packages` |
 
 The format is Trivy's: a `packages.lock.json` and a `packages.config` are both NuGet, and a row
 holding both names the format, as `NuGet files ×2`. A format with one file keeps its path.
-`--evidence` lists each file a row stands for under `unread`, and where there is such a row the
-**Caveats** heading ends `· --evidence names each file`.
+`--evidence` lists each file a row stands for under `unread`, and where the console draws such a
+row, `TRY` offers `--evidence`.
 
 ## Links
 
