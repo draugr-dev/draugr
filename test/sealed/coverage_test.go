@@ -129,6 +129,17 @@ var optionExceptions = map[string]string{
 	"provenance.trustRoot": "verifies signatures held in an image registry, and the sealed tier scans repositories",
 	"provenance.unmatched": "verifies signatures held in an image registry, and the sealed tier scans repositories",
 
+	"nuclei.rateLimit": "paces the requests rather than choosing them, and the sealed server answers the same at any pace; " +
+		"internal/scanners' TestNucleiOptionsBecomeFlags proves -rl reaches Nuclei",
+	"nuclei.concurrency": "paces the templates rather than choosing them, and the sealed server answers the same at any pace; " +
+		"internal/scanners' TestNucleiOptionsBecomeFlags proves -c reaches Nuclei",
+	"nuclei.timeout": "the sealed server answers every request at once, so no response outlasts a timeout; " +
+		"internal/scanners' TestNucleiTimeoutIsWholeSecondsInRange proves -timeout reaches Nuclei",
+	"nuclei.retries": "the sealed server answers every request, so none fails and none is resent; " +
+		"internal/scanners' TestNucleiOptionsBecomeFlags proves -retries reaches Nuclei",
+	"nuclei.interactsh": "the sealed tier has no network, so no interactsh server is reachable with the option set or unset; " +
+		"internal/scanners' TestNucleiOptionsBecomeFlags proves false passes -ni",
+
 	"draugr-tls.expiryErrorDays": "reads the certificate a live endpoint presents, and the sealed tier has no network",
 	"draugr-tls.expiryWarnDays":  "reads the certificate a live endpoint presents, and the sealed tier has no network",
 

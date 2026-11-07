@@ -41,9 +41,63 @@
           "additionalProperties": false,
           "description": "nuclei, published by projectdiscovery.",
           "properties": {
+            "concurrency": {
+              "default": 25,
+              "description": "Most templates run at once. 1 to 1000.",
+              "type": "integer"
+            },
             "enabled": {
               "description": "Run this scanner. It is a default for this control, so it runs unless set to false.",
               "type": "boolean"
+            },
+            "excludeTags": {
+              "description": "Template tags to skip, e.g. [\"wordpress\"]. Lowercase. Added to headers and intrusive, which are skipped whatever this lists, intrusive until intrusive is true.",
+              "items": {
+                "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9][a-z0-9_.-]*)$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "interactsh": {
+              "default": true,
+              "description": "Whether to run the templates that need Nuclei's public callback servers (oast.pro, oast.live, oast.site, oast.online, oast.fun, oast.me). false skips them and contacts none of the servers.",
+              "type": "boolean"
+            },
+            "intrusive": {
+              "default": false,
+              "description": "Also run the templates tagged intrusive, some of which write to the endpoint, such as creating a user or uploading a file with PUT. Declares the mutate effect, so config.allowEffects must list mutate.",
+              "type": "boolean"
+            },
+            "rateLimit": {
+              "default": 150,
+              "description": "Most requests sent per second, across the whole scan. 1 to 10000.",
+              "type": "integer"
+            },
+            "retries": {
+              "default": 1,
+              "description": "Times a failed request is sent again. 0 to 10.",
+              "type": "integer"
+            },
+            "tags": {
+              "description": "Run only the templates carrying one of these tags, e.g. [\"cve\", \"exposure\"]. Lowercase. headers is refused, and intrusive needs intrusive: true.",
+              "items": {
+                "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9][a-z0-9_.-]*)$",
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "templates": {
+              "description": "Template files or directories to run instead of the community set, relative to where Draugr runs. Tag exclusions apply to them too, so a template of yours that writes to the endpoint should carry the intrusive tag.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "timeout": {
+              "default": "10s",
+              "description": "How long to wait for each response, in whole seconds, e.g. \"30s\". 1s to 10m.",
+              "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+)$",
+              "type": "string"
             }
           },
           "type": "object"

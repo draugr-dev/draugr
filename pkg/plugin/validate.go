@@ -285,11 +285,16 @@ const DurationPattern = `^(.*\$\{\{.*\}\}.*|([0-9]+(\.[0-9]+)?(ns|us|µs|ms|s|m|
 // reference pins one.
 const DigestPattern = `^(.*\$\{\{.*\}\}.*|[a-z0-9]+:[a-f0-9]+)$`
 
+// TagPattern is the shape of a lowercase tag with no separator in it, "cve" or "wp-plugin", for a
+// tool that lowercases tags and splits a value on commas, as Nuclei does.
+const TagPattern = `^(.*\$\{\{.*\}\}.*|[a-z0-9][a-z0-9_.-]*)$`
+
 // patternNames says in words what a known pattern accepts, so a refusal reads as advice rather
 // than as a regular expression.
 var patternNames = map[string]string{
 	DurationPattern: "a duration such as 90s, 15m or 1h30m",
 	DigestPattern:   "a digest such as sha256:<hex>",
+	TagPattern:      "a lowercase tag such as cve or wp-plugin",
 }
 
 // PatternName says in words what a pattern accepts, in the words ValidateConfig refuses a value

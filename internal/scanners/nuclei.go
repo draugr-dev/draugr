@@ -22,12 +22,6 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
-// excludedNucleiTags are template tags Nuclei should skip so the native "headers" control owns
-// HTTP security-header findings, dast covers what headers doesn't (XSS, cookies, info disclosure,
-// exposures, outdated libraries, default creds). Only "headers" is excluded; never "http", which
-// would suppress almost every template.
-const excludedNucleiTags = "headers"
-
 // nucleiScanner runs ProjectDiscovery Nuclei against a running endpoint (a component's host) and
 // converts its JSONL output to SARIF. It serves the "dast" control. run is injectable for tests.
 type nucleiScanner struct {
@@ -52,16 +46,33 @@ func NewNuclei() plugin.Scanner {
 			Binary:       "nuclei",
 			Controls:     []string{"dast"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetHost},
-			ConfigSchema: json.RawMessage(noScannerOptions),
-			// Declared rather than gated. A dynamic scanner exists to send traffic, so asking per run for
-			// permission to do the thing the control is for would train people to agree without reading.
-			// Stating it is still worth doing: probing a host you do not own is unlawful in many
-			// jurisdictions, and until now nothing in the tool said so, only the scope and disclaimer,
-			// which nobody reads mid-scan.
+			ConfigSchema: json.RawMessage(nucleiConfigSchema),
+			// The network effect is declared rather than gated. A dynamic scanner exists to send
+			// traffic, so asking per run for permission to do the thing the control is for would train
+			// people to agree without reading. Stating it is still worth doing: probing a host you do
+			// not own is unlawful in many jurisdictions, and the scope and disclaimer are not read
+			// mid-scan.
+			//
+			// The mutate effect is gated, and only for a job whose block sets intrusive. Those
+			// templates can leave a user, a file or a changed setting behind on the endpoint, which is
+			// a decision somebody makes on purpose rather than a property of every dast run.
 			Effects: []plugin.Effect{{
 				Kind: plugin.EffectNetwork,
 				Detail: "sends probe traffic to the endpoint, which is lawful only against " +
 					"systems you own or have written permission to test",
+			}, {
+				Kind:   plugin.EffectMutate,
+				Option: nucleiIntrusiveKey,
+				Detail: "runs the templates tagged intrusive, some of which change the endpoint, " +
+					"such as creating a user or uploading a file with PUT",
+			}, {
+				Kind:    plugin.EffectDisclosure,
+				Option:  nucleiInteractshKey,
+				Default: true,
+				Online:  true,
+				Detail: "the templates that detect out-of-band callbacks have the endpoint contact " +
+					"ProjectDiscovery's public interactsh servers, which see where each callback came " +
+					"from and what it sent",
 			}},
 		},
 		run:       execArgv,
@@ -224,14 +235,14 @@ func writeHeaderFile(header string) (string, func(), error) {
 
 // nucleiArgv builds the command line for a host URL:
 //
-//		nuclei -u <url> -jsonl -silent -nc -duc -etags headers
+//		nuclei -u <url> -jsonl -silent -nc -duc -etags headers,intrusive [options]
 //
 //	  - -jsonl writes one finding per line to stdout (parsed by nucleiToResults);
 //	  - -silent -nc suppress the banner/progress and ANSI colors so stdout is clean JSONL;
 //	  - -duc disables the update-check network call, keeping runs deterministic;
-//	  - -etags excludes header templates (see excludedNucleiTags).
-func nucleiArgv(url, headerFile string) []string {
-	return nucleiTargetArgv([]string{"-u", url}, headerFile)
+//	  - options are nucleiOptionArgs, which always begin with the -etags exclusions.
+func nucleiArgv(url, headerFile string, options []string) []string {
+	return nucleiTargetArgv([]string{"-u", url}, headerFile, options)
 }
 
 // nucleiSpecArgv scans the operations a rewritten OpenAPI document declares, rather than crawling.
@@ -240,19 +251,14 @@ func nucleiArgv(url, headerFile string) []string {
 // parameters it cannot fill. Which is most of them, and scans nothing at all. With it, those
 // requests are skipped quietly, so Draugr counts them while rewriting the document and the run
 // reports how much of the API went unexercised.
-func nucleiSpecArgv(specPath, headerFile string) []string {
-	return nucleiTargetArgv([]string{"-l", specPath, "-im", "openapi", "-sfv"}, headerFile)
+func nucleiSpecArgv(specPath, headerFile string, options []string) []string {
+	return nucleiTargetArgv([]string{"-l", specPath, "-im", "openapi", "-sfv"}, headerFile, options)
 }
 
-func nucleiTargetArgv(target []string, headerFile string) []string {
+func nucleiTargetArgv(target []string, headerFile string, options []string) []string {
 	argv := append([]string{"nuclei"}, target...)
-	argv = append(argv,
-		"-jsonl",
-		"-silent",
-		"-nc",
-		"-duc",
-		"-etags", excludedNucleiTags,
-	)
+	argv = append(argv, "-jsonl", "-silent", "-nc", "-duc")
+	argv = append(argv, options...)
 	// A path, never the header itself. -H accepts either, and only one of them keeps the
 	// credential out of the process list.
 	if headerFile != "" {
@@ -262,13 +268,19 @@ func nucleiTargetArgv(target []string, headerFile string) []string {
 }
 
 // Scan runs Nuclei against the host target and returns its findings as a SARIF report.
-func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, _ plugin.Config) (sarif.Report, error) {
+func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
 	host, ok := target.(plugin.HostTarget)
 	if !ok {
 		return sarif.Report{}, fmt.Errorf("nuclei: unsupported target %T (want host)", target)
 	}
 	if host.URL == "" {
 		return sarif.Report{}, errors.New("nuclei: host target has no url")
+	}
+	// Before anything else, so a block Nuclei would run differently from what it says stops the
+	// scan before a request is sent.
+	options, err := nucleiOptionArgs(cfg)
+	if err != nil {
+		return sarif.Report{}, err
 	}
 	// If the template set could not be obtained, say that rather than letting Nuclei report the
 	// symptom. Its own message, "no templates provided for scan". Reads like a mistake in the
@@ -299,7 +311,7 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, _ plugin.
 		headerFile = path
 	}
 
-	argv := nucleiArgv(host.URL, headerFile)
+	argv := nucleiArgv(host.URL, headerFile, options)
 	var spec preparedSpec
 	if host.Spec != nil {
 		endpoint, err := endpointForSpec(host.URL)
@@ -324,7 +336,7 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, _ plugin.
 				"and will be skipped", "endpoint", host.URL, "operations", spec.Unfillable,
 				"hint", "give those parameters an example or a default in the specification")
 		}
-		argv = nucleiSpecArgv(spec.Path, headerFile)
+		argv = nucleiSpecArgv(spec.Path, headerFile, options)
 	}
 
 	out, err := s.run(ctx, argv)
@@ -339,7 +351,9 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, _ plugin.
 	// Recorded so a reader can tell which of two very different scans produced this. An
 	// authenticated run reaches the application; an anonymous one reaches the login page, and
 	// their findings are not comparable.
-	report.Provenance = append(report.Provenance, nucleiProvenance(host, spec))
+	prov := nucleiProvenance(host, spec)
+	prov.Fields = append(prov.Fields, nucleiOptionFields(cfg)...)
+	report.Provenance = append(report.Provenance, prov)
 	return report, nil
 }
 

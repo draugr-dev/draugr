@@ -1,0 +1,18 @@
+id: sealed-plain
+
+info:
+  name: Sealed fixture marker at /plain
+  author: draugr
+  severity: low
+  description: The page carries the marker the sealed fixture plants at /plain.
+  tags: sealed-plain
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/plain"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "sealed-plain-marker"

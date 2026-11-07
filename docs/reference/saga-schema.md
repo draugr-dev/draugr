@@ -535,7 +535,8 @@ misspelled setting. Each produced a descriptor that claimed a decision it was no
 | `semgrep` | `config`, a registry ref, path or URL |
 | `gitleaks` | `config`, a rules file shared across repositories; `history`, scan commit history too, keeping findings whose path is inside the component's [`paths` and `ignore`](#scoping-a-repository) and reporting a secret still in the tree once, as the tree finding |
 | `virustotal` | `requestsPerMinute` |
-| `nuclei`, `draugr-headers`, `draugr-k8s-policies`, `urlhaus`, `retirejs`, `cosign`, `notation` | `enabled` only |
+| `nuclei` | `intrusive`, run the templates that may write to the endpoint, declares [`mutate`](../../internal/scanners/nuclei.md#intrusive-templates); `rateLimit`, `concurrency`, `timeout`, `retries`, the scan's pace; `tags`, `excludeTags`, `templates`, which templates run; `interactsh`, the callback templates. [Options](../../internal/scanners/nuclei.md#options) |
+| `draugr-headers`, `draugr-k8s-policies`, `urlhaus`, `retirejs`, `cosign`, `notation` | `enabled` only |
 
 
 [`examples/scanner-options.saga.yaml`](../../examples/scanner-options.saga.yaml) writes every
@@ -846,7 +847,7 @@ never made. Use [`config.exclude`](#configexclude) for a finding you have judged
 the report marked suppressed, and the gate thresholds for what should fail a build. Scanner options
 decide **what gets looked at**; the gate decides what the answer means.
 
-Paths in options, `gitleaks.config`, `semgrep.config`, `trivyConfig.checks`, resolve relative to **where Draugr
+Paths in options, `gitleaks.config`, `semgrep.config`, `trivyConfig.checks`, `nuclei.templates`, resolve relative to **where Draugr
 runs**, not to the repository being scanned. Repository scanners work in a temporary clone, and a
 path resolving inside it would point at somewhere your file is not.
 

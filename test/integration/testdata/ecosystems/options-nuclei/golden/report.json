@@ -1,0 +1,202 @@
+{
+  "actions": [
+    {
+      "clears": 1,
+      "component": "intrusive",
+      "control": "dast",
+      "findings": "<cleared>",
+      "id": "85ce142bec8194e2",
+      "kind": "code",
+      "locations": [
+        {
+          "kind": "file",
+          "path": "http://127.0.0.1:18080/intrusive"
+        }
+      ],
+      "priority": "P2",
+      "ruleIds": [
+        "sealed-intrusive"
+      ],
+      "severity": "medium",
+      "summary": "Sealed fixture marker at /intrusive: The page carries the marker the sealed fixture plants at /intrusive",
+      "title": "Fix sealed-intrusive",
+      "where": [
+        "http://127.0.0.1:18080/intrusive"
+      ]
+    },
+    {
+      "clears": 3,
+      "control": "dast",
+      "findings": "<cleared>",
+      "id": "d9b9d330ead5afcd",
+      "kind": "code",
+      "locations": [
+        {
+          "kind": "file",
+          "path": "http://127.0.0.1:18080/extra"
+        }
+      ],
+      "priority": "P3",
+      "ruleIds": [
+        "sealed-extra"
+      ],
+      "severity": "low",
+      "summary": "Sealed fixture marker at /extra: The page carries the marker the sealed fixture plants at /extra",
+      "title": "Fix sealed-extra",
+      "where": [
+        "http://127.0.0.1:18080/extra"
+      ]
+    },
+    {
+      "clears": 3,
+      "control": "dast",
+      "findings": "<cleared>",
+      "id": "ef330e4ab481b1d9",
+      "kind": "code",
+      "locations": [
+        {
+          "kind": "file",
+          "path": "http://127.0.0.1:18080/plain"
+        }
+      ],
+      "priority": "P3",
+      "ruleIds": [
+        "sealed-plain"
+      ],
+      "severity": "low",
+      "summary": "Sealed fixture marker at /plain: The page carries the marker the sealed fixture plants at /plain",
+      "title": "Fix sealed-plain",
+      "where": [
+        "http://127.0.0.1:18080/plain"
+      ]
+    },
+    {
+      "clears": 1,
+      "component": "custom",
+      "control": "dast",
+      "findings": "<cleared>",
+      "id": "2d81e4a4b6172bc6",
+      "kind": "code",
+      "locations": [
+        {
+          "kind": "file",
+          "path": "http://127.0.0.1:18080/custom"
+        }
+      ],
+      "priority": "P3",
+      "ruleIds": [
+        "sealed-custom"
+      ],
+      "severity": "low",
+      "summary": "Sealed fixture marker at /custom: The page carries the marker the sealed fixture plants at /custom",
+      "title": "Fix sealed-custom",
+      "where": [
+        "http://127.0.0.1:18080/custom"
+      ]
+    }
+  ],
+  "componentLabels": {
+    "custom": {},
+    "default": {},
+    "exclude": {},
+    "intrusive": {},
+    "tagged": {}
+  },
+  "controls": [
+    {
+      "errors": 0,
+      "highest": "medium",
+      "highestPriority": "P2",
+      "name": "dast",
+      "notes": 7,
+      "threshold": "",
+      "total": 8,
+      "verdict": "pass",
+      "warnings": 1
+    }
+  ],
+  "descriptor": {
+    "digest": "<cleared>",
+    "effective": "<cleared>",
+    "sources": [
+      {
+        "digest": "sha256:f3228b75f6db4e3ba54a72341f26f1d372227b0b40abdfb1ad6300e41a27a3c8",
+        "path": "draugr.saga.yaml",
+        "root": true
+      }
+    ]
+  },
+  "draugr": "<cleared>",
+  "effects": {
+    "allowed": [
+      "mutate"
+    ],
+    "declared": [
+      "mutate"
+    ],
+    "used": [
+      {
+        "detail": "runs the templates tagged intrusive, some of which change the endpoint, such as creating a user or uploading a file with PUT",
+        "kind": "mutate"
+      },
+      {
+        "detail": "sends probe traffic to the endpoint, which is lawful only against systems you own or have written permission to test",
+        "kind": "network"
+      }
+    ]
+  },
+  "gate": {
+    "failOnPriority": "P1"
+  },
+  "priorities": {
+    "p1": 0,
+    "p2": 1,
+    "p3": 7,
+    "p4": 0
+  },
+  "project": "options-nuclei",
+  "release": {
+    "version": "1.0"
+  },
+  "scannerData": [
+    {
+      "data": "template set",
+      "downloaded": "<cleared>",
+      "tool": "nuclei"
+    }
+  ],
+  "scanners": [
+    {
+      "name": "nuclei"
+    }
+  ],
+  "stats": {
+    "byControlMs": "<cleared>",
+    "cache": {
+      "enabled": false,
+      "hits": 0
+    },
+    "cacheHits": 0,
+    "concurrency": "<cleared>",
+    "deduped": 0,
+    "durationMs": "<cleared>",
+    "jobs": 5,
+    "peakToolMemoryBytes": "<cleared>",
+    "scans": 5
+  },
+  "targets": [
+    {
+      "components": [
+        "custom",
+        "default",
+        "exclude",
+        "intrusive",
+        "tagged"
+      ],
+      "kind": "host",
+      "status": "reached",
+      "target": "http://127.0.0.1:18080"
+    }
+  ],
+  "verdict": "pass"
+}

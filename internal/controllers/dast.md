@@ -44,8 +44,10 @@ config:
 - Requires the app to be **served**. Point `hosts:` at a running (usually staging/pre-prod)
   deployment. Nuclei must be installed (`draugr tools install nuclei`); `draugr doctor` checks
   for it when `dast` is enabled.
-- Runs Nuclei's default (safe) template set, **no active/attack scanning**. Intrusive testing
-  stays a deliberate, authorized opt-in.
+- Skips the templates Nuclei tags `intrusive`, some of which write to the endpoint. The scanner's
+  [`intrusive`](../scanners/nuclei.md#intrusive-templates) option runs them, and declares the
+  `mutate` effect, which `config.allowEffects` has to accept.
+- The scanner's [options](../scanners/nuclei.md#options) set its pace, its templates and its tags.
 - A host's `auth.tokenEnv` names the variable holding a credential for an
   [authenticated scan](../scanners/nuclei.md#authenticated-scans). The pipeline must list it in
   `$DRAUGR_TOKEN_ENVS`.

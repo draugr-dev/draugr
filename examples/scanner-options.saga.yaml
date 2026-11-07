@@ -16,9 +16,9 @@ release:
   version: "1.0"
 
 config:
-  # kube-bench runs a Job in your cluster and deletes it, and the Mend connectors create a project
-  # in your Mend account. Both declare that, and Draugr refuses to run a scanner whose effects are
-  # not listed here.
+  # kube-bench runs a Job in your cluster and deletes it, the Mend connectors create a project in
+  # your Mend account, and nuclei with intrusive: true can write to the endpoint. Each declares
+  # that, and Draugr refuses to run a scanner whose effects are not listed here.
   allowEffects: [mutate, privilege]
 
   controls:
@@ -222,7 +222,22 @@ config:
     # dast:
     #   enabled: true                                # sends real requests to a live endpoint, so
     #   nuclei:                                      # point it at staging and nothing else
-    #     enabled: true                              # native options: it takes only this
+    #     enabled: true
+    #     rateLimit: 50                              # requests per second, 150 by default
+    #     concurrency: 10                            # templates run at once, 25 by default
+    #     timeout: 30s                               # per response, 10s by default, in whole
+    #                                                # seconds
+    #     retries: 2                                 # resends of a failed request, 1 by default
+    #     excludeTags: [wordpress]                   # added to headers and intrusive, which are
+    #                                                # always skipped
+    #     tags: [cve, exposure]                      # run only templates carrying one of these
+    #     templates: [.draugr/nuclei]                # your own templates instead of the community
+    #                                                # set, relative to where Draugr runs
+    #     interactsh: false                          # skip the templates that need a callback to
+    #                                                # Nuclei's public oast.* servers
+    #     intrusive: true                            # also run the templates tagged intrusive,
+    #                                                # some of which write to the endpoint. Needs
+    #                                                # mutate in allowEffects
 
     # threats:
     #   enabled: true
