@@ -871,9 +871,10 @@ func summarize(d Data) summary {
 		controlFindings: map[string]int{},
 		effects:         d.Run.Effects,
 		errored:         erroredControls(d),
-		suppressed:      d.Run.Suppressed,
 		sboms:           len(d.Run.SBOMs),
 	}
+	// What config.exclude set aside, in findings as the bands count them.
+	s.suppressed, _ = excludedCounts(d)
 	if s.sboms > 0 {
 		s.sbomFormat = string(d.Run.SBOMs[0].Format)
 	}
@@ -1262,11 +1263,11 @@ func dedupeMessages(msgs []string) []string {
 // acceptable, is asked of the evidence rather than of a scan somebody is reading to find out what
 // to fix. It stays in report.json and in the SARIF beside the result it justifies either way.
 func suppressionLine(d Data, full bool) string {
-	n := d.Run.Suppressed
+	n, locations := excludedCounts(d)
 	if n == 0 {
 		return ""
 	}
-	line := fmt.Sprintf("config.exclude: %s suppressed", english.Count(n, "finding"))
+	line := "config.exclude: " + suppressedCount(n, locations)
 	if !full {
 		return line
 	}
@@ -1280,15 +1281,15 @@ func suppressionLine(d Data, full bool) string {
 		// is a set they scan past, and the fragments are sorted by weight so the ones named are the
 		// ones carrying most of the exclusions.
 		if len(sources) > mostSourcesNamed {
-			line = fmt.Sprintf("config.exclude: %s suppressed · across %s",
-				english.Count(n, "finding"), english.Count(len(sources), "file"))
+			line = fmt.Sprintf("config.exclude: %s · across %s",
+				suppressedCount(n, locations), english.Count(len(sources), "file"))
 			return line
 		}
 		for _, src := range sources {
 			where = append(where, fmt.Sprintf("%d from %s", src.n, src.name))
 		}
-		line = fmt.Sprintf("config.exclude: %s suppressed · %s",
-			english.Count(n, "finding"), strings.Join(where, ", "))
+		line = fmt.Sprintf("config.exclude: %s · %s",
+			suppressedCount(n, locations), strings.Join(where, ", "))
 	}
 	// Who accepted what used to be appended here, and it is a table now: one row per decision,
 	// carrying the reason as well as the name, which a clause in a sentence has no room for. A
@@ -1351,12 +1352,24 @@ func silencedLine(d Data) string {
 // and how many.
 type settingRow struct {
 	key, reason string
-	n           int
+	// n counts findings as the bands and report.json do, a flaw that correlation counts once
+	// counted once; locations counts every scanner's copy, one per file it was found in.
+	n, locations int
 }
 
 // said is the row's statement, in the words the other rows use.
 func (r settingRow) said() string {
-	return fmt.Sprintf("%s suppressed · %s", english.Count(r.n, "finding"), r.reason)
+	return fmt.Sprintf("%s · %s", suppressedCount(r.n, r.locations), r.reason)
+}
+
+// suppressedCount is a count of suppressed findings, in the unit the bands and report.json use,
+// with the locations they were found at where those are more: one advisory on a package two
+// lockfiles hold is one finding at two locations.
+func suppressedCount(findings, locations int) string {
+	if locations > findings {
+		return fmt.Sprintf("%s suppressed at %s", english.Count(findings, "finding"), english.Count(locations, "location"))
+	}
+	return english.Count(findings, "finding") + " suppressed"
 }
 
 // where is the row's key with the value it holds, `config.controls.sca.devDependencies: suppress`,
@@ -1379,22 +1392,26 @@ func settingValue(key string) string {
 // first, then by key so a report is reproducible.
 //
 // A row per key because the key is what a reader edits, and a component that set its own is a
-// different line from the project's. Every scanner's copy is counted, as config.exclude's row
-// counts them.
+// different line from the project's. A flaw correlation counts once is one finding here too, so
+// the rows sum to report.json's suppressed total, and every scanner's copy counts as a location.
 func settingRows(d Data) []settingRow {
 	type at struct{ key, reason string }
-	counts := map[at]int{}
+	findings, locations := map[at]int{}, map[at]int{}
 	for _, cr := range d.Run.Controls {
 		for _, res := range cr.Report.Results {
 			if !res.SetAsideBySetting() {
 				continue
 			}
-			counts[at{res.Suppression.Source, res.Suppression.Justification}]++
+			k := at{res.Suppression.Source, res.Suppression.Justification}
+			locations[k]++
+			if !res.Correlated() {
+				findings[k]++
+			}
 		}
 	}
-	out := make([]settingRow, 0, len(counts))
-	for k, n := range counts {
-		out = append(out, settingRow{key: k.key, reason: k.reason, n: n})
+	out := make([]settingRow, 0, len(locations))
+	for k, n := range locations {
+		out = append(out, settingRow{key: k.key, reason: k.reason, n: findings[k], locations: n})
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].n != out[j].n {
@@ -1619,7 +1636,7 @@ func suppressionSources(d Data) []sourceCount {
 			// says this project signed something it never saw.
 			//
 			// A setting's Source is the key that decided, not a file, and settingRows counts it.
-			if res.Imported() || res.SetAsideByScanner() || res.SetAsideBySetting() {
+			if res.Imported() || res.SetAsideByScanner() || res.SetAsideBySetting() || res.Correlated() {
 				continue
 			}
 			counts[res.Suppression.Source]++
@@ -1965,4 +1982,25 @@ func whereWritten(source string, line int) string {
 		return fmt.Sprintf("%s:%d", source, line)
 	}
 	return source
+}
+
+// excludedCounts counts what config.exclude set aside, in findings as the bands count them and in
+// locations, every scanner's copy. A run whose results carry no such suppression falls back to the
+// engine's total, which a report built from a summary rather than from results holds alone.
+func excludedCounts(d Data) (findings, locations int) {
+	for _, cr := range d.Run.Controls {
+		for _, res := range cr.Report.Results {
+			if !res.Suppressed() || res.Imported() || res.SetAsideByScanner() || res.SetAsideBySetting() {
+				continue
+			}
+			locations++
+			if !res.Correlated() {
+				findings++
+			}
+		}
+	}
+	if locations == 0 {
+		return d.Run.Suppressed, d.Run.Suppressed
+	}
+	return findings, locations
 }
