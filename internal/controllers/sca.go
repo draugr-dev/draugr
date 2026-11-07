@@ -93,10 +93,10 @@ var scaOptionSchema = json.RawMessage(`{
       "type": "string",
       "default": "suppress",
       "anyOf": [
-        { "const": "suppress", "description": "Each finding about the project's own package stays in the report, suppressed with the reason the project's own package, and out of the counts and the gate. The default." },
-        { "const": "report", "description": "Each finding about the project's own package is counted, marked own." }
+        { "const": "suppress", "description": "Each finding about the project's own package stays in the report, suppressed with the reason \"the project's own package\", and out of the counts and the gate. The default." },
+        { "const": "report", "description": "Each finding about the project's own package is counted, with own beside its package." }
       ],
-      "description": "Whether findings about the project's own package count, such as a package-lock.json's root or a Cargo workspace member, which a scanner matches against the advisories of a published package with the same name. A component's setting replaces the project's."
+      "description": "Whether findings about the project's own package count, such as a package-lock.json's root or a Cargo workspace member. A component's setting replaces the project's."
     },
     ` + nonShippingProperty + `
   }

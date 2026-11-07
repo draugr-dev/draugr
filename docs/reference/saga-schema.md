@@ -661,12 +661,11 @@ development dependencies.
 ### Own packages
 
 `config.controls.sca.ownPackages` decides whether a finding about the project's own package counts.
-The project's own package is one a dependency file records as the project itself rather than as a
-dependency fetched from a registry, such as a `package-lock.json`'s root or a member of a Cargo
-workspace. Scanners read it as they read a dependency and match it against the advisories of a
-published package with the same name. A documentation site named after the library it documents gets
-that library's advisories, and a project that shares its name with a package GitHub lists as malware
-gets a malware finding against its own code.
+The project's own package is a package the repository itself builds, such as a `package-lock.json`'s
+root, a Cargo workspace member, a Dart package with `publish_to: none` or a pod taken from a local
+`:path:`. Scanners read it as they read a dependency and match it against the advisories of a
+published package with the same name: a workspace member named `telemetry` gets the advisories of
+the crates.io crate `telemetry`.
 
 | Value | Each finding about the project's own package |
 |---|---|
@@ -694,12 +693,12 @@ finding about one of them in that file, whichever scanner reported it:
 | `Cargo.lock` | Each `[[package]]` with no `source`: a workspace member, or a crate taken from a path |
 | `pubspec.yaml` | The package it declares, where it says `publish_to: none` |
 | `Podfile.lock` | Each pod under `EXTERNAL SOURCES` with a `:path:` |
+| Any file Trivy reads, such as `go.mod` or `pom.xml` | Each package Trivy reports as `root` or `workspace`: a `go.mod`'s module, a `pom.xml`'s artifact |
 
-Trivy marks a package `root` or `workspace` in any file it reads, a `go.mod`'s module or a
-`pom.xml`'s artifact among them, and its findings about such a package are marked too. A package
-with another mark as well, such as a pod matched only by CPE, is set aside with this reason.
+A package that is also marked `dev`, `provided` or `cpe` is set aside under `ownPackages`, with the
+reason `the project's own package`.
 
-`report` is for a repository that holds a published package's source under its published name, such
+Set `report` where the repository holds a published package's source under its published name, such
 as a fork of a crate taken by path through `[patch]`. An advisory against that version then describes
 code in the checkout.
 

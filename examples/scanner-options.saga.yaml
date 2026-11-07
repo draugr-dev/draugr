@@ -51,7 +51,7 @@ config:
       ownPackages: report                            # suppress (default) | report: whether a
                                                      # finding about the project's own package,
                                                      # such as a Cargo workspace member, counts
-      nonShippingPaths: report                      # report (default) | suppress: whether a
+      nonShippingPaths: report                       # report (default) | suppress: whether a
                                                      # finding in a dependency file under tests/
                                                      # or examples/ counts
       trivyFs:
