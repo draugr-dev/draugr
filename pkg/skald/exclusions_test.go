@@ -30,10 +30,10 @@ func TestDescriptorCarriesEachExclusionsFileLineAndHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := `[{"gitHistory":{"author":"Ada Lovelace","commit":"4f2a9c1e0b3d5f7a9c1e0b3d5f7a9c1e0b3d5f7a",` +
-		`"date":"2026-09-14T10:00:00+02:00","path":"draugr.saga.yaml"},"line":12,"reason":"first","source":"draugr.saga.yaml"},` +
+		`"date":"2026-09-14T10:00:00+02:00","path":"draugr.saga.yaml"},"line":12,"reason":"first","rules":["a"],"source":"draugr.saga.yaml"},` +
 		`{"gitHistory":{"path":"draugr.saga.yaml","unavailable":"the line is older than the shallow clone's history; fetch full history"},` +
-		`"line":18,"reason":"second","source":"draugr.saga.yaml"},` +
-		`{"line":3,"reason":"third","source":"https://example.com/platform.git@v1 policy.saga-fragment.yaml"}]`
+		`"line":18,"reason":"second","rules":["b"],"source":"draugr.saga.yaml"},` +
+		`{"line":3,"reason":"third","rules":["c"],"source":"https://example.com/platform.git@v1 policy.saga-fragment.yaml"}]`
 	if string(raw) != want {
 		t.Errorf("descriptor.exclusions\n got %s\nwant %s", raw, want)
 	}
@@ -42,6 +42,33 @@ func TestDescriptorCarriesEachExclusionsFileLineAndHistory(t *testing.T) {
 	reliable.Author = "changed"
 	if desc.Exclusions[0].GitHistory.Author != "Ada Lovelace" {
 		t.Error("the report shares the rule's history rather than holding its own")
+	}
+}
+
+// Every field an entry sets reaches report.json, so a reader holding the report and not the
+// descriptor can check a reason against what it matches.
+func TestEachExclusionCarriesEveryFieldItSets(t *testing.T) {
+	rule := saga.ExcludeRule{
+		Rules: []string{"gitleaks.generic-api-key"}, Paths: []string{"testdata/", "*.md"},
+		Reason: "fixtures", Expires: "2026-12-31",
+		VEX:    &saga.VEXDecision{Status: "not_affected", Justification: "vulnerable_code_not_present"},
+		Source: "draugr.saga.yaml", Line: 9,
+	}
+	got := ExclusionsFrom([]saga.ExcludeRule{rule})
+	want := `[{"source":"draugr.saga.yaml","line":9,"rules":["gitleaks.generic-api-key"],"paths":["testdata/","*.md"],` +
+		`"reason":"fixtures","expires":"2026-12-31","vex":{"status":"not_affected","justification":"vulnerable_code_not_present"}}]`
+	if raw := mustJSON(t, got); raw != want {
+		t.Errorf("exclusions\n got %s\nwant %s", raw, want)
+	}
+	// A copy, as the history is, so a later change to the rule cannot rewrite the report.
+	rule.Rules[0], rule.Paths[0], rule.VEX.Status = "changed", "changed", "changed"
+	if got[0].Rules[0] != "gitleaks.generic-api-key" || got[0].Paths[0] != "testdata/" || got[0].VEX.Status != "not_affected" {
+		t.Errorf("the report shares the rule's fields rather than holding its own: %+v", got[0])
+	}
+	// What an entry leaves out stays out of the document.
+	if raw := mustJSON(t, ExclusionsFrom([]saga.ExcludeRule{{Rules: []string{"R"}, Reason: "r"}})); strings.Contains(raw, "paths") ||
+		strings.Contains(raw, "expires") || strings.Contains(raw, "vex") {
+		t.Errorf("an unset field was written: %s", raw)
 	}
 }
 

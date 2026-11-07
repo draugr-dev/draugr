@@ -922,6 +922,20 @@ controls that do nothing. Printing also includes every section and every row.
 **Suppressed findings get their own tab**, *Accepted*, each with its justification, because "who decided
 this was acceptable, and when" is the question the report exists to answer.
 
+*Decisions* lists each [`config.exclude`](../reference/saga-schema.md#configexclude) entry that set
+a finding aside, titled by its reason, with the file and line it is written at, when it lapses, how many findings it
+covers and in which bands. An entry past its `expires` date is listed as `lapsed` and covers no
+findings, because they are open again. Opening a row lists every field the entry sets, in the
+descriptor's order, then **Last changed**, which is git's record of the entry's line, and the
+findings the entry covers. *Findings* lists each suppressed finding with where its suppression is
+recorded and its reason.
+
+One strip narrows both lists. The search box matches a decision's reason, file, rules and paths and
+the rule, component, package and location of each finding it covers. The menus narrow by priority,
+where the suppression is recorded, when it ends, severity, component, control and scanner, and a
+decision matches a value when any finding it covers holds it. Each value counts the rows of the list
+on screen.
+
 The footer records when the scan ran, which version produced it, and the run's statistics.
 
 A very large scan can produce more SARIF than is sensible to inline; past 8 MiB the report says

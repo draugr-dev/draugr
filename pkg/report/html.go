@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"io"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/skald"
 )
 
 // htmlReporter renders a self-contained HTML report, a single file with inline CSS, viewable in
@@ -107,6 +109,8 @@ type htmlView struct {
 	// Decisions is one row per acceptance. This is the copy somebody keeps, so it carries the
 	// account rather than the count: who, why, and until when.
 	Decisions []htmlDecision
+	// Accepted is the strip over the Accepted tab's decisions and findings.
+	Accepted htmlAccepted
 	// Unmatched are the rules that suppressed nothing. In a report read apart from the descriptor,
 	// nothing else would say the line was dead.
 	Unmatched []htmlUnmatched
@@ -237,17 +241,77 @@ type htmlControl struct {
 	Critical, High, Medium, Low int
 }
 
-// htmlDecision is one acceptance: how many findings it covers, where it is written, git's record of
-// that line, when it lapses, and why. The count alone says how much was set aside and never what
-// was acceptable about it.
+// htmlDecision is one acceptance: why, where it is written, when it lapses, how many findings it
+// covers and in which bands, and, opened, every field the entry set, git's record of its line and
+// the findings themselves. The count alone says how much was set aside and never what was
+// acceptable about it.
+//
+// The closed row is one line of facts. A matcher list on every row wraps the list into a wall a
+// reviewer cannot scan, so the fields wait in the opened row, where the reader has asked for them.
 type htmlDecision struct {
-	N     int
-	Where string
+	Reason, Where, Expires string
+	// Lapsed marks an entry past its date, which suppresses nothing and stays listed so a reader
+	// sees why its findings are back.
+	Lapsed bool
+	N      int
+	// Prioritized is set where any covered finding holds a band, and P1 to P4 count them.
+	Prioritized    bool
+	P1, P2, P3, P4 int
+	// Fields are the entry's own, in the descriptor's order, one per field it set.
+	Fields []htmlField
 	// History is git's record of the line, empty where the report carries none, and Unavailable
 	// marks a record that says why git could not name a commit.
-	History         string
-	Unavailable     bool
-	Expires, Reason string
+	History     string
+	Unavailable bool
+	Covered     []htmlFinding
+	// Filter is what the Accepted tab's strip reads off the row.
+	Filter htmlFilter
+}
+
+// htmlField is one field of an exclusion entry: its name, and the values written in it.
+type htmlField struct {
+	Label  string
+	Values []string
+	// Sep goes between the values: a comma for a list, a dot between a VEX status and its
+	// justification, which are two different things.
+	Sep string
+}
+
+// htmlFilter is a decision row's values for each menu of the Accepted tab's strip. A decision
+// stands for several findings and holds every value any of them holds, one per line, so ticking
+// a severity keeps each decision that covers a finding of it.
+type htmlFilter struct {
+	P, S, C, M, SC, Via, Ends, Q string
+}
+
+// The Ends menu's values: an acceptance with a date still ahead, one past it, and one with none.
+const (
+	endsInDate = "in-date"
+	endsLapsed = "lapsed"
+	endsNone   = "none"
+)
+
+// recordedMenu and endsMenu are the Accepted tab's own menus, each value with the label it is
+// offered under.
+var (
+	recordedMenu = []struct{ key, label string }{
+		{recordedExclude, "config.exclude"},
+		{recordedVEX, "VEX"},
+		{recordedScanner, "scanner exclusions"},
+		{recordedSetting, "setting"},
+	}
+	endsMenu = []struct{ key, label string }{
+		{endsInDate, "in date"},
+		{endsLapsed, "lapsed"},
+		{endsNone, "no end date"},
+	}
+)
+
+// htmlAccepted is the Accepted tab's strip: the menus over its decisions and its findings, each
+// option counted over the findings.
+type htmlAccepted struct {
+	Priorities, Recorded, Ends, Severities []htmlFacet
+	Components, Controls, Scanners         []htmlFacet
 }
 
 // htmlUnmatched is a rule that suppressed nothing, named by what a reader would go and edit.
@@ -391,6 +455,11 @@ type htmlFinding struct {
 	AcceptedVia string
 	// Justification is why the finding was set aside. Only set for suppressed findings.
 	Justification string
+	// Recorded and Ends are a suppressed finding's values for the Accepted tab's Recorded in and
+	// Ends menus, and empty for an open one.
+	Recorded, Ends string
+	// Package is the dependency the finding is about and its version, empty where it is about none.
+	Package string
 	// Search is the lower-cased haystack the filter box matches against, precomputed so the
 	// page does not rebuild it per keystroke.
 	Search string
@@ -440,9 +509,7 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	view.Version = BuildLabel(d.Version)
 	view.Duration, view.Slowest = timings(d.Run.Stats)
 	view.CacheHits = d.Run.Stats.CacheHits
-	for _, f := range s.excluded {
-		view.Excluded = append(view.Excluded, toHTMLFinding(f))
-	}
+	view.Excluded, view.Decisions, view.Accepted = htmlAcceptances(d, s.excluded)
 	view.Verdict = "PASS"
 	if s.verdict == norn.Fail {
 		view.Verdict = "FAIL"
@@ -518,13 +585,6 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		view.Actions = append(view.Actions, ha)
 	}
 	view.Signals, view.SignalNotes = signals(d, s)
-	for _, dec := range decisions(d) {
-		hd := htmlDecision{N: dec.n, Where: dec.where, Expires: dec.expires, Reason: dec.reason}
-		if h := dec.history; h != nil {
-			hd.History, hd.Unavailable = h.Summary(), h.Commit == ""
-		}
-		view.Decisions = append(view.Decisions, hd)
-	}
 	for _, e := range d.Run.UnmatchedExclusions {
 		view.Unmatched = append(view.Unmatched, htmlUnmatched{
 			Source: "config.exclude", Matchers: excludeMatchers(e), Reason: findingSummary(e.Reason),
@@ -548,6 +608,186 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	view.Scanners = theirVocabulary(tools)
 	view.Movements = movementFacets(moved)
 	return htmlTemplate.Execute(w, view)
+}
+
+// htmlAcceptances is the Accepted tab: every finding set aside, one row per decision that set them
+// aside with the findings each covers, and the strip's menus counted over the findings.
+//
+// A decision lists its findings from the same summary the Findings sub-view lists, joined by
+// decisionKey, so the two views of the tab cannot disagree about which finding a decision covers.
+func htmlAcceptances(d Data, excluded []finding) ([]htmlFinding, []htmlDecision, htmlAccepted) {
+	var rows []htmlFinding
+	covered := map[string][]htmlFinding{}
+	prio, sev, via, ends := map[string]int{}, map[string]int{}, map[string]int{}, map[string]int{}
+	comp, ctl, tools := map[string]int{}, map[string]int{}, map[string]int{}
+	for _, f := range excluded {
+		hf := toHTMLFinding(f)
+		hf.Recorded, hf.Ends = f.recorded, endsOf(f.expires, false)
+		// The reason and the authority too, because "which of these did we accept as test data" is
+		// a question somebody types.
+		hf.Search += " " + strings.ToLower(f.justification+" "+f.acceptedVia)
+		rows = append(rows, hf)
+		if f.decision != "" {
+			covered[f.decision] = append(covered[f.decision], hf)
+		}
+		prio[hf.Priority]++
+		sev[hf.Severity]++
+		via[hf.Recorded]++
+		ends[hf.Ends]++
+		comp[hf.Component]++
+		ctl[hf.Control]++
+		tools[hf.Tool]++
+	}
+
+	var decs []htmlDecision
+	for _, dec := range decisions(d) {
+		hd := htmlDecision{N: dec.n, Where: dec.where, Expires: dec.expires, Reason: dec.reason}
+		if h := dec.history; h != nil {
+			hd.History, hd.Unavailable = h.Summary(), h.Commit == ""
+		}
+		var rules, paths []string
+		var vex *skald.ExclusionVEX
+		if e := dec.entry; e != nil {
+			rules, paths, vex = e.Rules, e.Paths, e.VEX
+		}
+		hd.Fields = entryFields(rules, paths, dec.expires, vex)
+		hd.Covered = byBand(covered[dec.key])
+		decs = append(decs, withFilter(hd, rules, paths))
+	}
+	// Past its date an entry sets nothing aside, and its findings are back among the open ones. It
+	// is still a decision somebody wrote, and listed here a reader learns why those findings came
+	// back without reading the descriptor.
+	entries := exclusionEntries(d)
+	for _, r := range d.Run.LapsedExclusions {
+		hd := htmlDecision{Where: whereWritten(r.Source, r.Line), Expires: r.Expires, Reason: r.Reason, Lapsed: true}
+		h := r.History
+		if e := entries[exclusionKey{r.Source, r.Line}]; e != nil && e.GitHistory != nil {
+			h = e.GitHistory
+		}
+		if h != nil {
+			hd.History, hd.Unavailable = h.Summary(), h.Commit == ""
+		}
+		var vex *skald.ExclusionVEX
+		if r.VEX != nil {
+			vex = &skald.ExclusionVEX{Status: r.VEX.Status, Justification: r.VEX.Justification}
+		}
+		hd.Fields = entryFields(r.Rules, r.Paths, r.Expires, vex)
+		decs = append(decs, withFilter(hd, r.Rules, r.Paths))
+	}
+
+	strip := htmlAccepted{
+		Priorities: ourVocabulary([]string{"P1", "P2", "P3", "P4"}, prio),
+		Recorded:   labeledVocabulary(recordedMenu, via),
+		Ends:       labeledVocabulary(endsMenu, ends),
+		Severities: ourVocabulary([]string{"critical", "high", "medium", "low"}, sev),
+		Components: theirVocabulary(comp),
+		Controls:   theirVocabulary(ctl),
+		Scanners:   theirVocabulary(tools),
+	}
+	return rows, decs, strip
+}
+
+// endsOf names an acceptance's value in the Ends menu.
+func endsOf(expires string, lapsed bool) string {
+	switch {
+	case lapsed:
+		return endsLapsed
+	case expires != "":
+		return endsInDate
+	}
+	return endsNone
+}
+
+// entryFields are an exclusion entry's fields as the opened row lists them: each one the entry
+// set, in the order the descriptor's reference gives them.
+//
+// The values are listed as written. Chips would read as filters somebody can press, and YAML would
+// hand the reader a syntax to parse for a fact the label already states.
+func entryFields(rules, paths []string, expires string, vex *skald.ExclusionVEX) []htmlField {
+	var out []htmlField
+	if len(rules) > 0 {
+		out = append(out, htmlField{Label: "Rules", Values: rules, Sep: ", "})
+	}
+	if len(paths) > 0 {
+		out = append(out, htmlField{Label: "Paths", Values: paths, Sep: ", "})
+	}
+	if expires != "" {
+		out = append(out, htmlField{Label: "Expires", Values: []string{expires}})
+	}
+	if vex != nil {
+		values := []string{vex.Status}
+		if vex.Justification != "" {
+			values = append(values, vex.Justification)
+		}
+		out = append(out, htmlField{Label: "VEX", Values: values, Sep: " · "})
+	}
+	return out
+}
+
+// byBand orders a decision's findings most urgent first, as every list in the report is, and then
+// by where each is, so the findings in one file read down it.
+func byBand(fs []htmlFinding) []htmlFinding {
+	rank := map[string]int{"P1": 0, "P2": 1, "P3": 2, "P4": 3}
+	order := func(p string) int {
+		if r, ok := rank[p]; ok {
+			return r
+		}
+		return len(rank)
+	}
+	sort.SliceStable(fs, func(i, j int) bool {
+		if a, b := order(fs[i].Priority), order(fs[j].Priority); a != b {
+			return a < b
+		}
+		if fs[i].Location != fs[j].Location {
+			return fs[i].Location < fs[j].Location
+		}
+		return fs[i].RuleID < fs[j].RuleID
+	})
+	return fs
+}
+
+// withFilter fills in a decision's bands and the values the Accepted tab's strip reads off it.
+//
+// The search covers what a reviewer would type to find a decision: its reason and file, what it
+// matches, and the rule, component, package and location of each finding it covers.
+func withFilter(hd htmlDecision, rules, paths []string) htmlDecision {
+	var p, s, c, m, sc []string
+	words := []string{hd.Reason, hd.Where}
+	words = append(words, rules...)
+	words = append(words, paths...)
+	for _, f := range hd.Covered {
+		switch f.Priority {
+		case "P1":
+			hd.P1++
+		case "P2":
+			hd.P2++
+		case "P3":
+			hd.P3++
+		case "P4":
+			hd.P4++
+		}
+		p, s, c, m, sc = addOnce(p, f.Priority), addOnce(s, f.Severity), addOnce(c, f.Control),
+			addOnce(m, f.Component), addOnce(sc, f.Tool)
+		words = append(words, f.RuleID, f.Component, f.Package, f.Location)
+	}
+	// Nor the placeholder a missing value is drawn as, nor nothing.
+	words = slices.DeleteFunc(words, func(w string) bool { return w == "" || w == "-" })
+	hd.Prioritized = hd.P1+hd.P2+hd.P3+hd.P4 > 0
+	hd.Filter = htmlFilter{
+		P: strings.Join(p, "\n"), S: strings.Join(s, "\n"), C: strings.Join(c, "\n"),
+		M: strings.Join(m, "\n"), SC: strings.Join(sc, "\n"),
+		Via: recordedExclude, Ends: endsOf(hd.Expires, hd.Lapsed),
+		Q: strings.ToLower(strings.Join(words, " ")),
+	}
+	return hd
+}
+
+// addOnce appends v to a set kept in the order its values were met.
+func addOnce(set []string, v string) []string {
+	if v == "" || slices.Contains(set, v) {
+		return set
+	}
+	return append(set, v)
 }
 
 // htmlComponents is the per-component verdict the console prints, as table rows.
@@ -686,9 +926,10 @@ func toHTMLFinding(f finding) htmlFinding {
 		}
 	}
 	fix := fixPhrase(f)
-	var pkgName string
+	var pkgName, pkgLabel string
 	if f.pkg != nil {
 		pkgName = f.pkg.Name
+		pkgLabel = strings.TrimSpace(f.pkg.Name + " " + f.pkg.Version)
 	}
 	kind := fix
 	if strings.HasPrefix(fix, "upgrade to ") {
@@ -714,6 +955,7 @@ func toHTMLFinding(f finding) htmlFinding {
 		Signals:       strings.Join(signalKeys(f), " "),
 		AcceptedVia:   f.acceptedVia,
 		Justification: f.justification,
+		Package:       pkgLabel,
 		ActionKey:     actionKeyFor(f),
 		Search: strings.ToLower(strings.Join(
 			[]string{f.ruleID, f.control, f.tool, f.component, f.location, f.message, f.priority, string(sev), fix, pkgName}, " ")),
@@ -855,8 +1097,13 @@ var movementMenu = []struct{ key, label string }{
 // movementFacets offers every movement with its count, a zero where this run has none, for the
 // reason ourVocabulary does.
 func movementFacets(counts map[string]int) []htmlFacet {
-	out := make([]htmlFacet, 0, len(movementMenu))
-	for _, m := range movementMenu {
+	return labeledVocabulary(movementMenu, counts)
+}
+
+// labeledVocabulary is ourVocabulary for a menu whose values are offered under labels.
+func labeledVocabulary(menu []struct{ key, label string }, counts map[string]int) []htmlFacet {
+	out := make([]htmlFacet, 0, len(menu))
+	for _, m := range menu {
 		out = append(out, htmlFacet{Value: m.key, Label: m.label, Count: counts[m.key]})
 	}
 	return out
@@ -1408,6 +1655,45 @@ const htmlDoc = `<!doctype html>
     text-decoration: underline; text-underline-offset: 2px;
   }
 
+  /* A decision is a row that opens. Closed, it is the reason and one line of facts, with the bands
+   * of what it covers at the right edge; the line never wraps, because a list of decisions is read
+   * down the reasons and a second line on some rows breaks that. Opened, it lists the entry's
+   * fields and the findings it covers. A native disclosure, so it opens without scripts and prints
+   * open with every other fold. */
+  .rows > .dec { border-bottom: 1px solid var(--line); }
+  .rows > .dec > summary {
+    display: flex; align-items: baseline; gap: 16px; padding: 13px 8px;
+    cursor: pointer; list-style: none;
+  }
+  .rows > .dec > summary::-webkit-details-marker { display: none; }
+  .rows > .dec > summary:hover, .rows > .dec[open] > summary { background: var(--surface); }
+  .rows > .dec > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .rows > .dec > summary .what { flex: 1 1 auto; }
+  .rows > .dec > summary .rule { display: flex; align-items: baseline; gap: 7px; }
+  .rows > .dec > summary .sevs { flex: none; }
+  .rows .facts { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rows .facts code { font-size: 12px; }
+  .dec-open { padding: 4px 8px 12px; background: var(--surface); }
+  .entry {
+    display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 18px;
+    margin: 4px 0 12px; font-size: 13px;
+  }
+  .entry dt {
+    font: 10px "JetBrains Mono", ui-monospace, monospace; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--faint); padding-top: 3px;
+  }
+  .entry dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+  .covered { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+  .covered li {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px;
+    padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--muted);
+  }
+  .covered li:last-child { border-bottom: 0; }
+  .covered .id { color: var(--text); font-weight: 500; overflow-wrap: anywhere; }
+  .covered .id a { text-decoration: none; }
+  .covered .id a:hover { text-decoration: underline; }
+  .covered code { font-size: 12px; overflow-wrap: anywhere; }
+
   /* The count line over a list and the page size beside it, then paging inside the panel's foot.
    * A report of a thousand findings drawn at once is a page nobody reaches the bottom of, and the
    * downloads and the sections below it went with the bottom. */
@@ -1652,6 +1938,11 @@ const htmlDoc = `<!doctype html>
     .signals .moved { align-items: baseline; }
     :is(.signals, .found) th, :is(.signals, .found) td { padding-left: .4rem; padding-right: .4rem; }
     .rows .cvchip { font-size: 12px; }
+    /* A decision's facts wrap on a phone, where one line holds too little of them to be worth
+     * keeping to it, and its bands go under them. */
+    .rows > .dec > summary { flex-wrap: wrap; }
+    .rows .facts { white-space: normal; }
+    .rows .facts code, .covered code { font-size: 12px; }
     /* The components table closes up its cells and headings, meets the page's margin at both
      * edges, wraps a hyphenated name and puts an assumed mark under its value, so its five columns
      * fit a 390px screen. Anything wider scrolls inside .scroll. */
@@ -1668,8 +1959,9 @@ const htmlDoc = `<!doctype html>
     .off { display: revert !important; }
     body.tabbed details.fold:not(.sub) > summary,
     body.tabbed .paned > details.fold.sub > summary { display: revert; }
-    #tools, .views, .listbar, .next, .rest, .dl { display: none !important; }
+    .tools, .views, .listbar, .next, .rest, .dl { display: none !important; }
     .rows > .cut { display: grid; }
+    .rows > .dec.cut { display: block; }
     body { max-width: none; background: #fff; color: #000; }
     tr { break-inside: avoid; }
     /* Paper does not scroll, so a scroll box would cut the table at its edge. */
@@ -1864,17 +2156,17 @@ prints each scanner's full output.</p>
 {{end}}
 
 {{if .Findings}}
-<div id="tools" hidden>
+<div class="tools" id="tools" hidden>
   <div class="bar">
     <input type="search" id="q" placeholder="Find a rule, a package, a file or a message" aria-label="Find a finding">
-    {{template "menu" dict "K" "p" "Label" "Priority" "Options" .Priorities}}
+    {{template "menu" dict "K" "p" "Label" "Priority" "Options" .Priorities "Token" "priority"}}
     {{template "menu" dict "K" "fix" "Label" "Fix" "Options" .Fixes}}
     <button type="button" class="narrow" id="narrow" aria-expanded="false">Narrow ▾</button>
-    {{template "menu" dict "K" "s" "Label" "Severity" "Options" .Severities "Folded" true}}
+    {{template "menu" dict "K" "s" "Label" "Severity" "Options" .Severities "Folded" true "Token" "severity"}}
     {{template "menu" dict "K" "movement" "Label" "Movement" "Options" .Movements "Folded" true "Multi" true}}
-    {{template "menu" dict "K" "m" "Label" "Component" "Options" .ComponentNames "Folded" true}}
-    {{template "menu" dict "K" "c" "Label" "Control" "Options" .ControlNames "Folded" true}}
-    {{template "menu" dict "K" "sc" "Label" "Scanner" "Options" .Scanners "Folded" true}}
+    {{template "menu" dict "K" "m" "Label" "Component" "Options" .ComponentNames "Folded" true "Token" "component"}}
+    {{template "menu" dict "K" "c" "Label" "Control" "Options" .ControlNames "Folded" true "Token" "control"}}
+    {{template "menu" dict "K" "sc" "Label" "Scanner" "Options" .Scanners "Folded" true "Token" "scanner"}}
   </div>
   <div class="tokens" id="tokens"></div>
   {{range .Components}}{{if not .Skipped}}
@@ -1964,13 +2256,15 @@ prints each scanner's full output.</p>
 {{define "class"}}{{if .Assumed}}<span class="asm">{{.Value}}</span><span class="tag">assumed</span>{{else}}{{.Value}}{{end}}{{end}}
 {{define "ruleid"}}{{if .HelpURI}}<a href="{{.HelpURI}}" target="_blank" rel="noopener noreferrer">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}{{end}}
 {{define "rule"}}<span class="id">{{template "ruleid" .}}</span>{{if .Message}}<span class="said"><span class="faint"> · </span>{{.Message}}</span>{{end}}{{end}}
-{{/* Multi marks a menu whose rows each hold a set of values, space-separated, rather than one. */}}
+{{/* Multi marks a menu whose rows each hold a set of values, space-separated, rather than one.
+     Token names the menu in each token it leaves, "priority P1", where the value alone would not
+     say which menu it came from; a menu whose labels are phrases leaves the phrase alone. */}}
 {{define "menu"}}
 <span class="menu-anchor{{if .Folded}} folded{{end}}" data-k="{{.K}}"{{if .Multi}} data-multi{{end}}>
   <button class="chip-menu" type="button" aria-expanded="false" aria-haspopup="true">
     {{.Label}}<span class="c" hidden></span><span class="caret" aria-hidden="true">&#9662;</span>
   </button>
-  <div class="menu" hidden role="group" aria-label="{{.Label}}">
+  <div class="menu" hidden role="group" aria-label="{{.Label}}"{{with .Token}} data-token="{{.}}"{{end}}>
     <div class="menu-head">{{.Label}}</div>
     <div class="menu-options">
       {{range .Options}}
@@ -1998,18 +2292,82 @@ prints each scanner's full output.</p>
 {{- if .Silenced}}Scanner exclusions: {{plural .Silenced "finding"}} suppressed. {{end -}}
 {{- if not (or .Suppressed .Imported .Silenced)}}Set aside by <code class="cmd">config.exclude</code>.{{end -}}
 </p>
+{{if or .Decisions .Excluded}}{{with .Accepted}}
+<div class="tools" id="accepted-tools" hidden>
+  <div class="bar">
+    <input type="search" placeholder="Find a reason, a file, a rule, a path or a package" aria-label="Find an accepted finding">
+    {{template "menu" dict "K" "p" "Label" "Priority" "Options" .Priorities "Token" "priority"}}
+    {{template "menu" dict "K" "via" "Label" "Recorded in" "Options" .Recorded "Token" "recorded in"}}
+    {{template "menu" dict "K" "ends" "Label" "Ends" "Options" .Ends}}
+    <button type="button" class="narrow" aria-expanded="false">Narrow ▾</button>
+    {{template "menu" dict "K" "s" "Label" "Severity" "Options" .Severities "Folded" true "Token" "severity"}}
+    {{template "menu" dict "K" "m" "Label" "Component" "Options" .Components "Folded" true "Token" "component"}}
+    {{template "menu" dict "K" "c" "Label" "Control" "Options" .Controls "Folded" true "Token" "control"}}
+    {{template "menu" dict "K" "sc" "Label" "Scanner" "Options" .Scanners "Folded" true "Token" "scanner"}}
+  </div>
+  <div class="tokens"></div>
+</div>
+{{end}}{{end}}
 {{if .Decisions}}
 <details class="fold sub" open><summary class="sub"><span class="sub">Decisions</span></summary>
-<table class="provenance">
-<thead><tr><th scope="col" class="num">Findings</th><th scope="col">Exclusion</th><th scope="col">Git history</th><th scope="col">Expires</th><th scope="col">Reason</th></tr></thead>
-{{range .Decisions}}<tr>
-  <td class="num">{{.N}}</td>
-  <td>{{if .Where}}<code>{{.Where}}</code>{{else}}<span class="faint">not recorded</span>{{end}}</td>
-  <td>{{if .Unavailable}}<span class="err">{{.History}}</span>{{else if .History}}{{.History}}{{else}}<span class="faint">not recorded</span>{{end}}</td>
-  <td class="when">{{if .Expires}}{{.Expires}}{{else}}<span class="faint">never</span>{{end}}</td>
-  <td>{{.Reason}}</td>
-</tr>{{end}}
-</table>
+<section id="decisions">
+{{template "listbar"}}
+<div class="rows">
+{{range .Decisions}}<details class="dec" data-set data-p="{{.Filter.P}}" data-s="{{.Filter.S}}" data-c="{{.Filter.C}}" data-m="{{.Filter.M}}" data-sc="{{.Filter.SC}}" data-via="{{.Filter.Via}}" data-ends="{{.Filter.Ends}}" data-q="{{.Filter.Q}}">
+  <summary>
+    <div class="what">
+      <div class="rule"><span class="name">{{if .Reason}}{{.Reason}}{{else}}<span class="none">no reason recorded</span>{{end}}</span><span class="hint" aria-hidden="true">more</span></div>
+      <div class="sub facts">config.exclude
+        {{- if .Where}}<span class="faint"> · </span>written in <code>{{.Where}}</code>{{end}}
+        {{- if .Lapsed}}<span class="faint"> · </span><span class="err">lapsed {{.Expires}}</span>{{else if .Expires}}<span class="faint"> · </span>lapses {{.Expires}}{{else}}<span class="faint"> · </span>does not lapse{{end}}
+        {{- if .N}}<span class="faint"> · </span>{{plural .N "finding"}}{{else}}<span class="faint"> · </span>no findings{{end}}</div>
+    </div>
+    {{if .Prioritized}}<span class="sevs">
+      <span class="sev s-p1{{if not .P1}} off{{end}}">{{.P1}} P1</span>
+      <span class="sev s-p2{{if not .P2}} off{{end}}">{{.P2}} P2</span>
+      <span class="sev s-p3{{if not .P3}} off{{end}}">{{.P3}} P3</span>
+      <span class="sev s-p4{{if not .P4}} off{{end}}">{{.P4}} P4</span>
+    </span>{{end}}
+  </summary>
+  <div class="dec-open">
+    <dl class="entry">
+      {{range .Fields}}{{$f := .}}<dt>{{.Label}}</dt><dd>{{range $i, $v := .Values}}{{if $i}}{{$f.Sep}}{{end}}<code>{{$v}}</code>{{end}}</dd>
+      {{end}}<dt>Written in</dt><dd>{{if .Where}}<code>{{.Where}}</code>{{else}}<span class="none">not recorded</span>{{end}}</dd>
+      <dt>Last changed</dt><dd>{{if .Unavailable}}<span class="err">{{.History}}</span>{{else if .History}}{{.History}}{{else}}<span class="none">not recorded</span>{{end}}</dd>
+    </dl>
+    {{if .Covered}}<ul class="covered">
+    {{range .Covered}}<li><span class="pri {{.Priority}}">{{.Priority}}</span><span class="id">{{template "ruleid" .}}</span>
+      {{- if and .Component (ne .Component "-")}}<span class="faint"> · </span><span class="lbl">component</span> {{.Component}}{{end}}
+      {{- if .Package}}<span class="faint"> · </span><span class="lbl">package</span> {{.Package}}{{else if and .Location (ne .Location "-")}}<span class="faint"> · </span><code>{{.Location}}</code>{{end}}</li>
+    {{end}}</ul>{{else if .Lapsed}}<p class="note">Past its date this entry sets nothing aside, so the findings it matched are open again.</p>{{end}}
+  </div>
+</details>
+{{end}}
+{{template "paging"}}
+</div>
+{{template "nomatch"}}
+</section>
+</details>
+{{end}}
+
+{{if .Excluded}}
+<details class="fold sub" open><summary class="sub"><span class="sub">Findings</span></summary>
+<section id="accepted">
+{{template "listbar"}}
+<div class="rows">
+{{range .Excluded}}<div class="f" data-p="{{.Priority}}" data-s="{{.Severity}}" data-c="{{.Control}}" data-m="{{.Component}}" data-sc="{{.Tool}}" data-via="{{.Recorded}}" data-ends="{{.Ends}}" data-q="{{.Search}}">
+  <span class="chips"><span class="pri {{.Priority}}">{{.Priority}}</span><span class="sevchip {{.SevClass}}">{{.Severity}}</span></span>
+  <div class="what">
+    {{if .Full}}<details class="more"><summary class="rule">{{template "rule" .}}<span class="hint" aria-hidden="true">more</span></summary><p class="full">{{.Full}}</p></details>
+    {{- else}}<div class="rule">{{template "rule" .}}</div>{{end}}
+    <div class="sub"><span class="lbl">recorded in</span> {{.AcceptedVia}}<span class="faint"> · </span>{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}{{if .Location}}{{.Location}}<span class="faint"> · </span>{{end}}<span class="lbl">control</span> {{.Control}}</div>
+    <div class="sub"><span class="lbl">reason</span> {{if .Justification}}{{.Justification}}{{else}}<span class="none">no reason recorded</span>{{end}}</div>
+  </div>
+</div>{{end}}
+{{template "paging"}}
+</div>
+{{template "nomatch"}}
+</section>
 </details>
 {{end}}
 
@@ -2022,25 +2380,6 @@ prints each scanner's full output.</p>
   <td><code>{{.Source}}</code></td>
   <td>{{range .Matchers}}<span class="mk">{{.Key}}</span> <code>{{.Value}}</code> {{end}}{{if .Reason}}<span class="why">{{.Reason}}</span>{{end}}</td>
 </tr>{{end}}
-</table>
-</details>
-{{end}}
-
-{{if .Excluded}}
-<details class="fold sub" open><summary class="sub"><span class="sub">Findings</span></summary>
-<table>
-<thead><tr><th scope="col">Severity</th><th scope="col">Rule</th><th scope="col">Control</th><th scope="col">Component</th><th scope="col">Location</th><th scope="col">Accepted via</th></tr></thead>
-{{range .Excluded}}<tbody>
-<tr class="meta">
-  <td class="{{.SevClass}}">{{.Severity}}</td>
-  <td><code>{{template "ruleid" .}}</code></td>
-  <td>{{.Control}}</td>
-  <td>{{.Component}}</td>
-  <td><code>{{.Location}}</code></td>
-  <td>{{.AcceptedVia}}</td>
-</tr>
-<tr class="msg"><td colspan="6">{{.Message}}<br><span class="just">Reason: {{.Justification}}</span></td></tr>
-</tbody>{{end}}
 </table>
 </details>
 {{end}}
@@ -2225,7 +2564,9 @@ prints each scanner's full output.</p>
         subOf[id] = { top: parent, el: sub, row: row, subs: subs };
       });
       top.classList.add("paned");
-      top.insertBefore(row, subs[0]);
+      // Above a strip that narrows the subsections, because the strip belongs to what is shown
+      // under the row rather than to the row.
+      top.insertBefore(row, top.querySelector(":scope > .tools") || subs[0]);
     });
 
     var showSub = function (id) {
@@ -2257,8 +2598,13 @@ prints each scanner's full output.</p>
       });
       firstSubs();
     };
-    // The address says which section is open, so a link to one opens it and Back returns.
+    // The address says which section is open, so a link to one opens it and Back returns. A strip
+    // that counts whichever list is shown hears when that changes.
     var route = function () {
+      go();
+      document.dispatchEvent(new CustomEvent("draugr:pane"));
+    };
+    var go = function () {
       var h = decodeURIComponent(location.hash.slice(1));
       var target = h && document.getElementById(h);
       if (!target || pane[h]) { showPane(target ? h : ids[0]); window.scrollTo(0, 0); return; }
@@ -2275,107 +2621,278 @@ prints each scanner's full output.</p>
     route();
   }
 
-  var tools = document.getElementById("tools");
-  var list = document.getElementById("findings");
-  if (!tools || !list) return;
-  tools.hidden = false;
-
-  var rows = Array.prototype.map.call(list.querySelectorAll(":scope > .f"), function (el) {
-    return { el: el, d: el.dataset, ok: true };
-  });
-
+  // A strip narrows lists: a search box, menus whose ticks add up within a menu and narrow across
+  // menus, a token for each narrowing, Clear filters, and paging under each list. One machine for
+  // every list in the report, so the Findings tab and the Accepted tab narrow the same way and a
+  // fix to one is a fix to both.
+  //
+  // cfg.sets are the lists of rows the strip narrows, and cfg.counted() the one its menus count.
+  // cfg.keep, cfg.narrowed, cfg.tokens and cfg.clear add a narrowing that is not a menu. cfg.paint
+  // runs once the rows are marked and before the lists are drawn, and cfg.after runs last.
+  var strips = [], pageSize = 50;
+  try { pageSize = Number(localStorage.getItem("draugr-report-page-size")) || 50; } catch (e) { /* the default */ }
+  // One menu open at a time across the page, and the page takes the click that closes it.
+  function closeMenus() { strips.forEach(function (s) { s.close(); }); }
+  document.addEventListener("click", closeMenus);
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeMenus(); });
+  function rowsOf(els) {
+    return Array.prototype.map.call(els, function (el) { return { el: el, d: el.dataset, ok: true }; });
+  }
   // The whole row opens its message, not only the line the disclosure owns. A link inside the row
   // keeps its own meaning, the summary toggles itself natively, and a click that ends a text
   // selection is somebody copying a path rather than asking for more.
-  rows.forEach(function (r) {
-    var more = r.el.querySelector("details.more");
-    if (!more) return;
-    r.el.classList.add("opens");
-    r.el.addEventListener("click", function (e) {
-      if (e.target.closest("a, summary")) return;
-      if (String(window.getSelection && window.getSelection()) !== "") return;
-      more.open = !more.open;
+  function opens(rows) {
+    rows.forEach(function (r) {
+      var more = r.el.querySelector("details.more");
+      if (!more) return;
+      r.el.classList.add("opens");
+      r.el.addEventListener("click", function (e) {
+        if (e.target.closest("a, summary")) return;
+        if (String(window.getSelection && window.getSelection()) !== "") return;
+        more.open = !more.open;
+      });
     });
-  });
+  }
 
-  // Ticks within one menu add up, and the menus narrow each other. Choosing P1 and P2 asks for
-  // both rather than replacing one with the other; across menus it is an and, because each
-  // answers a different question. Nothing ticked in a menu is no constraint from that menu.
-  var dims = Array.prototype.map.call(tools.querySelectorAll(".menu-anchor"), function (a) {
-    var boxes = Array.prototype.slice.call(a.querySelectorAll("input[type=checkbox]"));
-    return {
-      k: a.dataset.k, anchor: a, folded: a.classList.contains("folded"), multi: a.hasAttribute("data-multi"),
-      button: a.querySelector(".chip-menu"), menu: a.querySelector(".menu"),
-      badge: a.querySelector(".chip-menu .c"), boxes: boxes,
+  function strip(tools, cfg) {
+    tools.hidden = false;
+    // Ticks within one menu add up, and the menus narrow each other. Choosing P1 and P2 asks for
+    // both rather than replacing one with the other; across menus it is an and, because each
+    // answers a different question. Nothing ticked in a menu is no constraint from that menu.
+    var dims = Array.prototype.map.call(tools.querySelectorAll(".menu-anchor"), function (a) {
+      var boxes = Array.prototype.slice.call(a.querySelectorAll("input[type=checkbox]"));
+      var menu = a.querySelector(".menu");
+      return {
+        k: a.dataset.k, anchor: a, folded: a.classList.contains("folded"), multi: a.hasAttribute("data-multi"),
+        button: a.querySelector(".chip-menu"), menu: menu, token: menu.dataset.token || "",
+        badge: a.querySelector(".chip-menu .c"), boxes: boxes,
+      };
+    });
+    var q = tools.querySelector("input[type=search]");
+    var narrow = tools.querySelector(".narrow");
+    var tokenBox = tools.querySelector(".tokens");
+    var s = { q: "", open: false, panels: [], dims: dims };
+
+    function ticked(d) {
+      return d.boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.value; });
+    }
+    // The values a row holds in one menu: one for most menus, and every one that applies for a
+    // set-valued menu, where a finding two inputs moved matches either value and counts under both.
+    // A row standing for several findings holds every value any of them holds, one per line.
+    function held(r, d) {
+      var v = r.d[d.k] || "";
+      if (r.d.set !== undefined) return v.split("\n");
+      return d.multi ? v.split(" ") : [v];
+    }
+    function passes(r, skip) {
+      for (var i = 0; i < dims.length; i++) {
+        var d = dims[i];
+        if (d.k === skip) continue;
+        var on = ticked(d);
+        if (on.length && !held(r, d).some(function (v) { return on.indexOf(v) >= 0; })) return false;
+      }
+      return true;
+    }
+    function searched(r) { return !s.q || r.d.q.indexOf(s.q) >= 0; }
+    function kept(r) { return !cfg.keep || cfg.keep(r); }
+    function narrowed() {
+      return s.q || (cfg.narrowed && cfg.narrowed()) || dims.some(function (d) { return ticked(d).length; });
+    }
+    s.ticked = ticked;
+    s.passes = passes;
+    s.searched = searched;
+
+    s.close = function () {
+      dims.forEach(function (d) {
+        d.menu.hidden = true;
+        d.button.setAttribute("aria-expanded", "false");
+      });
     };
-  });
-  var q = document.getElementById("q");
-  var narrow = document.getElementById("narrow");
-  var tokenBox = document.getElementById("tokens");
-  var strips = Array.prototype.slice.call(tools.querySelectorAll(".focus"));
+    dims.forEach(function (d) {
+      d.button.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var wasOpen = !d.menu.hidden;
+        closeMenus();
+        if (wasOpen) return;
+        d.menu.hidden = false;
+        d.button.setAttribute("aria-expanded", "true");
+        // Measured rather than assumed: which chips sit near the right margin depends on how the
+        // strip wrapped, which depends on the window.
+        d.menu.classList.remove("right");
+        if (d.menu.getBoundingClientRect().right > document.documentElement.clientWidth - 8) {
+          d.menu.classList.add("right");
+        }
+        var first = d.menu.querySelector("input:not([disabled])");
+        if (first) first.focus();
+      });
+      d.menu.addEventListener("click", function (e) { e.stopPropagation(); });
+      d.boxes.forEach(function (b) { b.addEventListener("change", function () { s.reset(); }); });
+    });
+    narrow.addEventListener("click", function () { s.open = !s.open; s.render(); });
+    q.addEventListener("input", function () { s.q = q.value.trim().toLowerCase(); s.reset(); });
+
+    // The count over each list, the page size beside it, and paging in the panel's foot.
+    s.panel = function (section, items, noun) {
+      if (!section) return null;
+      var p = {
+        items: items, noun: noun, bar: section.querySelector(".listbar"),
+        rows: section.querySelector(".rows"), next: section.querySelector(".next"),
+        rest: section.querySelector(".rest"), empty: section.querySelector(".nomatch"),
+      };
+      p.bar.hidden = false;
+      p.sizes = Array.prototype.slice.call(p.bar.querySelectorAll(".size"));
+      p.sizes.forEach(function (b) {
+        b.addEventListener("click", function () {
+          pageSize = Number(b.dataset.n);
+          try { localStorage.setItem("draugr-report-page-size", String(pageSize)); } catch (e) { /* this page only */ }
+          // One page size for the whole report, as the stored choice is.
+          strips.forEach(function (x) { x.reset(); });
+        });
+      });
+      p.next.addEventListener("click", function () { p.cap += pageSize; s.render(); });
+      return p;
+    };
+    function paint(p) {
+      var matched = p.items.filter(function (x) { return x.ok; }).length, shown = 0;
+      p.items.forEach(function (x) {
+        var visible = x.ok && shown < p.cap;
+        if (visible) shown++;
+        x.el.classList.toggle("cut", !visible);
+      });
+      p.bar.querySelector(".lcount").textContent = matched === p.items.length
+        ? counted(matched, p.noun)
+        : matched.toLocaleString() + " of " + p.items.length.toLocaleString();
+      p.sizes.forEach(function (b) { b.classList.toggle("on", Number(b.dataset.n) === pageSize); });
+      var left = matched - shown;
+      p.next.hidden = p.rest.hidden = left <= 0;
+      p.next.textContent = "Show " + Math.min(pageSize, left) + " more";
+      p.rest.textContent = shown.toLocaleString() + " of " + matched.toLocaleString();
+      p.bar.hidden = p.rows.hidden = !matched;
+      p.empty.hidden = !!matched;
+    }
+    function token(label, title, off) {
+      var t = document.createElement("button");
+      t.type = "button";
+      t.className = "token";
+      t.title = title;
+      t.appendChild(document.createTextNode(label));
+      var x = document.createElement("span");
+      x.className = "x";
+      x.textContent = "×";
+      t.appendChild(x);
+      t.addEventListener("click", function () { off(); s.reset(); });
+      tokenBox.appendChild(t);
+    }
+
+    s.render = function () {
+      cfg.sets.forEach(function (set) {
+        set.forEach(function (r) { r.ok = passes(r) && searched(r) && kept(r); });
+      });
+      if (cfg.paint) cfg.paint();
+      s.panels.forEach(paint);
+
+      var folded = 0, rows = cfg.counted();
+      dims.forEach(function (d) {
+        var on = ticked(d).length;
+        if (d.folded) {
+          folded += on;
+          d.anchor.classList.toggle("shown", s.open);
+        }
+        d.badge.textContent = on ? String(on) : "";
+        d.badge.hidden = !on;
+        d.button.classList.toggle("on", on > 0);
+        // Each option counts what ticking it would show, given every other narrowing that is on.
+        var c = {};
+        rows.forEach(function (r) {
+          if (!passes(r, d.k) || !searched(r) || !kept(r)) return;
+          held(r, d).forEach(function (v) { c[v] = (c[v] || 0) + 1; });
+        });
+        d.boxes.forEach(function (b) {
+          b.closest(".menu-row").querySelector(".c").textContent = (c[b.value] || 0).toLocaleString();
+          b.disabled = !c[b.value] && !b.checked;
+        });
+      });
+      narrow.textContent = "Narrow" + (folded ? " " + folded : "") + " " + (s.open ? "▴" : "▾");
+      narrow.classList.toggle("open", s.open);
+      narrow.setAttribute("aria-expanded", String(s.open));
+
+      // Every narrowing that is on, each carrying the way to take it off, and one control that takes
+      // them all off, offered only when something is narrowed. A token names its menu where the
+      // value alone would not say which menu it came from.
+      while (tokenBox.firstChild) tokenBox.removeChild(tokenBox.firstChild);
+      dims.forEach(function (d) {
+        d.boxes.forEach(function (b) {
+          var name = b.dataset.label || b.value;
+          var label = d.token ? d.token + " " + name : name.toLowerCase();
+          if (b.checked) token(label, "Stop filtering by " + name, function () { b.checked = false; });
+        });
+      });
+      if (cfg.tokens) cfg.tokens(token);
+      if (narrowed()) {
+        var clear = document.createElement("button");
+        clear.type = "button";
+        clear.className = "clear";
+        var x = document.createElement("span");
+        x.className = "x";
+        x.textContent = "✕";
+        clear.appendChild(x);
+        clear.appendChild(document.createTextNode(" Clear filters"));
+        clear.addEventListener("click", function () {
+          dims.forEach(function (d) { d.boxes.forEach(function (b) { b.checked = false; }); });
+          q.value = "";
+          s.q = "";
+          if (cfg.clear) cfg.clear();
+          s.reset();
+        });
+        tokenBox.appendChild(clear);
+      }
+      if (cfg.after) cfg.after();
+    };
+    // A narrowing starts every list from its first page again.
+    s.reset = function () {
+      s.panels.forEach(function (p) { p.cap = pageSize; });
+      s.render();
+    };
+    strips.push(s);
+    return s;
+  }
+  function counted(n, noun) { return n.toLocaleString() + " " + noun + (n === 1 ? "" : "s"); }
+
+  // The Accepted tab narrows its decisions and its findings with one strip. A decision matches
+  // where any finding it covers does, and the menus count whichever of the two lists is shown.
+  var acceptedTools = document.getElementById("accepted-tools");
+  if (acceptedTools) {
+    var decBox = document.getElementById("decisions"), accBox = document.getElementById("accepted");
+    var decs = decBox ? rowsOf(decBox.querySelectorAll(".rows > .dec")) : [];
+    var accs = accBox ? rowsOf(accBox.querySelectorAll(".rows > .f")) : [];
+    opens(accs);
+    var shown = function (box) { return !!box && !box.closest(".off"); };
+    var accepted = strip(acceptedTools, {
+      sets: [decs, accs],
+      counted: function () { return shown(accBox) ? accs : decs; },
+      // Gone over a subsection it does not narrow, such as the rules that matched nothing.
+      after: function () { acceptedTools.classList.toggle("off", !shown(decBox) && !shown(accBox)); },
+    });
+    accepted.panels = [accepted.panel(decBox, decs, "decision"), accepted.panel(accBox, accs, "finding")].filter(Boolean);
+    document.addEventListener("draugr:pane", function () { accepted.render(); });
+    accepted.reset();
+  }
+
+  var tools = document.getElementById("tools");
+  var list = document.getElementById("findings");
+  if (!tools || !list) return;
+  var rows = rowsOf(list.querySelectorAll(":scope > .f"));
+  opens(rows);
+  var focus = Array.prototype.slice.call(tools.querySelectorAll(".focus"));
 
   // A narrowing set by following an action rather than by a menu. Held apart from the menus
   // because it is not a dimension somebody browses: it is one row of the fix list, and the way
   // out of it is the token it leaves in the row above.
-  var state = { q: "", act: "", actTitle: "", sig: "", sigTitle: "", open: false, cap: {}, size: 50 };
-  try { state.size = Number(localStorage.getItem("draugr-report-page-size")) || 50; } catch (e) { /* the default */ }
-
-  function ticked(d) {
-    return d.boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.value; });
-  }
-  // The values a row holds in one menu: one for most menus, and every one that applies for a
-  // set-valued menu, where a finding two inputs moved matches either value and counts under both.
-  function held(r, d) {
-    var v = r.d[d.k] || "";
-    return d.multi ? v.split(" ") : [v];
-  }
-  function passes(r, skip) {
-    for (var i = 0; i < dims.length; i++) {
-      var d = dims[i];
-      if (d.k === skip) continue;
-      var on = ticked(d);
-      if (on.length && !held(r, d).some(function (v) { return on.indexOf(v) >= 0; })) return false;
-    }
-    return true;
-  }
-  function searched(r) { return !state.q || r.d.q.indexOf(state.q) >= 0; }
-  function inAction(r) { return !state.act || r.d.a === state.act; }
-  function inSignal(r) { return !state.sig || (" " + (r.d.sig || "") + " ").indexOf(" " + state.sig + " ") >= 0; }
-  function narrowed() {
-    return state.q || state.act || state.sig || dims.some(function (d) { return ticked(d).length; });
-  }
-
-  function closeMenus() {
-    dims.forEach(function (d) {
-      d.menu.hidden = true;
-      d.button.setAttribute("aria-expanded", "false");
-    });
-  }
-  dims.forEach(function (d) {
-    d.button.addEventListener("click", function (e) {
-      e.stopPropagation();
-      var wasOpen = !d.menu.hidden;
-      closeMenus();
-      if (wasOpen) return;
-      d.menu.hidden = false;
-      d.button.setAttribute("aria-expanded", "true");
-      // Measured rather than assumed: which chips sit near the right margin depends on how the
-      // strip wrapped, which depends on the window.
-      d.menu.classList.remove("right");
-      if (d.menu.getBoundingClientRect().right > document.documentElement.clientWidth - 8) {
-        d.menu.classList.add("right");
-      }
-      var first = d.menu.querySelector("input:not([disabled])");
-      if (first) first.focus();
-    });
-    d.menu.addEventListener("click", function (e) { e.stopPropagation(); });
-    d.boxes.forEach(function (b) { b.addEventListener("change", reset); });
-  });
-  // One menu at a time, and the page takes the click that closes it.
-  document.addEventListener("click", closeMenus);
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeMenus(); });
-  narrow.addEventListener("click", function () { state.open = !state.open; render(); });
-  q.addEventListener("input", function () { state.q = q.value.trim().toLowerCase(); reset(); });
+  var act = { key: "", title: "" };
+  // The same for a count followed from the Signals section, which narrows to the findings that carry
+  // its key in data-sig.
+  var sig = { key: "", title: "" };
+  function inSignal(r) { return !sig.key || (" " + (r.d.sig || "") + " ").indexOf(" " + sig.key + " ") >= 0; }
 
   // Two views of one set. What to do leads and the list sits behind the toggle; the headings that
   // separate them without scripts go, because the toggle names them.
@@ -2412,10 +2929,10 @@ prints each scanner's full output.</p>
     a.title = a.label.toLowerCase();
     a.total = (byAct[a.key] || []).length;
     el.addEventListener("click", function () {
-      state.act = a.key;
-      state.actTitle = a.label;
+      act.key = a.key;
+      act.title = a.label;
       showView("all");
-      reset();
+      findings.reset();
       window.scrollTo(0, 0);
     });
     return a;
@@ -2426,68 +2943,12 @@ prints each scanner's full output.</p>
   // opens the Findings section, so it still goes somewhere without this.
   Array.prototype.forEach.call(document.querySelectorAll("a.sig-go"), function (el) {
     el.addEventListener("click", function () {
-      state.sig = el.dataset.sig;
-      state.sigTitle = el.dataset.title || "";
+      sig.key = el.dataset.sig;
+      sig.title = el.dataset.title || "";
       showView("all");
-      reset();
+      findings.reset();
     });
   });
-
-  // The count over each list, the page size beside it, and paging in the panel's foot.
-  function panel(section, items, noun) {
-    if (!section) return null;
-    var p = {
-      items: items, noun: noun, bar: section.querySelector(".listbar"),
-      rows: section.querySelector(".rows"), next: section.querySelector(".next"),
-      rest: section.querySelector(".rest"), empty: section.querySelector(".nomatch"),
-    };
-    p.bar.hidden = false;
-    p.sizes = Array.prototype.slice.call(p.bar.querySelectorAll(".size"));
-    p.sizes.forEach(function (b) {
-      b.addEventListener("click", function () {
-        state.size = Number(b.dataset.n);
-        try { localStorage.setItem("draugr-report-page-size", String(state.size)); } catch (e) { /* this page only */ }
-        reset();
-      });
-    });
-    p.next.addEventListener("click", function () { p.cap += state.size; render(); });
-    return p;
-  }
-  var panels = [panel(work, acts, "action"), panel(all, rows, "finding")].filter(Boolean);
-
-  function counted(n, noun) { return n.toLocaleString() + " " + noun + (n === 1 ? "" : "s"); }
-  function paint(p) {
-    var matched = p.items.filter(function (x) { return x.ok; }).length, shown = 0;
-    p.items.forEach(function (x) {
-      var visible = x.ok && shown < p.cap;
-      if (visible) shown++;
-      x.el.classList.toggle("cut", !visible);
-    });
-    p.bar.querySelector(".lcount").textContent = matched === p.items.length
-      ? counted(matched, p.noun)
-      : matched.toLocaleString() + " of " + p.items.length.toLocaleString();
-    p.sizes.forEach(function (b) { b.classList.toggle("on", Number(b.dataset.n) === state.size); });
-    var left = matched - shown;
-    p.next.hidden = p.rest.hidden = left <= 0;
-    p.next.textContent = "Show " + Math.min(state.size, left) + " more";
-    p.rest.textContent = shown.toLocaleString() + " of " + matched.toLocaleString();
-    p.bar.hidden = p.rows.hidden = !matched;
-    p.empty.hidden = !!matched;
-  }
-
-  function token(label, title, off) {
-    var t = document.createElement("button");
-    t.type = "button";
-    t.className = "token";
-    t.title = title;
-    t.appendChild(document.createTextNode(label));
-    var x = document.createElement("span");
-    x.className = "x";
-    x.textContent = "×";
-    t.appendChild(x);
-    t.addEventListener("click", function () { off(); reset(); });
-    tokenBox.appendChild(t);
-  }
 
   // Where fixes.upgrade could not apply, counted over the actions a narrowing leaves, as the list's
   // own count is, and gone when it leaves none.
@@ -2514,90 +2975,38 @@ prints each scanner's full output.</p>
     naNote.hidden = !naNote.firstChild;
   }
 
-  function render() {
-    rows.forEach(function (r) { r.ok = passes(r) && searched(r) && inAction(r) && inSignal(r); });
+  var findings = strip(tools, {
+    sets: [rows],
+    counted: function () { return rows; },
+    keep: function (r) { return (!act.key || r.d.a === act.key) && inSignal(r); },
+    narrowed: function () { return act.key || sig.key; },
+    tokens: function (token) {
+      if (sig.key) token(sig.title, "Show every finding again", function () { sig.key = sig.title = ""; });
+      if (act.key) token(act.title.toLowerCase(), "Show every finding again", function () { act.key = act.title = ""; });
+    },
+    clear: function () { act.key = act.title = sig.key = sig.title = ""; },
     // Under a narrowing each action says how many of its findings are left, and one with none
     // left goes. A search that names the action keeps all of its findings.
-    acts.forEach(function (a) {
-      var titled = state.q && a.title.indexOf(state.q) >= 0, n = 0;
-      (byAct[a.key] || []).forEach(function (r) { if (passes(r) && inSignal(r) && (titled || searched(r))) n++; });
-      a.ok = n > 0;
-      a.count.textContent = (n === a.total ? "" : n + " of ") + counted(a.total, "finding");
-    });
-    panels.forEach(paint);
-    policyNote();
-
-    var folded = 0;
-    dims.forEach(function (d) {
-      var on = ticked(d).length;
-      if (d.folded) {
-        folded += on;
-        d.anchor.classList.toggle("shown", state.open);
-      }
-      d.badge.textContent = on ? String(on) : "";
-      d.badge.hidden = !on;
-      d.button.classList.toggle("on", on > 0);
-      // Each option counts what ticking it would show, given every other narrowing that is on.
-      var c = {};
-      rows.forEach(function (r) {
-        if (!passes(r, d.k) || !searched(r) || !inAction(r)) return;
-        held(r, d).forEach(function (v) { c[v] = (c[v] || 0) + 1; });
+    paint: function () {
+      acts.forEach(function (a) {
+        var titled = findings.q && a.title.indexOf(findings.q) >= 0, n = 0;
+        (byAct[a.key] || []).forEach(function (r) { if (findings.passes(r) && inSignal(r) && (titled || findings.searched(r))) n++; });
+        a.ok = n > 0;
+        a.count.textContent = (n === a.total ? "" : n + " of ") + counted(a.total, "finding");
       });
-      d.boxes.forEach(function (b) {
-        b.closest(".menu-row").querySelector(".c").textContent = (c[b.value] || 0).toLocaleString();
-        b.disabled = !c[b.value] && !b.checked;
-      });
-    });
-    narrow.textContent = "Narrow" + (folded ? " " + folded : "") + " " + (state.open ? "▴" : "▾");
-    narrow.classList.toggle("open", state.open);
-    narrow.setAttribute("aria-expanded", String(state.open));
-
-    // Every narrowing that is on, each carrying the way to take it off, and one control that takes
-    // them all off, offered only when something is narrowed.
-    while (tokenBox.firstChild) tokenBox.removeChild(tokenBox.firstChild);
-    dims.forEach(function (d) {
-      d.boxes.forEach(function (b) {
-        var name = b.dataset.label || b.value;
-        if (b.checked) token(name.toLowerCase(), "Stop filtering by " + name, function () { b.checked = false; });
-      });
-    });
-    if (state.sig) {
-      token(state.sigTitle, "Show every finding again", function () { state.sig = ""; state.sigTitle = ""; });
-    }
-    if (state.act) {
-      token(state.actTitle.toLowerCase(), "Show every finding again", function () { state.act = ""; state.actTitle = ""; });
-    }
-    if (narrowed()) {
-      var clear = document.createElement("button");
-      clear.type = "button";
-      clear.className = "clear";
-      var x = document.createElement("span");
-      x.className = "x";
-      x.textContent = "✕";
-      clear.appendChild(x);
-      clear.appendChild(document.createTextNode(" Clear filters"));
-      clear.addEventListener("click", function () {
-        dims.forEach(function (d) { d.boxes.forEach(function (b) { b.checked = false; }); });
-        q.value = "";
-        state.q = state.act = state.actTitle = state.sig = state.sigTitle = "";
-        reset();
-      });
-      tokenBox.appendChild(clear);
-    }
-
-    // What the reader narrowed to, said once above the list. Only for a single component: the
-    // facts on it are that component's verdict, its failing controls and its gaps, and there is no
-    // such thing for two, because a strip averaging them is a number nothing holds.
-    var m = dims.filter(function (d) { return d.k === "m"; }).map(ticked)[0] || [];
-    var only = m.length === 1 ? m[0] : "";
-    strips.forEach(function (el) { el.hidden = el.dataset.m !== only; });
-  }
-  // A narrowing starts every list from its first page again.
-  function reset() {
-    panels.forEach(function (p) { p.cap = state.size; });
-    render();
-  }
-  reset();
+    },
+    after: function () {
+      policyNote();
+      // What the reader narrowed to, said once above the list. Only for a single component: the
+      // facts on it are that component's verdict, its failing controls and its gaps, and there is
+      // no such thing for two, because a strip averaging them is a number nothing holds.
+      var m = findings.dims.filter(function (d) { return d.k === "m"; }).map(findings.ticked)[0] || [];
+      var only = m.length === 1 ? m[0] : "";
+      focus.forEach(function (el) { el.hidden = el.dataset.m !== only; });
+    },
+  });
+  findings.panels = [findings.panel(work, acts, "action"), findings.panel(all, rows, "finding")].filter(Boolean);
+  findings.reset();
 })();
 </script>
 </body>
