@@ -2887,17 +2887,30 @@ type correlationKey struct {
 // ecosystems and the purl is what both tools agree on. And the repository or the image, because a
 // component can hold several of each and the same dependency in two of them is two things to fix.
 //
-// A finding with no package or no vulnerability identity does not correlate. That is most of them,
-// a leaked credential, a misconfigured resource, and inventing a key for those would collapse
-// findings that are not the same flaw.
+// A package with no purl is keyed on what it does carry, its ecosystem, name and version: Grype
+// reports a library it identified inside a binary that way, and the same flaw in the same version
+// in two DLLs is one thing to fix, as it is in two lockfiles. Such a key never meets a purl, so it
+// joins only the copies a scanner reported the same way.
+//
+// A finding with no package, no vulnerability identity, or a package short of those facts does not
+// correlate. That is most of them, a leaked credential, a misconfigured resource, and inventing a
+// key for those would collapse findings that are not the same flaw.
 func correlationKeyOf(res sarif.Result) (correlationKey, bool) {
 	vuln := res.VulnerabilityID()
-	if vuln == "" || res.Package == nil || res.Package.PURL == "" {
+	if vuln == "" || res.Package == nil {
 		return correlationKey{}, false
+	}
+	pkg := correlationPURL(res.Package.PURL)
+	if pkg == "" {
+		p := res.Package
+		if p.Ecosystem == "" || p.Name == "" || p.Version == "" {
+			return correlationKey{}, false
+		}
+		pkg = "\x00" + p.Ecosystem + "\x00" + p.Name + "\x00" + p.Version
 	}
 	return correlationKey{
 		component: res.Component, repository: res.Repository, image: res.Image,
-		pkg: correlationPURL(res.Package.PURL), vuln: vuln,
+		pkg: pkg, vuln: vuln,
 	}, true
 }
 
