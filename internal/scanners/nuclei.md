@@ -17,8 +17,17 @@ order: 130
 
 ## What it does
 
-Runs Nuclei against each running host URL and converts its findings to SARIF. The command line
-is:
+Runs Nuclei against each running host URL and converts its findings to SARIF.
+
+**The endpoint must answer first.** Before Nuclei starts, Draugr sends one `GET` to the URL. Any
+HTTP response counts, whatever its status, and a redirect is not followed. A connection the server
+accepts counts too, even when the TLS handshake or the certificate then fails, because Nuclei does
+not verify certificates. A name with no DNS record, a port nothing listens on or no connection
+within 15 seconds ends `dast` in an error naming the endpoint and the cause, and Nuclei does not
+run. Nuclei exits 0 with no output when it cannot reach its target, the
+same output as a scan that matched nothing.
+
+The command line is:
 
 ```
 nuclei -u <url> -jsonl -silent -nc -duc -etags headers

@@ -5,11 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"net"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/draugr-dev/draugr/internal/credential"
 	"github.com/draugr-dev/draugr/internal/tools"
@@ -29,6 +34,9 @@ type nucleiScanner struct {
 	info      plugin.ScannerInfo
 	run       func(ctx context.Context, argv []string) ([]byte, error)
 	templates *nucleiTemplateWarmer
+	// reach checks the endpoint answers before Nuclei runs (see nucleiReach). Nil skips the check,
+	// for a test that fakes run against an address nothing listens on.
+	reach func(ctx context.Context, url, header string) error
 }
 
 // NewNuclei returns a Scanner that runs Nuclei for the "dast" control. Nuclei is a single Go
@@ -58,7 +66,61 @@ func NewNuclei() plugin.Scanner {
 		},
 		run:       execArgv,
 		templates: sharedNucleiTemplates,
+		reach:     nucleiReach,
 	}
+}
+
+// nucleiReachTimeout bounds the check that the endpoint answers.
+const nucleiReachTimeout = 15 * time.Second
+
+// nucleiReach sends one GET to the endpoint, with the scan's header line where it has one, and
+// reports whether anything answered.
+//
+// Nuclei exits 0 and writes nothing when it cannot reach its target: a name with no DNS record, a
+// port nothing listens on, a handshake that fails. Its empty output is then the same bytes as a
+// scan of a live site that matched no template, and the control would pass on a site that does
+// not exist. So the endpoint is asked first, once, and a failure is the control's error.
+//
+// Any HTTP response counts, whatever its status: a 404 or a 500 is a server answering, and Nuclei
+// scans it. A redirect is not followed, because the endpoint answering is the question, and where
+// it points is Nuclei's to follow. A connection the server accepted counts as well, whatever fails
+// after it: Nuclei does not verify certificates and speaks older TLS than this client offers, so an
+// internal service with a self-signed certificate is one it scans, and a handshake failing here
+// says nothing about whether Nuclei reaches it.
+func nucleiReach(ctx context.Context, url, header string) error {
+	ctx, cancel := context.WithTimeout(ctx, nucleiReachTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	if name, value, ok := strings.Cut(header, ":"); ok {
+		req.Header.Set(strings.TrimSpace(name), strings.TrimSpace(value))
+	}
+	var connected atomic.Bool
+	var dialer net.Dialer
+	client := &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				conn, err := dialer.DialContext(ctx, network, addr)
+				if err == nil {
+					connected.Store(true)
+				}
+				return conn, err
+			},
+		},
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		if connected.Load() {
+			return nil
+		}
+		return err
+	}
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<16))
+	return resp.Body.Close()
 }
 
 // Info describes the scanner.
@@ -219,6 +281,13 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, _ plugin.
 	header, err := authHeader(host.Auth)
 	if err != nil {
 		return sarif.Report{}, err
+	}
+	// After the credential is resolved, so a scan that cannot authenticate sends nothing at all, and
+	// with it, so a scan that can sends no anonymous request either.
+	if s.reach != nil {
+		if err := s.reach(ctx, host.URL, header); err != nil {
+			return sarif.Report{}, fmt.Errorf("nuclei: %s did not answer, so nothing was scanned: %w", host.URL, err)
+		}
 	}
 	var headerFile string
 	if header != "" {
