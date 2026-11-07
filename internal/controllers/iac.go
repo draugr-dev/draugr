@@ -39,6 +39,7 @@ func (IAC) Info() plugin.ControllerInfo {
 		Scope:           plugin.ScopeComponent,
 		Summary:         "Find settings that leave a door open, in Terraform, Kubernetes and Dockerfiles.",
 		DefaultScanners: []string{"trivy-config"},
+		OptionSchema:    nonShippingOptionSchema,
 	}
 }
 

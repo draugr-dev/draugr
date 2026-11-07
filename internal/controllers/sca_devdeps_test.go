@@ -97,10 +97,10 @@ func TestSCADeclaresDevDependencies(t *testing.T) {
 		names = append(names, o.Name)
 	}
 	slices.Sort(names)
-	if !slices.Equal(names, []string{"cpeMatches", "devDependencies", "providedDependencies"}) {
-		t.Errorf("options %v, want cpeMatches, devDependencies and providedDependencies", names)
+	if !slices.Equal(names, []string{"cpeMatches", "devDependencies", "nonShippingPaths", "providedDependencies"}) {
+		t.Errorf("options %v, want cpeMatches, devDependencies, nonShippingPaths and providedDependencies", names)
 	}
-	for _, key := range []string{"cpeMatches", "devDependencies", "providedDependencies"} {
+	for _, key := range []string{"cpeMatches", "devDependencies", "nonShippingPaths", "providedDependencies"} {
 		for _, v := range []string{"suppress", "report"} {
 			if err := plugin.ValidateConfig(NewSCA().Info().OptionSchema, plugin.Config{key: v}); err != nil {
 				t.Errorf("%s: %s: %v", key, v, err)

@@ -473,6 +473,7 @@ func TestSagaTextIsPinned(t *testing.T) {
 		{"shop", shop, false},
 		{"monorepo", monorepo, false},
 		{"monorepo-per-directory", monorepo, true},
+		{"chart", chart, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -544,6 +545,7 @@ func TestAPathCannotWriteIntoTheDescriptor(t *testing.T) {
 			Dockerfiles: []string{evil},
 			OpenAPI:     []string{evil},
 			Go:          []string{evil},
+			NonShipping: []string{evil, evil + "/tests", "a/tests"},
 		}
 		m, err := Model(tree, "shop")
 		if err != nil {

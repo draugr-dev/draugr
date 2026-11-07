@@ -1,0 +1,1 @@
+- **Findings under docs, examples and tests are marked and listed last.** `sast`, `iac` and `sca` label each such finding `docs`, `example` or `test`, list it after the shipped code's findings and count it with the bands. `nonShippingPaths: suppress` sets them aside; `secrets` never does. `draugr init` proposes an `ignore` line for each such directory, commented out.

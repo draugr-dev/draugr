@@ -191,9 +191,35 @@ each with a comment naming the files behind it. Edit it, then `draugr scan`.
 | A Dockerfile | a commented `images` control and image entry |
 | An OpenAPI or Swagger document | a commented host with `spec: path:` pointing at it |
 | A dependency file with no lockfile, or with no exact version | a comment on the component, and a row under `UNREAD` |
+| A directory of docs, examples or tests, by the names [Non-shipping paths](saga-schema.md#non-shipping-paths) lists | an `ignore` line for it, with a comment |
 
 The console lists what was found under `FOUND` and the dependency files no scanner can take
 packages from under `UNREAD`.
+
+The `ignore` lines are written commented out, one per line, so uncommenting one takes that directory
+out of the scan. They stay commented because an ignored directory is read by no control, `secrets`
+included, and a key committed to a test is still live. A name found once is written as that
+directory, `docs/`. A name found in several places is written once for every depth,
+`"**/testdata"`, with where it was found in the comment. A directory under `vendor/` is left out. A
+zero-config scan of the same tree reads the same text, so it scans these directories and lists their
+findings last, and says so under `FOUND`:
+
+```yaml
+components:
+  - name: chart
+    repositories:
+      - url: .
+        # ignore:
+          # Documentation, examples and tests. Their findings are labeled and listed after
+          # the shipped code's. Uncommenting a line stops every control reading it, secrets too.
+          # - "**/testdata"   # tests · internal/render/testdata · internal/values/testdata
+          # - docs/           # documentation
+          # - tests/          # tests
+```
+
+An existing descriptor is not changed. Whether or not the lines are uncommented, the scan marks a
+finding under one of these directories and lists it after the shipped code's, as
+[Non-shipping paths](saga-schema.md#non-shipping-paths) describes.
 
 The descriptor is written to `[dir]/draugr.saga.yaml`, with `url: .`, and its `Next:` commands
 `cd [dir]` first when it is not the working directory. With `-o` outside `[dir]`, or `-o -`, the
@@ -2224,6 +2250,7 @@ Key                                     Accepts                               De
 controls.sca.enabled                    true or false                         off unless the descriptor turns it on
 controls.sca.cpeMatches                 suppress or report                    suppress
 controls.sca.devDependencies            suppress or report                    suppress
+controls.sca.nonShippingPaths           report or suppress                    report
 controls.sca.providedDependencies       suppress or report                    suppress
 controls.sca.trivyFs.enabled            true or false                         true
 controls.sca.trivyFs.dbRepository       a list                                -

@@ -629,6 +629,10 @@ type Result struct {
 	// config.controls.sca.cpeMatches set aside, apart from Suppressed for the reason DevDependencies
 	// is.
 	CPEMatches int
+	// NonShipping counts findings under documentation, examples or tests that a component's
+	// nonShippingPaths, under sast, iac or sca, set aside, apart from Suppressed for the reason
+	// DevDependencies is. The findings it counted are not here: they carry the mark and count.
+	NonShipping int
 	// VEX is the supplier documents this run read, with what each contributed. Present even when
 	// a document excused nothing, which is the case worth seeing: a document matching no finding
 	// looks exactly like one that was never configured.
@@ -1713,6 +1717,8 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// them carries, before anything decides what to set aside, so the decision reads the same mark on
 	// each copy.
 	markDevCopies(res.Controls)
+	// And each finding under documentation, examples or tests takes that mark, for the same reason.
+	e.markNonShipping(res.Controls, model)
 
 	// Exclusions apply after aggregation, to what every consumer will see. Doing it here rather than
 	// per scanner means one syntax covers every tool, including ones added later. And it is what
@@ -1735,6 +1741,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	res.DevDependencies = e.applyDevDependencies(res.Controls, model)
 	res.ProvidedDependencies = e.applyProvidedDependencies(res.Controls, model)
 	res.CPEMatches = e.applyCPEMatches(res.Controls, model)
+	res.NonShipping = e.applyNonShipping(res.Controls, model)
 	// Last, so exclusions and supplier claims match exactly what they matched before a second
 	// scanner was added, and a decision about a flaw reaches every scanner's copy of it.
 	correlated, alsoSuppressed := applyCorrelation(res.Controls)
@@ -3057,6 +3064,14 @@ func strongestOf(results []sarif.Result, idxs []int) int {
 	for _, i := range idxs[1:] {
 		if a, b := results[i].SetAsideBySetting(), results[best].SetAsideBySetting(); a != b {
 			if !a {
+				best = i
+			}
+			continue
+		}
+		// Then a copy in shipped code over one under docs, examples or tests, so a flaw both a go.mod
+		// and a tests/go.mod hold is counted under the module that ships.
+		if a, b := results[i].NonShipping == "", results[best].NonShipping == ""; a != b {
+			if a {
 				best = i
 			}
 			continue

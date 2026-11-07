@@ -24,6 +24,17 @@ The SAST scanners report per-rule severity, so findings are counted as reported 
 `secrets`, which escalates everything to error). Semgrep's severity comes from each rule's impact
 and likelihood, by the table in [`semgrep.md`](../scanners/semgrep.md#severity).
 
+## Non-shipping paths
+
+`nonShippingPaths` decides whether a finding counts when its file sits under a directory of
+documentation, examples or tests, such as `examples/` or `__tests__/`. `report`, the default,
+counts each, labeled `docs`, `example` or `test` beside its location and listed after the shipped
+code's findings; `suppress` keeps each in the report suppressed with the reason `in docs, examples
+or tests`. A component's setting replaces the project's.
+
+[Non-shipping paths](../../docs/reference/saga-schema.md#non-shipping-paths) in the Saga reference
+lists the directories.
+
 ## Unread
 
 A source file is **unread** when Semgrep left it out of the scan or stopped checking it before

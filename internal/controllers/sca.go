@@ -49,8 +49,8 @@ const (
 	cpeMatchesKey = "cpeMatches"
 )
 
-// scaOptionSchema describes devDependencies, providedDependencies and cpeMatches where they sit,
-// under the control.
+// scaOptionSchema describes devDependencies, providedDependencies, cpeMatches and nonShippingPaths
+// where they sit, under the control.
 //
 // The control's rather than a scanner's, because the answer is the same whichever scanner found
 // the flaw: a development dependency Grype reported takes its mark from Trivy's copy of the same
@@ -85,7 +85,8 @@ var scaOptionSchema = json.RawMessage(`{
         { "const": "report", "description": "Each finding matched only by CPE is counted, marked cpe." }
       ],
       "description": "Whether findings Grype matched only through a CPE built from the package's name, on a package type it has no matcher for, such as dart-pub and pod, count. A component's setting replaces the project's."
-    }
+    },
+    ` + nonShippingProperty + `
   }
 }`)
 
@@ -100,16 +101,7 @@ func (SCA) ReportsProvidedDependencies(model saga.Model, component string) (bool
 // the key that decided it: the component's setting first, then the project's, and with neither
 // written the default, suppress, named by the project's key.
 func scaSetting(model saga.Model, component, key string) (bool, string) {
-	project := "config.controls." + scaControl + "." + key
-	if comp := componentNamed(model, component); comp != nil {
-		if v, written := comp.Controls[scaControl][key].(string); written {
-			return v == devReport, fmt.Sprintf("components[%q].controls.%s.%s", comp.Name, scaControl, key)
-		}
-	}
-	if v, written := model.Config.Controls[scaControl][key].(string); written {
-		return v == devReport, project
-	}
-	return false, project
+	return controlSetting(model, component, scaControl, key, false)
 }
 
 // ReportsCPEMatches resolves cpeMatches for one component, and names the key that decided it, as

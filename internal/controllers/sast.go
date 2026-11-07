@@ -23,6 +23,7 @@ func (SAST) Info() plugin.ControllerInfo {
 		Scope:           plugin.ScopeComponent,
 		Summary:         "Find patterns in a repo's own code that let somebody in (static analysis).",
 		DefaultScanners: []string{"semgrep"},
+		OptionSchema:    nonShippingOptionSchema,
 	}
 }
 

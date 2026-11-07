@@ -133,6 +133,13 @@ func writeBlockFacts(w io.Writer, col tui.Painter, f finding, width int, withCom
 func writeBlockWhere(w io.Writer, col tui.Painter, f finding, width int, blobs blobLinker) {
 	where := whereShown(displayLocation(f))
 	linked := col.Paint(cDim, col.Link(blobs.forFinding(f), where))
+	// The kind of directory the file sits under, beside the path it describes, the way the kind of a
+	// dependency stands beside its name: `tests/fixture.yaml · test`. Kept with the location when the
+	// working moves to a line of its own.
+	if f.nonShipping != "" {
+		linked += col.Paint(cDim, " · ") + f.nonShipping
+		where += " · " + f.nonShipping
+	}
 
 	// The working behind the mark on the line above: which analyzer, which floor, what else found
 	// it, and for a secret already published, that deleting it is not remediation.

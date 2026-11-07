@@ -99,6 +99,9 @@ type htmlView struct {
 	SBOMFormat  string
 	MinPriority string // set when the listing was filtered, so the page can say so
 	Hidden      int
+	// NonShipping counts the counted findings under docs, examples or tests, as the console's line
+	// beside the bands does. Empty for none.
+	NonShipping string
 	// Signals is what argued with the ranking: an exploitation catalog, a prediction, a control's
 	// own floor, a reachability verdict. Absent from this format entirely, which made the rendered
 	// report the one place a reader could not find out why a finding outranked its severity.
@@ -460,6 +463,9 @@ type htmlFinding struct {
 	Recorded, Ends string
 	// Package is the dependency the finding is about and its version, empty where it is about none.
 	Package string
+	// NonShipping is the kind of directory, docs, example or test, the finding's file sits under,
+	// shown beside its location. Empty for a finding in shipped code.
+	NonShipping string
 	// Search is the lower-cased haystack the filter box matches against, precomputed so the
 	// page does not rebuild it per keystroke.
 	Search string
@@ -487,6 +493,7 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		SBOMFormat:  s.sbomFormat,
 		MinPriority: strings.ToUpper(s.minPriority),
 		Hidden:      s.hidden,
+		NonShipping: nonShippingNote(s.nonShipping),
 	}
 	view.Registries, view.Unreached, view.NotReached = htmlUnreachedTargets(d)
 	for _, name := range sortedKeys(s.scanErrors) {
@@ -956,9 +963,10 @@ func toHTMLFinding(f finding) htmlFinding {
 		AcceptedVia:   f.acceptedVia,
 		Justification: f.justification,
 		Package:       pkgLabel,
+		NonShipping:   f.nonShipping,
 		ActionKey:     actionKeyFor(f),
 		Search: strings.ToLower(strings.Join(
-			[]string{f.ruleID, f.control, f.tool, f.component, f.location, f.message, f.priority, string(sev), fix, pkgName}, " ")),
+			[]string{f.ruleID, f.control, f.tool, f.component, f.location, f.message, f.priority, string(sev), fix, pkgName, f.nonShipping}, " ")),
 	}
 }
 
@@ -2219,6 +2227,7 @@ prints each scanner's full output.</p>
 <section id="all">
 <h3 class="sub js-off">All findings</h3>
 {{if .MinPriority}}<p class="note">{{if .Hidden}}{{plural .Hidden "lower-priority finding"}} are not listed, and the counts still describe the whole run{{else}}The counts describe the whole run{{end}}.</p>{{end}}
+{{if .NonShipping}}<p class="note">{{.NonShipping}}, counted and listed after the rest.</p>{{end}}
 
 {{if .Findings}}
 {{template "listbar"}}
@@ -2228,7 +2237,7 @@ prints each scanner's full output.</p>
   <div class="what">
     {{if .Full}}<details class="more"><summary class="rule">{{template "rule" .}}<span class="hint" aria-hidden="true">more</span></summary><p class="full">{{.Full}}</p></details>
     {{- else}}<div class="rule">{{template "rule" .}}</div>{{end}}
-    <div class="sub">{{if .MovedLabel}}<span class="moved {{.MovedDir}}"><span class="g">{{.MovedGlyph}}</span>{{.MovedLabel}}</span>{{end}}{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}{{if .Location}}{{.Location}}<span class="faint"> · </span>{{end}}<span class="lbl">scanner</span> {{.Tool}}<span class="faint"> · </span><span class="lbl">fix</span> {{.Fix}}</div>
+    <div class="sub">{{if .MovedLabel}}<span class="moved {{.MovedDir}}"><span class="g">{{.MovedGlyph}}</span>{{.MovedLabel}}</span>{{end}}{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}{{if .Location}}{{.Location}}<span class="faint"> · </span>{{end}}{{if .NonShipping}}{{.NonShipping}}<span class="faint"> · </span>{{end}}<span class="lbl">scanner</span> {{.Tool}}<span class="faint"> · </span><span class="lbl">fix</span> {{.Fix}}</div>
   </div>
 </div>{{end}}
 {{template "paging"}}

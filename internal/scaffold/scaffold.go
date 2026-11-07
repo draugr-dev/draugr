@@ -195,6 +195,7 @@ func SagaAt(t inventory.Tree, name string, perDirectory bool, url string) string
 		return b.String()
 	}
 	fmt.Fprintf(&b, "  - name: %s\n    repositories:\n      - url: %s\n", Scalar(name), Scalar(url))
+	writeIgnore(&b, nil, t.NonShipping)
 	writeUnresolvedComment(&b, t.Unresolved)
 	if len(t.Parts) > 0 {
 		fmt.Fprintf(&b, "    # Directories with their own dependency files: %s\n", PathList(t.Parts))
@@ -245,10 +246,12 @@ func writeUnresolvedComment(b *strings.Builder, unresolved []manifests.Unread) {
 }
 
 // writePerDirectory writes the root component and one component per part, each scoped by paths:
-// and each part carved out of the components above it by ignore:.
+// and each part carved out of the components above it by ignore:, beside a proposed line for each
+// directory of docs, examples and tests the component holds.
 func writePerDirectory(b *strings.Builder, t inventory.Tree, project, url string) {
 	names := componentNames(t.Parts, project)
-	fmt.Fprintf(b, "  - name: %s\n    repositories:\n      - url: %s\n        ignore: [%s]\n", Scalar(project), Scalar(url), dirList(topParts(t.Parts)))
+	fmt.Fprintf(b, "  - name: %s\n    repositories:\n      - url: %s\n", Scalar(project), Scalar(url))
+	writeIgnore(b, topParts(t.Parts), ownedNonShipping(t.NonShipping, ".", t.Parts))
 	writeUnresolvedFor(b, t.Unresolved, ".", t.Parts)
 	// Each image stub goes on the component whose directory holds the Dockerfile. An image is
 	// ranked under the exposure and criticality of the component that declares it, so a stub for
@@ -261,9 +264,7 @@ func writePerDirectory(b *strings.Builder, t inventory.Tree, project, url string
 	writeSurfaceStubs(b, t, project, built["."])
 	for _, p := range t.Parts {
 		fmt.Fprintf(b, "  - name: %s\n    repositories:\n      - url: %s\n        paths: [%s]\n", Scalar(names[p]), Scalar(url), Scalar(p))
-		if inner := beneath(p, t.Parts); len(inner) > 0 {
-			fmt.Fprintf(b, "        ignore: [%s]\n", dirList(inner))
-		}
+		writeIgnore(b, beneath(p, t.Parts), ownedNonShipping(t.NonShipping, p, t.Parts))
 		writeUnresolvedFor(b, t.Unresolved, p, t.Parts)
 		if built[p] {
 			writeImageStub(b, names[p])

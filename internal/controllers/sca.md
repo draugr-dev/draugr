@@ -71,6 +71,18 @@ config:
 [CPE matches](../../docs/reference/saga-schema.md#cpe-matches) in the Saga reference says which
 matches are marked.
 
+## Non-shipping paths
+
+`nonShippingPaths` decides whether a finding counts when its dependency file sits under a directory
+of documentation, examples or tests, such as a `tests/go.mod` for a module only the tests build.
+`report`, the default, counts each, labeled `docs`, `example` or `test` beside its location and
+listed after the shipped code's findings; `suppress` keeps each in the report suppressed with the
+reason `in docs, examples or tests`. A component's setting replaces the project's. A flaw a shipped
+manifest also holds is counted under the shipped copy.
+
+[Non-shipping paths](../../docs/reference/saga-schema.md#non-shipping-paths) in the Saga reference
+lists the directories.
+
 ## Unread
 
 A dependency file is **unread** when no scanner serving the control took packages from it. The

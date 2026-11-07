@@ -72,6 +72,14 @@ type Result struct {
 	// Which is exactly backwards, because a credential in history is still fetchable by anyone who
 	// can clone and still needs rotating, whatever the tree looks like now.
 	Historical bool `json:"historical,omitempty"`
+	// NonShipping is the kind of directory the finding's file sits under where that directory holds
+	// documentation, examples or tests rather than shipped code: "docs", "example" or "test". Empty
+	// for a finding in shipped code, and for every control that does not mark one.
+	//
+	// Stamped by the engine on the controls that report a location in a repository's own files, so
+	// a reader can tell a flaw in what ships from the same flaw in a test fixture. Whether a marked
+	// finding counts is the control's nonShippingPaths setting; the mark is there either way.
+	NonShipping string `json:"nonShipping,omitempty"`
 	// PriorityFloor explains a band the component's classification alone does not account for.
 	//
 	// Some findings are not bounded by where the component sits. A leaked credential is valid
@@ -687,6 +695,10 @@ const JustificationProvidedByRuntime = "provided by the runtime"
 // JustificationCPEMatch is the reason recorded on a finding that config.controls.sca.cpeMatches set
 // aside.
 const JustificationCPEMatch = "matched by CPE only"
+
+// JustificationNonShipping is the reason recorded on a finding that a control's nonShippingPaths
+// set aside, such as config.controls.iac.nonShippingPaths.
+const JustificationNonShipping = "in docs, examples or tests"
 
 // Suppressed reports whether this finding was excluded, by a Saga rule or by an imported claim.
 func (r Result) Suppressed() bool { return r.Suppression != nil }
