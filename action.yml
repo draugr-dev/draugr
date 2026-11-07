@@ -349,6 +349,10 @@ runs:
         # Read-only, not cache-off: the entries already there were written by trusted runs and are
         # exactly what makes a pull-request scan fast.
         CACHE_READ_ONLY: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork && 'true' || '' }}
+        # GitHub gives a fork's pull_request job a read-only token whatever the workflow's
+        # permissions say, so the comment cannot be posted. The findings go to the job summary
+        # instead, and the step's outcome is the gate's alone.
+        FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork && 'true' || '' }}
         INPUT_FAIL_ON_NEW: ${{ inputs.fail-on-new }}
         INPUT_FAIL_ON_NEW_PRIORITY: ${{ inputs.fail-on-new-priority }}
         INPUT_DIFF_VIEW: ${{ inputs.diff-view }}
@@ -438,7 +442,12 @@ runs:
         fi
         git worktree remove --force "$worktree" 2>/dev/null || true
 
-        diff_args=("${base_report[@]}" "$head_out/results.sarif" --publish)
+        diff_args=("${base_report[@]}" "$head_out/results.sarif")
+        if [ -n "${FORK_PR:-}" ]; then
+          echo "::notice::This pull request comes from a fork, and GitHub gives its workflow a read-only token, so the diff is not posted as a comment. It is in the job summary and this log."
+        else
+          diff_args+=(--publish)
+        fi
         [ -n "$INPUT_FAIL_ON_NEW" ]          && diff_args+=(--fail-on-new "$INPUT_FAIL_ON_NEW")
         [ -n "$INPUT_FAIL_ON_NEW_PRIORITY" ] && diff_args+=(--fail-on-new-priority "$INPUT_FAIL_ON_NEW_PRIORITY")
         # The descriptor the head was scanned with, so its config.gate.failOnNew is the gate when
@@ -456,6 +465,11 @@ runs:
           else
             echo "::warning::diff-view needs a Draugr release with 'diff --view'; this one is older, so the comment lists findings."
           fi
+        fi
+        if [ -n "${FORK_PR:-}" ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+          # The comment's markdown, written where a fork's job can write. Its exit status is the
+          # gate's, which the console diff below reports.
+          draugr diff "${diff_args[@]}" --format markdown >>"$GITHUB_STEP_SUMMARY" || true
         fi
         draugr diff "${diff_args[@]}"
 

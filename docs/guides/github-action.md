@@ -91,6 +91,10 @@ compares the head against no findings, so every finding is new and `fail-on-new`
 pull request with no descriptor at the head fails with a message saying so, because there is nothing
 to scan.
 
+A pull request from a fork runs with a read-only `GITHUB_TOKEN`, whatever the workflow's
+`permissions:` grant, so diff mode cannot post the comment. The step states that in a notice, writes
+the diff to the job summary and the log, and passes or fails on the gate alone.
+
 Prefer the single **`auto`** workflow above. It keeps code-scanning uploads off PRs, which is what
 avoids a second, overlapping PR comment. See [gate PRs on new findings](pr-diff.md) and [code
 scanning](code-scanning.md) for each mode in depth.

@@ -11,6 +11,7 @@ import (
 )
 
 // stubDraugr stands in for the binary the Action downloads. It records each diff it is asked for,
+// fails a diff when STUB_GATE_TRIPS is set, or when it is asked to publish and STUB_PUBLISH_FAILS is,
 // refuses to scan a descriptor that is not there, and to validate or scan one that sets acceptedBy,
 // as the real one does, and advertises a diff of the head alone unless STUB_OLD is set. Its help
 // runs past a pipe buffer, so a feature check that closes the pipe early fails here every time
@@ -38,7 +39,13 @@ case "$1" in
     mkdir -p "$out"; echo '{"version":"2.1.0","runs":[]}' > "$out/results.sarif" ;;
   diff)
     if [ "$2" = "--help" ]; then exec "$0" help; fi
-    echo "diff ${*:2}" >> "$STUB_LOG" ;;
+    echo "diff ${*:2}" >> "$STUB_LOG"
+    case " ${*:2} " in *" --format markdown "*) echo "## stub markdown diff" ;; esac
+    # As the real one: a tripped gate exits non-zero, and so does a comment that cannot be posted.
+    if [ -n "$STUB_GATE_TRIPS" ]; then echo "1 new finding at or above P1" >&2; exit 1; fi
+    case " ${*:2} " in *" --publish "*)
+      if [ -n "$STUB_PUBLISH_FAILS" ]; then echo "the gate passed, but publishing failed: 403" >&2; exit 1; fi ;;
+    esac ;;
 esac
 `
 
@@ -339,5 +346,51 @@ func TestNoTemplateEndsAPipeInGrepQ(t *testing.T) {
 				t.Errorf("%s:%d ends a pipe in grep -q; use grep ... >/dev/null: %s", path, i+1, strings.TrimSpace(line))
 			}
 		}
+	}
+}
+
+// A fork's pull request gets a read-only token, so the comment cannot be posted. The step says so,
+// leaves --publish off, writes the diff to the job summary, and passes or fails on the gate alone.
+func TestTheActionDoesNotPublishFromAFork(t *testing.T) {
+	t.Parallel()
+	summary := filepath.Join(t.TempDir(), "summary.md")
+	out, diffs, ok := runActionDiff(t, []string{"draugr.saga.yaml"}, []string{"draugr.saga.yaml", "app.js"},
+		"FORK_PR=true", "STUB_PUBLISH_FAILS=1", "GITHUB_STEP_SUMMARY="+summary)
+	if !ok {
+		t.Fatalf("the step failed on a fork whose gate passed:\n%s", out)
+	}
+	if !strings.Contains(out, "::notice::This pull request comes from a fork") {
+		t.Errorf("no notice that a fork's diff is not posted:\n%s", out)
+	}
+	if strings.Contains(diffs, "--publish") {
+		t.Errorf("a fork's diff asked to publish:\n%s", diffs)
+	}
+	b, err := os.ReadFile(summary) // #nosec G304 -- under t.TempDir()
+	if err != nil || !strings.Contains(string(b), "## stub markdown diff") {
+		t.Errorf("the job summary does not hold the diff (%v):\n%s", err, b)
+	}
+}
+
+// On a fork the gate still decides: a tripped gate fails the step.
+func TestTheActionFailsAForkOnItsGate(t *testing.T) {
+	t.Parallel()
+	out, _, ok := runActionDiff(t, []string{"draugr.saga.yaml"}, []string{"draugr.saga.yaml", "app.js"},
+		"FORK_PR=true", "STUB_GATE_TRIPS=1", "GITHUB_STEP_SUMMARY="+filepath.Join(t.TempDir(), "summary.md"))
+	if ok {
+		t.Fatalf("the step passed on a fork whose gate tripped:\n%s", out)
+	}
+}
+
+// From the base repository the comment is posted, and a comment that cannot be posted still fails
+// the step: a flag either does something or says why it did not.
+func TestTheActionPublishesFromTheBaseRepository(t *testing.T) {
+	t.Parallel()
+	out, diffs, ok := runActionDiff(t, []string{"draugr.saga.yaml"}, []string{"draugr.saga.yaml", "app.js"},
+		"FORK_PR=", "STUB_PUBLISH_FAILS=1")
+	if ok {
+		t.Fatalf("the step passed when the comment could not be posted:\n%s", out)
+	}
+	if !strings.Contains(diffs, "--publish") || strings.Contains(out, "comes from a fork") {
+		t.Errorf("the base repository's diff was treated as a fork's:\n%s\n%s", out, diffs)
 	}
 }
