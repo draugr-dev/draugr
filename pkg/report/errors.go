@@ -151,7 +151,7 @@ func caveats(d Data) []caveat {
 	var out []caveat
 	for _, g := range d.Uncovered {
 		out = append(out, caveat{component: g.Component, what: g.Surface,
-			detail: strings.Join(g.Controls, ", ") + " off", key: saga.CaveatNotChecked})
+			detail: "controls off: " + strings.Join(g.Controls, ", "), key: saga.CaveatNotChecked})
 	}
 	for _, u := range d.Unexamined {
 		out = append(out, caveat{component: u.Component, what: u.Files, detail: u.Why, key: saga.CaveatNotChecked})

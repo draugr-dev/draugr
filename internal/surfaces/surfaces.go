@@ -34,10 +34,10 @@ var Controls = map[string][]string{
 
 // NeverSuggested names controls that examine a surface and are never turned on for anybody.
 //
-// Two questions, two answers. "What should a descriptor enable for this" must not answer dast, and
-// "what is looking at this" must, because a host nothing is testing is a host nothing is testing
-// however the omission came about. Reporting coverage from the enabling list described a host as
-// covered by two controls when three exist.
+// Listed in a gap when they are off, so a gap names every control that would look at the surface.
+// They do not cover it. dast probes a service for vulnerabilities and leaves the response headers
+// and the TLS configuration to headers and tls, down to skipping its own header templates, so a
+// host with dast on and both of those off has headers and TLS nobody checked.
 var NeverSuggested = map[string][]string{
 	"hosts": {"dast"},
 }
@@ -70,8 +70,8 @@ func ComponentHas(c *saga.Component, surface string) bool {
 type Gap struct {
 	// Component and Surface name what was declared and went unexamined.
 	Component, Surface string
-	// Controls are the ones that would have looked at it, every one of them off. Partial cover is
-	// still cover, so a gap is only a gap when none of them is enabled.
+	// Controls are the ones that would have looked at it and are off: every control Controls maps the
+	// surface to, and any NeverSuggested one that is off too.
 	Controls []string
 }
 
@@ -92,19 +92,26 @@ func Gaps(model *saga.Model) []Gap {
 			if !ComponentHas(c, surface) {
 				continue
 			}
-			all := examine(surface)
+			// Partial cover among the controls Controls maps the surface to is still cover: one of them
+			// enabled means someone is looking at what they look at. A NeverSuggested control looks at
+			// something else, so it is named when off and covers nothing when on.
+			covered := false
+			for _, name := range Controls[surface] {
+				if c.ControllerEnabled(name, model.Config) {
+					covered = true
+					break
+				}
+			}
+			if covered {
+				continue
+			}
 			var off []string
-			for _, name := range all {
+			for _, name := range examine(surface) {
 				if !c.ControllerEnabled(name, model.Config) {
 					off = append(off, name)
 				}
 			}
-			// Partial cover is still cover: one enabled control means someone is looking, and that
-			// includes the case where the only one off is the one Draugr would never have
-			// suggested.
-			if len(off) == len(all) {
-				out = append(out, Gap{Component: c.Name, Surface: surface, Controls: off})
-			}
+			out = append(out, Gap{Component: c.Name, Surface: surface, Controls: off})
 		}
 	}
 	return out
