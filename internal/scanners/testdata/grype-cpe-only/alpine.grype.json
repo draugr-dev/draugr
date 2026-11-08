@@ -1,0 +1,943 @@
+{
+ "matches": [
+  {
+   "vulnerability": {
+    "id": "CVE-2026-119586",
+    "namespace": "nvd:cpe",
+    "severity": "High",
+    "fix": {
+     "versions": [],
+     "state": ""
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "89c2bb68f73416f2",
+    "name": "sqlite-libs",
+    "version": "3.49.2-r1",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64&distro=alpine-3.22.8&upstream=sqlite"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2025-12781",
+    "namespace": "nvd:cpe",
+    "severity": "Medium",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    },
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "a66e2537ecfca7ab",
+    "name": "python3",
+    "version": "3.12.16-r0",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/python3@3.12.16-r0?arch=x86_64&distro=alpine-3.22.8"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2025-70873",
+    "namespace": "nvd:cpe",
+    "severity": "High",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "89c2bb68f73416f2",
+    "name": "sqlite-libs",
+    "version": "3.49.2-r1",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64&distro=alpine-3.22.8&upstream=sqlite"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2026-4738",
+    "namespace": "alpine:distro:alpine:3.22",
+    "severity": "Critical",
+    "fix": {
+     "versions": [
+      "1.4-r0"
+     ],
+     "state": "fixed",
+     "available": [
+      {
+       "version": "1.4-r0",
+       "date": "2026-11-07",
+       "kind": "first-observed"
+      }
+     ]
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "exact-direct-match",
+     "matcher": "apk-matcher"
+    },
+    {
+     "type": "exact-indirect-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "c9e17290137d60d2",
+    "name": "zlib",
+    "version": "1.3.2-r1",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/zlib@1.3.2-r1?arch=x86_64&distro=alpine-3.22.8"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2025-15366",
+    "namespace": "nvd:cpe",
+    "severity": "Medium",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    },
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "a66e2537ecfca7ab",
+    "name": "python3",
+    "version": "3.12.16-r0",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/python3@3.12.16-r0?arch=x86_64&distro=alpine-3.22.8"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2026-119379",
+    "namespace": "nvd:cpe",
+    "severity": "High",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "89c2bb68f73416f2",
+    "name": "sqlite-libs",
+    "version": "3.49.2-r1",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64&distro=alpine-3.22.8&upstream=sqlite"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2025-15367",
+    "namespace": "nvd:cpe",
+    "severity": "Medium",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    },
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "a66e2537ecfca7ab",
+    "name": "python3",
+    "version": "3.12.16-r0",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/python3@3.12.16-r0?arch=x86_64&distro=alpine-3.22.8"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2026-119374",
+    "namespace": "nvd:cpe",
+    "severity": "High",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "89c2bb68f73416f2",
+    "name": "sqlite-libs",
+    "version": "3.49.2-r1",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64&distro=alpine-3.22.8&upstream=sqlite"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2025-60876",
+    "namespace": "nvd:cpe",
+    "severity": "Medium",
+    "fix": {
+     "versions": [],
+     "state": ""
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "196b0b96f9c259d7",
+    "name": "busybox",
+    "version": "1.37.0-r20",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/busybox@1.37.0-r20?arch=x86_64&distro=alpine-3.22.8"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2025-60876",
+    "namespace": "nvd:cpe",
+    "severity": "Medium",
+    "fix": {
+     "versions": [],
+     "state": ""
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "57f6a17b40a606dc",
+    "name": "busybox-binsh",
+    "version": "1.37.0-r20",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/busybox-binsh@1.37.0-r20?arch=x86_64&distro=alpine-3.22.8&upstream=busybox"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2025-60876",
+    "namespace": "nvd:cpe",
+    "severity": "Medium",
+    "fix": {
+     "versions": [],
+     "state": ""
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "749529783a76cce6",
+    "name": "ssl_client",
+    "version": "1.37.0-r20",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/ssl_client@1.37.0-r20?arch=x86_64&distro=alpine-3.22.8&upstream=busybox"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2026-11824",
+    "namespace": "nvd:cpe",
+    "severity": "High",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "89c2bb68f73416f2",
+    "name": "sqlite-libs",
+    "version": "3.49.2-r1",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64&distro=alpine-3.22.8&upstream=sqlite"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2026-119378",
+    "namespace": "nvd:cpe",
+    "severity": "Medium",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "89c2bb68f73416f2",
+    "name": "sqlite-libs",
+    "version": "3.49.2-r1",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64&distro=alpine-3.22.8&upstream=sqlite"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2026-116566",
+    "namespace": "nvd:cpe",
+    "severity": "Medium",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    },
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "a66e2537ecfca7ab",
+    "name": "python3",
+    "version": "3.12.16-r0",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/python3@3.12.16-r0?arch=x86_64&distro=alpine-3.22.8"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2026-119373",
+    "namespace": "nvd:cpe",
+    "severity": "High",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "89c2bb68f73416f2",
+    "name": "sqlite-libs",
+    "version": "3.49.2-r1",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64&distro=alpine-3.22.8&upstream=sqlite"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2026-11822",
+    "namespace": "nvd:cpe",
+    "severity": "Medium",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "89c2bb68f73416f2",
+    "name": "sqlite-libs",
+    "version": "3.49.2-r1",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64&distro=alpine-3.22.8&upstream=sqlite"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2026-119375",
+    "namespace": "nvd:cpe",
+    "severity": "Medium",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "89c2bb68f73416f2",
+    "name": "sqlite-libs",
+    "version": "3.49.2-r1",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64&distro=alpine-3.22.8&upstream=sqlite"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2026-119371",
+    "namespace": "nvd:cpe",
+    "severity": "Medium",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "89c2bb68f73416f2",
+    "name": "sqlite-libs",
+    "version": "3.49.2-r1",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64&distro=alpine-3.22.8&upstream=sqlite"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2026-119376",
+    "namespace": "nvd:cpe",
+    "severity": "Medium",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "89c2bb68f73416f2",
+    "name": "sqlite-libs",
+    "version": "3.49.2-r1",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64&distro=alpine-3.22.8&upstream=sqlite"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2026-3446",
+    "namespace": "nvd:cpe",
+    "severity": "Medium",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    },
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "a66e2537ecfca7ab",
+    "name": "python3",
+    "version": "3.12.16-r0",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/python3@3.12.16-r0?arch=x86_64&distro=alpine-3.22.8"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2026-6019",
+    "namespace": "nvd:cpe",
+    "severity": "Medium",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    },
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "a66e2537ecfca7ab",
+    "name": "python3",
+    "version": "3.12.16-r0",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/python3@3.12.16-r0?arch=x86_64&distro=alpine-3.22.8"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2026-119591",
+    "namespace": "nvd:cpe",
+    "severity": "Medium",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "89c2bb68f73416f2",
+    "name": "sqlite-libs",
+    "version": "3.49.2-r1",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64&distro=alpine-3.22.8&upstream=sqlite"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2026-103995",
+    "namespace": "nvd:cpe",
+    "severity": "Low",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    },
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "a66e2537ecfca7ab",
+    "name": "python3",
+    "version": "3.12.16-r0",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/python3@3.12.16-r0?arch=x86_64&distro=alpine-3.22.8"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2026-119372",
+    "namespace": "nvd:cpe",
+    "severity": "Medium",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "89c2bb68f73416f2",
+    "name": "sqlite-libs",
+    "version": "3.49.2-r1",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64&distro=alpine-3.22.8&upstream=sqlite"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2026-119377",
+    "namespace": "nvd:cpe",
+    "severity": "Low",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "89c2bb68f73416f2",
+    "name": "sqlite-libs",
+    "version": "3.49.2-r1",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64&distro=alpine-3.22.8&upstream=sqlite"
+   }
+  },
+  {
+   "vulnerability": {
+    "id": "CVE-2026-3479",
+    "namespace": "nvd:cpe",
+    "severity": "Negligible",
+    "fix": {
+     "versions": [],
+     "state": "unknown"
+    }
+   },
+   "matchDetails": [
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    },
+    {
+     "type": "cpe-match",
+     "matcher": "apk-matcher"
+    }
+   ],
+   "artifact": {
+    "id": "a66e2537ecfca7ab",
+    "name": "python3",
+    "version": "3.12.16-r0",
+    "type": "apk",
+    "locations": [
+     {
+      "path": "/lib/apk/db/installed",
+      "layerID": "sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7",
+      "accessPath": "/lib/apk/db/installed",
+      "annotations": {
+       "evidence": "primary"
+      }
+     }
+    ],
+    "purl": "pkg:apk/alpine/python3@3.12.16-r0?arch=x86_64&distro=alpine-3.22.8"
+   }
+  }
+ ],
+ "descriptor": {
+  "name": "grype",
+  "version": "0.121.0"
+ },
+ "source": {
+  "type": "image",
+  "target": {
+   "userInput": "localhost:32769/repro-alpine:1"
+  }
+ }
+}

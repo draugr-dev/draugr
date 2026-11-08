@@ -70,6 +70,13 @@ reports the CVE for the same flaw. Left alone, one vulnerability arrives under t
 depending on which scanner saw it, so it counts twice and an exclusion written against the CVE stops
 matching. Set `byCve: false` to see the identifier Grype matched on.
 
+**Draugr marks a match Grype made only through a CPE.** On an Alpine package, Grype looks in the NVD
+by CPE for a flaw Alpine's own data does not list. Draugr reads the match details from Grype's JSON
+report and marks a finding whose every match is such a CPE match `cpe`, which
+`config.controls.images.cpeMatches` decides; see
+[CPE matches](../../docs/reference/saga-schema.md#cpe-matches). A binary Grype identified by its
+contents is not marked.
+
 **No filtering flags.** `--fail-on`, `--only-fixed`, `--ignore-states` and `--exclude` all drop
 findings inside the tool, where Draugr cannot mark them suppressed or record who accepted them.
 `config.exclude` in the Saga does that and keeps the evidence; the gate thresholds decide what

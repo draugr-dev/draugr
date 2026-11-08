@@ -147,6 +147,42 @@ func TestReportsProvidedDependenciesResolvesPerComponent(t *testing.T) {
 	}
 }
 
+// images takes cpeMatches under its own key, and sca's setting decides nothing there.
+func TestImagesReportsCPEMatchesResolvesPerComponent(t *testing.T) {
+	policy := NewImages().(plugin.CPEMatchPolicy)
+	const project = "config.controls.images.cpeMatches"
+	report := saga.ControllerSettings{"cpeMatches": "report"}
+	suppress := saga.ControllerSettings{"cpeMatches": "suppress"}
+	in := func(control string, settings, component saga.ControllerSettings) saga.Model {
+		model := saga.Model{
+			Config:     saga.Config{Controls: map[string]saga.ControllerSettings{control: settings}},
+			Components: []saga.Component{{Name: "web"}},
+		}
+		if component != nil {
+			model.Components[0].Controls = map[string]saga.ControllerSettings{control: component}
+		}
+		return model
+	}
+	for _, tc := range []struct {
+		name       string
+		model      saga.Model
+		component  string
+		wantReport bool
+		wantSource string
+	}{
+		{"default", in("images", nil, nil), "web", false, project},
+		{"project", in("images", report, nil), "web", true, project},
+		{"component over project", in("images", report, suppress), "web", false, `components["web"].controls.images.cpeMatches`},
+		{"another component", in("images", report, suppress), "api", true, project},
+		{"sca decides nothing here", in("sca", report, report), "web", false, project},
+	} {
+		got, from := policy.ReportsCPEMatches(tc.model, tc.component)
+		if got != tc.wantReport || from != tc.wantSource {
+			t.Errorf("%s: %v from %q, want %v from %q", tc.name, got, from, tc.wantReport, tc.wantSource)
+		}
+	}
+}
+
 // cpeMatches resolves as providedDependencies does, and neither decides the other.
 func TestReportsCPEMatchesResolvesPerComponent(t *testing.T) {
 	policy := NewSCA().(plugin.CPEMatchPolicy)

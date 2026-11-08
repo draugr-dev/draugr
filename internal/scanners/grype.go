@@ -354,21 +354,23 @@ func grypeMatchPackage(m grypeMatch) sarif.Package {
 }
 
 // grypeCPEOnly reports whether Grype made a match only through a CPE: every detail of it is a
-// cpe-match by the stock matcher, on a package that is not a binary.
+// cpe-match by the stock matcher or the apk matcher, on a package that is not a binary.
 //
 // The stock matcher is the one Grype falls back to for a package type with no matcher of its own,
 // such as Dart's dart-pub and CocoaPods' pod, and it matches by CPE by default. A CPE is built from
 // the package's name, so a project's own package named after what it wraps, or the Flutter pod
 // every Flutter app holds at version 1.0.0, inherits every advisory of the product it is named
-// like. A package type with its own matcher matches by CPE only where somebody turned that on in
-// Grype's configuration, and is left as Grype reported it. A binary Grype identified by its
-// contents has no other identifier, so its CPE match is the only one it can make.
+// like. The apk matcher does the same for an Alpine package, looking in the NVD by CPE for a flaw
+// Alpine's own data does not list. Any other package type with its own matcher matches by CPE only
+// where somebody turned that on in Grype's configuration, and is left as Grype reported it. A binary
+// Grype identified by its contents has no other identifier, so its CPE match is the only one it can
+// make.
 func grypeCPEOnly(m grypeMatch) bool {
 	if len(m.MatchDetails) == 0 || m.Artifact.Type == "binary" {
 		return false
 	}
 	for _, d := range m.MatchDetails {
-		if d.Type != "cpe-match" || d.Matcher != "stock-matcher" {
+		if d.Type != "cpe-match" || (d.Matcher != "stock-matcher" && d.Matcher != "apk-matcher") {
 			return false
 		}
 	}

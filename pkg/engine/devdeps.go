@@ -123,8 +123,8 @@ var providedDependencySetting = settingPolicy{
 	justification: sarif.JustificationProvidedByRuntime,
 }
 
-// cpeMatchSetting is config.controls.sca.cpeMatches. The mark is the scanner's own, about one
-// match, so no other scanner's copy carries it to this one.
+// cpeMatchSetting is cpeMatches, under sca and under images. The mark is the scanner's own, about
+// one match, so no other scanner's copy carries it to this one.
 var cpeMatchSetting = settingPolicy{
 	covers: func(r *sarif.Result) bool { return r.Package != nil && r.Package.CPEMatch },
 	decide: func(c plugin.Controller) (func(saga.Model, string) (bool, string), bool) {

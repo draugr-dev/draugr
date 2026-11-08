@@ -536,7 +536,7 @@ misspelled setting. Each produced a descriptor that claimed a decision it was no
 [`devDependencies`](#licenses-of-development-dependencies), and `sca` takes
 [`devDependencies`](#development-dependencies),
 [`providedDependencies`](#provided-dependencies), [`cpeMatches`](#cpe-matches) and
-[`ownPackages`](#own-packages). `sast`, `iac`
+[`ownPackages`](#own-packages). `images` takes [`cpeMatches`](#cpe-matches). `sast`, `iac`
 and `sca` each take [`nonShippingPaths`](#non-shipping-paths).
 
 **Which scanners take options, and which take only `enabled`:**
@@ -642,13 +642,19 @@ development dependencies.
 
 ### CPE matches
 
-`config.controls.sca.cpeMatches` decides whether a finding Grype matched only through a CPE counts.
-A CPE is a product identifier, such as `cpe:2.3:a:ffmpeg:ffmpeg:0.0.1`. For a package type with no
+A CPE is a product identifier, such as `cpe:2.3:a:ffmpeg:ffmpeg:0.0.1`.
+`config.controls.sca.cpeMatches` and `config.controls.images.cpeMatches` each decide whether a
+finding Grype matched only through a CPE counts in that control. For a package type with no
 matcher of its own, such as Dart's `dart-pub` and CocoaPods' `pod`, Grype builds a CPE from the
 package's name and version and matches it against advisories for the product of that name. A package
 named like a product then takes that product's advisories, whatever it is. A project's own Dart
 package named `ffmpeg` gets every FFmpeg advisory, and the `Flutter` pod a Flutter app holds at
 version `1.0.0` gets the Flutter SDK's.
+
+Grype's `apk` matcher also looks in the NVD by CPE, for a flaw Alpine's own data does not list. Such
+a match on an Alpine package is either a wrong match or a real flaw Alpine has not assessed, and
+Draugr cannot tell which, so `suppress` sets aside both and `report` counts both. The packages of a
+Debian or RPM-based image are matched through their distribution's data and carry no mark.
 
 | Value | Each finding matched only by CPE |
 |---|---|
@@ -667,12 +673,13 @@ components:
         cpeMatches: suppress   # replaces the project's setting for this component
 ```
 
-A finding is matched only by CPE when every match Grype made for it is a CPE match by its stock
-matcher, the one it uses for a package type with no matcher of its own. A finding Grype matched in
-the package's own ecosystem, such as a Dart advisory for a `pubspec.lock` package, is counted. A
-binary Grype identified by its contents keeps its CPE matches, because the CPE is the only
-identifier it has. A package type with a matcher of its own is matched by CPE only where Grype's
-configuration turns that on, and its findings are counted.
+A finding is matched only by CPE when every match Grype made for it is a CPE match by its `apk`
+matcher or its stock matcher, the one it uses for a package type with no matcher of its own. A
+finding Grype matched in the package's own ecosystem, such as a Dart advisory for a `pubspec.lock`
+package or an Alpine advisory for an `apk` package, is counted. A binary Grype identified by its
+contents keeps its CPE matches, because the CPE is the only identifier it has. Any other package
+type with a matcher of its own is matched by CPE only where Grype's configuration turns that on, and
+its findings are counted.
 
 The suppression's `origin` is `setting` and its `source` is the key that decided, as for
 development dependencies.

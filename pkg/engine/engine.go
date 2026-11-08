@@ -636,8 +636,7 @@ type Result struct {
 	// DevDependencies is.
 	ProvidedDependencies int
 	// CPEMatches counts findings a scanner matched only through a CPE that a component's
-	// config.controls.sca.cpeMatches set aside, apart from Suppressed for the reason DevDependencies
-	// is.
+	// sca or images cpeMatches set aside, apart from Suppressed for the reason DevDependencies is.
 	CPEMatches int
 	// OwnPackages counts findings about the project's own package that a component's
 	// config.controls.sca.ownPackages set aside, apart from Suppressed for the reason DevDependencies

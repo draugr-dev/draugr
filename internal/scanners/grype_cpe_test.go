@@ -255,7 +255,14 @@ func TestGrypeCPEOnly(t *testing.T) {
 		"a package matched in its ecosystem":         {match("dart-pub", direct), false},
 		"a binary matched by CPE":                    {match("binary", cpe), false},
 		"a jar matched by CPE where Grype allows it": {match("java-archive", detail{"cpe-match", "java-matcher"}), false},
-		"a match with no details":                    {match("pod"), false},
+		"an apk package matched by CPE":              {match("apk", detail{"cpe-match", "apk-matcher"}), true},
+		"an apk package matched in Alpine's data": {match("apk", detail{"exact-direct-match", "apk-matcher"},
+			detail{"exact-indirect-match", "apk-matcher"}), false},
+		"an apk package matched by CPE and in Alpine's data": {match("apk", detail{"cpe-match", "apk-matcher"},
+			detail{"exact-direct-match", "apk-matcher"}), false},
+		"a deb package matched in Debian's data": {match("deb", detail{"exact-indirect-match", "dpkg-matcher"}), false},
+		"an rpm package matched in its data":     {match("rpm", detail{"exact-direct-match", "rpm-matcher"}), false},
+		"a match with no details":                {match("pod"), false},
 	} {
 		if got := grypeCPEOnly(c.m); got != c.want {
 			t.Errorf("%s: %v, want %v", name, got, c.want)
@@ -290,5 +297,127 @@ func TestOnePackageMatchedTwoWaysIsNotACPEMatch(t *testing.T) {
 	pkg, _, ok := newGrypeMatchIndex([]grypeMatch{m("cpe-match"), m("cpe-match")}).find("CVE-2023-36826-sentry", msg, "/pubspec.lock")
 	if !ok || !pkg.CPEMatch {
 		t.Errorf("package %+v (%v), want sentry, marked", pkg, ok)
+	}
+}
+
+// testdata/grype-cpe-only/alpine.grype.* is what Grype 0.121.0 wrote, SARIF and JSON in one invocation
+// with --by-cve, for an image built FROM alpine:3.22 with sqlite-libs and python3 added. Its JSON keeps
+// the fields Draugr reads and drops the rest. Grype matched zlib in Alpine's data and every other
+// finding only by CPE, through its apk matcher.
+const (
+	alpineCPEOnly  = 25
+	alpineCounted  = "CVE-2026-4738 zlib"
+	alpineImageRef = "registry.example/api:1.0"
+)
+
+// runAlpineCPEOnly scans three images in two components with grype under the real images control.
+func runAlpineCPEOnly(t *testing.T, images saga.ControllerSettings, components map[string]saga.ControllerSettings) engine.Result {
+	t.Helper()
+	prior := grypeRun
+	t.Cleanup(func() { grypeRun = prior })
+	grypeRun = func(_ context.Context, argv []string) ([]byte, error) {
+		fakeGrypeOutputs(t, argv, string(cpeOnlyRead(t, "alpine.grype.json")))
+		return cpeOnlyRead(t, "alpine.grype.sarif"), nil
+	}
+	reg := engine.NewRegistry()
+	reg.RegisterController(controllers.NewImages())
+	reg.RegisterScanner(scanOnly{NewGrype()})
+
+	project := saga.ControllerSettings{"enabled": true, "trivy": map[string]any{"enabled": false}, "grype": map[string]any{"enabled": true}}
+	for k, v := range images {
+		project[k] = v
+	}
+	model := saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{"images": project}}}
+	for name, refs := range map[string][]string{"api": {alpineImageRef, "registry.example/worker:1.0"}, "lib": {"registry.example/lib:1.0"}} {
+		comp := saga.Component{Name: name}
+		for _, ref := range refs {
+			comp.Images = append(comp.Images, saga.Image{Image: ref})
+		}
+		if s, ok := components[name]; ok {
+			comp.Controls = map[string]saga.ControllerSettings{"images": s}
+		}
+		model.Components = append(model.Components, comp)
+	}
+	res, err := engine.New(reg).Run(context.Background(), model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res
+}
+
+// alpineOutcome is one image's answer: the findings counted, how many cpeMatches set aside, and the
+// keys that decided them.
+func alpineOutcome(t *testing.T, res engine.Result, component, image string) (counted []string, suppressed int, sources map[string]bool) {
+	t.Helper()
+	sources = map[string]bool{}
+	for _, r := range res.Controls["images"].Report.Results {
+		if r.Component != component || r.Image != image {
+			continue
+		}
+		if r.Package == nil {
+			t.Fatalf("%s %s carries no package", image, r.RuleID)
+		}
+		id := r.VulnerabilityID() + " " + r.Package.Name
+		if want := id != alpineCounted; r.Package.CPEMatch != want {
+			t.Errorf("%s %s: cpeMatch %v, want %v", image, id, r.Package.CPEMatch, want)
+		}
+		if !r.Suppressed() {
+			counted = append(counted, id)
+			continue
+		}
+		if r.Suppression.Origin != sarif.OriginSetting || r.Suppression.Justification != sarif.JustificationCPEMatch {
+			t.Errorf("%s %s: suppressed as %+v, want by the cpeMatches setting", image, id, *r.Suppression)
+		}
+		suppressed++
+		sources[r.Suppression.Source] = true
+	}
+	return counted, suppressed, sources
+}
+
+// By default every finding Grype matched on an Alpine package only by CPE stays in the report,
+// suppressed by the setting, in each image of each component, and the one it matched in Alpine's data
+// is counted.
+func TestAlpineCPEOnlyMatchesAreSuppressedByDefault(t *testing.T) {
+	res := runAlpineCPEOnly(t, nil, nil)
+	for _, target := range [][2]string{{"api", alpineImageRef}, {"api", "registry.example/worker:1.0"}, {"lib", "registry.example/lib:1.0"}} {
+		counted, suppressed, sources := alpineOutcome(t, res, target[0], target[1])
+		if !slices.Equal(counted, []string{alpineCounted}) || suppressed != alpineCPEOnly {
+			t.Errorf("%v: counted %v and set aside %d, want %s and %d", target, counted, suppressed, alpineCounted, alpineCPEOnly)
+		}
+		if !sources["config.controls.images.cpeMatches"] || len(sources) != 1 {
+			t.Errorf("%v: sources %v, want the project's key", target, sources)
+		}
+	}
+	if res.CPEMatches != 3*alpineCPEOnly {
+		t.Errorf("CPEMatches %d, want %d", res.CPEMatches, 3*alpineCPEOnly)
+	}
+	if s := res.Controls["images"].Summary; s.Errors+s.Warnings+s.Notes != 3 {
+		t.Errorf("summary %+v, want the one counted finding of each image", s)
+	}
+}
+
+// cpeMatches: report counts every one of them, still marked.
+func TestAlpineCPEMatchesReportCountsThem(t *testing.T) {
+	res := runAlpineCPEOnly(t, saga.ControllerSettings{"cpeMatches": "report"}, nil)
+	counted, suppressed, _ := alpineOutcome(t, res, "api", alpineImageRef)
+	if len(counted) != alpineCPEOnly+1 || suppressed != 0 {
+		t.Errorf("counted %d and set aside %d, want %d and 0", len(counted), suppressed, alpineCPEOnly+1)
+	}
+	if res.CPEMatches != 0 {
+		t.Errorf("CPEMatches %d, want 0", res.CPEMatches)
+	}
+}
+
+// A component's setting replaces the project's for that component's images alone, and its suppressions
+// name the component's key.
+func TestAComponentsImagesCPEMatchesReplacesTheProjects(t *testing.T) {
+	res := runAlpineCPEOnly(t, saga.ControllerSettings{"cpeMatches": "report"},
+		map[string]saga.ControllerSettings{"lib": {"cpeMatches": "suppress"}})
+	if _, suppressed, _ := alpineOutcome(t, res, "api", alpineImageRef); suppressed != 0 {
+		t.Errorf("api: set aside %d under the project's report", suppressed)
+	}
+	_, suppressed, sources := alpineOutcome(t, res, "lib", "registry.example/lib:1.0")
+	if suppressed != alpineCPEOnly || !sources[`components["lib"].controls.images.cpeMatches`] {
+		t.Errorf("lib: set aside %d from %v, want %d from the component's key", suppressed, sources, alpineCPEOnly)
 	}
 }

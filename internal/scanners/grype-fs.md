@@ -111,8 +111,9 @@ version the finding and the package. A pom whose version for the package comes f
 a BOM is not named, because the checkout does not say which version it resolves to.
 
 **Draugr marks a match Grype made only through a CPE.** For a package type with no matcher of its
-own, such as `dart-pub` and `pod`, Grype matches a CPE built from the package's name and version, so
-a package named like a product takes that product's advisories. Draugr reads the match details from
+own, such as `dart-pub` and `pod`, and for an Alpine `apk` package, Grype matches a CPE built from
+the package's name and version, so a package named like a product takes that product's advisories.
+Draugr reads the match details from
 Grype's JSON report and marks a finding whose every match is such a CPE match `cpe`, which
 `config.controls.sca.cpeMatches` decides; see
 [CPE matches](../../docs/reference/saga-schema.md#cpe-matches). A binary Grype identified by its
