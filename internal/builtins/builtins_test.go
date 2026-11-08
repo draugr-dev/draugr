@@ -50,7 +50,7 @@ func TestScannersReadAfterRegisteredScannersWithoutACycle(t *testing.T) {
 // beside the ones it was meant to take turns with.
 func TestScannersAreExclusiveOnDeclaredResources(t *testing.T) {
 	t.Parallel()
-	if err := Registry().CheckExclusive(plugin.ExclusiveGoPackageLoad); err != nil {
+	if err := Registry().CheckExclusive(plugin.ExclusiveGoPackageLoad, plugin.ExclusiveTerraformModuleCache); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -69,6 +69,19 @@ func TestTheGoPackageLoadersTakeTurns(t *testing.T) {
 		if got := sc.Info().Exclusive; got != plugin.ExclusiveGoPackageLoad {
 			t.Errorf("%s Exclusive = %q, want %q", name, got, plugin.ExclusiveGoPackageLoad)
 		}
+	}
+}
+
+// Two trivy-config jobs using one remote Terraform module race on the directory Trivy downloads it
+// into, and the loser can report nothing from the module with no error.
+func TestTheTerraformScannerTakesTurns(t *testing.T) {
+	t.Parallel()
+	sc, ok := Registry().Scanner("trivy-config")
+	if !ok {
+		t.Fatal("trivy-config is not registered")
+	}
+	if got := sc.Info().Exclusive; got != plugin.ExclusiveTerraformModuleCache {
+		t.Errorf("trivy-config Exclusive = %q, want %q", got, plugin.ExclusiveTerraformModuleCache)
 	}
 }
 

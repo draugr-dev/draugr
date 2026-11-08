@@ -137,6 +137,13 @@ Every run, and the checks warm, passes `--skip-version-check` and `--disable-tel
 makes no version-check or telemetry request to `check.trivy.dev`. A Trivy older than 0.63.0 has
 neither flag and makes no such request.
 
+**One job at a time.** Trivy downloads a remote module into one directory under the system's
+temporary directory, with no lock, so two jobs using the same module lose its findings: one fails to
+load it, or reads the directory while the other is still writing and reports nothing from it, with no
+error. So a run takes `trivy-config` jobs one at a time. Two runs on one machine that share a
+temporary directory, such as parallel jobs on a self-hosted runner, can still race; give each its own
+`TMPDIR`.
+
 **Terraform modules**, from the host each `module` block's `source` names: `registry.terraform.io`
 for a registry address, or the git host for a `git::` or GitHub source. Trivy downloads them into
 `.aqua/cache` under the system temporary directory. A module with a local `source` path is read from the checkout.
