@@ -674,3 +674,120 @@ func TestResolveTreeFollowsTheRootFilesAScopedCheckoutHolds(t *testing.T) {
 		t.Error("editing scanner configuration left the key standing")
 	}
 }
+
+// addCommit commits a change to file.txt on whatever HEAD is, and returns the commit.
+func addCommit(t *testing.T, dir, content string) string {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(dir, "file.txt"), []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, dir, "add", ".")
+	runGit(t, dir, "commit", "-q", "-m", content)
+	return strings.TrimSpace(string(runGit(t, dir, "rev-parse", "HEAD")))
+}
+
+// A checkout of a source on this machine shares no object file with it and holds only the commit
+// being scanned, so a process writing to the source cannot stop the clone.
+func TestCheckoutOfALocalSourceReadsItOverTheTransport(t *testing.T) {
+	src, _ := initRepo(t)
+	head := addCommit(t, src, "second")
+
+	tree, cleanup, err := Checkout(context.Background(), src, "", Scope{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	if tree.Revision != head {
+		t.Errorf("revision = %s, want %s", tree.Revision, head)
+	}
+	if got := strings.TrimSpace(string(runGit(t, tree.Dir, "rev-list", "--count", "HEAD"))); got != "1" {
+		t.Errorf("commits = %s, want the one being scanned", got)
+	}
+	theirs, err := filepath.Glob(filepath.Join(src, ".git", "objects", "??", "*"))
+	if err != nil || len(theirs) == 0 {
+		t.Fatalf("source objects = %v: %v", theirs, err)
+	}
+	for _, source := range theirs {
+		rel, err := filepath.Rel(src, source)
+		if err != nil {
+			t.Fatal(err)
+		}
+		a, errA := os.Stat(source)
+		b, errB := os.Stat(filepath.Join(tree.Dir, rel))
+		if errA == nil && errB == nil && os.SameFile(a, b) {
+			t.Errorf("%s is linked into the clone", rel)
+		}
+	}
+}
+
+// A revision the transport does not offer is still found in a source on this machine, as it is in a
+// pull request's checkout, and a revision that is nowhere is still refused.
+func TestCheckoutFindsARevisionNoBranchReaches(t *testing.T) {
+	cases := []struct {
+		name string
+		ref  string
+	}{
+		{"a pull request's ref", "refs/pull/1/merge"},
+		{"no ref", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			src, first := initRepo(t)
+			runGit(t, src, "checkout", "-q", "--detach")
+			commit := addCommit(t, src, "off every branch")
+			if c.ref != "" {
+				runGit(t, src, "update-ref", c.ref, commit)
+			}
+			runGit(t, src, "checkout", "-q", "main")
+			if head := strings.TrimSpace(string(runGit(t, src, "rev-parse", "HEAD"))); head != first {
+				t.Fatalf("source HEAD = %s, want %s", head, first)
+			}
+
+			tree, cleanup, err := Checkout(context.Background(), src, commit, Scope{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer cleanup()
+			if tree.Revision != commit {
+				t.Errorf("revision = %s, want %s", tree.Revision, commit)
+			}
+		})
+	}
+}
+
+// A revision nothing holds gets git's refusal from the last attempt, whichever kind of source it is.
+func TestCheckoutRevisionNamesTheRevisionItCouldNotFind(t *testing.T) {
+	src, _ := initRepo(t)
+	for _, url := range []string{src, "file://" + src} {
+		_, _, err := Checkout(context.Background(), url, "no-such-rev", Scope{})
+		if err == nil || !strings.Contains(err.Error(), `git checkout "no-such-rev"`) {
+			t.Errorf("%s: err = %v, want the checkout's refusal", url, err)
+		}
+	}
+}
+
+// The local clone behind a revision the transport did not offer reports its own failure.
+func TestCheckoutRevisionReportsTheLocalCloneFailing(t *testing.T) {
+	src, _ := initRepo(t)
+	dir := t.TempDir()
+	orig := gitRun
+	t.Cleanup(func() { gitRun = orig })
+	gitRun = func(ctx context.Context, args ...string) error {
+		if args[0] == "clone" {
+			return errors.New("clone refused")
+		}
+		return orig(ctx, args...)
+	}
+	// dir holds no repository, so the checkout fails and the clone is tried. git would walk up from
+	// a directory inside a repository, and t.TempDir is not inside one.
+	err := checkoutRevision(context.Background(), dir, src, "no-such-rev")
+	if err == nil || !strings.Contains(err.Error(), "git clone: clone refused") {
+		t.Errorf("err = %v, want the clone's failure", err)
+	}
+}
+
+func TestEmptyDirOnAMissingDirectory(t *testing.T) {
+	if err := emptyDir(filepath.Join(t.TempDir(), "missing")); err == nil {
+		t.Error("want an error for a directory that is not there")
+	}
+}
