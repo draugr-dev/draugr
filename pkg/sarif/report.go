@@ -812,8 +812,8 @@ type Report struct {
 	// two produce the same empty report and the same PASS. Empty for a scanner that does not
 	// account for its reads, which says nothing either way.
 	Inputs []Input `json:"inputs,omitempty"`
-	// Unchecked are the checks a scan could not evaluate, each with the reason: a read the check
-	// needs that the scan's identity was denied.
+	// Unchecked are the checks a scan could not evaluate, or could evaluate only in part, each with the reason:
+	// a read the check needs that the scan's identity was denied.
 	//
 	// The argument Inputs makes, applied to checks. A denied read does not fail a check: depending on
 	// the check it passes, fails or produces nothing, so a check the scan could not evaluate and one
@@ -833,6 +833,9 @@ type Unchecked struct {
 	Group string `json:"group"`
 	// Reason is why it could not be evaluated, such as "denied compute.instances.list".
 	Reason string `json:"reason"`
+	// PartlyRead marks a check that returned results from the reads it was allowed. Its findings are
+	// in the report, and it is not decided: what the denied read held was not looked at.
+	PartlyRead bool `json:"partlyRead,omitempty"`
 }
 
 // Input is one dependency file as a scan accounted for it.

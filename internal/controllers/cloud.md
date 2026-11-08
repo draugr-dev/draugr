@@ -55,8 +55,9 @@ go to the component claiming the whole account, whatever region Prowler files th
   which Viewer lacks, cover every check.
 - **AWS:** the default credential chain every AWS SDK reads, `AWS_PROFILE`, the shared config and
   credentials files, an SSO session, or an instance or task role. Attach the `SecurityAudit` and
-  `ViewOnlyAccess` managed policies and Prowler's `prowler-additions-policy`. Draugr does not yet
-  detect a missing permission on AWS.
+  `ViewOnlyAccess` managed policies and Prowler's `prowler-additions-policy`. `SecurityAudit`
+  includes `iam:GetRole` and `iam:SimulatePrincipalPolicy`, which let the scan check permissions
+  before Prowler runs.
 
 `draugr doctor` checks each declared account: on Google Cloud that the credentials can read the
 project, on AWS that they are an identity in the declared account.
@@ -75,16 +76,42 @@ that read it and the permission that was missing:
 ```
 CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
   unread-checks · api
-    compute  16 checks · denied compute.instances.list
+    compute  16 checks unread · denied compute.instances.list
 ```
 
 Prowler's result for an unread check is discarded, whatever it was. Prowler does not separate a check
 it could not evaluate from one it found clean, so a denied read can come back as a pass.
 `report.json` lists every unread check under `unreadChecks[]`.
 
-**On AWS, permissions are not checked yet.** The report holds what Prowler could read, and a check
-whose reads were denied counts as whatever Prowler made of it. The measured-against line says so, as
-`permissions: not checked`.
+**On AWS, a denial is judged per check**, and the run goes on. A denied call is one action, which
+some checks of the service do not need, so a check that returned results keeps them:
+
+- A check of a denied service with **no pass or fail** is unread, and its result discarded.
+- A check **with a pass or a fail** keeps its findings and is **partly read**. It is not counted as
+  decided, because the denied read may have held more.
+
+Both are rows under **Caveats**, one per service, with the action that was denied, or the call
+where AWS's error does not name the action:
+
+```
+CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
+  unread-checks · web
+    account         2 checks unread · denied account:GetContactInformation
+    cloudtrail      18 checks unread · 3 checks partly read · denied the GetEventSelectors call
+    efs             1 check partly read · denied elasticfilesystem:DescribeAccessPoints
+```
+
+The denials come from two places. Before Prowler runs, where the credentials may ask, the scanner
+asks IAM's policy simulator which of the actions Prowler's services call the role's policies allow.
+After it runs, Prowler's log names the calls that were denied, including those a resource's own
+policy refused. The measured-against line says which ran, as `permissions: simulated before the
+scan, then read from Prowler's log`, or as `permissions: read from Prowler's log` where the
+credentials may not call `iam:GetRole` or `iam:SimulatePrincipalPolicy`; grant both to simulate
+before the scan. `report.json` lists the partly read checks under `unreadChecks[].partlyRead`.
+
+Grant the action a row names and scan again: a check clears once none of the services it reads has
+a denial. A partly read check keeps its findings, and a pass there can rest on a read that was
+refused.
 
 **Coverage is stated in the measured-against line**: the framework, how many of its checks were
 decided, and the scope.

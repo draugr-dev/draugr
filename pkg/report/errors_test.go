@@ -216,13 +216,31 @@ func TestCaveatsGatherEveryShortfallThatDoesNotFail(t *testing.T) {
 		{heading: "not-checked · web", rows: []string{"hosts controls off: dast, headers, tls"}},
 		{heading: "not-measured · payments", rows: []string{"kube-bench-job audits the whole cluster and cannot be narrowed to namespace payments"}},
 		{heading: "unread-files · sca · api", rows: []string{"go.mod no packages read"}},
-		{heading: "unread-checks · platform", rows: []string{"compute 2 checks · denied compute.instances.list"}},
+		{heading: "unread-checks · platform", rows: []string{"compute 2 checks unread · denied compute.instances.list"}},
 	}
 	if !reflect.DeepEqual(groups, want) || more != "" {
 		t.Errorf("groups = %+v, more %q\nwant %+v:\n%s", groups, more, want, out)
 	}
 	if strings.Contains(out, "ERRORS") {
 		t.Errorf("a caveat is listed as an error:\n%s", out)
+	}
+}
+
+// A service's row counts the checks with no result and those read in part apart, and leaves out a
+// count of none.
+func TestAnUnreadChecksRowCountsThePartlyRead(t *testing.T) {
+	for _, c := range []struct {
+		unread, partly []string
+		want           string
+	}{
+		{[]string{"a", "b"}, nil, "2 checks unread · denied iam:GetRole"},
+		{[]string{"a"}, []string{"b", "c"}, "1 check unread · 2 checks partly read · denied iam:GetRole"},
+		{nil, []string{"b"}, "1 check partly read · denied iam:GetRole"},
+	} {
+		g := engine.UnreadChecks{Group: "iam", Checks: c.unread, PartlyRead: c.partly, Reason: "denied iam:GetRole"}
+		if got := unreadDetail(g); got != c.want {
+			t.Errorf("%v, %v = %q, want %q", c.unread, c.partly, got, c.want)
+		}
 	}
 }
 
@@ -440,7 +458,7 @@ func TestCaveatsTheGateFailsOnAreMarkedWhereTheySit(t *testing.T) {
 		{heading: "not-checked · web", rows: []string{"hosts controls off: dast, headers, tls"}},
 		{heading: "not-measured · payments", rows: []string{"kube-bench-job audits the whole cluster and cannot be narrowed to namespace payments"}},
 		{heading: "unread-files · sca · api", marked: true, rows: []string{"go.mod no packages read"}},
-		{heading: "unread-checks · platform", marked: true, rows: []string{"compute 1 check · denied compute.instances.list"}},
+		{heading: "unread-checks · platform", marked: true, rows: []string{"compute 1 check unread · denied compute.instances.list"}},
 	}
 	if !reflect.DeepEqual(groups, want) {
 		t.Errorf("groups = %+v\nwant %+v:\n%s", groups, want, out)

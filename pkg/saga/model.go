@@ -241,8 +241,8 @@ const (
 	// evaluated, a Helm chart that was not rendered, a file the secrets scan skipped, or a source
 	// file Semgrep skipped or did not finish.
 	CaveatUnreadFiles CaveatKind = "unread-files"
-	// CaveatUnreadChecks is a cloud check the scan could not evaluate, because a read it needs
-	// was denied.
+	// CaveatUnreadChecks is a cloud check the scan could not evaluate, or could evaluate only in part,
+	// because a read it needs was denied.
 	CaveatUnreadChecks CaveatKind = "unread-checks"
 	// CaveatUnboundImports is an imported SARIF file that states no revision, so nothing shows it
 	// describes the code being scanned.

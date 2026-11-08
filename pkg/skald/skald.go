@@ -806,7 +806,10 @@ type unreadChecksReport struct {
 	Control   string   `json:"control"`
 	Service   string   `json:"service"`
 	Checks    []string `json:"checks"`
-	Reason    string   `json:"reason"`
+	// PartlyRead are the checks that returned results from the reads they were allowed: their
+	// findings are in the report, and they are not decided.
+	PartlyRead []string `json:"partlyRead,omitempty"`
+	Reason     string   `json:"reason"`
 }
 
 type unreadFileReport struct {
@@ -1072,7 +1075,9 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 
 	for _, g := range run.UnreadChecks {
 		doc.UnreadChecks = append(doc.UnreadChecks, unreadChecksReport{
-			Component: g.Component, Control: g.Control, Service: g.Group, Checks: g.Checks, Reason: g.Reason,
+			// An empty list rather than null where every check of the service was read in part.
+			Component: g.Component, Control: g.Control, Service: g.Group, Checks: append([]string{}, g.Checks...),
+			PartlyRead: g.PartlyRead, Reason: g.Reason,
 		})
 	}
 
