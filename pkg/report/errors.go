@@ -332,6 +332,15 @@ func writeErrors(w io.Writer, col tui.Painter, d Data) {
 		if g.login {
 			_, _ = fmt.Fprintf(w, "  %s  %s\n", col.Paint(cAccent, loginCommand(g.host)), col.Paint(cDim, "then scan again"))
 		}
+		if g.local {
+			for i, line := range wrapMessage(localAdvice, messageWidth) {
+				prefix := "  "
+				if i > 0 {
+					prefix = "    "
+				}
+				_, _ = fmt.Fprintf(w, "%s%s\n", prefix, col.Paint(cDim, line))
+			}
+		}
 	}
 	if len(rest) > 0 {
 		rows := make([]unreachedRow, len(rest))

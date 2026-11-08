@@ -20,7 +20,16 @@ type refusal struct {
 	// login is whether logging in is what changes the answer: no credential at all, or one the
 	// registry did not accept.
 	login bool
+	// local is whether the local Docker daemon holds the image. Then the registry has nothing to
+	// serve, and the way out is a scanner that reads the daemon, or a push.
+	local bool
 }
+
+// localAdvice is the line said once under a registry whose refused images the local Docker daemon
+// holds. Trivy reads the daemon before the registry, so an image it held reached no scanner only
+// where Grype alone read it.
+const localAdvice = "in the local Docker daemon only, and Grype reads registries: enable trivy, " +
+	"or push the image to a registry first (one on localhost works)"
 
 // registryRefusal reports whether a target is an image its registry refused to serve, and the
 // refusal when it is. The run decided both, and whether this machine held a credential, where it
@@ -33,6 +42,9 @@ func registryRefusal(t engine.TargetOutcome) (refusal, bool) {
 	anonymous := r.Credential != nil && !*r.Credential
 	said := (&registry.StatusError{Code: r.Status, Host: r.Registry, Anonymous: anonymous}).Error()
 	said = strings.TrimSuffix(said, " for "+r.Registry)
+	if r.LocalDaemon {
+		return refusal{host: r.Registry, said: said, local: true}, true
+	}
 	return refusal{host: r.Registry, said: said, login: anonymous || r.Status == http.StatusUnauthorized}, true
 }
 
@@ -88,6 +100,9 @@ func htmlUnreachedTargets(d Data) (regs []htmlRegistry, rest []htmlUnreached, co
 		r := htmlRegistry{Host: g.host, Said: g.said}
 		if g.login {
 			r.Login = loginCommand(g.host)
+		}
+		if g.local {
+			r.Local = localAdvice
 		}
 		for _, m := range g.images {
 			r.Images = append(r.Images, htmlUnreached{Kind: m.Kind, Name: inRegistry(m.Target, g.host), Full: m.Target,

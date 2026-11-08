@@ -351,7 +351,7 @@ func TestDialHost(t *testing.T) {
 
 func TestLocalImageWithoutDocker(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
-	if localImage(context.Background(), "nginx:1") {
+	if LocalImage(context.Background(), "nginx:1") {
 		t.Error("an image was found with no docker on PATH")
 	}
 }

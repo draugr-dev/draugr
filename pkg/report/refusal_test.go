@@ -215,3 +215,29 @@ func TestErrorsFitTheTerminal(t *testing.T) {
 		})
 	}
 }
+
+// An image the local Docker daemon holds was built here and never pushed, so the registry's answer
+// is not the problem and logging in cannot change it. The block says where the image is and the two
+// ways to read it, on the console and the page alike, and offers no login.
+func TestAnImageOnlyTheLocalDaemonHoldsIsNotOfferedALogin(t *testing.T) {
+	t.Setenv("COLUMNS", "")
+	r := refused("docker.io", http.StatusUnauthorized, noneHeld)
+	r.LocalDaemon = true
+	d := Data{
+		Run:     engine.Result{Targets: []engine.TargetOutcome{failedImage("runmodes-local:2", "run grype: exit status 1", r, "app")}},
+		Verdict: norn.Result{Verdict: norn.Fail},
+	}
+	out := renderWith(t, consoleReporter{}, d)
+	if strings.Contains(out, "docker login") {
+		t.Errorf("a login is offered for an image only the local daemon holds:\n%s", out)
+	}
+	for _, want := range []string{"  docker.io  401 unauthorized", "in the local Docker daemon only", "enable trivy", "one on localhost works"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
+	}
+	page := renderWith(t, htmlReporter{}, d)
+	if strings.Contains(page, "docker login") || !strings.Contains(page, "in the local Docker daemon only") {
+		t.Errorf("the page does not say what the console says about a local image")
+	}
+}

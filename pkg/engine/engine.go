@@ -100,6 +100,8 @@ type Engine struct {
 	// registryCredential says whether this machine holds a credential for a registry. See
 	// WithRegistryCredentials.
 	registryCredential func(ctx context.Context, host string) (bool, error)
+	// localImage says whether the local Docker daemon holds an image. See WithLocalImages.
+	localImage func(ctx context.Context, ref string) bool
 }
 
 // Prioritizer computes a finding's priority band from its control and its component's risk
@@ -254,6 +256,13 @@ func WithContextFloors(controls []string) Option {
 // the refusal is reported without it.
 func WithRegistryCredentials(fn func(ctx context.Context, host string) (bool, error)) Option {
 	return func(e *Engine) { e.registryCredential = fn }
+}
+
+// WithLocalImages lets the engine ask whether the local Docker daemon holds an image, so an image a
+// registry refused says when it was built here and never pushed. Asked after the scans, only for
+// refused images. Nil leaves the question unanswered.
+func WithLocalImages(fn func(ctx context.Context, ref string) bool) Option {
+	return func(e *Engine) { e.localImage = fn }
 }
 
 // ProgressEvent is what a run is doing at one moment: how much is done, and what is in flight.
@@ -1665,6 +1674,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	}
 	targets := targetOutcomes(planned, skipped, unscanned, reached)
 	noteCredentials(ctx, targets, e.registryCredential)
+	noteLocalImages(ctx, targets, e.localImage)
 	res := Result{
 		Targets:   targets,
 		Controls:  make(map[string]plugin.ControlResult),

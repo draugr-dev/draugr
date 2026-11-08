@@ -234,6 +234,28 @@ func TestAMissingToolSkipsItsTargets(t *testing.T) {
 	}
 }
 
+// Whether the local daemon holds an image is asked only for an image a registry refused, and only
+// when the run was given a way to ask.
+func TestTheLocalDaemonIsAskedOnlyAboutRefusedImages(t *testing.T) {
+	targets := []TargetOutcome{
+		{Kind: "image", Target: "app:1", Refusal: &Refusal{Registry: "docker.io", Status: 401}},
+		{Kind: "image", Target: "base:2"},
+		{Kind: "repository", Target: "https://github.com/acme/api", Refusal: &Refusal{Registry: "x", Status: 401}},
+	}
+	noteLocalImages(context.Background(), targets, nil)
+	if targets[0].Refusal.LocalDaemon {
+		t.Error("answered without a way to ask")
+	}
+	var asked []string
+	noteLocalImages(context.Background(), targets, func(_ context.Context, ref string) bool {
+		asked = append(asked, ref)
+		return true
+	})
+	if !targets[0].Refusal.LocalDaemon || len(asked) != 1 || asked[0] != "app:1" {
+		t.Errorf("asked %v, local %v; want only the refused image", asked, targets[0].Refusal.LocalDaemon)
+	}
+}
+
 // brokenScanner is a scanner whose tool is installed and cannot start, as a wrapper script whose
 // interpreter is gone exits 127.
 type brokenScanner struct{}
