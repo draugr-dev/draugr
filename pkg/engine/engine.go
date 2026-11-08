@@ -2868,6 +2868,7 @@ func applyCorrelation(controls map[string]plugin.ControlResult) (groups, extraSu
 					RuleID:   results[i].RuleID,
 					Severity: results[i].Severity(""),
 					Score:    results[i].Score,
+					Location: results[i].Location.URI,
 				})
 			}
 			sort.Slice(others, func(a, b int) bool { return others[a].Tool < others[b].Tool })

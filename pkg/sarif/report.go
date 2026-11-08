@@ -579,6 +579,9 @@ type Observation struct {
 	// report decides what is worth showing; the record does not get to be selective.
 	Severity Severity `json:"severity,omitempty"`
 	Score    float64  `json:"score,omitempty"`
+	// Location is the file this copy is in, for the row that names the counted copy's. Not written:
+	// each copy is a result of its own in the report, with its location.
+	Location string `json:"-"`
 }
 
 // Correlated reports whether another scanner's finding is the one being counted for this flaw.
@@ -1610,19 +1613,43 @@ func (r Result) AliasVulnerabilityIDs() []string {
 // repeating the same numbers on every row is noise a reader has to look past; where they disagree,
 // it is the one thing this line is carrying that they could not get anywhere else. The full record
 // is in the JSON and the SARIF either way.
-func AgreementNote(others []Observation, counted Severity) string {
-	if len(others) == 0 {
-		return ""
-	}
+//
+// Each other scanner is named once, however many files it found the flaw in, and never own, the
+// scanner of the counted finding: a copy from that scanner differs only in its file, which is not a
+// second opinion. A scanner rating the flaw differently in any copy is shown with that rating.
+func AgreementNote(others []Observation, counted Severity, own string) string {
 	parts := make([]string, 0, len(others))
+	at := map[string]int{}
 	for _, o := range others {
-		if o.Severity != "" && o.Severity != counted {
-			parts = append(parts, fmt.Sprintf("%s (%s)", o.Tool, ratingOf(o)))
+		if o.Tool == own {
 			continue
 		}
-		parts = append(parts, o.Tool)
+		differs := o.Severity != "" && o.Severity != counted
+		i, seen := at[o.Tool]
+		if !seen {
+			at[o.Tool] = len(parts)
+			parts = append(parts, o.Tool)
+			i = len(parts) - 1
+		}
+		if differs && parts[i] == o.Tool {
+			parts[i] = fmt.Sprintf("%s (%s)", o.Tool, ratingOf(o))
+		}
+	}
+	if len(parts) == 0 {
+		return ""
 	}
 	return "also found by " + strings.Join(parts, ", ")
+}
+
+// OtherFiles counts the files the copies are in other than location, the counted copy's.
+func OtherFiles(others []Observation, location string) int {
+	seen := map[string]bool{}
+	for _, o := range others {
+		if o.Location != "" && o.Location != location {
+			seen[o.Location] = true
+		}
+	}
+	return len(seen)
 }
 
 // ratingOf renders one scanner's rating, with its score where it gave one.
