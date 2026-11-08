@@ -423,9 +423,10 @@ come from one place and cannot disagree.
 
 ### Scanning an API from its specification
 
-`dast` crawls an endpoint unless a host points it at an OpenAPI document. An API usually has no
-HTML to crawl, so a specification is the difference between guessing and exercising what the
-service declares.
+`dast` tests the URL a host declares and the paths Nuclei's templates name beneath it. It follows no
+links, so a page reached only through a link or a script is not tested unless a template names it.
+A host can point it at an OpenAPI document instead, and it then tests the operations the service
+declares.
 
 ```yaml
 hosts:

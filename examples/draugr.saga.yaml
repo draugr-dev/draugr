@@ -265,7 +265,7 @@ components:
                                 # the pipeline lists it in $DRAUGR_TOKEN_ENVS
           # type: header
           # header: X-API-Key
-        spec:                # drive the scan from an OpenAPI document instead of crawling
+        spec:                # drive the scan from an OpenAPI document instead of one URL
           path: api/openapi.yaml       # relative to where Draugr runs
           methods: [get, head, post]   # absent means get and head only
           # A specification lists POST, PUT and DELETE too, and a scanner handed one will

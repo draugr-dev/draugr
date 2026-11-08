@@ -1,0 +1,1 @@
+- **The `dast` docs say what it tests.** `dast` tests the URL a host declares and the paths Nuclei's templates name beneath it. It follows no links, so a page reached only through a link or a script is not tested unless a template names it, and a `PASS` does not cover that page.
