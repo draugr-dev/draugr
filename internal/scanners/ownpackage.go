@@ -11,7 +11,8 @@ import (
 
 // markOwnPackages marks each finding whose package is the project itself in the file it was found
 // in: the root or a workspace member of a package-lock.json, a Cargo.lock entry with no source, a
-// pubspec.yaml that says publish_to: none, a pod a Podfile.lock takes from a :path:.
+// pubspec.yaml that says publish_to: none, a pubspec.lock entry with source: path, a pod a
+// Podfile.lock takes from a :path:.
 //
 // A scanner reads such a package as it reads a dependency and matches it against the advisories of
 // whatever published package shares its name. Grype reports a lockfile's root and a workspace member
