@@ -55,6 +55,10 @@ type Refusal struct {
 	// Credential is whether the machine held a credential for Registry where the scanners read one,
 	// asked after the scans. Absent when the run did not ask, or the configuration could not be read.
 	Credential *bool `json:"credential,omitempty"`
+	// LocalDaemon is whether the local Docker daemon held the image, asked after the scans. An image
+	// built here and never pushed is one a registry has nothing of, so its answer is not the
+	// problem, and logging in does not change it.
+	LocalDaemon bool `json:"localDaemon,omitempty"`
 }
 
 // refusalOf reads a failed pull of an image for its registry declining to serve it: from everything
@@ -105,6 +109,19 @@ func noteCredentials(ctx context.Context, targets []TargetOutcome, held func(con
 			known[r.Registry] = answer
 		}
 		r.Credential = answer
+	}
+}
+
+// noteLocalImages records, on each image a registry refused, whether the local Docker daemon holds
+// it. Asked after the scans and only for refused images, so a run with none starts no docker.
+func noteLocalImages(ctx context.Context, targets []TargetOutcome, local func(context.Context, string) bool) {
+	if local == nil {
+		return
+	}
+	for i := range targets {
+		if r := targets[i].Refusal; r != nil && targets[i].Kind == "image" {
+			r.LocalDaemon = local(ctx, targets[i].Target)
+		}
 	}
 }
 

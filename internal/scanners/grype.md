@@ -53,6 +53,11 @@ hold under that tag rather than what the registry serves now, and scanning the w
 than scanning slowly. Draugr pins images to a digest wherever it can, and a digest means nothing to
 a daemon that never pulled it.
 
+An image built on the machine and never pushed is one Grype cannot read. Where the registry
+refuses it and the local daemon holds it, the errors block says so rather than offering a login:
+the [`trivy`](trivy.md) scanner reads the daemon, or the image can be pushed to a registry first,
+one on `localhost` included.
+
 **Findings are reported against the image reference.** Grype locates an OS package finding at
 `alpine//lib/apk/db/installed`, the image name joined to the package database inside it. That is a
 real path in a filesystem nobody has, it reads like a source file in the console, and a component

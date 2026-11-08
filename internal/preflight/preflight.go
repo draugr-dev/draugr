@@ -359,7 +359,7 @@ func (p Probes) withDefaults() Probes {
 	if p.Image == nil {
 		client := &registry.Client{}
 		p.Image = func(ctx context.Context, ref string, offline bool) (string, error) {
-			return probeImage(ctx, ref, offline, localImage, client.Check)
+			return probeImage(ctx, ref, offline, LocalImage, client.Check)
 		}
 	}
 	if p.Host == nil {
@@ -392,8 +392,8 @@ func probeImage(ctx context.Context, ref string, offline bool,
 	return "manifest readable", nil
 }
 
-// localImage reports whether the local Docker daemon holds ref. No daemon, or no docker, is a no.
-func localImage(ctx context.Context, ref string) bool {
+// LocalImage reports whether the local Docker daemon holds ref. No daemon, or no docker, is a no.
+func LocalImage(ctx context.Context, ref string) bool {
 	if _, err := exec.LookPath("docker"); err != nil {
 		return false
 	}
