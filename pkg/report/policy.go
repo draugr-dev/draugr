@@ -114,7 +114,7 @@ func splitOne(a action) []action {
 	b.findings = beyond
 	b.copies = beyondCopies
 	b.priority = worstPriority(beyond)
-	b.title = fmt.Sprintf("Upgrade %s %s", f.pkg.Name, target)
+	b.title = fmt.Sprintf("Upgrade %s %s", a.dependency().Name, target)
 	b.step = &policyStep{policy: policy, applies: true, after: w.id()}
 	if t := upgradeTarget(beyond); t != "" {
 		b.step.target = t

@@ -1,13 +1,12 @@
 package scanners
 
 import (
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 
 	"github.com/draugr-dev/draugr/internal/manifests"
+	"github.com/draugr-dev/draugr/internal/versionorder"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
@@ -31,7 +30,7 @@ func markPomScopes(results []sarif.Result, dir string) {
 		if res.Package == nil || path.Base(res.Location.URI) != "pom.xml" {
 			continue
 		}
-		coord, ok := mavenCoordinate(res.Package.PURL)
+		coord, ok := versionorder.MavenCoordinate(res.Package.PURL)
 		if !ok {
 			continue
 		}
@@ -74,29 +73,4 @@ func readPomScopes(dir, rel string) map[string]manifests.Scope {
 		return nil
 	}
 	return scopes
-}
-
-// mavenCoordinate is the groupId:artifactId a Maven package URL names, and false for any other
-// package URL.
-func mavenCoordinate(purl string) (string, bool) {
-	rest, ok := strings.CutPrefix(purl, "pkg:maven/")
-	if !ok {
-		return "", false
-	}
-	if i := strings.IndexAny(rest, "@?#"); i >= 0 {
-		rest = rest[:i]
-	}
-	group, artifact, ok := strings.Cut(rest, "/")
-	if !ok || group == "" || artifact == "" {
-		return "", false
-	}
-	g, err := url.PathUnescape(group)
-	if err != nil {
-		return "", false
-	}
-	a, err := url.PathUnescape(artifact)
-	if err != nil {
-		return "", false
-	}
-	return g + ":" + a, true
 }

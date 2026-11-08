@@ -245,3 +245,165 @@ func TestAPolicySplitSendsEachCopyWithItsStep(t *testing.T) {
 		t.Errorf("where = %q, want the copy's file on the one step", w)
 	}
 }
+
+// spelled is one scanner's report of one advisory in one package, under the name and ecosystem that
+// scanner writes, as the real Trivy and Grype reports of a pip and a Maven manifest have them.
+func spelled(tool, rule, component, repository, file, countedUnder string, p sarif.Package) sarif.Result {
+	p.Version, p.FixedVersion = "1.0.0", "2.0.0"
+	res := sarif.Result{
+		Tool: tool, RuleID: rule, Level: sarif.LevelError, Priority: "P2",
+		Component: component, Repository: repository,
+		Location: sarif.Location{URI: file, StartLine: 1},
+		Package:  &p,
+	}
+	if countedUnder != "" {
+		res.Correlation = &sarif.Correlation{CountedUnder: countedUnder}
+	}
+	return res
+}
+
+// One package two scanners name differently is one upgrade in each component, whichever repository
+// each report came from, and a copy under the other name adds its file to that upgrade.
+func TestTwoSpellingsOfOnePackageAreOneUpgrade(t *testing.T) {
+	const (
+		trivyPip   = "pip"
+		grypePip   = "python"
+		trivyMaven = "pom"
+		grypeMaven = "java-archive"
+		log4jPURL  = "pkg:maven/org.apache.logging.log4j/log4j-core@1.0.0"
+	)
+	cases := []struct {
+		name, manifest string
+		trivy, grype   sarif.Package
+	}{
+		{
+			"PyPI case", "requirements.txt",
+			sarif.Package{Name: "Flask", Ecosystem: trivyPip, PURL: "pkg:pypi/flask@1.0.0"},
+			sarif.Package{Name: "flask", Ecosystem: grypePip, PURL: "pkg:pypi/flask@1.0.0"},
+		},
+		{
+			"PyPI separators, no package URL", "requirements.txt",
+			sarif.Package{Name: "ruamel.yaml", Ecosystem: trivyPip},
+			sarif.Package{Name: "Ruamel_yaml", Ecosystem: grypePip},
+		},
+		{
+			"Maven group", "pom.xml",
+			sarif.Package{Name: "org.apache.logging.log4j:log4j-core", Ecosystem: trivyMaven, PURL: log4jPURL},
+			sarif.Package{Name: "log4j-core", Ecosystem: grypeMaven, PURL: log4jPURL},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := ActionsFor(map[string]sarif.Report{"sca": {Results: []sarif.Result{
+				spelled("trivy", "CVE-2020-0001", "api", "repo-api", "a/"+c.manifest, "", c.trivy),
+				spelled("grype", "CVE-2020-0002", "api", "repo-api", "a/"+c.manifest, "", c.grype),
+				spelled("grype", "CVE-2020-0001", "api", "repo-api", "b/"+c.manifest, "trivy", c.grype),
+				spelled("trivy", "CVE-2020-0001", "worker", "repo-worker", "a/"+c.manifest, "", c.trivy),
+				spelled("grype", "CVE-2020-0002", "worker", "repo-worker", "c/"+c.manifest, "", c.grype),
+			}}})
+			want := map[string]struct {
+				where  []string
+				clears int
+			}{
+				"api":    {[]string{"a/" + c.manifest + ":1", "b/" + c.manifest + ":1"}, 2},
+				"worker": {[]string{"a/" + c.manifest + ":1", "c/" + c.manifest + ":1"}, 2},
+			}
+			if len(got) != len(want) {
+				t.Fatalf("actions = %+v, want one per component", got)
+			}
+			for _, a := range got {
+				w := want[a.Component]
+				if !reflect.DeepEqual(a.Where, w.where) || a.Clears != w.clears {
+					t.Errorf("%s: where = %q clearing %d, want %q clearing %d", a.Component, a.Where, a.Clears, w.where, w.clears)
+				}
+			}
+		})
+	}
+}
+
+// Only the ecosystems whose rules make two names one package fold them. Elsewhere case can tell two
+// packages apart, and two Maven groups publish artifacts of one name.
+func TestDifferentPackagesStayApart(t *testing.T) {
+	cases := []struct {
+		name string
+		a, b sarif.Package
+	}{
+		{
+			"npm case",
+			sarif.Package{Name: "JSONStream", Ecosystem: "npm"},
+			sarif.Package{Name: "jsonstream", Ecosystem: "npm"},
+		},
+		{
+			"Maven groups",
+			sarif.Package{Name: "core", Ecosystem: "pom", PURL: "pkg:maven/org.one/core@1.0.0"},
+			sarif.Package{Name: "core", Ecosystem: "java-archive", PURL: "pkg:maven/org.two/core@1.0.0"},
+		},
+		{
+			"Maven with no package URL",
+			sarif.Package{Name: "org.one:core", Ecosystem: "pom"},
+			sarif.Package{Name: "core", Ecosystem: "java-archive"},
+		},
+		{
+			"PyPI names",
+			sarif.Package{Name: "flask", Ecosystem: "pip"},
+			sarif.Package{Name: "flask-cors", Ecosystem: "pip"},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := ActionsFor(map[string]sarif.Report{"sca": {Results: []sarif.Result{
+				spelled("trivy", "CVE-2020-0001", "api", "repo-api", "manifest", "", c.a),
+				spelled("grype", "CVE-2020-0002", "api", "repo-api", "manifest", "", c.b),
+			}}})
+			if len(got) != 2 {
+				t.Errorf("actions = %+v, want two", got)
+			}
+		})
+	}
+}
+
+// An action's name is the same whichever scanner's finding is the most urgent, which changes from
+// run to run as advisories are rated.
+func TestAnActionsNameDoesNotDependOnWhichFindingIsMostUrgent(t *testing.T) {
+	const purl = "pkg:maven/org.apache.logging.log4j/log4j-core@1.0.0"
+	trivy := sarif.Package{Name: "org.apache.logging.log4j:log4j-core", Ecosystem: "pom", PURL: purl}
+	grype := sarif.Package{Name: "log4j-core", Ecosystem: "java-archive", PURL: purl}
+	flask, lower := sarif.Package{Name: "Flask", Ecosystem: "pip"}, sarif.Package{Name: "flask", Ecosystem: "python"}
+	cases := []struct {
+		name, file, want, ecosystem, title string
+		urgent, later                      sarif.Package
+	}{
+		{"Maven, Trivy first", "pom.xml", trivy.Name, "pom", "Upgrade " + trivy.Name + " 1.0.0", trivy, grype},
+		{"Maven, Grype first", "pom.xml", trivy.Name, "pom", "Upgrade " + trivy.Name + " 1.0.0", grype, trivy},
+		{"PyPI, Trivy first", "requirements.txt", "Flask", "pip", "Upgrade Flask 1.0.0", flask, lower},
+		{"PyPI, Grype first", "requirements.txt", "Flask", "pip", "Upgrade Flask 1.0.0", lower, flask},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			first := spelled("trivy", "CVE-2020-0001", "api", "repo-api", c.file, "", c.urgent)
+			first.Priority = "P1"
+			got := ActionsFor(map[string]sarif.Report{"sca": {Results: []sarif.Result{
+				first,
+				spelled("grype", "CVE-2020-0002", "api", "repo-api", c.file, "", c.later),
+			}}})
+			if len(got) != 1 {
+				t.Fatalf("actions = %+v, want one", got)
+			}
+			a := got[0]
+			if a.Package != c.want || a.Ecosystem != c.ecosystem || a.Title != c.title {
+				t.Errorf("package %q ecosystem %q title %q, want %q, %q, %q", a.Package, a.Ecosystem, a.Title, c.want, c.ecosystem, c.title)
+			}
+		})
+	}
+}
+
+// A package with no fix is named in the chosen spelling too.
+func TestAReplacementIsNamedInTheChosenSpelling(t *testing.T) {
+	a := spelled("trivy", "CVE-2020-0001", "api", "repo-api", "requirements.txt", "", sarif.Package{Name: "flask", Ecosystem: "pip"})
+	b := spelled("grype", "CVE-2020-0002", "api", "repo-api", "requirements.txt", "", sarif.Package{Name: "Flask", Ecosystem: "python"})
+	a.Package.FixedVersion, b.Package.FixedVersion = "", ""
+	got := ActionsFor(map[string]sarif.Report{"sca": {Results: []sarif.Result{a, b}}})
+	if len(got) != 1 || !strings.HasPrefix(got[0].Title, "Replace or accept Flask 1.0.0") {
+		t.Errorf("actions = %+v, want one replacement of Flask", got)
+	}
+}

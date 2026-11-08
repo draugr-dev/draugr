@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/draugr-dev/draugr/internal/manifests"
+	"github.com/draugr-dev/draugr/internal/versionorder"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
@@ -57,7 +58,7 @@ func spreadPomFindings(report *sarif.Report, dir string) {
 		if r.Package == nil || path.Base(r.Location.URI) != "pom.xml" {
 			continue
 		}
-		coord, ok := mavenCoordinate(r.Package.PURL)
+		coord, ok := versionorder.MavenCoordinate(r.Package.PURL)
 		if !ok || r.Package.Version == "" {
 			continue
 		}

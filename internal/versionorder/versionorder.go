@@ -13,6 +13,7 @@
 package versionorder
 
 import (
+	"net/url"
 	"strings"
 
 	"github.com/google/osv-scalibr/semantic"
@@ -124,4 +125,29 @@ func (v Version) Compare(w Version) (order int, ok bool) {
 func looksLikeAVersion(s string) bool {
 	s = strings.TrimPrefix(s, "v")
 	return s != "" && s[0] >= '0' && s[0] <= '9'
+}
+
+// MavenCoordinate is the groupId:artifactId a Maven package URL names, and false for any other
+// package URL.
+func MavenCoordinate(purl string) (string, bool) {
+	rest, ok := strings.CutPrefix(purl, "pkg:maven/")
+	if !ok {
+		return "", false
+	}
+	if i := strings.IndexAny(rest, "@?#"); i >= 0 {
+		rest = rest[:i]
+	}
+	group, artifact, ok := strings.Cut(rest, "/")
+	if !ok || group == "" || artifact == "" {
+		return "", false
+	}
+	g, err := url.PathUnescape(group)
+	if err != nil {
+		return "", false
+	}
+	a, err := url.PathUnescape(artifact)
+	if err != nil {
+		return "", false
+	}
+	return g + ":" + a, true
 }
