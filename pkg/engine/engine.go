@@ -3333,7 +3333,8 @@ func fileDigest(path string) string {
 func dataNames(data []plugin.DataSource) []string {
 	var out []string
 	for _, d := range data {
-		if d.Name != "" && !slices.Contains(out, d.Name) {
+		// Data fetched on every scan has no copy to refresh, and a refresh does not touch it.
+		if d.Name != "" && !d.PerScan && !slices.Contains(out, d.Name) {
 			out = append(out, d.Name)
 		}
 	}

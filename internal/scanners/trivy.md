@@ -75,3 +75,10 @@ Trivy makes no version-check or telemetry request to `check.trivy.dev`. A Trivy 
 has neither flag and makes no such request.
 
 `config.controls.images.trivy.dbRepository` replaces both with an internal mirror.
+
+**`169.254.169.254`, the cloud metadata address, for an image in `gcr.io`, `*.gcr.io` or
+`*-docker.pkg.dev`.** Trivy asks Google's credential helper for a registry token for such an image,
+whether or not the image needs one, and the helper tries the machine's metadata server, where a
+Google Cloud machine's service-account credentials come from. Nothing about the image is sent to it.
+A runner that blocks the address still scans a public image: the request fails and Trivy pulls
+without a token. No other registry reaches it.

@@ -106,7 +106,7 @@ func NewTrivy() plugin.Scanner {
 	return tooladapter.New(tooladapter.Config{
 		Name:         "trivy",
 		Origin:       "aquasecurity",
-		Data:         trivyData,
+		Data:         trivyImageData,
 		Binary:       "trivy",
 		Controls:     []string{"images"},
 		TargetKinds:  []plugin.TargetKind{plugin.TargetImage},
