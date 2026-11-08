@@ -28,7 +28,9 @@ func TestGitleaksArgs(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	argv := gitleaksArgs("/work/repo", nil)
 	want := []string{
-		"gitleaks", "dir", "/work/repo",
+		// ".", not the checkout's path: Gitleaks runs inside the checkout, and a fingerprint built
+		// from "." is the one a `.gitleaksignore` entry was recorded against.
+		"gitleaks", "dir", ".",
 		"--report-format", "sarif",
 		"--report-path", ReportPathToken,
 		"--exit-code", "0",

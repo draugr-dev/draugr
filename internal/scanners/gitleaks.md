@@ -115,10 +115,18 @@ no record.
 A comment added to a line after its secret was committed covers the tree. The commit that
 introduced the secret without it is still reported by the history pass.
 
-`.gitleaksignore` leaves no record. On the history pass, Gitleaks applies it and reports nothing of
-what it excluded. On the tree pass, the checkout is named by its absolute path and the file holds
-repository-relative fingerprints, so no entry matches and a secret it names is still reported.
-[`config.exclude`](../../docs/reference/saga-schema.md#configexclude) keeps the finding and the reason.
+A secret a `.gitleaksignore` entry covers is reported suppressed with `origin: scanner`. An entry is
+the fingerprint Gitleaks prints run from the repository root: `<path>:<rule>:<line>` for the tree,
+`<commit>:<path>:<rule>:<line>` for history. Both passes name the checkout as `.` from inside it, so
+an entry recorded that way matches.
+
+Gitleaks writes nothing about what the file set aside, and it reads the file from the directory it
+scans as well as from `--gitleaks-ignore-path`. So where the checkout holds one, each pass runs once
+more with the file out of reach: the tree pass given the checkout's absolute path, whose findings no
+entry is written against, and the history pass given the repository's `.git` directory. In a
+checkout whose `.git` is a file, as a linked worktree's is, the history pass applies the file and
+leaves no record. [`config.exclude`](../../docs/reference/saga-schema.md#configexclude) keeps the
+finding and the reason in every case.
 
 ## Skipped
 

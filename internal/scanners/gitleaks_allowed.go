@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 )
 
@@ -18,9 +19,11 @@ import (
 // ignored. What the second finds and the first does not is what the comments set aside, and it is
 // added to the first report as suppressed in source. Recognizing the comment ourselves would cost
 // one run instead of two, but Gitleaks decides what counts as the comment, and a copy of that
-// decision is one more thing that can disagree with the tool it copies. Every other exclusion
-// Gitleaks applies, `.gitleaksignore` and a configuration's allowlists, holds in both runs and so
-// never appears in the difference.
+// decision is one more thing that can disagree with the tool it copies.
+//
+// A `.gitleaksignore` file is the same kind of silence, and where the checkout holds one, a further
+// run with the file out of reach records what it set aside, as the scanner's own exclusion. A
+// configuration's allowlists hold in every run and so never appear in a difference.
 
 // gitleaksAllowSince is the first Gitleaks carrying `--ignore-gitleaks-allow`.
 const gitleaksAllowSince = "8.18.1"
@@ -42,7 +45,7 @@ func gitleaksRun(run func(ctx context.Context, dir string, argv []string) ([]byt
 			return out, err
 		}
 		path := argv[i+1]
-		reported, err := os.ReadFile(path) // #nosec G304 -- the report path this run was given
+		reported, err := readGitleaksRelative(path, dir)
 		if err != nil {
 			return nil, err
 		}
@@ -57,44 +60,148 @@ func gitleaksRun(run func(ctx context.Context, dir string, argv []string) ([]byt
 		}
 		every := slices.Clone(argv)
 		every[i+1] = everyPath
+
+		// The run the allow comments are measured against: the reported one, or, where the
+		// checkout holds a .gitleaksignore, a run with that file out of reach. What it finds and the
+		// reported run does not is what the file set aside, recorded as the scanner's own exclusion.
+		merged, beforeAllow := reported, reported
+		if gitleaksIgnoreFile(dir) {
+			empty, err := os.MkdirTemp("", "draugr-gitleaks-noignore-")
+			if err != nil {
+				return nil, err
+			}
+			defer func() { _ = os.RemoveAll(empty) }()
+			if reach, ok := gitleaksIgnoreOutOfReach(every, dir, empty); ok {
+				if _, err := run(ctx, dir, reach); err != nil {
+					return nil, fmt.Errorf("run with the .gitleaksignore file out of reach: %w", err)
+				}
+				if beforeAllow, err = readGitleaksRelative(everyPath, dir); err != nil {
+					return nil, err
+				}
+				if merged, err = withGitleaksSetAside(merged, reported, beforeAllow, "external", "the .gitleaksignore file"); err != nil {
+					return nil, err
+				}
+				every = reach
+			}
+		}
+
 		if _, err := run(ctx, dir, append(every, gitleaksIgnoreAllowArg)); err != nil {
 			return nil, fmt.Errorf("run with %s: %w", gitleaksIgnoreAllowArg, err)
 		}
-		all, err := os.ReadFile(everyPath) // #nosec G304 -- a path this function just created
+		all, err := readGitleaksRelative(everyPath, dir)
 		if err != nil {
 			return nil, err
 		}
-		merged, err := withGitleaksAllowed(reported, all)
-		if err != nil {
+		if merged, err = withGitleaksSetAside(merged, beforeAllow, all, "inSource", "allow comments"); err != nil {
 			return nil, err
 		}
 		return out, os.WriteFile(path, merged, 0o600) // #nosec G703 -- the report path this run was given, read above
 	}
 }
 
+// gitleaksIgnorePathArg names a further place Gitleaks reads .gitleaksignore from. It reads the
+// file at its source too, whatever this says.
+const gitleaksIgnorePathArg = "--gitleaks-ignore-path"
+
+// gitleaksIgnoreOutOfReach is argv with the checkout's .gitleaksignore out of Gitleaks' reach, so
+// the run reports what the file would set aside. Gitleaks reads the file from its source and from
+// --gitleaks-ignore-path, so both move: the ignore path to an empty directory, and the source to a
+// path holding no such file that names the same tree. For the tree pass that is the checkout's
+// absolute path, whose findings carry absolute paths no entry is written against; for the history
+// pass, the repository's .git directory, which git reads the same history from. A checkout whose
+// .git is not a directory, such as a linked worktree, has no such path, and false says so: the
+// file then applies and leaves no record, as it did before.
+func gitleaksIgnoreOutOfReach(argv []string, dir, empty string) ([]string, bool) {
+	if len(argv) < 3 || argv[2] != "." {
+		return nil, false
+	}
+	out := slices.Clone(argv)
+	switch argv[1] {
+	case "dir":
+		out[2] = dir
+	case "git":
+		info, err := os.Stat(filepath.Join(dir, ".git"))
+		if err != nil || !info.IsDir() {
+			return nil, false
+		}
+		out[2] = filepath.Join(dir, ".git")
+	default:
+		return nil, false
+	}
+	return append(out, gitleaksIgnorePathArg, empty), true
+}
+
+// readGitleaksRelative reads a Gitleaks SARIF report with each location's path made relative to
+// dir, so a run given the checkout's absolute path compares with one given ".".
+func readGitleaksRelative(path, dir string) ([]byte, error) {
+	data, err := os.ReadFile(path) // #nosec G304 -- a report path a Gitleaks run of this scan wrote
+	if err != nil {
+		return nil, err
+	}
+	var doc map[string]any
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+	if err := dec.Decode(&doc); err != nil {
+		return nil, fmt.Errorf("read its report: %w", err)
+	}
+	// Anything not shaped as SARIF is left as it is, for the reader after this one to refuse.
+	runs, _ := doc["runs"].([]any)
+	for _, run := range runs {
+		r, _ := run.(map[string]any)
+		results, _ := r["results"].([]any)
+		for _, res := range results {
+			result, _ := res.(map[string]any)
+			locations, _ := result["locations"].([]any)
+			for _, loc := range locations {
+				l, _ := loc.(map[string]any)
+				physical, _ := l["physicalLocation"].(map[string]any)
+				artifact, _ := physical["artifactLocation"].(map[string]any)
+				if uri, ok := artifact["uri"].(string); ok {
+					artifact["uri"] = repoRelPath(dir, uri)
+				}
+			}
+		}
+	}
+	return json.Marshal(doc)
+}
+
+// gitleaksIgnoreFile reports whether the checkout holds a .gitleaksignore at its root, where
+// Gitleaks reads it from. Without one there is nothing it could have set aside, and no run to make.
+func gitleaksIgnoreFile(dir string) bool {
+	info, err := os.Stat(filepath.Join(dir, ".gitleaksignore"))
+	return err == nil && info.Mode().IsRegular()
+}
+
 // withGitleaksAllowed adds to a Gitleaks SARIF report each result the run with allow comments
-// ignored found and the report lacks, as a result suppressed in source. A report with nothing to
-// add is returned unchanged.
+// ignored found and the report lacks, as a result suppressed in source.
+func withGitleaksAllowed(reported, all []byte) ([]byte, error) {
+	return withGitleaksSetAside(reported, reported, all, "inSource", "allow comments")
+}
+
+// withGitleaksSetAside adds to report each result the run with one exclusion out of reach (all)
+// found and the run with it in force (with) lacks, as a result suppressed with kind: `inSource` for
+// an allow comment, `external` for the .gitleaksignore file. A report with nothing to add is
+// returned unchanged. what names the exclusion in an error.
 //
 // Results are matched on the rule, the location, the commit and the secret, and counted, so a
 // secret written twice on one line and allowed once is added once. Nothing looser: a result
-// wrongly matched is an allowed secret left without a record, and one wrongly unmatched is a
+// wrongly matched is a set-aside secret left without a record, and one wrongly unmatched is a
 // finding Gitleaks reported, added a second time as suppressed.
-func withGitleaksAllowed(reported, all []byte) ([]byte, error) {
+func withGitleaksSetAside(report, with, all []byte, kind, what string) ([]byte, error) {
 	var every struct {
 		Runs []struct {
 			Results []json.RawMessage `json:"results"`
 		} `json:"runs"`
 	}
 	if err := json.Unmarshal(all, &every); err != nil {
-		return nil, fmt.Errorf("read its report with allow comments ignored: %w", err)
+		return nil, fmt.Errorf("read its report with %s out of reach: %w", what, err)
 	}
 	var have struct {
 		Runs []struct {
 			Results []gitleaksResult `json:"results"`
 		} `json:"runs"`
 	}
-	if err := json.Unmarshal(reported, &have); err != nil {
+	if err := json.Unmarshal(with, &have); err != nil {
 		return nil, fmt.Errorf("read its report: %w", err)
 	}
 	seen := map[string]int{}
@@ -108,7 +215,7 @@ func withGitleaksAllowed(reported, all []byte) ([]byte, error) {
 		for _, raw := range run.Results {
 			var r gitleaksResult
 			if err := json.Unmarshal(raw, &r); err != nil {
-				return nil, fmt.Errorf("read its report with allow comments ignored: %w", err)
+				return nil, fmt.Errorf("read its report with %s out of reach: %w", what, err)
 			}
 			if k := r.key(); seen[k] > 0 {
 				seen[k]--
@@ -118,16 +225,16 @@ func withGitleaksAllowed(reported, all []byte) ([]byte, error) {
 			dec := json.NewDecoder(bytes.NewReader(raw))
 			dec.UseNumber()
 			if err := dec.Decode(&result); err != nil {
-				return nil, fmt.Errorf("read its report with allow comments ignored: %w", err)
+				return nil, fmt.Errorf("read its report with %s out of reach: %w", what, err)
 			}
-			result["suppressions"] = []any{map[string]any{"kind": "inSource"}}
+			result["suppressions"] = []any{map[string]any{"kind": kind}}
 			added = append(added, result)
 		}
 	}
 	if len(added) == 0 {
-		return reported, nil
+		return report, nil
 	}
-	return appendSARIFResults(reported, "gitleaks", added, nil)
+	return appendSARIFResults(report, "gitleaks", added, nil)
 }
 
 // gitleaksResult is what identifies one Gitleaks finding.
