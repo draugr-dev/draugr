@@ -124,6 +124,27 @@ func RunWithStderrShown(ctx context.Context, dir string, argv, env []string, sho
 	return out, errBuf.Bytes(), explain(argv[0], err)
 }
 
+// ErrCannotStart is a tool that was found and could not start: the shell's exit 127 for a command
+// or interpreter it could not find, 126 for one it could not execute. A wrapper script whose
+// Python environment is gone exits so, and so does a binary built for another platform. The
+// tool never read its target, so a failure carrying this is about the machine, not the target.
+var ErrCannotStart = errors.New("could not start")
+
+// cannotStart is the error for a tool that exited 126 or 127: what the shell said, and the command
+// that repairs the install.
+func cannotStart(tool string, err error, exit *exec.ExitError) error {
+	said := ""
+	if line := firstLine(string(exit.Stderr)); line != "" {
+		said = ": " + line
+	}
+	name := filepath.Base(tool)
+	fix := "Check its installation; `draugr doctor` names the source"
+	if tools.Provisionable(name) {
+		fix = fmt.Sprintf("Reinstall it with `draugr tools install %s`, or run `draugr doctor`", name)
+	}
+	return fmt.Errorf("%w (%w)%s. %s", ErrCannotStart, err, said, fix)
+}
+
 // explain puts the tool's own first words into the error.
 //
 // `exit status 1` tells a reader nothing they can act on, and it is what reaches the terminal, the
@@ -151,6 +172,9 @@ func explain(tool string, err error) error {
 			"(`draugr doctor` names the source)", err, tool)
 	}
 	exit, ok := errors.AsType[*exec.ExitError](err)
+	if ok && (exit.ExitCode() == 126 || exit.ExitCode() == 127) {
+		return cannotStart(tool, err, exit)
+	}
 	if !ok || len(exit.Stderr) == 0 {
 		return err
 	}
