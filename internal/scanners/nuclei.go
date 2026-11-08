@@ -245,7 +245,8 @@ func nucleiArgv(url, headerFile string, options []string) []string {
 	return nucleiTargetArgv([]string{"-u", url}, headerFile, options)
 }
 
-// nucleiSpecArgv scans the operations a rewritten OpenAPI document declares, rather than crawling.
+// nucleiSpecArgv scans the operations a rewritten OpenAPI document declares, rather than the paths
+// Nuclei's templates name under one URL. Neither path follows a link.
 //
 // -sfv is not optional and not silent. Without it Nuclei refuses a specification whose required
 // parameters it cannot fill. Which is most of them, and scans nothing at all. With it, those

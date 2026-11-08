@@ -165,8 +165,9 @@ Run it against an environment you can restore.
 
 ## Scanning from an OpenAPI specification
 
-An API has no HTML to crawl, so probing it blind reaches whatever the scanner can guess. Point it
-at the specification instead and it exercises the routes the service declares:
+Nuclei tests the URL a host declares and the paths its templates name beneath it. It follows no
+links, so a page reached only through a link or a script is not tested unless a template names it.
+Point it at the specification instead and it tests the operations the service declares:
 
 ```yaml
 hosts:

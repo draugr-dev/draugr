@@ -298,7 +298,7 @@ func TestNucleiSkipsCallbacksOffline(t *testing.T) {
 	}
 }
 
-// Scan hands the options to Nuclei on both paths, the crawl and the specification, and records
+// Scan hands the options to Nuclei on both paths, the URL and the specification, and records
 // them in the provenance.
 func TestNucleiScanPassesItsOptions(t *testing.T) {
 	var argvs [][]string
