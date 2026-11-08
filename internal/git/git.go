@@ -53,7 +53,11 @@ func Checkout(ctx context.Context, url, revision string, scope Scope) (tree Tree
 	// finds nothing in them.
 	keep := selected(scope.Paths)
 	sparse := len(keep) > 0 && !scope.History
-	cloneArgs := []string{"clone", "--quiet"}
+	// --no-local reads a source on this machine the way it reads a remote one. A local clone links
+	// or copies the source's object files one at a time and stops at any that a process writing to
+	// that repository replaced during the walk, and it ignores --depth and --filter. A URL is
+	// unaffected by the flag.
+	cloneArgs := []string{"clone", "--quiet", "--no-local"}
 	if revision == "" && !scope.History {
 		cloneArgs = append(cloneArgs, "--depth", "1")
 	}
@@ -89,9 +93,9 @@ func Checkout(ctx context.Context, url, revision string, scope Scope) (tree Tree
 	}
 
 	if revision != "" {
-		if err := gitRun(ctx, "-C", dir, "checkout", "--quiet", revision); err != nil {
+		if err := checkoutRevision(ctx, dir, url, revision); err != nil {
 			cleanup()
-			return Tree{}, nil, fmt.Errorf("git checkout %q: %w", revision, err)
+			return Tree{}, nil, err
 		}
 	}
 	if err := requirePaths(ctx, dir, keep); err != nil {
@@ -162,16 +166,10 @@ func resolved(ctx context.Context, dir, source string) Tree {
 // retryPlain re-clones url into dir without sparse checkout, for a server or a git that could
 // not do it the fast way. dir already exists and may hold a partial clone.
 func retryPlain(ctx context.Context, dir, url, revision string) error {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
+	if err := emptyDir(dir); err != nil {
 		return err
 	}
-	for _, e := range entries {
-		if err := os.RemoveAll(filepath.Join(dir, e.Name())); err != nil {
-			return err
-		}
-	}
-	args := []string{"clone", "--quiet"}
+	args := []string{"clone", "--quiet", "--no-local"}
 	if revision == "" {
 		args = append(args, "--depth", "1")
 	}
@@ -180,8 +178,43 @@ func retryPlain(ctx context.Context, dir, url, revision string) error {
 		return fmt.Errorf("git clone: %w", err)
 	}
 	if revision != "" {
-		if err := gitRun(ctx, "-C", dir, "checkout", "--quiet", revision); err != nil {
-			return fmt.Errorf("git checkout %q: %w", revision, err)
+		return checkoutRevision(ctx, dir, url, revision)
+	}
+	return nil
+}
+
+// checkoutRevision checks out revision in the clone at dir.
+//
+// A clone over the transport holds what the source's branches, tags and HEAD reach. A commit only a
+// pull-request ref or nothing reaches is in a repository on this machine and not in that clone, so
+// for a local source the second attempt is a local clone, which copies every object. It can stop on a
+// concurrent writer, which the first attempt cannot, and it is taken only for such a commit.
+func checkoutRevision(ctx context.Context, dir, url, revision string) error {
+	err := gitRun(ctx, "-C", dir, "checkout", "--quiet", revision)
+	if err != nil && IsLocalPath(url) {
+		if err := emptyDir(dir); err != nil {
+			return err
+		}
+		if err := gitRun(ctx, "clone", "--quiet", url, dir); err != nil {
+			return fmt.Errorf("git clone: %w", err)
+		}
+		err = gitRun(ctx, "-C", dir, "checkout", "--quiet", revision)
+	}
+	if err != nil {
+		return fmt.Errorf("git checkout %q: %w", revision, err)
+	}
+	return nil
+}
+
+// emptyDir removes what dir holds and keeps dir.
+func emptyDir(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if err := os.RemoveAll(filepath.Join(dir, e.Name())); err != nil {
+			return err
 		}
 	}
 	return nil

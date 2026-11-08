@@ -1,0 +1,1 @@
+- **A scan of a local repository no longer fails when something writes to that repository during the clone.** Draugr reads a local path the way it reads a URL, so the shallow clone now applies too. A revision only a local clone can reach still works.
