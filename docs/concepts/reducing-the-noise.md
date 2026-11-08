@@ -77,7 +77,7 @@ written, a directive in the scanned file or a rule in the scanner's configuratio
 you to different people.
 
 A scanner exclusion is counted only when the scanner keeps a record of it. A `#trivy:ignore` comment
-in an IaC file and a `.gitleaksignore` entry leave none, so nothing is counted for them.
+in an IaC file leaves none, so nothing is counted for it.
 
 An unreachable verdict is not a removal: the ledger CVE stays in the count at P2, marked
 `↓ unreachable`, because a suppression records that a person decided.

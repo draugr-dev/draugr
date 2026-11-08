@@ -23,6 +23,9 @@ type gitleaksPasses struct {
 
 func (p *gitleaksPasses) run(_ context.Context, _ string, argv []string) ([]byte, error) {
 	mode := argv[1]
+	if slices.Contains(argv, gitleaksIgnorePathArg) {
+		mode += "+noignore"
+	}
 	if slices.Contains(argv, gitleaksIgnoreAllowArg) {
 		mode += "+all"
 	}
@@ -101,13 +104,16 @@ func TestAnAllowedSecretArrivesSuppressedInSource(t *testing.T) {
 // that introduced the secret without it is still reported, as its own finding.
 func TestAnAllowCommentDoesNotCoverTheCommitThatIntroducedTheSecret(t *testing.T) {
 	dir := t.TempDir()
-	secret := leak{"generic-api-key", filepath.Join(dir, "settings.py"), 3, "live-key"}
+	secret := leak{"generic-api-key", "settings.py", 3, "live-key"}
 	introduced := leak{"generic-api-key", "settings.py", 3, "live-key"}
+	// Gitleaks names the commit in a history finding's message, as "… at commit <sha>.", which is
+	// what keeps it apart from the tree's finding at the same path and line.
+	committed := strings.Replace(gitleaksReport(introduced), " detected", " detected at commit abc123", 1)
 	passes := &gitleaksPasses{reports: map[string]string{
 		"dir":     gitleaksReport(),
 		"dir+all": gitleaksReport(secret),
-		"git":     gitleaksReport(introduced),
-		"git+all": gitleaksReport(introduced),
+		"git":     committed,
+		"git+all": committed,
 	}}
 	s := NewGitleaks().(repoScanner)
 	s.checkout = func(context.Context, string, string, git.Scope) (git.Tree, func(), error) {
@@ -197,5 +203,92 @@ func TestWithGitleaksAllowedCountsWhatItMatches(t *testing.T) {
 	}
 	if out, err := withGitleaksAllowed([]byte(reported), []byte(reported)); err != nil || string(out) != reported {
 		t.Errorf("out %s err %v, want the report untouched", out, err)
+	}
+}
+
+// A secret a .gitleaksignore entry covers reaches the report suppressed as the scanner's own
+// exclusion, beside an allow comment's and the secret Gitleaks reported. The run that puts the file
+// out of reach names the checkout by its absolute path, and its findings compare as the others do.
+func TestASecretTheGitleaksignoreFileCoversArrivesSuppressedByTheScanner(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".gitleaksignore"), []byte("app.py:aws-access-token:2\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	active := leak{"aws-access-token", "app.py", 4, "AKIAIOSFODNN7EXAMPLE"}
+	ignored := leak{"aws-access-token", filepath.Join(dir, "app.py"), 2, "AKIAIOSFODNN5EXAMPLE"}
+	activeAbs := leak{"aws-access-token", filepath.Join(dir, "app.py"), 4, "AKIAIOSFODNN7EXAMPLE"}
+	allowedAbs := leak{"aws-access-token", filepath.Join(dir, "app.py"), 3, "AKIAIOSFODNN6EXAMPLE"}
+	passes := &gitleaksPasses{reports: map[string]string{
+		"dir":              gitleaksReport(active),
+		"dir+noignore":     gitleaksReport(ignored, activeAbs),
+		"dir+noignore+all": gitleaksReport(ignored, allowedAbs, activeAbs),
+	}}
+	s := NewGitleaks().(repoScanner)
+	s.checkout = func(context.Context, string, string, git.Scope) (git.Tree, func(), error) {
+		return git.Tree{Dir: dir}, func() {}, nil
+	}
+	s.cacheVersion = nil
+	s.runLogged = gitleaksTree(withoutLog(passes.run), gitleaksVersion("8.30.1"))
+	rep, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: "./api"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(passes.calls, ","); got != "dir,dir+noignore,dir+noignore+all" {
+		t.Errorf("passes %s, want the tree as it is, with the file out of reach, then with allow comments ignored too", got)
+	}
+	byLine := map[int]*sarif.Suppression{}
+	for _, r := range rep.Results {
+		if r.Location.URI != "app.py" {
+			t.Errorf("result at %q, want app.py", r.Location.URI)
+		}
+		byLine[r.Location.StartLine] = r.Suppression
+	}
+	if len(byLine) != 3 {
+		t.Fatalf("%d results, want the reported secret, the ignored one and the allowed one", len(rep.Results))
+	}
+	if sup := byLine[4]; sup != nil {
+		t.Errorf("the reported secret arrived suppressed: %+v", sup)
+	}
+	if sup := byLine[2]; sup == nil || sup.Kind != "external" || sup.Origin != sarif.OriginScanner {
+		t.Errorf("the ignored secret: %+v, want the scanner's own exclusion", sup)
+	}
+	if sup := byLine[3]; sup == nil || sup.Kind != "inSource" || sup.Origin != sarif.OriginTool {
+		t.Errorf("the allowed secret: %+v, want a directive in the file", sup)
+	}
+}
+
+// The file is put out of reach only where Gitleaks can be pointed at the same tree without it: the
+// checkout's own path for the tree, its .git directory for history. A checkout whose .git is a file,
+// as a linked worktree's is, and an argv not of Draugr's shape, have no such path.
+func TestTheGitleaksignoreFileIsPutOutOfReachOnlyWhereThereIsAPath(t *testing.T) {
+	repo := t.TempDir()
+	if err := os.Mkdir(filepath.Join(repo, ".git"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	linked := t.TempDir()
+	if err := os.WriteFile(filepath.Join(linked, ".git"), []byte("gitdir: elsewhere\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		name, dir string
+		argv      []string
+		source    string
+	}{
+		{"tree", repo, []string{"gitleaks", "dir", ".", "--no-banner"}, repo},
+		{"history", repo, []string{"gitleaks", "git", ".", "--no-banner"}, filepath.Join(repo, ".git")},
+		{"history in a linked worktree", linked, []string{"gitleaks", "git", ".", "--no-banner"}, ""},
+		{"a source already named", repo, []string{"gitleaks", "dir", repo}, ""},
+		{"another mode", repo, []string{"gitleaks", "stdin", "."}, ""},
+	} {
+		got, ok := gitleaksIgnoreOutOfReach(c.argv, c.dir, "/empty")
+		if c.source == "" {
+			if ok {
+				t.Errorf("%s: %v, want no run", c.name, got)
+			}
+			continue
+		}
+		if !ok || got[2] != c.source || !slices.Equal(got[len(got)-2:], []string{gitleaksIgnorePathArg, "/empty"}) {
+			t.Errorf("%s: %v, want source %s and the empty ignore path", c.name, got, c.source)
+		}
 	}
 }

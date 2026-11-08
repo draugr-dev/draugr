@@ -2137,12 +2137,12 @@ ACCEPTED
 
 **`scanner exclusions` is every finding a scanner set aside on its own**, with nothing in this
 descriptor asking it to: a `# nosemgrep`, a `#nosec` or a `gitleaks:allow` beside the line, or a
-rule in a file the scanner reads such as `.trivyignore` or `.grype.yaml`. Draugr reports them rather
+rule in a file the scanner reads such as `.trivyignore`, `.gitleaksignore` or `.grype.yaml`. Draugr reports them rather
 than letting them disappear, because a finding somebody excluded and a finding nobody ever had look
 identical once the scanner has dropped it.
 
 An exclusion the scanner records in no output format cannot be reported, such as a
-`#trivy:ignore` comment in an IaC file or an entry in `.gitleaksignore`. Where a scanner reports
+`#trivy:ignore` comment in an IaC file. Where a scanner reports
 only some of its exclusions, its page in the [catalog](catalog.md) says which.
 [`config.exclude`](#configexclude) keeps the finding and the reason in every case.
 

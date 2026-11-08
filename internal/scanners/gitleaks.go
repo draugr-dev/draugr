@@ -160,9 +160,14 @@ var gitleaksRulesetWarned sync.Map
 // gitleaksCommand builds the argv for one mode. `--exit-code 0` keeps the process successful when
 // secrets are found: findings live in the report, not the exit code, and the controller decides
 // severity.
+//
+// The source is ".", and the tool runs inside the checkout. Gitleaks builds a finding's fingerprint
+// from the path as given, and a `.gitleaksignore` entry is matched against that fingerprint, so a
+// checkout's own path, a temporary directory named afresh on every run, would put every fingerprint
+// out of reach of the entries a developer recorded with `gitleaks dir .` or `gitleaks git .`.
 func gitleaksCommand(mode, dir string, cfg plugin.Config) []string {
 	argv := []string{
-		"gitleaks", mode, dir,
+		"gitleaks", mode, ".",
 		"--report-format", "sarif",
 		// Not /dev/stdout: gitleaks opens this path, and opening a process's own fd 1 is not the
 		// same as writing to it. See ReportPathToken.
