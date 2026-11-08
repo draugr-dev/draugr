@@ -89,6 +89,10 @@ var gcpAPIService = map[string]string{
 	"sqladmin": "cloudsql", "storage": "cloudstorage",
 }
 
+// gcpReadAboveOnly are the services whose checks read only the organization, so a refused read there
+// leaves them with no result, where other services' checks still read the project.
+var gcpReadAboveOnly = map[string]bool{"essentialcontacts": true}
+
 // gcpPermissions is every permission the services read, the gate first, each once.
 func gcpPermissions() []string {
 	out := []string{gcpServiceGate}

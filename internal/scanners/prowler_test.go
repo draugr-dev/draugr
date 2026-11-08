@@ -461,6 +461,41 @@ func TestProwlerReadsDenialsFromItsLog(t *testing.T) {
 	}
 }
 
+// Google refuses a read of an API the project has not enabled with a 403 that says so. It is named
+// as that, and the essential-contacts check, which reads only the organization, is unread; a denied
+// read of the organization's log sinks leaves the project's logging checks alone. The first line is
+// Prowler 5.48.0's, with its identifiers replaced.
+func TestADisabledAPIIsNamedAndLeavesItsOrganizationCheckUnread(t *testing.T) {
+	f := &fakeProwler{
+		checks:   []string{"iam_organization_essential_contacts_configured", "logging_sink_created"},
+		findings: []map[string]any{ocsf("logging_sink_created", "PASS", "medium", "global", "sink/a")},
+		log: `{"timestamp": "t", "filename": "iam_service.py:302", "level": "ERROR", "module": "iam_service", "message": "global -- HttpError[290]: <HttpError 403 when requesting https://essentialcontacts.googleapis.com/v1/organizations/111111111111/contacts?alt=json returned "Essential Contacts API has not been used in project shop-prod-4821 before or it is disabled. Details: "[{'@type': 'type.googleapis.com/google.rpc.ErrorInfo', 'reason': 'SERVICE_DISABLED'}]">"}
+{"timestamp": "t", "filename": "logging_service.py:74", "level": "ERROR", "module": "logging_service", "message": "HttpError[57]: <HttpError 403 when requesting https://logging.googleapis.com/v2/organizations/111111111111/sinks?alt=json returned "Permission 'logging.sinks.list' denied on resource"}
+`,
+	}
+	report, err := newTestProwler(f, &grantAll{}).Scan(context.Background(), shopProd, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var unread []string
+	for _, u := range report.Unchecked {
+		unread = append(unread, u.Check+": "+u.Reason)
+	}
+	want := []string{"iam_organization_essential_contacts_configured: essentialcontacts.googleapis.com disabled"}
+	if !slices.Equal(unread, want) {
+		t.Errorf("unread = %v, want %v", unread, want)
+	}
+	got := report.Provenance[0].Describe()
+	for _, w := range []string{"essentialcontacts.googleapis.com disabled", "denied logging.sinks.list"} {
+		if !strings.Contains(got, w) {
+			t.Errorf("provenance lacks %q: %s", w, got)
+		}
+	}
+	if strings.Contains(got, "does not name") {
+		t.Errorf("a disabled API is called an unnamed permission: %s", got)
+	}
+}
+
 func TestDeniedIn(t *testing.T) {
 	for line, want := range map[string][]string{
 		`... https://sqladmin.googleapis.com/v1/projects/p/instances ...`:                       {"cloudsql"},
