@@ -57,7 +57,8 @@ tool, where a suppression cannot be recorded or reviewed. Use `config.exclude` i
 ## Notes
 
 - Integration mode: **exec** (separate process); Trivy must be on `PATH`.
-- Trivy pulls the image itself, no local checkout needed.
+- Trivy reads the image from the local Docker daemon where the daemon holds it, and pulls it from
+  its registry otherwise, with the credential `docker login` stored. No local checkout is needed.
 
 ## Data
 

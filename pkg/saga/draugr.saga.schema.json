@@ -1992,7 +1992,7 @@
               },
               {
                 "const": "unread-checks",
-                "description": "A cloud check the scan could not evaluate, because a read it needs was denied."
+                "description": "A cloud check the scan could not evaluate, or could evaluate only in part, because a read it needs was denied."
               },
               {
                 "const": "unbound-imports",

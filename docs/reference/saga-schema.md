@@ -948,6 +948,12 @@ Findings are matched on **repository, package and vulnerability id**, not on the
 scanners spell an advisory differently. Grype reports `CVE-2020-14343-pyyaml` where Trivy reports
 the bare CVE, since one advisory can affect several packages in a scan.
 
+An image's operating system package is matched on its package URL as both scanners mean it. Grype
+adds `upstream=`, naming the source package (`login` from `shadow`); an epoch is a qualifier in
+Trivy's URL and a version prefix in Grype's; and Alpine's `distro` carries an `alpine-` prefix in
+Grype's alone. None of the three makes two packages of one, and each finding keeps the URL its
+scanner wrote.
+
 **An exclusion covers every scanner's copy.** Excusing `CVE-2020-14343` excuses it whichever tool
 found it: a decision about a vulnerability is a decision about the vulnerability, not about one
 tool's report of it.
@@ -1586,7 +1592,7 @@ in what the run covered, listed under **Caveats** in the report:
 | `not-checked` | a part of the component the run did not examine: a surface it declares that no enabled control looks at (for a host, `headers` or `tls`; `dast` leaves both to them), or, on a scan with no descriptor, a file whose scanner could not run on this machine |
 | `not-measured` | a scanner that cannot honor a component's scope, so it did not run for that component |
 | `unread-files` | a file whose contents no scanner read in full, in a repository that was read: a dependency file, a Terraform file calling a module that was not loaded or not evaluated, a Helm chart that was not rendered, a file the secrets scan skipped, a source file Semgrep skipped or did not finish, a `go.mod` gosec found no Go package in, or an image whose operating system the scanner does not support |
-| `unread-checks` | a cloud check the scan could not evaluate, because a read it needs was denied |
+| `unread-checks` | a cloud check the scan could not evaluate, or could evaluate only in part, because a read it needs was denied |
 | `unbound-imports` | an imported SARIF file that names no commit, so nothing ties its findings to the code being scanned |
 
 ```yaml

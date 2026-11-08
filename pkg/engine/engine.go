@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -3036,11 +3037,55 @@ func sharesTool(a, b map[string]bool) bool {
 // repository and vulnerability, two Go package URLs differing only by case are one dependency
 // reported twice, so the comparison ignores case. Every other ecosystem is compared as written.
 // The finding keeps the URL its scanner wrote; only the key is folded.
+//
+// An operating system's package (deb, rpm, apk) is written differently by the two image scanners,
+// and every difference is one of notation. Grype adds `upstream=` naming the source package where
+// it differs from the binary's (`login` from `shadow`); an epoch is a qualifier in Trivy's URL and
+// a version prefix in Grype's (`epoch=1` against `1:4.13`); and Alpine's `distro` is `3.24.2` in
+// one and `alpine-3.24.2` in the other. The key drops `upstream`, reads the epoch either way, and
+// compares `distro` without the namespace in front of it.
 func correlationPURL(purl string) string {
-	if strings.HasPrefix(purl, "pkg:golang/") {
+	switch {
+	case strings.HasPrefix(purl, "pkg:golang/"):
 		return strings.ToLower(purl)
+	case strings.HasPrefix(purl, "pkg:deb/"), strings.HasPrefix(purl, "pkg:rpm/"), strings.HasPrefix(purl, "pkg:apk/"):
+		return osPackagePURL(purl)
 	}
 	return purl
+}
+
+// osPackagePURL is an operating system package's URL in the one notation correlationPURL compares,
+// or the URL as written where it does not parse as one.
+func osPackagePURL(purl string) string {
+	base, query, _ := strings.Cut(purl, "?")
+	at := strings.LastIndex(base, "@")
+	if at < 0 {
+		return purl
+	}
+	path, rawVersion := base[:at], base[at+1:]
+	version, err := url.PathUnescape(rawVersion)
+	if err != nil {
+		return purl
+	}
+	qs, err := url.ParseQuery(query)
+	if err != nil {
+		return purl
+	}
+	qs.Del("upstream")
+	if epoch, rest, ok := strings.Cut(version, ":"); ok && qs.Get("epoch") == "" {
+		qs.Set("epoch", epoch)
+		version = rest
+	}
+	if qs.Get("epoch") == "0" {
+		qs.Del("epoch")
+	}
+	// pkg:<type>/<namespace>/<name>: the namespace is the distribution, alpine or debian.
+	if parts := strings.Split(strings.TrimPrefix(path, "pkg:"), "/"); len(parts) >= 3 {
+		if d := qs.Get("distro"); d != "" {
+			qs.Set("distro", strings.TrimPrefix(d, parts[1]+"-"))
+		}
+	}
+	return path + "@" + version + "?" + qs.Encode()
 }
 
 // strongestOf picks the finding a group is counted under: the one claiming most exposure.

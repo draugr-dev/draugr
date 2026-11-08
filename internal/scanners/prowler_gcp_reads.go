@@ -3,7 +3,6 @@ package scanners
 import (
 	"maps"
 	"slices"
-	"strings"
 )
 
 // What each Prowler check reads on Google Cloud, and the permissions each read needs.
@@ -88,15 +87,6 @@ var gcpAPIService = map[string]string{
 	"dataproc": "dataproc", "dns": "dns", "essentialcontacts": "essentialcontacts", "iam": "iam",
 	"logging": "logging", "monitoring": "monitoring", "serviceusage": "serviceusage",
 	"sqladmin": "cloudsql", "storage": "cloudstorage",
-}
-
-// checkReads is the services a check reads.
-func checkReads(check string) []string {
-	if reads, ok := gcpCheckReads[check]; ok {
-		return reads
-	}
-	service, _, _ := strings.Cut(check, "_")
-	return []string{service}
 }
 
 // gcpPermissions is every permission the services read, the gate first, each once.

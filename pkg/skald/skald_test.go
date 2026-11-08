@@ -1056,8 +1056,13 @@ func TestRenderJSONCarriesTargets(t *testing.T) {
 // tell an unread check from a clean one.
 func TestRenderJSONCarriesUnreadChecks(t *testing.T) {
 	run := sampleRun()
-	run.UnreadChecks = []engine.UnreadChecks{{Component: "api", Control: "cloud", Group: "compute",
-		Checks: []string{"compute_instance_public_ip"}, Reason: "denied compute.instances.list"}}
+	run.UnreadChecks = []engine.UnreadChecks{
+		{Component: "api", Control: "cloud", Group: "compute",
+			Checks: []string{"compute_instance_public_ip"}, Reason: "denied compute.instances.list"},
+		// Every check of the service read in part: an empty list of unread ones, not null.
+		{Component: "web", Control: "cloud", Group: "efs",
+			PartlyRead: []string{"efs_encryption_at_rest_enabled"}, Reason: "denied elasticfilesystem:DescribeAccessPoints"},
+	}
 	var buf bytes.Buffer
 	if err := RenderJSON(&buf, saga.Release{Version: "1"}, run, sampleVerdict(), ""); err != nil {
 		t.Fatal(err)
@@ -1068,8 +1073,12 @@ func TestRenderJSONCarriesUnreadChecks(t *testing.T) {
 	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
 		t.Fatal(err)
 	}
-	want := []map[string]any{{"component": "api", "control": "cloud", "service": "compute",
-		"checks": []any{"compute_instance_public_ip"}, "reason": "denied compute.instances.list"}}
+	want := []map[string]any{
+		{"component": "api", "control": "cloud", "service": "compute",
+			"checks": []any{"compute_instance_public_ip"}, "reason": "denied compute.instances.list"},
+		{"component": "web", "control": "cloud", "service": "efs", "checks": []any{},
+			"partlyRead": []any{"efs_encryption_at_rest_enabled"}, "reason": "denied elasticfilesystem:DescribeAccessPoints"},
+	}
 	if !reflect.DeepEqual(doc.UnreadChecks, want) {
 		t.Errorf("unreadChecks = %v, want %v", doc.UnreadChecks, want)
 	}

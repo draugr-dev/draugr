@@ -242,8 +242,8 @@ const (
 	// Semgrep skipped or did not finish, or an image whose operating system the scanner does not
 	// support.
 	CaveatUnreadFiles CaveatKind = "unread-files"
-	// CaveatUnreadChecks is a cloud check the scan could not evaluate, because a read it needs
-	// was denied.
+	// CaveatUnreadChecks is a cloud check the scan could not evaluate, or could evaluate only in part,
+	// because a read it needs was denied.
 	CaveatUnreadChecks CaveatKind = "unread-checks"
 	// CaveatUnboundImports is an imported SARIF file that states no revision, so nothing shows it
 	// describes the code being scanned.
