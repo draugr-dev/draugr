@@ -238,8 +238,9 @@ const (
 	CaveatNotMeasured CaveatKind = "not-measured"
 	// CaveatUnreadFiles is a file whose contents no scanner read in full, in a repository that was
 	// read: a dependency file, a Terraform file calling a module that was not loaded or not
-	// evaluated, a Helm chart that was not rendered, a file the secrets scan skipped, or a source
-	// file Semgrep skipped or did not finish.
+	// evaluated, a Helm chart that was not rendered, a file the secrets scan skipped, a source file
+	// Semgrep skipped or did not finish, or an image whose operating system the scanner does not
+	// support.
 	CaveatUnreadFiles CaveatKind = "unread-files"
 	// CaveatUnreadChecks is a cloud check the scan could not evaluate, because a read it needs
 	// was denied.

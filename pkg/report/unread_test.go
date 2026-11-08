@@ -9,6 +9,7 @@ import (
 
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/saga"
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 // Two components, one of them drawing on two repositories that each hold a package.json, and one
@@ -315,5 +316,27 @@ func TestRepositoriesAreCountedPerComponent(t *testing.T) {
 	got := repositoriesByComponent(targets)
 	if got["api"] != 1 || got["web"] != 1 {
 		t.Errorf("repositoriesByComponent = %v, want one each", got)
+	}
+}
+
+// An image whose operating system the scanner skipped is counted on the control's line as an
+// operating system, not as a file, and its caveat row names the image with its digest shortened.
+func TestAnUnreadOperatingSystemIsCountedAndNamedAsOne(t *testing.T) {
+	ref := "registry.example/app:1@sha256:" + strings.Repeat("a", 64)
+	inputs := []engine.InputCoverage{
+		{Component: "web", Control: "images", Unread: []engine.UnreadInput{
+			{Path: ref, Reason: "centos-stream 9 not supported by trivy, OS packages not checked", Kind: sarif.InputOperatingSystem},
+		}},
+		{Component: "web", Control: "sca", Unread: []engine.UnreadInput{{Repository: "r", Path: "go.mod", Reason: "no packages read"}}},
+	}
+	if got := unreadNote(inputs, "images"); got != "1 operating system not checked" {
+		t.Errorf("images note = %q", got)
+	}
+	if got := unreadNote(inputs, "sca"); got != "1 file unread" {
+		t.Errorf("sca note = %q", got)
+	}
+	groups := unreadByComponent(inputs[:1], nil)
+	if len(groups) != 1 || len(groups[0].files) != 1 || groups[0].files[0].label != "registry.example/app:1@sha256:aaaaaaaaaaaa…" {
+		t.Errorf("groups = %+v", groups)
 	}
 }

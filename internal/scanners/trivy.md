@@ -22,6 +22,12 @@ container image's OS packages and bundled libraries, and converts the result to 
 names the package, the image and its operating system as fields, where its SARIF names the package
 only in prose.
 
+**An operating system Trivy has no advisory data for is reported, not passed.** Trivy names the
+distribution and returns nothing for its packages, so the image would read as clean. The image is
+listed under Caveats as `unread-files`, with the distribution and `OS packages not checked`, and
+the control's line counts it as an operating system not checked. Its libraries are still scanned.
+A scan narrowed to libraries with `pkgTypes: [library]` asked for no OS packages, and says nothing.
+
 ## Links
 
 - Home / docs: https://trivy.dev

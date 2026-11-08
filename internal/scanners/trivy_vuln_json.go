@@ -516,6 +516,51 @@ func trivyVulnScore(v trivyVuln) (float64, bool) {
 // The target is unused: everything this reads is in Trivy's output, and the one fact that comes
 // from the target. The image reference. Is applied by imageRefLocations alongside the location, so
 // the two can never disagree.
-func parseTrivyImage(out []byte, _ plugin.Target, cfg plugin.Config) (sarif.Report, error) {
-	return parseTrivyVulns(out, "", cfg)
+func parseTrivyImage(out []byte, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
+	rep, err := parseTrivyVulns(out, "", cfg)
+	if err != nil {
+		return rep, err
+	}
+	if in, ok := unsupportedOS(out, target, cfg); ok {
+		rep.Inputs = append(rep.Inputs, in)
+	}
+	return rep, nil
+}
+
+// unsupportedOS reports an image whose operating system Trivy identified and has no advisory data
+// for. Trivy then logs a warning, which --quiet hides, and returns no result set for the image's
+// own packages, so a scan of the image reads as clean. A supported distribution always has that
+// result set, even with no vulnerabilities in it, so its absence beside a named distribution is the
+// skip, said where the report's caveats say what was not read.
+//
+// Only where the scan asked for the operating system's packages: a scan narrowed to libraries has
+// no result set for them either, and that is the scan doing as it was told.
+func unsupportedOS(out []byte, target plugin.Target, cfg plugin.Config) (sarif.Input, bool) {
+	var doc trivyVulnDoc
+	if json.Unmarshal(out, &doc) != nil || doc.Metadata.OS.Family == "" || !scansOSPackages(cfg) {
+		return sarif.Input{}, false
+	}
+	for _, res := range doc.Results {
+		if res.Class == trivyClassOSPkgs {
+			return sarif.Input{}, false
+		}
+	}
+	name := strings.TrimSpace(doc.Metadata.OS.Family + " " + doc.Metadata.OS.Name)
+	where := ""
+	if img, ok := target.(plugin.ImageTarget); ok {
+		where = img.PinnedRef()
+	}
+	return sarif.Input{
+		Scanner: "trivy",
+		Path:    where,
+		Kind:    sarif.InputOperatingSystem,
+		Unread:  name + " not supported by trivy, OS packages not checked",
+	}, true
+}
+
+// scansOSPackages reports whether the scan asked Trivy for the operating system's packages: the
+// default, or pkgTypes naming "os".
+func scansOSPackages(cfg plugin.Config) bool {
+	types := stringList(cfg, "pkgTypes")
+	return len(types) == 0 || slices.Contains(types, "os")
 }
