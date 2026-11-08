@@ -1,1 +1,0 @@
-- **An image's operating system flaw found by both Trivy and Grype counts once.** The two write one Debian, Ubuntu, Red Hat or Alpine package's URL with different qualifiers, so most such flaws counted once per scanner: a Debian 12 image read as 399 findings for 215 flaws. Both findings stay in the report, the second listed as `also found by`.

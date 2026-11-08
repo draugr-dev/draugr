@@ -1,1 +1,0 @@
-- **A `.gitleaksignore` entry applies, and what it sets aside is reported.** Draugr ran Gitleaks on the checkout's temporary path, which put every tree fingerprint out of reach of an entry recorded with `gitleaks dir .`. Gitleaks now runs from inside the checkout, and a secret an entry covers is listed suppressed with `origin: scanner`.

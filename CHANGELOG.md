@@ -12,6 +12,26 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.170.0] - 2026-11-08
+
+### Added
+
+- **Check a live AWS account with the `cloud` control.** Declare it under `accounts:` with `provider: aws` and its 12-digit ID, quoted, in `account:`. The scan and `draugr doctor` confirm the credentials belong to that account. Prowler's default Control Tower mutelist is not applied, so findings it would mute are reported.
+
+- **See which AWS reads were denied.** Under Caveats, the `cloud` control lists each AWS service whose reads were denied, with the action or call that was refused, as `unread-checks`. A check with no result is unread; one with results keeps its findings and is marked partly read. `failOnCaveats: [unread-checks]` fails on both.
+
+### Fixed
+
+- **A `.gitleaksignore` entry recorded with `gitleaks dir .` now applies.** Gitleaks runs from inside the checkout, so its fingerprints match. A secret an entry covers is listed suppressed with `origin: scanner` and leaves the counts and the gate. Check old entries: one that never matched may now hide a secret still to be fixed.
+
+- **A scanner that cannot start is reported as one.** A tool that exits 127 or 126, such as a wrapper script whose Python environment is gone, is no longer reported as a missing repository. The control says the scanner could not start, shows the shell's message, and names `draugr tools install` or `draugr doctor`.
+
+- **A local image is no longer told to `docker login`.** Where Grype alone scanned an image its registry refused and the local Docker daemon holds it, the errors block says the image is only in the daemon, and names the ways to read it: enable `trivy`, or push it to a registry first.
+
+- **An operating system flaw found by both Trivy and Grype counts once.** This covers Debian, Ubuntu, Red Hat and Alpine packages, which the two identify differently, so counts on images scanned by both fall: a Debian 12 image goes from 399 findings to 215. Both stay in the report, the second listed as `also found by`.
+
+- **An image whose operating system Trivy does not support is no longer reported clean.** Trivy checks none of its packages, CentOS Stream among them. The image is listed under Caveats as `unread-files`, with the distribution and `OS packages not checked`, and `failOnCaveats: [unread-files]` now fails on it. Its libraries are still scanned.
+
 ## [0.169.0] - 2026-11-07
 
 ### Added
@@ -6901,7 +6921,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.169.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.170.0...HEAD
+[0.170.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.170.0
 [0.169.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.169.0
 [0.168.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.168.0
 [0.167.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.167.0

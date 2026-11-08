@@ -1,1 +1,0 @@
-- **An image built here and never pushed is no longer met with `docker login`.** Where Grype alone scanned an image its registry refused and the local Docker daemon holds it, the errors block says the image is only in the daemon, and names the ways to read it: enable `trivy`, or push it to a registry first.

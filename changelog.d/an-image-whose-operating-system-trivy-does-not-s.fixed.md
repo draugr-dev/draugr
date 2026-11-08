@@ -1,1 +1,0 @@
-- **An image whose operating system Trivy does not support no longer passes as clean.** Trivy names such a distribution, CentOS Stream among them, and checks none of its packages. The image is now listed under Caveats as `unread-files`, with the distribution and `OS packages not checked`, and the control's line counts it.
