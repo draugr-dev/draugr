@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/draugr-dev/draugr/internal/manifests"
+	"github.com/draugr-dev/draugr/internal/versionorder"
 	"github.com/draugr-dev/draugr/pkg/exploit"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -264,16 +265,38 @@ func (a action) id() string {
 }
 
 // dependency is the package an upgrade or a replacement is about, or nil for any other action.
+//
+// Where its findings spell the package differently, the longest spelling, then the first in byte
+// order: Maven's group and artifact over the artifact alone, Flask over flask. The choice does not
+// depend on which finding is most urgent, because that changes between runs and the name is what
+// identifies the work in anything following it across them.
 func (a action) dependency() *sarif.Package {
 	if !strings.HasPrefix(a.key, "upgrade\x00") && !strings.HasPrefix(a.key, "nofix\x00") {
 		return nil
 	}
+	var p *sarif.Package
 	for _, f := range a.findings {
-		if f.pkg != nil {
-			return f.pkg
+		if f.pkg == nil {
+			continue
+		}
+		if p == nil || len(f.pkg.Name) > len(p.Name) || (len(f.pkg.Name) == len(p.Name) && f.pkg.Name < p.Name) {
+			p = f.pkg
 		}
 	}
-	return nil
+	return p
+}
+
+// namedForDependency is an action's title, in the package's spelling dependency chose where the
+// action is about one.
+func namedForDependency(a action) string {
+	p := a.dependency()
+	if p == nil {
+		return a.title
+	}
+	f := a.findings[0]
+	f.pkg = p
+	_, title, _, _ := actionFor(f)
+	return title
 }
 
 // displayLocation shortens a location that is an image reference.
@@ -376,6 +399,7 @@ func groupActions(findings []finding, unpinned []string, copies ...finding) (act
 			a.upstream = f.builtUpstream
 		}
 		a.kind = upstreamKind(a)
+		a.title = namedForDependency(a)
 		if a.byRule {
 			a.summary = summaryFor(a)
 		}
@@ -1331,7 +1355,7 @@ func actionFindings(fs []finding) []ActionFinding {
 }
 
 // packageUnit is what makes two dependency findings one action: the same component, ecosystem,
-// package and installed version.
+// package and installed version. The package is compared as packageIdentity gives it.
 //
 // The ecosystem is its versioning rather than the name its scanner wrote, because scanners spell one
 // ecosystem differently. Trivy writes gomod for a Go module where Grype writes go-module, and pip for
@@ -1339,7 +1363,30 @@ func actionFindings(fs []finding) []ActionFinding {
 // spelling, each with its own upgrade, and a copy would add its file only to an action spelled as it
 // is. The finding keeps the name its scanner wrote.
 func packageUnit(f finding) string {
-	return f.component + "\x00" + versioning(f.pkg) + "\x00" + f.pkg.Name + "\x00" + f.pkg.Version
+	return f.component + "\x00" + versioning(f.pkg) + "\x00" + packageIdentity(f.pkg) + "\x00" + f.pkg.Version
+}
+
+// pep503Separators is a run of the characters PEP 503 treats as one separator in a PyPI name.
+var pep503Separators = regexp.MustCompile(`[-_.]+`)
+
+// packageIdentity is a package's name in the form its ecosystem compares, so every scanner's spelling
+// of one package gives one answer. The finding keeps the name its scanner wrote.
+//
+// A PyPI name is compared as PEP 503 normalizes it: Trivy writes Flask and Grype writes flask. A Maven
+// package is its groupId:artifactId from the package URL, because Trivy names both and Grype names the
+// artifact alone. Without a package URL, a Maven name stands as written: an artifact does not say
+// which group it is in. Every other ecosystem's names are compared as written, because case
+// distinguishes packages in some of them.
+func packageIdentity(p *sarif.Package) string {
+	switch versioning(p) {
+	case "pypi":
+		return pep503Separators.ReplaceAllString(strings.ToLower(p.Name), "-")
+	case "maven":
+		if coordinate, ok := versionorder.MavenCoordinate(p.PURL); ok {
+			return coordinate
+		}
+	}
+	return p.Name
 }
 
 // upstreamUnit names the thing a reader would have to take a newer version of.

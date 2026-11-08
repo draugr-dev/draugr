@@ -377,27 +377,6 @@ func TestAComponentsProvidedDependenciesReplacesTheProjects(t *testing.T) {
 		pomJunit, sarif.JustificationDevDependency, devKey))
 }
 
-func TestMavenCoordinate(t *testing.T) {
-	for purl, want := range map[string]string{
-		"pkg:maven/org.apache.commons/commons-text@1.9": "org.apache.commons:commons-text",
-		"pkg:maven/junit/junit@4.12?type=jar":           "junit:junit",
-		"pkg:maven/g/a?classifier=tests":                "g:a",
-		"pkg:maven/g/a#sub":                             "g:a",
-		"pkg:maven/org.example/my%2Dlib@1":              "org.example:my-lib",
-		"pkg:npm/lodash@4.17.20":                        "",
-		"pkg:maven/only-one-segment@1":                  "",
-		"pkg:maven//a@1":                                "",
-		"pkg:maven/g%zz/a@1":                            "",
-		"pkg:maven/g/a%zz@1":                            "",
-		"":                                              "",
-	} {
-		got, ok := mavenCoordinate(purl)
-		if got != want || ok != (want != "") {
-			t.Errorf("mavenCoordinate(%q) = (%q, %v), want %q", purl, got, ok, want)
-		}
-	}
-}
-
 // A finding is marked only where its package is a Maven package declared in the pom at its
 // location; anything else keeps what its scanner said, and a mark already there stays.
 func TestMarkPomScopes(t *testing.T) {

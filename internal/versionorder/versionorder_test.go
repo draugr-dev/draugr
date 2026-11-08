@@ -146,3 +146,24 @@ func TestEveryScannersSpellingNamesOneEcosystem(t *testing.T) {
 		}
 	}
 }
+
+func TestMavenCoordinate(t *testing.T) {
+	for purl, want := range map[string]string{
+		"pkg:maven/org.apache.commons/commons-text@1.9": "org.apache.commons:commons-text",
+		"pkg:maven/junit/junit@4.12?type=jar":           "junit:junit",
+		"pkg:maven/g/a?classifier=tests":                "g:a",
+		"pkg:maven/g/a#sub":                             "g:a",
+		"pkg:maven/org.example/my%2Dlib@1":              "org.example:my-lib",
+		"pkg:npm/lodash@4.17.20":                        "",
+		"pkg:maven/only-one-segment@1":                  "",
+		"pkg:maven//a@1":                                "",
+		"pkg:maven/g%zz/a@1":                            "",
+		"pkg:maven/g/a%zz@1":                            "",
+		"":                                              "",
+	} {
+		got, ok := MavenCoordinate(purl)
+		if got != want || ok != (want != "") {
+			t.Errorf("MavenCoordinate(%q) = (%q, %v), want %q", purl, got, ok, want)
+		}
+	}
+}
