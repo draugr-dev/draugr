@@ -1,1 +1,0 @@
-- **See which AWS reads were denied.** The `cloud` control lists under Caveats each AWS service whose reads were denied, with the action or call that was refused. A check with no result is unread; one with results keeps its findings, is marked partly read and does not count as decided.

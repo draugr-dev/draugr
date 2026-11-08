@@ -1,1 +1,0 @@
-- **Check a live AWS account with the `cloud` control.** Declare it under `accounts:` with `provider: aws` and its 12-digit ID, quoted, in `account:`. The scan and `draugr doctor` confirm the credentials belong to that account. Prowler's default Control Tower mutelist is replaced with an empty one.
