@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -774,6 +775,40 @@ func TestErrorChainStopsWhereTheListEnds(t *testing.T) {
 	} {
 		if got := errorChain(c.rest); !slices.Equal(got, c.want) {
 			t.Errorf("errorChain(%q) = %q, want %q", c.rest, got, c.want)
+		}
+	}
+}
+
+// A tool found and unable to start, the shell's 127 for a missing command or interpreter and 126 for
+// one it cannot execute, is said to be so: what the shell printed, and the command that repairs the
+// install, rather than "exit status 127".
+func TestAToolThatCannotStartSaysSoWithTheFix(t *testing.T) {
+	dir := t.TempDir()
+	for _, c := range []struct {
+		code    int
+		name    string
+		wantFix string
+	}{
+		{127, "semgrep", "Reinstall it with `draugr tools install semgrep`"},
+		{126, "draugr-not-a-fetched-tool", "Check its installation; `draugr doctor` names the source"},
+	} {
+		script := filepath.Join(dir, c.name)
+		body := fmt.Sprintf("#!/bin/sh\necho \"%s: line 2: /opt/venv/bin/python: No such file or directory\" >&2\nexit %d\n", c.name, c.code)
+		if err := os.WriteFile(script, []byte(body), 0o700); err != nil { // #nosec G306 -- a test script this test runs
+			t.Fatal(err)
+		}
+		_, err := Run(context.Background(), "", []string{script})
+		if !errors.Is(err, ErrCannotStart) {
+			t.Fatalf("%d: err = %v, want ErrCannotStart", c.code, err)
+		}
+		if _, ok := errors.AsType[*exec.ExitError](err); !ok {
+			t.Errorf("%d: the exit error is no longer in the chain", c.code)
+		}
+		msg := err.Error()
+		for _, want := range []string{"could not start", fmt.Sprintf("exit status %d", c.code), "No such file or directory", c.wantFix} {
+			if !strings.Contains(msg, want) {
+				t.Errorf("%d: %q lacks %q", c.code, msg, want)
+			}
 		}
 	}
 }
