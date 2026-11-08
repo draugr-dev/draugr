@@ -1,9 +1,11 @@
-// Package awsaccess asks AWS which identity the credentials in the environment are.
+// Package awsaccess asks AWS which identity the credentials in the environment are, and which
+// actions that identity's policies allow.
 //
-// One question, asked by two callers: `draugr doctor`, to say whether a declared account is the
-// one the credentials reach, and the prowler scanner, before Prowler runs. Prowler's output names
-// the account it read and not the identity that read it, and credentials for another account
-// produce a complete, plausible report about the wrong account.
+// The first question is asked by two callers: `draugr doctor`, to say whether a declared account is
+// the one the credentials reach, and the prowler scanner, before Prowler runs. Prowler's output
+// names the account it read and not the identity that read it, and credentials for another account
+// produce a complete, plausible report about the wrong account. The second is the scanner's, to
+// learn before the scan which services' reads will be denied.
 //
 // The credentials are the ones Prowler and every AWS SDK read: the AWS_* environment variables,
 // AWS_PROFILE and the shared config and credentials files, an SSO session, or the role of the

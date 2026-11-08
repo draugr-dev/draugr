@@ -52,10 +52,33 @@ coverage figure counts the checks the installed Prowler runs.
 1. **The caller is confirmed.** Before Prowler runs, the scanner asks STS `GetCallerIdentity` which
    identity the credentials are. Prowler checks whichever account the credentials reach, so an
    identity in another account is an error naming both accounts.
-2. **The mutelist is emptied.** Given none, Prowler mutes the resources AWS Control Tower creates.
+2. **A permission preflight, where the credentials may make one.** The scanner asks IAM `GetRole`
+   for the ARN, with its path, of the role the session assumed, then `SimulatePrincipalPolicy`
+   which of the actions Prowler's services call the role's policies allow. A user is simulated as
+   itself, and the account's root not at all. The simulation weighs the role's policies, its
+   permissions boundary and the organization's service control policies, and not a resource's own
+   policy. Credentials that may not call either, as a read-only role commonly may not, leave the
+   log alone to name the denials, and neither case is an error. The measured-against line says
+   which ran, `permissions: checked before the scan` or `permissions: read from Prowler's log`.
+3. **The log is read for denied calls**, after a preflight too. A denied call is one a service
+   module logged as failing with `AccessDenied`, `AccessDeniedException`, `AuthorizationError`
+   (SNS) or `UnauthorizedOperation` (EC2), and a throttled call is not one. The reason is the
+   action the error names, `denied kms:DescribeKey`, or the call where it names none, `denied the
+   GetEventSelectors call`.
+4. **A denial is judged per check.** Prowler starts a service by making every call its module
+   makes, so a denied call leaves every check of the service in doubt, and is often one some of
+   them do not need. A check of a denied service with no pass or fail is unread, and its result
+   discarded. A check with one keeps its findings, is marked partly read, and is not counted as
+   decided.
+5. **The mutelist is emptied.** Given none, Prowler mutes the resources AWS Control Tower creates.
    The scanner passes a mutelist holding `Mutelist: {}`, so every finding reaches the report, where
    Draugr's excludes suppress one with a reason.
-3. **No permission preflight yet.** See `permissions: not checked` in the measured-against line.
+
+The simulation asks only about actions named in a denial Prowler logged or in Prowler's
+`prowler-additions-policy`, because IAM answers an action it does not know as denied. Where none of
+those names a service's action, the service is left out of the simulation and its denials come from
+the log alone. That holds for `apigateway`, `apigatewayv2`, `awslambda`, `cloudfront`, `config`,
+`glacier`, `organizations`, `rds`, `securityhub`, `sqs` and `vpc`.
 
 Findings in a component's claimed regions are kept, matching zones of a region; a component that
 claims the whole account gets every finding, including those with no region. On AWS, Prowler files a
@@ -93,7 +116,9 @@ what it cannot read is reported unread rather than passed. Credentials of a pers
 service account need a quota project: `gcloud auth application-default set-quota-project <project>`.
 
 **AWS.** Prowler documents the `SecurityAudit` and `ViewOnlyAccess` managed policies, plus its own
-`prowler-additions-policy`.
+`prowler-additions-policy`. `SecurityAudit` includes `iam:GetRole` and `iam:SimulatePrincipalPolicy`,
+which the preflight calls. A narrower grant works, and a check whose read it denies is reported unread
+or partly read rather than passed.
 
 ## Links
 
@@ -101,6 +126,7 @@ service account need a quota project: `gcloud auth application-default set-quota
 - OCSF output: https://docs.prowler.com/projects/prowler-open-source/en/latest/tutorials/reporting/
 - `testIamPermissions`: https://cloud.google.com/resource-manager/reference/rest/v1/projects/testIamPermissions
 - `GetCallerIdentity`: https://docs.aws.amazon.com/STS/latest/APIReference/API_GetCallerIdentity.html
+- `SimulatePrincipalPolicy`: https://docs.aws.amazon.com/IAM/latest/APIReference/API_SimulatePrincipalPolicy.html
 - Prowler's AWS permissions: https://docs.prowler.com/user-guide/providers/aws/authentication
 
 ## Notes
@@ -109,8 +135,8 @@ service account need a quota project: `gcloud auth application-default set-quota
   account: Application Default Credentials on Google Cloud, the AWS SDK's default chain on AWS
   (`AWS_PROFILE`, the shared config and credentials files, an SSO session, or an instance or task
   role).
-- Draugr's own AWS call is STS `GetCallerIdentity`, made with the same credential chain Prowler
-  reads.
+- Draugr's own AWS calls are STS `GetCallerIdentity` and IAM `GetRole` and
+  `SimulatePrincipalPolicy`, made with the same credential chain Prowler reads.
 - Prowler's version is read with its update check unable to connect: `prowler --version` otherwise
   asks api.github.com for the newest release on every scan.
 - Prowler sends no telemetry. Its integrations with a hosted dashboard, Shodan and Slack are opt-in,
@@ -120,8 +146,8 @@ service account need a quota project: `gcloud auth application-default set-quota
 
 The checks ship with Prowler. The scan reads the account through the provider's APIs, which are the
 target rather than a data source: on Google Cloud, `cloudresourcemanager.googleapis.com` for the
-preflight and each service's API for its checks; on AWS, `sts.<region>.amazonaws.com` for the caller
-and each service's endpoint for its checks.
+preflight and each service's API for its checks; on AWS, `sts.<region>.amazonaws.com` for the caller,
+`iam.amazonaws.com` for the preflight and each service's endpoint for its checks.
 
 A `compliance` framework that includes the checks below makes the scan contact these hosts as well.
 The default framework includes none of them.

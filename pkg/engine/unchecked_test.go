@@ -46,6 +46,20 @@ func TestUnreadChecksGroupByComponentAndService(t *testing.T) {
 	}
 }
 
+// A check read in part sits in its service's entry apart from the unread ones, each list sorted.
+func TestPartlyReadChecksAreListedApart(t *testing.T) {
+	byCtl := map[string][]sarif.Report{"cloud": {{Unchecked: []sarif.Unchecked{
+		{Component: "web", Check: "iam_root_mfa_enabled", Group: "iam", Reason: "denied iam:GetRole"},
+		{Component: "web", Check: "iam_support_role_created", Group: "iam", Reason: "denied iam:GetRole", PartlyRead: true},
+		{Component: "web", Check: "iam_password_policy_reuse_24", Group: "iam", Reason: "denied iam:GetRole", PartlyRead: true},
+	}}}}
+	got := unreadChecks(byCtl)
+	if len(got) != 1 || !slices.Equal(got[0].Checks, []string{"iam_root_mfa_enabled"}) ||
+		!slices.Equal(got[0].PartlyRead, []string{"iam_password_policy_reuse_24", "iam_support_role_created"}) {
+		t.Errorf("got %+v", got)
+	}
+}
+
 // accountScanner reports one unchecked check for whatever account it is given.
 type accountScanner struct{}
 

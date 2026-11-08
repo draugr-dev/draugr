@@ -226,6 +226,24 @@ func TestCaveatsGatherEveryShortfallThatDoesNotFail(t *testing.T) {
 	}
 }
 
+// A service's row counts the checks with no result and those read in part apart, and leaves out a
+// count of none.
+func TestAnUnreadChecksRowCountsThePartlyRead(t *testing.T) {
+	for _, c := range []struct {
+		unread, partly []string
+		want           string
+	}{
+		{[]string{"a", "b"}, nil, "2 checks · denied iam:GetRole"},
+		{[]string{"a"}, []string{"b", "c"}, "1 check · 2 checks partly read · denied iam:GetRole"},
+		{nil, []string{"b"}, "1 check partly read · denied iam:GetRole"},
+	} {
+		g := engine.UnreadChecks{Group: "iam", Checks: c.unread, PartlyRead: c.partly, Reason: "denied iam:GetRole"}
+		if got := unreadDetail(g); got != c.want {
+			t.Errorf("%v, %v = %q, want %q", c.unread, c.partly, got, c.want)
+		}
+	}
+}
+
 // Caveats sharing a kind, controls and component sit under one heading, the kinds in the order the
 // setting lists them, then by controls and component. Two components and two sets of controls, so
 // neither can be folded into the other's group, and a run past the cap draws no heading whose rows
