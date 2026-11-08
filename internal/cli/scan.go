@@ -951,11 +951,7 @@ func writeArtifacts(dir string, formats []string, data report.Data, release saga
 				// Named, because the file is what gets uploaded to code scanning, usually by an
 				// action rather than by Draugr, and an upload with no automation id in it
 				// replaces the last one filed under the empty category. See report.AutomationID.
-				return skald.WriteSARIFNarrowed(w, report.FilterByPriority(run, declared), declared,
-					sarif.MarshalOptions{
-						AutomationID: report.AutomationID(data.ProjectName(), run.Scope),
-						ToolVersion:  data.Version,
-					})
+				return skald.WriteSARIFNarrowed(w, report.FilterByPriority(run, declared), declared, data.SARIFOptions())
 			}); err != nil {
 				return err
 			}

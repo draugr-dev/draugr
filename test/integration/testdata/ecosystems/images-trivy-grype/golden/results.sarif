@@ -5,6 +5,32 @@
       "automationDetails": {
         "id": "images-trivy-grype/"
       },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "repositories: controls off: iac, sast, sca, secrets"
+              },
+              "properties": {
+                "component": "images-trivy-grype",
+                "controls": [
+                  "iac",
+                  "sast",
+                  "sca",
+                  "secrets"
+                ],
+                "kind": "not-checked"
+              }
+            }
+          ]
+        }
+      ],
       "properties": {
         "draugr/provenance": [
           {

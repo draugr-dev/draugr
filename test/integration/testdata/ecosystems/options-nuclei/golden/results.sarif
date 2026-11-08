@@ -5,6 +5,117 @@
       "automationDetails": {
         "id": "options-nuclei/"
       },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "hosts: controls off: headers, tls"
+              },
+              "properties": {
+                "component": "custom",
+                "controls": [
+                  "headers",
+                  "tls"
+                ],
+                "kind": "not-checked"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "hosts: controls off: headers, tls"
+              },
+              "properties": {
+                "component": "default",
+                "controls": [
+                  "headers",
+                  "tls"
+                ],
+                "kind": "not-checked"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "repositories: controls off: iac, sast, sca, secrets"
+              },
+              "properties": {
+                "component": "default",
+                "controls": [
+                  "iac",
+                  "sast",
+                  "sca",
+                  "secrets"
+                ],
+                "kind": "not-checked"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "hosts: controls off: headers, tls"
+              },
+              "properties": {
+                "component": "exclude",
+                "controls": [
+                  "headers",
+                  "tls"
+                ],
+                "kind": "not-checked"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "hosts: controls off: headers, tls"
+              },
+              "properties": {
+                "component": "intrusive",
+                "controls": [
+                  "headers",
+                  "tls"
+                ],
+                "kind": "not-checked"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "hosts: controls off: headers, tls"
+              },
+              "properties": {
+                "component": "tagged",
+                "controls": [
+                  "headers",
+                  "tls"
+                ],
+                "kind": "not-checked"
+              }
+            }
+          ]
+        }
+      ],
       "properties": {
         "draugr/provenance": [
           {

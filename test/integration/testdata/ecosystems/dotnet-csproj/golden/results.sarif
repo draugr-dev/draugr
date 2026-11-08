@@ -5,6 +5,49 @@
       "automationDetails": {
         "id": "dotnet-csproj/"
       },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "unread-files"
+              },
+              "level": "warning",
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "Sealed.csproj",
+                      "uriBaseId": "%SRCROOT%"
+                    }
+                  },
+                  "properties": {
+                    "repository": "./dotnet-csproj"
+                  }
+                }
+              ],
+              "message": {
+                "text": "Sealed.csproj: no lockfile"
+              },
+              "properties": {
+                "component": "dotnet-csproj",
+                "controls": [
+                  "sca"
+                ],
+                "kind": "unread-files"
+              }
+            }
+          ]
+        }
+      ],
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
       "properties": {
         "draugr/provenance": [
           {

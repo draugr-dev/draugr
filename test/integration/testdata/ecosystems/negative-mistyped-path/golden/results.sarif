@@ -5,6 +5,43 @@
       "automationDetails": {
         "id": "negative-mistyped-path/"
       },
+      "invocations": [
+        {
+          "executionSuccessful": false,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "scan-error"
+              },
+              "level": "error",
+              "message": {
+                "text": "sca: trivy-fs: paths \"services/wbe\": not in the repository at 2278d40c2894"
+              },
+              "properties": {
+                "controls": [
+                  "sca"
+                ],
+                "kind": "scan-error"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "scan-error"
+              },
+              "level": "error",
+              "message": {
+                "text": "secrets: gitleaks: paths \"services/wbe\": not in the repository at 2278d40c2894"
+              },
+              "properties": {
+                "controls": [
+                  "secrets"
+                ],
+                "kind": "scan-error"
+              }
+            }
+          ]
+        }
+      ],
       "originalUriBaseIds": {
         "%SRCROOT%": {
           "description": {

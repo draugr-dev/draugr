@@ -5,6 +5,71 @@
       "automationDetails": {
         "id": "negative-secrets-archive-name/"
       },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "unread-files"
+              },
+              "level": "warning",
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "notes.zip.txt",
+                      "uriBaseId": "%SRCROOT%"
+                    }
+                  },
+                  "properties": {
+                    "repository": "./negative-secrets-archive-name"
+                  }
+                }
+              ],
+              "message": {
+                "text": "notes.zip.txt: name has an archive extension"
+              },
+              "properties": {
+                "component": "negative-secrets-archive-name",
+                "controls": [
+                  "secrets"
+                ],
+                "kind": "unread-files"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "unread-files"
+              },
+              "level": "warning",
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "release.brief.md",
+                      "uriBaseId": "%SRCROOT%"
+                    }
+                  },
+                  "properties": {
+                    "repository": "./negative-secrets-archive-name"
+                  }
+                }
+              ],
+              "message": {
+                "text": "release.brief.md: name has an archive extension"
+              },
+              "properties": {
+                "component": "negative-secrets-archive-name",
+                "controls": [
+                  "secrets"
+                ],
+                "kind": "unread-files"
+              }
+            }
+          ]
+        }
+      ],
       "originalUriBaseIds": {
         "%SRCROOT%": {
           "description": {

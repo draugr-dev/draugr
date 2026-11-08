@@ -5,6 +5,203 @@
       "automationDetails": {
         "id": "options-trivy-license/"
       },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "repositories: controls off: iac, sast, sca, secrets"
+              },
+              "properties": {
+                "component": "default",
+                "controls": [
+                  "iac",
+                  "sast",
+                  "sca",
+                  "secrets"
+                ],
+                "kind": "not-checked"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "repositories: controls off: iac, sast, sca, secrets"
+              },
+              "properties": {
+                "component": "full",
+                "controls": [
+                  "iac",
+                  "sast",
+                  "sca",
+                  "secrets"
+                ],
+                "kind": "not-checked"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "repositories: controls off: iac, sast, sca, secrets"
+              },
+              "properties": {
+                "component": "licenses-deny",
+                "controls": [
+                  "iac",
+                  "sast",
+                  "sca",
+                  "secrets"
+                ],
+                "kind": "not-checked"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "repositories: controls off: iac, sast, sca, secrets"
+              },
+              "properties": {
+                "component": "licenses-dev-default",
+                "controls": [
+                  "iac",
+                  "sast",
+                  "sca",
+                  "secrets"
+                ],
+                "kind": "not-checked"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "repositories: controls off: iac, sast, sca, secrets"
+              },
+              "properties": {
+                "component": "licenses-dev-report",
+                "controls": [
+                  "iac",
+                  "sast",
+                  "sca",
+                  "secrets"
+                ],
+                "kind": "not-checked"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "repositories: controls off: iac, sast, sca, secrets"
+              },
+              "properties": {
+                "component": "licenses-warn",
+                "controls": [
+                  "iac",
+                  "sast",
+                  "sca",
+                  "secrets"
+                ],
+                "kind": "not-checked"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "repositories: controls off: iac, sast, sca, secrets"
+              },
+              "properties": {
+                "component": "licenses-warn-isc",
+                "controls": [
+                  "iac",
+                  "sast",
+                  "sca",
+                  "secrets"
+                ],
+                "kind": "not-checked"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "repositories: controls off: iac, sast, sca, secrets"
+              },
+              "properties": {
+                "component": "trivy-license-deny",
+                "controls": [
+                  "iac",
+                  "sast",
+                  "sca",
+                  "secrets"
+                ],
+                "kind": "not-checked"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "repositories: controls off: iac, sast, sca, secrets"
+              },
+              "properties": {
+                "component": "trivy-license-warn",
+                "controls": [
+                  "iac",
+                  "sast",
+                  "sca",
+                  "secrets"
+                ],
+                "kind": "not-checked"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "repositories: controls off: iac, sast, sca, secrets"
+              },
+              "properties": {
+                "component": "trivyignore",
+                "controls": [
+                  "iac",
+                  "sast",
+                  "sca",
+                  "secrets"
+                ],
+                "kind": "not-checked"
+              }
+            }
+          ]
+        }
+      ],
       "originalUriBaseIds": {
         "%SRCROOT%": {
           "description": {

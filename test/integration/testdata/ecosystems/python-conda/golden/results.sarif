@@ -5,6 +5,49 @@
       "automationDetails": {
         "id": "python-conda/"
       },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "unread-files"
+              },
+              "level": "warning",
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "environment.yml",
+                      "uriBaseId": "%SRCROOT%"
+                    }
+                  },
+                  "properties": {
+                    "repository": "./python-conda"
+                  }
+                }
+              ],
+              "message": {
+                "text": "environment.yml: no packages read"
+              },
+              "properties": {
+                "component": "python-conda",
+                "controls": [
+                  "sca"
+                ],
+                "kind": "unread-files"
+              }
+            }
+          ]
+        }
+      ],
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
       "properties": {
         "draugr/provenance": [
           {

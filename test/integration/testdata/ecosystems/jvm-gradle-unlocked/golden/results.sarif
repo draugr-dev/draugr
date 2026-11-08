@@ -5,6 +5,49 @@
       "automationDetails": {
         "id": "jvm-gradle-unlocked/"
       },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "unread-files"
+              },
+              "level": "warning",
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "build.gradle",
+                      "uriBaseId": "%SRCROOT%"
+                    }
+                  },
+                  "properties": {
+                    "repository": "./jvm-gradle-unlocked"
+                  }
+                }
+              ],
+              "message": {
+                "text": "build.gradle: no lockfile"
+              },
+              "properties": {
+                "component": "jvm-gradle-unlocked",
+                "controls": [
+                  "sca"
+                ],
+                "kind": "unread-files"
+              }
+            }
+          ]
+        }
+      ],
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
       "properties": {
         "draugr/provenance": [
           {
