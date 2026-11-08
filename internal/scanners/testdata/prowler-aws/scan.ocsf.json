@@ -1,0 +1,1648 @@
+[
+ {
+  "metadata": {
+   "event_code": "account_maintain_current_contact_details"
+  },
+  "status_code": "MANUAL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "AWS account contact information is current"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:iam::111111111111:root/resource-1",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Adopt:\n- **Primary** and **alternate contacts** for `security`, `billing`, `operations`\n- Shared, monitored aliases and SMS-capable phone numbers (non-personal)\n- Centralized management across accounts with periodic reviews\n- **Least privilege** for who can modify contact data\n- Regular reachability tests and documented ownership",
+   "references": [
+    "https://hub.prowler.com/check/account_maintain_current_contact_details"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "2.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "account_security_contact_information_is_registered"
+  },
+  "status_code": "MANUAL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "AWS account has security alternate contact registered"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:iam::111111111111:root/resource-2",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Define and maintain a **Security alternate contact**:\n- Use a monitored alias (e.g., `security@domain`) and team phone\n- Apply to every account (prefer Org-wide automation)\n- Review after org/personnel changes and test delivery\n- Document ownership and escalation paths\nAlign with **incident response** and **least privilege** principles.",
+   "references": [
+    "https://hub.prowler.com/check/account_security_contact_information_is_registered"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "2.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "awslambda_function_not_publicly_accessible"
+  },
+  "status_code": "PASS",
+  "severity": "Critical",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Lambda function resource-based policy does not allow public access"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:lambda:ap-northeast-1:111111111111:function/resource-3",
+    "region": "ap-northeast-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Remove public principals from function policies. Grant access only to specific accounts, roles, or services using fixed ARNs and **least privilege**. Add conditions like `AWS:SourceAccount` and `AWS:SourceArn` to constrain service triggers. Enforce **separation of duties** and monitor access for **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/awslambda_function_not_publicly_accessible"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "2.21"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "cloudtrail_kms_encryption_enabled"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "CloudTrail trail logs are encrypted at rest with a KMS key"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:cloudtrail:us-east-1:111111111111:trail/resource-4",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **SSE-KMS** on every trail using a **customer-managed KMS key**. Apply **least privilege** so only authorized roles can `Decrypt`, and enforce **separation of duties** between key admins and log readers. Rotate keys and monitor key usage to provide **defense in depth** for CloudTrail data.",
+   "references": [
+    "https://hub.prowler.com/check/cloudtrail_kms_encryption_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "4.5"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "cloudtrail_log_file_validation_enabled"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "CloudTrail trail has log file validation enabled"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:cloudtrail:us-east-1:111111111111:trail/resource-5",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **log file integrity validation** on all trails (`LogFileValidationEnabled=true`).\n\nEnforce **least privilege** on the logs bucket, retain and protect digest files (e.g., S3 Object Lock/MFA Delete), and monitor validation results to support **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/cloudtrail_log_file_validation_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "4.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "cloudtrail_log_file_validation_enabled"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "CloudTrail trail has log file validation enabled"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:cloudtrail:us-east-1:111111111111:trail/resource-6",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **log file integrity validation** on all trails (`LogFileValidationEnabled=true`).\n\nEnforce **least privilege** on the logs bucket, retain and protect digest files (e.g., S3 Object Lock/MFA Delete), and monitor validation results to support **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/cloudtrail_log_file_validation_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "4.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "cloudtrail_logs_s3_bucket_access_logging_enabled"
+  },
+  "status_code": "MANUAL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "CloudTrail trail destination S3 bucket has access logging enabled"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:cloudtrail:us-east-1:111111111111:trail/resource-7",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **S3 server access logging** on the CloudTrail logs bucket and write logs to a separate, tightly controlled bucket. Apply **least privilege**, enable **versioning**, and consider **Object Lock** to deter tampering. Centralize monitoring to support defense-in-depth and rapid investigation.",
+   "references": [
+    "https://hub.prowler.com/check/cloudtrail_logs_s3_bucket_access_logging_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "4.4"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "cloudtrail_multi_region_enabled"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Region has at least one CloudTrail trail logging"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:cloudtrail:ap-northeast-1:111111111111:trail/resource-8",
+    "region": "ap-northeast-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Use a **multi-region CloudTrail trail** or per-region trails so `logging` is active in every region, including unused ones.\n\nCentralize logs, enforce **least privilege** to log stores, and add **defense-in-depth** with encryption, integrity validation, and retention. Continuously monitor trail health to catch gaps.",
+   "references": [
+    "https://hub.prowler.com/check/cloudtrail_multi_region_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "4.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "cloudwatch_changes_to_network_acls_alarm_configured"
+  },
+  "status_code": "MANUAL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "CloudWatch log metric filter and alarm exist for Network ACL (NACL) change events"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:logs:us-east-1:111111111111:log/resource-9",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Implement a CloudWatch Logs metric filter and alarm for NACL change events from CloudTrail and route alerts to responders. Enforce **least privilege** on NACL management, require **change control**, and use **defense in depth** with configuration monitoring and flow logs to validate and monitor network posture.",
+   "references": [
+    "https://hub.prowler.com/check/cloudwatch_changes_to_network_acls_alarm_configured"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "5.11"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "cloudwatch_changes_to_network_gateways_alarm_configured"
+  },
+  "status_code": "MANUAL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "CloudWatch Logs metric filter and alarm exist for changes to network gateways"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:logs:us-east-1:111111111111:log/resource-10",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Send CloudTrail to CloudWatch Logs and create a metric filter for the listed gateway events with an alarm that notifies responders. Enforce **least privilege** for gateway modifications, require change approvals, and route alerts to monitored channels as part of **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/cloudwatch_changes_to_network_gateways_alarm_configured"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "5.12"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "cloudwatch_changes_to_network_route_tables_alarm_configured"
+  },
+  "status_code": "MANUAL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Account monitors VPC route table changes with a CloudWatch Logs metric filter and alarm"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:logs:us-east-1:111111111111:log/resource-11",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Implement a **CloudWatch Logs metric filter and alarm** on CloudTrail for these route table events and notify responders. Enforce **least privilege** for route modifications, require **change control**, and apply **defense in depth** with VPC Flow Logs and guardrails to prevent and quickly contain unsafe routing changes.",
+   "references": [
+    "https://hub.prowler.com/check/cloudwatch_changes_to_network_route_tables_alarm_configured"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "5.13"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "cloudwatch_changes_to_vpcs_alarm_configured"
+  },
+  "status_code": "MANUAL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "AWS account has a CloudWatch Logs metric filter and alarm for VPC changes"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:logs:us-east-1:111111111111:log/resource-12",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Create a CloudWatch Logs metric filter and alarm on CloudTrail for critical **VPC change events**, and notify responders. Apply **least privilege** to network changes, require change approvals, and use **defense in depth** (segmentation, route controls) to prevent and contain unauthorized modifications.",
+   "references": [
+    "https://hub.prowler.com/check/cloudwatch_changes_to_vpcs_alarm_configured"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "5.14"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "cloudwatch_log_metric_filter_and_alarm_for_aws_config_configuration_changes_enabled"
+  },
+  "status_code": "MANUAL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "CloudWatch Logs metric filter and alarm exist for AWS Config configuration changes"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:logs:us-east-1:111111111111:log/resource-13",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Create a **CloudWatch Logs metric filter and alarm** for `config.amazonaws.com` events (`StopConfigurationRecorder`, `DeleteDeliveryChannel`, `PutDeliveryChannel`, `PutConfigurationRecorder`). Route CloudTrail to Logs, notify responders, and enforce **least privilege** and **separation of duties** on Config changes to prevent abuse.",
+   "references": [
+    "https://hub.prowler.com/check/cloudwatch_log_metric_filter_and_alarm_for_aws_config_configuration_changes_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "5.9"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "cloudwatch_log_metric_filter_and_alarm_for_cloudtrail_configuration_changes_enabled"
+  },
+  "status_code": "MANUAL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "CloudWatch Logs metric filter and alarm exist for CloudTrail configuration changes"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:logs:us-east-1:111111111111:log/resource-14",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Implement a **metric filter** for trail configuration events and a linked **alarm** that notifies response channels.\n\nApply **least privilege** and **separation of duties** for trail changes, add **defense in depth** with centralized logging and validation, and regularly test that alerts fire.",
+   "references": [
+    "https://hub.prowler.com/check/cloudwatch_log_metric_filter_and_alarm_for_cloudtrail_configuration_changes_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "5.5"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "cloudwatch_log_metric_filter_authentication_failures"
+  },
+  "status_code": "MANUAL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Account has a CloudWatch Logs metric filter and alarm for AWS Management Console authentication failures"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:logs:us-east-1:111111111111:log/resource-15",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Implement a log metric filter for `ConsoleLogin` failures and attach a **CloudWatch alarm** with actionable notifications. Tune thresholds to reduce noise and route alerts to incident response.\n\nApply **least privilege** and enforce **MFA** to limit impact, and correlate alerts with source IP and user context.",
+   "references": [
+    "https://hub.prowler.com/check/cloudwatch_log_metric_filter_authentication_failures"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "5.6"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "cloudwatch_log_metric_filter_aws_organizations_changes"
+  },
+  "status_code": "MANUAL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "CloudWatch Logs metric filter and alarm exist for AWS Organizations changes"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:logs:us-east-1:111111111111:log/resource-16",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Send CloudTrail events to **CloudWatch Logs**, add a metric filter for `organizations.amazonaws.com` change events, and attach an alarm that notifies responders. Enforce **least privilege** and **separation of duties** for org admins, require MFA and approvals, and regularly test alerts to ensure timely detection and response.",
+   "references": [
+    "https://hub.prowler.com/check/cloudwatch_log_metric_filter_aws_organizations_changes"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "5.15"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "cloudwatch_log_metric_filter_disable_or_scheduled_deletion_of_kms_cmk"
+  },
+  "status_code": "MANUAL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Account has a CloudWatch log metric filter and alarm for disabling or scheduled deletion of customer-managed KMS keys"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:logs:us-east-1:111111111111:log/resource-17",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Establish **CloudWatch metric filters and alarms** for `DisableKey` and `ScheduleKeyDeletion` CloudTrail events to enable rapid response.\n- Apply **least privilege** to KMS administration\n- Enforce **change control** and separation of duties\n- Use deletion waiting periods and monitor all regions",
+   "references": [
+    "https://hub.prowler.com/check/cloudwatch_log_metric_filter_disable_or_scheduled_deletion_of_kms_cmk"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "5.7"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "cloudwatch_log_metric_filter_for_s3_bucket_policy_changes"
+  },
+  "status_code": "MANUAL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "CloudWatch log metric filter and alarm exist for S3 bucket policy changes"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:logs:us-east-1:111111111111:log/resource-18",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Establish and maintain **metric filters** and **alarms** for S3 bucket policy, ACL, CORS, lifecycle, and replication changes. Route alerts to monitored channels and integrate with SIEM. Enforce **least privilege**, require change reviews, and use **defense in depth** to prevent and quickly detect unsafe bucket policy changes.",
+   "references": [
+    "https://hub.prowler.com/check/cloudwatch_log_metric_filter_for_s3_bucket_policy_changes"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "5.8"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "cloudwatch_log_metric_filter_policy_changes"
+  },
+  "status_code": "MANUAL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "CloudWatch Logs metric filter and alarm exist for IAM policy changes"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:logs:us-east-1:111111111111:log/resource-19",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Create a metric filter for IAM policy create/update/delete and attach/detach events with an **alarm** to notify responders.\n- Enforce **least privilege** and separation of duties for policy changes\n- Require approvals and central logging across Regions/accounts\n- Integrate alerts with incident response",
+   "references": [
+    "https://hub.prowler.com/check/cloudwatch_log_metric_filter_policy_changes"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "5.4"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "cloudwatch_log_metric_filter_root_usage"
+  },
+  "status_code": "MANUAL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Account has a CloudWatch Logs metric filter and alarm for root account usage"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:logs:us-east-1:111111111111:log/resource-20",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable real-time alerts for **root activity** using a log metric filter and a high-priority alarm with notifications.\n\nReduce exposure: enforce **least privilege**, keep root for *break-glass* with MFA, disable root access keys, and route alerts into incident response for **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/cloudwatch_log_metric_filter_root_usage"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "5.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "cloudwatch_log_metric_filter_security_group_changes"
+  },
+  "status_code": "MANUAL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "CloudWatch Logs metric filter and alarm exist for security group changes"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:logs:us-east-1:111111111111:log/resource-21",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Establish real-time alerts for **security group modifications** by sending CloudTrail to CloudWatch, creating metric filters and alarms, and notifying responders.\n- Enforce **least privilege** on SG changes\n- Use change management and tagging\n- Centralize logs, test alarms, and maintain runbooks\n- Layer with NACLs and WAF for **defense in depth**",
+   "references": [
+    "https://hub.prowler.com/check/cloudwatch_log_metric_filter_security_group_changes"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "5.10"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "cloudwatch_log_metric_filter_sign_in_without_mfa"
+  },
+  "status_code": "MANUAL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "CloudWatch log metric filter and alarm exist for Management Console sign-in without MFA"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:logs:us-east-1:111111111111:log/resource-22",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Enforce **MFA** for all console-capable identities and maintain alerts for `ConsoleLogin` with `MFAUsed != \\\"Yes\\\"`.\n\nApply **least privilege**, route alarms to monitored channels, and tune for SSO to reduce noise. Test alarms regularly and review coverage as part of **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/cloudwatch_log_metric_filter_sign_in_without_mfa"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "5.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "cloudwatch_log_metric_filter_unauthorized_api_calls"
+  },
+  "status_code": "MANUAL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "CloudWatch Logs metric filter and alarm exist for unauthorized API calls"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:logs:us-east-1:111111111111:log/resource-23",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable real-time **alerting** by adding a CloudWatch Logs metric filter for unauthorized errors (`*UnauthorizedOperation`, `AccessDenied*`) and associating it with an alarm that notifies responders.\n- Enforce **least privilege** to reduce noise\n- Integrate with IR tooling for **defense in depth**",
+   "references": [
+    "https://hub.prowler.com/check/cloudwatch_log_metric_filter_unauthorized_api_calls"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "5.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "config_recorder_all_regions_enabled"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "AWS Config recorder is enabled and not in failure state or disabled"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:config:ap-south-1:111111111111:recorder/resource-24",
+    "region": "ap-south-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **AWS Config** in every Region with continuous recording and maintain healthy recorder status.",
+   "references": [
+    "https://hub.prowler.com/check/config_recorder_all_regions_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "4.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "ec2_ebs_default_encryption"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "EBS default encryption is enabled"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:ec2:us-east-1:111111111111:volume/resource-25",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable `EBS encryption by default` in every region and select a **customer-managed KMS key**. Apply **least privilege** to key use, rotate keys, and monitor access. Enforce encrypted volume creation with organizational guardrails and secure templates as **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/ec2_ebs_default_encryption"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "6.1.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "ec2_instance_imdsv2_enabled"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "EC2 instance requires IMDSv2 or has the instance metadata service disabled"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:ec2:us-east-1:111111111111:instance/resource-26",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Apply defense in depth:\n- Require **IMDSv2** tokens on all instances (`http_tokens: required`)\n- Disable metadata where not needed (`http_endpoint: disabled`)\n- Minimize hop limit to `1` when feasible\n- Update SDKs/apps for IMDSv2\n- Restrict instance profile permissions (least privilege)\n- Block metadata access from untrusted workloads",
+   "references": [
+    "https://hub.prowler.com/check/ec2_instance_imdsv2_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "6.7"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "ec2_instance_imdsv2_enabled"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "EC2 instance requires IMDSv2 or has the instance metadata service disabled"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:ec2:us-east-1:111111111111:instance/resource-27",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Apply defense in depth:\n- Require **IMDSv2** tokens on all instances (`http_tokens: required`)\n- Disable metadata where not needed (`http_endpoint: disabled`)\n- Minimize hop limit to `1` when feasible\n- Update SDKs/apps for IMDSv2\n- Restrict instance profile permissions (least privilege)\n- Block metadata access from untrusted workloads",
+   "references": [
+    "https://hub.prowler.com/check/ec2_instance_imdsv2_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "6.7"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "ec2_instance_port_cifs_exposed_to_internet"
+  },
+  "status_code": "PASS",
+  "severity": "Critical",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "EC2 instance does not allow Internet ingress to TCP ports 139 or 445 (CIFS)"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:ec2:us-east-1:111111111111:instance/resource-28",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Restrict **CIFS/SMB** to trusted internal sources using **least privilege**; do not allow `0.0.0.0/0`.\n\nAdopt **defense in depth**: place hosts in private subnets, require **VPN** or controlled jump paths, and enforce **segmentation**. Disable SMB if unnecessary or use alternatives (e.g., SFTP). Require strong auth and SMB signing.",
+   "references": [
+    "https://hub.prowler.com/check/ec2_instance_port_cifs_exposed_to_internet"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "6.1.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "ec2_instance_profile_attached"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "EC2 instance is associated with an IAM instance profile role"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:ec2:us-east-1:111111111111:instance/resource-29",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Attach an **IAM instance profile** to every instance and grant only permissions each workload requires (**least privilege**). Eliminate static keys on hosts; use **temporary credentials** with automatic rotation. Separate roles per application, enforce **separation of duties**, and limit who can assign roles (govern via `iam:PassRole`). Monitor role usage for anomalies.",
+   "references": [
+    "https://hub.prowler.com/check/ec2_instance_profile_attached"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "2.16"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "ec2_networkacl_allow_ingress_any_port"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Network ACL does not allow ingress from 0.0.0.0/0 to any port"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:ec2:us-east-1:111111111111:network/resource-30",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Adopt a **deny-by-default** NACL posture: block `0.0.0.0/0` and allow only required ports from trusted CIDRs. Apply **least privilege** using security groups for fine-grained access, with NACLs as coarse stateless filters. Review and prune rules regularly, and employ **defense in depth** with monitoring and alerting.",
+   "references": [
+    "https://hub.prowler.com/check/ec2_networkacl_allow_ingress_any_port"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "6.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "ec2_networkacl_allow_ingress_tcp_port_22"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Network ACL does not allow ingress from the Internet to TCP port 22 (SSH)"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:ec2:us-east-1:111111111111:network/resource-31",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Apply **least privilege** at the subnet layer:\n- Do not allow `0.0.0.0/0` to `TCP 22`\n- Restrict SSH to trusted sources, or avoid direct SSH via **Session Manager** or a bastion behind **VPN**\n\nPair tight **security groups** with periodic rule reviews and change control to maintain **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/ec2_networkacl_allow_ingress_tcp_port_22"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "6.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "ec2_networkacl_allow_ingress_tcp_port_3389"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Network ACL does not allow ingress from the Internet to TCP port 3389 (RDP)"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:ec2:us-east-1:111111111111:network/resource-32",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Enforce **least privilege**: do not allow `TCP 3389` from `0.0.0.0/0` in network ACLs.\n\n- Restrict RDP to specific admin IP ranges\n- Prefer **bastion hosts** or **Session Manager** over direct RDP\n- Use private subnets and layer controls for **defense in depth**",
+   "references": [
+    "https://hub.prowler.com/check/ec2_networkacl_allow_ingress_tcp_port_3389"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "6.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "ec2_securitygroup_allow_ingress_from_internet_to_all_ports"
+  },
+  "status_code": "PASS",
+  "severity": "Critical",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Security group does not have all ports open to the Internet"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:ec2:us-east-1:111111111111:security/resource-33",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Enforce **least privilege** on ingress: allow only required ports from trusted sources, avoid `0.0.0.0/0` and `::/0`. Prefer private access (VPN, bastion, or Session Manager), use security group references, and layer **defense in depth** with network ACLs. Periodically review and remove unused rules.",
+   "references": [
+    "https://hub.prowler.com/check/ec2_securitygroup_allow_ingress_from_internet_to_all_ports"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "6.3",
+     "6.4"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Security group does not allow ingress from 0.0.0.0/0 or ::/0 to TCP port 22 (SSH)"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:ec2:us-east-1:111111111111:security/resource-34",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Apply **least privilege** to SSH:\n- Disallow `0.0.0.0/0` and `::/0`; allow only trusted IPs or VPN ranges\n- Prefer **private access** via bastion hosts or AWS Systems Manager Session Manager\n- Enforce **key-based auth**, disable passwords, rotate keys\n- Add **network segmentation** and monitoring for **defense in depth**",
+   "references": [
+    "https://hub.prowler.com/check/ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "6.3",
+     "6.4"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_3389"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Security group does not allow ingress from the Internet to TCP port 3389 (RDP)"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:ec2:us-east-1:111111111111:security/resource-35",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Apply **least privilege**: disallow `0.0.0.0/0` and `::/0` to `3389`; permit only specific IPs or private networks.\n\nPrefer **Session Manager**, VPN, or a hardened bastion with MFA and just-in-time access. Use private subnets and add **defense in depth** with network controls and monitoring.",
+   "references": [
+    "https://hub.prowler.com/check/ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_3389"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "6.3",
+     "6.4"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "efs_encryption_at_rest_enabled"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "EFS file system has encryption at rest enabled"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:elasticfilesystem:us-east-1:111111111111:file/resource-36",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **encryption at rest** for all EFS file systems and prefer **customer-managed KMS keys** for control, rotation, and audit. Apply **least privilege** to key policies and separate key management duties. *For existing unencrypted data*, migrate to a new encrypted file system. Enforce creation policies (IAM/SCP) to prevent non-encrypted deployments.",
+   "references": [
+    "https://hub.prowler.com/check/efs_encryption_at_rest_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "3.3.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "elbv2_logging_enabled"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "ELBv2 Application Load Balancer has access logs to S3 configured"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:elasticloadbalancing:us-east-1:111111111111:loadbalancer/resource-37",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **ALB access logging** to a dedicated, encrypted S3 bucket. Apply **least privilege** to the bucket for delivery and readers, set lifecycle policies for retention, and consider `Object Lock` to deter tampering. Centralize logs in a **SIEM** and alert on anomalies as part of **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/elbv2_logging_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "4.10"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_aws_attached_policy_no_administrative_privileges"
+  },
+  "status_code": "PASS",
+  "severity": "Critical",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Attached AWS-managed IAM policy does not allow '*:*' administrative privileges"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:iam::aws/resource-38",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Apply **least privilege**: avoid attaching AWS-managed policies that grant `*:*`.\n- Use **customer-managed, scoped policies** per role\n- Enforce **separation of duties** and **permissions boundaries**\n- Prefer **temporary, time-bound elevation** for emergencies with MFA\n- Regularly review access and use conditions to constrain context",
+   "references": [
+    "https://hub.prowler.com/check/iam_aws_attached_policy_no_administrative_privileges"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "2.14"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_check_saml_providers_sts"
+  },
+  "status_code": "PASS",
+  "severity": "Low",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "IAM SAML provider exists in the account"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:iam::111111111111:saml/resource-39",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Adopt **SAML federation** to issue **short-lived STS credentials**. Map users to roles with **least privilege**, enforce **MFA** at the IdP, and set conservative session durations. Retire IAM user access keys for interactive use and monitor role sessions as **defense in depth**. *If federation isn't possible*, tightly scope, rotate, and audit keys.",
+   "references": [
+    "https://hub.prowler.com/check/iam_check_saml_providers_sts"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "2.19"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_customer_attached_policy_no_administrative_privileges"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Attached IAM customer-managed policy does not allow '*:*' administrative privileges"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:iam::111111111111:policy/resource-40",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Enforce **least privilege**: replace wildcards with specific actions, scope `Resource` to needed ARNs, and add restrictive `Condition`s. Prefer role-based access and separation of duties. Use **permissions boundaries** and organization guardrails, and regularly review policies with policy validation and Access Analyzer.",
+   "references": [
+    "https://hub.prowler.com/check/iam_customer_attached_policy_no_administrative_privileges"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "2.14"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_password_policy_minimum_length_14"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "IAM password policy requires passwords to be at least 14 characters long"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:iam:us-east-1:111111111111:password/resource-41",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Set the **minimum password length** to `>= 14` (prefer `16+`).\n- Require mixed character types and prevent reuse\n- Enforce **MFA** for all console users\n- Prefer SSO over local IAM users\n- Apply least privilege and monitor authentication events",
+   "references": [
+    "https://hub.prowler.com/check/iam_password_policy_minimum_length_14"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "2.8"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_password_policy_reuse_24"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "IAM password policy prevents reuse of the last 24 passwords"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:iam:us-east-1:111111111111:password/resource-42",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Set the password policy to remember `24` previous passwords to block reuse. Combine with **MFA**, strong length and complexity, and avoid rotation practices that encourage predictable patterns. Apply **least privilege** and monitor authentication events as part of **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/iam_password_policy_reuse_24"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "2.9"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_policy_attached_only_to_group_or_roles"
+  },
+  "status_code": "PASS",
+  "severity": "Low",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "IAM user has no inline or attached policies"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:iam::111111111111:user/resource-43",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Assign permissions to **groups** (humans) and **roles** (workloads); avoid user-attached policies. Enforce **least privilege**, prefer federation and temporary credentials, and use tags or **permissions boundaries** to constrain scope. Review regularly to remove direct user policies and right-size access.",
+   "references": [
+    "https://hub.prowler.com/check/iam_policy_attached_only_to_group_or_roles"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "2.13"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_policy_cloudshell_admin_not_attached"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "No IAM users, groups, or roles have the AWSCloudShellFullAccess policy attached"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:iam::aws/resource-44",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Detach `AWSCloudShellFullAccess` from identities.\n\nApply **least privilege**: permit CloudShell only when necessary via narrowly scoped permissions, restricted roles, short-lived sessions, and approvals. Prefer controlled alternatives (local CLI, bastion, or Session Manager). Enforce **separation of duties** and monitor usage.",
+   "references": [
+    "https://hub.prowler.com/check/iam_policy_cloudshell_admin_not_attached"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "2.20"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_support_role_created"
+  },
+  "status_code": "PASS",
+  "severity": "Low",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "At least one IAM role has the AWSSupportAccess managed policy attached"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:iam::aws/resource-45",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Create a dedicated IAM role for AWS Support with `AWSSupportAccess` and:\n- Restrict who can assume it; require MFA and time-bound access\n- Enforce **least privilege** and **separation of duties**\n- Monitor usage via audit logs and review assignments regularly",
+   "references": [
+    "https://hub.prowler.com/check/iam_support_role_created"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "2.15"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_user_console_access_unused"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "IAM user console access is disabled, used within the configured inactivity period, or never used"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:iam::111111111111:user/resource-46",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Remove or disable console passwords for users inactive beyond your window (e.g., `45` days). Prefer roles or federation over long-lived IAM users. Enforce **least privilege**, require **MFA** for remaining console users, and run periodic reviews and deprovisioning to prevent unused credentials.",
+   "references": [
+    "https://hub.prowler.com/check/iam_user_console_access_unused"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "2.11"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "rds_instance_minor_version_upgrade_enabled"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "RDS instance has minor version upgrade enabled"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:rds:us-east-1:111111111111:db/resource-47",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable `auto_minor_version_upgrade` on RDS instances so minor releases are applied promptly. Use maintenance windows and stage testing to limit impact. Follow **defense in depth** and **least privilege**; keep reliable backups and Multi-AZ to preserve continuity if upgrades require rollback.",
+   "references": [
+    "https://hub.prowler.com/check/rds_instance_minor_version_upgrade_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "3.2.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "rds_instance_multi_az"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "RDS instance has Multi-AZ enabled"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:rds:us-east-1:111111111111:db/resource-48",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Apply fault-tolerance and redundancy principles: enable **Multi-AZ** for production RDS workloads. Choose one standby or two readable standbys based on RTO/RPO and performance needs. Regularly test failover, monitor configuration drift, and allow exceptions only with documented, risk-based approval.",
+   "references": [
+    "https://hub.prowler.com/check/rds_instance_multi_az"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "3.2.4"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "rds_instance_no_public_access"
+  },
+  "status_code": "PASS",
+  "severity": "Critical",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "RDS instance is not publicly exposed to the Internet"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:rds:us-east-1:111111111111:db/resource-49",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Keep databases private by applying **least privilege** at the network layer:\n- Set `PubliclyAccessible` to `false`\n- Place instances in private subnets\n- Deny `0.0.0.0/0` and `::/0` on the DB port\n- Expose access via private endpoints, VPN, or an application tier/DB proxy\n\nAdopt **defense in depth** with monitoring and strong auth.",
+   "references": [
+    "https://hub.prowler.com/check/rds_instance_no_public_access"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "3.2.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "rds_instance_storage_encrypted"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "RDS DB instance storage is encrypted at rest"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:rds:us-east-1:111111111111:db/resource-50",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **encryption at rest** for all RDS instances. Prefer **customer-managed KMS keys** to control rotation and fine-grained access, applying **least privilege** and **defense in depth**. Restrict key usage, monitor key activity, and manage key lifecycle. Migrate unencrypted instances via encrypted snapshot copy and restore.",
+   "references": [
+    "https://hub.prowler.com/check/rds_instance_storage_encrypted"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "3.2.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "sns_topics_not_publicly_accessible"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "SNS topic is not publicly accessible"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:sns:ap-northeast-1:111111111111:aws/resource-51",
+    "region": "ap-northeast-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Restrict the **topic policy** to specific principals and minimal actions:\n- Avoid `Principal:*`\n- Allow only needed actions (e.g., `sns:Publish`)\n- Add conditions like `aws:SourceArn`, `aws:SourceAccount`, `aws:PrincipalOrgID`, or `sns:Endpoint`\nApply **least privilege**, separate duties, and review policies regularly.",
+   "references": [
+    "https://hub.prowler.com/check/sns_topics_not_publicly_accessible"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "2.21"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "sqs_queues_not_publicly_accessible"
+  },
+  "status_code": "PASS",
+  "severity": "Critical",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "SQS queue policy does not allow public access"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:sqs:ap-northeast-1:111111111111:resource/resource-52",
+    "region": "ap-northeast-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Apply **least privilege** on SQS resource policies:\n- Avoid `Principal: *`; grant access only to specific accounts, roles, or services\n- Add restrictive conditions to tightly scope access\n- Prefer private connectivity and defense-in-depth controls\n- Review policies and audit activity regularly to prevent drift",
+   "references": [
+    "https://hub.prowler.com/check/sqs_queues_not_publicly_accessible"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "2.21"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "vpc_flow_logs_enabled"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "VPC flow logs are enabled"
+  },
+  "resources": [
+   {
+    "uid": "arn:aws:ec2:us-east-1:111111111111:vpc/resource-53",
+    "region": "us-east-1"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **VPC Flow Logs** for all VPCs to provide baseline telemetry.\nPrefer capturing at least `REJECT` and, for sensitive networks, `ALL`. Send logs to a centralized, access-controlled destination with retention. Apply **least privilege** to writers/readers and integrate with monitoring for **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/vpc_flow_logs_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-7.0": [
+     "4.7"
+    ]
+   }
+  }
+ }
+]

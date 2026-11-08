@@ -38,6 +38,8 @@ project or group access token with **`api`** scope and at least **Developer** ro
 
 That variable is the one thing GitLab cannot do for you, and it is worth knowing why.
 
+To scan an image before pushing it, see [Scanning an image before it is pushed](../../internal/controllers/images.md#scanning-an-image-before-it-is-pushed).
+
 ## `CI_JOB_TOKEN` will not work, and it is the obvious thing to reach for
 
 GitLab puts `CI_JOB_TOKEN` in every job, so it is the credential already to hand. It is **read-only

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -252,5 +253,43 @@ func TestTheLocalDaemonIsAskedOnlyAboutRefusedImages(t *testing.T) {
 	})
 	if !targets[0].Refusal.LocalDaemon || len(asked) != 1 || asked[0] != "app:1" {
 		t.Errorf("asked %v, local %v; want only the refused image", asked, targets[0].Refusal.LocalDaemon)
+	}
+}
+
+// brokenScanner is a scanner whose tool is installed and cannot start, as a wrapper script whose
+// interpreter is gone exits 127.
+type brokenScanner struct{}
+
+func (brokenScanner) Info() plugin.ScannerInfo { return plugin.ScannerInfo{Name: "dep"} }
+
+func (brokenScanner) Scan(context.Context, plugin.Target, plugin.Config) (sarif.Report, error) {
+	return sarif.Report{}, fmt.Errorf("run dep: %w", toolexec.ErrCannotStart)
+}
+
+// A tool that could not start never tried the target either, so the target is not reported as one
+// the scan failed to reach; the control's error says what broke.
+func TestAToolThatCannotStartSkipsItsTargets(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(reposController{name: "sca", scanner: "dep", repos: map[string][]string{
+		"api": {"https://github.com/acme/api"},
+	}})
+	reg.RegisterScanner(brokenScanner{})
+	res, err := New(reg).Run(context.Background(), saga.Model{
+		Release:    saga.Release{Version: "1"},
+		Components: []saga.Component{{Name: "api", Controls: map[string]saga.ControllerSettings{"sca": {}}}},
+	})
+	if err == nil {
+		t.Fatal("a run whose tool cannot start must still fail")
+	}
+	if len(res.Stats.Failures) != 0 {
+		t.Errorf("failures = %+v, want none: the target was never tried", res.Stats.Failures)
+	}
+	for _, o := range res.Targets {
+		if o.Status != TargetSkipped {
+			t.Errorf("%s = %s, want skipped", o.Target, o.Status)
+		}
+	}
+	if len(res.ScanErrors["sca"]) == 0 || !strings.Contains(res.ScanErrors["sca"][0], "could not start") {
+		t.Errorf("the control's error = %v, want it to say the tool could not start", res.ScanErrors["sca"])
 	}
 }

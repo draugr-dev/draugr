@@ -886,7 +886,8 @@ type Unscanned struct {
 
 	// target is the planned target itself, for the run's account of each target's outcome.
 	target plugin.Target
-	// toolMissing is a job whose tool was not on the machine, so it never tried the target.
+	// toolMissing is a job whose tool was not on the machine, or could not start there, so it never
+	// tried the target.
 	toolMissing bool
 	// refusal is the registry's answer when the target is an image its registry declined to serve.
 	refusal *Refusal
@@ -2203,7 +2204,8 @@ func unscannedFor(pj PlannedJob, err error) Unscanned {
 	}
 	if err != nil {
 		u.Detail = strings.TrimSpace(err.Error())
-		u.toolMissing = errors.Is(err, exec.ErrNotFound)
+		// A tool absent, or present and unable to start, never tried the target.
+		u.toolMissing = errors.Is(err, exec.ErrNotFound) || errors.Is(err, toolexec.ErrCannotStart)
 		u.refusal = refusalOf(pj.Job.Target, err)
 	}
 	return u

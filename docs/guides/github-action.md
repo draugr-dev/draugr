@@ -56,6 +56,8 @@ set `tools: true` to let Draugr provision them, install them alongside (e.g.
 scan that passes having never opened your images. On a descriptor meant to be complete, `draugr
 doctor saga.yaml --fail-on-uncovered` makes that a failing step instead of a note nobody reads.
 
+To scan an image before pushing it, see [Scanning an image before it is pushed](../../internal/controllers/images.md#scanning-an-image-before-it-is-pushed).
+
 ## Modes
 
 | `mode` | On | What it does | Needs |

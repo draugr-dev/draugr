@@ -1,0 +1,1 @@
+- **A scanner that cannot start is reported as one, not as a missing target.** A tool that exits 127 or 126, such as a wrapper script whose Python environment is gone, put `not found` beside a repository that was there. The control now says the scanner could not start, quotes the shell, and names `draugr tools install` or `draugr doctor`.

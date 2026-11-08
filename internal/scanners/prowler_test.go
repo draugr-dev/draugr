@@ -106,7 +106,38 @@ func newTestProwler(f *fakeProwler, g *grantAll) prowlerScanner {
 	s.run = f.run
 	s.access = func(context.Context) (permissionTester, error) { return g, nil }
 	s.identify = func(context.Context) (awsaccess.Identifier, error) { return callerIn("111111111111"), nil }
+	// As on the role the recordings were made with, which may not ask IAM about itself.
+	s.simulate = func(context.Context) (awsaccess.Simulator, error) { return &fakeSimulator{deny: true}, nil }
 	return s
+}
+
+// fakeSimulator is IAM's policy simulator. Synthetic: there is no recording of a successful
+// simulation, because the recorded role was denied it.
+type fakeSimulator struct {
+	// deny refuses the simulation, as IAM does a caller without iam:SimulatePrincipalPolicy.
+	deny bool
+	// denied are the actions the simulation does not allow.
+	denied []string
+	// asked are the actions it was asked about.
+	asked []string
+}
+
+func (f *fakeSimulator) RoleARN(_ context.Context, name string) (string, error) {
+	return "arn:aws:iam::111111111111:role/ops/" + name, nil
+}
+
+func (f *fakeSimulator) Allowed(_ context.Context, _ string, actions []string) ([]string, error) {
+	f.asked = actions
+	if f.deny {
+		return nil, errors.New("AccessDenied: not authorized to perform: iam:SimulatePrincipalPolicy")
+	}
+	var out []string
+	for _, a := range actions {
+		if !slices.Contains(f.denied, a) {
+			out = append(out, a)
+		}
+	}
+	return out, nil
 }
 
 // callerIn is an STS answer for a role session in account.
@@ -160,7 +191,7 @@ func TestProwlerChecksAnAWSAccount(t *testing.T) {
 	}
 	got := report.Provenance[0].Describe()
 	for _, part := range []string{"benchmark: cis_7.0_aws", "coverage: 2 of 2 checks decided", "scope: whole account",
-		"permissions: not checked; a denied read counts as Prowler reported it"} {
+		"permissions: read from Prowler's log"} {
 		if !strings.Contains(got, part) {
 			t.Errorf("provenance = %q, want %q in it", got, part)
 		}

@@ -64,6 +64,8 @@ a pull request. Skip them and everything else still works.
 
 Draugr names both in its error messages, so a failure points at the fix.
 
+To scan an image before pushing it, see [Scanning an image before it is pushed](../../internal/controllers/images.md#scanning-an-image-before-it-is-pushed).
+
 ## Pull requests
 
 **Azure Repos ignores `pr:` in YAML.** Silently, no build, no warning. Pull-request builds come from

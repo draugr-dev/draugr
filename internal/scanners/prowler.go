@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -40,14 +41,36 @@ type prowlerCloud struct {
 	compliance string
 	// taxonomy names the benchmark a check's requirement belongs to.
 	taxonomy string
+	// reads lists the services a check reads, where that is more than, or other than, the service
+	// its name starts with.
+	reads map[string][]string
+	// keepsPartlyRead says a check with results keeps them when a service it reads had a denial,
+	// marked partly read. Otherwise every check of a denied service is unread and its results
+	// discarded.
+	keepsPartlyRead bool
 }
 
 // prowlerClouds are the clouds the scanner checks, by the descriptor's `provider:`.
+//
+// The two clouds treat a denied service differently because their denials differ in reach. A
+// Google Cloud permission is checked on the project, so one missing denies the service's every
+// read. An AWS denial is of one action, often on one resource, which some checks of the service do
+// not need, and setting aside every check of the service would set aside real findings: on a
+// read-only role against CIS 7.0, most of the framework.
 var prowlerClouds = map[string]prowlerCloud{
 	"gcp": {name: "gcp", label: "Google Cloud", unit: "project", compliance: "cis_5.0_gcp",
-		taxonomy: "CIS Google Cloud Platform Foundation Benchmark"},
+		taxonomy: "CIS Google Cloud Platform Foundation Benchmark", reads: gcpCheckReads},
 	"aws": {name: "aws", label: "AWS", unit: "account", compliance: "cis_7.0_aws",
-		taxonomy: "CIS Amazon Web Services Foundations Benchmark"},
+		taxonomy: "CIS Amazon Web Services Foundations Benchmark", reads: awsCheckReads, keepsPartlyRead: true},
+}
+
+// checkReads is the services a check reads.
+func (c prowlerCloud) checkReads(check string) []string {
+	if reads, ok := c.reads[check]; ok {
+		return reads
+	}
+	service, _, _ := strings.Cut(check, "_")
+	return []string{service}
 }
 
 // prowlerConfigSchema is the JSON Schema for the scanner's Saga config.
@@ -93,13 +116,16 @@ const prowlerMutelist = "Mutelist: {}\n"
 // credentials cannot is reported unread rather than taken from Prowler's output either way.
 //
 // On AWS, before it runs, the scanner asks STS which identity the credentials are and refuses one in
-// another account. No permission preflight is made there yet, so a denied read is reported as
-// whatever Prowler made of it, and the measured-against line says so.
+// another account, then asks IAM's policy simulator which of the actions Prowler's services call
+// the identity's policies allow. A read-only role may not ask that, and then Prowler's log alone
+// says what was denied. A check of a denied service with no result is unread; one with results
+// keeps them and is marked partly read.
 type prowlerScanner struct {
 	info     plugin.ScannerInfo
 	run      func(ctx context.Context, argv []string) ([]byte, error)
 	access   func(ctx context.Context) (permissionTester, error)
 	identify func(ctx context.Context) (awsaccess.Identifier, error)
+	simulate func(ctx context.Context) (awsaccess.Simulator, error)
 }
 
 // prowlerData is what Prowler contacts besides the APIs of the account it checks. None of it is in
@@ -147,6 +173,9 @@ func NewProwler() plugin.Scanner {
 		identify: func(ctx context.Context) (awsaccess.Identifier, error) {
 			return awsaccess.New(ctx)
 		},
+		simulate: func(ctx context.Context) (awsaccess.Simulator, error) {
+			return awsaccess.NewIAM(ctx)
+		},
 	}
 }
 
@@ -181,11 +210,16 @@ func (s prowlerScanner) Scan(ctx context.Context, target plugin.Target, cfg plug
 		return sarif.Report{}, err
 	}
 	denied := map[string]string{}
+	permissions := ""
 	switch cloud.name {
 	case "gcp":
 		denied, err = s.preflight(ctx, account.ID)
 	case "aws":
-		err = s.confirmCaller(ctx, account.ID)
+		var caller awsaccess.Caller
+		caller, err = s.confirmCaller(ctx, account.ID)
+		if err == nil {
+			denied, permissions = s.awsPreflight(ctx, caller)
+		}
 	}
 	if err != nil {
 		return sarif.Report{}, err
@@ -214,16 +248,19 @@ func (s prowlerScanner) Scan(ctx context.Context, target plugin.Target, cfg plug
 		return sarif.Report{}, fmt.Errorf("prowler: no result for any of the %d %s checks on %s %s",
 			len(checks), compliance, cloud.unit, account.ID)
 	}
+	// The log is the backstop: a read the preflight could not foresee, denied mid-scan. Each cloud's
+	// errors read differently, so each has its own patterns.
+	var logged map[string]string
 	var above []string
-	if cloud.name == "gcp" {
-		// The log is the backstop: a read the preflight could not foresee, denied mid-scan. Its
-		// patterns are Google's error text and API hosts, which an AWS log does not contain.
-		var logged map[string]string
+	switch cloud.name {
+	case "gcp":
 		logged, above = loggedDenials(filepath.Join(dir, "prowler.log"))
-		for service, reason := range logged {
-			if _, known := denied[service]; !known {
-				denied[service] = reason
-			}
+	case "aws":
+		logged = awsLoggedDenials(filepath.Join(dir, "prowler.log"))
+	}
+	for service, reason := range logged {
+		if _, known := denied[service]; !known {
+			denied[service] = reason
 		}
 	}
 	report := prowlerReport(account, cloud, compliance, checks, findings, denied)
@@ -231,14 +268,31 @@ func (s prowlerScanner) Scan(ctx context.Context, target plugin.Target, cfg plug
 		report.Provenance[0].Fields = append(report.Provenance[0].Fields,
 			sarif.Field{Key: "organization", Value: "not read, " + strings.Join(above, ", ")})
 	}
-	if cloud.name == "aws" {
-		// TODO(https://github.com/draugr-dev/draugr/issues/1385): a permission preflight, and the
-		// log read for denials, once recordings show the IAM actions each check needs and how
-		// Prowler logs a denied one.
+	if permissions != "" {
 		report.Provenance[0].Fields = append(report.Provenance[0].Fields,
-			sarif.Field{Key: "permissions", Value: "not checked; a denied read counts as Prowler reported it"})
+			sarif.Field{Key: "permissions", Value: permissions})
 	}
 	return report, nil
+}
+
+// awsPreflight asks IAM's policy simulator which of the actions Prowler's services call the
+// caller's policies allow, and names each service one is denied for. It also says where the
+// denials will come from: the simulation and then the log, or the log alone where the caller may not
+// ask IAM about its own role, which a read-only role commonly may not. Neither is an error, because
+// the log still names every denied call Prowler makes.
+func (s prowlerScanner) awsPreflight(ctx context.Context, caller awsaccess.Caller) (map[string]string, string) {
+	const fromLog = "read from Prowler's log"
+	sim, err := s.simulate(ctx)
+	if err != nil {
+		slog.DebugContext(ctx, "AWS permission preflight not made", "error", err)
+		return map[string]string{}, fromLog
+	}
+	denied, err := awsaccess.Denied(ctx, sim, caller, awsActions())
+	if err != nil {
+		slog.DebugContext(ctx, "AWS permission preflight not made", "caller", caller.ARN, "error", err)
+		return map[string]string{}, fromLog
+	}
+	return awsDeniedServices(denied), "simulated before the scan, then read from Prowler's log"
 }
 
 // prowlerArgv is the scan's command line. The findings go to dir as OCSF, the log beside them.
@@ -273,15 +327,16 @@ func prowlerArgv(cloud prowlerCloud, account plugin.AccountTarget, compliance, d
 // confirmCaller asks STS which identity the credentials are, and refuses one outside the declared
 // account: Prowler reads whichever account the credentials reach and names it in its output, so a
 // wrong profile is a complete report about another account.
-func (s prowlerScanner) confirmCaller(ctx context.Context, account string) error {
+func (s prowlerScanner) confirmCaller(ctx context.Context, account string) (awsaccess.Caller, error) {
 	id, err := s.identify(ctx)
 	if err != nil {
-		return fmt.Errorf("prowler: %w", err)
+		return awsaccess.Caller{}, fmt.Errorf("prowler: %w", err)
 	}
-	if _, err := awsaccess.Confirm(ctx, id, account); err != nil {
-		return fmt.Errorf("prowler: %w", err)
+	caller, err := awsaccess.Confirm(ctx, id, account)
+	if err != nil {
+		return awsaccess.Caller{}, fmt.Errorf("prowler: %w", err)
 	}
-	return nil
+	return caller, nil
 }
 
 // preflight asks which services' reads the credentials are denied, by service, with the first
@@ -463,27 +518,40 @@ func deniedIn(line string) []string {
 	return nil
 }
 
-// prowlerReport turns Prowler's findings into SARIF, setting aside every check a denied service
-// leaves unread.
+// prowlerReport turns Prowler's findings into SARIF. A check reading a denied service is unread
+// and its results set aside; on a cloud that keeps them, a check with a result keeps it and is
+// partly read instead. Neither counts as decided.
 func prowlerReport(account plugin.AccountTarget, cloud prowlerCloud, compliance string, checks []string,
 	findings []ocsfFinding, denied map[string]string,
 ) sarif.Report {
 	report := sarif.Report{Tool: prowlerScannerName, Rules: map[string]sarif.Rule{}}
-	unread := map[string]bool{}
-	for _, check := range checks {
-		for _, service := range checkReads(check) {
-			if reason, ok := denied[service]; ok {
-				unread[check] = true
-				report.Unchecked = append(report.Unchecked, sarif.Unchecked{
-					Scanner: prowlerScannerName, Check: check, Group: service, Reason: reason,
-				})
-				break
-			}
-		}
-	}
 	inFramework := map[string]bool{}
 	for _, c := range checks {
 		inFramework[c] = true
+	}
+	// A result is a pass or a fail. MANUAL says Prowler could not judge the check, which is no
+	// result to keep.
+	answered := map[string]bool{}
+	for _, f := range findings {
+		if status := strings.ToUpper(f.StatusCode); status == "PASS" || status == "FAIL" {
+			answered[f.Metadata.EventCode] = true
+		}
+	}
+	unread, partly := map[string]bool{}, map[string]bool{}
+	for _, check := range checks {
+		for _, service := range cloud.checkReads(check) {
+			if reason, ok := denied[service]; ok {
+				u := sarif.Unchecked{Scanner: prowlerScannerName, Check: check, Group: service, Reason: reason}
+				if cloud.keepsPartlyRead && answered[check] {
+					u.PartlyRead = true
+					partly[check] = true
+				} else {
+					unread[check] = true
+				}
+				report.Unchecked = append(report.Unchecked, u)
+				break
+			}
+		}
 	}
 	taxonomy, version := cisTaxonomy(compliance)
 	decided := map[string]bool{}
@@ -493,7 +561,7 @@ func prowlerReport(account plugin.AccountTarget, cloud prowlerCloud, compliance 
 			continue
 		}
 		status := strings.ToUpper(f.StatusCode)
-		if status == "PASS" || status == "FAIL" {
+		if (status == "PASS" || status == "FAIL") && !partly[check] {
 			decided[check] = true
 		}
 		if status != "FAIL" || !inRegions(account.Provider, f, account.Regions) {

@@ -146,6 +146,19 @@ type caveat struct {
 	folded bool
 }
 
+// unreadDetail is a service's row: the checks with no result, the checks read in part, and the
+// denial, as `1 check unread · 4 checks partly read · denied s3:GetAccountPublicAccessBlock`.
+func unreadDetail(g engine.UnreadChecks) string {
+	var parts []string
+	if len(g.Checks) > 0 {
+		parts = append(parts, english.Count(len(g.Checks), "check")+" unread")
+	}
+	if len(g.PartlyRead) > 0 {
+		parts = append(parts, english.Count(len(g.PartlyRead), "check")+" partly read")
+	}
+	return strings.Join(append(parts, g.Reason), " · ")
+}
+
 // caveats gathers what was declared and not checked, the files whose scanner could not run, what
 // could not be measured, and the files and checks that were not read, by component.
 func caveats(d Data) []caveat {
@@ -163,8 +176,8 @@ func caveats(d Data) []caveat {
 	// A service's checks the scan could not evaluate, one row per service, because one granted
 	// permission clears all of them. The control is not named: the service says which one it is.
 	for _, g := range d.Run.UnreadChecks {
-		out = append(out, caveat{component: g.Component, what: g.Group,
-			detail: english.Count(len(g.Checks), "check") + " · " + g.Reason, key: saga.CaveatUnreadChecks})
+		out = append(out, caveat{component: g.Component, what: g.Group, detail: unreadDetail(g),
+			key: saga.CaveatUnreadChecks})
 	}
 	// An imported file that names no revision: read, but nothing shows it describes the code this
 	// run scanned.
