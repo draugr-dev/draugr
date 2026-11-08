@@ -88,7 +88,7 @@ const nucleiConfigSchema = `{
     "templates": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Template files or directories to run instead of the community set, relative to where Draugr runs. Tag exclusions apply to them too, so a template of yours that writes to the endpoint should carry the intrusive tag."
+      "description": "Template files or directories to run instead of the community set, relative to where Draugr runs. Tag exclusions apply to them too, so a template of yours that writes to the endpoint should carry the intrusive tag. They run as written, including any that connect to another port or host."
     },
     "interactsh": {
       "type": "boolean",
@@ -163,6 +163,11 @@ func nucleiOptionArgs(cfg plugin.Config) ([]string, error) {
 	if len(tags) > 0 {
 		args = append(args, "-tags", strings.Join(tags, ","))
 	}
+	// A template the descriptor names is run as written, whatever it reaches: somebody chose it and
+	// committed the choice, and -ept would drop it with nothing said.
+	if !nucleiNamesTemplates(cfg) {
+		args = append(args, "-ept", nucleiExcludedTypes)
+	}
 
 	for _, path := range stringList(cfg, "templates") {
 		arg, err := nucleiTemplateArg(path)
@@ -201,6 +206,9 @@ func nucleiOptionArgs(cfg plugin.Config) ([]string, error) {
 	}
 	return args, nil
 }
+
+// nucleiNamesTemplates reports whether the descriptor replaces the community set with its own.
+func nucleiNamesTemplates(cfg plugin.Config) bool { return len(stringList(cfg, "templates")) > 0 }
 
 // nucleiTemplateArg is one templates entry as -t has to receive it.
 //

@@ -30,10 +30,12 @@ same output as a scan that matched nothing.
 The command line is:
 
 ```
-nuclei -u <url> -jsonl -silent -nc -duc -etags headers,intrusive
+nuclei -u <url> -jsonl -silent -nc -duc -etags headers,intrusive -ept javascript,tcp -eid <ids> -r <file>
 ```
 
-followed by the flags any [options](#options) set.
+followed by the flags any [options](#options) set. `-ept`, `-eid` and `-r` keep the scan on the URL, as
+[Reach](#reach) sets out. Naming your own `templates` drops the first two, and `-eid` appears only when
+a template is listed.
 
 - `-jsonl` writes one finding per line to stdout, which Draugr parses itself (rather than
   Nuclei's SARIF export, whose severity mapping, location, and missing CWE don't fit Draugr's
@@ -53,6 +55,40 @@ Each finding maps to a SARIF result: `template-id` → rule id; `matched-at` (fa
 both the SARIF level and a numeric score together, so severity counts and risk prioritization
 agree: critical → error (9.5), high → error (8), medium → warning (5), low → note (2), info →
 note (1), unknown → note (no score).
+
+## Reach
+
+A scan sends requests to the URL a `hosts:` entry declares, on that URL's port, and looks names up
+with the resolvers the machine already uses. Nuclei's community set reaches further by default, so
+each scan closes these:
+
+| Left alone, Nuclei would | Closed by |
+|---|---|
+| Connect to a port a JavaScript or `tcp` template chooses, such as 22, 3306 or 6379, including default logins for SSH, MySQL, PostgreSQL and Redis | `-ept javascript,tcp` |
+| Run the JavaScript or `tcp` block of a template that also holds another protocol, which `-ept` passes, or send an HTTP request to a fixed other port on the host | `-eid`, listing each such template |
+| Send a request to a fixed outside host, some carrying the target's name (`rdap-whois`, `azure-domain-tenant`) and some carrying a credential found on the target (`github-personal-access`, `stripe-secret-key`) | `-eid`, listing each such template |
+| Ask `1.1.1.1`, `1.0.0.1`, `8.8.8.8` and `8.8.4.4` for every name it looks up | `-r`, with the servers in `/etc/resolv.conf` |
+
+`-eid` is worked out from the installed set on every run. A template
+is listed when it names a fixed other port on the target, a raw request to a fixed host or a path on a
+fixed host, or when it holds a JavaScript or `tcp` block beside another protocol. A template hiding its
+host in a variable is not found this way. A set Draugr cannot read stops the scan before any request,
+and `nuclei -update-templates` fetches it again.
+
+The measured-against line states what was left out, with a count for the listed templates:
+`left out: javascript and tcp templates; <n> templates naming another host or port`.
+
+Scanning a host's other ports and services is not part of `dast`, and is tracked in
+https://github.com/draugr-dev/draugr/issues/1366.
+
+**`templates` runs as written.** A template the descriptor names is neither excluded by protocol nor
+listed, including one that connects to another port or host.
+
+**With no resolver to name**, as on Windows, which has no `/etc/resolv.conf`, Nuclei keeps its public
+servers. The report says `resolvers: Nuclei's built-in public servers`. `--offline` refuses to run
+instead.
+
+**A redirect can send a template to another host**, by the target's own answer, and that is not closed.
 
 ## Templates
 
@@ -101,6 +137,9 @@ config:
 | `interactsh` | `-ni` when `false` | `false` skips the templates that need an out-of-band callback | `true` |
 | `intrusive` | removes `intrusive` from `-etags` | see [Intrusive templates](#intrusive-templates) | `false` |
 
+**`rateLimit` sets how long a scan takes.** The community set sends about 158,000 requests to one URL, so
+a complete scan takes about 18 minutes at the default 150.
+
 Tags are lowercase. Nuclei lowercases a tag and splits a value on commas, so the schema refuses
 both. An unset option passes no flag, and Nuclei's own default applies.
 
@@ -134,7 +173,8 @@ Nuclei tags a template `intrusive` when it does more than read, and several of t
 write to the endpoint. `put-method-enabled` uploads a file with `PUT` and checks whether it stays;
 `mingyu-xmlrpc-sock-adduser` adds a user. Nuclei's own ignore list skips `dos`, `fuzz`,
 `bruteforce`, `local` and `txt-service`, and lets the `intrusive` templates run. Draugr adds
-`intrusive` to `-etags`, so a default `dast` run skips them.
+`intrusive` to `-etags`, so a default `dast` run skips them. `intrusive: true` does not widen
+[what a scan reaches](#reach).
 
 `intrusive: true` runs them. The job then declares the `mutate` effect, and the run stops before
 any request unless the descriptor accepts it:
@@ -314,11 +354,15 @@ ProjectDiscovery publishes no terms of use or privacy notice for the public serv
 may change or go down at any time. An organization that needs either runs its own
 `interactsh-server` or sets `interactsh: false`.
 
+Nuclei's interactsh client looks up those servers' own names through its public resolvers. The target's
+name goes only to the machine's own resolvers, as [Reach](#reach) sets out.
+
 ## Data
 
-The **template set**, from `github.com`. Warmed once before the jobs fan out, because it is
-republished daily and it is the template version rather than the binary that decides what a scan
-finds. A populated template directory is read without asking, which is how an offline runner is
+The **template set**, from `github.com`. `nuclei -update-templates` also looks up `api.github.com` and
+`api.pdtm.sh`, and neither lookup carries anything about the target. Warmed once before the jobs fan out,
+because it is republished daily and it is the template version rather than the binary that decides what
+a scan finds. A populated template directory is read without asking, which is how an offline runner is
 prepared.
 
 **Nuclei's public interactsh servers**, `oast.pro`, `oast.live`, `oast.site`, `oast.online`,

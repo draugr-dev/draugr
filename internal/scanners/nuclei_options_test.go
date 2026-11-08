@@ -83,7 +83,7 @@ func TestNucleiUnsetOptionsPassNoFlag(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		if want := []string{"-etags", "headers,intrusive"}; !slices.Equal(args, want) {
+		if want := []string{"-etags", "headers,intrusive", "-ept", "javascript,tcp"}; !slices.Equal(args, want) {
 			t.Errorf("%s: args = %v, want %v", name, args, want)
 		}
 	}

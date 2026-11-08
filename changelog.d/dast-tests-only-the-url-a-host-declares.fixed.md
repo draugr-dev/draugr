@@ -1,0 +1,1 @@
+- **`dast` tests only the URL a host declares.** A scan no longer connects to other ports on the host, including default logins for SSH, MySQL and Redis, and a service on another port no longer counts against the component. The measured-against line states what was left out.

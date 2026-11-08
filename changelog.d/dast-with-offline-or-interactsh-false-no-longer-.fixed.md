@@ -1,0 +1,1 @@
+- **`dast` with `--offline` or `interactsh: false` no longer stops early on closed ports.** The scan runs to the end, about 18 minutes at the default `rateLimit`.

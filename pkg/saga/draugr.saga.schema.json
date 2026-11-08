@@ -546,7 +546,7 @@
               "type": "array"
             },
             "templates": {
-              "description": "Template files or directories to run instead of the community set, relative to where Draugr runs. Tag exclusions apply to them too, so a template of yours that writes to the endpoint should carry the intrusive tag.",
+              "description": "Template files or directories to run instead of the community set, relative to where Draugr runs. Tag exclusions apply to them too, so a template of yours that writes to the endpoint should carry the intrusive tag. They run as written, including any that connect to another port or host.",
               "items": {
                 "type": "string"
               },

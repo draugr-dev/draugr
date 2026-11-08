@@ -45,8 +45,9 @@ var (
 		Local: "GRYPE_DB_AUTO_UPDATE=false with a populated cache",
 	}}
 	nucleiData = []plugin.DataSource{{
-		Name:  "template set",
-		Hosts: []string{"github.com"},
+		Name: "template set",
+		// The update also asks api.github.com and api.pdtm.sh, read from a trace of -update-templates.
+		Hosts: []string{"github.com", "api.github.com", "api.pdtm.sh"},
 		Local: "a populated template directory; nuclei reads it without asking",
 	}}
 	retireJSData = []plugin.DataSource{{

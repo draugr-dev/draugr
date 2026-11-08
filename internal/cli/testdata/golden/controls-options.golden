@@ -137,7 +137,7 @@ What each scanner accepts in its Saga block:
     rateLimit    integer  Most requests sent per second, across the whole scan. 1 to 10000.
     retries      integer  Times a failed request is sent again. 0 to 10.
     tags         array    Run only the templates carrying one of these tags, e.g. ["cve", "exposure"]. Lowercase. headers is refused, and intrusive needs intrusive: true.
-    templates    array    Template files or directories to run instead of the community set, relative to where Draugr runs. Tag exclusions apply to them too, so a template of yours that writes to the endpoint should carry the intrusive tag.
+    templates    array    Template files or directories to run instead of the community set, relative to where Draugr runs. Tag exclusions apply to them too, so a template of yours that writes to the endpoint should carry the intrusive tag. They run as written, including any that connect to another port or host.
     timeout      string   How long to wait for each response, in whole seconds, e.g. "30s". 1s to 10m.
 
   prowler

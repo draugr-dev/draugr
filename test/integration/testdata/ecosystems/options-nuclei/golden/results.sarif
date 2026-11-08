@@ -121,20 +121,23 @@
           {
             "fields": {
               "endpoint": "http://127.0.0.1:18080",
-              "excludeTags": "sealed-extra"
+              "excludeTags": "sealed-extra",
+              "left out": "javascript and tcp templates"
             },
             "tool": "nuclei"
           },
           {
             "fields": {
               "endpoint": "http://127.0.0.1:18080",
-              "intrusive": "true"
+              "intrusive": "true",
+              "left out": "javascript and tcp templates"
             },
             "tool": "nuclei"
           },
           {
             "fields": {
               "endpoint": "http://127.0.0.1:18080",
+              "left out": "javascript and tcp templates",
               "tags": "sealed-extra"
             },
             "tool": "nuclei"
@@ -142,13 +145,14 @@
           {
             "fields": {
               "endpoint": "http://127.0.0.1:18080",
-              "templates": "./custom/sealed-custom.yaml"
+              "left out": "javascript and tcp templates"
             },
             "tool": "nuclei"
           },
           {
             "fields": {
-              "endpoint": "http://127.0.0.1:18080"
+              "endpoint": "http://127.0.0.1:18080",
+              "templates": "./custom/sealed-custom.yaml"
             },
             "tool": "nuclei"
           }
