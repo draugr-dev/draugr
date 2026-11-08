@@ -152,16 +152,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          from=$(go run ./cmd/draugr tools outdated --json \
-            | jq -r --arg t "$TOOL" '.[] | select(.tool == $t) | .pinned')
+          read -r from from_go < <(go run ./cmd/draugr tools outdated --json \
+            | jq -r --arg t "$TOOL" '.[] | select(.tool == $t) | "\(.pinned) \(.pinnedGo // "")"')
           echo "from=$from" >> "$GITHUB_OUTPUT"
+          echo "from_go=$from_go" >> "$GITHUB_OUTPUT"
           go run ./internal/tools/cmd/pinbump "$TOOL" | tee /tmp/bump.txt
           # The command goldens print the pins, so they move with one. Regenerated here, and the
           # pull request's diff shows exactly which rows changed.
           go test ./internal/cli -run TestCommandGolden -update >/dev/null
-          version=$(go run ./cmd/draugr tools outdated --json \
-            | jq -r --arg t "$TOOL" '.[] | select(.tool == $t) | .pinned')
+          read -r version to_go < <(go run ./cmd/draugr tools outdated --json \
+            | jq -r --arg t "$TOOL" '.[] | select(.tool == $t) | "\(.pinned) \(.pinnedGo // "")"')
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "to_go=$to_go" >> "$GITHUB_OUTPUT"
           # A tool named by hand is often one that is already current, and a run that scans for
           # twenty minutes and then fails on an empty commit says nothing about why. Answered
           # here, where the answer is one line and costs nothing.
@@ -173,9 +175,8 @@ jobs:
           echo "moved=true" >> "$GITHUB_OUTPUT"
           # The entry belongs to the change, so it is written with it. A bump that reaches a
           # release with nothing in the notes is one users find by reading a diff.
-          ./scripts/changelog.sh add changed <<EOF
-          - **\`draugr tools install\` fetches $TOOL $version**, which was pinned at $from.
-          EOF
+          go run ./internal/tools/cmd/pinbump entry "$TOOL" "$from" "$from_go" "$version" "$to_go" \
+            | ./scripts/changelog.sh add changed
 
       - name: Unit tests and the repository's own gate
         if: steps.bump.outputs.moved == 'true'
@@ -301,6 +302,8 @@ jobs:
           TOOL: ${{ matrix.tool }}
           FROM: ${{ steps.bump.outputs.from }}
           VERSION: ${{ steps.bump.outputs.version }}
+          FROM_GO: ${{ steps.bump.outputs.from_go }}
+          TO_GO: ${{ steps.bump.outputs.to_go }}
           EXERCISED: ${{ steps.before.outputs.exercised }}
         run: |
           set -euo pipefail
@@ -310,10 +313,11 @@ jobs:
           # applies cleanly there because it is the only change on that branch.
           git add internal/tools internal/cli/testdata/golden changelog.d
           git diff --cached --binary > "$dir/pin.patch"
-          jq -n --arg tool "$TOOL" --arg from "$FROM" --arg to "$VERSION" --arg exercised "$EXERCISED" \
-            '{tool: $tool, from: $from, to: $to, exercised: ($exercised == "true")}' > "$dir/meta.json"
+          jq -n --arg tool "$TOOL" --arg from "$FROM" --arg to "$VERSION" --arg fromGo "$FROM_GO" --arg toGo "$TO_GO" \
+            --arg exercised "$EXERCISED" \
+            '{tool: $tool, from: $from, to: $to, fromGo: $fromGo, toGo: $toGo, exercised: ($exercised == "true")}' > "$dir/meta.json"
           {
-            echo "### \`$TOOL\` $FROM → $VERSION"
+            go run ./internal/tools/cmd/pinbump heading "$TOOL" "$FROM" "$FROM_GO" "$VERSION" "$TO_GO"
             echo
             if [ "$EXERCISED" = "true" ]; then
               echo "The demo's descriptor runs \`$TOOL\`, and three cold scans ran it at $VERSION."
@@ -517,15 +521,16 @@ jobs:
             tool=$(jq -r .tool "$meta")
             to=$(jq -r .to "$meta")
             from=$(jq -r .from "$meta")
-            # The version the proof ran, named, so an upstream that published again in the
-            # meantime cannot put an unproven build in this pull request.
-            go run ./internal/tools/cmd/pinbump "$tool" "$to" | tee -a /tmp/bump.txt
-            ./scripts/changelog.sh add changed <<EOF
-          - **\`draugr tools install\` fetches $tool $to**, which was pinned at $from.
-          EOF
+            from_go=$(jq -r .fromGo "$meta")
+            to_go=$(jq -r .toGo "$meta")
+            # The version and the Go the proof ran, named, so an upstream that published again in
+            # the meantime cannot put an unproven build in this pull request.
+            go run ./internal/tools/cmd/pinbump "$tool" "$to" "$to_go" | tee -a /tmp/bump.txt
+            go run ./internal/tools/cmd/pinbump entry "$tool" "$from" "$from_go" "$to" "$to_go" \
+              | ./scripts/changelog.sh add changed
           done
           go test ./internal/cli -run TestCommandGolden -update >/dev/null
-          echo "tools=$(jq -r -s 'map("\(.tool) \(.to)") | join(", ")' /tmp/proof/*/meta.json)" >> "$GITHUB_OUTPUT"
+          echo "tools=$(jq -r -s 'map("\(.tool) \(.to)" + (if .fromGo != .toGo then " with \(.toGo)" else "" end)) | join(", ")' /tmp/proof/*/meta.json)" >> "$GITHUB_OUTPUT"
 
       - name: The repository's own gate, with every pin moved
         if: steps.any.outputs.any == 'true'

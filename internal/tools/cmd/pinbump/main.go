@@ -3,6 +3,12 @@
 //
 //	go run ./internal/tools/cmd/pinbump trivy            # to whatever its upstream publishes now
 //	go run ./internal/tools/cmd/pinbump trivy 0.74.0     # to a version you name
+//	go run ./internal/tools/cmd/pinbump govulncheck 1.9.0 go1.27.4   # and the Go that builds it
+//
+// Two more forms print what the bump workflow writes about a bump, and change nothing:
+//
+//	go run ./internal/tools/cmd/pinbump entry <tool> <from> <fromGo> <to> <toGo>     # its changelog line
+//	go run ./internal/tools/cmd/pinbump heading <tool> <from> <fromGo> <to> <toGo>   # its proof's heading
 //
 // Only the manifest. Whether the new version still works is a different question, answered by
 // installing it and scanning with it, which is what the workflow around this does and what a
@@ -31,8 +37,12 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 2 || len(os.Args) > 3 {
-		fail("usage: pinbump <tool> [version]")
+	if text, ok := describe(os.Args[1:]); ok {
+		fmt.Println(text)
+		return
+	}
+	if len(os.Args) < 2 || len(os.Args) > 4 {
+		fail("usage: pinbump <tool> [version [go]]")
 	}
 	// Both arguments reach a file path, a URL and a subprocess, so both are checked against what
 	// they are allowed to be before anything uses them. A tool has to be one this build pins,
@@ -47,7 +57,7 @@ func main() {
 	defer cancel()
 
 	version := ""
-	if len(os.Args) == 3 {
+	if len(os.Args) >= 3 {
 		version = strings.TrimPrefix(os.Args[2], "v")
 		if !versionLike.MatchString(version) {
 			fail("%q is not a version; expected digits and dots, as 1.2.3", version)
@@ -73,16 +83,19 @@ func main() {
 	// A Go-built tool has a second pin, the Go it is built with. A new Go minor release is a bump
 	// whether or not the tool's own release has moved, because it decides which modules the tool can
 	// load, and a bump that held it back would leave every module on a newer Go unanalyzed. Whatever
-	// the reason for a bump, the Go moves to the newest stable patch with it. The test for whether
-	// there is a bump is the one `tools outdated` applies, so the two agree.
-	goWas, goNext := "", ""
+	// the reason for a bump, the Go moves with it. The test for whether there is a bump is the one
+	// `tools outdated` applies, so the two agree.
+	namedGo := ""
+	if len(os.Args) == 4 {
+		namedGo = os.Args[3]
+	}
+	goWas := ""
 	if isGo(tool) {
 		goWas = tools.GoToolchain(tool)
-		latest, err := tools.LatestGo(ctx, nil)
-		if err != nil {
-			fail("the newest Go: %v", err)
-		}
-		goNext = latest
+	}
+	goNext, err := nextGo(ctx, isGo(tool), namedGo, tools.LatestGo)
+	if err != nil {
+		fail("%s: %v", tool, err)
 	}
 	if !(tools.Drift{Pinned: was, Latest: version, PinnedGo: goWas, LatestGo: goNext}).Behind() {
 		fmt.Printf("%s is already at %s\n", tool, withGo(was, goWas))
@@ -112,6 +125,66 @@ func main() {
 	fmt.Printf("%s: %s to %s\n", tool, withGo(was, goWas), withGo(version, goNext))
 }
 
+// nextGo is the Go a bump moves a tool to: the one named, which is the one a proof ran, and otherwise
+// the newest stable patch. Empty for a tool Draugr does not build with Go, which cannot be given one. An empty
+// name is no name, because the workflow passes each tool's Go whether it has one or not.
+func nextGo(ctx context.Context, goBuilt bool, named string,
+	latest func(context.Context, *http.Client) (string, error)) (string, error) {
+	if !goBuilt {
+		if named != "" {
+			return "", fmt.Errorf("draugr does not build this tool with Go, so %q cannot be its Go", named)
+		}
+		return "", nil
+	}
+	if named != "" {
+		if !goLike.MatchString(named) {
+			return "", fmt.Errorf("%q is not a Go release; expected the shape go1.27.4", named)
+		}
+		return named, nil
+	}
+	newest, err := latest(ctx, nil)
+	if err != nil {
+		return "", fmt.Errorf("the newest Go: %w", err)
+	}
+	return newest, nil
+}
+
+// describe is the text of the `entry` and `heading` forms, and false for any other arguments.
+func describe(args []string) (string, bool) {
+	if len(args) != 6 {
+		return "", false
+	}
+	tool, from, fromGo, to, toGo := args[1], args[2], args[3], args[4], args[5]
+	switch args[0] {
+	case "entry":
+		return changelogEntry(tool, from, fromGo, to, toGo), true
+	case "heading":
+		return proofHeading(tool, from, fromGo, to, toGo), true
+	}
+	return "", false
+}
+
+// changelogEntry is a bump's line in the release notes. It names the Go only where the Go moved, so a
+// bump of the Go alone does not read as a version that moved to itself.
+func changelogEntry(tool, from, fromGo, to, toGo string) string {
+	switch {
+	case fromGo == toGo:
+		return fmt.Sprintf("- **`draugr tools install` fetches %s %s**, which was pinned at %s.", tool, to, from)
+	case from == to:
+		return fmt.Sprintf("- **`draugr tools install` builds %s %s with %s**, which was built with %s.", tool, to, toGo, fromGo)
+	}
+	return fmt.Sprintf("- **`draugr tools install` builds %s %s with %s**, which was pinned at %s and built with %s.",
+		tool, to, toGo, from, fromGo)
+}
+
+// proofHeading is the heading over a bump's proof in the pull request, naming the Go where it moved.
+func proofHeading(tool, from, fromGo, to, toGo string) string {
+	if fromGo == toGo {
+		return fmt.Sprintf("### `%s` %s → %s", tool, from, to)
+	}
+	return fmt.Sprintf("### `%s` %s → %s", tool, withGo(from, fromGo), withGo(to, toGo))
+}
+
 // withGo is a version and, for a Go-built tool, the Go it is built with.
 func withGo(v, goRelease string) string {
 	if goRelease == "" {
@@ -137,6 +210,9 @@ func bumpGo(path, was, version, goWas, goNext string) error {
 // versionLike is what a pinned version may look like. Every upstream here publishes dotted
 // numbers, and anything else is either a mistake or an attempt to reach somewhere else.
 var versionLike = regexp.MustCompile(`^[0-9]+(\.[0-9]+)*$`)
+
+// goLike is what a named Go release may look like, as go.dev names one.
+var goLike = regexp.MustCompile(`^go[0-9]+(\.[0-9]+)*$`)
 
 // known reports whether this is a tool the manifest pins.
 func known(name string) bool {
