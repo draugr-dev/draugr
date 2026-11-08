@@ -711,6 +711,7 @@ finding about one of them in that file, whichever scanner reported it:
 | `package-lock.json`, `npm-shrinkwrap.json` | The root, named by `packages[""]`, by the lockfile's top-level `name` and `version`, or by the `package.json` beside it, and each workspace member, an entry under `packages` keyed by a folder rather than a path under `node_modules` |
 | `Cargo.lock` | Each `[[package]]` with no `source`: a workspace member, or a crate taken from a path |
 | `pubspec.yaml` | The package it declares, where it says `publish_to: none` |
+| `pubspec.lock` | Each package with `source: path`, taken from a folder of the project |
 | `Podfile.lock` | Each pod under `EXTERNAL SOURCES` with a `:path:` |
 | Any file Trivy reads, such as `go.mod` or `pom.xml` | Each package Trivy reports as `root` or `workspace`: a `go.mod`'s module, a `pom.xml`'s artifact |
 

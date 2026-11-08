@@ -149,6 +149,40 @@ func TestOwnPackagesOfAPubspec(t *testing.T) {
 	}
 }
 
+func TestOwnPackagesOfAPubspecLock(t *testing.T) {
+	// The shape dart pub get writes.
+	const lock = `packages:
+  shared_models:
+    dependency: "direct main"
+    description:
+      path: "../shared_models"
+      relative: true
+    source: path
+    version: "1.2.3"
+  http:
+    dependency: "direct main"
+    description:
+      name: http
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.2"
+  flutter:
+    dependency: "direct main"
+    description: flutter
+    source: sdk
+    version: "0.0.0"
+sdks:
+  dart: ">=3.0.0 <4.0.0"
+`
+	got := ownOf(t, "app/pubspec.lock", map[string]string{"app/pubspec.lock": lock})
+	if want := []string{"shared_models@1.2.3"}; !slices.Equal(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+	if got := ownOf(t, "app/pubspec.lock", map[string]string{"app/pubspec.lock": "packages: [unclosed\n"}); got != nil {
+		t.Errorf("an unreadable lockfile: got %v, want none", got)
+	}
+}
+
 func TestOwnPackagesOfAPodfileLock(t *testing.T) {
 	const lock = `PODS:
   - Flutter (1.0.0)

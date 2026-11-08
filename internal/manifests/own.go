@@ -32,7 +32,7 @@ func OwnFile(rel string) bool {
 	switch path.Base(rel) {
 	case "package-lock.json", "npm-shrinkwrap.json":
 		return !inNodeModules(rel)
-	case "Cargo.lock", "pubspec.yaml", "Podfile.lock":
+	case "Cargo.lock", "pubspec.yaml", "pubspec.lock", "Podfile.lock":
 		return true
 	}
 	return false
@@ -49,6 +49,8 @@ func OwnFile(rel string) bool {
 //     and for a dependency by path.
 //   - pubspec.yaml: the package it declares, where it says publish_to: none, so no package of that
 //     name can be this one on pub.dev.
+//   - pubspec.lock: every package with source: path, which Dart writes for a package in a folder
+//     of the project rather than one from pub.dev.
 //   - Podfile.lock: every pod under EXTERNAL SOURCES taken from a :path:.
 //
 // A file that cannot be read or parsed has none.
@@ -65,6 +67,8 @@ func OwnPackages(rel string, read func(rel string) ([]byte, error)) []OwnPackage
 		return cargoOwnPackages(content)
 	case "pubspec.yaml":
 		return pubspecOwnPackage(content)
+	case "pubspec.lock":
+		return pubspecLockOwnPackages(content)
 	case "Podfile.lock":
 		return podOwnPackages(content)
 	}
@@ -197,6 +201,27 @@ func pubspecOwnPackage(content []byte) []OwnPackage {
 		return nil
 	}
 	return []OwnPackage{{Name: spec.Name, Version: spec.Version}}
+}
+
+// pubspecLockOwnPackages reads the packages a pubspec.lock takes from a folder, each with source:
+// path. The other sources, hosted, git and sdk, name somebody else's package.
+func pubspecLockOwnPackages(content []byte) []OwnPackage {
+	var lock struct {
+		Packages map[string]struct {
+			Source  string `yaml:"source"`
+			Version string `yaml:"version"`
+		} `yaml:"packages"`
+	}
+	if yaml.Unmarshal(content, &lock) != nil {
+		return nil
+	}
+	var out []OwnPackage
+	for name, p := range lock.Packages {
+		if p.Source == "path" {
+			out = append(out, OwnPackage{Name: name, Version: p.Version})
+		}
+	}
+	return out
 }
 
 // podOwnPackages reads the pods a Podfile.lock takes from a folder, each under EXTERNAL SOURCES with
