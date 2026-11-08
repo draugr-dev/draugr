@@ -448,8 +448,8 @@ var (
 //
 // Prowler also reads organization settings, log sinks and essential contacts, where the
 // credentials reach that far. Those are outside the account the descriptor declares, so a denial
-// there leaves no project check unread; it is reported as what the scan could not see rather than
-// discarded.
+// there is reported as what the scan could not see rather than discarded, and leaves no project
+// check unread, unless a check reads that service nowhere else (gcpReadAboveOnly).
 //
 // The log is one JSON object a line, written from a template that does not escape the message, so
 // it is read with patterns rather than decoded.
@@ -471,9 +471,20 @@ func loggedDenials(path string) (project map[string]string, above []string) {
 		if m := permissionRE.FindStringSubmatch(line); m != nil {
 			reason = "denied " + m[1]
 		}
+		// Google answers 403 for an API the project has not enabled, which no grant would change.
+		if api := apiRE.FindStringSubmatch(line); api != nil && api[1] != "" && strings.Contains(line, "SERVICE_DISABLED") {
+			reason = api[1] + ".googleapis.com disabled"
+		}
 		if aboveRE.MatchString(line) {
 			if !slices.Contains(above, reason) {
 				above = append(above, reason)
+			}
+			// Most of what Prowler reads above the project only adds to the project's own checks,
+			// and a service read only there has a check that depends on it.
+			for _, service := range deniedIn(line) {
+				if _, seen := project[service]; !seen && gcpReadAboveOnly[service] {
+					project[service] = reason
+				}
 			}
 			continue
 		}

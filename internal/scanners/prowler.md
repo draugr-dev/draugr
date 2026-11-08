@@ -43,9 +43,11 @@ coverage figure counts the checks the installed Prowler runs.
    error.
 2. **The log is read for denials the preflight did not foresee**, and the services it names are
    treated the same way. Prowler also reads organization settings, log sinks and essential contacts
-   where the credentials reach that far. A denial there is outside the declared project and leaves
-   no check unread; the measured-against line names it, as `organization: not read, denied
-   logging.sinks.list`.
+   where the credentials reach that far. A denial there is outside the declared project, and the
+   measured-against line names it, as `organization: not read, denied logging.sinks.list`. It leaves
+   no check unread, except the essential-contacts check, which reads nothing else. An API the
+   project has not enabled is named as that, `essentialcontacts.googleapis.com disabled`, as Google
+   answers it with the same 403.
 
 ### AWS
 
