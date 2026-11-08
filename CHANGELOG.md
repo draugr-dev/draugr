@@ -16,21 +16,21 @@ _Nothing yet._
 
 ### Added
 
-- **Check a live AWS account with the `cloud` control.** Declare it under `accounts:` with `provider: aws` and its 12-digit ID, quoted, in `account:`. The scan and `draugr doctor` confirm the credentials belong to that account. Prowler's default Control Tower mutelist is replaced with an empty one.
+- **Check a live AWS account with the `cloud` control.** Declare it under `accounts:` with `provider: aws` and its 12-digit ID, quoted, in `account:`. The scan and `draugr doctor` confirm the credentials belong to that account. Prowler's default Control Tower mutelist is not applied, so findings it would mute are reported.
 
-- **See which AWS reads were denied.** The `cloud` control lists under Caveats each AWS service whose reads were denied, with the action or call that was refused. A check with no result is unread; one with results keeps its findings, is marked partly read and does not count as decided.
+- **See which AWS reads were denied.** Under Caveats, the `cloud` control lists each AWS service whose reads were denied, with the action or call that was refused, as `unread-checks`. A check with no result is unread; one with results keeps its findings and is marked partly read. `failOnCaveats: [unread-checks]` fails on both.
 
 ### Fixed
 
-- **A `.gitleaksignore` entry applies, and what it sets aside is reported.** Draugr ran Gitleaks on the checkout's temporary path, which put every tree fingerprint out of reach of an entry recorded with `gitleaks dir .`. Gitleaks now runs from inside the checkout, and a secret an entry covers is listed suppressed with `origin: scanner`.
+- **A `.gitleaksignore` entry recorded with `gitleaks dir .` now applies.** Gitleaks runs from inside the checkout, so its fingerprints match. A secret an entry covers is listed suppressed with `origin: scanner` and leaves the counts and the gate. Check old entries: one that never matched may now hide a secret still to be fixed.
 
-- **A scanner that cannot start is reported as one, not as a missing target.** A tool that exits 127 or 126, such as a wrapper script whose Python environment is gone, put `not found` beside a repository that was there. The control now says the scanner could not start, quotes the shell, and names `draugr tools install` or `draugr doctor`.
+- **A scanner that cannot start is reported as one.** A tool that exits 127 or 126, such as a wrapper script whose Python environment is gone, is no longer reported as a missing repository. The control says the scanner could not start, shows the shell's message, and names `draugr tools install` or `draugr doctor`.
 
-- **An image built here and never pushed is no longer met with `docker login`.** Where Grype alone scanned an image its registry refused and the local Docker daemon holds it, the errors block says the image is only in the daemon, and names the ways to read it: enable `trivy`, or push it to a registry first.
+- **A local image is no longer told to `docker login`.** Where Grype alone scanned an image its registry refused and the local Docker daemon holds it, the errors block says the image is only in the daemon, and names the ways to read it: enable `trivy`, or push it to a registry first.
 
-- **An image's operating system flaw found by both Trivy and Grype counts once.** The two write one Debian, Ubuntu, Red Hat or Alpine package's URL with different qualifiers, so most such flaws counted once per scanner: a Debian 12 image read as 399 findings for 215 flaws. Both findings stay in the report, the second listed as `also found by`.
+- **An operating system flaw found by both Trivy and Grype counts once.** This covers Debian, Ubuntu, Red Hat and Alpine packages, which the two identify differently, so counts on images scanned by both fall: a Debian 12 image goes from 399 findings to 215. Both stay in the report, the second listed as `also found by`.
 
-- **An image whose operating system Trivy does not support no longer passes as clean.** Trivy names such a distribution, CentOS Stream among them, and checks none of its packages. The image is now listed under Caveats as `unread-files`, with the distribution and `OS packages not checked`, and the control's line counts it.
+- **An image whose operating system Trivy does not support is no longer reported clean.** Trivy checks none of its packages, CentOS Stream among them. The image is listed under Caveats as `unread-files`, with the distribution and `OS packages not checked`, and `failOnCaveats: [unread-files]` now fails on it. Its libraries are still scanned.
 
 ## [0.169.0] - 2026-11-07
 
