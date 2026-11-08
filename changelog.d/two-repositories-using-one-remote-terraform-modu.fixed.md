@@ -1,0 +1,1 @@
+- **Two repositories using one remote Terraform module no longer lose its findings.** On a machine that had not cached the module, `iac` jobs raced to download it, and one repository usually reported nothing from it, sometimes with no caveat, so it read as clean. `trivy-config` jobs now run one at a time, which slows a scan of many repositories.

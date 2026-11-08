@@ -46,6 +46,7 @@ func NewTrivyConfig() plugin.Scanner {
 			Controls:     []string{"iac"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},
 			ConfigSchema: json.RawMessage(trivyConfigCheckSchema),
+			Exclusive:    plugin.ExclusiveTerraformModuleCache,
 		},
 		trivyConfigArgs,
 	)

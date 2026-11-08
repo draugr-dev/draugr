@@ -179,6 +179,13 @@ const OriginDraugr = "draugr"
 // per-tool bound allows.
 const ExclusiveGoPackageLoad = "go-package-load"
 
+// ExclusiveTerraformModuleCache is the ScannerInfo.Exclusive resource of a scanner that runs Trivy
+// over Terraform. Trivy downloads a remote module into one directory under the system's temporary
+// directory, removing it and cloning in place with no lock. A second job using that module then
+// either fails to load it or reads the directory while the first is still writing, and reports
+// nothing from it with no error, so the repository reads as clean.
+const ExclusiveTerraformModuleCache = "terraform-module-cache"
+
 // ScannerInfo describes a scanner and its capabilities.
 type ScannerInfo struct {
 	// Name is the scanner identifier, e.g. "trivy".
@@ -271,7 +278,8 @@ type ScannerInfo struct {
 	// It exists for a tool whose own parallelism already fills the bound Draugr gives each tool.
 	// Loading a Go module's packages starts up to that bound in compile processes, so two loads at
 	// once take twice the bound, and a run over many Go repositories takes memory in proportion to
-	// how many it loads together. One load at a time keeps the run within the bound.
+	// how many it loads together. One load at a time keeps the run within the bound. It serves too
+	// for a tool whose jobs corrupt each other's shared state, as ExclusiveTerraformModuleCache says.
 	//
 	// Declared rather than coded into one scanner so the engine can schedule it. A job takes the
 	// resource after the jobs it reads after have finished and before its concurrency slot, so a
