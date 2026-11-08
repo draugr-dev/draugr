@@ -5,6 +5,42 @@
       "automationDetails": {
         "id": "jvm-maven/"
       },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "unread-files"
+              },
+              "level": "warning",
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "pom.xml",
+                      "uriBaseId": "%SRCROOT%"
+                    }
+                  },
+                  "properties": {
+                    "repository": "./jvm-maven"
+                  }
+                }
+              ],
+              "message": {
+                "text": "pom.xml: transitive dependencies not resolved, run mvn dependency:resolve"
+              },
+              "properties": {
+                "component": "jvm-maven",
+                "controls": [
+                  "sca"
+                ],
+                "kind": "unread-files"
+              }
+            }
+          ]
+        }
+      ],
       "originalUriBaseIds": {
         "%SRCROOT%": {
           "description": {

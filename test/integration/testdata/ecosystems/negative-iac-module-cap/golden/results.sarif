@@ -5,6 +5,49 @@
       "automationDetails": {
         "id": "negative-iac-module-cap/"
       },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "unread-files"
+              },
+              "level": "warning",
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "infra",
+                      "uriBaseId": "%SRCROOT%"
+                    }
+                  },
+                  "properties": {
+                    "repository": "./negative-iac-module-cap"
+                  }
+                }
+              ],
+              "message": {
+                "text": "infra: 32 of 33 module calls checked; \"zbad\" skipped"
+              },
+              "properties": {
+                "component": "negative-iac-module-cap",
+                "controls": [
+                  "iac"
+                ],
+                "kind": "unread-files"
+              }
+            }
+          ]
+        }
+      ],
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
       "properties": {
         "draugr/provenance": [
           {

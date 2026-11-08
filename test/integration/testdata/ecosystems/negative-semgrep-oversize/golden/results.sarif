@@ -5,6 +5,42 @@
       "automationDetails": {
         "id": "negative-semgrep-oversize/"
       },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "unread-files"
+              },
+              "level": "warning",
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "src/bundle.js",
+                      "uriBaseId": "%SRCROOT%"
+                    }
+                  },
+                  "properties": {
+                    "repository": "./negative-semgrep-oversize"
+                  }
+                }
+              ],
+              "message": {
+                "text": "src/bundle.js: over 1 MB, not scanned"
+              },
+              "properties": {
+                "component": "negative-semgrep-oversize",
+                "controls": [
+                  "sast"
+                ],
+                "kind": "unread-files"
+              }
+            }
+          ]
+        }
+      ],
       "originalUriBaseIds": {
         "%SRCROOT%": {
           "description": {

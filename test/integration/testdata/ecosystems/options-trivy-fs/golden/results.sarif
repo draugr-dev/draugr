@@ -5,6 +5,42 @@
       "automationDetails": {
         "id": "options-trivy-fs/"
       },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "unread-files"
+              },
+              "level": "warning",
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "os-only/requirements.txt",
+                      "uriBaseId": "%SRCROOT%"
+                    }
+                  },
+                  "properties": {
+                    "repository": "./options-trivy-fs"
+                  }
+                }
+              ],
+              "message": {
+                "text": "os-only/requirements.txt: no packages read"
+              },
+              "properties": {
+                "component": "os-only",
+                "controls": [
+                  "sca"
+                ],
+                "kind": "unread-files"
+              }
+            }
+          ]
+        }
+      ],
       "originalUriBaseIds": {
         "%SRCROOT%": {
           "description": {

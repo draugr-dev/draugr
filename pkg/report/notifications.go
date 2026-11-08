@@ -3,6 +3,7 @@ package report
 import (
 	"fmt"
 	"maps"
+	"regexp"
 	"slices"
 
 	"github.com/draugr-dev/draugr/internal/english"
@@ -43,7 +44,33 @@ func notifications(d Data) []sarif.Notification {
 			Component: c.component, Controls: c.controls, Locations: c.locations,
 		})
 	}
-	return append(out, cutToLimit(d, ns)...)
+	return scrubbedNotifications(append(out, cutToLimit(d, ns)...))
+}
+
+// urlUserinfo and credentialShaped match what a tool's message can quote that must not reach an
+// uploaded file: a URL's userinfo, a bearer token, and a token or password given as a parameter. A scan error quotes
+// a tool's own words, such as the clone URL it failed on, and this file goes to whichever platform
+// the descriptor publishes to, where report.json stays with the run.
+var (
+	urlUserinfo      = regexp.MustCompile(`://[^/\s@]+@`)
+	credentialShaped = regexp.MustCompile(`(?i)(bearer\s+)[^\s"']+|((?:token|password|passwd|secret)=)[^\s&"']+`)
+)
+
+// scrubbedNotifications is ns with anything credentialShaped in what it quotes replaced.
+func scrubbedNotifications(ns []sarif.Notification) []sarif.Notification {
+	scrub := func(s string) string {
+		return credentialShaped.ReplaceAllString(urlUserinfo.ReplaceAllString(s, "://<redacted>@"), "$1$2<redacted>")
+	}
+	for i := range ns {
+		ns[i].Message = scrub(ns[i].Message)
+		locations := slices.Clone(ns[i].Locations)
+		for j := range locations {
+			locations[j].URI = scrub(locations[j].URI)
+			locations[j].Repository = scrub(locations[j].Repository)
+		}
+		ns[i].Locations = locations
+	}
+	return ns
 }
 
 // scanErrorNotifications are the run's scan errors, by control, each distinct message once. Two jobs

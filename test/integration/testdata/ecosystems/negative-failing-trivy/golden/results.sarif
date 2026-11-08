@@ -5,6 +5,28 @@
       "automationDetails": {
         "id": "negative-failing-trivy/"
       },
+      "invocations": [
+        {
+          "executionSuccessful": false,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "scan-error"
+              },
+              "level": "error",
+              "message": {
+                "text": "sca: run trivy-fs: exit status 2: sealed fixture: this program failed on purpose"
+              },
+              "properties": {
+                "controls": [
+                  "sca"
+                ],
+                "kind": "scan-error"
+              }
+            }
+          ]
+        }
+      ],
       "results": [],
       "tool": {
         "driver": {

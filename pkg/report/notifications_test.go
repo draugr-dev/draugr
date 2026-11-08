@@ -456,3 +456,29 @@ func TestReportJSONIsNotChangedByNotifications(t *testing.T) {
 		t.Errorf("report.json carries SARIF's notifications:\n%s", got)
 	}
 }
+
+// A scan error quotes a tool's words, and this file is the one a platform receives, so a credential
+// a tool quoted does not travel with it. An image digest, which is long hex, is not one.
+func TestANotificationCarriesNoCredentialAToolQuoted(t *testing.T) {
+	const digest = "sha256:0e2575c565cd4deb82b655c0d302fbc36033adf424f3099d7443751ba76fbfb3"
+	d := Data{Run: engine.Result{ScanErrors: map[string][]string{"sca": {
+		"run trivy-fs: fatal: unable to access 'https://user:aaaaaaaa@git.example/acme/api.git/': 403",
+		"run trivy-fs: fatal: unable to access 'https://aaaaaaaa@git.example/acme/lib.git/': 403",
+		"run x: GET https://reg.example/v2?token=aaaaaaaa&scope=pull: Authorization: Bearer aaaaaaaa failed",
+		"run grype: could not read reg.example/app@" + digest,
+	}}}}
+	var all strings.Builder
+	for _, n := range notifications(d) {
+		all.WriteString(n.Message + "\n")
+	}
+	got := all.String()
+	if strings.Contains(got, "aaaaaaaa") {
+		t.Errorf("a credential reached the file:\n%s", got)
+	}
+	for _, want := range []string{"https://<redacted>@git.example/acme/api.git", "https://<redacted>@git.example/acme/lib.git",
+		"token=<redacted>&scope=pull", "Bearer <redacted>", digest} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q:\n%s", want, got)
+		}
+	}
+}
