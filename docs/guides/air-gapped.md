@@ -10,10 +10,11 @@ order: 70
 Draugr reaches out from a handful of places. `--offline`, or `DRAUGR_OFFLINE=1`, says once that this
 machine has no network, and every one of Draugr's own fetches honors it.
 
-**Three scanners cannot run without a network at all**, and that is a property of the tools rather
-than a setting. They are named below. Most readers of this page are not disconnected but behind an
-egress allowlist, and for them the useful list is the hosts rather than the flag: `draugr doctor`
-prints it.
+**A scanner that fetches on every run cannot run without a network** unless it is pointed at
+something on disk, and that is a property of the tool rather than a setting. "What cannot run
+offline" below names them. Most readers of this page are not disconnected but behind an egress
+allowlist, and for them the useful list is the hosts rather than the flag: `draugr doctor` prints
+it.
 
 ```bash
 draugr scan draugr.saga.yaml --offline
