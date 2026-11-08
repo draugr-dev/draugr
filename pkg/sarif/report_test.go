@@ -431,14 +431,14 @@ func TestAgreementNoteShowsARatingOnlyWhenItDiffers(t *testing.T) {
 	// disagree, it is the one thing this line carries that a reader cannot get anywhere else.
 	agree := AgreementNote([]Observation{
 		{Tool: "grype", Severity: SeverityHigh, Score: 8.7},
-	}, SeverityHigh)
+	}, SeverityHigh, "trivy")
 	if agree != "also found by grype" {
 		t.Errorf("note = %q, want no rating when they agree", agree)
 	}
 
 	differ := AgreementNote([]Observation{
 		{Tool: "grype", Severity: SeverityLow, Score: 2.3},
-	}, SeverityMedium)
+	}, SeverityMedium, "trivy")
 	if differ != "also found by grype (low 2.3)" {
 		t.Errorf("note = %q, want the other scanner's own reading", differ)
 	}
@@ -448,14 +448,14 @@ func TestAgreementNoteHandlesSeveralScanners(t *testing.T) {
 	got := AgreementNote([]Observation{
 		{Tool: "grype", Severity: SeverityLow, Score: 2.3},
 		{Tool: "osv", Severity: SeverityMedium},
-	}, SeverityMedium)
+	}, SeverityMedium, "trivy")
 	if got != "also found by grype (low 2.3), osv" {
 		t.Errorf("note = %q", got)
 	}
 }
 
 func TestAgreementNoteSilentWhenOnlyOneScannerFoundIt(t *testing.T) {
-	if got := AgreementNote(nil, SeverityHigh); got != "" {
+	if got := AgreementNote(nil, SeverityHigh, "trivy"); got != "" {
 		t.Errorf("note = %q, want nothing", got)
 	}
 }
@@ -516,5 +516,29 @@ func TestMergeDeduplicatesUnchecked(t *testing.T) {
 	}}
 	if got := Merge(a, a).Unchecked; len(got) != 2 {
 		t.Errorf("unchecked = %+v, want the two components' statements once each", got)
+	}
+}
+
+// One flaw in two lockfiles, found by two scanners, is three copies beside the counted one. Each
+// other scanner is named once, the counted finding's own scanner is not named for a copy that
+// differs only in its file, and a different rating in any copy is said.
+func TestAgreementNoteNamesEachOtherScannerOnce(t *testing.T) {
+	copies := []Observation{
+		{Tool: "grype", Severity: SeverityHigh, Location: "admin/package-lock.json"},
+		{Tool: "grype", Severity: SeverityHigh, Location: "web/package-lock.json"},
+		{Tool: "trivy", Severity: SeverityHigh, Location: "web/package-lock.json"},
+	}
+	if got := AgreementNote(copies, SeverityHigh, "trivy"); got != "also found by grype" {
+		t.Errorf("note = %q", got)
+	}
+	if got := AgreementNote(copies[2:], SeverityHigh, "trivy"); got != "" {
+		t.Errorf("a copy from the row's own scanner: note = %q", got)
+	}
+	differ := []Observation{{Tool: "grype", Severity: SeverityHigh}, {Tool: "grype", Severity: SeverityLow, Score: 2.3}}
+	if got := AgreementNote(differ, SeverityHigh, "trivy"); got != "also found by grype (low 2.3)" {
+		t.Errorf("note = %q", got)
+	}
+	if got := OtherFiles(copies, "admin/package-lock.json"); got != 1 {
+		t.Errorf("other files = %d, want web/package-lock.json alone", got)
 	}
 }

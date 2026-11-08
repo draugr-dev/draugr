@@ -1,0 +1,1 @@
+- **A finding in several files says so, and names each other scanner once.** A row named one lockfile and listed the rest as `also found by trivy, trivy`, repeating a scanner per file and naming its own. It now reads `admin/package-lock.json:14 · and 1 more · also found by grype`.

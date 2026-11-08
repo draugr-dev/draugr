@@ -831,11 +831,12 @@ func findingTitle(f finding) string {
 func reasoning(col tui.Painter, f finding) []notePart {
 	var parts []notePart
 	for _, note := range []string{
+		moreFilesNote(f),
 		ratingNote(f.rating),
 		reachabilityPath(f.reachability),
 		unreachableCredit(f.reachability),
 		unreachableStanding(f.reachability),
-		sarif.AgreementNote(f.alsoFoundBy, f.severity),
+		sarif.AgreementNote(f.alsoFoundBy, f.severity, f.tool),
 		f.priorityFloor,
 		historicalNote(f.historical),
 	} {
@@ -844,6 +845,17 @@ func reasoning(col tui.Painter, f finding) []notePart {
 		}
 	}
 	return parts
+}
+
+// moreFilesNote says how many files beside the row's own hold the flaw, in the words the actions view
+// uses for the same fact, or "" where it is in one. Beside the row's location, so a reader does not
+// fix one file and take the flaw to be gone.
+func moreFilesNote(f finding) string {
+	n := sarif.OtherFiles(f.alsoFoundBy, lineSuffix.ReplaceAllString(f.location, ""))
+	if n == 0 {
+		return ""
+	}
+	return fmt.Sprintf("and %d more", n)
 }
 
 // ratingNote is the scanner's rating a finding's severity was read from, "impact high · likelihood
