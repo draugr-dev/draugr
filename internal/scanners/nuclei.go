@@ -31,6 +31,9 @@ type nucleiScanner struct {
 	// reach checks the endpoint answers before Nuclei runs (see nucleiReach). Nil skips the check,
 	// for a test that fakes run against an address nothing listens on.
 	reach func(ctx context.Context, url, header string) error
+	// resolvConf is where the machine's DNS resolvers are read from, for -r. Empty passes no -r, for a
+	// test that does not care about the command line's resolvers.
+	resolvConf string
 }
 
 // NewNuclei returns a Scanner that runs Nuclei for the "dast" control. Nuclei is a single Go
@@ -75,9 +78,10 @@ func NewNuclei() plugin.Scanner {
 					"from and what it sent",
 			}},
 		},
-		run:       execArgv,
-		templates: sharedNucleiTemplates,
-		reach:     nucleiReach,
+		run:        execArgv,
+		templates:  sharedNucleiTemplates,
+		reach:      nucleiReach,
+		resolvConf: nucleiResolvConf,
 	}
 }
 
@@ -142,10 +146,12 @@ func (s nucleiScanner) Info() plugin.ScannerInfo { return s.info }
 //
 // The templates are what decide the answer, and they are republished daily, so a cached "no
 // findings" against last week's set is a claim about a question nobody asked. The binary changes
-// rarely enough that keying on it instead would be close to keying on nothing.
+// rarely enough that keying on it instead would be close to keying on nothing. Draugr's own version
+// is in the key too, because Draugr decides which of those templates run and which resolvers they ask,
+// and a finding cached under a wider command line would outlive the change that narrowed it.
 func (s nucleiScanner) CacheVersion(ctx context.Context) string {
 	if v := sharedNucleiVersion.version(ctx); v != "" {
-		return "nuclei-templates@" + v
+		return draugrCacheVersion() + ";nuclei-templates@" + v
 	}
 	return ""
 }
@@ -312,6 +318,28 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, cfg plugi
 		headerFile = path
 	}
 
+	// The scan tests the URL and nothing past it, unless the descriptor names its own templates.
+	var leftOut []string
+	if s.templates != nil && !nucleiNamesTemplates(cfg) {
+		leftOut, err = s.templates.reaching(ctx)
+		if err != nil {
+			return sarif.Report{}, fmt.Errorf("nuclei: could not read the template set to leave out what reaches "+
+				"past the URL, so nothing was scanned; `nuclei -update-templates` fetches it again: %w", err)
+		}
+		if len(leftOut) > 0 {
+			options = append(options, "-eid", strings.Join(leftOut, ","))
+		}
+	}
+	var resolverField *sarif.Field
+	if s.resolvConf != "" {
+		args, field, cleanup, err := nucleiResolverFile(ctx, s.resolvConf)
+		if err != nil {
+			return sarif.Report{}, err
+		}
+		defer cleanup()
+		options, resolverField = append(options, args...), field
+	}
+
 	argv := nucleiArgv(host.URL, headerFile, options)
 	var spec preparedSpec
 	if host.Spec != nil {
@@ -354,6 +382,12 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, cfg plugi
 	// their findings are not comparable.
 	prov := nucleiProvenance(host, spec)
 	prov.Fields = append(prov.Fields, nucleiOptionFields(cfg)...)
+	if !nucleiNamesTemplates(cfg) {
+		prov.Fields = append(prov.Fields, nucleiLeftOut(leftOut))
+	}
+	if resolverField != nil {
+		prov.Fields = append(prov.Fields, *resolverField)
+	}
 	report.Provenance = append(report.Provenance, prov)
 	return report, nil
 }
@@ -491,6 +525,8 @@ type nucleiTemplateWarmer struct {
 	once sync.Once
 	err  error
 	run  func(ctx context.Context, argv []string) ([]byte, error)
+	// reach holds the templates of the set that reach past the URL.
+	reach nucleiReachScan
 }
 
 // warm brings the template set up to date at most once, and checks that there is one.

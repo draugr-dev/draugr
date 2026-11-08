@@ -44,6 +44,8 @@ config:
 - Requires the app to be **served**. Point `hosts:` at a running (usually staging/pre-prod)
   deployment. Nuclei must be installed (`draugr tools install nuclei`); `draugr doctor` checks
   for it when `dast` is enabled.
+- Tests the URL a host declares and no other port or host. The measured-against line states
+  [what was left out](../scanners/nuclei.md#reach).
 - Skips the templates Nuclei tags `intrusive`, some of which write to the endpoint. The scanner's
   [`intrusive`](../scanners/nuclei.md#intrusive-templates) option runs them, and declares the
   `mutate` effect, which `config.allowEffects` has to accept.
