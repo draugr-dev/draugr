@@ -23,7 +23,8 @@ var (
 		Local: "--skip-db-update, which Draugr passes when offline",
 	}}
 	// Trivy's image scan also asks Google's credential helper for a registry token, for an image in
-	// gcr.io, *.gcr.io or *-docker.pkg.dev, and the helper tries the machine's metadata server. Listed
+	// gcr.io, *.gcr.io or *-docker.pkg.dev, other than mirror.gcr.io, and the helper tries the
+	// machine's metadata server. Listed
 	// where an allowlist is written rather than declared as an effect: it reaches no third party and
 	// nothing about the image leaves the machine, so it is no consequence for the target.
 	trivyImageData = append(slices.Clone(trivyData), plugin.DataSource{

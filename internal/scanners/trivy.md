@@ -81,4 +81,5 @@ has neither flag and makes no such request.
 whether or not the image needs one, and the helper tries the machine's metadata server, where a
 Google Cloud machine's service-account credentials come from. Nothing about the image is sent to it.
 A runner that blocks the address still scans a public image: the request fails and Trivy pulls
-without a token. No other registry reaches it.
+without a token. `mirror.gcr.io`, which the database comes from, and every other registry do not
+reach it.
