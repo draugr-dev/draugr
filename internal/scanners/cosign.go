@@ -483,7 +483,9 @@ func cosignRef(img plugin.ImageTarget) (string, bool) {
 		}
 		return repo + "@" + img.Digest, true
 	}
-	return img.Ref, false
+	// An image: that carries the digest itself is verified at that digest, as one with a separate
+	// digest: is, and is pinned the same.
+	return img.Ref, strings.Contains(img.Ref, "@")
 }
 
 // cutTag removes a trailing `:tag`, leaving a registry port alone.

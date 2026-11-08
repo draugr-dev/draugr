@@ -232,6 +232,8 @@ func TestCosignPrefersTheDigest(t *testing.T) {
 		{"a digest already in the reference", "ghcr.io/acme/p@sha256:old", "sha256:abc", "ghcr.io/acme/p@sha256:abc", true},
 		{"a registry port and a tag", "reg.example.com:5000/acme/p:1.0", "sha256:abc", "reg.example.com:5000/acme/p@sha256:abc", true},
 		{"a tag alone", "ghcr.io/acme/p:1.0", "", "ghcr.io/acme/p:1.0", false},
+		{"a digest in the reference alone", "ghcr.io/acme/p@sha256:abc", "", "ghcr.io/acme/p@sha256:abc", true},
+		{"a tag and a digest in the reference alone", "ghcr.io/acme/p:1.0@sha256:abc", "", "ghcr.io/acme/p:1.0@sha256:abc", true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
