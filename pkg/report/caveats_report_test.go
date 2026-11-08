@@ -57,7 +57,7 @@ var everyCaveat = []struct {
 }{
 	{"edge", "not-checked", "hosts", "controls off: dast, headers, tls", false, ""},
 	{"edge", "not-measured", "kube-bench", "audits the whole cluster and cannot be narrowed to namespace edge", false, ""},
-	{"edge", "unread-checks", "compute", "1 check · denied compute.instances.list", false, ""},
+	{"edge", "unread-checks", "compute", "1 check unread · denied compute.instances.list", false, ""},
 	{"ledger", "not-checked", "checkout/go.mod", "govulncheck needs Go", false, ""},
 	{"ledger", "unbound-imports", "reports/review.sarif", "names no commit, so nothing ties its findings to this code", true, ""},
 	{"ledger", "unread-files", "package.json", "no lockfile (sca)", false, "sca"},

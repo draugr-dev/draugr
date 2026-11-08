@@ -76,7 +76,7 @@ that read it and the permission that was missing:
 ```
 CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
   unread-checks · api
-    compute  16 checks · denied compute.instances.list
+    compute  16 checks unread · denied compute.instances.list
 ```
 
 Prowler's result for an unread check is discarded, whatever it was. Prowler does not separate a check
@@ -96,18 +96,22 @@ where AWS's error does not name the action:
 ```
 CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
   unread-checks · web
-    account         2 checks · denied account:GetContactInformation
-    cloudtrail      18 checks · 3 checks partly read · denied the GetEventSelectors call
+    account         2 checks unread · denied account:GetContactInformation
+    cloudtrail      18 checks unread · 3 checks partly read · denied the GetEventSelectors call
     efs             1 check partly read · denied elasticfilesystem:DescribeAccessPoints
 ```
 
 The denials come from two places. Before Prowler runs, where the credentials may ask, the scanner
 asks IAM's policy simulator which of the actions Prowler's services call the role's policies allow.
-After it runs, Prowler's log names every call that was denied, including those a resource's own
-policy refused. The measured-against line says which ran, as `permissions: checked before the scan`,
-or as `permissions: read from Prowler's log` where the credentials may not call `iam:GetRole` or
-`iam:SimulatePrincipalPolicy`. `report.json` lists the partly read checks under
-`unreadChecks[].partlyRead`.
+After it runs, Prowler's log names the calls that were denied, including those a resource's own
+policy refused. The measured-against line says which ran, as `permissions: simulated before the
+scan, then read from Prowler's log`, or as `permissions: read from Prowler's log` where the
+credentials may not call `iam:GetRole` or `iam:SimulatePrincipalPolicy`; grant both to simulate
+before the scan. `report.json` lists the partly read checks under `unreadChecks[].partlyRead`.
+
+Grant the action a row names and scan again: a check clears once none of the services it reads has
+a denial. A partly read check keeps its findings, and a pass there can rest on a read that was
+refused.
 
 **Coverage is stated in the measured-against line**: the framework, how many of its checks were
 decided, and the scope.

@@ -147,11 +147,11 @@ type caveat struct {
 }
 
 // unreadDetail is a service's row: the checks with no result, the checks read in part, and the
-// denial, as `1 check · 4 checks partly read · denied s3:GetAccountPublicAccessBlock`.
+// denial, as `1 check unread · 4 checks partly read · denied s3:GetAccountPublicAccessBlock`.
 func unreadDetail(g engine.UnreadChecks) string {
 	var parts []string
 	if len(g.Checks) > 0 {
-		parts = append(parts, english.Count(len(g.Checks), "check"))
+		parts = append(parts, english.Count(len(g.Checks), "check")+" unread")
 	}
 	if len(g.PartlyRead) > 0 {
 		parts = append(parts, english.Count(len(g.PartlyRead), "check")+" partly read")

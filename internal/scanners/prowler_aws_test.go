@@ -202,7 +202,7 @@ func TestProwlerChecksAWSPermissionsBeforeTheScan(t *testing.T) {
 	if !slices.Contains(partly, "ec2_ebs_default_encryption") || len(report.Results) != 8 {
 		t.Errorf("partly read = %v, %d findings", partly, len(report.Results))
 	}
-	if got := report.Provenance[0].Describe(); !strings.Contains(got, "permissions: checked before the scan") {
+	if got := report.Provenance[0].Describe(); !strings.Contains(got, "permissions: simulated before the scan, then read from Prowler's log") {
 		t.Errorf("provenance = %q", got)
 	}
 }

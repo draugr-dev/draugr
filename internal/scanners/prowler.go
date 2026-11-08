@@ -292,7 +292,7 @@ func (s prowlerScanner) awsPreflight(ctx context.Context, caller awsaccess.Calle
 		slog.DebugContext(ctx, "AWS permission preflight not made", "caller", caller.ARN, "error", err)
 		return map[string]string{}, fromLog
 	}
-	return awsDeniedServices(denied), "checked before the scan"
+	return awsDeniedServices(denied), "simulated before the scan, then read from Prowler's log"
 }
 
 // prowlerArgv is the scan's command line. The findings go to dir as OCSF, the log beside them.

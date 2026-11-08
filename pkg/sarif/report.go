@@ -812,7 +812,7 @@ type Report struct {
 	// two produce the same empty report and the same PASS. Empty for a scanner that does not
 	// account for its reads, which says nothing either way.
 	Inputs []Input `json:"inputs,omitempty"`
-	// Unchecked are the checks a scan could not evaluate, or evaluate in full, each with the reason:
+	// Unchecked are the checks a scan could not evaluate, or could evaluate only in part, each with the reason:
 	// a read the check needs that the scan's identity was denied.
 	//
 	// The argument Inputs makes, applied to checks. A denied read does not fail a check: depending on

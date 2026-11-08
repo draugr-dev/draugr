@@ -54,12 +54,11 @@ coverage figure counts the checks the installed Prowler runs.
    identity in another account is an error naming both accounts.
 2. **A permission preflight, where the credentials may make one.** The scanner asks IAM `GetRole`
    for the ARN, with its path, of the role the session assumed, then `SimulatePrincipalPolicy`
-   which of the actions Prowler's services call the role's policies allow. A user is simulated as
-   itself, and the account's root not at all. The simulation weighs the role's policies, its
-   permissions boundary and the organization's service control policies, and not a resource's own
-   policy. Credentials that may not call either, as a read-only role commonly may not, leave the
-   log alone to name the denials, and neither case is an error. The measured-against line says
-   which ran, `permissions: checked before the scan` or `permissions: read from Prowler's log`.
+   which of the actions Prowler's services call the role's policies allow. A resource's own policy
+   is not weighed, so the log catches those. Credentials that may not call either, as a read-only
+   role commonly may not, leave the log alone to name the denials, and neither case is an error.
+   The measured-against line says which ran, `permissions: simulated before the scan, then read
+   from Prowler's log` or `permissions: read from Prowler's log`.
 3. **The log is read for denied calls**, after a preflight too. A denied call is one a service
    module logged as failing with `AccessDenied`, `AccessDeniedException`, `AuthorizationError`
    (SNS) or `UnauthorizedOperation` (EC2), and a throttled call is not one. The reason is the
@@ -74,11 +73,8 @@ coverage figure counts the checks the installed Prowler runs.
    The scanner passes a mutelist holding `Mutelist: {}`, so every finding reaches the report, where
    Draugr's excludes suppress one with a reason.
 
-The simulation asks only about actions named in a denial Prowler logged or in Prowler's
-`prowler-additions-policy`, because IAM answers an action it does not know as denied. Where none of
-those names a service's action, the service is left out of the simulation and its denials come from
-the log alone. That holds for `apigateway`, `apigatewayv2`, `awslambda`, `cloudfront`, `config`,
-`glacier`, `organizations`, `rds`, `securityhub`, `sqs` and `vpc`.
+A service with no known action is left out of the simulation, and its denials come from the log
+alone.
 
 Findings in a component's claimed regions are kept, matching zones of a region; a component that
 claims the whole account gets every finding, including those with no region. On AWS, Prowler files a
