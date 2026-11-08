@@ -1,0 +1,1371 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "grype",
+          "version": "0.121.0",
+          "informationUri": "https://github.com/anchore/grype",
+          "rules": [
+            {
+              "id": "CVE-2026-119586-sqlite-libs",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2026-119586 high vulnerability for sqlite-libs package"
+              },
+              "fullDescription": {
+                "text": "SQLite command-line shell through 3.54.1 contains a command injection vulnerability in the .recover command that emits attacker-planted dot-commands stored in sqlite_schema.sql values verbatim. Attackers can craft a database whose schema holds a valid CREATE statement followed by a .shell or .system line, executing OS commands when victims pipe .recover output into sqlite3."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2026-119586",
+              "help": {
+                "text": "Vulnerability CVE-2026-119586\nSeverity: high\nPackage: sqlite-libs\nVersion: 3.49.2-r1\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2026-119586](https://nvd.nist.gov/vuln/detail/CVE-2026-119586)",
+                "markdown": "**Vulnerability CVE-2026-119586**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | sqlite-libs  | 3.49.2-r1  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2026-119586](https://nvd.nist.gov/vuln/detail/CVE-2026-119586)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64\u0026distro=alpine-3.22.8\u0026upstream=sqlite"
+                ],
+                "security-severity": "8.5"
+              }
+            },
+            {
+              "id": "CVE-2025-12781-python3",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2025-12781 medium vulnerability for python3 package"
+              },
+              "fullDescription": {
+                "text": "When passing data to the b64decode(), standard_b64decode(), and urlsafe_b64decode() functions in the \"base64\" module the characters \"+/\" will always be accepted, regardless of the value of \"altchars\" parameter, typically used to establish an \"alternative base64 alphabet\" such as the URL safe alphabet. This behavior matches what is recommended in earlier base64 RFCs, but newer RFCs now recommend either dropping characters outside the specified base64 alphabet or raising an error. The old behavior has the possibility of causing data integrity issues.\n\n\n\n\nThis behavior can only be insecure if your application uses an alternate base64 alphabet (without \"+/\"). If your application does not use the \"altchars\" parameter or the urlsafe_b64decode() function, then your application does not use an alternative base64 alphabet.\n\n\n\n\nThe attached patches DOES NOT make the base64-decode behavior raise an error, as this would be a change in behavior and break existing programs. Instead, the patch deprecates the behavior which will be replaced with the newly recommended behavior in a future version of Python. Users are recommended to mitigate by verifying user-controlled inputs match the base64 \nalphabet they are expecting or verify that their application would not be \naffected if the b64decode() functions accepted \"+\" or \"/\" outside of altchars."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2025-12781",
+              "help": {
+                "text": "Vulnerability CVE-2025-12781\nSeverity: medium\nPackage: python3\nVersion: 3.12.16-r0\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2025-12781](https://nvd.nist.gov/vuln/detail/CVE-2025-12781)",
+                "markdown": "**Vulnerability CVE-2025-12781**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| medium  | python3  | 3.12.16-r0  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2025-12781](https://nvd.nist.gov/vuln/detail/CVE-2025-12781)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/python3@3.12.16-r0?arch=x86_64\u0026distro=alpine-3.22.8"
+                ],
+                "security-severity": "6.3"
+              }
+            },
+            {
+              "id": "CVE-2025-70873-sqlite-libs",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2025-70873 high vulnerability for sqlite-libs package"
+              },
+              "fullDescription": {
+                "text": "An information disclosure issue in the zipfileInflate function in the zipfile extension in SQLite v3.51.1 and earlier allows attackers to obtain heap memory via supplying a crafted ZIP file."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2025-70873",
+              "help": {
+                "text": "Vulnerability CVE-2025-70873\nSeverity: high\nPackage: sqlite-libs\nVersion: 3.49.2-r1\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2025-70873](https://nvd.nist.gov/vuln/detail/CVE-2025-70873)",
+                "markdown": "**Vulnerability CVE-2025-70873**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | sqlite-libs  | 3.49.2-r1  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2025-70873](https://nvd.nist.gov/vuln/detail/CVE-2025-70873)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64\u0026distro=alpine-3.22.8\u0026upstream=sqlite"
+                ],
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "CVE-2026-4738-zlib",
+              "name": "ApkMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "CVE-2026-4738 critical vulnerability for zlib package"
+              },
+              "fullDescription": {
+                "text": "Improper Restriction of Operations within the Bounds of a Memory Buffer vulnerability in OSGeo gdal (frmts/zlib/contrib/infback9 modules). This vulnerability is associated with program files inftree9.C‎.\n\nThis issue affects gdal: before 3.11.0."
+              },
+              "helpUri": "https://security.alpinelinux.org/vuln/CVE-2026-4738",
+              "help": {
+                "text": "Vulnerability CVE-2026-4738\nSeverity: critical\nPackage: zlib\nVersion: 1.3.2-r1\nFix Version: 1.4-r0\nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: alpine:distro:alpine:3.22\nLink: [CVE-2026-4738](https://security.alpinelinux.org/vuln/CVE-2026-4738)",
+                "markdown": "**Vulnerability CVE-2026-4738**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| critical  | zlib  | 1.3.2-r1  | 1.4-r0  | apk  | /lib/apk/db/installed  | alpine:distro:alpine:3.22  | [CVE-2026-4738](https://security.alpinelinux.org/vuln/CVE-2026-4738)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/zlib@1.3.2-r1?arch=x86_64\u0026distro=alpine-3.22.8"
+                ],
+                "security-severity": "9.4"
+              }
+            },
+            {
+              "id": "CVE-2025-15366-python3",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2025-15366 medium vulnerability for python3 package"
+              },
+              "fullDescription": {
+                "text": "The imaplib module, when passed a user-controlled command, can have additional commands injected using newlines. Mitigation rejects commands containing control characters."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2025-15366",
+              "help": {
+                "text": "Vulnerability CVE-2025-15366\nSeverity: medium\nPackage: python3\nVersion: 3.12.16-r0\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2025-15366](https://nvd.nist.gov/vuln/detail/CVE-2025-15366)",
+                "markdown": "**Vulnerability CVE-2025-15366**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| medium  | python3  | 3.12.16-r0  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2025-15366](https://nvd.nist.gov/vuln/detail/CVE-2025-15366)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/python3@3.12.16-r0?arch=x86_64\u0026distro=alpine-3.22.8"
+                ],
+                "security-severity": "5.9"
+              }
+            },
+            {
+              "id": "CVE-2026-119379-sqlite-libs",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2026-119379 high vulnerability for sqlite-libs package"
+              },
+              "fullDescription": {
+                "text": "SQLite before 3.54.0 built with the session extension contains a heap buffer overflow vulnerability in sqlite3changeset_apply() that allows attackers to corrupt heap memory by supplying crafted changesets. Attackers can repeat a table name in a second changeset block with a larger column count, causing sessionUpdateFind() to memset past the undersized aUpdateMask allocation."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2026-119379",
+              "help": {
+                "text": "Vulnerability CVE-2026-119379\nSeverity: high\nPackage: sqlite-libs\nVersion: 3.49.2-r1\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2026-119379](https://nvd.nist.gov/vuln/detail/CVE-2026-119379)",
+                "markdown": "**Vulnerability CVE-2026-119379**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | sqlite-libs  | 3.49.2-r1  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2026-119379](https://nvd.nist.gov/vuln/detail/CVE-2026-119379)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64\u0026distro=alpine-3.22.8\u0026upstream=sqlite"
+                ],
+                "security-severity": "8.5"
+              }
+            },
+            {
+              "id": "CVE-2025-15367-python3",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2025-15367 medium vulnerability for python3 package"
+              },
+              "fullDescription": {
+                "text": "The poplib module, when passed a user-controlled command, can have\nadditional commands injected using newlines. Mitigation rejects commands\ncontaining control characters."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2025-15367",
+              "help": {
+                "text": "Vulnerability CVE-2025-15367\nSeverity: medium\nPackage: python3\nVersion: 3.12.16-r0\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2025-15367](https://nvd.nist.gov/vuln/detail/CVE-2025-15367)",
+                "markdown": "**Vulnerability CVE-2025-15367**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| medium  | python3  | 3.12.16-r0  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2025-15367](https://nvd.nist.gov/vuln/detail/CVE-2025-15367)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/python3@3.12.16-r0?arch=x86_64\u0026distro=alpine-3.22.8"
+                ],
+                "security-severity": "5.9"
+              }
+            },
+            {
+              "id": "CVE-2026-119374-sqlite-libs",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2026-119374 high vulnerability for sqlite-libs package"
+              },
+              "fullDescription": {
+                "text": "SQLite before 3.54.0 built with FTS5 contains a heap buffer overflow in fts5DoSecureDelete() that allows attackers to write past the leaf page buffer via crafted footer key offsets. Attackers can supply a database file with a corrupted FTS5 index that, when deleted from with secure-delete enabled, corrupts heap memory and crashes the application."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2026-119374",
+              "help": {
+                "text": "Vulnerability CVE-2026-119374\nSeverity: high\nPackage: sqlite-libs\nVersion: 3.49.2-r1\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2026-119374](https://nvd.nist.gov/vuln/detail/CVE-2026-119374)",
+                "markdown": "**Vulnerability CVE-2026-119374**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | sqlite-libs  | 3.49.2-r1  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2026-119374](https://nvd.nist.gov/vuln/detail/CVE-2026-119374)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64\u0026distro=alpine-3.22.8\u0026upstream=sqlite"
+                ],
+                "security-severity": "8.5"
+              }
+            },
+            {
+              "id": "CVE-2025-60876-busybox",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2025-60876 medium vulnerability for busybox package"
+              },
+              "fullDescription": {
+                "text": "BusyBox wget thru 1.3.7 accepted raw CR (0x0D)/LF (0x0A) and other C0 control bytes in the HTTP request-target (path/query), allowing the request line to be split and attacker-controlled headers to be injected. To preserve the HTTP/1.1 request-line shape METHOD SP request-target SP HTTP/1.1, a raw space (0x20) in the request-target must also be rejected (clients should use %20)."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876",
+              "help": {
+                "text": "Vulnerability CVE-2025-60876\nSeverity: medium\nPackage: busybox\nVersion: 1.37.0-r20\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2025-60876](https://nvd.nist.gov/vuln/detail/CVE-2025-60876)",
+                "markdown": "**Vulnerability CVE-2025-60876**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| medium  | busybox  | 1.37.0-r20  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2025-60876](https://nvd.nist.gov/vuln/detail/CVE-2025-60876)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/busybox@1.37.0-r20?arch=x86_64\u0026distro=alpine-3.22.8"
+                ],
+                "security-severity": "6.5"
+              }
+            },
+            {
+              "id": "CVE-2025-60876-busybox-binsh",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2025-60876 medium vulnerability for busybox-binsh package"
+              },
+              "fullDescription": {
+                "text": "BusyBox wget thru 1.3.7 accepted raw CR (0x0D)/LF (0x0A) and other C0 control bytes in the HTTP request-target (path/query), allowing the request line to be split and attacker-controlled headers to be injected. To preserve the HTTP/1.1 request-line shape METHOD SP request-target SP HTTP/1.1, a raw space (0x20) in the request-target must also be rejected (clients should use %20)."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876",
+              "help": {
+                "text": "Vulnerability CVE-2025-60876\nSeverity: medium\nPackage: busybox-binsh\nVersion: 1.37.0-r20\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2025-60876](https://nvd.nist.gov/vuln/detail/CVE-2025-60876)",
+                "markdown": "**Vulnerability CVE-2025-60876**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| medium  | busybox-binsh  | 1.37.0-r20  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2025-60876](https://nvd.nist.gov/vuln/detail/CVE-2025-60876)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/busybox-binsh@1.37.0-r20?arch=x86_64\u0026distro=alpine-3.22.8\u0026upstream=busybox"
+                ],
+                "security-severity": "6.5"
+              }
+            },
+            {
+              "id": "CVE-2025-60876-ssl_client",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2025-60876 medium vulnerability for ssl_client package"
+              },
+              "fullDescription": {
+                "text": "BusyBox wget thru 1.3.7 accepted raw CR (0x0D)/LF (0x0A) and other C0 control bytes in the HTTP request-target (path/query), allowing the request line to be split and attacker-controlled headers to be injected. To preserve the HTTP/1.1 request-line shape METHOD SP request-target SP HTTP/1.1, a raw space (0x20) in the request-target must also be rejected (clients should use %20)."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876",
+              "help": {
+                "text": "Vulnerability CVE-2025-60876\nSeverity: medium\nPackage: ssl_client\nVersion: 1.37.0-r20\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2025-60876](https://nvd.nist.gov/vuln/detail/CVE-2025-60876)",
+                "markdown": "**Vulnerability CVE-2025-60876**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| medium  | ssl_client  | 1.37.0-r20  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2025-60876](https://nvd.nist.gov/vuln/detail/CVE-2025-60876)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/ssl_client@1.37.0-r20?arch=x86_64\u0026distro=alpine-3.22.8\u0026upstream=busybox"
+                ],
+                "security-severity": "6.5"
+              }
+            },
+            {
+              "id": "CVE-2026-11824-sqlite-libs",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2026-11824 high vulnerability for sqlite-libs package"
+              },
+              "fullDescription": {
+                "text": "SQLite before 3.53.2 contains a heap-based buffer overflow vulnerability in the FTS5 full-text search extension that allows attackers to cause a crash or execute arbitrary code by supplying a crafted database with malicious continuation page metadata specifying a szLeaf value smaller than 4. Attackers can trigger an integer underflow in fts5ChunkIterate() causing an inflated remaining byte count during FTS5 MATCH query processing, leading to a heap buffer overflow of attacker-controlled data in applications compiled with SQLITE_ENABLE_FTS5."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2026-11824",
+              "help": {
+                "text": "Vulnerability CVE-2026-11824\nSeverity: high\nPackage: sqlite-libs\nVersion: 3.49.2-r1\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2026-11824](https://nvd.nist.gov/vuln/detail/CVE-2026-11824)",
+                "markdown": "**Vulnerability CVE-2026-11824**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | sqlite-libs  | 3.49.2-r1  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2026-11824](https://nvd.nist.gov/vuln/detail/CVE-2026-11824)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64\u0026distro=alpine-3.22.8\u0026upstream=sqlite"
+                ],
+                "security-severity": "8.5"
+              }
+            },
+            {
+              "id": "CVE-2026-119378-sqlite-libs",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2026-119378 medium vulnerability for sqlite-libs package"
+              },
+              "fullDescription": {
+                "text": "SQLite before 3.54.0 contains a use-after-free vulnerability in the R-Tree extension that allows attackers to make applications use freed heap memory by manipulating the %_node shadow table. Attackers can supply a database declaring %_node WITHOUT ROWID or with a RAISE(IGNORE) trigger so nodeWrite() hashes nodes as 0, crashing the process after node splits."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2026-119378",
+              "help": {
+                "text": "Vulnerability CVE-2026-119378\nSeverity: medium\nPackage: sqlite-libs\nVersion: 3.49.2-r1\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2026-119378](https://nvd.nist.gov/vuln/detail/CVE-2026-119378)",
+                "markdown": "**Vulnerability CVE-2026-119378**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| medium  | sqlite-libs  | 3.49.2-r1  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2026-119378](https://nvd.nist.gov/vuln/detail/CVE-2026-119378)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64\u0026distro=alpine-3.22.8\u0026upstream=sqlite"
+                ],
+                "security-severity": "6.8"
+              }
+            },
+            {
+              "id": "CVE-2026-116566-python3",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2026-116566 medium vulnerability for python3 package"
+              },
+              "fullDescription": {
+                "text": "socket.getaddrinfo() previously accepted null bytes within *host* and *port* parameters which can cause the values to be silently truncated."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2026-116566",
+              "help": {
+                "text": "Vulnerability CVE-2026-116566\nSeverity: medium\nPackage: python3\nVersion: 3.12.16-r0\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2026-116566](https://nvd.nist.gov/vuln/detail/CVE-2026-116566)",
+                "markdown": "**Vulnerability CVE-2026-116566**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| medium  | python3  | 3.12.16-r0  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2026-116566](https://nvd.nist.gov/vuln/detail/CVE-2026-116566)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/python3@3.12.16-r0?arch=x86_64\u0026distro=alpine-3.22.8"
+                ],
+                "security-severity": "5.3"
+              }
+            },
+            {
+              "id": "CVE-2026-119373-sqlite-libs",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2026-119373 high vulnerability for sqlite-libs package"
+              },
+              "fullDescription": {
+                "text": "SQLite before 3.54.0 built with FTS5 contains a heap buffer overflow in fts5MergeRowidLists() that undersizes the output buffer when merging detail=none prefix doclists. Attackers who can populate a detail=none FTS5 table with negative rowids and run a prefix MATCH query can write past the allocation, corrupting heap memory and crashing the process."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2026-119373",
+              "help": {
+                "text": "Vulnerability CVE-2026-119373\nSeverity: high\nPackage: sqlite-libs\nVersion: 3.49.2-r1\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2026-119373](https://nvd.nist.gov/vuln/detail/CVE-2026-119373)",
+                "markdown": "**Vulnerability CVE-2026-119373**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | sqlite-libs  | 3.49.2-r1  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2026-119373](https://nvd.nist.gov/vuln/detail/CVE-2026-119373)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64\u0026distro=alpine-3.22.8\u0026upstream=sqlite"
+                ],
+                "security-severity": "8.5"
+              }
+            },
+            {
+              "id": "CVE-2026-11822-sqlite-libs",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2026-11822 medium vulnerability for sqlite-libs package"
+              },
+              "fullDescription": {
+                "text": "SQLite before 3.53.2 contains an out-of-bounds read vulnerability in the FTS5 full-text search extension that allows attackers to crash the process by supplying a crafted database with a malformed FTS5 leaf page. Attackers can set an oversized term length in the leaf page so that fts5LeafSeek() reads past the end of the page buffer while comparing terms during an FTS5 MATCH query, in applications compiled with SQLITE_ENABLE_FTS5."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2026-11822",
+              "help": {
+                "text": "Vulnerability CVE-2026-11822\nSeverity: medium\nPackage: sqlite-libs\nVersion: 3.49.2-r1\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2026-11822](https://nvd.nist.gov/vuln/detail/CVE-2026-11822)",
+                "markdown": "**Vulnerability CVE-2026-11822**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| medium  | sqlite-libs  | 3.49.2-r1  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2026-11822](https://nvd.nist.gov/vuln/detail/CVE-2026-11822)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64\u0026distro=alpine-3.22.8\u0026upstream=sqlite"
+                ],
+                "security-severity": "6.8"
+              }
+            },
+            {
+              "id": "CVE-2026-119375-sqlite-libs",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2026-119375 medium vulnerability for sqlite-libs package"
+              },
+              "fullDescription": {
+                "text": "SQLite before 3.54.0 contains an information disclosure vulnerability that allows attackers to read uninitialized page-cache memory by supplying a WAL file with an undersized page size. Attackers can craft a database and WAL file whose oversized record payload makes queries like substr() return stale bytes, disclosing other table rows and internal pointers."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2026-119375",
+              "help": {
+                "text": "Vulnerability CVE-2026-119375\nSeverity: medium\nPackage: sqlite-libs\nVersion: 3.49.2-r1\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2026-119375](https://nvd.nist.gov/vuln/detail/CVE-2026-119375)",
+                "markdown": "**Vulnerability CVE-2026-119375**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| medium  | sqlite-libs  | 3.49.2-r1  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2026-119375](https://nvd.nist.gov/vuln/detail/CVE-2026-119375)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64\u0026distro=alpine-3.22.8\u0026upstream=sqlite"
+                ],
+                "security-severity": "6.8"
+              }
+            },
+            {
+              "id": "CVE-2026-119371-sqlite-libs",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2026-119371 medium vulnerability for sqlite-libs package"
+              },
+              "fullDescription": {
+                "text": "SQLite before 3.54.0 contains a stack exhaustion vulnerability that allows attackers to bypass the SQLITE_LIMIT_EXPR_DEPTH nesting limit because common table expressions are not counted against it. Attackers can supply a WITH clause chaining tens of thousands of CTEs, via plain SQL or a view in an untrusted database file, causing unbounded selectExpander() recursion that crashes the process."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2026-119371",
+              "help": {
+                "text": "Vulnerability CVE-2026-119371\nSeverity: medium\nPackage: sqlite-libs\nVersion: 3.49.2-r1\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2026-119371](https://nvd.nist.gov/vuln/detail/CVE-2026-119371)",
+                "markdown": "**Vulnerability CVE-2026-119371**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| medium  | sqlite-libs  | 3.49.2-r1  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2026-119371](https://nvd.nist.gov/vuln/detail/CVE-2026-119371)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64\u0026distro=alpine-3.22.8\u0026upstream=sqlite"
+                ],
+                "security-severity": "6.8"
+              }
+            },
+            {
+              "id": "CVE-2026-119376-sqlite-libs",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2026-119376 medium vulnerability for sqlite-libs package"
+              },
+              "fullDescription": {
+                "text": "SQLite before 3.54.0 contains a stack exhaustion vulnerability that allows attackers to bypass the SQLITE_LIMIT_EXPR_DEPTH limit by chaining COLLATE postfix operators. Attackers can supply roughly 175,000 chained COLLATE operators in SQL or an untrusted database view to trigger unbounded recursion in sqlite3WalkExprNN() and crash the process."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2026-119376",
+              "help": {
+                "text": "Vulnerability CVE-2026-119376\nSeverity: medium\nPackage: sqlite-libs\nVersion: 3.49.2-r1\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2026-119376](https://nvd.nist.gov/vuln/detail/CVE-2026-119376)",
+                "markdown": "**Vulnerability CVE-2026-119376**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| medium  | sqlite-libs  | 3.49.2-r1  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2026-119376](https://nvd.nist.gov/vuln/detail/CVE-2026-119376)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64\u0026distro=alpine-3.22.8\u0026upstream=sqlite"
+                ],
+                "security-severity": "6.8"
+              }
+            },
+            {
+              "id": "CVE-2026-3446-python3",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2026-3446 medium vulnerability for python3 package"
+              },
+              "fullDescription": {
+                "text": "When calling base64.b64decode() or related functions the decoding process would stop after encountering the first padded quad regardless of whether there was more information to be processed. This can lead to data being accepted which may be processed differently by other implementations. Use \"validate=True\" to enable stricter processing of base64 data."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2026-3446",
+              "help": {
+                "text": "Vulnerability CVE-2026-3446\nSeverity: medium\nPackage: python3\nVersion: 3.12.16-r0\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2026-3446](https://nvd.nist.gov/vuln/detail/CVE-2026-3446)",
+                "markdown": "**Vulnerability CVE-2026-3446**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| medium  | python3  | 3.12.16-r0  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2026-3446](https://nvd.nist.gov/vuln/detail/CVE-2026-3446)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/python3@3.12.16-r0?arch=x86_64\u0026distro=alpine-3.22.8"
+                ],
+                "security-severity": "6.0"
+              }
+            },
+            {
+              "id": "CVE-2026-6019-python3",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2026-6019 medium vulnerability for python3 package"
+              },
+              "fullDescription": {
+                "text": "http.cookies.Morsel.js_output() returns an inline \u003cscript\u003e snippet and only escapes \" for JavaScript string context. It does not neutralize the HTML parser-sensitive sequence \u003c/script\u003e inside the generated script element. Mitigation base64-encodes the cookie value to disallow escaping using cookie value."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2026-6019",
+              "help": {
+                "text": "Vulnerability CVE-2026-6019\nSeverity: medium\nPackage: python3\nVersion: 3.12.16-r0\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2026-6019](https://nvd.nist.gov/vuln/detail/CVE-2026-6019)",
+                "markdown": "**Vulnerability CVE-2026-6019**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| medium  | python3  | 3.12.16-r0  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2026-6019](https://nvd.nist.gov/vuln/detail/CVE-2026-6019)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/python3@3.12.16-r0?arch=x86_64\u0026distro=alpine-3.22.8"
+                ],
+                "security-severity": "6.1"
+              }
+            },
+            {
+              "id": "CVE-2026-119591-sqlite-libs",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2026-119591 medium vulnerability for sqlite-libs package"
+              },
+              "fullDescription": {
+                "text": "SQLite before 3.54.0 contains a stack exhaustion vulnerability in countOfViewOptimization() that allows attackers to crash the host process via count(*) over a large multi-row VALUES clause. Attackers supplying SQL or a database file with a crafted view can trigger deeply nested TK_PLUS expressions whose recursive freeing in sqlite3ExprDeleteNN() exhausts the C stack, causing denial of service."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2026-119591",
+              "help": {
+                "text": "Vulnerability CVE-2026-119591\nSeverity: medium\nPackage: sqlite-libs\nVersion: 3.49.2-r1\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2026-119591](https://nvd.nist.gov/vuln/detail/CVE-2026-119591)",
+                "markdown": "**Vulnerability CVE-2026-119591**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| medium  | sqlite-libs  | 3.49.2-r1  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2026-119591](https://nvd.nist.gov/vuln/detail/CVE-2026-119591)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64\u0026distro=alpine-3.22.8\u0026upstream=sqlite"
+                ],
+                "security-severity": "6.8"
+              }
+            },
+            {
+              "id": "CVE-2026-103995-python3",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2026-103995 low vulnerability for python3 package"
+              },
+              "fullDescription": {
+                "text": "Response body and chunk parsing would handle non-hex or negative integers incorrectly which could result in misinterpreting HTTP response contents."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2026-103995",
+              "help": {
+                "text": "Vulnerability CVE-2026-103995\nSeverity: low\nPackage: python3\nVersion: 3.12.16-r0\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2026-103995](https://nvd.nist.gov/vuln/detail/CVE-2026-103995)",
+                "markdown": "**Vulnerability CVE-2026-103995**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| low  | python3  | 3.12.16-r0  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2026-103995](https://nvd.nist.gov/vuln/detail/CVE-2026-103995)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/python3@3.12.16-r0?arch=x86_64\u0026distro=alpine-3.22.8"
+                ],
+                "security-severity": "2.0"
+              }
+            },
+            {
+              "id": "CVE-2026-119372-sqlite-libs",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2026-119372 medium vulnerability for sqlite-libs package"
+              },
+              "fullDescription": {
+                "text": "SQLite before 3.54.0 built with FTS3/FTS4 and SQLITE_ENABLE_FTS3_PARENTHESIS contains a use-after-free vulnerability in fts3BestSnippet() caused by dangling cached position-list pointers. Attackers can run a full-text MATCH query combining OR and NEAR operators with snippet() to read freed heap memory and crash the process."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2026-119372",
+              "help": {
+                "text": "Vulnerability CVE-2026-119372\nSeverity: medium\nPackage: sqlite-libs\nVersion: 3.49.2-r1\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2026-119372](https://nvd.nist.gov/vuln/detail/CVE-2026-119372)",
+                "markdown": "**Vulnerability CVE-2026-119372**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| medium  | sqlite-libs  | 3.49.2-r1  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2026-119372](https://nvd.nist.gov/vuln/detail/CVE-2026-119372)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64\u0026distro=alpine-3.22.8\u0026upstream=sqlite"
+                ],
+                "security-severity": "6.8"
+              }
+            },
+            {
+              "id": "CVE-2026-119377-sqlite-libs",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2026-119377 low vulnerability for sqlite-libs package"
+              },
+              "fullDescription": {
+                "text": "SQLite before 3.54.0 contains an authorization bypass vulnerability in lookupName() that invokes the authorizer only for the first joined table's USING column. Attackers able to submit SQL can query a shared USING column in a RIGHT or FULL JOIN to read columns denied via sqlite3_set_authorizer() SQLITE_READ restrictions."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2026-119377",
+              "help": {
+                "text": "Vulnerability CVE-2026-119377\nSeverity: low\nPackage: sqlite-libs\nVersion: 3.49.2-r1\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2026-119377](https://nvd.nist.gov/vuln/detail/CVE-2026-119377)",
+                "markdown": "**Vulnerability CVE-2026-119377**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| low  | sqlite-libs  | 3.49.2-r1  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2026-119377](https://nvd.nist.gov/vuln/detail/CVE-2026-119377)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/sqlite-libs@3.49.2-r1?arch=x86_64\u0026distro=alpine-3.22.8\u0026upstream=sqlite"
+                ],
+                "security-severity": "3.3"
+              }
+            },
+            {
+              "id": "CVE-2026-3479-python3",
+              "name": "ApkMatcherCpeMatch",
+              "shortDescription": {
+                "text": "CVE-2026-3479 low vulnerability for python3 package"
+              },
+              "fullDescription": {
+                "text": "DISPUTED: The project has clarified that the documentation was incorrect, and that pkgutil.get_data() has the same security model as open(). The documentation has been updated to clarify this point. There is no vulnerability in the function if following the intended security model.\n\npkgutil.get_data() did not validate the resource argument as documented, allowing path traversals."
+              },
+              "helpUri": "https://nvd.nist.gov/vuln/detail/CVE-2026-3479",
+              "help": {
+                "text": "Vulnerability CVE-2026-3479\nSeverity: low\nPackage: python3\nVersion: 3.12.16-r0\nFix Version: \nType: apk\nLocation: /lib/apk/db/installed\nData Namespace: nvd:cpe\nLink: [CVE-2026-3479](https://nvd.nist.gov/vuln/detail/CVE-2026-3479)",
+                "markdown": "**Vulnerability CVE-2026-3479**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| low  | python3  | 3.12.16-r0  |   | apk  | /lib/apk/db/installed  | nvd:cpe  | [CVE-2026-3479](https://nvd.nist.gov/vuln/detail/CVE-2026-3479)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:apk/alpine/python3@3.12.16-r0?arch=x86_64\u0026distro=alpine-3.22.8"
+                ],
+                "security-severity": "0.0"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CVE-2026-119586-sqlite-libs",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in apk package: sqlite-libs, version 3.49.2-r1 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "c4607ec2176b69661e4103fa1abe9b1d1d68735f88dc95598e4494f9deefc42e:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2025-12781-python3",
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in apk package: python3, version 3.12.16-r0 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "68dc4dfcbb1d2789b3b0e6f08723ea9a0430bfcd2a0d0435530efede98ffa017:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2025-70873-sqlite-libs",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in apk package: sqlite-libs, version 3.49.2-r1 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "c4607ec2176b69661e4103fa1abe9b1d1d68735f88dc95598e4494f9deefc42e:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-4738-zlib",
+          "level": "error",
+          "message": {
+            "text": "A critical vulnerability in apk package: zlib, version 1.3.2-r1 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "ef504bf14e1679defa8d228ba3e7b401957b73b63d4d82591d893a082ad01e1b:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2025-15366-python3",
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in apk package: python3, version 3.12.16-r0 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "68dc4dfcbb1d2789b3b0e6f08723ea9a0430bfcd2a0d0435530efede98ffa017:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-119379-sqlite-libs",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in apk package: sqlite-libs, version 3.49.2-r1 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "c4607ec2176b69661e4103fa1abe9b1d1d68735f88dc95598e4494f9deefc42e:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2025-15367-python3",
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in apk package: python3, version 3.12.16-r0 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "68dc4dfcbb1d2789b3b0e6f08723ea9a0430bfcd2a0d0435530efede98ffa017:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-119374-sqlite-libs",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in apk package: sqlite-libs, version 3.49.2-r1 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "c4607ec2176b69661e4103fa1abe9b1d1d68735f88dc95598e4494f9deefc42e:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2025-60876-busybox",
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in apk package: busybox, version 1.37.0-r20 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "9698b6d57fa7e2e0807f00c6ae77823198dc1fdc7a8dad366548ac1a84672a34:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2025-60876-busybox-binsh",
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in apk package: busybox-binsh, version 1.37.0-r20 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "decf47040face9d4d65de6019c27749e0afe31327ca3e58169d55c89d15a77cd:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2025-60876-ssl_client",
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in apk package: ssl_client, version 1.37.0-r20 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "ed3561b15df9e0cd45a9edb653b69cfdcc1a947f812bbc0aa6966b1eddb731cb:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-11824-sqlite-libs",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in apk package: sqlite-libs, version 3.49.2-r1 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "c4607ec2176b69661e4103fa1abe9b1d1d68735f88dc95598e4494f9deefc42e:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-119378-sqlite-libs",
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in apk package: sqlite-libs, version 3.49.2-r1 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "c4607ec2176b69661e4103fa1abe9b1d1d68735f88dc95598e4494f9deefc42e:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-116566-python3",
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in apk package: python3, version 3.12.16-r0 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "68dc4dfcbb1d2789b3b0e6f08723ea9a0430bfcd2a0d0435530efede98ffa017:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-119373-sqlite-libs",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in apk package: sqlite-libs, version 3.49.2-r1 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "c4607ec2176b69661e4103fa1abe9b1d1d68735f88dc95598e4494f9deefc42e:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-11822-sqlite-libs",
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in apk package: sqlite-libs, version 3.49.2-r1 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "c4607ec2176b69661e4103fa1abe9b1d1d68735f88dc95598e4494f9deefc42e:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-119375-sqlite-libs",
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in apk package: sqlite-libs, version 3.49.2-r1 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "c4607ec2176b69661e4103fa1abe9b1d1d68735f88dc95598e4494f9deefc42e:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-119371-sqlite-libs",
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in apk package: sqlite-libs, version 3.49.2-r1 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "c4607ec2176b69661e4103fa1abe9b1d1d68735f88dc95598e4494f9deefc42e:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-119376-sqlite-libs",
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in apk package: sqlite-libs, version 3.49.2-r1 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "c4607ec2176b69661e4103fa1abe9b1d1d68735f88dc95598e4494f9deefc42e:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-3446-python3",
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in apk package: python3, version 3.12.16-r0 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "68dc4dfcbb1d2789b3b0e6f08723ea9a0430bfcd2a0d0435530efede98ffa017:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-6019-python3",
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in apk package: python3, version 3.12.16-r0 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "68dc4dfcbb1d2789b3b0e6f08723ea9a0430bfcd2a0d0435530efede98ffa017:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-119591-sqlite-libs",
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in apk package: sqlite-libs, version 3.49.2-r1 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "c4607ec2176b69661e4103fa1abe9b1d1d68735f88dc95598e4494f9deefc42e:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-103995-python3",
+          "level": "note",
+          "message": {
+            "text": "A low vulnerability in apk package: python3, version 3.12.16-r0 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "68dc4dfcbb1d2789b3b0e6f08723ea9a0430bfcd2a0d0435530efede98ffa017:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-119372-sqlite-libs",
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in apk package: sqlite-libs, version 3.49.2-r1 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "c4607ec2176b69661e4103fa1abe9b1d1d68735f88dc95598e4494f9deefc42e:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-119377-sqlite-libs",
+          "level": "note",
+          "message": {
+            "text": "A low vulnerability in apk package: sqlite-libs, version 3.49.2-r1 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "c4607ec2176b69661e4103fa1abe9b1d1d68735f88dc95598e4494f9deefc42e:1"
+          }
+        },
+        {
+          "ruleId": "CVE-2026-3479-python3",
+          "level": "note",
+          "message": {
+            "text": "A low vulnerability in apk package: python3, version 3.12.16-r0 was found in image localhost:32769/repro-alpine:1 at: /lib/apk/db/installed"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "repro-alpine//lib/apk/db/installed"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "/lib/apk/db/installed",
+                  "fullyQualifiedName": "localhost:32769/repro-alpine:1@sha256:153f14a162811507419943c10936fe481e36eaafa3fece7f3758cf17f10c3fe7:/lib/apk/db/installed"
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "68dc4dfcbb1d2789b3b0e6f08723ea9a0430bfcd2a0d0435530efede98ffa017:1"
+          }
+        }
+      ]
+    }
+  ]
+}

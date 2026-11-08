@@ -701,8 +701,7 @@ const JustificationDevDependency = "development dependency"
 // config.controls.sca.providedDependencies set aside.
 const JustificationProvidedByRuntime = "provided by the runtime"
 
-// JustificationCPEMatch is the reason recorded on a finding that config.controls.sca.cpeMatches set
-// aside.
+// JustificationCPEMatch is the reason recorded on a finding that a control's cpeMatches set aside.
 const JustificationCPEMatch = "matched by CPE only"
 
 // JustificationOwnPackage is the reason recorded on a finding that config.controls.sca.ownPackages

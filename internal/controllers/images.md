@@ -62,6 +62,25 @@ The [GitHub Action guide](../../docs/guides/github-action.md) covers the action'
 manifest with the stored credential. An image the registry refuses is reported under **Errors**
 with the registry's answer, and, where a login would change it, the `docker login` command to run.
 
+## CPE matches
+
+`cpeMatches` decides whether a finding counts when [`grype`](../scanners/grype.md) matched it only
+through a CPE, a product identifier built from the package's name and version. On an Alpine image,
+Grype looks in the NVD by CPE for a flaw Alpine's own data does not list, and the match is either a
+wrong one or a real flaw Alpine has not assessed. `suppress`, the default, lists each under ACCEPTED
+with the reason `matched by CPE only`, out of the counts and the gate. `report` counts each, with
+`cpe` beside its package. A component's setting replaces the project's.
+
+```yaml
+config:
+  controls:
+    images:
+      cpeMatches: report
+```
+
+[CPE matches](../../docs/reference/saga-schema.md#cpe-matches) in the Saga reference says which
+matches are marked.
+
 ## Links
 
 - Glossary: [Container image scanning](../../docs/reference/glossary.md#container-image-scanning)
