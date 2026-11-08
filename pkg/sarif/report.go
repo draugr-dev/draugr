@@ -838,6 +838,10 @@ type Unchecked struct {
 	PartlyRead bool `json:"partlyRead,omitempty"`
 }
 
+// InputOperatingSystem is the Kind of an Input that stands for an image's operating system rather
+// than a file: its packages, which an image scanner reads from the image's own package database.
+const InputOperatingSystem = "operating-system"
+
 // Input is one dependency file as a scan accounted for it.
 type Input struct {
 	// Scanner is the scanner that read it, or did not.
