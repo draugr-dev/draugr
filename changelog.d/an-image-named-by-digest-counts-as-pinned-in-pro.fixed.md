@@ -1,1 +1,0 @@
-- **An image named by digest counts as pinned in `provenance`.** An `image:` of the form `<repository>@<digest>` was verified at that digest while the measured-against line said `pinning: none, all by tag`. It now counts as pinned, as one with a separate `digest:` does.

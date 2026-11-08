@@ -1,1 +1,0 @@
-- **A Dart package taken from a folder is marked as the project's own.** A `pubspec.lock` entry with `source: path` is set aside under `config.controls.sca.ownPackages`, like a `Cargo.lock` package with no source, where a scanner had matched it to a published package of the same name.

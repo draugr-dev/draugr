@@ -12,6 +12,32 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.171.0] - 2026-11-08
+
+### Added
+
+- **A declined exclusion request says where to read the decision.** Where an approver declined a descriptor's exclusion, the POLICY block and `draugr doctor` print the request's address in the console under the row, or its id where the server knows no address. `report.json` carries both as `request` and `requestUrl`. The approver's comment stays in the console.
+
+### Fixed
+
+- **A Dart package taken from a folder is marked as the project's own.** A `pubspec.lock` entry with `source: path` is set aside under `config.controls.sca.ownPackages`, like a `Cargo.lock` package with no source, where a scanner had matched it to a published package of the same name.
+
+- **A finding in several files says so, and names each other scanner once.** A row named one lockfile and listed the rest as `also found by trivy, trivy`, repeating a scanner per file and naming its own. It now reads `admin/package-lock.json:14 · and 1 more · also found by grype`.
+
+- **A scan of a local repository no longer fails when something writes to that repository during the clone.** Draugr reads a local path the way it reads a URL, so the shallow clone now applies too. A revision only a local clone can reach still works.
+
+- **An image named by digest counts as pinned in `provenance`.** An `image:` of the form `<repository>@<digest>` was verified at that digest while the measured-against line said `pinning: none, all by tag`. It now counts as pinned, as one with a separate `digest:` does.
+
+- **`cloud` names a disabled Google API, and marks the essential-contacts check unread.** Google answers an API the project has not enabled with a 403, so it was reported as a permission the log did not name, and the CIS check depending on it sat among the undecided. The line now says `essentialcontacts.googleapis.com disabled`, and that check is listed under Caveats.
+
+- **`draugr doctor` lists the cloud metadata address for an image in a Google registry.** Trivy asks Google's credential helper for a registry token for an image in `gcr.io` or `*-docker.pkg.dev`, and the helper tries `169.254.169.254`. A runner with an egress allowlist can now see that before a scan.
+
+- **`results.sarif` now says what a run did not cover.** Each caveat and scan error is a notification under `runs[].invocations[]`, with its kind, level, message and file or image, and `executionSuccessful` is false when any is at level `error`. Findings, `draugr diff` and `--base` are unchanged. Code scanning may not display them.
+
+- **The fix list shows one upgrade for a package Trivy and Grype spell differently.** PyPI names are compared as PEP 503 normalizes them and Maven packages by group and artifact, so `Flask` and `flask` are one action, and two artifacts of one name in different groups are two. These packages' action ids change once.
+
+- **Two repositories using one remote Terraform module no longer lose its findings.** On a machine that had not cached the module, `iac` jobs raced to download it, and one repository usually reported nothing from it, sometimes with no caveat, so it read as clean. `trivy-config` jobs now run one at a time, which slows a scan of many repositories.
+
 ## [0.170.0] - 2026-11-08
 
 ### Added
@@ -6921,7 +6947,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.170.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.171.0...HEAD
+[0.171.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.171.0
 [0.170.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.170.0
 [0.169.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.169.0
 [0.168.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.168.0

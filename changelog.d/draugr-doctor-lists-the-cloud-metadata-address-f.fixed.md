@@ -1,1 +1,0 @@
-- **`draugr doctor` lists the cloud metadata address for an image in a Google registry.** Trivy asks Google's credential helper for a registry token for an image in `gcr.io` or `*-docker.pkg.dev`, and the helper tries `169.254.169.254`. A runner with an egress allowlist can now see that before a scan.
