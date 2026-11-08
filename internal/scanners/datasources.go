@@ -1,6 +1,10 @@
 package scanners
 
-import "github.com/draugr-dev/draugr/pkg/plugin"
+import (
+	"slices"
+
+	"github.com/draugr-dev/draugr/pkg/plugin"
+)
 
 // The reference data each tool reads, declared once and shared by the scanners that run the same
 // tool. Four Trivy-backed scanners pull one database; two Grype-backed scanners pull another.
@@ -18,6 +22,16 @@ var (
 		Hosts: []string{"mirror.gcr.io", "ghcr.io"},
 		Local: "--skip-db-update, which Draugr passes when offline",
 	}}
+	// Trivy's image scan also asks Google's credential helper for a registry token, for an image in
+	// gcr.io, *.gcr.io or *-docker.pkg.dev, other than mirror.gcr.io, and the helper tries the
+	// machine's metadata server. Listed
+	// where an allowlist is written rather than declared as an effect: it reaches no third party and
+	// nothing about the image leaves the machine, so it is no consequence for the target.
+	trivyImageData = append(slices.Clone(trivyData), plugin.DataSource{
+		Name:    "Google registry credentials, for an image in gcr.io or *-docker.pkg.dev",
+		Hosts:   []string{"169.254.169.254"},
+		PerScan: true,
+	})
 	// Misconfiguration checks, published as an OCI bundle. Trivy falls back to the checks compiled
 	// into the binary when it cannot fetch one.
 	trivyChecksData = []plugin.DataSource{{
