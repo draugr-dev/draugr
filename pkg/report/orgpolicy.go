@@ -45,8 +45,30 @@ func termPaint(col tui.Painter, v skald.PolicyVerdict, text string) string {
 // policyRow is one line a block prints: the rule, once per verdict, and one item.
 type policyRow struct {
 	rule, item string
-	verdict    skald.PolicyVerdict
-	first      bool
+	// readAt is the line under the row, where the item is about a request.
+	readAt  string
+	verdict skald.PolicyVerdict
+	first   bool
+}
+
+// writePolicyRows draws the broken items of a scan's POLICY block, or of the refusal in its place.
+func writePolicyRows(w io.Writer, col tui.Painter, rows []policyRow) {
+	ruleW, itemW := 0, 0
+	for _, r := range rows {
+		ruleW = max(ruleW, runeWidth(r.rule))
+		itemW = max(itemW, runeWidth(r.item))
+	}
+	for _, r := range rows {
+		rule := ""
+		if r.first {
+			rule = r.rule
+		}
+		_, _ = fmt.Fprintf(w, "  %s  %s  %s%s\n", pad(rule, ruleW), pad(r.item, itemW),
+			col.Paint(cDim, r.verdict.Profile+" · "), termPaint(col, r.verdict, r.verdict.Term()))
+		if r.readAt != "" {
+			_, _ = fmt.Fprintf(w, "  %s  %s\n", pad("", ruleW), col.Paint(cDim, r.readAt))
+		}
+	}
 }
 
 func runeWidth(s string) int { return utf8.RuneCountInString(s) }
@@ -88,7 +110,7 @@ func writePolicy(w io.Writer, col tui.Painter, p *skald.PolicyCheck) {
 			continue
 		}
 		for i, item := range v.Breaking() {
-			rows = append(rows, policyRow{rule: v.Rule, item: item.String(), verdict: v, first: i == 0})
+			rows = append(rows, policyRow{rule: v.Rule, item: item.String(), readAt: item.ReadAt(), verdict: v, first: i == 0})
 		}
 	}
 	line := policyHeading(col, head, "")
@@ -101,19 +123,7 @@ func writePolicy(w io.Writer, col tui.Painter, p *skald.PolicyCheck) {
 		line += col.Paint(cDim, fmt.Sprintf(" · %s checked, none broken", english.Count(checked, "rule")))
 	}
 	_, _ = fmt.Fprintln(w, line)
-	ruleW, itemW := 0, 0
-	for _, r := range rows {
-		ruleW = max(ruleW, runeWidth(r.rule))
-		itemW = max(itemW, runeWidth(r.item))
-	}
-	for _, r := range rows {
-		rule := ""
-		if r.first {
-			rule = r.rule
-		}
-		_, _ = fmt.Fprintf(w, "  %s  %s  %s%s\n", pad(rule, ruleW), pad(r.item, itemW),
-			col.Paint(cDim, r.verdict.Profile+" · "), termPaint(col, r.verdict, r.verdict.Term()))
-	}
+	writePolicyRows(w, col, rows)
 }
 
 // WritePolicyTable is doctor's POLICY section: every rule that reaches the project, passing and
@@ -133,9 +143,9 @@ func WritePolicyTableWith(w io.Writer, col tui.Painter, p *skald.PolicyCheck, pr
 		return
 	}
 	type row struct {
-		rule, profile, mark, result, term string
-		verdict                           skald.PolicyVerdict
-		cont                              bool
+		rule, profile, mark, result, term, readAt string
+		verdict                                   skald.PolicyVerdict
+		cont                                      bool
 	}
 	var rows []row
 	for _, v := range p.Verdicts {
@@ -150,7 +160,7 @@ func WritePolicyTableWith(w io.Writer, col tui.Painter, p *skald.PolicyCheck, pr
 				mark = "✗"
 			}
 			for i, item := range items {
-				r := row{mark: mark, result: item.String(), verdict: v, cont: i > 0}
+				r := row{mark: mark, result: item.String(), readAt: item.ReadAt(), verdict: v, cont: i > 0}
 				if i == 0 {
 					r.rule, r.profile, r.term = v.Rule, v.Profile, v.Term()
 				}
@@ -184,6 +194,9 @@ func WritePolicyTableWith(w io.Writer, col tui.Painter, p *skald.PolicyCheck, pr
 		}
 		_, _ = fmt.Fprintf(w, "%s  %s  %s  %s\n", pad(r.rule, ruleW), pad(r.profile, profW), result,
 			termPaint(col, r.verdict, r.term))
+		if r.readAt != "" {
+			_, _ = fmt.Fprintf(w, "%s  %s  %s\n", pad("", ruleW), pad("", profW), col.Paint(cDim, r.readAt))
+		}
 	}
 }
 
@@ -202,22 +215,10 @@ func WritePolicyRefused(w io.Writer, col tui.Painter, project, release string, p
 			continue
 		}
 		for i, item := range v.Breaking() {
-			rows = append(rows, policyRow{rule: v.Rule, item: item.String(), verdict: v, first: i == 0})
+			rows = append(rows, policyRow{rule: v.Rule, item: item.String(), readAt: item.ReadAt(), verdict: v, first: i == 0})
 		}
 	}
-	ruleW, itemW := 0, 0
-	for _, r := range rows {
-		ruleW = max(ruleW, runeWidth(r.rule))
-		itemW = max(itemW, runeWidth(r.item))
-	}
-	for _, r := range rows {
-		rule := ""
-		if r.first {
-			rule = r.rule
-		}
-		_, _ = fmt.Fprintf(w, "  %s  %s  %s%s\n", pad(rule, ruleW), pad(r.item, itemW),
-			col.Paint(cDim, r.verdict.Profile+" · "), termPaint(col, r.verdict, r.verdict.Term()))
-	}
+	writePolicyRows(w, col, rows)
 	_, _ = fmt.Fprintln(w)
 	_, _ = fmt.Fprintln(w, "No scanner ran.")
 }

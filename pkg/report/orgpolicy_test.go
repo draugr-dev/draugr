@@ -143,3 +143,48 @@ func TestThePolicyBlockShowsTheRunsVerdict(t *testing.T) {
 		})
 	}
 }
+
+// A request an approver declined says where to read the decision: its address where the server knows
+// the console's, its id otherwise. One still waiting has neither, and says only that it waits.
+func TestADeclinedRequestSaysWhereToReadTheDecision(t *testing.T) {
+	const field = "requests from the descriptor declined"
+	item := func(request, url string) skald.PolicyItem {
+		return skald.PolicyItem{Field: field, Found: "CVE-2026-1", Constraint: "forbidden", Expected: "any", Breaks: true,
+			Request: request, RequestURL: url}
+	}
+	verdict := func(items ...skald.PolicyItem) *skald.PolicyCheck {
+		return &skald.PolicyCheck{Checked: true, Version: 7, Verdicts: []skald.PolicyVerdict{{
+			Rule: "exclusions", Profile: "Default", State: "violates", Mode: "enforce", Response: "fail", InForce: true, Acts: "fail",
+			Items: items,
+		}}}
+	}
+	waiting := skald.PolicyItem{Field: "requests from the descriptor not approved", Found: "CVE-2026-2", Constraint: "forbidden", Expected: "any", Breaks: true}
+	const addr = "https://console.example/#/acceptances/r1"
+	for _, c := range []struct {
+		name string
+		item skald.PolicyItem
+		want string
+	}{
+		{"with the console's address", item("r1", addr), "read the decision at " + addr},
+		{"with the id alone", item("r1", ""), "read the decision in the console, request r1"},
+	} {
+		var scan, table bytes.Buffer
+		writePolicy(&scan, tui.Plain(), verdict(c.item, waiting))
+		WritePolicyTable(&table, tui.Plain(), verdict(c.item, waiting), "payments")
+		for name, got := range map[string]string{"scan": scan.String(), "doctor": table.String()} {
+			if !strings.Contains(got, c.want) {
+				t.Errorf("%s, %s: missing %q:\n%s", c.name, name, c.want, got)
+			}
+			if strings.Count(got, "read the decision") != 1 {
+				t.Errorf("%s, %s: the waiting request says where to read a decision:\n%s", c.name, name, got)
+			}
+		}
+	}
+	var refused bytes.Buffer
+	check := verdict(item("r1", addr))
+	check.Verdicts[0].Acts = skald.PolicyRefuse
+	WritePolicyRefused(&refused, tui.Plain(), "payments", "1.0", check)
+	if !strings.Contains(refused.String(), "read the decision at "+addr) {
+		t.Errorf("a refusal does not say where to read it:\n%s", refused.String())
+	}
+}

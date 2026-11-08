@@ -87,6 +87,23 @@ type PolicyItem struct {
 	Constraint string `json:"constraint"`
 	Expected   string `json:"expected"`
 	Breaks     bool   `json:"breaks,omitempty"`
+	// Request is the id of the request this item is about, on a descriptor's exclusion an approver
+	// declined, and RequestURL its address in the console, where the server knows that. What the
+	// approver said is read there and not carried here: this item reaches CI logs.
+	Request    string `json:"request,omitempty"`
+	RequestURL string `json:"requestUrl,omitempty"`
+}
+
+// ReadAt is where to read the request behind the item, for the line under it: its address, its id
+// where the server knows no address, and empty for an item about no request.
+func (i PolicyItem) ReadAt() string {
+	switch {
+	case i.RequestURL != "":
+		return "read the decision at " + i.RequestURL
+	case i.Request != "":
+		return "read the decision in the console, request " + i.Request
+	}
+	return ""
 }
 
 // String is the item as every surface shows it: `failOn: P1 · required: P2 or stricter`.
