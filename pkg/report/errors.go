@@ -14,6 +14,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
+	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/skald"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
@@ -144,6 +145,10 @@ type caveat struct {
 	by string
 	// folded says the row stands for several files, which --evidence names one by one.
 	folded bool
+	// controls are the controls the caveat concerns, where it names any. locations are the files or
+	// image it names, by their own paths: what is a label, shortened or folded for a reader.
+	controls  []string
+	locations []sarif.NotificationLocation
 }
 
 // unreadDetail is a service's row: the checks with no result, the checks read in part, and the
@@ -165,32 +170,43 @@ func caveats(d Data) []caveat {
 	var out []caveat
 	for _, g := range d.Uncovered {
 		out = append(out, caveat{component: g.Component, what: g.Surface,
-			detail: "controls off: " + strings.Join(g.Controls, ", "), key: saga.CaveatNotChecked})
+			detail: "controls off: " + strings.Join(g.Controls, ", "), key: saga.CaveatNotChecked,
+			controls: g.Controls})
 	}
 	for _, u := range d.Unexamined {
-		out = append(out, caveat{component: u.Component, what: u.Files, detail: u.Why, key: saga.CaveatNotChecked})
+		c := caveat{component: u.Component, what: u.Files, detail: u.Why, key: saga.CaveatNotChecked}
+		for _, p := range u.Paths {
+			c.locations = append(c.locations, sarif.NotificationLocation{URI: p})
+		}
+		out = append(out, c)
 	}
 	for _, sk := range d.Run.Skipped {
-		out = append(out, caveat{component: sk.Component, what: sk.Scanner, detail: sk.Reason, key: saga.CaveatNotMeasured})
+		out = append(out, caveat{component: sk.Component, what: sk.Scanner, detail: sk.Reason, key: saga.CaveatNotMeasured,
+			controls: []string{sk.Control}})
 	}
 	// A service's checks the scan could not evaluate, one row per service, because one granted
 	// permission clears all of them. The control is not named: the service says which one it is.
 	for _, g := range d.Run.UnreadChecks {
 		out = append(out, caveat{component: g.Component, what: g.Group, detail: unreadDetail(g),
-			key: saga.CaveatUnreadChecks})
+			key: saga.CaveatUnreadChecks, controls: []string{g.Control}})
 	}
 	// An imported file that names no revision: read, but nothing shows it describes the code this
 	// run scanned.
 	for _, u := range unboundImports(d) {
 		out = append(out, caveat{component: u.component, what: u.file,
-			detail: "names no commit, so nothing ties its findings to this code", key: saga.CaveatUnboundImports})
+			detail: "names no commit, so nothing ties its findings to this code", key: saga.CaveatUnboundImports,
+			controls: u.controls, locations: []sarif.NotificationLocation{{URI: u.file}}})
 	}
 	for _, g := range unreadByComponent(d.Run.Inputs, d.Run.Targets) {
 		for _, r := range unreadRows(g) {
 			by := strings.Join(r.controls, ", ")
-			out = append(out, caveat{component: g.component, what: r.what,
+			c := caveat{component: g.component, what: r.what,
 				detail: fmt.Sprintf("%s (%s)", r.reason, by), key: saga.CaveatUnreadFiles, by: by,
-				folded: len(r.files) > 0})
+				folded: len(r.files) > 0, controls: r.controls}
+			for _, f := range r.places {
+				c.locations = append(c.locations, sarif.NotificationLocation{URI: f.path, Repository: f.repository})
+			}
+			out = append(out, c)
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].component < out[j].component })
@@ -543,34 +559,46 @@ func namesOfKinds(kinds []saga.CaveatKind) []string {
 	return out
 }
 
-// unboundImport is an imported SARIF file that stated no commit.
-type unboundImport struct{ component, file string }
+// unboundImport is an imported SARIF file that stated no commit, and the controls that read it.
+type unboundImport struct {
+	component, file string
+	controls        []string
+}
 
 // unboundImports reads them off the import scanner's provenance, which records the commit each
 // file was checked against or that it named none.
 func unboundImports(d Data) []unboundImport {
 	var out []unboundImport
-	seen := map[unboundImport]bool{}
+	type key struct{ component, file string }
+	at := map[key]int{}
 	for _, name := range sortedControlNames(d) {
 		for _, p := range d.Run.Controls[name].Report.Provenance {
 			if p.Tool != plugin.ImportScanner {
 				continue
 			}
-			var u unboundImport
+			var k key
 			bound := true
 			for _, f := range p.Fields {
 				switch f.Key {
 				case "component":
-					u.component = f.Value
+					k.component = f.Value
 				case "file":
-					u.file = f.Value
+					k.file = f.Value
 				case "commit":
 					bound = f.Value != "not stated"
 				}
 			}
-			if !bound && !seen[u] {
-				seen[u] = true
-				out = append(out, u)
+			if bound {
+				continue
+			}
+			i, seen := at[k]
+			if !seen {
+				i = len(out)
+				at[k] = i
+				out = append(out, unboundImport{component: k.component, file: k.file})
+			}
+			if !slices.Contains(out[i].controls, name) {
+				out[i].controls = append(out[i].controls, name)
 			}
 		}
 	}

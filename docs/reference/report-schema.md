@@ -54,6 +54,37 @@ jq -r '.scanners[]? | "\(.name) \(.version // "")" as $s | .failed[]? | "\($s) \
 jq -r '[.targets[]?.refusal | select(.credential == false) | .registry] | unique[]' out/report.json   # registries to log in to
 ```
 
+## Notifications
+
+`runs[].invocations[]` in `results.sarif` is the run's account of what it did not cover: one notification per [caveat](saga-schema.md#configgate) and per scan error, in `toolExecutionNotifications`. A run with neither writes no `invocations`. The HTML report's SARIF download carries the same notifications, and `draugr diff --format sarif` writes none. `draugr diff` and `--base` do not read them, so they change no count.
+
+| Field | Meaning |
+|---|---|
+| `executionSuccessful` | `false` where any notification has level `error`, and otherwise `true`. SARIF reads an `error` notification as a failed run whose results may be incomplete. Findings do not affect it |
+| `descriptor.id` | the notification's kind: a kind of caveat, `not-checked`, `not-measured`, `unread-files`, `unread-checks` or `unbound-imports`, or `scan-error` |
+| `level` | `error` for a scan error and for a caveat of a kind `gate.failOnCaveats` lists, and `warning` for any other caveat. `--allow-scan-errors` does not change it: an accepted shortfall passes the run and leaves it incomplete |
+| `message.text` | what the caveat names and why, as the console's row says them: `package.json: no lockfile`. A scan error's is its control and the scanner's own words. Cut at 1024 bytes |
+| `locations[].physicalLocation.artifactLocation.uri` | the file or image the caveat names, one location per file on a row that folds several. A path is percent-encoded and relative to its repository, with `uriBaseId` `%SRCROOT%`. An image is its pinned reference, with no base. Absent where the caveat names neither |
+| `locations[].properties.repository` | the repository a path is in, as `dependencyFiles[].unread[].repository` names it |
+| `properties.kind` | the same value as `descriptor.id` |
+| `properties.component` | the component the caveat belongs to. Absent on a scan error |
+| `properties.controls` | the controls the caveat or scan error concerns. Absent on a caveat that names none |
+| `properties.locationsLeftOut` | how many locations a notification has past the ten it lists |
+| `properties.leftOut` | set on the notification that closes a kind past its limit: how many of that kind the file leaves out |
+
+The file lists at most 200 notifications of a kind. A kind past that closes with one more notification at the same level, whose message counts the rest and names what lists them:
+
+```text
+3 unread-files caveats left out of this file · report.json lists every one
+```
+
+`report.json` lists scan errors, `not-measured`, `unread-files` and `unread-checks` on every run, in `controls[].scanErrors`, `notMeasured[]`, `dependencyFiles[].unread[]` and `unreadChecks[]`. It lists `not-checked` and `unbound-imports` only in `failedCaveats[]`, where the gate fails on them. The console with `--top 0` and the HTML and markdown reports list every kind.
+
+```bash
+jq -r '.runs[].invocations[]?.toolExecutionNotifications[] | "\(.level) \(.descriptor.id) \(.message.text)"' out/results.sarif
+jq -e '[.runs[].invocations[]?.executionSuccessful] | all' out/results.sarif   # fail on a run SARIF calls failed
+```
+
 ## Gate
 
 `gate` in `report.json` is the policy the run was judged against, and the outcome of the gate on new

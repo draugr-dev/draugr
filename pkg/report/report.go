@@ -218,8 +218,11 @@ type Gap struct {
 type Unexamined struct {
 	// Component holds the files.
 	Component string
-	// Files are the files that called for the scanner, joined into one list.
+	// Files are the files that called for the scanner, joined into one list for a reader, which may
+	// name only the first of them.
 	Files string
+	// Paths are the same files, every one by its own path.
+	Paths []string
 	// Why names what the machine is missing, and the command that installs it where Draugr can.
 	Why string
 }
@@ -661,14 +664,6 @@ func erroredControls(d Data) []string {
 	}
 	sort.Strings(out)
 	return out
-}
-
-func (d Data) marshalOptions() sarif.MarshalOptions {
-	return sarif.MarshalOptions{
-		Compact:      d.View == ViewCompact,
-		AutomationID: AutomationID(d.Project, d.Run.Scope),
-		ToolVersion:  d.Version,
-	}
 }
 
 // AutomationID is what a run writes to SARIF's runs[].automationDetails.id, and it decides

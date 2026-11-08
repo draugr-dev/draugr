@@ -19,7 +19,7 @@ func (zc *zeroConfig) found() []report.Found {
 	rows := foundRows(zc.tree)
 	out := make([]report.Found, len(rows))
 	for i, r := range rows {
-		out[i] = report.Found{Kind: r.kind, Files: r.where, Did: r.scanSays(zc.turnedOff)}
+		out[i] = report.Found{Kind: r.kind, Files: r.where(), Did: r.scanSays(zc.turnedOff)}
 	}
 	return out
 }
@@ -59,7 +59,8 @@ func (zc *zeroConfig) turnOffUnrunnable(reg *engine.Registry, scope engine.Scope
 		turnOff(zc.model, u.Info)
 		zc.turnedOff = append(zc.turnedOff, u.Info.Name)
 		out = append(out, report.Unexamined{
-			Component: zc.model.Components[0].Name, Files: foundFiles(rows, u.Info.Name), Why: why,
+			Component: zc.model.Components[0].Name, Files: foundFiles(rows, u.Info.Name),
+			Paths: foundPaths(rows, u.Info.Name), Why: why,
 		})
 	}
 	return out
