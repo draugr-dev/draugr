@@ -33,6 +33,9 @@ type sarifRun struct {
 	// MarshalOptions.AutomationID, and absent when that is empty.
 	AutomationDetails *sarifAutomationDetails `json:"automationDetails,omitempty"`
 	Results           []sarifResult           `json:"results"`
+	// Invocations is the run's account of its own execution, written from
+	// MarshalOptions.Notifications and absent where there are none.
+	Invocations sarifInvocations `json:"invocations,omitempty"`
 	// OriginalURIBaseIDs declares what Draugr's relative result paths are relative to. Required
 	// by the SARIF spec whenever relative URI references are used; it's what lets an editor's
 	// viewer resolve a finding onto a file in the open workspace instead of asking the reader.
@@ -451,6 +454,11 @@ type MarshalOptions struct {
 	// ToolVersion is the Draugr that produced the run, written to the run's tool driver. Empty
 	// writes no version, which is what a report built outside a Draugr run carries.
 	ToolVersion string
+	// Notifications are the conditions the run reports about itself, written to
+	// runs[].invocations[].toolExecutionNotifications, with executionSuccessful false where any is
+	// at level error. Compact keeps them, because they are what says the results are incomplete. None
+	// writes no invocations at all. FromSARIF does not read them back.
+	Notifications []Notification
 }
 
 // MarshalSARIF serializes the report to standard SARIF 2.1.0 JSON as a single "Draugr" run,
@@ -469,6 +477,11 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		run.AutomationDetails = &sarifAutomationDetails{ID: opts.AutomationID}
 	}
 	run.Properties = runProperties(r.Provenance, r.Decided, r.Consulted)
+	var relativeNotification bool
+	run.Invocations, relativeNotification = invocationsOf(opts.Notifications)
+	if relativeNotification {
+		run.OriginalURIBaseIDs = originalURIBaseIDs()
+	}
 	// Track which scanner(s) produced each ruleId so the emitted rules[] can carry a "scanner:<name>"
 	// tag, the only place GitHub code scanning surfaces the underlying tool.
 	ruleScanners := map[string]map[string]bool{}

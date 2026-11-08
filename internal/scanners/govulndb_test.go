@@ -25,6 +25,12 @@ func TestMain(m *testing.M) {
 	// Nor the developer's own govulncheck: the Go it was built with would decide which test modules
 	// a scan refuses. A test that is about that names a build Go itself.
 	govulncheckBuildGo = func() string { return "" }
+	// Nor the developer's own Trivy: its version is kept for the process, so one test asking would
+	// set the flags every later test builds, and the outcome would depend on what is on PATH and on
+	// the order tests ran in. A test about a version sets its own.
+	sharedTrivyVersion = &trivyVersionProbe{run: func(context.Context, []string) ([]byte, error) {
+		return nil, errors.New("no test reads the machine's Trivy")
+	}}
 	os.Exit(m.Run())
 }
 

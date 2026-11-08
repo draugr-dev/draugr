@@ -346,7 +346,7 @@ func writeChanged(w io.Writer, col tui.Painter, r Result, entries []Entry, opts 
 func rowNotes(e Entry) []string {
 	notes := make([]string, 0, 2)
 	if e.Correlation != nil {
-		if note := sarif.AgreementNote(e.Correlation.AlsoFoundBy, e.Severity("")); note != "" {
+		if note := sarif.AgreementNote(e.Correlation.AlsoFoundBy, e.Severity(""), e.Tool); note != "" {
 			notes = append(notes, note)
 		}
 	}

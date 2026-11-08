@@ -22,7 +22,7 @@ func everyCaveatData() Data {
 		FailOnCaveats:     []saga.CaveatKind{saga.CaveatUnboundImports},
 		FailOnCaveatsFrom: "config.gate.failOnCaveats",
 		Uncovered:         []Gap{{Component: "edge", Surface: "hosts", Controls: []string{"dast", "headers", "tls"}}},
-		Unexamined:        []Unexamined{{Component: "ledger", Files: "checkout/go.mod", Why: "govulncheck needs Go"}},
+		Unexamined:        []Unexamined{{Component: "ledger", Files: "checkout/go.mod", Paths: []string{"checkout/go.mod"}, Why: "govulncheck needs Go"}},
 		Run: engine.Result{
 			Controls: map[string]plugin.ControlResult{
 				"sca": {Control: "sca", Report: sarif.Report{Provenance: []sarif.Provenance{{

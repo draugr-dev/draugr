@@ -1,0 +1,1 @@
+- **`results.sarif` now says what a run did not cover.** Each caveat and scan error is a notification under `runs[].invocations[]`, with its kind, level, message and file or image, and `executionSuccessful` is false when any is at level `error`. Findings, `draugr diff` and `--base` are unchanged. Code scanning may not display them.

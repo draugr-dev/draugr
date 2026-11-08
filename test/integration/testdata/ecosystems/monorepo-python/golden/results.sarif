@@ -5,6 +5,42 @@
       "automationDetails": {
         "id": "monorepo-python/"
       },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "unread-files"
+              },
+              "level": "warning",
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "services/legacy/setup.py",
+                      "uriBaseId": "%SRCROOT%"
+                    }
+                  },
+                  "properties": {
+                    "repository": "./monorepo-python"
+                  }
+                }
+              ],
+              "message": {
+                "text": "services/legacy/setup.py: no packages read"
+              },
+              "properties": {
+                "component": "legacy",
+                "controls": [
+                  "sca"
+                ],
+                "kind": "unread-files"
+              }
+            }
+          ]
+        }
+      ],
       "originalUriBaseIds": {
         "%SRCROOT%": {
           "description": {

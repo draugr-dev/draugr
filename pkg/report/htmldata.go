@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"strings"
 
+	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/skald"
 )
 
@@ -35,7 +36,7 @@ var tsvColumns = []string{
 // was too large to embed.
 func buildSARIFDownload(d Data) (uri template.URL, tooBig bool) {
 	var sb strings.Builder
-	if err := skald.WriteSARIF(&sb, d.Run); err != nil {
+	if err := skald.WriteSARIFWith(&sb, d.Run, sarif.MarshalOptions{Notifications: notifications(d)}); err != nil {
 		// A report that renders is worth more than no report; the download is an extra.
 		return "", false
 	}

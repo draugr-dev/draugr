@@ -5,6 +5,282 @@
       "automationDetails": {
         "id": "polyglot-unlocked/"
       },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "unread-files"
+              },
+              "level": "warning",
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "requirements.txt",
+                      "uriBaseId": "%SRCROOT%"
+                    }
+                  },
+                  "properties": {
+                    "repository": "./polyglot-unlocked"
+                  }
+                }
+              ],
+              "message": {
+                "text": "requirements.txt: records no license for 1 package"
+              },
+              "properties": {
+                "component": "polyglot-unlocked",
+                "controls": [
+                  "licenses"
+                ],
+                "kind": "unread-files"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "unread-files"
+              },
+              "level": "warning",
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "api/pyproject.toml",
+                      "uriBaseId": "%SRCROOT%"
+                    }
+                  },
+                  "properties": {
+                    "repository": "./polyglot-unlocked"
+                  }
+                }
+              ],
+              "message": {
+                "text": "api/pyproject.toml: no lockfile"
+              },
+              "properties": {
+                "component": "polyglot-unlocked",
+                "controls": [
+                  "licenses",
+                  "sca"
+                ],
+                "kind": "unread-files"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "unread-files"
+              },
+              "level": "warning",
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "crate/Cargo.toml",
+                      "uriBaseId": "%SRCROOT%"
+                    }
+                  },
+                  "properties": {
+                    "repository": "./polyglot-unlocked"
+                  }
+                }
+              ],
+              "message": {
+                "text": "crate/Cargo.toml: no lockfile"
+              },
+              "properties": {
+                "component": "polyglot-unlocked",
+                "controls": [
+                  "licenses",
+                  "sca"
+                ],
+                "kind": "unread-files"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "unread-files"
+              },
+              "level": "warning",
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "php/composer.json",
+                      "uriBaseId": "%SRCROOT%"
+                    }
+                  },
+                  "properties": {
+                    "repository": "./polyglot-unlocked"
+                  }
+                }
+              ],
+              "message": {
+                "text": "php/composer.json: no lockfile"
+              },
+              "properties": {
+                "component": "polyglot-unlocked",
+                "controls": [
+                  "licenses",
+                  "sca"
+                ],
+                "kind": "unread-files"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "unread-files"
+              },
+              "level": "warning",
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "rb/Gemfile",
+                      "uriBaseId": "%SRCROOT%"
+                    }
+                  },
+                  "properties": {
+                    "repository": "./polyglot-unlocked"
+                  }
+                }
+              ],
+              "message": {
+                "text": "rb/Gemfile: no lockfile"
+              },
+              "properties": {
+                "component": "polyglot-unlocked",
+                "controls": [
+                  "licenses",
+                  "sca"
+                ],
+                "kind": "unread-files"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "unread-files"
+              },
+              "level": "warning",
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "requirements-dev.txt",
+                      "uriBaseId": "%SRCROOT%"
+                    }
+                  },
+                  "properties": {
+                    "repository": "./polyglot-unlocked"
+                  }
+                }
+              ],
+              "message": {
+                "text": "requirements-dev.txt: no packages read"
+              },
+              "properties": {
+                "component": "polyglot-unlocked",
+                "controls": [
+                  "licenses",
+                  "sca"
+                ],
+                "kind": "unread-files"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "unread-files"
+              },
+              "level": "warning",
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "svc/App.csproj",
+                      "uriBaseId": "%SRCROOT%"
+                    }
+                  },
+                  "properties": {
+                    "repository": "./polyglot-unlocked"
+                  }
+                }
+              ],
+              "message": {
+                "text": "svc/App.csproj: no lockfile"
+              },
+              "properties": {
+                "component": "polyglot-unlocked",
+                "controls": [
+                  "licenses",
+                  "sca"
+                ],
+                "kind": "unread-files"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "unread-files"
+              },
+              "level": "warning",
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "tools/requirements.txt",
+                      "uriBaseId": "%SRCROOT%"
+                    }
+                  },
+                  "properties": {
+                    "repository": "./polyglot-unlocked"
+                  }
+                }
+              ],
+              "message": {
+                "text": "tools/requirements.txt: no pinned versions"
+              },
+              "properties": {
+                "component": "polyglot-unlocked",
+                "controls": [
+                  "licenses",
+                  "sca"
+                ],
+                "kind": "unread-files"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "unread-files"
+              },
+              "level": "warning",
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "web/package.json",
+                      "uriBaseId": "%SRCROOT%"
+                    }
+                  },
+                  "properties": {
+                    "repository": "./polyglot-unlocked"
+                  }
+                }
+              ],
+              "message": {
+                "text": "web/package.json: no lockfile"
+              },
+              "properties": {
+                "component": "polyglot-unlocked",
+                "controls": [
+                  "licenses",
+                  "sca"
+                ],
+                "kind": "unread-files"
+              }
+            }
+          ]
+        }
+      ],
       "originalUriBaseIds": {
         "%SRCROOT%": {
           "description": {

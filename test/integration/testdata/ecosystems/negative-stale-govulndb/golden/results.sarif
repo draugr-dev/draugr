@@ -5,6 +5,28 @@
       "automationDetails": {
         "id": "negative-stale-govulndb/"
       },
+      "invocations": [
+        {
+          "executionSuccessful": false,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "scan-error"
+              },
+              "level": "error",
+              "message": {
+                "text": "sca: govulncheck: cannot run offline: local Go vulnerability database fetched <fetched>, older than 24h; run `draugr feeds update govulndb`"
+              },
+              "properties": {
+                "controls": [
+                  "sca"
+                ],
+                "kind": "scan-error"
+              }
+            }
+          ]
+        }
+      ],
       "properties": {
         "draugr/provenance": [
           {

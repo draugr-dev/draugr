@@ -5,6 +5,49 @@
       "automationDetails": {
         "id": "dast-openapi/"
       },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "hosts: controls off: headers, tls"
+              },
+              "properties": {
+                "component": "dast-openapi",
+                "controls": [
+                  "headers",
+                  "tls"
+                ],
+                "kind": "not-checked"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "repositories: controls off: iac, sast, sca, secrets"
+              },
+              "properties": {
+                "component": "dast-openapi",
+                "controls": [
+                  "iac",
+                  "sast",
+                  "sca",
+                  "secrets"
+                ],
+                "kind": "not-checked"
+              }
+            }
+          ]
+        }
+      ],
       "properties": {
         "draugr/provenance": [
           {

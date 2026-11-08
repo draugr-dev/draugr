@@ -24,8 +24,9 @@ type unreadGroup struct {
 type unreadFile struct {
 	label, reason string
 	controls      []string
-	// path and kind are the file's path in its repository and the scanner's name for its format.
-	path, kind string
+	// path and kind are the file's path in its repository and the scanner's name for its format, and
+	// repository is the repository, which label only names where the component scans several.
+	path, kind, repository string
 }
 
 // unreadByComponent folds per-control coverage into one entry per component.
@@ -61,7 +62,7 @@ func unreadByComponent(inputs []engine.InputCoverage, targets []engine.TargetOut
 				j = len(out[i].files)
 				files[c.Component][k] = j
 				out[i].files = append(out[i].files, unreadFile{label: u.Repository + "\x00" + u.Path, reason: u.Reason,
-					path: u.Path, kind: u.Kind})
+					path: u.Path, kind: u.Kind, repository: u.Repository})
 			}
 			out[i].files[j].controls = append(out[i].files[j].controls, c.Control)
 		}
@@ -91,6 +92,8 @@ type unreadRow struct {
 	controls     []string
 	// files are the files a folded row stands for, which --evidence lists; nil for a row of one.
 	files []unreadFile
+	// places are the files the row names, one or several, which a SARIF notification locates.
+	places []unreadFile
 }
 
 // unreadRows is a component's caveat rows, one per file except where files are folded.
@@ -108,7 +111,7 @@ func unreadRows(g unreadGroup) []unreadRow {
 	for _, f := range g.files {
 		n, command, ok := manifests.ParseLicensesNotRead(f.reason)
 		if !ok || !slices.Equal(f.controls, []string{"licenses"}) {
-			out = append(out, unreadRow{what: f.label, reason: f.reason, controls: f.controls})
+			out = append(out, unreadRow{what: f.label, reason: f.reason, controls: f.controls, places: []unreadFile{f}})
 			continue
 		}
 		k := key{cmp.Or(f.kind, path.Base(f.path)), command}
@@ -116,11 +119,13 @@ func unreadRows(g unreadGroup) []unreadRow {
 		if !seen {
 			at[k] = len(out)
 			packages[k] = n
-			out = append(out, unreadRow{what: f.label, reason: f.reason, controls: f.controls, files: []unreadFile{f}})
+			out = append(out, unreadRow{what: f.label, reason: f.reason, controls: f.controls,
+				files: []unreadFile{f}, places: []unreadFile{f}})
 			continue
 		}
 		packages[k] += n
 		out[i].files = append(out[i].files, f)
+		out[i].places = append(out[i].places, f)
 		out[i].what = foldedName(k.kind, out[i].files)
 		out[i].reason = manifests.LicensesNotRead(packages[k], command)
 	}

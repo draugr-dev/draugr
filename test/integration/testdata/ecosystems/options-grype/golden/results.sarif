@@ -5,6 +5,51 @@
       "automationDetails": {
         "id": "options-grype/"
       },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "repositories: controls off: iac, sast, sca, secrets"
+              },
+              "properties": {
+                "component": "by-advisory",
+                "controls": [
+                  "iac",
+                  "sast",
+                  "sca",
+                  "secrets"
+                ],
+                "kind": "not-checked"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "not-checked"
+              },
+              "level": "warning",
+              "message": {
+                "text": "repositories: controls off: iac, sast, sca, secrets"
+              },
+              "properties": {
+                "component": "default",
+                "controls": [
+                  "iac",
+                  "sast",
+                  "sca",
+                  "secrets"
+                ],
+                "kind": "not-checked"
+              }
+            }
+          ]
+        }
+      ],
       "properties": {
         "draugr/provenance": [
           {

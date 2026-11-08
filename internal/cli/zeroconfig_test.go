@@ -285,8 +285,8 @@ func TestFoundIsInitsRowsWordedForTheRun(t *testing.T) {
 		t.Fatalf("FOUND has %d rows, init prints %d", len(found), len(rows))
 	}
 	for i, r := range rows {
-		if found[i].Kind != r.kind || found[i].Files != r.where {
-			t.Errorf("row %d = %+v, init prints %q %q", i, found[i], r.kind, r.where)
+		if found[i].Kind != r.kind || found[i].Files != r.where() {
+			t.Errorf("row %d = %+v, init prints %q %q", i, found[i], r.kind, r.where())
 		}
 	}
 	did := map[string]string{}

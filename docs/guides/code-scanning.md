@@ -111,6 +111,14 @@ The token needs no permission beyond the `security-events: write` the upload alr
 made with `github/codeql-action/upload-sarif` instead of the publisher leaves accepted findings
 open.
 
+### Caveats
+
+The uploaded file carries the run's caveats and scan errors as SARIF
+[notifications](../reference/report-schema.md#notifications). GitHub's documentation does not say
+code scanning displays them, so a clean Security tab does not show that the run read everything. The console, with `--top 0`, and the HTML
+and markdown reports list every caveat. `report.json` lists every kind except `not-checked` and
+`unbound-imports`, which it lists only where the gate fails on them.
+
 ### Two products in one repository
 
 The category an upload belongs to is what separates one analysis of a commit from another, and

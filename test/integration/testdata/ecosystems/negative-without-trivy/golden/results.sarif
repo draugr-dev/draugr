@@ -5,6 +5,28 @@
       "automationDetails": {
         "id": "negative-without-trivy/"
       },
+      "invocations": [
+        {
+          "executionSuccessful": false,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "scan-error"
+              },
+              "level": "error",
+              "message": {
+                "text": "sca: run trivy-fs: exec: \"trivy\": executable file not found in $PATH. Run `draugr tools install trivy`"
+              },
+              "properties": {
+                "controls": [
+                  "sca"
+                ],
+                "kind": "scan-error"
+              }
+            }
+          ]
+        }
+      ],
       "results": [],
       "tool": {
         "driver": {

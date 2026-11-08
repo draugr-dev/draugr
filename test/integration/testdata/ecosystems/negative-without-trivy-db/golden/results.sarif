@@ -5,6 +5,28 @@
       "automationDetails": {
         "id": "negative-without-trivy-db/"
       },
+      "invocations": [
+        {
+          "executionSuccessful": false,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "scan-error"
+              },
+              "level": "error",
+              "message": {
+                "text": "sca: run trivy-fs: exit status 1: run error: init error: DB error: database error: --skip-db-update cannot be specified on the first run"
+              },
+              "properties": {
+                "controls": [
+                  "sca"
+                ],
+                "kind": "scan-error"
+              }
+            }
+          ]
+        }
+      ],
       "results": [],
       "tool": {
         "driver": {
