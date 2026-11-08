@@ -24,19 +24,19 @@ _Nothing yet._
 
 - **A finding in several files says so, and names each other scanner once.** A row named one lockfile and listed the rest as `also found by trivy, trivy`, repeating a scanner per file and naming its own. It now reads `admin/package-lock.json:14 · and 1 more · also found by grype`.
 
-- **A scan of a local repository no longer fails when something writes to that repository during the clone.** Draugr reads a local path the way it reads a URL, so the shallow clone now applies too. A revision only a local clone can reach still works.
+- **A scan of a local repository no longer fails when something writes to that repository during the clone.** Draugr now clones a local path as it clones a URL, shallow where the scan allows it. A commit no branch or tag reaches can still be scanned.
 
 - **An image named by digest counts as pinned in `provenance`.** An `image:` of the form `<repository>@<digest>` was verified at that digest while the measured-against line said `pinning: none, all by tag`. It now counts as pinned, as one with a separate `digest:` does.
 
-- **`cloud` names a disabled Google API, and marks the essential-contacts check unread.** Google answers an API the project has not enabled with a 403, so it was reported as a permission the log did not name, and the CIS check depending on it sat among the undecided. The line now says `essentialcontacts.googleapis.com disabled`, and that check is listed under Caveats.
+- **`cloud` reports a disabled Google API by name.** Google answers an API the project has not enabled with a 403, which was reported as a missing permission. The line now reads `essentialcontacts.googleapis.com disabled`, and the CIS check that depends on it is listed under Caveats.
 
 - **`draugr doctor` lists the cloud metadata address for an image in a Google registry.** Trivy asks Google's credential helper for a registry token for an image in `gcr.io` or `*-docker.pkg.dev`, and the helper tries `169.254.169.254`. A runner with an egress allowlist can now see that before a scan.
 
-- **`results.sarif` now says what a run did not cover.** Each caveat and scan error is a notification under `runs[].invocations[]`, with its kind, level, message and file or image, and `executionSuccessful` is false when any is at level `error`. Findings, `draugr diff` and `--base` are unchanged. Code scanning may not display them.
+- **`results.sarif` records what a run did not cover.** Each caveat and scan error is a notification under `runs[].invocations[]`, with its kind, level, message and file or image, and `executionSuccessful` is false when any is at level `error`. Findings, `draugr diff` and `--base` are unchanged. GitHub code scanning may not show these notifications.
 
-- **The fix list shows one upgrade for a package Trivy and Grype spell differently.** PyPI names are compared as PEP 503 normalizes them and Maven packages by group and artifact, so `Flask` and `flask` are one action, and two artifacts of one name in different groups are two. These packages' action ids change once.
+- **The fix list shows one upgrade for a package Trivy and Grype spell differently.** PyPI names are compared as PEP 503 normalizes them and Maven packages by group and artifact, so `Flask` and `flask` are one action. The `id` of a PyPI or Maven action can change once, so an `id` saved from an earlier run may not match.
 
-- **Two repositories using one remote Terraform module no longer lose its findings.** On a machine that had not cached the module, `iac` jobs raced to download it, and one repository usually reported nothing from it, sometimes with no caveat, so it read as clean. `trivy-config` jobs now run one at a time, which slows a scan of many repositories.
+- **Two repositories using one remote Terraform module both report its findings.** On a machine that had not cached the module, one repository could report nothing from it, sometimes with no caveat, so it read as clean. `trivy-config` jobs now run one at a time, which slows a scan of many repositories.
 
 ## [0.170.0] - 2026-11-08
 
