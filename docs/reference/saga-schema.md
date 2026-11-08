@@ -948,6 +948,12 @@ Findings are matched on **repository, package and vulnerability id**, not on the
 scanners spell an advisory differently. Grype reports `CVE-2020-14343-pyyaml` where Trivy reports
 the bare CVE, since one advisory can affect several packages in a scan.
 
+An image's operating system package is matched on its package URL as both scanners mean it. Grype
+adds `upstream=`, naming the source package (`login` from `shadow`); an epoch is a qualifier in
+Trivy's URL and a version prefix in Grype's; and Alpine's `distro` carries an `alpine-` prefix in
+Grype's alone. None of the three makes two packages of one, and each finding keeps the URL its
+scanner wrote.
+
 **An exclusion covers every scanner's copy.** Excusing `CVE-2020-14343` excuses it whichever tool
 found it: a decision about a vulnerability is a decision about the vulnerability, not about one
 tool's report of it.
