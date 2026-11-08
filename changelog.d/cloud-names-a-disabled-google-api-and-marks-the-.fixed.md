@@ -1,1 +1,0 @@
-- **`cloud` names a disabled Google API, and marks the essential-contacts check unread.** Google answers an API the project has not enabled with a 403, so it was reported as a permission the log did not name, and the CIS check depending on it sat among the undecided. The line now says `essentialcontacts.googleapis.com disabled`, and that check is listed under Caveats.

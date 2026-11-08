@@ -1,1 +1,0 @@
-- **A declined exclusion request says where to read the decision.** Where an approver declined a descriptor's exclusion, the POLICY block and `draugr doctor` print the request's address in the console under the row, or its id where the server knows no address. `report.json` carries both as `request` and `requestUrl`. The approver's comment stays in the console.
