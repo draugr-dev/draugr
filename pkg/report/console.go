@@ -100,10 +100,8 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		// reason: somebody reading these bands as a statement about their application has the
 		// wrong idea of the run, which is a different kind of gap from an incomplete one.
 		if d.Unclassified {
-			_, _ = fmt.Fprintf(w, " %s\n", col.Paint(cAccent,
-				"No component declares exposure or criticality, so every one is read as public and critical."))
-			_, _ = fmt.Fprintf(w, " %s\n", col.Paint(cDim,
-				"These bands rank severity alone. `draugr classify` makes them describe this application."))
+			_, _ = fmt.Fprintf(w, " %s\n", col.Paint(cAccent, unclassifiedRead))
+			_, _ = fmt.Fprintf(w, " %s\n", col.Paint(cDim, unclassifiedBands))
 		}
 		_, _ = fmt.Fprintln(w)
 	}
@@ -2720,6 +2718,13 @@ func elideFront(msg string, width int) string {
 	}
 	return "…" + tail
 }
+
+// The caveat on every band of a run where no component declares exposure or criticality, in the words
+// each report prints it.
+const (
+	unclassifiedRead  = "No component declares exposure or criticality, so every one is read as public and critical."
+	unclassifiedBands = "These bands rank severity alone. `draugr classify` makes them describe this application."
+)
 
 // elide shortens the last line of a wrapped message, at a word boundary where there is one.
 //
