@@ -2446,7 +2446,12 @@ func renderActionRows(w io.Writer, col tui.Painter, actions []action, compact, n
 		// What the rule found, under a title that only names the rule. Dim, because it is the
 		// scanner's description of the problem and the line above is the instruction.
 		if a.summary != "" {
-			_, _ = fmt.Fprintf(w, "      %s\n", col.Paint(cDim, elide(a.summary, max(width-6, minTitleWidth))))
+			room := max(width-6, minTitleWidth)
+			shown := elide(a.summary, room)
+			if len(a.findings) > 0 && a.findings[0].detail != "" {
+				shown = elideFront(a.summary, room)
+			}
+			_, _ = fmt.Fprintf(w, "      %s\n", col.Paint(cDim, shown))
 		}
 		// Every rule a line of code is flagged by, under a title quoting one of them. Each rule is
 		// one more scanner agreeing the line is wrong, and the reader following a link chooses
@@ -2678,6 +2683,23 @@ func actionsNameComponents(actions []action) bool {
 		}
 	}
 	return false
+}
+
+// elideFront keeps the end of a sentence that does not fit, cut at a word.
+//
+// For a sentence whose useful part is its last: a misconfiguration names the object first, which the
+// row's location already gives, and the setting to change last. Cutting the tail would leave "Container
+// 'api' of Pod 'demo-api' should set…", which says everything except the answer.
+func elideFront(msg string, width int) string {
+	r := []rune(msg)
+	if len(r) <= width || width < 2 {
+		return msg
+	}
+	tail := string(r[len(r)-width+1:])
+	if i := strings.IndexByte(tail, ' '); i >= 0 && i < len(tail)-1 {
+		tail = tail[i+1:]
+	}
+	return "…" + tail
 }
 
 // elide shortens the last line of a wrapped message, at a word boundary where there is one.

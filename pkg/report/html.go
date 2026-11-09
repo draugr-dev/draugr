@@ -422,6 +422,8 @@ func fixedRelease(f finding) string {
 
 type htmlFinding struct {
 	Priority, Severity, SevClass, Score, RuleID, Control, Tool, Component, Location, Message string
+	// Detail is the scanner's sentence about this occurrence, beneath the rule's title.
+	Detail string
 	// Full is the scanner's whole message, set only where Message had to be shortened to fit a
 	// row. The row opens to it, so the list stays one line per finding and nothing a scanner said
 	// is lost to the report.
@@ -955,6 +957,7 @@ func toHTMLFinding(f finding) htmlFinding {
 		Score: scoreStr(f), RuleID: f.ruleID, Control: f.control, Tool: dash(f.tool),
 		Component: dash(f.component),
 		Location:  whereShown(f.location), Message: title, Full: full, HelpURI: f.helpURI,
+		Detail:        f.detail,
 		Upgrade:       upgradeLabel(f),
 		Fix:           fix,
 		FixKind:       kind,
@@ -968,8 +971,9 @@ func toHTMLFinding(f finding) htmlFinding {
 		Package:       pkgLabel,
 		NonShipping:   f.nonShipping,
 		ActionKey:     actionKeyFor(f),
+		// What the row shows is what it finds.
 		Search: strings.ToLower(strings.Join(
-			[]string{f.ruleID, f.control, f.tool, f.component, f.location, f.message, f.priority, string(sev), fix, pkgName, f.nonShipping}, " ")),
+			[]string{f.ruleID, f.control, f.tool, f.component, f.location, f.message, f.detail, f.priority, string(sev), fix, pkgName, f.nonShipping}, " ")),
 	}
 }
 
@@ -2267,7 +2271,7 @@ prints each scanner's full output.</p>
    address, often a CI artifact or a file path, from reaching the advisory's host. */}}
 {{define "class"}}{{if .Assumed}}<span class="asm">{{.Value}}</span><span class="tag">assumed</span>{{else}}{{.Value}}{{end}}{{end}}
 {{define "ruleid"}}{{if .HelpURI}}<a href="{{.HelpURI}}" target="_blank" rel="noopener noreferrer">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}{{end}}
-{{define "rule"}}<span class="id">{{template "ruleid" .}}</span>{{if .Message}}<span class="said"><span class="faint"> · </span>{{.Message}}</span>{{end}}{{end}}
+{{define "rule"}}<span class="id">{{template "ruleid" .}}</span>{{if .Message}}<span class="said"><span class="faint"> · </span>{{.Message}}</span>{{end}}{{if .Detail}}<div class="sub">{{.Detail}}</div>{{end}}{{end}}
 {{/* Multi marks a menu whose rows each hold a set of values, space-separated, rather than one.
      Token names the menu in each token it leaves, "priority P1", where the value alone would not
      say which menu it came from; a menu whose labels are phrases leaves the phrase alone. */}}

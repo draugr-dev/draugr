@@ -1395,3 +1395,44 @@ func TestMarshalSARIFNamesTheVEXStatementAndDocument(t *testing.T) {
 		}
 	}
 }
+
+// A field dump's Message: line is what the scanner said about this occurrence. It stays apart from the
+// message, so the finding's identity does not move, and it survives a report being written and re-read.
+func TestAFieldDumpKeepsItsOccurrenceLine(t *testing.T) {
+	dump := "Artifact: deploy/pod.yaml\nType: kubernetes\nVulnerability KSV-0017\nSeverity: HIGH\n" +
+		"Message: Container 'api' of Pod 'demo-api' should set 'securityContext.privileged' to false\nLink: [KSV-0017](https://x)"
+	want := "Container 'api' of Pod 'demo-api' should set 'securityContext.privileged' to false"
+	if got := occurrenceLine(dump); got != want {
+		t.Errorf("occurrenceLine = %q", got)
+	}
+	for name, msg := range map[string]string{
+		"a sentence":          "Message: looks like a field and is one line",
+		"prose over lines":    "Something is wrong.\nMessage: not a dump",
+		"a dump with no line": "Package: flask\nInstalled Version: 1.0\nSeverity: HIGH",
+	} {
+		if got := occurrenceLine(msg); got != "" {
+			t.Errorf("%s = %q, want none", name, got)
+		}
+	}
+
+	with := Result{Tool: "Trivy", RuleID: "KSV-0017", Level: LevelError, Message: "Privileged", Detail: want}
+	without := with
+	without.Detail = ""
+	if with.Fingerprint() != without.Fingerprint() {
+		t.Error("the sentence moved the fingerprint, so every finding would read as new")
+	}
+
+	var rep Report
+	rep.Tool, rep.Results = "Trivy", []Result{with}
+	raw, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := FromSARIF(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(back.Results) != 1 || back.Results[0].Detail != want || back.Results[0].Message != "Privileged" {
+		t.Errorf("after a round trip = %+v", back.Results)
+	}
+}

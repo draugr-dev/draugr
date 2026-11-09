@@ -25,6 +25,7 @@
         "DRAUGR-0002"
       ],
       "severity": "high",
+      "summary": "The base image alpine:3.19 is not from registry.acme.example.",
       "title": "Fix DRAUGR-0002 “Base image from an untrusted registry”",
       "where": [
         "acme/Dockerfile:1",
@@ -56,6 +57,7 @@
         "DRAUGR-0001"
       ],
       "severity": "medium",
+      "summary": "The image has no maintainer label.",
       "title": "Fix DRAUGR-0001 “Image names no maintainer”",
       "where": [
         "derived/Dockerfile:1",

@@ -52,10 +52,15 @@ type Location struct {
 // Result is a single finding.
 type Result struct {
 	// Tool is the scanner that produced the finding.
-	Tool     string   `json:"tool,omitempty"`
-	RuleID   string   `json:"ruleId"`
-	Level    Level    `json:"level"`
-	Message  string   `json:"message"`
+	Tool    string `json:"tool,omitempty"`
+	RuleID  string `json:"ruleId"`
+	Level   Level  `json:"level"`
+	Message string `json:"message"`
+	// Detail is what the scanner wrote about this one occurrence, where Message is the rule's title
+	// because the scanner's message was a list of fields. It stays out of Fingerprint: Message is what a
+	// finding has always been identified by, and a sentence naming a pod would make every finding read
+	// as new the first time it appeared.
+	Detail   string   `json:"detail,omitempty"`
 	Location Location `json:"location,omitempty"`
 	// Score is the finding's numeric CVSS-style severity (0–10), sourced from the SARIF
 	// "security-severity" property. HasScore reports whether a score was present; without

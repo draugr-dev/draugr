@@ -218,6 +218,8 @@ type sarifRuleConfig struct {
 type sarifProperties struct {
 	SecuritySeverity string `json:"security-severity,omitempty"`
 	Priority         string `json:"priority,omitempty"`
+	// Detail is read back, so a report re-read by `draugr diff` keeps the sentence it left with.
+	Detail string `json:"detail,omitempty"`
 	// Tool is the originating scanner (e.g. "trivy", "semgrep"). Draugr reports as a single
 	// "Draugr" SARIF tool; this preserves per-finding attribution to the scanner that found it.
 	Tool string `json:"tool,omitempty"`
@@ -539,12 +541,12 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		// Image and OperatingSystem are in the condition because they are the whole content of a
 		// container-scanning finding: writing the block only for a tool, a score or a priority
 		// would drop them for any finding carrying nothing else.
-		if tool != "" || res.Control != "" || res.Escalation != nil || res.Exploited != nil || res.Rating != nil || res.PriorityFloor != "" || res.SeverityFloor != "" || res.HasScore ||
+		if tool != "" || res.Detail != "" || res.Control != "" || res.Escalation != nil || res.Exploited != nil || res.Rating != nil || res.PriorityFloor != "" || res.SeverityFloor != "" || res.HasScore ||
 			res.Priority != "" || res.Image != "" || res.Correlation != nil ||
 			res.OperatingSystem != "" || res.Layer != nil || res.OSEndOfLife ||
 			res.ProviderOperated || res.BuiltUpstream || res.Historical || res.NonShipping != "" || len(res.Labels) > 0 {
 			sr.Properties = &sarifProperties{
-				Tool: tool, Control: res.Control, Priority: res.Priority, Component: res.Component,
+				Tool: tool, Control: res.Control, Priority: res.Priority, Component: res.Component, Detail: res.Detail,
 				Exposure: res.Exposure, Criticality: res.Criticality, Labels: res.Labels,
 				Fingerprint:   res.Fingerprint(),
 				UpgradePolicy: res.UpgradePolicy,
@@ -808,6 +810,7 @@ func FromSARIF(data []byte) (Report, error) {
 				RuleID:  sr.RuleID,
 				Level:   level,
 				Message: readableMessage(sr.Message.Text, ruleSummary[sr.RuleID]),
+				Detail:  occurrenceLine(sr.Message.Text),
 				// Read back, so a report Draugr wrote and then re-read carries the same identity
 				// it left with. A field that survives writing but not reading is one that silently
 				// disappears the first time anything round-trips a report.
@@ -827,6 +830,9 @@ func FromSARIF(data []byte) (Report, error) {
 			}
 			if sr.Properties != nil {
 				res.Priority = sr.Properties.Priority
+				if sr.Properties.Detail != "" {
+					res.Detail = sr.Properties.Detail
+				}
 				// Read back, not only written. Both are part of Fingerprint, and a report is written and
 				// re-read by `draugr diff` on every pull request, so dropping them here made two components
 				// sharing a repository, or two repositories in one component, collapse into a single finding
@@ -893,6 +899,22 @@ func readableMessage(msg, summary string) string {
 		return msg
 	}
 	return summary
+}
+
+// occurrenceLine is the Message: line of a field dump, the one field saying what is wrong with this
+// occurrence rather than the rule: "Container 'api' of Pod 'demo-api' should set
+// 'securityContext.privileged' to false", where the rule's title is "Privileged". A dump with no such
+// line, as Trivy writes for a vulnerability, has nothing to add to the title.
+func occurrenceLine(msg string) string {
+	if !strings.Contains(msg, "\n") || !fieldDump.MatchString(msg) {
+		return ""
+	}
+	for _, line := range strings.Split(msg, "\n") {
+		if rest, ok := strings.CutPrefix(line, "Message: "); ok {
+			return strings.TrimSpace(rest)
+		}
+	}
+	return ""
 }
 
 // taxonomyIndex collects the classification schemes a report references and assigns each taxon
