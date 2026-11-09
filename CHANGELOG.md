@@ -16,19 +16,19 @@ _Nothing yet._
 
 ### Changed
 
-- **`images` sets aside what Grype matched only by CPE, as `sca` does.** On an Alpine image these are matches in the NVD for flaws Alpine's own data does not list, each either a wrong match or a flaw Alpine has not assessed. They stay under ACCEPTED, out of the counts and the gate. `config.controls.images.cpeMatches: report` counts them.
+- **`images` sets aside what Grype matched only by CPE, as `sca` does.** On an Alpine image these are matches in the NVD for flaws Alpine's own data does not list, each either a wrong match or a flaw Alpine has not assessed. They stay under ACCEPTED, out of the counts and the gate. Set `config.controls.images.cpeMatches: report` to count them.
 
 ### Fixed
 
-- **An `iac` finding says `fix change the infrastructure`, as its action does.** The findings view said `change the code` for a finding the actions view filed under Change the infrastructure.
+- **An `iac` finding's fix reads `change the infrastructure`, matching its action.** The findings view said `change the code` for a finding the actions view filed under Change the infrastructure.
 
-- **`dast` no longer sends the target's name to third parties it does not declare.** Public DNS resolvers, `www.rdap.net` and `login.microsoftonline.com` no longer receive it, and a credential found on the target no longer goes to its issuer. Names are looked up with the machine's own resolvers, so `--offline` does what `draugr doctor` says.
+- **`dast` no longer sends the target's name to third parties it does not declare.** Public DNS resolvers, `www.rdap.net` and `login.microsoftonline.com` no longer receive it, and a credential found on the target no longer goes to its issuer. Names are looked up with the machine's own resolvers, so `--offline` contacts nothing past the target and those resolvers.
 
 - **`dast` tests only the URL a host declares.** A scan no longer connects to other ports on the host, including default logins for SSH, MySQL and Redis, and a service on another port no longer counts against the component. The measured-against line states what was left out.
 
 - **`dast` with `--offline` or `interactsh: false` no longer stops early on closed ports.** The scan runs to the end, about 18 minutes at the default `rateLimit`.
 
-- **The `dast` docs say what it tests.** `dast` tests the URL a host declares and the paths Nuclei's templates name beneath it. It follows no links, so a page reached only through a link or a script is not tested unless a template names it, and a `PASS` does not cover that page.
+- **The `dast` docs state how far a scan goes.** It tests the paths Nuclei's templates name beneath the URL. It follows no links, so a page reached only through a link or a script is not tested unless a template names it, and a `PASS` does not cover that page.
 
 ## [0.171.0] - 2026-11-08
 
