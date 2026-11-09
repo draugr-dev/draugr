@@ -22,6 +22,17 @@ TOP="${TOP:-7}"
 
 [ -x "$DRAUGR" ] || { echo "no draugr binary at $DRAUGR, run 'make build' first" >&2; exit 1; }
 
+# The release this picture shows. A build between tags reports no release of its own, and on a release
+# branch the tag does not exist yet, so RELEASE names it there.
+RELEASE="${RELEASE:-$("$DRAUGR" version | cut -d' ' -f2)}"
+case "$RELEASE" in
+  [0-9]*.[0-9]*.[0-9]*) ;;
+  *) echo "$DRAUGR reports version '$RELEASE', so name the release this picture shows: RELEASE=X.Y.Z" >&2; exit 1 ;;
+esac
+case "$RELEASE" in
+  *[!0-9.]*) echo "$DRAUGR reports version '$RELEASE', so name the release this picture shows: RELEASE=X.Y.Z" >&2; exit 1 ;;
+esac
+
 workdir=$(mktemp -d)
 trap 'rm -rf "$workdir"' EXIT
 
@@ -53,6 +64,6 @@ cmd="draugr $args"
 ( cd "$workdir/draugr-demo" &&
   env -u GITHUB_ACTIONS -u GITHUB_TOKEN -u GH_TOKEN -u GITHUB_REPOSITORY \
     COLORTERM=truecolor script -qec "$DRAUGR $args" /dev/null || true
-) 2>/dev/null | "$ROOT/scripts/screenshot.py" "$cmd" > "$OUT"
+) 2>/dev/null | "$ROOT/scripts/screenshot.py" "$cmd" "$RELEASE" > "$OUT"
 
 echo "wrote $OUT" >&2

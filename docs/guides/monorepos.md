@@ -117,19 +117,23 @@ draugr scan draugr.saga.yaml --labels team=web
 ```
 
 ```console
-DRAUGR  FAIL  draugr-demo 1.0  (scope: 1 of 3 components)  6.061s
+DRAUGR  FAIL  draugr-demo 1.0  (scope: 1 of 3 components)  7.9s
 
- 4 P1 4 P2 1 P3 0 P4
+ 8 P1 1 P2 0 P3 0 P4
 
 CONTROLS
   iac       pass   no findings
-  licenses  pass   no findings
+  licenses  pass   no findings · 1 file unread
   sast      pass   no findings
-  sca       FAIL   4 P1 4 P2 1 P3
+  sca       FAIL   8 P1 1 P2
   secrets   pass   no findings
 
+CAVEATS  1 fails the run · config.gate.failOnCaveats: unread-files
+  ✗ unread-files · licenses · storefront
+      web/package-lock.json  records no license for 1 package
+
 COMPONENTS
-  storefront  FAIL   4 P1 4 P2 1 P3
+  storefront  ERROR  8 P1 1 P2
   api         not scanned
   platform    not scanned
 ```

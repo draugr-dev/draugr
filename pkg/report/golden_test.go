@@ -102,9 +102,14 @@ func goldenMismatch(path string) string {
 	return "console output changed, " + path + " is stale.\n\n" +
 		"If the change is intended, regenerate and refresh what copies this layout:\n" +
 		"  1. go test ./pkg/report -update\n" +
-		"  2. make examples          # real output from the demo sandbox, to paste into docs\n" +
-		"  3. make screenshot        # redraws docs/assets/scan.svg, the README's picture of a run\n" +
-		"  4. update what quotes or describes the layout:\n" +
+		goldenPastesSteps()
+}
+
+// goldenPastesSteps is what follows accepting a new golden. The test holding the pastes to the goldens
+// prints it alone, because whoever sees that failure has already run -update.
+func goldenPastesSteps() string {
+	return "  2. make examples          # real output from the demo sandbox, to paste into docs\n" +
+		"  3. update what quotes or describes the layout:\n" +
 		"     pasted, and pinned by TestEveryPasteOfTheConsoleIsTracked:\n" +
 		"       docs/concepts/verdict-and-gating.md,\n" +
 		"       docs/getting-started/first-saga.md, docs/getting-started/quickstart.md,\n" +
@@ -115,10 +120,9 @@ func goldenMismatch(path string) string {
 		"     described rather than pasted, so only a shape change reaches them:\n" +
 		"       docs/concepts/principles.md, docs/concepts/what-to-fix-first.md,\n" +
 		"       docs/guides/findings-in-your-editor.md, docs/guides/caching-and-performance.md\n" +
-		"  5. update the blog posts in the draugr.dev repo that quote console output:\n" +
-		"     src/content/blog/{security-scan-with-zero-config,what-scanner-output-costs-your-agent,\n" +
-		"                       what-to-fix-first}.md\n" +
-		"     (grep for 'FIX FIRST' there; they are a separate repo, so nothing else will catch them)\n"
+		"  4. make pastes-refreshed  # run last: stores a digest of the goldens as your statement that step 3 is done\n" +
+		"  5. in the draugr.dev repo, when this ships: grep -rlE 'console|WHAT TO DO|FIX FIRST' src/content src/pages\n" +
+		"  6. nothing for docs/assets/scan.svg here: the release pull request redraws it (RELEASE=X.Y.Z make screenshot)\n"
 }
 
 // goldenFullData exercises every element of the frame at once: a failing verdict with a release,
