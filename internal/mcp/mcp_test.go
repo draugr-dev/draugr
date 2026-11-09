@@ -979,6 +979,22 @@ func TestExplainTakesTheIdSomebodyRetypes(t *testing.T) {
 	}
 }
 
+func TestExplainTakesTheNameARowPrints(t *testing.T) {
+	rep := explainFixture()
+	const id = "dockerfile.security.missing-user.missing-user"
+	rep.Rules[id] = sarif.Rule{ShortDescription: "no USER"}
+	rep.Results = append(rep.Results, sarif.Result{RuleID: id, Location: sarif.Location{URI: "Dockerfile"}})
+
+	_, out, err := ExplainRuleTool(context.Background(), nil,
+		ExplainInput{RuleID: "missing-user", Path: writeSARIF(t, rep)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.RuleID != id {
+		t.Errorf("the name a row prints should resolve to its rule, got %q", out.RuleID)
+	}
+}
+
 // TestExplainRefusesAnAmbiguousId. Picking one would explain a rule nobody asked about, and the
 // caller would have no way to tell.
 func TestExplainRefusesAnAmbiguousId(t *testing.T) {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
@@ -42,8 +43,9 @@ func newExplainCommand() *cobra.Command {
 		Short: "Show what a finding means and how to fix it, from a scan's own report",
 		Long: "Print a rule's description, the remediation its scanner published, and where the\n" +
 			"scan found it.\n\n" +
-			"Reads the SARIF a scan wrote with -o. The rule id can be given in full, or by the\n" +
-			"part that is unambiguous, `4.3.1` finds `kube-bench/cis/4.3.1`.",
+			"Reads the SARIF a scan wrote with -o. Name the rule by its full id, by its trailing\n" +
+			"segments (`4.3.1` finds `kube-bench/cis/4.3.1`), or by the name a row prints\n" +
+			"(`missing-user` finds `dockerfile.security.missing-user.missing-user`).",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runExplain(cmd.OutOrStdout(), args[0], reportPath)
@@ -102,23 +104,23 @@ func findSARIF(explicit string) (string, error) {
 // rather than the namespace in front of it. An ambiguous abbreviation lists what it could have
 // meant instead of choosing: picking one would explain a rule the reader did not ask about, and
 // they would have no way to tell.
-func matchRule(report sarif.Report, query string) (string, sarif.Rule, error) {
-	if rule, ok := report.Rules[query]; ok {
+func matchRule(rep sarif.Report, query string) (string, sarif.Rule, error) {
+	if rule, ok := rep.Rules[query]; ok {
 		return query, rule, nil
 	}
 	var matched []string
-	for id := range report.Rules {
-		if strings.HasSuffix(id, "/"+query) || strings.EqualFold(id, query) {
+	for id := range rep.Rules {
+		if strings.HasSuffix(id, "/"+query) || strings.EqualFold(id, query) || report.NamesRule(id, query) {
 			matched = append(matched, id)
 		}
 	}
 	sort.Strings(matched)
 	switch len(matched) {
 	case 0:
-		return "", sarif.Rule{}, fmt.Errorf("no rule %q in this report, "+
-			"the id is the one in the Rule column, and only rules this scan reported are here", query)
+		return "", sarif.Rule{}, fmt.Errorf("no rule %q in this report, which holds only the rules this scan reported. "+
+			"Give its id or the name a row prints", query)
 	case 1:
-		return matched[0], report.Rules[matched[0]], nil
+		return matched[0], rep.Rules[matched[0]], nil
 	default:
 		return "", sarif.Rule{}, fmt.Errorf("%q matches %s. Name one of them",
 			query, strings.Join(matched, ", "))
@@ -130,7 +132,9 @@ func writeExplanation(w io.Writer, report sarif.Report, id string, rule sarif.Ru
 	col := tui.For(w)
 
 	_, _ = fmt.Fprintf(w, "%s\n", col.Paint(tui.StyleAccent, id))
-	if d := strings.TrimSpace(rule.ShortDescription); d != "" {
+	// A description naming the rule's own id is a scanner filling the field. Semgrep's reads
+	// "Semgrep Finding: <id>", and the detail below it says more.
+	if d := strings.TrimSpace(rule.ShortDescription); d != "" && !strings.Contains(d, id) {
 		_, _ = fmt.Fprintf(w, "%s\n", d)
 	}
 

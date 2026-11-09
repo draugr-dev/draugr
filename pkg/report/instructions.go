@@ -67,8 +67,8 @@ var ruleInstruction = map[string]string{ // #nosec G101 -- sentences for a reade
 	"no-direct-write-to-responsewriter": "Use html/template if the response is HTML",
 
 	// Queries and serialized data.
-	"formatted-sql-query":          "Use a parameterized query",
-	"sqlalchemy-execute-raw-query": "Use a parameterized query",
+	"formatted-sql-query":          "Pass outside data as query parameters, not in the SQL text",
+	"sqlalchemy-execute-raw-query": "Pass outside data as query parameters, not in the SQL text",
 	"avoid-sqlalchemy-text":        "Check no outside data reaches sqlalchemy.text",
 	"unserialize-use":              "Check who can set the input to unserialize()",
 	"avoid-pickle":                 "Use JSON instead of pickle if the data can come from outside",
@@ -78,7 +78,7 @@ var ruleInstruction = map[string]string{ // #nosec G101 -- sentences for a reade
 
 	// Credentials in code.
 	"G101":                                "Check for a credential, and rotate any you find",
-	"detected-private-key":                "Remove and rotate the private key",
+	"detected-private-key":                "Remove and rotate the private key if it is real",
 	"python-logger-credential-disclosure": "Check the log call writes no secret",
 
 	// GitHub Actions and Dependabot.

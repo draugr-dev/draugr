@@ -1107,6 +1107,14 @@ func shortRuleName(id string) string {
 	return name
 }
 
+// NamesRule reports whether query names the rule id the way a report prints it: the short name
+// under an action, or the end of a long id after the mark that says the front was cut. Somebody
+// copying a name from a row expects it to find the rule.
+func NamesRule(id, query string) bool {
+	tail, cut := strings.CutPrefix(query, "…")
+	return shortRuleName(id) == query || (cut && strings.HasSuffix(id, tail))
+}
+
 // hasLower reports whether s holds a lowercase letter, the tell of a name rather than a number
 // somebody assigned.
 func hasLower(s string) bool {
