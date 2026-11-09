@@ -1,1 +1,0 @@
-- **`images` sets aside what Grype matched only by CPE, as `sca` does.** On an Alpine image these are matches in the NVD for flaws Alpine's own data does not list, each either a wrong match or a flaw Alpine has not assessed. They stay under ACCEPTED, out of the counts and the gate. `config.controls.images.cpeMatches: report` counts them.
