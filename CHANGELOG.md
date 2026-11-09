@@ -26,7 +26,7 @@ _Nothing yet._
 
 - **`dast` tests only the URL a host declares.** A scan no longer connects to other ports on the host, including default logins for SSH, MySQL and Redis, and a service on another port no longer counts against the component. The measured-against line states what was left out.
 
-- **`dast` with `--offline` or `interactsh: false` no longer stops early on closed ports.** The scan runs to the end, about 18 minutes at the default `rateLimit`.
+- **`dast` no longer stops testing a target when the scanner cannot resolve an outside host.** A failed lookup of `login.microsoftonline.com` or `www.rdap.net` made Nuclei drop the target with nothing said. Those requests are gone, so such a scan runs to the end, about 18 minutes at the default `rateLimit`.
 
 - **The `dast` docs state how far a scan goes.** It tests the paths Nuclei's templates name beneath the URL. It follows no links, so a page reached only through a link or a script is not tested unless a template names it, and a `PASS` does not cover that page.
 
