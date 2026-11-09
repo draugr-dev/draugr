@@ -1,1 +1,0 @@
-- **An `iac` finding says `fix change the infrastructure`, as its action does.** The findings view said `change the code` for a finding the actions view filed under Change the infrastructure.

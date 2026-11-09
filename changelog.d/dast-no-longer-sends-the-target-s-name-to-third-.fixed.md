@@ -1,1 +1,0 @@
-- **`dast` no longer sends the target's name to third parties it does not declare.** Public DNS resolvers, `www.rdap.net` and `login.microsoftonline.com` no longer receive it, and a credential found on the target no longer goes to its issuer. Names are looked up with the machine's own resolvers, so `--offline` does what `draugr doctor` says.

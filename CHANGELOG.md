@@ -12,6 +12,24 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.172.0] - 2026-11-09
+
+### Changed
+
+- **`images` sets aside what Grype matched only by CPE, as `sca` does.** On an Alpine image these are matches in the NVD for flaws Alpine's own data does not list, each either a wrong match or a flaw Alpine has not assessed. They stay under ACCEPTED, out of the counts and the gate. Set `config.controls.images.cpeMatches: report` to count them.
+
+### Fixed
+
+- **An `iac` finding's fix reads `change the infrastructure`, matching its action.** The findings view said `change the code` for a finding the actions view filed under Change the infrastructure.
+
+- **`dast` no longer sends the target's name to third parties it does not declare.** Public DNS resolvers, `www.rdap.net` and `login.microsoftonline.com` no longer receive it, and a credential found on the target no longer goes to its issuer. Names are looked up with the machine's own resolvers, so `--offline` contacts nothing past the target and those resolvers.
+
+- **`dast` tests only the URL a host declares.** A scan no longer connects to other ports on the host, including default logins for SSH, MySQL and Redis, and a service on another port no longer counts against the component. The measured-against line states what was left out.
+
+- **`dast` no longer stops testing a target when the scanner cannot resolve an outside host.** A failed lookup of `login.microsoftonline.com` or `www.rdap.net` made Nuclei drop the target with nothing said. Those requests are gone, so such a scan runs to the end, about 18 minutes at the default `rateLimit`.
+
+- **The `dast` docs state how far a scan goes.** It tests the paths Nuclei's templates name beneath the URL. It follows no links, so a page reached only through a link or a script is not tested unless a template names it, and a `PASS` does not cover that page.
+
 ## [0.171.0] - 2026-11-08
 
 ### Added
@@ -6947,7 +6965,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.171.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.172.0...HEAD
+[0.172.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.172.0
 [0.171.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.171.0
 [0.170.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.170.0
 [0.169.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.169.0
