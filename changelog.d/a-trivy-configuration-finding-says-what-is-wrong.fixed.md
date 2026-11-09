@@ -1,1 +1,0 @@
-- **A Trivy configuration finding says what is wrong.** The sentence Trivy wrote now prints beneath the title: `KSV-0017 · Privileged`, then `Container 'api' of Pod 'demo-api' should set 'securityContext.privileged' to false`. The HTML report shows it and its search finds it. Fingerprints do not change, so no existing finding reads as new.

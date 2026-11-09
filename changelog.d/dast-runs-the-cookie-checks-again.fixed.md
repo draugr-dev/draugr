@@ -1,1 +1,0 @@
-- **`dast` runs the cookie checks again.** `cookies-without-secure`, `cookies-without-httponly` and three CVE templates were left out for holding a JavaScript block beside an HTTP one. Those blocks only compute on the HTTP response. A template whose JavaScript requires a module, checks a port or takes one as an argument stays left out.
