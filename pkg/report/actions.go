@@ -768,7 +768,7 @@ func componentRepositories(fs []finding) map[string]string {
 // the rule's name would leave the others out.
 func lineTitle(fs []finding) (title, summary string) {
 	f := titleFinding(fs)
-	d := describe(f)
+	d := describeLine(f)
 	switch {
 	case d != "" && f.ruleID != "" && !fitsTitle(f, d) && oneRule(fs):
 		return truncate(actionVerb(f)+" "+shortRuleName(f.ruleID), actionTitleWidth), d
@@ -837,7 +837,7 @@ func titlesBetter(a, b finding) bool {
 	if a.score != b.score {
 		return a.score > b.score
 	}
-	da, db := describe(a), describe(b)
+	da, db := describeLine(a), describeLine(b)
 	if fa, fb := fitsTitle(a, da), fitsTitle(b, db); fa != fb {
 		return fa
 	}
@@ -1025,6 +1025,19 @@ func describe(f finding) string {
 	return firstSentence(f.message)
 }
 
+// describeLine is what a finding says about the one line it flags, in one sentence: its own message,
+// and the rule's description only where it has none.
+//
+// A rule's description can be one occurrence's words. gosec fills the field from the first result of
+// a rule in a run, so "integer overflow conversion uint64 -> int64" describes G115 on every line of
+// that run, including a line whose conversion is int64 -> uint32.
+func describeLine(f finding) string {
+	if d := firstSentence(f.message); d != "" {
+		return d
+	}
+	return describe(f)
+}
+
 // licenseUnit names the image or repository whose licenses are one review.
 func licenseUnit(f finding) string {
 	if f.image != "" {
@@ -1098,11 +1111,7 @@ func hasLower(s string) bool {
 // firstSentence is the opening sentence of a scanner's message, the part written to be read on
 // its own.
 func firstSentence(msg string) string {
-	s := strings.TrimSpace(msg)
-	// First line only. A scanner's message often carries a paragraph after it.
-	if i := strings.IndexByte(s, '\n'); i > 0 {
-		s = strings.TrimSpace(s[:i])
-	}
+	s := openingLine(strings.TrimSpace(msg))
 	// A doubled space inside a line reads as a typo on a terminal.
 	s = strings.Join(strings.Fields(s), " ")
 	// A sentence boundary is a full stop followed by a space. Splitting on the full stop alone cuts
@@ -1119,11 +1128,35 @@ func firstSentence(msg string) string {
 			return s
 		}
 		i += from
-		if i > 0 && !abbreviation(s[:i]) {
+		if i > 0 && !abbreviation(s[:i]) && !insideCode(s, i) {
 			return s[:i]
 		}
 		from = i + 2
 	}
+}
+
+// openingLine is a message's first line, a scanner's message often carrying a paragraph after it, and
+// the lines after it where a code span opened on the first is still open. Semgrep quotes the matched
+// code, which can run over several lines, and cutting there leaves "RegExp() called with a `{".
+func openingLine(s string) string {
+	end := strings.IndexByte(s, '\n')
+	if end <= 0 {
+		return s
+	}
+	for insideCode(s, end) {
+		next := strings.IndexByte(s[end+1:], '\n')
+		if next < 0 {
+			return s
+		}
+		end += next + 1
+	}
+	return strings.TrimSpace(s[:end])
+}
+
+// insideCode reports whether position i of s falls inside a code span: a backtick before it is
+// unpaired, and a later one closes it. A stray backtick that nothing closes opens no span.
+func insideCode(s string, i int) bool {
+	return strings.Count(s[:i], "`")%2 == 1 && strings.Contains(s[i:], "`")
 }
 
 // abbreviation reports whether the word ending s is an abbreviation, whose full stop ends the word
