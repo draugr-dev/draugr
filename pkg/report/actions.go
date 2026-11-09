@@ -1028,6 +1028,71 @@ func occurrenceSummary(a action) string {
 	return first
 }
 
+// addedDetail is the scanner's sentence about this occurrence where it says more than the message:
+// Trivy's names the object and the setting under a message that is the rule's title. Prowler's is
+// the message itself, which a row has already printed.
+func (f finding) addedDetail() string {
+	if f.detail == f.message {
+		return ""
+	}
+	return f.detail
+}
+
+// elideOccurrence fits an action's occurrence summary into width, keeping the count of other
+// sentences at its end.
+//
+// A sentence beneath a title that is the rule's name keeps its end, where Trivy writes the setting:
+// the object it names at the start is on the row's location already. A sentence that is the whole
+// message is Prowler's, which says whether anything is wrong at either end: cut from the front, "No
+// CloudTrail trails have a data event…" reads as a pass, and cut from the end, so does "KMS CMK
+// c4b9e437-… has automatic rotation…". Its identifier gives way first, since the location names the
+// resource, and its end after that.
+func elideOccurrence(a action, width int) string {
+	if len(a.findings) == 0 || a.findings[0].detail != a.findings[0].message {
+		return elideFront(a.summary, width)
+	}
+	sentence, count := a.summary, ""
+	if i := strings.LastIndex(sentence, " · +"); i >= 0 {
+		sentence, count = sentence[:i], sentence[i:]
+	}
+	room := max(width-utf8.RuneCountInString(count), minTitleWidth)
+	// Counted in runes, because elide counts bytes and '…' is three bytes.
+	short := shortenIdentifier(sentence, room)
+	if utf8.RuneCountInString(short) <= room {
+		return short + count
+	}
+	return elide(short, room) + count
+}
+
+// shortenIdentifier fits a sentence into width by cutting the middle of its longest word, where a
+// sentence about a resource holds the resource's identifier: "c4b9e437-d63f-4928-b8bf-71fd5f67092d"
+// becomes "c4b9e…f67092d". Each end of the word keeps at least shortestEnd characters, so what is
+// left still matches the location it came from. A sentence that needs more than that is returned
+// whole, for the caller to cut its end, since cutting the name as well as the end loses more than
+// cutting the end alone.
+func shortenIdentifier(sentence string, width int) string {
+	const shortestEnd = 4
+	over := utf8.RuneCountInString(sentence) - width
+	if over <= 0 {
+		return sentence
+	}
+	words := strings.Fields(sentence)
+	longest := ""
+	for _, w := range words {
+		if utf8.RuneCountInString(w) > utf8.RuneCountInString(longest) {
+			longest = w
+		}
+	}
+	r := []rune(longest)
+	keep := len(r) - over - 1
+	if keep < 2*shortestEnd {
+		return sentence
+	}
+	head := (keep + 1) / 2
+	short := string(r[:head]) + "…" + string(r[len(r)-(keep-head):])
+	return strings.Replace(sentence, longest, short, 1)
+}
+
 // describe is what a finding's rule is about, in one sentence.
 //
 // A rule description that names the rule's own id is a scanner filling the field rather than

@@ -975,7 +975,7 @@ func toHTMLFinding(f finding) htmlFinding {
 		Score: scoreStr(f), RuleID: f.ruleID, Control: f.control, Tool: dash(f.tool),
 		Component: dash(f.component),
 		Location:  whereShown(f.location), Message: title, Full: full, HelpURI: f.helpURI,
-		Detail:        f.detail,
+		Detail:        f.addedDetail(),
 		Instruction:   findingInstruction(f),
 		Upgrade:       upgradeLabel(f),
 		Fix:           fix,

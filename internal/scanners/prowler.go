@@ -581,13 +581,19 @@ func prowlerReport(account plugin.AccountTarget, cloud prowlerCloud, compliance 
 		level, score := prowlerSeverity(f.Severity)
 		ruleID := prowlerRulePrefix + check
 		uri := prowlerLocation(account, f)
+		// Prowler's sentence about the resource is the finding's message, and its detail too. The
+		// rule's description is the check's title, which states what a passing resource looks like,
+		// "EBS default encryption is enabled", so a report showing it under a failed check shows a
+		// pass. The detail is what a report shows instead: "EBS Default Encryption is not activated."
+		said := firstNonEmpty(f.StatusDetail, f.Message)
 		report.Results = append(report.Results, sarif.Result{
 			Tool:     prowlerScannerName,
 			RuleID:   ruleID,
 			Level:    level,
 			Score:    score,
 			HasScore: true,
-			Message:  firstNonEmpty(f.StatusDetail, f.Message),
+			Message:  said,
+			Detail:   said,
 			Location: sarif.Location{URI: uri},
 		})
 		rule := sarif.Rule{
