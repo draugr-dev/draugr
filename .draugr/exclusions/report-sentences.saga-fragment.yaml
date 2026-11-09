@@ -1,0 +1,14 @@
+# Sentences a report shows a reader, keyed by the names of the rules they title.
+config:
+  exclude:
+    - paths:
+        - "pkg/report/instructions_cloud.go"
+      rules:
+        - "generic-api-key"
+      reason: >-
+        The file maps Prowler's check names to the instruction a report titles a failed check with.
+        Several check names hold the word "key", such as iam_sa_user_managed_key_rotate_90_days,
+        and generic-api-key matches a name holding "key" followed by a quoted value, which here is
+        a sentence for a reader. No value in the file is a credential, and the gosec rule that
+        reads it the same way (G101) is suppressed inline for the same reason. Scoped to this file
+        and this rule, so a real credential committed anywhere else still fails the gate.
