@@ -158,6 +158,7 @@ func TestLineKeyIsOnlyForCodeAtALine(t *testing.T) {
 }
 
 func TestLineOfTitlesAndListsTheRules(t *testing.T) {
+	withoutReasonedInstructions(t)
 	rs, rules := codeLines()
 	line := LineOf(rules, rs[:2])
 	if !strings.HasPrefix(line.Title, "Fix “") {

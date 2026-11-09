@@ -88,12 +88,17 @@ var ruleInstruction = map[string]string{ // #nosec G101 -- sentences for a reade
 	"gha-workflow-env-secret":           "Move the secret to the step that needs it",
 	"dependabot-missing-cooldown":       "Add a cooldown to the Dependabot configuration",
 
+	// A host's TLS, whose sentence only restates the instruction.
+	"tls-no-tls13": "Turn on TLS 1.3",
+
 	// Kubernetes.
+	"allow-privilege-escalation":                    "Set allowPrivilegeEscalation to false",
+	"allow-privilege-escalation-true":               "Set allowPrivilegeEscalation to false",
 	"allow-privilege-escalation-no-securitycontext": "Set allowPrivilegeEscalation to false",
-	"run-as-non-root":      "Set runAsNonRoot to true",
-	"hostnetwork-pod":      "Remove hostNetwork from the pod unless it needs the node's network",
-	"hostpid-pod":          "Remove hostPID from the pod unless it needs the node's processes",
-	"privileged-container": "Remove privileged from the container unless it needs host access",
+	"run-as-non-root":                               "Set runAsNonRoot to true",
+	"hostnetwork-pod":                               "Remove hostNetwork from the pod unless it needs the node's network",
+	"hostpid-pod":                                   "Remove hostPID from the pod unless it needs the node's processes",
+	"privileged-container":                          "Remove privileged from the container unless it needs host access",
 
 	// Rails, shell and source text.
 	"model-attributes-attr-accessible":  "Allow only named attributes through mass assignment",
@@ -112,7 +117,7 @@ func instructionFor(fs []finding) (instruction, also string) {
 	}
 	var others []string
 	add := func(f finding) {
-		i := ruleInstruction[shortRuleName(f.ruleID)]
+		i := instructionOf(f.ruleID)
 		switch {
 		case i == "" || i == instruction || slices.Contains(others, i):
 		case instruction == "":
@@ -136,5 +141,5 @@ func findingInstruction(f finding) string {
 	if !onALine(f) {
 		return ""
 	}
-	return ruleInstruction[shortRuleName(f.ruleID)]
+	return instructionOf(f.ruleID)
 }

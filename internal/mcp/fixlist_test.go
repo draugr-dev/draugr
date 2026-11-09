@@ -344,13 +344,13 @@ func TestFixListKeepsEachControlsAction(t *testing.T) {
 		clears  int
 	}
 	want := map[string]row{
-		"Update python:3.8-slim":                          {"images", skald.KindBump, 3},
-		"Update chainguard/static:latest":                 {"images", skald.KindBump, 1},
-		"Review the licenses in python:3.8-slim":          {"licenses", skald.KindDecide, 2},
-		"Review the licenses in chainguard/static:latest": {"licenses", skald.KindDecide, 1},
-		"Remove and rotate aws-access-token":              {"secrets", skald.KindCredential, 1},
-		"Upgrade jquery 1.8.3":                            {"sca", skald.KindBump, 0},
-		"Upgrade jquery 1.12.2":                           {"sca", skald.KindBump, 2},
+		"Update python:3.8-slim":                             {"images", skald.KindBump, 3},
+		"Update chainguard/static:latest":                    {"images", skald.KindBump, 1},
+		"Review the licenses in python:3.8-slim":             {"licenses", skald.KindDecide, 2},
+		"Review the licenses in chainguard/static:latest":    {"licenses", skald.KindDecide, 1},
+		"Remove and rotate the AWS access key if it is real": {"secrets", skald.KindCredential, 1},
+		"Upgrade jquery 1.8.3":                               {"sca", skald.KindBump, 0},
+		"Upgrade jquery 1.12.2":                              {"sca", skald.KindBump, 2},
 	}
 	got := map[string]int{}
 	for _, a := range allActions(out) {

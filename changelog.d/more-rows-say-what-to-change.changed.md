@@ -1,0 +1,1 @@
+- **More rows say what to change.** A row for a rule such as `missing-user` or `csp-missing` now reads `Set a non-root USER in the Dockerfile` or `Add a Content-Security-Policy header`, with the scanner's sentence beneath as the reason and the rule on its own line.

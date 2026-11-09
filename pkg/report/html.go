@@ -1071,7 +1071,7 @@ func toHTMLAction(a action) htmlAction {
 	if a.step != nil && !a.step.applies {
 		out.NotApplied, out.Ecosystem = string(a.step.policy), ecosystemName(a)
 	}
-	if a.atOneLine() {
+	if a.atOneLine() || a.titleHidesRule() {
 		for _, g := range a.rulesByTool() {
 			names := make([]string, 0, len(g.rules))
 			for _, f := range g.rules {
