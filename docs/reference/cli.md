@@ -1082,9 +1082,9 @@ New, unaccepted, accepted and fixed findings are listed in one `CHANGED` table, 
 with what happened to each finding in its own column. Within a band, what needs somebody comes
 before what does not.
 
-`--view actions` lists the changes as things to do instead: one upgrade per package and one action
-per line of code, titled as `draugr scan --view actions` titles them and listing every rule that
-flags the line. A row names its component and repository when the actions span several.
+`--view actions` lists the changes as things to do instead: one upgrade per package and one row for
+the lines of code taking the same instruction, titled as `draugr scan --view actions` titles them
+and listing every rule that flags those lines. A row names its component and repository when the actions span several.
 
 Above the `CHANGED` table, one strip per state counts the prioritized findings in `head` by band:
 new, unaccepted, accepted, moved, unchanged and still accepted. A strip with nothing in it is not drawn, and fixed has none,

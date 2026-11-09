@@ -79,6 +79,9 @@ func writeBlockHead(w io.Writer, col tui.Painter, f finding, width int) {
 	if f.detail != "" {
 		_, _ = fmt.Fprintln(w, "      "+elideFront(f.detail, max(width-6, minTitleWidth)))
 	}
+	if i := findingInstruction(f); i != "" {
+		_, _ = fmt.Fprintln(w, "      "+i)
+	}
 }
 
 // writeBlockFacts is the second line: what moved the band, and what is known about the finding.

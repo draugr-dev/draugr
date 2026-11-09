@@ -21,7 +21,7 @@
         "G204"
       ],
       "severity": "high",
-      "title": "Fix “Command injection via taint analysis: os/exec.Command”",
+      "title": "Check who can set the command's arguments",
       "where": [
         "default/main.go:21"
       ]
@@ -47,7 +47,7 @@
         "G204"
       ],
       "severity": "high",
-      "title": "Fix “Command injection via taint analysis: os/exec.Command”",
+      "title": "Check who can set the command's arguments",
       "where": [
         "tags/main.go:21"
       ]
@@ -97,7 +97,7 @@
         "G401"
       ],
       "severity": "medium",
-      "title": "Fix “Use of weak cryptographic primitive”",
+      "title": "Use SHA-256, or bcrypt for passwords, if the hash protects data",
       "where": [
         "default/main.go:18"
       ]
@@ -122,7 +122,7 @@
         "G501"
       ],
       "severity": "medium",
-      "title": "Fix “Blocklisted import crypto/md5: weak cryptographic primitive”",
+      "title": "Use SHA-256, or bcrypt for passwords, if the hash protects data",
       "where": [
         "default/main.go:6"
       ]
@@ -147,7 +147,7 @@
         "G401"
       ],
       "severity": "medium",
-      "title": "Fix “Use of weak cryptographic primitive”",
+      "title": "Use SHA-256, or bcrypt for passwords, if the hash protects data",
       "where": [
         "exclude/main.go:18"
       ]
@@ -172,7 +172,7 @@
         "G501"
       ],
       "severity": "medium",
-      "title": "Fix “Blocklisted import crypto/md5: weak cryptographic primitive”",
+      "title": "Use SHA-256, or bcrypt for passwords, if the hash protects data",
       "where": [
         "exclude/main.go:6"
       ]
@@ -197,8 +197,7 @@
         "G204"
       ],
       "severity": "medium",
-      "summary": "Subprocess launched with a potential tainted input or cmd arguments",
-      "title": "Fix G204",
+      "title": "Check who can set the command's arguments",
       "where": [
         "include/main.go:22"
       ]
@@ -223,7 +222,7 @@
         "G401"
       ],
       "severity": "medium",
-      "title": "Fix “Use of weak cryptographic primitive”",
+      "title": "Use SHA-256, or bcrypt for passwords, if the hash protects data",
       "where": [
         "tags/main.go:18"
       ]
@@ -248,7 +247,7 @@
         "G501"
       ],
       "severity": "medium",
-      "title": "Fix “Blocklisted import crypto/md5: weak cryptographic primitive”",
+      "title": "Use SHA-256, or bcrypt for passwords, if the hash protects data",
       "where": [
         "tags/main.go:6"
       ]
@@ -273,7 +272,7 @@
         "G306"
       ],
       "severity": "medium",
-      "title": "Fix “Expect WriteFile permissions to be 0600 or less”",
+      "title": "Set file permissions to 0600 or less",
       "where": [
         "tags/tagged.go:10"
       ]

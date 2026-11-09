@@ -40,6 +40,8 @@ type action struct {
 	// themselves differently: one of several descriptions, printed as though it were all of them,
 	// would be wrong about the rest.
 	summary string
+	// lines is how many lines of code a row stands for, set by foldLines.
+	lines int
 	// control the findings came from, and the worst priority among them.
 	control  string
 	priority string
@@ -760,13 +762,16 @@ func componentRepositories(fs []finding) map[string]string {
 // lineTitle is what to do about one line of code, and the description to print under the title
 // when the title does not carry it.
 //
-// The verb, then the scanner's own one-line description of the flaw, quoted, because it is the
+// Draugr's own instruction where the rule has one (ruleInstruction). Otherwise the verb, then the scanner's own one-line description of the flaw, quoted, because it is the
 // scanner's wording and often not a sentence of its own. titleFinding says which finding's
 // description it is. A line one rule flags, whose description would be cut short, is titled by the
 // rule's name instead, with the description whole under it, the shape of every action named for a
 // rule. Where several rules flag the line, the title quotes one of them, cut if it must be, because
 // the rule's name would leave the others out.
 func lineTitle(fs []finding) (title, summary string) {
+	if i, also := instructionFor(fs); i != "" {
+		return i, also
+	}
 	f := titleFinding(fs)
 	d := describeLine(f)
 	switch {

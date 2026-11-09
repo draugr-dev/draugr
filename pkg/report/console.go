@@ -1895,7 +1895,7 @@ func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) (l
 	// Every action and every finding, across the lists. Each list says what it holds and how much of
 	// it is not shown, so the heading speaks for the whole and the lists account for the rest.
 	_, _ = fmt.Fprintf(w, "%s  %s\n", heading(col, "What to do"), col.Paint(cDim, fmt.Sprintf(
-		"%s %s %s", english.Count(len(actions), "action"), clears(actions), english.Count(cleared(actions), "finding"))))
+		"%s %s %s", listCount(actions), clears(actions), english.Count(cleared(actions), "finding"))))
 
 	// One list per kind of work, in WorkOrder. Grouped after ranking, so each list keeps the order
 	// the ranking gave its actions.
@@ -1903,26 +1903,30 @@ func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) (l
 	// otherwise drop the name its neighbors print, and the same component would read as named in
 	// one list and missing from the next.
 	nameComponents := actionsNameComponents(actions)
+	// Decided over every action for the same reason: a list naming no control beside one that does
+	// would read as though the first had none.
+	nameControls := !oneControl(actions)
 	byKind := map[skald.ActionKind][]action{}
 	for _, a := range actions {
 		byKind[a.kind] = append(byKind[a.kind], a)
 	}
 	for _, kind := range listKinds(byKind) {
 		as := byKind[kind]
-		shown := as
+		rows := foldLines(as)
+		shown := rows
 		if limit >= 0 && len(shown) > limit {
 			shown = shown[:limit]
 		}
 		_, _ = fmt.Fprintf(w, "\n%s  %s\n", listName(kind), col.Paint(cDim, fmt.Sprintf("%s %s %s",
-			english.Count(len(as), "action"), clears(as), english.Count(cleared(as), "finding"))))
+			listCount(as), clears(as), english.Count(cleared(as), "finding"))))
 		// Counted over the rows listed, so the note never speaks for rows it does not show.
 		for _, note := range policyNotes(shown) {
 			_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim, note))
 		}
-		renderActionRows(w, col, shown, d.View == ViewCompact, nameComponents)
-		if len(shown) < len(as) {
+		renderActionRows(w, col, shown, d.View == ViewCompact, nameComponents, nameControls)
+		if len(shown) < len(rows) {
 			_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim, fmt.Sprintf("… and %s not listed",
-				english.Count(len(as)-len(shown), "action"))))
+				english.Count(len(rows)-len(shown), "action"))))
 			listed = limit
 		}
 	}
@@ -1995,7 +1999,11 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 			row("--view compact", "one line each, to see how much there is")
 		}
 		if d.View == ViewActions {
-			row("--view findings", "the findings themselves, one row each")
+			if acts, _ := groupActions(s.findings, nil, s.copies...); foldsAny(acts) {
+				row("--view findings --top 0", "every flagged line, one row each")
+			} else {
+				row("--view findings", "the findings themselves, one row each")
+			}
 		} else {
 			row("--view actions", "the same findings as a list of things to do")
 		}
@@ -2402,12 +2410,12 @@ func externalLine(external []finding) string {
 
 // renderActions draws the action rows.
 func renderActions(w io.Writer, col tui.Painter, actions []action, compact bool) {
-	renderActionRows(w, col, actions, compact, actionsNameComponents(actions))
+	renderActionRows(w, col, foldLines(actions), compact, actionsNameComponents(actions), !oneControl(actions))
 }
 
 // renderActionRows is renderActions with whether to name components decided by the caller, which
 // draws several lists of one set of actions and decides it once for all of them.
-func renderActionRows(w io.Writer, col tui.Painter, actions []action, compact, nameComponents bool) {
+func renderActionRows(w io.Writer, col tui.Painter, actions []action, compact, nameComponents, nameControls bool) {
 	const namedLocations = 2
 	// Two named locations is a count, and two long paths are 160 characters. The cap has to be a
 	// width as well: `where` already counts whatever it does not name, so naming one instead of two
@@ -2465,9 +2473,12 @@ func renderActionRows(w io.Writer, col tui.Painter, actions []action, compact, n
 		// Labeled and lit the way a finding's facts line is, so the two listings read alike. The
 		// count carries the accent: it is what ranks one action above another, and a line of one
 		// flat grey gives a reader nothing to find.
-		meta := []string{
-			col.Paint(cDim, "control") + " " + a.control,
-			col.Paint(tui.StyleFixed, english.Count(a.count(), "finding")),
+		meta := []string{col.Paint(tui.StyleFixed, english.Count(a.count(), "finding"))}
+		if a.lines > 1 {
+			meta = append([]string{col.Paint(tui.StyleFixed, english.Count(a.lines, "line"))}, meta...)
+		}
+		if nameControls {
+			meta = append([]string{col.Paint(cDim, "control") + " " + a.control}, meta...)
 		}
 		if nameComponents && a.component != "" {
 			meta = append([]string{col.Paint(cDim, "component") + " " + a.component}, meta...)
@@ -2481,8 +2492,10 @@ func renderActionRows(w io.Writer, col tui.Painter, actions []action, compact, n
 		// Budgeted against the whole line rather than against the detail alone. The control and the
 		// count sit in front of it now, and measuring only the tail is how a 75-finding action came
 		// to draw 137 columns.
-		room := width - 6 - metaWidth(a, len(meta), nameComponents)
-		if detail := fitDetail(col, a, room, namedLocations); detail != "" {
+		room := width - 6 - metaWidth(a, len(meta), nameComponents, nameControls)
+		if a.lines > 1 {
+			meta = append(meta, col.Paint(cDim, foldedPlaces(a, room)))
+		} else if detail := fitDetail(col, a, room, namedLocations); detail != "" {
 			meta = append(meta, col.Paint(cDim, detail))
 		}
 		_, _ = fmt.Fprintf(w, "      %s\n", strings.Join(meta, col.Paint(cDim, " · ")))
@@ -2505,8 +2518,14 @@ func elideTitle(title string, width int) string {
 
 // metaWidth is what an action's labeled facts occupy before the detail is added, so the detail
 // can be budgeted against what is left rather than against the whole line.
-func metaWidth(a action, parts int, named bool) int {
-	n := len("control ") + len(a.control) + len(english.Count(a.count(), "finding"))
+func metaWidth(a action, parts int, named, controls bool) int {
+	n := len(english.Count(a.count(), "finding"))
+	if controls {
+		n += len("control ") + len(a.control)
+	}
+	if a.lines > 1 {
+		n += len(english.Count(a.lines, "line"))
+	}
 	if named && a.component != "" {
 		n += len("component ") + len(a.component)
 	}
