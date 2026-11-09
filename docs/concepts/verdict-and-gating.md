@@ -228,33 +228,46 @@ terminal (verdict, priorities, severities) and honors `NO_COLOR`.
 A worked example:
 
 ```text
-DRAUGR  FAIL  draugr-demo 1.0  11s
+DRAUGR  FAIL  draugr-demo 1.0  9.635s
 
- 224 P1 659 P2 237 P3 18 P4
+ 231 P1 661 P2 246 P3 18 P4
 
 CONTROLS
   iac         FAIL   4 P1 5 P2 15 P3 16 P4
-  images      FAIL   194 P1 276 P2 41 P3
-  licenses    FAIL   353 P2 178 P3
+  images      FAIL   191 P1 285 P2 47 P3
+  licenses    FAIL   353 P2 178 P3 · 2 files unread
   provenance  pass   no findings
-  sast        FAIL   7 P1 8 P2 2 P4
-  sca         FAIL   18 P1 17 P2 3 P3
+  sast        FAIL   9 P1 6 P2 6 P3 2 P4
+  sca         FAIL   26 P1 12 P2
   secrets     FAIL   1 P1
 
 MEASURED AGAINST
   provenance  cosign · coverage: 1 of 2 images checked, 1 unsigned · scope: 1 signer ·
               pinning: none, all by tag
-  sca         govulncheck v1.8.0;db@2026-10-08 22:31:09 · database: local copy, fetched
-              2026-10-11
+  sast        sarif-import · tool: Bandit 1.9.4 · file: reports/bandit.sarif · written:
+              2026-10-11 04:57 UTC · severity: issue_severity and issue_confidence · commit:
+              not stated · component: api · sha256:…
+  sca         govulncheck v1.9.0;db@2026-11-05 23:49:57 · database: local copy, fetched
+              2026-11-08
+
+CAVEATS  2 fail the run · config.gate.failOnCaveats: unread-files
+  ✗ unread-files · licenses · api
+      app/requirements.txt  records no licenses for 4 packages
+  ✗ unread-files · licenses · storefront
+      web/package-lock.json  records no license for 1 package
+    unbound-imports · api
+      reports/bandit.sarif  names no commit, so nothing ties its findings to this code
 
 COMPONENTS
-  api         FAIL   220 P1 655 P2 233 P3
-  storefront  FAIL   4 P1 4 P2 1 P3
+  api         ERROR  223 P1 660 P2 243 P3
+  storefront  ERROR  8 P1 1 P2
   platform    pass   3 P3 18 P4
 
 SIGNALS
   KEV           2 findings listed · 2 raised
   EPSS          3 findings raised
+  malicious     nothing raised
+  deprecated    12 findings raised
   floor         nothing raised
   reachability  govulncheck · 2 reachable, 3 unreachable
 
@@ -262,7 +275,7 @@ ACCEPTED
   config.exclude  1 finding suppressed
   VEX             1 finding excused
 
-FIX FIRST  top 10 of 1138, by priority
+FIX FIRST  top 10 of 1156, by priority
   P1  critical  CVE-2025-15467 · OpenSSL: Remote code execution or Denial of Service via…
       scanner trivy · libssl3 3.0.14-1~deb12u2 → 3.0.18-1~deb12u2
       python:3.8-slim

@@ -78,20 +78,24 @@ belongs to the component that imports it. A component can import several files, 
 
 ```console
 $ draugr scan --controls sast --components api --top 3
-DRAUGR  FAIL  draugr-demo 1.0  (scope: 1 of 3 components; sast)  9.871s
+DRAUGR  FAIL  draugr-demo 1.0  (scope: 1 of 3 components; sast)  7.679s
 
- 10 P1 10 P2 1 P3 0 P4
+ 9 P1 6 P2 6 P3 0 P4
 
 CONTROLS
-  sast  FAIL   10 P1 10 P2 1 P3
+  sast  FAIL   9 P1 6 P2 6 P3
 
 MEASURED AGAINST
   sast  sarif-import · tool: Bandit 1.9.4 · file: reports/bandit.sarif · written: 2026-10-11
-        04:51 UTC · severity: SARIF level · commit: 123509aace3d · component: api · sha256:
-        e97d84c8ab67b3c15a6297bd2210fa205a7a60b2c685ea4392d5404a74307ea3
+        04:57 UTC · severity: issue_severity and issue_confidence · commit: not stated ·
+        component: api · sha256:…
+
+CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
+  unbound-imports · api
+    reports/bandit.sarif  names no commit, so nothing ties its findings to this code
 
 COMPONENTS
-  api         FAIL   10 P1 10 P2 1 P3
+  api         FAIL   9 P1 6 P2 6 P3
   storefront  not scanned
   platform    not scanned
 
@@ -100,26 +104,36 @@ SIGNALS
   EPSS  nothing raised
 
 FIX FIRST  top 3 of 21, by priority
+  P1  critical  …dangerous-system-call · Found user-controlled data used in a system call.…
+      scanner semgrep oss · fix change the code
+      app/app.py:16 · impact high · likelihood high
+
   P1  high      B605 · Starting a process with a shell, possible injection detected, security…
       scanner bandit · fix change the code
-      app/app.py:16
+      app/app.py:16 · issue_severity high
 
   P1  high      B602 · subprocess call with shell=True identified, security issue.
       scanner bandit · fix change the code
-      app/app.py:23
-
-  P1  high      B201 · A Flask app appears to be run with debug=True, which exposes the…
-      scanner bandit · fix change the code
-      app/app.py:35
+      app/app.py:23 · issue_severity high
 
 … and 18 findings not listed.
+
+TRY
+  --top 0                 every one of them, not the first three
+  --report html -o <dir>  every row the console cut, in one searchable page
+  --view compact          one line each, to see how much there is
+  --view actions          the same findings as a list of things to do
+  draugr explain <rule>   what a rule means and how to fix it
 ```
 
-This run used a copy of [`draugr-demo`](https://github.com/draugr-dev/draugr-demo) with the step 3
-import added to its `api` component, which is `exposure: public` and `criticality: important`, so
-Bandit's high-severity findings rank P1. Draugr did not run Bandit, so **Measured against** states
-what the file says about itself: the tool and version, when it was written, where severities came
-from, the commit it was checked against, and its SHA-256.
+This run is [`draugr-demo`](https://github.com/draugr-dev/draugr-demo), whose `api` component
+declares the step 3 import and is `exposure: public` and `criticality: important`, so Bandit's
+high-severity findings rank P1. Draugr did not run Bandit, so **Measured against** states what the
+file says about itself: the tool and version, when it was written, where severities came from, the
+commit it was checked against, and its SHA-256. This file names no commit, so the run reads
+`commit: not stated` and lists the file under **Caveats** as `unbound-imports`, which does not fail
+the run. Step 5 makes it fail; the GitHub Actions example below shows how to write the commit into
+the file.
 
 ## 5. Require the commit
 

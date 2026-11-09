@@ -18,7 +18,10 @@ as the prompt line above the output, because a picture of a result nobody can re
 picture of nothing:
 
     script -qec "draugr scan . --top 6" /dev/null |
-      scripts/screenshot.py "draugr scan . --top 6" > docs/assets/scan.svg
+      scripts/screenshot.py "draugr scan . --top 6" 0.172.0 > docs/assets/scan.svg
+
+The second argument is the release the picture shows, recorded as data-release on the root element,
+because a test holds the picture to the newest release in CHANGELOG.md.
 """
 import html
 import re
@@ -92,7 +95,8 @@ def main():
     w = PAD * 2 + width * CELL_W
     h = PAD * 2 + len(lines) * LINE_H
 
-    out = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{w:.0f}" height="{h:.0f}" '
+    release = f' data-release="{html.escape(sys.argv[2])}"' if len(sys.argv) > 2 else ""
+    out = [f'<svg xmlns="http://www.w3.org/2000/svg"{release} width="{w:.0f}" height="{h:.0f}" '
            f'viewBox="0 0 {w:.0f} {h:.0f}" font-family={html.escape(FONT, quote=True)!r} '
            f'font-size="13.5">',
            f'<rect width="100%" height="100%" rx="8" fill="{BG}"/>']

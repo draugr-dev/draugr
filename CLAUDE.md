@@ -179,6 +179,11 @@ go test ./pkg/report -update                  # accept the new layout
 make examples                                 # real output from the demo sandbox, to paste
 ```
 
+After `-update`, `TestThePastedRunsFollowTheGoldens` still fails until you have refreshed the
+pastes and then run `make pastes-refreshed`, which stores a digest of the goldens and checks
+nothing else. On the release pull request, `TestTheReadmePictureShowsTheNewestRelease` fails
+until `RELEASE=X.Y.Z make screenshot` redraws the picture.
+
 If the golden fails, its message lists everything that needs refreshing. Please work through it
 rather than only regenerating the golden, a stale example in the docs costs a reader more than it
 costs us.
