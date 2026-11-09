@@ -1954,7 +1954,7 @@ func TestTheFixSaysWhereTheProblemLives(t *testing.T) {
 		control, rule, want string
 	}{
 		{"sast", "python.lang.security.audit.eval", "change the code"},
-		{"iac", "DS-0002", "change the code"},
+		{"iac", "DS-0002", "change the infrastructure"},
 		{"dast", "exposed-panel", "change the code"},
 		// Removed from the tip, a credential is still in history and still valid.
 		{"secrets", "aws-access-token", "rotate the credential"},
@@ -1974,7 +1974,7 @@ func TestTheFixSaysWhereTheProblemLives(t *testing.T) {
 		if got != c.want {
 			t.Errorf("%s %s: fix %q, want %q", c.control, c.rule, got, c.want)
 		}
-		if c.control != "sast" && c.control != "iac" && c.control != "dast" && got == "change the code" {
+		if c.control != "sast" && c.control != "dast" && got == "change the code" {
 			t.Errorf("%s has no code to change, and was told to change it", c.control)
 		}
 	}
