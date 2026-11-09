@@ -65,14 +65,16 @@ each scan closes these:
 | Left alone, Nuclei would | Closed by |
 |---|---|
 | Connect to a port a JavaScript or `tcp` template chooses, such as 22, 3306 or 6379, including default logins for SSH, MySQL, PostgreSQL and Redis | `-ept javascript,tcp` |
-| Run the JavaScript or `tcp` block of a template that also holds another protocol, which `-ept` passes, or send an HTTP request to a fixed other port on the host | `-eid`, listing each such template |
+| Run a `tcp` block, or a JavaScript block that can open a connection, in a template that also holds another protocol, which `-ept` passes, or send an HTTP request to a fixed other port on the host | `-eid`, listing each such template |
 | Send a request to a fixed outside host, some carrying the target's name (`rdap-whois`, `azure-domain-tenant`) and some carrying a credential found on the target (`github-personal-access`, `stripe-secret-key`) | `-eid`, listing each such template |
 | Ask `1.1.1.1`, `1.0.0.1`, `8.8.8.8` and `8.8.4.4` for every name it looks up | `-r`, with the servers in `/etc/resolv.conf` |
 
 `-eid` is worked out from the installed set on every run. A template
 is listed when it names a fixed other port on the target, a raw request to a fixed host or a path on a
-fixed host, or when it holds a JavaScript or `tcp` block beside another protocol. A template hiding its
-host in a variable is not found this way. A set Draugr cannot read stops the scan before any request,
+fixed host, or when it holds a `tcp` block beside another protocol, or a JavaScript block that requires
+a module, checks a port or takes one as an argument. A JavaScript block with none of these computes on
+what an HTTP block returned, as `cookies-without-secure` does, and its template runs. A template hiding
+its host in a variable is not found this way. A set Draugr cannot read stops the scan before any request,
 and `nuclei -update-templates` fetches it again.
 
 The measured-against line states what was left out, with a count for the listed templates:

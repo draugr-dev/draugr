@@ -30,7 +30,13 @@ func TestNucleiTemplateReaches(t *testing.T) {
 
 		{"a JavaScript block beside an HTTP one, which -ept passes", "javascript:\n  - args:\n      Host: \"{{Host}}\"\n      Port: 443\nhttp:\n  - raw:\n      - |\n        GET / HTTP/1.1\n        Host: {{Hostname}}\n", true},
 		{"a tcp block beside an HTTP one", "http:\n  - raw:\n      - |\n        GET / HTTP/1.1\ntcp:\n  - host:\n      - \"{{Hostname}}\"\n", true},
+		{"a module required beside an HTTP block", "http:\n  - method: GET\n    path:\n      - \"{{BaseURL}}\"\njavascript:\n  - code: |\n      const net = require(\"nuclei/net\");\n", true},
+		{"a port checked beside an HTTP block", "http:\n  - method: GET\n    path:\n      - \"{{BaseURL}}\"\njavascript:\n  - pre-condition: |\n      isPortOpen(Host, Port);\n    code: |\n      1\n", true},
+		{"a UDP port checked beside an HTTP block", "http:\n  - method: GET\n    path:\n      - \"{{BaseURL}}\"\njavascript:\n  - code: |\n      isUDPPortOpen(Host, 53)\n", true},
+		{"a domain controller looked up beside an HTTP block", "http:\n  - method: GET\n    path:\n      - \"{{BaseURL}}\"\njavascript:\n  - code: |\n      getDomainControllerName(name, Host)\n", true},
 
+		{"JavaScript that reads the HTTP block's response", "flow: |\n  http()\n  javascript()\nhttp:\n  - method: GET\n    path:\n      - \"{{BaseURL}}\"\njavascript:\n  - code: |\n      content = template.http_all_headers\n", false},
+		{"JavaScript that hashes an argument, with Host only on a raw HTTP request", "javascript:\n  - code: |\n      parseInt(hash, 16).toString()\n    args:\n      hash: \"{{sha}}\"\nhttp:\n  - raw:\n      - |\n        GET / HTTP/1.1\n        Host: {{Hostname}}\n", false},
 		{"a JavaScript template alone, which -ept leaves out", "javascript:\n  - args:\n      Port: 6379\n", false},
 		{"the URL", "http:\n  - method: GET\n    path:\n      - \"{{BaseURL}}/admin\"\n      - \"{{RootURL}}/admin\"\n", false},
 		{"the URL's own port", "http:\n  - raw:\n      - |\n        @Host: {{Hostname}}\n        GET / HTTP/1.1\n", false},
