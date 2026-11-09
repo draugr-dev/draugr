@@ -48,7 +48,7 @@ func TestTwoRulesAtOneNewLineAreOneAction(t *testing.T) {
 	console := renderActions(t, "console", r)
 	for _, want := range []string{
 		"1 action clears 2 findings",
-		"Fix “subprocess call with shell=True identified, security issue”",
+		"Run the command as an argument list, without a shell",
 		"control sast · 2 findings",
 		"app/app.py:23 · Bandit: B602 · Semgrep: subprocess-injection",
 	} {
@@ -67,7 +67,7 @@ func TestTwoRulesAtOneNewLineAreOneAction(t *testing.T) {
 	for _, want := range []string{
 		"### What to do · 1 action clears 2 findings",
 		"| Priority | What to do | Control | Findings | Where |",
-		"| P2 | Fix “subprocess call with shell=True identified, security issue” | sast | 2 | app/app.py:23 · " +
+		"| P2 | Run the command as an argument list, without a shell<br>subprocess call with shell=True identified, security issue | sast | 2 | app/app.py:23 · " +
 			"Bandit: [`B602`](https://bandit.readthedocs.io/en/latest/plugins/b602.html) · Semgrep: `subprocess-injection` |",
 	} {
 		if !strings.Contains(md, want) {
@@ -161,7 +161,7 @@ func TestADecisionAboutALineIsItsOwnAction(t *testing.T) {
 	got := renderActions(t, "console", r)
 	for _, want := range []string{
 		"3 actions clear 3 findings",
-		"Fix “subprocess call with shell=True identified, security issue”",
+		"Run the command as an argument list, without a shell",
 		"Decide on app/app.py:23 again",
 		"Review the acceptance of app/app.py:40",
 	} {
@@ -177,18 +177,18 @@ func TestALineTitledByItsRuleCarriesTheDescription(t *testing.T) {
 	long := "Detected subprocess function 'check_output' with user controlled data and a shell, " +
 		"which a malicious actor could leverage to perform command injection"
 	r := Result{New: []sarif.Result{
-		sastAt("Semgrep OSS", "python.lang.security.dangerous-subprocess-use.dangerous-subprocess-use",
+		sastAt("Semgrep OSS", "python.lang.security.some-long-rule.some-long-rule",
 			"api", repoAPI, "app/app.py", 23, long),
 	}}
 	got := renderActions(t, "console", r)
-	for _, want := range []string{"Fix dangerous-subprocess-use", "      " + long + "\n"} {
+	for _, want := range []string{"Fix some-long-rule", "      " + long + "\n"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q:\n%s", want, got)
 		}
 	}
 	// The comment carries it in the same cell, after a break that keeps the row one row.
 	md := renderActions(t, "markdown", r)
-	if !strings.Contains(md, "| P2 | Fix dangerous-subprocess-use<br>"+long+" | sast | 1 |") {
+	if !strings.Contains(md, "| P2 | Fix some-long-rule<br>"+long+" | sast | 1 |") {
 		t.Errorf("markdown: the description is not in the title's cell:\n%s", md)
 	}
 }

@@ -2463,8 +2463,9 @@ func renderActionRows(w io.Writer, col tui.Painter, actions []action, compact, n
 		}
 		// Every rule a line of code is flagged by, under a title quoting one of them. Each rule is
 		// one more scanner agreeing the line is wrong, and the reader following a link chooses
-		// which account to read.
-		if a.atOneLine() {
+		// which account to read. An instruction for a rule takes this line too: the title no longer
+		// names the rule, and at a narrow width the end of the line below is the first thing cut.
+		if a.atOneLine() || a.titleHidesRule() {
 			if rules := ruleLine(col, a, max(width-6, minTitleWidth)); rules != "" {
 				_, _ = fmt.Fprintf(w, "      %s\n", rules)
 			}
@@ -2560,7 +2561,7 @@ func actionDetail(col tui.Painter, a action, locations int) string {
 // action on one line of code, whose rules have a line of their own.
 func actionRef(col tui.Painter, a action) string {
 	f, ok := a.exemplar()
-	if !ok || f.ruleID == "" || a.atOneLine() {
+	if !ok || f.ruleID == "" || a.atOneLine() || a.titleHidesRule() {
 		return ""
 	}
 	ref := col.Link(f.helpURI, shortRuleID(f.ruleID))

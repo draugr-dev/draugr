@@ -770,6 +770,9 @@ func componentRepositories(fs []finding) map[string]string {
 // the rule's name would leave the others out.
 func lineTitle(fs []finding) (title, summary string) {
 	if i, also := instructionFor(fs); i != "" {
+		if also == "" && instructionsKeepTheirReason(fs, i) {
+			return i, describeLine(titleFinding(fs))
+		}
 		return i, also
 	}
 	f := titleFinding(fs)
@@ -941,6 +944,9 @@ func withoutEdition(tool string) string {
 // and a list of those under a heading promising things to do reads as a list of complaints. The
 // verb is the part a scanner never writes, and the rule's name is the part it always does.
 func titleFor(f finding) string {
+	if i := instructionOf(f.ruleID); i != "" {
+		return i
+	}
 	name, said := ruleName(f.ruleID, f.message)
 	switch {
 	case name == "":
@@ -986,6 +992,9 @@ func summaryFor(a action) string {
 		return s
 	}
 	if len(a.findings) == 0 || strings.Contains(a.title, "“") {
+		return ""
+	}
+	if a.titleHidesRule() && !instructionsKeepTheirReason(a.findings, a.title) {
 		return ""
 	}
 	sum := describe(a.findings[0])

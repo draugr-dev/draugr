@@ -23,9 +23,10 @@ Change the infrastructure  2 actions clear 2 findings
       control iac · 1 finding · deploy/pod.yaml:8 · KSV-0014
 
 Rotate a credential  1 action clears 1 finding
-  P2  Remove and rotate private-key
+  P2  Remove and rotate the private key if it is real
       Identified a Private Key, which may compromise cryptographic security
-      component payments · control secrets · 1 finding · app/config.pem:1 · private-key
+      gitleaks: private-key
+      component payments · control secrets · 1 finding · app/config.pem:1
 
 Decide  1 action clears 1 finding
   P3  Replace or accept some-lib, licensed GPL-3.0-only

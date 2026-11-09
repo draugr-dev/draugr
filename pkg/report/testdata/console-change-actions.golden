@@ -10,7 +10,8 @@ MEASURED AGAINST
 WHAT TO DO  2 actions clear 3 findings
   P2  Upgrade urllib3 1.26.5 → 2.6.0  control sca · 2 findings
       requirements.txt:3 · CVE-2025-66418 +1
-  P3  Fix “Detected Flask app with debug=True”  control sast · 1 finding
+  P3  Turn off debug mode outside development  control sast · 1 finding
+      Detected Flask app with debug=True
       app.py:12 · semgrep: debug-enabled
 
 TRY

@@ -18,8 +18,8 @@ WHAT TO DO  <n> actions clear <m> findings
 
 <list name>  <n> actions [on <n> lines] clear <m> findings
   <band>  <the action>
-          <the scanner's description of the rule, when the action names one>
-          <each scanner and the rules it flags the line with, for a line of code>
+          <the scanner's description of the rule, when the action is about one rule>
+          <each scanner and its rules, when the title does not name them>
           component <component, when there are several> · control <control, when there are several> ·
           <n> lines, when a row stands for several · <n> findings ·
           <upstream, when not yours> · <where it applies> ·

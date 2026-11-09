@@ -378,7 +378,7 @@ func TestActionsForReadsEachResultsControl(t *testing.T) {
 	}
 	want := []string{
 		"Update python:3.8-slim|images|bump|1",
-		"Remove and rotate aws-access-token|secrets|credential|1",
+		"Remove and rotate the AWS access key if it is real|secrets|credential|1",
 		"Review the licenses in python:3.8-slim|licenses|decide|1",
 	}
 	if got := titles(fromRun); !reflect.DeepEqual(got, want) {
@@ -591,6 +591,7 @@ func TestAnUpstreamImageIsStillNamedByTheImage(t *testing.T) {
 // reading "Privileged" or "By not specifying a USER, a program in the container may run as 'root'"
 // is a complaint rather than an action. Each case is an identifier shape a built-in scanner emits.
 func TestARuleActionIsTitledWithAVerbAndTheRulesName(t *testing.T) {
+	withoutReasonedInstructions(t)
 	for _, tc := range []struct {
 		name, control, ruleID, message, want string
 	}{

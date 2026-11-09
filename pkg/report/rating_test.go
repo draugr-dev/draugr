@@ -37,6 +37,7 @@ func blockLines(t *testing.T, fs ...finding) []string {
 // The severity column shows the rating's band, and the evidence line says what the scanner said,
 // so the two can be checked against each other where the reader is looking.
 func TestTheRatingIsOnTheEvidenceLine(t *testing.T) {
+	withoutReasonedInstructions(t)
 	lines := blockLines(t, findingOf("sast", sarif.Report{}, ratedSemgrep()))
 	if len(lines) != 3 {
 		t.Fatalf("got %d lines:\n%s", len(lines), strings.Join(lines, "\n"))
@@ -62,6 +63,7 @@ func TestTheRatingLeadsTheReasoning(t *testing.T) {
 
 // A finding the level rated says nothing more than it did.
 func TestAnUnratedFindingCarriesNoRatingNote(t *testing.T) {
+	withoutReasonedInstructions(t)
 	res := ratedSemgrep()
 	res.Rating = nil
 	lines := blockLines(t, findingOf("sast", sarif.Report{}, res))

@@ -71,9 +71,9 @@ func TestNextNamesTheFirstActionInItsOwnWords(t *testing.T) {
 			r := stamped("sast", "B602", "P1", "app/app.py", 17)
 			r.Message = "Command built from request input"
 			return r
-		}()}, want: `Start with "Fix “Command built from request input”" in app/app.py:17, which clears 1 finding. Then scan again to confirm it is gone.`},
+		}()}, want: `Start with "Run the command as an argument list, without a shell" in app/app.py:17, which clears 1 finding. Then scan again to confirm it is gone.`},
 		"credential": {results: []sarif.Result{key("deploy/a.pem"), key("deploy/b.pem"), key("deploy/c.pem")},
-			want: `Start with "Remove and rotate private-key" in deploy/a.pem:1, deploy/b.pem:1 and 1 more, which clears 3 findings. Then scan again to confirm they are gone.`},
+			want: `Start with "Remove and rotate the private key if it is real" in deploy/a.pem:1, deploy/b.pem:1 and 1 more, which clears 3 findings. Then scan again to confirm they are gone.`},
 		"wait": {results: []sarif.Result{withPackage(stamped("sca", "CVE-2022-40303", "P1", "package-lock.json", 0), "libxml2", "2.9.10", "")},
 			want: `Start with "Replace or accept libxml2 2.9.10, no fix available" in package-lock.json, which clears 1 finding. Record an acceptance with an expiry for any finding kept, then scan again.`},
 		"decide": {results: []sarif.Result{stamped("licenses", "license/GPL-3.0/readline", "P1", "package-lock.json", 0)},
@@ -173,7 +173,7 @@ func TestNextComparesTheHeadsOfTheListsByBand(t *testing.T) {
 	code := stamped("sast", "B602", "P1", "app/app.py", 17)
 
 	got := summarized(sarif.Report{Results: []sarif.Result{bump, credential}}, "", 0).Next
-	if !strings.HasPrefix(got, `Start with "Remove and rotate aws-access-token"`) {
+	if !strings.HasPrefix(got, `Start with "Remove and rotate the AWS access key if it is real"`) {
 		t.Errorf("a P1 credential should come before a P3 upgrade: %s", got)
 	}
 	bump.Priority = "P1"

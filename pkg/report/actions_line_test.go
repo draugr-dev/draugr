@@ -91,6 +91,7 @@ func byLocation(t *testing.T, actions []action) map[string]action {
 // line 23 are one action clearing four findings, not four actions clearing one each. A rule that
 // flags two lines is still two actions, because each line is its own edit.
 func TestOneLineOfCodeIsOneAction(t *testing.T) {
+	withoutReasonedInstructions(t)
 	in := appPy()
 	sortFindings(in)
 	got, _ := groupActions(in, nil)
@@ -147,6 +148,7 @@ func titles(actions []action) []string {
 // The title says what the flaw is in a scanner's own words, chosen by rule, so it is the same
 // whichever order the scanners finished in, and never the rule that sorts first.
 func TestALineIsTitledByWhatItsRulesFound(t *testing.T) {
+	withoutReasonedInstructions(t)
 	in := appPy()
 	sortFindings(in)
 	first, _ := groupActions(in, nil)
@@ -274,12 +276,13 @@ func TestALineWithoutADescriptionIsStillTitled(t *testing.T) {
 // quoted. Where several rules flag the line and none fits, the title quotes one of them, cut, and
 // still closes its quotation.
 func TestATitleThatWouldBeCutNamesItsRuleOrClosesItsQuote(t *testing.T) {
+	withoutReasonedInstructions(t)
 	long := "In Kubernetes, each pod runs in its own isolated environment with its own set of security policies."
 	escalation := codeFinding("Semgrep OSS",
-		"yaml.kubernetes.security.allow-privilege-escalation-true.allow-privilege-escalation-true",
+		"yaml.kubernetes.security.some-long-rule.some-long-rule",
 		"P2", sarif.LevelWarning, "deploy/pod.yaml:13", long)
 	title, summary := lineTitle([]finding{escalation})
-	if title != "Fix allow-privilege-escalation-true" || summary != strings.TrimSuffix(long, ".") {
+	if title != "Fix some-long-rule" || summary != strings.TrimSuffix(long, ".") {
 		t.Errorf("a lone rule cut short: title %q, summary %q", title, summary)
 	}
 
@@ -455,6 +458,7 @@ func TestTheRuleLineFitsItsRoom(t *testing.T) {
 // The console prints the rules under the title, and the line under them carries no rule reference,
 // which would name one of them a second time.
 func TestTheConsoleListsALinesRules(t *testing.T) {
+	withoutReasonedInstructions(t)
 	in := appPy()
 	sortFindings(in)
 	actions, _ := groupActions(in, nil)
@@ -472,6 +476,7 @@ func TestTheConsoleListsALinesRules(t *testing.T) {
 // report.json and the MCP server read a merged results.sarif, and get the same actions: one per
 // line, naming every rule it clears and the one place it is, one change rather than one per rule.
 func TestAnExportedLineActionNamesItsRulesAndItsPlace(t *testing.T) {
+	withoutReasonedInstructions(t)
 	var merged sarif.Report
 	for _, f := range appPy() {
 		path, n, _ := strings.Cut(f.location, ":")
