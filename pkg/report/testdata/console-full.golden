@@ -40,7 +40,7 @@ FIX FIRST  top 6 of 10, by priority
       app/requirements.txt:4
 
   P1  high      DS-0002 · Image user should not be 'root'
-      component payments · scanner trivy · fix change the code
+      component payments · scanner trivy · fix change the infrastructure
       app/Dockerfile:1
 
   P2  high      CVE-2018-1000656 · python-flask: Denial of Service via crafted JSON file

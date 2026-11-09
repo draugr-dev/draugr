@@ -29,7 +29,7 @@ FIX FIRST  all 2, by priority
       app/requirements.txt:4
 
   P1  high      DS-0002 · Image user should not be 'root'
-      scanner trivy · fix change the code
+      scanner trivy · fix change the infrastructure
       app/Dockerfile:1
 
 TRY

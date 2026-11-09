@@ -362,6 +362,9 @@ func fixPhrase(f finding) string {
 		return headersFix(f.ruleID)
 	case "tls":
 		return "change the server's configuration"
+	case "iac":
+		// The kind of work its action is filed under, so the views agree. See ruleKind.
+		return "change the infrastructure"
 	case "kubernetes":
 		return "change the cluster's configuration"
 	case "cloud":
