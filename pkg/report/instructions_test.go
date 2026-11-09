@@ -14,6 +14,7 @@ import (
 func TestAnInstructionFitsATitleAndReadsOverManyLines(t *testing.T) {
 	every := maps.Clone(ruleInstruction)
 	maps.Copy(every, reasonedInstruction)
+	maps.Copy(every, cloudInstruction)
 	for rule, sentence := range every {
 		if n := utf8.RuneCountInString(sentence); n > actionTitleWidth {
 			t.Errorf("%s: %d characters, over %d: %q", rule, n, actionTitleWidth, sentence)

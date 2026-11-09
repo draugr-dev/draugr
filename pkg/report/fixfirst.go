@@ -69,15 +69,20 @@ func writeBlockHead(w io.Writer, col tui.Painter, f finding, width int) {
 	// not explain it.
 	rule := shortRuleID(f.ruleID)
 	line += col.Link(f.helpURI, rule)
-	if title := findingTitle(f); title != "" {
-		room := width - blockGutter - utf8.RuneCountInString(rule) - len(" · ")
-		if room > 0 {
-			line += col.Paint(cDim, " · ") + elide(title, min(room, messageWidth))
-		}
+	title := findingTitle(f)
+	room := min(width-blockGutter-utf8.RuneCountInString(rule)-len(" · "), messageWidth)
+	// A sentence about the resource that is also the message, Prowler's, takes the line beneath
+	// when the rule's name leaves too little room for it: "No CloudTrail…" says nothing.
+	sentence := f.detail != "" && f.detail == f.message && utf8.RuneCountInString(title) > room
+	if title != "" && room > 0 && !sentence {
+		line += col.Paint(cDim, " · ") + elide(title, room)
 	}
 	_, _ = fmt.Fprintln(w, line)
-	if f.detail != "" {
-		_, _ = fmt.Fprintln(w, "      "+elideFront(f.detail, max(width-6, minTitleWidth)))
+	switch d := f.addedDetail(); {
+	case sentence:
+		_, _ = fmt.Fprintln(w, "      "+elide(f.detail, max(width-6, minTitleWidth)))
+	case d != "":
+		_, _ = fmt.Fprintln(w, "      "+elideFront(d, max(width-6, minTitleWidth)))
 	}
 	if i := findingInstruction(f); i != "" {
 		_, _ = fmt.Fprintln(w, "      "+i)

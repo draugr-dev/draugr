@@ -2455,7 +2455,7 @@ func renderActionRows(w io.Writer, col tui.Painter, actions []action, compact, n
 			room := max(width-6, minTitleWidth)
 			shown := elide(a.summary, room)
 			if len(a.findings) > 0 && a.findings[0].detail != "" {
-				shown = elideFront(a.summary, room)
+				shown = elideOccurrence(a, room)
 			}
 			_, _ = fmt.Fprintf(w, "      %s\n", col.Paint(cDim, shown))
 		}

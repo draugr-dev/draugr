@@ -157,14 +157,18 @@ func instructionOf(rule string) string {
 	if i := ruleInstruction[shortRuleName(rule)]; i != "" {
 		return i
 	}
-	return reasonedInstruction[shortRuleName(rule)]
+	if i := reasonedInstruction[shortRuleName(rule)]; i != "" {
+		return i
+	}
+	return cloudInstruction[shortRuleName(rule)]
 }
 
 // instructionsKeepTheirReason reports whether a row titled with instruction keeps the scanner's
-// sentence beneath it: whether a rule on its lines holds the instruction in reasonedInstruction.
+// sentence beneath it: whether a rule on its lines holds the instruction in reasonedInstruction or
+// cloudInstruction.
 func instructionsKeepTheirReason(fs []finding, instruction string) bool {
 	for _, f := range fs {
-		if reasonedInstruction[shortRuleName(f.ruleID)] == instruction {
+		if name := shortRuleName(f.ruleID); reasonedInstruction[name] == instruction || cloudInstruction[name] == instruction {
 			return true
 		}
 	}

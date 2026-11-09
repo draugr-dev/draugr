@@ -367,6 +367,11 @@ func TestProwlerSetsAsideWhatADeniedServiceLeavesUnread(t *testing.T) {
 		r.Score != 8.0 || r.Location.URI != "fw/default-allow-ssh" {
 		t.Errorf("result = %+v", r)
 	}
+	// Prowler's sentence about the resource, and never the check's title, which states a pass.
+	said := "compute_firewall_ssh_access_from_the_internet_allowed FAIL on fw/default-allow-ssh"
+	if r.Message != said || r.Detail != said {
+		t.Errorf("message, detail = %q, %q, want Prowler's sentence about the resource in both", r.Message, r.Detail)
+	}
 	rule := report.Rules[r.RuleID]
 	if rule.HelpURI == "" || rule.FullDescription == "" || len(rule.Taxa) != 1 || rule.Taxa[0].ID != "3.6" || rule.Taxa[0].Version != "5.0" {
 		t.Errorf("rule = %+v", rule)
