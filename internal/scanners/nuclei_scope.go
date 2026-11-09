@@ -30,8 +30,8 @@ import (
 //
 //   - JavaScript and tcp templates choose their own ports, whatever the URL's: nucleiExcludedTypes.
 //   - Some HTTP templates name a fixed other port, or a fixed outside host, some of them carrying the
-//     target's name or a credential found on it, and some hold a JavaScript or tcp block beside their
-//     HTTP one, which the exclusion by type passes: nucleiTemplateReaches.
+//     target's name or a credential found on it, and some hold a JavaScript or tcp block that dials
+//     beside their HTTP one, which the exclusion by type passes: nucleiTemplateReaches.
 //   - Every lookup goes to Nuclei's built-in public resolvers, so any scan of a named host tells them
 //     the name: nucleiResolverFile.
 
@@ -47,11 +47,19 @@ var (
 	nucleiAtHostRE = regexp.MustCompile(`^\s*@Host:\s*(\S+)`)
 	// nucleiOutsideURLRE is a path entry naming its own scheme and host instead of the target's.
 	nucleiOutsideURLRE = regexp.MustCompile(`^https?://`)
-	// nucleiOwnPortProtoRE is a protocol block whose template chooses its own port, and
-	// nucleiOtherProtoRE any other. A template holding both is multi-protocol to Nuclei, so -ept passes
-	// it for the type it does not list, and the block that dials runs anyway.
-	nucleiOwnPortProtoRE = regexp.MustCompile(`(?m)^(?:javascript|tcp|network):`)
-	nucleiOtherProtoRE   = regexp.MustCompile(`(?m)^(?:http|requests|dns|ssl|headless|websocket|whois|file|code):`)
+	// nucleiSocketProtoRE is a protocol block that opens a connection to a port of its template's
+	// choosing, nucleiJavaScriptProtoRE one that can, and nucleiOtherProtoRE any other. A template
+	// holding one of the first two beside the last is multi-protocol to Nuclei, so -ept passes it for the
+	// type it does not list, and the block that dials runs anyway.
+	nucleiSocketProtoRE     = regexp.MustCompile(`(?m)^(?:tcp|network):`)
+	nucleiJavaScriptProtoRE = regexp.MustCompile(`(?m)^javascript:`)
+	nucleiOtherProtoRE      = regexp.MustCompile(`(?m)^(?:http|requests|dns|ssl|headless|websocket|whois|file|code):`)
+	// nucleiJavaScriptDialRE is what a JavaScript block needs to open a connection in Nuclei 3.11: a
+	// module through require, a global that dials (isPortOpen, isUDPPortOpen, and
+	// getDomainControllerName, which requires a module itself), or a port passed as an argument. A
+	// block with none of them computes on what an HTTP block already returned, as the cookie templates
+	// do, and sends nothing.
+	nucleiJavaScriptDialRE = regexp.MustCompile(`require\(|isPortOpen|isUDPPortOpen|getDomainControllerName|(?m:^\s+Port:)`)
 )
 
 // nucleiTemplateReaches reports whether a template sends a request anywhere but the URL it was given.
@@ -63,7 +71,7 @@ var (
 // A self-contained template runs no matter what the target is and reads as though it reaches
 // everywhere, but Nuclei loads none without -esc, which the scan does not pass.
 func nucleiTemplateReaches(text []byte) bool {
-	reaches, selfContained, inPath := nucleiOwnPortProtoRE.Match(text) && nucleiOtherProtoRE.Match(text), false, false
+	reaches, selfContained, inPath := nucleiDialsBesideAnotherProtocol(text), false, false
 	pathIndent := 0
 	for line := range bytes.Lines(text) {
 		s := strings.TrimRight(string(line), " \r\n")
@@ -90,6 +98,15 @@ func nucleiTemplateReaches(text []byte) bool {
 		}
 	}
 	return reaches && !selfContained
+}
+
+// nucleiDialsBesideAnotherProtocol reports whether a template holds a block that dials beside a block
+// of another protocol. A template holding only the first is what -ept leaves out.
+func nucleiDialsBesideAnotherProtocol(text []byte) bool {
+	if !nucleiOtherProtoRE.Match(text) {
+		return false
+	}
+	return nucleiSocketProtoRE.Match(text) || (nucleiJavaScriptProtoRE.Match(text) && nucleiJavaScriptDialRE.Match(text))
 }
 
 var nucleiTemplateIDRE = regexp.MustCompile(`(?m)^id:\s*(\S+)`)
