@@ -655,6 +655,12 @@ func TestTheFirstSentenceRunsPastAnAbbreviation(t *testing.T) {
 		"Fixed in 4.3.1. Upgrade.":                                                                    "Fixed in 4.3.1",
 		"No boundary at all":                                                                          "No boundary at all",
 		"Its own  set of rules. More.":                                                                "Its own set of rules",
+		"Called with a `{\n  a,\n  b,\n}` argument. More.":                                            "Called with a `{ a, b, }` argument",
+		"Called with `a. b` here. More.":                                                              "Called with `a. b` here",
+		"A stray ` backtick. More.":                                                                   "A stray ` backtick",
+		"A stray ` backtick\nand a second line.":                                                      "A stray ` backtick",
+		"One line\nAnother with `code`.":                                                              "One line",
+		"An unclosed `{\nand a closed ` at last":                                                      "An unclosed `{ and a closed ` at last",
 	} {
 		if got := firstSentence(msg); got != want {
 			t.Errorf("firstSentence(%q) = %q, want %q", msg, got, want)

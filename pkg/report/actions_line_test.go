@@ -522,3 +522,20 @@ func TestAnExportedLineActionNamesItsRulesAndItsPlace(t *testing.T) {
 		t.Errorf("the actions clear %d findings between them, want every one of %d", Cleared(got), len(merged.Results))
 	}
 }
+
+// A rule's description can be the words of its first occurrence, and a title quoting it would say the
+// wrong thing about every other line. gosec's G115 names the two types of one conversion in both its
+// message and, from the first result of the run, its rule.
+func TestALineIsTitledByItsOwnFindingNotItsRule(t *testing.T) {
+	f := codeFinding("gosec", "G115", "P1", sarif.LevelError, "auth.go:65", "integer overflow conversion int64 -> uint32")
+	f.ruleSummary = "integer overflow conversion uint64 -> int64"
+	title, summary := lineTitle([]finding{f})
+	if title != "Fix “integer overflow conversion int64 -> uint32”" || summary != "" {
+		t.Errorf("title %q, summary %q", title, summary)
+	}
+
+	f.message = ""
+	if title, _ = lineTitle([]finding{f}); title != "Fix “integer overflow conversion uint64 -> int64”" {
+		t.Errorf("with no message, the rule's description should title the line, got %q", title)
+	}
+}
