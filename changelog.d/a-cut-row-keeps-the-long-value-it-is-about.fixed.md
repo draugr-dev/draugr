@@ -1,1 +1,0 @@
-- **A cut row keeps the long value it is about.** A message like `Signed by <workflow>@<ref>, not our-ci` was cut to `Signed by…`, dropping the workflow at every ordinary terminal width. A row now keeps as much of the value as fits.

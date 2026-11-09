@@ -12,6 +12,30 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.173.0] - 2026-11-09
+
+### Changed
+
+- **A finding on one line of code says what to do.** `Fix “Errors unhandled”` now reads `Handle the returned error`, for the rules behind most of these rows. Lines taking one instruction share a row in the console and the report: `5 lines · 5 findings · release.yaml:16,21,27,32,35`. `report.json` keeps one action per line, and fingerprints do not change.
+
+- **More rows say what to change.** A row for a rule such as `missing-user` or `csp-missing` now reads `Set a non-root USER in the Dockerfile` or `Add a Content-Security-Policy header`, with the scanner's sentence beneath as the reason and the rule on its own line.
+
+### Fixed
+
+- **A cut row keeps the long value it is about.** A message like `Signed by <workflow>@<ref>, not our-ci` was cut to `Signed by…`, dropping the workflow at every ordinary terminal width. A row now keeps as much of the value as fits.
+
+- **A Trivy configuration finding says what is wrong.** The sentence Trivy wrote now prints beneath the title: `KSV-0017 · Privileged`, then `Container 'api' of Pod 'demo-api' should set 'securityContext.privileged' to false`. The HTML report shows it and its search finds it. Fingerprints do not change, so no existing finding reads as new.
+
+- **An action for one line of code quotes that line's finding.** A title could quote what the scanner said about another line, so `Fix “integer overflow conversion uint64 -> int64”` appeared on a line converting `int64` to `uint32`. A Semgrep message quoting several lines of code is no longer cut inside the code. Fingerprints do not change.
+
+- **`dast` runs the cookie checks again.** `cookies-without-secure`, `cookies-without-httponly` and three CVE templates were skipped because they hold a JavaScript block beside an HTTP request. Those blocks only compute on the HTTP response. A template whose JavaScript requires a module, checks a port or takes one as an argument stays skipped.
+
+- **`draugr explain` finds a rule by the name a row prints.** `draugr explain missing-user` was refused, though the row prints that name.
+
+- **The HTML and markdown reports say when priorities rank severity alone.** With no exposure or criticality declared, the terminal said so and a report did not, and the HTML report claimed context had moved each priority. Both now say every component is read as public and critical, and that `draugr classify` makes the priorities describe the application.
+
+- **The `kubeBench` error on k3s says what to set.** It named a key that no longer exists and pointed at `kube-bench --help`. It now names `benchmark` on the cluster's entry under `clusters:`, and lists the k3s configs kube-bench holds.
+
 ## [0.172.0] - 2026-11-09
 
 ### Changed
@@ -6965,7 +6989,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.172.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.173.0...HEAD
+[0.173.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.173.0
 [0.172.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.172.0
 [0.171.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.171.0
 [0.170.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.170.0

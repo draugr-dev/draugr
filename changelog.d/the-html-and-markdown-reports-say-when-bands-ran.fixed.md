@@ -1,1 +1,0 @@
-- **The HTML and markdown reports say when bands rank severity alone.** With no exposure or criticality declared, the terminal said so and a report did not, and the HTML report claimed context had moved each band. Both now state the same caveat.
