@@ -257,7 +257,7 @@ func TestALineWithoutADescriptionIsStillTitled(t *testing.T) {
 		f    finding
 		want string
 	}{
-		{finding{control: "sast", ruleID: "G204", location: "main.go:12"}, "Fix G204"},
+		{finding{control: "sast", ruleID: "G999", location: "main.go:12"}, "Fix G999"},
 		{finding{control: "sast", location: "main.go:12"}, "Fix main.go:12"},
 		// A finding that reports a fact is reviewed, on a line as anywhere.
 		{finding{control: "sast", ruleID: "x", location: "main.go:12", message: "Uses MD5.", score: 1, hasScore: true},
@@ -283,10 +283,10 @@ func TestATitleThatWouldBeCutNamesItsRuleOrClosesItsQuote(t *testing.T) {
 		t.Errorf("a lone rule cut short: title %q, summary %q", title, summary)
 	}
 
-	privileged := codeFinding("Semgrep OSS", "yaml.kubernetes.security.privileged-container.privileged-container",
+	unlisted := codeFinding("Semgrep OSS", "yaml.kubernetes.security.unlisted-rule.unlisted-rule",
 		"P2", sarif.LevelWarning, "deploy/pod.yaml:11",
 		"Container or pod is running in privileged mode. This grants the container the equivalent of root capabilities.")
-	title, summary = lineTitle([]finding{privileged})
+	title, summary = lineTitle([]finding{unlisted})
 	if title != "Fix “Container or pod is running in privileged mode”" || summary != "" {
 		t.Errorf("a lone rule that fits: title %q, summary %q", title, summary)
 	}
@@ -463,7 +463,7 @@ func TestTheConsoleListsALinesRules(t *testing.T) {
 	want := "" +
 		"  P1  Fix “subprocess call with shell=True identified, security issue”\n" +
 		"      Bandit: B602 · Semgrep: subprocess-injection, dangerous-subprocess-use, subprocess-shell-true\n" +
-		"      control sast · 4 findings · app/app.py:23\n"
+		"      4 findings · app/app.py:23\n"
 	if !strings.HasPrefix(b.String(), want) {
 		t.Errorf("got:\n%s\nwant it to open with:\n%s", b.String(), want)
 	}
@@ -524,18 +524,18 @@ func TestAnExportedLineActionNamesItsRulesAndItsPlace(t *testing.T) {
 }
 
 // A rule's description can be the words of its first occurrence, and a title quoting it would say the
-// wrong thing about every other line. gosec's G115 names the two types of one conversion in both its
-// message and, from the first result of the run, its rule.
+// wrong thing about every other line. gosec's taint rules name the sink in both the message and, from
+// the first result of the run, the rule.
 func TestALineIsTitledByItsOwnFindingNotItsRule(t *testing.T) {
-	f := codeFinding("gosec", "G115", "P1", sarif.LevelError, "auth.go:65", "integer overflow conversion int64 -> uint32")
-	f.ruleSummary = "integer overflow conversion uint64 -> int64"
+	f := codeFinding("gosec", "G704", "P1", sarif.LevelError, "fetch.go:65", "SSRF via taint analysis: net/http.Get")
+	f.ruleSummary = "SSRF via taint analysis: net/http.Post"
 	title, summary := lineTitle([]finding{f})
-	if title != "Fix “integer overflow conversion int64 -> uint32”" || summary != "" {
+	if title != "Fix “SSRF via taint analysis: net/http.Get”" || summary != "" {
 		t.Errorf("title %q, summary %q", title, summary)
 	}
 
 	f.message = ""
-	if title, _ = lineTitle([]finding{f}); title != "Fix “integer overflow conversion uint64 -> int64”" {
+	if title, _ = lineTitle([]finding{f}); title != "Fix “SSRF via taint analysis: net/http.Post”" {
 		t.Errorf("with no message, the rule's description should title the line, got %q", title)
 	}
 }

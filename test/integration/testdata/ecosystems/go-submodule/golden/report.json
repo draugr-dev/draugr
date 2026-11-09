@@ -21,7 +21,7 @@
         "G204"
       ],
       "severity": "high",
-      "title": "Fix “Command injection via taint analysis: os/exec.Command”",
+      "title": "Check who can set the command's arguments",
       "where": [
         "service/main.go:20"
       ]

@@ -1,0 +1,1 @@
+- **A finding on one line of code says what to do.** `Fix “Errors unhandled”` now reads `Handle the returned error`, for the rules behind most such rows. Lines taking one instruction share a row in the console and the report: `5 lines · 5 findings · release.yaml:16,21,27,32,35`. `report.json` keeps one action per line, and fingerprints do not change.

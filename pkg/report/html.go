@@ -424,6 +424,8 @@ type htmlFinding struct {
 	Priority, Severity, SevClass, Score, RuleID, Control, Tool, Component, Location, Message string
 	// Detail is the scanner's sentence about this occurrence, beneath the rule's title.
 	Detail string
+	// Instruction is what to do about the line, beneath the scanner's own words.
+	Instruction string
 	// Full is the scanner's whole message, set only where Message had to be shortened to fit a
 	// row. The row opens to it, so the list stays one line per finding and nothing a scanner said
 	// is lost to the report.
@@ -582,6 +584,14 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 			}
 		}
 	}
+	folded := foldLines(grouped)
+	for _, a := range folded {
+		for _, f := range a.findings {
+			if f.fingerprint != "" {
+				keyOf[f.fingerprint] = a.key
+			}
+		}
+	}
 	for i, f := range s.findings {
 		if k, ok := keyOf[f.fingerprint]; ok && f.fingerprint != "" {
 			view.Findings[i].ActionKey = k
@@ -589,7 +599,7 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	}
 	view.PolicyNotes = policyNotes(grouped)
 	nameComponents := actionsNameComponents(grouped)
-	for _, a := range grouped {
+	for _, a := range folded {
 		ha := toHTMLAction(a)
 		if !nameComponents {
 			ha.Component = ""
@@ -958,6 +968,7 @@ func toHTMLFinding(f finding) htmlFinding {
 		Component: dash(f.component),
 		Location:  whereShown(f.location), Message: title, Full: full, HelpURI: f.helpURI,
 		Detail:        f.detail,
+		Instruction:   findingInstruction(f),
 		Upgrade:       upgradeLabel(f),
 		Fix:           fix,
 		FixKind:       kind,
@@ -973,7 +984,7 @@ func toHTMLFinding(f finding) htmlFinding {
 		ActionKey:     actionKeyFor(f),
 		// What the row shows is what it finds.
 		Search: strings.ToLower(strings.Join(
-			[]string{f.ruleID, f.control, f.tool, f.component, f.location, f.message, f.detail, f.priority, string(sev), fix, pkgName, f.nonShipping}, " ")),
+			[]string{f.ruleID, f.control, f.tool, f.component, f.location, f.message, f.detail, findingInstruction(f), f.priority, string(sev), fix, pkgName, f.nonShipping}, " ")),
 	}
 }
 
@@ -991,9 +1002,11 @@ func actionKeyFor(f finding) string {
 
 // htmlAction is one thing to do, rendered.
 type htmlAction struct {
-	Key      string
-	Title    string
-	Summary  string
+	Key     string
+	Title   string
+	Summary string
+	// Lines is how many lines of code the row stands for, above one on a folded row.
+	Lines    int
 	Priority string
 	// Component the action belongs to, set only where the list spans more than one.
 	Component string
@@ -1019,6 +1032,10 @@ type htmlToolRules struct {
 	Rules []string
 }
 
+// htmlFoldedRoom is how much of a folded row's lines the report's fact line holds before counting the
+// rest. The row's findings button opens every one of them.
+const htmlFoldedRoom = 120
+
 // toHTMLAction renders an action the way the console renders one, so the two agree line for line.
 func toHTMLAction(a action) htmlAction {
 	title := a.title
@@ -1028,7 +1045,8 @@ func toHTMLAction(a action) htmlAction {
 		title += " → " + v
 	}
 	out := htmlAction{
-		Key: a.key, Title: title, Summary: a.summary, Priority: a.priority,
+		Lines: a.lines,
+		Key:   a.key, Title: title, Summary: a.summary, Priority: a.priority,
 		Component: a.component, Control: a.control, Policy: a.step.label(),
 		Clears: a.count(), Upstream: a.upstream, Cached: a.cached,
 	}
@@ -1038,6 +1056,9 @@ func toHTMLAction(a action) htmlAction {
 	// Not for an image action: the image is the title, and repeating it underneath says nothing.
 	if !a.upstream {
 		out.Where = strings.Join(a.where(2), " · ")
+		if a.lines > 1 {
+			out.Where = foldedPlaces(a, htmlFoldedRoom)
+		}
 	}
 	if a.step != nil && !a.step.applies {
 		out.NotApplied, out.Ecosystem = string(a.step.policy), ecosystemName(a)
@@ -2220,7 +2241,7 @@ prints each scanner's full output.</p>
       <div class="rule"><span class="name">{{.Title}}</span>{{if .Policy}} <span class="faint">{{.Policy}}</span>{{end}}</div>
       {{if .Summary}}<div class="sub">{{.Summary}}</div>{{end}}
       {{if .Rules}}<div class="sub">{{range $i, $g := .Rules}}{{if $i}}<span class="faint"> · </span>{{end}}{{if $g.Tool}}<span class="lbl">{{$g.Tool}}:</span> {{end}}{{join $g.Rules}}{{end}}</div>{{end}}
-      <div class="sub">{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}<span class="lbl">control</span> {{.Control}}<span class="faint"> · </span><button type="button" class="act-clears" data-a="{{.Key}}" data-title="{{.Title}}">{{plural .Clears "finding"}}</button>{{if .Upstream}}<span class="faint"> · </span>upstream{{end}}{{if .Cached}}<span class="faint"> · </span>from cache{{end}}{{if .Where}}<span class="faint"> · </span>{{.Where}}{{end}}</div>
+      <div class="sub">{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}<span class="lbl">control</span> {{.Control}}<span class="faint"> · </span><button type="button" class="act-clears" data-a="{{.Key}}" data-title="{{.Title}}">{{plural .Clears "finding"}}</button>{{if gt .Lines 1}}<span class="faint"> · </span>{{plural .Lines "line"}}{{end}}{{if .Upstream}}<span class="faint"> · </span>upstream{{end}}{{if .Cached}}<span class="faint"> · </span>from cache{{end}}{{if .Where}}<span class="faint"> · </span>{{.Where}}{{end}}</div>
     </div>
   </div>{{end}}
   {{template "paging"}}
@@ -2271,7 +2292,7 @@ prints each scanner's full output.</p>
    address, often a CI artifact or a file path, from reaching the advisory's host. */}}
 {{define "class"}}{{if .Assumed}}<span class="asm">{{.Value}}</span><span class="tag">assumed</span>{{else}}{{.Value}}{{end}}{{end}}
 {{define "ruleid"}}{{if .HelpURI}}<a href="{{.HelpURI}}" target="_blank" rel="noopener noreferrer">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}{{end}}
-{{define "rule"}}<span class="id">{{template "ruleid" .}}</span>{{if .Message}}<span class="said"><span class="faint"> · </span>{{.Message}}</span>{{end}}{{if .Detail}}<div class="sub">{{.Detail}}</div>{{end}}{{end}}
+{{define "rule"}}<span class="id">{{template "ruleid" .}}</span>{{if .Message}}<span class="said"><span class="faint"> · </span>{{.Message}}</span>{{end}}{{if .Detail}}<div class="sub">{{.Detail}}</div>{{end}}{{if .Instruction}}<div class="sub">{{.Instruction}}</div>{{end}}{{end}}
 {{/* Multi marks a menu whose rows each hold a set of values, space-separated, rather than one.
      Token names the menu in each token it leaves, "priority P1", where the value alone would not
      say which menu it came from; a menu whose labels are phrases leaves the phrase alone. */}}

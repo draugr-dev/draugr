@@ -16,11 +16,12 @@ Draugr's fix list answers a different question: **what should I do, and what wil
 ```
 WHAT TO DO  <n> actions clear <m> findings
 
-<list name>  <n> actions clear <m> findings
+<list name>  <n> actions [on <n> lines] clear <m> findings
   <band>  <the action>
           <the scanner's description of the rule, when the action names one>
           <each scanner and the rules it flags the line with, for a line of code>
-          component <component, when there are several> · control <control> · <n> findings ·
+          component <component, when there are several> · control <control, when there are several> ·
+          <n> lines, when a row stands for several · <n> findings ·
           <upstream, when not yours> · <where it applies> ·
           <the rule it names, and how many more it clears>
   … and <n> actions not listed
@@ -51,7 +52,8 @@ Every action is in exactly one list.
 `WHAT TO DO` counts every action and every finding across the lists. Each list shows its first
 three and ends with `… and N actions not listed`. `--top N` shows the first `N` of each list and
 `--top 0` shows every action. A list with nothing in it is left out. The MCP `fix_list` tool returns
-the same lists without the console's cut of three, and its `kind` returns one of them.
+the same lists without the console's cut of three, with each line of code as an action of its own, and
+its `kind` returns one of them.
 
 ## Rows are actions, not findings
 
@@ -75,10 +77,16 @@ three rows makes the repetitive work crowd out everything else.
 Only where the fix genuinely is one fix. Twelve benchmark checks against one cluster are twelve
 things to change, and folding them together because they share a prefix would hide eleven of them.
 
-Several rules often flag the same line. Those findings are one row, because one change clears them.
-A shell command built from request input, flagged by Bandit's B602 and three Semgrep rules, is one
-row that clears four findings. A rule that flags ten lines is ten rows, because each line is its
-own edit.
+Several rules often flag the same line, and those findings are one row. A shell command built from
+request input, flagged by Bandit's B602 and three Semgrep rules, is one row that clears four findings.
+Where the rules ask for different changes, the row names each: `Also: Use html/template if the response
+is HTML` under `Handle the returned error`.
+
+Lines that take the same instruction are one row, with a count of the lines and as many of them as
+fit: `5 lines · 5 findings · .github/workflows/release.yaml:16,21,27,32,35`. `report.json` and
+`fix_list` keep one action per line, and the heading of a list made only of lines counts both:
+`14 actions on 58 lines`. `--view findings --top 0` prints every line, and so does the report when its
+row is opened. A row stays within one band, one component and one repository.
 
 A dependency action belongs to one component and one installed version. Two components carrying
 the same library are two owners, and a second copy at another version needs its own target, so
@@ -221,9 +229,10 @@ hides work you could have done; the reverse costs a row you skip.
 | the band | the highest band among the findings this one action clears |
 | the action | what to do, naming the thing and the version in hand |
 | the summary | the scanner's description of the rule, under an action that names a rule |
-| the rules | under an action for a line of code, the rules that flag it, by scanner and starting with the rule the title quotes, and a count of those that do not fit |
+| the rules | under an action for a line of code, the rules that flag it, by scanner and starting with the rule that titles the row, and a count of those that do not fit |
 | the component | which component the action belongs to, named when the list spans more than one |
-| the control | which control the findings came from |
+| the control | which control the findings came from, named when the actions span more than one |
+| the lines | how many lines of code the row stands for, on a row standing for several |
 | the count | how many findings this action clears |
 | `upstream` | present only where the component is somebody else's to fix |
 | `major · beyond policy minor` | the size of an upgrade step and the component's [`fixes.upgrade`](../reference/saga-schema.md#configfixes) it exceeds |
@@ -243,7 +252,12 @@ clears, listed with the first and ranked by the worse band of the two. Where ver
 semantic, as a distribution's are, the action stays whole, and a line under the heading counts
 those actions by ecosystem.
 
-An action for a line of code is titled with one scanner's description of the flaw, in quotes.
+An action for a line of code is titled with Draugr's instruction for its rule, where the rule has one:
+`Handle the returned error`, for gosec's `Errors unhandled`. Where the rule cannot tell whether a line
+is wrong, the instruction says what to check or carries an `if`: `Use crypto/rand if the value must be
+unguessable`. The scanner's own words stay on the finding, and `--view findings` prints both.
+
+Any other action for a line of code is titled with one scanner's description of the flaw, in quotes.
 Draugr takes it from the finding with the worst band, then the highest severity, then the highest
 score. Among findings that rank alike, it takes the longest description that fits the title uncut,
 then the lowest rule id. The title is the same on every run. A description too long for the title
