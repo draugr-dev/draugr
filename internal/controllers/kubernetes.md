@@ -144,6 +144,10 @@ detect it from outside a node and quietly assumes an old one if left to guess; a
 when no version is supplied. Whichever it picks, the benchmark the tool reports having used is
 checked against the cluster before any finding is produced.
 
+On k3s from outside the cluster, kube-bench selects the generic benchmark rather than its k3s one, so
+the check stops the scan and names the configs to choose from. Set `benchmark` on the cluster's entry,
+such as `k3s-cis-1.9`.
+
 Set `benchmark` to pin a config directly. For OpenShift, which is identifiable only by running `oc`,
 or for any distribution Draugr does not recognize. See the [scanner doc](../scanners/kube-bench.md)
 for how the choice is made.

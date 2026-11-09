@@ -1,0 +1,1 @@
+- **The `kubeBench` error on k3s says what to set.** It named a removed key and pointed at `kube-bench --help`. It now names `benchmark` on the cluster's entry under `clusters:`, and lists the k3s configs kube-bench holds.

@@ -568,7 +568,7 @@ func TestVerifyBenchmark(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			err := verifyBenchmark(benchDoc(tc.benchmark), tc.platform)
+			err := verifyBenchmark(benchDoc(tc.benchmark), tc.platform, "")
 			if tc.wantErr && err == nil {
 				t.Fatalf("verifyBenchmark(%q, %q) = nil, want an error", tc.benchmark, tc.platform)
 			}
@@ -597,7 +597,7 @@ func TestKubeBenchWithNoControlsIsAnError(t *testing.T) {
 // the wrong standard would send the reader after the wrong problem.
 func TestVerifyBenchmarkIgnoresAnEmptyDocument(t *testing.T) {
 	t.Parallel()
-	if err := verifyBenchmark(kubeBenchDoc{}, "eks"); err != nil {
+	if err := verifyBenchmark(kubeBenchDoc{}, "eks", ""); err != nil {
 		t.Errorf("verifyBenchmark on an empty document = %v, want nil", err)
 	}
 }
@@ -853,5 +853,40 @@ func TestProviderOperatedIsOnlyClaimedWhenDeclared(t *testing.T) {
 	}
 	if undeclared.Results[0].ProviderOperated {
 		t.Error("claimed somebody else operates a cluster nobody said was managed")
+	}
+}
+
+// The error is the only place somebody learns this needs setting, so it names the key that takes the
+// value and the values there are, read from the tree kube-bench was given.
+func TestAWrongBenchmarkNamesTheSettingAndTheChoices(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	for _, name := range []string{"k3s-cis-1.8", "k3s-cis-1.9", "cis-1.12", "rke2-cis-1.8"} {
+		if err := os.Mkdir(filepath.Join(dir, name), 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(dir, "k3s-cis-notes"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err := verifyBenchmark(benchDoc("cis-1.6"), "k3s", dir)
+	if err == nil {
+		t.Fatal("want an error")
+	}
+	if !strings.Contains(err.Error(), "benchmark on the cluster's entry under clusters: k3s-cis-1.8, k3s-cis-1.9") {
+		t.Errorf("should name the setting and every k3s config and nothing else: %v", err)
+	}
+	if strings.Contains(err.Error(), "controllers.infrastructure") {
+		t.Errorf("names a key that no longer exists: %v", err)
+	}
+}
+
+func TestAWrongBenchmarkWithNoReadableTreeStillSaysWhatToLookFor(t *testing.T) {
+	t.Parallel()
+	for name, dir := range map[string]string{"no tree": "", "missing": filepath.Join(t.TempDir(), "gone"), "empty": t.TempDir()} {
+		err := verifyBenchmark(benchDoc("cis-1.6"), "k3s", dir)
+		if err == nil || !strings.Contains(err.Error(), `whose name starts with "k3s-cis-"`) {
+			t.Errorf("%s: %v", name, err)
+		}
 	}
 }
