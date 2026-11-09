@@ -25,6 +25,11 @@ func (htmlReporter) Format() string { return "html" }
 
 // htmlView is the template model: a summary plus display-ready strings.
 type htmlView struct {
+	// Unclassified says no component declares exposure or criticality, and UnclassifiedRead is the
+	// caveat's first sentence, shared with the console.
+	Unclassified     bool
+	UnclassifiedRead string
+
 	Verdict        string // "PASS" | "FAIL"
 	Pass           bool
 	Release        string
@@ -622,6 +627,9 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	// Without its own prefix: the row it sits in is labeled `gate`, and a value that names itself
 	// again says the same word twice.
 	view.Gate = strings.TrimPrefix(gateSentence(d), "Gate: ")
+	if d.Unclassified {
+		view.Unclassified, view.UnclassifiedRead = true, unclassifiedRead
+	}
 	view.Priorities = ourVocabulary([]string{"P1", "P2", "P3", "P4"}, prio)
 	view.Severities = ourVocabulary([]string{"critical", "high", "medium", "low"}, sev)
 	view.ControlNames = theirVocabulary(ctl)
@@ -2058,9 +2066,14 @@ const htmlDoc = `<!doctype html>
 </div>
 
 {{if .Prioritized}}
+{{if .Unclassified}}
+<p class="note"><strong>{{.UnclassifiedRead}}</strong> These bands rank severity alone. <code>draugr classify</code>
+makes them describe this application. <strong>P1</strong> is act now, <strong>P4</strong> is track it.</p>
+{{else}}
 <p class="note">Priority combines how severe a finding is with how exposed and how business-critical
 the component is, so the same issue ranks differently on a public API than on an internal tool.
 <strong>P1</strong> is act now, <strong>P4</strong> is track it.</p>
+{{end}}
 {{end}}
 
 {{if .Signals}}
