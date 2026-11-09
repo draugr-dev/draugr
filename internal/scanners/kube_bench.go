@@ -129,7 +129,7 @@ func (s kubeBenchScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 	if err != nil {
 		return sarif.Report{}, err
 	}
-	if err := verifyBenchmark(doc, plan.platform); err != nil {
+	if err := verifyBenchmark(doc, plan.platform, plan.configDir); err != nil {
 		return sarif.Report{}, err
 	}
 	// false: this scanner runs the policies section, which is RBAC, Pod Security and network policy,
@@ -276,6 +276,7 @@ func kubeBenchArgv(target plugin.Target, cfg plugin.Config) (kubeBenchPlan, erro
 	switch dir := stringSetting(cfg, configDirKey, ""); {
 	case dir != "":
 		argv = append(argv, "--config-dir", dir)
+		plan.configDir = dir
 	default:
 		// Point at the tree `draugr tools install` fetched, when there is one. Without this the
 		// install is useless: kube-bench searches /etc/kube-bench/cfg and its own directory, and
@@ -285,6 +286,7 @@ func kubeBenchArgv(target plugin.Target, cfg plugin.Config) (kubeBenchPlan, erro
 		// with its own cfg keeps working exactly as before, and an explicit setting always wins.
 		if provisioned := provisionedKubeBenchCfg(); provisioned != "" {
 			argv = append(argv, "--config-dir", provisioned)
+			plan.configDir = provisioned
 		}
 	}
 	plan.argv = argv
@@ -314,8 +316,9 @@ const kubeBenchCISRulePrefix = "kube-bench/cis/"
 // pinned by configuration or the cluster is vanilla, in both of those cases the benchmark is
 // already determined and there is nothing for the output check to disagree with.
 type kubeBenchPlan struct {
-	argv     []string
-	platform string
+	argv      []string
+	platform  string
+	configDir string
 }
 
 // currentKubeContext reports the kubeconfig's current context. Injectable for tests.
@@ -500,7 +503,7 @@ func platformFrom(gitVersion string) string {
 // So the input is not the guarantee. The output is. kube-bench states the benchmark it used in
 // every control it emits, and a run that used the wrong one is a failed scan rather than a
 // finding-free pass.
-func verifyBenchmark(doc kubeBenchDoc, platform string) error {
+func verifyBenchmark(doc kubeBenchDoc, platform, configDir string) error {
 	want, ok := platformBenchmarkPrefix[platform]
 	if !ok || len(doc.Controls) == 0 {
 		return nil
@@ -511,11 +514,30 @@ func verifyBenchmark(doc kubeBenchDoc, platform string) error {
 		}
 		return fmt.Errorf(
 			"kube-bench audited against %q, but this is a %s cluster and its benchmark starts with %q. "+
-				"The result would describe the wrong standard. Set controllers.infrastructure.benchmark "+
-				"to the config you want (see `kube-bench --help` for the names it ships)",
-			ctl.Version, platform, want)
+				"The result would describe the wrong standard. Set benchmark on the cluster's entry under clusters: %s",
+			ctl.Version, platform, want, benchmarkChoices(configDir, want))
 	}
 	return nil
+}
+
+// benchmarkChoices names the configs kube-bench holds for a distribution, which are the directories in
+// its config tree starting with prefix. A tree that cannot be read still leaves the prefix to go on.
+func benchmarkChoices(configDir, prefix string) string {
+	var names []string
+	if configDir != "" {
+		entries, err := os.ReadDir(configDir)
+		if err == nil {
+			for _, e := range entries {
+				if e.IsDir() && strings.HasPrefix(e.Name(), prefix) {
+					names = append(names, e.Name())
+				}
+			}
+		}
+	}
+	if len(names) == 0 {
+		return fmt.Sprintf("a config in kube-bench's cfg directory whose name starts with %q", prefix)
+	}
+	return strings.Join(names, ", ")
 }
 
 // majorMinor renders the version kube-bench maps against.
