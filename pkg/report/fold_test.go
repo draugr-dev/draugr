@@ -18,7 +18,7 @@ func lineAction(priority, component, repository, location, title string) action 
 func TestRowsSayingTheSameThingFold(t *testing.T) {
 	rows := foldLines([]action{
 		lineAction("P1", "api", "r", "a.go:3", "Handle the returned error"),
-		lineAction("P1", "api", "r", "b.go:1", "Use a parameterized query"),
+		lineAction("P1", "api", "r", "b.go:1", "Pass outside data as query parameters, not in the SQL text"),
 		lineAction("P1", "api", "r", "a.go:9", "Handle the returned error"),
 	})
 	if len(rows) != 2 {
@@ -27,7 +27,7 @@ func TestRowsSayingTheSameThingFold(t *testing.T) {
 	if rows[0].title != "Handle the returned error" || rows[0].lines != 2 || rows[0].count() != 2 {
 		t.Errorf("first row: %q, %d lines, %d findings", rows[0].title, rows[0].lines, rows[0].count())
 	}
-	if rows[1].title != "Use a parameterized query" {
+	if rows[1].title != "Pass outside data as query parameters, not in the SQL text" {
 		t.Errorf("a row should keep the place of its first line, got %q second", rows[1].title)
 	}
 }
@@ -165,7 +165,7 @@ func TestAConsoleRowSaysHowManyLinesItStandsFor(t *testing.T) {
 
 func TestRowsNameTheControlWhereAListSpansSeveral(t *testing.T) {
 	var b bytes.Buffer
-	other := lineAction("P3", "", "r", "b.go:1", "Use a parameterized query")
+	other := lineAction("P3", "", "r", "b.go:1", "Pass outside data as query parameters, not in the SQL text")
 	other.control = "iac"
 	renderActions(&b, tui.Plain(), []action{lineAction("P3", "", "r", "a.go:1", "Handle the returned error"), other}, false)
 	if !strings.Contains(b.String(), "control sast") || !strings.Contains(b.String(), "control iac") {

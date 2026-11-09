@@ -78,6 +78,51 @@ func TestExplainAcceptsTheIdAReaderRetypes(t *testing.T) {
 	}
 }
 
+// Semgrep rule ids are dotted paths, and a report prints only the last segment, so the name on a row
+// has to find the rule. A segment of digits is not a name: 4.3 stays unmatched against 4.3.1.
+func TestExplainAcceptsTheNameARowPrints(t *testing.T) {
+	id := "dockerfile.security.missing-user.missing-user"
+	dir := writeReport(t, map[string]sarif.Rule{
+		id:                     {ShortDescription: "the one"},
+		"kube-bench/cis/4.3.1": {ShortDescription: "another"},
+	}, []sarif.Result{
+		{RuleID: id, Location: sarif.Location{URI: "Dockerfile"}},
+		{RuleID: "kube-bench/cis/4.3.1", Location: sarif.Location{URI: "kubernetes/prod"}},
+	})
+	path := filepath.Join(dir, "results.sarif")
+
+	for _, query := range []string{"missing-user", "…security.missing-user.missing-user"} {
+		var out bytes.Buffer
+		if err := runExplain(&out, query, path); err != nil {
+			t.Errorf("%s: %v", query, err)
+			continue
+		}
+		if !strings.Contains(out.String(), "the one") {
+			t.Errorf("%s should find its rule:\n%s", query, out.String())
+		}
+	}
+	for _, query := range []string{"3.1", "user"} {
+		if err := runExplain(&bytes.Buffer{}, query, path); err == nil {
+			t.Errorf("%s names no rule and found one", query)
+		}
+	}
+}
+
+func TestExplainLeavesOutADescriptionThatOnlyNamesTheRule(t *testing.T) {
+	id := "dockerfile.security.missing-user.missing-user"
+	dir := writeReport(t, map[string]sarif.Rule{
+		id: {ShortDescription: "Semgrep Finding: " + id, FullDescription: "the reason"},
+	}, []sarif.Result{{RuleID: id, Location: sarif.Location{URI: "Dockerfile"}}})
+
+	var out bytes.Buffer
+	if err := runExplain(&out, "missing-user", filepath.Join(dir, "results.sarif")); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), "Semgrep Finding") || !strings.Contains(out.String(), "the reason") {
+		t.Errorf("want the reason and no filler:\n%s", out.String())
+	}
+}
+
 // TestExplainRefusesAnAmbiguousId: picking one would explain a rule the reader did not ask about,
 // and they would have no way to tell.
 func TestExplainRefusesAnAmbiguousId(t *testing.T) {

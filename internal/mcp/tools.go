@@ -1174,7 +1174,7 @@ func matchRule(rep sarif.Report, query string) (string, sarif.Rule, error) {
 	}
 	var matched []string
 	for id := range rep.Rules {
-		if strings.HasSuffix(id, "/"+query) || strings.EqualFold(id, query) {
+		if strings.HasSuffix(id, "/"+query) || strings.EqualFold(id, query) || report.NamesRule(id, query) {
 			matched = append(matched, id)
 		}
 	}

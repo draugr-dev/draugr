@@ -1,0 +1,1 @@
+- **`draugr explain` finds a rule by the name a row prints.** `draugr explain missing-user` was refused, though the row prints that name. Two instructions no longer claim a placeholder key is real, or that a query binding its values is unsafe.
