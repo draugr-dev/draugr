@@ -307,7 +307,7 @@ cmd_check() {
 			# Short enough to read as a list item. The entries that read well say what changed and
 			# stop; the long ones argue for the change or recount how it was found, which belongs in
 			# the pull request. A link counts as the one word of its text, not its URL, and the bullet is not a word.
-			words=$(sed -E 's/^- //; s/\]\([^)]*\)/]/g' "$frag" | wc -w)
+			words=$(entry_words <"$frag")
 			if [ "$words" -gt "$MAX_ENTRY_WORDS" ]; then
 				echo "  $frag: $words words, over $MAX_ENTRY_WORDS. Say what changed and stop, or split it into two entries" >&2
 				problems=1
@@ -336,6 +336,12 @@ cmd_check() {
 	echo "changelog: structure ok"
 }
 
+# entry_words counts an entry on stdin: a link is the one word of its text, not its URL, and the bullet
+# is not a word.
+entry_words() {
+	sed -E 's/^- //; s/\]\([^)]*\)/]/g' | wc -w
+}
+
 # cmd_add writes one entry as its own file, for the release to assemble.
 #
 # A file rather than a line in CHANGELOG.md, because every open pull request would otherwise edit
@@ -355,6 +361,11 @@ cmd_add() {
 	local entry
 	entry=$(cat)
 	[ -n "${entry//[[:space:]]/}" ] || die "nothing on stdin to add"
+	# Refused here as well as in check, because a fragment is often written after the last gate run,
+	# and the first thing to read it would then be CI.
+	local words
+	words=$(printf '%s\n' "$entry" | entry_words)
+	[ "$words" -le "$MAX_ENTRY_WORDS" ] || die "$words words, over $MAX_ENTRY_WORDS. Say what changed and stop, or split it into two entries"
 
 	# A name from the entry's own first bold phrase, so a directory listing reads as a list of
 	# changes rather than a list of hashes. An explicit second argument wins, for when the derived
