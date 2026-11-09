@@ -317,7 +317,7 @@ func TestACutQuotationStaysClosed(t *testing.T) {
 		{"Fix “Detected user data flowing into eval”", 80, "Fix “Detected user data flowing into eval”"},
 		{"Fix “Detected user data flowing into eval”", 30, "Fix “Detected user data flow…”"},
 		{"Fix CVE-1 “A flaw that runs long”", 20, "Fix CVE-1 “A flaw…”"},
-		{"Fix tainted-sql-string", 12, "Fix…"},
+		{"Fix tainted-sql-string", 12, "Fix tainted…"},
 		{"Fix “x”", 6, "Fix “…"},
 	} {
 		if got := elideTitle(c.title, c.width); got != c.want {

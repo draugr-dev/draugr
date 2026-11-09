@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
@@ -28,6 +29,21 @@ func TestAFindingShowsTheScannersSentenceBeneathItsTitle(t *testing.T) {
 	writeBlockHead(&plain, tui.Plain(), finding{priority: "P1", ruleID: "DS-1", message: "A title"}, 160)
 	if strings.Count(plain.String(), "\n") != 1 {
 		t.Errorf("a finding with no sentence took a second line: %q", plain.String())
+	}
+}
+
+// A message holding one long token keeps as much of the token as fits, because the token is usually
+// what the message is there to say.
+func TestElideKeepsALongTokenRatherThanTheWordsBeforeIt(t *testing.T) {
+	msg := "Signed by chainguard-images/images/.github/workflows/release.yaml@refs/heads/main, not our-ci."
+	if got, want := elide(msg, 40), "Signed by chainguard-images/images/.git…"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	if got, want := elide("a short sentence with several ordinary words in it", 30), "a short sentence with…"; got != want {
+		t.Errorf("a boundary late in the line is still where it cuts: got %q, want %q", got, want)
+	}
+	if got := elide("Signé par ééééééééééééééééééééééééééééééééééééééééééé", 20); !utf8.ValidString(got) {
+		t.Errorf("cut inside a character: %q", got)
 	}
 }
 

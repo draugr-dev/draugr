@@ -2725,7 +2725,10 @@ func elideFront(msg string, width int) string {
 //
 // Cutting mid-word leaves a fragment that reads as a different word, a truncated identifier or
 // version looks like a real one, and a reader cannot tell which they are looking at. Where the line
-// is a single long token there is no boundary to find, and cutting it is the only option.
+// is a single long token there is no boundary to find, and cutting it is the only option. The same
+// holds where the last boundary falls in the first half of the line: "Signed by a/b/c.yml@refs/heads/main"
+// would keep "Signed by" and lose the thing it says, which is worse than a cut identifier ending in a
+// mark that says it was cut.
 func elide(msg string, width int) string {
 	if width <= 1 {
 		return "…"
@@ -2736,8 +2739,11 @@ func elide(msg string, width int) string {
 		return msg
 	}
 	cut := strings.LastIndex(msg[:width-1], " ")
-	if cut <= 0 {
+	if cut < (width-1)/2 {
 		cut = width - 1
+		for cut > 0 && !utf8.RuneStart(msg[cut]) {
+			cut--
+		}
 	}
 	return strings.TrimSpace(msg[:cut]) + "…"
 }
