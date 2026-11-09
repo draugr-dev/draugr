@@ -49,6 +49,7 @@
           "properties": {
             "component": "iac",
             "control": "iac",
+            "detail": "Specify at least 1 USER command in Dockerfile with non-root user as argument",
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./iac",
@@ -81,6 +82,7 @@
           "properties": {
             "component": "iac",
             "control": "iac",
+            "detail": "Deployment 'app' should not set 'spec.template.spec.hostNetwork' to true",
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./iac",
@@ -113,6 +115,7 @@
           "properties": {
             "component": "iac",
             "control": "iac",
+            "detail": "Container 'app' of Deployment 'app' should set 'securityContext.privileged' to false",
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./iac",
@@ -145,6 +148,7 @@
           "properties": {
             "component": "iac",
             "control": "iac",
+            "detail": "Security group rule allows unrestricted ingress from any IP address.",
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./iac",
@@ -177,6 +181,7 @@
           "properties": {
             "component": "iac",
             "control": "iac",
+            "detail": "Add HEALTHCHECK instruction in your Dockerfile",
             "fingerprint": "<cleared>",
             "priority": "P3",
             "repository": "./iac",
@@ -209,6 +214,7 @@
           "properties": {
             "component": "iac",
             "control": "iac",
+            "detail": "Container app in deployment app (namespace: null) uses an image from an untrusted registry.",
             "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./iac",
@@ -241,6 +247,7 @@
           "properties": {
             "component": "iac",
             "control": "iac",
+            "detail": "Container app in deployment app (namespace: app) uses an image from an untrusted registry.",
             "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./iac",

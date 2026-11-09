@@ -112,6 +112,17 @@ Two exclusions leave no record: an inline `#trivy:ignore:<id>` comment, which Tr
 every output format, and any exclusion on a Trivy older than 0.53.0.
 [`config.exclude`](../../docs/reference/saga-schema.md#configexclude) keeps the finding and its reason.
 
+## Sentence
+
+Beneath each finding's title, Draugr prints the sentence Trivy wrote for it, naming the object and the setting:
+
+```
+KSV-0017 · Privileged
+Container 'api' of Pod 'demo-api' should set 'securityContext.privileged' to false
+```
+
+An action covering several findings shows the first sentence and how many others differ, as `· +2 more`. A sentence too long for the line keeps its end, where the setting is.
+
 ## Links
 
 - Trivy misconfiguration scanning: https://trivy.dev/latest/docs/scanner/misconfiguration/

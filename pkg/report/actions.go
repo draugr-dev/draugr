@@ -977,6 +977,9 @@ const informationalBelow = 2
 // occurrence. The first finding's message otherwise, and only when every finding's says the same:
 // "Certificate expires in 27 day(s)" is true of one host and false of the next.
 func summaryFor(a action) string {
+	if s := occurrenceSummary(a); s != "" {
+		return s
+	}
 	if len(a.findings) == 0 || strings.Contains(a.title, "“") {
 		return ""
 	}
@@ -990,6 +993,25 @@ func summaryFor(a action) string {
 		return ""
 	}
 	return sum
+}
+
+// occurrenceSummary is the line under an action whose findings carry the scanner's own sentence: the
+// first of them, and how many more say something else. The same sentence on two components is one
+// change to one file, so it counts once.
+func occurrenceSummary(a action) string {
+	if len(a.findings) == 0 || a.findings[0].detail == "" {
+		return ""
+	}
+	first, others := a.findings[0].detail, map[string]bool{}
+	for _, f := range a.findings[1:] {
+		if f.detail != "" && f.detail != first {
+			others[f.detail] = true
+		}
+	}
+	if len(others) > 0 {
+		return first + " · +" + strconv.Itoa(len(others)) + " more"
+	}
+	return first
 }
 
 // describe is what a finding's rule is about, in one sentence.

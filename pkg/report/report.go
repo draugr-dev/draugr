@@ -718,6 +718,8 @@ func automationSegment(s string) string { return strings.ReplaceAll(s, "/", "-")
 // --- shared summary used by the human reporters ---
 
 type finding struct {
+	// detail is the scanner's sentence about this occurrence, where the message is the rule's title.
+	detail                                             string
 	control, ruleID, tool, priority, location, message string
 	// fingerprint identifies the finding across runs.
 	fingerprint string
@@ -1025,6 +1027,7 @@ func findingOf(control string, rep sarif.Report, res sarif.Result) finding {
 		upgradePolicy:   res.UpgradePolicy,
 		image:           res.Image,
 		ruleSummary:     rep.Rules[res.RuleID].ShortDescription,
+		detail:          res.Detail,
 	}
 }
 

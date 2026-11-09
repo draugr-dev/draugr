@@ -20,6 +20,7 @@
         "DS-0002"
       ],
       "severity": "high",
+      "summary": "Specify at least 1 USER command in Dockerfile with non-root user as argument",
       "title": "Fix DS-0002 “Image user should not be 'root'”",
       "where": [
         "Dockerfile:1"
@@ -45,6 +46,7 @@
         "KSV-0009"
       ],
       "severity": "high",
+      "summary": "Deployment 'app' should not set 'spec.template.spec.hostNetwork' to true",
       "title": "Fix KSV-0009 “Access to host network”",
       "where": [
         "deploy/chart/templates/deployment.yaml:7"
@@ -70,6 +72,7 @@
         "KSV-0017"
       ],
       "severity": "high",
+      "summary": "Container 'app' of Deployment 'app' should set 'securityContext.privileged' to false",
       "title": "Fix KSV-0017 “Privileged”",
       "where": [
         "deploy/k8s/deployment.yaml:24"
@@ -95,6 +98,7 @@
         "AWS-0107"
       ],
       "severity": "high",
+      "summary": "Security group rule allows unrestricted ingress from any IP address.",
       "title": "Fix AWS-0107 “Security groups should not allow unrestricted ingress to…”",
       "where": [
         "deploy/terraform/main.tf:10"
@@ -126,6 +130,7 @@
         "KSV-0125"
       ],
       "severity": "medium",
+      "summary": "Container app in deployment app (namespace: null) uses an image from an untrusted registry. · +1 more",
       "title": "Fix KSV-0125 “Restrict container images to trusted registries”",
       "where": [
         "deploy/chart/templates/deployment.yaml:26",
@@ -152,6 +157,7 @@
         "DS-0026"
       ],
       "severity": "low",
+      "summary": "Add HEALTHCHECK instruction in your Dockerfile",
       "title": "Fix DS-0026 “No HEALTHCHECK defined”",
       "where": [
         "Dockerfile:1"

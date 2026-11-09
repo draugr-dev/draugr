@@ -49,6 +49,7 @@
           "properties": {
             "component": "acme",
             "control": "iac",
+            "detail": "The base image alpine:3.19 is not from registry.acme.example.",
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./options-trivy-config",
@@ -81,6 +82,7 @@
           "properties": {
             "component": "derived",
             "control": "iac",
+            "detail": "The base image alpine:3.19 is not from registry.acme.example.",
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./options-trivy-config",
@@ -113,6 +115,7 @@
           "properties": {
             "component": "trivyignore",
             "control": "iac",
+            "detail": "Specify at least 1 USER command in Dockerfile with non-root user as argument",
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./options-trivy-config",
@@ -154,6 +157,7 @@
           "properties": {
             "component": "derived",
             "control": "iac",
+            "detail": "The image has no maintainer label.",
             "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-trivy-config",
@@ -186,6 +190,7 @@
           "properties": {
             "component": "user",
             "control": "iac",
+            "detail": "The image has no maintainer label.",
             "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-trivy-config",
