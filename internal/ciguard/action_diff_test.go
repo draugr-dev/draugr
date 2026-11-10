@@ -394,3 +394,37 @@ func TestTheActionPublishesFromTheBaseRepository(t *testing.T) {
 		t.Errorf("the base repository's diff was treated as a fork's:\n%s\n%s", out, diffs)
 	}
 }
+
+// A pull request is a fork's when its head repository is not the base repository. head.repo.fork
+// is true for a pull request between two branches of a repository that is itself a fork, whose token
+// can post the comment and whose runs are the repository's own, so neither the comment nor the
+// cache may key on it.
+func TestTheActionTreatsOnlyAnotherRepositoryAsAFork(t *testing.T) {
+	t.Parallel()
+	raw, err := os.ReadFile("../../action.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = "github.event.pull_request.head.repo.full_name != github.repository"
+	set := 0
+	for i, line := range strings.Split(string(raw), "\n") {
+		code := strings.TrimSpace(line)
+		if strings.HasPrefix(code, "#") {
+			continue
+		}
+		if strings.Contains(code, "head.repo.fork") {
+			t.Errorf("action.yml:%d keys on head.repo.fork: %s", i+1, code)
+		}
+		for _, name := range []string{"FORK_PR:", "CACHE_READ_ONLY:"} {
+			if strings.HasPrefix(code, name) {
+				set++
+				if !strings.Contains(code, want) {
+					t.Errorf("action.yml:%d sets %s without %q: %s", i+1, strings.TrimSuffix(name, ":"), want, code)
+				}
+			}
+		}
+	}
+	if set == 0 {
+		t.Error("action.yml sets neither FORK_PR nor CACHE_READ_ONLY, so this test checks nothing")
+	}
+}

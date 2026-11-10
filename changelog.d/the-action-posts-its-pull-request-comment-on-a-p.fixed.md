@@ -1,0 +1,1 @@
+- **The Action posts its pull-request comment on a pull request between two branches of a forked repository.** It treated every pull request inside a fork as coming from another repository, so it left the comment off, though the token could post it, and read the cache without writing it.
