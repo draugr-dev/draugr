@@ -50,6 +50,10 @@ memory. `paths` and `ignore` lower neither: Draugr drops a history finding outsi
 scope only after Gitleaks has reported it. Leave `history` off where the machine lacks that memory
 or the time.
 
+When the history pass does not finish, the tree pass's findings are still reported and the `secrets`
+control is in error, naming the repository. If the kernel kills Draugr itself rather than Gitleaks,
+the run ends with no report.
+
 `history: true` adds a second `gitleaks git` pass alongside the `gitleaks dir` pass, **and**
 switches the checkout from a shallow clone to a full one. Both, together: `gitleaks git` over a
 shallow clone walks a single commit and reports clean, which is indistinguishable from a repository

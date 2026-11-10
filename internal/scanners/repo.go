@@ -334,22 +334,29 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		// and the report what it did.
 		report.Inputs = append(report.Inputs, inputs...)
 	}
+	// A history pass that fails leaves the tree pass's findings standing: they read the checkout,
+	// which the history pass does not change. The scan is partial rather than lost.
+	var historyErr error
 	if s.historyArgs != nil {
 		if argv := s.historyArgs(dir, cfg); len(argv) > 0 {
 			hist, err := s.runReporting(ctx, dir, argv)
-			if err != nil {
-				return sarif.Report{}, fmt.Errorf("run %s over history: %w", s.info.Name, err)
+			switch {
+			case err != nil && ctx.Err() != nil:
+				return sarif.Report{}, fmt.Errorf("run %s over the history of %s: %w", s.info.Name, repo.Source(), err)
+			case err != nil:
+				historyErr = historyFailed(s.info.Name, repo.Source(), err)
+			default:
+				histReport, err := s.decode(hist, dir, cfg)
+				if err != nil {
+					return sarif.Report{}, err
+				}
+				if s.secrets != nil {
+					histReport.Results = dropStillInTree(dir,
+						report.Results, s.secrets(out), histReport.Results, s.secrets(hist))
+				}
+				histReport.Results = scopeHistory(histReport.Results, dir, scope)
+				report = sarif.Merge(report, histReport)
 			}
-			histReport, err := s.decode(hist, dir, cfg)
-			if err != nil {
-				return sarif.Report{}, err
-			}
-			if s.secrets != nil {
-				histReport.Results = dropStillInTree(dir,
-					report.Results, s.secrets(out), histReport.Results, s.secrets(hist))
-			}
-			histReport.Results = scopeHistory(histReport.Results, dir, scope)
-			report = sarif.Merge(report, histReport)
 		}
 	}
 	if report.Tool == "" {
@@ -389,10 +396,28 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	markPomScopes(report.Results, dir)
 	markOwnPackages(report.Results, dir)
 	report.Provenance = append(report.Provenance, repoProvenance(s.info.Name, repo.Source(), tree))
-	if partial {
+	switch {
+	case partial && historyErr != nil:
+		return report, &plugin.PartialScanError{Report: report,
+			Err: errors.Join(fmt.Errorf("run %s %w", s.info.Name, failures), historyErr)}
+	case partial:
 		return report, &plugin.PartialScanError{Report: report, Err: fmt.Errorf("run %s %w", s.info.Name, failures)}
+	case historyErr != nil:
+		return report, &plugin.PartialScanError{Report: report, Err: historyErr}
 	}
 	return report, nil
+}
+
+// historyFailed is the error of a history pass that did not finish, naming the repository and the
+// pass. A tool the kernel killed most often ran out of memory, which on a history pass grows with
+// the history, so the error says what lowers it before what was kept.
+func historyFailed(scanner, repository string, err error) error {
+	advice := ""
+	if errors.Is(err, toolexec.ErrKilled) {
+		advice = " Run the scan on a machine with more memory, or set `history: false`."
+	}
+	return fmt.Errorf("run %s over the history of %s: %w.%s Findings in the checkout are reported; "+
+		"findings only in its history were not read", scanner, repository, err, advice)
 }
 
 // moduleFailures is the error a per-module parser returns for the modules whose runs failed, beside
