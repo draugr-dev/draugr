@@ -43,6 +43,13 @@ config:
 | `config` | Path to a Gitleaks TOML rules file, for a ruleset shared across repositories. It replaces a repository's own `.gitleaks.toml`; Draugr's own rules are still added. See [Repository rules](#repository-rules). |
 | `history` | Scan the commit history as well as the tree. Off by default. |
 
+**What it costs.** A history scan clones the whole repository with every branch and tag, and takes
+several times as long as a tree scan, more on a long history. On a repository that commits large
+data many times, such as test fixtures re-committed across versions, it can need tens of GB of
+memory. `paths` and `ignore` lower neither: Draugr drops a history finding outside the component's
+scope only after Gitleaks has reported it. Leave `history` off where the machine lacks that memory
+or the time.
+
 `history: true` adds a second `gitleaks git` pass alongside the `gitleaks dir` pass, **and**
 switches the checkout from a shallow clone to a full one. Both, together: `gitleaks git` over a
 shallow clone walks a single commit and reports clean, which is indistinguishable from a repository

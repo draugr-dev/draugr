@@ -26,8 +26,10 @@ config:
         history: true
 ```
 
-That adds a second pass over the commit history, and switches the clone to a full one, slower on a
-large repository, which is why it is opt-in. The clone and the pass are decided together on
+That adds a second pass over the commit history and switches the clone to a full one. The scan
+takes several times as long as a tree scan and, on a repository that commits large data many times,
+can need tens of GB of memory, which is why it is opt-in. [The Gitleaks page](../scanners/gitleaks.md#saga-options)
+has the details. The clone and the pass are decided together on
 purpose: `gitleaks git` over a shallow clone walks a single commit and reports clean, which reads
 exactly like a repository whose history is genuinely empty.
 
