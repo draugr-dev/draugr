@@ -248,9 +248,39 @@ config:
 That is the more accurate thing to write in any case: it excuses the *check*, rather than one
 tool's opinion of it.
 
-Everything is reported at **warning**. That matches the benchmark: no check in this section is
-scored, so none of them can say a cluster is out of compliance. They say it needs looking at. The
-scored checks are in sections 1–4, which need [`kube-bench-job`](kube-bench-job.md).
+### Severity
+
+No check in this section is scored by the benchmark, so the severity comes from the
+[Pod Security Standards](https://kubernetes.io/docs/concepts/security/pod-security-standards/):
+
+| Severity | Checks |
+|---|---|
+| high | what the **Baseline** profile forbids: `5.2.2` privileged, `5.2.3` host PID, `5.2.4` host IPC, `5.2.5` host network, `5.2.10` Windows HostProcess, `5.2.11` hostPath volumes, `5.2.12` host ports; and `5.1.1`, a binding to `cluster-admin` |
+| medium | every other decided check, and every check that needs manual review |
+
+The scored checks of the benchmark are in sections 1–4, which [`kube-bench-job`](kube-bench-job.md)
+reads.
+
+With no exposure or criticality declared, a high finding is P1, so a privileged pod or a host mount
+fails the default gate.
+
+### Ownership
+
+A new cluster fails several of these checks with objects its distribution installed, such as
+`kube-proxy` on kind. Each check is one row: your objects first, then `the distribution's:` objects.
+A check only the distribution's objects fail is **low**, so it appears in the report without failing
+the gate. On a kind cluster with a `ClusterRoleBinding` named `superadmin` to `cluster-admin`:
+
+```
+draugr/cis/5.1.1 · bound to cluster-admin: superadmin; the distribution's: bound to cluster-admin: kubeadm:cluster-admins
+```
+
+An object is the distribution's when it is a pod in `kube-system`, or an RBAC object Kubernetes
+labels as one of its defaults (`kubernetes.io/bootstrapping: rbac-defaults`) or names with a prefix
+Kubernetes or kubeadm reserves, `system:` or `kubeadm:`. `kube-system` is a stand-in for the
+distribution's own pods. A workload you install there is listed after `the distribution's:`, and a
+check that only such objects fail is low, so look through that part of the row for anything you put
+there.
 
 A decided check that passes produces no finding, for the same reason a clean dependency does not.
 
