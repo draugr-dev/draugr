@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -447,12 +448,29 @@ func TestZeroConfigScanReportsAScannerItCannotRunAsACaveat(t *testing.T) {
 				}
 			}
 		case "json":
-			// The document a pipeline parses carries what it always carried: a caveat no gate fails
-			// on is not in it.
-			for _, absent := range []string{"read from the tree", "needs Go"} {
-				if strings.Contains(got, absent) {
-					t.Errorf("report.json gained %q:\n%s", absent, got)
+			// The document a pipeline parses lists both caveats with every module's path, whether or
+			// not a gate fails on them. What the run read from the tree is the console's, not a caveat.
+			if strings.Contains(got, "read from the tree") {
+				t.Errorf("report.json gained FOUND:\n%s", got)
+			}
+			var doc struct {
+				NotChecked []struct {
+					What, Reason string
+					Paths        []string
+				} `json:"notChecked"`
+			}
+			if err := json.Unmarshal([]byte(got), &doc); err != nil {
+				t.Fatal(err)
+			}
+			var reasons []string
+			for _, c := range doc.NotChecked {
+				reasons = append(reasons, c.Reason)
+				if c.What != modules || !slices.Equal(c.Paths, []string{"checkout/go.mod", "tools/go.mod"}) {
+					t.Errorf("a not-checked caveat in report.json = %+v", c)
 				}
+			}
+			if !slices.Equal(reasons, []string{"gosec needs Go", "govulncheck needs Go"}) {
+				t.Errorf("report.json's notChecked reasons = %q", reasons)
 			}
 		}
 	}

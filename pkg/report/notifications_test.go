@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -344,10 +345,8 @@ func TestEachKindIsCutOnItsOwn(t *testing.T) {
 		files.Message.Text != "3 unread-files caveats left out of this file · report.json lists every one" {
 		t.Errorf("unread-files rollup = %+v", files)
 	}
-	// report.json does not list a not-checked caveat the gate does not fail on, so this one does not
-	// send a reader there.
 	if checked.Properties.LeftOut != 1 || checked.Level != "warning" ||
-		checked.Message.Text != "1 not-checked caveat left out of this file · draugr scan --top 0 lists every one" {
+		checked.Message.Text != "1 not-checked caveat left out of this file · report.json lists every one" {
 		t.Errorf("not-checked rollup = %+v", checked)
 	}
 }
@@ -368,39 +367,135 @@ func TestScanErrorsAreCut(t *testing.T) {
 	}
 }
 
-// listedIn sends a reader to report.json for a kind only where report.json holds it. The two kinds it
-// does not carry unless the gate fails on them are held to that here, so carrying them later fails
-// this rather than leaving the rollup pointing a reader away from the file that lists them.
-func TestListedInMatchesReportJSON(t *testing.T) {
-	d := everyCaveatData()
-	d.FailOnCaveats = nil
-	d.Components[1].FailedCaveats = nil
-	d.Run.ScanErrors = map[string][]string{"sca": {"trivy: not found"}}
-	doc := renderWith(t, jsonReporter{}, d)
-	for _, tc := range []struct {
-		kind, what string
-		listed     bool
-	}{
-		{scanErrorKind, "trivy: not found", true},
-		{"not-measured", "kube-bench", true},
-		{"unread-files", "package.json", true},
-		{"unread-checks", "compute_instance_public_ip", true},
-		{"not-checked", "checkout/go.mod", false},
-		{"unbound-imports", "reports/review.sarif", false},
-	} {
-		if got := strings.Contains(doc, tc.what); got != tc.listed {
-			t.Errorf("report.json holding %s's %q: %v, want %v", tc.kind, tc.what, got, tc.listed)
-		}
-		if got := listedIn(d, tc.kind) == "report.json"; got != tc.listed {
-			t.Errorf("listedIn(%s) = %q, want report.json: %v", tc.kind, listedIn(d, tc.kind), tc.listed)
+// caveatDoc is report.json's caveat fields, parsed the way a pipeline reading them would.
+type caveatDoc struct {
+	NotChecked []struct {
+		Component, What, Reason string
+		Controls, Paths         []string
+	} `json:"notChecked"`
+	NotMeasured []struct {
+		Component, Scanner, Reason string
+	} `json:"notMeasured"`
+	DependencyFiles []struct {
+		Component string
+		Unread    []struct{ Path, Reason string }
+	} `json:"dependencyFiles"`
+	UnreadChecks []struct {
+		Component, Service, Reason string
+	} `json:"unreadChecks"`
+	UnboundImports []struct {
+		Component, File, Reason string
+		Controls                []string
+	} `json:"unboundImports"`
+	FailedCaveats []FailedCaveat `json:"failedCaveats"`
+}
+
+// listed is each caveat the document holds in the field of its kind, as `kind component what`.
+func (doc caveatDoc) listed() []string {
+	var out []string
+	for _, c := range doc.NotChecked {
+		out = append(out, "not-checked "+c.Component+" "+c.What)
+	}
+	for _, c := range doc.NotMeasured {
+		out = append(out, "not-measured "+c.Component+" "+c.Scanner)
+	}
+	for _, g := range doc.DependencyFiles {
+		for _, u := range g.Unread {
+			out = append(out, "unread-files "+g.Component+" "+u.Path)
 		}
 	}
-	// Failing the gate, both are under failedCaveats.
-	d = everyCaveatData()
-	d.FailOnCaveats = []saga.CaveatKind{saga.CaveatNotChecked, saga.CaveatUnboundImports}
-	if !strings.Contains(renderWith(t, jsonReporter{}, d), "reports/review.sarif") ||
-		listedIn(d, "unbound-imports") != "report.json" || listedIn(d, "not-checked") != "report.json" {
-		t.Error("a kind the gate fails on is in report.json's failedCaveats, and listedIn should say so")
+	for _, c := range doc.UnreadChecks {
+		out = append(out, "unread-checks "+c.Component+" "+c.Service)
+	}
+	for _, c := range doc.UnboundImports {
+		out = append(out, "unbound-imports "+c.Component+" "+c.File)
+	}
+	return out
+}
+
+func decodeCaveats(t *testing.T, d Data) caveatDoc {
+	t.Helper()
+	var doc caveatDoc
+	if err := json.Unmarshal([]byte(renderWith(t, jsonReporter{}, d)), &doc); err != nil {
+		t.Fatal(err)
+	}
+	return doc
+}
+
+// A SARIF file past its limit sends a reader to report.json for the rest of a kind, so report.json
+// lists every caveat of every kind, in the field of its kind, whatever the gate does with it. A kind
+// listed only where the gate fails on it would be missing from the file the rollup names.
+func TestListedInMatchesReportJSON(t *testing.T) {
+	for _, gate := range [][]saga.CaveatKind{nil, saga.CaveatKinds} {
+		d := everyCaveatData()
+		d.FailOnCaveats = gate
+		doc := decodeCaveats(t, d)
+		got := doc.listed()
+		for _, c := range everyCaveat {
+			if want := c.kind + " " + c.component + " " + c.what; !slices.Contains(got, want) {
+				t.Errorf("gate %v: report.json does not list %q in its own field: %v", gate, want, got)
+			}
+		}
+		if len(got) != len(everyCaveat) {
+			t.Errorf("gate %v: report.json lists %d caveats, want %d: %v", gate, len(got), len(everyCaveat), got)
+		}
+		if len(doc.FailedCaveats) != len(FailedCaveats(d)) {
+			t.Errorf("gate %v: failedCaveats = %+v", gate, doc.FailedCaveats)
+		}
+	}
+
+	// Each entry carries what a pipeline needs to act on it: the controls that are off for a surface,
+	// every path for files, and the controls that read an import, with the reason the console prints.
+	doc := decodeCaveats(t, everyCaveatData())
+	if len(doc.NotChecked) != 2 || len(doc.UnboundImports) != 1 {
+		t.Fatalf("notChecked = %+v, unboundImports = %+v", doc.NotChecked, doc.UnboundImports)
+	}
+	surface, files, imported := doc.NotChecked[0], doc.NotChecked[1], doc.UnboundImports[0]
+	if surface.Component != "edge" || surface.What != "hosts" || surface.Reason != "controls off: dast, headers, tls" ||
+		!slices.Equal(surface.Controls, []string{"dast", "headers", "tls"}) || surface.Paths != nil {
+		t.Errorf("a surface no control examined = %+v", surface)
+	}
+	if files.Component != "ledger" || files.What != "checkout/go.mod" || files.Reason != "govulncheck needs Go" ||
+		!slices.Equal(files.Paths, []string{"checkout/go.mod"}) || files.Controls != nil {
+		t.Errorf("files no scanner could examine = %+v", files)
+	}
+	if imported.Component != "ledger" || imported.File != "reports/review.sarif" ||
+		imported.Reason != "names no commit, so nothing ties its findings to this code" ||
+		!slices.Equal(imported.Controls, []string{"sca"}) {
+		t.Errorf("an unbound import = %+v", imported)
+	}
+}
+
+// Past the limit, a kind no gate fails on closes by naming report.json too, which lists every one of
+// them. The two kinds the engine's result does not hold are the ones a rollup could name wrongly.
+func TestTheRollupOfEveryKindNamesReportJSON(t *testing.T) {
+	const n = notificationsPerKind + 1
+	d := Data{Uncovered: make([]Gap, n), Run: engine.Result{Controls: map[string]plugin.ControlResult{}}}
+	var imports []sarif.Provenance
+	for i := range n {
+		d.Uncovered[i] = Gap{Component: fmt.Sprintf("c%03d", i), Surface: "hosts", Controls: []string{"tls"}}
+		imports = append(imports, sarif.Provenance{Tool: plugin.ImportScanner, Fields: []sarif.Field{
+			{Key: "file", Value: fmt.Sprintf("reports/%03d.sarif", i)}, {Key: "commit", Value: "not stated"},
+			{Key: "component", Value: "app"}}})
+	}
+	d.Run.Controls["sca"] = plugin.ControlResult{Control: "sca", Report: sarif.Report{Provenance: imports}}
+
+	_, ns := written(t, d)
+	rollups := map[string]string{}
+	for _, note := range ns {
+		if note.Properties.LeftOut > 0 {
+			rollups[note.Descriptor.ID] = note.Message.Text
+		}
+	}
+	for _, kind := range []string{"not-checked", "unbound-imports"} {
+		if want := "1 " + kind + " caveat left out of this file · report.json lists every one"; rollups[kind] != want {
+			t.Errorf("%s rollup = %q, want %q", kind, rollups[kind], want)
+		}
+	}
+	doc := decodeCaveats(t, d)
+	if len(doc.NotChecked) != n || len(doc.UnboundImports) != n {
+		t.Errorf("report.json lists %d not-checked and %d unbound-imports caveats, want %d of each",
+			len(doc.NotChecked), len(doc.UnboundImports), n)
 	}
 }
 

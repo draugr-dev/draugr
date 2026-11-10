@@ -26,8 +26,10 @@ pipeline should do about it. One is broken infrastructure, the other is work.
 | `unreadChecks[]` | per component, control and service, the checks a scan could not evaluate because a read they need was denied: `component`, `control`, `service`, `checks[]` and `reason`, such as `denied compute.instances.list`. A check in `checks[]` is not among the findings whatever the tool reported for it. On AWS, `partlyRead[]` lists the checks of the service that passed or failed on the reads they were allowed: their findings are in the report, and they are not counted as decided. Omitted when every check could be evaluated. |
 | `policy` | the organization's policy, checked before the scan against the `draugr-api` server the descriptor publishes to: `server`; `checked`, and where it could not ask, `reason`; the `version` judged against; the `outcome`, `none`, `fail` or `refuse`; and `verdicts[]`, each with `rule`, `profile`, `state`, `items[]` of `field`, `found`, `constraint` and `expected` (and, on a descriptor's exclusion an approver declined, `request` and, where the server knows the console's address, `requestUrl`), and the setting's `mode`, `enforceFrom`, `response` and `acts`. Absent where the descriptor publishes to no `draugr-api` server and `DRAUGR_API_URL` is unset; with it set, present with `checked: false`. |
 | `policy.run` | the servers' verdict on the published run, its findings included, in the same shape as `policy`. `pending: true` where a rule was still undecided when `--policy-wait` ended; `checked: false` with the status as `reason` where the server answered `401`, `404` or a `5xx`. Absent where the run was published to no server that judges policy |
-| `failedCaveats[]` | the caveats of a kind [`gate.failOnCaveats`](saga-schema.md#configgate) lists, which fail the run as an error does: `component`, `what`, `kind` and `detail`. `gate.failOnCaveats` names the kinds. With `--allow-scan-errors` they are listed and the run passes |
+| `failedCaveats[]` | the caveats of a kind [`gate.failOnCaveats`](saga-schema.md#configgate) lists, which fail the run as an error does: `component`, `what`, `kind` and `detail`. `gate.failOnCaveats` names the kinds. With `--allow-scan-errors` they are listed and the run passes. Each is also in the field of its kind |
+| `notChecked[]` | a `not-checked` caveat: a surface the descriptor declares whose every control is off, with `what` the surface, such as `hosts`, and `controls[]` the controls that are off; or, on a run with no descriptor, files that call for a scanner this machine cannot run, with `what` the files and `paths[]` each of them. Each entry also carries `component`, and `reason` in the report's words, such as `controls off: dast, headers, tls` or `govulncheck needs Go`. Listed whether or not the gate fails on it. |
 | `notMeasured[]` | a scanner that was planned and then not run because it could not answer the question its target asked, the control, scanner, component and reason. Not an error: nothing went wrong, and no `scanErrors` are recorded for it. |
+| `unboundImports[]` | an `unbound-imports` caveat: an imported SARIF file that names no commit, with `component`, `file`, `controls[]`, the controls that read it, and `reason`. Its findings are in the report, and nothing in the file ties them to the code this run scanned. Listed whether or not the gate fails on it. |
 | `scanners[].failed[]` | each job of that scanner that returned an error, with `control`, `component`, `kind`, `target` and `detail`. `kind` and `target` name the target as `targets[]` does, and `detail` is the error as `controls[].scanErrors` carries it. A scanner whose every job failed is still in `scanners[]`, with the version it reported; a scanner the descriptor did not configure is absent. |
 | `dependencyFiles[]` | per component and control, what the scanners that list their inputs read (`read`, a count), what none of them read (`unread[]`: `repository`, `path` and `reason`), and what one of them missed of a file another read (`missed[]`). |
 | `dependencyFiles[].unread[]`, a dependency file | a dependency file no scanner read packages from. A reason is `no lockfile`, `no pinned versions`, `no packages read`, or `not parsed:` followed by the parser's error, as Trivy logs it. The packages the file declares were not checked. |
@@ -41,7 +43,7 @@ pipeline should do about it. One is broken infrastructure, the other is work.
 | `dependencyFiles[].unread[]`, a `pom.xml` read in part | a `pom.xml` Trivy left dependencies of unchecked, because it ran with `--offline-scan` and the poms it needed were not in the checkout or the local Maven repository. The reason counts the direct dependencies whose version comes from a parent POM, an imported BOM or a property one of them defines, such as `2 dependency versions not resolved, run mvn dependency:resolve`; where every direct dependency has a version, it is `transitive dependencies not resolved, run mvn dependency:resolve`. A `pom.xml` `grype-fs` read is `transitive dependencies not read by Grype`, unless Trivy read the same file in part, whose reason is given instead. The file is counted in `read` as well. What the reason names was not checked, and under `licenses` neither were the licenses of the dependencies it covers. |
 | `dependencyFiles[].unread[]`, a `licenses` file with no license | a dependency file `trivy-license` read packages from with no license for any of them, unread for `licenses`. It has an entry of its own in `unread[]`, with one of two reasons: `records no licenses for 12 packages`, or `licenses of 12 packages not read, run dotnet restore` (`…, run go mod download` for a `go.mod`). The count leaves out the project's own root and workspace entries. Its packages were read, so `read` counts the file too. [`licenses`](../../internal/controllers/licenses.md#sources) says why each reason appears and what clears it. |
 
-`scanErrors`, `reported`, `notMeasured[]` and `scanners[].failed[]` are omitted when there is nothing to report, so a clean run's
+`scanErrors`, `reported`, `notChecked[]`, `notMeasured[]`, `unboundImports[]` and `scanners[].failed[]` are omitted when there is nothing to report, so a clean run's
 document is unchanged. `targets[]` is omitted when the run planned no target. `dependencyFiles[]` is present whenever a scanner that lists its inputs ran,
 and an entry with no `unread` means every dependency file was read in full.
 
@@ -78,7 +80,16 @@ The file lists at most 200 notifications of a kind. A kind past that closes with
 3 unread-files caveats left out of this file · report.json lists every one
 ```
 
-`report.json` lists scan errors, `not-measured`, `unread-files` and `unread-checks` on every run, in `controls[].scanErrors`, `notMeasured[]`, `dependencyFiles[].unread[]` and `unreadChecks[]`. It lists `not-checked` and `unbound-imports` only in `failedCaveats[]`, where the gate fails on them. The console with `--top 0` and the HTML and markdown reports list every kind.
+`report.json` lists every scan error and every caveat on every run, whatever the gate does with it, in the field of its kind. A caveat of a kind `gate.failOnCaveats` lists is in `failedCaveats[]` as well.
+
+| Kind | Field in `report.json` |
+|---|---|
+| `scan-error` | `controls[].scanErrors` |
+| `not-checked` | `notChecked[]` |
+| `not-measured` | `notMeasured[]` |
+| `unread-files` | `dependencyFiles[].unread[]` |
+| `unread-checks` | `unreadChecks[]` |
+| `unbound-imports` | `unboundImports[]` |
 
 ```bash
 jq -r '.runs[].invocations[]?.toolExecutionNotifications[] | "\(.level) \(.descriptor.id) \(.message.text)"' out/results.sarif
