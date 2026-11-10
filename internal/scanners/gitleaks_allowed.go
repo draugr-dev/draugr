@@ -48,9 +48,9 @@ func gitleaksRun(run func(ctx context.Context, dir string, argv []string) ([]byt
 			return out, err
 		}
 		path := argv[i+1]
-		// Of each report, only a key per result is kept from one run to the next, and the reported
-		// one stays on disk until the merged report is written from it. A history pass's report
-		// grows with the history, and the further runs each build one of the same size.
+		// While a further run goes, only a key per result is kept of the reports before it, and the
+		// reported one waits on disk to be merged once the last run has exited. A history pass's
+		// report grows with the history, and each further run builds one of the same size.
 		with, err := gitleaksKeysOf(path, dir)
 		if err != nil {
 			return nil, err
@@ -95,7 +95,15 @@ func gitleaksRun(run func(ctx context.Context, dir string, argv []string) ([]byt
 		if err != nil {
 			return nil, err
 		}
-		return out, writeGitleaksMergedFile(path, dir, append(added, allowed...))
+		reported, err := readGitleaksRelative(path, dir)
+		if err != nil {
+			return nil, err
+		}
+		merged, err := withGitleaksResults(reported, append(added, allowed...))
+		if err != nil {
+			return nil, err
+		}
+		return out, os.WriteFile(path, merged, 0o600) // #nosec G703 -- the report path this run was given, read above
 	}
 }
 
@@ -129,6 +137,43 @@ func gitleaksIgnoreOutOfReach(argv []string, dir, empty string) ([]string, bool)
 		return nil, false
 	}
 	return append(out, gitleaksIgnorePathArg, empty), true
+}
+
+// readGitleaksRelative reads a Gitleaks SARIF report with each location's path made relative to
+// dir, so a run given the checkout's absolute path compares with one given ".".
+func readGitleaksRelative(path, dir string) ([]byte, error) {
+	data, err := os.ReadFile(path) // #nosec G304 -- a report path a Gitleaks run of this scan wrote
+	if err != nil {
+		return nil, err
+	}
+	doc, err := decodeJSON(data)
+	if err != nil {
+		return nil, fmt.Errorf("read its report: %w", err)
+	}
+	// Anything not shaped as SARIF is left as it is; the walk of the report has refused it already.
+	d, _ := doc.(map[string]any)
+	runs, _ := d["runs"].([]any)
+	for _, run := range runs {
+		r, _ := run.(map[string]any)
+		results, _ := r["results"].([]any)
+		for _, res := range results {
+			gitleaksRelative(res, dir)
+		}
+	}
+	return json.Marshal(doc)
+}
+
+// withGitleaksResults adds results to the first run of a Gitleaks SARIF report. A report with
+// nothing to add is returned unchanged.
+func withGitleaksResults(report []byte, results []json.RawMessage) ([]byte, error) {
+	if len(results) == 0 {
+		return report, nil
+	}
+	added := make([]any, len(results))
+	for i, r := range results {
+		added[i] = r
+	}
+	return appendSARIFResults(report, "gitleaks", added, nil)
 }
 
 // gitleaksRelative makes each location's path in a decoded Gitleaks result relative to dir, so a
@@ -166,15 +211,10 @@ func withGitleaksAllowed(reported, all []byte) ([]byte, error) {
 		return nil, err
 	}
 	added, _, err := gitleaksSetAside(bytes.NewReader(all), "", with, false, "inSource", "allow comments")
-	if err != nil || len(added) == 0 {
-		return reported, err
-	}
-	var merged bytes.Buffer
-	open := func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(reported)), nil }
-	if err := writeGitleaksMerged(&merged, open, "", added); err != nil {
+	if err != nil {
 		return nil, err
 	}
-	return merged.Bytes(), nil
+	return withGitleaksResults(reported, added)
 }
 
 // gitleaksKeys counts the results of one Gitleaks report by key. A key is a digest of what
@@ -195,14 +235,14 @@ func gitleaksKeysOf(path, dir string) (gitleaksKeys, error) {
 // gitleaksKeysIn is gitleaksKeysOf over a report being read.
 func gitleaksKeysIn(r io.Reader, dir string) (gitleaksKeys, error) {
 	keys := gitleaksKeys{}
-	_, err := walkGitleaksReport(r, gitleaksVisitor{result: func(_ int, raw json.RawMessage) error {
+	err := walkGitleaksResults(r, func(raw json.RawMessage) error {
 		k, err := gitleaksKeyOf(raw, dir)
 		if err != nil {
 			return err
 		}
 		keys[k]++
 		return nil
-	}})
+	})
 	if err != nil {
 		return nil, fmt.Errorf("read its report: %w", err)
 	}
@@ -236,7 +276,7 @@ func gitleaksSetAside(r io.Reader, dir string, with gitleaksKeys, keep bool, kin
 		kept = gitleaksKeys{}
 	}
 	var added []json.RawMessage
-	_, err := walkGitleaksReport(r, gitleaksVisitor{result: func(_ int, raw json.RawMessage) error {
+	err := walkGitleaksResults(r, func(raw json.RawMessage) error {
 		k, err := gitleaksKeyOf(raw, dir)
 		if err != nil {
 			return err
@@ -264,7 +304,7 @@ func gitleaksSetAside(r io.Reader, dir string, with gitleaksKeys, keep bool, kin
 		}
 		added = append(added, out)
 		return nil
-	}})
+	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("read its report with %s out of reach: %w", what, err)
 	}

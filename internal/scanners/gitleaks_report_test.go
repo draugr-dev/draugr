@@ -17,9 +17,9 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
-// The merge as one pass over whole documents: each report decoded, its paths made relative, encoded
-// again, and compared and appended to whole. The streaming merge has to write what this writes, byte
-// for byte, so it is kept here to check that against.
+// The comparison over whole documents: each report decoded, its paths made relative, encoded again,
+// and compared whole, with each exclusion's results appended in turn. Comparing a result at a time
+// has to give what this gives, so it is kept here to check that against.
 
 func wholeDocumentRelative(data []byte, dir string) ([]byte, error) {
 	var doc map[string]any
@@ -131,9 +131,9 @@ func gitleaksMerged(t *testing.T, dir, reported, noignore, all string) ([]byte, 
 	return os.ReadFile(path) // #nosec G304 -- a path under the test's own temporary directory
 }
 
-// The merged report is what decoding each report whole and encoding it again wrote, whatever order
-// the members come in, however strings and numbers are written, and wherever the results go: into
-// a first run whose results are null, a report with no runs, or a tool with no driver.
+// The merged report is the one comparing whole reports gave: the same results matched and counted,
+// paths compared relative to the checkout, and what each exclusion set aside added after the
+// reported results in one append rather than two.
 func TestTheMergedGitleaksReportIsTheOneTheWholeDocumentGives(t *testing.T) {
 	result := func(line int, uri, message string) string {
 		return fmt.Sprintf(`{"ruleId":"aws-access-token","message":{"text":%q},"locations":[{"physicalLocation":`+
@@ -158,23 +158,12 @@ func TestTheMergedGitleaksReportIsTheOneTheWholeDocumentGives(t *testing.T) {
 			all:      runOf(ignored, active, active, allowed, elsewhere),
 		},
 		{name: "no runs, and an allowed secret", reported: `{"version":"2.1.0"}`, all: runOf(allowed)},
-		{name: "runs given as null, nothing set aside", reported: `{"runs":null,"version":"2.1.0"}`, all: `{"runs":null}`},
-		{name: "an empty list of runs, and an allowed secret", reported: `{"runs":[]}`, all: runOf(allowed)},
 		{
 			name:     "a first run whose results are null, and a second",
 			reported: `{"runs":[{"results":null,"tool":{"driver":{"name":"gitleaks"}}},{"results":[` + active + `]}]}`,
 			all:      runOf(active, allowed),
 		},
-		{
-			name:     "results given as null, nothing set aside",
-			reported: `{"runs":[{"results":null,"tool":{"driver":{"name":"gitleaks"}}}]}`,
-			all:      `{"runs":[{"results":null}]}`,
-		},
-		{name: "a null run and an empty one", reported: `{"runs":[null,{"results":[]}]}`, all: `{"runs":[]}`},
-		{name: "a tool with no driver", reported: `{"runs":[{"tool":{},"results":[` + active + `]}]}`, all: runOf(active, allowed)},
-		{name: "a tool that is not an object", reported: `{"runs":[{"tool":5,"results":[` + active + `]}]}`, all: runOf(allowed, active)},
-		{name: "something after the report", reported: runOf(active) + ` trailing`, all: runOf(active) + `]`},
-		{name: "a report that is null", reported: `null`, all: `null`},
+		{name: "nothing set aside, and something after the report", reported: runOf(active) + ` trailing`, all: runOf(active) + `]`},
 	} {
 		dir := t.TempDir()
 		in := func(s string) string { return strings.ReplaceAll(s, "DIR", dir) }

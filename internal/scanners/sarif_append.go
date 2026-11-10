@@ -20,6 +20,9 @@ func appendSARIFResults(doc []byte, driverName string, results, rules []any) ([]
 	if err := dec.Decode(&log); err != nil {
 		return nil, fmt.Errorf("read its SARIF: %w", err)
 	}
+	if log == nil {
+		return nil, errors.New("read its SARIF: the document is null")
+	}
 	runs, _ := log["runs"].([]any)
 	if len(runs) == 0 {
 		runs = []any{map[string]any{}}
