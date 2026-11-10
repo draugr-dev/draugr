@@ -1,8 +1,11 @@
 package scanners
 
 import (
+	"context"
 	"path/filepath"
+	"runtime"
 	"slices"
+	"strconv"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -111,4 +114,43 @@ func semgrepConfigArg(t *testing.T, argv []string) string {
 		t.Fatalf("no --config in %v", argv)
 	}
 	return argv[i+1]
+}
+
+// One of several Semgrep runs gets the CPUs divided among them, at least one and never more than
+// Semgrep's own default, round(0.85 × min(16, CPUs)).
+func TestSemgrepShare(t *testing.T) {
+	for _, tc := range []struct{ cpus, sharers, want int }{
+		{16, 1, 14}, {16, 4, 4}, {16, 5, 3}, {32, 1, 14}, {32, 2, 14}, {32, 4, 8}, {2, 4, 1}, {1, 1, 1},
+	} {
+		if got := semgrepShare(tc.cpus, tc.sharers); got != tc.want {
+			t.Errorf("semgrepShare(%d, %d) = %d, want %d", tc.cpus, tc.sharers, got, tc.want)
+		}
+	}
+}
+
+// A run that shares the machine with other Semgrep runs carries --jobs after `semgrep scan`; a run
+// alone carries none, so it keeps Semgrep's own default.
+func TestSemgrepJobsOnlyWhenShared(t *testing.T) {
+	var got []string
+	run := withSemgrepJobs(func(_ context.Context, _ string, argv []string) ([]byte, error) {
+		got = argv
+		return nil, nil
+	})
+	argv := semgrepArgs("/work/repo", nil)
+	if _, err := run(context.Background(), "/work/repo", argv); err != nil {
+		t.Fatal(err)
+	}
+	if slices.Contains(got, "--jobs") {
+		t.Errorf("a run alone passed --jobs: %v", got)
+	}
+	if _, err := run(plugin.WithSharers(context.Background(), 4), "/work/repo", argv); err != nil {
+		t.Fatal(err)
+	}
+	want := strconv.Itoa(semgrepShare(runtime.GOMAXPROCS(0), 4))
+	if len(got) < 4 || got[0] != "semgrep" || got[1] != "scan" || got[2] != "--jobs" || got[3] != want {
+		t.Errorf("a shared run's argv = %v, want --jobs %s after `semgrep scan`", got, want)
+	}
+	if slices.Contains(argv, "--jobs") {
+		t.Error("the caller's argv was changed")
+	}
 }
