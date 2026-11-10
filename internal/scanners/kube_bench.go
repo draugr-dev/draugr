@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -135,7 +137,7 @@ func (s kubeBenchScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 	// false: this scanner runs the policies section, which is RBAC, Pod Security and network policy,
 	// the team's whoever operates the cluster underneath them.
 	return reportFromKubeBench(
-		doc, kubeBenchScannerName, clusterLabel(target), false), nil
+		doc, kubeBenchScannerName, clusterLabel(target), false, kubeBenchRead{}), nil
 }
 
 // kubeContextEnv writes a kubeconfig whose current context is the one being audited, and returns
@@ -589,6 +591,11 @@ type kubeBenchFinding struct {
 	Status     string `json:"status"`
 	Scored     bool   `json:"scored"`
 	Remedy     string `json:"remediation"`
+	// ActualValue is what the check's audit printed, and Reason kube-bench's account of an audit
+	// that exited non-zero, which quotes the output in place of ActualValue. Both are read only to
+	// tell a check that read something from one that read nothing; neither reaches a reader.
+	ActualValue string `json:"actual_value"`
+	Reason      string `json:"reason"`
 }
 
 // The message is the check description and nothing else.
@@ -624,7 +631,7 @@ func parseKubeBenchOperated(
 	if err != nil {
 		return sarif.Report{}, err
 	}
-	return reportFromKubeBench(doc, tool, location, providerOperated), nil
+	return reportFromKubeBench(doc, tool, location, providerOperated, kubeBenchRead{}), nil
 }
 
 // decodeKubeBench reads the tool's JSON. Separate from rendering so a caller that has an
@@ -645,8 +652,101 @@ func decodeKubeBench(out []byte) (kubeBenchDoc, error) {
 	return doc, nil
 }
 
+// kubeBenchRead is what is known about the node a kube-bench run read. The zero value is a run
+// that read no node of its own, the read-only scanner's, which reads the cluster through the API.
+type kubeBenchRead struct {
+	// node is the node's name, "" when the run read none or its name is not known.
+	node string
+	// roleKnown says whether controlPlane was read from the node's labels.
+	roleKnown bool
+	// controlPlane says the node carries a control-plane role.
+	controlPlane bool
+}
+
+// group is what the run's unread checks are listed under: the node, or the cluster's location for
+// a run that read none.
+func (r kubeBenchRead) group(location string) string {
+	if r.node != "" {
+		return "node " + r.node
+	}
+	return location
+}
+
+// unreadReason says why a check read nothing, or "" when it read something or did not decide.
+//
+// Only a PASS or a FAIL is a verdict that reading nothing makes empty. A WARN refers the check to a
+// person whatever its audit printed, and stays a finding. Two cases, each a verdict with nothing
+// behind it:
+//
+//   - A control-plane check on a node with no control-plane role. The files and processes it reads
+//     are on another machine, so kube-bench finds none and fails it. The worker holds no API server
+//     pod specification, which says nothing about the one on the control plane.
+//   - A check whose audit printed only a shell's "not found" for its command. The command did not
+//     run, so a PASS is as empty as a FAIL: a check that a flag is absent passes on an empty line.
+func (r kubeBenchRead) unreadReason(nodeType string, res kubeBenchFinding) string {
+	if !kubeBenchDecided(res.Status) {
+		return ""
+	}
+	if r.roleKnown && !r.controlPlane && controlPlaneNodeType(nodeType) {
+		return "not a control-plane node"
+	}
+	if missing := commandsNotFound(res); len(missing) > 0 {
+		return strings.Join(missing, ", ") + " not found"
+	}
+	return ""
+}
+
+// controlPlaneNodeType says a kube-bench node type reads a control-plane node's files: the API
+// server, the controller manager, the scheduler and etcd.
+func controlPlaneNodeType(nodeType string) bool {
+	switch strings.ToLower(strings.TrimSpace(nodeType)) {
+	case "master", "etcd", "controlplane":
+		return true
+	}
+	return false
+}
+
+// shellNotFoundRE is a shell's line for a command it could not find, as BusyBox's sh in the
+// kube-bench image prints it (`/bin/sh: journalctl: not found`) and as bash does (`bash: line 1:
+// journalctl: command not found`).
+var shellNotFoundRE = regexp.MustCompile(`^(?:/[\w/]*/)?(?:ba|da)?sh: (?:line \d+: |\d+: )?([^\s:]+): (?:command )?not found$`)
+
+// failedOutputRE reads the output kube-bench quotes in a result's reason when the audit exited
+// non-zero: `failed to run: "<audit>", output: "<output>", error: exit status 1`.
+var failedOutputRE = regexp.MustCompile(`, output: ("(?:[^"\\]|\\.)*"), error: `)
+
+// commandsNotFound names the commands a check's audit could not find, when that is all it printed,
+// sorted. Nil when the audit printed anything else, or nothing: an empty line is a valid answer to
+// a check that a flag is absent, so emptiness alone says nothing.
+func commandsNotFound(res kubeBenchFinding) []string {
+	out := res.ActualValue
+	if strings.TrimSpace(out) == "" {
+		if m := failedOutputRE.FindStringSubmatch(res.Reason); m != nil {
+			if quoted, err := strconv.Unquote(m[1]); err == nil {
+				out = quoted
+			}
+		}
+	}
+	var missing []string
+	for line := range strings.SplitSeq(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		m := shellNotFoundRE.FindStringSubmatch(line)
+		if m == nil {
+			return nil
+		}
+		if !slices.Contains(missing, m[1]) {
+			missing = append(missing, m[1])
+		}
+	}
+	slices.Sort(missing)
+	return missing
+}
+
 func reportFromKubeBench(
-	doc kubeBenchDoc, tool, location string, providerOperated bool,
+	doc kubeBenchDoc, tool, location string, providerOperated bool, read kubeBenchRead,
 ) sarif.Report {
 	report := sarif.Report{Tool: tool, Rules: map[string]sarif.Rule{}}
 	// The benchmark kube-bench reports having used, which is the thing verifyBenchmark checks and
@@ -662,6 +762,14 @@ func reportFromKubeBench(
 	for _, ctl := range doc.Controls {
 		for _, test := range ctl.Tests {
 			for _, res := range test.Results {
+				// A check that read nothing is neither a finding nor a verdict. It is listed with why,
+				// which the report shows under its caveats.
+				if reason := read.unreadReason(ctl.NodeType, res); reason != "" {
+					report.Unchecked = append(report.Unchecked, sarif.Unchecked{
+						Scanner: tool, Check: res.TestNumber, Group: read.group(location), Reason: reason,
+					})
+					continue
+				}
 				// Decided before filtered. A PASS produces no finding and is still a verdict, the scanner
 				// looked at that control and was satisfied. Recording only what failed would make "no finding"
 				// mean two different things, and the whole point of this list is telling them apart.
@@ -785,14 +893,11 @@ func refuseNamespaceScope(scanner string, namespaces []string) error {
 // benchmark, and it is named by section rather than by node type because kube-bench reports it
 // under the same "node" heading as the kubelet, which is a different situation.
 func providerRunsIt(nodeType, testNumber string) bool {
-	switch strings.ToLower(strings.TrimSpace(nodeType)) {
-	case "master", "etcd", "controlplane":
+	if controlPlaneNodeType(nodeType) {
 		return true
-	case "node":
-		return strings.HasPrefix(strings.TrimSpace(testNumber), kubeProxySection)
-	default:
-		return false
 	}
+	return strings.EqualFold(strings.TrimSpace(nodeType), "node") &&
+		strings.HasPrefix(strings.TrimSpace(testNumber), kubeProxySection)
 }
 
 // kubeProxySection is the benchmark section covering kube-proxy, which a managed platform runs.

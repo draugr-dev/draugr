@@ -16,10 +16,12 @@ order: 100
 
 ## What it does
 
-Creates a short-lived Job in the cluster, waits for it, reads its output, and deletes it.
+Creates a short-lived Job on a node of each role, waits for them, reads their output, and deletes
+them.
 
 ```
-kube-bench run --json --targets master,node,etcd,controlplane
+kube-bench run --json --targets master,etcd,controlplane    # on a control-plane node
+kube-bench run --json --targets node                        # on a worker
 ```
 
 Selected with `kubeBenchJob: { enabled: true }` on the control. The default scanner,
@@ -57,9 +59,13 @@ Without that, the run stops before it creates anything and says what it would ha
 It follows kube-bench's own manifest, because the checks read files that exist only on a node:
 
 - **`hostPID: true`**, several checks inspect control-plane processes.
-- **Twelve host paths mounted read-only**, `/etc/kubernetes`, `/var/lib/kubelet`, `/var/lib/etcd`
-  and the rest. Read-only throughout: a scan has no business being able to change what it
-  inspects.
+- **Host paths mounted read-only**, `/etc/kubernetes`, `/var/lib/kubelet`, `/var/lib/etcd` and the
+  rest of kube-bench's own list. Read-only throughout: a scan has no business being able to change
+  what it inspects.
+- **`/var/lib/rancher`, on k3s and RKE2 only**, where their benchmarks read the configuration,
+  certificates and keys other distributions keep under `/etc/kubernetes`. A node's kubelet version
+  or the cluster's `benchmark` says which distribution it is. The directory holds the cluster's
+  keys, so no other cluster gets the mount.
 - **`tolerations: [{operator: Exists}]`**. A control-plane node is tainted, and its configuration
   is most of what these sections check. Without this the Job is unschedulable exactly where it is
   most useful.
@@ -67,9 +73,63 @@ It follows kube-bench's own manifest, because the checks read files that exist o
 - **No service account or RBAC.** These sections read the host filesystem, not the API, so the
   Job needs no permissions in the cluster.
 
+The Job needs none, and the scanning identity needs `list` on `nodes` to place it.
+Without it one Job runs wherever the scheduler puts it, and the evidence says the node roles were
+not read.
+
 This is a privileged pod. On a cluster enforcing the **restricted** Pod Security Standard it will
 be rejected, which is the standard working as intended. Run it in a namespace whose policy permits
 it.
+
+## Which nodes it reads
+
+kube-bench runs whatever targets it is given on the node it lands on, and one Job reads one node.
+On a worker, a control-plane check finds no API server manifest and no etcd data directory, and
+kube-bench fails it. Targets are split by node role:
+
+| Cluster | Jobs |
+|---|---|
+| control-plane and worker nodes | `master`, `etcd`, `controlplane` on a control-plane node; `node` on a worker |
+| control-plane nodes only | every target on a control-plane node |
+| no node with a control-plane role, as on a managed cluster | every target on a worker |
+| `nodeSelector` set | every target on one node it selects, which the scheduler picks |
+
+A control-plane node is one labeled `node-role.kubernetes.io/control-plane` or
+`node-role.kubernetes.io/master`. Within a role the Job runs on a Ready node, the first by name, so
+repeated runs read the same node.
+
+The evidence, under **Measured against**, names each node read, and how many of the cluster's
+nodes that is when some were not read.
+On a two-node `kind` cluster, with `nodeSelector: kubernetes.io/hostname=kb-two-worker`:
+
+```
+benchmark: cis-1.12 · nodes: kb-two-worker · 1 of 2 nodes read
+```
+
+## Checks that read nothing
+
+A PASS or a FAIL whose audit read nothing is not a verdict. It is listed under **Caveats** as
+`unread-checks`, by node, instead of becoming a finding or counting as decided. The same run:
+
+```
+unread-checks · two-nodes
+  node kb-two-worker  54 checks unread · not a control-plane node
+```
+
+A check is unread in two cases:
+
+- **A control-plane check on a node with no control-plane role**, from a `nodeSelector` that picks a
+  worker or a cluster that shows no control-plane node. The files it reads are on another machine.
+  Remove `nodeSelector`, or select a control-plane node, to evaluate these checks; on a managed
+  cluster, `targets: node` leaves them out.
+- **A check whose audit printed only a shell's `not found`** for its command, such as the k3s
+  checks that read the API server's flags through `journalctl`, which neither the image nor a
+  `k3d` node carries. A check that a flag is absent passes when its audit prints no flags, so a
+  PASS is listed too. No setting changes this; `report.json` lists the checks under
+  `unreadChecks[]` to verify on the node by hand.
+
+A WARN stays a finding whatever its audit printed: kube-bench is asking a person to look.
+`config.gate.failOnCaveats: [unread-checks]` fails the run on these.
 
 ## Scope
 
@@ -97,8 +157,8 @@ config:
         enabled: true
         namespace: default              # where the Job is created
         image: docker.io/aquasec/kube-bench:v0.16.0@sha256:75506f2…
-        targets: master,node,etcd,controlplane
-        nodeSelector: node-role.kubernetes.io/control-plane=
+        targets: node
+        nodeSelector: kubernetes.io/hostname=worker-7   # one Job, on this node
         timeout: 5m
 ```
 
@@ -134,8 +194,9 @@ scanner could do. If the wait times out, the Job is removed and the error says s
 ## Notes
 
 - **Managed clusters.** On GKE, EKS, AKS and ACK the control plane is not yours, so `master`,
-  `etcd` and `controlplane` cannot be inspected by any tool. `targets: node` is the useful
-  setting there.
+  `etcd` and `controlplane` cannot be inspected by any tool. Their checks appear under **Caveats**
+  as `unread-checks`.
+  `targets: node` is the useful setting there.
 - Findings are located at the cluster (`kubernetes/<name>`), the same as the read-only scanner.
 
 ## Data

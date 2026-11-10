@@ -3,9 +3,13 @@ package scanners
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"maps"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -13,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -64,7 +69,7 @@ const kubeBenchJobConfigSchema = `{
     },
     "nodeSelector": {
       "type": "string",
-      "description": "Node selector for the Job, as comma-separated key=value pairs. Use it to benchmark a specific node pool."
+      "description": "Node selector for the Job, as comma-separated key=value pairs. One Job runs every target on a node it matches. Unset, one Job runs on a control-plane node and one on a worker."
     },
     "timeout": {
       "type": "string",
@@ -157,33 +162,80 @@ const (
 	defaultJobTimeout = 5 * time.Minute
 )
 
-// Scan creates the Job, waits for it, collects its output, and removes it.
+// Scan places a Job on a node of each role, waits for them, collects their output, and removes
+// them.
 func (s kubeBenchJobScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
-	if infra, ok := target.(plugin.KubernetesTarget); ok {
-		// The Job reads a node's filesystem, which has no namespace. Honoring a scope is not merely
-		// unimplemented here. It is meaningless, and silently ignoring it would report node-wide
-		// findings against a component that asked for three namespaces.
-		if err := refuseNamespaceScope(kubeBenchJobScannerName, infra.Namespaces); err != nil {
-			return sarif.Report{}, err
-		}
-	}
-	if _, ok := target.(plugin.KubernetesTarget); !ok {
+	cluster, ok := target.(plugin.KubernetesTarget)
+	if !ok {
 		return sarif.Report{}, fmt.Errorf("%s: unsupported target %T (want a Kubernetes cluster)",
 			kubeBenchJobScannerName, target)
 	}
-	kubeCtx := kubeContext(target)
-	client, err := s.client(kubeCtx)
+	// The Job reads a node's filesystem, which has no namespace. Honoring a scope is not merely
+	// unimplemented here. It is meaningless, and silently ignoring it would report node-wide
+	// findings against a component that asked for three namespaces.
+	if err := refuseNamespaceScope(kubeBenchJobScannerName, cluster.Namespaces); err != nil {
+		return sarif.Report{}, err
+	}
+	client, err := s.client(kubeContext(target))
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", kubeBenchJobScannerName, err)
 	}
 
 	namespace := stringSetting(cfg, namespaceKey, defaultJobNamespace)
-	cluster, _ := target.(plugin.KubernetesTarget)
-	job := s.buildJob(cfg, cluster.Benchmark)
+	plan := planJobs(ctx, client, cfg, cluster.Benchmark)
 
+	// The Jobs run at once: each reads its own node, and a benchmark run takes seconds.
+	runs := make([]jobRun, len(plan.placements))
+	errs := make([]error, len(plan.placements))
+	var wg sync.WaitGroup
+	for i, p := range plan.placements {
+		wg.Go(func() {
+			runs[i], errs[i] = s.runJob(ctx, client, namespace, cfg, cluster.Benchmark, plan, p)
+		})
+	}
+	wg.Wait()
+	if err := errors.Join(errs...); err != nil {
+		return sarif.Report{}, fmt.Errorf("%s: %w", kubeBenchJobScannerName, err)
+	}
+
+	// This scanner audits the node types a managed platform runs, so what the descriptor says
+	// about who operates the cluster decides whether its findings are the team's to act on.
+	report := sarif.Report{Tool: kubeBenchJobScannerName, Rules: map[string]sarif.Rule{}}
+	benchmark := ""
+	for _, run := range runs {
+		doc, err := decodeKubeBench(run.out)
+		if err != nil {
+			return sarif.Report{}, err
+		}
+		part := reportFromKubeBench(doc, kubeBenchJobScannerName, clusterLabel(target),
+			cluster.ProviderOperated, run.read)
+		report.Results = append(report.Results, part.Results...)
+		report.Decided = append(report.Decided, part.Decided...)
+		report.Unchecked = append(report.Unchecked, part.Unchecked...)
+		maps.Copy(report.Rules, part.Rules)
+		if benchmark == "" && len(doc.Controls) > 0 {
+			benchmark = doc.Controls[0].Version
+		}
+	}
+	report.Provenance = []sarif.Provenance{{Tool: kubeBenchJobScannerName, Fields: plan.provenance(benchmark, runs)}}
+	return report, nil
+}
+
+// jobRun is one Job's output and the node it read.
+type jobRun struct {
+	out  []byte
+	read kubeBenchRead
+}
+
+// runJob creates one Job, waits for it, reads its output, and removes it.
+func (s kubeBenchJobScanner) runJob(
+	ctx context.Context, client kubernetes.Interface, namespace string, cfg plugin.Config,
+	benchmark string, plan jobPlan, p jobPlacement,
+) (jobRun, error) {
+	job := s.buildJob(cfg, benchmark, p, plan.rancher)
 	created, err := client.BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
-		return sarif.Report{}, fmt.Errorf("%s: create job in %q: %w", kubeBenchJobScannerName, namespace, err)
+		return jobRun{}, fmt.Errorf("create job in %q: %w", namespace, err)
 	}
 
 	// Cleanup runs on every path, including a canceled scan, and with its own context: the
@@ -201,34 +253,38 @@ func (s kubeBenchJobScanner) Scan(ctx context.Context, target plugin.Target, cfg
 	waitCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	if err := waitForJob(waitCtx, client, namespace, created.Name); err != nil {
-		return sarif.Report{}, fmt.Errorf("%s: %w", kubeBenchJobScannerName, err)
+		return jobRun{}, err
 	}
 
 	out, err := s.logs(ctx, client, namespace, created.Name)
 	if err != nil {
-		return sarif.Report{}, fmt.Errorf("%s: %w", kubeBenchJobScannerName, err)
+		return jobRun{}, err
 	}
-	// This scanner audits the node types a managed platform runs, so what the descriptor says
-	// about who operates the cluster decides whether its findings are the team's to act on.
-	providerOperated := false
-	if infra, ok := target.(plugin.KubernetesTarget); ok {
-		providerOperated = infra.ProviderOperated
+	read := p.read
+	if read.node == "" {
+		// The scheduler chose, so the pod says where it ran, and the node list what that node is.
+		read = plan.readOf(jobNode(ctx, client, namespace, created.Name))
 	}
-	return parseKubeBenchOperated(out, kubeBenchJobScannerName, clusterLabel(target), providerOperated)
+	return jobRun{out: out, read: read}, nil
 }
 
-// buildJob renders the Job, following kube-bench's own manifest: host PID so it can see the
+// buildJob renders a Job, following kube-bench's own manifest: host PID so it can see the
 // control-plane processes, and read-only host mounts for the files the benchmark inspects.
-func (s kubeBenchJobScanner) buildJob(cfg plugin.Config, benchmark string) *batchv1.Job {
-	targets := stringSetting(cfg, targetsKey, defaultJobTargets)
-	args := []string{"run", "--json", "--targets", targets}
+func (s kubeBenchJobScanner) buildJob(
+	cfg plugin.Config, benchmark string, p jobPlacement, rancher bool,
+) *batchv1.Job {
+	args := []string{"run", "--json", "--targets", strings.Join(p.targets, ",")}
 	if benchmark != "" {
 		args = append(args, "--benchmark", benchmark)
 	}
 
 	// A named Job rather than GenerateName so the log lookup and the cleanup have something to
-	// hold onto even if the create response is lost.
+	// hold onto even if the create response is lost. The role tells apart two Jobs created in the
+	// same second.
 	name := fmt.Sprintf("draugr-kube-bench-%d", s.now().UTC().Unix())
+	if p.role != "" {
+		name += "-" + p.role
+	}
 
 	backoff := int32(0) // a failed benchmark run is a result, not something to retry
 	return &batchv1.Job{
@@ -245,7 +301,8 @@ func (s kubeBenchJobScanner) buildJob(cfg plugin.Config, benchmark string) *batc
 				Spec: corev1.PodSpec{
 					HostPID:       true,
 					RestartPolicy: corev1.RestartPolicyNever,
-					NodeSelector:  parseSelector(stringSetting(cfg, nodeSelectorKey, "")),
+					NodeSelector:  p.selector,
+					NodeName:      p.nodeName,
 					// Control-plane nodes are tainted, and their configuration is most of what
 					// these sections check. Without tolerating that taint the Job is unschedulable
 					// exactly where it is most useful.
@@ -255,13 +312,242 @@ func (s kubeBenchJobScanner) buildJob(cfg plugin.Config, benchmark string) *batc
 						Image:        stringSetting(cfg, imageKey, defaultKubeBenchImage),
 						Command:      []string{"kube-bench"},
 						Args:         args,
-						VolumeMounts: hostMounts(),
+						VolumeMounts: hostMounts(rancher),
 					}},
-					Volumes: hostVolumes(),
+					Volumes: hostVolumes(rancher),
 				},
 			},
 		},
 	}
+}
+
+// Node role labels. kubeadm, k3s and RKE2 label a control-plane node with the first; clusters
+// older than Kubernetes 1.24 used the second.
+const (
+	controlPlaneRoleLabel = "node-role.kubernetes.io/control-plane"
+	legacyMasterRoleLabel = "node-role.kubernetes.io/master"
+	hostnameLabel         = "kubernetes.io/hostname"
+)
+
+// Job roles, which name a Job when the run places one on each.
+const (
+	controlPlaneJobRole = "control-plane"
+	nodeJobRole         = "node"
+)
+
+// nodeTarget is the kube-bench target that reads a worker's kubelet configuration. Every other
+// target reads a control-plane node.
+const nodeTarget = "node"
+
+// jobPlacement is one Job: where it runs and which targets it runs there.
+type jobPlacement struct {
+	// role names the Job when the run has one per role, "" when it has one.
+	role    string
+	targets []string
+	// selector and nodeName pin the pod. Both empty leaves the node to the scheduler.
+	selector map[string]string
+	nodeName string
+	// read is the node the Job is pinned to, zero when the scheduler chooses.
+	read kubeBenchRead
+}
+
+// jobPlan is the run's Jobs and what it learned about the cluster's nodes placing them.
+type jobPlan struct {
+	placements []jobPlacement
+	// nodes are the cluster's nodes by name, nil when they could not be listed.
+	nodes map[string]kubeBenchRead
+	// listErr is why the nodes could not be listed.
+	listErr error
+	// rancher says the cluster is k3s or RKE2, whose benchmarks read /var/lib/rancher.
+	rancher bool
+}
+
+// planJobs decides where the Jobs run.
+//
+// One Job reads one node, and kube-bench runs whatever targets it is given on the node it lands
+// on. On a node without a control plane, a control-plane check finds no file and no process and
+// fails, so where the Job runs decides what the report says. Left to the scheduler, the same
+// descriptor reads a different node from one run to the next.
+//
+// So the control-plane targets run on a control-plane node and the node target on a worker, the
+// split kube-bench's own manifests make. A cluster with one role gets one Job on it. A
+// `nodeSelector` is the descriptor choosing the node, and gets one Job wherever it lands. When the
+// nodes cannot be listed, the scheduler chooses, as it did before nodes were read.
+func planJobs(ctx context.Context, client kubernetes.Interface, cfg plugin.Config, benchmark string) jobPlan {
+	targets := splitTargets(stringSetting(cfg, targetsKey, defaultJobTargets))
+	var plan jobPlan
+	list, err := client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		// A client may hand back an empty list beside the error, which would read as a cluster
+		// with no nodes.
+		list = nil
+		plan.listErr = err
+	} else {
+		plan.nodes = make(map[string]kubeBenchRead, len(list.Items))
+		for _, n := range list.Items {
+			plan.nodes[n.Name] = kubeBenchRead{node: n.Name, roleKnown: true, controlPlane: isControlPlane(n)}
+		}
+	}
+	plan.rancher = rancherCluster(client, benchmark, list)
+
+	if sel := stringSetting(cfg, nodeSelectorKey, ""); sel != "" || list == nil || len(list.Items) == 0 {
+		plan.placements = []jobPlacement{{targets: targets, selector: parseSelector(sel)}}
+		return plan
+	}
+
+	var controlPlanes, workers []corev1.Node
+	for _, n := range list.Items {
+		if isControlPlane(n) {
+			controlPlanes = append(controlPlanes, n)
+		} else {
+			workers = append(workers, n)
+		}
+	}
+	var planeTargets, nodeTargets []string
+	for _, t := range targets {
+		if t == nodeTarget {
+			nodeTargets = append(nodeTargets, t)
+		} else {
+			planeTargets = append(planeTargets, t)
+		}
+	}
+	switch {
+	case len(controlPlanes) > 0 && len(workers) > 0 && len(planeTargets) > 0 && len(nodeTargets) > 0:
+		plan.placements = []jobPlacement{
+			pinned(firstNode(controlPlanes), controlPlaneJobRole, planeTargets),
+			pinned(firstNode(workers), nodeJobRole, nodeTargets),
+		}
+	case len(controlPlanes) > 0 && (len(workers) == 0 || len(nodeTargets) == 0):
+		plan.placements = []jobPlacement{pinned(firstNode(controlPlanes), "", targets)}
+	default:
+		// No control-plane node, or only the node target asked for: a worker reads it all, and a
+		// control-plane check it cannot answer is listed as unread.
+		plan.placements = []jobPlacement{pinned(firstNode(workers), "", targets)}
+	}
+	return plan
+}
+
+// pinned is a Job pinned to a node by its hostname label, or by name where it has none.
+func pinned(n corev1.Node, role string, targets []string) jobPlacement {
+	p := jobPlacement{
+		role: role, targets: targets,
+		read: kubeBenchRead{node: n.Name, roleKnown: true, controlPlane: isControlPlane(n)},
+	}
+	if host := n.Labels[hostnameLabel]; host != "" {
+		p.selector = map[string]string{hostnameLabel: host}
+	} else {
+		p.nodeName = n.Name
+	}
+	return p
+}
+
+// firstNode is the node a role's Job runs on: a Ready one where there is one, and the first by
+// name among those, so repeated runs read the same node.
+func firstNode(nodes []corev1.Node) corev1.Node {
+	slices.SortFunc(nodes, func(a, b corev1.Node) int {
+		if ra, rb := nodeReady(a), nodeReady(b); ra != rb {
+			if ra {
+				return -1
+			}
+			return 1
+		}
+		return strings.Compare(a.Name, b.Name)
+	})
+	return nodes[0]
+}
+
+func nodeReady(n corev1.Node) bool {
+	for _, c := range n.Status.Conditions {
+		if c.Type == corev1.NodeReady {
+			return c.Status == corev1.ConditionTrue
+		}
+	}
+	return false
+}
+
+func isControlPlane(n corev1.Node) bool {
+	_, plane := n.Labels[controlPlaneRoleLabel]
+	_, master := n.Labels[legacyMasterRoleLabel]
+	return plane || master
+}
+
+// splitTargets reads "master, node" into its targets, dropping empty entries.
+func splitTargets(s string) []string {
+	var out []string
+	for t := range strings.SplitSeq(s, ",") {
+		if t = strings.TrimSpace(t); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// rancherCluster says the cluster is k3s or RKE2: the benchmark named for it, a node's kubelet
+// version, or, where nodes could not be listed, the API server's.
+func rancherCluster(client kubernetes.Interface, benchmark string, nodes *corev1.NodeList) bool {
+	if strings.HasPrefix(benchmark, "k3s-") || strings.HasPrefix(benchmark, "rke2-") {
+		return true
+	}
+	rancherPlatform := func(version string) bool {
+		p := platformFrom(version)
+		return p == "k3s" || p == "rke2r"
+	}
+	if nodes != nil {
+		for _, n := range nodes.Items {
+			if rancherPlatform(n.Status.NodeInfo.KubeletVersion) {
+				return true
+			}
+		}
+		return false
+	}
+	info, err := client.Discovery().ServerVersion()
+	return err == nil && rancherPlatform(info.GitVersion)
+}
+
+// readOf is what the plan knows about a node the scheduler chose, by name.
+func (p jobPlan) readOf(node string) kubeBenchRead {
+	if r, ok := p.nodes[node]; ok {
+		return r
+	}
+	return kubeBenchRead{node: node}
+}
+
+// provenance states which nodes the run read and how many it did not. Names alone: which targets
+// ran where follows from the node's role, and the line has to fit the console's evidence block.
+func (p jobPlan) provenance(benchmark string, runs []jobRun) []sarif.Field {
+	var fields []sarif.Field
+	if benchmark != "" {
+		fields = append(fields, sarif.Field{Key: "benchmark", Value: benchmark})
+	}
+	var read []string
+	seen := map[string]bool{}
+	for _, r := range runs {
+		name := r.read.node
+		if name == "" {
+			name = "a node the scheduler chose"
+		}
+		if _, listed := p.nodes[r.read.node]; listed {
+			seen[r.read.node] = true
+		}
+		read = append(read, name)
+	}
+	fields = append(fields, sarif.Field{Key: "nodes", Value: strings.Join(read, ", ")})
+	switch {
+	case p.listErr != nil:
+		fields = append(fields, sarif.Field{Value: "node roles unknown, the nodes could not be listed"})
+	case len(p.nodes) > len(seen):
+		fields = append(fields, sarif.Field{Value: fmt.Sprintf("%d of %s read", len(seen), english.Count(len(p.nodes), "node"))})
+	}
+	return fields
+}
+
+// jobNode is the node a Job's pod ran on, "" when it cannot be read.
+func jobNode(ctx context.Context, client kubernetes.Interface, namespace, jobName string) string {
+	pods, err := client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: "job-name=" + jobName})
+	if err != nil || len(pods.Items) == 0 {
+		return ""
+	}
+	return pods.Items[0].Spec.NodeName
 }
 
 // hostPaths are the directories kube-bench reads, from its own Job manifest. Mounted read-only:
@@ -285,9 +571,23 @@ var hostPaths = []struct{ name, path string }{
 // on the host.
 const usrBinMountPath = "/usr/local/mount-from-host/bin"
 
-func hostMounts() []corev1.VolumeMount {
-	mounts := make([]corev1.VolumeMount, 0, len(hostPaths))
-	for _, p := range hostPaths {
+// rancherPath holds k3s's and RKE2's configuration, certificates and keys, which their benchmarks
+// read in place of /etc/kubernetes. Mounted only on those clusters, because it holds the
+// cluster's keys and nothing on any other cluster reads it.
+var rancherPath = struct{ name, path string }{"var-lib-rancher", "/var/lib/rancher"}
+
+// hostPathsFor are the paths a Job mounts, with /var/lib/rancher on k3s and RKE2.
+func hostPathsFor(rancher bool) []struct{ name, path string } {
+	if !rancher {
+		return hostPaths
+	}
+	return append(slices.Clone(hostPaths), rancherPath)
+}
+
+func hostMounts(rancher bool) []corev1.VolumeMount {
+	paths := hostPathsFor(rancher)
+	mounts := make([]corev1.VolumeMount, 0, len(paths))
+	for _, p := range paths {
 		at := p.path
 		if p.name == "usr-bin" {
 			at = usrBinMountPath
@@ -297,9 +597,10 @@ func hostMounts() []corev1.VolumeMount {
 	return mounts
 }
 
-func hostVolumes() []corev1.Volume {
-	vols := make([]corev1.Volume, 0, len(hostPaths))
-	for _, p := range hostPaths {
+func hostVolumes(rancher bool) []corev1.Volume {
+	paths := hostPathsFor(rancher)
+	vols := make([]corev1.Volume, 0, len(paths))
+	for _, p := range paths {
 		vols = append(vols, corev1.Volume{
 			Name:         p.name,
 			VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: p.path}},

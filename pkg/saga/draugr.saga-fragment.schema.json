@@ -769,7 +769,7 @@
               "type": "string"
             },
             "nodeSelector": {
-              "description": "Node selector for the Job, as comma-separated key=value pairs. Use it to benchmark a specific node pool.",
+              "description": "Node selector for the Job, as comma-separated key=value pairs. One Job runs every target on a node it matches. Unset, one Job runs on a control-plane node and one on a worker.",
               "type": "string"
             },
             "targets": {
