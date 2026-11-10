@@ -1,0 +1,1 @@
+- **`draugr-k8s-policies` no longer reports `kube-bench-job`'s own pod.** The Job's privileged pod ran while the policy checks read the cluster's pods, so a run could list it under privileged containers and host paths. Pods of Jobs the same run created are left out.

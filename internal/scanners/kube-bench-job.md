@@ -70,6 +70,8 @@ It follows kube-bench's own manifest, because the checks read files that exist o
   is most of what these sections check. Without this the Job is unschedulable exactly where it is
   most useful.
 - **`backoffLimit: 0`**. A failing benchmark is a result, not something to retry.
+- **Left out of [`draugr-k8s-policies`](draugr-k8s-policies.md)' pod checks** in the same run, so
+  the scan does not report its own privileged pod as a finding about the cluster.
 - **No service account or RBAC.** These sections read the host filesystem, not the API, so the
   Job needs no permissions in the cluster.
 
@@ -122,11 +124,13 @@ A check is unread in two cases:
   worker or a cluster that shows no control-plane node. The files it reads are on another machine.
   Remove `nodeSelector`, or select a control-plane node, to evaluate these checks; on a managed
   cluster, `targets: node` leaves them out.
-- **A check whose audit printed only a shell's `not found`** for its command, such as the k3s
-  checks that read the API server's flags through `journalctl`, which neither the image nor a
-  `k3d` node carries. A check that a flag is absent passes when its audit prints no flags, so a
-  PASS is listed too. No setting changes this; `report.json` lists the checks under
-  `unreadChecks[]` to verify on the node by hand.
+- **A check whose command did not run**: its audit printed only a shell's `not found`, or only the
+  image's loader failing to load the command. The k3s checks read the API server's flags through
+  `journalctl`, which neither the image nor a `k3d` node carries (`journalctl not found`). On a
+  host with systemd, the image finds the host's `journalctl` through the mounted `/usr/bin` and
+  cannot load it (`journalctl could not run`). A check that a flag is absent passes when its audit
+  prints no flags, so a PASS is listed too. No setting changes this; `report.json` lists the checks
+  under `unreadChecks[]` to verify on the node by hand.
 
 A WARN stays a finding whatever its audit printed: kube-bench is asking a person to look.
 `config.gate.failOnCaveats: [unread-checks]` fails the run on these.

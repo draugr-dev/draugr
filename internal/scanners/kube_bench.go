@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -681,8 +682,9 @@ func (r kubeBenchRead) group(location string) string {
 //   - A control-plane check on a node with no control-plane role. The files and processes it reads
 //     are on another machine, so kube-bench finds none and fails it. The worker holds no API server
 //     pod specification, which says nothing about the one on the control plane.
-//   - A check whose audit printed only a shell's "not found" for its command. The command did not
-//     run, so a PASS is as empty as a FAIL: a check that a flag is absent passes on an empty line.
+//   - A check whose audit printed only that its command was not found or could not be loaded. The
+//     command did not run, so a PASS is as empty as a FAIL: a check that a flag is absent passes
+//     when its audit prints no flags.
 func (r kubeBenchRead) unreadReason(nodeType string, res kubeBenchFinding) string {
 	if !kubeBenchDecided(res.Status) {
 		return ""
@@ -690,10 +692,7 @@ func (r kubeBenchRead) unreadReason(nodeType string, res kubeBenchFinding) strin
 	if r.roleKnown && !r.controlPlane && controlPlaneNodeType(nodeType) {
 		return "not a control-plane node"
 	}
-	if missing := commandsNotFound(res); len(missing) > 0 {
-		return strings.Join(missing, ", ") + " not found"
-	}
-	return ""
+	return didNotRunReason(res)
 }
 
 // controlPlaneNodeType says a kube-bench node type reads a control-plane node's files: the API
@@ -711,14 +710,23 @@ func controlPlaneNodeType(nodeType string) bool {
 // journalctl: command not found`).
 var shellNotFoundRE = regexp.MustCompile(`^(?:/[\w/]*/)?(?:ba|da)?sh: (?:line \d+: |\d+: )?([^\s:]+): (?:command )?not found$`)
 
+// loaderFailureREs are the musl loader's lines for a binary it found and could not load. The image
+// runs on musl and puts the host's /usr/bin on its PATH, so a host's glibc binary, such as
+// systemd's journalctl, is found there and fails before it reads anything.
+var loaderFailureREs = []*regexp.Regexp{
+	regexp.MustCompile(`^Error loading shared library [^ ]+: No such file or directory \(needed by ([^)]+)\)$`),
+	regexp.MustCompile(`^Error relocating ([^:]+): [^:]+: symbol not found$`),
+}
+
 // failedOutputRE reads the output kube-bench quotes in a result's reason when the audit exited
 // non-zero: `failed to run: "<audit>", output: "<output>", error: exit status 1`.
 var failedOutputRE = regexp.MustCompile(`, output: ("(?:[^"\\]|\\.)*"), error: `)
 
-// commandsNotFound names the commands a check's audit could not find, when that is all it printed,
-// sorted. Nil when the audit printed anything else, or nothing: an empty line is a valid answer to
-// a check that a flag is absent, so emptiness alone says nothing.
-func commandsNotFound(res kubeBenchFinding) []string {
+// commandsThatDidNotRun names the commands a check's audit could not find and those it found and
+// could not load, when those lines are all it printed, each sorted. Both nil when the audit printed
+// anything else, or nothing: an empty line is a valid answer to a check that a flag is absent, so
+// emptiness alone says nothing.
+func commandsThatDidNotRun(res kubeBenchFinding) (notFound, cannotRun []string) {
 	out := res.ActualValue
 	if strings.TrimSpace(out) == "" {
 		if m := failedOutputRE.FindStringSubmatch(res.Reason); m != nil {
@@ -727,22 +735,49 @@ func commandsNotFound(res kubeBenchFinding) []string {
 			}
 		}
 	}
-	var missing []string
+	add := func(list *[]string, name string) {
+		if !slices.Contains(*list, name) {
+			*list = append(*list, name)
+		}
+	}
 	for line := range strings.SplitSeq(out, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		m := shellNotFoundRE.FindStringSubmatch(line)
-		if m == nil {
-			return nil
+		if m := shellNotFoundRE.FindStringSubmatch(line); m != nil {
+			add(&notFound, m[1])
+			continue
 		}
-		if !slices.Contains(missing, m[1]) {
-			missing = append(missing, m[1])
+		loaded := true
+		for _, re := range loaderFailureREs {
+			if m := re.FindStringSubmatch(line); m != nil {
+				add(&cannotRun, path.Base(m[1]))
+				loaded = false
+				break
+			}
+		}
+		if loaded {
+			return nil, nil
 		}
 	}
-	slices.Sort(missing)
-	return missing
+	slices.Sort(notFound)
+	slices.Sort(cannotRun)
+	return notFound, cannotRun
+}
+
+// didNotRunReason is why a check whose commands did not run is unread, "" when they ran:
+// `journalctl not found`, or `journalctl could not run` for a binary the image could not load.
+func didNotRunReason(res kubeBenchFinding) string {
+	notFound, cannotRun := commandsThatDidNotRun(res)
+	var parts []string
+	if len(notFound) > 0 {
+		parts = append(parts, strings.Join(notFound, ", ")+" not found")
+	}
+	if len(cannotRun) > 0 {
+		parts = append(parts, strings.Join(cannotRun, ", ")+" could not run")
+	}
+	return strings.Join(parts, ", ")
 }
 
 func reportFromKubeBench(

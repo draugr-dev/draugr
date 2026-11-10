@@ -176,7 +176,8 @@ func (s kubeBenchJobScanner) Scan(ctx context.Context, target plugin.Target, cfg
 	if err := refuseNamespaceScope(kubeBenchJobScannerName, cluster.Namespaces); err != nil {
 		return sarif.Report{}, err
 	}
-	client, err := s.client(kubeContext(target))
+	kubeCtx := kubeContext(target)
+	client, err := s.client(kubeCtx)
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", kubeBenchJobScannerName, err)
 	}
@@ -190,7 +191,7 @@ func (s kubeBenchJobScanner) Scan(ctx context.Context, target plugin.Target, cfg
 	var wg sync.WaitGroup
 	for i, p := range plan.placements {
 		wg.Go(func() {
-			runs[i], errs[i] = s.runJob(ctx, client, namespace, cfg, cluster.Benchmark, plan, p)
+			runs[i], errs[i] = s.runJob(ctx, client, kubeCtx, namespace, cfg, cluster.Benchmark, plan, p)
 		})
 	}
 	wg.Wait()
@@ -229,10 +230,13 @@ type jobRun struct {
 
 // runJob creates one Job, waits for it, reads its output, and removes it.
 func (s kubeBenchJobScanner) runJob(
-	ctx context.Context, client kubernetes.Interface, namespace string, cfg plugin.Config,
+	ctx context.Context, client kubernetes.Interface, kubeCtx, namespace string, cfg plugin.Config,
 	benchmark string, plan jobPlan, p jobPlacement,
 ) (jobRun, error) {
 	job := s.buildJob(cfg, benchmark, p, plan.rancher)
+	// Before the create, so the policy scanner reading pods at the same time never sees this
+	// Job's pod without knowing it is the scan's own.
+	registerOwnJob(kubeCtx, namespace, job.Name)
 	created, err := client.BatchV1().Jobs(namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
 		return jobRun{}, fmt.Errorf("create job in %q: %w", namespace, err)

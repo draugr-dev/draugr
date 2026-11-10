@@ -2,6 +2,7 @@ package scanners
 
 import (
 	"context"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -387,37 +388,49 @@ func TestKubeBenchJobRejectsOutputItCannotRead(t *testing.T) {
 	}
 }
 
-// The shapes below are kube-bench's own, from runs of the pinned image on k3s, where the image has
-// no journalctl.
-func TestCommandsNotFound(t *testing.T) {
+// The shapes below are kube-bench's own, from runs of the pinned image: on a k3s node, where
+// neither the image nor the node has journalctl, and with a systemd host's /usr/bin mounted, where
+// the host's journalctl is found and the image's musl loader cannot load it.
+func TestDidNotRunReason(t *testing.T) {
 	t.Parallel()
+	hostJournalctl, err := os.ReadFile("testdata/kube-bench-host-journalctl.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, c := range []struct {
 		name string
 		res  kubeBenchFinding
-		want []string
+		want string
 	}{
-		{"BusyBox's line", kubeBenchFinding{ActualValue: "/bin/sh: journalctl: not found"}, []string{"journalctl"}},
-		{"bash's line", kubeBenchFinding{ActualValue: "bash: line 1: journalctl: command not found"}, []string{"journalctl"}},
+		{"BusyBox's line", kubeBenchFinding{ActualValue: "/bin/sh: journalctl: not found"}, "journalctl not found"},
+		{"bash's line", kubeBenchFinding{ActualValue: "bash: line 1: journalctl: command not found"}, "journalctl not found"},
 		{
 			"quoted in the reason of an audit that exited non-zero",
 			kubeBenchFinding{Reason: `failed to run: "journalctl -m -u k3s | grep 'Running kube-apiserver' | tail -n1 | grep 'anonymous-auth'", output: "/bin/sh: journalctl: not found\n", error: exit status 1`},
-			[]string{"journalctl"},
+			"journalctl not found",
 		},
 		{
 			"two commands",
 			kubeBenchFinding{ActualValue: "/bin/sh: journalctl: not found\n/bin/sh: systemctl: not found\n/bin/sh: journalctl: not found"},
-			[]string{"journalctl", "systemctl"},
+			"journalctl, systemctl not found",
 		},
-		{"a value after the error", kubeBenchFinding{ActualValue: "/bin/sh: journalctl: not found\n--anonymous-auth=false"}, nil},
-		{"a value", kubeBenchFinding{ActualValue: "permissions=600"}, nil},
-		{"nothing printed", kubeBenchFinding{}, nil},
-		{"a reason with empty output", kubeBenchFinding{Reason: `failed to run: "grep x", output: "", error: exit status 1`}, nil},
-		{"a reason that does not quote", kubeBenchFinding{Reason: `failed to run: "x", output: "\q", error: exit status 1`}, nil},
+		{"a host binary the image cannot load", kubeBenchFinding{ActualValue: string(hostJournalctl)}, "journalctl could not run"},
+		{
+			"one not found, one not loaded",
+			kubeBenchFinding{ActualValue: "/bin/sh: systemctl: not found\n" + string(hostJournalctl)},
+			"systemctl not found, journalctl could not run",
+		},
+		{"a value after the error", kubeBenchFinding{ActualValue: "/bin/sh: journalctl: not found\n--anonymous-auth=false"}, ""},
+		{"a value after a loader error", kubeBenchFinding{ActualValue: string(hostJournalctl) + "\n--anonymous-auth=false"}, ""},
+		{"a value", kubeBenchFinding{ActualValue: "permissions=600"}, ""},
+		{"nothing printed", kubeBenchFinding{}, ""},
+		{"a reason with empty output", kubeBenchFinding{Reason: `failed to run: "grep x", output: "", error: exit status 1`}, ""},
+		{"a reason that does not quote", kubeBenchFinding{Reason: `failed to run: "x", output: "\q", error: exit status 1`}, ""},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
-			if got := commandsNotFound(c.res); !slices.Equal(got, c.want) {
-				t.Errorf("commandsNotFound = %v, want %v", got, c.want)
+			if got := didNotRunReason(c.res); got != c.want {
+				t.Errorf("didNotRunReason = %q, want %q", got, c.want)
 			}
 		})
 	}
