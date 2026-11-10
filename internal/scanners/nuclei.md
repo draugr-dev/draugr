@@ -30,7 +30,7 @@ same output as a scan that matched nothing.
 The command line is:
 
 ```
-nuclei -u <url> -jsonl -silent -nc -duc -etags headers,intrusive -ept javascript,tcp -eid <ids> -r <file>
+nuclei -u <url> -jsonl -nc -duc -etags headers,intrusive -ept javascript,tcp -eid <ids> -r <file>
 ```
 
 followed by the flags any [options](#options) set. `-ept`, `-eid` and `-r` keep the scan on the URL, as
@@ -40,7 +40,8 @@ a template is listed.
 - `-jsonl` writes one finding per line to stdout, which Draugr parses itself (rather than
   Nuclei's SARIF export, whose severity mapping, location, and missing CWE don't fit Draugr's
   model).
-- `-silent -nc` suppress the banner/progress and ANSI colors so stdout is clean JSONL.
+- `-nc` drops ANSI colors. Nuclei writes its banner and its log to stderr, so stdout is clean
+  JSONL, and Draugr reads the log for [partial scans](#partial-scans).
 - `-duc` disables the update-check network call, keeping runs deterministic. **Only on the
   scan.** On `nuclei -update-templates` the same flag disables the update itself, the command
   exits 0, downloads nothing, and leaves you with an engine and no templates.
@@ -91,6 +92,22 @@ servers. The report says `resolvers: Nuclei's built-in public servers`. `--offli
 instead.
 
 **A redirect can send a template to another host**, by the target's own answer, and that is not closed.
+
+## Partial scans
+
+Nuclei drops a host after 30 errors (`-mhe`), runs none of the templates it has not reached, and
+exits 0. Its log line, in one of two forms, is the only record:
+
+```
+[INF] Skipped app.internal:8080 from target list as found unresponsive 31 times
+[INF] Skipped app.internal:8080 from target list as found unresponsive permanently: cause="no address found for host" chain="got err while executing https://login.microsoftonline.com:443/…"
+```
+
+When the host it names is the endpoint, the scan is partial: its findings are in the report, the
+`dast` control is in error, the run exits non-zero unless `--allow-scan-errors` is given, and the
+result is not cached, so the next run scans again. The error quotes Nuclei's cause, and the request
+that failed where Nuclei names one. That request can be to another host, such as a lookup on a
+network with no outside DNS, which Nuclei counts against the endpoint.
 
 ## Templates
 
