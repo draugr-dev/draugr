@@ -257,6 +257,10 @@ func writeEffects(w io.Writer, col tui.Painter, reg *engine.Registry, only strin
 		}
 		for _, e := range info.Effects {
 			detail := e.Detail
+			if e.Spec {
+				// A job has it only where its host declares spec, so the row names the field.
+				detail = "with spec on a host, " + detail
+			}
 			if e.Option != "" {
 				// A job has it only where its block sets the option, so the row names the option.
 				if e.Default {

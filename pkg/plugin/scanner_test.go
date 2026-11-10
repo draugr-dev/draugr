@@ -89,3 +89,27 @@ func TestRateInterval(t *testing.T) {
 		}
 	}
 }
+
+// An effect marked Spec belongs to a job whose target is a host declaring spec, and to no other:
+// not a host without one, not another kind of target, and never to EffectsFor, which has no target.
+func TestEffectsForJobReadsTheHostsSpec(t *testing.T) {
+	always := Effect{Kind: EffectNetwork, Detail: "probes"}
+	fuzzes := Effect{Kind: EffectMutate, Detail: "fuzzes", Spec: true}
+	info := ScannerInfo{Effects: []Effect{always, fuzzes}}
+	for name, tc := range map[string]struct {
+		target Target
+		want   int
+	}{
+		"host with spec":    {HostTarget{URL: "https://a.example.com", Spec: &HostSpec{Path: "./openapi.yaml"}}, 2},
+		"host without spec": {HostTarget{URL: "https://a.example.com"}, 1},
+		"an image":          {ImageTarget{Ref: "alpine:3"}, 1},
+		"no target":         {nil, 1},
+	} {
+		if got := EffectsForJob(info, ScanJob{Target: tc.target}); len(got) != tc.want || got[0] != always {
+			t.Errorf("%s: EffectsForJob = %+v, want %d starting with the unconditional one", name, got, tc.want)
+		}
+	}
+	if got := EffectsFor(info, nil); len(got) != 1 {
+		t.Errorf("EffectsFor sees no target, so no Spec effect: %+v", got)
+	}
+}

@@ -921,7 +921,7 @@ func optionDisclosures(reg *engine.Registry, model *saga.Model) map[string]bool 
 		if !ok {
 			continue
 		}
-		for _, e := range plugin.EffectsFor(sc.Info(), pj.Job.Config) {
+		for _, e := range plugin.EffectsForJob(sc.Info(), pj.Job) {
 			if e.Kind == plugin.EffectDisclosure && e.Option != "" {
 				out[pj.Job.Scanner] = true
 			}

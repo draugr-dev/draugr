@@ -268,3 +268,66 @@ func TestEffectKindRequiresConsent(t *testing.T) {
 		}
 	}
 }
+
+// specController plans one host job per component, with spec on the hosts of the components named
+// in spec.
+type specController struct {
+	scanner string
+	spec    map[string]bool
+}
+
+func (c specController) Info() plugin.ControllerInfo {
+	return plugin.ControllerInfo{Name: "images", Scope: plugin.ScopeComponent, DefaultScanners: []string{c.scanner}}
+}
+
+func (c specController) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
+	if comp == nil {
+		return nil, nil
+	}
+	host := plugin.HostTarget{URL: "https://" + comp.Name + ".example.com"}
+	if c.spec[comp.Name] {
+		host.Spec = &plugin.HostSpec{Path: "./" + comp.Name + ".yaml"}
+	}
+	return []plugin.ScanJob{{Scanner: c.scanner, Target: host}}, nil
+}
+
+func (c specController) Aggregate(reports []sarif.Report) (plugin.ControlResult, error) {
+	return plugin.ControlResult{Control: "images", Report: sarif.Merge(reports...)}, nil
+}
+
+// A consent-gated effect that a host's spec turns on refuses the job whose host declares spec and
+// no other. Accepted, it runs, and it is recorded for that job alone.
+func TestSpecEffectIsGatedOnlyForAHostWithSpec(t *testing.T) {
+	s := effectScanner{name: "fuzzes", effects: []plugin.Effect{
+		{Kind: plugin.EffectNetwork, Detail: "probes"},
+		{Kind: plugin.EffectMutate, Detail: "fuzzes every parameter", Spec: true},
+	}}
+	run := func(spec map[string]bool, allow ...string) (Result, error) {
+		reg := NewRegistry()
+		reg.RegisterController(specController{scanner: s.name, spec: spec})
+		reg.RegisterScanner(s)
+		model := twoComponentModel()
+		model.Config.AllowEffects = saga.EffectPermissions(allow)
+		return New(reg).Run(context.Background(), model)
+	}
+	if _, err := run(nil); err != nil {
+		t.Errorf("no host declares spec, so nothing needs accepting: %v", err)
+	}
+	if _, err := run(map[string]bool{"web": true}); err == nil || !strings.Contains(err.Error(), "fuzzes every parameter") ||
+		strings.Contains(err.Error(), "images/api/") {
+		t.Errorf("only the host with spec should be refused, naming what it would do, got %v", err)
+	}
+	res, err := run(map[string]bool{"web": true}, "mutate")
+	if err != nil {
+		t.Fatalf("mutate accepted: %v", err)
+	}
+	mutates := 0
+	for _, e := range res.Effects {
+		if e.Kind == plugin.EffectMutate {
+			mutates++
+		}
+	}
+	if mutates != 1 {
+		t.Errorf("effects = %+v, want mutate recorded once, for the host with spec", res.Effects)
+	}
+}

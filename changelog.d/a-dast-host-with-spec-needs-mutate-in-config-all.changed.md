@@ -1,0 +1,1 @@
+- **A `dast` host with `spec` is refused until `config.allowEffects` lists `mutate`.** The scan sends injection payloads into every parameter of the document's operations, a `GET` that changes state included. Add `allowEffects: [mutate]` to `config`, or pass `--allow-effects mutate`. Once accepted, the host also runs the default templates at its URL, which a spec scan skipped.

@@ -15,9 +15,10 @@ config:
   # below needs this line, and it is commented out.
   #
   # Two kinds require consent. `mutate` creates or changes something that outlives the scan:
-  # kube-bench runs a short-lived Job in your cluster and deletes it, and the Mend connectors
-  # create a project in your Mend account. `privilege` means a scanner needs more access than a
-  # reader, the same kube-bench Job mounts host paths read-only to read a node's configuration.
+  # kube-bench runs a short-lived Job in your cluster and deletes it, the Mend connectors
+  # create a project in your Mend account, and dast fuzzes the API of a host with a spec.
+  # `privilege` means a scanner needs more access than a reader, the same kube-bench Job
+  # mounts host paths read-only to read a node's configuration.
   #
   # It applies to everything this descriptor points at. A scan that may do different things to
   # different targets is a second descriptor.
@@ -271,6 +272,9 @@ components:
           # A specification lists POST, PUT and DELETE too, and a scanner handed one will
           # exercise them. A scan of a staging API that deletes its own fixtures is a scan
           # nobody runs twice, so a write method is listed here or it is not exercised.
+          # With dast enabled, a spec also has injection payloads sent into every parameter of
+          # the operations kept, so config.allowEffects has to list mutate. methods limits
+          # which operations run, not what is sent.
 
   # A component that is entirely somebody else's software: a vendor console we run and do not
   # maintain. `builtBy` on the component covers every target under it, so a repository or image
