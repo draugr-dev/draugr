@@ -294,9 +294,9 @@ runs:
         INPUT_MIN_PRIORITY: ${{ inputs.min-priority }}
         INPUT_CODE_SCANNING_MIN_PRIORITY: ${{ inputs.code-scanning-min-priority }}
         INPUT_CACHE_DIR: ${{ inputs.cache-dir }}
-        # A pull request from a fork runs code the base repository has not reviewed. If that job
-        # can *write* a shared cache, the fork decides what the next run on the default branch
-        # reads, a pass nobody earned, with nothing in the report to show for it.
+        # A pull request from another repository, a fork, runs code the base repository has not
+        # reviewed. If that job can *write* a shared cache, the fork decides what the next run on
+        # the default branch reads, a pass nobody earned, with nothing in the report to show for it.
         #
         # GitHub's own cache is already scoped so a fork cannot write the base branch's copy, but
         # a self-hosted runner, a bucket or a mounted volume is not, and the guarantee should not
@@ -305,7 +305,7 @@ runs:
         #
         # Read-only, not cache-off: the entries already there were written by trusted runs and are
         # exactly what makes a pull-request scan fast.
-        CACHE_READ_ONLY: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork && 'true' || '' }}
+        CACHE_READ_ONLY: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'true' || '' }}
         INPUT_ARGS: ${{ inputs.args }}
         # Forwarded so a Saga's `github` publisher can upload SARIF to code scanning. Uploading
         # requires the job to grant `permissions: security-events: write`. GITHUB_REPOSITORY/
@@ -337,9 +337,9 @@ runs:
         INPUT_WORKING_DIRECTORY: ${{ inputs.working-directory }}
         INPUT_OUTPUT: ${{ inputs.output }}
         INPUT_CACHE_DIR: ${{ inputs.cache-dir }}
-        # A pull request from a fork runs code the base repository has not reviewed. If that job
-        # can *write* a shared cache, the fork decides what the next run on the default branch
-        # reads, a pass nobody earned, with nothing in the report to show for it.
+        # A pull request from another repository, a fork, runs code the base repository has not
+        # reviewed. If that job can *write* a shared cache, the fork decides what the next run on
+        # the default branch reads, a pass nobody earned, with nothing in the report to show for it.
         #
         # GitHub's own cache is already scoped so a fork cannot write the base branch's copy, but
         # a self-hosted runner, a bucket or a mounted volume is not, and the guarantee should not
@@ -348,11 +348,13 @@ runs:
         #
         # Read-only, not cache-off: the entries already there were written by trusted runs and are
         # exactly what makes a pull-request scan fast.
-        CACHE_READ_ONLY: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork && 'true' || '' }}
-        # GitHub gives a fork's pull_request job a read-only token whatever the workflow's
-        # permissions say, so the comment cannot be posted. The findings go to the job summary
-        # instead, and the step's outcome is the gate's alone.
-        FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork && 'true' || '' }}
+        CACHE_READ_ONLY: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'true' || '' }}
+        # GitHub gives a pull_request job from another repository, a fork, a read-only token whatever
+        # the workflow's permissions say, so the comment cannot be posted. The findings go to the job
+        # summary instead, and the step's outcome is the gate's alone. The head repository is
+        # compared with the base because head.repo.fork is true for any pull request inside a fork,
+        # where the head is the base and the token can write.
+        FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'true' || '' }}
         INPUT_FAIL_ON_NEW: ${{ inputs.fail-on-new }}
         INPUT_FAIL_ON_NEW_PRIORITY: ${{ inputs.fail-on-new-priority }}
         INPUT_DIFF_VIEW: ${{ inputs.diff-view }}
