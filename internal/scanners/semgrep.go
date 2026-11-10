@@ -49,6 +49,11 @@ func NewSemgrep() plugin.Scanner {
 			Controls:     []string{"sast"},
 			TargetKinds:  []plugin.TargetKind{plugin.TargetRepository},
 			ConfigSchema: json.RawMessage(semgrepConfigSchema),
+			// One Semgrep run at a time. Each run sizes its analysis to every CPU, so runs side by
+			// side divide the machine between them while each believes it has all of it, and the
+			// wall-clock limits on a function's analysis then cut short what a run alone finishes.
+			// One at a time, each run keeps the speed and the findings it has alone.
+			Exclusive: plugin.ExclusiveSemgrep,
 		},
 		semgrepArgs,
 	)

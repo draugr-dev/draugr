@@ -179,6 +179,12 @@ const OriginDraugr = "draugr"
 // per-tool bound allows.
 const ExclusiveGoPackageLoad = "go-package-load"
 
+// ExclusiveSemgrep is the ScannerInfo.Exclusive resource of a scanner that runs Semgrep, which
+// starts as many analysis processes as the machine has CPUs, up to sixteen, whatever else is
+// running. Semgrep stops analyzing a function after a fixed wall-clock time, so a run sharing the
+// CPUs with another Semgrep run analyzes less and reports fewer findings, different ones each time.
+const ExclusiveSemgrep = "semgrep"
+
 // ExclusiveTerraformModuleCache is the ScannerInfo.Exclusive resource of a scanner that runs Trivy
 // over Terraform. Trivy downloads a remote module into one directory under the system's temporary
 // directory, removing it and cloning in place with no lock. A second job using that module then
