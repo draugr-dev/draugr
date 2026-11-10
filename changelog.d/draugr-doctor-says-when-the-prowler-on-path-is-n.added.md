@@ -1,0 +1,1 @@
+- **`draugr doctor` says when the `prowler` on `PATH` is not the release Draugr's read tables come from.** A check can then have its result discarded though it ran, or kept though a read it needs was denied. The line gives the `pip install prowler==<release>` that matches.

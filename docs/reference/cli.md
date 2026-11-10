@@ -1527,6 +1527,15 @@ both:
 1 installed tool is built with an older Go than Draugr builds it with. `draugr tools install --force` rebuilds it.
 ```
 
+`prowler` is not installed by Draugr, so its row has no tested version. When its release is not the
+one its scanner's read tables come from, a line under the table says so, here for a newer one:
+
+```
+prowler 5.49.0 is newer than 5.48.0, the release Draugr's read tables come from. A check whose reads changed may have its result discarded though it ran, or kept though a read it needs was denied. `pip install prowler==5.48.0` matches them, without what Prowler added since.
+```
+
+It is a note, and `--strict` does not fail on it.
+
 A pinned tool is held to its pin instead. Its row names the file that sets the pin, and the
 version when the tool is not at it. The line under the table counts the two kinds apart:
 

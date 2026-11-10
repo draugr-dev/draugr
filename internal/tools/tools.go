@@ -242,7 +242,8 @@ func Catalog() map[string]Tool {
 			},
 			DataHint: "run `draugr tools install kube-bench`, which fetches the binary and its cfg/ tree together",
 		},
-		// Not one `draugr tools install` fetches: Draugr runs the prowler on PATH.
+		// Not one `draugr tools install` fetches: Draugr runs the prowler on PATH. Its tables of what
+		// each check reads come from one release, ProwlerTablesVersion.
 		"prowler": {
 			Binary:      "prowler",
 			VersionArgs: []string{"--version"},
@@ -265,6 +266,15 @@ func Catalog() map[string]Tool {
 		},
 	}
 }
+
+// ProwlerTablesVersion is the Prowler release whose source the scanner's tables of what each check
+// reads were taken from, for AWS by scripts/prowler-aws-check-reads.py and for Google Cloud from
+// each check's clients. Prowler is the one on PATH, of whatever release, so `draugr doctor` says when
+// it is another one, and tool-bump's scheduled run raises an issue when Prowler publishes a newer one,
+// which is the cue to regenerate the tables and move this.
+//
+// A quoted literal on a line of its own: tool-bump reads it with grep.
+const ProwlerTablesVersion = "5.48.0"
 
 // All returns the catalog's tools sorted by binary name, for a full environment check when
 // no Saga narrows the set.

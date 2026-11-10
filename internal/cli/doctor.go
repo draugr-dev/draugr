@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/mod/semver"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/login"
@@ -579,6 +580,45 @@ func writeDoctorTable(w io.Writer, statuses []tools.Status, pins map[string]tool
 		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(tui.StyleAccent, fmt.Sprintf(
 			"%s. `draugr tools install --force` %s.", offTargetPhrase(c), forceInstalls(c))))
 	}
+	if line := prowlerTablesNote(statuses); line != "" {
+		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(tui.StyleAccent, line))
+	}
+}
+
+// prowlerTablesNote says when the prowler found is another release than the one the scanner's
+// read tables come from (tools.ProwlerTablesVersion), and "" otherwise.
+//
+// Draugr does not install Prowler, so the version count above, which ends in `tools install`, cannot
+// cover it, and its row has no version to be tested against. The tables decide which checks a denied
+// read leaves unread, and a check whose reads changed between releases can have its result discarded
+// though it ran, or kept though a read it needs was denied. Another release in either direction is
+// untested, as versionOff holds for every tool. The fix differs: an older prowler is upgraded to the
+// tables' release, while matching a newer one costs the checks Prowler added since, so the line says so.
+func prowlerTablesNote(statuses []tools.Status) string {
+	for _, st := range statuses {
+		if st.Tool.Binary != "prowler" || !st.Found || st.Err != nil || st.Version == "" {
+			continue
+		}
+		v, want := strings.TrimPrefix(st.Version, "v"), tools.ProwlerTablesVersion
+		if v == want {
+			return ""
+		}
+		const risk = "A check whose reads changed may have its result discarded though it ran, or kept " +
+			"though a read it needs was denied."
+		// A version semver cannot read ranks below every valid one, which would call it older.
+		switch c := semver.Compare("v"+v, "v"+want); {
+		case !semver.IsValid("v" + v):
+		case c > 0:
+			return fmt.Sprintf("prowler %s is newer than %s, the release Draugr's read tables come from. %s "+
+				"`pip install prowler==%s` matches them, without what Prowler added since.", v, want, risk, want)
+		case c < 0:
+			return fmt.Sprintf("prowler %s is older than %s, the release Draugr's read tables come from. %s "+
+				"`pip install prowler==%s` matches them.", v, want, risk, want)
+		}
+		return fmt.Sprintf("prowler %s is not %s, the release Draugr's read tables come from. %s "+
+			"`pip install prowler==%s` matches them.", v, want, risk, want)
+	}
+	return ""
 }
 
 // versionTarget is the version doctor holds a found tool to: the one `draugr tools install`

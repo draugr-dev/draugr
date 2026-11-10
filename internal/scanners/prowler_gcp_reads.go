@@ -9,8 +9,8 @@ import (
 //
 // Prowler reports no difference between a check it evaluated and one whose reads were denied, so
 // the scanner asks Google, before Prowler runs, which of these permissions the credentials hold,
-// and calls a check unread when a service it reads is missing one. Taken from Prowler 5.44.0's
-// source: the clients each check imports, and the API calls each client makes. A check this does
+// and calls a check unread when a service it reads is missing one. Taken from the source of
+// tools.ProwlerTablesVersion: the clients each check imports, and the API calls each client makes. A check this does
 // not list reads the service its name starts with.
 
 // gcpServiceGate is the permission every service needs before it reads anything: Prowler asks the
