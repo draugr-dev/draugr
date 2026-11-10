@@ -68,6 +68,19 @@
   "gate": {
     "failOnPriority": "P1"
   },
+  "notChecked": [
+    {
+      "component": "images-grype",
+      "controls": [
+        "iac",
+        "sast",
+        "sca",
+        "secrets"
+      ],
+      "reason": "controls off: iac, sast, sca, secrets",
+      "what": "repositories"
+    }
+  ],
   "priorities": {
     "p1": 1,
     "p2": 0,
