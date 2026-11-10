@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -56,10 +58,35 @@ func NewSemgrep() plugin.Scanner {
 	// The scan asks semgrep.dev whether a newer Semgrep exists, separately from --metrics=off and
 	// separately from the rule pack it fetches. A version check is not part of scanning, and a run
 	// that has said it has no network should not make one.
-	s.run = withSemgrepJSON(runSemgrepInDir)
+	s.run = withSemgrepJobs(withSemgrepJSON(runSemgrepInDir))
 	s.parse = parseSemgrep
 	s.preflight = semgrepPreflight
 	return s
+}
+
+// withSemgrepJobs gives a Semgrep run its share of the CPUs where other Semgrep runs share the
+// machine with it (plugin.Sharers), and leaves a run alone to Semgrep's own default.
+//
+// Semgrep starts round(0.85 × min(16, CPUs)) analysis processes, counting the CPUs it can see and not
+// what else is running, and stops analyzing a function after a fixed wall-clock time. Four runs at
+// once on 16 CPUs then hold 56 processes, finish less of each file, and report fewer findings,
+// different ones from one scan to the next. Each run of several gets `--jobs` at the CPUs divided
+// among them, at least 1 and never more than Semgrep's own default.
+func withSemgrepJobs(run func(ctx context.Context, dir string, argv []string) ([]byte, error)) func(context.Context, string, []string) ([]byte, error) {
+	return func(ctx context.Context, dir string, argv []string) ([]byte, error) {
+		if n := plugin.Sharers(ctx); n > 1 && len(argv) > 2 {
+			jobs := strconv.Itoa(semgrepShare(runtime.GOMAXPROCS(0), n))
+			argv = slices.Insert(slices.Clone(argv), 2, "--jobs", jobs)
+		}
+		return run(ctx, dir, argv)
+	}
+}
+
+// semgrepShare is the --jobs of one of sharers Semgrep runs on a machine with cpus CPUs: the CPUs
+// divided among them, rounded down, at least 1 and at most Semgrep's own default.
+func semgrepShare(cpus, sharers int) int {
+	def := max(1, int(math.Round(0.85*float64(min(16, cpus)))))
+	return max(1, min(def, cpus/max(1, sharers)))
 }
 
 // semgrepConfigSetting is where a descriptor sets the ruleset, for an error to name.

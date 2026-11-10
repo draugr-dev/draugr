@@ -56,6 +56,12 @@ the [SAST glossary entry](../../docs/reference/glossary.md#sast-static-applicati
   part that comes from the configured path, and the rule is `no-eval` on every machine. A rule in a
   subdirectory of a configured directory keeps the subdirectory (`nested.no-eval`). Exclusions and
   `draugr diff` match on this id.
+- **Semgrep runs that share the machine share its CPUs.** Semgrep starts an analysis process for
+  each CPU it can see, up to sixteen, and stops analyzing a function after a fixed wall-clock time,
+  so several runs at once each finish less and report fewer findings, different ones from one scan
+  to the next. Where a scan has several Semgrep runs going, each gets `--jobs` at the CPUs divided
+  among them, never more than Semgrep's own default. A run with no other left takes Semgrep's
+  default.
 
 ## Unread
 

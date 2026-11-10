@@ -1371,6 +1371,12 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	}
 
 	gates := newRateGates()
+	// The jobs of each scanner not yet finished, for plugin.Sharers: a job learns how many runs of its
+	// tool it shares the machine with, and the last of them learns it has the machine to itself.
+	unfinished := map[string]int{}
+	for _, pj := range planned {
+		unfinished[pj.Job.Scanner]++
+	}
 	for jobIndex, pj := range planned {
 		if ctx.Err() != nil {
 			canceled = true
@@ -1453,8 +1459,22 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 				mu.Unlock()
 			}()
 
+			// How many runs of this job's scanner share the machine now: those not finished, at most
+			// the jobs the pool runs at once, and one for a scanner whose jobs take turns.
+			mu.Lock()
+			sharers := min(unfinished[pj.Job.Scanner], cap(sem))
+			mu.Unlock()
+			if sc, ok := e.reg.Scanner(pj.Job.Scanner); ok && sc.Info().Exclusive != "" {
+				sharers = 1
+			}
+			defer func() {
+				mu.Lock()
+				unfinished[pj.Job.Scanner]--
+				mu.Unlock()
+			}()
+
 			jobStart := time.Now()
-			jobCtx, span := tracer.Start(ctx, "engine.scan", trace.WithAttributes(
+			jobCtx, span := tracer.Start(plugin.WithSharers(ctx, sharers), "engine.scan", trace.WithAttributes(
 				attribute.String("control", pj.Control),
 				attribute.String("scanner", pj.Job.Scanner),
 			))
