@@ -30,7 +30,7 @@ gosec -fmt sarif -no-fail -track-suppressions -concurrency 2 -out <file> -stdout
 ```
 
 That is every package the go command builds as part of the module, including one whose directory
-name contains `vendor`, such as `cmd/vendorhash`, and every package of a module in a directory
+name contains `vendor`, such as `vendorhash/`, and every package of a module in a directory
 such as `vendor-api/`. These are not analyzed:
 
 - the module's `vendor/` directory, a copy of other modules' code
