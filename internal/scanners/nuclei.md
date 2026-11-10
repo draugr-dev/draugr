@@ -293,6 +293,14 @@ instead. Draugr counts them while rewriting the document and warns, so lost cove
 rather than absorbed. Giving those parameters an `example` or `default` in the specification is the
 fix.
 
+**It asks for the JSON the document declares.** When an operation the scan keeps declares a JSON
+response (`application/json`, or a type ending in `+json`), the fuzzing run sends
+`Accept: application/json, text/plain, */*` on every request, as a client of the API does. Without
+it, an application that chooses its response by `Accept` can return an HTML error page, which the
+injection templates do not match, and a real injection passes. Declaring an `Accept` parameter in
+the document does not change the header, because OpenAPI 3 ignores a parameter by that name. The run
+of the default templates at the URL sends no `Accept` header.
+
 The path resolves relative to where Draugr runs, like every other path in a descriptor.
 
 ## Authenticated scans
