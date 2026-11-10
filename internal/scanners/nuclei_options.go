@@ -43,7 +43,7 @@ const (
 //     would read as a complete one.
 //   - -code, -headless, -dast and -lfa load templates that run commands on this machine, drive a
 //     browser, fuzz every parameter or read local files, which are decisions of their own.
-//   - -jsonl, -silent, -nc, -duc and -H keep the output parseable, the run deterministic and the
+//   - -jsonl, -nc, -duc and -H keep the output parseable, the run deterministic and the
 //     credential out of argv, so none of them is the operator's to change.
 const nucleiConfigSchema = `{
   "type": "object",

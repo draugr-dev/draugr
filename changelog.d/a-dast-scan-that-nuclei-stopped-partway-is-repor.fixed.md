@@ -1,0 +1,1 @@
+- **A `dast` scan that Nuclei stopped partway is reported as an error.** When Nuclei drops the endpoint after too many errors, the control is marked ERROR, keeps the findings made before the drop, and quotes Nuclei's cause.
