@@ -2,6 +2,7 @@ project: dast-openapi
 release:
   version: "1.0"
 config:
+  allowEffects: [mutate]
   controls:
     dast:
       enabled: true

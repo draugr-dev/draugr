@@ -242,6 +242,10 @@ payloads into every parameter of the spec's operations, a GET that changes state
 to config.allowEffects in your Saga, or pass --allow-effects mutate
 ```
 
+A set narrowed with `templates` or `tags` can hold templates for only one of the two runs. The
+other run is skipped, and the provenance's `runs` names the one that ran. A set with neither fails
+the scan.
+
 **The scan targets the endpoint you declared, never the one the document names.** A scanner handed
 a specification takes its targets from that document, so a spec whose `servers:` block says
 production would send probe traffic at production while your descriptor said staging. Draugr

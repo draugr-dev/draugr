@@ -135,6 +135,74 @@ components:
 %s`, url, extra)
 }
 
+// dastSpecSaga is dastSaga for a host with spec: it accepts mutate, which a spec scan declares, and
+// names the two templates writeDastTemplates puts in dir/tpl. Pointed at the community set, a spec
+// scan's first run is the whole default set at the URL, minutes per test, and one ordinary template
+// and one fuzzing template exercise both runs in under a second.
+func dastSpecSaga(t *testing.T, dir, url, extra string) string {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Join(dir, "tpl"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(dir, "tpl"), "draugr-it-root.yaml", dastRootTemplate)
+	writeFile(t, filepath.Join(dir, "tpl"), "draugr-it-fuzz.yaml", dastFuzzTemplate)
+	return fmt.Sprintf(`project: dast-integration
+release: { version: "1.0" }
+config:
+  allowEffects: [mutate]
+  controls:
+    dast:
+      enabled: true
+      nuclei:
+        templates: [./tpl]
+components:
+  - name: api
+    exposure: public
+    criticality: critical
+    hosts:
+      - name: api
+        url: %s
+        type: api
+%s`, url, extra)
+}
+
+// dastRootTemplate is the default run's one template: a GET of the endpoint.
+const dastRootTemplate = `id: draugr-it-root
+info:
+  name: Integration test request at the endpoint
+  author: draugr
+  severity: info
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/"
+    matchers:
+      - type: status
+        status:
+          - 200
+`
+
+// dastFuzzTemplate is the fuzzing run's one template. It appends to each operation's path, so every
+// operation the document keeps is requested with its own method, and it matches nothing.
+const dastFuzzTemplate = `id: draugr-it-fuzz
+info:
+  name: Integration test fuzzing of each operation
+  author: draugr
+  severity: info
+http:
+  - fuzzing:
+      - part: path
+        type: postfix
+        mode: single
+        fuzz:
+          - "-draugr-it"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "draugr-it-never-in-a-response"
+`
+
 // TestDastSpecScanStaysWhereItWasPointed is the assertion the spec feature exists for.
 //
 // A scanner handed an OpenAPI document takes its targets from that document. This specification
@@ -150,7 +218,7 @@ func TestDastSpecScanStaysWhereItWasPointed(t *testing.T) {
 	rec := newRecorder(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "openapi.yaml", dastSpec)
-	writeFile(t, dir, "draugr.saga.yaml", dastSaga(rec.url, "        spec:\n          path: openapi.yaml\n"))
+	writeFile(t, dir, "draugr.saga.yaml", dastSpecSaga(t, dir, rec.url, "        spec:\n          path: openapi.yaml\n"))
 
 	runDast(t, dir, "draugr.saga.yaml")
 
@@ -176,7 +244,7 @@ func TestDastSpecScanSendsOnlyTheMethodsNamed(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "openapi.yaml", dastSpec)
 	writeFile(t, dir, "draugr.saga.yaml",
-		dastSaga(rec.url, "        spec:\n          path: openapi.yaml\n          methods: [get, post]\n"))
+		dastSpecSaga(t, dir, rec.url, "        spec:\n          path: openapi.yaml\n          methods: [get, post]\n"))
 
 	out := runDast(t, dir, "draugr.saga.yaml")
 
@@ -202,10 +270,10 @@ func TestDastAuthenticatedScanSendsTheCredential(t *testing.T) {
 	rec := newRecorder(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "openapi.yaml", dastSpec)
-	// Driven from the specification, which is both the realistic pairing for an API and what keeps
-	// this test to seconds: pointed at a bare URL, Nuclei runs its whole template set and the same
-	// assertion costs five minutes of a fifteen-minute budget shared with the cluster tests.
-	writeFile(t, dir, "draugr.saga.yaml", dastSaga(rec.url,
+	// Driven from the specification, the realistic pairing for an API, with the two templates
+	// dastSpecSaga names: pointed at the whole community set, Nuclei's default run costs five minutes
+	// of a fifteen-minute budget shared with the cluster tests.
+	writeFile(t, dir, "draugr.saga.yaml", dastSpecSaga(t, dir, rec.url,
 		"        spec:\n          path: openapi.yaml\n"+
 			"        auth:\n          type: bearer\n          tokenEnv: DRAUGR_IT_TOKEN\n"))
 

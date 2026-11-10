@@ -671,7 +671,7 @@ func TestNucleiProvenanceStatesEachFactOnce(t *testing.T) {
 		Spec: &plugin.HostSpec{Path: "./openapi.yaml", Methods: []string{"get", "head"}},
 		Auth: &plugin.HostAuth{Kind: "bearer", TokenEnv: "DRAUGR_TEST_TOK"}, // #nosec G101 -- the name of an environment variable
 	}
-	prov := nucleiProvenance(host, preparedSpec{Kept: 2})
+	prov := nucleiProvenance(host, preparedSpec{Kept: 2}, []bool{true, true})
 	got := map[string]string{}
 	for _, f := range prov.Fields {
 		got[f.Key] = f.Value
@@ -839,5 +839,61 @@ func TestNucleiDeclaresMutateForAHostWithSpec(t *testing.T) {
 		if e.Kind == plugin.EffectMutate {
 			t.Errorf("a host without spec or intrusive has mutate: %+v", e)
 		}
+	}
+}
+
+// A set narrowed to templates of one kind leaves one of a spec scan's runs with nothing, and Nuclei
+// exits 1 for it. That run is skipped and named in the provenance, and the scan fails only when
+// neither run had a template.
+func TestNucleiSpecScanSkipsARunWithNoTemplates(t *testing.T) {
+	noTemplates := errors.New("exit status 1: Could not run nuclei: no templates provided for scan")
+	for name, tc := range map[string]struct {
+		empty   func(argv []string) bool
+		runs    string
+		failure bool
+	}{
+		"only fuzzing templates": {
+			empty: func(a []string) bool { return !slices.Contains(a, "-dast") },
+			runs:  "fuzzing of the spec's operations; no template the scan may use runs at the endpoint",
+		},
+		"no fuzzing template": {
+			empty: func(a []string) bool { return slices.Contains(a, "-dast") },
+			runs:  "default templates at the endpoint; no template the scan may use fuzzes a request",
+		},
+		"neither": {empty: func([]string) bool { return true }, failure: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			s := nucleiScanner{
+				info: plugin.ScannerInfo{Name: "nuclei"},
+				run: func(_ context.Context, a []string) ([]byte, error) {
+					if tc.empty(a) {
+						return nil, noTemplates
+					}
+					return nil, nil
+				},
+			}
+			rep, err := s.Scan(context.Background(), plugin.HostTarget{
+				URL:  "https://staging.example.com",
+				Spec: &plugin.HostSpec{Path: writeSpec(t, specWithWrites)},
+			}, nil)
+			if tc.failure {
+				if err == nil || !strings.Contains(err.Error(), "nothing was scanned") {
+					t.Fatalf("err = %v, want the scan to fail saying nothing was scanned", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := rep.Provenance[0].Describe(); !strings.Contains(got, tc.runs) {
+				t.Errorf("provenance %q does not say %q", got, tc.runs)
+			}
+		})
+	}
+	// Without spec there is one run, and its having no templates is the scan's error as before.
+	s := nucleiScanner{info: plugin.ScannerInfo{Name: "nuclei"},
+		run: func(context.Context, []string) ([]byte, error) { return nil, noTemplates }}
+	if _, err := s.Scan(context.Background(), plugin.HostTarget{URL: "https://staging.example.com"}, nil); err == nil {
+		t.Error("a run with no templates and no spec passed")
 	}
 }

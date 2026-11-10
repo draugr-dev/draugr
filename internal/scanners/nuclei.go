@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -383,10 +384,18 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, cfg plugi
 		argvs = append(argvs, nucleiSpecArgv(spec.Path, headerFile, options))
 	}
 
+	// A spec scan's two runs select templates differently, the first those that do not fuzz and the
+	// second those that do, and a set the descriptor narrowed, by naming templates or tags, can hold
+	// none for one of them. Nuclei then exits 1 with "no templates provided for scan". That run is
+	// recorded as having had nothing to run, and only a scan where neither run had any fails.
 	var results []sarif.Result
-	for _, argv := range argvs {
+	ran := make([]bool, len(argvs))
+	for i, argv := range argvs {
 		out, err := s.run(ctx, argv)
 		if err != nil {
+			if len(argvs) > 1 && nucleiHadNoTemplates(err) {
+				continue
+			}
 			return sarif.Report{}, fmt.Errorf("run nuclei: %w", err)
 		}
 		found, err := nucleiToResults(out)
@@ -394,12 +403,17 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, cfg plugi
 			return sarif.Report{}, err
 		}
 		results = append(results, found...)
+		ran[i] = true
+	}
+	if !slices.Contains(ran, true) {
+		return sarif.Report{}, errors.New("nuclei: the templates this scan may use hold none that run at the " +
+			"endpoint and none that fuzz the spec's operations, so nothing was scanned")
 	}
 	report := sarif.Report{Tool: s.info.Name, Results: results}
 	// Recorded so a reader can tell which of two very different scans produced this. An
 	// authenticated run reaches the application; an anonymous one reaches the login page, and
 	// their findings are not comparable.
-	prov := nucleiProvenance(host, spec)
+	prov := nucleiProvenance(host, spec, ran)
 	prov.Fields = append(prov.Fields, nucleiOptionFields(cfg)...)
 	if !nucleiNamesTemplates(cfg) {
 		prov.Fields = append(prov.Fields, nucleiLeftOut(leftOut))
@@ -417,11 +431,14 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, cfg plugi
 // The endpoint is the URL alone rather than the target's identity. The identity appends the spec
 // and auth markers so two jobs against one URL key apart, and the same facts are fields of their
 // own here, so the identity as a value would print each of them twice.
-func nucleiProvenance(host plugin.HostTarget, spec preparedSpec) sarif.Provenance {
+//
+// For a host with spec, ran says which of its two runs had templates to run, the default templates
+// at the endpoint and then the fuzzing of the spec's operations.
+func nucleiProvenance(host plugin.HostTarget, spec preparedSpec, ran []bool) sarif.Provenance {
 	fields := []sarif.Field{{Key: "endpoint", Value: plugin.SourceURL(host.URL)}}
 	if host.Spec != nil {
 		fields = append(fields,
-			sarif.Field{Key: "runs", Value: "default templates at the endpoint, then fuzzing of the spec's operations"},
+			sarif.Field{Key: "runs", Value: nucleiRuns(ran)},
 			sarif.Field{Key: "spec", Value: host.Spec.Path},
 			sarif.Field{Key: "methods", Value: strings.Join(plugin.NormalizeMethods(host.Spec.Methods), ", ")},
 			sarif.Field{Key: "operations", Value: strconv.Itoa(spec.Kept)})
@@ -439,6 +456,23 @@ func nucleiProvenance(host plugin.HostTarget, spec preparedSpec) sarif.Provenanc
 			sarif.Field{Key: "credentialFrom", Value: "$" + host.Auth.TokenEnv})
 	}
 	return sarif.Provenance{Tool: "nuclei", Fields: fields}
+}
+
+// nucleiRuns says which of a spec scan's two runs had templates to run.
+func nucleiRuns(ran []bool) string {
+	switch {
+	case len(ran) == 2 && ran[0] && !ran[1]:
+		return "default templates at the endpoint; no template the scan may use fuzzes a request"
+	case len(ran) == 2 && !ran[0] && ran[1]:
+		return "fuzzing of the spec's operations; no template the scan may use runs at the endpoint"
+	}
+	return "default templates at the endpoint, then fuzzing of the spec's operations"
+}
+
+// nucleiHadNoTemplates reports whether err is Nuclei's exit over a run whose template selection
+// left nothing to run. toolexec puts the line Nuclei ended on, at FTL, after the exit status.
+func nucleiHadNoTemplates(err error) bool {
+	return strings.Contains(err.Error(), "no templates provided for scan")
 }
 
 // nucleiFinding is the subset of a Nuclei JSONL result line that Draugr consumes.
