@@ -1,0 +1,1 @@
+- **See which HTTP response the header findings describe.** When an endpoint returns a non-2xx status, the report identifies the status in a caveat and keeps the findings for that response.
