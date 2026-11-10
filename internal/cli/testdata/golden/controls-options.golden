@@ -106,7 +106,7 @@ What each scanner accepts in its Saga block:
     Option        Type    What it does
     image         string  kube-bench image the Job runs. Pin it to a digest for a reproducible benchmark, and to an internal mirror where the cluster cannot reach a public registry.
     namespace     string  Namespace to create the Job in. It must already exist; Draugr does not create namespaces.
-    nodeSelector  string  Node selector for the Job, as comma-separated key=value pairs. Use it to benchmark a specific node pool.
+    nodeSelector  string  Node selector for the Job, as comma-separated key=value pairs. One Job runs every target on a node it matches. Unset, one Job runs on a control-plane node and one on a worker.
     targets       string  Comma-separated kube-bench targets to run, e.g. "master,node".
     timeout       string  How long to wait for the Job to finish, e.g. "5m".
 
