@@ -1,0 +1,1 @@
+- **gosec analyzes every package whose path contains `vendor`.** A package such as `cmd/vendorhash` was skipped without a word, and a module in a directory such as `vendor-api/` was reported as holding no Go packages. gosec now gets each package directory the go command lists; `vendor/` and `testdata/` are still left out.
