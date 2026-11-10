@@ -621,7 +621,7 @@ func TestJSONOmitsTheCaveatsWhenThereAreNone(t *testing.T) {
 	if err := RenderJSON(&buf, saga.Release{Version: "1"}, run, verdict, ""); err != nil {
 		t.Fatalf("RenderJSON: %v", err)
 	}
-	for _, absent := range []string{"scanErrors", "notMeasured", "dependencyFiles"} {
+	for _, absent := range []string{"scanErrors", "notMeasured", "dependencyFiles", "notChecked", "unboundImports"} {
 		if strings.Contains(buf.String(), absent) {
 			t.Errorf("a complete run must not carry %q:\n%s", absent, buf.String())
 		}

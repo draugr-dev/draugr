@@ -7,7 +7,6 @@ import (
 	"slices"
 
 	"github.com/draugr-dev/draugr/internal/english"
-	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
@@ -26,7 +25,7 @@ const (
 // on a caveat the gate fails on, and --allow-scan-errors does not lower it: accepting a shortfall
 // passes the run and does not make it complete.
 func notifications(d Data) []sarif.Notification {
-	out := cutToLimit(d, scanErrorNotifications(d))
+	out := cutToLimit(scanErrorNotifications(d))
 	cs := caveats(d)
 	slices.SortStableFunc(cs, compareGroups)
 	ns := make([]sarif.Notification, 0, len(cs))
@@ -44,7 +43,7 @@ func notifications(d Data) []sarif.Notification {
 			Component: c.component, Controls: c.controls, Locations: c.locations,
 		})
 	}
-	return scrubbedNotifications(append(out, cutToLimit(d, ns)...))
+	return scrubbedNotifications(append(out, cutToLimit(ns)...))
 }
 
 // urlUserinfo and credentialShaped match what a tool's message can quote that must not reach an
@@ -89,8 +88,9 @@ func scanErrorNotifications(d Data) []sarif.Notification {
 }
 
 // cutToLimit keeps the first notificationsPerKind of each run of one kind, and closes a kind it cut
-// with a notification saying how many it left out and what lists them.
-func cutToLimit(d Data, ns []sarif.Notification) []sarif.Notification {
+// with a notification saying how many it left out. report.json lists every scan error and every
+// caveat of every kind on every run, so the closing notification sends a reader there.
+func cutToLimit(ns []sarif.Notification) []sarif.Notification {
 	out := make([]sarif.Notification, 0, len(ns))
 	for i := 0; i < len(ns); {
 		j := i
@@ -101,8 +101,8 @@ func cutToLimit(d Data, ns []sarif.Notification) []sarif.Notification {
 		if left := j - i - notificationsPerKind; left > 0 {
 			out = append(out, sarif.Notification{
 				Kind: ns[i].Kind, Level: ns[i].Level, LeftOut: left,
-				Message: fmt.Sprintf("%s left out of this file · %s lists every one",
-					english.Count(left, cutNoun(ns[i].Kind)), listedIn(d, ns[i].Kind)),
+				Message: fmt.Sprintf("%s left out of this file · report.json lists every one",
+					english.Count(left, cutNoun(ns[i].Kind))),
 			})
 		}
 		i = j
@@ -116,19 +116,6 @@ func cutNoun(kind string) string {
 		return "scan error"
 	}
 	return kind + " caveat"
-}
-
-// listedIn names what holds every notification of a kind.
-//
-// report.json carries a scan error, a not-measured scanner, an unread file and an unread check on
-// every run, and the other two kinds only under failedCaveats, where the gate fails on them. The
-// console lists all of them once it is told not to cut them.
-func listedIn(d Data, kind string) string {
-	k := saga.CaveatKind(kind)
-	if (k == saga.CaveatNotChecked || k == saga.CaveatUnboundImports) && !slices.Contains(d.FailOnCaveats, k) {
-		return "draugr scan --top 0"
-	}
-	return "report.json"
 }
 
 // SARIFOptions is what every SARIF file of this run carries beyond its findings: which analysis it

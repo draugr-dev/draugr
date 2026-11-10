@@ -74,6 +74,28 @@
   "gate": {
     "failOnPriority": "P1"
   },
+  "notChecked": [
+    {
+      "component": "dast-openapi",
+      "controls": [
+        "headers",
+        "tls"
+      ],
+      "reason": "controls off: headers, tls",
+      "what": "hosts"
+    },
+    {
+      "component": "dast-openapi",
+      "controls": [
+        "iac",
+        "sast",
+        "sca",
+        "secrets"
+      ],
+      "reason": "controls off: iac, sast, sca, secrets",
+      "what": "repositories"
+    }
+  ],
   "priorities": {
     "p1": 0,
     "p2": 1,

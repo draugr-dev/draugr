@@ -316,6 +316,26 @@ func FailedCaveats(d Data) []FailedCaveat {
 	return out
 }
 
+// caveatsOfKinds returns the run's not-checked and unbound-imports caveats, every one whatever the
+// gate does with it, in the shape report.json lists them. The engine's result holds the other kinds,
+// and the document reads those from it.
+func caveatsOfKinds(d Data) (notChecked []skald.NotChecked, unbound []skald.UnboundImport) {
+	for _, c := range caveats(d) {
+		switch c.key {
+		case saga.CaveatNotChecked:
+			nc := skald.NotChecked{Component: c.component, What: c.what, Controls: c.controls, Reason: c.reason()}
+			for _, l := range c.locations {
+				nc.Paths = append(nc.Paths, l.URI)
+			}
+			notChecked = append(notChecked, nc)
+		case saga.CaveatUnboundImports:
+			unbound = append(unbound, skald.UnboundImport{Component: c.component, File: c.what,
+				Controls: c.controls, Reason: c.reason()})
+		}
+	}
+	return notChecked, unbound
+}
+
 // shownRows is how many of n rows a block draws, and whether some were left out.
 func shownRows(d Data, n int) (int, bool) {
 	if consoleFixFirstLimit(d.TopN) < 0 || n <= errorRowsShown {

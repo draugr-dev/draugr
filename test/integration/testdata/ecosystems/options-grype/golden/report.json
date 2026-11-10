@@ -100,6 +100,30 @@
   "gate": {
     "failOnPriority": "P1"
   },
+  "notChecked": [
+    {
+      "component": "by-advisory",
+      "controls": [
+        "iac",
+        "sast",
+        "sca",
+        "secrets"
+      ],
+      "reason": "controls off: iac, sast, sca, secrets",
+      "what": "repositories"
+    },
+    {
+      "component": "default",
+      "controls": [
+        "iac",
+        "sast",
+        "sca",
+        "secrets"
+      ],
+      "reason": "controls off: iac, sast, sca, secrets",
+      "what": "repositories"
+    }
+  ],
   "priorities": {
     "p1": 2,
     "p2": 0,

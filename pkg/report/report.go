@@ -561,6 +561,7 @@ func (d Data) JSONProvenance() skald.Provenance {
 	gate := d.Gate.skald()
 	gate.FailOnCaveats = d.FailOnCaveats
 	p := skald.Provenance{Descriptor: d.Descriptor, CI: d.CI, Gate: gate, Policy: d.Policy, FailedCaveats: FailedCaveats(d), ComponentLabels: d.Labels}
+	p.NotChecked, p.UnboundImports = caveatsOfKinds(d)
 	reports := make(map[string]sarif.Report, len(d.Run.Controls))
 	for name, cr := range d.Run.Controls {
 		reports[name] = cr.Report

@@ -63,6 +63,13 @@ type jsonReport struct {
 	// with every check and the reason. A check whose read was denied can pass, fail or say nothing,
 	// so its absence from the findings is not a result.
 	UnreadChecks []unreadChecksReport `json:"unreadChecks,omitempty"`
+	// NotChecked is what the run was meant to examine and did not: a declared surface whose every
+	// control is off, or, on a run with no descriptor, files that call for a scanner this machine
+	// cannot run. Listed whether or not the gate fails on it.
+	NotChecked []NotChecked `json:"notChecked,omitempty"`
+	// UnboundImports are the imported SARIF files that name no commit, per component. Their findings
+	// are in the report, and nothing in them shows they describe the code this run scanned.
+	UnboundImports []UnboundImport `json:"unboundImports,omitempty"`
 	// Effects is which scanner effects the run accepted after --allow-effects, beside what the
 	// descriptor declared, and which effects its scanners had. Always present.
 	Effects effectsReport `json:"effects"`
@@ -110,8 +117,8 @@ type jsonReport struct {
 	// draugr-api server.
 	Policy *PolicyCheck `json:"policy,omitempty"`
 	// FailedCaveats are the caveats of a kind gate.failOnCaveats lists: what the run did not cover
-	// that the gate counts as an error. The rest of the caveats are in notMeasured,
-	// dependencyFiles and unreadChecks.
+	// that the gate counts as an error. Every caveat, failing or not, is also in the field of its
+	// kind: notChecked, notMeasured, dependencyFiles, unreadChecks or unboundImports.
 	FailedCaveats []FailedCaveat `json:"failedCaveats,omitempty"`
 	// Actions are the fix list: each thing to do, the findings it clears and where, most urgent
 	// first. The grouping the console's `--view actions` prints, from the same function.
@@ -343,9 +350,39 @@ type Provenance struct {
 	// FailedCaveats are the run's caveats of a kind the gate fails on. Decided by the caller,
 	// because a caveat is read off the report's own data.
 	FailedCaveats []FailedCaveat
+	// NotChecked and UnboundImports are the run's caveats of those two kinds, every one of them.
+	NotChecked     []NotChecked
+	UnboundImports []UnboundImport
 	// ComponentLabels is each declared component's labels by name, with an entry for every
 	// component the descriptor declares, labeled or not.
 	ComponentLabels map[string]map[string]string
+}
+
+// NotChecked is a not-checked caveat: a surface or files the run did not examine.
+type NotChecked struct {
+	// Component is the component it is about.
+	Component string `json:"component,omitempty"`
+	// What is the surface, such as hosts or images, or the files, joined into one list.
+	What string `json:"what"`
+	// Controls are the controls that would have examined a surface, every one of them off. Absent
+	// for files, which no control was set to examine.
+	Controls []string `json:"controls,omitempty"`
+	// Paths are the files What names, every one by its own path. Absent for a surface.
+	Paths []string `json:"paths,omitempty"`
+	// Reason is why, in the words the report prints.
+	Reason string `json:"reason"`
+}
+
+// UnboundImport is an unbound-imports caveat: an imported SARIF file that names no commit.
+type UnboundImport struct {
+	// Component is the component that imported it.
+	Component string `json:"component,omitempty"`
+	// File is the imported file, as the descriptor names it.
+	File string `json:"file"`
+	// Controls are the controls that read it.
+	Controls []string `json:"controls,omitempty"`
+	// Reason is why, in the words the report prints.
+	Reason string `json:"reason"`
 }
 
 // componentLabels is labels with an empty map in place of a component's nil one, so the document
@@ -997,6 +1034,8 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 		Actions:         prov.Actions,
 		Policy:          prov.Policy,
 		FailedCaveats:   prov.FailedCaveats,
+		NotChecked:      prov.NotChecked,
+		UnboundImports:  prov.UnboundImports,
 		ScannerData:     ScannerDataFrom(run.Stats.Data),
 		Stats: statsInfo{
 			Jobs:         run.Stats.Jobs,

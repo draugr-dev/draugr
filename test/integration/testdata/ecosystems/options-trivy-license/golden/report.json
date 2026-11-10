@@ -256,6 +256,118 @@
   "gate": {
     "failOnPriority": "P1"
   },
+  "notChecked": [
+    {
+      "component": "default",
+      "controls": [
+        "iac",
+        "sast",
+        "sca",
+        "secrets"
+      ],
+      "reason": "controls off: iac, sast, sca, secrets",
+      "what": "repositories"
+    },
+    {
+      "component": "full",
+      "controls": [
+        "iac",
+        "sast",
+        "sca",
+        "secrets"
+      ],
+      "reason": "controls off: iac, sast, sca, secrets",
+      "what": "repositories"
+    },
+    {
+      "component": "licenses-deny",
+      "controls": [
+        "iac",
+        "sast",
+        "sca",
+        "secrets"
+      ],
+      "reason": "controls off: iac, sast, sca, secrets",
+      "what": "repositories"
+    },
+    {
+      "component": "licenses-dev-default",
+      "controls": [
+        "iac",
+        "sast",
+        "sca",
+        "secrets"
+      ],
+      "reason": "controls off: iac, sast, sca, secrets",
+      "what": "repositories"
+    },
+    {
+      "component": "licenses-dev-report",
+      "controls": [
+        "iac",
+        "sast",
+        "sca",
+        "secrets"
+      ],
+      "reason": "controls off: iac, sast, sca, secrets",
+      "what": "repositories"
+    },
+    {
+      "component": "licenses-warn",
+      "controls": [
+        "iac",
+        "sast",
+        "sca",
+        "secrets"
+      ],
+      "reason": "controls off: iac, sast, sca, secrets",
+      "what": "repositories"
+    },
+    {
+      "component": "licenses-warn-isc",
+      "controls": [
+        "iac",
+        "sast",
+        "sca",
+        "secrets"
+      ],
+      "reason": "controls off: iac, sast, sca, secrets",
+      "what": "repositories"
+    },
+    {
+      "component": "trivy-license-deny",
+      "controls": [
+        "iac",
+        "sast",
+        "sca",
+        "secrets"
+      ],
+      "reason": "controls off: iac, sast, sca, secrets",
+      "what": "repositories"
+    },
+    {
+      "component": "trivy-license-warn",
+      "controls": [
+        "iac",
+        "sast",
+        "sca",
+        "secrets"
+      ],
+      "reason": "controls off: iac, sast, sca, secrets",
+      "what": "repositories"
+    },
+    {
+      "component": "trivyignore",
+      "controls": [
+        "iac",
+        "sast",
+        "sca",
+        "secrets"
+      ],
+      "reason": "controls off: iac, sast, sca, secrets",
+      "what": "repositories"
+    }
+  ],
   "priorities": {
     "p1": 2,
     "p2": 5,
