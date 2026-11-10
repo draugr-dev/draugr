@@ -812,3 +812,40 @@ func TestDoctorStrictFailsOnAnUntestedVersionAndTheDefaultDoesNot(t *testing.T) 
 		t.Errorf("the error says there is a problem and not what closes it: %v", err)
 	}
 }
+
+// A prowler of another release than the one the read tables come from is named, newer or older,
+// with the risk and the install that matches. A newer one is told what matching costs. The same
+// release, a prowler with no version and no prowler say nothing.
+func TestDoctorSaysWhenProwlerIsNotTheTablesRelease(t *testing.T) {
+	for name, tc := range map[string]struct {
+		st   tools.Status
+		want string
+	}{
+		"newer":           {toolAt("prowler", "9.0.0"), "is newer than " + tools.ProwlerTablesVersion},
+		"older":           {toolAt("prowler", "5.40.1"), "is older than " + tools.ProwlerTablesVersion},
+		"unreadable":      {toolAt("prowler", "5.48.0.post1"), "is not " + tools.ProwlerTablesVersion},
+		"the same":        {toolAt("prowler", tools.ProwlerTablesVersion), ""},
+		"no version read": {toolAt("prowler", ""), ""},
+		"missing":         {tools.Status{Tool: tools.Tool{Binary: "prowler"}}, ""},
+	} {
+		var buf bytes.Buffer
+		writeDoctorTable(&buf, []tools.Status{tc.st}, nil)
+		out := buf.String()
+		said := strings.Contains(out, "the release Draugr's read tables come from")
+		if said != (tc.want != "") {
+			t.Errorf("%s: said = %v, want %v:\n%s", name, said, tc.want != "", out)
+			continue
+		}
+		if tc.want == "" {
+			continue
+		}
+		for _, w := range []string{tc.want, "result discarded though it ran", "pip install prowler==" + tools.ProwlerTablesVersion} {
+			if !strings.Contains(out, w) {
+				t.Errorf("%s: the line does not say %q:\n%s", name, w, out)
+			}
+		}
+		if costs := strings.Contains(out, "without what Prowler added since"); costs != (name == "newer") {
+			t.Errorf("%s: names the cost of matching = %v:\n%s", name, costs, out)
+		}
+	}
+}

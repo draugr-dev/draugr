@@ -143,7 +143,7 @@ func runDoctorForGolden(t *testing.T, w *bytes.Buffer, sagaPath string) {
 // allToolsPresent is every tool Draugr knows about, at its pinned version, so the clean state is
 // the one a reader sees after `draugr tools install`.
 func allToolsPresent() map[string]string {
-	out := map[string]string{"git": "2.55.0", "kubectl": "1.31.0", "prowler": "5.44.0"}
+	out := map[string]string{"git": "2.55.0", "kubectl": "1.31.0", "prowler": tools.ProwlerTablesVersion}
 	for _, name := range tools.Installable() {
 		out[name] = tools.PinnedVersion(name)
 	}

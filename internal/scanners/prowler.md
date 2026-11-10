@@ -106,6 +106,11 @@ such as function keys.
 `draugr tools install` does not fetch Prowler. Install it with `pip install prowler` (Python 3.10 to 3.13), or
 run the `prowlercloud/prowler` container image with `prowler` on `PATH`. `draugr doctor` names both.
 
+Which checks a denied read leaves unread is decided by tables taken from one Prowler release. With
+another release, a check whose reads changed can have its result discarded though it ran, or kept
+though a read it needs was denied. `draugr doctor` names the release and the `pip install` that
+matches it.
+
 ## Permissions
 
 **Google Cloud.** Prowler documents `roles/viewer` and `roles/serviceusage.serviceUsageConsumer` on

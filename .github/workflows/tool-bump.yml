@@ -578,13 +578,32 @@ jobs:
           } > /tmp/body.md
           gh pr create --title "Move scanner pins: $TOOLS" --body-file /tmp/body.md
 
+  # Prowler is the one scanner Draugr runs without installing it, so no pin moves when it releases,
+  # and nothing above notices. The scanner's tables of what each check reads come from one release,
+  # and this keeps an issue open while a newer one is out. A failure here, PyPI not answering, is
+  # raised by the job below like any other.
+  prowler-tables:
+    name: Prowler read tables
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Compare Prowler's latest release with the tables'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: ./scripts/prowler-tables.sh
+
   # A scheduled run that fails tells nobody: the workflow belongs to no pull request, and a red
   # row in the Actions tab is read by whoever happens to open it. So a failure raises an issue,
   # one per tool, and the next run that proves that tool closes it. A bump that fails its proof is
   # a scanner release Draugr cannot take yet, and that is worth knowing as much as a broken job.
   notify:
     name: A failed proposal raises an issue
-    needs: [behind, propose, stage, integrate, assemble]
+    needs: [behind, propose, stage, integrate, assemble, prowler-tables]
     if: always() && github.event_name == 'schedule'
     runs-on: ubuntu-latest
     permissions:
@@ -659,7 +678,8 @@ jobs:
           done <<<"$jobs"
 
           # Nothing behind skips the matrix entirely, which is also a pass for every open issue.
-          if [ "$BEHIND" = "success" ] && [ -z "$(grep -v '^What is behind' <<<"$jobs" || true)" ]; then
+          # The Prowler job runs whatever is behind, so its row is not a tool that was tried.
+          if [ "$BEHIND" = "success" ] && [ -z "$(grep -v -e '^What is behind' -e '^Prowler read tables' <<<"$jobs" || true)" ]; then
             for n in $(gh issue list --label "$label" --state open --json number --jq '.[].number'); do
               gh issue comment "$n" --body "Nothing is behind as of [this run]($RUN_URL). Closing."
               gh issue close "$n"

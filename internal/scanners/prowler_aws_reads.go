@@ -17,10 +17,10 @@ import (
 // module is a read every check of that module was refused.
 
 // awsCheckReads lists the Prowler service modules each CIS 7.0 AWS check reads, in the order a
-// reader is told about them: the first denied one names the row. Taken from Prowler 5.44.0's source
-// by scripts/prowler-aws-check-reads.py, which reads it as text: for each check, every
-// `from prowler.providers.aws.services.<service>...<name>_client import` in the check's module and
-// in the helper modules it imports, followed to the end. Regenerate it by running that script over
+// reader is told about them: the first denied one names the row. Taken from the source of
+// tools.ProwlerTablesVersion by scripts/prowler-aws-check-reads.py, which reads it as text: for
+// each check, every `from prowler.providers.aws.services.<service>...<name>_client import` in the
+// check's module and in the helper modules it imports, followed to the end. Regenerate it by running that script over
 // the installed `prowler` package with the framework's check list; it prints this table as JSON. A
 // check this does not list, from another framework, reads the service its name starts with.
 var awsCheckReads = map[string][]string{
