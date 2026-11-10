@@ -78,8 +78,75 @@ func NewGosec() plugin.Scanner {
 	s.cacheVersion = sharedGosecVersion.version
 	// gosec loads a module's packages with `go`. Without it, gosec exits 0 having analyzed
 	// nothing, and the control would read as a clean pass.
-	s.run = onRuntime(s.info.Binary, onGosecModule(gosecBounded(execArgvInDirWithEnv)))
+	s.run = onRuntime(s.info.Binary, onGosecModule(gosecBounded(onGosecWorkspace(onGoLoadable(execArgvInDirWithEnv)))))
 	return s
+}
+
+// gosecModuleDir is the directory of the module a gosec argv runs over, its last argument without
+// the trailing `/...`.
+func gosecModuleDir(argv []string) string {
+	if len(argv) == 0 {
+		return ""
+	}
+	return strings.TrimSuffix(argv[len(argv)-1], string(filepath.Separator)+"...")
+}
+
+// onGosecWorkspace runs gosec over a module in a workspace with the environment govulncheck gets
+// for one (moduleGoWorkEnv), layered over the caller's: GOWORK naming a copy of the go.work outside
+// the read-only checkout, or GOWORK=off for a module the workspace does not use.
+//
+// gosec loads the module's packages with the go command, which in workspace mode writes any
+// checksum it lacks to the go.work.sum beside go.work. On the checkout that write fails, and the
+// packages it was loading are not analyzed.
+func onGosecWorkspace(run func(ctx context.Context, dir string, argv, env []string) ([]byte, error)) func(ctx context.Context, dir string, argv, env []string) ([]byte, error) {
+	return func(ctx context.Context, dir string, argv, env []string) ([]byte, error) {
+		work, cleanup, err := moduleGoWorkEnv(dir, gosecModuleDir(argv))
+		if err != nil {
+			return nil, err
+		}
+		defer cleanup()
+		return run(ctx, dir, argv, append(slices.Clip(env), work...))
+	}
+}
+
+// onGoLoadable runs gosec over a module only once the go command has loaded the module's packages
+// and their dependencies under the same environment and build tags, and otherwise returns the go
+// command's failure as the run's.
+//
+// gosec 2.30.0 loads each package directory with go/packages and skips a package that comes back
+// with no name, which is what go/packages returns where the go command failed for the module. It
+// logs nothing about it, writes a report of what it did analyze, and exits 0, so a module it could
+// not load reads as a module analyzed and found clean. `go list -e -deps` reports a problem inside
+// one package as that package's error and exits 0; it exits non-zero where the go command cannot
+// load the module, which is the failure gosec does not report.
+//
+// The failure is an exit of the go command, so onGosecModule records it against the module and the
+// other modules' runs go ahead.
+func onGoLoadable(run func(ctx context.Context, dir string, argv, env []string) ([]byte, error)) func(ctx context.Context, dir string, argv, env []string) ([]byte, error) {
+	return func(ctx context.Context, dir string, argv, env []string) ([]byte, error) {
+		mod := gosecModuleDir(argv)
+		if mod == "" {
+			return run(ctx, dir, argv, env)
+		}
+		var tags []string
+		for _, a := range argv {
+			if strings.HasPrefix(a, "-tags=") {
+				tags = append(tags, a)
+			}
+		}
+		if err := goListDeps(ctx, mod, tags, env); err != nil {
+			return nil, fmt.Errorf("go list -e -deps ./... cannot load the module, so gosec did not run: %w", err)
+		}
+		return run(ctx, dir, argv, env)
+	}
+}
+
+// goListDeps loads the packages of the module at dir, and every package they import, with the go
+// command. A variable so a test can stand in for the go command.
+var goListDeps = func(ctx context.Context, dir string, flags, env []string) error {
+	argv := append([]string{"go", "list", "-e", "-deps", "-f", ""}, flags...)
+	_, err := toolexec.RunWithEnv(ctx, dir, append(argv, "./..."), env)
+	return err
 }
 
 // gosecRecord is a line Draugr writes into gosec's output in place of a run over one module that
@@ -117,7 +184,7 @@ func onGosecModule(run func(ctx context.Context, root string, argv []string) ([]
 		if !ok || ctx.Err() != nil || len(argv) == 0 {
 			return out, err
 		}
-		mod := strings.TrimSuffix(argv[len(argv)-1], string(filepath.Separator)+"...")
+		mod := gosecModuleDir(argv)
 		rec := gosecModule{GoMod: "go.mod"}
 		if rel, ok := relSlash(root, mod); ok && rel != "." {
 			rec.GoMod = rel + "/go.mod"

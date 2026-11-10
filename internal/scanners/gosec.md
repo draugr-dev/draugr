@@ -31,6 +31,21 @@ Each module's run stands on its own:
 - **A module whose run fails for any other reason** puts the control in error and the run is
   incomplete, with the module named in the error, as `run gosec over tools/go.mod: exit status 1: …`.
   The findings from the modules gosec did read are kept in the report beside the error.
+- **A module the go command cannot load** puts the control in error with the go command's message:
+
+  ```
+  run gosec over go.mod: go list -e -deps ./... cannot load the module, so gosec did not run: exit status 1: go: go.mod requires go >= 1.99 (running go 1.26.10; GOTOOLCHAIN=local)
+  ```
+
+  Draugr runs that `go list` in the module, with gosec's environment and build tags, before gosec,
+  because gosec skips a package it cannot load and exits 0. The findings from the other modules are
+  kept. A problem inside one package, such as an import that does not resolve, does not stop the
+  load, and gosec reports on the rest.
+- **A module in a `go.work` workspace** is loaded as the workspace builds it, from a copy of the
+  `go.work` outside the read-only checkout, so a repository that commits `go.work` without a
+  complete `go.work.sum` is analyzed in full. A module the `go.work` does not list runs with
+  `GOWORK=off`. [govulncheck](govulncheck.md) runs with the same environment and describes the
+  copy, a vendored workspace, and a `GOWORK` you set yourself.
 
 A component scoped by `paths` to part of a module shares an analysis of the whole module, and keeps
 only the findings in its own files. [Scoping a

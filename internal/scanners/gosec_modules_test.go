@@ -80,6 +80,7 @@ func gosecReplaying(t *testing.T, trees map[string]string, logs map[string]strin
 	origLook := lookRuntime
 	t.Cleanup(func() { lookRuntime = origLook })
 	lookRuntime = func(name string) (string, error) { return "/usr/bin/" + name, nil }
+	loadsAnyModule(t)
 	origExec := execArgvInDirWithEnv
 	t.Cleanup(func() { execArgvInDirWithEnv = origExec })
 	execArgvInDirWithEnv = replayGosec(t, logs)
