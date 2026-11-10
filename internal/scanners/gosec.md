@@ -16,18 +16,38 @@ order: 50
 ## What it does
 
 A **Go-specialized** static analyzer that complements the polyglot [Semgrep](semgrep.md) with
-deeper Go-specific rules (AST/SSA). Checks out the component's repository and runs
-`gosec -fmt sarif -no-fail -track-suppressions -concurrency 2 <module>/...` **once per Go module**, for every
-directory holding a `go.mod` outside `vendor/` and `testdata/`. A module below the root and a
-module nested inside another are each analyzed, and each finding is located under its own
-module's directory. A tree with no `go.mod` is reported as analyzed by nothing, never as clean.
+deeper Go-specific rules (AST/SSA). Checks out the component's repository and runs gosec **once
+per Go module**, for every directory holding a `go.mod` outside `vendor/` and `testdata/`. A module
+below the root and a module nested inside another are each analyzed, and each finding is located
+under its own module's directory. A tree with no `go.mod` is reported as analyzed by nothing, never
+as clean.
+
+gosec is given the directory of each package in the module, as `go list ./...` lists them with
+gosec's build tags:
+
+```
+gosec -fmt sarif -no-fail -track-suppressions -concurrency 2 -out <file> -stdout -verbose json <package directory>…
+```
+
+That is every package the go command builds as part of the module, including one whose directory
+name contains `vendor`, such as `cmd/vendorhash`, and every package of a module in a directory
+such as `vendor-api/`. These are not analyzed:
+
+- the module's `vendor/` directory, a copy of other modules' code
+- `testdata/` directories, and directories whose names start with `.` or `_`
+- a module nested inside it, which has a run of its own
+- a directory holding only `_test.go` files, and a file behind a build tag not in `tags`
+
+gosec writes its SARIF report to a temporary file and the same findings as JSON to its output. The
+JSON names each file by its full path, which Draugr uses to locate each SARIF finding under its
+module.
 
 Each module's run stands on its own:
 
 - **A module with no Go package**, such as a documentation site built with Hugo that has its own
-  `go.mod`, makes gosec exit 1 with `No packages found`. Its `go.mod` is an `unread-files` caveat
-  with the reason `no Go packages`, and the findings from the other modules are kept. The control
-  is not in error because of it.
+  `go.mod`, is one `go list` lists no package of, and gosec does not run over it. Its `go.mod` is an
+  `unread-files` caveat with the reason `no Go packages`, and the findings from the other modules
+  are kept. The control is not in error because of it.
 - **A module whose run fails for any other reason** puts the control in error and the run is
   incomplete, with the module named in the error, as `run gosec over tools/go.mod: exit status 1: …`.
   The findings from the modules gosec did read are kept in the report beside the error.

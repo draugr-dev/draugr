@@ -17,13 +17,19 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
-// loadsAnyModule stands in for the go command's load check with one that passes, for a test about
+// loadsAnyModule stands in for the go command's listing of a module's packages with one that loads
+// any module and lists its directory as its one package where that holds a Go file, for a test about
 // what gosec's own run does.
 func loadsAnyModule(t *testing.T) {
 	t.Helper()
-	orig := goListDeps
-	t.Cleanup(func() { goListDeps = orig })
-	goListDeps = func(context.Context, string, []string, []string) error { return nil }
+	orig := goListPackages
+	t.Cleanup(func() { goListPackages = orig })
+	goListPackages = func(_ context.Context, dir string, _, _ []string) ([]string, error) {
+		if matches, _ := filepath.Glob(filepath.Join(dir, "*.go")); len(matches) > 0 {
+			return []string{dir}, nil
+		}
+		return nil, nil
+	}
 }
 
 // gosecWorkspaceRun is what a stand-in for gosec saw of one run over a module.
@@ -42,7 +48,8 @@ func gosecOverWorkspaces(t *testing.T, runs map[string]gosecWorkspaceRun, mu *sy
 		t.Fatal(err)
 	}
 	return func(ctx context.Context, root string, argv, env []string) ([]byte, error) {
-		mod := gosecModuleDir(argv)
+		// Each module's one package is at the module's root, the directory gosec is given.
+		mod := argv[len(argv)-1]
 		cmd := exec.CommandContext(ctx, "go", "list", "-m", "all")
 		cmd.Dir = mod
 		cmd.Env = append(os.Environ(), env...)
@@ -56,7 +63,7 @@ func gosecOverWorkspaces(t *testing.T, runs map[string]gosecWorkspaceRun, mu *sy
 		mu.Lock()
 		runs[mod] = gosecWorkspaceRun{env: env, writable: info.Mode().Perm()&0o200 != 0}
 		mu.Unlock()
-		return report, nil
+		return replayAsGosec(argv, report)
 	}
 }
 
@@ -195,25 +202,6 @@ func TestAGoModuleTheGoCommandCannotLoadFailsTheControlInsteadOfPassing(t *testi
 	want := []string{"one G204 main.go", "one G702 main.go", "two G204 main.go", "two G702 main.go"}
 	if got := findingsOf(res, "sast"); !slices.Equal(got, want) {
 		t.Errorf("findings %v, want %v", got, want)
-	}
-}
-
-// The load check passes gosec's build tags to the go command, because they change which files, and
-// so which imports, a package has.
-func TestTheGoLoadCheckUsesGosecsBuildTags(t *testing.T) {
-	var got []string
-	orig := goListDeps
-	t.Cleanup(func() { goListDeps = orig })
-	goListDeps = func(_ context.Context, _ string, flags, _ []string) error {
-		got = flags
-		return nil
-	}
-	run := onGoLoadable(func(context.Context, string, []string, []string) ([]byte, error) { return nil, nil })
-	if _, err := run(context.Background(), "/repo", []string{"gosec", "-fmt", "sarif", "-tags=integration,e2e", "/repo/..."}, nil); err != nil {
-		t.Fatal(err)
-	}
-	if !slices.Equal(got, []string{"-tags=integration,e2e"}) {
-		t.Errorf("go list flags = %q, want gosec's -tags", got)
 	}
 }
 

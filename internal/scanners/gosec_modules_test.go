@@ -20,13 +20,12 @@ import (
 )
 
 // The gosec fixtures are recorded from gosec 2.30.0, run as gosecArgs runs it, over the tree in
-// gosecRepository: command-injection.sarif is its report over the module at the root, and
-// no-packages.stderr its log over the module at docs/, which holds a go.mod and a hugo.toml and no
-// Go file, after which it exited 1. invalid-severity.stderr is its log from `-severity bogus`, which
-// also exits 1, standing for a module whose run fails for a reason other than holding no package.
-// no-rules.stderr is its log from `-fmt sarif -no-fail -concurrency 2 -include G101 -exclude G101`,
-// which prints its rule settings and then the reason it exits 1, the shape a failure after gosec's
-// banner takes.
+// gosecRepository: command-injection.sarif is its report over the module at the root.
+// invalid-severity.stderr is its log from `-severity bogus`, which exits 1, standing for a module
+// whose run fails. no-rules.stderr is its log from `-fmt sarif -no-fail -concurrency 2 -include
+// G101 -exclude G101`, which prints its rule settings and then the reason it exits 1, the shape a
+// failure after gosec's banner takes. The module at docs/ holds a go.mod and a hugo.toml and no Go
+// file, so the go command lists no package in it and gosec does not run over it.
 
 // gosecMain is the root module's main.go in the recorded tree.
 const gosecMain = "package main\n\nimport (\n\t\"os\"\n\t\"os/exec\"\n)\n\nfunc main() { _ = exec.Command(\"sh\", \"-c\", os.Args[1]) }\n"
@@ -49,9 +48,10 @@ func gosecRepository(t *testing.T, broken bool) string {
 	return writeTree(t, files)
 }
 
-// replayGosec stands in for gosec over each module: the recorded report over a module named in
-// reports, and over any other module a process that writes the recorded log named for the module's
-// directory in logs to stderr and exits 1, which is how toolexec sees gosec's own exit.
+// replayGosec stands in for gosec over each module, whose one package is at the module's root: over
+// a module whose directory's name is in logs, a process that writes the recorded log named there to
+// stderr and exits 1, which is how toolexec sees gosec's own exit, and over any other module the
+// recorded report.
 func replayGosec(t *testing.T, logs map[string]string) func(ctx context.Context, dir string, argv, env []string) ([]byte, error) {
 	t.Helper()
 	report, err := os.ReadFile(filepath.Join("testdata", "gosec", "command-injection.sarif"))
@@ -60,10 +60,9 @@ func replayGosec(t *testing.T, logs map[string]string) func(ctx context.Context,
 	}
 	orig := execArgvInDirWithEnv
 	return func(ctx context.Context, dir string, argv, env []string) ([]byte, error) {
-		mod := strings.TrimSuffix(argv[len(argv)-1], string(filepath.Separator)+"...")
-		name, ok := logs[filepath.Base(mod)]
+		name, ok := logs[filepath.Base(argv[len(argv)-1])]
 		if !ok {
-			return report, nil
+			return replayAsGosec(argv, report)
 		}
 		log, err := filepath.Abs(filepath.Join("testdata", "gosec", name))
 		if err != nil {
@@ -123,7 +122,7 @@ var gosecRootFindings = []string{"one G204 main.go", "one G702 main.go", "two G2
 // with its reason, and the control is not in error.
 func TestAGoModuleWithNoPackagesIsUnreadAndTheOtherModulesKeepTheirFindings(t *testing.T) {
 	trees := map[string]string{"one": gosecRepository(t, false), "two": gosecRepository(t, false)}
-	res := runGosec(t, gosecReplaying(t, trees, map[string]string{"docs": "no-packages.stderr"}))
+	res := runGosec(t, gosecReplaying(t, trees, nil))
 
 	if res.Incomplete("sast") {
 		t.Fatalf("sast is in error: %v", res.ScanErrors["sast"])
@@ -148,9 +147,7 @@ func TestAGoModuleWithNoPackagesIsUnreadAndTheOtherModulesKeepTheirFindings(t *t
 // report, as does the module it found no package in.
 func TestAGosecRunThatFailsOnAModuleKeepsTheFindingsOfTheOthers(t *testing.T) {
 	trees := map[string]string{"one": gosecRepository(t, true), "two": gosecRepository(t, true)}
-	res := runGosec(t, gosecReplaying(t, trees, map[string]string{
-		"docs": "no-packages.stderr", "tools": "invalid-severity.stderr",
-	}))
+	res := runGosec(t, gosecReplaying(t, trees, map[string]string{"tools": "invalid-severity.stderr"}))
 
 	errs := res.ScanErrors["sast"]
 	if len(errs) != 2 {
@@ -182,10 +179,10 @@ func TestAGosecRunThatFailsOnAModuleKeepsTheFindingsOfTheOthers(t *testing.T) {
 // A repository where every module's run failed was not read, and fails as any other scan does,
 // with no report kept beside the error.
 func TestAGosecScanWhoseEveryModuleFailedReadsNothing(t *testing.T) {
-	trees := map[string]string{"one": gosecRepository(t, false)}
+	trees := map[string]string{"one": gosecRepository(t, true)}
 	// The root module's directory is the checkout, named for its temp directory.
 	root := filepath.Base(trees["one"])
-	s := gosecReplaying(t, trees, map[string]string{root: "invalid-severity.stderr", "docs": "invalid-severity.stderr"})
+	s := gosecReplaying(t, trees, map[string]string{root: "invalid-severity.stderr", "tools": "invalid-severity.stderr"})
 
 	_, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: "one"}, nil)
 	if err == nil {
@@ -194,7 +191,7 @@ func TestAGosecScanWhoseEveryModuleFailedReadsNothing(t *testing.T) {
 	if _, partial := errors.AsType[*plugin.PartialScanError](err); partial {
 		t.Errorf("err %v is partial, with nothing read", err)
 	}
-	for _, want := range []string{"run gosec over go.mod: exit status 1: ", "; over docs/go.mod: exit status 1: "} {
+	for _, want := range []string{"run gosec over go.mod: exit status 1: ", "; over tools/go.mod: exit status 1: "} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("err %q, want %q in it", err, want)
 		}
@@ -205,7 +202,7 @@ func TestAGosecScanWhoseEveryModuleFailedReadsNothing(t *testing.T) {
 // report's are.
 func TestAPartialGosecScanReturnsWhatItRead(t *testing.T) {
 	trees := map[string]string{"one": gosecRepository(t, true)}
-	s := gosecReplaying(t, trees, map[string]string{"docs": "no-packages.stderr", "tools": "invalid-severity.stderr"})
+	s := gosecReplaying(t, trees, map[string]string{"tools": "invalid-severity.stderr"})
 	rep, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: "one"}, nil)
 	partial, ok := errors.AsType[*plugin.PartialScanError](err)
 	if !ok {
@@ -220,43 +217,6 @@ func TestAPartialGosecScanReturnsWhatItRead(t *testing.T) {
 	want := []sarif.Input{{Scanner: "gosec", Repository: "one", Path: "docs/go.mod", Unread: "no Go packages", Analysis: true}}
 	if !slices.Equal(rep.Inputs, want) {
 		t.Errorf("inputs %+v, want %+v", rep.Inputs, want)
-	}
-}
-
-// Only gosec's exit 1 with `No packages found` in its log is a module with no package. Another exit
-// 1, or the line with another status, is not.
-func TestGosecFoundNoPackages(t *testing.T) {
-	logOf := func(name string) string {
-		raw, err := os.ReadFile(filepath.Join("testdata", "gosec", name)) // #nosec G304 -- a fixture this test names
-		if err != nil {
-			t.Fatal(err)
-		}
-		return string(raw)
-	}
-	for _, c := range []struct {
-		stderr string
-		status int
-		want   bool
-	}{
-		{logOf("no-packages.stderr"), 1, true},
-		{"No packages found\n", 1, true},
-		{logOf("invalid-severity.stderr"), 1, false},
-		{logOf("no-packages.stderr"), 2, false},
-		{"[gosec] 2026/11/05 21:08:13 Failed to get package paths: No packages found here\n", 1, false},
-		{"", 1, false},
-	} {
-		err := exec.Command("sh", "-c", "exit 1").Run()
-		if c.status == 2 {
-			err = exec.Command("sh", "-c", "exit 2").Run()
-		}
-		exit, ok := errors.AsType[*exec.ExitError](err)
-		if !ok {
-			t.Fatalf("%q: %v is not an exit", c.stderr, err)
-		}
-		exit.Stderr = []byte(c.stderr)
-		if got := gosecFoundNoPackages(exit); got != c.want {
-			t.Errorf("status %d, stderr %q: %v, want %v", c.status, c.stderr, got, c.want)
-		}
 	}
 }
 
@@ -287,9 +247,7 @@ func TestOnGosecModulePassesOnWhatIsNotAnExit(t *testing.T) {
 // log prefix, in each of two repositories.
 func TestAGosecFailureNamesItsCauseAfterTheBanner(t *testing.T) {
 	trees := map[string]string{"one": gosecRepository(t, true), "two": gosecRepository(t, true)}
-	res := runGosec(t, gosecReplaying(t, trees, map[string]string{
-		"docs": "no-packages.stderr", "tools": "no-rules.stderr",
-	}))
+	res := runGosec(t, gosecReplaying(t, trees, map[string]string{"tools": "no-rules.stderr"}))
 	errs := res.ScanErrors["sast"]
 	if len(errs) != 2 {
 		t.Fatalf("sast errors %q, want one per repository", errs)

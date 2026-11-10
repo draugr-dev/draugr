@@ -43,7 +43,7 @@ func gosecRuns(t *testing.T) (argvs, environments, dirs map[string]string) {
 		argvs[mod] = strings.Join(argv, " ")
 		environments[mod] = string(out)
 		mu.Unlock()
-		return []byte(`{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"gosec"}},"results":[]}]}`), nil
+		return writeAsGosec(argv, nil)
 	}
 
 	s := NewGosec().(repoScanner)
