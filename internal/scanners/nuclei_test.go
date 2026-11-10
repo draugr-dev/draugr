@@ -618,6 +618,9 @@ func TestNucleiSpecArgv(t *testing.T) {
 	if slices.Contains(argv, "-u") {
 		t.Errorf("a spec-driven scan takes its targets from the document, not -u: %v", argv)
 	}
+	if !slices.Contains(argv, "-dast") {
+		t.Errorf("a spec-driven scan fuzzes, and its command line has to say so: %v", argv)
+	}
 }
 
 // TestNucleiScanFromSpecUsesThePreparedDocument checks the whole path: the scanner is handed a
@@ -668,7 +671,7 @@ func TestNucleiProvenanceStatesEachFactOnce(t *testing.T) {
 		Spec: &plugin.HostSpec{Path: "./openapi.yaml", Methods: []string{"get", "head"}},
 		Auth: &plugin.HostAuth{Kind: "bearer", TokenEnv: "DRAUGR_TEST_TOK"}, // #nosec G101 -- the name of an environment variable
 	}
-	prov := nucleiProvenance(host, preparedSpec{Kept: 2})
+	prov := nucleiProvenance(host, preparedSpec{Kept: 2}, []bool{true, true})
 	got := map[string]string{}
 	for _, f := range prov.Fields {
 		got[f.Key] = f.Value
@@ -768,5 +771,128 @@ func TestNucleiOutputThatIsNotFindingsIsAnError(t *testing.T) {
 				t.Error("unreadable output was accepted")
 			}
 		})
+	}
+}
+
+// A host with spec gets two runs: the default templates at the URL, as a host without spec gets,
+// and then the fuzzing of the document's operations, with -dast on its command line. The findings of
+// both reach the report, and the provenance says both ran.
+func TestNucleiScanFromSpecRunsTheDefaultSetAndTheFuzzing(t *testing.T) {
+	spec := writeSpec(t, specWithWrites)
+	var argvs [][]string
+	s := nucleiScanner{
+		info: plugin.ScannerInfo{Name: "nuclei"},
+		run: func(_ context.Context, a []string) ([]byte, error) {
+			argvs = append(argvs, a)
+			if slices.Contains(a, "-dast") {
+				return []byte(`{"template-id":"sqli-error-based","matched-at":"https://staging.example.com/items/1","info":{"name":"SQLi","severity":"critical"}}` + "\n"), nil
+			}
+			return []byte(`{"template-id":"exposed-metrics","matched-at":"https://staging.example.com/metrics","info":{"name":"Metrics","severity":"low"}}` + "\n"), nil
+		},
+	}
+	rep, err := s.Scan(context.Background(), plugin.HostTarget{
+		URL:  "https://staging.example.com",
+		Spec: &plugin.HostSpec{Path: spec},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(argvs) != 2 {
+		t.Fatalf("runs = %d, want the default set and the fuzzing: %q", len(argvs), argvs)
+	}
+	if i := slices.Index(argvs[0], "-u"); i < 0 || argvs[0][i+1] != "https://staging.example.com" || slices.Contains(argvs[0], "-dast") {
+		t.Errorf("the first run is not the default set at the URL: %q", argvs[0])
+	}
+	if !slices.Contains(argvs[1], "-dast") || !slices.Contains(argvs[1], "-im") || slices.Contains(argvs[1], "-u") {
+		t.Errorf("the second run does not fuzz the document with -dast named: %q", argvs[1])
+	}
+	var rules []string
+	for _, r := range rep.Results {
+		rules = append(rules, r.RuleID)
+	}
+	slices.Sort(rules)
+	if !slices.Equal(rules, []string{"exposed-metrics", "sqli-error-based"}) {
+		t.Errorf("results = %v, want one from each run", rules)
+	}
+	if got := rep.Provenance[0].Describe(); !strings.Contains(got, "runs: default templates, then fuzzing") {
+		t.Errorf("provenance does not say both runs happened: %s", got)
+	}
+}
+
+// The effect a spec turns on is mutate, gated per host, and says what the run sends.
+func TestNucleiDeclaresMutateForAHostWithSpec(t *testing.T) {
+	info := NewNuclei().Info()
+	job := plugin.ScanJob{Target: plugin.HostTarget{URL: "https://a.example.com", Spec: &plugin.HostSpec{Path: "./o.yaml"}}}
+	var detail string
+	for _, e := range plugin.EffectsForJob(info, job) {
+		if e.Kind == plugin.EffectMutate {
+			detail = e.Detail
+		}
+	}
+	for _, want := range []string{"injection payloads", "spec's operations", "GET that changes state"} {
+		if !strings.Contains(detail, want) {
+			t.Errorf("mutate detail %q does not say %q", detail, want)
+		}
+	}
+	for _, e := range plugin.EffectsForJob(info, plugin.ScanJob{Target: plugin.HostTarget{URL: "https://a.example.com"}}) {
+		if e.Kind == plugin.EffectMutate {
+			t.Errorf("a host without spec or intrusive has mutate: %+v", e)
+		}
+	}
+}
+
+// A set narrowed to templates of one kind leaves one of a spec scan's runs with nothing, and Nuclei
+// exits 1 for it. That run is skipped and named in the provenance, and the scan fails only when
+// neither run had a template.
+func TestNucleiSpecScanSkipsARunWithNoTemplates(t *testing.T) {
+	noTemplates := errors.New("exit status 1: Could not run nuclei: no templates provided for scan")
+	for name, tc := range map[string]struct {
+		empty   func(argv []string) bool
+		runs    string
+		failure bool
+	}{
+		"only fuzzing templates": {
+			empty: func(a []string) bool { return !slices.Contains(a, "-dast") },
+			runs:  "fuzzing only; no template runs at the endpoint",
+		},
+		"no fuzzing template": {
+			empty: func(a []string) bool { return slices.Contains(a, "-dast") },
+			runs:  "default templates only; no template fuzzes",
+		},
+		"neither": {empty: func([]string) bool { return true }, failure: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			s := nucleiScanner{
+				info: plugin.ScannerInfo{Name: "nuclei"},
+				run: func(_ context.Context, a []string) ([]byte, error) {
+					if tc.empty(a) {
+						return nil, noTemplates
+					}
+					return nil, nil
+				},
+			}
+			rep, err := s.Scan(context.Background(), plugin.HostTarget{
+				URL:  "https://staging.example.com",
+				Spec: &plugin.HostSpec{Path: writeSpec(t, specWithWrites)},
+			}, nil)
+			if tc.failure {
+				if err == nil || !strings.Contains(err.Error(), "nothing was scanned") {
+					t.Fatalf("err = %v, want the scan to fail saying nothing was scanned", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := rep.Provenance[0].Describe(); !strings.Contains(got, tc.runs) {
+				t.Errorf("provenance %q does not say %q", got, tc.runs)
+			}
+		})
+	}
+	// Without spec there is one run, and its having no templates is the scan's error as before.
+	s := nucleiScanner{info: plugin.ScannerInfo{Name: "nuclei"},
+		run: func(context.Context, []string) ([]byte, error) { return nil, noTemplates }}
+	if _, err := s.Scan(context.Background(), plugin.HostTarget{URL: "https://staging.example.com"}, nil); err == nil {
+		t.Error("a run with no templates and no spec passed")
 	}
 }

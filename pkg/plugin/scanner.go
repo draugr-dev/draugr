@@ -366,14 +366,30 @@ type Effect struct {
 	// Online marks an effect that happens only by reaching the internet, which a run under
 	// --offline does not do, so an offline job does not have it.
 	Online bool
+	// Spec marks an effect a job has only where its target is a host that declares spec, an
+	// OpenAPI document the scan takes its requests from. Read from the target rather than the
+	// scanner's Saga block, so EffectsFor, which sees only the block, never includes it.
+	Spec bool
 }
 
 // EffectsFor is the effects a job of the scanner described by info has under cfg: every effect
 // with no Option, and each one whose Option is true, as cfg sets it or as its Default leaves it,
-// less any Online effect when this process is offline.
+// less any Online effect when this process is offline. An effect marked Spec depends on the job's
+// target, which cfg does not hold, so it is left out; EffectsForJob includes it.
 func EffectsFor(info ScannerInfo, cfg Config) []Effect {
+	return EffectsForJob(info, ScanJob{Config: cfg})
+}
+
+// EffectsForJob is the effects job has, as EffectsFor gives them for its config, and each effect
+// marked Spec where the job's target is a host that declares spec.
+func EffectsForJob(info ScannerInfo, job ScanJob) []Effect {
+	cfg := job.Config
+	host, _ := job.Target.(HostTarget)
 	var out []Effect
 	for _, e := range info.Effects {
+		if e.Spec && host.Spec == nil {
+			continue
+		}
 		if e.Option != "" {
 			on, set := cfg[e.Option].(bool)
 			if !set {

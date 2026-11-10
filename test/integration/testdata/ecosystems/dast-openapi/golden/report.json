@@ -46,7 +46,7 @@
     "effective": "<cleared>",
     "sources": [
       {
-        "digest": "sha256:baa036d30100f8a48d0a5b62ab2c24d3a706a530fd57fab699b07984d1938b2c",
+        "digest": "sha256:69acf5ac2f8e1289747b31fee097fd0b956a47af29fb5f4e3a60600b998ef7b9",
         "path": "draugr.saga.yaml",
         "root": true
       }
@@ -54,9 +54,17 @@
   },
   "draugr": "<cleared>",
   "effects": {
-    "allowed": [],
-    "declared": [],
+    "allowed": [
+      "mutate"
+    ],
+    "declared": [
+      "mutate"
+    ],
     "used": [
+      {
+        "detail": "sends injection payloads into every parameter of the spec's operations, a GET that changes state included",
+        "kind": "mutate"
+      },
       {
         "detail": "sends probe traffic to the endpoint, which is lawful only against systems you own or have written permission to test",
         "kind": "network"

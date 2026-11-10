@@ -440,10 +440,15 @@ hosts:
 the specification it is given, so a document naming production would send probe traffic there while
 your descriptor said staging. Draugr rewrites `servers:` to your URL before the scan.
 
-**Read-only unless you name write methods.** A specification lists `DELETE` too, and a scanner
+**A spec scan fuzzes the API, and needs `mutate` in `config.allowEffects`.**
+[Nuclei](../../internal/scanners/nuclei.md#scanning-from-an-openapi-specification) has what each run
+sends and the refusal.
+
+**`GET` and `HEAD` unless you name more methods.** A specification lists `DELETE` too, and a scanner
 handed one will use it. Every operation whose method is not named is removed from the copy the
 scanner receives, so the restriction does not depend on the tool behaving. Naming `post` or `delete`
-is how you accept it, per endpoint, and visible in review.
+is how you accept it, per endpoint, and visible in review. `methods` limits which operations run,
+not the payloads sent to them.
 
 **The run reports what it excluded**, and how many operations declare parameters it could not
 supply, so a scan that covered part of an API does not read like one that covered all of it.

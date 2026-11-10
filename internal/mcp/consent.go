@@ -50,7 +50,7 @@ func planScan(reg *engine.Registry, model *saga.Model) (scanPlan, error) {
 			components[pj.Component] = true
 		}
 		if sc, ok := reg.Scanner(pj.Job.Scanner); ok {
-			for _, e := range plugin.EffectsFor(sc.Info(), pj.Job.Config) {
+			for _, e := range plugin.EffectsForJob(sc.Info(), pj.Job) {
 				effects[fmt.Sprintf("%s (%s): %s", pj.Job.Scanner, e.Kind, e.Detail)] = true
 			}
 		}

@@ -49,6 +49,9 @@ config:
 - Skips the templates Nuclei tags `intrusive`, some of which write to the endpoint. The scanner's
   [`intrusive`](../scanners/nuclei.md#intrusive-templates) option runs them, and declares the
   `mutate` effect, which `config.allowEffects` has to accept.
+- A host with a [`spec`](../scanners/nuclei.md#scanning-from-an-openapi-specification) also has the
+  operations its OpenAPI document declares fuzzed with injection payloads, beside the default
+  templates at the URL. It declares `mutate` as well, which `config.allowEffects` has to accept.
 - The scanner's [options](../scanners/nuclei.md#options) set its pace, its templates and its tags.
 - A host's `auth.tokenEnv` names the variable holding a credential for an
   [authenticated scan](../scanners/nuclei.md#authenticated-scans). The pipeline must list it in

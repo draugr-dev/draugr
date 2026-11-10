@@ -166,8 +166,10 @@ endpoint call one of Nuclei's public interactsh servers (`oast.pro`, `oast.live`
 allowlist that admits none of those hosts, those templates cannot report anything. `false` skips
 them and contacts none of the servers.
 
-Nuclei's `-code`, `-headless`, `-dast` and `-lfa` run commands on the machine running Draugr,
-drive a browser, fuzz every parameter or read local files, and are not options.
+Nuclei's `-code`, `-headless` and `-lfa` run commands on the machine running Draugr, drive a
+browser or read local files, and are not options. `-dast`, which fuzzes every parameter, runs only
+for a host with a [specification](#scanning-from-an-openapi-specification), once `mutate` is
+accepted.
 
 ## Intrusive templates
 
@@ -220,13 +222,37 @@ hosts:
       methods: [get, post]      # absent → GET and HEAD only
 ```
 
+**A spec scan fuzzes the API, so it needs `mutate` accepted.** A host with `spec` gets two runs. The
+first runs the default templates at the URL, as a host without one does. The second hands Nuclei the
+document with `-dast`, which sends injection payloads into every parameter of every operation the
+document keeps and requests each operation. A `GET` that changes state, such as one that resets a
+database, runs like any other, and `methods` limits which operations run, not what is sent. The job
+declares the `mutate` effect, and the run stops before any request unless the descriptor accepts it:
+
+```yaml
+config:
+  allowEffects: [mutate]
+```
+
+The refusal, for a component named `api`:
+
+```
+dast/api/nuclei: this scanner has an effect that has not been accepted: mutate (sends injection
+payloads into every parameter of the spec's operations, a GET that changes state included). Add it
+to config.allowEffects in your Saga, or pass --allow-effects mutate
+```
+
+A set narrowed with `templates` or `tags` can hold templates for only one of the two runs. The
+other run is skipped, and the provenance's `runs` names the one that ran. A set with neither fails
+the scan.
+
 **The scan targets the endpoint you declared, never the one the document names.** A scanner handed
 a specification takes its targets from that document, so a spec whose `servers:` block says
 production would send probe traffic at production while your descriptor said staging. Draugr
 rewrites `servers:` to the declared URL before the scanner sees the file. The descriptor is the
 authority on what may be scanned; a file the API team publishes is not.
 
-**Read-only unless you say otherwise.** A specification lists `POST`, `PUT` and `DELETE` too, and a
+**`GET` and `HEAD` unless you name more methods.** A specification lists `POST`, `PUT` and `DELETE` too, and a
 scanner handed one will exercise them, measured against a three-operation document, a default run
 sent nine `DELETE` requests nobody asked for. Draugr removes every operation whose method is not
 named before handing the document over, so the restriction holds whatever the scanner does with it.
@@ -337,7 +363,8 @@ them rather than reusing them.
   concurrent host fan-out, so parallel scans don't each cold-start the download. This is
   best-effort, a failure is non-fatal and resurfaces at scan time.
 - A default run skips the `intrusive` templates. [`intrusive: true`](#intrusive-templates) runs
-  them, per component, and needs `mutate` accepted. Fuzzing (`-dast`) stays out of scope.
+  them, per component, and needs `mutate` accepted. Fuzzing (`-dast`) runs only for a host with
+  `spec`, with `mutate` accepted.
 - The control can be served by another engine without changing anything that calls it, which is
   what the scanner boundary is for.
 

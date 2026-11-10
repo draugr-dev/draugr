@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -56,8 +57,10 @@ func NewNuclei() plugin.Scanner {
 			// not own is unlawful in many jurisdictions, and the scope and disclaimer are not read
 			// mid-scan.
 			//
-			// The mutate effect is gated, and only for a job whose block sets intrusive. Those
-			// templates can leave a user, a file or a changed setting behind on the endpoint, which is
+			// The mutate effect is gated, for a job whose block sets intrusive and for a job whose host
+			// declares spec. The intrusive templates can leave a user, a file or a changed setting
+			// behind on the endpoint. A spec scan fuzzes every parameter of the operations it keeps and
+			// requests each of them, and a GET with a side effect runs as readily as a read. Either is
 			// a decision somebody makes on purpose rather than a property of every dast run.
 			Effects: []plugin.Effect{{
 				Kind: plugin.EffectNetwork,
@@ -68,6 +71,11 @@ func NewNuclei() plugin.Scanner {
 				Option: nucleiIntrusiveKey,
 				Detail: "runs the templates tagged intrusive, some of which change the endpoint, " +
 					"such as creating a user or uploading a file with PUT",
+			}, {
+				Kind: plugin.EffectMutate,
+				Spec: true,
+				Detail: "sends injection payloads into every parameter of the spec's operations, a GET that " +
+					"changes state included",
 			}, {
 				Kind:    plugin.EffectDisclosure,
 				Option:  nucleiInteractshKey,
@@ -251,15 +259,20 @@ func nucleiArgv(url, headerFile string, options []string) []string {
 	return nucleiTargetArgv([]string{"-u", url}, headerFile, options)
 }
 
-// nucleiSpecArgv scans the operations a rewritten OpenAPI document declares, rather than the paths
+// nucleiSpecArgv fuzzes the operations a rewritten OpenAPI document declares, rather than the paths
 // Nuclei's templates name under one URL. Neither path follows a link.
+//
+// -dast is passed rather than left implied. Nuclei 3.11.1 turns it on for every input mode other
+// than list (internal/runner/runner.go), and then loads only the templates that fuzz a request, so
+// this run sends payloads and runs none of the default set. Named here, the command line says what
+// the run does, and a Nuclei that stopped implying it would not quietly turn the run into a few GETs.
 //
 // -sfv is not optional and not silent. Without it Nuclei refuses a specification whose required
 // parameters it cannot fill. Which is most of them, and scans nothing at all. With it, those
 // requests are skipped quietly, so Draugr counts them while rewriting the document and the run
 // reports how much of the API went unexercised.
 func nucleiSpecArgv(specPath, headerFile string, options []string) []string {
-	return nucleiTargetArgv([]string{"-l", specPath, "-im", "openapi", "-sfv"}, headerFile, options)
+	return nucleiTargetArgv([]string{"-l", specPath, "-im", "openapi", "-sfv", "-dast"}, headerFile, options)
 }
 
 func nucleiTargetArgv(target []string, headerFile string, options []string) []string {
@@ -340,7 +353,10 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, cfg plugi
 		options, resolverField = append(options, args...), field
 	}
 
-	argv := nucleiArgv(host.URL, headerFile, options)
+	// The default templates at the URL, and for a host with spec a second run that fuzzes the
+	// operations the document declares. The fuzzing run loads only templates that fuzz a request, so
+	// without the first the spec would narrow the scan it was declared to widen.
+	argvs := [][]string{nucleiArgv(host.URL, headerFile, options)}
 	var spec preparedSpec
 	if host.Spec != nil {
 		endpoint, err := endpointForSpec(host.URL)
@@ -365,22 +381,39 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, cfg plugi
 				"and will be skipped", "endpoint", host.URL, "operations", spec.Unfillable,
 				"hint", "give those parameters an example or a default in the specification")
 		}
-		argv = nucleiSpecArgv(spec.Path, headerFile, options)
+		argvs = append(argvs, nucleiSpecArgv(spec.Path, headerFile, options))
 	}
 
-	out, err := s.run(ctx, argv)
-	if err != nil {
-		return sarif.Report{}, fmt.Errorf("run nuclei: %w", err)
+	// A spec scan's two runs select templates differently, the first those that do not fuzz and the
+	// second those that do, and a set the descriptor narrowed, by naming templates or tags, can hold
+	// none for one of them. Nuclei then exits 1 with "no templates provided for scan". That run is
+	// recorded as having had nothing to run, and only a scan where neither run had any fails.
+	var results []sarif.Result
+	ran := make([]bool, len(argvs))
+	for i, argv := range argvs {
+		out, err := s.run(ctx, argv)
+		if err != nil {
+			if len(argvs) > 1 && nucleiHadNoTemplates(err) {
+				continue
+			}
+			return sarif.Report{}, fmt.Errorf("run nuclei: %w", err)
+		}
+		found, err := nucleiToResults(out)
+		if err != nil {
+			return sarif.Report{}, err
+		}
+		results = append(results, found...)
+		ran[i] = true
 	}
-	results, err := nucleiToResults(out)
-	if err != nil {
-		return sarif.Report{}, err
+	if !slices.Contains(ran, true) {
+		return sarif.Report{}, errors.New("nuclei: the templates this scan may use hold none that run at the " +
+			"endpoint and none that fuzz the spec's operations, so nothing was scanned")
 	}
 	report := sarif.Report{Tool: s.info.Name, Results: results}
 	// Recorded so a reader can tell which of two very different scans produced this. An
 	// authenticated run reaches the application; an anonymous one reaches the login page, and
 	// their findings are not comparable.
-	prov := nucleiProvenance(host, spec)
+	prov := nucleiProvenance(host, spec, ran)
 	prov.Fields = append(prov.Fields, nucleiOptionFields(cfg)...)
 	if !nucleiNamesTemplates(cfg) {
 		prov.Fields = append(prov.Fields, nucleiLeftOut(leftOut))
@@ -398,10 +431,14 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, cfg plugi
 // The endpoint is the URL alone rather than the target's identity. The identity appends the spec
 // and auth markers so two jobs against one URL key apart, and the same facts are fields of their
 // own here, so the identity as a value would print each of them twice.
-func nucleiProvenance(host plugin.HostTarget, spec preparedSpec) sarif.Provenance {
+//
+// For a host with spec, ran says which of its two runs had templates to run, the default templates
+// at the endpoint and then the fuzzing of the spec's operations.
+func nucleiProvenance(host plugin.HostTarget, spec preparedSpec, ran []bool) sarif.Provenance {
 	fields := []sarif.Field{{Key: "endpoint", Value: plugin.SourceURL(host.URL)}}
 	if host.Spec != nil {
 		fields = append(fields,
+			sarif.Field{Key: "runs", Value: nucleiRuns(ran)},
 			sarif.Field{Key: "spec", Value: host.Spec.Path},
 			sarif.Field{Key: "methods", Value: strings.Join(plugin.NormalizeMethods(host.Spec.Methods), ", ")},
 			sarif.Field{Key: "operations", Value: strconv.Itoa(spec.Kept)})
@@ -419,6 +456,24 @@ func nucleiProvenance(host plugin.HostTarget, spec preparedSpec) sarif.Provenanc
 			sarif.Field{Key: "credentialFrom", Value: "$" + host.Auth.TokenEnv})
 	}
 	return sarif.Provenance{Tool: "nuclei", Fields: fields}
+}
+
+// nucleiRuns says which of a spec scan's two runs had templates to run. Short, because the measured-against
+// line it sits in is cut at a fixed length, and the operations a scan left out come after it.
+func nucleiRuns(ran []bool) string {
+	switch {
+	case len(ran) == 2 && ran[0] && !ran[1]:
+		return "default templates only; no template fuzzes"
+	case len(ran) == 2 && !ran[0] && ran[1]:
+		return "fuzzing only; no template runs at the endpoint"
+	}
+	return "default templates, then fuzzing"
+}
+
+// nucleiHadNoTemplates reports whether err is Nuclei's exit over a run whose template selection
+// left nothing to run. toolexec puts the line Nuclei ended on, at FTL, after the exit status.
+func nucleiHadNoTemplates(err error) bool {
+	return strings.Contains(err.Error(), "no templates provided for scan")
 }
 
 // nucleiFinding is the subset of a Nuclei JSONL result line that Draugr consumes.

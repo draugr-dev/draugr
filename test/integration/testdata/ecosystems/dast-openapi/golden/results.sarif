@@ -57,6 +57,7 @@
               "left out": "javascript and tcp templates",
               "methods": "get, head",
               "operations": "1",
+              "runs": "fuzzing only; no template runs at the endpoint",
               "spec": "./dast-openapi/openapi.yaml"
             },
             "tool": "nuclei"

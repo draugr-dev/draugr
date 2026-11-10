@@ -1,8 +1,9 @@
 # An API scanned from its OpenAPI document. The document lists a DELETE and names production in
 # servers:, and the descriptor points the host at the sealed server with the default methods. The
 # finding at the loopback URL shows the scan went where the descriptor said; the request log shows
-# the DELETE was never sent. The template the scan runs is home/nuclei-templates/sealed, and the
-# response it matches is served/items.
+# the DELETE was never sent. The descriptor accepts mutate, which a spec scan declares. The template
+# the scan runs is home/nuclei-templates/sealed, and the response it matches is served/items. It is
+# a fuzzing template, so the scan's first run, the default templates at the URL, has none to run.
 init:
   controls: [iac, sast, sca, secrets]
   specs: [./openapi.yaml]
