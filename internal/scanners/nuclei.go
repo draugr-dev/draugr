@@ -458,15 +458,16 @@ func nucleiProvenance(host plugin.HostTarget, spec preparedSpec, ran []bool) sar
 	return sarif.Provenance{Tool: "nuclei", Fields: fields}
 }
 
-// nucleiRuns says which of a spec scan's two runs had templates to run.
+// nucleiRuns says which of a spec scan's two runs had templates to run. Short, because the measured-against
+// line it sits in is cut at a fixed length, and the operations a scan left out come after it.
 func nucleiRuns(ran []bool) string {
 	switch {
 	case len(ran) == 2 && ran[0] && !ran[1]:
-		return "default templates at the endpoint; no template the scan may use fuzzes a request"
+		return "default templates only; no template fuzzes"
 	case len(ran) == 2 && !ran[0] && ran[1]:
-		return "fuzzing of the spec's operations; no template the scan may use runs at the endpoint"
+		return "fuzzing only; no template runs at the endpoint"
 	}
-	return "default templates at the endpoint, then fuzzing of the spec's operations"
+	return "default templates, then fuzzing"
 }
 
 // nucleiHadNoTemplates reports whether err is Nuclei's exit over a run whose template selection

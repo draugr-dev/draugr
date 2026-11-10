@@ -814,8 +814,7 @@ func TestNucleiScanFromSpecRunsTheDefaultSetAndTheFuzzing(t *testing.T) {
 	if !slices.Equal(rules, []string{"exposed-metrics", "sqli-error-based"}) {
 		t.Errorf("results = %v, want one from each run", rules)
 	}
-	if got := rep.Provenance[0].Describe(); !strings.Contains(got, "default templates at the endpoint") ||
-		!strings.Contains(got, "fuzzing of the spec's operations") {
+	if got := rep.Provenance[0].Describe(); !strings.Contains(got, "runs: default templates, then fuzzing") {
 		t.Errorf("provenance does not say both runs happened: %s", got)
 	}
 }
@@ -854,11 +853,11 @@ func TestNucleiSpecScanSkipsARunWithNoTemplates(t *testing.T) {
 	}{
 		"only fuzzing templates": {
 			empty: func(a []string) bool { return !slices.Contains(a, "-dast") },
-			runs:  "fuzzing of the spec's operations; no template the scan may use runs at the endpoint",
+			runs:  "fuzzing only; no template runs at the endpoint",
 		},
 		"no fuzzing template": {
 			empty: func(a []string) bool { return slices.Contains(a, "-dast") },
-			runs:  "default templates at the endpoint; no template the scan may use fuzzes a request",
+			runs:  "default templates only; no template fuzzes",
 		},
 		"neither": {empty: func([]string) bool { return true }, failure: true},
 	} {
