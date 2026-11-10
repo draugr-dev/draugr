@@ -1,0 +1,1 @@
+- **A `dast` scan with `spec` no longer misses injections in operations that declare a JSON response.** Its fuzzing requests now send `Accept: application/json, text/plain, */*`, so an application that chooses its response by `Accept` returns the error message the injection templates match.

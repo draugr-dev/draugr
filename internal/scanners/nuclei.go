@@ -383,7 +383,22 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, cfg plugi
 				"and will be skipped", "endpoint", host.URL, "operations", spec.Unfillable,
 				"hint", "give those parameters an example or a default in the specification")
 		}
-		argvs = append(argvs, nucleiSpecArgv(spec.Path, headerFile, options))
+		specHeaderFile := headerFile
+		if spec.JSON {
+			// The spec run alone asks for JSON: the default templates read the endpoint as a browser
+			// would, and an Accept on them would change what they are testing.
+			lines := specAccept
+			if header != "" {
+				lines = header + "\n" + specAccept
+			}
+			path, cleanup, err := writeHeaderFile(lines)
+			if err != nil {
+				return sarif.Report{}, fmt.Errorf("nuclei: prepare the spec run's headers: %w", err)
+			}
+			defer cleanup()
+			specHeaderFile = path
+		}
+		argvs = append(argvs, nucleiSpecArgv(spec.Path, specHeaderFile, options))
 	}
 
 	// A spec scan's two runs select templates differently, the first those that do not fuzz and the
