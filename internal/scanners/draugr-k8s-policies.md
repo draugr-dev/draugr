@@ -274,6 +274,10 @@ run until they are accepted.
   under `clusters:`, or the ambient kubeconfig context.
 - Findings are located at the cluster (`kubernetes/<name>`), not a file. That is what was
   assessed.
+- The pod of a [`kube-bench-job`](kube-bench-job.md) Job the same run created is left out of the
+  pod checks. It is privileged and mounts host paths, and it runs while the pods are read. A pod is
+  recognized by the Job that owns it, which the run names before creating it, and never by a label,
+  which any pod can carry.
 
 ## Data
 

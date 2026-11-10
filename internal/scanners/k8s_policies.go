@@ -85,7 +85,9 @@ func (s draugrK8sPoliciesScanner) Scan(ctx context.Context, target plugin.Target
 	}
 
 	infra, _ := target.(plugin.KubernetesTarget)
-	decided, err := evaluatePolicies(ctx, client, infra.Namespaces)
+	decided, err := evaluatePoliciesSkipping(ctx, client, infra.Namespaces, func(pod *corev1.Pod) bool {
+		return ownedByThisRun(kubeCtx, pod)
+	})
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", draugrK8sPoliciesScannerName, err)
 	}
@@ -128,6 +130,14 @@ const cisKubernetesTaxonomy = "CIS-Kubernetes"
 // One List per resource kind, reused across checks. kube-bench re-queries per check and, for the
 // pod-security ones, per pod; the cost of that is the whole reason this exists.
 func evaluatePolicies(ctx context.Context, client kubernetes.Interface, namespaces []string) (map[string]policyVerdict, error) {
+	return evaluatePoliciesSkipping(ctx, client, namespaces, nil)
+}
+
+// evaluatePoliciesSkipping is evaluatePolicies leaving out the pods skip names, which are the
+// scan's own: kube-bench-job's privileged pod, running while the pods are read.
+func evaluatePoliciesSkipping(
+	ctx context.Context, client kubernetes.Interface, namespaces []string, skip func(*corev1.Pod) bool,
+) (map[string]policyVerdict, error) {
 	out := map[string]policyVerdict{}
 	scoped := len(namespaces) > 0
 
@@ -173,6 +183,15 @@ func evaluatePolicies(ctx context.Context, client kubernetes.Interface, namespac
 	}, func(l *corev1.PodList) []corev1.Pod { return l.Items })
 	if err != nil {
 		return nil, fmt.Errorf("list pods: %w", err)
+	}
+	if skip != nil {
+		kept := pods[:0]
+		for i := range pods {
+			if !skip(&pods[i]) {
+				kept = append(kept, pods[i])
+			}
+		}
+		pods = kept
 	}
 	maps.Copy(out, evaluatePodSecurity(pods, accounts))
 

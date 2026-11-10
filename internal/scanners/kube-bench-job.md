@@ -70,6 +70,8 @@ It follows kube-bench's own manifest, because the checks read files that exist o
   is most of what these sections check. Without this the Job is unschedulable exactly where it is
   most useful.
 - **`backoffLimit: 0`**. A failing benchmark is a result, not something to retry.
+- **Left out of [`draugr-k8s-policies`](draugr-k8s-policies.md)' pod checks** in the same run, so
+  the scan does not report its own privileged pod as a finding about the cluster.
 - **No service account or RBAC.** These sections read the host filesystem, not the API, so the
   Job needs no permissions in the cluster.
 
