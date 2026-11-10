@@ -23,6 +23,7 @@ func gosecRuns(t *testing.T) (argvs, environments, dirs map[string]string) {
 	orig := lookRuntime
 	t.Cleanup(func() { lookRuntime = orig })
 	lookRuntime = func(name string) (string, error) { return "/usr/bin/" + name, nil }
+	loadsAnyModule(t)
 
 	dirs = map[string]string{
 		"one": writeTree(t, map[string]string{"go.mod": "module example.com/api\n\ngo 1.22\n", "main.go": goMain}),

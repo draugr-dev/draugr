@@ -14,7 +14,7 @@ import (
 
 // onGoWork runs govulncheck over a module in a workspace with GOWORK naming a copy of the
 // workspace's go.work outside the checkout, and over a module the workspace does not use with
-// GOWORK=off.
+// GOWORK=off. gosec's run takes the same environment (onGosecWorkspace).
 //
 // The checkout is read-only, and in workspace mode the go command writes any checksum it is missing
 // to the go.work.sum beside go.work. A repository that commits go.work without go.work.sum, or with
@@ -44,15 +44,25 @@ func onGoWork(run func(ctx context.Context, dir string, argv, env []string) ([]b
 // go.work governing the module, and what removes the copy it made. Empty where no go.work governs
 // the module.
 func goWorkEnv(root string, argv []string) (env []string, cleanup func(), err error) {
-	cleanup = func() {}
 	i := slices.Index(argv, "-C")
 	if i < 0 || i+1 >= len(argv) {
+		return nil, func() {}, nil
+	}
+	return moduleGoWorkEnv(root, argv[i+1])
+}
+
+// moduleGoWorkEnv is the environment a go command run over the module at mod, in the checkout at
+// root, needs for the go.work governing the module, and what removes the copy it made: GOWORK
+// naming a copy outside the checkout, GOWORK=off for a module the workspace does not use, and
+// nothing where no go.work governs the module or GOWORK is already set.
+func moduleGoWorkEnv(root, mod string) (env []string, cleanup func(), err error) {
+	cleanup = func() {}
+	if mod == "" {
 		return nil, cleanup, nil
 	}
 	if gowork := os.Getenv("GOWORK"); gowork != "" && gowork != "auto" {
 		return nil, cleanup, nil
 	}
-	mod := argv[i+1]
 	work := governingGoWork(root, mod)
 	if work == "" {
 		return nil, cleanup, nil
