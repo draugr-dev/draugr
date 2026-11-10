@@ -63,10 +63,9 @@ type jsonReport struct {
 	// with every check and the reason. A check whose read was denied can pass, fail or say nothing,
 	// so its absence from the findings is not a result.
 	UnreadChecks []unreadChecksReport `json:"unreadChecks,omitempty"`
-	// NotChecked is what the run declared or found and examined with no control: a surface whose
-	// every control is off, or files a run with no descriptor found that call for a scanner this
-	// machine cannot run. Listed whether or not the gate fails on it, because a declared image that
-	// was never examined contributes no findings, as a clean one does.
+	// NotChecked is what the run was meant to examine and did not: a declared surface whose every
+	// control is off, or, on a run with no descriptor, files that call for a scanner this machine
+	// cannot run. Listed whether or not the gate fails on it.
 	NotChecked []NotChecked `json:"notChecked,omitempty"`
 	// UnboundImports are the imported SARIF files that name no commit, per component. Their findings
 	// are in the report, and nothing in them shows they describe the code this run scanned.
@@ -352,8 +351,6 @@ type Provenance struct {
 	// because a caveat is read off the report's own data.
 	FailedCaveats []FailedCaveat
 	// NotChecked and UnboundImports are the run's caveats of those two kinds, every one of them.
-	// Read off the report's own data by the caller, as FailedCaveats are; the engine's result does
-	// not hold them.
 	NotChecked     []NotChecked
 	UnboundImports []UnboundImport
 	// ComponentLabels is each declared component's labels by name, with an entry for every
@@ -361,7 +358,7 @@ type Provenance struct {
 	ComponentLabels map[string]map[string]string
 }
 
-// NotChecked is a not-checked caveat: what a run declared or found that no control examined.
+// NotChecked is a not-checked caveat: a surface or files the run did not examine.
 type NotChecked struct {
 	// Component is the component it is about.
 	Component string `json:"component,omitempty"`
