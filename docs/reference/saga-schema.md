@@ -1871,7 +1871,8 @@ same repository are two different scans, cached separately, and their findings s
 `gitleaks` with `history: true` walks every commit in the repository. Draugr keeps a history
 finding only when the path it names would have been checked out, by the rules above. That path is
 the one the secret had in the commit that introduced it, so the finding belongs to the component
-whose `paths` held that path.
+whose `paths` held that path. The scope is applied after Gitleaks has reported every commit's
+findings, so `paths` and `ignore` do not lower the time or memory a history pass takes.
 
 **[`gosec`](../../internal/scanners/gosec.md) and [`govulncheck`](../../internal/scanners/govulncheck.md)
 analyze whole Go modules.** Both type-check packages, and a package does not type-check without the
