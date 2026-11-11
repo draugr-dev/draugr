@@ -637,6 +637,9 @@ func prowlerLocation(account plugin.AccountTarget, f ocsfFinding) string {
 		switch {
 		case r.UID == account.ID || (r.UID == "" && r.Name == ""):
 		case strings.HasPrefix(r.UID, "arn:"):
+			if region, ok := regionSettingARN(f.Metadata.EventCode, r.UID); ok {
+				return account.Provider + "/" + account.ID + "/" + region
+			}
 			// An ARN names one resource in every AWS account and region, which a name does not.
 			return r.UID
 		case strings.Contains(r.Name, "/"):
@@ -649,6 +652,37 @@ func prowlerLocation(account plugin.AccountTarget, f ocsfFinding) string {
 		}
 	}
 	return account.Provider + "/" + account.ID
+}
+
+// awsRegionSettings are the AWS checks about a setting of a region rather than a resource in it:
+// Security Hub, EBS encryption by default, a Config recorder and a multi-region trail. Where the
+// setting is off there is no resource to name, and Prowler writes an ARN template in place of one,
+// `arn:aws:securityhub:us-east-1:123456789012:hub/unknown` or `arn:aws:ec2:us-east-1:…:volume`, which
+// names nothing a reader can find. Read from Prowler 5.48.0 against a mock account.
+var awsRegionSettings = map[string]bool{
+	"securityhub_enabled":                 true,
+	"ec2_ebs_default_encryption":          true,
+	"config_recorder_all_regions_enabled": true,
+	"cloudtrail_multi_region_enabled":     true,
+}
+
+// regionSettingARN is the region of a finding about a region's setting whose ARN names no resource,
+// and false for any other: another check, or an ARN naming a real resource, such as a trail that
+// exists and is not multi-region, keeps its ARN. An ARN names no resource where its resource part is
+// a bare type, `volume`, or ends in `/unknown`.
+func regionSettingARN(check, arn string) (string, bool) {
+	if !awsRegionSettings[check] {
+		return "", false
+	}
+	parts := strings.SplitN(arn, ":", 6)
+	if len(parts) < 6 || parts[3] == "" {
+		return "", false
+	}
+	resource := parts[5]
+	if strings.Contains(resource, "/") && !strings.HasSuffix(resource, "/unknown") {
+		return "", false
+	}
+	return parts[3], true
 }
 
 func allDigits(s string) bool {
