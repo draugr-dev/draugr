@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -137,6 +138,8 @@ type Local struct {
 	ttl time.Duration
 	now func() time.Time
 	mu  sync.RWMutex
+	// swept is the one sweep of expired entries a process makes, on its first write.
+	swept sync.Once
 }
 
 // NewLocal returns a cache storing entries under dir. A ttl of 0 disables expiry.
@@ -293,10 +296,66 @@ func (l *Local) Put(key string, report sarif.Report) error {
 		return err
 	}
 	// Best-effort: this key's entry under the pre-compression name is now superseded and would
-	// otherwise sit there forever, since expiry only makes a read miss and nothing sweeps the
-	// directory. Failing to remove it is not worth failing a scan over.
+	// otherwise sit there forever. Failing to remove it is not worth failing a scan over.
 	_ = os.Remove(l.legacyPathFor(key))
+	l.swept.Do(l.sweep)
 	return nil
+}
+
+// sweep removes the entries whose time to live has passed, once per process, on its first write.
+//
+// Expiry makes a read miss and nothing more, and a key carries the revision it describes, so a
+// directory that is only ever read from and written to grows with every commit scanned, by entries
+// no run will read again. On a write, because a read-only cache, the one a pull request from a fork
+// gets, must not change what the next trusted run finds.
+//
+// The modification time picks the candidates, so an unexpired entry is never opened, and each is
+// read before it is removed: the time the entry records is the one expiry is measured by, and an
+// entry another run rewrote since is kept. Best-effort throughout: a directory that cannot be read
+// is a cache that is not swept, not a failed scan. The caller holds the write lock.
+func (l *Local) sweep() {
+	if l.ttl <= 0 {
+		return
+	}
+	entries, err := os.ReadDir(l.dir)
+	if err != nil {
+		return
+	}
+	now := l.now()
+	for _, de := range entries {
+		name := de.Name()
+		if de.IsDir() || (!strings.HasSuffix(name, entrySuffix) && !strings.HasSuffix(name, legacySuffix)) {
+			continue
+		}
+		info, err := de.Info()
+		if err != nil || now.Sub(info.ModTime()) <= l.ttl {
+			continue
+		}
+		path := filepath.Join(l.dir, name)
+		if strings.HasSuffix(name, entrySuffix) && !expiredAt(path, now, l.ttl) {
+			continue
+		}
+		_ = os.Remove(path)
+	}
+}
+
+// expiredAt reports whether the entry at path was stored more than ttl before now. An entry that
+// cannot be read is expired too: a read would miss it all the same.
+func expiredAt(path string, now time.Time, ttl time.Duration) bool {
+	data, err := os.ReadFile(path) // #nosec G304 -- a name read from the cache's own directory
+	if err != nil {
+		return true
+	}
+	if data, err = gunzip(data); err != nil {
+		return true
+	}
+	var e struct {
+		StoredAt time.Time `json:"storedAt"`
+	}
+	if json.Unmarshal(data, &e) != nil {
+		return true
+	}
+	return now.Sub(e.StoredAt) > ttl
 }
 
 // gzipBytes compresses an entry for storage.

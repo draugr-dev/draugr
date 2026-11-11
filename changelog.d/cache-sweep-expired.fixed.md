@@ -1,0 +1,1 @@
+- **A scan cache directory no longer grows with every commit scanned.** The first entry a run writes removes the entries older than `--cache-ttl`. A run with `--cache-read-only` removes nothing.
