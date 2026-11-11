@@ -94,7 +94,7 @@ CloudTrail's findings stay in the trail's home region.
 | `severity` medium | `warning`, score 5.5 |
 | `severity` low, informational | `note`, score 2.0, 0 |
 | `metadata.event_code` | rule `prowler/<check>` |
-| `resources[0].uid` | the location: an ARN on AWS |
+| `resources[0].uid` | the location: an ARN on AWS, or `aws/<account>/<region>` for a region's setting whose ARN names no resource (Security Hub, EBS encryption by default, a Config recorder, a multi-region trail) |
 | `remediation.desc`, `references[0]` | the rule's description and help link |
 | `unmapped.compliance["CIS-5.0"]`, `["CIS-7.0"]` | the rule's taxa |
 
