@@ -101,3 +101,37 @@ func TestNoSweepWithoutExpiryOrWrites(t *testing.T) {
 		}
 	}
 }
+
+// An entry that no longer decompresses or parses is swept once it is old enough, since a read
+// misses it all the same. What is not an entry, a directory or a file of another kind, is left.
+func TestASweepRemovesDamagedEntriesAndLeavesOtherFiles(t *testing.T) {
+	dir := t.TempDir()
+	start := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+	write := func(name string, data []byte) {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		age(t, path, start)
+	}
+	write("notgzip"+entrySuffix, []byte("plain text"))
+	packed, err := gzipBytes([]byte("not json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	write("notjson"+entrySuffix, packed)
+	write("notes.txt", []byte("kept"))
+	if err := os.Mkdir(filepath.Join(dir, "sub"+entrySuffix), 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	c := NewLocal(dir, time.Hour)
+	c.now = func() time.Time { return start.Add(3 * time.Hour) }
+	if err := c.Put("live@rev", sarif.Report{}); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"live@rev" + entrySuffix, "notes.txt", "sub" + entrySuffix}
+	if got := names(t, dir); !slices.Equal(got, want) {
+		t.Errorf("after the sweep the directory holds %v, want %v", got, want)
+	}
+}
