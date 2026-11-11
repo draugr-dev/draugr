@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -35,6 +36,43 @@ func TestHTTPFetchHeaders(t *testing.T) {
 	// Malformed request URL → error.
 	if _, err := httpFetchHeaders(context.Background(), "://bad-url", false); err == nil {
 		t.Error("expected an error for a malformed URL")
+	}
+}
+
+func TestHTTPHeadersResponseStatus(t *testing.T) {
+	for _, status := range []int{http.StatusOK, http.StatusNoContent, http.StatusForbidden, http.StatusNotFound} {
+		t.Run(strconv.Itoa(status), func(t *testing.T) {
+			mux := http.NewServeMux()
+			mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/app", http.StatusFound)
+			})
+			mux.HandleFunc("/app", func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(status)
+			})
+			srv := httptest.NewServer(mux)
+			defer srv.Close()
+
+			rep, err := NewHTTPHeaders().Scan(context.Background(), plugin.HostTarget{URL: srv.URL}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, ok := ruleIDs(rep)["headers/x-content-type-options-missing"]; !ok {
+				t.Errorf("missing header finding for HTTP %d: %v", status, ruleIDs(rep))
+			}
+			if status < http.StatusMultipleChoices {
+				if len(rep.Unchecked) != 0 {
+					t.Errorf("unexpected caveat for HTTP %d: %+v", status, rep.Unchecked)
+				}
+				return
+			}
+			if len(rep.Unchecked) != 1 {
+				t.Fatalf("expected one caveat for HTTP %d, got %+v", status, rep.Unchecked)
+			}
+			caveat := rep.Unchecked[0]
+			if caveat.Group != srv.URL || !caveat.PartlyRead || !strings.Contains(caveat.Reason, "HTTP "+strconv.Itoa(status)) {
+				t.Errorf("caveat does not describe the final HTTP response for %s: %+v", srv.URL, caveat)
+			}
+		})
 	}
 }
 
@@ -108,8 +146,10 @@ func ruleIDs(rep sarif.Report) map[string]sarif.Level {
 func scanWith(t *testing.T, host plugin.HostTarget, header http.Header) sarif.Report {
 	t.Helper()
 	s := draugrHeadersScanner{
-		info:  NewHTTPHeaders().Info(),
-		fetch: func(context.Context, string, bool) (response, error) { return response{header: header}, nil },
+		info: NewHTTPHeaders().Info(),
+		fetch: func(context.Context, string, bool) (response, error) {
+			return response{header: header, statusCode: http.StatusOK}, nil
+		},
 	}
 	rep, err := s.Scan(context.Background(), host, nil)
 	if err != nil {

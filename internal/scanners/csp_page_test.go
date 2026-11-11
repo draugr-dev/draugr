@@ -245,7 +245,7 @@ func TestTheScannerComparesThePolicyWithThePage(t *testing.T) {
 	scan := func(hostType string, h http.Header, body string) map[string]string {
 		s := draugrHeadersScanner{info: NewHTTPHeaders().Info(),
 			fetch: func(_ context.Context, target string, _ bool) (response, error) {
-				return response{header: h, body: []byte(body), url: mustURL(t, target)}, nil
+				return response{header: h, statusCode: http.StatusOK, body: []byte(body), url: mustURL(t, target)}, nil
 			}}
 		rep, err := s.Scan(context.Background(), plugin.HostTarget{URL: "https://app.example.com/", Type: hostType}, nil)
 		if err != nil {

@@ -35,6 +35,9 @@ Severities: missing hardening headers → `warning`; softer recommendations and
 information-disclosure → `note`; wildcard CORS with credentials → `error`. See the
 [HTTP security headers glossary entry](../../docs/reference/glossary.md#http-security-headers).
 
+If the final response has a non-2xx status, the scanner still evaluates its headers. The
+`unread-checks` caveat names the endpoint and HTTP status so the findings can be read in context.
+
 ### Grading the Content-Security-Policy
 
 A CSP can be present and stop almost nothing, `default-src *; script-src 'unsafe-inline'

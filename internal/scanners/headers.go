@@ -24,12 +24,13 @@ type draugrHeadersScanner struct {
 	fetch func(ctx context.Context, url string, browser bool) (response, error)
 }
 
-// response is what a fetch of the host returned: the headers, and for a browser host the page
-// itself, so the policy can be compared with what it governs.
+// response is what a fetch of the host returned, including the page for a browser host so the
+// policy can be compared with what it governs.
 type response struct {
-	header http.Header
-	body   []byte   // HTML only, and only for a browser host; empty otherwise
-	url    *url.URL // where the redirects ended, which is what relative references resolve against
+	header     http.Header
+	statusCode int
+	body       []byte   // HTML only, and only for a browser host; empty otherwise
+	url        *url.URL // where the redirects ended, which is what relative references resolve against
 }
 
 // maxPage bounds how much of a page is read. A page larger than this is compared on what arrived,
@@ -83,7 +84,17 @@ func (s draugrHeadersScanner) Scan(ctx context.Context, target plugin.Target, _ 
 	if browser && len(resp.body) > 0 && resp.url != nil {
 		results = evaluateAgainstPage(host.URL, resp, results)
 	}
-	return sarif.Report{Tool: s.info.Name, Results: results}, nil
+	report := sarif.Report{Tool: s.info.Name, Results: results}
+	if resp.statusCode < http.StatusOK || resp.statusCode >= http.StatusMultipleChoices {
+		report.Unchecked = []sarif.Unchecked{{
+			Scanner:    s.info.Name,
+			Check:      "response-headers",
+			Group:      host.URL,
+			Reason:     fmt.Sprintf("findings describe the HTTP %d response", resp.statusCode),
+			PartlyRead: true,
+		}}
+	}
+	return report, nil
 }
 
 // evaluateAgainstPage compares the policy with the page it was served with: what the policy
@@ -230,7 +241,7 @@ func httpFetchHeaders(ctx context.Context, target string, browser bool) (respons
 		return response{}, err
 	}
 	defer func() { _ = resp.Body.Close() }()
-	out := response{header: resp.Header, url: resp.Request.URL}
+	out := response{header: resp.Header, statusCode: resp.StatusCode, url: resp.Request.URL}
 	if browser && strings.HasPrefix(strings.ToLower(resp.Header.Get("Content-Type")), "text/html") {
 		// A body that fails partway is compared on what arrived; the headers are already in hand.
 		out.body, _ = io.ReadAll(io.LimitReader(resp.Body, maxPage))
