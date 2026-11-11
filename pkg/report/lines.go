@@ -103,3 +103,15 @@ func LineOf(rules map[string]sarif.Rule, results []sarif.Result) CodeLine {
 	}
 	return out
 }
+
+// FoldedPlaces names the lines a folded row stands for as the scan's fix list names them: each file
+// once with its line numbers together, within room columns, the lines that do not fit counted. A row
+// for one rule across many lines is read once, so the places are what it adds, and a list of them
+// that ran to the end of the comment would bury every row under it.
+func FoldedPlaces(lines []CodeLine, withRepository bool, room int) string {
+	a := action{nameRepository: withRepository}
+	for _, l := range lines {
+		a.findings = append(a.findings, finding{location: l.Location, repository: l.Repository})
+	}
+	return foldedPlaces(a, room)
+}

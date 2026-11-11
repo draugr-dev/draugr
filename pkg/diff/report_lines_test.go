@@ -76,22 +76,40 @@ func TestTwoRulesAtOneNewLineAreOneAction(t *testing.T) {
 	}
 }
 
-// One rule at two new lines is two edits, so two actions.
-func TestOneRuleAtTwoNewLinesIsTwoActions(t *testing.T) {
+// One rule at two new lines is two edits and one decision, so one row naming both lines, as the
+// scan's fix list draws it. A row per line would let one rule fill the comment.
+func TestOneRuleAtTwoNewLinesIsOneRow(t *testing.T) {
 	r := Result{New: []sarif.Result{
 		sastAt("Semgrep OSS", evalID, "api", repoAPI, "app/app.py", 30, "Detected the use of eval()."),
 		sastAt("Semgrep OSS", evalID, "api", repoAPI, "app/app.py", 31, "Detected the use of eval()."),
+		sastAt("Semgrep OSS", evalID, "api", repoAPI, "app/views.py", 9, "Detected the use of eval()."),
 	}}
 	for _, format := range []string{"console", "markdown"} {
 		got := renderActions(t, format, r)
-		if !strings.Contains(got, "2 actions clear 2 findings") {
-			t.Errorf("%s: one rule at two lines is not two actions:\n%s", format, got)
-		}
-		for _, want := range []string{"app/app.py:30", "app/app.py:31"} {
+		for _, want := range []string{"1 action on 3 lines clears 3 findings", "3 lines · app/app.py:30,31 · app/views.py:9"} {
 			if !strings.Contains(got, want) {
 				t.Errorf("%s: missing %q:\n%s", format, want, got)
 			}
 		}
+	}
+}
+
+// Lines that say the same thing in two bands, or in two components, stay apart: a row spanning two
+// bands would rank as the worse, and two components are two owners. A line asking for a second
+// change keeps its own row too, because the row says so.
+func TestOnlyLinesThatSayTheSameThingFold(t *testing.T) {
+	p3 := sastAt("Semgrep OSS", evalID, "api", repoAPI, "app/app.py", 40, "Detected the use of eval().")
+	p3.Priority = "P3"
+	r := Result{New: []sarif.Result{
+		sastAt("Semgrep OSS", evalID, "api", repoAPI, "app/app.py", 30, "Detected the use of eval()."),
+		p3,
+		sastAt("Semgrep OSS", evalID, "worker", repoAPI, "app/app.py", 50, "Detected the use of eval()."),
+		sastAt("Semgrep OSS", evalID, "api", repoAPI, "app/app.py", 23, "Detected the use of eval()."),
+		sastAt("Bandit", "B602", "api", repoAPI, "app/app.py", 23, shellMsg),
+	}}
+	got := renderActions(t, "markdown", r)
+	if !strings.Contains(got, "4 actions clear 5 findings") {
+		t.Errorf("want four rows, one per band, component and change asked for:\n%s", got)
 	}
 }
 
