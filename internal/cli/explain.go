@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -151,7 +152,7 @@ func writeExplanation(w io.Writer, report sarif.Report, id string, rule sarif.Ru
 	if detail := strings.TrimSpace(rule.FullDescription); detail != "" && detail != rule.ShortDescription {
 		_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, "DETAIL"))
 		for _, line := range strings.Split(detail, "\n") {
-			_, _ = fmt.Fprintf(w, "  %s\n", strings.TrimSpace(line))
+			_, _ = fmt.Fprintf(w, "  %s\n", terminalText(col, strings.TrimSpace(line)))
 		}
 	}
 
@@ -190,4 +191,28 @@ func findingsFor(report sarif.Report, id string) []string {
 		out = append(out, fmt.Sprintf("and %d more", total-most))
 	}
 	return out
+}
+
+// Markdown a scanner writes into a rule's description, as a terminal should show it. Prowler writes
+// its recommendation in Markdown, and Semgrep and gosec put code in backticks, and a terminal prints
+// the markup as it is: `**least privilege**` with its asterisks.
+var (
+	mdStrong  = regexp.MustCompile(`\*\*([^*]+)\*\*|__([^_]+)__`)
+	mdCode    = regexp.MustCompile("`([^`]+)`")
+	mdLink    = regexp.MustCompile(`\[([^\]]+)\]\(([^)\s]+)\)`)
+	mdHeading = regexp.MustCompile(`^#{1,6}\s+`)
+)
+
+// terminalText is one line of a description with its Markdown rendered for a terminal: strong text
+// in bold where the terminal shows color and plain otherwise, code without its backticks, a link as
+// its text and its address, and a heading without its marks. A list item keeps its "- ", which a
+// terminal reads as well as Markdown does.
+func terminalText(col tui.Painter, line string) string {
+	line = mdHeading.ReplaceAllString(line, "")
+	line = mdLink.ReplaceAllString(line, "$1 ($2)")
+	line = mdCode.ReplaceAllString(line, "$1")
+	return mdStrong.ReplaceAllStringFunc(line, func(m string) string {
+		sub := mdStrong.FindStringSubmatch(m)
+		return col.Paint(tui.StyleStrong, sub[1]+sub[2])
+	})
 }
