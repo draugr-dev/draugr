@@ -213,7 +213,8 @@ func TestLicenseUnread(t *testing.T) {
 		want string
 	}{
 		"none carries one":   {"cargo", []trivyPackage{pkg(""), pkg("")}, "records no licenses for 2 packages"},
-		"one carries one":    {"npm", []trivyPackage{pkg("direct"), pkg("indirect", "MIT")}, ""},
+		"one carries one":    {"npm", []trivyPackage{pkg("direct"), pkg("indirect", "MIT")}, "records no license for 1 package"},
+		"two of three bare":  {"npm", []trivyPackage{pkg("direct"), pkg("indirect", "MIT"), pkg("indirect")}, "records no licenses for 2 packages"},
 		"all carry one":      {"composer", []trivyPackage{pkg("", "MIT")}, ""},
 		"go module cache":    {"gomod", []trivyPackage{pkg("root"), pkg("direct")}, "license of 1 package not read, run go mod download"},
 		"nuget packages":     {"nuget", []trivyPackage{pkg("direct"), pkg("indirect")}, "licenses of 2 packages not read, run dotnet restore"},

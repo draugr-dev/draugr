@@ -369,34 +369,34 @@ var unlicensedRemedy = map[string]string{
 	"gomod": "go mod download", // the module cache under $GOPATH/pkg/mod
 }
 
-// licenseUnread is why a result set Trivy read packages from had none of their licenses checked,
-// or false where at least one package carries a license.
+// licenseUnread is why a result set Trivy read packages from had some of their licenses unchecked,
+// naming how many, or false where every package carries a license.
 //
 // Trivy lists a lockfile's packages under the license scan whether or not it found a license for
-// any, and a file of packages none of which carries one is a file whose licenses were not
-// checked, though its packages were read. The project's own entries, root and workspace, are left
-// out of both the count and the test: a workspace's package.json carries its own license beside a
-// yarn.lock that records none for its dependencies.
-//
-// A file where some packages carry a license and others do not is not reported here.
+// each, and a package with none is one whose license was not checked, though it was read. A file
+// where some entries carry a license and others do not is reported too: npm leaves the field out
+// of some package-lock.json entries, and a copyleft package among them would otherwise pass with
+// the file counted as read. The project's own entries, root and workspace, are left out of both the
+// count and the test: a workspace's package.json carries its own license beside a yarn.lock that
+// records none for its dependencies.
 func licenseUnread(typ string, pkgs []trivyPackage) (string, bool) {
-	deps := 0
+	unlicensed := 0
 	for _, p := range pkgs {
 		if p.Relationship == "root" || p.Relationship == "workspace" {
 			continue
 		}
-		if len(p.Licenses) > 0 {
-			return "", false
+		if len(p.Licenses) == 0 {
+			unlicensed++
 		}
-		deps++
 	}
-	if deps == 0 {
+	if unlicensed == 0 {
 		return "", false
 	}
 	// With a command, the licenses are somewhere Trivy looks once it has run. Without one, the file
-	// is all Trivy reads, and it records none: a Cargo.lock never does, and a package-lock.json at
-	// lockfileVersion 1 does not, while the node_modules Trivy would fall back to is never scanned.
-	return manifests.LicensesNotRead(deps, unlicensedRemedy[typ]), true
+	// is all Trivy reads, and it records none for these: a Cargo.lock never does, a package-lock.json
+	// at lockfileVersion 1 does not, and npm leaves some entries without one, while the node_modules
+	// Trivy would fall back to is never scanned.
+	return manifests.LicensesNotRead(unlicensed, unlicensedRemedy[typ]), true
 }
 
 // unknownLicense is the id a license takes when the scanner could not identify it, and the value a

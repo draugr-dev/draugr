@@ -120,9 +120,9 @@ Every run, and the database warm, passes `--skip-version-check` and `--disable-t
 Trivy makes no version-check or telemetry request to `check.trivy.dev`. A Trivy older than 0.63.0
 has neither flag and makes no such request.
 
-A dependency file whose packages Trivy read with no license for any of them is unread for
-`licenses`; [`licenses`](../controllers/licenses.md#sources) says where each format's licenses come
-from and what each reason asks of you.
+A dependency file with any package Trivy read without a license is unread for `licenses`;
+[`licenses`](../controllers/licenses.md#sources) says where each format's licenses come from and
+what each reason asks of you.
 
 In a run where [`govulncheck`](govulncheck.md) or [`gosec`](gosec.md) also scans, this scanner's
 jobs start after every one of theirs has finished, on every repository, because it reads each
