@@ -942,7 +942,7 @@ WHAT TO DO  2 actions clear 15 findings
 TRY
   --view compact         one line each, to see how much there is
   --view findings        the findings themselves, one row each
-  draugr explain <rule>  what a rule means and how to fix it
+  draugr explain <rule>  what a rule means and how to fix it, from a run with -o <dir>
 draugr: fails on P3: 15 new findings since b5bcb4b
 ```
 

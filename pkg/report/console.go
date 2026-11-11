@@ -2006,7 +2006,13 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 			row("--view actions", "the same findings as a list of things to do")
 		}
 		if len(s.findings) > 0 {
-			row("draugr explain <rule>", "what a rule means and how to fix it")
+			// explain reads the run's report, so a run that wrote none says what it needs; offered
+			// bare, the next command the reader types fails with "no scan report here".
+			if d.ReportsDir == "" {
+				row("draugr explain <rule>", "what a rule means and how to fix it, from a run with -o <dir>")
+			} else {
+				row("draugr explain <rule>", "what a rule means and how to fix it")
+			}
 		}
 	}
 	// Whatever this particular run makes worth trying, after the ones that are always true.
