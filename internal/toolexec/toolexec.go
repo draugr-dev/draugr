@@ -83,8 +83,17 @@ func command(ctx context.Context, dir string, argv, env []string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) // #nosec G204 -- configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	cmd.Dir = dir
 	cmd.Env = environ(env)
+	inOwnGroup(cmd)
+	// Output() waits for the tool's pipes to close as well as for the tool, and a process the tool
+	// started and that left its group, a daemon, can hold them open after the tool is gone. The wait
+	// ends this long after the tool exits, or after a canceled tool was killed, whatever still holds
+	// them. See explain for a tool that succeeded that way.
+	cmd.WaitDelay = pipeWait
 	return cmd
 }
+
+// pipeWait is how long a run waits for the tool's pipes once the tool itself has exited.
+const pipeWait = 5 * time.Second
 
 // RunWithStderr is RunWithEnv returning the tool's stderr beside its stdout, kept apart.
 //
@@ -178,6 +187,12 @@ func cannotStart(tool string, err error, exit *exec.ExitError) error {
 // One line, clamped: some tools print a usage screen on failure, and a report is not the place
 // for it. Trace still has the rest.
 func explain(ctx context.Context, tool string, err error) error {
+	// The tool exited 0 and something it started kept its output open. What the tool wrote is all
+	// there, and the run is the tool's success; waiting on its helper could last forever.
+	if errors.Is(err, exec.ErrWaitDelay) && ctx.Err() == nil {
+		slog.WarnContext(ctx, "tool exited, and a process it started still held its output", "tool", tool, "waited", pipeWait)
+		return nil
+	}
 	// A missing binary is the one failure whose fix is a single command, and the error says only that
 	// the file was not found. That message is correct and it is the first thing a reader sees on their
 	// first scan, after installing Draugr and before installing anything else, which is the likeliest
