@@ -3,6 +3,8 @@ package sarif
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -70,4 +72,45 @@ func (r *Result) StampLineHash(lines []string) {
 		r.PartialFingerprints = map[string]string{}
 	}
 	r.PartialFingerprints[LineHashKey] = hash
+}
+
+// NumberRepeatedLineHashes tells apart results whose content fingerprints are the same, as GitHub's
+// own primaryLocationLineHash does: in line order, the second result sharing a component,
+// repository, rule, file and fingerprint has ":2" appended to its fingerprint, the third ":3".
+//
+// The fingerprint is the text around a line, so two lines that read alike with neighbors that read
+// alike hash alike: the same `if` in two copies of a function, the same `uses:` step in two jobs.
+// Anything that takes the fingerprint, with the rule and the file, as a finding's identity across
+// runs would store those as one finding and lose the rest. The first keeps the value it has always
+// had, so a finding that has no repeat, and the first of those that do, keep their identity across
+// this change.
+//
+// Over every result of a run at once, after its findings are final, because a repeat may come from
+// another scanner's report of the same rule. Results without a fingerprint are left alone.
+func NumberRepeatedLineHashes(results []*Result) {
+	groups := map[string][]*Result{}
+	var keys []string
+	for _, r := range results {
+		hash := r.PartialFingerprints[LineHashKey]
+		if hash == "" {
+			continue
+		}
+		k := strings.Join([]string{r.Component, RepositoryIdentity(r.Repository), r.RuleID, r.Location.URI, hash}, "\x00")
+		if _, ok := groups[k]; !ok {
+			keys = append(keys, k)
+		}
+		groups[k] = append(groups[k], r)
+	}
+	for _, k := range keys {
+		group := groups[k]
+		if len(group) < 2 {
+			continue
+		}
+		sort.SliceStable(group, func(a, b int) bool {
+			return group[a].Location.StartLine < group[b].Location.StartLine
+		})
+		for i, r := range group[1:] {
+			r.PartialFingerprints[LineHashKey] += ":" + strconv.Itoa(i+2)
+		}
+	}
 }

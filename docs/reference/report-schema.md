@@ -189,6 +189,8 @@ Draugr reports as one SARIF tool, so every finding keeps its own attribution in 
 | `noLocation` | In `report.json`'s `findings` only: `true` on a finding whose scanner gave no location, where `location` is absent. The console, markdown and HTML reports show `no location from the scanner` in its place. gosec does this for a position inside cgo-generated code |
 | `fingerprint` | The finding's identity, a hash of its tool, rule, level, message, location, component and repository. `report.json` names findings by it in `actions[].findings[]`, and in `findings[].fingerprint` when `--min-priority` lists them |
 
+Beside the property bag, a finding at a line of a file carries `partialFingerprints.primaryLocationLineHash/v1`, its identity across runs, hashed from the text of the line and the two lines either side so that it holds when the finding moves within the file. Two findings of one rule in one file whose lines read alike hash alike, so in line order the second has `:2` appended and the third `:3`.
+
 `control` and `tool` answer different questions, and both matter to anything grouping findings:
 one rule id reported by two controls is two separate things to do.
 

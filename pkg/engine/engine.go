@@ -1787,7 +1787,27 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// Counted after everything that creates suppressions, so what is left carrying the tool's own
 	// origin is exactly what a scanner silenced rather than what this project decided.
 	res.Silenced = countSilenced(res.Controls)
+	numberRepeatedLineHashes(res.Controls)
 	return res, errors.Join(errs...)
+}
+
+// numberRepeatedLineHashes tells apart the run's findings whose content fingerprints are the same,
+// over every control at once and in the order of the control names, so the numbering is the same on
+// every run of the same tree. See sarif.NumberRepeatedLineHashes.
+func numberRepeatedLineHashes(controls map[string]plugin.ControlResult) {
+	names := make([]string, 0, len(controls))
+	for name := range controls {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var all []*sarif.Result
+	for _, name := range names {
+		results := controls[name].Report.Results
+		for i := range results {
+			all = append(all, &results[i])
+		}
+	}
+	sarif.NumberRepeatedLineHashes(all)
 }
 
 // resolveRemotes names each local checkout by the repository it came from.
