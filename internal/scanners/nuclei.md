@@ -213,9 +213,9 @@ config:
 A run without `mutate` accepted is refused at plan time, here for a component named `api`:
 
 ```
-dast/api/nuclei: this scanner has an effect that has not been accepted: mutate (runs the templates
-tagged intrusive, some of which change the endpoint, such as creating a user or uploading a file
-with PUT). Add it to config.allowEffects in your Saga, or pass --allow-effects mutate
+dast/api/nuclei: this scanner has an effect that has not been accepted. Add it to
+config.allowEffects in your Saga, or pass --allow-effects mutate. mutate: runs the templates tagged
+intrusive, some of which change the endpoint, such as creating a user or uploading a file with PUT
 ```
 
 The effect belongs to each job whose block sets the option, so only a component that sets
@@ -254,9 +254,9 @@ config:
 The refusal, for a component named `api`:
 
 ```
-dast/api/nuclei: this scanner has an effect that has not been accepted: mutate (sends injection
-payloads into every parameter of the spec's operations, a GET that changes state included). Add it
-to config.allowEffects in your Saga, or pass --allow-effects mutate
+dast/api/nuclei: this scanner has an effect that has not been accepted. Add it to
+config.allowEffects in your Saga, or pass --allow-effects mutate. mutate: sends injection payloads
+into every parameter of the spec's operations, a GET that changes state included
 ```
 
 A set narrowed with `templates` or `tags` can hold templates for only one of the two runs. The

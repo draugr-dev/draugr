@@ -537,19 +537,22 @@ func consentFor(info plugin.ScannerInfo, allowed map[plugin.EffectKind]bool) err
 			continue
 		}
 		kinds = append(kinds, string(effect.Kind))
-		described = append(described, fmt.Sprintf("%s (%s)", effect.Kind, effect.Detail))
+		described = append(described, fmt.Sprintf("%s: %s", effect.Kind, effect.Detail))
 	}
 	if len(kinds) == 0 {
 		return nil
 	}
+	// The remedy before what each effect does. The console shows a planning error in three lines and
+	// cuts the rest, so a remedy after the details was the part cut first, and how much of it showed
+	// depended on how long a scanner's description of its effect was.
 	return fmt.Errorf(
-		"this scanner has %s that %s not been accepted: %s. Add %s to config.allowEffects in "+
-			"your Saga, or pass --allow-effects %s",
+		"this scanner has %s that %s not been accepted. Add %s to config.allowEffects in your Saga, "+
+			"or pass --allow-effects %s. %s",
 		english.Choose(len(kinds), "an effect", "effects"),
 		english.Choose(len(kinds), "has", "have"),
-		strings.Join(described, "; "),
 		english.Choose(len(kinds), "it", "them"),
-		strings.Join(kinds, ","))
+		strings.Join(kinds, ","),
+		strings.Join(described, "; "))
 }
 
 // dedupeEffects collapses the same effect reported by several jobs, in a stable order.
