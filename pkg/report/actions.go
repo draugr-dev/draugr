@@ -696,6 +696,12 @@ func ruleKind(f finding) skald.ActionKind {
 		return skald.KindCredential
 	case f.control == "threats":
 		return skald.KindCode
+	// A signer nobody expected, or an image no signer covers, is settled in the descriptor's signers
+	// or by not running the image, after somebody finds out what the image is. No code changes.
+	// An unsigned image is a change to the build that publishes it, or a request to its publisher,
+	// and stays with code.
+	case f.control == "provenance" && f.ruleID != "provenance-unsigned":
+		return skald.KindDecide
 	case f.hasScore && f.score < informationalBelow:
 		return skald.KindDecide
 	case f.control == "iac" || f.control == "kubernetes" || f.control == "cloud":

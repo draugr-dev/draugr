@@ -1965,9 +1965,9 @@ func TestTheFixSaysWhereTheProblemLives(t *testing.T) {
 		{"kubernetes", "cis/5.1.1", "change the cluster's configuration"},
 		{"threats", "urlhaus-listed", "stop contacting the host"},
 		// Three rules on one control, three different next steps.
-		{"provenance", "provenance-unexpected-identity", "find out what signed it before running it"},
-		{"provenance", "provenance-unsigned", "sign it in the build that publishes it"},
-		{"provenance", "provenance-not-covered", "declare a signer, or accept it unsigned"},
+		{"provenance", "provenance-unexpected-identity", "find out what signed the image before running it"},
+		{"provenance", "provenance-unsigned", "sign the image in the build that publishes it, or ask its publisher to"},
+		{"provenance", "provenance-not-covered", "declare a signer for the image, or accept it unsigned"},
 		{"provenance", "a-rule-added-later", "check the signature"},
 	} {
 		got := fixPhrase(finding{control: c.control, ruleID: c.rule})

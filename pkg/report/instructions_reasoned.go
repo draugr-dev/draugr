@@ -150,6 +150,13 @@ var reasonedInstruction = map[string]string{ // #nosec G101 -- sentences for a r
 	"uv-missing-dependency-cooldown":    "Add exclude-newer to the uv configuration",
 	"pnpm-minimum-release-age":          "Add minimumReleaseAge to the pnpm workspace",
 	"yarn-missing-minimal-age-gate":     "Set npmMinimalAgeGate in .yarnrc.yml",
+
+	// Image signatures. Draugr's own; the sentence names the signer found and the one expected.
+	// An unexpected signer is either a build that moved or an image that is not what it claims,
+	// and nothing in the code tells the two apart, so the first step is finding out which.
+	"provenance-unexpected-identity": "Find out what signed the image before running it",
+	"provenance-unsigned":            "Sign the image in the build that publishes it, or ask its publisher to",
+	"provenance-not-covered":         "Declare a signer for the image, or accept it unsigned",
 }
 
 // instructionOf is the instruction for a rule, from whichever table holds it.

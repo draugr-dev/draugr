@@ -393,18 +393,12 @@ func headersFix(rule string) string {
 	return "change the server's configuration"
 }
 
-// provenanceFix says what to do about a signature finding. Three rules, three different next
-// steps, because the three situations share nothing but the control that noticed them.
+// provenanceFix says what to do about a signature finding: the instruction the actions view titles
+// it with, so the two views give one answer. Three rules, three different next steps, because the
+// three situations share nothing but the control that noticed them.
 func provenanceFix(rule string) string {
-	switch rule {
-	case "provenance-unexpected-identity":
-		// Either a build moved to another workflow or the image is not what it claims. Both start
-		// with finding out which, and nothing should run this image until somebody has.
-		return "find out what signed it before running it"
-	case "provenance-unsigned":
-		return "sign it in the build that publishes it"
-	case "provenance-not-covered":
-		return "declare a signer, or accept it unsigned"
+	if i := instructionOf(rule); i != "" {
+		return strings.ToLower(i[:1]) + i[1:]
 	}
 	return "check the signature"
 }

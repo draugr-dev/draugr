@@ -1193,6 +1193,9 @@ func TestEveryActionCarriesItsKindOfWork(t *testing.T) {
 		{"a cloud check", finding{control: "cloud", ruleID: "iam_admin"}, skald.KindInfrastructure},
 		{"a code finding", finding{control: "sast", ruleID: "python.lang.security.audit"}, skald.KindCode},
 		{"a header, code or infrastructure, counts as code", finding{control: "headers", ruleID: "headers/csp-missing", score: 5, hasScore: true}, skald.KindCode},
+		{"an unexpected signer", finding{control: "provenance", ruleID: "provenance-unexpected-identity", score: 9, hasScore: true}, skald.KindDecide},
+		{"an image no signer covers", finding{control: "provenance", ruleID: "provenance-not-covered", score: 7, hasScore: true}, skald.KindDecide},
+		{"an unsigned image, signed in its build", finding{control: "provenance", ruleID: "provenance-unsigned", score: 7, hasScore: true}, skald.KindCode},
 	} {
 		if _, _, got, _ := actionFor(c.f); got != c.want {
 			t.Errorf("%s: kind = %q, want %q", c.name, got, c.want)
@@ -1206,5 +1209,26 @@ func TestEveryActionCarriesItsKindOfWork(t *testing.T) {
 	}}}})
 	if len(acts) != 1 || acts[0].Kind != skald.KindBump {
 		t.Fatalf("actions = %+v, want one bump", acts)
+	}
+}
+
+// An image signed by somebody the descriptor does not name is titled with what to do about it, and
+// the sentence naming both signers stays beneath as the reason. A title made from the rule's name
+// tells a reader nothing they can do, and no code changes: the descriptor's signers or the image do.
+func TestAnUnexpectedSignerIsADecisionTitledWithWhatToDo(t *testing.T) {
+	acts := ActionsFor(map[string]sarif.Report{"provenance": {Results: []sarif.Result{{
+		Tool: "cosign", RuleID: "provenance-unexpected-identity", Level: sarif.LevelError,
+		Score: 9, HasScore: true, Location: sarif.Location{URI: "cgr.dev/chainguard/static:latest"},
+		Message: "Signed by chainguard-images/images/.github/workflows/release.yaml@refs/heads/main, not our-ci.",
+	}}}})
+	if len(acts) != 1 {
+		t.Fatalf("actions = %+v, want one", acts)
+	}
+	a := acts[0]
+	if a.Kind != skald.KindDecide || a.Title != "Find out what signed the image before running it" {
+		t.Errorf("action = %q under %q, want the instruction under decide", a.Title, a.Kind)
+	}
+	if !strings.Contains(a.Summary, "not our-ci") {
+		t.Errorf("summary = %q, want the sentence naming both signers", a.Summary)
 	}
 }

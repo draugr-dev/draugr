@@ -38,11 +38,11 @@ The actions are split by who does the work, into these lists:
 | List | What it holds |
 |---|---|
 | **Bump a dependency** | an upgrade to the release that fixes a dependency, in a repository or an image you build, or a move of an image or repository somebody else publishes when any of its findings has a fix published |
-| **Change the code** | a change to the application's code or its server's configuration, from `sast`, `dast`, `headers` and `tls` |
+| **Change the code** | a change to the application's code or its server's configuration, from `sast`, `dast`, `headers` and `tls`, or a change to the build that signs an image, from `provenance` |
 | **Change the infrastructure** | a change to infrastructure code or a live setting, from `iac`, `kubernetes` and `cloud` |
 | **Rotate a credential** | a committed secret to remove and then rotate, from `secrets` |
 | **Wait for a release** | a fix nobody has published yet: a package with no fixed release, or an image or repository none of whose findings has one |
-| **Decide** | a decision rather than a change: a license to accept or replace, an operating system past end of service life |
+| **Decide** | a decision rather than a change: a license to accept or replace, an operating system past end of service life, an image signed by an identity the descriptor does not name, or an unsigned image no declared signer covers, from `provenance` |
 
 Each list is ordered the way [the list is ordered](#how-the-list-is-ordered). The order of the lists
 themselves is fixed and says nothing about urgency, so the first row of **Change the code** is the

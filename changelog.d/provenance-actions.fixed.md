@@ -1,0 +1,1 @@
+- **`--view actions` titles image signature findings with what to do, not with the rule name.** An image signed by an unexpected signer reads "Find out what signed the image before running it", and an image no declared signer covers reads "Declare a signer for the image, or accept it unsigned". Both are listed under Decide instead of Change the code.
