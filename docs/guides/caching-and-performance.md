@@ -25,6 +25,10 @@ draugr scan draugr.saga.yaml --cache-dir .draugr/cache --cache-ttl 12h
 | `--cache-dir` |, | Enable content-hash caching in this directory |
 | `--cache-ttl` | `24h` | Cache entry lifetime (`0` = no expiry) |
 
+The first entry a run writes also removes the entries older than `--cache-ttl`, so a directory kept
+across runs holds what can still be read rather than an entry for every commit ever scanned. A run
+with `--cache-read-only` removes nothing.
+
 **Every scanner folds its own version into the key**, and where the answer depends on data the tool
 downloads rather than on the tool itself, that data's version too:
 
