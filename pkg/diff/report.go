@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
@@ -360,6 +361,9 @@ type action struct {
 	group []Entry
 	// line is the line of code the action is, for findings at one line; nil for any other action.
 	line *fixlist.CodeLine
+	// lines are the lines of code a folded row stands for, line among them, where foldLines put
+	// several lines that say the same thing on one row; nil otherwise.
+	lines []fixlist.CodeLine
 }
 
 // component is the one every finding in the action belongs to, or "" where they span several.
@@ -427,7 +431,54 @@ func groupChanges(entries []Entry, rules map[string]sarif.Rule) (actions []actio
 		}
 		actions[i].what = actions[i].title()
 	}
-	return actions, covered
+	return foldLines(actions), covered
+}
+
+// foldLines puts the actions for single lines that say the same thing on one row, as the scan's fix
+// list does: one rule across three hundred lines is three hundred edits, but a reviewer decides
+// about the rule once, and three hundred rows of one sentence bury every other row in the comment.
+// The row takes the place of the first of them, so the list keeps its order.
+//
+// One row per change, band, component and repository, for the reasons the scan gives: a row spanning
+// two bands would rank as the worse, two components are two owners, and two repositories'
+// main.go:12 are two files. A line asking for a second change says so, so it keeps a row of its own.
+func foldLines(actions []action) []action {
+	out := make([]action, 0, len(actions))
+	at := map[string]int{}
+	for _, a := range actions {
+		if a.line == nil {
+			out = append(out, a)
+			continue
+		}
+		k := strings.Join([]string{string(a.lead.Change), a.lead.Priority, a.component(), a.line.Repository,
+			a.line.Title, a.line.Summary}, "\x00")
+		i, ok := at[k]
+		if !ok {
+			at[k] = len(out)
+			out = append(out, a)
+			continue
+		}
+		if out[i].lines == nil {
+			out[i].lines = []fixlist.CodeLine{*out[i].line}
+		}
+		out[i].lines = append(out[i].lines, *a.line)
+		out[i].group = append(out[i].group[:len(out[i].group):len(out[i].group)], a.group...)
+	}
+	return out
+}
+
+// placesRoom is how much of a comment row a folded row's places take, and the least they take on a
+// terminal. The places say where to start; every one of them is in the report.
+const placesRoom = 100
+
+// where is the row's line of code, or for a folded row how many lines it stands for and where they
+// are, the places within room columns.
+func (a action) where(withRepository bool, room int) string {
+	if len(a.lines) > 1 {
+		count := english.Count(len(a.lines), "line") + " · "
+		return count + fixlist.FoldedPlaces(a.lines, withRepository, max(room-utf8.RuneCountInString(count), 20))
+	}
+	return a.line.Where(withRepository)
 }
 
 // title is what to do, in the imperative.
@@ -496,12 +547,30 @@ func actionHeading(actions []action, covered int, opts Options) (heading string,
 	if len(actions) == 1 {
 		verb = "clears"
 	}
-	heading = fmt.Sprintf("%s %s %s", english.Count(len(actions), "action"), verb, english.Count(covered, "finding"))
+	heading = fmt.Sprintf("%s %s %s", english.Count(len(actions), "action")+onLines(actions), verb,
+		english.Count(covered, "finding"))
 	if held > 0 {
 		heading = fmt.Sprintf("top %d of %s · %s", opts.Top, english.Count(len(actions), "action"),
 			english.Count(covered, "finding"))
 	}
 	return heading, shown, held
+}
+
+// onLines is " on N lines" where every action is about lines of code and some row stands for several,
+// as the scan's fix list counts a list of them: the rows are what a reviewer decides about, the lines
+// what they will edit. "" otherwise.
+func onLines(actions []action) string {
+	lines := 0
+	for _, a := range actions {
+		if a.line == nil {
+			return ""
+		}
+		lines += max(len(a.lines), 1)
+	}
+	if lines == len(actions) {
+		return ""
+	}
+	return " on " + english.Count(lines, "line")
 }
 
 // writeDiffActions groups what a change introduced into the things somebody would do about it.
@@ -536,7 +605,7 @@ func writeDiffActions(w io.Writer, col tui.Painter, entries []Entry, rules map[s
 				_, _ = fmt.Fprintf(w, "      %s\n", col.Paint(tui.StyleMuted, a.line.Summary))
 			}
 			_, _ = fmt.Fprintf(w, "      %s%s\n",
-				col.Paint(tui.StyleMuted, a.line.Where(nameRepositories)+" · "), consoleRules(col, a.line.Rules))
+				col.Paint(tui.StyleMuted, a.where(nameRepositories, consolePlaces(w, a))+" · "), consoleRules(col, a.line.Rules))
 			continue
 		}
 		// One rule named and the rest counted, because a row listing six identifiers is six things
@@ -556,6 +625,17 @@ func writeDiffActions(w io.Writer, col tui.Painter, entries []Entry, rules map[s
 		_, _ = fmt.Fprintf(w, "\n  %s\n", col.Paint(tui.StyleMuted,
 			fmt.Sprintf("%s nobody has to act on.", english.Count(rest, "finding"))))
 	}
+}
+
+// consolePlaces is the room a folded row's places have on the terminal: the line under the row, less
+// its indent and the rules that close it, so the row stays one line wide.
+func consolePlaces(w io.Writer, a action) int {
+	width := tui.Columns(w)
+	if width <= 0 {
+		width = placesRoom
+	}
+	rules := utf8.RuneCountInString(consoleRules(tui.Plain(), a.line.Rules))
+	return width - len("      ") - len(" · ") - rules
 }
 
 // consoleRules is every rule at a line of code, by scanner, each linked to what the scanner
@@ -690,7 +770,7 @@ func renderMarkdownActions(w io.Writer, r Result, opts Options) error {
 		}
 		what := a.what
 		if a.line != nil {
-			where = a.line.Where(nameRepositories) + " · " + markdownRules(a.line.Rules)
+			where = a.where(nameRepositories, placesRoom) + " · " + markdownRules(a.line.Rules)
 			// The description under a title that names a rule, as the console draws it. A break
 			// rather than a newline, which would end the table row.
 			if a.line.Summary != "" {
