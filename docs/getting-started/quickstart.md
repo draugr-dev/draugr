@@ -106,7 +106,7 @@ TRY
   --report html -o <dir>  every row the console cut, in one searchable page
   --view compact          one line each, to see how much there is
   --view actions          the same findings as a list of things to do
-  draugr explain <rule>   what a rule means and how to fix it
+  draugr explain <rule>   what a rule means and how to fix it, from a run with -o <dir>
 draugr: policy verdict: fail
 ```
 

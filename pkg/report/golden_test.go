@@ -775,7 +775,7 @@ func fencedConsole(doc string) bool {
 
 // printedPlaceholders are angle-bracketed words the renderer itself prints, so a real run carries
 // them and they say nothing about whether a block is a schematic.
-var printedPlaceholders = []string{"draugr explain <rule>", "--report html -o <dir>"}
+var printedPlaceholders = []string{"draugr explain <rule>", "--report html -o <dir>", "from a run with -o <dir>"}
 
 func pastesARun(fence []string, placeholder *regexp.Regexp) bool {
 	carries := false
@@ -794,4 +794,17 @@ func pastesARun(fence []string, placeholder *regexp.Regexp) bool {
 		}
 	}
 	return carries
+}
+
+// explain reads the run's report, so the TRY row offering it says what it needs on a run that wrote
+// none, and says no more on a run that wrote one: the reader's next command must be one that works.
+func TestTryOffersExplainWithTheReportItReads(t *testing.T) {
+	without := renderConsole(t, goldenFullData())
+	if !strings.Contains(without, "what a rule means and how to fix it, from a run with -o <dir>") {
+		t.Errorf("a run that wrote no report offers explain bare:\n%s", without)
+	}
+	with := renderConsole(t, withReports(goldenFullData(), "out", "json", "sarif"))
+	if !strings.Contains(with, "what a rule means and how to fix it\n") || strings.Contains(with, "from a run with -o") {
+		t.Errorf("a run that wrote a report asks for one:\n%s", with)
+	}
 }
