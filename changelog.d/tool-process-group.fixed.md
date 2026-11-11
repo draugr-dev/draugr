@@ -1,0 +1,1 @@
+- **Canceling a scan ends the processes its tools started, not only the tools.** Semgrep's workers, the `go` processes under gosec and govulncheck and the `kubectl` calls under kube-bench used to keep running, and a canceled scan could wait on them. It now returns within seconds.
