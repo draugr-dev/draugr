@@ -1,0 +1,1 @@
+- **A secrets scan whose history pass is killed keeps what it found.** With `history: true`, a Gitleaks killed during the history pass leaves the checkout's findings reported and the `secrets` control in error, naming the repository and saying findings only in its history were not read. Any tool ended by SIGKILL is reported as killed by SIGKILL.

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -78,12 +79,13 @@ func NewGosec() plugin.Scanner {
 	s.cacheVersion = sharedGosecVersion.version
 	// gosec loads a module's packages with `go`. Without it, gosec exits 0 having analyzed
 	// nothing, and the control would read as a clean pass.
-	s.run = onRuntime(s.info.Binary, onGosecModule(gosecBounded(onGosecWorkspace(onGoLoadable(execArgvInDirWithEnv)))))
+	s.run = onRuntime(s.info.Binary, onGosecModule(gosecBounded(onGosecWorkspace(onGosecPackages(execArgvInDirWithEnv)))))
 	return s
 }
 
 // gosecModuleDir is the directory of the module a gosec argv runs over, its last argument without
-// the trailing `/...`.
+// the trailing `/...`. It is the argv gosecArgs plans; onGosecPackages names the module's package
+// directories in its place when gosec runs.
 func gosecModuleDir(argv []string) string {
 	if len(argv) == 0 {
 		return ""
@@ -109,20 +111,32 @@ func onGosecWorkspace(run func(ctx context.Context, dir string, argv, env []stri
 	}
 }
 
-// onGoLoadable runs gosec over a module only once the go command has loaded the module's packages
-// and their dependencies under the same environment and build tags, and otherwise returns the go
-// command's failure as the run's.
+// onGosecPackages runs gosec over the directories of the module's packages, as the go command lists
+// them under the same environment and build tags, in place of the `<module>/...` gosecArgs plans.
 //
-// gosec 2.30.0 loads each package directory with go/packages and skips a package that comes back
-// with no name, which is what go/packages returns where the go command failed for the module. It
-// logs nothing about it, writes a report of what it did analyze, and exits 0, so a module it could
-// not load reads as a module analyzed and found clean. `go list -e -deps` reports a problem inside
-// one package as that package's error and exits 0; it exits non-zero where the go command cannot
-// load the module, which is the failure gosec does not report.
+// gosec 2.30.0 walks a path ending in `/...` itself and leaves out every directory whose path
+// matches its -exclude-dir patterns, which hold `vendor` by default. The pattern it builds,
+// `([\/])?vendor([\/])?`, has both separators optional and matches `vendor` anywhere in the path: a
+// package at cmd/vendorhash is left out without a word, and a module in a directory named
+// vendor-api has every package left out. A directory named on the command line is taken as it is.
+// `go list ./...` lists what the go command builds as part of the module and nothing else: no
+// vendor/ or testdata/ directory, no directory whose name starts with `.` or `_`, and no module
+// nested inside it, which gosecArgs runs on its own. A directory holding only tests is left out
+// as well, because gosec does not analyze test files unless asked to.
 //
-// The failure is an exit of the go command, so onGosecModule records it against the module and the
-// other modules' runs go ahead.
-func onGoLoadable(run func(ctx context.Context, dir string, argv, env []string) ([]byte, error)) func(ctx context.Context, dir string, argv, env []string) ([]byte, error) {
+// The same `go list -e -deps` is the load check. gosec loads each package with go/packages and
+// skips one that comes back with no name, which is what go/packages returns where the go command
+// failed for the module, then writes a report of what it did analyze and exits 0. `go list -e
+// -deps` reports a problem inside one package as that package's error and exits 0; it exits
+// non-zero where the go command cannot load the module, and that exit is returned as the run's,
+// for onGosecModule to record against the module. A module the go command lists no package in is
+// errNoGoPackages, and gosec does not run over it.
+//
+// gosec names each file in its SARIF relative to the longest path on its command line holding it,
+// which for a package directory is the file's bare name, so main.go in two packages would read
+// alike. The SARIF goes to a file and the same issues, in the same order, to stdout as JSON, which
+// names each file in full, and gosecUnderModule puts each location back relative to the module.
+func onGosecPackages(run func(ctx context.Context, dir string, argv, env []string) ([]byte, error)) func(ctx context.Context, dir string, argv, env []string) ([]byte, error) {
 	return func(ctx context.Context, dir string, argv, env []string) ([]byte, error) {
 		mod := gosecModuleDir(argv)
 		if mod == "" {
@@ -134,19 +148,119 @@ func onGoLoadable(run func(ctx context.Context, dir string, argv, env []string) 
 				tags = append(tags, a)
 			}
 		}
-		if err := goListDeps(ctx, mod, tags, env); err != nil {
+		pkgs, err := goListPackages(ctx, mod, tags, env)
+		if err != nil {
 			return nil, fmt.Errorf("go list -e -deps ./... cannot load the module, so gosec did not run: %w", err)
 		}
-		return run(ctx, dir, argv, env)
+		if len(pkgs) == 0 {
+			// With no directory on its command line, gosec would analyze its working directory.
+			return nil, errNoGoPackages
+		}
+		tmp, err := os.MkdirTemp("", "draugr-gosec-*")
+		if err != nil {
+			return nil, err
+		}
+		defer func() { _ = os.RemoveAll(tmp) }()
+		report := filepath.Join(tmp, "report.sarif")
+		cmd := append(slices.Clip(argv[:len(argv)-1]), "-out", report, "-stdout", "-verbose", "json")
+		issues, err := run(ctx, dir, append(cmd, pkgs...), env)
+		if err != nil {
+			return nil, err
+		}
+		doc, err := os.ReadFile(report) // #nosec G304 -- the file gosec wrote in the directory MkdirTemp just made
+		if err != nil {
+			return nil, fmt.Errorf("gosec wrote no SARIF report: %w", err)
+		}
+		return gosecUnderModule(doc, issues, mod)
 	}
 }
 
-// goListDeps loads the packages of the module at dir, and every package they import, with the go
-// command. A variable so a test can stand in for the go command.
-var goListDeps = func(ctx context.Context, dir string, flags, env []string) error {
-	argv := append([]string{"go", "list", "-e", "-deps", "-f", ""}, flags...)
-	_, err := toolexec.RunWithEnv(ctx, dir, append(argv, "./..."), env)
-	return err
+// errNoGoPackages is a module the go command lists no package of, under gosec's build tags.
+var errNoGoPackages = errors.New("no Go packages")
+
+// gosecPackageDir is the `go list -f` template that prints the directory of each package the
+// pattern matched and gosec analyzes, one with a non-test Go file in the build, and nothing for a
+// package listed only as a dependency (-deps).
+const gosecPackageDir = `{{if not .DepOnly}}{{if or .GoFiles .CgoFiles}}{{.Dir}}{{end}}{{end}}`
+
+// goListPackages loads the packages of the module at dir, and every package they import, with the
+// go command, and returns the directories of the module's own packages that hold a non-test Go
+// file. A variable so a test can stand in for the go command.
+var goListPackages = func(ctx context.Context, dir string, flags, env []string) ([]string, error) {
+	argv := append([]string{"go", "list", "-e", "-deps", "-f", gosecPackageDir}, flags...)
+	out, err := toolexec.RunWithEnv(ctx, dir, append(argv, "./..."), env)
+	if err != nil {
+		return nil, err
+	}
+	var dirs []string
+	for line := range strings.SplitSeq(string(out), "\n") {
+		if line != "" {
+			dirs = append(dirs, line)
+		}
+	}
+	return dirs, nil
+}
+
+// gosecIssue is one issue of gosec's JSON report: the rule, and the file's path in full, which its
+// SARIF gives relative to a path on its command line.
+type gosecIssue struct {
+	RuleID string `json:"rule_id"`
+	File   string `json:"file"`
+}
+
+// gosecUnderModule returns gosec's SARIF report with each location's URI relative to the module at
+// mod, taken from the issue at the same position in gosec's JSON report, which gosec writes from
+// the same list in the same order. A rule or a count that differs between the two is an error,
+// since then no position can be trusted. A file outside the module keeps the URI gosec wrote.
+func gosecUnderModule(report, issues []byte, mod string) ([]byte, error) {
+	var listed struct {
+		Issues []gosecIssue `json:"Issues"`
+	}
+	if err := json.Unmarshal(issues, &listed); err != nil {
+		return nil, fmt.Errorf("read gosec's JSON report: %w", err)
+	}
+	dec := json.NewDecoder(bytes.NewReader(report))
+	dec.UseNumber()
+	var doc map[string]any
+	if err := dec.Decode(&doc); err != nil {
+		return nil, fmt.Errorf("read gosec's SARIF report: %w", err)
+	}
+	n := 0
+	runs, _ := doc["runs"].([]any)
+	for _, run := range runs {
+		results, _ := jsonObject(run)["results"].([]any)
+		for _, r := range results {
+			if n == len(listed.Issues) {
+				return nil, fmt.Errorf("gosec's SARIF report holds more results than the %d issues of its JSON report", len(listed.Issues))
+			}
+			issue := listed.Issues[n]
+			n++
+			result := jsonObject(r)
+			if id, _ := result["ruleId"].(string); id != issue.RuleID {
+				return nil, fmt.Errorf("gosec's SARIF result %d is %s and its JSON issue %d is %s", n, id, n, issue.RuleID)
+			}
+			uri, ok := relSlash(mod, issue.File)
+			if !ok {
+				continue
+			}
+			locations, _ := result["locations"].([]any)
+			for _, l := range locations {
+				if art := jsonObject(jsonObject(jsonObject(l)["physicalLocation"])["artifactLocation"]); art != nil {
+					art["uri"] = uri
+				}
+			}
+		}
+	}
+	if n != len(listed.Issues) {
+		return nil, fmt.Errorf("gosec's SARIF report holds %d results and its JSON report %d issues", n, len(listed.Issues))
+	}
+	return json.Marshal(doc)
+}
+
+// jsonObject is v as a decoded JSON object, nil where it is not one.
+func jsonObject(v any) map[string]any {
+	m, _ := v.(map[string]any)
+	return m
 }
 
 // gosecRecord is a line Draugr writes into gosec's output in place of a run over one module that
@@ -167,21 +281,23 @@ type gosecModule struct {
 	Failed string `json:"failed,omitempty"`
 }
 
-// onGosecModule turns a run of gosec over one module that exited non-zero into a record of that
-// module, so the runs over the other modules keep their findings.
+// onGosecModule turns a run of gosec over one module that did not write a report into a record of
+// that module, so the runs over the other modules keep their findings.
 //
 // A module that holds no Go package, a documentation site with its own go.mod being the common case,
-// makes gosec exit 1 with `No packages found`, and says nothing about the modules beside it. It is
-// recorded as a go.mod gosec did not analyze. Any other exit is recorded as a failure of that module,
-// which parseGosec reports as the scan's error beside the other modules' findings.
+// is one the go command lists no package of (errNoGoPackages), and gosec does not run over it. It is
+// recorded as a go.mod gosec did not analyze. An exit of gosec, or of the go command listing the
+// module's packages, is recorded as a failure of that module, which parseGosec reports as the scan's
+// error beside the other modules' findings.
 //
-// Only an exit of gosec itself is recorded. An error that holds for every module, gosec not installed
-// or the run canceled, still fails the job as it is.
+// Only those are recorded. An error that holds for every module, gosec not installed or the run
+// canceled, still fails the job as it is.
 func onGosecModule(run func(ctx context.Context, root string, argv []string) ([]byte, error)) func(ctx context.Context, root string, argv []string) ([]byte, error) {
 	return func(ctx context.Context, root string, argv []string) ([]byte, error) {
 		out, err := run(ctx, root, argv)
-		exit, ok := errors.AsType[*exec.ExitError](err)
-		if !ok || ctx.Err() != nil || len(argv) == 0 {
+		noPackages := errors.Is(err, errNoGoPackages)
+		_, exited := errors.AsType[*exec.ExitError](err)
+		if (!noPackages && !exited) || ctx.Err() != nil || len(argv) == 0 {
 			return out, err
 		}
 		mod := gosecModuleDir(argv)
@@ -189,7 +305,7 @@ func onGosecModule(run func(ctx context.Context, root string, argv []string) ([]
 		if rel, ok := relSlash(root, mod); ok && rel != "." {
 			rec.GoMod = rel + "/go.mod"
 		}
-		if gosecFoundNoPackages(exit) {
+		if noPackages {
 			rec.NoPackages = true
 		} else {
 			rec.Failed = stripCheckoutDir(root, err.Error())
@@ -202,24 +318,6 @@ func onGosecModule(run func(ctx context.Context, root string, argv []string) ([]
 		return append(msg, '\n'), nil
 	}
 }
-
-// gosecFoundNoPackages reports whether exit is gosec's exit over a module that holds no Go package:
-// status 1, with `No packages found` as the message of a line of its log. gosec logs it, and exits 1,
-// where no directory under the path it was given holds a .go file.
-func gosecFoundNoPackages(exit *exec.ExitError) bool {
-	if exit.ExitCode() != 1 {
-		return false
-	}
-	for _, line := range strings.Split(string(exit.Stderr), "\n") {
-		if line = strings.TrimSpace(line); line == gosecNoPackages || strings.HasSuffix(line, " "+gosecNoPackages) {
-			return true
-		}
-	}
-	return false
-}
-
-// gosecNoPackages is what gosec logs before it exits over a module that holds no Go package.
-const gosecNoPackages = "No packages found"
 
 // gosecLoads is how many packages gosec loads and analyzes at once, its `-concurrency`, before the
 // bound lowers it (toolexec.Divide).
@@ -255,9 +353,8 @@ func gosecBounded(run func(ctx context.Context, dir string, argv, env []string) 
 	}
 }
 
-// gosecArgs builds `gosec -fmt sarif -no-fail ./...`. gosec loads Go packages relative to the
-// working directory, so the repoScanner runs it with the checkout as the cwd and the target is
-// the relative `./...` pattern (the dir argument is unused here).
+// gosecArgs builds `gosec -fmt sarif -no-fail … <module>/...` for each Go module under dir, the
+// checkout, which the repoScanner runs as the working directory.
 //
 //   - -no-fail keeps the process successful when findings exist (findings live in the SARIF
 //     report, not the exit code; the sast controller judges severity).
@@ -284,7 +381,8 @@ func gosecArgs(dir string, cfg plugin.Config) [][]string {
 	}
 	// One run per module, by absolute path. gosec loads packages from the working directory's
 	// module, so `./...` from a root with no go.mod analyzes nothing and writes nothing, and a
-	// module nested inside another is outside the outer one's `./...`.
+	// module nested inside another is outside the outer one's `./...`. When gosec runs,
+	// onGosecPackages names the module's package directories in place of `<module>/...`.
 	var out [][]string
 	for _, mod := range goModuleDirs(dir) {
 		argv := append([]string{}, base...)

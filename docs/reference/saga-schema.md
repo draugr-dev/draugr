@@ -1606,13 +1606,13 @@ in what the run covered, listed under **Caveats** in the report:
 | `not-checked` | a part of the component the run did not examine: a surface it declares that no enabled control looks at (for a host, `headers` or `tls`; `dast` leaves both to them), or, on a scan with no descriptor, a file whose scanner could not run on this machine |
 | `not-measured` | a scanner that cannot honor a component's scope, so it did not run for that component |
 | `unread-files` | a file whose contents no scanner read in full, in a repository that was read: a dependency file, a Terraform file calling a module that was not loaded or not evaluated, a Helm chart that was not rendered, a file the secrets scan skipped, a source file Semgrep skipped or did not finish, a `go.mod` gosec found no Go package in, or an image whose operating system the scanner does not support |
-| `unread-checks` | a check the scan could evaluate only in part or could not evaluate at all, such as a denied cloud read or an HTTP header check on a non-2xx response |
+| `unread-checks` | a check the scan could not evaluate, or could evaluate only in part: a cloud check whose read was denied, a CIS Kubernetes check whose audit read nothing on the node `kube-bench-job` ran it on, or an HTTP header check on an endpoint that answered with a non-2xx status |
 | `unbound-imports` | an imported SARIF file that names no commit, so nothing ties its findings to the code being scanned |
 
 ```yaml
 config:
   gate:
-    failOnCaveats: [unread-checks]   # a check the scan could not fully evaluate fails the run
+    failOnCaveats: [unread-checks]   # a check that could not be evaluated fails the run
 ```
 
 A caveat of a listed kind stays under **Caveats**, marked `✗`, and the heading says how many fail the
@@ -1871,7 +1871,8 @@ same repository are two different scans, cached separately, and their findings s
 `gitleaks` with `history: true` walks every commit in the repository. Draugr keeps a history
 finding only when the path it names would have been checked out, by the rules above. That path is
 the one the secret had in the commit that introduced it, so the finding belongs to the component
-whose `paths` held that path.
+whose `paths` held that path. The scope is applied after Gitleaks has reported every commit's
+findings, so `paths` and `ignore` do not lower the time or memory a history pass takes.
 
 **[`gosec`](../../internal/scanners/gosec.md) and [`govulncheck`](../../internal/scanners/govulncheck.md)
 analyze whole Go modules.** Both type-check packages, and a package does not type-check without the

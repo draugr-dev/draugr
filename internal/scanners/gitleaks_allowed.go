@@ -3,8 +3,11 @@ package scanners
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -45,7 +48,10 @@ func gitleaksRun(run func(ctx context.Context, dir string, argv []string) ([]byt
 			return out, err
 		}
 		path := argv[i+1]
-		reported, err := readGitleaksRelative(path, dir)
+		// While a further run goes, only a key per result is kept of the reports before it, and the
+		// reported one waits on disk to be merged once the last run has exited. A history pass's
+		// report grows with the history, and each further run builds one of the same size.
+		with, err := gitleaksKeysOf(path, dir)
 		if err != nil {
 			return nil, err
 		}
@@ -64,7 +70,7 @@ func gitleaksRun(run func(ctx context.Context, dir string, argv []string) ([]byt
 		// The run the allow comments are measured against: the reported one, or, where the
 		// checkout holds a .gitleaksignore, a run with that file out of reach. What it finds and the
 		// reported run does not is what the file set aside, recorded as the scanner's own exclusion.
-		merged, beforeAllow := reported, reported
+		var added []json.RawMessage
 		if gitleaksIgnoreFile(dir) {
 			empty, err := os.MkdirTemp("", "draugr-gitleaks-noignore-")
 			if err != nil {
@@ -75,10 +81,7 @@ func gitleaksRun(run func(ctx context.Context, dir string, argv []string) ([]byt
 				if _, err := run(ctx, dir, reach); err != nil {
 					return nil, fmt.Errorf("run with the .gitleaksignore file out of reach: %w", err)
 				}
-				if beforeAllow, err = readGitleaksRelative(everyPath, dir); err != nil {
-					return nil, err
-				}
-				if merged, err = withGitleaksSetAside(merged, reported, beforeAllow, "external", "the .gitleaksignore file"); err != nil {
+				if added, with, err = gitleaksSetAsideFile(everyPath, dir, with, true, "external", "the .gitleaksignore file"); err != nil {
 					return nil, err
 				}
 				every = reach
@@ -88,11 +91,16 @@ func gitleaksRun(run func(ctx context.Context, dir string, argv []string) ([]byt
 		if _, err := run(ctx, dir, append(every, gitleaksIgnoreAllowArg)); err != nil {
 			return nil, fmt.Errorf("run with %s: %w", gitleaksIgnoreAllowArg, err)
 		}
-		all, err := readGitleaksRelative(everyPath, dir)
+		allowed, _, err := gitleaksSetAsideFile(everyPath, dir, with, false, "inSource", "allow comments")
 		if err != nil {
 			return nil, err
 		}
-		if merged, err = withGitleaksSetAside(merged, beforeAllow, all, "inSource", "allow comments"); err != nil {
+		reported, err := readGitleaksRelative(path, dir)
+		if err != nil {
+			return nil, err
+		}
+		merged, err := withGitleaksResults(reported, append(added, allowed...))
+		if err != nil {
 			return nil, err
 		}
 		return out, os.WriteFile(path, merged, 0o600) // #nosec G703 -- the report path this run was given, read above
@@ -138,31 +146,53 @@ func readGitleaksRelative(path, dir string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	var doc map[string]any
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.UseNumber()
-	if err := dec.Decode(&doc); err != nil {
+	doc, err := decodeJSON(data)
+	if err != nil {
 		return nil, fmt.Errorf("read its report: %w", err)
 	}
-	// Anything not shaped as SARIF is left as it is, for the reader after this one to refuse.
-	runs, _ := doc["runs"].([]any)
+	// Anything not shaped as SARIF is left as it is; the walk of the report has refused it already.
+	d, _ := doc.(map[string]any)
+	runs, _ := d["runs"].([]any)
 	for _, run := range runs {
 		r, _ := run.(map[string]any)
 		results, _ := r["results"].([]any)
 		for _, res := range results {
-			result, _ := res.(map[string]any)
-			locations, _ := result["locations"].([]any)
-			for _, loc := range locations {
-				l, _ := loc.(map[string]any)
-				physical, _ := l["physicalLocation"].(map[string]any)
-				artifact, _ := physical["artifactLocation"].(map[string]any)
-				if uri, ok := artifact["uri"].(string); ok {
-					artifact["uri"] = repoRelPath(dir, uri)
-				}
-			}
+			gitleaksRelative(res, dir)
 		}
 	}
 	return json.Marshal(doc)
+}
+
+// withGitleaksResults adds results to the first run of a Gitleaks SARIF report. A report with
+// nothing to add is returned unchanged.
+func withGitleaksResults(report []byte, results []json.RawMessage) ([]byte, error) {
+	if len(results) == 0 {
+		return report, nil
+	}
+	added := make([]any, len(results))
+	for i, r := range results {
+		added[i] = r
+	}
+	return appendSARIFResults(report, "gitleaks", added, nil)
+}
+
+// gitleaksRelative makes each location's path in a decoded Gitleaks result relative to dir, so a
+// run given the checkout's absolute path compares with one given ".". With no dir, or a result not
+// shaped as SARIF, it changes nothing.
+func gitleaksRelative(result any, dir string) {
+	if dir == "" {
+		return
+	}
+	r, _ := result.(map[string]any)
+	locations, _ := r["locations"].([]any)
+	for _, loc := range locations {
+		l, _ := loc.(map[string]any)
+		physical, _ := l["physicalLocation"].(map[string]any)
+		artifact, _ := physical["artifactLocation"].(map[string]any)
+		if uri, ok := artifact["uri"].(string); ok {
+			artifact["uri"] = repoRelPath(dir, uri)
+		}
+	}
 }
 
 // gitleaksIgnoreFile reports whether the checkout holds a .gitleaksignore at its root, where
@@ -173,68 +203,127 @@ func gitleaksIgnoreFile(dir string) bool {
 }
 
 // withGitleaksAllowed adds to a Gitleaks SARIF report each result the run with allow comments
-// ignored found and the report lacks, as a result suppressed in source.
+// ignored found and the report lacks, as a result suppressed in source. A report with nothing to
+// add is returned unchanged. Paths are compared as written.
 func withGitleaksAllowed(reported, all []byte) ([]byte, error) {
-	return withGitleaksSetAside(reported, reported, all, "inSource", "allow comments")
+	with, err := gitleaksKeysIn(bytes.NewReader(reported), "")
+	if err != nil {
+		return nil, err
+	}
+	added, _, err := gitleaksSetAside(bytes.NewReader(all), "", with, false, "inSource", "allow comments")
+	if err != nil {
+		return nil, err
+	}
+	return withGitleaksResults(reported, added)
 }
 
-// withGitleaksSetAside adds to report each result the run with one exclusion out of reach (all)
-// found and the run with it in force (with) lacks, as a result suppressed with kind: `inSource` for
-// an allow comment, `external` for the .gitleaksignore file. A report with nothing to add is
-// returned unchanged. what names the exclusion in an error.
+// gitleaksKeys counts the results of one Gitleaks report by key. A key is a digest of what
+// identifies a result, so what is held grows by a fixed size per result, whatever the result holds.
+type gitleaksKeys map[[sha256.Size]byte]int
+
+// gitleaksKeysOf counts the results of the Gitleaks report at path, with each location's path
+// relative to dir.
+func gitleaksKeysOf(path, dir string) (gitleaksKeys, error) {
+	f, err := os.Open(path) // #nosec G304 -- a report path a Gitleaks run of this scan wrote
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = f.Close() }()
+	return gitleaksKeysIn(f, dir)
+}
+
+// gitleaksKeysIn is gitleaksKeysOf over a report being read.
+func gitleaksKeysIn(r io.Reader, dir string) (gitleaksKeys, error) {
+	keys := gitleaksKeys{}
+	err := walkGitleaksResults(r, func(raw json.RawMessage) error {
+		k, err := gitleaksKeyOf(raw, dir)
+		if err != nil {
+			return err
+		}
+		keys[k]++
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("read its report: %w", err)
+	}
+	return keys, nil
+}
+
+// gitleaksSetAsideFile is gitleaksSetAside over the report at path.
+func gitleaksSetAsideFile(path, dir string, with gitleaksKeys, keep bool, kind, what string) ([]json.RawMessage, gitleaksKeys, error) {
+	f, err := os.Open(path) // #nosec G304 -- a report path a Gitleaks run of this scan wrote
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() { _ = f.Close() }()
+	return gitleaksSetAside(f, dir, with, keep, kind, what)
+}
+
+// gitleaksSetAside reads the report of a run with one exclusion out of reach and returns each
+// result it holds that with, the counted results of the run with the exclusion in force, lacks.
+// Each comes suppressed with kind: `inSource` for an allow comment, `external` for the
+// .gitleaksignore file. what names the exclusion in an error. with is used up.
+//
+// With keep, the report's own results are counted too, for the next comparison to be made against.
 //
 // Results are matched on the rule, the location, the commit and the secret, and counted, so a
 // secret written twice on one line and allowed once is added once. Nothing looser: a result
 // wrongly matched is a set-aside secret left without a record, and one wrongly unmatched is a
 // finding Gitleaks reported, added a second time as suppressed.
-func withGitleaksSetAside(report, with, all []byte, kind, what string) ([]byte, error) {
-	var every struct {
-		Runs []struct {
-			Results []json.RawMessage `json:"results"`
-		} `json:"runs"`
+func gitleaksSetAside(r io.Reader, dir string, with gitleaksKeys, keep bool, kind, what string) ([]json.RawMessage, gitleaksKeys, error) {
+	var kept gitleaksKeys
+	if keep {
+		kept = gitleaksKeys{}
 	}
-	if err := json.Unmarshal(all, &every); err != nil {
-		return nil, fmt.Errorf("read its report with %s out of reach: %w", what, err)
+	var added []json.RawMessage
+	err := walkGitleaksResults(r, func(raw json.RawMessage) error {
+		k, err := gitleaksKeyOf(raw, dir)
+		if err != nil {
+			return err
+		}
+		if kept != nil {
+			kept[k]++
+		}
+		if with[k] > 0 {
+			with[k]--
+			return nil
+		}
+		result, err := decodeJSON(raw)
+		if err != nil {
+			return err
+		}
+		m, ok := result.(map[string]any)
+		if !ok {
+			return errors.New("a result is not an object")
+		}
+		gitleaksRelative(m, dir)
+		m["suppressions"] = []any{map[string]any{"kind": kind}}
+		out, err := json.Marshal(m)
+		if err != nil {
+			return err
+		}
+		added = append(added, out)
+		return nil
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("read its report with %s out of reach: %w", what, err)
 	}
-	var have struct {
-		Runs []struct {
-			Results []gitleaksResult `json:"results"`
-		} `json:"runs"`
+	return added, kept, nil
+}
+
+// gitleaksKeyOf is the key of one result, with each location's path relative to dir.
+func gitleaksKeyOf(raw json.RawMessage, dir string) ([sha256.Size]byte, error) {
+	var r gitleaksResult
+	if err := json.Unmarshal(raw, &r); err != nil {
+		return [sha256.Size]byte{}, err
 	}
-	if err := json.Unmarshal(with, &have); err != nil {
-		return nil, fmt.Errorf("read its report: %w", err)
-	}
-	seen := map[string]int{}
-	for _, run := range have.Runs {
-		for _, r := range run.Results {
-			seen[r.key()]++
+	if dir != "" {
+		for i := range r.Locations {
+			a := &r.Locations[i].PhysicalLocation.ArtifactLocation
+			a.URI = repoRelPath(dir, a.URI)
 		}
 	}
-	var added []any
-	for _, run := range every.Runs {
-		for _, raw := range run.Results {
-			var r gitleaksResult
-			if err := json.Unmarshal(raw, &r); err != nil {
-				return nil, fmt.Errorf("read its report with %s out of reach: %w", what, err)
-			}
-			if k := r.key(); seen[k] > 0 {
-				seen[k]--
-				continue
-			}
-			var result map[string]any
-			dec := json.NewDecoder(bytes.NewReader(raw))
-			dec.UseNumber()
-			if err := dec.Decode(&result); err != nil {
-				return nil, fmt.Errorf("read its report with %s out of reach: %w", what, err)
-			}
-			result["suppressions"] = []any{map[string]any{"kind": kind}}
-			added = append(added, result)
-		}
-	}
-	if len(added) == 0 {
-		return report, nil
-	}
-	return appendSARIFResults(report, "gitleaks", added, nil)
+	return sha256.Sum256([]byte(r.key())), nil
 }
 
 // gitleaksResult is what identifies one Gitleaks finding.

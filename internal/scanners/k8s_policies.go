@@ -85,7 +85,9 @@ func (s draugrK8sPoliciesScanner) Scan(ctx context.Context, target plugin.Target
 	}
 
 	infra, _ := target.(plugin.KubernetesTarget)
-	decided, err := evaluatePolicies(ctx, client, infra.Namespaces)
+	decided, err := evaluatePoliciesSkipping(ctx, client, infra.Namespaces, func(pod *corev1.Pod) bool {
+		return ownedByThisRun(kubeCtx, pod)
+	})
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", draugrK8sPoliciesScannerName, err)
 	}
@@ -105,12 +107,105 @@ func (s draugrK8sPoliciesScanner) Scan(ctx context.Context, target plugin.Target
 	return report, nil
 }
 
+// cisHighChecks are the checks whose violation the Pod Security Standards' Baseline profile forbids,
+// and 5.1.1, a binding to cluster-admin. Baseline is the profile written to prevent known privilege
+// escalations: a privileged container, a host namespace, a host path or a host port each give a pod
+// a way onto its node. A failure of one of these is high. Every other decided check, which only the
+// Restricted profile asks for or which hardens rather than closes a way out, is medium.
+var cisHighChecks = map[string]bool{
+	"5.1.1": true, "5.2.2": true, "5.2.3": true, "5.2.4": true, "5.2.5": true,
+	"5.2.10": true, "5.2.11": true, "5.2.12": true,
+}
+
+// cisPolicyLevel is a decided check's level: error, which is high, for cisHighChecks, and warning,
+// which is medium, for the rest.
+func cisPolicyLevel(id string) sarif.Level {
+	if cisHighChecks[id] {
+		return sarif.LevelError
+	}
+	return sarif.LevelWarning
+}
+
+// splitByOwner is a failing check's finding: one per check, the operators' objects first and the
+// distribution's after them.
+//
+// Its severity is the check's when one of the operators' objects fails it, and low when only the
+// distribution's do. A new cluster runs kube-proxy privileged with host mounts, and its owner did not
+// put it there and cannot change it, so a check it alone fails stays visible without failing the gate.
+// One row per check, and nothing set aside: a privileged pod somebody installed in kube-system still
+// shows, among the distribution's objects.
+//
+// The message is the objects, "3 running privileged: default/…". The check's title is the rule's
+// description, which `draugr explain` shows; leading the message with it put the objects, the part a
+// reader edits, past the end of every row.
+func splitByOwner(ruleID string, level sarif.Level, v policyVerdict, location string) sarif.Result {
+	var parts []string
+	if len(v.Owned) > 0 {
+		parts = append(parts, v.describe(v.Owned))
+	} else {
+		level = sarif.LevelNote
+	}
+	if len(v.Distribution) > 0 {
+		parts = append(parts, "the distribution's: "+v.describe(v.Distribution))
+	}
+	return sarif.Result{
+		Tool: draugrK8sPoliciesScannerName, RuleID: ruleID, Level: level,
+		Message: strings.Join(parts, "; "), Location: sarif.Location{URI: location},
+	}
+}
+
 // policyVerdict is the outcome of a check this scanner implements.
 type policyVerdict struct {
 	// Compliant reports whether the cluster satisfies the check.
 	Compliant bool
 	// Detail names what failed, e.g. the bindings or roles at fault. Empty when compliant.
 	Detail string
+	// Owned and Distribution are the objects at fault, split by who put them there: the cluster's
+	// own operators, or the distribution (see distributionObject). Both empty for a check that
+	// names no object, such as one the authorizer answers.
+	Owned, Distribution []string
+	// describe renders a list of objects as the check's detail, "5 running privileged: …".
+	describe func([]string) string
+}
+
+// failing is the verdict for a check whose offenders are objects, split by who put them there.
+func failing(offenders []string, distribution func(string) bool, describe func([]string) string) policyVerdict {
+	if len(offenders) == 0 {
+		return policyVerdict{Compliant: true}
+	}
+	sort.Strings(offenders)
+	v := policyVerdict{Detail: describe(offenders), describe: describe}
+	for _, o := range offenders {
+		if distribution(o) {
+			v.Distribution = append(v.Distribution, o)
+		} else {
+			v.Owned = append(v.Owned, o)
+		}
+	}
+	return v
+}
+
+// distributionNamespace is where a distribution installs its own workloads: kube-proxy, the CNI, the
+// static control-plane pods. A reader of a new cluster did not put them there and cannot change them.
+// It is a proxy, because an operator can install their own workloads there too.
+const distributionNamespace = "kube-system"
+
+// inDistributionNamespace says a pod offender, "<namespace>/<pod>…", is in kube-system.
+func inDistributionNamespace(offender string) bool {
+	return strings.HasPrefix(offender, distributionNamespace+"/")
+}
+
+// rbacDefaultsLabel marks the RBAC objects Kubernetes creates for itself.
+const rbacDefaultsLabel = "kubernetes.io/bootstrapping"
+
+// distributionRBAC says a cluster-scoped RBAC object is the distribution's: labeled as one of
+// Kubernetes' defaults, or named with a prefix Kubernetes (system:) or kubeadm (kubeadm:) reserves.
+// kubeadm's own bindings carry no label, so the name is the only mark they have.
+func distributionRBAC(name string, labels map[string]string) bool {
+	if labels[rbacDefaultsLabel] == "rbac-defaults" {
+		return true
+	}
+	return strings.HasPrefix(name, "system:") || strings.HasPrefix(name, "kubeadm:")
 }
 
 // draugrCISRulePrefix namespaces this scanner's CIS rule ids. The shared benchmark numbering is
@@ -128,6 +223,14 @@ const cisKubernetesTaxonomy = "CIS-Kubernetes"
 // One List per resource kind, reused across checks. kube-bench re-queries per check and, for the
 // pod-security ones, per pod; the cost of that is the whole reason this exists.
 func evaluatePolicies(ctx context.Context, client kubernetes.Interface, namespaces []string) (map[string]policyVerdict, error) {
+	return evaluatePoliciesSkipping(ctx, client, namespaces, nil)
+}
+
+// evaluatePoliciesSkipping is evaluatePolicies leaving out the pods skip names, which are the
+// scan's own: kube-bench-job's privileged pod, running while the pods are read.
+func evaluatePoliciesSkipping(
+	ctx context.Context, client kubernetes.Interface, namespaces []string, skip func(*corev1.Pod) bool,
+) (map[string]policyVerdict, error) {
 	out := map[string]policyVerdict{}
 	scoped := len(namespaces) > 0
 
@@ -174,6 +277,15 @@ func evaluatePolicies(ctx context.Context, client kubernetes.Interface, namespac
 	if err != nil {
 		return nil, fmt.Errorf("list pods: %w", err)
 	}
+	if skip != nil {
+		kept := pods[:0]
+		for i := range pods {
+			if !skip(&pods[i]) {
+				kept = append(kept, pods[i])
+			}
+		}
+		pods = kept
+	}
 	maps.Copy(out, evaluatePodSecurity(pods, accounts))
 
 	// Last, and never fatal: these ask the authorizer, which a read-only credential may not be
@@ -190,17 +302,16 @@ func evaluatePolicies(ctx context.Context, client kubernetes.Interface, namespac
 // other binding to that role is what the check looks for.
 func checkClusterAdminBindings(bindings []rbacv1.ClusterRoleBinding) policyVerdict {
 	var offenders []string
+	distribution := map[string]bool{}
 	for _, b := range bindings {
 		if b.RoleRef.Name != "cluster-admin" || b.Name == "cluster-admin" {
 			continue
 		}
 		offenders = append(offenders, b.Name)
+		distribution[b.Name] = distributionRBAC(b.Name, b.Labels)
 	}
-	if len(offenders) == 0 {
-		return policyVerdict{Compliant: true}
-	}
-	sort.Strings(offenders)
-	return policyVerdict{Detail: "bound to cluster-admin: " + strings.Join(offenders, ", ")}
+	return failing(offenders, func(o string) bool { return distribution[o] },
+		func(l []string) string { return "bound to cluster-admin: " + strings.Join(l, ", ") })
 }
 
 // checkWildcardRules implements 5.1.3.
@@ -209,21 +320,23 @@ func checkClusterAdminBindings(bindings []rbacv1.ClusterRoleBinding) policyVerdi
 // later, so a role written today silently widens as the cluster gains APIs.
 func checkWildcardRules(roles []rbacv1.Role, clusterRoles []rbacv1.ClusterRole) policyVerdict {
 	var offenders []string
+	distribution := map[string]bool{}
 	for _, r := range roles {
 		if rulesUseWildcard(r.Rules) {
-			offenders = append(offenders, "role "+r.Namespace+"/"+r.Name)
+			o := "role " + r.Namespace + "/" + r.Name
+			offenders = append(offenders, o)
+			distribution[o] = r.Namespace == distributionNamespace
 		}
 	}
 	for _, r := range clusterRoles {
 		if rulesUseWildcard(r.Rules) {
-			offenders = append(offenders, "clusterrole "+r.Name)
+			o := "clusterrole " + r.Name
+			offenders = append(offenders, o)
+			distribution[o] = distributionRBAC(r.Name, r.Labels)
 		}
 	}
-	if len(offenders) == 0 {
-		return policyVerdict{Compliant: true}
-	}
-	sort.Strings(offenders)
-	return policyVerdict{Detail: "wildcards in " + summarize(offenders)}
+	return failing(offenders, func(o string) bool { return distribution[o] },
+		func(l []string) string { return "wildcards in " + summarize(l) })
 }
 
 func rulesUseWildcard(rules []rbacv1.PolicyRule) bool {
@@ -257,11 +370,8 @@ func checkDefaultServiceAccounts(accounts []corev1.ServiceAccount) policyVerdict
 		}
 		offenders = append(offenders, sa.Namespace)
 	}
-	if len(offenders) == 0 {
-		return policyVerdict{Compliant: true}
-	}
-	sort.Strings(offenders)
-	return policyVerdict{Detail: "default service account still mounts a token in " + summarize(offenders)}
+	return failing(offenders, func(ns string) bool { return ns == distributionNamespace },
+		func(l []string) string { return "default service account still mounts a token in " + summarize(l) })
 }
 
 // summarize lists offenders without letting one finding become a wall of text. A reader needs
@@ -348,17 +458,23 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 		}
 
 		message := check.Title + ", requires manual review"
+		level := sarif.LevelWarning
 		if implemented {
 			message = check.Title + ", " + verdict.Detail
+			level = cisPolicyLevel(check.ID)
 		}
 
-		report.Results = append(report.Results, sarif.Result{
-			Tool:     draugrK8sPoliciesScannerName,
-			RuleID:   ruleID,
-			Level:    sarif.LevelWarning,
-			Message:  message,
-			Location: sarif.Location{URI: location},
-		})
+		if implemented && verdict.describe != nil {
+			report.Results = append(report.Results, splitByOwner(ruleID, level, verdict, location))
+		} else {
+			report.Results = append(report.Results, sarif.Result{
+				Tool:     draugrK8sPoliciesScannerName,
+				RuleID:   ruleID,
+				Level:    level,
+				Message:  message,
+				Location: sarif.Location{URI: location},
+			})
+		}
 		report.Rules[ruleID] = sarif.Rule{
 			Name:             "CIS " + check.ID,
 			ShortDescription: check.Title,
@@ -583,11 +699,9 @@ func allContainers(pod *corev1.Pod) []corev1.Container {
 
 // verdictFrom turns a list of offenders into a verdict, or a pass when there are none.
 func verdictFrom(offenders []string, doing string) policyVerdict {
-	if len(offenders) == 0 {
-		return policyVerdict{Compliant: true}
-	}
-	sort.Strings(offenders)
-	return policyVerdict{Detail: fmt.Sprintf("%d %s: %s", len(offenders), doing, summarize(offenders))}
+	return failing(offenders, inDistributionNamespace, func(l []string) string {
+		return fmt.Sprintf("%d %s: %s", len(l), doing, summarize(l))
+	})
 }
 
 // evaluateBroadAccess implements 5.1.2 and 5.1.4 by asking the cluster's own authorizer.

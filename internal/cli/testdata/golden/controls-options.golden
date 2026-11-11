@@ -78,7 +78,7 @@ What each scanner accepts in its Saga block:
   gitleaks
     Option   Type     What it does
     config   string   Path to a Gitleaks TOML rules file, relative to where Draugr runs, for a ruleset shared across repositories. It replaces each scanned repository's own .gitleaks.toml. Without it, that file applies, or Gitleaks' built-in rules where the repository has none.
-    history  boolean  Also scan the repository's commit history, in addition to the working tree. Off by default: it needs a full clone rather than a shallow one, so it is slower on a large repository. A secret committed and later removed is still fetchable by anyone who can clone, so it is still compromised, this is what finds it. History findings are marked as such, because they name the path the secret had when it was introduced, and are kept only when that path would be checked out by this component's paths and ignore. A secret still in the tree at the same path is reported once, as the tree finding.
+    history  boolean  Also scan the repository's commit history, for credentials removed from the tree but still fetchable by anyone who can clone. Off by default: it needs a full clone with every branch and tag, and takes several times as long as a tree scan. On a repository that commits large data many times it can also need tens of GB of memory. paths and ignore lower neither cost.
 
   gosec
     Option   Type   What it does
@@ -106,7 +106,7 @@ What each scanner accepts in its Saga block:
     Option        Type    What it does
     image         string  kube-bench image the Job runs. Pin it to a digest for a reproducible benchmark, and to an internal mirror where the cluster cannot reach a public registry.
     namespace     string  Namespace to create the Job in. It must already exist; Draugr does not create namespaces.
-    nodeSelector  string  Node selector for the Job, as comma-separated key=value pairs. Use it to benchmark a specific node pool.
+    nodeSelector  string  Node selector for the Job, as comma-separated key=value pairs. One Job runs every target on a node it matches. Unset, one Job runs on a control-plane node and one on a worker.
     targets       string  Comma-separated kube-bench targets to run, e.g. "master,node".
     timeout       string  How long to wait for the Job to finish, e.g. "5m".
 

@@ -43,7 +43,7 @@ func TestNucleiArgv(t *testing.T) {
 	got := nucleiArgv("https://app.example.com", "", options)
 	want := []string{
 		"nuclei", "-u", "https://app.example.com",
-		"-jsonl", "-silent", "-nc", "-duc", "-etags", "headers,intrusive", "-ept", "javascript,tcp",
+		"-jsonl", "-nc", "-duc", "-etags", "headers,intrusive", "-ept", "javascript,tcp",
 	}
 	if len(got) != len(want) {
 		t.Fatalf("argv = %v, want %v", got, want)

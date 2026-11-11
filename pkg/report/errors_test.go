@@ -25,6 +25,9 @@ func TestShortReasonKeepsWhatWentWrong(t *testing.T) {
 			"manifest unknown"},
 		{"draugr-headers: Get \"https://shop.invalid\": dial tcp: lookup shop.invalid: no such host", "no such host"},
 		{"a single clause.", "a single clause"},
+		// A tool the kernel killed says so in one clause, so the reason is the whole of it.
+		{"run gitleaks: was killed by SIGKILL, usually because memory ran out",
+			"was killed by SIGKILL, usually because memory ran out"},
 		// git's `fatal` says only that it failed, so the last clause speaks, without the address.
 		{"gitleaks: git clone: exit status 128: fatal: repository '/home/u/shop/app' does not exist",
 			"repository does not exist"},

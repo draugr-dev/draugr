@@ -32,6 +32,9 @@ type preparedSpec struct {
 	// to, it skips them silently. Counting them here is how the run can say that coverage was
 	// lost rather than leaving a smaller scan looking like a complete one.
 	Unfillable int
+	// JSON says a kept operation declares a JSON response, so the scan's requests ask for JSON as a
+	// client of the API would (see specAccept).
+	JSON bool
 	// Cleanup removes the rewritten copy.
 	Cleanup func()
 }
@@ -99,6 +102,7 @@ func prepareSpec(specPath, endpoint string, methods []string) (preparedSpec, err
 	}
 	kept, dropped := filterOperations(paths, allowed)
 	unfillable := countUnfillable(paths)
+	declaresJSON := declaresJSONResponse(paths)
 	if kept == 0 {
 		return preparedSpec{}, fmt.Errorf(
 			"%s declares no %s operation, so this scan would send no requests. Add the methods you "+
@@ -126,7 +130,7 @@ func prepareSpec(specPath, endpoint string, methods []string) (preparedSpec, err
 		return preparedSpec{}, err
 	}
 	return preparedSpec{
-		Path: out.Name(), Kept: kept, Dropped: dropped, Unfillable: unfillable, Cleanup: cleanup,
+		Path: out.Name(), Kept: kept, Dropped: dropped, Unfillable: unfillable, JSON: declaresJSON, Cleanup: cleanup,
 	}, nil
 }
 
@@ -152,6 +156,45 @@ func filterOperations(paths map[string]any, allowed map[string]bool) (kept int, 
 		}
 	}
 	return kept, dropped
+}
+
+// specAccept is the Accept header a spec scan sends when the document declares a JSON response: JSON
+// first, as a client of the API asks, and */* after it, so an operation that answers another type
+// still answers.
+//
+// An application that picks its answer by Accept gives a request without one its HTML error page,
+// and the templates that detect an injection from the error read the JSON one. The header is sent
+// by Nuclei's -H rather than written into the document as a parameter: OpenAPI 3 says a parameter
+// named Accept is ignored, so a tool that obeys it would drop the header without a word.
+const specAccept = "Accept: application/json, text/plain, */*"
+
+// declaresJSONResponse says a kept operation declares a JSON response: a media type of
+// application/json, or one ending in +json.
+func declaresJSONResponse(paths map[string]any) bool {
+	for _, item := range paths {
+		ops, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		for key, raw := range ops {
+			if !specOperations[strings.ToLower(key)] {
+				continue
+			}
+			op, _ := raw.(map[string]any)
+			responses, _ := op["responses"].(map[string]any)
+			for _, r := range responses {
+				resp, _ := r.(map[string]any)
+				content, _ := resp["content"].(map[string]any)
+				for media := range content {
+					m := strings.ToLower(strings.TrimSpace(strings.SplitN(media, ";", 2)[0]))
+					if m == "application/json" || strings.HasSuffix(m, "+json") {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
 }
 
 // countUnfillable counts operations with a required parameter the scanner has no value for.

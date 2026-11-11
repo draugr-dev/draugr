@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/draugr-dev/draugr/internal/observability"
@@ -56,7 +57,7 @@ func RunCombinedWithEnv(ctx context.Context, dir string, argv, env []string) ([]
 	started := time.Now()
 	out, err := command(ctx, dir, argv, env).CombinedOutput()
 	log(ctx, argv, dir, started, out, err)
-	return out, explain(argv[0], err)
+	return out, explain(ctx, argv[0], err)
 }
 
 // RunWithEnv is Run with extra environment variables layered over the parent's, each "K=V".
@@ -72,7 +73,7 @@ func RunWithEnv(ctx context.Context, dir string, argv, env []string) ([]byte, er
 	started := time.Now()
 	out, err := command(ctx, dir, argv, env).Output()
 	log(ctx, argv, dir, started, out, err)
-	return out, explain(argv[0], err)
+	return out, explain(ctx, argv[0], err)
 }
 
 // command is the process for argv: run in dir, with the caller's environment, env layered over it,
@@ -121,7 +122,29 @@ func RunWithStderrShown(ctx context.Context, dir string, argv, env []string, sho
 		slog.Log(ctx, observability.LevelTrace, "tool stderr", "tool", argv[0], "stderr", string(relay))
 	}
 	log(ctx, argv, dir, started, out, err)
-	return out, errBuf.Bytes(), explain(argv[0], err)
+	return out, errBuf.Bytes(), explain(ctx, argv[0], err)
+}
+
+// ErrKilled is a tool ended by SIGKILL while the scan was still running. Nothing in the tool sends
+// it, and the kernel does when memory runs out, killing the process using the most. A scan that was
+// canceled kills its tools the same way, so a kill after the scan's context ended is not this.
+var ErrKilled = errors.New("was killed")
+
+// killedError is a tool ended by SIGKILL: one clause, because a report shows a failure's last clause
+// as its reason, and Go's own "signal: killed" would cut it in two. It is ErrKilled, and it wraps the
+// process's error.
+type killedError struct{ err error }
+
+func (e killedError) Error() string {
+	return "was killed by SIGKILL, usually because memory ran out"
+}
+
+func (e killedError) Unwrap() []error { return []error{ErrKilled, e.err} }
+
+// killed says the process was ended by SIGKILL.
+func killed(exit *exec.ExitError) bool {
+	status, ok := exit.Sys().(syscall.WaitStatus)
+	return ok && status.Signaled() && status.Signal() == syscall.SIGKILL
 }
 
 // ErrCannotStart is a tool that was found and could not start: the shell's exit 127 for a command
@@ -154,7 +177,7 @@ func cannotStart(tool string, err error, exit *exec.ExitError) error {
 //
 // One line, clamped: some tools print a usage screen on failure, and a report is not the place
 // for it. Trace still has the rest.
-func explain(tool string, err error) error {
+func explain(ctx context.Context, tool string, err error) error {
 	// A missing binary is the one failure whose fix is a single command, and the error says only that
 	// the file was not found. That message is correct and it is the first thing a reader sees on their
 	// first scan, after installing Draugr and before installing anything else, which is the likeliest
@@ -174,6 +197,9 @@ func explain(tool string, err error) error {
 	exit, ok := errors.AsType[*exec.ExitError](err)
 	if ok && (exit.ExitCode() == 126 || exit.ExitCode() == 127) {
 		return cannotStart(tool, err, exit)
+	}
+	if ok && killed(exit) && ctx.Err() == nil {
+		return killedError{err}
 	}
 	if !ok || len(exit.Stderr) == 0 {
 		return err

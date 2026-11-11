@@ -1,0 +1,1 @@
+- **A secrets scan with `history: true` no longer holds a Gitleaks report in memory while Gitleaks writes the next one.** Over a long history Draugr held several reports at once beside Gitleaks, and the scan could be killed for memory with no verdict. It now keeps a short key per finding until the last Gitleaks run ends.

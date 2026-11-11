@@ -309,7 +309,7 @@ func TestExplainNamesTheFixForAMissingTool(t *testing.T) {
 	// Built from a synthetic not-found rather than by running a binary that is absent: whether
 	// gitleaks is installed is a property of the machine, and a test that passes only on a clean
 	// one is a test that stops running.
-	err := explain("gitleaks", notFound())
+	err := explain(context.Background(), "gitleaks", notFound())
 	if !strings.Contains(err.Error(), "draugr tools install gitleaks") {
 		t.Errorf("a tool `draugr tools install` fetches should name that command: %v", err)
 	}
@@ -318,7 +318,7 @@ func TestExplainNamesTheFixForAMissingTool(t *testing.T) {
 func TestExplainDoesNotOfferToInstallWhatToolsInstallCannotFetch(t *testing.T) {
 	// Suggesting `tools install` for a tool it cannot fetch is worse than saying nothing: the
 	// command runs, finds no such tool, and the reader concludes the fix is broken.
-	err := explain("prowler", notFound())
+	err := explain(context.Background(), "prowler", notFound())
 	if strings.Contains(err.Error(), "Run `draugr tools install") {
 		t.Errorf("prowler is not one tools install fetches, so this must not suggest it: %v", err)
 	}
@@ -334,7 +334,7 @@ func TestExplainDoesNotOfferToInstallWhatToolsInstallCannotFetch(t *testing.T) {
 // sends them to install by hand something one command would have provisioned.
 func TestExplainOffersToolsInstallForEveryToolItFetches(t *testing.T) {
 	for _, tool := range tools.Installable() {
-		if err := explain(tool, notFound()); !strings.Contains(err.Error(), "Run `draugr tools install "+tool+"`") {
+		if err := explain(context.Background(), tool, notFound()); !strings.Contains(err.Error(), "Run `draugr tools install "+tool+"`") {
 			t.Errorf("%s: %v", tool, err)
 		}
 	}
@@ -810,5 +810,22 @@ func TestAToolThatCannotStartSaysSoWithTheFix(t *testing.T) {
 				t.Errorf("%d: %q lacks %q", c.code, msg, want)
 			}
 		}
+	}
+}
+
+// A tool ended by SIGKILL while the scan runs is named as killed, with the likeliest cause. The same
+// signal after the scan was canceled is the cancellation, and is not.
+func TestAKilledToolIsNamed(t *testing.T) {
+	t.Parallel()
+	_, err := Run(context.Background(), "", []string{"sh", "-c", "kill -9 $$"})
+	if !errors.Is(err, ErrKilled) || !strings.Contains(err.Error(), "memory ran out") {
+		t.Errorf("err = %v, want ErrKilled naming memory", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = Run(ctx, "", []string{"sleep", "5"})
+	if err == nil || errors.Is(err, ErrKilled) {
+		t.Errorf("a canceled run: %v, want an error that is not ErrKilled", err)
 	}
 }

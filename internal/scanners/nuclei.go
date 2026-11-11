@@ -86,7 +86,7 @@ func NewNuclei() plugin.Scanner {
 					"from and what it sent",
 			}},
 		},
-		run:        execArgv,
+		run:        execNuclei,
 		templates:  sharedNucleiTemplates,
 		reach:      nucleiReach,
 		resolvConf: nucleiResolvConf,
@@ -249,10 +249,12 @@ func writeHeaderFile(header string) (string, func(), error) {
 
 // nucleiArgv builds the command line for a host URL:
 //
-//		nuclei -u <url> -jsonl -silent -nc -duc -etags headers,intrusive [options]
+//		nuclei -u <url> -jsonl -nc -duc -etags headers,intrusive [options]
 //
 //	  - -jsonl writes one finding per line to stdout (parsed by nucleiToResults);
-//	  - -silent -nc suppress the banner/progress and ANSI colors so stdout is clean JSONL;
+//	  - -nc drops ANSI colors. The banner and the log go to stderr, so stdout is clean JSONL. -silent
+//	    is not passed: it hides the log line that says Nuclei stopped scanning the endpoint partway,
+//	    which execNuclei reads (nucleiSkips);
 //	  - -duc disables the update-check network call, keeping runs deterministic;
 //	  - options are nucleiOptionArgs, which always begin with the -etags exclusions.
 func nucleiArgv(url, headerFile string, options []string) []string {
@@ -277,7 +279,7 @@ func nucleiSpecArgv(specPath, headerFile string, options []string) []string {
 
 func nucleiTargetArgv(target []string, headerFile string, options []string) []string {
 	argv := append([]string{"nuclei"}, target...)
-	argv = append(argv, "-jsonl", "-silent", "-nc", "-duc")
+	argv = append(argv, "-jsonl", "-nc", "-duc")
 	argv = append(argv, options...)
 	// A path, never the header itself. -H accepts either, and only one of them keeps the
 	// credential out of the process list.
@@ -381,7 +383,22 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, cfg plugi
 				"and will be skipped", "endpoint", host.URL, "operations", spec.Unfillable,
 				"hint", "give those parameters an example or a default in the specification")
 		}
-		argvs = append(argvs, nucleiSpecArgv(spec.Path, headerFile, options))
+		specHeaderFile := headerFile
+		if spec.JSON {
+			// The spec run alone asks for JSON: the default templates read the endpoint as a browser
+			// would, and an Accept on them would change what they are testing.
+			lines := specAccept
+			if header != "" {
+				lines = header + "\n" + specAccept
+			}
+			path, cleanup, err := writeHeaderFile(lines)
+			if err != nil {
+				return sarif.Report{}, fmt.Errorf("nuclei: prepare the spec run's headers: %w", err)
+			}
+			defer cleanup()
+			specHeaderFile = path
+		}
+		argvs = append(argvs, nucleiSpecArgv(spec.Path, specHeaderFile, options))
 	}
 
 	// A spec scan's two runs select templates differently, the first those that do not fuzz and the
@@ -390,8 +407,17 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, cfg plugi
 	// recorded as having had nothing to run, and only a scan where neither run had any fails.
 	var results []sarif.Result
 	ran := make([]bool, len(argvs))
+	var dropped *nucleiSkip
 	for i, argv := range argvs {
 		out, err := s.run(ctx, argv)
+		// A run that dropped a host finished, and its output holds what it found before. Whether the
+		// scan is incomplete depends on which host it dropped.
+		if skipped, ok := errors.AsType[*nucleiSkipped](err); ok {
+			err = nil
+			if d := skipped.of(host.URL); d != nil && dropped == nil {
+				dropped = d
+			}
+		}
 		if err != nil {
 			if len(argvs) > 1 && nucleiHadNoTemplates(err) {
 				continue
@@ -422,6 +448,11 @@ func (s nucleiScanner) Scan(ctx context.Context, target plugin.Target, cfg plugi
 		prov.Fields = append(prov.Fields, *resolverField)
 	}
 	report.Provenance = append(report.Provenance, prov)
+	// Nuclei stopped testing the endpoint partway, so the scan read part of it. The findings stand, and
+	// the control is in error rather than reading as a complete scan.
+	if dropped != nil {
+		return report, &plugin.PartialScanError{Report: report, Err: nucleiDropError(host.URL, *dropped)}
+	}
 	return report, nil
 }
 
@@ -493,8 +524,8 @@ type nucleiFinding struct {
 
 // nucleiToResults converts Nuclei's JSONL output (one finding per line) into SARIF results.
 //
-// A line that does not parse is an error, not a line to skip. With `-jsonl -silent` every line on
-// stdout is a finding, so one that cannot be read is a finding that would be dropped, and output
+// A line that does not parse is an error, not a line to skip. With `-jsonl` every line on stdout is
+// a finding, so one that cannot be read is a finding that would be dropped, and output
 // none of whose lines parse, from a changed flag or format, would otherwise read as an application
 // with nothing wrong.
 func nucleiToResults(out []byte) ([]sarif.Result, error) {

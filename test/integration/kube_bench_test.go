@@ -112,6 +112,11 @@ components:
 	out := scanTo(t, dir, "draugr.saga.yaml")
 	requireControlRan(t, out, "kubernetes", "kube-bench-job")
 	requireKubeBenchAudited(t, out, "kube-bench-job", nodeSections)
+	// The Job is placed on a node it read from the cluster, so the evidence names one. A run whose
+	// nodes could not be listed names "a node the scheduler chose" and says the roles were unread.
+	if ev := kubeBenchEvidenceIn(t, out, "kube-bench-job"); ev.nodes == "" || strings.Contains(ev.nodes, "scheduler") {
+		t.Errorf("kube-bench-job named no node it read: nodes = %q", ev.nodes)
+	}
 	requireNoJobLeftBehind(t, cs)
 }
 
@@ -160,6 +165,8 @@ type kubeBenchEvidence struct {
 	benchmark string
 	// passed are the CIS checks decided with no finding.
 	passed []string
+	// nodes are the nodes the tool reported reading, "" for the read-only scanner, which reads none.
+	nodes string
 }
 
 // kubeBenchEvidenceIn reads a tool's findings, benchmark and passed checks from results.sarif.
@@ -210,6 +217,9 @@ func kubeBenchEvidenceIn(t *testing.T, outDir, tool string) kubeBenchEvidence {
 		for _, p := range run.Properties.Provenance {
 			if p.Tool == tool && p.Fields["benchmark"] != "" {
 				ev.benchmark = p.Fields["benchmark"]
+			}
+			if p.Tool == tool && p.Fields["nodes"] != "" {
+				ev.nodes = p.Fields["nodes"]
 			}
 		}
 	}
