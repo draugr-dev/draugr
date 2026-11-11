@@ -498,26 +498,32 @@ func TestPlatformFrom(t *testing.T) {
 	}
 }
 
-// The bug: kube-bench only consults its platform detection when neither --benchmark nor
-// --version is set (cmd/common.go, getBenchmarkVersion). Supplying --version to avoid the stale
-// 1.18 fallback therefore forced every managed cluster onto the generic cis-* benchmark, which
-// is not a subset of the provider one. It fails a cluster for control-plane settings that are not
-// the customer's to make, and skips the provider checks that are.
-func TestKubeBenchArgvLetsAManagedClusterPickItsOwnBenchmark(t *testing.T) {
-	withClusterFacts(t, clusterFacts{Version: "1.30", Platform: "eks"}, nil)
-
-	plan, err := kubeBenchArgv(plugin.KubernetesTarget{}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := argvString(plan.argv)
-	for _, unwanted := range []string{"--version", "--benchmark"} {
-		if strings.Contains(got, unwanted) {
-			t.Errorf("argv %q must not carry %s on a managed cluster: it suppresses kube-bench's platform benchmark", got, unwanted)
+// A managed cluster gets its provider's benchmark by name. kube-bench selects one itself only when
+// neither --benchmark nor --version is set (cmd/common.go, getBenchmarkVersion), and its detection
+// of the platform fails from outside the cluster, so --version would force the generic cis-* and no
+// flag at all would leave it to fall back to cis-1.6. Neither is a subset of the provider benchmark.
+func TestKubeBenchArgvNamesAManagedClustersOwnBenchmark(t *testing.T) {
+	for _, c := range []struct {
+		facts clusterFacts
+		want  string
+	}{
+		{clusterFacts{Version: "1.30", Platform: "eks"}, "--benchmark eks-1.7.0"},
+		{clusterFacts{Version: "1.35", Platform: "k3s"}, "--benchmark k3s-cis-1.9"},
+		{clusterFacts{Version: "1.26", Platform: "rke2r"}, "--benchmark rke2-cis-1.8"},
+		{clusterFacts{Version: "1.31", Platform: "gke"}, "--benchmark gke-1.9.0"},
+	} {
+		withClusterFacts(t, c.facts, nil)
+		plan, err := kubeBenchArgv(plugin.KubernetesTarget{}, nil)
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
-	if plan.platform != "eks" {
-		t.Errorf("plan.platform = %q, want %q, without it the output cannot be checked", plan.platform, "eks")
+		got := argvString(plan.argv)
+		if !strings.Contains(got, c.want) || strings.Contains(got, "--version") {
+			t.Errorf("%s %s: argv %q, want %s and no --version", c.facts.Platform, c.facts.Version, got, c.want)
+		}
+		if plan.platform != c.facts.Platform {
+			t.Errorf("plan.platform = %q, want %q, without it the output cannot be checked", plan.platform, c.facts.Platform)
+		}
 	}
 }
 

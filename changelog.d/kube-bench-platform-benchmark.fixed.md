@@ -1,0 +1,1 @@
+- **`kubeBench` audits a k3s, RKE2, EKS, GKE, AKS or ACK cluster against its provider benchmark when the local kubectl is more than one minor version from the server.** The scan used to stop because kube-bench fell back to `cis-1.6`.
