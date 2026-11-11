@@ -39,6 +39,8 @@ var reasonedInstruction = map[string]string{ // #nosec G101 -- sentences for a r
 	// TLS and certificates. Also Draugr's own, and a sentence can hold the date or the name.
 	"tls-deprecated-protocol":    "Turn off TLS versions older than 1.2",
 	"tls-modern-unsupported":     "Turn on TLS 1.2 or newer",
+	"tls-legacy-cipher-only":     "Turn on ECDHE suites with AES-GCM or ChaCha20, and turn off the old ones",
+	"tls-no-shared-cipher":       "Turn on ECDHE suites with AES-GCM or ChaCha20, and turn off the old ones",
 	"tls-cert-expired":           "Renew the certificate, or check its start date",
 	"tls-cert-expiring":          "Renew the certificate",
 	"tls-cert-untrusted":         "Serve the full certificate chain from a trusted authority",

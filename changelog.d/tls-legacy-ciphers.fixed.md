@@ -1,0 +1,1 @@
+- **`tls` reports a server that accepts only older cipher suites as a finding, naming the suite it chose and the problem with it.** It printed `ERROR did not run`. A server that refuses those too is reported as accepting no suite Draugr can offer, likely DHE, NULL or export suites.
