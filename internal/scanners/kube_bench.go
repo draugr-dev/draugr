@@ -239,9 +239,12 @@ const defaultKubeBenchTargets = "policies"
 // the customer's to make, and add provider-specific ones the generic benchmark has never heard
 // of, so the mismatch both fails a cluster for what it cannot fix and skips what it can.
 //
-// So the flag is supplied only where it helps: a vanilla cluster gets --version, a recognized
-// platform gets neither flag and kube-bench's own mapping. What makes that safe is not trusting
-// it, verifyBenchmark checks the benchmark the tool reports having used.
+// Left to choose with neither flag, kube-bench detects the platform with `kubectl version`, which
+// fails from outside the cluster whenever kubectl warns about version skew, and then audits cis-1.6.
+// So a vanilla cluster gets --version, and a recognized platform gets --benchmark from
+// platformBenchmark, kube-bench's own table for that choice, pinned to the release Draugr installs.
+// What makes that safe is not trusting it: verifyBenchmark checks the benchmark the tool reports
+// having used.
 func kubeBenchArgv(target plugin.Target, cfg plugin.Config) (kubeBenchPlan, error) {
 	targets := stringSetting(cfg, targetsKey, defaultKubeBenchTargets)
 	kubeCtx := kubeContext(target)
@@ -268,9 +271,12 @@ func kubeBenchArgv(target plugin.Target, cfg plugin.Config) (kubeBenchPlan, erro
 					"on its entry in clusters", err)
 		}
 		if facts.Platform != "" {
-			// Deliberately neither flag: this is the only way kube-bench will select the
-			// platform's own benchmark.
+			// The platform's own benchmark, named for kube-bench rather than left to its detection,
+			// which fails from outside the cluster. See platformBenchmark.
 			plan.platform = facts.Platform
+			if benchmark := platformBenchmark(facts.Platform, facts.Version); benchmark != "" {
+				argv = append(argv, "--benchmark", benchmark)
+			}
 			break
 		}
 		argv = append(argv, "--version", facts.Version)
@@ -497,11 +503,10 @@ func platformFrom(gitVersion string) string {
 
 // verifyBenchmark checks that kube-bench audited against the benchmark the cluster called for.
 //
-// Draugr selects the benchmark by withholding flags, the only way to reach a platform config.
-// Which means the choice is made inside a tool that has its own detection and its own fallback.
-// When that detection fails, kube-bench does not stop: it assumes Kubernetes 1.18 and audits
-// against cis-1.6, a benchmark for Kubernetes 1.16, and reports the result as though it were the
-// one asked for.
+// A kube-bench other than the one Draugr installs, or a config tree without the benchmark named,
+// can still end up somewhere else. When its own detection fails, kube-bench does not stop: it
+// assumes Kubernetes 1.18 and audits against cis-1.6, a benchmark for Kubernetes 1.16, and reports
+// the result as though it were the one asked for.
 //
 // So the input is not the guarantee. The output is. kube-bench states the benchmark it used in
 // every control it emits, and a run that used the wrong one is a failed scan rather than a

@@ -140,13 +140,9 @@ the cluster under `clusters:`, so two clusters on different versions can each ha
 **You should not normally need `benchmark` or `version`.** Draugr asks the cluster what it is and picks
 accordingly: a vanilla cluster gets its Kubernetes version supplied, because kube-bench cannot
 detect it from outside a node and quietly assumes an old one if left to guess; a managed one
-(EKS, GKE, AKS, k3s, RKE2, ACK) gets its provider benchmark, which kube-bench will only select
-when no version is supplied. Whichever it picks, the benchmark the tool reports having used is
+(EKS, GKE, AKS, k3s, RKE2, ACK) gets its provider benchmark, named from kube-bench's own platform
+table. Whichever it picks, the benchmark the tool reports having used is
 checked against the cluster before any finding is produced.
-
-On k3s from outside the cluster, kube-bench selects the generic benchmark rather than its k3s one, so
-the check stops the scan and names the configs to choose from. Set `benchmark` on the cluster's entry,
-such as `k3s-cis-1.9`.
 
 Set `benchmark` to pin a config directly. For OpenShift, which is identifiable only by running `oc`,
 or for any distribution Draugr does not recognize. See the [scanner doc](../scanners/kube-bench.md)

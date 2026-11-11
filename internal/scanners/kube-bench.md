@@ -18,11 +18,11 @@ order: 90
 Runs
 
 ```
-kube-bench run --json --targets policies [--version <cluster version>] [--config-dir <dir>]
+kube-bench run --json --targets policies [--version <cluster version> | --benchmark <name>] [--config-dir <dir>]
 ```
 
-and converts the result to SARIF. `--version` is supplied for a vanilla cluster and deliberately
-withheld for a managed one. See [choosing the benchmark](#draugr-chooses-the-benchmark).
+and converts the result to SARIF. `--version` is supplied for a vanilla cluster, and `--benchmark`
+with the provider's benchmark for a managed one. See [choosing the benchmark](#draugr-chooses-the-benchmark).
 
 **JSON rather than SARIF**: kube-bench has no SARIF output, so the conversion is ours. It is the
 second such scanner after [`trivy-license`](trivy-license.md), which is why a tool adapter can
@@ -54,8 +54,8 @@ Measured against a v1.34 cluster:
 
 A compliance report against the wrong standard is worse than no report, and this one arrives
 quietly. So Draugr asks the cluster for its version, the same ambient kubeconfig the `k8s-images`
-surveyor uses, and passes `--version`, letting kube-bench apply its own mapping. Its mapping stays
-correct as it adds benchmarks; a table copied into Draugr would drift.
+surveyor uses. For a vanilla cluster it passes `--version`, and kube-bench's own mapping picks the
+benchmark.
 
 If the version cannot be determined, the scan **fails** rather than falling back. Set the cluster's
 `version` or `benchmark` under `clusters:` to override.
@@ -71,9 +71,9 @@ if isEmpty(benchmarkVersion) && isEmpty(kubeVersion) && !isEmpty(platform.Name) 
 }
 ```
 
-The provider benchmarks, `eks-*`, `gke-*`, `aks-*`, `ack-*`, and the k3s and RKE ones, are reachable
-**only when neither flag is set**. Passing `--version` to fix one wrong answer therefore guarantees
-a different one: every managed cluster falls through to generic `cis-*`.
+kube-bench's own selection reaches the provider benchmarks, `eks-*`, `gke-*`, `aks-*`, `ack-*`, and
+the k3s and RKE ones, only when neither flag is set. Passing `--version` therefore guarantees a
+different answer: every managed cluster falls through to generic `cis-*`.
 
 And that is not a near-miss. The provider benchmarks are not subsets: they drop the control-plane
 checks that are not the customer's to make, and are unanswerable on a managed control plane anyway,
@@ -86,9 +86,15 @@ So Draugr reads the platform out of the same `GitVersion` it already fetched
 | cluster | flags passed | benchmark chosen by |
 |---|---|---|
 | vanilla (`v1.34.0`) | `--version 1.34` | kube-bench's version mapping |
-| recognized platform | *neither* | kube-bench's platform mapping |
+| recognized platform | `--benchmark <provider's>` | kube-bench's platform mapping, applied by Draugr |
 | `benchmark` set | `--benchmark <value>` | you |
 | `version` set | `--version <value>` | kube-bench's version mapping |
+
+kube-bench would apply that mapping itself if given neither flag. It detects the platform by
+running `kubectl version -o json` and reading stdout and stderr together. A kubectl more than one
+minor version away from the server prints a skew warning into that output, the JSON does not parse,
+and kube-bench assumes 1.18 and audits `cis-1.6`. So Draugr applies kube-bench's platform table to
+the version it already read, and passes the result as `--benchmark`.
 
 A build suffix is not automatically a platform. `v1.31.0-rc.1` parses exactly like
 `v1.30.4-eks-a737599`, so only suffixes kube-bench actually maps count. A release candidate stays
@@ -127,9 +133,10 @@ object, so this scanner cannot reach the same conclusion; set `benchmark` for it
 
 ### The output is the guarantee, not the input
 
-Withholding the flags hands the choice to a tool that has its own fallback, the same 1.18 fallback
-described above. So Draugr does not assume it worked: kube-bench states the benchmark it used in
-every control it emits, and the scan **fails** if that does not match the platform detected.
+A kube-bench other than the pinned one, or a config tree without the benchmark named, can still end
+up elsewhere, by the same 1.18 fallback described above. So Draugr does not assume it worked:
+kube-bench states the benchmark it used in every control it emits, and the scan **fails** if that
+does not match the platform detected.
 
 A run that audited the wrong standard is a failed scan, not a finding-free pass. The error names
 the benchmark used, the platform expected, and the setting that resolves it.

@@ -111,3 +111,26 @@ func TestKubeBenchPinDisagreementsNamesEachPlace(t *testing.T) {
 		}
 	}
 }
+
+// platformBenchmark is kube-bench's table copied, so it is read again whenever the release Draugr
+// installs moves. A table older than the binary names an older benchmark than kube-bench would.
+func TestThePlatformBenchmarksFollowThePinnedKubeBench(t *testing.T) {
+	t.Parallel()
+	if pinned := tools.PinnedVersion("kube-bench"); pinned != platformBenchmarksFor {
+		t.Errorf("draugr tools install pins kube-bench %s, and platformBenchmark (internal/scanners/kube_bench_platform.go) "+
+			"was read from %s. Read getPlatformBenchmarkVersion in cmd/util.go at v%[1]s, copy any change, and set "+
+			"platformBenchmarksFor to %[1]s:\n"+
+			"    gh api repos/aquasecurity/kube-bench/contents/cmd/util.go?ref=v%[1]s --jq .content | base64 -d",
+			pinned, platformBenchmarksFor)
+	}
+	// Every platform the parser recognizes has a benchmark, and each is one the parser's prefix
+	// allows, so verifyBenchmark accepts what this names.
+	for platform, prefix := range platformBenchmarkPrefix {
+		if b := platformBenchmark(platform, "1.35"); !strings.HasPrefix(b, prefix) {
+			t.Errorf("platformBenchmark(%q) = %q, want a name starting %q", platform, b, prefix)
+		}
+	}
+	if b := platformBenchmark("ocp", "4.14"); b != "" {
+		t.Errorf("platformBenchmark names %q for a platform Draugr does not detect", b)
+	}
+}
