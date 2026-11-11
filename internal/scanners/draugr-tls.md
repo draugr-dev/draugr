@@ -10,7 +10,7 @@ order: 30
 - **Control:** [`tls`](../controllers/tls.md)
 - **Tool:** none, implemented natively in Go (`crypto/tls`, `crypto/x509`)
 - **Target:** host (`hosts:` entries with an `https://` URL)
-- **Effects:** `network` (opens TLS connections to the endpoint, one handshake per protocol version tested)
+- **Effects:** `network` (opens TLS connections to the endpoint, one handshake per protocol version tested, plus one offering insecure cipher suites if the endpoint refuses the current ones)
 - **Status:** ✅ implemented
 
 ## What it does
@@ -28,6 +28,8 @@ provisioning, and it finishes in seconds:
 | `tls-weak-cert-signature` | error (7.5) | Signed with a broken hash (MD2/MD5/SHA-1). |
 | `tls-weak-key` | error (7.0) | RSA below 2048 bits, or an ECDSA curve below P-256. |
 | `tls-modern-unsupported` | error (8.5) | The endpoint refuses TLS 1.2+ and only accepts deprecated versions. |
+| `tls-legacy-cipher-only` | error (8.0 / 7.5 / 7.0 / 6.5) | The endpoint accepts none of the cipher suites a current client offers. The message names the suite it chose from the older ones offered and the problem with it: RC4, 3DES, CBC with a SHA-256 MAC, or RSA key exchange. |
+| `tls-no-shared-cipher` | error (7.0) | The endpoint refuses every cipher suite Draugr can offer, insecure ones included. It likely accepts only others, such as finite-field Diffie-Hellman (DHE), NULL or export suites, or only SSL 3.0. |
 | `tls-deprecated-protocol` | error (7.0 / 6.5) | TLS 1.0 or TLS 1.1 is still accepted (deprecated by RFC 8996). |
 | `tls-no-tls13` | note (2.0) | TLS 1.3 isn't offered, a nudge, not a failure. |
 

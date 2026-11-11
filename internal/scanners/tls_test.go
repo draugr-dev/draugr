@@ -80,6 +80,10 @@ func probeFunc(state tls.ConnectionState, okVersions ...uint16) func(context.Con
 func newTestScanner(probe func(context.Context, string, string, uint16, uint16) (tls.ConnectionState, error)) draugrTLSScanner {
 	s := NewTLSProbe().(draugrTLSScanner)
 	s.probe = probe
+	// Never the network from a test: a test that reaches the legacy probe stubs it itself.
+	s.probeLegacySuites = func(context.Context, string, string) (tls.ConnectionState, error) {
+		return tls.ConnectionState{}, errors.New("legacy suites probe not stubbed")
+	}
 	s.now = func() time.Time { return testNow }
 	return s
 }
