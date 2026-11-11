@@ -155,13 +155,15 @@ the scan runs.
 | `requirements.txt` | the `METADATA` files in the `site-packages` of `VIRTUAL_ENV`, or of the `python` on `PATH` |
 | `Cargo.lock`, `Gemfile.lock`, `poetry.lock`, `uv.lock`, `Pipfile.lock`, `pylock.toml`, `*Packages.props`, `*.deps.json`, `*.sbt.lock`, `pubspec.lock`, `mix.lock`, `Podfile.lock`, `Package.resolved`, `Manifest.toml` | none: the format records no license, and Trivy reads none for it |
 
-A dependency file whose packages Trivy read with no license for any of them is **unread** for
-`licenses`: none of its licenses was checked. The control's row counts it with the other files it
-did not read, as `11 files unread`, and **Caveats** lists it as `unread-files` with one of two
-reasons:
+A dependency file with any package Trivy read without a license is **unread** for `licenses`: that
+package's license was not checked, and a copyleft one would pass. A `package-lock.json` can hold some
+entries with a license and some without, and where `node_modules` is not beside it the ones without
+stay unread. The control's row
+counts the file with the other files it did not read, as `11 files unread`, and **Caveats** lists it
+as `unread-files` with one of two reasons, counting the packages with no license:
 
-- `records no licenses for 12 packages`: the file records none, and Trivy reads them from nowhere
-  else.
+- `records no licenses for 12 packages`: the file records none for them, and Trivy reads them from
+  nowhere else.
 - `licenses of 12 packages not read, run dotnet restore` for a NuGet file, or `…, run go mod
   download` for a `go.mod`: the licenses are in a cache that command fills. After it runs, the next
   scan reads the licenses.
