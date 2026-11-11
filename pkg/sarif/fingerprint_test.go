@@ -150,3 +150,41 @@ func TestAFindingAtTheTopOfAFileStillGetsOne(t *testing.T) {
 		t.Error("a finding on the first line has no fingerprint")
 	}
 }
+
+// Three findings of one rule at lines that read alike hash alike. In line order the second and third
+// are numbered, so a consumer keying on the rule, the file and the fingerprint keeps three findings,
+// and the first keeps the value it had. Another rule, another file or another component at the same
+// text is a different key, and neither of its results is numbered.
+func TestRepeatedLineHashesAreNumberedInLineOrder(t *testing.T) {
+	at := func(rule, uri, component string, line int) *Result {
+		return &Result{
+			RuleID: rule, Component: component, Repository: "https://github.com/acme/api.git",
+			Location:            Location{URI: uri, StartLine: line},
+			PartialFingerprints: map[string]string{LineHashKey: "aaaa"},
+		}
+	}
+	third, first, second := at("G115", "a.go", "api", 90), at("G115", "a.go", "api", 10), at("G115", "a.go", "api", 40)
+	otherRule, otherFile, otherComponent := at("G104", "a.go", "api", 10), at("G115", "b.go", "api", 10), at("G115", "a.go", "worker", 10)
+	// The same repository spelled without .git is the same repository.
+	sameRepo := at("G115", "a.go", "api", 120)
+	sameRepo.Repository = "https://github.com/acme/api"
+	none := &Result{RuleID: "G115", Location: Location{URI: "a.go", StartLine: 5}}
+
+	NumberRepeatedLineHashes([]*Result{third, otherRule, first, otherFile, second, otherComponent, sameRepo, none})
+
+	for _, c := range []struct {
+		r    *Result
+		want string
+	}{
+		{first, "aaaa"}, {second, "aaaa:2"}, {third, "aaaa:3"}, {sameRepo, "aaaa:4"},
+		{otherRule, "aaaa"}, {otherFile, "aaaa"}, {otherComponent, "aaaa"},
+	} {
+		if got := c.r.PartialFingerprints[LineHashKey]; got != c.want {
+			t.Errorf("%s %s:%d in %s: fingerprint %q, want %q", c.r.RuleID, c.r.Location.URI,
+				c.r.Location.StartLine, c.r.Component, got, c.want)
+		}
+	}
+	if none.PartialFingerprints != nil {
+		t.Errorf("a result with no fingerprint was given one: %v", none.PartialFingerprints)
+	}
+}
