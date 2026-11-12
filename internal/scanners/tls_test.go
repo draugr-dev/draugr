@@ -89,6 +89,9 @@ func newTestScanner(probe func(context.Context, string, string, uint16, uint16) 
 	// A test certificate is trusted by nothing on the machine running it; a test of verification
 	// sets its own.
 	s.verify = func([]*x509.Certificate, time.Time) error { return nil }
+	s.probeSuites = func(context.Context, string, string, []uint16) (tls.ConnectionState, error) {
+		return tls.ConnectionState{}, refusal()
+	}
 	return s
 }
 

@@ -161,10 +161,14 @@ func TestARealServerWithAnUntrustedCertificateHasItsProtocolsTested(t *testing.T
 	if err != nil {
 		t.Fatalf("scan: %v", err)
 	}
-	for _, want := range []string{"tls-cert-untrusted", "tls-deprecated-protocol", "tls-no-tls13"} {
+	// Go's server accepts CBC suites by default up to TLS 1.2, and RC4 never.
+	for _, want := range []string{"tls-cert-untrusted", "tls-deprecated-protocol", "tls-no-tls13", "tls-cipher-cbc"} {
 		if !hasRule(rep, want) {
 			t.Errorf("want %s, got %v", want, ruleIDs(rep))
 		}
+	}
+	if hasRule(rep, "tls-cipher-rc4") {
+		t.Errorf("RC4 is not offered by this server: %v", ruleIDs(rep))
 	}
 	if hasRule(rep, "tls-cert-hostname-mismatch") {
 		t.Errorf("the certificate names localhost: %v", ruleIDs(rep))

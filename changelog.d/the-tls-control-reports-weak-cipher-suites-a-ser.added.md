@@ -1,0 +1,1 @@
+- **The `tls` control reports weak cipher suites a server accepts beside current ones.** RC4, 3DES, RSA key exchange and CBC are each asked about on every endpoint and reported as their own rule, so one kept for an old client can be excluded on its own.

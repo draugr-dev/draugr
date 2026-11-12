@@ -39,6 +39,9 @@ type draugrTLSScanner struct {
 	// lists as insecure included, for a server that refused the suites a current client offers.
 	// Injected for the same reason as probe; nil leaves such a server an error.
 	probeLegacySuites func(ctx context.Context, addr string, serverName string) (tls.ConnectionState, error)
+	// probeSuites performs one handshake from TLS 1.0 to 1.2 offering only the given suites, to ask
+	// whether the server accepts any of them. Injected for the same reason as probe.
+	probeSuites func(ctx context.Context, addr string, serverName string, suites []uint16) (tls.ConnectionState, error)
 	// now supplies the current time (certificate expiry math); injected for deterministic tests.
 	now func() time.Time
 	// verify verifies a chain the handshakes received, at a time. verifyChain, against the system's
@@ -119,14 +122,18 @@ func NewTLSProbe() plugin.Scanner {
 			ConfigSchema: json.RawMessage(draugrTLSConfigSchema),
 			Effects: []plugin.Effect{{
 				Kind: plugin.EffectNetwork,
-				Detail: "opens TLS connections to the endpoint, one handshake per protocol version tested, plus one " +
-					"offering insecure cipher suites if the endpoint refuses the current ones",
+				Detail: "opens TLS connections to the endpoint, one handshake per protocol version tested, one per " +
+					"weak cipher-suite family (RC4, 3DES, RSA key exchange, CBC), plus one offering insecure cipher " +
+					"suites if the endpoint refuses the current ones",
 			}},
 		},
 		probe:             dialTLS,
 		probeLegacySuites: dialTLSLegacySuites,
-		now:               time.Now,
-		verify:            verifyChain,
+		probeSuites: func(ctx context.Context, addr, serverName string, suites []uint16) (tls.ConnectionState, error) {
+			return dialTLSWith(ctx, addr, serverName, tls.VersionTLS10, tls.VersionTLS12, suites)
+		},
+		now:    time.Now,
+		verify: verifyChain,
 	}
 }
 
@@ -227,6 +234,14 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 		}
 	}
 
+	// Weak suite families the server accepts beside current ones. A current client never picks
+	// them, and an old client, or one an attacker has pushed down, does.
+	for _, f := range suiteFamilies {
+		if state, err := s.probeSuites(ctx, addr, serverName, f.suites()); err == nil {
+			results = append(results, f.finding(host.URL, state.CipherSuite))
+		}
+	}
+
 	// Deprecated protocol versions: a successful handshake pinned to TLS 1.0/1.1 means the
 	// server still accepts it.
 	for _, v := range []struct {
@@ -267,6 +282,50 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 	}
 
 	return report(results), nil
+}
+
+// suiteFamily is a kind of cipher suite a server should no longer accept, asked about by offering
+// only the suites of that kind. Each is its own rule, so a team that must keep one for an old
+// client excludes that one and keeps the rest.
+type suiteFamily struct {
+	rule  string
+	level sarif.Level
+	score float64
+	match func(name string) bool
+	why   string
+}
+
+var suiteFamilies = []suiteFamily{
+	{"tls-cipher-rc4", sarif.LevelError, 7.0, func(n string) bool { return strings.Contains(n, "_RC4_") },
+		"RC4 has practical attacks that recover plaintext, and RFC 7465 prohibits it"},
+	{"tls-cipher-3des", sarif.LevelWarning, 5.5, func(n string) bool { return strings.Contains(n, "_3DES_") },
+		"3DES has a 64-bit block, open to the Sweet32 collision attack on long connections"},
+	{"tls-cipher-static-rsa", sarif.LevelWarning, 4.5, func(n string) bool { return strings.HasPrefix(n, "TLS_RSA_") },
+		"RSA key exchange has no forward secrecy, so anyone who later obtains the server's key can decrypt recorded traffic"},
+	{"tls-cipher-cbc", sarif.LevelNote, 3.0, func(n string) bool { return strings.Contains(n, "_CBC_") && !strings.Contains(n, "_3DES_") },
+		"CBC suites have a history of padding-oracle and timing attacks (Lucky13), and current guidance offers only AEAD suites"},
+}
+
+// suites lists every suite Go implements that belongs to the family.
+func (f suiteFamily) suites() []uint16 {
+	var out []uint16
+	for _, list := range [][]*tls.CipherSuite{tls.CipherSuites(), tls.InsecureCipherSuites()} {
+		for _, cs := range list {
+			if f.match(cs.Name) {
+				out = append(out, cs.ID)
+			}
+		}
+	}
+	return out
+}
+
+func (f suiteFamily) finding(uri string, negotiated uint16) sarif.Result {
+	return sarif.Result{
+		Tool: "draugr-tls", RuleID: f.rule, Level: f.level, Score: f.score, HasScore: true,
+		Message: fmt.Sprintf("The server accepts %s, offered alone. %s. Remove it from the server's suites.",
+			tls.CipherSuiteName(negotiated), f.why),
+		Location: sarif.Location{URI: uri},
+	}
 }
 
 // chainFindings judges the chain a handshake received, apart from the handshake: whether it

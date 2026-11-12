@@ -175,3 +175,55 @@ func TestAHandshakeFailingAfterTheCertificateReportsTheCertificate(t *testing.T)
 		t.Fatalf("rep = %v, err = %v, want one tls-weak-key", ruleIDs(rep), err)
 	}
 }
+
+// A server that accepts current suites is still asked about each weak family, offered alone, and
+// each family it accepts is its own finding naming the suite it chose. Families it refuses say
+// nothing.
+func TestEachWeakSuiteFamilyAHostAcceptsIsItsOwnFinding(t *testing.T) {
+	cert := makeCert(t, testNow.Add(90*24*time.Hour), x509.SHA256WithRSA, rsaKey(t, 2048))
+	s := newTestScanner(probeFunc(tls.ConnectionState{PeerCertificates: []*x509.Certificate{cert}}, tls.VersionTLS13))
+	accepts := map[uint16]bool{tls.TLS_RSA_WITH_AES_128_CBC_SHA: true, tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA: true}
+	s.probeSuites = func(_ context.Context, _, _ string, offered []uint16) (tls.ConnectionState, error) {
+		for _, id := range offered {
+			if accepts[id] {
+				return tls.ConnectionState{CipherSuite: id}, nil
+			}
+		}
+		return tls.ConnectionState{}, refusal()
+	}
+	rep, err := s.Scan(context.Background(), plugin.HostTarget{URL: "https://example.test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := ruleIDs(rep)
+	for _, want := range []string{"tls-cipher-3des", "tls-cipher-static-rsa", "tls-cipher-cbc"} {
+		if _, ok := got[want]; !ok {
+			t.Errorf("want %s, got %v", want, got)
+		}
+	}
+	if _, ok := got["tls-cipher-rc4"]; ok {
+		t.Errorf("RC4 is refused, so not reported: %v", got)
+	}
+	for _, r := range rep.Results {
+		if r.RuleID == "tls-cipher-static-rsa" && !strings.Contains(r.Message, "TLS_RSA_WITH_AES_128_CBC_SHA") {
+			t.Errorf("the finding names the suite the server chose: %q", r.Message)
+		}
+	}
+}
+
+// Every family offers at least one suite Go implements, and none offers a current AEAD suite with
+// forward secrecy, which would make an ordinary server look weak.
+func TestSuiteFamiliesOfferOnlyTheirOwnKind(t *testing.T) {
+	for _, f := range suiteFamilies {
+		ids := f.suites()
+		if len(ids) == 0 {
+			t.Errorf("%s offers nothing", f.rule)
+		}
+		for _, id := range ids {
+			name := tls.CipherSuiteName(id)
+			if strings.HasPrefix(name, "TLS_ECDHE_") && (strings.Contains(name, "_GCM_") || strings.Contains(name, "CHACHA20")) {
+				t.Errorf("%s offers %s, a current suite", f.rule, name)
+			}
+		}
+	}
+}
