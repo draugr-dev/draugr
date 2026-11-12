@@ -22,6 +22,8 @@ type Account struct {
 	Project string `yaml:"project,omitempty"`
 	// AccountID is an AWS account's 12-digit ID, as `aws sts get-caller-identity` prints it.
 	AccountID string `yaml:"account,omitempty"`
+	// Subscription is an Azure subscription's ID, a GUID, as `az account list` prints it.
+	Subscription string `yaml:"subscription,omitempty"`
 }
 
 // AccountRef is one component's use of an account declared under `accounts:`.
@@ -46,11 +48,13 @@ const (
 	ProviderGCP Provider = "gcp"
 	// ProviderAWS is Amazon Web Services.
 	ProviderAWS Provider = "aws"
+	// ProviderAzure is Microsoft Azure.
+	ProviderAzure Provider = "azure"
 )
 
 // ProviderValues lists the clouds Draugr checks, in the order the schema and error messages give
 // them.
-var ProviderValues = []Provider{ProviderGCP, ProviderAWS}
+var ProviderValues = []Provider{ProviderGCP, ProviderAWS, ProviderAzure}
 
 // Valid reports whether p is a cloud Draugr checks.
 func (p Provider) Valid() bool { return slices.Contains(ProviderValues, p) }
@@ -62,17 +66,24 @@ func (a Account) ID() string {
 		return a.Project
 	case ProviderAWS:
 		return a.AccountID
+	case ProviderAzure:
+		return a.Subscription
 	}
 	return ""
 }
 
-// awsAccountID is the shape of an AWS account ID: twelve digits, leading zeros included.
-var awsAccountID = regexp.MustCompile(`^[0-9]{12}$`)
+var (
+	// awsAccountID is the shape of an AWS account ID: twelve digits, leading zeros included.
+	awsAccountID = regexp.MustCompile(`^[0-9]{12}$`)
+	// azureSubscriptionID is the shape of an Azure subscription ID: a GUID.
+	azureSubscriptionID = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+)
 
 // idField describes, for each provider, the key holding the account's ID and what goes in it.
 var idField = map[Provider]struct{ key, what string }{
-	ProviderGCP: {"project", "the project ID, as `gcloud projects list` prints it"},
-	ProviderAWS: {"account", "the 12-digit account ID, quoted, as `aws sts get-caller-identity` prints it"},
+	ProviderGCP:   {"project", "the project ID, as `gcloud projects list` prints it"},
+	ProviderAWS:   {"account", "the 12-digit account ID, quoted, as `aws sts get-caller-identity` prints it"},
+	ProviderAzure: {"subscription", "the subscription ID, a GUID, as `az account list` prints it"},
 }
 
 // validateAccountID checks that an account sets the field its provider identifies it by, in that
@@ -86,12 +97,14 @@ func validateAccountID(where string, a Account) []error {
 		errs = append(errs, fmt.Errorf("%s.%s is required for provider %s: %s", where, field.key, a.Provider, field.what))
 	case a.Provider == ProviderAWS && !awsAccountID.MatchString(id):
 		errs = append(errs, fmt.Errorf("%s.account %q is not an AWS account ID: %s", where, id, field.what))
+	case a.Provider == ProviderAzure && !azureSubscriptionID.MatchString(id):
+		errs = append(errs, fmt.Errorf("%s.subscription %q is not an Azure subscription ID: %s", where, id, field.what))
 	}
 	for _, other := range ProviderValues {
 		if other == a.Provider {
 			continue
 		}
-		if (Account{Provider: other, Project: a.Project, AccountID: a.AccountID}).ID() != "" {
+		if (Account{Provider: other, Project: a.Project, AccountID: a.AccountID, Subscription: a.Subscription}).ID() != "" {
 			errs = append(errs, fmt.Errorf("%s.%s is a field of provider %s, and this account's provider is %s, "+
 				"whose ID goes in %s", where, idField[other].key, other, a.Provider, field.key))
 		}

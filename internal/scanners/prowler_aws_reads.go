@@ -18,9 +18,9 @@ import (
 
 // awsCheckReads lists the Prowler service modules each CIS 7.0 AWS check reads, in the order a
 // reader is told about them: the first denied one names the row. Taken from the source of
-// tools.ProwlerTablesVersion by scripts/prowler-aws-check-reads.py, which reads it as text: for
-// each check, every `from prowler.providers.aws.services.<service>...<name>_client import` in the
-// check's module and in the helper modules it imports, followed to the end. Regenerate it by running that script over
+// tools.ProwlerTablesVersion by scripts/prowler-check-reads.py, which reads it as text: for each
+// check, every `from prowler.providers.aws.services.<service>...<name>_client import` in the check's
+// module and in the helper modules it imports, followed to the end. Regenerate it by running that script over
 // the installed `prowler` package with the framework's check list; it prints this table as JSON. A
 // check this does not list, from another framework, reads the service its name starts with.
 var awsCheckReads = map[string][]string{
@@ -169,8 +169,8 @@ func awsDeniedServices(denied []string) map[string]string {
 }
 
 var (
-	// awsModuleRE is the Prowler service module a log line comes from.
-	awsModuleRE = regexp.MustCompile(`"module":\s*"([a-z0-9]+)_service"`)
+	// serviceModuleRE is the Prowler service module a log line comes from.
+	serviceModuleRE = regexp.MustCompile(`"module":\s*"([a-z0-9]+)_service"`)
 	// awsErrorRE is botocore's account of a failed call: the error code and the operation.
 	awsErrorRE = regexp.MustCompile(`An error occurred \(([A-Za-z]+)\) when calling the ([A-Za-z0-9]+) operation`)
 	// awsActionRE is the action a denial names: "is not authorized to perform: kms:DescribeKey".
@@ -202,7 +202,7 @@ func awsLoggedDenials(path string) map[string]string {
 	for sc.Scan() {
 		line := sc.Text()
 		call := awsErrorRE.FindStringSubmatch(line)
-		module := awsModuleRE.FindStringSubmatch(line)
+		module := serviceModuleRE.FindStringSubmatch(line)
 		if call == nil || module == nil || !awsDenialCodes[call[1]] {
 			continue
 		}

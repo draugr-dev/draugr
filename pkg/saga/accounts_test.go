@@ -56,6 +56,31 @@ components:
 	}
 }
 
+// An Azure subscription is named by its GUID, and may narrow to regions as any account does.
+func TestAnAzureSubscriptionIsNamedByItsID(t *testing.T) {
+	m, err := Load([]byte(clusterHeader + `
+accounts:
+  shop-prod: {provider: azure, subscription: 00000000-0000-0000-0000-000000000000}
+  shop-data: {provider: azure, subscription: AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA}
+components:
+  - name: platform
+    cloud: [{account: shop-prod}]
+  - name: api
+    cloud: [{account: shop-prod, regions: [eastus]}]
+  - name: data
+    cloud: [{account: shop-data}]
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := m.Accounts["shop-prod"]; got.Provider != ProviderAzure || got.ID() != "00000000-0000-0000-0000-000000000000" {
+		t.Errorf("shop-prod = %+v", got)
+	}
+	if got := m.Accounts["shop-data"].ID(); got != "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA" {
+		t.Errorf("a GUID in capitals = %q", got)
+	}
+}
+
 func TestAccountsAreRefusedWhereTheyCannotBeScanned(t *testing.T) {
 	for name, tc := range map[string]struct{ body, want string }{
 		"an undeclared name": {`
@@ -95,8 +120,32 @@ components:
 `, `cloud[0].regions[0] is empty`},
 		"a provider Draugr does not check": {`
 accounts:
-  prod: {provider: azure, project: p-1}
-`, `accounts.prod.provider "azure" is not gcp or aws`},
+  prod: {provider: oracle, project: p-1}
+`, `accounts.prod.provider "oracle" is not gcp, aws or azure`},
+		"an Azure subscription with no ID": {`
+accounts:
+  prod: {provider: azure}
+`, `accounts.prod.subscription is required for provider azure: the subscription ID, a GUID`},
+		"an Azure subscription that is not a GUID": {`
+accounts:
+  prod: {provider: azure, subscription: shop-prod}
+`, `accounts.prod.subscription "shop-prod" is not an Azure subscription ID`},
+		"an AWS field on an Azure subscription": {`
+accounts:
+  prod: {provider: azure, subscription: 00000000-0000-0000-0000-000000000000, account: "111111111111"}
+`, `accounts.prod.account is a field of provider aws, and this account's provider is azure, whose ID goes in subscription`},
+		"a Google Cloud field on an Azure subscription": {`
+accounts:
+  prod: {provider: azure, subscription: 00000000-0000-0000-0000-000000000000, project: p-1}
+`, `accounts.prod.project is a field of provider gcp, and this account's provider is azure, whose ID goes in subscription`},
+		"an Azure field on an AWS account": {`
+accounts:
+  prod: {provider: aws, account: "111111111111", subscription: 00000000-0000-0000-0000-000000000000}
+`, `accounts.prod.subscription is a field of provider azure, and this account's provider is aws, whose ID goes in account`},
+		"an Azure field on a Google Cloud account": {`
+accounts:
+  prod: {provider: gcp, project: p-1, subscription: 00000000-0000-0000-0000-000000000000}
+`, `accounts.prod.subscription is a field of provider azure, and this account's provider is gcp, whose ID goes in project`},
 		"a project with no ID": {`
 accounts:
   prod: {provider: gcp}

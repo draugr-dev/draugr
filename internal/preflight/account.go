@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/draugr-dev/draugr/internal/awsaccess"
+	"github.com/draugr-dev/draugr/internal/azureaccess"
 	"github.com/draugr-dev/draugr/internal/gcpaccess"
 )
 
@@ -32,8 +33,29 @@ func reachAccount(ctx context.Context, provider, id string) (string, error) {
 			return "", err
 		}
 		return callerInAccount(ctx, identifier, id)
+	case "azure":
+		reader, err := azureaccess.New(ctx)
+		if err != nil {
+			return "", err
+		}
+		return subscriptionReadable(ctx, reader, id)
 	}
 	return "", fmt.Errorf("doctor cannot check accounts on %s", provider)
+}
+
+// subscriptionReadable reports whether the credentials can read the declared Azure subscription,
+// and what Azure calls it, which tells somebody whose subscription a scan would read. Credentials that
+// see the subscription and hold no role on it would be refused by the scan, so they fail here too. A
+// list Azure will not give says nothing either way, and the scan reports that itself.
+func subscriptionReadable(ctx context.Context, reader azureaccess.Reader, id string) (string, error) {
+	sub, err := reader.Subscription(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	if grants, err := reader.Permissions(ctx, id); err == nil && !azureaccess.HoldsAnAction(grants) {
+		return "", fmt.Errorf("subscription %s (%s) · the credentials hold no role on it; grant Reader", id, sub.Name)
+	}
+	return fmt.Sprintf("subscription %s (%s) · the credentials can read it", id, sub.Name), nil
 }
 
 // callerInAccount reports whether the credentials are an identity in the declared AWS account. It

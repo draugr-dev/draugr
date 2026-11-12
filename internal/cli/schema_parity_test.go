@@ -225,6 +225,14 @@ func TestTheEditorAndDraugrHoldAccountIDsToTheirProvider(t *testing.T) {
 		{"an account on Google Cloud", map[string]any{"provider": "gcp", "project": "p-1", "account": "111111111111"}, false},
 		{"an AWS account with no ID", map[string]any{"provider": "aws"}, false},
 		{"a project's field alone on AWS", map[string]any{"provider": "aws", "project": "p-1"}, false},
+		{"an Azure subscription", map[string]any{"provider": "azure", "subscription": "00000000-0000-0000-0000-000000000000"}, true},
+		{"an Azure subscription that is not a GUID", map[string]any{"provider": "azure", "subscription": "shop-prod"}, false},
+		{"an Azure subscription with no ID", map[string]any{"provider": "azure"}, false},
+		{"a project on Azure", map[string]any{"provider": "azure", "subscription": "00000000-0000-0000-0000-000000000000", "project": "p-1"}, false},
+		{"an account on Azure", map[string]any{"provider": "azure", "subscription": "00000000-0000-0000-0000-000000000000", "account": "111111111111"}, false},
+		{"an account's field alone on Azure", map[string]any{"provider": "azure", "account": "111111111111"}, false},
+		{"a subscription on AWS", map[string]any{"provider": "aws", "account": "111111111111", "subscription": "00000000-0000-0000-0000-000000000000"}, false},
+		{"a subscription on Google Cloud", map[string]any{"provider": "gcp", "project": "p-1", "subscription": "00000000-0000-0000-0000-000000000000"}, false},
 	} {
 		doc := map[string]any{
 			"project":    "shop",

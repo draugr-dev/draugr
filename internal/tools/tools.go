@@ -268,7 +268,7 @@ func Catalog() map[string]Tool {
 }
 
 // ProwlerTablesVersion is the Prowler release whose source the scanner's tables of what each check
-// reads were taken from, for AWS by scripts/prowler-aws-check-reads.py and for Google Cloud from
+// reads were taken from, for AWS by scripts/prowler-check-reads.py and for Google Cloud from
 // each check's clients. Prowler is the one on PATH, of whatever release, so `draugr doctor` says when
 // it is another one, and tool-bump's scheduled run raises an issue when Prowler publishes a newer one,
 // which is the cue to regenerate the tables and move this.

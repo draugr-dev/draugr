@@ -1577,6 +1577,7 @@ network and credentials:
 | `cluster` | resolves the kubeconfig context the cluster names, or the current one, and asks its API server for its version | the API server answers |
 | `account` on Google Cloud | asks whether the Application Default Credentials can read the project | they hold `resourcemanager.projects.get` on it |
 | `account` on AWS | asks STS which identity the default credential chain resolves to | the identity is in the declared account |
+| `account` on Azure | asks Azure Resource Manager for the subscription, with the credential a scan would use | the credentials can read it and hold an action on it |
 | `file` | reads each file in `components[].imports` | it opens and is SARIF 2.1.0 |
 
 A target two components share is checked once. A certificate this machine does not trust still

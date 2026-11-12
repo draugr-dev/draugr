@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/awsaccess"
+	"github.com/draugr-dev/draugr/internal/azureaccess"
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/gcpaccess"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -48,20 +49,32 @@ type prowlerCloud struct {
 	// marked partly read. Otherwise every check of a denied service is unread and its results
 	// discarded.
 	keepsPartlyRead bool
+	// logLevel is the level Prowler's log is written at, the one holding the lines read for denials.
+	logLevel string
+	// notRun reports the checks the scan keeps from running, which the measured-against line names.
+	// Nil means none.
+	notRun func(check string) bool
+	// notEvaluated is the reason given for a check whose only result is MANUAL, which is how the cloud's
+	// checks say a read failed. Empty means the check is only left out of the decided count.
+	notEvaluated string
 }
 
 // prowlerClouds are the clouds the scanner checks, by the descriptor's `provider:`.
 //
-// The two clouds treat a denied service differently because their denials differ in reach. A
-// Google Cloud permission is checked on the project, so one missing denies the service's every
-// read. An AWS denial is of one action, often on one resource, which some checks of the service do
-// not need, and setting aside every check of the service would set aside real findings: on a
-// read-only role against CIS 7.0, most of the framework.
+// The clouds treat a denied service differently because their denials differ in reach. A Google
+// Cloud permission is checked on the project, so one missing denies the service's every read. An AWS
+// denial is of one action, often on one resource, which some checks of the service do not need, and
+// setting aside every check of the service would set aside real findings: on a read-only role against
+// CIS 7.0, most of the framework. An Azure denial is of one action too.
 var prowlerClouds = map[string]prowlerCloud{
 	"gcp": {name: "gcp", label: "Google Cloud", unit: "project", compliance: "cis_5.0_gcp",
-		taxonomy: "CIS Google Cloud Platform Foundation Benchmark", reads: gcpCheckReads},
+		taxonomy: "CIS Google Cloud Platform Foundation Benchmark", reads: gcpCheckReads, logLevel: "ERROR"},
 	"aws": {name: "aws", label: "AWS", unit: "account", compliance: "cis_7.0_aws",
-		taxonomy: "CIS Amazon Web Services Foundations Benchmark", reads: awsCheckReads, keepsPartlyRead: true},
+		taxonomy: "CIS Amazon Web Services Foundations Benchmark", reads: awsCheckReads, keepsPartlyRead: true,
+		logLevel: "ERROR"},
+	"azure": {name: "azure", label: "Azure", unit: "subscription", compliance: "cis_6.0_azure",
+		taxonomy: "CIS Microsoft Azure Foundations Benchmark", reads: azureCheckReads, keepsPartlyRead: true,
+		logLevel: "WARNING", notRun: azureNotRun, notEvaluated: azureNotEvaluated},
 }
 
 // checkReads is the services a check reads.
@@ -80,9 +93,9 @@ const prowlerConfigSchema = `{
   "properties": {
     "compliance": {
       "type": "string",
-      "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9_.]+_(gcp|aws))$",
-      "description": "The Prowler compliance framework to run, such as cis_4.0_gcp or cis_6.0_aws. It applies to the accounts of the cloud its suffix names; the others are checked against cis_5.0_gcp on Google Cloud and cis_7.0_aws on AWS. ` +
-	"`prowler <gcp|aws> --list-compliance`" + ` lists them."
+      "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9_.]+_(gcp|aws|azure))$",
+      "description": "The Prowler compliance framework to run, such as cis_4.0_gcp or cis_6.0_aws. It applies to the accounts of the cloud its suffix names; the others are checked against cis_5.0_gcp on Google Cloud, cis_7.0_aws on AWS and cis_6.0_azure on Azure. ` +
+	"`prowler <gcp|aws|azure> --list-compliance`" + ` lists them."
     }
   }
 }`
@@ -120,18 +133,59 @@ const prowlerMutelist = "Mutelist: {}\n"
 // the identity's policies allow. A read-only role may not ask that, and then Prowler's log alone
 // says what was denied. A check of a denied service with no result is unread; one with results
 // keeps them and is marked partly read.
+//
+// On Azure, before it runs, the scanner asks Azure Resource Manager whether the credentials can read
+// the subscription and refuses it otherwise, then lists what they hold on it and refuses credentials
+// holding none of the actions. Prowler's Azure base class discards what its worker threads raise, so a
+// denial may leave no log line and the list carries more weight than on the other clouds: with no role
+// at all, Prowler logs no refusal and the checks that look for something absent fail. A denied service
+// is judged per check, as on AWS.
 type prowlerScanner struct {
 	info     plugin.ScannerInfo
 	run      func(ctx context.Context, argv []string) ([]byte, error)
 	access   func(ctx context.Context) (permissionTester, error)
 	identify func(ctx context.Context) (awsaccess.Identifier, error)
 	simulate func(ctx context.Context) (awsaccess.Simulator, error)
+	azure    func(ctx context.Context) (azureaccess.Reader, error)
+	// getenv is where the Azure credential Prowler should use is read from.
+	getenv func(string) string
 }
 
-// prowlerData is what Prowler contacts besides the APIs of the account it checks. None of it is in
-// a CIS framework's checks, so a scan against the default frameworks contacts the cloud's APIs
-// alone; a `compliance` framework that includes the checks below contacts these too.
+// prowlerData is what Prowler contacts besides the APIs of the account it checks, followed by the
+// hosts of an Azure scan. None of the former is in a CIS framework's checks, so a scan against the
+// default frameworks on Google Cloud or AWS contacts the cloud's APIs alone; a `compliance` framework
+// that includes the checks below contacts these too. An Azure scan contacts its own hosts on every
+// run and has nothing of them to warm.
 var prowlerData = []plugin.DataSource{
+	{
+		Name:    "Azure sign-in",
+		Hosts:   []string{"login.microsoftonline.com"},
+		PerScan: true,
+	},
+	{
+		Name:    "Azure Resource Manager",
+		Hosts:   []string{"management.azure.com"},
+		PerScan: true,
+	},
+	{
+		// Prowler's Azure provider reads the tenant's default domain from Graph when it starts, whichever
+		// services run. The Entra checks, which would read the directory itself, do not run.
+		Name:    "Microsoft Graph, for the tenant's domain",
+		Hosts:   []string{"graph.microsoft.com"},
+		PerScan: true,
+	},
+	{
+		// keyvault_key_rotation_enabled reads each key's rotation policy from the vault itself.
+		Name:    "Azure Key Vault data plane",
+		Hosts:   []string{"*.vault.azure.net"},
+		PerScan: true,
+	},
+	{
+		// The Log Analytics client is imported by checks outside cis_6.0_azure.
+		Name:    "Azure Log Analytics, outside the CIS checks",
+		Hosts:   []string{"api.loganalytics.io"},
+		PerScan: true,
+	},
 	{
 		// codepipeline_project_repo_private asks, without credentials, whether a pipeline's source
 		// repository answers to anybody.
@@ -176,6 +230,10 @@ func NewProwler() plugin.Scanner {
 		simulate: func(ctx context.Context) (awsaccess.Simulator, error) {
 			return awsaccess.NewIAM(ctx)
 		},
+		azure: func(ctx context.Context) (azureaccess.Reader, error) {
+			return azureaccess.New(ctx)
+		},
+		getenv: os.Getenv,
 	}
 }
 
@@ -199,7 +257,7 @@ func (s prowlerScanner) Scan(ctx context.Context, target plugin.Target, cfg plug
 	}
 	cloud, ok := prowlerClouds[account.Provider]
 	if !ok {
-		return sarif.Report{}, fmt.Errorf("prowler: Draugr checks Google Cloud and AWS accounts, not %q", account.Provider)
+		return sarif.Report{}, fmt.Errorf("prowler: Draugr checks Google Cloud, AWS and Azure accounts, not %q", account.Provider)
 	}
 	compliance := cloud.framework(cfg)
 
@@ -220,6 +278,11 @@ func (s prowlerScanner) Scan(ctx context.Context, target plugin.Target, cfg plug
 		if err == nil {
 			denied, permissions = s.awsPreflight(ctx, caller)
 		}
+	case "azure":
+		denied, permissions, err = s.azurePreflight(ctx, account.ID)
+		if level := azureHiddenLogLevel(s.getenv); level != "" {
+			permissions += "; LOG_LEVEL=" + level + " hides Prowler's warnings, Key Vault denials among them"
+		}
 	}
 	if err != nil {
 		return sarif.Report{}, err
@@ -230,7 +293,7 @@ func (s prowlerScanner) Scan(ctx context.Context, target plugin.Target, cfg plug
 		return sarif.Report{}, fmt.Errorf("prowler: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(dir) }()
-	argv, err := prowlerArgv(cloud, account, compliance, dir)
+	argv, err := prowlerArgv(cloud, account, compliance, dir, s.getenv)
 	if err != nil {
 		return sarif.Report{}, err
 	}
@@ -257,6 +320,8 @@ func (s prowlerScanner) Scan(ctx context.Context, target plugin.Target, cfg plug
 		logged, above = loggedDenials(filepath.Join(dir, "prowler.log"))
 	case "aws":
 		logged = awsLoggedDenials(filepath.Join(dir, "prowler.log"))
+	case "azure":
+		logged = azureLoggedDenials(filepath.Join(dir, "prowler.log"))
 	}
 	for service, reason := range logged {
 		if _, known := denied[service]; !known {
@@ -295,8 +360,40 @@ func (s prowlerScanner) awsPreflight(ctx context.Context, caller awsaccess.Calle
 	return awsDeniedServices(denied), "simulated before the scan, then read from Prowler's log"
 }
 
+// azurePreflight refuses a subscription the credentials cannot read, then lists what they hold on it
+// and names each service one of the actions Prowler's services need is denied for. Credentials holding
+// none of the actions are refused, because Prowler would log no refusal and report what it found absent
+// as failed. A list Azure refuses or fails to give is no error, and the measured-against line says so,
+// because the log still names the denials that reach it.
+func (s prowlerScanner) azurePreflight(ctx context.Context, subscription string) (map[string]string, string, error) {
+	reader, err := s.azure(ctx)
+	if err != nil {
+		return nil, "", fmt.Errorf("prowler: %w", err)
+	}
+	if _, err := reader.Subscription(ctx, subscription); err != nil {
+		return nil, "", fmt.Errorf("prowler: %w", err)
+	}
+	grants, err := reader.Permissions(ctx, subscription)
+	switch {
+	case errors.Is(err, azureaccess.ErrRefused):
+		return map[string]string{}, "read from Prowler's log; Azure refused the preflight", nil
+	case err != nil:
+		slog.DebugContext(ctx, "Azure permission preflight not made", "subscription", subscription, "error", err)
+		return map[string]string{}, "read from Prowler's log; the preflight failed", nil
+	}
+	actions := azureActions()
+	refused := azureaccess.Denied(grants, actions)
+	if len(refused) == len(actions) {
+		return nil, "", fmt.Errorf("prowler: the credentials hold none of the actions the checks read "+
+			"on subscription %s; grant Reader", subscription)
+	}
+	return azureDeniedServices(refused), "listed before the scan, then read from Prowler's log", nil
+}
+
 // prowlerArgv is the scan's command line. The findings go to dir as OCSF, the log beside them.
-func prowlerArgv(cloud prowlerCloud, account plugin.AccountTarget, compliance, dir string) ([]string, error) {
+func prowlerArgv(cloud prowlerCloud, account plugin.AccountTarget, compliance, dir string,
+	getenv func(string) string,
+) ([]string, error) {
 	argv := []string{"prowler", cloud.name}
 	switch cloud.name {
 	case "gcp":
@@ -314,10 +411,15 @@ func prowlerArgv(cloud prowlerCloud, account plugin.AccountTarget, compliance, d
 				argv = append(argv, strings.ToLower(r))
 			}
 		}
+	case "azure":
+		// Prowler has no flag for narrowing to Azure regions, so `regions` narrows the findings alone.
+		argv = append(argv, azureaccess.AuthFlag(getenv), "--subscription-id", account.ID,
+			// app reads secrets and entra reads the whole tenant's directory; azureNotRun says why.
+			"--excluded-service", "app", "entra", "--excluded-check", azureShodanCheck)
 	}
 	return append(argv, "--compliance", compliance,
 		"--output-formats", "json-ocsf", "--output-directory", dir, "--output-filename", "scan",
-		"--log-level", "ERROR", "--log-file", filepath.Join(dir, "prowler.log"), "--only-logs",
+		"--log-level", cloud.logLevel, "--log-file", filepath.Join(dir, "prowler.log"), "--only-logs",
 		"--no-color",
 		// Exit 3 means "found something". Findings are the report's to judge, not an error.
 		"--ignore-exit-code-3",
@@ -542,26 +644,40 @@ func prowlerReport(account plugin.AccountTarget, cloud prowlerCloud, compliance 
 	}
 	// A result is a pass or a fail. MANUAL says Prowler could not judge the check, which is no
 	// result to keep.
-	answered := map[string]bool{}
+	answered, manual := map[string]bool{}, map[string]bool{}
 	for _, f := range findings {
-		if status := strings.ToUpper(f.StatusCode); status == "PASS" || status == "FAIL" {
+		switch strings.ToUpper(f.StatusCode) {
+		case "PASS", "FAIL":
 			answered[f.Metadata.EventCode] = true
+		case "MANUAL":
+			manual[f.Metadata.EventCode] = true
 		}
 	}
 	unread, partly := map[string]bool{}, map[string]bool{}
+	var notRun []string
 	for _, check := range checks {
-		for _, service := range cloud.checkReads(check) {
-			if reason, ok := denied[service]; ok {
-				u := sarif.Unchecked{Scanner: prowlerScannerName, Check: check, Group: service, Reason: reason}
-				if cloud.keepsPartlyRead && answered[check] {
-					u.PartlyRead = true
-					partly[check] = true
-				} else {
-					unread[check] = true
-				}
-				report.Unchecked = append(report.Unchecked, u)
-				break
+		// Kept from running on purpose, so no denial has anything to say about it.
+		if cloud.notRun != nil && cloud.notRun(check) {
+			notRun = append(notRun, check)
+			unread[check] = true
+			continue
+		}
+		reads := cloud.checkReads(check)
+		idx := slices.IndexFunc(reads, func(service string) bool { _, ok := denied[service]; return ok })
+		switch {
+		case idx >= 0:
+			u := sarif.Unchecked{Scanner: prowlerScannerName, Check: check, Group: reads[idx], Reason: denied[reads[idx]]}
+			if cloud.keepsPartlyRead && answered[check] {
+				u.PartlyRead = true
+				partly[check] = true
+			} else {
+				unread[check] = true
 			}
+			report.Unchecked = append(report.Unchecked, u)
+		case cloud.notEvaluated != "" && manual[check] && !answered[check]:
+			report.Unchecked = append(report.Unchecked,
+				sarif.Unchecked{Scanner: prowlerScannerName, Check: check, Group: reads[0], Reason: cloud.notEvaluated})
+			unread[check] = true
 		}
 	}
 	taxonomy, version := cisTaxonomy(compliance)
@@ -625,6 +741,10 @@ func prowlerReport(account plugin.AccountTarget, cloud prowlerCloud, compliance 
 			{Key: "scope", Value: scope},
 		},
 	}}
+	if len(notRun) > 0 {
+		report.Provenance[0].Fields = append(report.Provenance[0].Fields,
+			sarif.Field{Key: "not run", Value: strings.Join(notRun, ", ")})
+	}
 	return report
 }
 
@@ -635,12 +755,15 @@ func prowlerLocation(account plugin.AccountTarget, f ocsfFinding) string {
 	if len(f.Resources) > 0 {
 		r := f.Resources[0]
 		switch {
-		case r.UID == account.ID || (r.UID == "" && r.Name == ""):
+		case r.UID == account.ID || (r.UID == "" && r.Name == "") || strings.EqualFold(r.UID, "/subscriptions/"+account.ID):
 		case strings.HasPrefix(r.UID, "arn:"):
 			if region, ok := regionSettingARN(f.Metadata.EventCode, r.UID); ok {
 				return account.Provider + "/" + account.ID + "/" + region
 			}
 			// An ARN names one resource in every AWS account and region, which a name does not.
+			return r.UID
+		case strings.HasPrefix(strings.ToLower(r.UID), "/subscriptions/"):
+			// An Azure resource ID names one resource in every subscription, which a name does not.
 			return r.UID
 		case strings.Contains(r.Name, "/"):
 			return r.Name

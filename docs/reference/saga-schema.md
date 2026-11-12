@@ -141,16 +141,20 @@ clusters its components run on; a name two documents declare must carry the same
 
 Each cloud account the components run in, declared once by a name their `cloud:` entries refer to,
 and checked by the [`cloud`](../../internal/controllers/cloud.md) control. An account is the unit a
-provider bills and grants permissions on: a Google Cloud project or an AWS account.
+provider bills and grants permissions on: a Google Cloud project, an AWS account or an Azure
+subscription.
 
 ```yaml
 accounts:
   shop-prod:                    # the name components use
-    provider: gcp               # required; gcp or aws
+    provider: gcp               # required; gcp, aws or azure
     project: shop-prod-4821     # required for gcp, the project ID
   web-prod:
     provider: aws
     account: "123456789012"     # required for aws, the 12-digit account ID, quoted
+  console-prod:
+    provider: azure
+    subscription: 00000000-0000-0000-0000-000000000000   # required for azure, the subscription ID
 components:
   - name: platform
     cloud: [{account: shop-prod}]
@@ -158,13 +162,16 @@ components:
     cloud: [{account: shop-prod, regions: [us-central1]}]
   - name: web
     cloud: [{account: web-prod}]
+  - name: console
+    cloud: [{account: console-prod}]
 ```
 
 | Field | Description |
 |---|---|
-| `provider` | The cloud the account belongs to: `gcp` or `aws` |
+| `provider` | The cloud the account belongs to: `gcp`, `aws` or `azure` |
 | `project` | The Google Cloud project ID, as `gcloud projects list` prints it. `gcp` only |
 | `account` | The AWS account's 12-digit ID, as `aws sts get-caller-identity` prints it. `aws` only |
+| `subscription` | The Azure subscription's ID, a GUID, as `az account list` prints it. `azure` only |
 
 Quote an AWS account ID. Unquoted, a YAML reader takes it as a number, and one that follows YAML 1.2,
 as most editors do, drops a leading zero.
@@ -177,14 +184,16 @@ component runs in one account.
 `draugr validate` refuses:
 
 - a name nothing declares
-- a provider other than `gcp` or `aws`
+- a provider other than `gcp`, `aws` or `azure`
 - an account with no ID
 - an AWS ID that is not 12 digits
-- the other provider's ID field on an account
+- an Azure ID that is not a GUID
+- another provider's ID field on an account
 
 It warns about a declared account no component uses. A fragment may declare accounts on the rule
 clusters follow. `draugr doctor` asks Google whether the credentials in the environment can read each
-project, and asks AWS whether they are an identity in each account.
+project, asks AWS whether they are an identity in each account, and asks Azure whether they can read
+each subscription.
 
 ## `components`
 

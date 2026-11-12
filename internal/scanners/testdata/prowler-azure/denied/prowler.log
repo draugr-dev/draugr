@@ -1,0 +1,31 @@
+{"timestamp": "2026-11-08 00:00:00,000", "filename": "entra_service.py:135", "level": "ERROR", "module": "entra_service", "message": "tenant.onmicrosoft.com -- sign-in activity unavailable, retrying without signInActivity: ODataError HTTP 403 Authentication_RequestFromUnsupportedUserRole"}
+{"timestamp": "2026-11-08 00:00:00,000", "filename": "entra_service.py:245", "level": "ERROR", "module": "entra_service", "message": "ODataError[229]: 
+        APIError
+        Code: 403
+        message: None
+        error: MainError(additional_data={}, code='Authentication_RequestFromUnsupportedUserRole', details=None, inner_error=InnerError(additional_data={}, client_request_id='00000000-0000-0000-0000-000000000000', date=datetime.datetime(2026, 11, 8, 0, 0, 0), odata_type=None, request_id='00000000-0000-0000-0000-000000000000'), message='User is not in the allowed roles', target=None)
+        "}
+{"timestamp": "2026-11-08 00:00:00,000", "filename": "entra_service.py:649", "level": "ERROR", "module": "entra_service", "message": "ODataError[590]: 
+        APIError
+        Code: 403
+        message: None
+        error: MainError(additional_data={}, code='accessDenied', details=None, inner_error=InnerError(additional_data={}, client_request_id='00000000-0000-0000-0000-000000000000', date=datetime.datetime(2026, 11, 8, 0, 0, 0), odata_type=None, request_id='00000000-0000-0000-0000-000000000000'), message='Request Authorization failed', target=None)
+        "}
+{"timestamp": "2026-11-08 00:00:00,000", "filename": "entra_service.py:377", "level": "ERROR", "module": "entra_service", "message": "ODataError[365]: 
+        APIError
+        Code: 403
+        message: None
+        error: MainError(additional_data={}, code='AccessDenied', details=None, inner_error=InnerError(additional_data={}, client_request_id='00000000-0000-0000-0000-000000000000', date=datetime.datetime(2026, 11, 8, 0, 0, 0), odata_type=None, request_id='00000000-0000-0000-0000-000000000000'), message='You cannot perform the requested operation, required scopes are missing in the token.', target=None)
+        "}
+{"timestamp": "2026-11-08 00:00:00,000", "filename": "entra_service.py:409", "level": "ERROR", "module": "entra_service", "message": "ODataError[389]: 
+        APIError
+        Code: 403
+        message: None
+        error: MainError(additional_data={}, code='AccessDenied', details=None, inner_error=InnerError(additional_data={}, client_request_id='00000000-0000-0000-0000-000000000000', date=datetime.datetime(2026, 11, 8, 0, 0, 0), odata_type=None, request_id='00000000-0000-0000-0000-000000000000'), message='Your account does not have access to this report or data. Please contact your global administrator to request access. One of the following roles is required: Security Reader, Company Administrator, Security Administrator, Conditional Access Administrator, Global Reader, Entra Network Access Administrator, Red Team Recon Agent.', target=None)
+        "}
+{"timestamp": "2026-11-08 00:00:00,000", "filename": "entra_service.py:520", "level": "ERROR", "module": "entra_service", "message": "ODataError[453]: 
+        APIError
+        Code: 403
+        message: None
+        error: MainError(additional_data={}, code='AccessDenied', details=None, inner_error=InnerError(additional_data={}, client_request_id='00000000-0000-0000-0000-000000000000', date=datetime.datetime(2026, 11, 8, 0, 0, 0), odata_type=None, request_id='00000000-0000-0000-0000-000000000000'), message='Your account does not have access to this report or data. Please contact your global administrator to request access. One of the following roles is required: Security Reader, Company Administrator, Security Administrator, Conditional Access Administrator, Global Reader, Devices Admin, Entra Network Access Administrator, AI Security Administrator, AI Security Operator, AI Security Reader, Red Team Administrator, Red Team Operator, Red Team Reader, Red Team Recon Agent.', target=None)
+        "}
