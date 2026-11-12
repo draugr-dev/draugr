@@ -604,6 +604,8 @@ func dialTLSWith(ctx context.Context, addr, serverName string, minVer, maxVer ui
 	var received []*x509.Certificate
 	d := &tls.Dialer{
 		NetDialer: &net.Dialer{Timeout: 10 * time.Second},
+		// The probe does not verify the chain in the handshake; verifyChain verifies it apart.
+		// nosemgrep: problem-based-packs.insecure-transport.go-stdlib.bypass-tls-verification.bypass-tls-verification
 		Config: &tls.Config{ // MinVersion is set per probe: we must attempt old versions to detect them
 			ServerName:   serverName,
 			MinVersion:   minVer,
