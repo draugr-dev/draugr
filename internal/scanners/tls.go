@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -39,6 +40,9 @@ type draugrTLSScanner struct {
 	// lists as insecure included, for a server that refused the suites a current client offers.
 	// Injected for the same reason as probe; nil leaves such a server an error.
 	probeLegacySuites func(ctx context.Context, addr string, serverName string) (tls.ConnectionState, error)
+	// probeSuites performs one handshake from TLS 1.0 to maxVer offering only the given suites, to ask
+	// whether the server accepts any of them. Injected for the same reason as probe.
+	probeSuites func(ctx context.Context, addr string, serverName string, maxVer uint16, suites []uint16) (tls.ConnectionState, error)
 	// now supplies the current time (certificate expiry math); injected for deterministic tests.
 	now func() time.Time
 	// verify verifies a chain the handshakes received, at a time. verifyChain, against the system's
@@ -119,14 +123,18 @@ func NewTLSProbe() plugin.Scanner {
 			ConfigSchema: json.RawMessage(draugrTLSConfigSchema),
 			Effects: []plugin.Effect{{
 				Kind: plugin.EffectNetwork,
-				Detail: "opens TLS connections to the endpoint, one handshake per protocol version tested, plus one " +
-					"offering insecure cipher suites if the endpoint refuses the current ones",
+				Detail: "opens TLS connections to the endpoint, one handshake per protocol version tested, one per " +
+					"weak cipher-suite family (RC4, 3DES, RSA key exchange, CBC), plus one offering insecure cipher " +
+					"suites if the endpoint refuses the current ones",
 			}},
 		},
 		probe:             dialTLS,
 		probeLegacySuites: dialTLSLegacySuites,
-		now:               time.Now,
-		verify:            verifyChain,
+		probeSuites: func(ctx context.Context, addr, serverName string, maxVer uint16, suites []uint16) (tls.ConnectionState, error) {
+			return dialTLSWith(ctx, addr, serverName, tls.VersionTLS10, maxVer, suites)
+		},
+		now:    time.Now,
+		verify: verifyChain,
 	}
 }
 
@@ -199,7 +207,10 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 				keep(suiteState)
 				switch {
 				case suiteErr == nil:
-					return report([]sarif.Result{legacyCipherFinding(host.URL, suiteState.CipherSuite)}), nil
+					// The baseline offered TLS 1.3 with the only suites TLS 1.3 has, and was refused, so
+					// the server does not speak it; no further handshake is needed to say so.
+					found := []sarif.Result{legacyCipherFinding(host.URL, suiteState.CipherSuite), noTLS13Finding(host.URL)}
+					return report(append(found, s.familyFindings(ctx, addr, serverName, host.URL, false)...)), nil
 				case refusedSuites(suiteErr) && chain == nil:
 					return sarif.Report{Tool: s.info.Name, Results: []sarif.Result{noSharedCipherFinding(host.URL)}}, nil
 				}
@@ -252,21 +263,95 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 		}
 	}
 
+	// Weak suite families the server accepts beside current ones. A current client never picks
+	// them, and an old client, or one an attacker has pushed down, does. A server that took a TLS
+	// 1.0 or 1.1 handshake is asked again there when TLS 1.2 fails, since a TLS 1.2 handshake can be
+	// refused for the certificate's signature whatever the suites.
+	acceptedOld := slices.ContainsFunc(results, func(r sarif.Result) bool {
+		return r.RuleID == "tls-deprecated-protocol" || r.RuleID == "tls-modern-unsupported"
+	}) || modernRefusedOnSignature
+	results = append(results, s.familyFindings(ctx, addr, serverName, host.URL, acceptedOld)...)
+
 	// TLS 1.3 support is a positive signal; note (not a failure) when it's absent.
 	if _, err := s.probe(ctx, addr, serverName, tls.VersionTLS13, tls.VersionTLS13); err != nil {
-		results = append(results, sarif.Result{
-			Tool:     s.info.Name,
-			RuleID:   "tls-no-tls13",
-			Level:    sarif.LevelNote,
-			Score:    2.0,
-			HasScore: true,
-			Message: "TLS 1.3 is not accepted. It is faster and removes legacy weaknesses, " +
-				"enable it alongside TLS 1.2.",
-			Location: sarif.Location{URI: host.URL},
-		})
+		results = append(results, noTLS13Finding(host.URL))
 	}
 
 	return report(results), nil
+}
+
+// suiteFamily is a kind of cipher suite a server should no longer accept, asked about by offering
+// only the suites of that kind. Each is its own rule, so a team that must keep one for an old
+// client excludes that one and keeps the rest.
+type suiteFamily struct {
+	rule  string
+	level sarif.Level
+	score float64
+	match func(name string) bool
+	why   string
+}
+
+var suiteFamilies = []suiteFamily{
+	{"tls-cipher-rc4", sarif.LevelError, 7.0, func(n string) bool { return strings.Contains(n, "_RC4_") },
+		"RC4 has practical attacks that recover plaintext, and RFC 7465 prohibits it"},
+	{"tls-cipher-3des", sarif.LevelWarning, 5.5, func(n string) bool { return strings.Contains(n, "_3DES_") },
+		"3DES has a 64-bit block, open to the Sweet32 collision attack on long connections"},
+	{"tls-cipher-static-rsa", sarif.LevelWarning, 4.5, func(n string) bool { return strings.HasPrefix(n, "TLS_RSA_") },
+		"RSA key exchange has no forward secrecy, so anyone who later obtains the server's key can decrypt recorded traffic"},
+	{"tls-cipher-cbc", sarif.LevelNote, 3.0, func(n string) bool { return strings.Contains(n, "_CBC_") && !strings.Contains(n, "_3DES_") },
+		"CBC suites have a history of padding-oracle and timing attacks (Lucky13), and current guidance offers only AEAD suites"},
+}
+
+// noTLS13Finding notes that the server does not accept TLS 1.3.
+func noTLS13Finding(uri string) sarif.Result {
+	return sarif.Result{
+		Tool:     "draugr-tls",
+		RuleID:   "tls-no-tls13",
+		Level:    sarif.LevelNote,
+		Score:    2.0,
+		HasScore: true,
+		Message: "TLS 1.3 is not accepted. It is faster and removes legacy weaknesses, " +
+			"enable it alongside TLS 1.2.",
+		Location: sarif.Location{URI: uri},
+	}
+}
+
+// familyFindings asks the server about each weak suite family, offering only that family's suites
+// up to TLS 1.2, and again up to TLS 1.1 when retryOld is set and the first handshake failed.
+func (s draugrTLSScanner) familyFindings(ctx context.Context, addr, serverName, uri string, retryOld bool) []sarif.Result {
+	var out []sarif.Result
+	for _, f := range suiteFamilies {
+		state, err := s.probeSuites(ctx, addr, serverName, tls.VersionTLS12, f.suites())
+		if err != nil && retryOld {
+			state, err = s.probeSuites(ctx, addr, serverName, tls.VersionTLS11, f.suites())
+		}
+		if err == nil {
+			out = append(out, f.finding(uri, state.CipherSuite))
+		}
+	}
+	return out
+}
+
+// suites lists every suite Go implements that belongs to the family.
+func (f suiteFamily) suites() []uint16 {
+	var out []uint16
+	for _, list := range [][]*tls.CipherSuite{tls.CipherSuites(), tls.InsecureCipherSuites()} {
+		for _, cs := range list {
+			if f.match(cs.Name) {
+				out = append(out, cs.ID)
+			}
+		}
+	}
+	return out
+}
+
+func (f suiteFamily) finding(uri string, negotiated uint16) sarif.Result {
+	return sarif.Result{
+		Tool: "draugr-tls", RuleID: f.rule, Level: f.level, Score: f.score, HasScore: true,
+		Message: fmt.Sprintf("The server accepts %s, offered alone. %s. Remove it from the server's suites.",
+			tls.CipherSuiteName(negotiated), f.why),
+		Location: sarif.Location{URI: uri},
+	}
 }
 
 // chainFindings judges the chain a handshake received, apart from the handshake: whether it

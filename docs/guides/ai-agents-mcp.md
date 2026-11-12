@@ -267,7 +267,7 @@ Draugr wants to scan app.saga.yaml.
 Controls: dast, tls, over 1 component.
 
 These do more than read:
-  draugr-tls (network): opens TLS connections to the endpoint, one handshake per protocol version tested, plus one offering insecure cipher suites if the endpoint refuses the current ones
+  draugr-tls (network): opens TLS connections to the endpoint, one handshake per protocol version tested, one per weak cipher-suite family (RC4, 3DES, RSA key exchange, CBC), plus one offering insecure cipher suites if the endpoint refuses the current ones
   nuclei (network): sends probe traffic to the endpoint, which is lawful only against systems you own or have written permission to test
 
 This sends traffic to a live service you have declared: draugr-tls, nuclei. Only approve it for a host you are authorized to probe.
@@ -289,7 +289,7 @@ command that runs it outside the assistant:
 
 ```
 scan needs your approval, but this client can't prompt for it (no elicitation support). This scan does more than read a local copy:
-  draugr-tls (network): opens TLS connections to the endpoint, one handshake per protocol version tested, plus one offering insecure cipher suites if the endpoint refuses the current ones
+  draugr-tls (network): opens TLS connections to the endpoint, one handshake per protocol version tested, one per weak cipher-suite family (RC4, 3DES, RSA key exchange, CBC), plus one offering insecure cipher suites if the endpoint refuses the current ones
   nuclei (network): sends probe traffic to the endpoint, which is lawful only against systems you own or have written permission to test
 Run it outside the assistant with `draugr scan app.saga.yaml`.
 ```

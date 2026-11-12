@@ -10,7 +10,7 @@ order: 30
 - **Control:** [`tls`](../controllers/tls.md)
 - **Tool:** none, implemented natively in Go (`crypto/tls`, `crypto/x509`)
 - **Target:** host (`hosts:` entries with an `https://` URL)
-- **Effects:** `network` (opens TLS connections to the endpoint, one handshake per protocol version tested, plus one offering insecure cipher suites if the endpoint refuses the current ones)
+- **Effects:** `network` (opens TLS connections to the endpoint, one handshake per protocol version tested, one per weak cipher-suite family (RC4, 3DES, RSA key exchange, CBC), plus one offering insecure cipher suites if the endpoint refuses the current ones)
 - **Status:** ✅ implemented
 
 ## What it does
@@ -32,6 +32,13 @@ current client's TLS 1.2 handshake while speaking TLS 1.2 to others, because the
 signature scheme for that certificate; the signature finding then says so, in place of
 `tls-modern-unsupported`.
 
+Each weak cipher-suite family is asked about on every endpoint, with a handshake offering only that
+family's suites, so a server that accepts RC4 beside current suites is reported though no current
+client would pick it. An endpoint that accepts only old suites is asked too, and one that took a
+TLS 1.0 or 1.1 handshake is asked again up to TLS 1.1 when the TLS 1.2 one fails, since a TLS 1.2
+handshake can fail on the certificate's signature whatever the suites. Each family is its own rule,
+so an endpoint that must keep one for an old client excludes that rule and keeps the others.
+
 | Rule | Level | What it means |
 |------|-------|---------------|
 | `tls-cert-expired` | error (9.0) | The certificate has expired (or isn't yet valid). Clients will refuse to connect. |
@@ -46,6 +53,10 @@ signature scheme for that certificate; the signature finding then says so, in pl
 | `tls-modern-unsupported` | error (8.5) | The endpoint refuses a TLS 1.2+ handshake from a current client and accepts a deprecated version. |
 | `tls-legacy-cipher-only` | error (8.0 / 7.5 / 7.0 / 6.5) | The endpoint accepts none of the cipher suites a current client offers. The message names the suite it chose from the older ones offered and the problem with it: RC4, 3DES, CBC with a SHA-256 MAC, or RSA key exchange. |
 | `tls-no-shared-cipher` | error (7.0) | The endpoint refuses every cipher suite Draugr can offer, insecure ones included. It likely accepts only others, such as finite-field Diffie-Hellman (DHE), NULL or export suites, or only SSL 3.0. |
+| `tls-cipher-rc4` | error (7.0) | The endpoint accepts an RC4 suite offered alone, beside whatever else it accepts. |
+| `tls-cipher-3des` | warning (5.5) | It accepts a 3DES suite, open to Sweet32 on long connections. |
+| `tls-cipher-static-rsa` | warning (4.5) | It accepts RSA key exchange, which has no forward secrecy. |
+| `tls-cipher-cbc` | note (3.0) | It accepts a CBC suite. Current guidance offers only AEAD suites (GCM, ChaCha20). |
 | `tls-deprecated-protocol` | error (7.0 / 6.5) | TLS 1.0 or TLS 1.1 is still accepted (deprecated by RFC 8996). |
 | `tls-no-tls13` | note (2.0) | TLS 1.3 isn't offered, a nudge, not a failure. |
 
