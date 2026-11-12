@@ -212,3 +212,75 @@ func TestEveryDisclosingScannerNamesItsHost(t *testing.T) {
 		}
 	}
 }
+
+// The cloud control's scanner serves three clouds, and each contacts its own hosts. A descriptor
+// gets the hosts of the clouds its components run in and no other's, so an allowlist built from
+// the list is as narrow as the scan. One descriptor on Azure alone, one on AWS and Google Cloud.
+func TestDoctorListsOnlyTheDeclaredCloudsHosts(t *testing.T) {
+	azureHosts := []string{"login.microsoftonline.com", "management.azure.com", "graph.microsoft.com", "*.vault.azure.net", "api.loganalytics.io"}
+	awsHosts := []string{"ip-ranges.amazonaws.com", "*.s3.<region>.amazonaws.com", "gitlab.com"}
+	for name, tc := range map[string]struct {
+		accounts, uses string
+		want, not      []string
+	}{
+		"azure alone": {
+			accounts: `  console-prod:
+    provider: azure
+    subscription: 00000000-0000-0000-0000-000000000000
+`,
+			uses: `    cloud:
+      - account: console-prod
+`,
+			want: azureHosts, not: awsHosts,
+		},
+		"aws and google cloud": {
+			accounts: `  web-prod:
+    provider: aws
+    account: "123456789012"
+  data-prod:
+    provider: gcp
+    project: acme-data-prod
+  unused:
+    provider: azure
+    subscription: 00000000-0000-0000-0000-000000000000
+`,
+			uses: `    cloud:
+      - account: web-prod
+  - name: etl
+    cloud:
+      - account: data-prod
+`,
+			want: awsHosts, not: azureHosts,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			model, err := saga.LoadFile(writeSaga(t, `project: app
+release:
+  version: "1.0"
+config:
+  controls:
+    cloud:
+      enabled: true
+accounts:
+`+tc.accounts+`components:
+  - name: web
+`+tc.uses))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var buf bytes.Buffer
+			writeNetworkCalls(&buf, builtins.Registry(), model)
+			got := buf.String()
+			for _, h := range tc.want {
+				if !strings.Contains(got, h) {
+					t.Errorf("%s is missing, and this scan contacts it:\n%s", h, got)
+				}
+			}
+			for _, h := range tc.not {
+				if strings.Contains(got, h) {
+					t.Errorf("%s listed, and this scan would not contact it:\n%s", h, got)
+				}
+			}
+		})
+	}
+}

@@ -65,6 +65,11 @@ type DataSource struct {
 	// The difference between a scanner that works behind an allowlist and one that also works
 	// without a network, which is the question an operator is actually asking.
 	PerScan bool
+	// Providers names the clouds whose scans contact Hosts, spelled as a descriptor's `provider:`
+	// is: "gcp", "aws", "azure". Empty for data a scan reads whatever it checks. A scanner that
+	// serves several clouds declares it, so an allowlist built for one cloud's scan is not widened
+	// by another cloud's hosts.
+	Providers []string
 }
 
 // CacheVersioner is an optional interface a Scanner may implement to say what version of the tool

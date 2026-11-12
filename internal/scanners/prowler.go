@@ -158,53 +158,61 @@ type prowlerScanner struct {
 // run and has nothing of them to warm.
 var prowlerData = []plugin.DataSource{
 	{
-		Name:    "Azure sign-in",
-		Hosts:   []string{"login.microsoftonline.com"},
-		PerScan: true,
+		Name:      "Azure sign-in",
+		Hosts:     []string{"login.microsoftonline.com"},
+		PerScan:   true,
+		Providers: []string{"azure"},
 	},
 	{
-		Name:    "Azure Resource Manager",
-		Hosts:   []string{"management.azure.com"},
-		PerScan: true,
+		Name:      "Azure Resource Manager",
+		Hosts:     []string{"management.azure.com"},
+		PerScan:   true,
+		Providers: []string{"azure"},
 	},
 	{
 		// Prowler's Azure provider reads the tenant's default domain from Graph when it starts, whichever
 		// services run. The Entra checks, which would read the directory itself, do not run.
-		Name:    "Microsoft Graph, for the tenant's domain",
-		Hosts:   []string{"graph.microsoft.com"},
-		PerScan: true,
+		Name:      "Microsoft Graph, for the tenant's domain",
+		Hosts:     []string{"graph.microsoft.com"},
+		PerScan:   true,
+		Providers: []string{"azure"},
 	},
 	{
 		// keyvault_key_rotation_enabled reads each key's rotation policy from the vault itself.
-		Name:    "Azure Key Vault data plane",
-		Hosts:   []string{"*.vault.azure.net"},
-		PerScan: true,
+		Name:      "Azure Key Vault data plane",
+		Hosts:     []string{"*.vault.azure.net"},
+		PerScan:   true,
+		Providers: []string{"azure"},
 	},
 	{
 		// The Log Analytics client is imported by checks outside cis_6.0_azure.
-		Name:    "Azure Log Analytics, outside the CIS checks",
-		Hosts:   []string{"api.loganalytics.io"},
-		PerScan: true,
+		Name:      "Azure Log Analytics, outside the CIS checks",
+		Hosts:     []string{"api.loganalytics.io"},
+		PerScan:   true,
+		Providers: []string{"azure"},
 	},
 	{
 		// codepipeline_project_repo_private asks, without credentials, whether a pipeline's source
 		// repository answers to anybody.
-		Name:    "AWS CodePipeline source repositories, outside the CIS checks",
-		Hosts:   []string{"github.com", "gitlab.com"},
-		PerScan: true,
+		Name:      "AWS CodePipeline source repositories, outside the CIS checks",
+		Hosts:     []string{"github.com", "gitlab.com"},
+		PerScan:   true,
+		Providers: []string{"aws"},
 	},
 	{
 		// route53_dangling_ip_subdomain_takeover compares records with the addresses AWS owns.
-		Name:    "AWS IP address ranges, outside the CIS checks",
-		Hosts:   []string{"ip-ranges.amazonaws.com"},
-		PerScan: true,
+		Name:      "AWS IP address ranges, outside the CIS checks",
+		Hosts:     []string{"ip-ranges.amazonaws.com"},
+		PerScan:   true,
+		Providers: []string{"aws"},
 	},
 	{
 		// The Lambda and ECR checks that read code or image layers follow the presigned link the API
 		// returns, to a bucket AWS runs in the function's or repository's region.
-		Name:    "AWS Lambda code and ECR image layers, outside the CIS checks",
-		Hosts:   []string{"*.s3.<region>.amazonaws.com"},
-		PerScan: true,
+		Name:      "AWS Lambda code and ECR image layers, outside the CIS checks",
+		Hosts:     []string{"*.s3.<region>.amazonaws.com"},
+		PerScan:   true,
+		Providers: []string{"aws"},
 	},
 }
 

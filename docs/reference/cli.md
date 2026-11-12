@@ -1661,8 +1661,9 @@ project your token cannot reach, and one you hold no role in, each named in the 
 
 Doctor lists every host a scan contacts besides its targets, per control: the reference data each
 scanner fetches, and the third party a disclosing scanner tells about a target. Given a descriptor,
-the list holds only the scanners that scan runs, which makes it the egress allowlist for that
-runner. Without one, it holds every control.
+the list holds only the scanners that scan runs, and for the `cloud` control only the hosts of the
+clouds its components' accounts are in, which makes it the egress allowlist for that runner. Without
+one, it holds every control and every cloud.
 
 ```console
 $ draugr doctor draugr.saga.yaml
