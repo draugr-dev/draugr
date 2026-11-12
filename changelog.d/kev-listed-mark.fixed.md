@@ -1,0 +1,1 @@
+- **A finding on CISA's KEV catalog that was critical already is marked `KEV listed`, beside the `↑ KEV` of one the catalog raised, and comes first in its band in the findings list.** Its row carried no mark, and at the default `--top` the catalog's findings could be cut while SIGNALS counted them.

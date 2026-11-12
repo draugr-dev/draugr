@@ -1074,6 +1074,12 @@ func sortFindings(fs []finding) {
 		if ao, bo := actionableRank(a), actionableRank(b); ao != bo {
 			return ao > bo
 		}
+		// Then what is being exploited, as the fix list ranks its actions: a finding on KEV before one
+		// EPSS scored, before neither. A critical on KEV is not raised, so its severity does not set it
+		// apart from the critical beside it, and the catalog listing it is the reason to fix it first.
+		if xa, xb := exploitationSignal(a), exploitationSignal(b); xa != xb {
+			return xa > xb
+		}
 		// Severity before the number behind it. Not every scanner publishes a score, and ordering
 		// on the number alone sinks a critical nothing scored below every high that was, which on
 		// a list headed "fix first" is the one place that cannot be wrong. The rating the band was

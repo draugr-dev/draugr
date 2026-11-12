@@ -146,6 +146,7 @@ defined in [Signals](prioritization.md#signals), with what it moves and the key 
 | mark | means |
 |---|---|
 | `↑ KEV` | the CVE is on CISA's Known Exploited Vulnerabilities catalog |
+| `KEV listed` | the CVE is on the catalog, and the finding was critical already, so nothing moved |
 | `↑ EPSS 0.62` | the EPSS score, printed to two places, is at or above `epssThreshold`, default 0.5 |
 | `↑ malicious` | the package is in the OSSF Malicious Packages Project |
 | `↑ deprecated` | the publisher marked the version deprecated |
