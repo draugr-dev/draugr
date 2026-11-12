@@ -207,7 +207,9 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 				keep(suiteState)
 				switch {
 				case suiteErr == nil:
-					found := []sarif.Result{legacyCipherFinding(host.URL, suiteState.CipherSuite)}
+					// The baseline offered TLS 1.3 with the only suites TLS 1.3 has, and was refused, so
+					// the server does not speak it; no further handshake is needed to say so.
+					found := []sarif.Result{legacyCipherFinding(host.URL, suiteState.CipherSuite), noTLS13Finding(host.URL)}
 					return report(append(found, s.familyFindings(ctx, addr, serverName, host.URL, false)...)), nil
 				case refusedSuites(suiteErr) && chain == nil:
 					return sarif.Report{Tool: s.info.Name, Results: []sarif.Result{noSharedCipherFinding(host.URL)}}, nil
@@ -272,16 +274,7 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 
 	// TLS 1.3 support is a positive signal; note (not a failure) when it's absent.
 	if _, err := s.probe(ctx, addr, serverName, tls.VersionTLS13, tls.VersionTLS13); err != nil {
-		results = append(results, sarif.Result{
-			Tool:     s.info.Name,
-			RuleID:   "tls-no-tls13",
-			Level:    sarif.LevelNote,
-			Score:    2.0,
-			HasScore: true,
-			Message: "TLS 1.3 is not accepted. It is faster and removes legacy weaknesses, " +
-				"enable it alongside TLS 1.2.",
-			Location: sarif.Location{URI: host.URL},
-		})
+		results = append(results, noTLS13Finding(host.URL))
 	}
 
 	return report(results), nil
@@ -307,6 +300,20 @@ var suiteFamilies = []suiteFamily{
 		"RSA key exchange has no forward secrecy, so anyone who later obtains the server's key can decrypt recorded traffic"},
 	{"tls-cipher-cbc", sarif.LevelNote, 3.0, func(n string) bool { return strings.Contains(n, "_CBC_") && !strings.Contains(n, "_3DES_") },
 		"CBC suites have a history of padding-oracle and timing attacks (Lucky13), and current guidance offers only AEAD suites"},
+}
+
+// noTLS13Finding notes that the server does not accept TLS 1.3.
+func noTLS13Finding(uri string) sarif.Result {
+	return sarif.Result{
+		Tool:     "draugr-tls",
+		RuleID:   "tls-no-tls13",
+		Level:    sarif.LevelNote,
+		Score:    2.0,
+		HasScore: true,
+		Message: "TLS 1.3 is not accepted. It is faster and removes legacy weaknesses, " +
+			"enable it alongside TLS 1.2.",
+		Location: sarif.Location{URI: uri},
+	}
 }
 
 // familyFindings asks the server about each weak suite family, offering only that family's suites

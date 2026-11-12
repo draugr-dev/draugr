@@ -249,7 +249,7 @@ func TestAServerAcceptingOnlyOldSuitesIsAskedAboutEachFamily(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"tls-legacy-cipher-only", "tls-cipher-static-rsa", "tls-cipher-cbc"} {
+	for _, want := range []string{"tls-legacy-cipher-only", "tls-cipher-static-rsa", "tls-cipher-cbc", "tls-no-tls13"} {
 		if !hasRule(rep, want) {
 			t.Errorf("want %s, got %v", want, ruleIDs(rep))
 		}
