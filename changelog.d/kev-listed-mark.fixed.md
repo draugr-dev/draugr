@@ -1,1 +1,0 @@
-- **A finding on CISA's KEV catalog that was critical already is marked `KEV listed`, as one the catalog raised is marked `↑ KEV`.** The findings list now ranks KEV findings first in their band, then EPSS-raised ones, so at the default `--top` the catalog's findings are no longer cut.

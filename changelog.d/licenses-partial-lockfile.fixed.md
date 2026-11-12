@@ -1,1 +1,0 @@
-- **`licenses` marks a dependency file unread when any package in it has no license.** A `package-lock.json` where npm left the `license` field out of some entries counted as read, so a copyleft package among them passed unchecked. Caveats list the file with a reason such as `records no license for 1 package`.

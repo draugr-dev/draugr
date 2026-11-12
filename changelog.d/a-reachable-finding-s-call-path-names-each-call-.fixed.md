@@ -1,1 +1,0 @@
-- **A reachable finding's call path names each call by its package and receiver**, as in `gzhttp.GzipResponseWriter.FlushError → http.Header.Get`, so two methods of one name no longer print as `Close → Close`. Between paths of equal length the report picks the same one on every run.

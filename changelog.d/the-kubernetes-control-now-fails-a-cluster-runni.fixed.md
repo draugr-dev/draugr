@@ -1,1 +1,0 @@
-- **The `kubernetes` control now fails a cluster running privileged pods, host namespaces, hostPath volumes or host ports, or one with a binding to `cluster-admin`.** These checks were medium and are now high. Objects the distribution installed are listed after yours, and a check only they fail is low.

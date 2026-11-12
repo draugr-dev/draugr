@@ -1,1 +1,0 @@
-- **Two findings of one rule at lines that read alike in one file no longer share a content fingerprint.** In line order the second carries `:2` after it and the third `:3`, so a tool that identifies findings by that fingerprint keeps each one. The first keeps the value it had.

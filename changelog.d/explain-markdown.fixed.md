@@ -1,1 +1,0 @@
-- **`draugr explain` shows a rule's description without its Markdown.** Prowler's recommendations printed `**bold**` and backticks as they are stored; the terminal now shows bold text, plain code and a link as its text and address.

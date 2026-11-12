@@ -1,1 +1,0 @@
-- **report.json says which actions `--view actions` lists on one row.** Each action for a single line that shares a row with others carries `row`, the `id` of the row's first action, so a script can list one rule across hundreds of lines as one thing to do.

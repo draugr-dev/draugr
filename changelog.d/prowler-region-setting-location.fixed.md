@@ -1,1 +1,0 @@
-- **A Prowler finding about a region's setting is located at the account and region, such as `aws/123456789012/us-east-1`.** Security Hub, EBS encryption by default, a Config recorder and a multi-region trail named an ARN template, such as `…:hub/unknown`, that matches no resource. Such findings read as new once.

@@ -1,1 +1,0 @@
-- **`draugr diff --view actions` prints one row for the lines of code that take the same instruction**, as `draugr scan --view actions` does, in the console and the pull-request comment. A change that triggers one rule on 361 lines now shows one row naming the files and lines, where it showed 361.

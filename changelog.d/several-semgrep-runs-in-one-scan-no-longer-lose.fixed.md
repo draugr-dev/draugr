@@ -1,1 +1,0 @@
-- **Several Semgrep runs in one scan no longer lose findings to each other.** Each run going at the same time takes a share of the CPUs instead of all of them, so none cuts its analysis short because the others are running. A run alone keeps Semgrep's default.

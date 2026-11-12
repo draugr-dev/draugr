@@ -1,1 +1,0 @@
-- **A failed cloud check names the change to make.** A Prowler row is titled with the instruction, such as `Turn on EBS encryption by default in the region`, over Prowler's sentence about the failed resource, with the check ID on its own line. It was `Fix ec2_ebs_default_encryption` over "EBS default encryption is enabled", which read as a pass.
