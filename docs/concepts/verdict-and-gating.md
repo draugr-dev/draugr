@@ -324,8 +324,9 @@ not change; the consequence of it did, and it is the reason `platform` passes a 
 fails.
 
 Every block above answers in bands, which is what the gate is set in and what the fix list is
-ordered by. What a scanner called a flaw is on the finding's own row, where the judgment about it
-was made.
+ordered by. Within a band, a finding on KEV comes first, then one EPSS raised, then the rest, which
+is why a `high` marked `↑ EPSS` sits above a `critical` with no mark. What a scanner called a flaw is
+on the finding's own row, where the judgment about it was made.
 
 ## Observability & security posture
 
