@@ -749,7 +749,7 @@ func notesFor(col tui.Painter, f finding) []string {
 	// with is readable without reading a row. The same placement, and the same reason, as the
 	// dashboard's.
 	if m := movedBy(f); m != nil {
-		text := m.glyph + " " + m.label
+		text := strings.TrimSpace(m.glyph + " " + m.label)
 		fixed = append(fixed, notePart{plain: text, painted: col.Paint(m.style, text)})
 	}
 	fixed = append(fixed, reasoning(col, f)...)
@@ -1009,6 +1009,7 @@ const (
 	moveUnreachable = "unreachable"
 	moveMinimum     = "minimum"
 	moveHistory     = "history"
+	moveListed      = "listed"
 	moveUntouched   = "untouched"
 )
 
@@ -1029,6 +1030,12 @@ func marks(f finding) []movement {
 	lowered := loweredAsUnreachable(f)
 	if e := f.escalation; e != nil && !lowered {
 		out = append(out, movement{key: moveEscalation, glyph: "↑", label: signalLabel(e), style: signalColor(e.Signal)})
+	}
+	// On the catalog and not raised by it, being critical already. Not a movement, the band is where
+	// the severity put it, and marked because the catalog is still the reason to fix it first. In the
+	// catalog's own words, beside the `↑ KEV` of a finding it did raise.
+	if f.escalation == nil && f.exploited != nil && f.exploited.Signal == exploit.SignalKEV && !lowered {
+		out = append(out, movement{key: moveListed, label: "KEV listed", style: signalColor(exploit.SignalKEV)})
 	}
 	// A control that declares its findings are not bounded by where the component sits.
 	if f.priorityFloor != "" {
@@ -1078,7 +1085,7 @@ func movedBy(f finding) *movement {
 func movements(f finding) []string {
 	out := []string{}
 	for _, mv := range marks(f) {
-		if mv.key != moveHistory {
+		if mv.key != moveHistory && mv.key != moveListed {
 			out = append(out, mv.key)
 		}
 	}

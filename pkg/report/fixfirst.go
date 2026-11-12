@@ -96,7 +96,7 @@ func writeBlockHead(w io.Writer, col tui.Painter, f finding, width int) {
 func writeBlockFacts(w io.Writer, col tui.Painter, f finding, width int, withComponent, withRepository bool) {
 	var parts []string
 	if m := movedBy(f); m != nil {
-		parts = append(parts, col.Paint(m.style, m.glyph+" "+m.label))
+		parts = append(parts, col.Paint(m.style, strings.TrimSpace(m.glyph+" "+m.label)))
 	}
 	label := func(name, value string) string {
 		return col.Paint(cDim, name) + " " + value

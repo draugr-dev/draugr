@@ -228,17 +228,17 @@ terminal (verdict, priorities, severities) and honors `NO_COLOR`.
 A worked example:
 
 ```text
-DRAUGR  FAIL  draugr-demo 1.0  9.635s
+DRAUGR  FAIL  draugr-demo 1.0  9.522s
 
- 231 P1 661 P2 246 P3 18 P4
+ 271 P1 690 P2 260 P3 18 P4
 
 CONTROLS
   iac         FAIL   4 P1 5 P2 15 P3 16 P4
-  images      FAIL   191 P1 285 P2 47 P3
+  images      FAIL   231 P1 313 P2 61 P3
   licenses    FAIL   353 P2 178 P3 · 2 files unread
   provenance  pass   no findings
   sast        FAIL   9 P1 6 P2 6 P3 2 P4
-  sca         FAIL   26 P1 12 P2
+  sca         FAIL   26 P1 13 P2
   secrets     FAIL   1 P1
 
 MEASURED AGAINST
@@ -246,9 +246,9 @@ MEASURED AGAINST
               pinning: none, all by tag
   sast        sarif-import · tool: Bandit 1.9.4 · file: reports/bandit.sarif · written:
               2026-10-11 04:57 UTC · severity: issue_severity and issue_confidence · commit:
-              not stated · component: api · sha256:…
-  sca         govulncheck v1.9.0;db@2026-11-05 23:49:57 · database: local copy, fetched
-              2026-11-08
+              not stated · component: api · sha256: 989dfee1ddac26aab9d76c86197c84eb29af9d5a3…
+  sca         govulncheck v1.9.0;db@2026-11-11 02:51:11 · database: local copy, fetched
+              2026-11-11
 
 CAVEATS  2 fail the run · config.gate.failOnCaveats: unread-files
   ✗ unread-files · licenses · api
@@ -259,7 +259,7 @@ CAVEATS  2 fail the run · config.gate.failOnCaveats: unread-files
       reports/bandit.sarif  names no commit, so nothing ties its findings to this code
 
 COMPONENTS
-  api         ERROR  223 P1 660 P2 243 P3
+  api         ERROR  263 P1 689 P2 257 P3
   storefront  ERROR  8 P1 1 P2
   platform    pass   3 P3 18 P4
 
@@ -269,35 +269,51 @@ SIGNALS
   malicious     nothing raised
   deprecated    12 findings raised
   floor         nothing raised
-  reachability  govulncheck · 2 reachable, 3 unreachable
+  reachability  govulncheck · 3 reachable, 3 unreachable (1 finding only it reported)
 
 ACCEPTED
   config.exclude  1 finding suppressed
   VEX             1 finding excused
 
-FIX FIRST  top 10 of 1156, by priority
+FIX FIRST  top 10 of 1239, by priority
+  P1  critical  CVE-2020-11023 · Untrusted code execution via <option> tag in HTML passed to DOM…
+      ↑ KEV · component storefront · scanner trivy · jquery 1.8.3 → 3.5.0
+      web/package-lock.json:12 · and 1 more · also found by retirejs
+
+  P1  critical  CVE-2020-11023 · passing HTML containing <option> elements from untrusted sources…
+      ↑ KEV · component api · scanner retirejs · jquery 1.8.3 → 3.5.0
+      app/static/js/jquery.min.js
+
+  P1  high      CVE-2019-11358 · Prototype pollution in object's prototype leading to denial of…
+      ↑ EPSS 0.87 · component storefront · scanner trivy · jquery 1.8.3 → 3.4.0
+      web/package-lock.json:12 · and 1 more · also found by retirejs
+
+  P1  high      CVE-2019-11358 · jQuery before 3.4.0, as used in Drupal, Backdrop CMS, and other…
+      ↑ EPSS 0.87 · component api · scanner retirejs · jquery 1.8.3 → 3.4.0
+      app/static/js/jquery.min.js
+
   P1  critical  CVE-2025-15467 · OpenSSL: Remote code execution or Denial of Service via…
-      scanner trivy · libssl3 3.0.14-1~deb12u2 → 3.0.18-1~deb12u2
+      component api · scanner trivy · libssl3 3.0.14-1~deb12u2 → 3.0.18-1~deb12u2
       python:3.8-slim
 
   P1  critical  CVE-2025-15467 · Remote code execution or Denial of Service via oversized…
-      scanner trivy · openssl 3.0.14-1~deb12u2 → 3.0.18-1~deb12u2
+      component api · scanner trivy · openssl 3.0.14-1~deb12u2 → 3.0.18-1~deb12u2
       python:3.8-slim
 
   P1  critical  CVE-2025-6965 · sqlite: Integer Truncation in SQLite
-      scanner trivy · libsqlite3-0 3.40.1-2 → 3.40.1-2+deb12u2
+      component api · scanner trivy · libsqlite3-0 3.40.1-2 → 3.40.1-2+deb12u2
       python:3.8-slim
 
-  P1  critical  CVE-2026-31789 · OpenSSL: Heap buffer overflow on 32-bit systems from large…
-      scanner trivy · libssl3 3.0.14-1~deb12u2 → 3.0.19-1~deb12u2
+  P1  critical  CVE-2026-31789 · OpenSSL: Heap buffer overflow on 32-bit systems from large X.509…
+      component api · scanner trivy · libssl3 3.0.14-1~deb12u2 → 3.0.19-1~deb12u2
       python:3.8-slim
 
   P1  critical  CVE-2026-31789 · Heap buffer overflow on 32-bit systems from large X.509…
-      scanner trivy · openssl 3.0.14-1~deb12u2 → 3.0.19-1~deb12u2
+      component api · scanner trivy · openssl 3.0.14-1~deb12u2 → 3.0.19-1~deb12u2
       python:3.8-slim
 
   P1  critical  CVE-2026-42010 · gnutls: Authentication Bypass via NUL Character in Username
-      scanner trivy · libgnutls30 3.7.9-2+deb12u3 → 3.7.9-2+deb12u7
+      component api · scanner trivy · libgnutls30 3.7.9-2+deb12u3 → 3.7.9-2+deb12u7
       python:3.8-slim
 ```
 
@@ -308,8 +324,9 @@ not change; the consequence of it did, and it is the reason `platform` passes a 
 fails.
 
 Every block above answers in bands, which is what the gate is set in and what the fix list is
-ordered by. What a scanner called a flaw is on the finding's own row, where the judgment about it
-was made.
+ordered by. Within a band, a finding on KEV comes first, then one EPSS raised, then the rest, which
+is why a `high` marked `↑ EPSS` sits above a `critical` with no mark. What a scanner called a flaw is
+on the finding's own row, where the judgment about it was made.
 
 ## Observability & security posture
 

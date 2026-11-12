@@ -140,7 +140,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		// and the mark that moved it, in the words the console uses.
 		sev := string(rankedSeverity(f))
 		if m := movedBy(f); m != nil {
-			sev += " " + m.glyph + " " + m.label
+			sev += " " + strings.TrimSpace(m.glyph+" "+m.label)
 		}
 		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %s |%s %s | %s | %s |\n",
 			dash(f.priority), sev, ruleLink(f), f.tool, component, labeledWhere(f, whereShown(f.location)),

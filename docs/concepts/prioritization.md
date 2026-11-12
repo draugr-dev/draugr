@@ -164,10 +164,10 @@ How each source decides is on the learn pages: [EPSS & KEV](/learn/epss-and-kev/
 A signal that matches a finding already at critical raises nothing. CVE-2021-44228 scores 10.0 and
 is on KEV; on `ledger` it is already critical and P1 before KEV is read. The listing still counts:
 
-- the finding draws no `↑ KEV` mark, because its band did not move;
+- the finding is marked `KEV listed` rather than `↑ KEV`, because its band did not move;
 - `report.json` and the SARIF record the listing under `exploited`;
 - the `SIGNALS` line counts it as listed and not raised, `2 findings listed · 1 raised`;
-- the action that clears it comes [first in its band](what-to-fix-first.md#how-the-list-is-ordered);
+- it comes first in its band, as a finding and as the [action that clears it](what-to-fix-first.md#how-the-list-is-ordered);
 - it still overrules an unreachable verdict.
 
 EPSS, malicious and deprecated on a finding already at critical record nothing, and `SIGNALS`
