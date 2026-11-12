@@ -1,1 +1,0 @@
-- **A refused effect's remedy is shown whole in the console.** The refusal names `config.allowEffects` and `--allow-effects <kind>` before what each effect does, so a long description no longer cuts the flag off the end.

@@ -1,1 +1,0 @@
-- **Check an Azure subscription with the `cloud` control.** Declare an account with `provider: azure` and a subscription, and the scan runs CIS 6.0 for Azure through Prowler with `Reader` on the subscription. Checks the credentials cannot read are listed as unread, not passed. The Entra checks, which read the whole tenant's directory, are listed as not run.

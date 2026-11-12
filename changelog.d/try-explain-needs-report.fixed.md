@@ -1,1 +1,0 @@
-- **The TRY row offering `draugr explain <rule>` says it needs a run with `-o <dir>` when the scan wrote no report.** `explain` reads the run's report, so the command it suggested failed with "no scan report here".

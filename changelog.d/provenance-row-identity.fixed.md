@@ -1,1 +1,0 @@
-- **A finding for an image signed by an unexpected identity shows the identity on a line of its own, under the keys a GitHub signer takes: `repository … · workflow … · ref …`.** The title line ends with the signer expected, such as `not our-ci`. The row cut the identity a few characters in, and never showed the signer.

@@ -1,1 +1,0 @@
-- **MEASURED AGAINST fits a narrow terminal.** What each control was measured against now wraps within the terminal's width, counting the control names in front of it, and keeps every word. It used to run to 96 columns, and a long row was cut short with an ellipsis.

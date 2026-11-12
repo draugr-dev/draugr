@@ -1,1 +1,0 @@
-- **gosec analyzes every module of a Go workspace that commits `go.work` without a complete `go.work.sum`.** It skipped each package needing a missing checksum, and `sast` passed. A module the go command cannot load now puts `sast` in error with the go command's message.

@@ -1,1 +1,0 @@
-- **`report.json` lists every `not-checked` and `unbound-imports` caveat on every run.** They are in `notChecked[]` and `unboundImports[]` whether or not `gate.failOnCaveats` names them; before, they appeared only in `failedCaveats[]` when the gate failed. The SARIF note for a kind cut at 200 notifications now points to `report.json` for every kind.

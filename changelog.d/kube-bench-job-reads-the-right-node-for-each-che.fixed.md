@@ -1,1 +1,0 @@
-- **`kube-bench-job` reads the right node for each check.** Control-plane checks run on a control-plane node and worker checks on a worker, so every run reads the same nodes. A check that read nothing is an `unread-checks` caveat instead of a failure. The scanning identity needs `list` on `nodes`. k3s and RKE2 nodes mount `/var/lib/rancher`.

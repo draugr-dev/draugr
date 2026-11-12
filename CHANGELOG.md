@@ -12,6 +12,88 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.174.0] - 2026-11-12
+
+### Added
+
+- **Check an Azure subscription with the `cloud` control.** Declare an account with `provider: azure` and a subscription, and the scan runs CIS 6.0 for Azure through Prowler with `Reader` on the subscription. Checks the credentials cannot read are listed as unread, not passed. The Entra checks, which read the whole tenant's directory, are listed as not run.
+
+- **`draugr doctor` says when the `prowler` on `PATH` is not the Prowler release Draugr knows each check's reads from.** A mismatched Prowler can drop a check's result though it ran, or keep one though a read it needs was denied. The line gives the matching `pip install prowler==<release>`.
+
+- **report.json says which actions `--view actions` lists on one row.** Each action for a single line that shares a row with others carries `row`, the `id` of the row's first action, so a script can list one rule across hundreds of lines as one thing to do.
+
+### Changed
+
+- **A `dast` host with `spec` is refused until `config.allowEffects` lists `mutate`.** The scan sends injection payloads into every parameter of the document's operations, a `GET` that changes state included. Add `allowEffects: [mutate]` to `config`, or pass `--allow-effects mutate`. Once it is allowed, the host also runs the default templates at its URL, which a spec scan skipped.
+
+- **A finding in `draugr scan` names its rule id whole**, beside its band, with the message on the line beneath, so the id can be copied into `config.exclude` as printed. An id too wide for the line takes a line of its own.
+
+- **The `kubernetes` control rates privileged pods, host namespaces, hostPath volumes, host ports and bindings to `cluster-admin` high instead of medium**, so a gate that fails on high now fails on them. Objects your distribution installed are listed after yours, and a check only they fail is low.
+
+- **`kube-bench-job` needs `list` on `nodes`, and reads the right node for each check.** Control-plane checks run on a control-plane node and worker checks on a worker, so every run reads the same nodes. A check that read nothing is an `unread-checks` caveat instead of a failure. k3s and RKE2 nodes mount `/var/lib/rancher`.
+
+- **`licenses` marks a dependency file unread when any package in it has no license.** A `package-lock.json` where npm left the `license` field out of some entries counted as read, so a copyleft package among them passed unchecked. The caveat gives a reason such as `records no license for 1 package`. Under `failOnCaveats: [unread-files]` it now fails the run.
+
+### Fixed
+
+- **A `dast` scan that Nuclei stopped partway is reported as an error.** When Nuclei drops the endpoint after too many errors, the control is marked ERROR, keeps the findings made before the drop, and quotes Nuclei's cause.
+
+- **A `dast` scan with `spec` no longer misses injections in operations that declare a JSON response.** Its fuzzing requests now send `Accept: application/json, text/plain, */*`, so an application that chooses its response by `Accept` returns the error message the injection templates match.
+
+- **A failed cloud check names the change to make.** A Prowler row is titled with the instruction, such as `Turn on EBS encryption by default in the region`, over Prowler's sentence about the failed resource, with the check ID on its own line. It was `Fix ec2_ebs_default_encryption` over "EBS default encryption is enabled", which read as a pass.
+
+- **A reachable finding's call path names each call by its package and receiver**, as in `gzhttp.GzipResponseWriter.FlushError → http.Header.Get`, so two methods of one name no longer print as `Close → Close`. Between paths of equal length the report picks the same one on every run.
+
+- **A secrets scan whose history pass is killed keeps what it found.** With `history: true`, a Gitleaks killed during the history pass leaves the checkout's findings reported and the `secrets` control in error, naming the repository and saying findings only in its history were not read. Any tool ended by SIGKILL is reported as killed by SIGKILL.
+
+- **A secrets scan with `history: true` no longer holds a Gitleaks report in memory while Gitleaks writes the next one.** Over a long history Draugr held several reports at once beside Gitleaks, and the scan could be killed for memory with no verdict. It now keeps a short key per finding until the last Gitleaks run ends.
+
+- **A scan cache directory no longer grows with every commit scanned.** The first entry a run writes removes the entries older than `--cache-ttl`. A run with `--cache-read-only` removes nothing.
+
+- **A refused effect's remedy is shown whole in the console.** The refusal names `config.allowEffects` and `--allow-effects <kind>` before what each effect does, so a long description no longer cuts the flag off the end.
+
+- **`draugr diff --view actions` prints one row for the lines of code that take the same instruction**, as `draugr scan --view actions` does, in the console and the pull-request comment. A change that triggers one rule on 361 lines now shows one row naming the files and lines, where it showed 361.
+
+- **`draugr-k8s-policies` no longer reports `kube-bench-job`'s own pod.** The Job's privileged pod ran while the policy checks read the cluster's pods, so a run could list it under privileged containers and host paths. Pods of Jobs the same run created are left out.
+
+- **`draugr explain` shows a rule's description without its Markdown.** Prowler's recommendations printed `**bold**` and backticks as they are stored; the terminal now shows bold text, plain code and a link as its text and address.
+
+- **gosec analyzes every module of a Go workspace that commits `go.work` without a complete `go.work.sum`.** It skipped each package needing a missing checksum, and `sast` passed. A module the go command cannot load now puts `sast` in error with the go command's message.
+
+- **gosec analyzes every package whose path contains `vendor`.** A package in a directory such as `vendorhash/` was skipped without a word, and a module in a directory such as `vendor-api/` read as holding no Go packages. gosec now gets the packages the go command lists, so it no longer reads `testdata/` or directories starting with `.` or `_`.
+
+- **Header findings say which HTTP response they describe.** When an endpoint returns a non-2xx status, a caveat names the status, and the findings for that response are kept.
+
+- **Findings on CISA's Known Exploited Vulnerabilities (KEV) catalog rank first in their band.** One the catalog raised is marked `↑ KEV`, and one that was critical already is now marked `KEV listed`. EPSS-raised findings follow, so at the default `--top` the catalog's findings are no longer cut.
+
+- **`kubeBench` audits a k3s, RKE2, EKS, GKE, AKS or ACK cluster against its provider benchmark when the local kubectl is more than one minor version from the server.** The scan used to stop because kube-bench fell back to `cis-1.6`.
+
+- **Two findings of one rule at lines that read alike in one file no longer share a content fingerprint.** In line order the second carries `:2` after it and the third `:3`, so a tool that identifies findings by that fingerprint keeps each one. The first keeps the value it had.
+
+- **MEASURED AGAINST fits a narrow terminal.** What each control was measured against now wraps within the terminal's width, counting the control names in front of it, and keeps every word. It used to run to 96 columns, and a long row was cut short with an ellipsis.
+
+- **`--view actions` titles image signature findings with what to do, not with the rule name.** An image signed by an unexpected signer reads "Find out what signed the image before running it", and an image no declared signer covers reads "Declare a signer for the image, or accept it unsigned". Both are listed under Decide instead of Change the code.
+
+- **A finding for an image signed by an unexpected identity shows the identity on a line of its own, under the keys a GitHub signer takes: `repository … · workflow … · ref …`.** The title line ends with the signer expected, such as `not our-ci`. The row cut the identity a few characters in, and never showed the signer.
+
+- **A Prowler finding about a region's setting is located at the account and region, such as `aws/123456789012/us-east-1`.** Security Hub, EBS encryption by default, a Config recorder and a multi-region trail named an ARN template, such as `…:hub/unknown`, that matches no resource. Such findings read as new once.
+
+- **`report.json` lists every `not-checked` and `unbound-imports` caveat on every run.** They are in `notChecked[]` and `unboundImports[]` whether or not `gate.failOnCaveats` names them; before, they appeared only in `failedCaveats[]` when the gate failed. The SARIF note for a kind cut at 200 notifications now points to `report.json` for every kind.
+
+- **Several Semgrep runs in one scan no longer lose findings to each other.** Each run going at the same time takes a share of the CPUs instead of all of them, so none cuts its analysis short because the others are running. A run alone keeps Semgrep's default.
+
+- **The Action posts its pull-request comment on a pull request between two branches of a forked repository.** It treated every pull request inside a fork as coming from another repository, so it left the comment off, though the token could post it, and read the cache without writing it.
+
+- **`tls` reports a server that accepts only older cipher suites as a finding, naming the suite it chose and the problem with it.** It printed `ERROR did not run`. A server that refuses those too is reported as accepting no suite Draugr can offer, likely DHE, NULL or export suites.
+
+- **Canceling a scan ends the processes its tools started, not only the tools.** Semgrep's workers, the `go` processes under gosec and govulncheck and the `kubectl` calls under kube-bench used to keep running, and a canceled scan could wait on them. It now returns within seconds.
+
+- **The TRY row offering `draugr explain <rule>` says it needs a run with `-o <dir>` when the scan wrote no report.** `explain` reads the run's report, so the command it suggested failed with "no scan report here".
+
+### Security
+
+- **Release binaries are built with Go 1.27.4**, which fixes [GO-2026-6859](https://pkg.go.dev/vuln/GO-2026-6859), a crash in an HTTP/1 server that limits request bodies with `MaxBytesReader`. Releases up to 0.173.0 used an earlier Go, but Draugr runs no such server, so they were not exposed. A binary from `go install` uses your own toolchain: build it with Go 1.26.11, 1.27.4 or later.
+
 ## [0.173.0] - 2026-11-09
 
 ### Changed
@@ -6989,7 +7071,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.173.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.174.0...HEAD
+[0.174.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.174.0
 [0.173.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.173.0
 [0.172.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.172.0
 [0.171.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.171.0
