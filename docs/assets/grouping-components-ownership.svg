@@ -1,0 +1,54 @@
+<svg viewBox="0 0 420 386" width="420" height="386" role="img" aria-label="Grouped ownership: web, declared public and critical, holds the storefront pages, P1; back-office, declared authenticated and important, holds the admin pages and reconcile job, P2; payments, declared internal and critical, holds the ledger API, P2. Ringed, ranked above the part's own level: the reconcile job, P2 instead of P3." xmlns="http://www.w3.org/2000/svg">
+  <title>One high-severity flaw, grouped ownership</title>
+  <desc>The same high-severity flaw is in four parts of a shop: the storefront pages, public, web team; the admin pages, behind a staff sign-in, back-office team, served by the storefront service; the reconcile job, internal, back-office team; the ledger API, internal, payments team. Grouped ownership: web, declared public and critical, holds the storefront pages, P1; back-office, declared authenticated and important, holds the admin pages and reconcile job, P2; payments, declared internal and critical, holds the ledger API, P2. Ringed, ranked above the part's own level: the reconcile job, P2 instead of P3.</desc>
+  <defs>
+    <style>
+      text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:15px}
+      .m{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+      .e{font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;letter-spacing:1px;fill:#7CA6B8}
+      .mu{fill:#9AA4AE}.sm{font-size:13.5px}.b{font-weight:700}.c{text-anchor:middle}
+      .p1{fill:#E5534B}.p2{fill:#E8B84B}.p3{fill:#7CA6B8}.p4{fill:#6B7680}
+      .i{fill:#0B0E11;font-weight:700}
+      .box{fill:#12161B;stroke:#2F3841;stroke-width:1.5}
+      .ring{fill:none;stroke:#E6E8EA;stroke-width:1.5;stroke-dasharray:4 3}
+      .rule{stroke:#1C232A;stroke-width:1}
+    </style>
+  </defs>
+  <rect width="420" height="386" rx="12" fill="#0B0E11"/>
+  <text class="e" x="18" y="30">ONE HIGH-SEVERITY FLAW</text>
+  <text class="b" x="18" y="91">storefront pages</text>
+  <text class="mu sm" x="18" y="110">web team</text>
+  <line class="rule" x1="14" y1="130" x2="410" y2="130"/>
+  <text class="b" x="18" y="163">admin pages</text>
+  <text class="mu sm" x="18" y="182">back-office team</text>
+  <line class="rule" x1="14" y1="202" x2="410" y2="202"/>
+  <text class="b" x="18" y="235">reconcile job</text>
+  <text class="mu sm" x="18" y="254">back-office team</text>
+  <line class="rule" x1="14" y1="274" x2="410" y2="274"/>
+  <text class="b" x="18" y="307">ledger API</text>
+  <text class="mu sm" x="18" y="326">payments team</text>
+  <rect class="box" x="164" y="63" width="242" height="62" rx="8"/>
+  <text class="m b sm" x="176" y="84">web</text>
+  <text class="mu sm" x="176" y="103">public</text>
+  <text class="mu sm" x="176" y="120">critical</text>
+  <rect class="p1" x="347" y="81" width="46" height="26" rx="4"/>
+  <text class="m i c" x="370" y="99">P1</text>
+  <rect class="box" x="164" y="135" width="242" height="134" rx="8"/>
+  <text class="m b sm" x="176" y="156">back-office</text>
+  <text class="mu sm" x="176" y="175">authenticated</text>
+  <text class="mu sm" x="176" y="192">important</text>
+  <rect class="p2" x="347" y="153" width="46" height="26" rx="4"/>
+  <text class="m i c" x="370" y="171">P2</text>
+  <rect class="p2" x="347" y="225" width="46" height="26" rx="4"/>
+  <text class="m i c" x="370" y="243">P2</text>
+  <rect class="ring" x="342" y="220" width="56" height="36" rx="6"/>
+  <text class="mu sm" x="334" y="243" text-anchor="end">own P3</text>
+  <rect class="box" x="164" y="279" width="242" height="62" rx="8"/>
+  <text class="m b sm" x="176" y="300">payments</text>
+  <text class="mu sm" x="176" y="319">internal</text>
+  <text class="mu sm" x="176" y="336">critical</text>
+  <rect class="p2" x="347" y="297" width="46" height="26" rx="4"/>
+  <text class="m i c" x="370" y="315">P2</text>
+  <rect class="ring" x="18" y="355" width="30" height="18" rx="4"/>
+  <text class="mu sm" x="58" y="368">ranked above the part's own level</text>
+</svg>
