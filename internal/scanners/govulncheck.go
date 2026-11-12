@@ -422,6 +422,9 @@ type govulncheckFrame struct {
 	Version  string `json:"version"`
 	Package  string `json:"package"`
 	Function string `json:"function"`
+	// Receiver is the receiver's type where the function is a method, "*Writer" for Close on a
+	// *Writer. Without it two methods of one name read as the same call.
+	Receiver string `json:"receiver"`
 	Position *struct {
 		Filename string `json:"filename"`
 		Line     int    `json:"line"`
@@ -757,7 +760,7 @@ func govulncheckPaths(findings []govulncheckFinding) []sarif.CallPath {
 			if t.Function == "" {
 				continue
 			}
-			frame := sarif.CallFrame{Function: t.Function, Package: t.Package, Module: t.Module}
+			frame := sarif.CallFrame{Function: govulncheckFunction(t), Package: t.Package, Module: t.Module}
 			if t.Position != nil {
 				frame.File, frame.Line = t.Position.Filename, t.Position.Line
 			}
@@ -768,6 +771,15 @@ func govulncheckPaths(findings []govulncheckFinding) []sarif.CallPath {
 		}
 	}
 	return paths
+}
+
+// govulncheckFunction is a frame's function as Go qualifies it: the receiver's type and the method
+// for a method (Writer.Close), the name alone otherwise.
+func govulncheckFunction(t govulncheckFrame) string {
+	if t.Receiver == "" {
+		return t.Function
+	}
+	return strings.TrimPrefix(t.Receiver, "*") + "." + t.Function
 }
 
 // govulncheckCalled reports whether a finding names a called symbol.
@@ -915,18 +927,9 @@ func govulncheckMessageText(key govulncheckKey, advisory *govulncheckOSV, reach 
 // govulncheckPathSummary renders the shortest call path as one line, which is what a reader needs
 // before deciding whether to open the full evidence.
 func govulncheckPathSummary(paths []sarif.CallPath) string {
-	if len(paths) == 0 {
+	shortest, ok := sarif.ShortestCallPath(paths)
+	if !ok {
 		return "a call path exists"
 	}
-	shortest := paths[0]
-	for _, p := range paths {
-		if len(p.Frames) < len(shortest.Frames) {
-			shortest = p
-		}
-	}
-	names := make([]string, 0, len(shortest.Frames))
-	for _, f := range shortest.Frames {
-		names = append(names, f.Function)
-	}
-	return strings.Join(names, " → ")
+	return shortest.String()
 }

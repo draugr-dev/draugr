@@ -1604,20 +1604,11 @@ func attribution(r *sarif.Reachability) string {
 // shortestCallPath renders the shortest route as one line, which is what a reader needs before
 // deciding whether to open the full evidence in the JSON or the SARIF.
 func shortestCallPath(paths []sarif.CallPath) string {
-	if len(paths) == 0 {
+	shortest, ok := sarif.ShortestCallPath(paths)
+	if !ok {
 		return ""
 	}
-	shortest := paths[0]
-	for _, p := range paths {
-		if len(p.Frames) < len(shortest.Frames) {
-			shortest = p
-		}
-	}
-	names := make([]string, 0, len(shortest.Frames))
-	for _, f := range shortest.Frames {
-		names = append(names, f.Function)
-	}
-	return strings.Join(names, " → ")
+	return shortest.String()
 }
 
 // importedAttribution counts imported suppressions by the author who asserted them.

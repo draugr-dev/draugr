@@ -405,6 +405,23 @@ func TestGovulncheckPathSummaryPicksTheShortest(t *testing.T) {
 	}
 }
 
+func TestAMethodFrameKeepsItsReceiver(t *testing.T) {
+	// govulncheck reports a method's receiver apart from its name. Dropped, Close on a writer and
+	// Close on the connection beneath it print as one call made twice.
+	findings := []govulncheckFinding{{OSV: "GO-2026-0001", Trace: []govulncheckFrame{
+		{Module: "stdlib", Package: "net/http", Function: "Close", Receiver: "*conn"},
+		{Module: "stdlib", Package: "compress/gzip", Function: "Close", Receiver: "*Writer"},
+		{Module: "example.com/app", Package: "example.com/app", Function: "main"},
+	}}}
+	paths := govulncheckPaths(findings)
+	if got, want := govulncheckPathSummary(paths), "app.main → gzip.Writer.Close → http.conn.Close"; got != want {
+		t.Errorf("summary = %q, want %q", got, want)
+	}
+	if got := paths[0].Frames[1].Function; got != "Writer.Close" {
+		t.Errorf("method frame's function = %q, want it qualified by its receiver", got)
+	}
+}
+
 // withoutGo takes Go off the PATH the runtime check reads, for the length of the test.
 func withoutGo(t *testing.T) {
 	t.Helper()
