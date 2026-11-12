@@ -2,10 +2,12 @@ package report
 
 import (
 	"bytes"
+	"slices"
 	"strings"
 	"testing"
 	"unicode/utf8"
 
+	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
@@ -186,5 +188,69 @@ func TestAFoldedRowFitsItsWidth(t *testing.T) {
 		if n := utf8.RuneCountInString(line); n > 60 {
 			t.Errorf("%d columns: %q", n, line)
 		}
+	}
+}
+
+// report.json records the row each action shares, so a consumer lists the actions as --view actions
+// does without repeating the rule that decides which lines fold.
+func TestEachActionRecordsTheRowItShares(t *testing.T) {
+	withoutReasonedInstructions(t)
+	res := func(rule, path string, line int, msg string) sarif.Result {
+		return sarif.Result{Control: "sast", Tool: "gosec", RuleID: rule, Priority: "P3", Level: sarif.LevelWarning,
+			Component: "api", Repository: demoRepository, Message: msg,
+			Location: sarif.Location{URI: path, StartLine: line}}
+	}
+	const narrowing = "integer overflow conversion int -> uint32"
+	got := ActionsFor(map[string]sarif.Report{"sast": {Results: []sarif.Result{
+		res("G115", "dict/builder.go", 144, narrowing),
+		res("G104", "main.go", 9, "Errors unhandled"),
+		res("G115", "dict/builder.go", 150, narrowing),
+		res("G115", "flate/deflate.go", 12, narrowing),
+	}}})
+	if len(got) != 4 {
+		t.Fatalf("want an action per line, 4, got %d", len(got))
+	}
+	rows := map[string][]string{}
+	for _, a := range got {
+		rows[a.Row] = append(rows[a.Row], a.Where[0])
+	}
+	if len(rows[""]) != 1 || rows[""][0] != "main.go:9" {
+		t.Errorf("an action no other line shares a row with should name none: %v", rows)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("want the G115 lines on one row, got rows %v", rows)
+	}
+	for row, where := range rows {
+		if row == "" {
+			continue
+		}
+		if len(where) != 3 {
+			t.Errorf("row %s holds %v, want the three G115 lines", row, where)
+		}
+		var first Action
+		for _, a := range got {
+			if a.Row == row {
+				first = a
+				break
+			}
+		}
+		if first.ID != row {
+			t.Errorf("a row is named by its first action's id, %s, got %s", first.ID, row)
+		}
+	}
+}
+
+func TestALineNoOtherSharesARowWithIsOnItsOwn(t *testing.T) {
+	as := []action{
+		lineAction("P1", "api", "r", "a.go:3", "Handle the returned error"),
+		lineAction("P1", "api", "r", "b.go:1", "Pass outside data as query parameters, not in the SQL text"),
+		lineAction("P1", "api", "r", "a.go:9", "Handle the returned error"),
+		{key: "rule\x00x", title: "Handle the returned error", priority: "P1", component: "api"},
+	}
+	if got, want := lineRows(as), []int{0, -1, 0, -1}; !slices.Equal(got, want) {
+		t.Errorf("lineRows = %v, want %v", got, want)
+	}
+	if len(foldLines(as)) != 3 {
+		t.Errorf("the rows lineRows describes should be the rows foldLines prints")
 	}
 }

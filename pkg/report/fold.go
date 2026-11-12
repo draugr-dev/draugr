@@ -27,7 +27,7 @@ func foldLines(as []action) []action {
 			out = append(out, a)
 			continue
 		}
-		k := strings.Join([]string{a.priority, a.component, a.findings[0].repository, a.title, a.summary}, "\x00")
+		k := lineFoldKey(a)
 		i, ok := at[k]
 		if !ok {
 			a.lines = 1
@@ -40,6 +40,43 @@ func foldLines(as []action) []action {
 		out[i].copies = append(out[i].copies[:len(out[i].copies):len(out[i].copies)], a.copies...)
 	}
 	return out
+}
+
+// lineFoldKey is what two actions for single lines share when foldLines puts them on one row.
+func lineFoldKey(a action) string {
+	return strings.Join([]string{a.priority, a.component, a.findings[0].repository, a.title, a.summary}, "\x00")
+}
+
+// lineRows says, for each action, which action's row foldLines puts it on: the index of the first
+// action of its row, or -1 for an action on a row of its own, which is every action not about one
+// line and every line no other line shares a row with.
+//
+// What report.json records as each action's row, so a consumer of the document lists the actions
+// as --view actions does without repeating the rule foldLines applies.
+func lineRows(as []action) []int {
+	rows := make([]int, len(as))
+	first := map[string]int{}
+	size := map[int]int{}
+	for i, a := range as {
+		rows[i] = -1
+		if !a.atOneLine() {
+			continue
+		}
+		k := lineFoldKey(a)
+		f, ok := first[k]
+		if !ok {
+			f = i
+			first[k] = i
+		}
+		rows[i] = f
+		size[f]++
+	}
+	for i, f := range rows {
+		if f >= 0 && size[f] < 2 {
+			rows[i] = -1
+		}
+	}
+	return rows
 }
 
 // foldedPlaces names a folded row's lines, each file once with its line numbers together, within

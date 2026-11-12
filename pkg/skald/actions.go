@@ -97,6 +97,11 @@ type Action struct {
 	// RuleIDs are capped. Not serialized: a publisher that lists the findings reads them here, and
 	// the document carries Fingerprints.
 	Findings []ActionFinding `json:"-"`
+	// Row is the ID of the action whose row this one shares in `draugr scan --view actions`, which
+	// lists the actions for single lines that say the same thing, in one band, component and
+	// repository, as one row in the first one's place. Every action of such a row carries the first's
+	// ID, the first included; an action on a row of its own has none.
+	Row string `json:"row,omitempty"`
 	// Key is what these findings grouped under: the identity that makes two of them one action.
 	//
 	// Opaque, and deliberately. Its shape is report's business and changes when the grouping

@@ -388,6 +388,7 @@ that change clears.
 | `fixedVersions` | the release each advisory names as its fix, in its own words |
 | `locations[]` | every place the findings are, then each other file holding a second report of one of them, such as a vendored copy or the same advisory in a second Go module. A second report is a result `results.sarif` marks with `countedUnder`, and it adds its file here and nothing to `clears`. Each place has `repository`, `path`, `line` and `kind`. `kind` is `manifest`, `lockfile`, `vendored` for a copy of the dependency committed to the tree, `image`, or `file` |
 | `where`, `ruleIds` | the first five locations as text, then `and N more`, and the first five rule identifiers. A location names its repository when the action spans several, and a code action's names it once the list does. A code action's `ruleIds` start with the rule its title quotes, then follow the console's order, by scanner |
+| `row` | the `id` of the first action on the row this one shares in `--view actions`, which lists the actions for single lines that say the same thing, in one band, component and repository, as one row. Every action on such a row carries it, the first included. Absent for an action on a row of its own |
 | `findings[]` | the fingerprint of each finding the action clears, most urgent first. Each matches the `fingerprint` property of one result in `results.sarif` |
 
 `priority`, `exploitation`, `severity` and `clears` are the keys the list is [ordered
