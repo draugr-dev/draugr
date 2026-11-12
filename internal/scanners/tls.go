@@ -163,6 +163,12 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 		// a finding rather than an error. Retry on the legacy range before giving up.
 		legacyState, legacyErr := s.probe(ctx, addr, serverName, tls.VersionTLS10, tls.VersionTLS11)
 		if legacyErr != nil {
+			// Each probe's error is read on its own. The first can fail on something that is not
+			// the certificate, such as no signature algorithm in common, while the retry gets as
+			// far as the certificate and fails on it, and then the certificate is the finding.
+			if res, ok := certHandshakeFinding(host.URL, legacyErr); ok {
+				return sarif.Report{Tool: s.info.Name, Results: []sarif.Result{res}}, nil
+			}
 			// A server that answers with a handshake_failure alert was reached and refused every
 			// suite offered, which says something about its ciphers rather than about the network.
 			if !refusedSuites(err) || s.probeLegacySuites == nil {
@@ -176,6 +182,9 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 				return sarif.Report{Tool: s.info.Name, Results: results}, nil
 			case refusedSuites(suiteErr):
 				return sarif.Report{Tool: s.info.Name, Results: []sarif.Result{noSharedCipherFinding(host.URL)}}, nil
+			}
+			if res, ok := certHandshakeFinding(host.URL, suiteErr); ok {
+				return sarif.Report{Tool: s.info.Name, Results: []sarif.Result{res}}, nil
 			}
 			return sarif.Report{}, fmt.Errorf("draugr-tls: connect %s: %w", addr, err)
 		}

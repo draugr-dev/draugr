@@ -154,3 +154,41 @@ func selfSignedPair(t *testing.T) tls.Certificate {
 	}
 	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}
 }
+
+// Each probe's error is read on its own. A server can refuse the TLS 1.2+ handshake for something
+// other than its certificate, such as having no signature algorithm in common with the client, and
+// let the TLS 1.0-1.1 retry reach a certificate that fails. That is a certificate finding: naming
+// the cipher suites would send the reader to change the wrong setting.
+func TestACertificateFailureOnARetryIsTheCertificateFinding(t *testing.T) {
+	untrusted := &tls.CertificateVerificationError{Err: x509.UnknownAuthorityError{}}
+	expired := &tls.CertificateVerificationError{Err: x509.CertificateInvalidError{Reason: x509.Expired}}
+
+	retry := newTestScanner(func(_ context.Context, _, _ string, minVer, _ uint16) (tls.ConnectionState, error) {
+		if minVer == tls.VersionTLS10 {
+			return tls.ConnectionState{}, untrusted
+		}
+		return tls.ConnectionState{}, refusal()
+	})
+	suitesProbed := false
+	retry.probeLegacySuites = func(context.Context, string, string) (tls.ConnectionState, error) {
+		suitesProbed = true
+		return tls.ConnectionState{}, refusal()
+	}
+	rep, err := retry.Scan(context.Background(), plugin.HostTarget{URL: "https://md5.example.test"}, nil)
+	if err != nil || len(rep.Results) != 1 || rep.Results[0].RuleID != "tls-cert-untrusted" {
+		t.Fatalf("rep = %v, err = %v, want one tls-cert-untrusted", ruleIDs(rep), err)
+	}
+	if suitesProbed {
+		t.Error("a retry that reached the certificate answers the question; no further probe is needed")
+	}
+
+	// The probe offering every suite Go has can be the one that reaches the certificate.
+	suites := newTestScanner(refusingProbe)
+	suites.probeLegacySuites = func(context.Context, string, string) (tls.ConnectionState, error) {
+		return tls.ConnectionState{}, expired
+	}
+	rep, err = suites.Scan(context.Background(), plugin.HostTarget{URL: "https://expired.example.test"}, nil)
+	if err != nil || len(rep.Results) != 1 || rep.Results[0].RuleID != "tls-cert-expired" {
+		t.Fatalf("rep = %v, err = %v, want one tls-cert-expired", ruleIDs(rep), err)
+	}
+}
