@@ -1,0 +1,1 @@
+- **The `tls` control names the certificate when that is what failed.** A server that refused the TLS 1.2+ handshake for another reason, and whose certificate failed on the TLS 1.0-1.1 retry, was reported as `tls-no-shared-cipher`, sending the reader to the cipher suites. The retry's certificate failure is now the finding.
