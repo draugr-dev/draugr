@@ -13,9 +13,11 @@ import (
 // trivyVersionProbe derives a cache-version string for the Trivy-backed scanners that changes
 // when the Trivy tool or its vulnerability database updates, so a DB refresh invalidates
 // cached results instead of waiting out the TTL. The probe runs `trivy version --format json`
-// at most once (memoized); run is injectable for tests.
+// once (memoized), and again after the run refreshes the database (reprobe); run is injectable for
+// tests.
 type trivyVersionProbe struct {
 	once sync.Once
+	mu   sync.RWMutex
 	val  string
 	run  func(ctx context.Context, argv []string) ([]byte, error)
 }
@@ -28,23 +30,49 @@ func newTrivyVersionProbe() *trivyVersionProbe {
 // version can't be determined (Trivy absent or unexpected output), callers then fall back to
 // a version-less cache key.
 func (p *trivyVersionProbe) cacheVersion(ctx context.Context) string {
-	p.once.Do(func() {
-		out, err := p.run(ctx, []string{"trivy", "version", "--format", "json"})
-		if err != nil {
-			return
-		}
-		var v struct {
-			Version         string `json:"Version"`
-			VulnerabilityDB struct {
-				UpdatedAt string `json:"UpdatedAt"`
-			} `json:"VulnerabilityDB"`
-		}
-		if json.Unmarshal(out, &v) != nil || v.Version == "" {
-			return
-		}
-		p.val = fmt.Sprintf("trivy@%s;db@%s", v.Version, v.VulnerabilityDB.UpdatedAt)
-	})
+	p.once.Do(func() { p.set(p.probe(ctx)) })
+	return p.get()
+}
+
+// reprobe asks Trivy again once its database has been refreshed, so the version names the database
+// the run reads. The first answer is taken before the refresh, because the refresh's own command
+// line depends on the tool's version, and its db@ date is then the copy the refresh replaced. An
+// answer that cannot be read keeps the one before it.
+func (p *trivyVersionProbe) reprobe(ctx context.Context) {
+	p.cacheVersion(ctx)
+	if v := p.probe(ctx); v != "" {
+		p.set(v)
+	}
+}
+
+// probe runs `trivy version --format json` and returns its cache version, or "" when it cannot.
+func (p *trivyVersionProbe) probe(ctx context.Context) string {
+	out, err := p.run(ctx, []string{"trivy", "version", "--format", "json"})
+	if err != nil {
+		return ""
+	}
+	var v struct {
+		Version         string `json:"Version"`
+		VulnerabilityDB struct {
+			UpdatedAt string `json:"UpdatedAt"`
+		} `json:"VulnerabilityDB"`
+	}
+	if json.Unmarshal(out, &v) != nil || v.Version == "" {
+		return ""
+	}
+	return fmt.Sprintf("trivy@%s;db@%s", v.Version, v.VulnerabilityDB.UpdatedAt)
+}
+
+func (p *trivyVersionProbe) get() string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	return p.val
+}
+
+func (p *trivyVersionProbe) set(v string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.val = v
 }
 
 // showsSuppressed reports whether the Trivy that will run is new enough to list what it excluded.
@@ -55,7 +83,7 @@ func (p *trivyVersionProbe) cacheVersion(ctx context.Context) string {
 // Trivy does not have would fail the scan outright, and losing a suppression record is the lesser
 // of the two.
 func (p *trivyVersionProbe) showsSuppressed() bool {
-	return trivyAtLeast(p.val, showSuppressedSince)
+	return trivyAtLeast(p.get(), showSuppressedSince)
 }
 
 // showSuppressedSince is the first Trivy carrying `--show-suppressed` and the findings it reports.
@@ -64,7 +92,7 @@ const showSuppressedSince = "0.53.0"
 // skipsNotices reports whether the Trivy that will run has `--skip-version-check` and
 // `--disable-telemetry`. Read from the memoized probe for the reason showsSuppressed gives.
 func (p *trivyVersionProbe) skipsNotices() bool {
-	return trivyAtLeast(p.val, noticeFlagsSince)
+	return trivyAtLeast(p.get(), noticeFlagsSince)
 }
 
 // noticeFlagsSince is the first Trivy carrying `--skip-version-check` and `--disable-telemetry`,
@@ -112,6 +140,9 @@ type trivyDBWarmer struct {
 	// ahead of every scan and so ahead of the cache key that otherwise resolves it first. Nil
 	// leaves the probe as it is.
 	version func(ctx context.Context) string
+	// refreshed reads the version again after a download, so its db@ date is the database the run
+	// reads rather than the one the download replaced. Nil leaves the probe as it is.
+	refreshed func(ctx context.Context)
 }
 
 // warm runs `trivy image --download-db-only` at most once and returns any error (best-effort:
@@ -120,7 +151,9 @@ func (w *trivyDBWarmer) warm(ctx context.Context) error {
 	w.once.Do(func() {
 		resolveTrivyVersion(ctx, w.version)
 		argv := append([]string{"trivy", "image", "--download-db-only"}, trivyNoticeArgs()...)
-		_, w.err = w.run(ctx, argv)
+		if _, w.err = w.run(ctx, argv); w.err == nil && w.refreshed != nil {
+			w.refreshed(ctx)
+		}
 	})
 	return w.err
 }
@@ -135,7 +168,9 @@ func resolveTrivyVersion(ctx context.Context, version func(context.Context) stri
 
 // sharedTrivyDB pre-warms the vuln DB once per process for all Trivy-backed scanners (they
 // share Trivy's on-disk cache), so one download serves image, fs, and config scans.
-var sharedTrivyDB = &trivyDBWarmer{run: execArgv, version: sharedTrivyVersion.cacheVersion}
+var sharedTrivyDB = &trivyDBWarmer{
+	run: execArgv, version: sharedTrivyVersion.cacheVersion, refreshed: sharedTrivyVersion.reprobe,
+}
 
 // trivyChecksWarmer fetches Trivy's checks bundle once, before a run's concurrent config scans
 // can each try to.

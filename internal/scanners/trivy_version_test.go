@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -129,5 +130,65 @@ func TestTrivyChecksWarmReportsButDoesNotPanicOnAFailedDirectory(t *testing.T) {
 	}
 	if err := w.warm(context.Background()); err == nil {
 		t.Error("a directory that could not be made reported success")
+	}
+}
+
+// fakeTrivy answers `trivy version` with the database date on disk, and `--download-db-only` by
+// replacing it, or failing when fail is set.
+func fakeTrivy(db *string, fail bool) func(context.Context, []string) ([]byte, error) {
+	return func(_ context.Context, argv []string) ([]byte, error) {
+		if slices.Contains(argv, "--download-db-only") {
+			if fail {
+				return nil, errors.New("download failed")
+			}
+			*db = "2026-11-12T18:57:38Z"
+			return nil, nil
+		}
+		return []byte(`{"Version":"0.76.1","VulnerabilityDB":{"UpdatedAt":"` + *db + `"}}`), nil
+	}
+}
+
+// The version is first read before the refresh, whose command line depends on it, and the run
+// then reads the database the refresh downloaded. The version, which the report and the cache key
+// carry, names the one it read.
+func TestTrivyVersionNamesTheDatabaseTheRefreshDownloaded(t *testing.T) {
+	db := "2026-11-08T18:58:44Z"
+	p := &trivyVersionProbe{run: fakeTrivy(&db, false)}
+	w := &trivyDBWarmer{run: p.run, version: p.cacheVersion, refreshed: p.reprobe}
+	if err := w.warm(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := p.cacheVersion(context.Background()), "trivy@0.76.1;db@2026-11-12T18:57:38Z"; got != want {
+		t.Errorf("version after the refresh = %q, want %q", got, want)
+	}
+}
+
+// A failed download leaves the database that was there, and the version that names it.
+func TestTrivyVersionKeepsTheDatabaseAFailedRefreshLeft(t *testing.T) {
+	db := "2026-11-08T18:58:44Z"
+	p := &trivyVersionProbe{run: fakeTrivy(&db, true)}
+	w := &trivyDBWarmer{run: p.run, version: p.cacheVersion, refreshed: p.reprobe}
+	if err := w.warm(context.Background()); err == nil {
+		t.Fatal("warm should surface the failed download")
+	}
+	if got, want := p.cacheVersion(context.Background()), "trivy@0.76.1;db@2026-11-08T18:58:44Z"; got != want {
+		t.Errorf("version after a failed refresh = %q, want %q", got, want)
+	}
+}
+
+// An answer that cannot be read after the refresh keeps the one before it rather than blanking the
+// version.
+func TestTrivyReprobeKeepsAReadableVersion(t *testing.T) {
+	calls := 0
+	p := &trivyVersionProbe{run: func(context.Context, []string) ([]byte, error) {
+		calls++
+		if calls > 1 {
+			return []byte("not json"), nil
+		}
+		return []byte(`{"Version":"0.76.1","VulnerabilityDB":{"UpdatedAt":"2026-11-08T18:58:44Z"}}`), nil
+	}}
+	p.reprobe(context.Background())
+	if got := p.cacheVersion(context.Background()); got != "trivy@0.76.1;db@2026-11-08T18:58:44Z" {
+		t.Errorf("version = %q, want the readable one kept", got)
 	}
 }
