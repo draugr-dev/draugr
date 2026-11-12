@@ -47,7 +47,7 @@ FIX FIRST  top 6 of 10, by priority
       component internal-tool · scanner trivy · fix no package reported
       app/requirements.txt:2
 
-  P2  high      …tainted-sql-string.tainted-sql-string · Detected user input flowing into a raw SQL string
+  P2  high      tainted-sql-string · Detected user input flowing into a raw SQL string
       scanner semgrep oss · fix change the code
       app/main.py:42
 

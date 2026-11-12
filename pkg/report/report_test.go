@@ -504,13 +504,14 @@ func TestShortRuleID(t *testing.T) {
 	if !strings.HasSuffix(got, "github-actions-mutable-action-tag") {
 		t.Errorf("got %q, want the tail of the id kept", got)
 	}
-	if !strings.HasPrefix(got, "…") {
-		t.Errorf("got %q, want it marked as shortened", got)
+	// A Semgrep id is its rule's name after a registry path that repeats it, so the row prints the
+	// name, as the actions view and `draugr explain` call it, with nothing cut and nothing doubled.
+	if got != "github-actions-mutable-action-tag" {
+		t.Errorf("got %q, want the rule's name", got)
 	}
-	// The whole point: cut on a separator, not mid-word. "…ction-tag.github-…" reads as
-	// corruption; a whole segment reads as truncation.
-	if got != "…github-actions-mutable-action-tag" {
-		t.Errorf("got %q, want the cut on a dot boundary", got)
+	// An id naming something in each segment keeps them all.
+	if got := shortRuleID("license/GPL-2.0-or-later/ckeditor5"); got != "license/GPL-2.0-or-later/ckeditor5" {
+		t.Errorf("shortRuleID kept %q of a license rule", got)
 	}
 }
 

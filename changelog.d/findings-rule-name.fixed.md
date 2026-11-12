@@ -1,0 +1,1 @@
+- **The findings view names a Semgrep rule by its name, such as `gha-curl-pipe-shell`, as the actions view does.** It printed the rule's registry path cut from the front, `…gha-curl-pipe-shell.gha-curl-pipe-shell`, with the name twice.

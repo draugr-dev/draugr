@@ -1110,6 +1110,16 @@ const ruleIDWidth = 44
 // reader to wonder what went wrong, where "…github-actions-mutable-action-tag" plainly says there
 // is more in front.
 func shortRuleID(id string) string {
+	// A dotted path whose last segment is a word is a Semgrep rule, whose name is that segment, which
+	// the path repeats: `yaml.github-actions.security.gha-curl-pipe-shell.gha-curl-pipe-shell`. The
+	// name is what the actions view and `draugr explain` call it, and the path in front of it is
+	// where the rule lives in a registry, which a reader choosing what to fix does not need. An id
+	// with a "/" names something else in each segment, `license/GPL-3.0/x`, and keeps them all.
+	if !strings.Contains(id, "/") {
+		if name := shortRuleName(id); name != id {
+			id = name
+		}
+	}
 	r := []rune(id)
 	if len(r) <= ruleIDWidth {
 		return id
