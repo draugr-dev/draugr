@@ -31,27 +31,33 @@ UNMATCHED
   VEX             CVE-2023-45803 · pkg:pypi/urllib3
 
 FIX FIRST  top 6 of 10, by priority
-  P1  high      CVE-2019-10906 · python-jinja2: str.format_map allows sandbox escape
+  P1  high      CVE-2019-10906
+      python-jinja2: str.format_map allows sandbox escape
       component payments · scanner trivy · jinja2 2.10 → 2.10.1
       app/requirements.txt:5
 
-  P1  critical  CVE-2019-20477 · PyYAML: command execution through python/object/apply constructor in…
+  P1  critical  CVE-2019-20477
+      PyYAML: command execution through python/object/apply constructor in FullLoader
       component payments · scanner trivy · fix no package reported
       app/requirements.txt:4
 
-  P1  high      DS-0002 · Image user should not be 'root'
+  P1  high      DS-0002
+      Image user should not be 'root'
       component payments · scanner trivy · fix change the infrastructure
       app/Dockerfile:1
 
-  P2  high      CVE-2018-1000656 · python-flask: Denial of Service via crafted JSON file
+  P2  high      CVE-2018-1000656
+      python-flask: Denial of Service via crafted JSON file
       component internal-tool · scanner trivy · fix no package reported
       app/requirements.txt:2
 
-  P2  high      …tainted-sql-string.tainted-sql-string · Detected user input flowing into a raw SQL string
+  P2  high      python.flask.security.injection.tainted-sql-string.tainted-sql-string
+      Detected user input flowing into a raw SQL string
       scanner semgrep oss · fix change the code
       app/main.py:42
 
-  P2  high      private-key · private-key has detected secret for file app/config.pem.
+  P2  high      private-key
+      private-key has detected secret for file app/config.pem.
       component payments · scanner gitleaks · fix rotate the credential
       app/config.pem:1
 

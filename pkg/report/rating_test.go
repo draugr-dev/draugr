@@ -39,14 +39,14 @@ func blockLines(t *testing.T, fs ...finding) []string {
 func TestTheRatingIsOnTheEvidenceLine(t *testing.T) {
 	withoutReasonedInstructions(t)
 	lines := blockLines(t, findingOf("sast", sarif.Report{}, ratedSemgrep()))
-	if len(lines) != 3 {
+	if len(lines) != 4 {
 		t.Fatalf("got %d lines:\n%s", len(lines), strings.Join(lines, "\n"))
 	}
 	if !strings.HasPrefix(lines[0], "  P1  critical  ") {
 		t.Errorf("head = %q, want the rating's critical beside the band", lines[0])
 	}
-	if want := "      app/app.py:16 · impact high · likelihood high"; lines[2] != want {
-		t.Errorf("evidence line = %q\nwant %q", lines[2], want)
+	if want := "      app/app.py:16 · impact high · likelihood high"; lines[3] != want {
+		t.Errorf("evidence line = %q\nwant %q", lines[3], want)
 	}
 }
 
@@ -70,7 +70,7 @@ func TestAnUnratedFindingCarriesNoRatingNote(t *testing.T) {
 	if !strings.HasPrefix(lines[0], "  P1  high      ") {
 		t.Errorf("head = %q, want error's high", lines[0])
 	}
-	if want := "      app/app.py:16"; lines[2] != want {
+	if want := "      app/app.py:16"; lines[3] != want {
 		t.Errorf("evidence line = %q, want the location alone", lines[2])
 	}
 }

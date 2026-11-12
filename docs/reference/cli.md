@@ -1051,9 +1051,12 @@ REFERENCE
 | `-r, --report` | - | The `results.sarif` to read. Without it, the first that exists of `.draugr/out/results.sarif`, `results.sarif`, `draugr-out/results.sarif` and `.draugr-out/results.sarif` |
 
 The id can be given in full, or by its trailing `/`-separated segments: `4.3.1` and `cis/4.3.1`
-both find `kube-bench/cis/4.3.1`, and `4.3` finds nothing. The name a row prints works too, with
-or without a leading `…`: `missing-user` and `…security.missing-user.missing-user` both find
-`dockerfile.security.missing-user.missing-user`. A whole id also matches regardless of case. An abbreviation matching more than one rule lists them rather than choosing one.
+both find `kube-bench/cis/4.3.1`, and `4.3` finds nothing. An id copied from a finding works as
+printed. The `--view compact` table and the actions view print a long id with a leading `…`, and
+that form works too, as does the name alone: `…security.missing-user.missing-user` and
+`missing-user` both find `dockerfile.security.missing-user.missing-user`. A whole id also matches
+regardless of case. An abbreviation matching more than one rule lists them rather than choosing
+one.
 
 A report holds only the rules its scan reported, so a rule the scan did not find is not there.
 

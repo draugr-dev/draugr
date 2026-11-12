@@ -96,10 +96,21 @@ func TestTheConsoleMarksTheMoveThatDecidedTheSeverity(t *testing.T) {
 				break
 			}
 		}
-		if at < 0 || at+1 >= len(lines) {
-			t.Fatalf("%s: no console row with a line under it:\n%s", c.rule, out.String())
+		if at < 0 || at+2 >= len(lines) {
+			t.Fatalf("%s: no console row with lines under it:\n%s", c.rule, out.String())
 		}
-		row, under := lines[at], lines[at+1]
+		// The message takes the line under the row, and the facts line, which the mark leads, follows
+		// it and any instruction.
+		row, under := lines[at], ""
+		for _, line := range lines[at+2:] {
+			if line == "" {
+				break
+			}
+			if f := strings.Fields(line); len(f) > 0 && (f[0] == "↑" || f[0] == "↓" || f[0] == "↩" || f[0] == "scanner") {
+				under = line
+				break
+			}
+		}
 		if fields := strings.Fields(row); len(fields) < 2 || fields[1] != c.severity {
 			t.Errorf("%s: console row %q, want severity %q beside the band", c.rule, row, c.severity)
 		}

@@ -24,11 +24,13 @@ CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that d
     checkout/go.mod  govulncheck needs Go
 
 FIX FIRST  all 2, by priority
-  P1  critical  CVE-2019-20477 · PyYAML: command execution through python/object/apply constructor in…
+  P1  critical  CVE-2019-20477
+      PyYAML: command execution through python/object/apply constructor in FullLoader
       scanner trivy · PyYAML 5.1 → 5.2
       app/requirements.txt:4
 
-  P1  high      DS-0002 · Image user should not be 'root'
+  P1  high      DS-0002
+      Image user should not be 'root'
       scanner trivy · fix change the infrastructure
       app/Dockerfile:1
 

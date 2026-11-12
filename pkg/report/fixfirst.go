@@ -57,7 +57,12 @@ func renderFixFirstBlocks(w io.Writer, col tui.Painter, fs []finding, blobs blob
 	}
 }
 
-// writeBlockHead is the first line: the band, the severity, and what the finding says.
+// writeBlockHead is the first lines: the band, the severity and the rule, then what the finding says.
+//
+// The rule id is printed whole, because it is what a reader pastes into `config.exclude`, which
+// matches it exactly, and an id cut at either end matches nothing. It links to what the rule means,
+// which costs no width. The finding's message takes the line beneath, so the id never has to give up
+// room to it. Where the id is wider than the room beside the band, it takes a line of its own.
 func writeBlockHead(w io.Writer, col tui.Painter, f finding, width int) {
 	priority := dash(f.priority)
 	severity := string(rankedSeverity(f))
@@ -65,32 +70,32 @@ func writeBlockHead(w io.Writer, col tui.Painter, f finding, width int) {
 		padPainted(col.Paint(priorityColor(f.priority), priority), priority, 4) +
 		padPainted(col.Paint(severityColor(rankedSeverity(f)), severity), severity, 10)
 
-	// The rule id links to what it means, which costs no width. A rule id names a finding; it does
-	// not explain it.
-	rule := shortRuleID(f.ruleID)
-	line += col.Link(f.helpURI, rule)
+	rule := col.Link(f.helpURI, f.ruleID)
 	if who, expected, ok := unexpectedSigner(f); ok {
 		// The signer the descriptor expected is short and goes whole on the title line; the identity
 		// that signed the image is long and takes the line beneath, where the reader compares it with
 		// the signer they declared.
-		_, _ = fmt.Fprintln(w, line+col.Paint(cDim, " · ")+"not "+expected)
+		_, _ = fmt.Fprintln(w, line+rule+col.Paint(cDim, " · ")+"not "+expected)
 		_, _ = fmt.Fprintln(w, "      "+signingIdentity(col, who, width-blockIndent))
 		return
 	}
-	title := findingTitle(f)
-	room := min(width-blockGutter-utf8.RuneCountInString(rule)-len(" · "), messageWidth)
-	// A sentence about the resource that is also the message, Prowler's, takes the line beneath
-	// when the rule's name leaves too little room for it: "No CloudTrail…" says nothing.
-	sentence := f.detail != "" && f.detail == f.message && utf8.RuneCountInString(title) > room
-	if title != "" && room > 0 && !sentence {
-		line += col.Paint(cDim, " · ") + elide(title, room)
+	if blockGutter+utf8.RuneCountInString(f.ruleID) <= width {
+		_, _ = fmt.Fprintln(w, line+rule)
+	} else {
+		_, _ = fmt.Fprintln(w, strings.TrimRight(line, " "))
+		_, _ = fmt.Fprintln(w, "      "+rule)
 	}
-	_, _ = fmt.Fprintln(w, line)
-	switch d := f.addedDetail(); {
-	case sentence:
-		_, _ = fmt.Fprintln(w, "      "+elide(f.detail, max(width-6, minTitleWidth)))
-	case d != "":
-		_, _ = fmt.Fprintln(w, "      "+elideFront(d, max(width-6, minTitleWidth)))
+	room := max(width-blockIndent, minTitleWidth)
+	// A sentence about the resource that is also the message, Prowler's, is printed whole up to the
+	// width, rather than condensed the way a rule's description is.
+	switch {
+	case f.detail != "" && f.detail == f.message:
+		_, _ = fmt.Fprintln(w, "      "+elide(f.detail, room))
+	case findingTitle(f) != "":
+		_, _ = fmt.Fprintln(w, "      "+elide(findingTitle(f), min(room, messageWidth)))
+	}
+	if d := f.addedDetail(); d != "" {
+		_, _ = fmt.Fprintln(w, "      "+elideFront(d, room))
 	}
 	if i := findingInstruction(f); i != "" {
 		_, _ = fmt.Fprintln(w, "      "+i)

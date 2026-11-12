@@ -11,14 +11,15 @@ import (
 
 const privilegedSentence = "Container 'api' of Pod 'demo-api' should set 'securityContext.privileged' to false"
 
-// The rule's title stays on the row and the sentence goes beneath it, whole where it fits. Where it does
-// not, its end survives, because the setting is at the end and the object is on the row's location.
+// The rule's title takes the line under the id and the sentence goes beneath it, whole where it fits.
+// Where it does not, its end survives, because the setting is at the end and the object is on the
+// row's location.
 func TestAFindingShowsTheScannersSentenceBeneathItsTitle(t *testing.T) {
 	f := finding{priority: "P1", ruleID: "KSV-0017", message: "Privileged", detail: privilegedSentence}
 	var wide, narrow bytes.Buffer
 	writeBlockHead(&wide, tui.Plain(), f, 160)
-	if got := wide.String(); !strings.Contains(got, "KSV-0017 · Privileged\n") || !strings.Contains(got, "      "+privilegedSentence+"\n") {
-		t.Errorf("wide = %q", got)
+	if got, want := wide.String(), "  P1            KSV-0017\n      Privileged\n      "+privilegedSentence+"\n"; got != want {
+		t.Errorf("wide = %q\nwant %q", got, want)
 	}
 	writeBlockHead(&narrow, tui.Plain(), f, 60)
 	got := narrow.String()
@@ -27,8 +28,8 @@ func TestAFindingShowsTheScannersSentenceBeneathItsTitle(t *testing.T) {
 	}
 	var plain bytes.Buffer
 	writeBlockHead(&plain, tui.Plain(), finding{priority: "P1", ruleID: "DS-1", message: "A title"}, 160)
-	if strings.Count(plain.String(), "\n") != 1 {
-		t.Errorf("a finding with no sentence took a second line: %q", plain.String())
+	if got, want := plain.String(), "  P1            DS-1\n      A title\n"; got != want {
+		t.Errorf("a finding with no sentence: %q, want %q", got, want)
 	}
 }
 

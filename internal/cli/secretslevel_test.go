@@ -149,13 +149,27 @@ func TestALevelOnlySecretKeepsTheScannersSeverity(t *testing.T) {
 	}
 }
 
-// rowAndUnder is the trimmed line of out that holds want, and the trimmed line under it.
+// rowAndUnder is the trimmed line of out that holds want, and the trimmed facts line of its block.
+//
+// The facts line follows the message and any instruction, and the mark, where there is one, leads it.
 func rowAndUnder(out, want string) (string, string) {
 	lines := strings.Split(out, "\n")
 	for i, line := range lines {
-		if strings.Contains(line, want) && i+1 < len(lines) {
-			return strings.TrimSpace(line), strings.TrimSpace(lines[i+1])
+		if !strings.Contains(line, want) {
+			continue
 		}
+		for _, next := range lines[i+1:] {
+			next = strings.TrimSpace(next)
+			if next == "" {
+				break
+			}
+			for _, lead := range []string{"↑ ", "↓ ", "↩ ", "component ", "scanner "} {
+				if strings.HasPrefix(next, lead) {
+					return strings.TrimSpace(line), next
+				}
+			}
+		}
+		return strings.TrimSpace(line), ""
 	}
 	return "", ""
 }
