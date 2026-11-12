@@ -327,8 +327,18 @@ them in place:
 | Row | Shown when |
 |---|---|
 | `--top 0` | The ranked table or a list under `--view actions` stopped short |
-| `--report html -o <dir>` | A block stopped short, at `… and 4 more` or `… and 4 findings not listed`, and the run writes no HTML report. With `-o` set, the row is `--report` with the formats the run writes and `html`, such as `--report json,sarif,html`, because `--report` replaces its default |
+| `--report json,sarif,html -o .draugr/out` | A block stopped short, at `… and 4 more` or `… and 4 findings not listed`, or `--top 0` listed every finding, and the run writes no HTML report. In every view, `--view compact` included. The run it suggests writes the HTML report beside the files `draugr explain`, `--base` and `draugr diff` read, where `explain` looks for them. With `-o` set, the row is `--report` with the formats the run writes and `html`, because `--report` replaces its default |
 | `--evidence` | A caveat row stands for several files, such as `Cargo.lock ×2`, and `--evidence` is off |
+
+A run that writes report files lists them under `REPORTS`, above `TRY`, each as a path and what it is
+for, the HTML report first:
+
+```
+REPORTS
+  .draugr/out/report.html    every finding, searchable and filtered by component
+  .draugr/out/results.sarif  what draugr explain, --base and draugr diff read
+  .draugr/out/report.json    the whole run, for a script
+```
 
 ### Installing a missing scanner
 
@@ -942,7 +952,7 @@ WHAT TO DO  2 actions clear 15 findings
 TRY
   --view compact         one line each, to see how much there is
   --view findings        the findings themselves, one row each
-  draugr explain <rule>  what a rule means and how to fix it, from a run with -o <dir>
+  draugr explain <rule>  what a rule means and how to fix it, from .draugr/out
 draugr: fails on P3: 15 new findings since b5bcb4b
 ```
 

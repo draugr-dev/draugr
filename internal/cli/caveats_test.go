@@ -109,7 +109,7 @@ func TestACutCaveatsBlockOffersTheHTMLReport(t *testing.T) {
 		opts scanOptions
 		want string
 	}{
-		{"no report files", scanOptions{format: "console"}, "--report html -o <dir>"},
+		{"no report files", scanOptions{format: "console"}, "--report json,sarif,html -o .draugr/out"},
 		{"the default reports", scanOptions{format: "console", outputDir: t.TempDir()}, "--report json,sarif,html "},
 		{"named reports", scanOptions{format: "console", outputDir: t.TempDir(), reports: []string{"junit"}}, "--report junit,html "},
 		{"an HTML report", scanOptions{format: "console", outputDir: t.TempDir(), reports: []string{"html"}}, ""},
@@ -122,7 +122,7 @@ func TestACutCaveatsBlockOffersTheHTMLReport(t *testing.T) {
 		if !strings.Contains(out, "… and 2 more · --top 0 lists every one") {
 			t.Fatalf("%s: the caveats block was not cut, so this test checks nothing:\n%s", c.name, out)
 		}
-		offered := strings.Contains(out, "every row the console cut, in one searchable page")
+		offered := strings.Contains(out, "every finding in one searchable page")
 		if c.want == "" && offered || c.want != "" && !strings.Contains(out, "\n  "+c.want) {
 			t.Errorf("%s: want %q offered:\n%s", c.name, c.want, out)
 		}

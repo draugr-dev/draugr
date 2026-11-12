@@ -315,8 +315,10 @@ func tryRows(out string) []string {
 
 // TRY offers the HTML report wherever the console cut a block short and the run writes no HTML
 // report: the caveats past their ten rows, the targets not reached past theirs, or the findings
-// past the list's. Nothing cut, or an HTML report already written, and it is not offered. Two
-// components, each with its own caveats, so the cut is counted across them.
+// past the list's. In every view, compact included. Nothing cut, or an HTML report already written,
+// and it is not offered. A run that wrote no reports is offered the formats explain and --base read
+// as well, in the directory explain looks in. Two components, each with its own caveats, so the cut
+// is counted across them.
 func TestTheHTMLReportIsOfferedWhereTheConsoleCutABlock(t *testing.T) {
 	unread := func(component string, n int) engine.InputCoverage {
 		in := engine.InputCoverage{Component: component, Control: "sca"}
@@ -333,18 +335,18 @@ func TestTheHTMLReportIsOfferedWhereTheConsoleCutABlock(t *testing.T) {
 	cutErrors := Data{Run: engine.Result{Targets: targets}}
 	whole := Data{Run: engine.Result{Inputs: []engine.InputCoverage{unread("api", 5), unread("web", 5)}}}
 
-	const why = "every row the console cut, in one searchable page"
+	const why = reportRowSays
 	for _, c := range []struct {
 		name string
 		d    Data
 		want []string
 	}{
-		{"caveats cut, no reports", cutCaveats, []string{"--report html -o <dir> " + why}},
-		{"targets cut, no reports", cutErrors, []string{"--report html -o <dir> " + why}},
+		{"caveats cut, no reports", cutCaveats, []string{"--report json,sarif,html -o .draugr/out " + why}},
+		{"targets cut, no reports", cutErrors, []string{"--report json,sarif,html -o .draugr/out " + why}},
 		{"caveats cut, json and sarif written", withReports(cutCaveats, "out", "json", "sarif"), []string{"--report json,sarif,html " + why}},
 		{"caveats cut, an HTML report written", withReports(cutCaveats, "out", "html"), nil},
 		{"nothing cut", whole, nil},
-		{"caveats cut, compact", withView(cutCaveats, ViewCompact), nil},
+		{"caveats cut, compact", withView(cutCaveats, ViewCompact), []string{"--report json,sarif,html -o .draugr/out " + why}},
 	} {
 		if got := tryRows(renderWith(t, consoleReporter{}, c.d)); !slices.Equal(got, c.want) {
 			t.Errorf("%s: TRY = %q, want %q", c.name, got, c.want)
