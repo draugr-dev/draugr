@@ -55,6 +55,7 @@ func NewGovulncheck() plugin.Scanner {
 	)
 	s.cacheVersion = govulncheckCacheVersion
 	s.preflight = func(ctx context.Context, _ plugin.Config) error { return govulncheckPreflight(ctx) }
+	s.prewarm = refreshGovulnDB
 	s.run = onRuntime(s.info.Binary, onBuildGo(onUnloaded(onGoWork(inModuleDir(execArgvInDirWithEnv)))))
 	return s
 }

@@ -50,7 +50,7 @@ type FeedsStatusOutput struct {
 var ifStale = map[feeds.Name]string{
 	feeds.KEV:  "A scan still reads a stale copy and ranks findings on old data; the report marks the feed stale.",
 	feeds.EPSS: "EPSS is republished daily. A scan still reads a stale copy and ranks findings on old data; the report marks the feed stale.",
-	feeds.GoVulnDB: "A scan does not read a stale copy, and govulncheck queries vuln.go.dev instead; " +
+	feeds.GoVulnDB: "A scan fetches a stale copy again before it runs, and govulncheck queries vuln.go.dev if that fails; " +
 		"with --offline, the control reports an error.",
 }
 

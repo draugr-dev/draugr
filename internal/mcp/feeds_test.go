@@ -142,8 +142,8 @@ func TestFeedsStatusAllCurrent(t *testing.T) {
 	}
 }
 
-// A stale exploitability feed is still read and a stale Go database is not, so one sentence for
-// both would be wrong for one of them.
+// A stale exploitability feed is still read and a stale Go database is fetched again or not read,
+// so one sentence for both would be wrong for one of them.
 func TestFeedsStatusStatesEachFeedsConsequence(t *testing.T) {
 	out := FeedsStatus(t.TempDir(), time.Now())
 	for _, n := range []feeds.Name{feeds.KEV, feeds.EPSS} {
@@ -152,7 +152,7 @@ func TestFeedsStatusStatesEachFeedsConsequence(t *testing.T) {
 		}
 	}
 	got := feedByName(t, out, feeds.GoVulnDB).IfStale
-	if !strings.Contains(got, "does not read") || !strings.Contains(got, "vuln.go.dev") ||
+	if !strings.Contains(got, "fetches a stale copy again") || !strings.Contains(got, "vuln.go.dev") ||
 		!strings.Contains(got, "--offline") {
 		t.Errorf("govulndb ifStale = %q", got)
 	}

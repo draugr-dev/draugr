@@ -2118,8 +2118,8 @@ Stale after 24h · default · --saga applies a descriptor's config.exploitabilit
 
 A copy is `(stale)` here when it is older than the [limit](#staleness). A stale KEV or EPSS copy
 does not fail a scan: it ranks findings on older data, and the report names the age. A stale
-`govulndb` copy is not read at all; govulncheck queries `vuln.go.dev` instead, and with `--offline`
-the control reports an error. `--saga` works as it does for `feeds update`.
+`govulndb` copy is fetched again when a scan starts. When that fetch fails, govulncheck queries
+`vuln.go.dev` instead, and with `--offline` the control reports an error. `--saga` works as it does for `feeds update`.
 
 ### Staleness
 

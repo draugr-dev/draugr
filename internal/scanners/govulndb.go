@@ -61,6 +61,9 @@ type govulnDBResolver struct {
 	once   sync.Once
 	choice govulnDBChoice
 	warned sync.Once
+	// refreshErr is why this run's refresh of a stale or unusable local copy failed, named
+	// beside the reason the copy was passed over.
+	refreshErr error
 }
 
 // govulnDB is resolved once per run: every module and every component reads the same database,
@@ -103,10 +106,51 @@ func (r *govulnDBResolver) resolve() govulnDBChoice {
 		case errors.Is(err, feeds.ErrNoLocalGoVulnDB):
 			r.choice = govulnDBChoice{}
 		default:
-			r.choice = govulnDBChoice{refused: err.Error()}
+			refused := err.Error()
+			if r.refreshErr != nil {
+				refused += "; refreshing it failed: " + r.refreshErr.Error()
+			}
+			r.choice = govulnDBChoice{refused: refused}
 		}
 	})
 	return r.choice
+}
+
+// fetchGoVulnDB fetches the Go vulnerability database into the feed cache, as `draugr feeds update
+// govulndb` does; a variable so no test reaches vuln.go.dev.
+var fetchGoVulnDB = func(ctx context.Context) error {
+	dir, err := feeds.Dir()
+	if err != nil {
+		return err
+	}
+	_, err = feeds.Fetch(ctx, dir, feeds.GoVulnDB, nil)
+	return err
+}
+
+// refreshGovulnDB is govulncheck's data refresh, run once before the jobs start like Trivy's and
+// Grype's. A local copy that is too old, or fails its checks, is fetched again, so the run reads
+// it on this machine rather than sending the module paths the code depends on to vuln.go.dev.
+//
+// Only a copy somebody fetched is refreshed. A machine that never ran `draugr feeds update
+// govulndb` has chosen vuln.go.dev, and the refresh does not download the database for it. When
+// the fetch fails, the stale copy stays unread, the run falls back to vuln.go.dev, and the
+// warning that says so names the failure.
+func refreshGovulnDB(ctx context.Context) error {
+	if netpolicy.Offline() {
+		return nil
+	}
+	_, err := findLocalGoVulnDB(time.Now(), FeedMaxAge())
+	if err == nil || errors.Is(err, feeds.ErrNoLocalGoVulnDB) {
+		return nil
+	}
+	fetchErr := fetchGoVulnDB(ctx)
+	feedMaxAgeMu.Lock()
+	govulnDB = &govulnDBResolver{refreshErr: fetchErr} // the copy on disk has changed, or failed to
+	feedMaxAgeMu.Unlock()
+	if fetchErr != nil {
+		return fmt.Errorf("refresh the local Go vulnerability database: %w", fetchErr)
+	}
+	return nil
 }
 
 // govulncheckPreflight refuses the scan before anything runs when there is no database to read,

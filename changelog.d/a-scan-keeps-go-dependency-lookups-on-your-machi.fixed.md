@@ -1,0 +1,1 @@
+- **A scan keeps Go dependency lookups on your machine when your local Go vulnerability database is stale.** A copy fetched with `draugr feeds update govulndb` and older than the limit is fetched again before the scan, as Trivy's and Grype's databases are. govulncheck queries vuln.go.dev only when that fetch fails, and the warning says why.
