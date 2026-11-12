@@ -1381,8 +1381,9 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 	sortFindings(copies)
 
 	grouped, external := groupActions(findings, nil, copies...)
+	rows := lineRows(grouped)
 	out := make([]Action, 0, len(grouped)+len(external))
-	for _, a := range grouped {
+	for i, a := range grouped {
 		rules := a.ruleIDs(most)
 		act := Action{
 			ID:            a.id(),
@@ -1403,6 +1404,9 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 			Fingerprints:  fingerprintsOf(a.findings),
 			Findings:      actionFindings(a.findings),
 			OneChange:     !a.byRule,
+		}
+		if rows[i] >= 0 {
+			act.Row = grouped[rows[i]].id()
 		}
 		act.Severity, act.SeverityFrom, act.Exploitation = a.rank.export()
 		if p := a.dependency(); p != nil {
