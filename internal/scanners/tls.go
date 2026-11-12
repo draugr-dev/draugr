@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -39,9 +40,9 @@ type draugrTLSScanner struct {
 	// lists as insecure included, for a server that refused the suites a current client offers.
 	// Injected for the same reason as probe; nil leaves such a server an error.
 	probeLegacySuites func(ctx context.Context, addr string, serverName string) (tls.ConnectionState, error)
-	// probeSuites performs one handshake from TLS 1.0 to 1.2 offering only the given suites, to ask
+	// probeSuites performs one handshake from TLS 1.0 to maxVer offering only the given suites, to ask
 	// whether the server accepts any of them. Injected for the same reason as probe.
-	probeSuites func(ctx context.Context, addr string, serverName string, suites []uint16) (tls.ConnectionState, error)
+	probeSuites func(ctx context.Context, addr string, serverName string, maxVer uint16, suites []uint16) (tls.ConnectionState, error)
 	// now supplies the current time (certificate expiry math); injected for deterministic tests.
 	now func() time.Time
 	// verify verifies a chain the handshakes received, at a time. verifyChain, against the system's
@@ -129,8 +130,8 @@ func NewTLSProbe() plugin.Scanner {
 		},
 		probe:             dialTLS,
 		probeLegacySuites: dialTLSLegacySuites,
-		probeSuites: func(ctx context.Context, addr, serverName string, suites []uint16) (tls.ConnectionState, error) {
-			return dialTLSWith(ctx, addr, serverName, tls.VersionTLS10, tls.VersionTLS12, suites)
+		probeSuites: func(ctx context.Context, addr, serverName string, maxVer uint16, suites []uint16) (tls.ConnectionState, error) {
+			return dialTLSWith(ctx, addr, serverName, tls.VersionTLS10, maxVer, suites)
 		},
 		now:    time.Now,
 		verify: verifyChain,
@@ -206,7 +207,8 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 				keep(suiteState)
 				switch {
 				case suiteErr == nil:
-					return report([]sarif.Result{legacyCipherFinding(host.URL, suiteState.CipherSuite)}), nil
+					found := []sarif.Result{legacyCipherFinding(host.URL, suiteState.CipherSuite)}
+					return report(append(found, s.familyFindings(ctx, addr, serverName, host.URL, false)...)), nil
 				case refusedSuites(suiteErr) && chain == nil:
 					return sarif.Report{Tool: s.info.Name, Results: []sarif.Result{noSharedCipherFinding(host.URL)}}, nil
 				}
@@ -234,14 +236,6 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 		}
 	}
 
-	// Weak suite families the server accepts beside current ones. A current client never picks
-	// them, and an old client, or one an attacker has pushed down, does.
-	for _, f := range suiteFamilies {
-		if state, err := s.probeSuites(ctx, addr, serverName, f.suites()); err == nil {
-			results = append(results, f.finding(host.URL, state.CipherSuite))
-		}
-	}
-
 	// Deprecated protocol versions: a successful handshake pinned to TLS 1.0/1.1 means the
 	// server still accepts it.
 	for _, v := range []struct {
@@ -266,6 +260,15 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 			})
 		}
 	}
+
+	// Weak suite families the server accepts beside current ones. A current client never picks
+	// them, and an old client, or one an attacker has pushed down, does. A server that took a TLS
+	// 1.0 or 1.1 handshake is asked again there when TLS 1.2 fails, since a TLS 1.2 handshake can be
+	// refused for the certificate's signature whatever the suites.
+	acceptedOld := slices.ContainsFunc(results, func(r sarif.Result) bool {
+		return r.RuleID == "tls-deprecated-protocol" || r.RuleID == "tls-modern-unsupported"
+	}) || modernRefusedOnSignature
+	results = append(results, s.familyFindings(ctx, addr, serverName, host.URL, acceptedOld)...)
 
 	// TLS 1.3 support is a positive signal; note (not a failure) when it's absent.
 	if _, err := s.probe(ctx, addr, serverName, tls.VersionTLS13, tls.VersionTLS13); err != nil {
@@ -304,6 +307,22 @@ var suiteFamilies = []suiteFamily{
 		"RSA key exchange has no forward secrecy, so anyone who later obtains the server's key can decrypt recorded traffic"},
 	{"tls-cipher-cbc", sarif.LevelNote, 3.0, func(n string) bool { return strings.Contains(n, "_CBC_") && !strings.Contains(n, "_3DES_") },
 		"CBC suites have a history of padding-oracle and timing attacks (Lucky13), and current guidance offers only AEAD suites"},
+}
+
+// familyFindings asks the server about each weak suite family, offering only that family's suites
+// up to TLS 1.2, and again up to TLS 1.1 when retryOld is set and the first handshake failed.
+func (s draugrTLSScanner) familyFindings(ctx context.Context, addr, serverName, uri string, retryOld bool) []sarif.Result {
+	var out []sarif.Result
+	for _, f := range suiteFamilies {
+		state, err := s.probeSuites(ctx, addr, serverName, tls.VersionTLS12, f.suites())
+		if err != nil && retryOld {
+			state, err = s.probeSuites(ctx, addr, serverName, tls.VersionTLS11, f.suites())
+		}
+		if err == nil {
+			out = append(out, f.finding(uri, state.CipherSuite))
+		}
+	}
+	return out
 }
 
 // suites lists every suite Go implements that belongs to the family.

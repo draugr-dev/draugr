@@ -34,8 +34,10 @@ signature scheme for that certificate; the signature finding then says so, in pl
 
 Each weak cipher-suite family is asked about on every endpoint, with a handshake offering only that
 family's suites, so a server that accepts RC4 beside current suites is reported though no current
-client would pick it. Each family is its own rule, so an endpoint that must keep one for an old
-client excludes that rule and keeps the others.
+client would pick it. An endpoint that accepts only old suites is asked too, and one that took a
+TLS 1.0 or 1.1 handshake is asked again up to TLS 1.1 when the TLS 1.2 one fails, since a TLS 1.2
+handshake can fail on the certificate's signature whatever the suites. Each family is its own rule,
+so an endpoint that must keep one for an old client excludes that rule and keeps the others.
 
 | Rule | Level | What it means |
 |------|-------|---------------|

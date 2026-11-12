@@ -9,6 +9,7 @@ import (
 	"errors"
 	"math/big"
 	"net"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -183,7 +184,7 @@ func TestEachWeakSuiteFamilyAHostAcceptsIsItsOwnFinding(t *testing.T) {
 	cert := makeCert(t, testNow.Add(90*24*time.Hour), x509.SHA256WithRSA, rsaKey(t, 2048))
 	s := newTestScanner(probeFunc(tls.ConnectionState{PeerCertificates: []*x509.Certificate{cert}}, tls.VersionTLS13))
 	accepts := map[uint16]bool{tls.TLS_RSA_WITH_AES_128_CBC_SHA: true, tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA: true}
-	s.probeSuites = func(_ context.Context, _, _ string, offered []uint16) (tls.ConnectionState, error) {
+	s.probeSuites = func(_ context.Context, _, _ string, _ uint16, offered []uint16) (tls.ConnectionState, error) {
 		for _, id := range offered {
 			if accepts[id] {
 				return tls.ConnectionState{CipherSuite: id}, nil
@@ -225,5 +226,60 @@ func TestSuiteFamiliesOfferOnlyTheirOwnKind(t *testing.T) {
 				t.Errorf("%s offers %s, a current suite", f.rule, name)
 			}
 		}
+	}
+}
+
+// A server accepting only old suites is asked about each family as well, so the RSA key exchange
+// and CBC it also accepts are reported, not only the one suite it chose first.
+func TestAServerAcceptingOnlyOldSuitesIsAskedAboutEachFamily(t *testing.T) {
+	s := newTestScanner(refusingProbe)
+	s.probeLegacySuites = func(context.Context, string, string) (tls.ConnectionState, error) {
+		return tls.ConnectionState{CipherSuite: tls.TLS_RSA_WITH_AES_256_GCM_SHA384}, nil
+	}
+	accepts := map[uint16]bool{tls.TLS_RSA_WITH_AES_256_GCM_SHA384: true, tls.TLS_RSA_WITH_AES_128_CBC_SHA: true}
+	s.probeSuites = func(_ context.Context, _, _ string, _ uint16, offered []uint16) (tls.ConnectionState, error) {
+		for _, id := range offered {
+			if accepts[id] {
+				return tls.ConnectionState{CipherSuite: id}, nil
+			}
+		}
+		return tls.ConnectionState{}, refusal()
+	}
+	rep, err := s.Scan(context.Background(), plugin.HostTarget{URL: "https://static-rsa.example.test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"tls-legacy-cipher-only", "tls-cipher-static-rsa", "tls-cipher-cbc"} {
+		if !hasRule(rep, want) {
+			t.Errorf("want %s, got %v", want, ruleIDs(rep))
+		}
+	}
+}
+
+// A server that took a TLS 1.0 or 1.1 handshake and refuses a TLS 1.2 one, for its certificate's
+// signature say, is asked about each family again up to TLS 1.1.
+func TestAFamilyRefusedAtTLS12IsAskedAgainAtTLS11(t *testing.T) {
+	weakLeaf := makeCert(t, testNow.Add(90*24*time.Hour), x509.SHA1WithRSA, rsaKey(t, 2048))
+	state := tls.ConnectionState{PeerCertificates: []*x509.Certificate{weakLeaf}}
+	s := newTestScanner(func(_ context.Context, _, _ string, minVer, _ uint16) (tls.ConnectionState, error) {
+		if minVer <= tls.VersionTLS11 {
+			return state, nil
+		}
+		return tls.ConnectionState{}, refusal()
+	})
+	var asked []uint16
+	s.probeSuites = func(_ context.Context, _, _ string, maxVer uint16, offered []uint16) (tls.ConnectionState, error) {
+		asked = append(asked, maxVer)
+		if maxVer == tls.VersionTLS11 && slices.Contains(offered, tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA) {
+			return tls.ConnectionState{CipherSuite: tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA}, nil
+		}
+		return tls.ConnectionState{}, refusal()
+	}
+	rep, err := s.Scan(context.Background(), plugin.HostTarget{URL: "https://md5.example.test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasRule(rep, "tls-cipher-cbc") {
+		t.Errorf("want tls-cipher-cbc from the TLS 1.1 retry, got %v (asked at %v)", ruleIDs(rep), asked)
 	}
 }
