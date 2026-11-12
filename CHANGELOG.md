@@ -18,15 +18,21 @@ _Nothing yet._
 
 - **Check an Azure subscription with the `cloud` control.** Declare an account with `provider: azure` and a subscription, and the scan runs CIS 6.0 for Azure through Prowler with `Reader` on the subscription. Checks the credentials cannot read are listed as unread, not passed. The Entra checks, which read the whole tenant's directory, are listed as not run.
 
-- **`draugr doctor` says when the `prowler` on `PATH` is not the release Draugr's read tables come from.** A check can then have its result discarded though it ran, or kept though a read it needs was denied. The line gives the `pip install prowler==<release>` that matches.
+- **`draugr doctor` says when the `prowler` on `PATH` is not the Prowler release Draugr knows each check's reads from.** A mismatched Prowler can drop a check's result though it ran, or keep one though a read it needs was denied. The line gives the matching `pip install prowler==<release>`.
 
 - **report.json says which actions `--view actions` lists on one row.** Each action for a single line that shares a row with others carries `row`, the `id` of the row's first action, so a script can list one rule across hundreds of lines as one thing to do.
 
 ### Changed
 
-- **A `dast` host with `spec` is refused until `config.allowEffects` lists `mutate`.** The scan sends injection payloads into every parameter of the document's operations, a `GET` that changes state included. Add `allowEffects: [mutate]` to `config`, or pass `--allow-effects mutate`. Once accepted, the host also runs the default templates at its URL, which a spec scan skipped.
+- **A `dast` host with `spec` is refused until `config.allowEffects` lists `mutate`.** The scan sends injection payloads into every parameter of the document's operations, a `GET` that changes state included. Add `allowEffects: [mutate]` to `config`, or pass `--allow-effects mutate`. Once it is allowed, the host also runs the default templates at its URL, which a spec scan skipped.
 
 - **A finding in `draugr scan` names its rule id whole**, beside its band, with the message on the line beneath, so the id can be copied into `config.exclude` as printed. An id too wide for the line takes a line of its own.
+
+- **The `kubernetes` control rates privileged pods, host namespaces, hostPath volumes, host ports and bindings to `cluster-admin` high instead of medium**, so a gate that fails on high now fails on them. Objects your distribution installed are listed after yours, and a check only they fail is low.
+
+- **`kube-bench-job` needs `list` on `nodes`, and reads the right node for each check.** Control-plane checks run on a control-plane node and worker checks on a worker, so every run reads the same nodes. A check that read nothing is an `unread-checks` caveat instead of a failure. k3s and RKE2 nodes mount `/var/lib/rancher`.
+
+- **`licenses` marks a dependency file unread when any package in it has no license.** A `package-lock.json` where npm left the `license` field out of some entries counted as read, so a copyleft package among them passed unchecked. The caveat gives a reason such as `records no license for 1 package`. Under `failOnCaveats: [unread-files]` it now fails the run.
 
 ### Fixed
 
@@ -56,15 +62,11 @@ _Nothing yet._
 
 - **gosec analyzes every package whose path contains `vendor`.** A package in a directory such as `vendorhash/` was skipped without a word, and a module in a directory such as `vendor-api/` read as holding no Go packages. gosec now gets the packages the go command lists, so it no longer reads `testdata/` or directories starting with `.` or `_`.
 
-- **See which HTTP response the header findings describe.** When an endpoint returns a non-2xx status, the report identifies the status in a caveat and keeps the findings for that response.
+- **Header findings say which HTTP response they describe.** When an endpoint returns a non-2xx status, a caveat names the status, and the findings for that response are kept.
 
-- **A finding on CISA's KEV catalog that was critical already is marked `KEV listed`, as one the catalog raised is marked `↑ KEV`.** The findings list now ranks KEV findings first in their band, then EPSS-raised ones, so at the default `--top` the catalog's findings are no longer cut.
-
-- **`kube-bench-job` reads the right node for each check.** Control-plane checks run on a control-plane node and worker checks on a worker, so every run reads the same nodes. A check that read nothing is an `unread-checks` caveat instead of a failure. The scanning identity needs `list` on `nodes`. k3s and RKE2 nodes mount `/var/lib/rancher`.
+- **Findings on CISA's Known Exploited Vulnerabilities (KEV) catalog rank first in their band.** One the catalog raised is marked `↑ KEV`, and one that was critical already is now marked `KEV listed`. EPSS-raised findings follow, so at the default `--top` the catalog's findings are no longer cut.
 
 - **`kubeBench` audits a k3s, RKE2, EKS, GKE, AKS or ACK cluster against its provider benchmark when the local kubectl is more than one minor version from the server.** The scan used to stop because kube-bench fell back to `cis-1.6`.
-
-- **`licenses` marks a dependency file unread when any package in it has no license.** A `package-lock.json` where npm left the `license` field out of some entries counted as read, so a copyleft package among them passed unchecked. Caveats list the file with a reason such as `records no license for 1 package`.
 
 - **Two findings of one rule at lines that read alike in one file no longer share a content fingerprint.** In line order the second carries `:2` after it and the third `:3`, so a tool that identifies findings by that fingerprint keeps each one. The first keeps the value it had.
 
@@ -82,8 +84,6 @@ _Nothing yet._
 
 - **The Action posts its pull-request comment on a pull request between two branches of a forked repository.** It treated every pull request inside a fork as coming from another repository, so it left the comment off, though the token could post it, and read the cache without writing it.
 
-- **The `kubernetes` control now fails a cluster running privileged pods, host namespaces, hostPath volumes or host ports, or one with a binding to `cluster-admin`.** These checks were medium and are now high. Objects the distribution installed are listed after yours, and a check only they fail is low.
-
 - **`tls` reports a server that accepts only older cipher suites as a finding, naming the suite it chose and the problem with it.** It printed `ERROR did not run`. A server that refuses those too is reported as accepting no suite Draugr can offer, likely DHE, NULL or export suites.
 
 - **Canceling a scan ends the processes its tools started, not only the tools.** Semgrep's workers, the `go` processes under gosec and govulncheck and the `kubectl` calls under kube-bench used to keep running, and a canceled scan could wait on them. It now returns within seconds.
@@ -92,7 +92,7 @@ _Nothing yet._
 
 ### Security
 
-- **Release binaries are built with Go 1.27.4**, which fixes [GO-2026-6859](https://pkg.go.dev/vuln/GO-2026-6859), a crash in an HTTP/1 server that limits request bodies with `MaxBytesReader`. Draugr runs no such server. A binary from `go install` is built with your own toolchain, so build it with Go 1.26.11, 1.27.4 or later.
+- **Release binaries are built with Go 1.27.4**, which fixes [GO-2026-6859](https://pkg.go.dev/vuln/GO-2026-6859), a crash in an HTTP/1 server that limits request bodies with `MaxBytesReader`. Releases up to 0.173.0 used an earlier Go, but Draugr runs no such server, so they were not exposed. A binary from `go install` uses your own toolchain: build it with Go 1.26.11, 1.27.4 or later.
 
 ## [0.173.0] - 2026-11-09
 
